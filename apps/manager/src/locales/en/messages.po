@@ -1037,6 +1037,10 @@ msgstr "Email verified successfully"
 msgid "Enable"
 msgstr "Enable"
 
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Enable browser notifications again"
+msgstr "Enable browser notifications again"
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Enable Sessions"
 msgstr "Enable Sessions"
@@ -2609,6 +2613,10 @@ msgstr "Smart account access"
 msgid "Social"
 msgstr "Social"
 
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Some browsers ask how long to allow notifications — choose the permanent option so you keep receiving them."
+msgstr "Some browsers ask how long to allow notifications — choose the permanent option so you keep receiving them."
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Some locked names have records that this upgrade cannot preserve. Deselect those names to continue."
 msgstr "Some locked names have records that this upgrade cannot preserve. Deselect those names to continue."
@@ -3518,6 +3526,10 @@ msgstr "Your account"
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Your account could not be checked. Please try again."
 msgstr "Your account could not be checked. Please try again."
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Your account has browser notifications set up, but this session hasn't granted permission. Some browsers ask how long to allow notifications — choose the permanent option (e.g. “Allow”, not “Allow this time”) when your browser asks."
+msgstr "Your account has browser notifications set up, but this session hasn't granted permission. Some browsers ask how long to allow notifications — choose the permanent option (e.g. “Allow”, not “Allow this time”) when your browser asks."
 
 #: src/features/notifications/settings/contact-methods/push-error-copy.ts
 msgid "Your browser blocked the permission prompt, so notifications couldn't be enabled. Allow notifications for this site, then try again."

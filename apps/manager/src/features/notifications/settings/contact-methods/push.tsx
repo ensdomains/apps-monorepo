@@ -46,7 +46,9 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
     ...enableBrowserPushMutationOptions,
     onSuccess: () => {
       setLastEnableError(null)
-      toast.success(t`Browser notifications enabled`)
+      toast.success(t`Browser notifications enabled`, {
+        description: t`Some browsers ask how long to allow notifications — choose the permanent option so you keep receiving them.`,
+      })
       browserState.refetch()
     },
     onError: (error) => {
@@ -163,6 +165,26 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
             <Trans>
               To enable, go to your browser's site settings for this page and
               allow notifications.
+            </Trans>
+          </AlertDescription>
+        </Alert>
+      )}
+      {/* The backend has a push channel for this browser, but this browser
+          session no longer grants notification permission — the signature of
+          a session-scoped (or silently revoked) grant that expired while the
+          browser was closed. Explain why re-enabling is expected here. */}
+      {isSupported && permission === 'default' && matchedChannel && (
+        <Alert>
+          <MSymbol className="ms-opsz-16 ms-wght-300 block" symbol="info" />
+          <AlertTitle>
+            <Trans>Enable browser notifications again</Trans>
+          </AlertTitle>
+          <AlertDescription>
+            <Trans>
+              Your account has browser notifications set up, but this session
+              hasn't granted permission. Some browsers ask how long to allow
+              notifications — choose the permanent option (e.g. “Allow”, not
+              “Allow this time”) when your browser asks.
             </Trans>
           </AlertDescription>
         </Alert>
