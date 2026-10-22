@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { CircleAlert } from 'lucide-react'
+import { match, P } from 'ts-pattern'
 import { usePublicClient } from 'wagmi'
 import { Alert } from '@/components/ui/alert'
 import { envConfig } from '@/config'
@@ -53,11 +54,14 @@ export const UpgradeBanner = ({
     ...getSubnameImpactPreviewQueryOptions({ name, publicClient }),
     enabled: !!publicClient && !!MANAGER_UPGRADE_URL,
   })
-  const impact: SubnameImpact = impactQuery.isError
-    ? { status: 'error' }
-    : impactQuery.data
-      ? { status: 'ready', affectedCount: impactQuery.data.affectedCount }
-      : { status: 'pending' }
+  const impact = match(impactQuery)
+    .returnType<SubnameImpact>()
+    .with({ isError: true }, () => ({ status: 'error' }))
+    .with({ data: P.nonNullable }, ({ data }) => ({
+      status: 'ready',
+      affectedCount: data.affectedCount,
+    }))
+    .otherwise(() => ({ status: 'pending' }))
 
   return (
     <Alert

@@ -1,5 +1,5 @@
 import type { EnsNetwork } from '@ens-apps/config'
-import { NOTICE_BANNER_FLAG } from '@ens-apps/utils/posthog/notice-banner'
+import { NOTICE_BANNER_FLAG } from '@ens-apps/utils/posthog/noticeBanner'
 
 export const POSTHOG_FEATURE_FLAGS = {
   I18N: 'i18n',

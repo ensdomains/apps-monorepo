@@ -1,7 +1,7 @@
 import {
   type NoticeBanner,
   readNoticeBanner,
-} from '@ens-apps/utils/posthog/notice-banner'
+} from '@ens-apps/utils/posthog/noticeBanner'
 import { useFeatureFlagEnabled, useFeatureFlagPayload } from '@posthog/react'
 import { chain } from '@/config'
 import { POSTHOG_FEATURE_FLAGS } from './feature-flags'

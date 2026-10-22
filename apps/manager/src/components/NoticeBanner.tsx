@@ -1,4 +1,4 @@
-import type { NoticeBannerVariant } from '@ens-apps/utils/posthog/notice-banner'
+import type { NoticeBannerVariant } from '@ens-apps/utils/posthog/noticeBanner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { tw } from '@/utils/tailwind'
 

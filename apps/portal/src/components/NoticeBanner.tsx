@@ -2,7 +2,7 @@ import {
   NOTICE_BANNER_FLAG,
   type NoticeBannerVariant,
   readNoticeBanner,
-} from '@ens-apps/utils/posthog/notice-banner'
+} from '@ens-apps/utils/posthog/noticeBanner'
 import { useFeatureFlagEnabled, useFeatureFlagPayload } from '@posthog/react'
 import { useState } from 'react'
 import { Alert, AlertClose, AlertDescription } from '@/components/ui/alert'
