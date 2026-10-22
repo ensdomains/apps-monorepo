@@ -4,7 +4,7 @@ import {
   readNoticeBanner,
 } from '@ens-apps/utils/posthog/notice-banner'
 import { useFeatureFlagEnabled, useFeatureFlagPayload } from '@posthog/react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Alert, AlertClose, AlertDescription } from '@/components/ui/alert'
 import { envConfig } from '@/config'
 
@@ -28,11 +28,9 @@ export const NoticeBanner = () => {
           chainId: envConfig.chain.id,
         })
       : null
-  const [dismissedMessage, setDismissedMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    setDismissedMessage(window.localStorage.getItem(NOTICE_DISMISSED_KEY))
-  }, [])
+  const [dismissedMessage, setDismissedMessage] = useState(() =>
+    window.localStorage.getItem(NOTICE_DISMISSED_KEY),
+  )
 
   if (notice === null || dismissedMessage === notice.message) return null
 
