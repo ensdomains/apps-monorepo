@@ -67,7 +67,7 @@ export const PaymentCard = () => {
   const account = useSmartAccountContext()
   const checkout = {
     label,
-    durationInSeconds: duration,
+    durationInSeconds: BigInt(duration),
     token: TOKENS.USDC.symbol,
     account,
   }

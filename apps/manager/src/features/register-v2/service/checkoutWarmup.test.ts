@@ -40,7 +40,7 @@ const HCA = '0x2222222222222222222222222222222222222222' as Address
 const warm = (signer: { type: string } | null) =>
   warmRegistrationCheckout(new QueryClient(), {
     label: 'jeff',
-    durationInSeconds: 31_536_000,
+    durationInSeconds: 31_536_000n,
     token: 'USDC',
     account: {
       accountAddress: signer ? HCA : null,

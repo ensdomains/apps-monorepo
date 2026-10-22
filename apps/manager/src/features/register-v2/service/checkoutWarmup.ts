@@ -18,7 +18,7 @@ export type CheckoutAccount = Pick<
 
 export interface CheckoutWarmupParams {
   readonly label: string
-  readonly durationInSeconds: number
+  readonly durationInSeconds: bigint
   readonly token: SUPPORTED_TOKEN
   readonly account: CheckoutAccount
 }
@@ -60,7 +60,8 @@ export const buildCheckoutBudgetParams = (
   setAsPrimary: boolean,
 ): HcaBudgetQueryParams => ({
   label: params.label,
-  durationInSeconds: params.durationInSeconds,
+  // The pricing and budget queries still key on a number of seconds.
+  durationInSeconds: Number(params.durationInSeconds),
   hca: params.account.accountAddress,
   signer: params.account.signer,
   primaryName: setAsPrimary ? `${params.label}.eth` : undefined,
@@ -86,7 +87,7 @@ export const warmRegistrationCheckout = async (
     queryClient.fetchQuery(
       getRegisterPriceQueryOptions(
         params.label,
-        params.durationInSeconds,
+        Number(params.durationInSeconds),
         params.token,
       ),
     ),
