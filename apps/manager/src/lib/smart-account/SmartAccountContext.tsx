@@ -24,7 +24,6 @@ import type {
   RhinestoneSigner,
   Signer,
 } from '@ens-apps/transaction-manager'
-import { isTerminalWalletError } from '@ens-apps/transaction-manager/helpers/wallet-errors.helpers'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
@@ -764,7 +763,7 @@ export const SmartAccountContextProvider = ({
   const enableSession = useCallback(async (): Promise<EnableSessionOutcome> => {
     const result = await authorizeSession()
     if (result instanceof Error) {
-      return isTerminalWalletError(result)
+      return isWalletDeclineError(result)
         ? { status: 'declined' }
         : { status: 'failed', message: result.message }
     }

@@ -87,6 +87,30 @@ describe('useSmartSessionGate', () => {
     expect(screen.getByText('Enable Sessions')).toBeInTheDocument()
   })
 
+  it('a request enabled after dismiss and reopen closes the new prompt and runs its action', async () => {
+    let resolve: (outcome: EnableSessionOutcome) => void = () => {}
+    enableSession.mockReturnValue(
+      new Promise<EnableSessionOutcome>((r) => {
+        resolve = r
+      }),
+    )
+    render(<Harness />)
+    openDialog()
+    fireEvent.click(screen.getByText('Enable Sessions'))
+
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: 'Escape',
+    })
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    openDialog()
+
+    resolve(enabled)
+    await waitFor(() => expect(proceed).toHaveBeenCalledOnce())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('ignores the result of a request dismissed before it finished, even after reopening', async () => {
     let resolve: (outcome: EnableSessionOutcome) => void = () => {}
     enableSession.mockReturnValue(

@@ -1,6 +1,9 @@
 import { TransactionExecutionError, UserRejectedRequestError } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { isTerminalWalletError } from './wallet-errors.helpers'
+import {
+  isTerminalWalletError,
+  isWalletDeclineError,
+} from './wallet-errors.helpers'
 
 describe('isTerminalWalletError', () => {
   it('finds a rejection under the transport wrapper', () => {
@@ -21,6 +24,19 @@ describe('isTerminalWalletError', () => {
     })
     wrapper.name = 'eu'
     expect(isTerminalWalletError(wrapper)).toBe(true)
+  })
+
+  it('tells a decline from a 4100 refusal, which is terminal but not a decision', () => {
+    const refused = new Error('wrapped', {
+      cause: { name: 'ProviderRpcError', code: 4100 },
+    })
+    expect(isTerminalWalletError(refused)).toBe(true)
+    expect(isWalletDeclineError(refused)).toBe(false)
+    expect(
+      isWalletDeclineError(
+        new Error('wrapped', { cause: { name: 'UserRejectedRequestError' } }),
+      ),
+    ).toBe(true)
   })
 
   it('finds a 4100, which a wallet returns once its spam filter trips', () => {

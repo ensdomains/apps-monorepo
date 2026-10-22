@@ -66,7 +66,9 @@ export function useSmartSessionGate(): SmartSessionGate {
   const onEnableSession = useCallback(async () => {
     const prompt = promptRef.current
     const outcome = await account.enableSession()
-    if (promptRef.current !== prompt) return
+    // A success is good for whichever prompt is open now: the session is
+    // active. A decline or failure belongs to the prompt that asked.
+    if (promptRef.current !== prompt && outcome.status !== 'enabled') return
     if (outcome.status === 'failed') {
       setHasFailed(true)
       return
