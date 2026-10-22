@@ -314,7 +314,9 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         ),
       )
       const response = await callback(attempt.authorizationUrl)
-      expect(await response.text()).toContain('connection unsuccessful')
+      expect(await response.text()).toContain(
+        '<h1>Connection not completed</h1>',
+      )
       expect(await channels()).toHaveLength(0)
       expect(await (await request('/oauth')).json()).toMatchObject({
         attempt: { status: 'cancelled' },
@@ -397,7 +399,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
         ),
       )
       expect(await (await callback(attempt.authorizationUrl)).text()).toContain(
-        'connection unsuccessful',
+        '<h1>Connection not completed</h1>',
       )
       expect(await channels()).toHaveLength(0)
       expect(await (await request('/oauth')).json()).toMatchObject({
@@ -438,7 +440,7 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
             : '&code=private-code',
         )
         const page = await response.text()
-        expect(page).toContain('connection unsuccessful')
+        expect(page).toContain('<h1>Connection not completed</h1>')
         expect(page).not.toContain('secret-token')
         expect(page).not.toContain('private-code')
         expect(await channels()).toHaveLength(0)
