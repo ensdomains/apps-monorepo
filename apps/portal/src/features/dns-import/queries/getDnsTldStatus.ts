@@ -23,7 +23,19 @@ export class GetDnsTldStatusError extends TaggedError('GetDnsTldStatusError')<{
  */
 export type DnsTldStatus =
   | { readonly type: 'standard' }
-  | { readonly type: 'custom'; readonly registrar: Address }
+  /** `registrar` is null on a chain where the operator has not claimed the node (testnets). */
+  | { readonly type: 'custom'; readonly registrar: Address | null }
+
+/** TLDs the docs list as custom integrations; blocked on every chain, as the current App does. */
+export const CUSTOM_DNS_TLDS: ReadonlySet<string> = new Set([
+  'art',
+  'box',
+  'hiphop',
+  'club',
+  'kred',
+  'locker',
+  'luxe',
+])
 
 type GetDnsTldStatusParameters = {
   tld: string
@@ -47,13 +59,18 @@ export const getDnsTldStatus = ResultFn(async function* ({
 
   // An unset TLD node is standard too: proveAndClaim enables it on first
   // claim, as long as the PublicSuffixList accepts the suffix.
-  if (
+  const isStandardOwner =
     !owner ||
     isAddressEqual(owner, zeroAddress) ||
     isAddressEqual(owner, dnsRegistrar)
-  ) {
-    return ok<DnsTldStatus>({ type: 'standard' })
+
+  if (CUSTOM_DNS_TLDS.has(tld.toLowerCase())) {
+    return ok<DnsTldStatus>({
+      type: 'custom',
+      registrar: isStandardOwner ? null : owner,
+    })
   }
+  if (isStandardOwner) return ok<DnsTldStatus>({ type: 'standard' })
 
   return ok<DnsTldStatus>({ type: 'custom', registrar: owner })
 })

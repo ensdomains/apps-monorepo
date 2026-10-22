@@ -70,6 +70,17 @@ describe('getDnsTldStatus', () => {
     })
   })
 
+  it('is custom for a TLD on the docs list even where the node is still the DNSRegistrar', async () => {
+    getOwnerMock.mockResolvedValue({
+      owner: DNS_REGISTRAR,
+      ownershipLevel: 'registry',
+    })
+
+    const result = await getDnsTldStatus({ tld: 'hiphop' })
+
+    expect(result._unsafeUnwrap()).toEqual({ type: 'custom', registrar: null })
+  })
+
   it('propagates read failures as GetDnsTldStatusError', async () => {
     const cause = new Error('rpc down')
     getOwnerMock.mockRejectedValue(cause)
