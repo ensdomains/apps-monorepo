@@ -1,11 +1,15 @@
-import type { ComponentProps } from 'react'
+import { ServerIcon } from 'lucide-react'
+import { type ComponentProps, useState } from 'react'
 import { ProfileSettingsIcon } from '@/assets/icons'
+import { getCustomRpcUrl } from '@/lib/customRpc'
 import { cn } from '@/lib/utils'
+import { RpcSettingsDialog } from './RpcSettingsDialog'
 import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
 
@@ -46,33 +50,43 @@ export const SettingsMenu = ({
 }: Pick<ComponentProps<typeof DropdownMenuContent>, 'side'> & {
   readonly className?: string
 }) => {
+  const [rpcOpen, setRpcOpen] = useState(false)
+  const customRpc = getCustomRpcUrl()
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            'size-8 shrink-0 text-muted-foreground hover:text-foreground',
-            className,
-          )}
-          aria-label="Settings"
-        >
-          <ProfileSettingsIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side={side} align="end" className="min-w-52">
-        <ThemeToggle />
-        {/* POSTHOG_LAUNCH_PAUSE: restore alongside FeedbackMenuItem above.
-        <FeedbackMenuItem />
-        */}
-        {/* <DropdownMenuItem asChild>
-          <ExternalLink href="https://sepolia.etherscan.io">
-            <ChipLinkIcon className="size-3" />
-            Sepolia explorer
-          </ExternalLink>
-        </DropdownMenuItem> */}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'size-8 shrink-0 text-muted-foreground hover:text-foreground',
+              className,
+            )}
+            aria-label="Settings"
+          >
+            <ProfileSettingsIcon className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side={side} align="end" className="min-w-52">
+          <ThemeToggle />
+          <DropdownMenuItem onSelect={() => setRpcOpen(true)}>
+            <ServerIcon className="size-4" />
+            RPC: {customRpc ? new URL(customRpc).host : 'Default'}
+          </DropdownMenuItem>
+          {/* POSTHOG_LAUNCH_PAUSE: restore alongside FeedbackMenuItem above.
+          <FeedbackMenuItem />
+          */}
+          {/* <DropdownMenuItem asChild>
+            <ExternalLink href="https://sepolia.etherscan.io">
+              <ChipLinkIcon className="size-3" />
+              Sepolia explorer
+            </ExternalLink>
+          </DropdownMenuItem> */}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <RpcSettingsDialog open={rpcOpen} onOpenChange={setRpcOpen} />
+    </>
   )
 }

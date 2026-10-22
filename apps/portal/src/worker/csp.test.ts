@@ -272,3 +272,19 @@ describe('indexers', () => {
     )
   })
 })
+
+describe('custom RPC', () => {
+  it('allows https/wss and local plaintext, but not bare http/ws', () => {
+    const connect = header['connect-src']
+    expect(connect).toEqual(
+      expect.arrayContaining([
+        'https:',
+        'wss:',
+        'http://localhost:*',
+        'ws://127.0.0.1:*',
+      ]),
+    )
+    expect(connect).not.toContain('http:')
+    expect(connect).not.toContain('ws:')
+  })
+})

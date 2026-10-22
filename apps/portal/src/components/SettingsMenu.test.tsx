@@ -12,6 +12,11 @@ vi.mock('./ThemeToggle', () => ({
   ThemeToggle: () => <div data-testid="theme-toggle" />,
 }))
 
+vi.mock('./RpcSettingsDialog', () => ({
+  RpcSettingsDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="rpc-dialog" /> : null,
+}))
+
 // FEEDBACK_SURVEY_ID is read at module scope, so the env must be stubbed
 // before a fresh import of the component.
 const importSettingsMenu = async (surveyId: string | undefined) => {
@@ -45,5 +50,18 @@ describe('SettingsMenu', () => {
 
     expect(await screen.findByTestId('theme-toggle')).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: /feedback/i })).toBeNull()
+  })
+
+  it('shows the RPC entry and opens its dialog', async () => {
+    const SettingsMenu = await importSettingsMenu(undefined)
+    const user = userEvent.setup()
+    render(<SettingsMenu />)
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(
+      await screen.findByRole('menuitem', { name: /rpc: default/i }),
+    )
+
+    expect(await screen.findByTestId('rpc-dialog')).toBeInTheDocument()
   })
 })
