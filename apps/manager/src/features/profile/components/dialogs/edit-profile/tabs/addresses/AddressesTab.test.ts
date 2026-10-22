@@ -153,7 +153,7 @@ describe('address row helpers', () => {
     })
     expect(getAddressOption(123_456_789)).toEqual({
       coinType: 123_456_789,
-      label: 'Address 123456789',
+      label: 'Coin type 123456789',
     })
   })
 
@@ -226,7 +226,7 @@ describe('address row helpers', () => {
     ).not.toContain(baseCoinType)
     expect(state.visibleOtherRows).toEqual([
       { coinType: bitcoinCoinType, label: 'Bitcoin' },
-      { coinType: 123_456_789, label: 'Address 123456789' },
+      { coinType: 123_456_789, label: 'Coin type 123456789' },
     ])
     expect(state.unavailableEvmCoinTypes.has(BSC_COIN_TYPE)).toBe(true)
     expect(state.unavailableOtherCoinTypes.has(123_456_789)).toBe(true)

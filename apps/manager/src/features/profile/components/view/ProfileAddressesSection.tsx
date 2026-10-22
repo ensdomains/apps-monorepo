@@ -1,12 +1,8 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import { useId } from 'react'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Card } from '@/components/ui/card'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { IconRenderer } from '@/features/profile/components/IconRenderer'
+import { AddressIcon } from '@/features/profile/components/AddressIcon'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
 import {
@@ -27,7 +23,7 @@ type ProfileAddressesSectionProps = {
   readonly records: ProfileRecords
 }
 
-// A 24px icon row inside 24px padding, so every address card is 72px tall.
+// Keep the original minimum height while allowing named badges to wrap.
 const addressCardClassName = cn(
   profileTileClassName,
   'h-auto min-h-18 w-full flex-row items-center justify-between gap-3 p-6 transition hover:bg-ens-quartz-50 has-[>svg]:px-6',
@@ -39,41 +35,26 @@ const AddressValue = ({ value }: { readonly value: string }) => (
   </span>
 )
 
-const ChainIconTooltip = ({
-  chain,
-}: {
-  readonly chain: ProfileAddressItem
-}) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <span
-        aria-label={chain.label}
-        className="inline-flex size-6 shrink-0"
-        role="img"
-        title=""
-      >
-        <IconRenderer className="size-6 object-contain" icon={chain.icon} />
-      </span>
-    </TooltipTrigger>
-    <TooltipContent>{chain.label}</TooltipContent>
-  </Tooltip>
-)
-
-const ReceivingChainIcons = ({
+const ReceivingChainBadges = ({
   chains,
+  id,
 }: {
   readonly chains: readonly ProfileAddressItem[]
+  readonly id: string
 }) => {
-  const withIcon = chains.filter((chain) => chain.icon)
-  if (withIcon.length === 0) return null
-
   return (
-    <div className="flex max-w-full flex-wrap items-center gap-1">
-      {withIcon.map((chain) => (
-        <ChainIconTooltip
-          chain={chain}
+    <div
+      className="flex min-w-0 max-w-full flex-wrap items-center gap-2 whitespace-normal text-left font-sans"
+      id={id}
+    >
+      {chains.map((chain) => (
+        <span
+          className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-ens-quartz-50 px-2 py-1 text-ens-quartz-600 text-xs"
           key={`${chain.coinType}-${chain.value}`}
-        />
+        >
+          <AddressIcon coinType={chain.coinType} size="sm" />
+          <span className="min-w-0 break-words">{chain.label}</span>
+        </span>
       ))}
     </div>
   )
@@ -87,10 +68,12 @@ const MainAddressCard = ({
   readonly chains: readonly ProfileAddressItem[]
 }) => {
   const { t } = useLingui()
+  const chainsId = useId()
 
   return (
     <Card asChild className={addressCardClassName}>
       <CopyableButton
+        aria-describedby={chainsId}
         aria-label={t`Copy address ${address.value}`}
         iconClassName={profileCardCopyIconClassName}
         iconStrokeWidth={profileCardTrailingIconStrokeWidth}
@@ -98,7 +81,7 @@ const MainAddressCard = ({
         variant="ghost"
       >
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-          <ReceivingChainIcons chains={chains} />
+          <ReceivingChainBadges chains={chains} id={chainsId} />
           <AddressValue value={address.value} />
         </div>
       </CopyableButton>
@@ -123,8 +106,13 @@ const ChainAddressCard = ({
         variant="ghost"
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <ChainIconTooltip chain={address} />
-          <AddressValue value={address.value} />
+          <AddressIcon coinType={address.coinType} size="lg" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1 text-left">
+            <span className="whitespace-normal break-words font-sans text-ens-quartz-600 text-xs">
+              {address.label}
+            </span>
+            <AddressValue value={address.value} />
+          </div>
         </div>
       </CopyableButton>
     </Card>
