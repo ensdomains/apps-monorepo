@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import {
   createNewRecord,
   type EditableRecord,
@@ -266,6 +267,18 @@ describe('createNewRecord', () => {
       key: 'sol',
       value: 'So11111111111111111111111111111111111111112',
       id: 501,
+    })
+    expect(record._uid).toBeDefined()
+  })
+
+  it('creates the ENSIP-19 default address record with coin type 0x80000000', () => {
+    const record = createNewRecord('address', 'DEFAULT', '0x123')
+
+    expect(record).toMatchObject({
+      type: 'address',
+      key: 'DEFAULT',
+      value: '0x123',
+      id: DEFAULT_EVM_COIN_TYPE,
     })
     expect(record._uid).toBeDefined()
   })

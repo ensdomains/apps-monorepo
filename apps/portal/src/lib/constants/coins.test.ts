@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { getCoinByCoinType, getCoinByName, SUPPORTED_COINS } from './coins'
 
 describe('coins', () => {
@@ -8,9 +9,26 @@ describe('coins', () => {
       expect(SUPPORTED_COINS[0].coinType).toBe(60)
     })
 
-    it('contains BTC as the second coin (priority)', () => {
-      expect(SUPPORTED_COINS[1].name).toBe('btc')
-      expect(SUPPORTED_COINS[1].coinType).toBe(0)
+    it('offers the ENSIP-19 default address record (WEB-1511)', () => {
+      const coin = getCoinByName('default')
+
+      expect(coin).toMatchObject({
+        name: 'default',
+        coinType: DEFAULT_EVM_COIN_TYPE,
+        icon: '/icons/Link.svg',
+      })
+      // address-encoder calls it "Default", which would render as
+      // "DEFAULT (Default)" in the picker.
+      expect(coin?.longName).toBe('Any EVM chain')
+      // Sits next to ETH, not buried in the alphabetic tail: it is the
+      // fallback every EVM chain without its own record uses.
+      expect(SUPPORTED_COINS[1]).toBe(coin)
+    })
+
+    it('contains BTC as a priority coin', () => {
+      const coin = getCoinByName('btc')
+
+      expect(coin?.coinType).toBe(0)
     })
 
     it('has correct structure for each coin', () => {
@@ -34,7 +52,13 @@ describe('coins', () => {
       expect(coinsWithIcons.length).toBeGreaterThan(0)
 
       for (const coin of coinsWithIcons) {
-        expect(coin.icon).toMatch(/^\/address\/\w+Icon\.svg$/)
+        // Coin art lives in /address; the ENSIP-19 default entry reuses the
+        // chain-link glyph the resolution tables give it.
+        expect(coin.icon).toMatch(
+          coin.name === 'default'
+            ? /^\/icons\/\w+\.svg$/
+            : /^\/address\/\w+Icon\.svg$/,
+        )
       }
     })
 
