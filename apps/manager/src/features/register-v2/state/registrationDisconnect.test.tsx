@@ -49,7 +49,7 @@ vi.mock('@/lib/smart-account/SmartAccountContext', async () => {
         accountAddress: owner,
         signer: walletClient ? { type: 'eoa', walletClient } : null,
         walletClient: walletClient ?? null,
-        enableSession: async () => null,
+        enableSession: async () => ({ status: 'declined' as const }),
         getSessionEnablePayload: async () => undefined,
       }
     },

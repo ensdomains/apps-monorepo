@@ -24,6 +24,7 @@ import type {
   RhinestoneSigner,
   Signer,
 } from '@ens-apps/transaction-manager'
+import { isWalletDeclineError } from '@ens-apps/transaction-manager/helpers/wallet-errors.helpers'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
@@ -82,6 +83,12 @@ export interface EnabledSession {
   readonly hcaSessionEnable: HcaSessionEnablePayload
 }
 
+/** `declined` is the owner refusing the ENABLE signature; `failed` is everything else. */
+export type EnableSessionOutcome =
+  | { readonly status: 'enabled'; readonly session: EnabledSession }
+  | { readonly status: 'declined' }
+  | { readonly status: 'failed'; readonly message: string }
+
 export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly hasInitialized: boolean
   readonly isReady: boolean
@@ -109,9 +116,9 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    * checks it against the account's session nonce each time. Resolves with the
    * session-attached signer and its enable payload to use IMMEDIATELY: until
    * the next render, `signer` and `getSessionEnablePayload()` still describe
-   * the session this one replaced. Null on failure / the EOA-only path.
+   * the session this one replaced. `failed` on the EOA-only path.
    */
-  readonly enableSession: () => Promise<EnabledSession | null>
+  readonly enableSession: () => Promise<EnableSessionOutcome>
   /**
    * Replace the active session with one whose gas-overhead cap allows the
    * requested overhead — the registration machine's way out when a quote
@@ -754,16 +761,21 @@ export const SmartAccountContextProvider = ({
     ],
   )
 
-  const enableSession =
-    useCallback(async (): Promise<EnabledSession | null> => {
-      const result = await authorizeSession()
-      return result instanceof Error
-        ? null
-        : {
-            signer: result.signer,
-            hcaSessionEnable: buildHcaSessionEnablePayload(result.session),
-          }
-    }, [authorizeSession])
+  const enableSession = useCallback(async (): Promise<EnableSessionOutcome> => {
+    const result = await authorizeSession()
+    if (result instanceof Error) {
+      return isWalletDeclineError(result)
+        ? { status: 'declined' }
+        : { status: 'failed', message: result.message }
+    }
+    return {
+      status: 'enabled',
+      session: {
+        signer: result.signer,
+        hcaSessionEnable: buildHcaSessionEnablePayload(result.session),
+      },
+    }
+  }, [authorizeSession])
 
   const reauthorizeSession = useCallback<ReauthorizeSession>(
     async ({ minGasOverhead }) => {

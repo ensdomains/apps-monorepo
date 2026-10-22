@@ -5,6 +5,7 @@ import {
   hcaMaxIntentFeeUsdcFor,
   type PermitPurpose,
   planHcaIntentFunding,
+  quoteHcaIntentFeeUsdc,
   type RhinestoneSigner,
   type RhinestoneTransactionRequest,
   transactionManager,
@@ -136,59 +137,30 @@ const readAuthorizedRent = ResultFn(async function* (
   )
 })
 
-/**
- * Renew one or more names as a single owner-signed HCA intent, with the rent in
- * the chosen stable and the intent's fee in USDC.
- *
- * There is no plain transaction and no gas token on this route: the wallet
- * signs typed data (the intent, plus a funding permit per token the HCA is
- * short of), and the HCA executes the calls out of its own balances.
- *
- * `renew` charges `msg.sender`, so the payer is the HCA, and the intent is
- * owner-signed — `HCAOwnerAndSessionValidator` allowlists only `commit` and
- * `register` for sessions, so a session-signed renewal reverts
- * `ActionNotAllowed`, and the owner's 65-byte branch applies no action policy.
- *
- * Resolves once the intent has filled, not merely been submitted.
- */
-export async function submitHcaRenewal(
-  params: SubmitHcaRenewalParams,
-): Promise<HcaRenewalResult> {
-  const {
-    items,
-    renewerAddress,
-    protocol,
-    token,
-    signer,
-    ownerAddress,
-    walletClient,
-    publicClient,
-    chainId,
-    onTxId,
-    confirmFunding,
-  } = params
+type RenewalIntent = {
+  readonly tokenAddress: Address
+  /** The rent with its approval headroom, in token units. */
+  readonly rentTotal: bigint
+  readonly actionCalls: readonly Call[]
+  readonly gasLimit: bigint
+}
 
+/** The calls a renewal intent runs and the limit it is quoted against; shared by the quote and the submit. */
+const buildRenewalIntent = async (params: {
+  readonly items: readonly HcaRenewalItem[]
+  readonly renewerAddress: Address
+  readonly protocol: RenewalProtocol
+  readonly token: RENEWAL_TOKEN
+  readonly hca: Address
+  readonly publicClient: PublicClient
+}): Promise<RenewalIntent> => {
+  const { items, renewerAddress, protocol, token, hca, publicClient } = params
   const [first, ...rest] = items
   if (!first) {
     throw new Error('A renewal intent needs at least one name.')
   }
   const single = rest.length === 0 ? first : undefined
-
-  // The wallet client and the owner address come from the account context
-  // separately and can momentarily diverge while the wallet reconnects or the
-  // user switches accounts. The intent and the funding permit are both signed
-  // by this wallet, so require it to actually control the owner address.
-  if (
-    !walletClient.account ||
-    !isAddressEqual(walletClient.account.address, ownerAddress)
-  ) {
-    throw new Error(
-      'Cannot renew - the connected wallet does not control the owner address.',
-    )
-  }
-
   const tokenAddress = TOKENS[token].address
-  const hca = getSmartAccountAddress(signer)
 
   // Unwrapped at this promise boundary: the service reports failures by
   // rejecting, and the reads themselves are composed as one Result.
@@ -237,6 +209,125 @@ export async function submitHcaRenewal(
   const gasLimit =
     hcaRenewalIntentGasLimit(items.length) +
     (token === 'USDC' ? 0n : HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS)
+
+  return { tokenAddress, rentTotal, actionCalls, gasLimit }
+}
+
+export type QuoteHcaRenewalFeeParams = Pick<
+  SubmitHcaRenewalParams,
+  | 'items'
+  | 'renewerAddress'
+  | 'protocol'
+  | 'token'
+  | 'signer'
+  | 'ownerAddress'
+  | 'publicClient'
+  | 'chainId'
+>
+
+/**
+ * The USDC (6dp) fee the rail quotes for this renewal intent, over the same
+ * batch `submitHcaRenewal` sends. Nothing is signed. `null` when it cannot be
+ * priced; the submit re-quotes and shows the final figure before any signature.
+ */
+export async function quoteHcaRenewalFee(
+  params: QuoteHcaRenewalFeeParams,
+): Promise<bigint | null> {
+  const {
+    items,
+    renewerAddress,
+    protocol,
+    token,
+    signer,
+    ownerAddress,
+    publicClient,
+    chainId,
+  } = params
+  const hca = getSmartAccountAddress(signer)
+  const { tokenAddress, rentTotal, actionCalls, gasLimit } =
+    await buildRenewalIntent({
+      items,
+      renewerAddress,
+      protocol,
+      token,
+      hca,
+      publicClient,
+    })
+
+  return quoteHcaIntentFeeUsdc({
+    signer: { ...signer, session: undefined },
+    ownerAddress,
+    publicClient,
+    chainId,
+    calls: actionCalls,
+    tokenSpend: {
+      token: tokenAddress,
+      symbol: TOKENS[token].symbol,
+      decimals: TOKENS[token].decimals,
+      permitKind: TOKENS[token].permitKind,
+      amount: rentTotal,
+    },
+    gasLimit,
+  })
+}
+
+/**
+ * Renew one or more names as a single owner-signed HCA intent, with the rent in
+ * the chosen stable and the intent's fee in USDC.
+ *
+ * There is no plain transaction and no gas token on this route: the wallet
+ * signs typed data (the intent, plus a funding permit per token the HCA is
+ * short of), and the HCA executes the calls out of its own balances.
+ *
+ * `renew` charges `msg.sender`, so the payer is the HCA, and the intent is
+ * owner-signed — `HCAOwnerAndSessionValidator` allowlists only `commit` and
+ * `register` for sessions, so a session-signed renewal reverts
+ * `ActionNotAllowed`, and the owner's 65-byte branch applies no action policy.
+ *
+ * Resolves once the intent has filled, not merely been submitted.
+ */
+export async function submitHcaRenewal(
+  params: SubmitHcaRenewalParams,
+): Promise<HcaRenewalResult> {
+  const {
+    items,
+    renewerAddress,
+    protocol,
+    token,
+    signer,
+    ownerAddress,
+    walletClient,
+    publicClient,
+    chainId,
+    onTxId,
+    confirmFunding,
+  } = params
+
+  const single = items.length === 1 ? items[0] : undefined
+
+  // The wallet client and the owner address come from the account context
+  // separately and can momentarily diverge while the wallet reconnects or the
+  // user switches accounts. The intent and the funding permit are both signed
+  // by this wallet, so require it to actually control the owner address.
+  if (
+    !walletClient.account ||
+    !isAddressEqual(walletClient.account.address, ownerAddress)
+  ) {
+    throw new Error(
+      'Cannot renew - the connected wallet does not control the owner address.',
+    )
+  }
+
+  const hca = getSmartAccountAddress(signer)
+  const { tokenAddress, rentTotal, actionCalls, gasLimit } =
+    await buildRenewalIntent({
+      items,
+      renewerAddress,
+      protocol,
+      token,
+      hca,
+      publicClient,
+    })
 
   // Owner-signed on purpose: `renew` is not one of the calls
   // `HCAOwnerAndSessionValidator` allows a session to make, so the intent has

@@ -318,6 +318,10 @@ msgstr ""
 msgid "Allow this temporary account to move this name."
 msgstr ""
 
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr ""
@@ -344,6 +348,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.tsx
 msgid "Approve and register name"
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
+msgid "Approve and renew name"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -669,10 +677,6 @@ msgstr ""
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Confirm"
-msgstr ""
-
-#: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
-msgid "Confirm purchase"
 msgstr ""
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
@@ -1212,10 +1216,6 @@ msgstr ""
 msgid "Follow these steps in your wallet. Renewal may need an extra payment approval."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-msgid "for"
-msgstr ""
-
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Frequently Asked Questions"
 msgstr "Vanliga frågor"
@@ -1324,10 +1324,6 @@ msgstr ""
 msgid "Idle"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-msgid "If your connected wallet has fewer than two names and no primary name yet, ENS may set this name as your primary name and link it to your connected wallet automatically."
-msgstr ""
-
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 msgid "Image not available"
 msgstr ""
@@ -1350,10 +1346,6 @@ msgstr ""
 
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "it has no ENSv2 reservation."
-msgstr ""
-
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
 msgstr ""
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
@@ -2016,7 +2008,6 @@ msgstr ""
 msgid "Reconnect your owner wallet to continue."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
 msgid "Register name"
@@ -2034,10 +2025,6 @@ msgstr ""
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Registered"
 msgstr "Registrerad"
-
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-msgid "Registering"
-msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Registering for"
@@ -2175,12 +2162,11 @@ msgid "Renew before upgrade"
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renew name"
 msgstr ""
 
 #: src/features/profile/components/view/ProfileRenewAction.tsx
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renew Name"
 msgstr ""
 
@@ -2247,10 +2233,6 @@ msgstr ""
 
 #: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
-msgstr ""
-
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
-msgid "Renewing"
 msgstr ""
 
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx
@@ -2426,10 +2408,6 @@ msgstr ""
 msgid "Select all names"
 msgstr ""
 
-#: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
-msgid "Select coin"
-msgstr ""
-
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
@@ -2591,16 +2569,8 @@ msgstr ""
 msgid "Smart account"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "Smart Account"
-msgstr ""
-
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Smart account access"
-msgstr ""
-
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "Smart sessions are required to use this app."
 msgstr ""
 
 #: src/features/profile/components/view/ProfileSocialSection.tsx
@@ -2856,6 +2826,10 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "The replacement resolver could not be verified. Please try again."
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "The session wasn't enabled."
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
@@ -3290,7 +3264,6 @@ msgstr ""
 msgid "We couldn't check your upgrade access."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
 msgstr ""
@@ -3395,6 +3368,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "You can buy this name at any point during the {periodDays}-day cooldown."
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "You can keep browsing, but registering or managing names needs a session. Try again when you're ready."
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
