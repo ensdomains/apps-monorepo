@@ -13,6 +13,7 @@ import { dnsEncodeName } from '@ensdomains/ensjs/utils/v2'
 import {
   type Address,
   BaseError,
+  ContractFunctionZeroDataError,
   createPublicClient,
   ExecutionRevertedError,
   encodeFunctionData,
@@ -96,7 +97,15 @@ export const authorizeUpload = async (
         chainId: upload.chainId,
       })
     } catch (error) {
-      if (error instanceof AccountVerificationError)
+      if (
+        error instanceof AccountVerificationError ||
+        (error instanceof BaseError &&
+          error.walk(
+            (cause) =>
+              cause instanceof ContractFunctionZeroDataError ||
+              cause instanceof ExecutionRevertedError,
+          ))
+      )
         throw new MediaError(
           403,
           'INVALID_ACCOUNT',
