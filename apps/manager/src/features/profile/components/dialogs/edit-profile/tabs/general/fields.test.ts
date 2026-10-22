@@ -34,15 +34,14 @@ describe('general profile fields', () => {
     ).toContain('name')
   })
 
-  it.each([
-    undefined,
-    '',
-    '   ',
-  ])('leaves full name unselected when the saved name is %p', (name) => {
-    expect(getDefaultVisibleFields(createRecords({ name }))).not.toContain(
-      'name',
-    )
-  })
+  it.each([undefined, '', '   '])(
+    'leaves full name unselected when the saved name is %p',
+    (name) => {
+      expect(getDefaultVisibleFields(createRecords({ name }))).not.toContain(
+        'name',
+      )
+    },
+  )
 
   it.each([
     ['avatar', 'base'],
@@ -53,31 +52,34 @@ describe('general profile fields', () => {
     ['language', 'base'],
     ['location', 'contact'],
     ['timezone', 'contact'],
-  ] as const)('removes the %s record value when toggled off', (field, section) => {
-    const records = {
-      ...createRecords({
-        avatar: 'https://example.com/avatar.png',
-        description: 'Bio',
-        header: 'https://example.com/banner.png',
-        language: 'en',
-        name: 'Yoginth',
-        url: 'https://example.com',
-      }),
-      contact: [
-        { key: 'location', value: 'Bengaluru' },
-        { key: 'timezone', value: 'UTC+5' },
-      ],
-    }
+  ] as const)(
+    'removes the %s record value when toggled off',
+    (field, section) => {
+      const records = {
+        ...createRecords({
+          avatar: 'https://example.com/avatar.png',
+          description: 'Bio',
+          header: 'https://example.com/banner.png',
+          language: 'en',
+          name: 'Yoginth',
+          url: 'https://example.com',
+        }),
+        contact: [
+          { key: 'location', value: 'Bengaluru' },
+          { key: 'timezone', value: 'UTC+5' },
+        ],
+      }
 
-    const result = removeGeneralFieldValue(records, field)
+      const result = removeGeneralFieldValue(records, field)
 
-    if (section === 'base') {
-      expect(result.base[field]).toBeUndefined()
-      return
-    }
+      if (section === 'base') {
+        expect(result.base[field]).toBeUndefined()
+        return
+      }
 
-    expect(result.contact.some((record) => record.key === field)).toBe(false)
-  })
+      expect(result.contact.some((record) => record.key === field)).toBe(false)
+    },
+  )
 
   it('reports invalid custom link values as general validation issues', () => {
     expect(

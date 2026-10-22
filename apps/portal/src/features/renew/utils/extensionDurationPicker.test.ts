@@ -56,21 +56,22 @@ describe('extensionDurationPicker', () => {
       ).toBe(59 * SECONDS_PER_DAY)
     })
 
-    it.each([
-      1, 2, 3, 6,
-    ])('charges %i whole contract years for a date on that year target', (years) => {
-      // Day-counting alone lands ~6h/yr short of the contract year and drops
-      // the term below the oracle's discount tier, so the chip would price as
-      // "N-1 years 11 months 29 days" once re-picked off the calendar.
-      const baseDate = plainDate('2028-08-06')
+    it.each([1, 2, 3, 6])(
+      'charges %i whole contract years for a date on that year target',
+      (years) => {
+        // Day-counting alone lands ~6h/yr short of the contract year and drops
+        // the term below the oracle's discount tier, so the chip would price as
+        // "N-1 years 11 months 29 days" once re-picked off the calendar.
+        const baseDate = plainDate('2028-08-06')
 
-      expect(
-        getExtensionDurationSeconds(baseDate, {
-          type: 'date',
-          date: getExtensionTargetDate(baseDate, { type: 'years', years }),
-        }),
-      ).toBe(getDurationInSecondsFromYears(years, baseDate))
-    })
+        expect(
+          getExtensionDurationSeconds(baseDate, {
+            type: 'date',
+            date: getExtensionTargetDate(baseDate, { type: 'years', years }),
+          }),
+        ).toBe(getDurationInSecondsFromYears(years, baseDate))
+      },
+    )
 
     it('treats a leap-day expiry constrained to Feb 28 as a whole year', () => {
       const baseDate = plainDate('2028-02-29')
@@ -134,19 +135,20 @@ describe('extensionDurationPicker', () => {
   })
 
   describe('getToggledExtensionSpan', () => {
-    it.each([
-      1, 3, 10,
-    ])('keeps %i years priced the same through a toggle', (years) => {
-      const baseDate = plainDate('2030-06-15')
-      const span = { type: 'years', years } as const
+    it.each([1, 3, 10])(
+      'keeps %i years priced the same through a toggle',
+      (years) => {
+        const baseDate = plainDate('2030-06-15')
+        const span = { type: 'years', years } as const
 
-      expect(
-        getExtensionDurationSeconds(
-          baseDate,
-          getToggledExtensionSpan(baseDate, span),
-        ),
-      ).toBe(getExtensionDurationSeconds(baseDate, span))
-    })
+        expect(
+          getExtensionDurationSeconds(
+            baseDate,
+            getToggledExtensionSpan(baseDate, span),
+          ),
+        ).toBe(getExtensionDurationSeconds(baseDate, span))
+      },
+    )
 
     it('round-trips a date span back to itself', () => {
       const baseDate = plainDate('2030-06-15')

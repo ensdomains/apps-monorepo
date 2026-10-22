@@ -265,41 +265,41 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
     })
   })
 
-  it.each([
-    'alpha.eth',
-    null,
-  ])('refetches shared reverse name after success starting from %s', async (initial) => {
-    chain.primaryName = initial
-    await renderDashboard()
-    if (initial) await expectPrimary(initial)
-    const trigger = initial
-      ? (await screen.findAllByRole('button', { name: 'Primary Name' }))[0]!
-      : await screen.findByRole('button', { name: 'Set primary name' })
-    fireEvent.click(trigger)
-    const dialog = await screen.findByRole('dialog', {
-      name: 'Choose Primary Name',
-    })
-    expect(dialog).toHaveAccessibleDescription(
-      'Your wallet address can only have one primary ENS name, which will display instead of your wallet address across apps and wallets.',
-    )
-    fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: 'Select beta.eth as primary name',
-      }),
-    )
-    const confirm = within(dialog).getByRole('button', {
-      name: 'Set as Primary',
-    })
-    await waitFor(() => expect(confirm).toBeEnabled())
-    const readsBefore = chain.read.mock.calls.length
-    fireEvent.click(confirm)
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
-    )
-    expect(chain.submit).toHaveBeenCalledOnce()
-    expect(chain.read.mock.calls.length).toBeGreaterThan(readsBefore)
-    await expectPrimary('beta.eth')
-  })
+  it.each(['alpha.eth', null])(
+    'refetches shared reverse name after success starting from %s',
+    async (initial) => {
+      chain.primaryName = initial
+      await renderDashboard()
+      if (initial) await expectPrimary(initial)
+      const trigger = initial
+        ? (await screen.findAllByRole('button', { name: 'Primary Name' }))[0]!
+        : await screen.findByRole('button', { name: 'Set primary name' })
+      fireEvent.click(trigger)
+      const dialog = await screen.findByRole('dialog', {
+        name: 'Choose Primary Name',
+      })
+      expect(dialog).toHaveAccessibleDescription(
+        'Your wallet address can only have one primary ENS name, which will display instead of your wallet address across apps and wallets.',
+      )
+      fireEvent.click(
+        within(dialog).getByRole('button', {
+          name: 'Select beta.eth as primary name',
+        }),
+      )
+      const confirm = within(dialog).getByRole('button', {
+        name: 'Set as Primary',
+      })
+      await waitFor(() => expect(confirm).toBeEnabled())
+      const readsBefore = chain.read.mock.calls.length
+      fireEvent.click(confirm)
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+      )
+      expect(chain.submit).toHaveBeenCalledOnce()
+      expect(chain.read.mock.calls.length).toBeGreaterThan(readsBefore)
+      await expectPrimary('beta.eth')
+    },
+  )
 
   it('keeps focus in My Names when the reverse-name refetch settles after close', async () => {
     await renderDashboard()

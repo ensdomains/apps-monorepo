@@ -136,29 +136,32 @@ describe('useTransferName — non-canonical name gate', () => {
     ['a fullwidth homoglyph label', 'ａlice.eth'],
     ['a non-canonical subname label', 'SUB.alice.eth'],
     ['an encoded labelhash label', `[${'a'.repeat(64)}].eth`],
-  ])('refuses %s without reading or preparing anything', async (_case, name) => {
-    const { result } = renderTransfer(name)
+  ])(
+    'refuses %s without reading or preparing anything',
+    async (_case, name) => {
+      const { result } = renderTransfer(name)
 
-    act(() => {
-      result.current.startTransfer({
-        recipient: RECIPIENT,
-        recipientInput: RECIPIENT,
-        roleGrants: [],
-        hasRemainingRoleHolders: false,
-        options,
+      act(() => {
+        result.current.startTransfer({
+          recipient: RECIPIENT,
+          recipientInput: RECIPIENT,
+          roleGrants: [],
+          hasRemainingRoleHolders: false,
+          options,
+        })
       })
-    })
 
-    await waitFor(() => {
-      expect(result.current.prepError).toBeInstanceOf(NonCanonicalNameError)
-    })
-    expect(result.current.prepError?.message).toMatch(/normalized form/)
-    // Nothing was read, estimated or opened: the refusal is the first thing.
-    expect(getOwnResolver).not.toHaveBeenCalled()
-    expect(getEnsTokenId).not.toHaveBeenCalled()
-    expect(openModal).not.toHaveBeenCalled()
-    expect(result.current.transactions).toEqual([])
-  })
+      await waitFor(() => {
+        expect(result.current.prepError).toBeInstanceOf(NonCanonicalNameError)
+      })
+      expect(result.current.prepError?.message).toMatch(/normalized form/)
+      // Nothing was read, estimated or opened: the refusal is the first thing.
+      expect(getOwnResolver).not.toHaveBeenCalled()
+      expect(getEnsTokenId).not.toHaveBeenCalled()
+      expect(openModal).not.toHaveBeenCalled()
+      expect(result.current.transactions).toEqual([])
+    },
+  )
 
   it('prepares the canonical spelling', async () => {
     const { result } = renderTransfer('alice.eth')

@@ -309,19 +309,21 @@ describe('getSubnamePagesQueryOptions', () => {
 })
 
 describe('getSubnamesCountQueryOptions', () => {
-  it.each([
-    'ENSv1',
-    'ENSv2',
-  ] as const)('reads the %s count as bigname’s total, without listing the subnames', async (protocolVersion) => {
-    vi.mocked(bigname.subnames).mockReturnValue(page([row('a')], { total: 7 }))
+  it.each(['ENSv1', 'ENSv2'] as const)(
+    'reads the %s count as bigname’s total, without listing the subnames',
+    async (protocolVersion) => {
+      vi.mocked(bigname.subnames).mockReturnValue(
+        page([row('a')], { total: 7 }),
+      )
 
-    const count = await new QueryClient().fetchQuery(
-      getSubnamesCountQueryOptions({ name: 'test.eth', protocolVersion }),
-    )
+      const count = await new QueryClient().fetchQuery(
+        getSubnamesCountQueryOptions({ name: 'test.eth', protocolVersion }),
+      )
 
-    expect(count).toBe(7)
-    expect(asked()?.[1]).toMatchObject({ page_size: 1 })
-  })
+      expect(count).toBe(7)
+      expect(asked()?.[1]).toMatchObject({ page_size: 1 })
+    },
+  )
 })
 
 describe('getIsSubnameTakenQueryOptions', () => {

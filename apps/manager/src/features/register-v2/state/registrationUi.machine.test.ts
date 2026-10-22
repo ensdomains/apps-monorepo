@@ -562,29 +562,31 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     walletClient: { account: { address: EOA_ADDRESS } } as any,
   } as unknown as SmartAccountContextValue
 
-  describe.each([
-    'EOA',
-    'HCA',
-  ])('%s canonical primary-name registration', (mode) => {
-    it.each([
-      'ALICE',
-      'cafe\u0301',
-    ])('refuses noncanonical label %s before starting registration', (label) => {
-      const actor = startActorInTokens()
-      actor.send({
-        ...startEvent(mode === 'EOA' ? eoaAccount : smartAccount, {
-          enabled: true,
-        }),
-        label,
-      })
-      expect(actor.getSnapshot().matches('failure')).toBe(true)
-      expect(actor.getSnapshot().context.lastErrorMessage).toMatch(/canonical/)
-      expect(getChild(actor).getSnapshot().matches('idle')).toBe(true)
-      expect(startSyncEthRecord).not.toHaveBeenCalled()
-      expect(startPrimaryNameForward).not.toHaveBeenCalled()
-      actor.stop()
-    })
-  })
+  describe.each(['EOA', 'HCA'])(
+    '%s canonical primary-name registration',
+    (mode) => {
+      it.each(['ALICE', 'cafe\u0301'])(
+        'refuses noncanonical label %s before starting registration',
+        (label) => {
+          const actor = startActorInTokens()
+          actor.send({
+            ...startEvent(mode === 'EOA' ? eoaAccount : smartAccount, {
+              enabled: true,
+            }),
+            label,
+          })
+          expect(actor.getSnapshot().matches('failure')).toBe(true)
+          expect(actor.getSnapshot().context.lastErrorMessage).toMatch(
+            /canonical/,
+          )
+          expect(getChild(actor).getSnapshot().matches('idle')).toBe(true)
+          expect(startSyncEthRecord).not.toHaveBeenCalled()
+          expect(startPrimaryNameForward).not.toHaveBeenCalled()
+          actor.stop()
+        },
+      )
+    },
+  )
 
   it('keeps the registered Unicode label in both EOA primary-name legs', async () => {
     const actor = startActorInTokens()

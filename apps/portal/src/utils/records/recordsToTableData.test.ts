@@ -1,6 +1,7 @@
 import type { EnsNetwork } from '@ens-apps/config'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { describe, expect, it, vi } from 'vitest'
+import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 
 const network = vi.hoisted(() => ({ value: 'sepolia' as EnsNetwork }))
 vi.mock('@/config', async (importOriginal) => {
@@ -189,6 +190,33 @@ describe('recordsToTableData', () => {
     expect(result[0]).toMatchObject({ key: 'ETH', type: 'address' })
     expect(result[1]).toMatchObject({ key: 'BTC', type: 'address' })
     expect(result[2]).toMatchObject({ key: 'BNB', type: 'address' })
+  })
+
+  it('names the ENSIP-19 default EVM record with its symbol (WEB-1511)', () => {
+    const records: GetRecordsReturnType = {
+      texts: [],
+      coins: [
+        {
+          coinType: DEFAULT_EVM_COIN_TYPE,
+          value: '0xfa75eD868C65970bbFDfc238d82D6cfCFd7D9031',
+          symbol: 'default',
+        },
+        { coinType: 60, value: 'eth-addr', symbol: 'eth' },
+      ],
+      contentHash: null,
+      abi: null,
+      resolverAddress: MOCK_RESOLVER,
+    }
+
+    const result = recordsToTableData(records)
+
+    // Not "Invalid coin type": `0x80000000` is the ENSIP-19 default, inside
+    // the ENSIP-11 EVM range.
+    expect(result[0]).toMatchObject({
+      key: 'default',
+      type: 'address',
+      id: DEFAULT_EVM_COIN_TYPE,
+    })
   })
 
   it('names the L2s keyed on testnet chain ids', () => {

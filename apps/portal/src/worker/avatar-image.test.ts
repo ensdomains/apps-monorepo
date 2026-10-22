@@ -153,21 +153,19 @@ describe('downscaleAvatar', () => {
       })
     })
 
-    it.each([
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/avif',
-    ])('re-encodes %s as PNG, so transparency survives', async (contentType) => {
-      const { images, outputs } = mockImages()
+    it.each(['image/png', 'image/gif', 'image/webp', 'image/avif'])(
+      're-encodes %s as PNG, so transparency survives',
+      async (contentType) => {
+        const { images, outputs } = mockImages()
 
-      await downscaleAvatar(images, {
-        data: new Uint8Array([1]),
-        contentType,
-      })
+        await downscaleAvatar(images, {
+          data: new Uint8Array([1]),
+          contentType,
+        })
 
-      expect(outputs[0]?.format).toBe('image/png')
-    })
+        expect(outputs[0]?.format).toBe('image/png')
+      },
+    )
 
     it('matches the content type case-insensitively', async () => {
       const { images, outputs } = mockImages()

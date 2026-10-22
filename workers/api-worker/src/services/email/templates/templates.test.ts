@@ -157,18 +157,21 @@ describe('name expiry email', () => {
       'Your name’s grace period has ended',
       'Register',
     ],
-  ] as const)('renders the %s lifecycle notice', async (stage, now, subject, action) => {
-    const email = await renderNameExpiryEmail(
-      mainnet,
-      expiryPayload({ stage }),
-      { managerAppUrl, now },
-    )
-    expect(email.subject).toBe(subject)
-    for (const part of [email.html, email.text]) {
-      expect(part).toContain('alice.eth')
-      expect(part).toContain(`${action} in the ENS app`)
-    }
-  })
+  ] as const)(
+    'renders the %s lifecycle notice',
+    async (stage, now, subject, action) => {
+      const email = await renderNameExpiryEmail(
+        mainnet,
+        expiryPayload({ stage }),
+        { managerAppUrl, now },
+      )
+      expect(email.subject).toBe(subject)
+      for (const part of [email.html, email.text]) {
+        expect(part).toContain('alice.eth')
+        expect(part).toContain(`${action} in the ENS app`)
+      }
+    },
+  )
 
   it('writes dates the same way in every locale', async () => {
     const email = await renderNameExpiryEmail(mainnet, expiryPayload(), {
@@ -209,18 +212,21 @@ describe('name expiry email', () => {
     ['grace-start', 'A name you watch has expired'],
     ['grace-1d', 'A name you watch is near the end of its grace period'],
     ['premium-start', 'A name you watch is out of its grace period'],
-  ] as const)('never calls a watched name yours at %s', async (stage, subject) => {
-    const email = await renderNameExpiryEmail(
-      mainnet,
-      expiryPayload({ stage, isOwner: false, watchReason: 'favourited' }),
-      { managerAppUrl, now: expiry },
-    )
-    expect(email.subject).toBe(subject)
-    for (const part of [email.html, email.text]) {
-      expect(part).not.toMatch(/\byour name\b/i)
-      expect(part).not.toMatch(/\byou can still renew\b/i)
-    }
-  })
+  ] as const)(
+    'never calls a watched name yours at %s',
+    async (stage, subject) => {
+      const email = await renderNameExpiryEmail(
+        mainnet,
+        expiryPayload({ stage, isOwner: false, watchReason: 'favourited' }),
+        { managerAppUrl, now: expiry },
+      )
+      expect(email.subject).toBe(subject)
+      for (const part of [email.html, email.text]) {
+        expect(part).not.toMatch(/\byour name\b/i)
+        expect(part).not.toMatch(/\byou can still renew\b/i)
+      }
+    },
+  )
 
   it('lets long names wrap instead of widening the email', async () => {
     const email = await renderNameExpiryEmail(

@@ -153,43 +153,43 @@ describe('fetchSweep', () => {
     { id: 'expiry-7d', kept: ['held.eth', 'relisted.eth'] },
     { id: 'grace-1d', kept: ['in-grace.eth'] },
     { id: 'premium-start', kept: ['expired.eth'] },
-  ] as const)('notifies the rows each phase allows: $id', async ({
-    id,
-    kept,
-  }) => {
-    serveIndex([
-      held('held.eth', 10_000_050),
-      { ...held('relisted.eth', 10_000_055), releaseKind: 'unregistered' },
-      expiredRelease('expired.eth', 10_000_060),
-      { ...held('in-grace.eth', 10_000_065), registrationStatus: 'expired' },
-      {
-        name: 'unregistered.eth',
-        expiryDate: 10_000_070,
-        registrationStatus: 'released',
-        hasV2Grace: true,
-        releaseKind: 'unregistered',
-      },
-      {
-        name: 'never.eth',
-        expiryDate: 10_000_080,
-        registrationStatus: 'unregistered',
-        hasV2Grace: true,
-      },
-      {
-        name: 'unreserved-v1.eth',
-        expiryDate: 10_000_090,
-        registrationStatus: 'active',
-        hasV2Grace: false,
-      },
-    ])
+  ] as const)(
+    'notifies the rows each phase allows: $id',
+    async ({ id, kept }) => {
+      serveIndex([
+        held('held.eth', 10_000_050),
+        { ...held('relisted.eth', 10_000_055), releaseKind: 'unregistered' },
+        expiredRelease('expired.eth', 10_000_060),
+        { ...held('in-grace.eth', 10_000_065), registrationStatus: 'expired' },
+        {
+          name: 'unregistered.eth',
+          expiryDate: 10_000_070,
+          registrationStatus: 'released',
+          hasV2Grace: true,
+          releaseKind: 'unregistered',
+        },
+        {
+          name: 'never.eth',
+          expiryDate: 10_000_080,
+          registrationStatus: 'unregistered',
+          hasV2Grace: true,
+        },
+        {
+          name: 'unreserved-v1.eth',
+          expiryDate: 10_000_090,
+          registrationStatus: 'active',
+          hasV2Grace: false,
+        },
+      ])
 
-    const result = await fetchSweep({
-      env: ENV,
-      windows: [window(id, 10_000_000, 10_000_100)],
-    })
+      const result = await fetchSweep({
+        env: ENV,
+        windows: [window(id, 10_000_000, 10_000_100)],
+      })
 
-    expect(namesOf(result, id)).toEqual(kept)
-  })
+      expect(namesOf(result, id)).toEqual(kept)
+    },
+  )
 
   it('moves an empty window to its end', async () => {
     const result = await fetchSweep({

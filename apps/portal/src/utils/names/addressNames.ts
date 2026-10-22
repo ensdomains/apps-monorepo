@@ -4,6 +4,7 @@ import type {
   NameRelation,
   NameSummary,
 } from '@ens-apps/indexer/reads'
+import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { toValidDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -15,6 +16,11 @@ export type AddressNameItem = {
   readonly name: string
   /** Null when the name does not expire. */
   readonly expiryDate: Date | null
+  /**
+   * Set on an ENSv1 subname, which lapses with its `.eth` parent. Null when the
+   * parent's expiry couldn't be read.
+   */
+  readonly parentExpiryDate?: Date | null
   readonly graceEndDate: Date | null
   readonly status: NameRegistrationStatus
   readonly subdomainCount?: number
@@ -68,11 +74,55 @@ export const toLapsedItem = (row: AddressName): AddressNameItem => ({
   protocolVersion: row.authority === 'ens_v2' ? 'ENSv2' : 'ENSv1',
 })
 
-const byExpiry = (a: AddressNameItem, b: AddressNameItem) => {
-  if (!a.expiryDate && !b.expiryDate) return 0
-  if (!a.expiryDate) return 1
-  if (!b.expiryDate) return -1
-  return a.expiryDate.getTime() - b.expiryDate.getTime()
+/**
+ * The `.eth` 2LD an ENSv1 subname lapses with, or null for a name with its own
+ * expiry. Deeper names lapse with the same 2LD.
+ */
+export const ethParentOf = ({
+  name,
+  expiryDate,
+  protocolVersion,
+}: AddressNameItem): string | null => {
+  if (expiryDate || protocolVersion !== 'ENSv1') return null
+  const labels = name.split('.')
+  if (labels.length < 3 || labels.at(-1) !== 'eth') return null
+  return labels.slice(-2).join('.')
+}
+
+type ShownExpiryInput = {
+  readonly expiryDate?: Date | null
+  readonly parentExpiryDate?: Date | null
+}
+
+/** The date a row shows and sorts by: its own expiry, else its parent's. */
+export const getShownExpiry = ({
+  expiryDate,
+  parentExpiryDate,
+}: ShownExpiryInput): Date | null => expiryDate ?? parentExpiryDate ?? null
+
+/** Whether the shown expiry falls in the range; a row with none never does. */
+export const isShownExpiryInRange = (
+  row: ShownExpiryInput,
+  { from, to }: DateRange,
+): boolean => {
+  const expiryDate = getShownExpiry(row)
+  if (!expiryDate) return false
+  if (from && expiryDate < from) return false
+  if (to && expiryDate > to) return false
+  return true
+}
+
+/** Soonest shown expiry first; rows with none go last. */
+export const byShownExpiry = (
+  a: ShownExpiryInput,
+  b: ShownExpiryInput,
+): number => {
+  const aExpiry = getShownExpiry(a)
+  const bExpiry = getShownExpiry(b)
+  if (!aExpiry && !bExpiry) return 0
+  if (!aExpiry) return 1
+  if (!bExpiry) return -1
+  return aExpiry.getTime() - bExpiry.getTime()
 }
 
 /** One row per name, a current relation winning over a lapsed one, soonest expiry first. */
@@ -84,5 +134,5 @@ export const mergeAddressNames = (
   return [
     ...current,
     ...inGrace.filter(({ name }) => !listed.has(name)),
-  ].toSorted(byExpiry)
+  ].toSorted(byShownExpiry)
 }

@@ -77,70 +77,70 @@ describe.each([
   { host: 'desktop popover', Host: DesktopAccountSection },
   { host: 'mobile drawer', Host: MobileAccountDrawer },
 ] as const)('$host chooser handoff', ({ Host }) => {
-  it.each([
-    'Escape',
-    'Cancel',
-  ] as const)('survives menu dismissal, then restores its account trigger on %s', async (closeMethod) => {
-    await renderHost(<Host />)
-    const trigger = screen.getByRole('button', { name: 'Account' })
-    trigger.focus()
-    fireEvent.click(trigger)
-    const action = await screen.findByRole('button', {
-      name: 'Primary Name Profile',
-    })
-    action.focus()
-    const accountOverlay = action.closest('[role="dialog"]')
-
-    // Hold only the host's next frame; the actual overlay libraries remain
-    // free to finish dismissing. Opening synchronously must fail this check.
-    let handoffFrame: FrameRequestCallback | undefined
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementationOnce(
-      (callback) => {
-        handoffFrame = callback
-        return -1
-      },
-    )
-    fireEvent.click(action)
-    expect(
-      screen.queryByRole('dialog', { name: 'Choose Primary Name' }),
-    ).not.toBeInTheDocument()
-    expect(trigger).toHaveAttribute('aria-expanded', 'false')
-    // Happy DOM does not finish Vaul's CSS exit animation. Deliver its real
-    // animation-end event so Radix Presence can unmount the closed drawer.
-    if (accountOverlay) {
-      fireEvent.animationEnd(accountOverlay, {
-        animationName: getComputedStyle(accountOverlay).animationName,
+  it.each(['Escape', 'Cancel'] as const)(
+    'survives menu dismissal, then restores its account trigger on %s',
+    async (closeMethod) => {
+      await renderHost(<Host />)
+      const trigger = screen.getByRole('button', { name: 'Account' })
+      trigger.focus()
+      fireEvent.click(trigger)
+      const action = await screen.findByRole('button', {
+        name: 'Primary Name Profile',
       })
-    }
-    await waitFor(() => expect(action).not.toBeInTheDocument())
-    expect(handoffFrame).toBeDefined()
-    if (!handoffFrame)
-      throw new Error('Host did not schedule the chooser handoff')
-    const frame = handoffFrame
-    act(() => frame(performance.now()))
+      action.focus()
+      const accountOverlay = action.closest('[role="dialog"]')
 
-    const chooser = await screen.findByRole('dialog', {
-      name: 'Choose Primary Name',
-    })
-    const cancel = within(chooser).getByRole('button', {
-      name: 'Cancel chooser',
-    })
-    await waitFor(() => expect(cancel).toHaveFocus())
-    expect(action).not.toBeInTheDocument()
-    expect(trigger).toHaveAttribute('aria-expanded', 'false')
-    expect(chooser).toBeVisible()
+      // Hold only the host's next frame; the actual overlay libraries remain
+      // free to finish dismissing. Opening synchronously must fail this check.
+      let handoffFrame: FrameRequestCallback | undefined
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementationOnce(
+        (callback) => {
+          handoffFrame = callback
+          return -1
+        },
+      )
+      fireEvent.click(action)
+      expect(
+        screen.queryByRole('dialog', { name: 'Choose Primary Name' }),
+      ).not.toBeInTheDocument()
+      expect(trigger).toHaveAttribute('aria-expanded', 'false')
+      // Happy DOM does not finish Vaul's CSS exit animation. Deliver its real
+      // animation-end event so Radix Presence can unmount the closed drawer.
+      if (accountOverlay) {
+        fireEvent.animationEnd(accountOverlay, {
+          animationName: getComputedStyle(accountOverlay).animationName,
+        })
+      }
+      await waitFor(() => expect(action).not.toBeInTheDocument())
+      expect(handoffFrame).toBeDefined()
+      if (!handoffFrame)
+        throw new Error('Host did not schedule the chooser handoff')
+      const frame = handoffFrame
+      act(() => frame(performance.now()))
 
-    if (closeMethod === 'Escape') {
-      fireEvent.keyDown(cancel, { key: 'Escape', code: 'Escape' })
-    } else {
-      fireEvent.click(cancel)
-    }
-    await waitFor(() => expect(chooser).not.toBeInTheDocument())
-    await waitFor(() => expect(trigger).toHaveFocus())
-    // The same surviving trigger must remain usable after the handoff.
-    fireEvent.click(trigger)
-    expect(
-      await screen.findByRole('button', { name: 'Primary Name Profile' }),
-    ).toBeVisible()
-  })
+      const chooser = await screen.findByRole('dialog', {
+        name: 'Choose Primary Name',
+      })
+      const cancel = within(chooser).getByRole('button', {
+        name: 'Cancel chooser',
+      })
+      await waitFor(() => expect(cancel).toHaveFocus())
+      expect(action).not.toBeInTheDocument()
+      expect(trigger).toHaveAttribute('aria-expanded', 'false')
+      expect(chooser).toBeVisible()
+
+      if (closeMethod === 'Escape') {
+        fireEvent.keyDown(cancel, { key: 'Escape', code: 'Escape' })
+      } else {
+        fireEvent.click(cancel)
+      }
+      await waitFor(() => expect(chooser).not.toBeInTheDocument())
+      await waitFor(() => expect(trigger).toHaveFocus())
+      // The same surviving trigger must remain usable after the handoff.
+      fireEvent.click(trigger)
+      expect(
+        await screen.findByRole('button', { name: 'Primary Name Profile' }),
+      ).toBeVisible()
+    },
+  )
 })

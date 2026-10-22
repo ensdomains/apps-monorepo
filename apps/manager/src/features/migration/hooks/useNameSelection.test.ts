@@ -498,32 +498,32 @@ describe('useNameSelection manager restoration (WEB-1528)', () => {
       domain: { ownerId: CONTROLLER, isWrapped: true },
       candidate: undefined,
     },
-  ])('offers the manager choice on a grace name with $case', ({
-    domain,
-    candidate,
-  }) => {
-    const { result } = renderHook(() =>
-      useNameSelection({
-        eligible: [],
-        gracePeriodNames: [
-          {
-            domain: makeDomain({
-              id: 'grace.eth',
-              name: 'grace.eth',
-              labelName: 'grace',
-              ...domain,
-            }),
-            reason: 'expired-registration',
-          },
-        ],
-        isPending: false,
-        onNamesChange: vi.fn(),
-        onManagerRestorationChange: vi.fn(),
-      }),
-    )
+  ])(
+    'offers the manager choice on a grace name with $case',
+    ({ domain, candidate }) => {
+      const { result } = renderHook(() =>
+        useNameSelection({
+          eligible: [],
+          gracePeriodNames: [
+            {
+              domain: makeDomain({
+                id: 'grace.eth',
+                name: 'grace.eth',
+                labelName: 'grace',
+                ...domain,
+              }),
+              reason: 'expired-registration',
+            },
+          ],
+          isPending: false,
+          onNamesChange: vi.fn(),
+          onManagerRestorationChange: vi.fn(),
+        }),
+      )
 
-    expect(result.current.managerCandidates.get('grace.eth')).toBe(candidate)
-  })
+      expect(result.current.managerCandidates.get('grace.eth')).toBe(candidate)
+    },
+  )
 
   it('ignores toggles on a resumed run, whose choice is fixed by its snapshot', async () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()

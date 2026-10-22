@@ -122,64 +122,63 @@ describe('getOwner', () => {
     )
   })
 
-  it.each([
-    'walletAddress',
-    'accountAddress',
-    'ownerAddress',
-  ] as const)('recognises the previous owner through %s without a third-party warning', async (addressKey) => {
-    mocks.readContract.mockResolvedValue(graceState)
+  it.each(['walletAddress', 'accountAddress', 'ownerAddress'] as const)(
+    'recognises the previous owner through %s without a third-party warning',
+    async (addressKey) => {
+      mocks.readContract.mockResolvedValue(graceState)
 
-    const result = await getOwner({ name: 'gloomy.eth' })
-    const owner = result._unsafeUnwrap()?.owner
-    const isOwner = isConnectedProfileOwner({
-      owner,
-      walletAddress: undefined,
-      accountAddress: null,
-      ownerAddress: null,
-      [addressKey]: previousOwner,
-    })
+      const result = await getOwner({ name: 'gloomy.eth' })
+      const owner = result._unsafeUnwrap()?.owner
+      const isOwner = isConnectedProfileOwner({
+        owner,
+        walletAddress: undefined,
+        accountAddress: null,
+        ownerAddress: null,
+        [addressKey]: previousOwner,
+      })
 
-    expect(isOwner).toBe(true)
-    expect(shouldShowThirdPartyRenewalWarning(isOwner)).toBe(false)
-    expect(
-      shouldShowThirdPartyRenewalWarning(
-        isConnectedProfileOwner({
-          owner,
-          walletAddress: '0x0000000000000000000000000000000000000003',
-          accountAddress: null,
-          ownerAddress: null,
-        }),
-      ),
-    ).toBe(true)
-  })
+      expect(isOwner).toBe(true)
+      expect(shouldShowThirdPartyRenewalWarning(isOwner)).toBe(false)
+      expect(
+        shouldShowThirdPartyRenewalWarning(
+          isConnectedProfileOwner({
+            owner,
+            walletAddress: '0x0000000000000000000000000000000000000003',
+            accountAddress: null,
+            ownerAddress: null,
+          }),
+        ),
+      ).toBe(true)
+    },
+  )
 
   it.each([
     { elapsed: 1, ownsName: true },
     { elapsed: V2_GRACE_PERIOD_DAYS * MS_PER_DAY - 1, ownsName: true },
     { elapsed: V2_GRACE_PERIOD_DAYS * MS_PER_DAY, ownsName: false },
     { elapsed: (V2_GRACE_PERIOD_DAYS + 1) * MS_PER_DAY, ownsName: false },
-  ])('limits previous ownership at expiry + $elapsed ms', async ({
-    elapsed,
-    ownsName,
-  }) => {
-    vi.setSystemTime(expiryDate.getTime() + elapsed)
-    mocks.readContract.mockResolvedValue(graceState)
+  ])(
+    'limits previous ownership at expiry + $elapsed ms',
+    async ({ elapsed, ownsName }) => {
+      vi.setSystemTime(expiryDate.getTime() + elapsed)
+      mocks.readContract.mockResolvedValue(graceState)
 
-    // Legacy registry ownership can remain after a name has migrated to V2.
-    mocks.getV1Owner.mockResolvedValue({
-      owner: '0x0000000000000000000000000000000000000001',
-      registrant: null,
-      ownershipLevel: 'registrar',
-    })
+      // Legacy registry ownership can remain after a name has migrated to V2.
+      mocks.getV1Owner.mockResolvedValue({
+        owner: '0x0000000000000000000000000000000000000001',
+        registrant: null,
+        ownershipLevel: 'registrar',
+      })
 
-    const result = await getOwner({ name: 'gloomy.eth' })
+      const result = await getOwner({ name: 'gloomy.eth' })
 
-    expect(result._unsafeUnwrap()).toEqual({
-      owner: ownsName ? previousOwner : undefined,
-      protocol: 'v2',
-    })
-    expect(mocks.getV1Owner).not.toHaveBeenCalled()
-  })
+      expect(result._unsafeUnwrap()).toEqual({
+        owner: ownsName ? previousOwner : undefined,
+        protocol: 'v2',
+      })
+      expect(mocks.getV1Owner).not.toHaveBeenCalled()
+    },
+  )
 
   it('does not invent an owner when the registry has none', async () => {
     mocks.readContract.mockResolvedValue({ expiry, latestOwner: zeroAddress })

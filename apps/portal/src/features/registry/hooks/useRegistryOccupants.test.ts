@@ -155,18 +155,19 @@ describe('getRegistryOccupants', () => {
     expect(listRegistryLabels).toHaveBeenCalledTimes(1)
   })
 
-  it.each([
-    1, 2,
-  ])('propagates a failure in request %i rather than reporting no third parties', async (request) => {
-    const error = new BignameError({
-      status: 503,
-      code: 'overloaded',
-      message: 'unavailable',
-    })
-    if (request === 2)
-      listRegistryLabels.mockResolvedValueOnce(counted(703, [ACCOUNT], true))
-    listRegistryLabels.mockRejectedValueOnce(error)
+  it.each([1, 2])(
+    'propagates a failure in request %i rather than reporting no third parties',
+    async (request) => {
+      const error = new BignameError({
+        status: 503,
+        code: 'overloaded',
+        message: 'unavailable',
+      })
+      if (request === 2)
+        listRegistryLabels.mockResolvedValueOnce(counted(703, [ACCOUNT], true))
+      listRegistryLabels.mockRejectedValueOnce(error)
 
-    await expect(fetchOccupants()).rejects.toMatchObject({ cause: error })
-  })
+      await expect(fetchOccupants()).rejects.toMatchObject({ cause: error })
+    },
+  )
 })

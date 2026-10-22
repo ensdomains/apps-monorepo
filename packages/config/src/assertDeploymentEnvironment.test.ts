@@ -2,15 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { assertDeploymentEnvironment } from './assertDeploymentEnvironment'
 
 describe('deployment environment agreement', () => {
-  it.each([
-    'development',
-    'production',
-    'test',
-  ])('keeps %s on the default Sepolia Worker', (mode) => {
-    expect(() =>
-      assertDeploymentEnvironment({ VITE_ENS_NETWORK: 'sepolia' }, mode),
-    ).not.toThrow()
-  })
+  it.each(['development', 'production', 'test'])(
+    'keeps %s on the default Sepolia Worker',
+    (mode) => {
+      expect(() =>
+        assertDeploymentEnvironment({ VITE_ENS_NETWORK: 'sepolia' }, mode),
+      ).not.toThrow()
+    },
+  )
 
   it('accepts the mainnet file selection', () => {
     expect(() =>

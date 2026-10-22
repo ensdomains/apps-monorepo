@@ -11,7 +11,7 @@ const { isFeatureEnabledMock, posthogConstructorMock, shutdownMock } =
 
 vi.mock('@tanstack/react-start', () => ({
   createServerFn: () => ({
-    inputValidator: (validator: (input: unknown) => unknown) => ({
+    validator: (validator: (input: unknown) => unknown) => ({
       handler:
         (handler: (options: { data: unknown }) => unknown) =>
         ({ data }: { data: unknown }) =>

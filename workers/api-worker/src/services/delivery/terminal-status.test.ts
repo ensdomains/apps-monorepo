@@ -122,77 +122,76 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe.each([
-  'delivered',
-  'permanently_failed',
-  'cancelled',
-] as const)('terminal delivery status %s', (status) => {
-  it('skips the email provider', async () => {
-    const { db, updateWhere } = makeDb(status, 'email')
+describe.each(['delivered', 'permanently_failed', 'cancelled'] as const)(
+  'terminal delivery status %s',
+  (status) => {
+    it('skips the email provider', async () => {
+      const { db, updateWhere } = makeDb(status, 'email')
 
-    const result = await deliverEmailNotification(
-      'api-key',
-      'from@example.com',
-      db as never,
-      job,
-    )
-
-    expect(result.isOk()).toBe(true)
-    expect(mocks.sendMailV3).not.toHaveBeenCalled()
-    expect(updateWhere).not.toHaveBeenCalled()
-  })
-
-  it('skips the push provider', async () => {
-    const { db, updateWhere } = makeDb(status, 'push')
-
-    const result = await deliverPushNotification(pushEnv, db as never, job)
-
-    expect(result.isOk()).toBe(true)
-    expect(mocks.buildPushPayload).not.toHaveBeenCalled()
-    expect(mocks.fetch).not.toHaveBeenCalled()
-    expect(updateWhere).not.toHaveBeenCalled()
-  })
-
-  it('skips the Telegram provider', async () => {
-    const { db, updateWhere } = makeDb(status, 'telegram')
-
-    const result = await deliverTelegramNotification(
-      'bot-token',
-      db as never,
-      job,
-    )
-
-    expect(result.isOk()).toBe(true)
-    expect(mocks.makeTelegramRequest).not.toHaveBeenCalled()
-    expect(updateWhere).not.toHaveBeenCalled()
-  })
-})
-
-describe.each([
-  'queued',
-  'failed',
-] as const)('nonterminal delivery status %s', (status) => {
-  it('still sends through every provider', async () => {
-    const email = makeDb(status, 'email')
-    const push = makeDb(status, 'push')
-    const telegram = makeDb(status, 'telegram')
-
-    const [emailResult, pushResult, telegramResult] = await Promise.all([
-      deliverEmailNotification(
+      const result = await deliverEmailNotification(
         'api-key',
         'from@example.com',
-        email.db as never,
+        db as never,
         job,
-      ),
-      deliverPushNotification(pushEnv, push.db as never, job),
-      deliverTelegramNotification('bot-token', telegram.db as never, job),
-    ])
+      )
 
-    expect(emailResult.isOk()).toBe(true)
-    expect(pushResult.isOk()).toBe(true)
-    expect(telegramResult.isOk()).toBe(true)
-    expect(mocks.sendMailV3).toHaveBeenCalledOnce()
-    expect(mocks.fetch).toHaveBeenCalledOnce()
-    expect(mocks.makeTelegramRequest).toHaveBeenCalledOnce()
-  })
-})
+      expect(result.isOk()).toBe(true)
+      expect(mocks.sendMailV3).not.toHaveBeenCalled()
+      expect(updateWhere).not.toHaveBeenCalled()
+    })
+
+    it('skips the push provider', async () => {
+      const { db, updateWhere } = makeDb(status, 'push')
+
+      const result = await deliverPushNotification(pushEnv, db as never, job)
+
+      expect(result.isOk()).toBe(true)
+      expect(mocks.buildPushPayload).not.toHaveBeenCalled()
+      expect(mocks.fetch).not.toHaveBeenCalled()
+      expect(updateWhere).not.toHaveBeenCalled()
+    })
+
+    it('skips the Telegram provider', async () => {
+      const { db, updateWhere } = makeDb(status, 'telegram')
+
+      const result = await deliverTelegramNotification(
+        'bot-token',
+        db as never,
+        job,
+      )
+
+      expect(result.isOk()).toBe(true)
+      expect(mocks.makeTelegramRequest).not.toHaveBeenCalled()
+      expect(updateWhere).not.toHaveBeenCalled()
+    })
+  },
+)
+
+describe.each(['queued', 'failed'] as const)(
+  'nonterminal delivery status %s',
+  (status) => {
+    it('still sends through every provider', async () => {
+      const email = makeDb(status, 'email')
+      const push = makeDb(status, 'push')
+      const telegram = makeDb(status, 'telegram')
+
+      const [emailResult, pushResult, telegramResult] = await Promise.all([
+        deliverEmailNotification(
+          'api-key',
+          'from@example.com',
+          email.db as never,
+          job,
+        ),
+        deliverPushNotification(pushEnv, push.db as never, job),
+        deliverTelegramNotification('bot-token', telegram.db as never, job),
+      ])
+
+      expect(emailResult.isOk()).toBe(true)
+      expect(pushResult.isOk()).toBe(true)
+      expect(telegramResult.isOk()).toBe(true)
+      expect(mocks.sendMailV3).toHaveBeenCalledOnce()
+      expect(mocks.fetch).toHaveBeenCalledOnce()
+      expect(mocks.makeTelegramRequest).toHaveBeenCalledOnce()
+    })
+  },
+)

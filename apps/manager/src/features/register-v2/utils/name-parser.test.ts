@@ -122,16 +122,19 @@ describe('parseName', () => {
     ['a stray variation selector', 'alice\ufe0f.eth'],
     ['a circled-letter confusable', 'alice\u24dd.eth'],
     ['a soft hyphen', 'ali\u00adce.eth'],
-  ])('refuses a name containing %s rather than silently rewriting it', (_label, name) => {
-    // `normalize` maps these away instead of rejecting them, so the name the
-    // user is shown would hash to a different label than the one displayed.
-    const result = parseName(name)
+  ])(
+    'refuses a name containing %s rather than silently rewriting it',
+    (_label, name) => {
+      // `normalize` maps these away instead of rejecting them, so the name the
+      // user is shown would hash to a different label than the one displayed.
+      const result = parseName(name)
 
-    assert(result.isErr())
-    expect(result.error).toMatchObject({
-      reason: 'NOT_NORMALIZED',
-    })
-  })
+      assert(result.isErr())
+      expect(result.error).toMatchObject({
+        reason: 'NOT_NORMALIZED',
+      })
+    },
+  )
 
   it('refuses a label that ENSIP-15 normalisation rejects outright', () => {
     const result = parseName('alice\u0000.eth')
@@ -231,15 +234,18 @@ describe('parseCanonicalName', () => {
     ['a circled-letter confusable', 'vitalikⓝ.eth', 'vitalikn.eth'],
     ['a stray variation selector', 'thumbs\u{1f44d}️.eth', 'thumbs👍.eth'],
     ['an NFD accent', 'cafés.eth', 'cafés.eth'],
-  ])('canonicalises %s and flags it as rewritten', (_case, name, canonicalName) => {
-    const result = parseCanonicalName(name)
+  ])(
+    'canonicalises %s and flags it as rewritten',
+    (_case, name, canonicalName) => {
+      const result = parseCanonicalName(name)
 
-    assert(result.isOk())
-    expect(result.value).toMatchObject({
-      name: canonicalName,
-      wasRewritten: true,
-    })
-  })
+      assert(result.isOk())
+      expect(result.value).toMatchObject({
+        name: canonicalName,
+        wasRewritten: true,
+      })
+    },
+  )
 
   it.each([
     ['an xn-- extension', 'xn--ls8h.eth'],

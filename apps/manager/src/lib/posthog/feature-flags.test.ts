@@ -19,13 +19,16 @@ describe('isMigrationNftEnabled', () => {
     [false, false, false],
     [true, null, false],
     [undefined, true, false],
-  ] as const)('returns %s and %s as %s', (migrationEnabled, migrationNftEnabled, expected) => {
-    expect(
-      isMigrationNftEnabled({
-        network: 'mainnet',
-        migrationEnabled,
-        migrationNftEnabled,
-      }),
-    ).toBe(expected)
-  })
+  ] as const)(
+    'returns %s and %s as %s',
+    (migrationEnabled, migrationNftEnabled, expected) => {
+      expect(
+        isMigrationNftEnabled({
+          network: 'mainnet',
+          migrationEnabled,
+          migrationNftEnabled,
+        }),
+      ).toBe(expected)
+    },
+  )
 })

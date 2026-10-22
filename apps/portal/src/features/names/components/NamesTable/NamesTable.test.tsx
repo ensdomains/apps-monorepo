@@ -69,6 +69,34 @@ describe('NamesTable expiry cell', () => {
     expect(desktopRowText('victim.eth')).toContain('2030')
   })
 
+  it("shows a subname's parent expiry", () => {
+    render(
+      <NamesTableHarness
+        data={[
+          {
+            ...row('sub.parent.eth', null),
+            parentExpiryDate: new Date(Date.UTC(2030, 5, 15)),
+          },
+        ]}
+      />,
+    )
+
+    expect(desktopRowText('sub.parent.eth')).toContain(
+      'June 15, 2030 (Expires with parent)',
+    )
+  })
+
+  it("says a subname expires with its parent when the parent's date is unknown", () => {
+    render(
+      <NamesTableHarness
+        data={[{ ...row('sub.parent.eth', null), parentExpiryDate: null }]}
+      />,
+    )
+
+    expect(desktopRowText('sub.parent.eth')).toContain('Expires with parent')
+    expect(desktopRowText('sub.parent.eth')).not.toContain('Does not expire')
+  })
+
   it('labels each relation the address holds', () => {
     render(
       <NamesTableHarness

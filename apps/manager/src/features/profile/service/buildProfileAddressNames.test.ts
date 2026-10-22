@@ -64,12 +64,15 @@ describe('toProfileAddressName', () => {
     [['role_holder'], ['manager'], 'managed'],
     [['owner', 'manager'], ['owner', 'manager'], 'owned'],
     [['manager'], ['manager'], 'managed'],
-  ] as const)('maps relations %j to roles %j (%s)', (relations, roles, category) => {
-    const name = toProfileAddressName(summary('a.eth', { relations }))
+  ] as const)(
+    'maps relations %j to roles %j (%s)',
+    (relations, roles, category) => {
+      const name = toProfileAddressName(summary('a.eth', { relations }))
 
-    expect(name?.nameRoles).toEqual(roles)
-    expect(name?.roleCategory).toBe(category)
-  })
+      expect(name?.nameRoles).toEqual(roles)
+      expect(name?.roleCategory).toBe(category)
+    },
+  )
 
   it.each([
     summary('abc.addr.reverse'),

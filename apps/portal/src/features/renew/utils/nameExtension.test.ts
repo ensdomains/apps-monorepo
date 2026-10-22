@@ -321,12 +321,12 @@ describe('getNameStatus', () => {
     { graceEnded: -3, status: 'grace' },
     { graceEnded: 10, status: 'premium' },
     { graceEnded: 30, status: 'expired' },
-  ])('is $status for an expired name whose grace ended $graceEnded days ago', ({
-    graceEnded,
-    status,
-  }) => {
-    expect(expired(daysAgo(graceEnded))).toBe(status)
-  })
+  ])(
+    'is $status for an expired name whose grace ended $graceEnded days ago',
+    ({ graceEnded, status }) => {
+      expect(expired(daysAgo(graceEnded))).toBe(status)
+    },
+  )
 
   it('is in price cooldown for a name bigname released when its grace ended', () => {
     expect(
@@ -346,5 +346,27 @@ describe('getNameStatus', () => {
     expect(
       getNameStatus({ expiryDate: null, graceEndDate: null, status: 'active' }),
     ).toBe('no-expiry')
+  })
+
+  it('expires with its parent for a subname with a parent expiry', () => {
+    expect(
+      getNameStatus({
+        expiryDate: null,
+        parentExpiryDate: daysAgo(-30),
+        graceEndDate: null,
+        status: 'active',
+      }),
+    ).toBe('expires-with-parent')
+  })
+
+  it("expires with its parent when the parent's date is unknown", () => {
+    expect(
+      getNameStatus({
+        expiryDate: null,
+        parentExpiryDate: null,
+        graceEndDate: null,
+        status: 'active',
+      }),
+    ).toBe('expires-with-parent')
   })
 })

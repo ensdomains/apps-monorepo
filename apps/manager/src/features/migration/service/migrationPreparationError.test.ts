@@ -84,23 +84,20 @@ describe('migration preparation errors', () => {
     ).toBe('fee-unavailable')
   })
 
-  it.each([
-    'account',
-    'preflight',
-    'plan',
-    'recovery',
-    'fee',
-  ] as const)('retains the %s stage and original diagnostic cause', async (stage) => {
-    const cause = failure('HttpRequestError')
-    const error = await runMigrationPreparationStage(stage, () =>
-      Promise.reject(cause),
-    ).catch((error: unknown) => error)
-    expect(migrationPreparationFailure(error)).toEqual({
-      stage,
-      reason: stage === 'fee' ? 'fee-unavailable' : 'rpc-unavailable',
-      cause,
-    })
-  })
+  it.each(['account', 'preflight', 'plan', 'recovery', 'fee'] as const)(
+    'retains the %s stage and original diagnostic cause',
+    async (stage) => {
+      const cause = failure('HttpRequestError')
+      const error = await runMigrationPreparationStage(stage, () =>
+        Promise.reject(cause),
+      ).catch((error: unknown) => error)
+      expect(migrationPreparationFailure(error)).toEqual({
+        stage,
+        reason: stage === 'fee' ? 'fee-unavailable' : 'rpc-unavailable',
+        cause,
+      })
+    },
+  )
 
   it('reserves the fee message for failed fee lookups', () => {
     const cause = failure('HttpRequestError')

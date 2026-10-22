@@ -8,21 +8,22 @@ const DESCRIPTION =
   'You own names that need to be upgraded to ENSv2 before they can be set as your Primary Name'
 
 describe('PrimaryNameV1Warning', () => {
-  it.each([
-    1, 2,
-  ])('shows one Figma warning when %i name(s) can be upgraded', (upgradeableNameCount) => {
-    render(
-      <PrimaryNameV1Warning
-        isError={false}
-        upgradeableNameCount={upgradeableNameCount}
-      />,
-    )
+  it.each([1, 2])(
+    'shows one Figma warning when %i name(s) can be upgraded',
+    (upgradeableNameCount) => {
+      render(
+        <PrimaryNameV1Warning
+          isError={false}
+          upgradeableNameCount={upgradeableNameCount}
+        />,
+      )
 
-    const warning = screen.getByRole('alert')
-    expect(warning).toHaveTextContent(TITLE)
-    expect(warning).toHaveTextContent(DESCRIPTION)
-    expect(screen.getAllByRole('alert')).toHaveLength(1)
-  })
+      const warning = screen.getByRole('alert')
+      expect(warning).toHaveTextContent(TITLE)
+      expect(warning).toHaveTextContent(DESCRIPTION)
+      expect(screen.getAllByRole('alert')).toHaveLength(1)
+    },
+  )
 
   it('does not show the warning when no name can be upgraded', () => {
     render(<PrimaryNameV1Warning isError={false} upgradeableNameCount={0} />)
