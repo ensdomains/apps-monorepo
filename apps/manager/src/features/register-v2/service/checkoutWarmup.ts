@@ -23,8 +23,11 @@ export interface CheckoutWarmupParams {
   readonly account: CheckoutAccount
 }
 
-/** Room for the two orchestrator round trips; past it the dialog opens and loads in place. */
-export const CHECKOUT_WARMUP_TIMEOUT_MS = 15_000
+/**
+ * The smart-account route cannot proceed without the quote, so this only
+ * bounds a hung request: past it the dialog opens and loads in place.
+ */
+export const CHECKOUT_WARMUP_TIMEOUT_MS = 30_000
 
 /**
  * Whether the primary-name toggle defaults on, which the budget quote depends
@@ -38,8 +41,8 @@ const readDefaultSetAsPrimary = async (
   if (!ownerAddress) return false
   try {
     const [existingPrimaryName, ownedNamesCount] = await Promise.all([
-      queryClient.ensureQueryData(profileReverseNameQuery(ownerAddress)),
-      queryClient.ensureQueryData(ownedNamesCountQueryOptions(ownerAddress)),
+      queryClient.fetchQuery(profileReverseNameQuery(ownerAddress)),
+      queryClient.fetchQuery(ownedNamesCountQueryOptions(ownerAddress)),
     ])
     return !!getManagerRegistrationPostRegistrationSetup({
       ownerAddress,
@@ -77,10 +80,10 @@ export const warmRegistrationCheckout = async (
   params: CheckoutWarmupParams,
   timeoutMs = CHECKOUT_WARMUP_TIMEOUT_MS,
 ): Promise<void> => {
-  // `ensureQueryData` reuses what the pricing page already read; a stale entry
-  // refreshes in the background once the dialog mounts, keeping its figures.
+  // `fetchQuery` reuses a fresh entry and awaits a stale one, so the dialog
+  // never opens on a figure that is about to be replaced.
   const price = settled(
-    queryClient.ensureQueryData(
+    queryClient.fetchQuery(
       getRegisterPriceQueryOptions(
         params.label,
         params.durationInSeconds,
@@ -100,7 +103,7 @@ export const warmRegistrationCheckout = async (
       params.account.ownerAddress,
     )
     await settled(
-      queryClient.ensureQueryData(
+      queryClient.fetchQuery(
         getHcaBudgetQueryOptions(
           buildCheckoutBudgetParams(params, setAsPrimary),
         ),

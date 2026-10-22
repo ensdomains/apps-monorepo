@@ -582,7 +582,7 @@ export const TokenPickerContent = () => {
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
       isQuoteStale={budgetQuery.isPlaceholderData}
-      isQuotingFunding={budgetQuery.isLoading}
+      isQuotingFunding={isBudgetRequired && budgetQuery.isFetching}
       label={label}
       methodErrorMessage={methodErrorMessage}
       nextMessage={nextMessage}
@@ -632,15 +632,15 @@ const isRequotingFunding = (isQuotingFunding: boolean, isQuoteStale: boolean) =>
 const isCheckoutSettling = (isBusy: boolean, isRequoting: boolean) =>
   isBusy || isRequoting
 
-/** Whether the dialog is waiting on the budget, including a re-quote after the toggle. */
+/** Whether the dialog is waiting on the budget: the first quote, a refresh, or a re-key after the toggle. */
 const isBudgetQuoting = (
   isBudgetRequired: boolean,
   budgetQuery: {
-    readonly isLoading: boolean
+    readonly isFetching: boolean
     readonly isPlaceholderData: boolean
   },
 ) =>
-  isBudgetRequired && (budgetQuery.isLoading || budgetQuery.isPlaceholderData)
+  isBudgetRequired && (budgetQuery.isFetching || budgetQuery.isPlaceholderData)
 
 export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   label,
