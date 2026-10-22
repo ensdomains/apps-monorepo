@@ -25,15 +25,18 @@ describe('getDashboardNameVisibility', () => {
     { relations: ['owner', 'manager'] },
   ] satisfies {
     relations: NameSummary['relations']
-  }[])('keeps $relations without probing record access', async ({
-    relations,
-  }) => {
-    const canWriteRecords = vi.fn<() => Promise<boolean>>()
-    const isVisible = getDashboardNameVisibility(canWriteRecords)
+  }[])(
+    'keeps $relations without probing record access',
+    async ({ relations }) => {
+      const canWriteRecords = vi.fn<() => Promise<boolean>>()
+      const isVisible = getDashboardNameVisibility(canWriteRecords)
 
-    expect((await isVisible(summary({ relations })))._unsafeUnwrap()).toBe(true)
-    expect(canWriteRecords).not.toHaveBeenCalled()
-  })
+      expect((await isVisible(summary({ relations })))._unsafeUnwrap()).toBe(
+        true,
+      )
+      expect(canWriteRecords).not.toHaveBeenCalled()
+    },
+  )
 
   it('keeps V1 managers without probing record access', async () => {
     const canWriteRecords = vi.fn<() => Promise<boolean>>()
@@ -47,29 +50,29 @@ describe('getDashboardNameVisibility', () => {
     expect(canWriteRecords).not.toHaveBeenCalled()
   })
 
-  it.each([
-    'manager',
-    'role_holder',
-  ] as const)('keeps a V2 %s with record-write access', async (relation) => {
-    const canWriteRecords = vi.fn(async () => true)
-    const isVisible = getDashboardNameVisibility(canWriteRecords)
+  it.each(['manager', 'role_holder'] as const)(
+    'keeps a V2 %s with record-write access',
+    async (relation) => {
+      const canWriteRecords = vi.fn(async () => true)
+      const isVisible = getDashboardNameVisibility(canWriteRecords)
 
-    expect(
-      (await isVisible(summary({ relations: [relation] })))._unsafeUnwrap(),
-    ).toBe(true)
-    expect(canWriteRecords).toHaveBeenCalledWith('managed.eth')
-  })
+      expect(
+        (await isVisible(summary({ relations: [relation] })))._unsafeUnwrap(),
+      ).toBe(true)
+      expect(canWriteRecords).toHaveBeenCalledWith('managed.eth')
+    },
+  )
 
-  it.each([
-    'manager',
-    'role_holder',
-  ] as const)('hides a V2 %s after a confirmed failed write probe', async (relation) => {
-    const isVisible = getDashboardNameVisibility(async () => false)
+  it.each(['manager', 'role_holder'] as const)(
+    'hides a V2 %s after a confirmed failed write probe',
+    async (relation) => {
+      const isVisible = getDashboardNameVisibility(async () => false)
 
-    expect(
-      (await isVisible(summary({ relations: [relation] })))._unsafeUnwrap(),
-    ).toBe(false)
-  })
+      expect(
+        (await isVisible(summary({ relations: [relation] })))._unsafeUnwrap(),
+      ).toBe(false)
+    },
+  )
 
   it('keeps the name when the permission read fails', async () => {
     const isVisible = getDashboardNameVisibility(async () => {
