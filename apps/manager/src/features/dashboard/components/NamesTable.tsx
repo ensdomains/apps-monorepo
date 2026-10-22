@@ -92,14 +92,18 @@ export const NamesTable = ({
   })
 
   const favoritesCount = favorites.length
-  // Filtered totals are exact only after every related name has been read.
-  const countOf = (names: {
-    readonly total: number
-    readonly isPending: boolean
-    readonly isError: boolean
-    readonly isComplete: boolean
-  }) =>
-    names.isPending || names.isError || !names.isComplete
+  // V1 does not filter registry-only names, so keep its bigname total while
+  // paging. V2 and mixed totals require all permission checks to finish.
+  const countOf = (
+    names: {
+      readonly total: number
+      readonly isPending: boolean
+      readonly isError: boolean
+      readonly isComplete: boolean
+    },
+    requiresComplete = true,
+  ) =>
+    names.isPending || names.isError || (requiresComplete && !names.isComplete)
       ? undefined
       : names.total
   const ownedCount = countOf(ownedNames)
@@ -206,7 +210,7 @@ export const NamesTable = ({
     {
       value: 'v1',
       label: t`V1`,
-      count: countOf(v1Names),
+      count: countOf(v1Names, false),
     },
     {
       value: 'v2',

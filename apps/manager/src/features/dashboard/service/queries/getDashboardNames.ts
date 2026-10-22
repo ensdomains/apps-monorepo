@@ -41,6 +41,8 @@ import {
 const NAMES_ACTION = 'names'
 const GRACE_NAMES_ACTION = 'grace_names'
 const RENEWABLE_NAMES_ACTION = 'renewable_names'
+// Reuse permission probes across list variants and the 3s migration poll.
+const RECORD_WRITE_ACCESS_STALE_MS = 30_000
 
 /** The dashboard queries that list the connected accounts' names. */
 export const DASHBOARD_NAME_ACTIONS = [
@@ -241,9 +243,10 @@ export const getDashboardNamesInfiniteQueryOptions = (
         pageParam,
         getDashboardNameVisibility((name) =>
           query.recordEditorAddress
-            ? queryClient.fetchQuery(
-                resolverWriteAccessQuery(name, query.recordEditorAddress),
-              )
+            ? queryClient.fetchQuery({
+                ...resolverWriteAccessQuery(name, query.recordEditorAddress),
+                staleTime: RECORD_WRITE_ACCESS_STALE_MS,
+              })
             : Promise.resolve(true),
         ),
       ),
