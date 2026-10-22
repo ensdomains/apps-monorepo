@@ -603,7 +603,10 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+    const button = screen.getByRole('button', { name: 'Register name' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByLabelText('Calculating total')).toBeVisible()
     expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
   })
 

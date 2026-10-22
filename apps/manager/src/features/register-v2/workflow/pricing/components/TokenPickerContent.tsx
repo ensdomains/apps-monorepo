@@ -526,7 +526,7 @@ export const TokenPickerContent = () => {
     isBusy,
     isAwaitingPaymentApproval,
     isPaymentApprovalRequired,
-    isQuoting: isBudgetRequired && budgetQuery.isLoading,
+    isQuoting: isBudgetQuoting(isBudgetRequired, budgetQuery),
   })
     .with({ isBusy: true, isAwaitingPaymentApproval: true }, () => (
       <Trans>Approve in wallet</Trans>
@@ -624,9 +624,23 @@ const PickerMessage = ({
   return null
 }
 
+/** A quote is pending, or a stale one (the toggle re-keyed it) is being replaced. */
+const isRequotingFunding = (isQuotingFunding: boolean, isQuoteStale: boolean) =>
+  isQuotingFunding || isQuoteStale
+
 /** The button holds with a spinner while a click is in flight or the fee is being quoted. */
-const isCheckoutSettling = (isBusy: boolean, isQuotingFunding: boolean) =>
-  isBusy || isQuotingFunding
+const isCheckoutSettling = (isBusy: boolean, isRequoting: boolean) =>
+  isBusy || isRequoting
+
+/** Whether the dialog is waiting on the budget, including a re-quote after the toggle. */
+const isBudgetQuoting = (
+  isBudgetRequired: boolean,
+  budgetQuery: {
+    readonly isLoading: boolean
+    readonly isPlaceholderData: boolean
+  },
+) =>
+  isBudgetRequired && (budgetQuery.isLoading || budgetQuery.isPlaceholderData)
 
 export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   label,
@@ -773,7 +787,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     // Refuse rather than proceed on a figure that cannot fund the batch.
     !hasBudgetQuoteFailed
 
-  const isSettling = isCheckoutSettling(isBusy, isQuotingFunding)
+  const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
+  const isSettling = isCheckoutSettling(isBusy, isRequoting)
 
   const actionClasses = match({ canNext, isBusy })
     .with(
@@ -941,7 +956,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         <PaymentTotalRow
           hasAccountCredit={hasAccountCredit}
           isEstimate={!!funding || hasBudgetQuoteFailed}
-          isLoading={isQuotingFunding}
+          isLoading={isRequoting}
           total={headlineAmount}
         />
 
