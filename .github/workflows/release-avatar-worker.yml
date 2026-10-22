@@ -1,0 +1,83 @@
+name: Release Avatar Worker
+on:
+  push:
+    tags:
+      - "avatar-worker-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+      - "avatar-worker-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].*"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-avatar-worker-${{ github.event_name == 'workflow_dispatch' && 'staging' || 'production' }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: cloudflare
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@v3
+        env:
+          PNPM_CONFIG_FROZEN_LOCKFILE: true
+        with:
+          runtime: node@lts
+          cache: true
+      - name: Validate production release
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$TAG" =~ ^avatar-worker-[0-9]{4}-[0-9]{2}-[0-9]{2}(\.([2-9]|[1-9][0-9]+))?$ ]]
+          test -n "$(git branch -r --contains "$GITHUB_SHA" --format='%(refname:short)' --list origin/main 'origin/hf/*')"
+      - run: pnpm --filter avatar-worker typecheck
+      - run: pnpm --filter avatar-worker lint
+      - run: pnpm --filter avatar-worker build
+      - name: Write production release notes
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/avatar-notes"
+          node scripts/release-notes.mjs "$TAG" "$RUNNER_TEMP/avatar-notes"
+      - name: Deploy new service
+        working-directory: workers/avatar-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          RELEASE_KIND: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [ "$RELEASE_KIND" = workflow_dispatch ]; then
+            pnpm run deploy --env "" --var "SOURCE_COMMIT:$GITHUB_SHA" --tag "staging-${GITHUB_SHA:0:12}" --message "Staging $GITHUB_SHA"
+          else
+            curl --fail --retry 3 https://avatar-worker-staging.ens-cf.workers.dev/health | jq -e --arg sha "$GITHUB_SHA" '.status == "ok" and .commit == $sha'
+            pnpm run deploy --env production --var "SOURCE_COMMIT:$GITHUB_SHA" --tag "$RELEASE_TAG" --message "$(cat "$RUNNER_TEMP/avatar-notes/release-message.txt")"
+          fi
+      - name: Verify deployed version
+        env:
+          RELEASE_KIND: ${{ github.event_name }}
+        run: |
+          if [ "$RELEASE_KIND" = workflow_dispatch ]; then
+            endpoint=https://avatar-worker-staging.ens-cf.workers.dev
+          else
+            endpoint=https://avatar-worker.ens-cf.workers.dev
+          fi
+          curl --fail --retry 5 --retry-delay 3 "$endpoint/health" | jq -e --arg sha "$GITHUB_SHA" '.status == "ok" and .commit == $sha'
+      - name: Record successful production release
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file "$RUNNER_TEMP/avatar-notes/release-notes.md"
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file "$RUNNER_TEMP/avatar-notes/release-notes.md" --verify-tag
+          fi

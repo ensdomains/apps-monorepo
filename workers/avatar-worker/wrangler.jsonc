@@ -1,0 +1,62 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "avatar-worker-staging",
+  "account_id": "15dcc9085cb794bb4f29d3e8177ac880",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "version_metadata": { "binding": "VERSION" },
+  "vars": {
+    "SOURCE_COMMIT": "local",
+    "SERVICE_ORIGIN": "https://avatar-worker-staging.ens-cf.workers.dev",
+    "ALLOWED_UPLOAD_ORIGINS": "https://*.ens.domains,https://*.ens.dev,https://*.ens-cf.workers.dev,http://localhost:5173,http://localhost:3000"
+  },
+  "secrets": { "required": ["MAINNET_RPC_URL", "SEPOLIA_RPC_URL"] },
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "staging-avatar-storage" },
+    { "binding": "HEADER_MEDIA", "bucket_name": "staging-header-storage" }
+  ],
+  "ratelimits": [
+    {
+      "name": "UPLOAD_IP_LIMIT",
+      "namespace_id": "2001",
+      "simple": { "limit": 30, "period": 60 }
+    },
+    {
+      "name": "UPLOAD_SIGNER_LIMIT",
+      "namespace_id": "2002",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
+  "env": {
+    "production": {
+      "name": "avatar-worker",
+      "vars": {
+        "SOURCE_COMMIT": "local",
+        "SERVICE_ORIGIN": "https://avatar-worker.ens-cf.workers.dev",
+        "ALLOWED_UPLOAD_ORIGINS": "https://*.ens.domains,https://*.ens.dev,https://*.ens-cf.workers.dev,https://*.ens-app-v3.pages.dev,https://*.grails.app,https://*.efp.app,https://*.ethleaderboard.com"
+      },
+      "version_metadata": { "binding": "VERSION" },
+      "secrets": { "required": ["MAINNET_RPC_URL", "SEPOLIA_RPC_URL"] },
+      "r2_buckets": [
+        { "binding": "MEDIA", "bucket_name": "avatar-storage" },
+        { "binding": "HEADER_MEDIA", "bucket_name": "header-storage" }
+      ],
+      "ratelimits": [
+        {
+          "name": "UPLOAD_IP_LIMIT",
+          "namespace_id": "2003",
+          "simple": { "limit": 30, "period": 60 }
+        },
+        {
+          "name": "UPLOAD_SIGNER_LIMIT",
+          "namespace_id": "2004",
+          "simple": { "limit": 10, "period": 60 }
+        }
+      ]
+    }
+  }
+}

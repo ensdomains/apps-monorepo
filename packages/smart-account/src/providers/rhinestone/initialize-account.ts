@@ -39,7 +39,6 @@ import {
   decodeFunctionData,
   encodeAbiParameters,
   encodeFunctionData,
-  getAddress,
   isAddressEqual,
   keccak256,
   type PublicClient,
@@ -50,11 +49,16 @@ import { computeVerifiableProxyAddress } from '../../verifiable-factory'
 import { type RhinestoneAuth, toSdkAuth } from './auth'
 import {
   getDestinationContracts,
-  ONCHAIN_ACCOUNT_ID,
   STANDALONE_HCA_VERSION,
   USER_SALT,
 } from './manifest'
 import type { Call } from './registration-calls'
+import { verifyStandaloneHca } from './verify-account'
+
+export {
+  type VerifyStandaloneHcaParams,
+  verifyStandaloneHca,
+} from './verify-account'
 
 /** Standalone fields supplied by the ENS patch but absent from SDK 1.8 types. */
 export type StandaloneHcaAccount = Extract<
@@ -71,16 +75,9 @@ export type StandaloneHcaAccount = Extract<
 }
 
 /** Minimal reads against the deployed standalone HCA and its factories. */
-const standaloneHcaAbi = parseAbi([
-  'function owner() view returns (address)',
-  'function accountId() view returns (string)',
-])
 const standaloneHcaFactoryAbi = parseAbi([
   'function authorizedOwnerOf(address hca) view returns (address)',
   'function deploy(address owner, address hcaImplementation, uint256 userSalt) returns (address hca)',
-])
-const verifiableFactoryAbi = parseAbi([
-  'function verifyContract(address proxy) view returns (address implementation)',
 ])
 
 export type RhinestoneInitError = AccountInitError | AccountVerificationError
@@ -370,95 +367,6 @@ function makeSdk(params: {
       ? { endpointUrl: params.rhinestoneEndpointUrl }
       : {}),
   })
-}
-
-/**
- * Verify an already-deployed HCA matches what we expect before adopting it.
- * Returns the verified current implementation. Throws `AccountVerificationError`
- * (never silently adopts a mismatched account).
- */
-export interface VerifyStandaloneHcaParams {
-  readonly publicClient: PublicClient
-  readonly hca: Address
-  readonly expectedOwner: Address
-  readonly chainId: number
-}
-
-export async function verifyStandaloneHca(
-  params: VerifyStandaloneHcaParams,
-): Promise<Address> {
-  const { publicClient, hca, expectedOwner, chainId } = params
-  const c = getDestinationContracts(chainId)
-
-  const [actualOwner, accountId, authorizedOwner, implementation] =
-    await Promise.all([
-      publicClient.readContract({
-        address: hca,
-        abi: standaloneHcaAbi,
-        functionName: 'owner',
-      }),
-      publicClient.readContract({
-        address: hca,
-        abi: standaloneHcaAbi,
-        functionName: 'accountId',
-      }),
-      publicClient.readContract({
-        address: c.standaloneHcaFactory,
-        abi: standaloneHcaFactoryAbi,
-        functionName: 'authorizedOwnerOf',
-        args: [hca],
-      }),
-      publicClient.readContract({
-        address: c.verifiableFactory,
-        abi: verifiableFactoryAbi,
-        functionName: 'verifyContract',
-        args: [hca],
-      }),
-    ])
-
-  if (getAddress(actualOwner) !== getAddress(expectedOwner)) {
-    throw new AccountVerificationError({
-      message: 'Existing HCA owner does not match the connected wallet',
-      field: 'owner',
-      expected: getAddress(expectedOwner),
-      actual: getAddress(actualOwner),
-    })
-  }
-
-  if (getAddress(authorizedOwner) !== getAddress(expectedOwner)) {
-    throw new AccountVerificationError({
-      message:
-        'Existing HCA factory authorization does not match the connected wallet',
-      field: 'authorizedOwner',
-      expected: getAddress(expectedOwner),
-      actual: getAddress(authorizedOwner),
-    })
-  }
-
-  if (accountId !== ONCHAIN_ACCOUNT_ID) {
-    throw new AccountVerificationError({
-      message: 'Existing HCA accountId does not match the standalone HCA',
-      field: 'accountId',
-      expected: ONCHAIN_ACCOUNT_ID,
-      actual: accountId,
-    })
-  }
-
-  // At launch the implementation must equal the configured initial
-  // implementation. (Post-upgrade, this expands to any DAO-approved
-  // implementation — tracked separately once upgrades exist.)
-  if (
-    getAddress(implementation) !== getAddress(c.standaloneHcaImplementation)
-  ) {
-    throw new AccountVerificationError({
-      message: 'Existing HCA implementation is not the expected implementation',
-      field: 'implementation',
-      expected: getAddress(c.standaloneHcaImplementation),
-      actual: getAddress(implementation),
-    })
-  }
-
-  return implementation
 }
 
 /**

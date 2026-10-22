@@ -1378,6 +1378,37 @@ importers:
         specifier: 'catalog:'
         version: 4.1.12(@types/node@24.19.2)(@vitest/coverage-v8@4.1.12)(esbuild@0.28.1)(happy-dom@20.14.6)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
 
+  workers/avatar-worker:
+    dependencies:
+      '@ens-apps/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@ens-apps/shared-schema':
+        specifier: workspace:*
+        version: link:../../packages/shared-schema
+      '@ens-apps/smart-account':
+        specifier: workspace:*
+        version: link:../../packages/smart-account
+      '@ensdomains/ensjs':
+        specifier: 'catalog:'
+        version: 5.2.3(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+      hono:
+        specifier: ^4.13.13
+        version: 4.13.13
+      valibot:
+        specifier: ^1.5.0
+        version: 1.5.0(typescript@7.0.2)
+      viem:
+        specifier: 'catalog:'
+        version: 2.57.7(typescript@7.0.2)(zod@4.6.7)
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      wrangler:
+        specifier: 'catalog:'
+        version: 4.151.3(@types/node@24.19.2)
+
 packages:
 
   '@adobe/css-tools@4.5.0':
