@@ -1671,6 +1671,10 @@ msgstr "Nothing here yet!"
 msgid "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 msgstr "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 
+#: src/features/notifications/settings/preferences.tsx
+msgid "Notification schedule"
+msgstr "Notification schedule"
+
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Notification Settings"
 msgstr "Notification Settings"
@@ -1679,6 +1683,10 @@ msgstr "Notification Settings"
 #: src/features/notifications/dropdown/notification-dropdown.tsx
 msgid "Notifications"
 msgstr "Notifications"
+
+#: src/features/notifications/settings/preferences.tsx
+msgid "Notifications are sent 30, 7 and 1 day before expiry, and 7 and 1 day before the end of the grace period, before the name is released."
+msgstr "Notifications are sent 30, 7 and 1 day before expiry, and 7 and 1 day before the end of the grace period, before the name is released."
 
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Notifications blocked"

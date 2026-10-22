@@ -1,6 +1,12 @@
 import { Trans } from '@lingui/react/macro'
 import { Loader2Icon } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { MSymbol } from '@/components/ui/material-symbol'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 export interface PreferenceCardProps {
@@ -8,6 +14,9 @@ export interface PreferenceCardProps {
   label: ReactNode
   description: ReactNode
   recommended?: boolean
+  /** Info tooltip beside the label; `tooltipLabel` names it for assistive tech. */
+  tooltip?: ReactNode
+  tooltipLabel?: string
   checked: boolean
   disabled?: boolean
   isLoading?: boolean
@@ -19,6 +28,8 @@ export const PreferenceCard = ({
   label,
   description,
   recommended = false,
+  tooltip,
+  tooltipLabel,
   checked,
   disabled,
   isLoading,
@@ -58,6 +69,26 @@ export const PreferenceCard = ({
           <span className="font-normal font-sans text-base text-ens-blue-dark not-italic leading-[22.5px]">
             {label}
           </span>
+          {tooltip && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {/* biome-ignore lint/a11y/useSemanticElements: a <button> cannot nest inside the card's button */}
+                <span
+                  aria-label={tooltipLabel}
+                  className="-ml-1.5 flex items-center text-ens-quartz-500"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <MSymbol className="ms-opsz-20 ms-wght-400" symbol="info" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-64 text-center">
+                {tooltip}
+              </TooltipContent>
+            </Tooltip>
+          )}
           {recommended && (
             <span className="rounded bg-white px-2 py-0.5 font-normal font-sans text-ens-blue-dark text-xs not-italic leading-ens-normal">
               <Trans>Recommended</Trans>

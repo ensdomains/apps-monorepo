@@ -86,6 +86,8 @@ export const NotificationPreferencesFields = ({
   form,
   preferences,
 }: NotificationPreferencesFieldsProps) => {
+  const { t } = useLingui()
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 pb-2">
@@ -113,6 +115,14 @@ export const NotificationPreferencesFields = ({
               label={<Trans>Name Expiry</Trans>}
               onChange={(checked) => field.handleChange(checked)}
               recommended
+              tooltip={
+                <Trans>
+                  Notifications are sent 30, 7 and 1 day before expiry, and 7
+                  and 1 day before the end of the grace period, before the name
+                  is released.
+                </Trans>
+              }
+              tooltipLabel={t`Notification schedule`}
             />
           )}
         </form.Field>
