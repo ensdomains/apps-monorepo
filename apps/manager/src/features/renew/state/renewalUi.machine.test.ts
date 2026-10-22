@@ -282,7 +282,7 @@ describe('smart-account renewal state machine', () => {
 
   it('records the submitted intent before the fill, so the dialog can hand over', async () => {
     mocks.submitHcaRenewal.mockImplementation(async (input) => {
-      input.onTxId?.('0xsubmitted')
+      input.onSubmitted?.('0xsubmitted')
       await new Promise((resolve) => setTimeout(resolve, 50))
       return { txId: '0xsubmitted', quotedFeeUsdc: 1n }
     })

@@ -312,7 +312,7 @@ export const renewalUiMachine = setup({
         input: ({ context, self }) => {
           const submission = requireSubmissionData(context.submissionData)
           return {
-            onTxId: (txId: string) =>
+            onSubmitted: (txId: string) =>
               self.send({ type: 'renewal.submitted', txId }),
             items: [{ label: submission.label, duration: submission.duration }],
             renewerAddress: context.renewerAddress,

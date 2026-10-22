@@ -10,6 +10,7 @@ import {
   type RhinestoneTransactionRequest,
   transactionManager,
   waitForTransaction,
+  waitForTransactionHash,
 } from '@ens-apps/transaction-manager'
 import { assertPaymentTokenSupported } from '@ens-apps/transaction-manager/contracts/paymentToken'
 import {
@@ -99,8 +100,13 @@ export interface SubmitHcaRenewalParams {
   readonly walletClient: WalletClient
   readonly publicClient: PublicClient
   readonly chainId: number
-  /** Called with the submitted txId so the UI can track it. */
+  /** Called with the transaction-manager id as soon as the record exists, so the UI can track it. */
   readonly onTxId?: (txId: string) => void
+  /**
+   * Called once the owner has signed and the intent is with the orchestrator:
+   * nothing is left to approve, so a payment dialog can hand over to progress.
+   */
+  readonly onSubmitted?: (txId: string) => void
   /**
    * Show the USDC the funding permit will authorize and wait for the user to
    * accept it. Called only when the HCA cannot cover the renewal out of its own
@@ -300,6 +306,7 @@ export async function submitHcaRenewal(
     publicClient,
     chainId,
     onTxId,
+    onSubmitted,
     confirmFunding,
   } = params
 
@@ -388,6 +395,11 @@ export async function submitHcaRenewal(
     },
   )
   onTxId?.(txId)
+
+  // The hash lands once the signed intent is submitted; the signature prompt
+  // sits between here and there.
+  await waitForTransactionHash(txId)
+  onSubmitted?.(txId)
 
   // The transport resolves the tx once the intent has FILLED, so awaiting here
   // means callers can treat a resolved promise as "renewed", not "submitted".
