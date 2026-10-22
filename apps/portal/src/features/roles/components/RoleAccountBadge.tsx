@@ -21,6 +21,7 @@ export const RoleAccountBadge = ({
     return (
       <EntityBadge
         variant="name"
+        format="truncate"
         name={name}
         label={label}
         address={hcaOwner ? undefined : account}

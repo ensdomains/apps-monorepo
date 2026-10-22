@@ -32,7 +32,7 @@ export const getHcaOwner = ResultFn(async function* ({
   if (isAddressEqual(factory, zeroAddress)) return ok(null)
 
   const client = yield* safeGetClient()
-  const owner = yield* await fromPromise(
+  const owner = yield* fromPromise(
     getAction(
       client,
       readContract,
