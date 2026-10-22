@@ -1,12 +1,17 @@
 import { err, ok } from 'neverthrow'
 import {
   type Address,
+  ContractFunctionExecutionError,
+  ContractFunctionRevertedError,
+  ContractFunctionZeroDataError,
   type Hex,
+  HttpRequestError,
   type PublicClient,
   zeroAddress,
   zeroHash,
 } from 'viem'
 import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
+import { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
 import { fail as failCall, ok as okCall } from './_fixtures'
 import {
   fetchV1Profiles,
@@ -27,6 +32,25 @@ const NODE_B: Hex =
 
 // Every name ends its batch with a pubkey read; this is an unset one.
 const NO_PUBKEY = okCall([zeroHash, zeroHash])
+
+const pubkeyFailure = (
+  cause: ContractFunctionRevertedError | ContractFunctionZeroDataError,
+) => ({
+  status: 'failure' as const,
+  error: new ContractFunctionExecutionError(cause, {
+    abi: V1_RESOLVER_PROFILE_ABI,
+    functionName: 'pubkey',
+    args: [NODE_A],
+  }),
+  result: undefined,
+})
+
+const PUBKEY_REVERT = pubkeyFailure(
+  new ContractFunctionRevertedError({
+    abi: V1_RESOLVER_PROFILE_ABI,
+    functionName: 'pubkey',
+  }),
+)
 
 const clientWith = (multicallImpl: (opts: unknown) => unknown): PublicClient =>
   ({ multicall: vi.fn(multicallImpl) }) as unknown as PublicClient
@@ -255,12 +279,54 @@ describe('fetchV1Profiles', () => {
     mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [] }])
     const result = await run(
       [A],
-      clientWith(() => [okCall('a@b.c'), failCall()]),
+      clientWith(() => [okCall('a@b.c'), PUBKEY_REVERT]),
     )
     expect(result.get(profileMapKey(NODE_A))).toMatchObject({
       texts: [{ key: 'email', value: 'a@b.c' }],
       pubkey: null,
     })
+  })
+
+  it('treats a resolver that returns no data for pubkey as holding none', async () => {
+    mockKeys([{ id: NODE_A, texts: [], coinTypes: [] }])
+    const result = await run(
+      [A],
+      clientWith(() => [
+        pubkeyFailure(
+          new ContractFunctionZeroDataError({ functionName: 'pubkey' }),
+        ),
+      ]),
+    )
+    expect(result.get(profileMapKey(NODE_A))?.pubkey).toBeNull()
+  })
+
+  it('fails closed when the multicall request fails on a pubkey-only chunk', async () => {
+    mockKeys([{ id: NODE_A, texts: [], coinTypes: [] }])
+    const requestError = new HttpRequestError({ url: 'https://rpc.test' })
+    await expect(
+      run(
+        [A],
+        clientWith(() => [
+          { status: 'failure', error: requestError, result: undefined },
+        ]),
+      ),
+    ).rejects.toSatisfy(
+      (error) =>
+        error instanceof ProfileFetchError && error.phase === 'onchain',
+    )
+  })
+
+  it('fails closed when a pubkey read fails for a reason other than a revert', async () => {
+    mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [] }])
+    await expect(
+      run(
+        [A],
+        clientWith(() => [okCall('a@b.c'), failCall()]),
+      ),
+    ).rejects.toSatisfy(
+      (error) =>
+        error instanceof ProfileFetchError && error.phase === 'onchain',
+    )
   })
 
   it('fails closed when any multicall record read fails', async () => {

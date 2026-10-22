@@ -1,5 +1,12 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import type { Address, Hex, PublicClient } from 'viem'
+import {
+  type Address,
+  ContractFunctionExecutionError,
+  ContractFunctionRevertedError,
+  ContractFunctionZeroDataError,
+  type Hex,
+  type PublicClient,
+} from 'viem'
 import type { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
 import { cleanResolverTextRecords } from './cleanResolverTextRecords'
 import {
@@ -34,6 +41,14 @@ export type Profile = {
   readonly pubkey: { readonly x: Hex; readonly y: Hex } | null
 }
 
+// A resolver without the pubkey profile reverts `pubkey`; it holds none. A
+// failed multicall request also fails every call, so only a confirmed revert counts.
+const isUnsupportedPubkey = ({ error }: MulticallResult): boolean =>
+  error instanceof ContractFunctionExecutionError &&
+  error.functionName === 'pubkey' &&
+  (error.cause instanceof ContractFunctionRevertedError ||
+    error.cause instanceof ContractFunctionZeroDataError)
+
 const executeMulticallChunks = async (
   publicClient: PublicClient,
   contracts: readonly MulticallContract[],
@@ -67,10 +82,8 @@ const executeMulticallChunks = async (
           `Profile multicall chunk ${index} returned ${results.length} results for ${chunk.length} calls`,
         )
       }
-      // A resolver without the pubkey profile reverts `pubkey`; it holds none.
       const failedIndex = results.findIndex(
-        (result, i) =>
-          result.status !== 'success' && chunk[i]?.functionName !== 'pubkey',
+        (result) => result.status !== 'success' && !isUnsupportedPubkey(result),
       )
       if (failedIndex !== -1) {
         const failedContract = chunk[failedIndex]
