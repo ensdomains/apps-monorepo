@@ -276,7 +276,7 @@ export function encodeRegisterCall({
   owner: Address
   secret: Hash
   duration: bigint
-  referrer?: Hex
+  readonly referrer?: Hex
   paymentToken: Address
   resolverAddress: Address
   registrarAddress: Address
@@ -553,7 +553,7 @@ export function generateCommitmentActor(input: {
   name: string
   owner: Address
   duration: bigint
-  referrer?: Hex
+  readonly referrer?: Hex
   publicClient: PublicClient
   selectedToken: TOKEN_SYMBOL
   resolverAddress: Address
@@ -1224,7 +1224,7 @@ export function submitRegistrationActor(input: {
   commitment: CommitmentData
   signer: import('../..').Signer
   duration: bigint
-  referrer?: Hex
+  readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
   owner: Address
   publicClient: PublicClient
@@ -1424,7 +1424,7 @@ export function encodeRenewBatchData(
 export function submitRenewActor(input: {
   label: string
   duration: bigint
-  referrer?: Hex
+  readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
   signer: import('../..').Signer
   publicClient: PublicClient

@@ -1,5 +1,4 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
@@ -334,7 +333,7 @@ export const TokenPickerContent = () => {
     if (uiActor.getSnapshot() !== pricingSnapshot) return
     uiActor.send({
       type: 'registration.start',
-      referrer: normalizeReferrer(referrer),
+      referrer,
       label,
       duration: BigInt(Math.ceil(duration)),
       token: selectedToken,

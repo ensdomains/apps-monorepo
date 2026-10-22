@@ -36,7 +36,7 @@ import { getQueryClient } from '@/utils/router/root-context'
 type SubmissionData = {
   label: string
   duration: bigint
-  referrer?: `0x${string}`
+  readonly referrer?: `0x${string}`
   token: RENEWAL_TOKEN
   /** Price in token units */
   priceRaw: bigint
@@ -111,7 +111,7 @@ export const renewalUiMachine = setup({
           type: 'renewal.start'
           label: string
           duration: bigint
-          referrer?: `0x${string}`
+          readonly referrer?: `0x${string}`
           token: RENEWAL_TOKEN
           /** Price in token units */
           priceRaw: bigint

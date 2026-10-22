@@ -272,3 +272,25 @@ describe('registration persistence adapter', () => {
     expect(adapter.load()).toBeNull()
   })
 })
+
+it('loads a legacy envelope whose confirmed data and record have no referrer', () => {
+  const storage = createStorage()
+  createRegistrationPersistenceAdapter({
+    label: 'leon',
+    getAppState: () => ({ confirmedData }),
+    storage,
+  }).save(record())
+  const [key, value] = [...storage.raw.entries()][0] ?? []
+  if (!key || !value) throw new Error('Expected persisted registration')
+  const envelope = JSON.parse(value)
+  const persisted = JSON.parse(envelope.record)
+  delete envelope.confirmedData.referrer
+  delete persisted.context.referrer
+  envelope.record = JSON.stringify(persisted)
+  storage.setItem(key, JSON.stringify(envelope))
+  const restored = loadStoredRegistration(storage)
+  expect(restored).not.toBeNull()
+  expect(restored?.record.context.referrer).toBeUndefined()
+  expect(restored?.confirmedData.referrer).toBeUndefined()
+  expect(restored?.record.context.commitment?.secret).toBe(SECRET)
+})

@@ -35,6 +35,10 @@ import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
 
+type AttributedRenewItem = RenewItem & {
+  readonly referrer: `0x${string}`
+}
+
 // How long to hold the completed progress bar before showing the success view.
 const SETTLE_MS = 600
 
@@ -97,7 +101,10 @@ const authorizeSpend = (
     })
 
 /** Renew one name and wait for it to land. */
-const renewOne = (ctx: Context, item: RenewItem): ResultAsync<void, Error> =>
+const renewOne = (
+  ctx: Context,
+  item: AttributedRenewItem,
+): ResultAsync<void, Error> =>
   submitRenewActor({
     label: item.label,
     duration: item.duration,
@@ -118,7 +125,7 @@ const renewOne = (ctx: Context, item: RenewItem): ResultAsync<void, Error> =>
  */
 const runRenewals = ResultFn(async function* (
   ctx: Context,
-  remaining: readonly RenewItem[],
+  remaining: readonly AttributedRenewItem[],
   reporters: RowReporters,
 ) {
   const { onActive, onDone } = reporters
@@ -138,8 +145,10 @@ type HcaContext = {
 }
 
 /** Split the selection into the batches an intent can carry. */
-const chunkItems = (items: readonly RenewItem[]): RenewItem[][] => {
-  const chunks: RenewItem[][] = []
+const chunkItems = (
+  items: readonly AttributedRenewItem[],
+): AttributedRenewItem[][] => {
+  const chunks: AttributedRenewItem[][] = []
   for (
     let index = 0;
     index < items.length;
@@ -160,7 +169,7 @@ const chunkItems = (items: readonly RenewItem[]): RenewItem[][] => {
  */
 const runHcaRenewals = ResultFn(async function* (
   ctx: HcaContext,
-  remaining: readonly RenewItem[],
+  remaining: readonly AttributedRenewItem[],
   reporters: RowReporters,
   confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean,
 ) {
@@ -424,7 +433,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
    */
   const renewWithIntents = async (
     hca: HcaContext,
-    remaining: readonly RenewItem[],
+    remaining: readonly AttributedRenewItem[],
     isCurrent: () => boolean,
   ) => {
     setPhase('renewing')
@@ -451,7 +460,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   /** Wallet route: authorize the summed spend once, then renew name by name. */
   const renewWithWallet = async (
     ctx: Context,
-    remaining: readonly RenewItem[],
+    remaining: readonly AttributedRenewItem[],
     sumPriceRaw: bigint,
     isCurrent: () => boolean,
   ) => {

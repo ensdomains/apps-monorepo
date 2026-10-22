@@ -61,7 +61,7 @@ export type PersistedRegistrationContext = {
   chainId: number
   name: string
   duration: bigint
-  referrer?: Hex
+  readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
   tokenPrice: bigint
   signerType: Signer['type']

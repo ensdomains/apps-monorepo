@@ -248,7 +248,11 @@ describe('TokenPickerContent', () => {
 
     await waitFor(() =>
       expect(containerMocks.send).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'registration.start', label: 'jeff' }),
+        expect.objectContaining({
+          type: 'registration.start',
+          label: 'jeff',
+          referrer: '0x1234',
+        }),
       ),
     )
   })

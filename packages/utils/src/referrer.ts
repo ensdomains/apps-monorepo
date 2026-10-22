@@ -8,9 +8,9 @@ export function normalizeReferrer(value: unknown): Hex {
   return `0x${value.slice(2).padStart(64, '0').toLowerCase()}`
 }
 
-/** Keep the supplied URL value for attribution; normalize only at the calldata boundary. */
-export function referrerSearch(search: Record<string, unknown>): {
-  referrer?: string
+/** Keep the supplied URL value for attribution; transaction flows normalize their own copy. */
+export function referrerSearch(search: Readonly<Record<string, unknown>>): {
+  readonly referrer?: string
 } {
   return {
     referrer: typeof search.referrer === 'string' ? search.referrer : undefined,

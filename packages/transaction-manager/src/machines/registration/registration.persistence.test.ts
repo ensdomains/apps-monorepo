@@ -632,3 +632,22 @@ describe('subscribeRegistrationPersistence', () => {
     actor.stop()
   })
 })
+
+it('accepts a legacy record without a referrer and preserves its commitment', () => {
+  const record = buildRegistrationRecord(
+    'commitmentCooldown',
+    baseContext({
+      referrer: undefined,
+      commitment: { commitment: COMMITMENT, secret: SECRET },
+    }),
+    42,
+  )
+  const serialized = serializeRegistrationRecord(record)
+  expect(serialized).not.toContain('"referrer"')
+  const restored = parseRegistrationRecord(serialized)._unsafeUnwrap()
+  expect(restored.context.referrer).toBeUndefined()
+  expect(restored.context.commitment).toEqual({
+    commitment: COMMITMENT,
+    secret: SECRET,
+  })
+})

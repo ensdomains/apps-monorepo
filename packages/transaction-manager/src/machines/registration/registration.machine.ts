@@ -176,7 +176,7 @@ export type RegistrationContext = {
   // Registration params
   name: string
   duration: bigint
-  referrer?: Hex
+  readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
   tokenPrice: bigint
   /**
@@ -316,7 +316,7 @@ export type RegistrationEvent =
       name: string
       /** Duration in seconds */
       duration: bigint
-      referrer?: Hex
+      readonly referrer?: Hex
       token: TOKEN_SYMBOL
       price: bigint
       signer: Signer
@@ -426,7 +426,7 @@ export const registrationMachine = setup({
       (input: {
         name: string
         duration: bigint
-        referrer?: Hex
+        readonly referrer?: Hex
         publicClient: PublicClient
         chainId: number
         signer?: Signer
@@ -465,7 +465,7 @@ export const registrationMachine = setup({
         wallet: Address
         hca: Address
         duration: bigint
-        referrer?: Hex
+        readonly referrer?: Hex
         permit?: PermitSignature
         sessionEnable?: HcaSessionEnableParams
         signer: Signer
@@ -481,7 +481,7 @@ export const registrationMachine = setup({
         wallet: Address
         hca: Address
         duration: bigint
-        referrer?: Hex
+        readonly referrer?: Hex
         secret: Hex
         sessionEnable?: HcaSessionEnableParams
         signer: Signer
@@ -529,7 +529,7 @@ export const registrationMachine = setup({
         name: string
         owner: Address
         duration: bigint
-        referrer?: Hex
+        readonly referrer?: Hex
         publicClient: PublicClient
         selectedToken: TOKEN_SYMBOL
         resolverAddress: Address
@@ -574,7 +574,7 @@ export const registrationMachine = setup({
         commitment: CommitmentData
         signer: Signer
         duration: bigint
-        referrer?: Hex
+        readonly referrer?: Hex
         selectedToken: TOKEN_SYMBOL
         owner: Address
         publicClient: PublicClient

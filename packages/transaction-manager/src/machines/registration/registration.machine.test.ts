@@ -810,6 +810,7 @@ describe('registrationMachine — RESUME', () => {
         },
       })
 
+      expect(actor.getSnapshot().context.referrer).toBe(`0x${'0'.repeat(64)}`)
       await waitFor(
         actor,
         (state) =>

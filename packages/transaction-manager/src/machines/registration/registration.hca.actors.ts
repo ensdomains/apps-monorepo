@@ -388,7 +388,7 @@ async function readDeploymentState(params: {
 export function estimateHcaBudgetActor(input: {
   name: string
   duration: bigint
-  referrer?: Hex
+  readonly referrer?: Hex
   publicClient: PublicClient
   chainId: number
   signer?: Signer
@@ -1145,7 +1145,7 @@ export function submitFundingAndCommitActor(input: {
   wallet: Address
   hca: Address
   duration: bigint
-  referrer?: Hex
+  readonly referrer?: Hex
   permit?: PermitSignature
   sessionEnable?: HcaSessionEnableParams
   signer: Signer
@@ -1428,7 +1428,7 @@ export function submitRevealBatchActor(input: {
   wallet: Address
   hca: Address
   duration: bigint
-  referrer?: Hex
+  readonly referrer?: Hex
   secret: Hex
   sessionEnable?: HcaSessionEnableParams
   signer: Signer
