@@ -1,5 +1,8 @@
 import { classifyNames } from '@ens-apps/migration'
-import type { Signer } from '@ens-apps/transaction-manager'
+import {
+  type Signer,
+  useAtomicBatchSupport,
+} from '@ens-apps/transaction-manager'
 import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
@@ -12,6 +15,7 @@ import type { Address, PublicClient, WalletClient } from 'viem'
 import { useBalance, useWalletClient } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { chain } from '@/config'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
@@ -254,6 +258,7 @@ export const MigrationPage = () => {
     refreshAccount,
   } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
+  const atomicBatching = useAtomicBatchSupport(chain.id)
   const queryClient = useQueryClient()
   const migrationNftEnabled = useMigrationNftEnabled()
   const isMigrationSuccess = step === 'success'
@@ -473,6 +478,7 @@ export const MigrationPage = () => {
             domains: v1Names.filter(({ name }) => selected.has(name)),
             hcaAddress: hcaAddress as Address,
             requestSteps: renewalGasEstimate.stepDescriptors,
+            atomicBatching,
           },
           signer,
           hcaClient,
@@ -502,6 +508,7 @@ export const MigrationPage = () => {
     hcaClient,
     refreshAccount,
     wagmiWalletClient,
+    atomicBatching,
     gasEstimate,
     gasFundingStatus,
     graceDomains,

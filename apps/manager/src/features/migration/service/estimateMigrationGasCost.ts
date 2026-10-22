@@ -41,6 +41,8 @@ const predictedGasUnits = (plan: MigrationPlan): bigint => {
 }
 
 const predictedTransactionCount = (plan: MigrationPlan): number => {
+  // Bundled steps share one confirmation; the descriptors already group them.
+  if (plan.atomicBatching) return plan.stepDescriptors.length
   const approvals = plan.preflight.migrationApprovals ?? []
   const approvalCount = approvals.length
   const cleanupCount = plan.preflight.migrationCleanupApprovals?.length ?? 0

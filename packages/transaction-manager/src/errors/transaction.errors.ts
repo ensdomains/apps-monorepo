@@ -218,6 +218,21 @@ export class TransactionTimeoutError
   }
 }
 
+/** A `wallet_sendCalls` bundle did not report a final status in time. */
+export class CallsBundleTimeoutError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'CallsBundleTimeoutError'
+  constructor(
+    public readonly id: string,
+    public readonly timeout: number,
+    cause?: unknown,
+  ) {
+    super(`Batched calls ${id} timed out after ${timeout}ms`, cause)
+  }
+}
+
 export class TransactionRevertedError
   extends TransactionError
   implements ITaggedError

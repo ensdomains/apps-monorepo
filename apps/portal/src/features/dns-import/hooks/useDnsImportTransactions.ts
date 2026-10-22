@@ -1,6 +1,8 @@
 import {
+  type CustomTransactionIntent,
   scopeTransactionId,
   transactionManager,
+  useAtomicBatchSupport,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
@@ -8,7 +10,7 @@ import { importDnsName } from '@ensdomains/ensjs/dns'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { type Address, encodeFunctionData, parseAbi } from 'viem'
 import {
   useConfig,
@@ -18,7 +20,10 @@ import {
 } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import {
+  toEoaBatchIntent,
+  toEoaCustomIntent,
+} from '@/features/transaction-manager/helpers/intents'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
@@ -95,6 +100,31 @@ export const useDnsImportTransactions = ({
     },
   })
   const needsApproval = mode === 'claim' && approvalQuery.data === false
+  // Approve + claim as one EIP-5792 bundle when the wallet supports it. Fixed
+  // when the import starts so a late capabilities answer can't reshape the modal.
+  const atomicBatching = useAtomicBatchSupport(chainId)
+  const [atomicAtStart, setAtomicAtStart] = useState<boolean | null>(null)
+  const bundleApproval = needsApproval && (atomicAtStart ?? atomicBatching)
+
+  const buildApproveIntent = (from: Address): CustomTransactionIntent =>
+    toEoaCustomIntent({
+      from,
+      to: publicResolverAddress,
+      data: encodeFunctionData({
+        abi: resolverApprovalAbi,
+        functionName: 'setApprovalForAll',
+        args: [dnsRegistrarAddress, true],
+      }),
+      chainId,
+    })
+
+  const buildClaimIntent = (
+    from: Address,
+    dnsImportData: NonNullable<typeof importDataQuery.data>,
+  ): CustomTransactionIntent => {
+    const call = buildClaimCall(dnsImportData)
+    return toEoaCustomIntent({ from, to: call.to, data: call.data, chainId })
+  }
 
   const buildClaimCall = (
     dnsImportData: NonNullable<typeof importDataQuery.data>,
@@ -151,6 +181,10 @@ export const useDnsImportTransactions = ({
     attempt.scope,
   )
   const claimId = scopeTransactionId(`dns-import-claim-${name}`, attempt.scope)
+  const bundleId = scopeTransactionId(
+    `dns-import-bundle-${name}`,
+    attempt.scope,
+  )
 
   const runApprove = () =>
     runStep(approveId, async () => {
@@ -158,16 +192,7 @@ export const useDnsImportTransactions = ({
       const account = walletClient.account
       if (!account) throw new Error('Wallet client must have an account')
       const txId = transactionManager.startTransaction(
-        toEoaCustomIntent({
-          from: account.address,
-          to: publicResolverAddress,
-          data: encodeFunctionData({
-            abi: resolverApprovalAbi,
-            functionName: 'setApprovalForAll',
-            args: [dnsRegistrarAddress, true],
-          }),
-          chainId,
-        }),
+        buildApproveIntent(account.address),
         signer,
         {
           id: approveId,
@@ -197,6 +222,29 @@ export const useDnsImportTransactions = ({
         signer,
         {
           id: claimId,
+          description: `Import ${name}`,
+          publicClient,
+          chainId,
+        },
+      )
+      await waitForTransaction(txId)
+    })
+
+  const runBundle = () =>
+    runStep(bundleId, async () => {
+      const dnsImportData = importDataQuery.data
+      if (!dnsImportData) throw new Error('DNS proof not ready')
+      const { walletClient, signer } = await getRuntime()
+      const account = walletClient.account
+      if (!account) throw new Error('Wallet client must have an account')
+      const txId = transactionManager.startTransaction(
+        toEoaBatchIntent([
+          buildApproveIntent(account.address),
+          buildClaimIntent(account.address, dnsImportData),
+        ]),
+        signer,
+        {
+          id: bundleId,
           description: `Import ${name}`,
           publicClient,
           chainId,
@@ -241,34 +289,47 @@ export const useDnsImportTransactions = ({
     onDone: finishFlow,
   }
 
-  const transactions: Transaction[] = needsApproval
-    ? [
-        {
-          id: approveId,
-          title: 'Approve DNS registrar',
-          transactionName: `Approve DNS registrar for ${name}`,
-          intent: {
-            prepare: ({ walletClient }) =>
-              toEoaCustomIntent({
-                from: walletClient.account.address,
-                to: publicResolverAddress,
-                data: encodeFunctionData({
-                  abi: resolverApprovalAbi,
-                  functionName: 'setApprovalForAll',
-                  args: [dnsRegistrarAddress, true],
-                }),
-                chainId,
-              }),
-          },
-          onStart: runApprove,
-          onDone: runClaim,
-        },
-        claimTransaction,
-      ]
+  const bundleTransaction: Transaction = {
+    id: bundleId,
+    title: 'Import name',
+    transactionName: `Approve DNS registrar and import ${name}`,
+    intent: {
+      prepare:
+        dnsImportData && connectedAddress
+          ? ({ walletClient }) =>
+              toEoaBatchIntent([
+                buildApproveIntent(walletClient.account.address),
+                buildClaimIntent(walletClient.account.address, dnsImportData),
+              ])
+          : undefined,
+      isPending: importDataQuery.isLoading,
+      isError: importDataQuery.isError,
+    },
+    onStart: runBundle,
+    onDone: finishFlow,
+  }
+
+  const approveTransaction: Transaction = {
+    id: approveId,
+    title: 'Approve DNS registrar',
+    transactionName: `Approve DNS registrar for ${name}`,
+    intent: {
+      prepare: ({ walletClient }) =>
+        buildApproveIntent(walletClient.account.address),
+    },
+    onStart: runApprove,
+    onDone: runClaim,
+  }
+  const sequentialTransactions = needsApproval
+    ? [approveTransaction, claimTransaction]
     : [claimTransaction]
+  const transactions: Transaction[] = bundleApproval
+    ? [bundleTransaction]
+    : sequentialTransactions
 
   const startImport = () => {
     startedStepsRef.current = new Set()
+    setAtomicAtStart(atomicBatching)
     if (connectedAddress) attempt.start(connectedAddress)
   }
 

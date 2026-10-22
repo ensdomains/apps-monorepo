@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   buildHcaDeploymentCall: vi.fn(),
   verifyStandaloneHca: vi.fn(),
   startTransaction: vi.fn(),
+  getAtomicBatchSupport: vi.fn(),
   waitForTransactionHash: vi.fn(),
   waitForTransaction: vi.fn(),
   buildAtomicMigrationBatches: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock('@ens-apps/smart-account', async (importOriginal) => ({
 
 vi.mock('@ens-apps/transaction-manager', () => ({
   transactionManager: { startTransaction: mocks.startTransaction },
+  getAtomicBatchSupport: mocks.getAtomicBatchSupport,
   waitForTransactionHash: mocks.waitForTransactionHash,
   waitForTransaction: mocks.waitForTransaction,
 }))
@@ -2321,6 +2323,124 @@ describe('executeMigration HCA orchestration', () => {
 })
 
 afterEach(() => vi.unstubAllGlobals())
+
+describe('executeMigration with an atomic-batching wallet (EIP-5792)', () => {
+  const bundledPlan = (): MigrationPlan => ({
+    ...planFor(),
+    hcaDeploymentRequired: true,
+    atomicBatching: true,
+    preflight: {
+      ...planFor().preflight,
+      migrationApprovals: [APPROVAL, MANAGER_APPROVAL],
+      migrationCleanupApprovals: [CLEANUP_APPROVAL],
+    },
+    stepDescriptors: [
+      {
+        type: 'bundle',
+        steps: [
+          { type: 'deploy-hca' },
+          { type: 'approval', approvalId: APPROVAL.id },
+          { type: 'approval', approvalId: MANAGER_APPROVAL.id },
+        ],
+      },
+      {
+        type: 'bundle',
+        steps: [
+          {
+            type: 'atomic-batch',
+            index: 0,
+            total: 1,
+            count: 1,
+            migrateCount: 1,
+            copyCount: 0,
+            roleGrants: [],
+          },
+          { type: 'cleanup', approvalId: MANAGER_APPROVAL.id },
+        ],
+      },
+    ],
+  })
+
+  const requestOf = (call: number) =>
+    mocks.startTransaction.mock.calls[call]?.[0].request
+
+  beforeEach(() => {
+    mocks.getAtomicBatchSupport.mockResolvedValue(true)
+    getCodeMock.mockResolvedValue('0x')
+    mocks.checkMigrationApprovals.mockResolvedValue({
+      ethRegistryHcaApproved: false,
+    })
+    mocks.planMigrationApprovals.mockReturnValue([APPROVAL, MANAGER_APPROVAL])
+    // Temporary access is live from the setup bundle until the final bundle.
+    readContractMock.mockImplementation(
+      ({ functionName }: { functionName: string }) => {
+        if (functionName === 'ownerOf') return Promise.resolve(OWNER)
+        if (functionName === 'balanceOf') return Promise.resolve(1n)
+        if (functionName === 'isApprovedForAll') {
+          return Promise.resolve(mocks.startTransaction.mock.calls.length === 1)
+        }
+        return Promise.resolve(true)
+      },
+    )
+  })
+
+  it('confirms setup in one bundle and the final batch with its cleanup in another', async () => {
+    const refreshAccount = vi.fn(() => Promise.resolve())
+
+    const { progressEvents, result } = await runExecute({
+      plan: bundledPlan(),
+      refreshAccount,
+    })
+
+    expect(mocks.startTransaction).toHaveBeenCalledTimes(2)
+    expect(requestOf(0)).toEqual({
+      type: 'eoa-batch',
+      from: OWNER,
+      chainId: 11155111,
+      calls: [
+        { to: FACTORY, data: DEPLOY_DATA, value: 0n },
+        { to: APPROVAL_CONTRACT, data: GRANT_DATA, value: 0n },
+        { to: APPROVAL_CONTRACT, data: GRANT_DATA, value: 0n },
+      ],
+    })
+    expect(requestOf(1)).toMatchObject({
+      type: 'eoa-batch',
+      calls: [
+        { to: HCA, data: OUTER_DATA, value: 0n },
+        { to: V2_CONTRACTS.ETHRegistry },
+      ],
+    })
+    expect(mocks.verifyStandaloneHca).toHaveBeenCalledOnce()
+    expect(refreshAccount).toHaveBeenCalledOnce()
+    expect(mocks.buildAtomicMigrationBatches).toHaveBeenCalledWith(
+      expect.objectContaining({ maxOuterGas: 14_800_000n }),
+    )
+    expect(result.txHashes).toEqual([hashFor(1), hashFor(2)])
+    expect(progressEvents.at(-1)).toMatchObject({
+      currentStep: 2,
+      totalSteps: 2,
+    })
+  })
+
+  it('verifies an existing HCA before granting it anything', async () => {
+    getCodeMock.mockResolvedValue('0x6000')
+    mocks.verifyStandaloneHca.mockRejectedValueOnce(new Error('wrong owner'))
+
+    await expect(runExecute({ plan: bundledPlan() })).rejects.toMatchObject({
+      name: 'MigrationError',
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('asks for a new preview when the wallet can no longer bundle', async () => {
+    mocks.getAtomicBatchSupport.mockResolvedValue(false)
+
+    await expect(runExecute({ plan: bundledPlan() })).rejects.toMatchObject({
+      name: 'MigrationPlanChangedError',
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+})
 
 describe('durable migration completion handoff', () => {
   const scope = { chainId: 11155111, owner: OWNER, hca: HCA }

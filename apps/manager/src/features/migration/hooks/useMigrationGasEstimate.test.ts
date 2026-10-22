@@ -15,7 +15,10 @@ const mocks = vi.hoisted(() => ({
   recovery: vi.fn(),
 }))
 vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.query }))
-vi.mock('wagmi', () => ({ usePublicClient: mocks.client }))
+vi.mock('wagmi', () => ({
+  usePublicClient: mocks.client,
+  useCapabilities: () => ({ data: undefined }),
+}))
 vi.mock('./useMigrationPreflight', () => ({
   useMigrationPreflight: () => ({ ensure: mocks.preflight }),
 }))

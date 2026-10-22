@@ -46,6 +46,8 @@ type RenewalPreparation = {
   readonly domains: readonly V1Domain[]
   readonly hcaAddress: Address
   readonly requestSteps?: readonly MigrationWalletRequestDescriptor[]
+  /** The plan rebuilt after renewal must keep the previewed bundling. */
+  readonly atomicBatching?: boolean
 }
 
 const renewalStepsOf = (steps: readonly MigrationWalletRequestDescriptor[]) =>
@@ -245,6 +247,7 @@ export const migrationUiMachine = setup({
         publicClient: defaultPublicClient as PublicClient,
         wagmiConfig: input.wagmiConfig,
         managerRestorationNames: input.managerRestorationNames,
+        atomicBatching: input.renewal.atomicBatching,
         signal,
       }),
     ),

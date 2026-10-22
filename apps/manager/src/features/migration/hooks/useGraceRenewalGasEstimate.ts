@@ -1,10 +1,12 @@
 import type { V1Domain } from '@ens-apps/migration'
+import { useAtomicBatchSupport } from '@ens-apps/transaction-manager'
 import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { hashKey, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { useConfig } from 'wagmi'
+import { chain } from '@/config'
 import type { MigrationWalletRequestDescriptor } from '../service/buildStepDescriptors'
 import {
   estimateGraceRenewalMigrationGas,
@@ -33,6 +35,7 @@ const graceRenewalGasEstimateQueryKey = createQueryKey<
       readonly hcaAddress: string | undefined
       readonly selectedNames: readonly string[]
       readonly managerRestorationNames: readonly string[]
+      readonly atomicBatching: boolean
       readonly domains: readonly V1Domain[]
       readonly renewal:
         | {
@@ -81,6 +84,7 @@ export const useGraceRenewalGasEstimate = ({
   readonly isEnabled: boolean
 }): GraceRenewalGasEstimateState => {
   const wagmiConfig = useConfig()
+  const atomicBatching = useAtomicBatchSupport(chain.id)
   const quote = renewal.status === 'ready' ? renewal.quote : undefined
   const domains = useMemo(() => {
     const selected = new Set(selectedNames)
@@ -92,6 +96,7 @@ export const useGraceRenewalGasEstimate = ({
     hcaAddress: hcaAddress?.toLowerCase(),
     selectedNames: [...selectedNames].sort(),
     managerRestorationNames: [...managerRestorationNames].sort(),
+    atomicBatching,
     domains,
     renewal: quote && {
       chainId: quote.chainId,
@@ -151,6 +156,7 @@ export const useGraceRenewalGasEstimate = ({
         publicClient,
         wagmiConfig,
         managerRestorationNames,
+        atomicBatching,
         signal,
       })
     },

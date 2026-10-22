@@ -1,3 +1,4 @@
+export { getAtomicBatchSupport } from './actors/eoa-batch-transport.actor'
 // Contracts
 // Errors
 export {
@@ -53,6 +54,7 @@ export {
   waitForTransaction,
   waitForTransactionHash,
 } from './helpers/waitForTransaction'
+export { useAtomicBatchSupport } from './hooks/useAtomicBatchSupport'
 export {
   computeDedicatedResolverAddress,
   encodeDeployDedicatedResolverCall,
@@ -136,6 +138,7 @@ export type {
   Call,
   CustomTransactionIntent,
   ENSRenewalTransactionIntent,
+  EOABatchTransactionRequest,
   EOATransactionRequest,
   ETHTransferTransactionIntent,
   PaymentMethod,

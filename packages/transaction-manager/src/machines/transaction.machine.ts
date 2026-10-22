@@ -4,10 +4,15 @@ import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Hash, PublicClient, TransactionReceipt } from 'viem'
 import { TransactionReceiptNotFoundError } from 'viem'
 import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
+import {
+  submitEOABatch,
+  waitForEOABatchHash,
+} from '../actors/eoa-batch-transport.actor'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import {
+  type CallsBundleTimeoutError,
   type ChainIdMismatchError,
   EthCallFallbackError,
   type SessionRefundCapExceededError,
@@ -26,6 +31,12 @@ import type {
   TransactionRequest,
 } from '../types/transaction.types'
 import { isRetryableSubmissionError } from './retry-policy'
+
+/**
+ * What a transport hands back on submission: a transaction hash, or — for an
+ * EIP-5792 bundle — the wallet's bundle id, resolved to a hash in `pending`.
+ */
+type SubmittedTransaction = { hash: Hash } | { callsId: string }
 
 /**
  * Base Transaction Machine
@@ -51,6 +62,8 @@ export const transactionMachine = setup({
       useSmartAccount: boolean
       estimatedCost?: bigint
       hash?: Hash
+      /** EIP-5792 bundle id of an `eoa-batch` submission. */
+      callsId?: string
       receipt?: TransactionReceipt
       error?: Error
       retryCount: number
@@ -125,7 +138,7 @@ export const transactionMachine = setup({
         options?: TransactionOptions
         publicClient: PublicClient
       }): ResultAsync<
-        Hash,
+        SubmittedTransaction,
         | TransactionSubmissionError
         | TransactionUserRejectedError
         | SignerAddressMismatchError
@@ -153,12 +166,20 @@ export const transactionMachine = setup({
         // Route to transport actor based on signer type + infrastructure
         switch (signer.type) {
           case 'eoa':
-            return submitEOATransaction({ request, signer })
+            return request.type === 'eoa-batch'
+              ? submitEOABatch({ request, signer }).map((callsId) => ({
+                  callsId,
+                }))
+              : submitEOATransaction({ request, signer }).map((hash) => ({
+                  hash,
+                }))
 
           case 'rhinestone':
             // Rhinestone HCA operations always route through the Warp
             // orchestrator (intent-based, user-paid).
-            return submitWarpTransaction({ request, signer })
+            return submitWarpTransaction({ request, signer }).map((hash) => ({
+              hash,
+            }))
 
           default:
             signer satisfies never
@@ -180,23 +201,48 @@ export const transactionMachine = setup({
     waitForReceipt: fromResultAsync(
       ({
         hash,
+        callsId,
+        signer,
         options,
         publicClient,
       }: {
-        hash: Hash
+        hash?: Hash
+        callsId?: string
+        signer?: Signer
         options?: TransactionOptions
         publicClient: PublicClient
-      }): ResultAsync<TransactionReceipt, TransactionTimeoutError> => {
+      }): ResultAsync<
+        TransactionReceipt,
+        | TransactionTimeoutError
+        | CallsBundleTimeoutError
+        | TransactionRevertedError
+      > => {
         const confirmations = options?.confirmations || 1
         const timeout = options?.timeout || 120000
 
-        return fromPromise(
-          publicClient.waitForTransactionReceipt({
-            hash,
-            confirmations,
+        const waitForHash = (txHash: Hash) =>
+          fromPromise(
+            publicClient.waitForTransactionReceipt({
+              hash: txHash,
+              confirmations,
+              timeout,
+            }),
+            (_error) => new TransactionTimeoutError(txHash, timeout),
+          )
+
+        if (hash) return waitForHash(hash)
+
+        // An EIP-5792 bundle has no hash until the wallet reports it landed.
+        if (callsId && signer?.type === 'eoa') {
+          return waitForEOABatchHash({
+            walletClient: signer.walletClient,
+            id: callsId,
             timeout,
-          }),
-          (_error) => new TransactionTimeoutError(hash, timeout),
+          }).andThen(waitForHash)
+        }
+
+        return errAsync(
+          new TransactionRevertedError('No transaction hash to wait for'),
         )
       },
     ),
@@ -264,6 +310,14 @@ export const transactionMachine = setup({
           // eth_call fallback path entirely.
           return ResultAsync.fromSafePromise(
             Promise.resolve({ wouldSucceed: true }),
+          )
+        }
+
+        if (request.type === 'eoa-batch') {
+          // A bundle's later calls depend on its earlier ones, so a lone
+          // eth_call proves nothing. Keep waiting on the bundle status.
+          return ResultAsync.fromSafePromise(
+            Promise.resolve({ wouldSucceed: false }),
           )
         }
 
@@ -374,6 +428,7 @@ export const transactionMachine = setup({
             retryCount: 0,
             fallbackChecks: 0,
             hash: undefined,
+            callsId: undefined,
             receipt: undefined,
             error: undefined,
             modal: ({ event, context }) => ({
@@ -441,7 +496,10 @@ export const transactionMachine = setup({
         onDone: {
           target: 'pending',
           actions: assign({
-            hash: ({ event }) => event.output,
+            hash: ({ event }) =>
+              'hash' in event.output ? event.output.hash : undefined,
+            callsId: ({ event }) =>
+              'callsId' in event.output ? event.output.callsId : undefined,
             // A retried submission leaves the earlier attempt's error behind.
             error: undefined,
           }),
@@ -476,8 +534,9 @@ export const transactionMachine = setup({
       invoke: {
         src: 'waitForReceipt',
         input: ({ context }) => ({
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          hash: context.hash!,
+          hash: context.hash,
+          callsId: context.callsId,
+          signer: context.signer,
           options: context.options,
           publicClient: context.publicClient,
         }),
@@ -485,9 +544,21 @@ export const transactionMachine = setup({
           target: 'confirming',
           actions: assign({
             receipt: ({ event }) => event.output,
+            hash: ({ context, event }) =>
+              context.hash ?? event.output.transactionHash,
           }),
         },
         onError: [
+          {
+            // The wallet reported the bundle failed: final, not a timeout.
+            guard: ({ event }) =>
+              event.error instanceof TransactionRevertedError,
+            target: 'error.reverted',
+            actions: [
+              assign({ error: ({ event }) => event.error as Error }),
+              ({ event }) => logger.error('Batched calls failed', event.error),
+            ],
+          },
           {
             guard: 'shouldCheckFallback',
             target: 'checkingFallback',
@@ -594,6 +665,7 @@ export const transactionMachine = setup({
             retryCount: 0,
             fallbackChecks: 0,
             hash: undefined,
+            callsId: undefined,
             receipt: undefined,
             error: undefined,
           }),
@@ -628,6 +700,7 @@ export const transactionMachine = setup({
             retryCount: 0,
             fallbackChecks: 0,
             hash: undefined,
+            callsId: undefined,
             receipt: undefined,
             error: undefined,
           }),

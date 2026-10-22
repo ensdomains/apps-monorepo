@@ -31,6 +31,8 @@ type Params = {
   readonly wagmiConfig: Config
   /** Names whose ENSv1 controller the owner chose to keep as an ENSv2 manager. */
   readonly managerRestorationNames?: readonly string[]
+  /** The owner wallet bundles calls atomically (EIP-5792). */
+  readonly atomicBatching?: boolean
   readonly signal?: AbortSignal
 }
 
@@ -136,6 +138,7 @@ const estimateProjectedMigration = async (
     managerRestorationNames,
     publicClient,
     preflight,
+    atomicBatching: params.atomicBatching,
     signal,
   })
   signal?.throwIfAborted()
