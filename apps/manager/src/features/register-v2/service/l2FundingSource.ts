@@ -43,12 +43,14 @@ export const getL2FundingSource = (
     // A wallet rejects with whatever it likes (often a bare `{ code, message }`),
     // so it is carried through untouched: the transport reads the reason off it.
     getAccount: () =>
-      ResultAsync.fromSafePromise(sourceWalletClient(owner, source)).andThen(
-        (walletClient) =>
-          createBridgeAccount({
-            eoa: walletClientToAccount(walletClient),
-            sourceChainId: source.chain.id,
-          }),
+      ResultAsync.fromPromise(
+        sourceWalletClient(owner, source),
+        (error) => error,
+      ).andThen((walletClient) =>
+        createBridgeAccount({
+          eoa: walletClientToAccount(walletClient),
+          sourceChainId: source.chain.id,
+        }),
       ),
     // Unlimited, once per L2: Permit2 only moves tokens against a signed permit.
     ensureAllowance: async (amount) => {
