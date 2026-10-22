@@ -17,6 +17,11 @@ const HCA_FACTORY_ABI = parseAbi([
   'function authorizedOwnerOf(address hca) view returns (address)',
 ])
 
+const HCA_FACTORY = getChainContractAddress({
+  chain: ensChain,
+  contract: 'ensHcaFactory',
+})
+
 type GetHcaOwnerParameters = {
   readonly account: Address
 }
@@ -25,12 +30,6 @@ type GetHcaOwnerParameters = {
 export const getHcaOwner = ResultFn(async function* ({
   account,
 }: GetHcaOwnerParameters) {
-  const factory = getChainContractAddress({
-    chain: ensChain,
-    contract: 'ensHcaFactory',
-  })
-  if (isAddressEqual(factory, zeroAddress)) return ok(null)
-
   const client = yield* safeGetClient()
   const owner = yield* fromPromise(
     getAction(
@@ -38,7 +37,7 @@ export const getHcaOwner = ResultFn(async function* ({
       readContract,
       'readContract',
     )({
-      address: factory,
+      address: HCA_FACTORY,
       abi: HCA_FACTORY_ABI,
       functionName: 'authorizedOwnerOf',
       args: [account],
