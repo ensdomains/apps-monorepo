@@ -6,13 +6,13 @@ describe('html-rewriter', () => {
   describe('MetaTagInjector', () => {
     it('should create instance with tags', () => {
       const tags = '<meta name="description" content="test">'
-      const injector = new MetaTagInjector(tags, null)
+      const injector = new MetaTagInjector(tags, [])
       expect(injector).toBeDefined()
     })
 
     it('should append tags to element', () => {
       const tags = '<meta name="description" content="test">'
-      const injector = new MetaTagInjector(tags, 'https://rpc.example.com')
+      const injector = new MetaTagInjector(tags, ['https://rpc.example.com'])
 
       const mockAppend = vi.fn()
       const mockElement = {
@@ -25,7 +25,7 @@ describe('html-rewriter', () => {
       // provided tags, so the appended content carries both — including this
       // browser's custom RPC origin.
       expect(mockAppend).toHaveBeenCalledWith(
-        `${cspMetaTag('https://rpc.example.com')}\n${tags}`,
+        `${cspMetaTag(['https://rpc.example.com'])}\n${tags}`,
         { html: true },
       )
     })

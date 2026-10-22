@@ -5,7 +5,7 @@ import {
   cspMetaTag,
   cspWithFrameAncestors,
   cspWithoutFrameAncestors,
-  getCustomRpcOrigin,
+  getCustomRpcOrigins,
   withSecurityHeaders,
 } from './csp'
 
@@ -23,8 +23,8 @@ function parseDirectives(policy: string): Record<string, string[]> {
   )
 }
 
-const header = parseDirectives(cspWithFrameAncestors(null))
-const meta = parseDirectives(cspWithoutFrameAncestors(null))
+const header = parseDirectives(cspWithFrameAncestors([]))
+const meta = parseDirectives(cspWithoutFrameAncestors([]))
 
 describe('csp', () => {
   // The invariants below must never silently regress — each one would either
@@ -49,7 +49,7 @@ describe('csp', () => {
       // The two must agree: 'none' ⇔ DENY. A mismatch is a real footgun.
       expect(header['frame-ancestors']).toEqual(["'none'"])
       expect(
-        withSecurityHeaders(new Response('hi'), null).headers.get(
+        withSecurityHeaders(new Response('hi'), []).headers.get(
           'X-Frame-Options',
         ),
       ).toBe('DENY')
@@ -203,9 +203,9 @@ describe('csp', () => {
     })
 
     it('wraps the meta policy in a meta tag without frame-ancestors', () => {
-      expect(cspMetaTag(null)).toContain('http-equiv="Content-Security-Policy"')
-      expect(cspMetaTag(null)).toContain(cspWithoutFrameAncestors(null))
-      expect(cspMetaTag(null)).not.toContain('frame-ancestors')
+      expect(cspMetaTag([])).toContain('http-equiv="Content-Security-Policy"')
+      expect(cspMetaTag([])).toContain(cspWithoutFrameAncestors([]))
+      expect(cspMetaTag([])).not.toContain('frame-ancestors')
     })
   })
 
@@ -235,10 +235,10 @@ describe('csp', () => {
 
   describe('withSecurityHeaders', () => {
     it('sets the CSP and standard security headers', () => {
-      const result = withSecurityHeaders(new Response('hi'), null)
+      const result = withSecurityHeaders(new Response('hi'), [])
 
       expect(result.headers.get('Content-Security-Policy')).toBe(
-        cspWithFrameAncestors(null),
+        cspWithFrameAncestors([]),
       )
       expect(result.headers.get('Reporting-Endpoints')).toBeNull()
       expect(result.headers.get('X-Content-Type-Options')).toBe('nosniff')
@@ -254,7 +254,7 @@ describe('csp', () => {
       // Guards the immutable-headers rewrap (env.ASSETS.fetch responses).
       const result = withSecurityHeaders(
         new Response('body', { status: 201, statusText: 'Created' }),
-        null,
+        [],
       )
       expect(result.status).toBe(201)
       expect(await result.text()).toBe('body')
@@ -280,32 +280,39 @@ describe('indexers', () => {
 describe('custom RPC', () => {
   const requestWith = (cookie: string) =>
     new Request('https://explorer.ens.dev/', { headers: { Cookie: cookie } })
-  const originFrom = (value: string) =>
-    getCustomRpcOrigin(
-      requestWith(
-        `theme=dark; __Host-custom-rpc-origin=${encodeURIComponent(value)}`,
-      ),
-    )
+  const cookie = (name: string, value: string) =>
+    `__Host-custom-rpc-${name}=${encodeURIComponent(value)}`
+  const originsFrom = (value: string) =>
+    getCustomRpcOrigins(requestWith(`theme=dark; ${cookie('origin', value)}`))
 
-  it('keeps connect-src closed to arbitrary hosts without the cookie', () => {
+  it('keeps connect-src closed to arbitrary hosts without the cookies', () => {
     // Opening https:/wss: for every visitor would let an XSS send data anywhere.
     expect(header['connect-src']).not.toContain('https:')
     expect(header['connect-src']).not.toContain('wss:')
     expect(header['connect-src']).not.toContain('http://localhost:*')
     expect(
-      getCustomRpcOrigin(new Request('https://explorer.ens.dev/')),
-    ).toBeNull()
+      getCustomRpcOrigins(new Request('https://explorer.ens.dev/')),
+    ).toEqual([])
   })
 
-  it("adds only the cookie's origin, to both the header and the meta tag", () => {
-    const origin = originFrom('https://rpc.example.com:8545/v2/key')
-    expect(origin).toBe('https://rpc.example.com:8545')
-    expect(
-      parseDirectives(cspWithFrameAncestors(origin))['connect-src'],
-    ).toContain(origin)
-    expect(
-      parseDirectives(cspWithoutFrameAncestors(origin))['connect-src'],
-    ).toContain(origin)
+  it('adds the active and candidate origins, to both the header and the meta tag', () => {
+    const origins = getCustomRpcOrigins(
+      requestWith(
+        `${cookie('origin', 'https://rpc.example.com:8545/v2/key')}; ${cookie('candidate', 'wss://new.example.com')}`,
+      ),
+    )
+    expect(origins).toEqual([
+      'https://rpc.example.com:8545',
+      'wss://new.example.com',
+    ])
+    for (const policy of [
+      cspWithFrameAncestors(origins),
+      cspWithoutFrameAncestors(origins),
+    ]) {
+      expect(parseDirectives(policy)['connect-src']).toEqual(
+        expect.arrayContaining([...origins]),
+      )
+    }
   })
 
   it.each([
@@ -316,12 +323,12 @@ describe('custom RPC', () => {
     'http://[::1]:8545',
     '*',
   ])('ignores a cookie a CSP source cannot express: %s', (value) => {
-    expect(originFrom(value)).toBeNull()
+    expect(originsFrom(value)).toEqual([])
   })
 
   it('ignores a cookie with broken percent-encoding', () => {
     expect(
-      getCustomRpcOrigin(requestWith('__Host-custom-rpc-origin=%E0%A4%A')),
-    ).toBeNull()
+      getCustomRpcOrigins(requestWith('__Host-custom-rpc-origin=%E0%A4%A')),
+    ).toEqual([])
   })
 })

@@ -1,11 +1,13 @@
-import { okAsync, ResultAsync } from 'neverthrow'
+import { errAsync, ResultAsync } from 'neverthrow'
 import { match } from 'ts-pattern'
 import {
   checkRpcEndpoint,
+  discardCustomRpcCandidate,
   type InvalidRpcUrlError,
+  promoteCustomRpcCandidate,
+  proposeCustomRpcUrl,
   type RpcCheckError,
   type RpcStorageError,
-  saveCustomRpcUrl,
   validateRpcUrl,
 } from '@/lib/customRpc'
 
@@ -31,21 +33,23 @@ const isPlaintextRemote = (input: string) => {
   )
 }
 
-// Validates and checks the URL, then saves it (which reloads the page) unless
-// `isCurrent` reports the attempt was superseded while the check ran.
+// Validates the URL and stores it as the candidate, then reloads so the page
+// may reach its origin; useCustomRpcCandidateCheck checks it on that load.
 export const applyCustomRpc = (
   input: string,
-  isCurrent: () => boolean,
-): ResultAsync<void, CustomRpcError> =>
-  validateRpcUrl(input)
-    .asyncAndThen((url) =>
-      ResultAsync.fromSafePromise(checkRpcEndpoint(url)).andThen((checked) =>
-        checked.map(() => url),
-      ),
-    )
-    .andThen(
-      (url): ResultAsync<void, RpcStorageError> =>
-        isCurrent() ? saveCustomRpcUrl(url) : okAsync(),
+): ResultAsync<void, InvalidRpcUrlError | RpcStorageError> =>
+  validateRpcUrl(input).asyncAndThen(proposeCustomRpcUrl)
+
+// Checks the candidate this load may reach. A passing one becomes the active
+// RPC (reloading the page); a failing one is dropped.
+export const confirmCustomRpcCandidate = (
+  candidate: string,
+): ResultAsync<void, RpcCheckError | RpcStorageError> =>
+  ResultAsync.fromSafePromise(checkRpcEndpoint(candidate))
+    .andThen((checked) => checked)
+    .andThen(() => promoteCustomRpcCandidate(candidate))
+    .orElse((error) =>
+      discardCustomRpcCandidate().andThen(() => errAsync(error)),
     )
 
 export const describeRpcError = (

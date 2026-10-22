@@ -5,6 +5,9 @@ import { fromSync } from '@ens-apps/utils/neverthrow'
 // cookies reach the server on every request. `__Host-` keeps sibling
 // subdomains from planting it.
 export const CUSTOM_RPC_COOKIE = '__Host-custom-rpc-origin'
+// A newly entered RPC's origin. The next load allows it too, so the page can
+// check the RPC before it replaces the active one.
+export const CUSTOM_RPC_CANDIDATE_COOKIE = '__Host-custom-rpc-candidate'
 
 const SCHEMES = new Set(['http:', 'https:', 'ws:', 'wss:'])
 // CSP host-source grammar: no IPv6 literals or `_`; IDNs arrive as punycode.

@@ -1,9 +1,13 @@
 import { fromSync, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, ok, type Result, ResultAsync } from 'neverthrow'
 import { envConfig } from '@/config'
-import { CUSTOM_RPC_COOKIE, readCookie, toCspOrigin } from './customRpcOrigin'
+import {
+  CUSTOM_RPC_CANDIDATE_COOKIE,
+  CUSTOM_RPC_COOKIE,
+  readCookie,
+  toCspOrigin,
+} from './customRpcOrigin'
 
-const STORAGE_KEY = 'custom-rpc-url'
 const CHECK_TIMEOUT_MS = 10_000
 // Chrome's cap on cookie lifetime: 400 days.
 const COOKIE_MAX_AGE_SECONDS = 400 * 24 * 60 * 60
@@ -53,19 +57,28 @@ export const validateRpcUrl = (
   })
 }
 
-// Read once at startup (wagmi clients are built once). Anything unreadable or
-// invalid falls back to the default RPC, and so does a URL whose origin cookie
-// is gone: the page's CSP only allows the origin that cookie carried.
-export const getCustomRpcUrl = (): string | null => {
+// Each setting is a URL in localStorage plus its origin in a cookie, which is
+// what the worker allows in connect-src. The candidate holds a newly entered
+// URL until a load that can reach it has checked it.
+type Slot = { readonly storageKey: string; readonly cookie: string }
+const ACTIVE: Slot = { storageKey: 'custom-rpc-url', cookie: CUSTOM_RPC_COOKIE }
+const CANDIDATE: Slot = {
+  storageKey: 'custom-rpc-candidate',
+  cookie: CUSTOM_RPC_CANDIDATE_COOKIE,
+}
+
+// Null when unreadable, invalid, or its origin cookie is gone: the page's CSP
+// only allows the origins those cookies carried at load.
+const readSlot = (slot: Slot): string | null => {
   const result = fromSync(
     (): string | null => {
-      const stored = localStorage.getItem(STORAGE_KEY)
+      const stored = localStorage.getItem(slot.storageKey)
       if (!stored) return null
       const parsed: unknown = JSON.parse(stored)
       if (typeof parsed !== 'string') return null
       const validated = validateRpcUrl(parsed)
       if (validated.isErr()) return null
-      const allowed = readCookie(document.cookie, CUSTOM_RPC_COOKIE)
+      const allowed = readCookie(document.cookie, slot.cookie)
       return allowed === toCspOrigin(validated.value) ? validated.value : null
     },
     () => null,
@@ -73,55 +86,77 @@ export const getCustomRpcUrl = (): string | null => {
   return result.isOk() ? result.value : null
 }
 
+// Read once at startup (wagmi clients are built once); null means the default.
+export const getCustomRpcUrl = (): string | null => readSlot(ACTIVE)
+
+export const getCustomRpcCandidate = (): string | null => readSlot(CANDIDATE)
+
 // Async so a missing Cookie Store API rejects instead of throwing past
 // fromPromise. Cookie Store cookies are always Secure, as `__Host-` requires.
-const writeOriginCookie = async (origin: string | null): Promise<void> =>
+const writeOriginCookie = async (
+  name: string,
+  origin: string | null,
+): Promise<void> =>
   origin === null
-    ? cookieStore.delete({ name: CUSTOM_RPC_COOKIE, path: '/' })
+    ? cookieStore.delete({ name, path: '/' })
     : cookieStore.set({
-        name: CUSTOM_RPC_COOKIE,
+        name,
         value: encodeURIComponent(origin),
         path: '/',
         sameSite: 'lax',
         expires: Date.now() + COOKIE_MAX_AGE_SECONDS * 1000,
       })
 
-const storeOrigin = (
-  origin: string | null,
+const writeSlot = (
+  slot: Slot,
+  url: string | null,
 ): ResultAsync<void, RpcStorageError> =>
-  ResultAsync.fromPromise(
-    writeOriginCookie(origin),
-    (cause) => new RpcStorageError({ cause }),
-  )
-
-const storeUrl = (url: string | null): Result<void, RpcStorageError> =>
   fromSync(
     () =>
       url === null
-        ? localStorage.removeItem(STORAGE_KEY)
-        : localStorage.setItem(STORAGE_KEY, JSON.stringify(url)),
+        ? localStorage.removeItem(slot.storageKey)
+        : localStorage.setItem(slot.storageKey, JSON.stringify(url)),
     (cause) => new RpcStorageError({ cause }),
+  ).asyncAndThen(() =>
+    ResultAsync.fromPromise(
+      writeOriginCookie(slot.cookie, url === null ? null : toCspOrigin(url)),
+      (cause) => new RpcStorageError({ cause }),
+    ),
   )
 
-// wagmi builds its clients once, so a reload is what applies the change. The
-// setting is read back so blocked or full storage reports an error rather
-// than reloading unchanged.
-export const saveCustomRpcUrl = (
+// Read back, so blocked or full storage reports an error instead of
+// reloading unchanged.
+const confirmSlot = (slot: Slot, url: string): Result<void, RpcStorageError> =>
+  readSlot(slot) === url
+    ? ok()
+    : err(new RpcStorageError({ cause: 'setting did not persist' }))
+
+// The page can only reach origins it loaded with, so a new URL is stored as
+// the candidate and the page reloads; that load checks it and promotes it if
+// it passes. wagmi builds its clients once, so promotion reloads again.
+export const proposeCustomRpcUrl = (
   url: string,
 ): ResultAsync<void, RpcStorageError> =>
-  storeUrl(url)
-    .asyncAndThen(() => storeOrigin(toCspOrigin(url)))
-    .andThen(
-      (): Result<void, RpcStorageError> =>
-        getCustomRpcUrl() === url
-          ? ok()
-          : err(new RpcStorageError({ cause: 'setting did not persist' })),
-    )
+  writeSlot(CANDIDATE, url)
+    .andThen(() => confirmSlot(CANDIDATE, url))
     .map(() => window.location.reload())
 
+export const promoteCustomRpcCandidate = (
+  url: string,
+): ResultAsync<void, RpcStorageError> =>
+  writeSlot(ACTIVE, url)
+    .andThen(() => writeSlot(CANDIDATE, null))
+    .andThen(() => confirmSlot(ACTIVE, url))
+    .map(() => window.location.reload())
+
+export const discardCustomRpcCandidate = (): ResultAsync<
+  void,
+  RpcStorageError
+> => writeSlot(CANDIDATE, null)
+
 export const resetCustomRpcUrl = (): ResultAsync<void, RpcStorageError> =>
-  storeUrl(null)
-    .asyncAndThen(() => storeOrigin(null))
+  writeSlot(ACTIVE, null)
+    .andThen(() => writeSlot(CANDIDATE, null))
     .map(() => window.location.reload())
 
 const isWebSocketUrl = (url: string): boolean => WEBSOCKET_URL.test(url)

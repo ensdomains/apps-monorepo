@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getCustomRpcUrl, resetCustomRpcUrl } from '@/lib/customRpc'
 import { applyCustomRpc, describeRpcError } from './RpcSettingsDialog.handlers'
 import { Button } from './ui/button'
@@ -19,31 +19,16 @@ import { Input } from './ui/input'
 function useRpcForm(isOpen: boolean) {
   const [value, setValue] = useState(() => getCustomRpcUrl() ?? '')
   const [error, setError] = useState<string | null>(null)
-  const [isChecking, setIsChecking] = useState(false)
-  // Identifies the latest save attempt. A check that finishes after the
-  // dialog closed — or after a newer attempt started — must not save.
-  const attemptRef = useRef(0)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    // Any open/close transition invalidates a pending check.
-    attemptRef.current += 1
     if (!isOpen) return
     setValue(getCustomRpcUrl() ?? '')
     setError(null)
-    setIsChecking(false)
+    setIsSaving(false)
   }, [isOpen])
 
-  return {
-    value,
-    setValue,
-    error,
-    setError,
-    isChecking,
-    setIsChecking,
-    beginAttempt: (): number => ++attemptRef.current,
-    isCurrentAttempt: (attempt: number): boolean =>
-      attempt === attemptRef.current,
-  }
+  return { value, setValue, error, setError, isSaving, setIsSaving }
 }
 
 export const RpcSettingsDialog = ({
@@ -54,25 +39,18 @@ export const RpcSettingsDialog = ({
   readonly onOpenChange: (isOpen: boolean) => void
 }) => {
   const current = getCustomRpcUrl()
-  const {
-    value,
-    setValue,
-    error,
-    setError,
-    isChecking,
-    setIsChecking,
-    beginAttempt,
-    isCurrentAttempt,
-  } = useRpcForm(isOpen)
+  const { value, setValue, error, setError, isSaving, setIsSaving } =
+    useRpcForm(isOpen)
 
   const save = async (): Promise<void> => {
-    const attempt = beginAttempt()
     setError(null)
-    setIsChecking(true)
-    const result = await applyCustomRpc(value, () => isCurrentAttempt(attempt))
-    if (!isCurrentAttempt(attempt)) return
-    setIsChecking(false)
-    if (result.isErr()) setError(describeRpcError(result.error, value))
+    setIsSaving(true)
+    // Success reloads the page, so only a failure needs handling here.
+    const result = await applyCustomRpc(value)
+    if (result.isErr()) {
+      setIsSaving(false)
+      setError(describeRpcError(result.error, value))
+    }
   }
 
   const reset = async (): Promise<void> => {
@@ -87,7 +65,8 @@ export const RpcSettingsDialog = ({
           <DialogTitle>Custom RPC</DialogTitle>
           <DialogDescription>
             Send all chain requests to your own node instead of the default
-            providers. The page reloads when you save.
+            providers. Saving reloads the page to check the RPC, then again to
+            switch to it.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -102,7 +81,7 @@ export const RpcSettingsDialog = ({
             placeholder="https://…"
             aria-label="RPC URL"
             aria-invalid={error !== null}
-            disabled={isChecking}
+            disabled={isSaving}
           />
           {error && (
             <p role="alert" className="text-destructive text-sm">
@@ -119,8 +98,8 @@ export const RpcSettingsDialog = ({
                 Reset to default
               </Button>
             )}
-            <Button type="submit" disabled={isChecking}>
-              {isChecking ? 'Checking…' : 'Save'}
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? 'Saving…' : 'Save'}
             </Button>
           </DialogFooter>
         </form>

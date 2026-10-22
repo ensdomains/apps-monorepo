@@ -17,6 +17,7 @@ import { useTransactionModalRouteReset } from '@/features/transaction-manager/ho
 import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
 import { MockWalletAutoConnect } from '@/features/wallet/MockWalletAutoConnect'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
+import { useCustomRpcCandidateCheck } from '@/hooks/useCustomRpcCandidateCheck'
 import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { PHProvider } from '@/lib/posthog/provider'
 import { ensChain, wagmiConfig } from '@/lib/wagmi'
@@ -26,6 +27,12 @@ import { queryClient } from '@/utils/queryClient'
 // Tops up test USDC/DAI from the Sepolia faucet; a mainnet bundle leaves it out.
 const AutoFundOnLowBalance = () => {
   useAutoFundOnLowBalance()
+  return null
+}
+
+// Checks a newly saved custom RPC on the load after saving (Settings → RPC).
+const CustomRpcCandidateCheck = () => {
+  useCustomRpcCandidateCheck()
   return null
 }
 
@@ -103,6 +110,8 @@ export const Route = createRootRoute({
         </WagmiProvider>
 
         <Toaster position="top-right" richColors duration={4000} />
+        {/* After the Toaster, so it is subscribed before the first toast. */}
+        <CustomRpcCandidateCheck />
         <TanStackRouterDevtools position="bottom-right" />
       </>
     )

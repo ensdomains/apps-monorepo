@@ -11,9 +11,9 @@
  * `frame-ancestors` is invalid inside a `<meta>` tag (browsers ignore it there),
  * so the meta variant omits it — hence the two policy builders.
  *
- * Both take the requesting browser's custom RPC origin (Settings → RPC, read
- * from its cookie by `getCustomRpcOrigin`), the one per-browser connect-src
- * entry.
+ * Both take the requesting browser's custom RPC origins (Settings → RPC, read
+ * from its cookies by `getCustomRpcOrigins`), the only per-browser
+ * connect-src entries.
  *
  * PostHog reporting is temporarily disabled while PostHog is retained only
  * for feature flags.
@@ -22,6 +22,7 @@
 import { originFromEnvUrl } from '@ens-apps/config'
 import { envConfig } from '@/config'
 import {
+  CUSTOM_RPC_CANDIDATE_COOKIE,
   CUSTOM_RPC_COOKIE,
   readCookie,
   toCspOrigin,
@@ -181,7 +182,7 @@ const INLINE_SCRIPT_HASHES = [
 ] as const
 
 // Directives shared by the header and the meta tag.
-const baseDirectives = (customRpcOrigin: string | null) => [
+const baseDirectives = (customRpcOrigins: readonly string[]) => [
   "default-src 'self'",
   // 'wasm-unsafe-eval' permits WebAssembly compilation (needed by some
   // wallet/crypto dependencies) WITHOUT enabling general 'unsafe-eval'.
@@ -207,12 +208,7 @@ const baseDirectives = (customRpcOrigin: string | null) => [
   // faces (the font license forbids redistributing them in this repo, so they
   // are fetched at runtime instead of vendored).
   "font-src 'self' data: https://js.intercomcdn.com https://fonts.intercomcdn.com https://fonts.ens.dev",
-  [
-    'connect-src',
-    "'self'",
-    ...CONNECT_HOSTS,
-    ...(customRpcOrigin === null ? [] : [customRpcOrigin]),
-  ].join(' '),
+  ['connect-src', "'self'", ...CONNECT_HOSTS, ...customRpcOrigins].join(' '),
   // WalletConnect renders its verify/modal in iframes. Intercom sheets/reporting
   // frames are required for the messenger article viewer.
   "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org https://intercom-sheets.com https://www.intercom-reporting.com",
@@ -247,40 +243,42 @@ const HEADER_ONLY_DIRECTIVES = [
 ] as const
 
 /**
- * The custom RPC origin from the request's cookie, validated down to what a
- * CSP source can express so a crafted cookie can't inject directives.
+ * The active and candidate custom RPC origins from the request's cookies, each
+ * validated down to what a CSP source can express so a crafted cookie can't
+ * inject directives.
  */
-export const getCustomRpcOrigin = (request: Request): string | null => {
-  const value = readCookie(
-    request.headers.get('Cookie') ?? '',
-    CUSTOM_RPC_COOKIE,
-  )
-  return value === null ? null : toCspOrigin(value)
+export const getCustomRpcOrigins = (request: Request): readonly string[] => {
+  const cookies = request.headers.get('Cookie') ?? ''
+  const origins = [CUSTOM_RPC_COOKIE, CUSTOM_RPC_CANDIDATE_COOKIE]
+    .map((name) => readCookie(cookies, name))
+    .map((value) => (value === null ? null : toCspOrigin(value)))
+    .filter((origin): origin is string => origin !== null)
+  return [...new Set(origins)]
 }
 
 /** CSP for the `<meta http-equiv>` tag (omits frame-ancestors). */
-export const cspWithoutFrameAncestors = (customRpcOrigin: string | null) =>
-  baseDirectives(customRpcOrigin).join('; ')
+export const cspWithoutFrameAncestors = (customRpcOrigins: readonly string[]) =>
+  baseDirectives(customRpcOrigins).join('; ')
 
 /** Full CSP for the HTTP header. */
-export const cspWithFrameAncestors = (customRpcOrigin: string | null) =>
-  `${[...baseDirectives(customRpcOrigin), ...HEADER_ONLY_DIRECTIVES].join('; ')};`
+export const cspWithFrameAncestors = (customRpcOrigins: readonly string[]) =>
+  `${[...baseDirectives(customRpcOrigins), ...HEADER_ONLY_DIRECTIVES].join('; ')};`
 
 /** A `<meta>` tag carrying the CSP, for injection into every HTML `<head>`. */
-export const cspMetaTag = (customRpcOrigin: string | null) =>
-  `<meta http-equiv="Content-Security-Policy" content="${cspWithoutFrameAncestors(customRpcOrigin)}" />`
+export const cspMetaTag = (customRpcOrigins: readonly string[]) =>
+  `<meta http-equiv="Content-Security-Policy" content="${cspWithoutFrameAncestors(customRpcOrigins)}" />`
 
 /** Apply CSP + standard security headers to any response the worker returns. */
 export function withSecurityHeaders(
   response: Response,
-  customRpcOrigin: string | null,
+  customRpcOrigins: readonly string[],
 ): Response {
   // Responses from `env.ASSETS.fetch()` have immutable headers; re-wrap so the
   // headers are mutable (HTMLRewriter / `new Response` results pass through too).
   const result = new Response(response.body, response)
   result.headers.set(
     'Content-Security-Policy',
-    cspWithFrameAncestors(customRpcOrigin),
+    cspWithFrameAncestors(customRpcOrigins),
   )
   // POSTHOG_LAUNCH_PAUSE: reporting header paused; restore with the endpoint and report directives above.
   // result.headers.set(

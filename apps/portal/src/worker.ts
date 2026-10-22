@@ -10,7 +10,7 @@ import {
   isTldRoute,
   matchContractRoute,
 } from './utils/routePaths'
-import { getCustomRpcOrigin, withSecurityHeaders } from './worker/csp'
+import { getCustomRpcOrigins, withSecurityHeaders } from './worker/csp'
 import { fetchEnsData, fetchIsPermissionedResolver } from './worker/ens'
 import { MetaTagInjector, TitleRewriter } from './worker/html-rewriter'
 import {
@@ -70,7 +70,7 @@ async function injectMeta(
   const response = await env.ASSETS.fetch(request)
   const rewriter = new HTMLRewriter().on(
     'head',
-    new MetaTagInjector(buildMetaTags(options), getCustomRpcOrigin(request)),
+    new MetaTagInjector(buildMetaTags(options), getCustomRpcOrigins(request)),
   )
   if (options.pageTitle) {
     rewriter.on('title', new TitleRewriter(options.pageTitle))
@@ -249,7 +249,7 @@ async function handleNamePage(
           type: 'profile',
           imageAlt: avatar ? `${decodedName} avatar` : null,
         }),
-        getCustomRpcOrigin(request),
+        getCustomRpcOrigins(request),
       ),
     )
     .on('title', new TitleRewriter(pageTitle))
@@ -393,7 +393,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     return withSecurityHeaders(
       await handle(request, env),
-      getCustomRpcOrigin(request),
+      getCustomRpcOrigins(request),
     )
   },
 }
