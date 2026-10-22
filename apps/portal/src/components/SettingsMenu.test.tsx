@@ -13,8 +13,8 @@ vi.mock('./ThemeToggle', () => ({
 }))
 
 vi.mock('./RpcSettingsDialog', () => ({
-  RpcSettingsDialog: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="rpc-dialog" /> : null,
+  RpcSettingsDialog: ({ isOpen }: { isOpen: boolean }) =>
+    isOpen ? <div data-testid="rpc-dialog" /> : null,
 }))
 
 // FEEDBACK_SURVEY_ID is read at module scope, so the env must be stubbed

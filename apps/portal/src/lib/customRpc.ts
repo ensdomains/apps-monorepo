@@ -5,30 +5,42 @@ import { envConfig } from '@/config'
 const STORAGE_KEY = 'custom-rpc-url'
 const CHECK_TIMEOUT_MS = 10_000
 const PROTOCOLS = new Set(['http:', 'https:', 'ws:', 'wss:'])
+export const WEBSOCKET_URL = /^wss?:/
 
 export class InvalidRpcUrlError extends TaggedError('CustomRpc/InvalidUrl')<{
-  reason: 'empty' | 'malformed' | 'protocol' | 'credentials'
+  readonly reason: 'empty' | 'malformed' | 'protocol' | 'credentials'
+  readonly cause: unknown
 }> {}
 
 export class RpcCheckError extends TaggedError('CustomRpc/CheckFailed')<{
-  reason: 'unreachable' | 'wrong-chain'
-  cause?: unknown
+  readonly reason: 'unreachable' | 'wrong-chain'
+  readonly cause: unknown
+}> {}
+
+export class RpcStorageError extends TaggedError('CustomRpc/StorageFailed')<{
+  readonly cause: unknown
 }> {}
 
 export const validateRpcUrl = (
   input: string,
 ): Result<string, InvalidRpcUrlError> => {
   const trimmed = input.trim()
-  if (!trimmed) return err(new InvalidRpcUrlError({ reason: 'empty' }))
+  if (!trimmed)
+    return err(new InvalidRpcUrlError({ reason: 'empty', cause: input }))
 
   return fromSync(
     () => new URL(trimmed),
-    () => new InvalidRpcUrlError({ reason: 'malformed' }),
+    (cause) => new InvalidRpcUrlError({ reason: 'malformed', cause }),
   ).andThen((url) => {
     if (!PROTOCOLS.has(url.protocol))
-      return err(new InvalidRpcUrlError({ reason: 'protocol' }))
+      return err(
+        new InvalidRpcUrlError({ reason: 'protocol', cause: url.protocol }),
+      )
+    // The origin, so the error never carries the credentials themselves.
     if (url.username || url.password)
-      return err(new InvalidRpcUrlError({ reason: 'credentials' }))
+      return err(
+        new InvalidRpcUrlError({ reason: 'credentials', cause: url.origin }),
+      )
     return ok(url.toString())
   })
 }
@@ -51,17 +63,20 @@ export const getCustomRpcUrl = (): string | null => {
 }
 
 // wagmi builds its clients once, so a reload is what applies the change.
-export const saveCustomRpcUrl = (url: string): void => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(url))
-  window.location.reload()
-}
+// Blocked or full storage throws; report it rather than reload unchanged.
+export const saveCustomRpcUrl = (url: string): Result<void, RpcStorageError> =>
+  fromSync(
+    () => localStorage.setItem(STORAGE_KEY, JSON.stringify(url)),
+    (cause) => new RpcStorageError({ cause }),
+  ).map(() => window.location.reload())
 
-export const resetCustomRpcUrl = (): void => {
-  localStorage.removeItem(STORAGE_KEY)
-  window.location.reload()
-}
+export const resetCustomRpcUrl = (): Result<void, RpcStorageError> =>
+  fromSync(
+    () => localStorage.removeItem(STORAGE_KEY),
+    (cause) => new RpcStorageError({ cause }),
+  ).map(() => window.location.reload())
 
-export const isWebSocketUrl = (url: string): boolean => /^wss?:/.test(url)
+const isWebSocketUrl = (url: string): boolean => WEBSOCKET_URL.test(url)
 
 const REQUEST = JSON.stringify({
   jsonrpc: '2.0',
@@ -115,10 +130,10 @@ export const checkRpcEndpoint = async (
     (cause) => new RpcCheckError({ reason: 'unreachable', cause }),
   ).andThen((chainId): Result<void, RpcCheckError> => {
     if (typeof chainId !== 'string' || !/^0x[0-9a-f]+$/i.test(chainId))
-      return err(new RpcCheckError({ reason: 'unreachable' }))
+      return err(new RpcCheckError({ reason: 'unreachable', cause: chainId }))
     return BigInt(chainId) === BigInt(envConfig.chain.id)
       ? ok()
-      : err(new RpcCheckError({ reason: 'wrong-chain' }))
+      : err(new RpcCheckError({ reason: 'wrong-chain', cause: chainId }))
   })
   clearTimeout(timer)
   return result

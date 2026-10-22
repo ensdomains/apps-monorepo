@@ -50,7 +50,7 @@ export const SettingsMenu = ({
 }: Pick<ComponentProps<typeof DropdownMenuContent>, 'side'> & {
   readonly className?: string
 }) => {
-  const [rpcOpen, setRpcOpen] = useState(false)
+  const [isRpcOpen, setIsRpcOpen] = useState(false)
   const customRpc = getCustomRpcUrl()
 
   return (
@@ -71,7 +71,7 @@ export const SettingsMenu = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent side={side} align="end" className="min-w-52">
           <ThemeToggle />
-          <DropdownMenuItem onSelect={() => setRpcOpen(true)}>
+          <DropdownMenuItem onSelect={() => setIsRpcOpen(true)}>
             <ServerIcon className="size-4" />
             RPC: {customRpc ? new URL(customRpc).host : 'Default'}
           </DropdownMenuItem>
@@ -86,7 +86,7 @@ export const SettingsMenu = ({
           </DropdownMenuItem> */}
         </DropdownMenuContent>
       </DropdownMenu>
-      <RpcSettingsDialog open={rpcOpen} onOpenChange={setRpcOpen} />
+      <RpcSettingsDialog isOpen={isRpcOpen} onOpenChange={setIsRpcOpen} />
     </>
   )
 }

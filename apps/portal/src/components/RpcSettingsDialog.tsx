@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { match } from 'ts-pattern'
-import {
-  checkRpcEndpoint,
-  getCustomRpcUrl,
-  type InvalidRpcUrlError,
-  resetCustomRpcUrl,
-  saveCustomRpcUrl,
-  validateRpcUrl,
-} from '@/lib/customRpc'
+import { getCustomRpcUrl, resetCustomRpcUrl } from '@/lib/customRpc'
+import { applyCustomRpc, describeRpcError } from './RpcSettingsDialog.handlers'
 import { Button } from './ui/button'
 import {
   Dialog,
@@ -19,22 +12,11 @@ import {
 } from './ui/dialog'
 import { Input } from './ui/input'
 
-const INVALID_MESSAGES: Record<InvalidRpcUrlError['reason'], string> = {
-  empty: 'Enter an RPC URL.',
-  malformed: 'That is not a valid URL.',
-  protocol: 'Use an http(s):// or ws(s):// URL.',
-  credentials: 'Remove the username and password from the URL.',
-}
-
-const isLocal = (url: string) =>
-  /^(https?|wss?):\/\/(localhost|127\.0\.0\.1)([:/?#]|$)/.test(url)
-
 // Form state lives here (not inline in the component) so the reset-on-open
 // effect has a named home. Reopening a Radix dialog doesn't remount it, so
 // without this the previous attempt would still be in the field. The save
-// itself stays in the component's submit handler: user-action orchestration
-// belongs in handlers, not hooks.
-function useRpcForm(open: boolean) {
+// logic lives in RpcSettingsDialog.handlers.ts.
+function useRpcForm(isOpen: boolean) {
   const [value, setValue] = useState(() => getCustomRpcUrl() ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isChecking, setIsChecking] = useState(false)
@@ -45,11 +27,11 @@ function useRpcForm(open: boolean) {
   useEffect(() => {
     // Any open/close transition invalidates a pending check.
     attemptRef.current += 1
-    if (!open) return
+    if (!isOpen) return
     setValue(getCustomRpcUrl() ?? '')
     setError(null)
     setIsChecking(false)
-  }, [open])
+  }, [isOpen])
 
   return {
     value,
@@ -65,11 +47,11 @@ function useRpcForm(open: boolean) {
 }
 
 export const RpcSettingsDialog = ({
-  open,
+  isOpen,
   onOpenChange,
 }: {
-  readonly open: boolean
-  readonly onOpenChange: (open: boolean) => void
+  readonly isOpen: boolean
+  readonly onOpenChange: (isOpen: boolean) => void
 }) => {
   const current = getCustomRpcUrl()
   const {
@@ -81,39 +63,25 @@ export const RpcSettingsDialog = ({
     setIsChecking,
     beginAttempt,
     isCurrentAttempt,
-  } = useRpcForm(open)
+  } = useRpcForm(isOpen)
 
   const save = async (): Promise<void> => {
     const attempt = beginAttempt()
-    const validated = validateRpcUrl(value)
-    if (validated.isErr())
-      return setError(INVALID_MESSAGES[validated.error.reason])
-
     setError(null)
     setIsChecking(true)
-    const checked = await checkRpcEndpoint(validated.value)
+    const result = await applyCustomRpc(value, () => isCurrentAttempt(attempt))
     if (!isCurrentAttempt(attempt)) return
     setIsChecking(false)
+    if (result.isErr()) setError(describeRpcError(result.error, value))
+  }
 
-    if (checked.isErr()) {
-      const url = validated.value
-      const isPlaintextRemote = /^(http|ws):/.test(url) && !isLocal(url)
-      return setError(
-        match(checked.error.reason)
-          .with('wrong-chain', () => 'This RPC is on a different network.')
-          .with('unreachable', () =>
-            isPlaintextRemote
-              ? 'Could not reach this RPC. Plain http/ws is blocked on remote hosts; use https/wss.'
-              : 'Could not reach this RPC.',
-          )
-          .exhaustive(),
-      )
-    }
-    saveCustomRpcUrl(validated.value)
+  const reset = (): void => {
+    const result = resetCustomRpcUrl()
+    if (result.isErr()) setError(describeRpcError(result.error, value))
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Custom RPC</DialogTitle>
@@ -143,7 +111,7 @@ export const RpcSettingsDialog = ({
           )}
           <DialogFooter>
             {current && (
-              <Button variant="ghost" type="button" onClick={resetCustomRpcUrl}>
+              <Button variant="ghost" type="button" onClick={reset}>
                 Reset to default
               </Button>
             )}
