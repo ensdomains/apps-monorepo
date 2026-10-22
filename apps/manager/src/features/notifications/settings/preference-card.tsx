@@ -15,8 +15,8 @@ export interface PreferenceCardProps {
   description: ReactNode
   recommended?: boolean
   /** Info tooltip beside the label; `tooltipLabel` names it for assistive tech. */
-  tooltip?: ReactNode
-  tooltipLabel?: string
+  readonly tooltip?: ReactNode
+  readonly tooltipLabel?: string
   checked: boolean
   disabled?: boolean
   isLoading?: boolean
