@@ -200,7 +200,11 @@ describe('registration record serialization', () => {
       registerReadyTimestamp: 1_800_000_000_000,
       // Real orchestrator ids are ~250-bit uint256s — far past Number range.
       registrationIntentId: 2n ** 250n + 123n,
-      l2BridgeIntentId: 2n ** 249n + 7n,
+      unsettledL2Bridge: {
+        intentId: 2n ** 249n + 7n,
+        claimableUntil: 1_800_000_600_000,
+        fundsHcaTo: 15_000_000n,
+      },
     })
 
     const record = buildRegistrationRecord('commitmentCooldown', context, 42)
@@ -215,7 +219,7 @@ describe('registration record serialization', () => {
     expect(result._unsafeUnwrap().context.registrationIntentId).toBe(
       2n ** 250n + 123n,
     )
-    expect(result._unsafeUnwrap().context.l2BridgeIntentId).toBe(
+    expect(result._unsafeUnwrap().context.unsettledL2Bridge?.intentId).toBe(
       2n ** 249n + 7n,
     )
   })

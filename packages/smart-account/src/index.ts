@@ -94,6 +94,7 @@ export {
   isFixableByNewSession,
   isRhinestoneSession,
   isSessionExpired,
+  L2_BRIDGE_MAX_PERMIT_LIFETIME_S,
   L2BridgeExpiredError,
   type L2BridgeQuote,
   L2BridgeRejectedError,

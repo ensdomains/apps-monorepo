@@ -33,9 +33,11 @@ import {
   estimateHcaBudgetActor,
   type HcaSessionEnableParams,
   hcaRegistrarAddress,
+  L2_BRIDGE_CLAIMABLE_MS,
   type L2BridgePayment,
   type PermitValueBounds,
   readHcaUsdcBalanceActor,
+  readHcaUsdcBalanceAtLeastActor,
   signFundingPermitActor,
   submitFundingAndCommitActor,
   submitL2BridgeActor,
@@ -211,6 +213,16 @@ const COMMITMENT_WAIT_DURATION_MS = 60_000
  * Fixed transaction IDs used by the registration machine.
  * These allow the TransactionModal to track each step by a predictable ID.
  */
+/** An L2 bridge into the HCA that was sent and may not have settled yet. */
+export type UnsettledL2Bridge = {
+  /** Its orchestrator id. */
+  readonly intentId: bigint
+  /** Epoch ms past which its permit can no longer be claimed. */
+  readonly claimableUntil: number
+  /** The HCA balance it brings the account to, at least, once it fills. */
+  readonly fundsHcaTo: bigint
+}
+
 export const REGISTRATION_TX_IDS = {
   deployResolver: 'tx-reg-deploy-resolver',
   l2Bridge: 'tx-reg-l2-bridge',
@@ -303,17 +315,21 @@ export type RegistrationContext = {
   /** The L2 bridge's transaction, while `waitingForL2Bridge`. */
   l2BridgeTxId?: string
   /**
-   * The L2 bridge's orchestrator id, from submission until it settles.
-   * Persisted, so neither a retry nor a resumed run pays again while it may
-   * still fill.
+   * The L2 bridge, from submission until it settles. Persisted, so neither a
+   * retry nor a resumed run pays again while it may still fill.
    */
-  l2BridgeIntentId?: bigint
+  unsettledL2Bridge?: UnsettledL2Bridge
   /**
-   * `l2BridgeIntentId` came from an abandoned run, sized for that run's
+   * `unsettledL2Bridge` came from an abandoned run, sized for that run's
    * registration, so once it lands the balance is read again rather than
    * assumed to cover this one.
    */
   isL2BridgeFromPriorRun?: boolean
+  /**
+   * The balance a prior run's landed bridge guarantees, which
+   * `checkingHcaFunding` waits to read before sizing another payment.
+   */
+  hcaBalanceFloor?: bigint
   /** USDC (6dp) checkout showed the L2 being charged, fee included. */
   displayedL2Charge?: bigint
   /**
@@ -441,7 +457,7 @@ export type RegistrationEvent =
        * A bridge an abandoned run sent that may not have settled yet; this run
        * waits for it before paying. See `isL2BridgeFromPriorRun`.
        */
-      pendingL2BridgeIntentId?: bigint
+      unsettledL2Bridge?: UnsettledL2Bridge
       /** Standalone-HCA: set the primary name in the reveal batch. */
       primaryName?: string
       /**
@@ -509,7 +525,7 @@ export type RegistrationEvent =
       intentId: bigint
     }
   | {
-      /** The L2 bridge's intent was accepted; see `l2BridgeIntentId`. */
+      /** The L2 bridge's intent was accepted; see `unsettledL2Bridge`. */
       type: 'L2_BRIDGE_SUBMITTED'
       intentId: bigint
     }
@@ -552,12 +568,19 @@ export const registrationMachine = setup({
       },
     ),
     readHcaUsdcBalance: fromResultAsync(
-      (input: {
-        hca: Address
-        publicClient: PublicClient
-        chainId: number
-      }) => {
-        return readHcaUsdcBalanceActor(input)
+      (
+        input: {
+          hca: Address
+          publicClient: PublicClient
+          chainId: number
+          atLeast?: bigint
+        },
+        { signal }: { signal: AbortSignal },
+      ) => {
+        const { atLeast } = input
+        return atLeast === undefined
+          ? readHcaUsdcBalanceActor(input)
+          : readHcaUsdcBalanceAtLeastActor({ ...input, atLeast, signal })
       },
     ),
     signFundingPermit: fromResultAsync(
@@ -589,6 +612,7 @@ export const registrationMachine = setup({
       (
         input: {
           intentId: bigint
+          claimableUntil: number
           fetchIntentStatus?: (
             intentId: bigint,
             signal?: AbortSignal,
@@ -832,7 +856,7 @@ export const registrationMachine = setup({
       context.signer?.type === 'rhinestone' && context.l2Funding !== undefined,
     hasUnsettledL2Bridge: ({ context }) =>
       context.signer?.type === 'rhinestone' &&
-      context.l2BridgeIntentId !== undefined,
+      context.unsettledL2Bridge !== undefined,
   },
 
   actions: {
@@ -991,7 +1015,12 @@ export const registrationMachine = setup({
     },
     L2_BRIDGE_SUBMITTED: {
       actions: assign({
-        l2BridgeIntentId: ({ event }) => event.intentId,
+        unsettledL2Bridge: ({ context, event }) => ({
+          intentId: event.intentId,
+          claimableUntil: Date.now() + L2_BRIDGE_CLAIMABLE_MS,
+          // It delivers at least the shortfall to the budget.
+          fundsHcaTo: context.hcaBudget ?? 0n,
+        }),
         isL2BridgeFromPriorRun: () => false,
       }),
     },
@@ -1043,9 +1072,10 @@ export const registrationMachine = setup({
               hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
               l2Funding: ({ event }) => event.l2Funding,
               l2BridgeTxId: () => undefined,
-              l2BridgeIntentId: ({ event }) => event.pendingL2BridgeIntentId,
+              unsettledL2Bridge: ({ event }) => event.unsettledL2Bridge,
               isL2BridgeFromPriorRun: ({ event }) =>
-                event.pendingL2BridgeIntentId !== undefined,
+                event.unsettledL2Bridge !== undefined,
+              hcaBalanceFloor: () => undefined,
               displayedL2Charge: ({ event }) => event.displayedL2Charge,
               primaryName: ({ event }) => event.primaryName,
               resolverAddress: () => undefined,
@@ -1179,6 +1209,8 @@ export const registrationMachine = setup({
 
     checkingHcaFunding: {
       entry: ['logTransition'],
+      // Read once: it only ever guards the read right after a bridge landed.
+      exit: assign({ hcaBalanceFloor: () => undefined }),
       invoke: {
         src: 'readHcaUsdcBalance',
         input: ({ context }) => ({
@@ -1187,6 +1219,7 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           chainId: context.chainId,
+          atLeast: context.hcaBalanceFloor,
         }),
         onDone: [
           {
@@ -1353,7 +1386,7 @@ export const registrationMachine = setup({
           target: 'submittingSetupBundle',
           actions: assign({
             l2BridgeTxId: () => undefined,
-            l2BridgeIntentId: () => undefined,
+            unsettledL2Bridge: () => undefined,
           }),
         },
         // Retried like the permit. The intent id stays, so the retry settles
@@ -1380,7 +1413,9 @@ export const registrationMachine = setup({
         src: 'awaitL2Bridge',
         input: ({ context }) => ({
           // biome-ignore lint/style/noNonNullAssertion: guarded by hasUnsettledL2Bridge
-          intentId: context.l2BridgeIntentId!,
+          intentId: context.unsettledL2Bridge!.intentId,
+          // biome-ignore lint/style/noNonNullAssertion: guarded by hasUnsettledL2Bridge
+          claimableUntil: context.unsettledL2Bridge!.claimableUntil,
           fetchIntentStatus: context.fetchRegistrationIntentStatus,
         }),
         onDone: [
@@ -1388,12 +1423,24 @@ export const registrationMachine = setup({
             guard: ({ context, event }) =>
               event.output === 'landed' && !context.isL2BridgeFromPriorRun,
             target: 'submittingSetupBundle',
-            actions: assign({ l2BridgeIntentId: () => undefined }),
+            actions: assign({ unsettledL2Bridge: () => undefined }),
+          },
+          {
+            // Sized for another registration, so read again; but only a read
+            // that shows the bridge, or a lagging one asks for it again.
+            guard: ({ event }) => event.output === 'landed',
+            target: 'checkingHcaFunding',
+            actions: assign({
+              hcaBalanceFloor: ({ context }) =>
+                context.unsettledL2Bridge?.fundsHcaTo,
+              unsettledL2Bridge: () => undefined,
+              isL2BridgeFromPriorRun: () => false,
+            }),
           },
           {
             target: 'checkingHcaFunding',
             actions: assign({
-              l2BridgeIntentId: () => undefined,
+              unsettledL2Bridge: () => undefined,
               isL2BridgeFromPriorRun: () => false,
             }),
           },

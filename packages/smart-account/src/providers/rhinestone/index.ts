@@ -72,6 +72,7 @@ export {
 } from './intent-status'
 export {
   createL2BridgeAccount,
+  L2_BRIDGE_MAX_PERMIT_LIFETIME_S,
   L2BridgeExpiredError,
   type L2BridgeQuote,
   L2BridgeRejectedError,

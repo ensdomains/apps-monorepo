@@ -11,8 +11,14 @@ import {
 import { transactionManager } from '../../providers/transactionManager'
 import type { L2FundingSource, Signer } from '../../types/signer.types'
 import type { TransactionRequest } from '../../types/transaction.types'
-import type { HcaSessionEnableParams } from './registration.hca.actors'
-import { registrationMachine } from './registration.machine'
+import {
+  type HcaSessionEnableParams,
+  L2_BRIDGE_CLAIMABLE_MS,
+} from './registration.hca.actors'
+import {
+  registrationMachine,
+  type UnsettledL2Bridge,
+} from './registration.machine'
 
 const HCA = '0xaaaa000000000000000000000000000000000001' as Address
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
@@ -67,7 +73,7 @@ const startHcaRegistration = (overrides: {
   /** Funds the HCA from an L2 instead of with a permit. */
   l2Funding?: L2FundingSource
   displayedL2Charge?: bigint
-  pendingL2BridgeIntentId?: bigint
+  unsettledL2Bridge?: UnsettledL2Bridge
   submitL2Bridge?: ReturnType<typeof vi.fn>
   awaitL2Bridge?: ReturnType<typeof vi.fn>
 }) => {
@@ -153,7 +159,7 @@ const startHcaRegistration = (overrides: {
     ...(overrides.displayedL2Charge !== undefined
       ? { displayedL2Charge: overrides.displayedL2Charge }
       : {}),
-    pendingL2BridgeIntentId: overrides.pendingL2BridgeIntentId,
+    unsettledL2Bridge: overrides.unsettledL2Bridge,
   })
 
   return {
@@ -522,14 +528,24 @@ describe('registrationMachine — paid from an L2', () => {
       }),
     })
 
+    const sentAt = Date.now()
     await waitFor(actor, (s) => s.matches('error'))
-    expect(actor.getSnapshot().context.l2BridgeIntentId).toBe(9n)
+    expect(actor.getSnapshot().context.unsettledL2Bridge).toEqual({
+      intentId: 9n,
+      claimableUntil: expect.any(Number),
+      fundsHcaTo: BUDGET,
+    })
     actor.send({ type: 'RETRY' })
     await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
 
-    expect(awaitL2Bridge.mock.calls[0][0].input.intentId).toBe(9n)
+    const { input } = awaitL2Bridge.mock.calls[0][0]
+    expect(input.intentId).toBe(9n)
+    // Its permit may still be claimed until then, however long it stays unknown.
+    expect(input.claimableUntil).toBeGreaterThanOrEqual(
+      sentAt + L2_BRIDGE_CLAIMABLE_MS,
+    )
     expect(submitL2Bridge).toHaveBeenCalledOnce()
-    expect(actor.getSnapshot().context.l2BridgeIntentId).toBeUndefined()
+    expect(actor.getSnapshot().context.unsettledL2Bridge).toBeUndefined()
   })
 
   it('pays again once the sent bridge is dead', async () => {
@@ -550,27 +566,62 @@ describe('registrationMachine — paid from an L2', () => {
   })
 
   // A cancelled run's bridge may still arrive, and was sized for that run.
+  const cancelledRunBridge = (fundsHcaTo: bigint) => ({
+    intentId: 9n,
+    claimableUntil: 0,
+    fundsHcaTo,
+  })
+
   it("waits for a cancelled run's bridge, then reads the balance again", async () => {
+    const reads: (bigint | undefined)[] = []
+    // Short before the old bridge lands, covered after.
+    const balances = [0n, BUDGET]
     const { actor, submitL2Bridge, awaitL2Bridge, submitFundingAndCommit } =
       startHcaRegistration({
-        // Short before the old bridge lands, covered after.
-        balances: [0n, BUDGET],
+        readHcaUsdcBalance: vi.fn(
+          async ({ input }: { input: { atLeast?: bigint } }) => {
+            reads.push(input.atLeast)
+            return balances[reads.length - 1]
+          },
+        ),
         l2Funding,
-        pendingL2BridgeIntentId: 9n,
+        unsettledL2Bridge: cancelledRunBridge(BUDGET),
       })
 
     await waitFor(actor, () => submitFundingAndCommit.mock.calls.length > 0)
 
     expect(awaitL2Bridge.mock.calls[0][0].input.intentId).toBe(9n)
+    // Only a read that shows the bridge decides: a lagging one would pay again.
+    expect(reads).toEqual([undefined, BUDGET])
     expect(submitL2Bridge).not.toHaveBeenCalled()
-    expect(actor.getSnapshot().context.l2BridgeIntentId).toBeUndefined()
+    expect(actor.getSnapshot().context.unsettledL2Bridge).toBeUndefined()
+    expect(actor.getSnapshot().context.hcaBalanceFloor).toBeUndefined()
+  })
+
+  it("reads the balance plainly after a cancelled run's dead bridge", async () => {
+    const reads: (bigint | undefined)[] = []
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      readHcaUsdcBalance: vi.fn(
+        async ({ input }: { input: { atLeast?: bigint } }) => {
+          reads.push(input.atLeast)
+          return 0n
+        },
+      ),
+      l2Funding,
+      unsettledL2Bridge: cancelledRunBridge(BUDGET),
+      awaitL2Bridge: vi.fn(async () => 'dead'),
+    })
+
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length > 0)
+
+    expect(reads).toEqual([undefined, undefined])
   })
 
   it("bridges the rest when a cancelled run's bridge does not cover this one", async () => {
     const { actor, submitL2Bridge } = startHcaRegistration({
       balances: [0n, 1_000_000n],
       l2Funding,
-      pendingL2BridgeIntentId: 9n,
+      unsettledL2Bridge: cancelledRunBridge(1_000_000n),
     })
 
     await waitFor(actor, () => submitL2Bridge.mock.calls.length > 0)
@@ -1270,7 +1321,11 @@ describe('registrationMachine — RESUME', () => {
         accountAddress: HCA,
         ownerAddress: WALLET,
         l2FundingChainId: 84532,
-        l2BridgeIntentId: 9n,
+        unsettledL2Bridge: {
+          intentId: 9n,
+          claimableUntil: 0,
+          fundsHcaTo: BUDGET,
+        },
       },
       deps: {
         signer: { type: 'rhinestone' } as unknown as Signer,

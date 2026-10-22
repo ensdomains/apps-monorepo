@@ -46,7 +46,7 @@ export const RHINESTONE_ACROSS_ARBITER: Address =
   '0xA162fabb9a0EeF2736485A587aAAB3d015e14224'
 
 // Quotes are issued for two minutes; one signable for longer is refused.
-const MAX_PERMIT_LIFETIME_S = 600n
+export const L2_BRIDGE_MAX_PERMIT_LIFETIME_S = 600n
 // A signature this close to the deadline is not worth submitting.
 const SUBMIT_MARGIN_S = 10n
 
@@ -316,7 +316,10 @@ function readPermit(
     return err('The route asks for an unexpected signature.')
   }
   const permit = signed.message as unknown as BridgePermit
-  if (permit.deadline <= now || permit.deadline > now + MAX_PERMIT_LIFETIME_S) {
+  if (
+    permit.deadline <= now ||
+    permit.deadline > now + L2_BRIDGE_MAX_PERMIT_LIFETIME_S
+  ) {
     return err('The quote has expired.')
   }
 

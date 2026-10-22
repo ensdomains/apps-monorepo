@@ -9,7 +9,10 @@ import {
   type TOKEN_SYMBOL,
 } from './registration.actors'
 import { hcaRegistrarAddress } from './registration.hca.actors'
-import type { RegistrationContext } from './registration.machine'
+import type {
+  RegistrationContext,
+  UnsettledL2Bridge,
+} from './registration.machine'
 import type { RegistrationMachineActor } from './registration.types'
 
 /**
@@ -75,7 +78,7 @@ export type PersistedRegistrationContext = {
    * The L2 bridge still settling, so a resumed run waits for it instead of
    * paying again.
    */
-  l2BridgeIntentId?: bigint
+  unsettledL2Bridge?: UnsettledL2Bridge
   /** Whether that bridge came from an abandoned run; see the machine context. */
   isL2BridgeFromPriorRun?: boolean
 
@@ -238,7 +241,7 @@ export function serializeRegistrationContext(
     resolverOwnerAddress: context.resolverOwnerAddress,
     primaryName: context.primaryName,
     l2FundingChainId: context.l2Funding?.chain.id,
-    l2BridgeIntentId: context.l2BridgeIntentId,
+    unsettledL2Bridge: context.unsettledL2Bridge,
     isL2BridgeFromPriorRun: context.isL2BridgeFromPriorRun,
     resolverAddress: context.resolverAddress,
     resolverTxId: context.resolverTxId,
@@ -326,7 +329,13 @@ const persistedContextSchema = v.object({
   resolverOwnerAddress: v.optional(addressSchema),
   primaryName: v.optional(v.string()),
   l2FundingChainId: v.optional(v.number()),
-  l2BridgeIntentId: v.optional(v.bigint()),
+  unsettledL2Bridge: v.optional(
+    v.object({
+      intentId: v.bigint(),
+      claimableUntil: v.number(),
+      fundsHcaTo: v.bigint(),
+    }),
+  ),
   isL2BridgeFromPriorRun: v.optional(v.boolean()),
   resolverAddress: v.optional(addressSchema),
   resolverTxId: v.optional(v.string()),

@@ -1,4 +1,7 @@
-import type { RegistrationMachineActor } from '@ens-apps/transaction-manager'
+import type {
+  RegistrationMachineActor,
+  UnsettledL2Bridge,
+} from '@ens-apps/transaction-manager'
 import type { Address } from 'viem'
 
 /**
@@ -6,10 +9,20 @@ import type { Address } from 'viem'
  * registration record: cancelling a run clears that record, but its payment
  * can still arrive, and the next run must wait for it instead of paying again.
  */
-const STORAGE_KEY = 'ens-registration-pending-l2-bridges-v1'
+const STORAGE_KEY = 'ens-registration-pending-l2-bridges-v2'
 
-/** Intent ids (decimal) by `chainId:account`. */
-type PendingL2Bridges = Record<string, string>
+/** An `UnsettledL2Bridge` with its bigints in decimal. */
+type StoredL2Bridge = {
+  intentId: string
+  claimableUntil: number
+  fundsHcaTo: string
+}
+
+/** Bridges by `chainId:account`. */
+type PendingL2Bridges = Record<string, StoredL2Bridge>
+
+const isDecimal = (value: unknown): value is string =>
+  typeof value === 'string' && /^\d+$/.test(value)
 
 const keyFor = (chainId: number, account: Address) =>
   `${chainId}:${account.toLowerCase()}`
@@ -42,17 +55,37 @@ const writeAll = (bridges: PendingL2Bridges): void => {
 export const readPendingL2Bridge = (
   chainId: number,
   account: Address,
-): bigint | undefined => {
-  const id = readAll()[keyFor(chainId, account)]
-  return id && /^\d+$/.test(id) ? BigInt(id) : undefined
+): UnsettledL2Bridge | undefined => {
+  const stored: Partial<StoredL2Bridge> | undefined =
+    readAll()[keyFor(chainId, account)]
+  if (
+    !stored ||
+    !isDecimal(stored.intentId) ||
+    typeof stored.claimableUntil !== 'number' ||
+    !isDecimal(stored.fundsHcaTo)
+  ) {
+    return undefined
+  }
+  return {
+    intentId: BigInt(stored.intentId),
+    claimableUntil: stored.claimableUntil,
+    fundsHcaTo: BigInt(stored.fundsHcaTo),
+  }
 }
 
 export const savePendingL2Bridge = (
   chainId: number,
   account: Address,
-  intentId: bigint,
+  bridge: UnsettledL2Bridge,
 ): void => {
-  writeAll({ ...readAll(), [keyFor(chainId, account)]: intentId.toString() })
+  writeAll({
+    ...readAll(),
+    [keyFor(chainId, account)]: {
+      intentId: bridge.intentId.toString(),
+      claimableUntil: bridge.claimableUntil,
+      fundsHcaTo: bridge.fundsHcaTo.toString(),
+    },
+  })
 }
 
 export const clearPendingL2Bridge = (
@@ -64,20 +97,20 @@ export const clearPendingL2Bridge = (
 }
 
 /**
- * Mirror a run's bridge id into storage: saved once sent, cleared once it
+ * Mirror a run's bridge into storage: saved once sent, cleared once it
  * settles. A cancelled run keeps it, so the next start can wait for it.
  */
 export const subscribePendingL2Bridge = (
   actor: RegistrationMachineActor,
 ): (() => void) => {
-  let previous = actor.getSnapshot().context.l2BridgeIntentId
+  let previous = actor.getSnapshot().context.unsettledL2Bridge
   const subscription = actor.subscribe(({ context }) => {
-    const { l2BridgeIntentId: intentId, chainId, accountAddress } = context
-    if (intentId === previous) return
-    previous = intentId
+    const { unsettledL2Bridge: bridge, chainId, accountAddress } = context
+    if (bridge === previous) return
+    previous = bridge
     if (!accountAddress) return
-    if (intentId === undefined) clearPendingL2Bridge(chainId, accountAddress)
-    else savePendingL2Bridge(chainId, accountAddress, intentId)
+    if (bridge === undefined) clearPendingL2Bridge(chainId, accountAddress)
+    else savePendingL2Bridge(chainId, accountAddress, bridge)
   })
   return () => subscription.unsubscribe()
 }

@@ -36,6 +36,7 @@ import {
   type Call as HcaCall,
   type HcaLeg,
   hasAddrReverseResolver,
+  L2_BRIDGE_MAX_PERMIT_LIFETIME_S,
   type QuoteLegResult,
   readCommitment,
   readQuotedGasRefunds,
@@ -684,6 +685,48 @@ export function readHcaUsdcBalanceActor(input: {
   )
 }
 
+const HCA_CREDIT_POLL_MS = 4_000
+const HCA_CREDIT_WAIT_MS = 2 * 60_000
+
+/**
+ * The HCA's balance once a read shows at least `atLeast`, which a bridge that
+ * landed guarantees: a lagging node still reads the balance from before it.
+ * Gives the last read after `timeoutMs`, as a balance spent since never gets there.
+ */
+export function readHcaUsdcBalanceAtLeastActor(input: {
+  hca: Address
+  publicClient: PublicClient
+  chainId: number
+  atLeast: bigint
+  signal?: AbortSignal
+  pollIntervalMs?: number
+  timeoutMs?: number
+}): ResultAsync<bigint, Error> {
+  const deadline = Date.now() + (input.timeoutMs ?? HCA_CREDIT_WAIT_MS)
+  return fromPromise(
+    (async () => {
+      let balance: bigint | undefined
+      let lastError: Error | undefined
+      do {
+        const read = await readHcaUsdcBalanceActor(input)
+        if (read.isOk()) {
+          balance = read.value
+          if (balance >= input.atLeast) return balance
+        } else {
+          lastError = read.error
+        }
+        await sleepUnlessAborted(
+          input.pollIntervalMs ?? HCA_CREDIT_POLL_MS,
+          input.signal,
+        )
+      } while (!input.signal?.aborted && Date.now() < deadline)
+      if (balance === undefined) throw lastError
+      return balance
+    })(),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
+}
+
 /**
  * Bounds a funding permit's value must satisfy before the wallet is asked to
  * sign it. Both are optional and independent — each rules out a different way
@@ -1068,18 +1111,37 @@ export function submitL2BridgeActor(input: {
 
 const L2_BRIDGE_POLL_MS = 4_000
 const L2_BRIDGE_WAIT_MS = 10 * 60_000
-// Unknown this long, a submission whose answer was lost never arrived.
-const L2_BRIDGE_UNKNOWN_MS = 60_000
+
+/**
+ * How long after its id reaches the machine a bridge can still be claimed: its
+ * permit's deadline is at most this far past signing, which came first.
+ */
+export const L2_BRIDGE_CLAIMABLE_MS =
+  Number(L2_BRIDGE_MAX_PERMIT_LIFETIME_S) * 1_000
+
+/** What a bridge's status settles it as, or undefined to keep waiting. */
+const l2BridgeVerdict = (
+  status: string | null,
+  claimableUntil: number,
+): 'landed' | 'dead' | undefined => {
+  if (status === 'FILLED' || status === 'COMPLETED') return 'landed'
+  if (status === 'FAILED' || status === 'EXPIRED') return 'dead'
+  // A submission whose answer was lost may still arrive until then.
+  if (status === 'NOT_FOUND' && Date.now() >= claimableUntil) return 'dead'
+  return undefined
+}
 
 /**
  * Settle a bridge an earlier attempt (or tab) already sent before paying
  * again: `'landed'` once it filled, `'dead'` once the orchestrator gives up on
- * it, or once it stays unknown to the orchestrator. Anything else keeps
- * waiting, and running out of time is an error, so an unconfirmed payment is
- * never followed by a second one.
+ * it, or once it is still unknown to the orchestrator after `claimableUntil`.
+ * Anything else keeps waiting, and running out of time is an error, so an
+ * unconfirmed payment is never followed by a second one.
  */
 export function awaitL2BridgeActor(input: {
   readonly intentId: bigint
+  /** Epoch ms past which the bridge's permit can no longer be claimed. */
+  readonly claimableUntil: number
   readonly fetchIntentStatus?: (
     intentId: bigint,
     signal?: AbortSignal,
@@ -1087,7 +1149,6 @@ export function awaitL2BridgeActor(input: {
   readonly signal?: AbortSignal
   readonly pollIntervalMs?: number
   readonly timeoutMs?: number
-  readonly unknownMs?: number
 }): ResultAsync<'landed' | 'dead', Error> {
   const { fetchIntentStatus, signal } = input
   if (!fetchIntentStatus) {
@@ -1098,19 +1159,12 @@ export function awaitL2BridgeActor(input: {
   const deadline = Date.now() + (input.timeoutMs ?? L2_BRIDGE_WAIT_MS)
   return fromPromise(
     (async () => {
-      let unknownSince: number | undefined
       while (!signal?.aborted && Date.now() < deadline) {
-        const status = await fetchIntentStatus(input.intentId, signal)
-        if (status === 'FILLED' || status === 'COMPLETED') return 'landed'
-        if (status === 'FAILED' || status === 'EXPIRED') return 'dead'
-        unknownSince =
-          status === 'NOT_FOUND' ? (unknownSince ?? Date.now()) : undefined
-        if (
-          unknownSince !== undefined &&
-          Date.now() - unknownSince >= (input.unknownMs ?? L2_BRIDGE_UNKNOWN_MS)
-        ) {
-          return 'dead'
-        }
+        const verdict = l2BridgeVerdict(
+          await fetchIntentStatus(input.intentId, signal),
+          input.claimableUntil,
+        )
+        if (verdict) return verdict
         await sleepUnlessAborted(
           input.pollIntervalMs ?? L2_BRIDGE_POLL_MS,
           signal,

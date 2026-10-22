@@ -809,7 +809,7 @@ const startRegistrationAction = machineSetup.createAction(
         l2Funding,
         displayedL2Charge: event.displayedL2Charge,
         // A cancelled run's bridge may still arrive: wait for it, don't pay twice.
-        pendingL2BridgeIntentId: readPendingL2Bridge(
+        unsettledL2Bridge: readPendingL2Bridge(
           context.chainId,
           event.account.accountAddress,
         ),
