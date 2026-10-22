@@ -32,9 +32,7 @@ export const useRenewalIntentFunding = (params: {
   readonly protocol: RenewalProtocol
   readonly renewerAddress: Address
   readonly account: Pick<SmartAccountContextValue, 'signer' | 'ownerAddress'>
-  readonly pricing:
-    | { readonly price: number; readonly funded: number }
-    | undefined
+  readonly pricing: { readonly funded: number } | undefined
   readonly accountCredit: Partial<Record<TOKEN_SYMBOL, number>>
 }): RenewalIntentFunding => {
   const { account, pricing, accountCredit, ...quote } = params
@@ -62,7 +60,6 @@ export const useRenewalIntentFunding = (params: {
   const renewalFunding =
     isIntentRoute && pricing && networkFee !== undefined
       ? computeRenewalFunding({
-          price: pricing.price,
           funded: pricing.funded,
           networkFee,
           selectedToken: quote.token,
