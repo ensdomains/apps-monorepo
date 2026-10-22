@@ -1,16 +1,16 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { SubgraphRequestError } from '@ensdomains/ensjs'
-import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import { graphqlIndexerClient } from '@/lib/indexer'
 import type {
   V1EventBase,
   V1NameHistory,
 } from '@/utils/history/transformAddressHistory'
-import { gql } from '@/utils/subgraph/gql'
+import { validateSubgraphNames } from '@/utils/subgraph/validateSubgraphName'
 
 class GetV1HistoryForAddressError extends TaggedError(
   'GetV1HistoryForAddressError',
@@ -18,7 +18,7 @@ class GetV1HistoryForAddressError extends TaggedError(
   cause: GetV1HistoryForAddressErrorType
 }> {}
 
-type GetV1HistoryForAddressErrorType = SubgraphRequestError
+type GetV1HistoryForAddressErrorType = GraphqlRequestError
 
 type GetV1HistoryForAddressParameters = {
   address: Address
@@ -26,6 +26,7 @@ type GetV1HistoryForAddressParameters = {
 
 type V1HistoryResponse = {
   domains: Array<{
+    id: string
     name: string | null
     registrant?: { id: string } | null
     wrappedOwner?: { id: string } | null
@@ -46,9 +47,6 @@ type V1HistoryResponse = {
 const getV1HistoryForAddress = ResultFn(async function* ({
   address,
 }: GetV1HistoryForAddressParameters) {
-  const client = yield* safeGetClient()
-  const subgraphClient = createSubgraphClient(client)
-
   const query = gql`
     query getV1HistoryForAddress($address: String!, $first: Int, $orderDirection: OrderDirection) {
       domains(
@@ -60,6 +58,7 @@ const getV1HistoryForAddress = ResultFn(async function* ({
         }
         first: 100
       ) {
+        id
         name
         registrant {
           id
@@ -192,8 +191,8 @@ const getV1HistoryForAddress = ResultFn(async function* ({
     orderDirection: 'desc' as const,
   }
 
-  const result = yield* fromPromise(
-    subgraphClient.request<V1HistoryResponse, typeof queryVars>(
+  const response = yield* fromPromise(
+    graphqlIndexerClient.request<V1HistoryResponse, typeof queryVars>(
       query,
       queryVars,
     ),
@@ -202,6 +201,8 @@ const getV1HistoryForAddress = ResultFn(async function* ({
         cause: e as GetV1HistoryForAddressErrorType,
       }),
   )
+
+  const result = validateSubgraphNames(response)
 
   // Keep the events grouped per name: whether a name's history belongs to this
   // address is decided per name, and flattening here would lose the provenance

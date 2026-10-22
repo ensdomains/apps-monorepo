@@ -1,17 +1,18 @@
+import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
+import { gql } from '@urql/core'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { safeGetClient } from '@/lib/wagmi/helpers'
-import { gql } from '@/utils/subgraph/gql'
+import { graphqlIndexerClient } from '@/lib/indexer'
+import { validateSubgraphName } from '@/utils/subgraph/validateSubgraphName'
 import type { ForwardName } from '../ForwardNamesTable/columns'
 
 class GetResolvedNamesForAddressError extends TaggedError(
   'GetResolvedNamesForAddressError',
 )<{
-  cause: unknown
+  cause: GraphqlRequestError
 }> {}
 
 type GetResolvedNamesForAddressParameters = {
@@ -30,12 +31,8 @@ const getResolvedNamesPage = ResultFn(async function* ({
   address,
   after,
 }: GetResolvedNamesForAddressParameters & { readonly after: string }) {
-  const client = yield* safeGetClient()
-
-  // ensjs's client replaces a name that does not hash to its id, so a
-  // misreported name is never shown as if it were the real one.
   const { domains } = yield* fromPromise(
-    createSubgraphClient(client).request<
+    graphqlIndexerClient.request<
       {
         readonly domains: readonly {
           readonly id: string
@@ -70,12 +67,13 @@ const getResolvedNamesPage = ResultFn(async function* ({
         after,
       },
     ),
-    (e) => new GetResolvedNamesForAddressError({ cause: e }),
+    (e) =>
+      new GetResolvedNamesForAddressError({ cause: e as GraphqlRequestError }),
   )
 
   return ok<ResolvedNamesPage>({
-    names: domains.map(({ name, resolver }) => ({
-      name,
+    names: domains.map(({ id, name, resolver }) => ({
+      name: validateSubgraphName({ id, name }) ?? name,
       coinTypes: resolver?.coinTypes ?? [],
     })),
     endCursor: domains.at(-1)?.id,

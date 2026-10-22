@@ -1,19 +1,11 @@
 import { QueryClient } from '@tanstack/react-query'
-import { ok } from 'neverthrow'
 import type { Address } from 'viem'
+import { namehash } from 'viem/ens'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockClient = { chain: { id: 11155111 } }
-vi.mock('@/lib/wagmi/helpers', () => ({
-  safeGetClient: () => ok(mockClient),
-}))
-
-// The read goes through ensjs's subgraph client, which replaces any name that
-// does not hash to its id before the portal sees it.
 const mockGraphqlRequest = vi.fn()
-const mockCreateSubgraphClient = vi.fn(() => ({ request: mockGraphqlRequest }))
-vi.mock('@ensdomains/ensjs/subgraph', () => ({
-  createSubgraphClient: mockCreateSubgraphClient,
+vi.mock('@/lib/indexer', () => ({
+  graphqlIndexerClient: { request: mockGraphqlRequest },
 }))
 
 const { getResolvedNamesForAddressQueryOptions } = await import(
@@ -23,7 +15,7 @@ const { getResolvedNamesForAddressQueryOptions } = await import(
 const ADDRESS: Address = '0x5B7d523f27c5b2232536Fb900ebFfB590d03ff5D'
 
 const domain = (i: number) => ({
-  id: `0x${i.toString(16).padStart(4, '0')}`,
+  id: namehash(`name${i}.eth`),
   name: `name${i}.eth`,
   resolver: i === 0 ? null : { coinTypes: ['60'] },
 })
@@ -46,7 +38,6 @@ describe('getResolvedNamesForAddressQueryOptions', () => {
       pages: 2,
     })
 
-    expect(mockCreateSubgraphClient).toHaveBeenCalledWith(mockClient)
     expect(mockGraphqlRequest.mock.calls[0]?.[1]).toEqual({
       address: ADDRESS.toLowerCase(),
       first: 100,
@@ -68,5 +59,15 @@ describe('getResolvedNamesForAddressQueryOptions', () => {
       { name: 'name0.eth', coinTypes: [] },
       { name: 'name1.eth', coinTypes: ['60'] },
     ])
+  })
+
+  it('does not show a misreported name as the name for another id', async () => {
+    mockGraphqlRequest.mockResolvedValue({
+      domains: [{ ...domain(0), id: namehash('actual.eth') }],
+    })
+
+    const data = await new QueryClient().fetchInfiniteQuery(options)
+
+    expect(data.pages[0]?.names[0]?.name).toBe(namehash('name0.eth'))
   })
 })

@@ -7,8 +7,8 @@ import {
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
+import { gql } from '@urql/core'
 import { err, fromPromise, ok } from 'neverthrow'
 import {
   type Address,
@@ -18,8 +18,9 @@ import {
 } from 'viem'
 import { useConnection } from 'wagmi'
 import { envConfig } from '@/config'
+import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { gql } from '@/utils/subgraph/gql'
+import { validateSubgraphName } from '@/utils/subgraph/validateSubgraphName'
 
 /**
  * Migration status for a name, scoped to the connected wallet: whether it can
@@ -34,7 +35,13 @@ export type MigrationStatus =
     }
   | { readonly migratable: false }
 
-type V1DomainResponse = { domains: V1Domain[] }
+type V1DomainResponse = {
+  domains: Array<
+    Omit<V1Domain, 'parent'> & {
+      parent: (NonNullable<V1Domain['parent']> & { readonly id: string }) | null
+    }
+  >
+}
 
 class GetMigrationStatusError extends TaggedError('GetMigrationStatusError')<{
   cause: unknown
@@ -59,10 +66,9 @@ const getMigrationStatus = ResultFn(async function* ({
   address,
 }: GetMigrationStatusParameters) {
   const client = yield* safeGetClient()
-  const subgraphClient = createSubgraphClient(client)
 
   const { domains } = yield* fromPromise(
-    subgraphClient.request<V1DomainResponse, { name: string }>(
+    graphqlIndexerClient.request<V1DomainResponse, { name: string }>(
       gql`
         query getV1DomainForMigration($name: String!) {
           domains(where: { name: $name }) {
@@ -74,7 +80,7 @@ const getMigrationStatus = ResultFn(async function* ({
             owner { id }
             registrant { id }
             wrappedOwner { id }
-            parent { name wrappedDomain { fuses } }
+            parent { id name wrappedDomain { fuses } }
             registration { expiryDate }
             wrappedDomain { expiryDate fuses }
           }
@@ -85,8 +91,25 @@ const getMigrationStatus = ResultFn(async function* ({
     (e) => new GetMigrationStatusError({ cause: e }),
   )
 
-  const domain = domains[0] ?? null
-  if (!domain) return ok<MigrationStatus>({ migratable: false })
+  const rawDomain = domains[0] ?? null
+  if (!rawDomain) return ok<MigrationStatus>({ migratable: false })
+
+  const domain: V1Domain = {
+    ...rawDomain,
+    name:
+      validateSubgraphName({ id: rawDomain.id, name: rawDomain.name }) ??
+      rawDomain.name,
+    parent: rawDomain.parent
+      ? {
+          name:
+            validateSubgraphName({
+              id: rawDomain.parent.id,
+              name: rawDomain.parent.name,
+            }) ?? rawDomain.parent.name,
+          wrappedDomain: rawDomain.parent.wrappedDomain,
+        }
+      : null,
+  }
 
   const holderCandidate =
     address ??
