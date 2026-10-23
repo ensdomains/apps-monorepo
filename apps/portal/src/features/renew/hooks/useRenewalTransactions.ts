@@ -22,7 +22,11 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import type { Transaction } from '@/features/transaction-manager/types'
 import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import { buildRenewIntent, type RenewParams } from '../utils/buildRenewIntent'
+import {
+  buildRenewBatchIntent,
+  buildRenewIntent,
+  type RenewParams,
+} from '../utils/buildRenewIntent'
 import { getRenewerAddress } from '../utils/renewer'
 import { planMultiRenewSteps } from '../utils/renewerPayments'
 import { getIsRenewableQueryOptions } from './useIsRenewable'
@@ -51,6 +55,8 @@ export const RENEWAL_TX_IDS = {
     scopeTransactionId(`renewal-approve-${renewer}`, scope),
   renew: (name: string, scope: FlowScope | null) =>
     scopeTransactionId(`renewal-renew-${name}`, scope),
+  renewBatch: (renewer: Address, scope: FlowScope | null) =>
+    scopeTransactionId(`renewal-renew-batch-${renewer}`, scope),
 } as const
 
 // The resolved payment for a flow: token + prices + the human symbol we derive
@@ -137,9 +143,22 @@ type BuildMultiTransactionsParams = {
 // renewal". Tag each with the protocol version — derived from the spender
 // address — so the user can tell the two approvals apart.
 function approveLabel(tokenSymbol: string, renewer: Address): string {
-  const isV2 = renewer === getRenewerAddress(true)
-  return `Approve ${tokenSymbol} for ${isV2 ? 'v2' : 'v1'} renewal`
+  return `Approve ${tokenSymbol} for ${renewerVersion(renewer)} renewal`
 }
+
+function renewBatchLabel(
+  renewals: readonly MultiRenewalEntry[],
+  renewer: Address,
+): string {
+  return match(renewals)
+    .with([P.select()], ({ selectedName }) => `Extend ${selectedName.name}`)
+    .otherwise(
+      () => `Extend ${renewals.length} ${renewerVersion(renewer)} names`,
+    )
+}
+
+const renewerVersion = (renewer: Address) =>
+  renewer === getRenewerAddress(true) ? 'v2' : 'v1'
 
 // Approve exactly the quoted price. `renew()` takes no amount — the renewer
 // pulls its own oracle price — so the allowance is the only cap on the charge,
@@ -267,35 +286,32 @@ function buildMultiTransactions({
           },
         }
       : {
-          id: RENEWAL_TX_IDS.renew(step.name, scope),
-          title: `Extend ${step.name}`,
-          transactionName: `Extend ${step.name}`,
-          prepareIntent: renewersPendingApproval.has(
-            getRenewerAddress(step.isV2),
-          )
+          id: RENEWAL_TX_IDS.renewBatch(step.renewer, scope),
+          title: renewBatchLabel(step.renewals, step.renewer),
+          transactionName: renewBatchLabel(step.renewals, step.renewer),
+          prepareIntent: renewersPendingApproval.has(step.renewer)
             ? undefined
             : ({ walletClient }) =>
-                buildRenewIntent({
-                  name: step.name,
-                  duration: step.duration,
+                buildRenewBatchIntent({
+                  renewals: step.renewals,
+                  renewer: step.renewer,
                   tokenAddress,
                   from: walletClient.account.address,
-                  publicClient,
-                  isV2: step.isV2,
                 }),
           action: async () => {
-            const signer = await getSigner()
-            buildRenewTransaction(
-              {
-                name: step.name,
-                duration: step.duration,
+            transactionManager.startTransaction(
+              buildRenewBatchIntent({
+                renewals: step.renewals,
+                renewer: step.renewer,
                 tokenAddress,
                 from,
+              }),
+              await getSigner(),
+              {
+                id: RENEWAL_TX_IDS.renewBatch(step.renewer, scope),
                 publicClient,
-                isV2: step.isV2,
+                description: renewBatchLabel(step.renewals, step.renewer),
               },
-              signer,
-              scope,
             )
           },
         },

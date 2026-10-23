@@ -62,17 +62,17 @@ export type MultiRenewStep =
     }
   | {
       readonly kind: 'renew'
-      readonly name: string
-      readonly duration: number
-      readonly isV2: boolean
+      readonly renewer: Address
+      /** Every name this renewer renews, sent as one `renewBatch`. */
+      readonly renewals: readonly MultiRenewalEntry[]
     }
 
 /**
  * Order a batch into approve-then-renew steps. One approval per renewer whose
  * current allowance can't cover its owed total (ERC-20 allowance is per-spender,
  * so a mixed v1+v2 batch needs one per renewer); the first such approval clears
- * the manager and the rest skip it. Renews follow, one per name. An empty batch
- * yields no steps.
+ * the manager and the rest skip it. Renews follow, one `renewBatch` per renewer.
+ * An empty batch yields no steps.
  */
 export const planMultiRenewSteps = (
   renewals: readonly MultiRenewalEntry[],
@@ -89,12 +89,15 @@ export const planMultiRenewSteps = (
       skipClear: index > 0,
     }))
 
-  const renewSteps: MultiRenewStep[] = renewals.map((renewal) => ({
-    kind: 'renew',
-    name: renewal.selectedName.name,
-    duration: renewal.duration,
-    isV2: renewal.selectedName.isV2,
-  }))
+  const renewSteps: MultiRenewStep[] = distinctRenewers(renewals).map(
+    (renewer) => ({
+      kind: 'renew',
+      renewer,
+      renewals: renewals.filter(
+        (renewal) => getRenewerAddress(renewal.selectedName.isV2) === renewer,
+      ),
+    }),
+  )
 
   return [...approveSteps, ...renewSteps]
 }
