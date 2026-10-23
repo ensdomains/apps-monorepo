@@ -233,8 +233,8 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
           className="xl:min-w-none"
           description={
             props.mode === 'renew'
-              ? "You'll need to hold USDC or DAI in your connected wallet in order to extend your ENS name."
-              : "You'll need to hold USDC or DAI in your connected wallet in order to complete the registration of your ENS name."
+              ? "You'll need to hold USDC in your connected wallet in order to extend your ENS name."
+              : "You'll need to hold USDC in your connected wallet in order to complete the registration of your ENS name."
           }
         />
       ) : (

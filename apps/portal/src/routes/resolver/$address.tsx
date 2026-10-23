@@ -4,7 +4,6 @@ import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageContainer } from '@/components/PageContainer'
 import { ResolverSidebar } from '@/components/ResolverSidebar'
-import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
 export const Route = createFileRoute('/resolver/$address')({
@@ -30,7 +29,6 @@ function RouteComponent() {
       <ResolverSidebar address={checksumAddress(address)} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
-        <SepoliaNoticeBanner />
         <PageContainer>
           <Outlet />
         </PageContainer>

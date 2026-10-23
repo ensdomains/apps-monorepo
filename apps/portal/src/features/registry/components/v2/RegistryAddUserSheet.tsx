@@ -1,6 +1,5 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
-import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -17,11 +16,11 @@ import { AddressNameInput } from '@/features/address/components/AddressNameInput
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { prepareGrantRegistryRolesTransaction } from '@/features/registry/helpers/grantRegistryRoles'
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
-import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
+import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { getAccountAdminRoles } from '../../utils/registryRoleAccess'
+import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { RegistryRolePermissionList } from './RegistryRolePermissionList'
 
 const GRANT_REGISTRY_ROLES_TX_ID = 'tx-grant-registry-roles'
@@ -40,15 +39,11 @@ export const RegistryAddUserSheet = ({
   const { data: walletClient } = useWalletClient()
   const callerAddress = walletClient?.account?.address
 
-  // Existing root-resource role holders for this registry. Cache hit when the
-  // roles page is already mounted (same query key) — used to figure out which
-  // permissions the connected caller has admin rights to grant.
-  const { data: rolesData } = useQuery({
-    ...getRegistryRootRoleHoldersQueryOptions({ registryAddress }),
-    enabled: Boolean(callerAddress),
+  const callerAdminRoles = useCallerAdminRoles({
+    registryAddress,
+    resource: ROOT_RESOURCE_ID,
+    account: callerAddress,
   })
-
-  const callerAdminRoles = getAccountAdminRoles(rolesData, callerAddress)
 
   const [nameOrAddressInput, setNameOrAddressInput] = useState('')
   // Controlled selection so the Save button can disable until at least one

@@ -219,6 +219,10 @@ msgstr "6-digit code"
 msgid "A mint is already being prepared in another tab. Continue there or try again after it finishes."
 msgstr "A mint is already being prepared in another tab. Continue there or try again after it finishes."
 
+#: src/routes/index.tsx
+msgid "A name you own that goes wherever you do"
+msgstr "A name you own that goes wherever you do"
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "A permission is missing. Try again."
 msgstr "A permission is missing. Try again."
@@ -226,10 +230,6 @@ msgstr "A permission is missing. Try again."
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "A required upgrade contract is unavailable. Please try again later."
 msgstr "A required upgrade contract is unavailable. Please try again later."
-
-#: src/routes/index.tsx
-msgid "A simple, portable identity that you control"
-msgstr "A simple, portable identity that you control"
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "A simpler way to get paid."
@@ -350,6 +350,7 @@ msgid "Approve and renew name"
 msgstr "Approve and renew name"
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Approve in wallet"
 msgstr "Approve in wallet"
 
@@ -623,10 +624,6 @@ msgstr "Checking your subnames"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
-
-#: src/routes/index.tsx
-msgid "Claim your"
-msgstr "Claim your"
 
 #: src/components/molecules/SearchField/SearchField.tsx
 #: src/features/navigation/Header/search/SearchInput.tsx
@@ -939,6 +936,10 @@ msgstr "Disconnect"
 msgid "Disconnecting..."
 msgstr "Disconnecting..."
 
+#: src/components/NoticeBanner.tsx
+msgid "Dismiss notice"
+msgstr "Dismiss notice"
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Do I have to upgrade my names? What happens if I don't?"
 msgstr "Do I have to upgrade my names? What happens if I don't?"
@@ -1029,6 +1030,10 @@ msgstr "Enable"
 msgid "Enable Sessions"
 msgstr "Enable Sessions"
 
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Enable smart sessions"
+msgstr "Enable smart sessions"
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Enable Smart Sessions"
 msgstr "Enable Smart Sessions"
@@ -1036,6 +1041,10 @@ msgstr "Enable Smart Sessions"
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Enabling sessions…"
 msgstr "Enabling sessions…"
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Enabling smart sessions…"
+msgstr "Enabling smart sessions…"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS"
@@ -1202,6 +1211,10 @@ msgstr "Featured"
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx
 msgid "Fee at this moment"
 msgstr "Fee at this moment"
+
+#: src/routes/index.tsx
+msgid "Find your"
+msgstr "Find your"
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Finish or cancel the other registration in its tab, then Try Again once this wallet is free."
@@ -1557,6 +1570,10 @@ msgstr "Multi-year Discount ({discountPercentage}%)"
 msgid "My Names"
 msgstr "My Names"
 
+#: src/routes/index.tsx
+msgid "name"
+msgstr "name"
+
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Name"
@@ -1720,10 +1737,6 @@ msgstr "Nothing has been lost. Contact ENS support before trying again."
 #: src/features/notifications/inbox/list.tsx
 msgid "Nothing here yet!"
 msgstr "Nothing here yet!"
-
-#: src/components/SepoliaNoticeBanner.tsx
-msgid "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
-msgstr "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "Notification schedule"
@@ -2581,6 +2594,14 @@ msgstr "Smart account"
 msgid "Smart account access"
 msgstr "Smart account access"
 
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart sessions off"
+msgstr "Smart sessions off"
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart sessions on"
+msgstr "Smart sessions on"
+
 #: src/features/profile/components/view/ProfileSocialSection.tsx
 msgid "Social"
 msgstr "Social"
@@ -3303,10 +3324,6 @@ msgstr "We couldn't upgrade one of your names. Try again."
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
 msgstr "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
-
-#: src/routes/index.tsx
-msgid "web3 username"
-msgstr "web3 username"
 
 #: src/features/migration/components/success/CommemorativeNftDashboardSection.tsx
 msgid "Welcome to ENSv2"

@@ -10,6 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { NoticeBanner } from '@/components/NoticeBanner'
 import { isSepoliaBuild } from '@/config'
 import { useTransactionManagerAccount } from '@/features/transaction-manager/hooks/useTransactionManagerAccount'
 import { useTransactionModalRouteReset } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -88,6 +89,7 @@ export const Route = createRootRoute({
             <ConnectModalProvider>
               <TransactionManagerSetup>
                 <PHProvider>
+                  <NoticeBanner />
                   <Outlet />
                 </PHProvider>
               </TransactionManagerSetup>
