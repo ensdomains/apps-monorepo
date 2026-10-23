@@ -20,6 +20,7 @@ import { match } from 'ts-pattern'
 import { type Address, getAddress, isAddress, isAddressEqual } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getResolvedAddressQueryOptions } from '@/features/address/queries/getResolvedAddress'
+import { getV1NameManagerQueryOptions } from '@/features/ownership/queries/getV1NameManager'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
@@ -676,7 +677,20 @@ export const useTransferName = ({
       queryClient.invalidateQueries({
         queryKey: getV1NameStateQueryOptions({ name }).queryKey,
       }),
+      queryClient.invalidateQueries({
+        queryKey: getV1NameManagerQueryOptions({ name }).queryKey,
+      }),
     ])
+  }
+
+  // A confirmed `reclaim` has moved the manager even if the move after it is
+  // rejected, so the Manager row is refreshed now, not when the flow finishes.
+  const markConfirmed = (step: TransferStepKind) => {
+    setConfirmedSteps((prev) => new Set(prev).add(step))
+    if (step === 'reclaim')
+      void queryClient.invalidateQueries({
+        queryKey: getV1NameManagerQueryOptions({ name }).queryKey,
+      })
   }
 
   // Built fresh each render (like useRenewalTransactions): the modal holds the
@@ -729,7 +743,7 @@ export const useTransferName = ({
           },
         )
         await waitForTransaction(txId)
-        setConfirmedSteps((prev) => new Set(prev).add(step.kind))
+        markConfirmed(step.kind)
       } catch (err) {
         // Tx reverts surface via the modal's machine state; non-tx failures
         // (e.g. a wallet with no connected account, or the step's actor being

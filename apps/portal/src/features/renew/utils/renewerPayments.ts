@@ -62,17 +62,22 @@ export type MultiRenewStep =
     }
   | {
       readonly kind: 'renew'
-      readonly name: string
-      readonly duration: number
-      readonly isV2: boolean
+      readonly renewer: Address
+      /** Index of this `renewBatch` among the renewer's batches. */
+      readonly batch: number
+      readonly renewals: readonly MultiRenewalEntry[]
     }
+
+// Names per `renewBatch`. A v1 renew measures ~216k gas on Sepolia, so 50 keeps
+// a batch near 10M, well under the 2^24 per-transaction gas cap.
+const RENEW_BATCH_MAX_NAMES = 50
 
 /**
  * Order a batch into approve-then-renew steps. One approval per renewer whose
  * current allowance can't cover its owed total (ERC-20 allowance is per-spender,
  * so a mixed v1+v2 batch needs one per renewer); the first such approval clears
- * the manager and the rest skip it. Renews follow, one per name. An empty batch
- * yields no steps.
+ * the manager and the rest skip it. Renews follow, one `renewBatch` per renewer
+ * for every `RENEW_BATCH_MAX_NAMES` names. An empty batch yields no steps.
  */
 export const planMultiRenewSteps = (
   renewals: readonly MultiRenewalEntry[],
@@ -89,12 +94,25 @@ export const planMultiRenewSteps = (
       skipClear: index > 0,
     }))
 
-  const renewSteps: MultiRenewStep[] = renewals.map((renewal) => ({
-    kind: 'renew',
-    name: renewal.selectedName.name,
-    duration: renewal.duration,
-    isV2: renewal.selectedName.isV2,
-  }))
+  const renewSteps: MultiRenewStep[] = distinctRenewers(renewals).flatMap(
+    (renewer) => {
+      const owned = renewals.filter(
+        (renewal) => getRenewerAddress(renewal.selectedName.isV2) === renewer,
+      )
+      return Array.from(
+        { length: Math.ceil(owned.length / RENEW_BATCH_MAX_NAMES) },
+        (_, batch) => ({
+          kind: 'renew',
+          renewer,
+          batch,
+          renewals: owned.slice(
+            batch * RENEW_BATCH_MAX_NAMES,
+            (batch + 1) * RENEW_BATCH_MAX_NAMES,
+          ),
+        }),
+      )
+    },
+  )
 
   return [...approveSteps, ...renewSteps]
 }

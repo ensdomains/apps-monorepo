@@ -6,8 +6,10 @@ export interface EmailContext {
   readonly network: EnsNetwork
   /** Host of the manager app, shown as text for the reader to type. */
   readonly appHost: string
-  /** Absolute URL of the logo, served from this worker's static assets. */
+  /** Absolute URL of the white logo, served from this worker's static assets. */
   readonly logoUrl: string
+  /** Absolute URL of the header pattern, drawn over the theme colour. */
+  readonly patternUrl: string
 }
 
 interface EmailContextInput {
@@ -17,8 +19,10 @@ interface EmailContextInput {
 }
 
 // Kept stable (not content-hashed) because emails sit in inboxes for years
-// and must not lose their logo when the asset changes.
-const LOGO_PATH = '/email/ens-logo.png'
+// and must not lose their images when the assets change. Retired assets
+// (ens-logo.png) stay published for the emails that still point at them.
+const LOGO_PATH = '/email/ens-logo-white.png'
+const PATTERN_PATH = '/email/pattern.png'
 
 export const buildEmailContext = ({
   network,
@@ -28,6 +32,7 @@ export const buildEmailContext = ({
   network,
   appHost: new URL(managerAppUrl).host,
   logoUrl: new URL(LOGO_PATH, workerBaseUrl).toString(),
+  patternUrl: new URL(PATTERN_PATH, workerBaseUrl).toString(),
 })
 
 export const getEmailContext = (): EmailContext =>
