@@ -307,8 +307,20 @@ class TransactionManager {
     ) {
       return false
     }
-    // The timeout was archived as terminal; let the real outcome report too.
+    // The timeout already archived and closed its telemetry run; open a new
+    // run so the real outcome (or a later failure) is reported too.
+    const { chainId, intent, request, signer, options, useSmartAccount } =
+      snapshot.context
     this.completedTelemetry.delete(id)
+    this.runTelemetry.startRun({
+      txId: id,
+      chainId: chainId ?? request?.chainId,
+      intent,
+      request,
+      signer,
+      options,
+      useSmartAccount,
+    })
     actor.send({ type: 'RETRY' })
     return true
   }

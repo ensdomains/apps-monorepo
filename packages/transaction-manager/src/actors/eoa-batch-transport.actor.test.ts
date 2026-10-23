@@ -273,9 +273,16 @@ describe('eoa-batch through the transaction machine', () => {
     // "Try again" restarts the step: it must wait on the same bundle, never
     // prompt for (and pay) a second one.
     isStatusAvailable = true
+    const phases: string[] = []
+    const unsubscribe = transactionManager.onRunTelemetryEvent(({ event }) =>
+      phases.push(event.phase),
+    )
     await expect(waitForTransaction(start())).resolves.toMatchObject({
       hash: TX_HASH,
     })
+    unsubscribe()
     expect(sendCalls).toHaveBeenCalledOnce()
+    // The resumed run reports under a fresh telemetry run.
+    expect(phases).toContain('success')
   })
 })
