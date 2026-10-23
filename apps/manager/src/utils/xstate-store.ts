@@ -1,11 +1,9 @@
-import {
-  createStore,
-  type EventObject,
-  type EventPayloadMap,
-  type StoreConfig,
-  type StoreContext,
-  type StoreExtension,
-  type StoreSnapshot,
+import type {
+  EventObject,
+  EventPayloadMap,
+  StoreContext,
+  StoreExtension,
+  StoreSnapshot,
 } from '@xstate/store-react'
 import * as v from 'valibot'
 
@@ -14,54 +12,12 @@ export type PersistedContextSchema<TContext> = v.GenericSchema<
   TContext
 >
 
-export type PersistedStoreOptions<TContext> = {
-  readonly key: string
-  readonly schema: PersistedContextSchema<NoInfer<TContext>>
-}
-
 const getDefaultStorage = (): Storage | undefined => {
   try {
     return typeof localStorage === 'undefined' ? undefined : localStorage
   } catch {
     return undefined
   }
-}
-
-export const createPersistedStore = <
-  // biome-ignore lint/suspicious/noExplicitAny: Yes
-  TContext extends Record<string, any>,
-  TEventPayloadMap extends EventPayloadMap,
-  TEmitted extends EventPayloadMap,
->(
-  { context, ...rest }: StoreConfig<TContext, TEventPayloadMap, TEmitted>,
-  { key, schema }: PersistedStoreOptions<TContext>,
-) => {
-  const storage = getDefaultStorage()
-  const raw = storage?.getItem(key)
-  const hydratedContext = parsePersistedContext({
-    key,
-    raw,
-    schema,
-  })
-  const initialContext = hydratedContext ?? context
-
-  if (hydratedContext && storage) {
-    const next = JSON.stringify(hydratedContext)
-    if (next !== raw) {
-      storage.setItem(key, next)
-    }
-  }
-
-  const store = createStore({
-    context: initialContext,
-    ...rest,
-  })
-
-  store.subscribe((snapshot) => {
-    storage?.setItem(key, JSON.stringify(snapshot.context))
-  })
-
-  return store
 }
 
 type PersistOptions<TContext extends StoreContext> = {
@@ -91,25 +47,6 @@ const validatePersistedContext = <TContext>(
   }
 
   return result.output
-}
-
-const parsePersistedContext = <TContext>({
-  key,
-  raw,
-  schema,
-}: {
-  readonly key: string
-  readonly raw: string | undefined | null
-  readonly schema: PersistedContextSchema<TContext>
-}): TContext | undefined => {
-  if (!raw) return undefined
-
-  try {
-    return validatePersistedContext(key, DEFAULT_SERDE.deserialize(raw), schema)
-  } catch (error) {
-    console.warn(`Failed to load persisted state for key "${key}":`, error)
-    return undefined
-  }
 }
 
 const getSnapshotContext = (persisted: unknown): unknown => {

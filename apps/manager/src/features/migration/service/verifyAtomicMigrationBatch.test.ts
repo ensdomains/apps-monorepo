@@ -1,6 +1,6 @@
 import type { Address, Hex, PublicClient } from 'viem'
 import { decodeFunctionData, encodeFunctionResult, parseAbi } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { assert, describe, expect, it, vi } from 'vitest'
 
 import type { AtomicMigrationVerificationExpectation } from './buildAtomicMigrationBatches'
 import {
@@ -30,6 +30,8 @@ const NODE = `0x${'ab'.repeat(32)}` as Hex
 const RECORD_VALUE = '0x1234' as Hex
 const CONTENT_HASH = '0xe301' as Hex
 const ABI_VALUE = '0x5b5d' as Hex
+const INTERFACE_IMPLEMENTER: Address =
+  '0x000000000000000000000000000000000000beef'
 const RESOURCE = 123n
 const EXPIRY = 4_294_967_295n
 const ROLES_ALL = (1n << 256n) - 1n
@@ -192,6 +194,15 @@ const expectations = [
     contentType: 1n,
     value: ABI_VALUE,
   },
+  {
+    id: 'profile:interface',
+    type: 'profile-interface',
+    name: 'leaf.mid.parent.eth',
+    node: NODE,
+    resolver: RESOLVER,
+    interfaceId: '0x01ffc9a7',
+    implementer: INTERFACE_IMPLEMENTER,
+  },
 ] as const satisfies readonly AtomicMigrationVerificationExpectation[]
 
 const copiedNameRegistryPath = {
@@ -280,6 +291,7 @@ const profileGetterAbi = parseAbi([
   'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
   'function contenthash(bytes32 node) view returns (bytes)',
   'function ABI(bytes32 node, uint256 contentTypes) view returns (uint256, bytes)',
+  'function interfaceImplementer(bytes32 node, bytes4 interfaceID) view returns (address)',
 ])
 
 /**
@@ -298,6 +310,7 @@ const readProfileThroughResolve = (request: ReadRequest): Hex => {
     addr: RECORD_VALUE,
     contenthash: CONTENT_HASH,
     ABI: [1n, ABI_VALUE],
+    interfaceImplementer: INTERFACE_IMPLEMENTER,
   } as const
   return encodeFunctionResult({
     abi: profileGetterAbi,
@@ -398,6 +411,32 @@ describe('verifyAtomicMigrationBatch', () => {
       }),
     )
     expect(requests.every(({ blockNumber }) => blockNumber === 456n)).toBe(true)
+  })
+
+  it('fails an interface record that resolves to a different implementer', async () => {
+    const interfaceExpectation = expectations.find(
+      ({ type }) => type === 'profile-interface',
+    )
+    assert(interfaceExpectation)
+    const publicClient = {
+      getCode: vi.fn(() => Promise.resolve('0x01')),
+      readContract: vi.fn(async () =>
+        encodeFunctionResult({
+          abi: profileGetterAbi,
+          functionName: 'interfaceImplementer',
+          result: WALLET,
+        }),
+      ),
+    } as unknown as PublicClient
+
+    await expect(
+      verifyAtomicMigrationBatch({
+        publicClient,
+        batch: { index: 9, verificationExpectations: [interfaceExpectation] },
+      }),
+    ).rejects.toMatchObject({
+      failures: [{ expectationId: 'profile:interface' }],
+    })
   })
 
   it('attempts every check and fails closed with a complete result set', async () => {

@@ -252,6 +252,10 @@ msgstr ""
 msgid "Active access"
 msgstr ""
 
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Add a domain extension, like .com"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Add an external contact method if you also want reminders by email or Telegram or in your browser."
 msgstr ""
@@ -624,6 +628,10 @@ msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Checking your subnames"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Choose a different name (reserved key)"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -1076,8 +1084,20 @@ msgstr ""
 msgid "ENSv2 commemorative NFT"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Enter a link"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Enter a price you'd be willing to pay. We'll calculate when the fee will reach that price."
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Enter a title"
+msgstr ""
+
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Enter a valid URL, like https://example.com"
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
@@ -1159,7 +1179,6 @@ msgstr ""
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
-#: src/features/notifications/dropdown/notification-dropdown.tsx
 #: src/features/notifications/inbox/list.tsx
 msgid "Failed to load notifications"
 msgstr ""
@@ -1341,6 +1360,10 @@ msgstr ""
 msgid "Idle"
 msgstr ""
 
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "If you think a smart session has been compromised, reset access to revoke all existing smart sessions for this account on this network, across every browser and device."
+msgstr ""
+
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 msgid "Image not available"
 msgstr ""
@@ -1366,7 +1389,7 @@ msgid "it has no ENSv2 reservation."
 msgstr ""
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "It takes two transactions from your wallet, one to set up the account and one to revoke, and both cost gas. Your next registration will ask you to sign a new session."
+msgid "It takes two transactions from your wallet, one to set up the account and one to reset access. Both require ETH for gas. You will need to enable a new smart session afterwards."
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
@@ -1437,6 +1460,10 @@ msgstr ""
 
 #: src/features/profile/components/view/ProfileLinksSection.tsx
 msgid "Links"
+msgstr ""
+
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Links can't contain spaces. Remove them and try again"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
@@ -1738,7 +1765,6 @@ msgstr ""
 msgid "Nothing has been lost. Contact ENS support before trying again."
 msgstr ""
 
-#: src/features/notifications/dropdown/notification-dropdown.tsx
 #: src/features/notifications/inbox/list.tsx
 msgid "Nothing here yet!"
 msgstr ""
@@ -1752,7 +1778,6 @@ msgid "Notification Settings"
 msgstr ""
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-#: src/features/notifications/dropdown/notification-dropdown.tsx
 msgid "Notifications"
 msgstr ""
 
@@ -1792,6 +1817,14 @@ msgstr ""
 msgid "Only ENSv2 Names Supported"
 msgstr ""
 
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Only http:// and https:// links are supported"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "Open in ENS Explorer"
+msgstr ""
+
 #: src/features/navigation/Header/navigation/DesktopNavigation.tsx
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"
@@ -1807,10 +1840,6 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "OpenSea"
-msgstr ""
-
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Or remove the saved session from this browser only. That costs nothing, but doesn't stop a copy made elsewhere."
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
@@ -1975,6 +2004,10 @@ msgstr ""
 msgid "Profile Description"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Public key records can't be carried over by this upgrade and will stop resolving for {nameList}."
+msgstr ""
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
 msgid "Publish"
 msgstr ""
@@ -2034,6 +2067,10 @@ msgstr ""
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
 msgid "Register name"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "Register this name in the ENS Explorer"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx
@@ -2129,10 +2166,6 @@ msgstr ""
 
 #: src/features/notifications/shared/primitives.tsx
 msgid "Remove notification"
-msgstr ""
-
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Remove saved session"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
@@ -2299,6 +2332,23 @@ msgstr ""
 msgid "Reserving your name"
 msgstr ""
 
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Reset access"
+msgstr ""
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Reset smart session access"
+msgstr ""
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Resetting access requires a wallet transaction and ETH for gas. You will need to enable a new smart session afterwards."
+msgstr ""
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Resetting access…"
+msgstr ""
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 msgid "Resolve errors before previewing changes."
 msgstr ""
@@ -2342,19 +2392,6 @@ msgstr ""
 
 #: src/features/dashboard/components/TemporaryMigrationAccessNotice.tsx
 msgid "Review permissions"
-msgstr ""
-
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Revoke sessions"
-msgstr ""
-
-#: src/features/navigation/Header/account/WalletSection.tsx
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Revoke smart sessions"
-msgstr ""
-
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Revoking…"
 msgstr ""
 
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
@@ -2403,10 +2440,6 @@ msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Search notifications"
-msgstr ""
-
-#: src/features/notifications/dropdown/notification-dropdown.tsx
-msgid "See all"
 msgstr ""
 
 #. placeholder {0}: stablecoin.symbol
@@ -2475,7 +2508,7 @@ msgid "Set this as your primary name?"
 msgstr ""
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Set up and revoke"
+msgid "Set up and reset access"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -2586,10 +2619,6 @@ msgstr ""
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
-msgstr ""
-
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Smart account"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -2879,10 +2908,6 @@ msgstr ""
 msgid "This commemorative NFT has already been minted."
 msgstr ""
 
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "This ends every session you have signed for this account, in every browser and on every device."
-msgstr ""
-
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This is taking longer than expected."
 msgstr ""
@@ -3009,10 +3034,6 @@ msgstr ""
 msgid "unique searches in the last 30 days"
 msgstr ""
 
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Unlike starting a session, this is a transaction from your wallet, so it costs gas. Your next registration will ask you to sign a new session."
-msgstr ""
-
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Unread only"
 msgstr ""
@@ -3107,6 +3128,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "USD"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "Use a different wallet"
 msgstr ""
 
 #: src/features/landing/IntegrationsSection.tsx
@@ -3325,6 +3350,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftDashboardSection.tsx

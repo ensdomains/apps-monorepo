@@ -11,7 +11,10 @@ import {
   zeroAddress,
 } from 'viem'
 import { chain } from '@/config'
-import { buildMigrationPlan } from './buildMigrationPlan'
+import {
+  buildMigrationPlan,
+  namesWithDroppedPubkey,
+} from './buildMigrationPlan'
 import type { MigrationWalletRequestDescriptor } from './buildStepDescriptors'
 import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { estimateGraceRenewalGas } from './estimateGraceRenewalGas'
@@ -36,6 +39,7 @@ export type GraceRenewalMigrationGasEstimate = {
   readonly feeWei: bigint
   readonly transactionCount: number
   readonly stepDescriptors: readonly MigrationWalletRequestDescriptor[]
+  readonly droppedPubkeyNames: readonly string[]
 }
 
 const assertQuoteFresh = (quote: GraceRenewalQuote): void => {
@@ -149,7 +153,11 @@ const estimateProjectedMigration = async (
   }
   const estimate = await estimateMigrationGasCost({ plan, publicClient })
   if (estimate.status === 'error') throw estimate.error
-  return { ...estimate, stepDescriptors: plan.stepDescriptors }
+  return {
+    ...estimate,
+    stepDescriptors: plan.stepDescriptors,
+    droppedPubkeyNames: namesWithDroppedPubkey(plan),
+  }
 }
 
 /** Projects renewal only for fee display; executable plans are rebuilt after renewal. */
@@ -185,5 +193,6 @@ export const estimateGraceRenewalMigrationGas = async (
     feeWei: gasUnits * migration.feePerGasWei,
     transactionCount: migration.transactionCount + renewal.transactionCount,
     stepDescriptors,
+    droppedPubkeyNames: migration.droppedPubkeyNames,
   }
 }

@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_THEME_COLOR,
   PROFILE_THEMES,
-  THEME_COLOR_ALIASES,
-  THEME_COLORS,
 } from '@/features/profile/constants'
 import { getProfileTheme, getThemeVars, resolveThemeColor } from './themeColor'
 
@@ -87,12 +85,6 @@ describe('getThemeVars', () => {
     }
   })
 
-  it('derives exported theme colors from the profile theme registry', () => {
-    expect(THEME_COLORS).toEqual(
-      PROFILE_THEMES.map(({ label, value }) => ({ label, value })),
-    )
-  })
-
   it('resolves profile themes from canonical values and aliases', () => {
     for (const theme of PROFILE_THEMES) {
       expect(getProfileTheme(theme.value)).toBe(theme)
@@ -100,16 +92,6 @@ describe('getThemeVars', () => {
         expect(getProfileTheme(alias)).toBe(theme)
       }
     }
-  })
-
-  it('keeps the legacy alias export in sync with the registry', () => {
-    expect(THEME_COLOR_ALIASES).toEqual({
-      '#000000': '#02293B',
-      '#191919': '#02293B',
-      '#ED2496': '#E72A96',
-      '#0080BC': '#0082BB',
-      '#007C23': '#007C20',
-    })
   })
 
   it('resolves legacy saved theme aliases to canonical values', () => {
@@ -121,7 +103,7 @@ describe('getThemeVars', () => {
   })
 
   it('returns accessible profile action button colors for every theme', () => {
-    for (const theme of THEME_COLORS) {
+    for (const theme of PROFILE_THEMES) {
       const vars = getThemeVars(theme.value)
       const expected = expectedButtonThemes[theme.value]
 

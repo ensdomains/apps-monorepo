@@ -36,6 +36,8 @@ const EMPTY_PROFILE = {
   addresses: [],
   contentHash: null,
   abis: [],
+  interfaces: [],
+  pubkey: null,
 } as const
 
 const recoverySnapshot = (params?: {
