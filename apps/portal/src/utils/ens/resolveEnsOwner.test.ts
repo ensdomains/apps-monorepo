@@ -17,7 +17,7 @@ vi.mock('@ensdomains/ensjs/public/v1', () => ({
   getOwner: (...args: unknown[]) => mockGetOwnerV1(...args),
 }))
 
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v2', () => ({
   getOwner: (...args: unknown[]) => mockGetOwnerV2(...args),
   getNameRegistries: (...args: unknown[]) => mockGetNameRegistries(...args),
 }))

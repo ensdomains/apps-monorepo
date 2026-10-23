@@ -1,7 +1,10 @@
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type GetExpiryErrorType, getExpiry } from '@ensdomains/ensjs/public/v2'
+import {
+  type GetExpiryErrorType,
+  getExpiry,
+} from '@storywithoutend/effect-ens/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { normalize } from 'viem/ens'

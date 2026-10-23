@@ -4,7 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   getNameRegistries as ensjsGetNameRegistries,
   type GetNameRegistriesErrorType,
-} from '@ensdomains/ensjs/public/v2'
+} from '@storywithoutend/effect-ens/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'

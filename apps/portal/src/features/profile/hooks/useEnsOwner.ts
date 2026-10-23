@@ -5,7 +5,7 @@ import type { GetOwnerErrorType as ensjsv1_GetOwnerErrorType } from '@ensdomains
 import type {
   GetOwnerErrorType as ensjsv2_GetOwnerErrorType,
   GetNameRegistriesErrorType,
-} from '@ensdomains/ensjs/public/v2'
+} from '@storywithoutend/effect-ens/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import {

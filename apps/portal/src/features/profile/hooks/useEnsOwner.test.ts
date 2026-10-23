@@ -25,7 +25,7 @@ vi.mock('@ensdomains/ensjs/public/v1', () => ({
 // Mock ensjs v2
 const mockV2GetOwner = vi.fn()
 const mockGetNameRegistries = vi.fn()
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v2', () => ({
   getOwner: mockV2GetOwner,
   getNameRegistries: mockGetNameRegistries,
 }))
