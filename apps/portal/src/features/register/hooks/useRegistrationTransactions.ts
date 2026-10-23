@@ -375,6 +375,35 @@ export const useRegistrationTransactions = ({
   const { refetch: refetchWalletResolver } = walletResolverQuery
   const showResolverDeployStep = isResolverDeployPlanned ?? shouldDeployResolver
 
+  const handleProceed = useCallback(async () => {
+    // A resumed run reads the chain before it takes a retry: a commit that was
+    // never sent only fails its check after several seconds. A click landing in
+    // that window waits for the verdict instead of being dropped, so Start on
+    // that commit step puts the prompt back up. Only then — every other click
+    // resolves from the state already in hand, in the same tick.
+    if (CHECKING_CHAIN_STATES.has(String(actor.getSnapshot().value))) {
+      await waitFor(
+        actor,
+        (snapshot) => !CHECKING_CHAIN_STATES.has(String(snapshot.value)),
+      ).catch(() => null)
+    }
+    // Read the state now, not the snapshot the wait resolved with: several
+    // clicks can be waiting on the same verdict, and only the first may retry.
+    // A later one would retire the transaction that retry just started.
+    if (actor.getSnapshot().value !== 'error') return
+    // Only the failed attempt is retired. The machine resumes from that step,
+    // so clearing every transaction would send steps that already landed back
+    // to "Not Started". A timed-out bundle stays: the retry waits on it.
+    for (const id of Object.values(REGISTRATION_TX_IDS)) {
+      if (
+        transactionManager.getTransaction(id)?.getSnapshot().context.error &&
+        !transactionManager.hasTimedOutBundle(id)
+      )
+        transactionManager.cancelTransaction(id)
+    }
+    actor.send({ type: 'RETRY' })
+  }, [actor])
+
   const handleStart = useCallback(async () => {
     if (!publicClient || !connection.address || !savedParams) {
       throw new Error(
@@ -383,6 +412,15 @@ export const useRegistrationTransactions = ({
     }
 
     const currentState = actor.getSnapshot().value
+
+    // The accepted setup bundle timed out and may still land. Starting over
+    // would pay for it again under a new commitment, so wait on it instead.
+    if (
+      currentState === 'error' &&
+      transactionManager.hasTimedOutBundle(REGISTRATION_TX_IDS.setupBundle)
+    ) {
+      return handleProceed()
+    }
 
     // Already under way (e.g. resumed after a reload): starting over would
     // cancel it, discard its record and pay for a second commitment.
@@ -446,33 +484,8 @@ export const useRegistrationTransactions = ({
     refetchAllowance,
     refetchWalletResolver,
     canBatchAtomically,
+    handleProceed,
   ])
-
-  const handleProceed = useCallback(async () => {
-    // A resumed run reads the chain before it takes a retry: a commit that was
-    // never sent only fails its check after several seconds. A click landing in
-    // that window waits for the verdict instead of being dropped, so Start on
-    // that commit step puts the prompt back up. Only then — every other click
-    // resolves from the state already in hand, in the same tick.
-    if (CHECKING_CHAIN_STATES.has(String(actor.getSnapshot().value))) {
-      await waitFor(
-        actor,
-        (snapshot) => !CHECKING_CHAIN_STATES.has(String(snapshot.value)),
-      ).catch(() => null)
-    }
-    // Read the state now, not the snapshot the wait resolved with: several
-    // clicks can be waiting on the same verdict, and only the first may retry.
-    // A later one would retire the transaction that retry just started.
-    if (actor.getSnapshot().value !== 'error') return
-    // Only the failed attempt is retired. The machine resumes from that step,
-    // so clearing every transaction would send steps that already landed back
-    // to "Not Started".
-    for (const id of Object.values(REGISTRATION_TX_IDS)) {
-      if (transactionManager.getTransaction(id)?.getSnapshot().context.error)
-        transactionManager.cancelTransaction(id)
-    }
-    actor.send({ type: 'RETRY' })
-  }, [actor])
 
   const handleDone = useCallback(() => {
     closeModal()

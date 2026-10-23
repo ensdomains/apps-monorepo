@@ -8,6 +8,7 @@ import {
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../../errors/transaction.errors'
+import { transactionManager } from '../../providers/transactionManager'
 import type { Signer } from '../../types/signer.types'
 import { isRetryableSubmissionError } from '../retry-policy'
 import type { TOKEN_SYMBOL } from './registration.actors'
@@ -2331,6 +2332,23 @@ export const registrationMachine = setup({
                 context.name,
               )
             },
+          },
+          {
+            // The wallet accepted the setup bundle but it timed out, so it may
+            // still land. Wait on it with the same commitment: a fresh one
+            // would send (and pay for) the whole bundle again.
+            guard: ({ context }) =>
+              shouldBundleEoaSetup(context) &&
+              context.commitmentTxId !== undefined &&
+              transactionManager.hasTimedOutBundle(context.commitmentTxId),
+            target: 'waitingForCommitment',
+            actions: [
+              assign({ error: undefined, retryTarget: undefined }),
+              ({ context }) => {
+                // biome-ignore lint/style/noNonNullAssertion: checked by the guard
+                transactionManager.resumeTimedOutBundle(context.commitmentTxId!)
+              },
+            ],
           },
           {
             guard: ({ context }) =>

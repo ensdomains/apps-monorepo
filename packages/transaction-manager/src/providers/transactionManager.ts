@@ -294,19 +294,25 @@ class TransactionManager {
   }
 
   /**
+   * Whether `id` is an EIP-5792 bundle the wallet accepted but that timed out
+   * before reporting an outcome: it may still land, so it must not be resent.
+   */
+  hasTimedOutBundle(id: string): boolean {
+    const snapshot = this.transactions.get(id)?.getSnapshot()
+    return (
+      snapshot?.matches({ error: 'timeout' }) === true &&
+      snapshot.context.callsId !== undefined
+    )
+  }
+
+  /**
    * A restarted step whose accepted EIP-5792 bundle timed out resumes waiting
    * on that bundle rather than prompting for (and paying) a second one.
    */
-  private resumeTimedOutBundle(id: string): boolean {
+  resumeTimedOutBundle(id: string): boolean {
     const actor = this.transactions.get(id)
-    const snapshot = actor?.getSnapshot()
-    if (
-      !actor ||
-      !snapshot?.matches({ error: 'timeout' }) ||
-      snapshot.context.callsId === undefined
-    ) {
-      return false
-    }
+    if (!actor || !this.hasTimedOutBundle(id)) return false
+    const snapshot = actor.getSnapshot()
     // The timeout already archived and closed its telemetry run; open a new
     // run so the real outcome (or a later failure) is reported too.
     const { chainId, intent, request, signer, options, useSmartAccount } =

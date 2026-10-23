@@ -3,10 +3,12 @@ import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { createActor, fromPromise, waitFor } from 'xstate'
 import {
+  CallsBundleTimeoutError,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
   TransactionUserRejectedError,
 } from '../../errors/transaction.errors'
+import { transactionManager } from '../../providers/transactionManager'
 import type { Signer } from '../../types/signer.types'
 import type { TransactionRequest } from '../../types/transaction.types'
 import type { HcaSessionEnableParams } from './registration.hca.actors'
@@ -163,6 +165,8 @@ const startEoaRegistration = (overrides: {
   /** The wallet bundles atomically (EIP-5792). */
   canBatchAtomically?: boolean
   submitEoaSetupBundle?: ReturnType<typeof vi.fn>
+  pollTransactionStatus?: ReturnType<typeof vi.fn>
+  validateCommitment?: ReturnType<typeof vi.fn>
 }) => {
   const checkResolverDeployment =
     overrides.checkResolverDeployment ??
@@ -200,7 +204,14 @@ const startEoaRegistration = (overrides: {
         submitEoaSetupBundle: fromPromise(submitEoaSetupBundle) as never,
         // The cooldown spine: nothing to assert on, so each step resolves
         // straight through to the reveal.
-        pollTransactionStatus: fromPromise(async () => undefined) as never,
+        pollTransactionStatus: fromPromise(
+          overrides.pollTransactionStatus ?? (async () => undefined),
+        ) as never,
+        ...(overrides.validateCommitment && {
+          validateCommitment: fromPromise(
+            overrides.validateCommitment,
+          ) as never,
+        }),
         readMinCommitmentAge: fromPromise(async () => 0n) as never,
         readPaymentAuthorization: fromPromise(async () => ({
           allowance: 10n,
@@ -549,6 +560,37 @@ describe('registrationMachine — pure-EOA setup bundle (EIP-5792)', () => {
     expect(
       submitEoaSetupBundle.mock.calls[1][0].input.shouldDeployResolver,
     ).toBe(false)
+  })
+
+  it('waits on a timed-out bundle again instead of resending it', async () => {
+    const hasTimedOutBundle = vi
+      .spyOn(transactionManager, 'hasTimedOutBundle')
+      .mockReturnValue(true)
+    const resumeTimedOutBundle = vi
+      .spyOn(transactionManager, 'resumeTimedOutBundle')
+      .mockReturnValue(true)
+    const { actor, generateCommitment, submitEoaSetupBundle } =
+      startEoaRegistration({
+        canBatchAtomically: true,
+        pollTransactionStatus: vi
+          .fn()
+          .mockRejectedValueOnce(new CallsBundleTimeoutError('0x01', 1))
+          .mockResolvedValue(undefined),
+        // Still pending, so the commitment isn't on-chain yet.
+        validateCommitment: vi.fn(async () => {
+          throw new Error('Commitment not found')
+        }),
+      })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('registeringDomain'))
+
+    expect(resumeTimedOutBundle).toHaveBeenCalledWith('setup-bundle-tx')
+    expect(submitEoaSetupBundle).toHaveBeenCalledOnce()
+    expect(generateCommitment).toHaveBeenCalledOnce()
+    hasTimedOutBundle.mockRestore()
+    resumeTimedOutBundle.mockRestore()
   })
 
   it('keeps the sequential steps when the wallet does not bundle', async () => {

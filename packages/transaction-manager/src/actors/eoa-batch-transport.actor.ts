@@ -1,8 +1,16 @@
 import { logger } from '@ens-apps/utils/logger'
-import { err, errAsync, fromPromise, ok, type ResultAsync } from 'neverthrow'
-import type { Hash, WalletClient } from 'viem'
+import {
+  err,
+  errAsync,
+  fromPromise,
+  ok,
+  okAsync,
+  ResultAsync,
+} from 'neverthrow'
+import type { GetCallsStatusReturnType, Hash, WalletClient } from 'viem'
 import { getCapabilities, sendCalls, waitForCallsStatus } from 'viem/actions'
 import {
+  AtomicBatchUnsupportedError,
   CallsBundleTimeoutError,
   type ChainIdMismatchError,
   isUserRejectionError,
@@ -58,6 +66,7 @@ export function submitEOABatch(input: {
   | TransactionUserRejectedError
   | SignerAddressMismatchError
   | ChainIdMismatchError
+  | AtomicBatchUnsupportedError
 > {
   const request = input.request as EOABatchTransactionRequest
   const { walletClient } = input.signer
@@ -73,27 +82,52 @@ export function submitEOABatch(input: {
 
   const walletChain = resolveEOAWalletChain(request, walletClient)
   if (walletChain.isErr()) return errAsync(walletChain.error)
+  const chain = walletChain.value
 
-  return fromPromise(
-    sendCalls(walletClient, {
-      account: request.from,
-      chain: walletChain.value,
-      calls: request.calls.map(({ to, data, value }) => ({ to, data, value })),
-      // Never let the wallet split the bundle: callers batch calls that are
-      // only safe together (approve + spend, grant + revoke).
-      forceAtomic: true,
-    }),
-    (error) => error,
+  // The support the flow was planned on can be stale: a wallet now reporting
+  // `ready` would turn `forceAtomic` into an EIP-7702 upgrade prompt.
+  return ResultAsync.fromSafePromise(
+    getAtomicBatchSupport({ walletClient, chainId: chain.id }),
   )
+    .andThen((isSupported) =>
+      isSupported
+        ? okAsync(undefined)
+        : errAsync(new AtomicBatchUnsupportedError(chain.id)),
+    )
+    .andThen(() =>
+      fromPromise(
+        sendCalls(walletClient, {
+          account: request.from,
+          chain,
+          calls: request.calls.map(({ to, data, value }) => ({
+            to,
+            data,
+            value,
+          })),
+          // Never let the wallet split the bundle: callers batch calls that
+          // are only safe together (approve + spend, grant + revoke).
+          forceAtomic: true,
+        }),
+        (error) => {
+          if (isUserRejectionError(error)) {
+            return new TransactionUserRejectedError(request, error)
+          }
+          logger.error('EOA batch submission failed', error)
+          return new TransactionSubmissionError(request, error)
+        },
+      ),
+    )
     .map(({ id }) => id)
-    .mapErr((error) => {
-      if (isUserRejectionError(error)) {
-        return new TransactionUserRejectedError(request, error)
-      }
-      logger.error('EOA batch submission failed', error)
-      return new TransactionSubmissionError(request, error)
-    })
 }
+
+/**
+ * Settled once the wallet reports a failure, or a success it has a receipt
+ * for: some wallets (Rainbow) report `success` before returning receipts.
+ * Module-level so concurrent waits on one bundle share viem's observer.
+ */
+const isBundleSettled = ({ statusCode, receipts }: GetCallsStatusReturnType) =>
+  statusCode >= 300 ||
+  (statusCode === 200 && receipts?.at(-1)?.transactionHash !== undefined)
 
 /**
  * Waits for a submitted bundle to land and returns the transaction that
@@ -109,15 +143,20 @@ export function waitForEOABatchHash(params: {
   const { walletClient, id, timeout } = params
 
   return fromPromise(
-    waitForCallsStatus(walletClient, { id, timeout }),
+    waitForCallsStatus(walletClient, { id, timeout, status: isBundleSettled }),
     (cause) => new CallsBundleTimeoutError(id, timeout, cause),
   ).andThen(({ status, receipts }) => {
     const hash = receipts?.at(-1)?.transactionHash
     if (status === 'success' && hash) return ok(hash)
-    return err(
-      new TransactionRevertedError(
-        `Batched calls ${id} failed${hash ? ` (tx ${hash})` : ''}`,
-      ),
-    )
+    if (status === 'failure') {
+      return err(
+        new TransactionRevertedError(
+          `Batched calls ${id} failed${hash ? ` (tx ${hash})` : ''}`,
+        ),
+      )
+    }
+    // An outcome we can't read is not a revert: keep the bundle id so a retry
+    // waits on it rather than resending.
+    return err(new CallsBundleTimeoutError(id, timeout))
   })
 }

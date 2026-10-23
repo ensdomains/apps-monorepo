@@ -10,6 +10,7 @@ import {
 import { sepolia } from 'viem/chains'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  AtomicBatchUnsupportedError,
   SignerAddressMismatchError,
   TransactionSubmissionError,
   TransactionUserRejectedError,
@@ -62,25 +63,32 @@ const batchRequest = (
   calls,
 })
 
-const callsStatus = (status: number, receiptStatus: Hex = '0x1') => ({
+const capabilities = (status = 'supported') => ({
+  [toHex(sepolia.id)]: { atomic: { status } },
+})
+
+const callsStatus = (
+  status: number,
+  receiptStatus: Hex = '0x1',
+  hasReceipts = status !== 100,
+) => ({
   version: '2.0.0',
   id: CALLS_ID,
   chainId: toHex(sepolia.id),
   atomic: true,
   status,
-  receipts:
-    status === 100
-      ? []
-      : [
-          {
-            logs: [],
-            status: receiptStatus,
-            blockHash: `0x${'00'.repeat(32)}`,
-            blockNumber: '0x1',
-            gasUsed: '0x5208',
-            transactionHash: TX_HASH,
-          },
-        ],
+  receipts: !hasReceipts
+    ? []
+    : [
+        {
+          logs: [],
+          status: receiptStatus,
+          blockHash: `0x${'00'.repeat(32)}`,
+          blockNumber: '0x1',
+          gasUsed: '0x5208',
+          transactionHash: TX_HASH,
+        },
+      ],
 })
 
 afterEach(() => {
@@ -133,6 +141,7 @@ describe('getAtomicBatchSupport', () => {
 describe('submitEOABatch', () => {
   it('sends every call as one atomic bundle and returns its id', async () => {
     const handler = vi.fn((method: string) => {
+      if (method === 'wallet_getCapabilities') return capabilities()
       if (method === 'wallet_sendCalls') return { id: CALLS_ID }
       throw new Error(`unexpected RPC call: ${method}`)
     })
@@ -143,7 +152,9 @@ describe('submitEOABatch', () => {
     })
 
     expect(result._unsafeUnwrap()).toBe(CALLS_ID)
-    const [, params] = handler.mock.calls[0] as unknown as [string, unknown[]]
+    const [, params] = handler.mock.calls.find(
+      ([method]) => method === 'wallet_sendCalls',
+    ) as unknown as [string, unknown[]]
     expect(params[0]).toMatchObject({
       atomicRequired: true,
       from: ACCOUNT,
@@ -166,6 +177,31 @@ describe('submitEOABatch', () => {
     expect(handler).not.toHaveBeenCalled()
   })
 
+  // Planned while the wallet reported `supported`; sending now could prompt
+  // an EIP-7702 upgrade.
+  it.each(['ready', 'unsupported'])(
+    'refuses to send once the wallet reports atomic %s',
+    async (status) => {
+      const handler = vi.fn((method: string) => {
+        if (method === 'wallet_getCapabilities') return capabilities(status)
+        throw new Error(`unexpected RPC call: ${method}`)
+      })
+
+      const result = await submitEOABatch({
+        request: batchRequest(),
+        signer: signerWith(handler),
+      })
+
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(
+        AtomicBatchUnsupportedError,
+      )
+      expect(handler).not.toHaveBeenCalledWith(
+        'wallet_sendCalls',
+        expect.anything(),
+      )
+    },
+  )
+
   it('refuses an empty bundle', async () => {
     const result = await submitEOABatch({
       request: batchRequest(ACCOUNT, []),
@@ -181,7 +217,8 @@ describe('submitEOABatch', () => {
     })
     const result = await submitEOABatch({
       request: batchRequest(),
-      signer: signerWith(() => {
+      signer: signerWith((method) => {
+        if (method === 'wallet_getCapabilities') return capabilities()
         throw rejection
       }),
     })
@@ -203,6 +240,7 @@ describe('eoa-batch through the transaction machine', () => {
 
   const bundleSigner = (...statuses: number[]) =>
     signerWith((method) => {
+      if (method === 'wallet_getCapabilities') return capabilities()
       if (method === 'wallet_sendCalls') return { id: CALLS_ID }
       if (method === 'wallet_getCallsStatus') {
         return callsStatus(
@@ -244,10 +282,51 @@ describe('eoa-batch through the transaction machine', () => {
     ).toBe(true)
   })
 
+  // Rainbow can answer `success` before it returns the receipts.
+  it('keeps polling a successful bundle until its receipt arrives', async () => {
+    const statuses = [callsStatus(200, '0x1', false), callsStatus(200)]
+    const signer = signerWith((method) => {
+      if (method === 'wallet_getCapabilities') return capabilities()
+      if (method === 'wallet_sendCalls') return { id: CALLS_ID }
+      if (method === 'wallet_getCallsStatus') {
+        return statuses.length > 1 ? statuses.shift() : statuses[0]
+      }
+      throw new Error(`unexpected RPC call: ${method}`)
+    })
+    const txId = transactionManager.startTransaction(batchRequest(), signer, {
+      id: 'tx-batch-late-receipt',
+      publicClient,
+    })
+
+    await expect(waitForTransaction(txId)).resolves.toMatchObject({
+      hash: TX_HASH,
+    })
+  })
+
+  it('times out, keeping the bundle, when a success never brings a receipt', async () => {
+    const signer = signerWith((method) => {
+      if (method === 'wallet_getCapabilities') return capabilities()
+      if (method === 'wallet_sendCalls') return { id: CALLS_ID }
+      if (method === 'wallet_getCallsStatus') {
+        return callsStatus(200, '0x1', false)
+      }
+      throw new Error(`unexpected RPC call: ${method}`)
+    })
+    const txId = transactionManager.startTransaction(batchRequest(), signer, {
+      id: 'tx-batch-no-receipt',
+      publicClient,
+      timeout: 30,
+    })
+
+    await expect(waitForTransaction(txId)).rejects.toBeDefined()
+    expect(transactionManager.hasTimedOutBundle(txId)).toBe(true)
+  })
+
   it('resumes the accepted bundle when its step is restarted after a timeout', async () => {
     let isStatusAvailable = false
     const sendCalls = vi.fn(() => ({ id: CALLS_ID }))
     const signer = signerWith((method) => {
+      if (method === 'wallet_getCapabilities') return capabilities()
       if (method === 'wallet_sendCalls') return sendCalls()
       if (method === 'wallet_getCallsStatus') {
         if (!isStatusAvailable) throw new Error('status unavailable')

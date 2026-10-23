@@ -233,6 +233,20 @@ export class CallsBundleTimeoutError
   }
 }
 
+/**
+ * The wallet stopped reporting atomic `supported` between planning a bundle and
+ * sending it. Sending anyway could prompt an EIP-7702 upgrade of the EOA.
+ */
+export class AtomicBatchUnsupportedError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'AtomicBatchUnsupportedError'
+  constructor(public readonly chainId: number) {
+    super(`Wallet no longer batches calls atomically on chain ${chainId}`)
+  }
+}
+
 export class TransactionRevertedError
   extends TransactionError
   implements ITaggedError
