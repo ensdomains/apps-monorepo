@@ -13,7 +13,7 @@ vi.mock('@storywithoutend/effect-ens/chain', () => ({
   getChainContractAddress: () => V1_ETH_REGISTRY,
 }))
 
-vi.mock('@ensdomains/ensjs/public/v1', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v1', () => ({
   getOwner: (...args: unknown[]) => mockGetOwnerV1(...args),
 }))
 

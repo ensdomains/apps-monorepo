@@ -2,7 +2,7 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   type GetWrapperDataErrorType,
   getWrapperData,
-} from '@ensdomains/ensjs/public/v1'
+} from '@storywithoutend/effect-ens/public/v1'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 

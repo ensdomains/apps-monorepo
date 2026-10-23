@@ -1,7 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { GetOwnerErrorType as ensjsv1_GetOwnerErrorType } from '@ensdomains/ensjs/public/v1'
+import type { GetOwnerErrorType as ensjsv1_GetOwnerErrorType } from '@storywithoutend/effect-ens/public/v1'
 import type {
   GetOwnerErrorType as ensjsv2_GetOwnerErrorType,
   GetNameRegistriesErrorType,

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getOwnerMock = vi.fn()
 
-vi.mock('@ensdomains/ensjs/public/v1', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v1', () => ({
   getOwner: (...args: unknown[]) => getOwnerMock(...args),
 }))
 vi.mock('@storywithoutend/effect-ens/chain', () => ({

@@ -5,7 +5,7 @@ import {
   getExpiry as ensjs_getExpiry,
   type GetExpiryErrorType,
   type GetExpiryParameters,
-} from '@ensdomains/ensjs/public/v1'
+} from '@storywithoutend/effect-ens/public/v1'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 

@@ -18,7 +18,7 @@ vi.mock('@storywithoutend/effect-ens/chain', () => ({
 
 // Mock ensjs v1
 const mockV1GetOwner = vi.fn()
-vi.mock('@ensdomains/ensjs/public/v1', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v1', () => ({
   getOwner: mockV1GetOwner,
 }))
 

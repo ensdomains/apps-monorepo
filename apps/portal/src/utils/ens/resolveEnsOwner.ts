@@ -7,8 +7,8 @@
  * has been extended with the ENS contracts (e.g. `extendChainWithEns(sepolia)`).
  */
 import type { EnsChain } from '@ens-apps/config'
-import { getOwner as getOwnerV1 } from '@ensdomains/ensjs/public/v1'
 import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
+import { getOwner as getOwnerV1 } from '@storywithoutend/effect-ens/public/v1'
 import {
   getNameRegistries,
   getOwner as getOwnerV2,

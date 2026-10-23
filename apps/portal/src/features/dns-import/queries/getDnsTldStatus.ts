@@ -1,8 +1,11 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { type GetOwnerErrorType, getOwner } from '@ensdomains/ensjs/public/v1'
 import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
+import {
+  type GetOwnerErrorType,
+  getOwner,
+} from '@storywithoutend/effect-ens/public/v1'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { ensChain } from '@/lib/wagmi'
