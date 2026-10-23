@@ -112,7 +112,28 @@ describe('planMultiRenewSteps', () => {
     const renewals = [entry(true, 'a.eth'), entry(true, 'b.eth')]
     const steps = planMultiRenewSteps(renewals, [payment(V2, 10n, 10n)])
     expect(steps).toEqual([
-      { kind: 'renew', renewer: getRenewerAddress(true), renewals },
+      { kind: 'renew', renewer: getRenewerAddress(true), batch: 0, renewals },
+    ])
+  })
+
+  it('splits a renewer past 50 names into numbered batches', () => {
+    const renewals = Array.from({ length: 51 }, (_, i) =>
+      entry(false, `n${i}.eth`),
+    )
+    const steps = planMultiRenewSteps(renewals, [payment(V1, 1n, 1n)])
+    expect(steps).toEqual([
+      {
+        kind: 'renew',
+        renewer: getRenewerAddress(false),
+        batch: 0,
+        renewals: renewals.slice(0, 50),
+      },
+      {
+        kind: 'renew',
+        renewer: getRenewerAddress(false),
+        batch: 1,
+        renewals: renewals.slice(50),
+      },
     ])
   })
 
@@ -132,9 +153,15 @@ describe('planMultiRenewSteps', () => {
       {
         kind: 'renew',
         renewer: getRenewerAddress(false),
+        batch: 0,
         renewals: [v1a, v1b],
       },
-      { kind: 'renew', renewer: getRenewerAddress(true), renewals: [v2a] },
+      {
+        kind: 'renew',
+        renewer: getRenewerAddress(true),
+        batch: 0,
+        renewals: [v2a],
+      },
     ])
   })
 

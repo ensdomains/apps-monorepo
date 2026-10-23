@@ -55,8 +55,8 @@ export const RENEWAL_TX_IDS = {
     scopeTransactionId(`renewal-approve-${renewer}`, scope),
   renew: (name: string, scope: FlowScope | null) =>
     scopeTransactionId(`renewal-renew-${name}`, scope),
-  renewBatch: (renewer: Address, scope: FlowScope | null) =>
-    scopeTransactionId(`renewal-renew-batch-${renewer}`, scope),
+  renewBatch: (renewer: Address, batch: number, scope: FlowScope | null) =>
+    scopeTransactionId(`renewal-renew-batch-${renewer}-${batch}`, scope),
 } as const
 
 // The resolved payment for a flow: token + prices + the human symbol we derive
@@ -286,7 +286,7 @@ function buildMultiTransactions({
           },
         }
       : {
-          id: RENEWAL_TX_IDS.renewBatch(step.renewer, scope),
+          id: RENEWAL_TX_IDS.renewBatch(step.renewer, step.batch, scope),
           title: renewBatchLabel(step.renewals, step.renewer),
           transactionName: renewBatchLabel(step.renewals, step.renewer),
           prepareIntent: renewersPendingApproval.has(step.renewer)
@@ -308,7 +308,7 @@ function buildMultiTransactions({
               }),
               await getSigner(),
               {
-                id: RENEWAL_TX_IDS.renewBatch(step.renewer, scope),
+                id: RENEWAL_TX_IDS.renewBatch(step.renewer, step.batch, scope),
                 publicClient,
                 description: renewBatchLabel(step.renewals, step.renewer),
               },
