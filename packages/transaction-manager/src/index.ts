@@ -57,6 +57,7 @@ export {
 export { useAtomicBatchSupport } from './hooks/useAtomicBatchSupport'
 export {
   computeDedicatedResolverAddress,
+  encodeCommitCall,
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
   hasDeployedCode,

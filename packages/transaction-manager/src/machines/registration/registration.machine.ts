@@ -21,6 +21,7 @@ import {
   resolveResolverDeploymentActor,
   submitApprovalActor,
   submitCommitmentActor,
+  submitEoaSetupBundleActor,
   submitRegistrationActor,
   submitResolverDeploymentActor,
   validateCommitmentActor,
@@ -52,7 +53,9 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  *
  * Pure-EOA (portal; old deployment — unchanged):
  * 1. Check for the wallet's resolver → deploy + wait if it has none →
- *    generate commitment → commit → wait
+ *    generate commitment → commit → wait. On a wallet that bundles atomically
+ *    (`canBatchAtomically`), resolver + commit + approval go out as ONE
+ *    EIP-5792 bundle instead (`submittingEoaSetupBundle`)
  * 2. Cooldown spine (fetch age → validate → cooldown), allowance → approve
  * 3. Register → wait → verify
  *
@@ -137,6 +140,23 @@ const canReauthorizeSession = (
   !!context.reauthorizeSession &&
   (context.sessionReauthorizations ?? 0) < MAX_SESSION_REAUTHORIZATIONS
 
+/** Whether this run sends its pre-cooldown steps as one EOA bundle. */
+const shouldBundleEoaSetup = (context: RegistrationContext): boolean =>
+  context.signer?.type === 'eoa' && context.canBatchAtomically === true
+
+/**
+ * Where a failed commit restarts. A bundled setup re-reads the resolver first,
+ * so a retry never bundles a deploy that has since landed.
+ */
+const commitRetryTarget = (
+  context: RegistrationContext,
+): 'submittingSetupBundle' | 'checkingResolver' | 'preparingCommitment' => {
+  if (context.signer?.type === 'rhinestone') return 'submittingSetupBundle'
+  return shouldBundleEoaSetup(context)
+    ? 'checkingResolver'
+    : 'preparingCommitment'
+}
+
 // Fallback wait used when the machine can't read MIN_COMMITMENT_AGE from the
 // registrar (e.g. RPC error). The production v2 ETHRegistrar is configured
 // with MIN_COMMITMENT_AGE = 60s.
@@ -150,6 +170,8 @@ export const REGISTRATION_TX_IDS = {
   deployResolver: 'tx-reg-deploy-resolver',
   commit: 'tx-reg-commit',
   approve: 'tx-reg-approve',
+  /** Pure-EOA, atomic-batching wallet: resolver + commit + approve at once. */
+  setupBundle: 'tx-reg-setup-bundle',
   register: 'tx-reg-register',
 } as const
 
@@ -166,6 +188,12 @@ export type RegistrationContext = {
   approvalSigner?: Signer
   /** Keep EOA payment approval ahead of resolver deployment and commitment. */
   approveBeforeCommit?: boolean
+  /**
+   * Pure-EOA: the wallet runs EIP-5792 bundles atomically, so everything
+   * before the cooldown goes out as one confirmation. Fixed by the app when
+   * the run starts (or resumes); ignored for any other signer.
+   */
+  canBatchAtomically?: boolean
   accountAddress?: Address
   ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA` (see @ens-apps/smart-account providers/rhinestone/registration-policy.ts), so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
   resolverOwnerAddress?: Address // Address to grant EACL roles to on the dedicated resolver. Must be the EOA that the resolver will see at write time after SCA→EOA unwrap; defaults to ownerAddress.
@@ -236,6 +264,8 @@ export type RegistrationContext = {
   primaryName?: string
 
   // Flow state
+  /** Bundled setup: whether the wallet's resolver already has code. */
+  isResolverDeployed?: boolean
   resolverTxId?: string
   resolverSalt?: bigint
   resolverAddress?: Address
@@ -311,6 +341,8 @@ export type RegistrationEvent =
   | {
       type: 'START_REGISTRATION'
       approveBeforeCommit?: boolean
+      /** See `RegistrationContext.canBatchAtomically`. */
+      canBatchAtomically?: boolean
       name: string
       /** Duration in seconds */
       duration: bigint
@@ -368,6 +400,8 @@ export type RegistrationEvent =
       deps: {
         signer: Signer
         approveBeforeCommit?: boolean
+        /** See `RegistrationContext.canBatchAtomically`. */
+        canBatchAtomically?: boolean
         /** EOA that signs the EIP-2612 funding permit on the HCA path. */
         approvalSigner?: Signer
         publicClient: PublicClient
@@ -548,6 +582,10 @@ export const registrationMachine = setup({
         return submitCommitmentActor(input)
       },
     ),
+    submitEoaSetupBundle: fromResultAsync(
+      (input: Parameters<typeof submitEoaSetupBundleActor>[0]) =>
+        submitEoaSetupBundleActor(input),
+    ),
     submitApproval: fromResultAsync(
       (input: {
         tokenPrice: bigint
@@ -681,6 +719,7 @@ export const registrationMachine = setup({
 
   guards: {
     isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
+    shouldBundleEoaSetup: ({ context }) => shouldBundleEoaSetup(context),
   },
 
   actions: {
@@ -718,6 +757,8 @@ export const registrationMachine = setup({
         signer: event.deps.signer,
         approvalSigner: event.deps.approvalSigner,
         approveBeforeCommit: event.deps.approveBeforeCommit,
+        canBatchAtomically: event.deps.canBatchAtomically,
+        isResolverDeployed: undefined,
         publicClient: event.deps.publicClient,
         hcaSessionEnable: event.deps.hcaSessionEnable,
         fetchRegistrationIntentStatus: event.deps.fetchIntentStatus,
@@ -859,6 +900,8 @@ export const registrationMachine = setup({
               signer: ({ event }) => event.signer,
               approvalSigner: ({ event }) => event.approvalSigner,
               approveBeforeCommit: ({ event }) => event.approveBeforeCommit,
+              canBatchAtomically: ({ event }) => event.canBatchAtomically,
+              isResolverDeployed: () => undefined,
               accountAddress: ({ event }) => event.accountAddress,
               registrationStartedAt: ({ event }) =>
                 event.signer.type === 'rhinestone' ? Date.now() : undefined,
@@ -1204,6 +1247,17 @@ export const registrationMachine = setup({
             target: 'preparingCommitment',
             actions: assign({
               resolverAddress: ({ event }) => event.output.resolverAddress,
+              isResolverDeployed: () => true,
+            }),
+          },
+          // The resolver's address is fixed, so the commitment can name it
+          // before the bundle that deploys it lands.
+          {
+            guard: 'shouldBundleEoaSetup',
+            target: 'preparingCommitment',
+            actions: assign({
+              resolverAddress: ({ event }) => event.output.resolverAddress,
+              isResolverDeployed: () => false,
             }),
           },
           { target: 'deployingResolver' },
@@ -1338,12 +1392,21 @@ export const registrationMachine = setup({
             resolverAddress: context.resolverAddress!,
           }
         },
-        onDone: {
-          target: 'committingTransaction',
-          actions: assign({
-            commitment: ({ event }) => event.output,
-          }),
-        },
+        onDone: [
+          {
+            guard: 'shouldBundleEoaSetup',
+            target: 'submittingEoaSetupBundle',
+            actions: assign({
+              commitment: ({ event }) => event.output,
+            }),
+          },
+          {
+            target: 'committingTransaction',
+            actions: assign({
+              commitment: ({ event }) => event.output,
+            }),
+          },
+        ],
         onError: {
           target: 'error',
           actions: [
@@ -1399,6 +1462,65 @@ export const registrationMachine = setup({
             ({ event }) => {
               console.error(
                 '❌ [REGISTRATION] Commitment submission failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    // Resolver (first registration only) + commit + approval (when short) as
+    // ONE atomic bundle. Then the ordinary EOA spine takes over: wait for the
+    // commit, cool down, and `checkingAllowance` finds the approval in place.
+    submittingEoaSetupBundle: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'submitEoaSetupBundle',
+        input: ({ context }) => ({
+          name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          commitment: context.commitment!,
+          resolverOwner:
+            context.resolverOwnerAddress ??
+            context.ownerAddress ??
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+            context.accountAddress!,
+          shouldDeployResolver: context.isResolverDeployed === false,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          owner: context.ownerAddress ?? context.accountAddress!,
+          duration: context.duration,
+          selectedToken: context.selectedToken,
+          tokenPrice: context.tokenPrice,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          id: REGISTRATION_TX_IDS.setupBundle,
+        }),
+        onDone: {
+          target: 'waitingForCommitment',
+          actions: assign({
+            commitmentTxId: ({ event }) => event.output.txId,
+            tokenPrice: ({ context, event }) =>
+              event.output.approvedPrice ?? context.tokenPrice,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              // Re-read the resolver: a retry must not bundle a deploy that
+              // has since landed, or the whole bundle reverts.
+              retryTarget: () => 'checkingResolver' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Setup bundle submission failed:',
                 event.error,
               )
             },
@@ -1467,10 +1589,7 @@ export const registrationMachine = setup({
             target: 'error',
             actions: assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: ({ context }) =>
-                context.signer?.type === 'rhinestone'
-                  ? ('submittingSetupBundle' as const)
-                  : ('preparingCommitment' as const),
+              retryTarget: ({ context }) => commitRetryTarget(context),
             }),
           },
           {
@@ -1595,10 +1714,7 @@ export const registrationMachine = setup({
               // commitment (the batch is atomic: a revert leaves the permit
               // unconsumed, so it is safely reused). Pure-EOA commits
               // standalone, so it retries `committingTransaction`.
-              retryTarget: ({ context }) =>
-                context.signer?.type === 'rhinestone'
-                  ? ('submittingSetupBundle' as const)
-                  : ('preparingCommitment' as const),
+              retryTarget: ({ context }) => commitRetryTarget(context),
             }),
             ({ event }) => {
               console.error(
@@ -1639,10 +1755,7 @@ export const registrationMachine = setup({
           target: 'error',
           actions: assign({
             error: ({ event }) => event.error as Error,
-            retryTarget: ({ context }) =>
-              context.signer?.type === 'rhinestone'
-                ? ('submittingSetupBundle' as const)
-                : ('preparingCommitment' as const),
+            retryTarget: ({ context }) => commitRetryTarget(context),
           }),
         },
       },

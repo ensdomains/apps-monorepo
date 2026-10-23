@@ -160,6 +160,9 @@ const startEoaRegistration = (overrides: {
   /** Stubbed only by the tests that walk past the commit. */
   submitRegistration?: ReturnType<typeof vi.fn>
   verifyRegistration?: ReturnType<typeof vi.fn>
+  /** The wallet bundles atomically (EIP-5792). */
+  canBatchAtomically?: boolean
+  submitEoaSetupBundle?: ReturnType<typeof vi.fn>
 }) => {
   const checkResolverDeployment =
     overrides.checkResolverDeployment ??
@@ -180,6 +183,9 @@ const startEoaRegistration = (overrides: {
   const verifyRegistration =
     overrides.verifyRegistration ??
     vi.fn(async () => ({ verified: false, registeredToOther: false }))
+  const submitEoaSetupBundle =
+    overrides.submitEoaSetupBundle ??
+    vi.fn(async () => ({ txId: 'setup-bundle-tx', approvedPrice: 10n }))
 
   const actor = createActor(
     registrationMachine.provide({
@@ -191,6 +197,7 @@ const startEoaRegistration = (overrides: {
         ) as never,
         generateCommitment: fromPromise(generateCommitment) as never,
         submitCommitment: fromPromise(submitCommitment) as never,
+        submitEoaSetupBundle: fromPromise(submitEoaSetupBundle) as never,
         // The cooldown spine: nothing to assert on, so each step resolves
         // straight through to the reveal.
         pollTransactionStatus: fromPromise(async () => undefined) as never,
@@ -218,6 +225,7 @@ const startEoaRegistration = (overrides: {
     accountAddress: WALLET,
     ownerAddress: WALLET,
     publicClient: { chain: sepolia } as unknown as PublicClient,
+    canBatchAtomically: overrides.canBatchAtomically,
   })
 
   return {
@@ -226,6 +234,7 @@ const startEoaRegistration = (overrides: {
     deployResolver,
     generateCommitment,
     submitCommitment,
+    submitEoaSetupBundle,
     submitRegistration,
     verifyRegistration,
   }
@@ -468,6 +477,110 @@ describe('registrationMachine — pure-EOA resolver reuse', () => {
     expect(checkResolverDeployment).toHaveBeenCalledTimes(2)
     expect(deployResolver).toHaveBeenCalledOnce()
     expect(actor.getSnapshot().context.resolverAddress).toBe(EOA_RESOLVER)
+  })
+})
+
+describe('registrationMachine — pure-EOA setup bundle (EIP-5792)', () => {
+  it('sends resolver, commit and approval as one bundle, then registers', async () => {
+    const {
+      actor,
+      deployResolver,
+      submitCommitment,
+      submitEoaSetupBundle,
+      submitRegistration,
+    } = startEoaRegistration({ canBatchAtomically: true })
+
+    await waitFor(actor, (s) => s.matches('registeringDomain'))
+
+    expect(submitEoaSetupBundle).toHaveBeenCalledOnce()
+    expect(submitEoaSetupBundle.mock.calls[0][0].input).toMatchObject({
+      commitment: EOA_COMMITMENT,
+      resolverOwner: WALLET,
+      shouldDeployResolver: true,
+    })
+    // Nothing goes out one by one.
+    expect(deployResolver).not.toHaveBeenCalled()
+    expect(submitCommitment).not.toHaveBeenCalled()
+    // The commitment names the resolver the bundle deploys.
+    expect(submitRegistration.mock.calls[0][0].input.resolverAddress).toBe(
+      EOA_RESOLVER,
+    )
+    expect(actor.getSnapshot().context.tokenPrice).toBe(10n)
+  })
+
+  it('leaves a resolver that is already deployed out of the bundle', async () => {
+    const { actor, submitEoaSetupBundle } = startEoaRegistration({
+      canBatchAtomically: true,
+      checkResolverDeployment: vi.fn(async () => ({
+        resolverAddress: EOA_RESOLVER,
+        deployed: true,
+      })),
+    })
+
+    await waitFor(actor, (s) => s.matches('registeringDomain'))
+
+    expect(
+      submitEoaSetupBundle.mock.calls[0][0].input.shouldDeployResolver,
+    ).toBe(false)
+  })
+
+  it('re-reads the resolver before resending a failed bundle', async () => {
+    const checkResolverDeployment = vi
+      .fn()
+      .mockResolvedValueOnce({ resolverAddress: EOA_RESOLVER, deployed: false })
+      .mockResolvedValue({ resolverAddress: EOA_RESOLVER, deployed: true })
+    const submitEoaSetupBundle = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('wallet hiccup'))
+      .mockResolvedValue({ txId: 'setup-bundle-tx', approvedPrice: null })
+    const { actor } = startEoaRegistration({
+      canBatchAtomically: true,
+      checkResolverDeployment,
+      submitEoaSetupBundle,
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe('checkingResolver')
+
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('registeringDomain'))
+
+    expect(checkResolverDeployment).toHaveBeenCalledTimes(2)
+    expect(
+      submitEoaSetupBundle.mock.calls[1][0].input.shouldDeployResolver,
+    ).toBe(false)
+  })
+
+  it('keeps the sequential steps when the wallet does not bundle', async () => {
+    const { actor, deployResolver, submitEoaSetupBundle } =
+      startEoaRegistration({ canBatchAtomically: false })
+
+    await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+    expect(deployResolver).toHaveBeenCalledOnce()
+    expect(submitEoaSetupBundle).not.toHaveBeenCalled()
+  })
+
+  it('never bundles for an HCA signer', () => {
+    const actor = createActor(registrationMachine, {
+      input: { chainId: sepolia.id },
+    })
+    actor.start()
+    actor.send({
+      type: 'START_REGISTRATION',
+      name: 'myname.eth',
+      duration: 31_536_000n,
+      token: 'USDC',
+      price: 5_000_000n,
+      signer: { type: 'rhinestone' } as unknown as Signer,
+      accountAddress: HCA,
+      ownerAddress: WALLET,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+      canBatchAtomically: true,
+    })
+
+    expect(actor.getSnapshot().matches('computingHcaBudget')).toBe(true)
+    actor.stop()
   })
 })
 
