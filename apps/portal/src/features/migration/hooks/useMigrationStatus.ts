@@ -6,7 +6,6 @@ import type {
 import {
   type ClassifiedName,
   classifyName,
-  healUnknownLabels,
   needsParentFuses,
   parentNameOf,
   runEligibilityChecks,
@@ -97,15 +96,10 @@ const getV1Domain = ResultFn(async function* (name: string) {
       inputs: [{ name }, ...(withParent ? [{ name: parentName }] : [])],
     })
     .mapErr((cause) => new GetMigrationStatusError({ cause }))
-  const stored = yield* recordOf(data[0])
-  if (!stored || !isMigratableRecord(stored)) return ok(null)
-  const record = healUnknownLabels(stored, name)
-  const storedParent =
-    withParent && needsParentFuses(record) ? yield* recordOf(data[1]) : null
+  const record = yield* recordOf(data[0])
+  if (!record || !isMigratableRecord(record)) return ok(null)
   const parent =
-    storedParent && parentName !== null
-      ? healUnknownLabels(storedParent, parentName)
-      : null
+    withParent && needsParentFuses(record) ? yield* recordOf(data[1]) : null
   return ok(
     toV1Domain(record, toParentFuses(parent ? [parent] : []), NAME_WRAPPER),
   )

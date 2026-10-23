@@ -1,6 +1,6 @@
 import type { LookupRecord, WrapperFuses } from '@ens-apps/indexer/bigname'
+import { namehash } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { lookupRecord } from './_fixtures'
 import { classifyNames } from './classifyNames'
 import { toV1Domain } from './v1Domain'
 
@@ -30,8 +30,18 @@ const fuses = (word: number): WrapperFuses => ({
 const record = (
   name: string,
   overrides: Partial<LookupRecord> = {},
-): LookupRecord =>
-  lookupRecord(name, { owner: USER, manager: USER, ...overrides })
+): LookupRecord => ({
+  name,
+  display_name: name,
+  namespace: 'ens',
+  namehash: namehash(name),
+  owner: USER,
+  manager: USER,
+  status: 'active',
+  authority: 'ens_v1',
+  read_status: 'ok',
+  ...overrides,
+})
 
 const wrapped = (
   name: string,

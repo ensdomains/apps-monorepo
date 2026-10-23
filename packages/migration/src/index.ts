@@ -20,7 +20,6 @@ export {
   withManagerRestorationOptIn,
   wrappedCopyExpiry,
 } from './service/classifyNames'
-export { healUnknownLabels } from './service/healUnknownLabels'
 export {
   type EligibilityResult,
   runEligibilityChecks,
