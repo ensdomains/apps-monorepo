@@ -2,7 +2,7 @@ import {
   computeWrapperRegistryAddress,
   DESTINATION_CONTRACTS,
 } from '@ens-apps/smart-account'
-import { normalize } from '@ensdomains/ensjs/utils'
+import { normalize } from '@storywithoutend/effect-ens/utils'
 import type { Address } from 'viem'
 
 /**

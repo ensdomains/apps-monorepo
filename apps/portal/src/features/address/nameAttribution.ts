@@ -1,4 +1,4 @@
-import { getNameType } from '@ensdomains/ensjs/utils'
+import { getNameType } from '@storywithoutend/effect-ens/utils'
 import { type Address, isAddress, isAddressEqual } from 'viem'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import type { NameHistoryGroup } from '@/utils/history/transformAddressHistory'

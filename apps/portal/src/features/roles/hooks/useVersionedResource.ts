@@ -3,7 +3,10 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { GetResourceErrorType } from '@ensdomains/ensjs/public/v2'
 import { getResource as ensjs_getResource } from '@ensdomains/ensjs/public/v2'
-import { type NormalizeErrorType, normalize } from '@ensdomains/ensjs/utils'
+import {
+  type NormalizeErrorType,
+  normalize,
+} from '@storywithoutend/effect-ens/utils'
 import { fromPromise } from 'neverthrow'
 import type { Address } from 'viem'
 import {

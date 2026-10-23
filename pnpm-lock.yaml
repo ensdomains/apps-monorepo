@@ -698,8 +698,8 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@storywithoutend/effect-ens':
-        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-dd38852.tgz
-        version: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-dd38852.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-2ba4679.tgz
+        version: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-2ba4679.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@tanstack/react-hotkeys':
         specifier: ^0.4.1
         version: 0.4.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -5336,8 +5336,8 @@ packages:
       '@tanstack/start-client-core':
         optional: true
 
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-dd38852.tgz':
-    resolution: {integrity: sha512-QPiCzo+DvBeYN3ZDYV0915EinkeRfh9rF04yH2ahQnKPyMLWq29iHZMYTWzRgIghOJ6tdXjhWNpQgMBhf29yIQ==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-dd38852.tgz}
+  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-2ba4679.tgz':
+    resolution: {integrity: sha512-7/uGFvumfwg3bgapaz5Jf/XRgiYwSkurCmKu2lEdU1FE+j+B9rBlNhwgW6357unX5nJH3Gumb65Bi+u8Jkc1mA==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-2ba4679.tgz}
     version: 0.0.0
     engines: {node: ^22.18.0 || >=24.11.0}
     peerDependencies:
@@ -13060,8 +13060,9 @@ snapshots:
       - supports-color
       - typescript
 
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-dd38852.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
+  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-2ba4679.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
     dependencies:
+      '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.4
       '@ensdomains/content-hash': 3.1.0-rc.1
       effect: 4.0.5

@@ -1,4 +1,4 @@
-import { isEncodedLabelhash } from '@ensdomains/ensjs/utils'
+import { isEncodedLabelhash } from '@storywithoutend/effect-ens/utils'
 import { isHex } from 'viem'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 

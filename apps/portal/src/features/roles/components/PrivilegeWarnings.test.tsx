@@ -1,5 +1,5 @@
-import { normalize } from '@ensdomains/ensjs/utils'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
+import { normalize } from '@storywithoutend/effect-ens/utils'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Address } from 'viem'
