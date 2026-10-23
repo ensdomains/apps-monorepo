@@ -36,8 +36,12 @@ const checkProtocol = (url: URL): Result<URL, UrlInputError> =>
     ? ok(url)
     : err(new UrlInputError({ reason: 'unsupported-scheme' }))
 
+const hasValidHost = (hostname: string): boolean =>
+  hostname.startsWith('[') ||
+  DOMAIN_WITH_EXTENSION.test(hostname.replace(/\.$/, ''))
+
 const checkDomainExtension = (url: URL): Result<URL, UrlInputError> =>
-  DOMAIN_WITH_EXTENSION.test(url.hostname)
+  hasValidHost(url.hostname)
     ? ok(url)
     : err(new UrlInputError({ reason: 'missing-domain-extension' }))
 

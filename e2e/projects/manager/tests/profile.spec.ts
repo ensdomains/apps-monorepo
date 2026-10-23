@@ -124,7 +124,7 @@ test.describe('ENS profile', () => {
     // Spaces keep it invalid even with the https:// prefilled on focus
     await page.getByPlaceholder('https://yourwebsite.com').fill('not a url')
     await expect(
-      page.getByText('Enter a valid URL (e.g. https://example.com)'),
+      page.getByText("Links can't contain spaces. Remove them and try again"),
     ).toBeVisible({ timeout: 10_000 })
 
     // Contact tab: enable E-mail then fill with an invalid address.

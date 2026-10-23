@@ -61,6 +61,12 @@ describe('validateUrlInput', () => {
     expect(getIssue('https://example.com/a b')).toBe('has-spaces')
   })
 
+  it('accepts IP addresses and a trailing root dot', () => {
+    expect(getIssue('https://[2001:db8::1]/')).toBeUndefined()
+    expect(getIssue('https://192.168.0.1/path')).toBeUndefined()
+    expect(getIssue('https://example.com./')).toBeUndefined()
+  })
+
   it('rejects domains without an extension', () => {
     expect(getIssue('hello')).toBe('missing-domain-extension')
     expect(getIssue('https://hello')).toBe('missing-domain-extension')
