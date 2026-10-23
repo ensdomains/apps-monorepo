@@ -15,17 +15,21 @@ Reflect.deleteProperty(Element.prototype, 'animate')
 // including network requests. No unit test talks to WalletConnect, so swap in
 // an inert connector with the same id. Mock `wagmi/connectors` (what the app
 // imports): vitest can't reach the `@wagmi/connectors` re-export inside it.
+// The factory keeps its static `type`, which code compares connectors against.
 vi.mock('wagmi/connectors', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi/connectors')>()
   return {
     ...actual,
-    walletConnect: () =>
-      actual.injected({
-        target: {
-          id: 'walletConnect',
-          name: 'WalletConnect',
-          provider: () => undefined,
-        },
-      }),
+    walletConnect: Object.assign(
+      () =>
+        actual.injected({
+          target: {
+            id: 'walletConnect',
+            name: 'WalletConnect',
+            provider: () => undefined,
+          },
+        }),
+      { type: actual.walletConnect.type },
+    ),
   }
 })
