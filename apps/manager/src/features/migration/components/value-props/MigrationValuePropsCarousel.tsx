@@ -150,7 +150,8 @@ export const MigrationValuePropsCarousel = ({
   const shouldReduceMotion = useReducedMotion() ?? false
   const slides = getMigrationValuePropSlides(isNftSlideVisible)
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [isInteracting, setIsInteracting] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
+  const [isFocused, setIsFocused] = useState(false)
   const activeIndex = clampIndex(selectedIndex, slides.length)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -183,7 +184,7 @@ export const MigrationValuePropsCarousel = ({
   useCarouselAutoplay({
     activeIndex,
     slideCount: slides.length,
-    isPaused: shouldReduceMotion || isInteracting,
+    isPaused: shouldReduceMotion || isHovered || isFocused,
     onAdvance: goToIndex,
   })
 
@@ -231,10 +232,15 @@ export const MigrationValuePropsCarousel = ({
     <section
       aria-label={t`Upgrade benefits`}
       className="w-full"
-      onBlur={() => setIsInteracting(false)}
-      onFocus={() => setIsInteracting(true)}
-      onPointerEnter={() => setIsInteracting(true)}
-      onPointerLeave={() => setIsInteracting(false)}
+      onBlur={(event) => {
+        // Focus moving between the carousel's own buttons keeps it paused
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsFocused(false)
+        }
+      }}
+      onFocus={() => setIsFocused(true)}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
     >
       <div className="mb-2 flex items-center justify-center gap-0.5">
         {slides.map((slide, index) => (

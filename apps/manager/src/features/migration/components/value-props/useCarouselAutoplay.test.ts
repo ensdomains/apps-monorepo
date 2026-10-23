@@ -17,7 +17,10 @@ describe('getNextAutoplayIndex', () => {
 })
 
 describe('useCarouselAutoplay', () => {
-  const render = (props: { activeIndex: number; isPaused: boolean }) => {
+  const render = (props: {
+    readonly activeIndex: number
+    readonly isPaused: boolean
+  }) => {
     const onAdvance = vi.fn()
     const hook = renderHook((current) => useCarouselAutoplay(current), {
       initialProps: { ...props, slideCount: 4, onAdvance },
