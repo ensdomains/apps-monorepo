@@ -15,6 +15,7 @@ import {
 import { MAX_PROFILE_LINKS_RECORD_BYTES } from './linkLimits'
 import { isWithinPrimaryContactsRecordSize } from './primaryContactLimits'
 import { createSafeUrlSchema, isSafeHttpUrl } from './safeUrl'
+import { normalizeUrlInput } from './urlInputPrefix'
 
 const emptyProfileRecords = (): ProfileRecords => ({
   base: {},
@@ -72,7 +73,9 @@ const isEmptyLink = (link: LinkItem) =>
   link.name.trim() === '' && link.url.trim() === ''
 
 export const normalizeProfileLinks = (links: readonly LinkItem[]): LinkItem[] =>
-  links.filter((link) => !isEmptyLink(link) && isSafeHttpUrl(link.url))
+  links
+    .map((link) => ({ ...link, url: normalizeUrlInput(link.url) }))
+    .filter((link) => !isEmptyLink(link) && isSafeHttpUrl(link.url))
 
 const normalizeProfileAddresses = (
   addresses: ProfileRecords['addresses'],

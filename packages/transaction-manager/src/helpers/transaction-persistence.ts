@@ -616,39 +616,6 @@ export async function getHistoryCount(): Promise<number> {
 }
 
 /**
- * Get count of active transactions
- */
-export async function getActiveCount(): Promise<number> {
-  try {
-    const active = await storage.getAll()
-    return active.length
-  } catch (error) {
-    logger.error('Failed to get active count', error)
-    return 0
-  }
-}
-
-/**
- * Export all data for backup/debugging
- */
-export async function exportAllData(): Promise<{
-  active: PersistedTransaction[]
-  history: PersistedTransaction[]
-}> {
-  try {
-    const [active, history] = await Promise.all([
-      storage.getAll(),
-      storage.getHistory(),
-    ])
-
-    return { active, history }
-  } catch (error) {
-    logger.error('Failed to export data', error)
-    return { active: [], history: [] }
-  }
-}
-
-/**
  * Get the current storage type being used
  */
 export async function getStorageType(): Promise<

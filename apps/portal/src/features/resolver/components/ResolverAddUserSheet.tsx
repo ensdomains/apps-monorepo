@@ -1,7 +1,8 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
+import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/sheet'
 import { AddressNameInput } from '@/features/address/components/AddressNameInput'
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import {
   describeGrantScope,
   prepareGrantResolverRolesTransaction,
@@ -27,9 +29,13 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import {
+  computeResolverResource,
   type ResolverPermissionKey,
+  type ResolverRole,
   type ResolverSetterScope,
+  resolverAdminRoleOf,
   resolverPermissions,
+  resolverSetterScopeRole,
 } from '@/lib/roles/resolverRoles'
 import { cn } from '@/lib/utils'
 import { ensChain } from '@/lib/wagmi'
@@ -63,11 +69,13 @@ const SCOPE_OPTIONS: ReadonlyArray<{
 
 const RolePermissionList = ({
   selectedRoles,
+  rootAdminRoles,
   onToggle,
   disabled,
   isInvalid,
 }: {
   readonly selectedRoles: Set<ResolverPermissionKey>
+  readonly rootAdminRoles: ReadonlySet<ResolverRole>
   readonly onToggle: (role: ResolverPermissionKey, checked: boolean) => void
   readonly disabled: boolean
   readonly isInvalid: boolean
@@ -79,48 +87,53 @@ const RolePermissionList = ({
     )}
     aria-invalid={isInvalid}
   >
-    {resolverPermissions.map((permission, index) => (
-      <div
-        key={permission.key}
-        className={cn(
-          'flex items-center justify-between px-6 py-4 gap-4',
-          index !== 0 && 'border-t border-border',
-        )}
-      >
-        <div className="flex flex-col gap-1 flex-1 min-w-64">
-          <div className="font-medium">{permission.title}</div>
-          <div className="text-p text-muted-foreground">
-            {permission.description}
+    {resolverPermissions.map((permission, index) => {
+      const canGrant = rootAdminRoles.has(resolverAdminRoleOf(permission.key))
+      return (
+        <div
+          key={permission.key}
+          className={cn(
+            'flex items-center justify-between px-6 py-4 gap-4',
+            index !== 0 && 'border-t border-border',
+            !canGrant && 'text-muted-foreground',
+          )}
+        >
+          <div className="flex flex-col gap-1 flex-1 min-w-64">
+            <div className="font-medium">{permission.title}</div>
+            <div className="text-p text-muted-foreground">
+              {permission.description}
+            </div>
+          </div>
+          <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
+            <div className="flex items-center gap-2 min-w-24">
+              <Checkbox
+                id={`add-${permission.key}-manager`}
+                checked={selectedRoles.has(permission.key)}
+                disabled={!canGrant}
+                onCheckedChange={(checked) =>
+                  onToggle(permission.key, checked as boolean)
+                }
+              />
+              <Label
+                htmlFor={`add-${permission.key}-manager`}
+                className="font-medium cursor-pointer"
+              >
+                User
+              </Label>
+            </div>
+            <div className="flex items-center gap-2 min-w-24">
+              <Checkbox id={`add-${permission.key}-admin`} disabled />
+              <Label
+                htmlFor={`add-${permission.key}-admin`}
+                className="font-medium cursor-pointer"
+              >
+                Admin
+              </Label>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
-          <div className="flex items-center gap-2 min-w-24">
-            <Checkbox
-              id={`add-${permission.key}-manager`}
-              checked={selectedRoles.has(permission.key)}
-              onCheckedChange={(checked) =>
-                onToggle(permission.key, checked as boolean)
-              }
-            />
-            <Label
-              htmlFor={`add-${permission.key}-manager`}
-              className="font-medium cursor-pointer"
-            >
-              User
-            </Label>
-          </div>
-          <div className="flex items-center gap-2 min-w-24">
-            <Checkbox id={`add-${permission.key}-admin`} disabled />
-            <Label
-              htmlFor={`add-${permission.key}-admin`}
-              className="font-medium cursor-pointer"
-            >
-              Admin
-            </Label>
-          </div>
-        </div>
-      </div>
-    ))}
+      )
+    })}
   </div>
 )
 
@@ -130,6 +143,8 @@ type ResolverAddUserSheetProps = {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly resolverAddress: Address
+  /** The connected wallet's `_ADMIN` roles on the resolver's root. */
+  readonly rootAdminRoles: ReadonlySet<ResolverRole>
 }
 
 const parseCoinType = (value: string): bigint | null => {
@@ -142,6 +157,7 @@ export const ResolverAddUserSheet = ({
   open,
   onOpenChange,
   resolverAddress,
+  rootAdminRoles,
 }: ResolverAddUserSheetProps) => {
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
@@ -226,7 +242,21 @@ export const ResolverAddUserSheet = ({
     })
     .exhaustive()
 
-  const scopeReady = scopeKind === 'root' || setterScope !== null
+  // EAC ORs root with the setter's own resource.
+  const { data: canGrantSetter } = useQuery({
+    ...getHasRolesQueryOptions({
+      resolverAddress,
+      resource: setterScope ? computeResolverResource(setterScope) : undefined,
+      roles: setterScope
+        ? [resolverAdminRoleOf(resolverSetterScopeRole(setterScope))]
+        : [],
+      account: walletClient?.account?.address ?? zeroAddress,
+    }),
+    enabled: Boolean(walletClient?.account) && setterScope !== null,
+  })
+
+  const scopeReady =
+    scopeKind === 'root' || (setterScope !== null && canGrantSetter === true)
   const rolesReady = scopeKind !== 'root' || selectedRoles.size > 0
 
   const canSave =
@@ -356,6 +386,13 @@ export const ResolverAddUserSheet = ({
                     className="h-12 bg-background border font-mono"
                   />
                 )}
+                {setterScope && canGrantSetter === false && (
+                  <FieldError className="mt-1.5">
+                    Your account does not hold{' '}
+                    {resolverAdminRoleOf(resolverSetterScopeRole(setterScope))}{' '}
+                    for this argument and cannot grant it.
+                  </FieldError>
+                )}
                 {formError?.field === 'scope' && (
                   <FieldError className="mt-1.5">
                     {formError.message}
@@ -367,6 +404,7 @@ export const ResolverAddUserSheet = ({
                 <Field data-invalid={formError?.field === 'roles'}>
                   <RolePermissionList
                     selectedRoles={selectedRoles}
+                    rootAdminRoles={rootAdminRoles}
                     onToggle={toggleRole}
                     disabled={isPending || isSuccess}
                     isInvalid={formError?.field === 'roles'}

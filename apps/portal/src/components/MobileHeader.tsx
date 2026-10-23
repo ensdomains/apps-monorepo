@@ -3,7 +3,7 @@ import { LogoSVG } from '@/assets/logo'
 import { SidebarTrigger } from './ui/sidebar'
 
 export const MobileHeader = () => (
-  <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border sticky top-0 z-10 bg-background">
+  <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border sticky top-(--notice-bar-h) z-10 bg-background">
     <Link to="/">
       <LogoSVG width={35} height={40} className="text-foreground" />
     </Link>

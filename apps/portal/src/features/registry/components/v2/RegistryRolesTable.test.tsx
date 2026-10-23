@@ -27,6 +27,10 @@ vi.mock('@tanstack/react-query', async () => {
   }
 })
 
+vi.mock('@/features/roles/hooks/useCallerAdminRoles', () => ({
+  useCallerAdminRoles: () => new Set(),
+}))
+
 vi.mock('@/features/roles/components/roleTableColumns', async (original) => ({
   ...(await original<
     typeof import('@/features/roles/components/roleTableColumns')

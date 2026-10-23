@@ -11,7 +11,6 @@ import {
   getMaxExpiryDateForPicker,
   getMinExpiryDateForPicker,
   getRegistrationDisplayDates,
-  getRegistrationDurationInSeconds,
   getRegistrationExpiryDateFromSeconds,
   getYearsFromDuration,
 } from './registrationDuration'
@@ -60,55 +59,6 @@ describe('registrationDuration', () => {
           ).registrationPeriod,
         ).toBe(years === 1 ? '1 year' : `${years} years`)
       }
-    })
-  })
-
-  describe('getRegistrationDurationInSeconds', () => {
-    it('should return exact seconds for 1 calendar year', () => {
-      const oneYearFromNow = startOfFixedToday.add({ years: 1 })
-      const result = getRegistrationDurationInSeconds(
-        startOfFixedToday,
-        oneYearFromNow,
-      )
-      expect(result).toBe(31_536_000) // 365 days in 2025
-    })
-
-    it('should return exact seconds for 2 calendar years', () => {
-      const twoYearsFromNow = startOfFixedToday.add({ years: 2 })
-      const result = getRegistrationDurationInSeconds(
-        startOfFixedToday,
-        twoYearsFromNow,
-      )
-      expect(result).toBe(63_072_000) // 730 days (2025, 2026 non-leap)
-    })
-
-    it('should return at least 28 days in seconds for past dates', () => {
-      const result = getRegistrationDurationInSeconds(
-        startOfFixedToday,
-        Temporal.PlainDate.from('2024-01-01'),
-      )
-      expect(result).toBe(2_419_200) // min 28 days
-    })
-
-    it('should return exact seconds for 6 months (short duration)', () => {
-      const sixMonthsFromNow = startOfFixedToday.add({ months: 6 })
-      const result = getRegistrationDurationInSeconds(
-        startOfFixedToday,
-        sixMonthsFromNow,
-      )
-      const expectedDays = startOfFixedToday.until(sixMonthsFromNow, {
-        largestUnit: 'days',
-      }).days
-      expect(result).toBe(expectedDays * 86400)
-    })
-
-    it('should return 28 days minimum for tomorrow', () => {
-      const tomorrow = startOfFixedToday.add({ days: 1 })
-      const result = getRegistrationDurationInSeconds(
-        startOfFixedToday,
-        tomorrow,
-      )
-      expect(result).toBe(2_419_200) // min 28 days
     })
   })
 

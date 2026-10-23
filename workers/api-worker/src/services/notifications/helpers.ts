@@ -179,9 +179,3 @@ export const toPublicChannel = ResultFn(async function* (
     }
   }
 })
-
-export const generateToken = () => {
-  const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
-  return bytesToHex(bytes)
-}

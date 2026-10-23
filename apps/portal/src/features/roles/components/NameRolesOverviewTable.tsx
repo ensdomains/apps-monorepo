@@ -1,8 +1,9 @@
+import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { type Address, zeroAddress } from 'viem'
+import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -12,22 +13,24 @@ import { Button } from '@/components/ui/button'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
+import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
-import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVersionedResource'
 import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
-import { isAdminRole } from '@/lib/roles/permissions'
+import { canCallerSetManagerRole, permissions } from '@/lib/roles/permissions'
 
 const V2NameRoles = ({
   name,
   registryAddress,
   canManageRoles,
+  callerAdminRoles,
 }: {
   name: string
   registryAddress: Address
   canManageRoles: boolean
+  readonly callerAdminRoles: ReadonlySet<Role>
 }) => {
   const { labels } = getNameLabels(name)
 
@@ -93,6 +96,7 @@ const V2NameRoles = ({
           roles={holders}
           name={name}
           canManageRoles={canManageRoles}
+          callerAdminRoles={callerAdminRoles}
           registryAddress={registryAddress}
         />
       )}
@@ -198,17 +202,18 @@ export const NameRolesOverviewTable = ({
     getVersionedResourceQueryOptions({ name, registryAddress }),
   )
 
-  const { data: currentAccountRoles } = useQuery({
-    ...getNameRolesForAccountQueryOptions({
-      registryAddress,
-      resource: resourceId,
-      account: address ?? zeroAddress,
-    }),
-    enabled: Boolean(address) && Boolean(resourceId),
+  const callerAdminRoles = useCallerAdminRoles({
+    registryAddress,
+    resource: resourceId,
+    account: address,
   })
 
-  const canManageRoles = Boolean(
-    currentAccountRoles?.decoded?.find(isAdminRole),
+  // Any `_ADMIN` can revoke its role, so it opens the editor; Add user needs a grantable one.
+  const canManageRoles = callerAdminRoles.size > 0
+  const canAddUser = permissions.some((permission) =>
+    canCallerSetManagerRole(permission.key, callerAdminRoles, {
+      is2LD: name.split('.').length === 2,
+    }),
   )
 
   return (
@@ -217,7 +222,7 @@ export const NameRolesOverviewTable = ({
         <h3 className="text-caps leading-none">parent registry / roles</h3>
         {address && (
           <AddUserButton
-            canManageRoles={canManageRoles}
+            canManageRoles={canAddUser}
             onClick={() => setAddUserOpen(true)}
           />
         )}
@@ -226,6 +231,7 @@ export const NameRolesOverviewTable = ({
         name={name}
         registryAddress={registryAddress}
         canManageRoles={canManageRoles}
+        callerAdminRoles={callerAdminRoles}
       />
       <RegistryRootAuthority registryAddress={registryAddress} />
       <RolesAddUserSheet
@@ -233,6 +239,7 @@ export const NameRolesOverviewTable = ({
         onOpenChange={setAddUserOpen}
         name={name}
         registryAddress={registryAddress}
+        callerAdminRoles={callerAdminRoles}
       />
     </Fragment>
   )

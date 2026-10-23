@@ -35,7 +35,7 @@ import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAtte
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { resourceIdForName } from '@/lib/resource/resourceId'
-import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
+import { canCallerSetManagerRole, permissions } from '@/lib/roles/permissions'
 import {
   computeRoleChanges,
   hasPermissionsChanged,
@@ -51,6 +51,8 @@ type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
     readonly setOpen: React.Dispatch<React.SetStateAction<boolean>>
     readonly name: string
     readonly canManageRoles: boolean
+    /** The connected wallet's `_ADMIN` roles on the name, root roles included. */
+    readonly callerAdminRoles: ReadonlySet<Role>
     readonly registryAddress: Address
     /** Every account holding roles on the name — needed to spot last-admin revokes. */
     readonly roleHolders: GetNameRolesAccountsReturnType
@@ -65,6 +67,7 @@ export const RolesSidebar = <
   setOpen,
   name,
   canManageRoles,
+  callerAdminRoles,
   registryAddress,
   roleHolders,
 }: RolesSidebarProps<TData>) => {
@@ -102,13 +105,12 @@ export const RolesSidebar = <
   )
 
   const removePlan = useRemoveUserPlan({
-    name,
     registryAddress,
     account: selectedAccount,
     currentRoles: originalRoles,
     roleHolders,
     ownerAddress: ownerData?.owner,
-    callerAddress,
+    callerAdminRoles,
   })
 
   const { editedPermissions, setEditedPermissions } = useEditedPermissions(row)
@@ -245,8 +247,9 @@ export const RolesSidebar = <
                   <div className="border border-border rounded-sm overflow-hidden">
                     {permissions.map((permission, index) => {
                       const roleKey = permission.key
-                      const isManagerRoleDisabled = !isManagerRoleSettable(
+                      const canSetRole = canCallerSetManagerRole(
                         permission.key,
+                        callerAdminRoles,
                         { is2LD },
                       )
                       const rolePerms = editedPermissions.get(roleKey) || {
@@ -260,7 +263,7 @@ export const RolesSidebar = <
                           className={cn(
                             'flex items-center justify-between px-6 py-4 gap-4',
                             index !== 0 && 'border-t border-border',
-                            isManagerRoleDisabled && 'text-muted-foreground',
+                            !canSetRole && 'text-muted-foreground',
                           )}
                         >
                           <div className="flex flex-col gap-1 flex-1 min-w-64">
@@ -276,9 +279,7 @@ export const RolesSidebar = <
                               <Checkbox
                                 id={`${permission.key}-manager`}
                                 checked={rolePerms.manager}
-                                disabled={
-                                  !canManageRoles || isManagerRoleDisabled
-                                }
+                                disabled={!canSetRole}
                                 onCheckedChange={(checked) =>
                                   handlePermissionChange(
                                     roleKey,
@@ -291,7 +292,7 @@ export const RolesSidebar = <
                                 htmlFor={`${permission.key}-manager`}
                                 className={cn(
                                   'font-medium cursor-pointer',
-                                  canManageRoles
+                                  canSetRole
                                     ? 'text-foreground'
                                     : 'text-muted-foreground',
                                 )}

@@ -65,23 +65,6 @@ export const formatCalendarDuration = (
 }
 
 /**
- * Converts an expiry date to duration in seconds for ENS price/registration.
- * Uses actual calendar difference (whole days × 86400).
- * Minimum 28 days (matches v3 app Pricing.tsx minSeconds).
- */
-export const getRegistrationDurationInSeconds = (
-  startDate: Temporal.PlainDate,
-  expiryDate: Temporal.PlainDate,
-): number => {
-  const diffDays = startDate.until(expiryDate, { largestUnit: 'days' }).days
-  if (diffDays <= 0) {
-    return MIN_REGISTRATION_DURATION
-  }
-  const seconds = diffDays * 86400
-  return Math.max(seconds, MIN_REGISTRATION_DURATION)
-}
-
-/**
  * Year-picker → seconds: the LARGER of:
  *   - flat rack rate `N × CONTRACT_SECONDS_PER_YEAR` (365.25 d) — clears
  *     the contract's discount tier so 1y is always $8, 2y is always tier-
