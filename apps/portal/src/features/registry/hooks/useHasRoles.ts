@@ -1,11 +1,11 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { eacHasRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import {
   type HasRolesParameters as EnsjsHasRolesParameters,
   hasRoles as ensjsHasRoles,
-} from '@ensdomains/ensjs/public/v2'
-import { eacHasRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+} from '@storywithoutend/effect-ens/public/v2'
 import {
   encodeRoleBitmap,
   type ResolverRole,

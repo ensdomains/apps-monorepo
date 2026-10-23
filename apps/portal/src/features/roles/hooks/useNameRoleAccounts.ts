@@ -2,11 +2,11 @@ import { logger } from '@ens-apps/utils/logger'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { GetNameRolesAccountsReturnType } from '@ensdomains/ensjs/public/v2'
 import {
   permissionedRegistryRoleCountSnippet,
   permissionedRegistryRolesSnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
+import type { GetNameRolesAccountsReturnType } from '@storywithoutend/effect-ens/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { getBlockNumber, readContract } from 'viem/actions'

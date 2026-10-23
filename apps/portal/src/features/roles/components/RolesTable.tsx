@@ -1,4 +1,4 @@
-import type { GetNameRolesAccountsReturnType } from '@ensdomains/ensjs/public/v2'
+import type { GetNameRolesAccountsReturnType } from '@storywithoutend/effect-ens/public/v2'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 import { useState } from 'react'
 import type { Address } from 'viem'
