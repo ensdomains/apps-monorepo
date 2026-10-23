@@ -12,6 +12,81 @@ vi.mock('@/lib/clipboard', () => ({
 }))
 
 describe('ProfileAddressesSection', () => {
+  it.each([4, 5])(
+    'uses compact badges only when there are at least five shared records (%i)',
+    (count) => {
+      const value = '0x1234567890123456789012345678901234567890'
+      const { getByRole } = render(
+        <ProfileAddressesSection
+          records={{
+            addresses: [60, 2147483658, 2147492101, 2147525809, 2148018000]
+              .slice(0, count)
+              .map((coinType) => ({ coinType, value })),
+            base: {},
+            contact: [],
+            links: [],
+            social: [],
+            unknown: [],
+            agentRegistrations: [],
+          }}
+        />,
+      )
+      const card = getByRole('button', { name: `Copy address ${value}` })
+      const label = within(card).getByText('Ethereum')
+      expect(label.classList.contains('sr-only')).toBe(count >= 5)
+      expect(card).toHaveAccessibleDescription(
+        count === 5
+          ? 'Ethereum Optimism Base Arbitrum One Scroll'
+          : 'Ethereum Optimism Base Arbitrum One',
+      )
+      expect(card.querySelectorAll('button, a, [tabindex]')).toHaveLength(0)
+    },
+  )
+
+  it('keeps compact network names readable when artwork is absent or fails', async () => {
+    const value = '0x1234567890123456789012345678901234567890'
+    const { getByRole, findByRole } = render(
+      <ProfileAddressesSection
+        records={{
+          addresses: [60, 2147483658, 2147492101, 2147525809, 2147483817].map(
+            (coinType) => ({ coinType, value }),
+          ),
+          base: {},
+          contact: [],
+          links: [],
+          social: [],
+          unknown: [],
+          agentRegistrations: [],
+        }}
+      />,
+    )
+    const card = getByRole('button', { name: `Copy address ${value}` })
+    expect(
+      within(card).getByText('Manta Pacific', {
+        selector: 'span[aria-hidden="true"]',
+      }),
+    ).toBeVisible()
+    const image = card.querySelector('img')
+    if (!image) throw new Error('Expected Ethereum artwork')
+    expect(image).toHaveAttribute('alt', 'Ethereum')
+    const badge = image.closest('[data-slot="tooltip-trigger"]')
+    if (!badge) throw new Error('Expected compact tooltip trigger')
+    fireEvent.pointerMove(badge, { pointerType: 'mouse' })
+    expect(await findByRole('tooltip')).toHaveTextContent('Ethereum')
+    fireEvent.pointerLeave(badge)
+    fireEvent.error(image)
+    expect(
+      within(card).getByText('Ethereum', {
+        selector: 'span[aria-hidden="true"]',
+      }),
+    ).toBeVisible()
+    expect(card).toHaveAccessibleDescription(
+      'Ethereum Optimism Base Arbitrum One Manta Pacific',
+    )
+    fireEvent.click(card)
+    await waitFor(() => expect(copyToClipboard).toHaveBeenLastCalledWith(value))
+  })
+
   it('shows canonical L2 names and artwork beside a distinct Sepolia record', () => {
     const value = '0x1234567890123456789012345678901234567890'
     const testnetValue = '0x2234567890123456789012345678901234567890'

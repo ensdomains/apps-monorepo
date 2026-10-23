@@ -2,6 +2,11 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useId } from 'react'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Card } from '@/components/ui/card'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { AddressIcon } from '@/features/profile/components/AddressIcon'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
@@ -23,10 +28,12 @@ type ProfileAddressesSectionProps = {
   readonly records: ProfileRecords
 }
 
-// Keep the original minimum height while allowing named badges to wrap.
+const COMPACT_CHAIN_COUNT = 5
+
+// Smaller padding gives the address and wrapping network group more room.
 const addressCardClassName = cn(
   profileTileClassName,
-  'h-auto min-h-18 w-full flex-row items-center justify-between gap-3 p-6 transition hover:bg-ens-quartz-50 has-[>svg]:px-6',
+  'h-auto min-h-16 w-full flex-row items-center justify-between gap-3 p-4 transition hover:bg-ens-quartz-50 has-[>svg]:px-4',
 )
 
 const AddressValue = ({ value }: { readonly value: string }) => (
@@ -35,6 +42,40 @@ const AddressValue = ({ value }: { readonly value: string }) => (
   </span>
 )
 
+const ReceivingChainBadge = ({
+  chain,
+  isCompact,
+}: {
+  readonly chain: ProfileAddressItem
+  readonly isCompact: boolean
+}) => {
+  const badge = (
+    <span
+      className={cn(
+        'inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-ens-quartz-50 text-ens-quartz-600 text-xs',
+        isCompact ? 'p-1' : 'px-2 py-1',
+      )}
+    >
+      <AddressIcon
+        coinType={chain.coinType}
+        shouldShowFallbackLabel={isCompact}
+        size={isCompact ? 'lg' : 'sm'}
+      />
+      <span className={isCompact ? 'sr-only' : 'min-w-0 break-words'}>
+        {chain.label}
+      </span>
+    </span>
+  )
+
+  if (!isCompact) return badge
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{badge}</TooltipTrigger>
+      <TooltipContent>{chain.label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 const ReceivingChainBadges = ({
   chains,
   id,
@@ -42,19 +83,18 @@ const ReceivingChainBadges = ({
   readonly chains: readonly ProfileAddressItem[]
   readonly id: string
 }) => {
+  const isCompact = chains.length >= COMPACT_CHAIN_COUNT
   return (
     <div
       className="flex min-w-0 max-w-full flex-wrap items-center gap-2 whitespace-normal text-left font-sans"
       id={id}
     >
       {chains.map((chain) => (
-        <span
-          className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-ens-quartz-50 px-2 py-1 text-ens-quartz-600 text-xs"
+        <ReceivingChainBadge
+          chain={chain}
+          isCompact={isCompact}
           key={`${chain.coinType}-${chain.value}`}
-        >
-          <AddressIcon coinType={chain.coinType} size="sm" />
-          <span className="min-w-0 break-words">{chain.label}</span>
-        </span>
+        />
       ))}
     </div>
   )
