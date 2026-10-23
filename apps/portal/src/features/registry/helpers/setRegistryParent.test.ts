@@ -1,3 +1,4 @@
+import { userRegistrySetParentSnippet } from '@ensdomains/ensjs-abi/v2/userRegistry'
 import {
   type Address,
   decodeFunctionData,
@@ -10,7 +11,6 @@ import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
   prepareSetRegistryParentTransaction,
-  REGISTRY_SET_PARENT_ABI,
   registryParentLabel,
 } from './setRegistryParent'
 
@@ -38,7 +38,7 @@ describe('prepareSetRegistryParentTransaction', () => {
     expect(intent.request.to).toBe(REGISTRY)
     expect(
       decodeFunctionData({
-        abi: REGISTRY_SET_PARENT_ABI,
+        abi: userRegistrySetParentSnippet,
         data: intent.request.data as Hex,
       }).args,
     ).toEqual([getAddress(PARENT_REGISTRY), 'koala'])

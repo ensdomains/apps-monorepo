@@ -10,14 +10,12 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import { setParentWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
-import { encodeFunctionData, parseAbi } from 'viem'
+import { encodeFunctionData } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
-
-export const REGISTRY_SET_PARENT_ABI = parseAbi([
-  'function setParent(address parent, string label)',
-])
+import type { WalletClientWithAccount } from '@/utils/types'
 
 /** The label `setParent` records for `name`, or `null` when it is encoded. */
 export const registryParentLabel = (name: string): string | null => {
@@ -59,13 +57,18 @@ export const prepareSetRegistryParentTransaction = ({
     throw new Error('Wallet client must have account configured')
   }
 
+  const writeParams = setParentWriteParameters(
+    walletClient as WalletClientWithAccount,
+    { registryAddress: registry, parentRegistryAddress: parentRegistry, label },
+  )
+
   return toEoaCustomIntent({
     from: walletClient.account.address,
-    to: registry,
+    to: writeParams.address,
     data: encodeFunctionData({
-      abi: REGISTRY_SET_PARENT_ABI,
-      functionName: 'setParent',
-      args: [parentRegistry, label],
+      abi: writeParams.abi,
+      functionName: writeParams.functionName,
+      args: writeParams.args,
     }),
     chainId,
   })
