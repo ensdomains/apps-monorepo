@@ -20,6 +20,7 @@ import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/se
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
+import { useRegistryParentStep } from '@/features/registry/hooks/useRegistryParentStep'
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
@@ -30,6 +31,7 @@ import { ensChain } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
 const DEPLOY_SUBREGISTRY_TX_ID = 'tx-deploy-subregistry'
+const SET_REGISTRY_PARENT_TX_ID = 'tx-set-registry-parent'
 const SET_SUBREGISTRY_TX_ID = 'tx-set-subregistry'
 const SUCCESS_LABEL_DURATION_MS = 5000
 
@@ -128,6 +130,10 @@ const SubregistryConfiguratorForm = ({
     DEPLOY_SUBREGISTRY_TX_ID,
     attempt.scope,
   )
+  const setRegistryParentTxId = scopeTransactionId(
+    SET_REGISTRY_PARENT_TX_ID,
+    attempt.scope,
+  )
   const setSubregistryTxId = scopeTransactionId(
     SET_SUBREGISTRY_TX_ID,
     attempt.scope,
@@ -198,6 +204,14 @@ const SubregistryConfiguratorForm = ({
     setSubregistry(deployed)
   }
 
+  const parentStep = useRegistryParentStep({
+    name,
+    parentRegistry,
+    id: setRegistryParentTxId,
+    deployedRegistryRef: deployedSubregistryAddressRef,
+    next: handleSetSubregistryAfterDeployStart,
+  })
+
   const handleSetSubregistryStart = async () => {
     if (!customSubregistryAddress) return
     if (assertWritable && !(await assertWritable())) return
@@ -239,10 +253,12 @@ const SubregistryConfiguratorForm = ({
 
   const buttonText = match({
     isDeployConfirming,
+    isSetRegistryParentPending: parentStep.isPending,
     isSetSubregistryPending,
     showSuccessButtonLabel,
   })
     .with({ isDeployConfirming: true }, () => 'Deploying...')
+    .with({ isSetRegistryParentPending: true }, () => 'Setting parent...')
     .with({ isSetSubregistryPending: true }, () => 'Setting subregistry...')
     .with({ showSuccessButtonLabel: true }, () => 'Complete!')
     .otherwise(() => 'Deploy')
@@ -346,8 +362,9 @@ const SubregistryConfiguratorForm = ({
                       }),
                   },
                   onStart: handleDeploySubregistryStart,
-                  onDone: handleSetSubregistryAfterDeployStart,
+                  onDone: parentStep.start,
                 },
+                ...parentStep.steps,
                 {
                   id: setSubregistryTxId,
                   title: 'Set subregistry',

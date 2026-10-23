@@ -65,6 +65,14 @@ vi.mock('@/features/registry/hooks/useSetSubregistry', () => ({
   }),
 }))
 
+vi.mock('@/features/registry/hooks/useRegistryParentStep', () => ({
+  useRegistryParentStep: ({ next }: { readonly next: () => void }) => ({
+    start: next,
+    steps: [],
+    isPending: false,
+  }),
+}))
+
 // Fired after a successful deploy; talks to the block explorer.
 vi.mock('@/utils/blockExplorer/verifyProxyContract', () => ({
   verifyProxyContract: vi.fn().mockResolvedValue(undefined),
