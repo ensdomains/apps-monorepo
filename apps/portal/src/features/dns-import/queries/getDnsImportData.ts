@@ -5,7 +5,7 @@ import {
   type GetDnsImportDataErrorType,
   type GetDnsImportDataReturnType,
   getDnsImportData,
-} from '@ensdomains/ensjs/dns'
+} from '@storywithoutend/effect-ens/dns'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 

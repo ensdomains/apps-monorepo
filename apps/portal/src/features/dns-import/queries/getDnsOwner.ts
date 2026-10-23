@@ -5,7 +5,7 @@ import {
   type GetDnsOwnerErrorType,
   type GetDnsOwnerReturnType,
   getDnsOwner,
-} from '@ensdomains/ensjs/dns'
+} from '@storywithoutend/effect-ens/dns'
 import { fromPromise, ok } from 'neverthrow'
 
 export class GetDnsOwnerError extends TaggedError('GetDnsOwnerError')<{

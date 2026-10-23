@@ -3,8 +3,8 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { importDnsName } from '@ensdomains/ensjs/dns'
 import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
+import { importDnsName } from '@storywithoutend/effect-ens/dns'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'

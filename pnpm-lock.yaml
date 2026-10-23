@@ -698,8 +698,8 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@storywithoutend/effect-ens':
-        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-8f569b8.tgz
-        version: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-8f569b8.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-456bdc7.tgz
+        version: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-456bdc7.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@tanstack/react-hotkeys':
         specifier: ^0.4.1
         version: 0.4.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -1747,6 +1747,10 @@ packages:
 
   '@ensdomains/content-hash@3.1.0-rc.1':
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
+
+  '@ensdomains/dnsprovejs@0.5.1':
+    resolution: {integrity: sha512-nfm4ggpK5YBVwVwLZKF9WPjRGRTL9aUxX2O4pqv/AnQCz3WeGHsW7VhVFLj2s4EoWSzCXwR1E6nuqgUwnH692w==}
+    engines: {node: '>=16.8'}
 
   '@ensdomains/dnsprovejs@1.0.0':
     resolution: {integrity: sha512-OCIC7VchGx7A40P9TQxvgP+A6naAv+l/aEGwE8QwCB2o4EdNSRQlD7vBbg7pOZ9nqxKkkJfVwb8cW4HdCHB9HA==}
@@ -5336,8 +5340,8 @@ packages:
       '@tanstack/start-client-core':
         optional: true
 
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-8f569b8.tgz':
-    resolution: {integrity: sha512-5Pu05hPXKQbjCz+QW3z82V0yUSJ6np2EYLWf9jYDE3oMxDT/2LJYqRlJa0neOM0PAYivODRiVsc1KKsOy+r7iA==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-8f569b8.tgz}
+  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-456bdc7.tgz':
+    resolution: {integrity: sha512-xKSSi+H4DzzeFpiY7pKfqO45KJFdDEXsCTpto/SrmOMJFw2j9+X8HQZT3AB/LDN71XhRcCTgGOpx/ae0i1CySQ==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-456bdc7.tgz}
     version: 0.0.0
     engines: {node: ^22.18.0 || >=24.11.0}
     peerDependencies:
@@ -9803,6 +9807,12 @@ snapshots:
       '@noble/curves': 1.9.7
       '@scure/base': 1.2.6
 
+  '@ensdomains/dnsprovejs@0.5.1':
+    dependencies:
+      '@noble/hashes': 1.8.0
+      dns-packet: 5.6.1
+      typescript-logging: 1.0.1
+
   '@ensdomains/dnsprovejs@1.0.0':
     dependencies:
       '@noble/hashes': 2.4.0
@@ -13060,11 +13070,12 @@ snapshots:
       - supports-color
       - typescript
 
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-8f569b8.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
+  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-456bdc7.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.4
       '@ensdomains/content-hash': 3.1.0-rc.1
+      '@ensdomains/dnsprovejs': 0.5.1
       effect: 4.0.5
       viem: 2.52.2(typescript@7.0.2)(zod@4.6.5)
 

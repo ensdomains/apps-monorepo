@@ -4,7 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   type GetDnsOffchainDataErrorType,
   getDnsOffchainData,
-} from '@ensdomains/ensjs/dns'
+} from '@storywithoutend/effect-ens/dns'
 import { getAddressRecord } from '@storywithoutend/effect-ens/public'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, isAddressEqual } from 'viem'

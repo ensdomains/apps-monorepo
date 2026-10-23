@@ -1,10 +1,10 @@
-import { DnsNoTxtRecordError } from '@ensdomains/ensjs'
+import { DnsNoTxtRecordError } from '@storywithoutend/effect-ens'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getDnsOffchainDataMock = vi.fn()
 const getAddressRecordMock = vi.fn()
 
-vi.mock('@ensdomains/ensjs/dns', () => ({
+vi.mock('@storywithoutend/effect-ens/dns', () => ({
   getDnsOffchainData: (...args: unknown[]) => getDnsOffchainDataMock(...args),
 }))
 vi.mock('@storywithoutend/effect-ens/public', () => ({

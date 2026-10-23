@@ -6,7 +6,7 @@ import {
   DnsInvalidTxtRecordError,
   DnsNoTxtRecordError,
   DnsResponseStatusError,
-} from '@ensdomains/ensjs'
+} from '@storywithoutend/effect-ens'
 import type { Address } from 'viem'
 import { isAddressEqual } from 'viem'
 

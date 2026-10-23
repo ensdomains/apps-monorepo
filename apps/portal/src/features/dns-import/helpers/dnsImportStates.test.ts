@@ -6,7 +6,7 @@ import {
   DnsNewerRecordTypeAvailableError,
   DnsNoTxtRecordError,
   DnsResponseStatusError,
-} from '@ensdomains/ensjs'
+} from '@storywithoutend/effect-ens'
 import { describe, expect, it } from 'vitest'
 import { deriveVerificationState, dnsErrorToKind } from './dnsImportStates'
 

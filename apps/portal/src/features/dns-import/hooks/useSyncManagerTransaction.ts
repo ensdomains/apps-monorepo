@@ -4,7 +4,7 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import type { GetDnsImportDataReturnType } from '@ensdomains/ensjs/dns'
+import type { GetDnsImportDataReturnType } from '@storywithoutend/effect-ens/dns'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useRef, useState } from 'react'

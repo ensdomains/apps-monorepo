@@ -1,7 +1,7 @@
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
+import type { UnsupportedNameTypeError } from '@storywithoutend/effect-ens'
 import {
   type GetRegisterPriceErrorType,
   type GetRenewPriceErrorType,

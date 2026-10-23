@@ -4,7 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   type IsDnsPublicSuffixErrorType,
   isDnsPublicSuffix,
-} from '@ensdomains/ensjs/dns'
+} from '@storywithoutend/effect-ens/dns'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 

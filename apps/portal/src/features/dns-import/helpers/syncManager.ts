@@ -2,7 +2,7 @@ import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type GetDnsImportDataReturnType,
   importDnsName,
-} from '@ensdomains/ensjs/dns'
+} from '@storywithoutend/effect-ens/dns'
 import type { Address } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 

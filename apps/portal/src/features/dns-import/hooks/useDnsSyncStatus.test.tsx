@@ -8,7 +8,7 @@ import { createTestQueryClient, createTestWrapper } from '@/test-utils'
 
 const getDnsOwnerMock = vi.fn()
 
-vi.mock('@ensdomains/ensjs/dns', () => ({
+vi.mock('@storywithoutend/effect-ens/dns', () => ({
   getDnsOwner: (...args: unknown[]) => getDnsOwnerMock(...args),
 }))
 
