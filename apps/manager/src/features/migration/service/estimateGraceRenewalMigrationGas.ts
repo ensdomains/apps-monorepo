@@ -32,7 +32,7 @@ type Params = {
   /** Names whose ENSv1 controller the owner chose to keep as an ENSv2 manager. */
   readonly managerRestorationNames?: readonly string[]
   /** The owner wallet bundles calls atomically (EIP-5792). */
-  readonly atomicBatching?: boolean
+  readonly canBatchAtomically?: boolean
   readonly signal?: AbortSignal
 }
 
@@ -138,7 +138,7 @@ const estimateProjectedMigration = async (
     managerRestorationNames,
     publicClient,
     preflight,
-    atomicBatching: params.atomicBatching,
+    canBatchAtomically: params.canBatchAtomically,
     signal,
   })
   signal?.throwIfAborted()

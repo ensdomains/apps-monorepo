@@ -253,7 +253,7 @@ type MigrationCtx = {
   readonly hcaAddress: Address
   readonly tracker: Tracker
   /** Setup and the final batch + cleanup each go out as one wallet bundle. */
-  readonly atomicBatching: boolean
+  readonly canBatchAtomically: boolean
 }
 
 const batchJournalScope = (
@@ -411,7 +411,7 @@ const submitCall = (
 
 /**
  * Sends `calls` as one atomic EIP-5792 bundle — a single wallet confirmation.
- * Only for plans built with `atomicBatching`; the wallet estimates the gas.
+ * Only for plans built with `canBatchAtomically`; the wallet estimates the gas.
  */
 const submitCalls = (
   ctx: MigrationCtx,
@@ -677,7 +677,7 @@ const ensureBundledSetup = async (params: {
   readonly currentMissing: readonly MigrationApproval[]
 }): Promise<{
   readonly hash: Hex | null
-  readonly grantedApprovals: boolean
+  readonly hasGrantedApprovals: boolean
 }> => {
   const { ctx, plan } = params
   const chainId = requireChainId(ctx.publicClient, 'migration')
@@ -690,15 +690,15 @@ const ensureBundledSetup = async (params: {
     })
 
   try {
-    const deploy = !hasCode(
+    const shouldDeploy = !hasCode(
       await ctx.publicClient.getCode({ address: ctx.hcaAddress }),
     )
-    if (!deploy) await verifyHca()
+    if (!shouldDeploy) await verifyHca()
     const approvals = orderMigrationApprovals(plan, params.currentMissing)
       .map(({ missing }) => missing)
       .filter((approval) => approval !== undefined)
     const calls = [
-      ...(deploy
+      ...(shouldDeploy
         ? [
             buildHcaDeploymentCall({
               client: params.hcaClient,
@@ -720,17 +720,17 @@ const ensureBundledSetup = async (params: {
         ctx.tracker.next()
         ctx.tracker.emit('Already set up')
       }
-      return { hash: null, grantedApprovals: false }
+      return { hash: null, hasGrantedApprovals: false }
     }
 
     const { hash } = await submitCalls(ctx, calls, 'Getting ready')
-    if (deploy) {
+    if (shouldDeploy) {
       await verifyHca()
       await params.refreshAccount()
     }
     ctx.tracker.next()
     ctx.tracker.emit('Ready', hash)
-    return { hash, grantedApprovals: approvals.length > 0 }
+    return { hash, hasGrantedApprovals: approvals.length > 0 }
   } catch (error) {
     throw wrapMigrationError(error, 'Setting up HCA')
   }
@@ -782,11 +782,11 @@ const ensureMigrationSetup = async (params: {
   readonly currentMissing: readonly MigrationApproval[]
 }): Promise<{
   readonly hashes: readonly Hex[]
-  readonly grantedApprovals: boolean
+  readonly hasGrantedApprovals: boolean
 }> => {
-  if (params.ctx.atomicBatching) {
-    const { hash, grantedApprovals } = await ensureBundledSetup(params)
-    return { hashes: hash ? [hash] : [], grantedApprovals }
+  if (params.ctx.canBatchAtomically) {
+    const { hash, hasGrantedApprovals } = await ensureBundledSetup(params)
+    return { hashes: hash ? [hash] : [], hasGrantedApprovals }
   }
 
   const deploymentHash = await ensureHcaDeployment({
@@ -798,7 +798,7 @@ const ensureMigrationSetup = async (params: {
   const approvalHashes = await ensureMigrationApprovals(params)
   return {
     hashes: [...(deploymentHash ? [deploymentHash] : []), ...approvalHashes],
-    grantedApprovals: approvalHashes.length > 0,
+    hasGrantedApprovals: approvalHashes.length > 0,
   }
 }
 
@@ -1503,7 +1503,7 @@ const buildNextAtomicBatch = async (params: {
   readonly retryPermissionHeadLag: boolean
 }) => {
   const { ctx, plan, remaining, retryPermissionHeadLag } = params
-  const maxOuterGas = maxOuterGasFor(ctx.atomicBatching)
+  const maxOuterGas = maxOuterGasFor(ctx.canBatchAtomically)
   await assertCopyMigrationReadiness({
     publicClient: ctx.publicClient,
     hca: ctx.hcaAddress,
@@ -1778,11 +1778,11 @@ const bundledCleanupCall = async (params: {
   readonly plannedCleanupApprovals: readonly MigrationCleanupApproval[]
 }): Promise<Call | null> => {
   const approval = temporaryMigrationHcaApproval(params.ctx.hcaAddress)
-  const planned = params.plannedCleanupApprovals.some(
+  const isPlanned = params.plannedCleanupApprovals.some(
     (cleanup) =>
       migrationApprovalKey(cleanup) === migrationApprovalKey(approval),
   )
-  if (!planned) return null
+  if (!isPlanned) return null
   const isActive = await hasTemporaryMigrationHcaApproval({
     publicClient: params.ctx.publicClient,
     eoa: params.ctx.walletAddress,
@@ -1840,7 +1840,7 @@ const executeRemainingAtomicBatches = async (params: {
       operations: batch.operations,
     }
     const cleanupCall =
-      params.ctx.atomicBatching &&
+      params.ctx.canBatchAtomically &&
       removeNames(remaining, batch.names).length === 0
         ? await bundledCleanupCall({
             ctx: params.ctx,
@@ -1930,14 +1930,14 @@ const executeRemainingAtomicBatches = async (params: {
 const assertAtomicBatchingAvailable = async (
   ctx: MigrationCtx,
 ): Promise<void> => {
-  if (!ctx.atomicBatching) return
-  const supported =
+  if (!ctx.canBatchAtomically) return
+  const isSupported =
     ctx.signer.type === 'eoa' &&
     (await getAtomicBatchSupport({
       walletClient: ctx.signer.walletClient,
       chainId: requireChainId(ctx.publicClient, 'migration'),
     }))
-  if (supported) return
+  if (isSupported) return
   throw new MigrationPlanChangedError({
     message:
       'Your wallet can no longer combine confirmations. Return to selection to review the updated confirmation estimate.',
@@ -1992,7 +1992,7 @@ export const executeMigration = async (params: {
     walletAddress: plan.migrationOwner,
     hcaAddress: plan.hcaAddress,
     tracker: createTracker(onProgress, plan.stepDescriptors.length),
-    atomicBatching: plan.atomicBatching === true,
+    canBatchAtomically: plan.canBatchAtomically === true,
   }
   const txHashes: Hex[] = []
 
@@ -2053,7 +2053,7 @@ export const executeMigration = async (params: {
           plan: executionPlan,
           publicClient,
           onBatchComplete,
-          retryPermissionHeadLag: setup.grantedApprovals,
+          retryPermissionHeadLag: setup.hasGrantedApprovals,
           plannedCleanupApprovals:
             plan.preflight.migrationCleanupApprovals ?? [],
         })),

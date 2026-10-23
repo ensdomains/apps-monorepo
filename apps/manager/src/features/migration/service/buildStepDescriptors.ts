@@ -94,7 +94,7 @@ export type BuildStepDescriptorsParams = {
    * The wallet bundles calls atomically: setup (deployment + approvals) is one
    * confirmation, and cleanup rides with the final atomic batch.
    */
-  readonly atomicBatching?: boolean
+  readonly canBatchAtomically?: boolean
 }
 
 export type MigrationWalletRequestDescriptor =
@@ -195,7 +195,9 @@ export const buildStepDescriptors = (
     descriptors.push({ type: 'cleanup', approvalId: approval.id })
   }
 
-  return params.atomicBatching ? bundleDescriptors(descriptors) : descriptors
+  return params.canBatchAtomically
+    ? bundleDescriptors(descriptors)
+    : descriptors
 }
 
 const bundleOf = (

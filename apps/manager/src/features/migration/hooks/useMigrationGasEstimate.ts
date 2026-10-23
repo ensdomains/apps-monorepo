@@ -89,7 +89,7 @@ const buildEstimate = async (params: {
   readonly recoverySelectionMatches: boolean
   readonly domains: readonly V1Domain[]
   readonly managerRestorationNames: readonly string[]
-  readonly atomicBatching: boolean
+  readonly canBatchAtomically: boolean
   readonly signal: AbortSignal
   readonly ensurePreflight: (
     domains: readonly V1Domain[],
@@ -125,7 +125,7 @@ const buildEstimate = async (params: {
         hcaAddress,
         migrationOwner: ownerAddress,
         publicClient,
-        atomicBatching: params.atomicBatching,
+        canBatchAtomically: params.canBatchAtomically,
         signal: params.signal,
       }),
     )
@@ -154,7 +154,7 @@ const buildEstimate = async (params: {
       managerRestorationNames: params.managerRestorationNames,
       publicClient,
       preflight,
-      atomicBatching: params.atomicBatching,
+      canBatchAtomically: params.canBatchAtomically,
       signal: params.signal,
     }),
   )
@@ -183,7 +183,7 @@ export const useMigrationGasEstimate = ({
     hcaAddress,
   })
   const recoverySnapshot = useMigrationRecoverySnapshot()
-  const atomicBatching = useAtomicBatchSupport(chain.id)
+  const canBatchAtomically = useAtomicBatchSupport(chain.id)
 
   const selectedNameSet = useMemo(() => new Set(selectedNames), [selectedNames])
   const selectedNamesKey = useMemo(
@@ -238,7 +238,7 @@ export const useMigrationGasEstimate = ({
         selectedNames: selectedNamesKey,
         managerRestorationNames: managerRestorationKey,
         recoveryOperations,
-        atomicBatching,
+        canBatchAtomically,
       },
     ] as const,
     enabled,
@@ -256,7 +256,7 @@ export const useMigrationGasEstimate = ({
         recoverySelectionMatches,
         domains,
         managerRestorationNames: managerRestorationKey,
-        atomicBatching,
+        canBatchAtomically,
         ensurePreflight,
         signal,
       })

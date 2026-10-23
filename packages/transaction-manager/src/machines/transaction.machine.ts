@@ -36,7 +36,9 @@ import { isRetryableSubmissionError } from './retry-policy'
  * What a transport hands back on submission: a transaction hash, or — for an
  * EIP-5792 bundle — the wallet's bundle id, resolved to a hash in `pending`.
  */
-type SubmittedTransaction = { hash: Hash } | { callsId: string }
+type SubmittedTransaction =
+  | { readonly hash: Hash }
+  | { readonly callsId: string }
 
 /**
  * Base Transaction Machine
@@ -679,7 +681,17 @@ export const transactionMachine = setup({
         preparation: {},
         validation: {},
         submission: {},
-        timeout: {},
+        timeout: {
+          on: {
+            // A bundle the wallet accepted still has an outcome to learn, and
+            // resending it could pay twice: wait on the same bundle instead.
+            RETRY: {
+              guard: ({ context }) => context.callsId !== undefined,
+              target: '#transaction.pending',
+              actions: assign({ fallbackChecks: 0, error: undefined }),
+            },
+          },
+        },
         reverted: {},
         cancelled: {},
         unknown: {},

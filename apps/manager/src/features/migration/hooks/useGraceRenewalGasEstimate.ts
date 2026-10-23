@@ -35,7 +35,7 @@ const graceRenewalGasEstimateQueryKey = createQueryKey<
       readonly hcaAddress: string | undefined
       readonly selectedNames: readonly string[]
       readonly managerRestorationNames: readonly string[]
-      readonly atomicBatching: boolean
+      readonly canBatchAtomically: boolean
       readonly domains: readonly V1Domain[]
       readonly renewal:
         | {
@@ -84,7 +84,7 @@ export const useGraceRenewalGasEstimate = ({
   readonly isEnabled: boolean
 }): GraceRenewalGasEstimateState => {
   const wagmiConfig = useConfig()
-  const atomicBatching = useAtomicBatchSupport(chain.id)
+  const canBatchAtomically = useAtomicBatchSupport(chain.id)
   const quote = renewal.status === 'ready' ? renewal.quote : undefined
   const domains = useMemo(() => {
     const selected = new Set(selectedNames)
@@ -96,7 +96,7 @@ export const useGraceRenewalGasEstimate = ({
     hcaAddress: hcaAddress?.toLowerCase(),
     selectedNames: [...selectedNames].sort(),
     managerRestorationNames: [...managerRestorationNames].sort(),
-    atomicBatching,
+    canBatchAtomically,
     domains,
     renewal: quote && {
       chainId: quote.chainId,
@@ -156,7 +156,7 @@ export const useGraceRenewalGasEstimate = ({
         publicClient,
         wagmiConfig,
         managerRestorationNames,
-        atomicBatching,
+        canBatchAtomically,
         signal,
       })
     },

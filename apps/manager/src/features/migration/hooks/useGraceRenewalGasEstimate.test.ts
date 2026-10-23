@@ -124,7 +124,7 @@ describe('useGraceRenewalGasEstimate', () => {
       publicClient: params.publicClient,
       wagmiConfig,
       managerRestorationNames: [],
-      atomicBatching: false,
+      canBatchAtomically: false,
       signal,
     })
     unmount()

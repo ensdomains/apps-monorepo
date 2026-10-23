@@ -25,12 +25,12 @@ import { useRenewalTransactions } from './useRenewalTransactions'
 
 const from: Address = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 const walletClient = { account: { address: from } }
-const wallet = vi.hoisted(() => ({ atomicBatching: false }))
+const wallet = vi.hoisted(() => ({ canBatchAtomically: false }))
 
 vi.mock('@ens-apps/transaction-manager', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ens-apps/transaction-manager')>()),
   transactionManager: { clear: vi.fn(), startTransaction: vi.fn() },
-  useAtomicBatchSupport: () => wallet.atomicBatching,
+  useAtomicBatchSupport: () => wallet.canBatchAtomically,
 }))
 
 vi.mock('wagmi', async (importOriginal) => ({
@@ -209,11 +209,11 @@ describe('useRenewalTransactions batch renew', () => {
 // A wallet with EIP-5792 atomic support confirms the whole flow at once.
 describe('useRenewalTransactions with an atomic-batching wallet', () => {
   beforeEach(() => {
-    wallet.atomicBatching = true
+    wallet.canBatchAtomically = true
     vi.mocked(transactionManager.startTransaction).mockClear()
   })
   afterEach(() => {
-    wallet.atomicBatching = false
+    wallet.canBatchAtomically = false
   })
 
   const submittedBundle = () => {

@@ -2328,7 +2328,7 @@ describe('executeMigration with an atomic-batching wallet (EIP-5792)', () => {
   const bundledPlan = (): MigrationPlan => ({
     ...planFor(),
     hcaDeploymentRequired: true,
-    atomicBatching: true,
+    canBatchAtomically: true,
     preflight: {
       ...planFor().preflight,
       migrationApprovals: [APPROVAL, MANAGER_APPROVAL],

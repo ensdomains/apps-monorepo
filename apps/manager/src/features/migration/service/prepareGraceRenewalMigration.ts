@@ -14,7 +14,7 @@ export const prepareGraceRenewalMigration = async (params: {
   /** Names whose ENSv1 controller the owner chose to keep as an ENSv2 manager. */
   readonly managerRestorationNames?: readonly string[]
   /** The owner wallet bundles calls atomically (EIP-5792). */
-  readonly atomicBatching?: boolean
+  readonly canBatchAtomically?: boolean
   readonly signal?: AbortSignal
 }) => {
   const managerRestorationNames = params.managerRestorationNames ?? []
@@ -41,7 +41,7 @@ export const prepareGraceRenewalMigration = async (params: {
     managerRestorationNames,
     publicClient: params.publicClient,
     preflight,
-    atomicBatching: params.atomicBatching,
+    canBatchAtomically: params.canBatchAtomically,
     signal: params.signal,
   })
   params.signal?.throwIfAborted()

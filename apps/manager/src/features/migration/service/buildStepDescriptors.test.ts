@@ -199,7 +199,7 @@ describe('buildStepDescriptors', () => {
       approvals: [tokenApproval(), operatorApproval('eth-registry:hca')],
       atomicBatches: batches(['alice.eth'], ['bob.eth']),
       registrationApprovalTargets: [],
-      atomicBatching: true,
+      canBatchAtomically: true,
     })
 
     expect(descriptors.map(({ type }) => type)).toEqual([
@@ -229,7 +229,7 @@ describe('buildStepDescriptors', () => {
         approvals: [operatorApproval('base-registrar:hca')],
         atomicBatches: batches(['alice.eth']),
         registrationApprovalTargets: [],
-        atomicBatching: true,
+        canBatchAtomically: true,
       }).map(({ type }) => type),
     ).toEqual(['approval', 'atomic-batch'])
   })
@@ -241,7 +241,7 @@ describe('buildStepDescriptors', () => {
         approvals: [operatorApproval('eth-registry:hca')],
         atomicBatches: [],
         registrationApprovalTargets: [],
-        atomicBatching: true,
+        canBatchAtomically: true,
       }).map(({ type }) => type),
     ).toEqual(['approval', 'cleanup'])
   })

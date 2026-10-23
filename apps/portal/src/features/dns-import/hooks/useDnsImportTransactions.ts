@@ -59,6 +59,11 @@ const publicResolverAddress = getChainContractAddress({
  */
 export type DnsImportMode = 'claim' | 'importWithoutOwnership'
 
+type ImportSteps = {
+  readonly shouldApprove: boolean
+  readonly shouldBundle: boolean
+}
+
 type UseDnsImportTransactionsParams = {
   readonly name: string
   readonly mode: DnsImportMode
@@ -99,12 +104,17 @@ export const useDnsImportTransactions = ({
       enabled: enabled && mode === 'claim' && !!connectedAddress,
     },
   })
-  const needsApproval = mode === 'claim' && approvalQuery.data === false
-  // Approve + claim as one EIP-5792 bundle when the wallet supports it. Fixed
-  // when the import starts so a late capabilities answer can't reshape the modal.
-  const atomicBatching = useAtomicBatchSupport(chainId)
-  const [atomicAtStart, setAtomicAtStart] = useState<boolean | null>(null)
-  const bundleApproval = needsApproval && (atomicAtStart ?? atomicBatching)
+  const isApprovalMissing = mode === 'claim' && approvalQuery.data === false
+  // Approve + claim go out as one EIP-5792 bundle when the wallet supports it.
+  // The layout is fixed when the import starts: a refetch after the approval
+  // or bundle lands must not swap the modal's rows mid-flow.
+  const canBatchAtomically = useAtomicBatchSupport(chainId)
+  const liveSteps: ImportSteps = {
+    shouldApprove: isApprovalMissing,
+    shouldBundle: isApprovalMissing && canBatchAtomically,
+  }
+  const [stepsAtStart, setStepsAtStart] = useState<ImportSteps | null>(null)
+  const { shouldApprove, shouldBundle } = stepsAtStart ?? liveSteps
 
   const buildApproveIntent = (from: Address): CustomTransactionIntent =>
     toEoaCustomIntent({
@@ -278,7 +288,7 @@ export const useDnsImportTransactions = ({
                 // Verifying the DNSSEC chain onchain dominates the cost — a
                 // measured claim (6 RRSets, RSA + P-256) uses ~3.3M gas, so
                 // anything near 600k understates it several-fold.
-                ...(needsApproval ? { gas: 3_500_000n } : {}),
+                ...(shouldApprove ? { gas: 3_500_000n } : {}),
               })
             }
           : undefined,
@@ -320,16 +330,16 @@ export const useDnsImportTransactions = ({
     onStart: runApprove,
     onDone: runClaim,
   }
-  const sequentialTransactions = needsApproval
+  const sequentialTransactions = shouldApprove
     ? [approveTransaction, claimTransaction]
     : [claimTransaction]
-  const transactions: Transaction[] = bundleApproval
+  const transactions: Transaction[] = shouldBundle
     ? [bundleTransaction]
     : sequentialTransactions
 
   const startImport = () => {
     startedStepsRef.current = new Set()
-    setAtomicAtStart(atomicBatching)
+    setStepsAtStart(liveSteps)
     if (connectedAddress) attempt.start(connectedAddress)
   }
 

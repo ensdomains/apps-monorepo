@@ -36,6 +36,7 @@ const signerWith = (handler: RpcHandler): EOASigner => ({
   walletClient: createWalletClient({
     account: ACCOUNT,
     chain: sepolia,
+    pollingInterval: 10,
     transport: custom(
       {
         request: async ({ method, params }) => {
@@ -241,5 +242,40 @@ describe('eoa-batch through the transaction machine', () => {
         ?.getSnapshot()
         .matches({ error: 'reverted' }),
     ).toBe(true)
+  })
+
+  it('resumes the accepted bundle when its step is restarted after a timeout', async () => {
+    let isStatusAvailable = false
+    const sendCalls = vi.fn(() => ({ id: CALLS_ID }))
+    const signer = signerWith((method) => {
+      if (method === 'wallet_sendCalls') return sendCalls()
+      if (method === 'wallet_getCallsStatus') {
+        if (!isStatusAvailable) throw new Error('status unavailable')
+        return callsStatus(200)
+      }
+      throw new Error(`unexpected RPC call: ${method}`)
+    })
+    const start = () =>
+      transactionManager.startTransaction(batchRequest(), signer, {
+        id: 'tx-batch-timeout',
+        publicClient,
+        timeout: 30,
+      })
+
+    await expect(waitForTransaction(start())).rejects.toBeDefined()
+    expect(
+      transactionManager
+        .getTransaction('tx-batch-timeout')
+        ?.getSnapshot()
+        .matches({ error: 'timeout' }),
+    ).toBe(true)
+
+    // "Try again" restarts the step: it must wait on the same bundle, never
+    // prompt for (and pay) a second one.
+    isStatusAvailable = true
+    await expect(waitForTransaction(start())).resolves.toMatchObject({
+      hash: TX_HASH,
+    })
+    expect(sendCalls).toHaveBeenCalledOnce()
   })
 })

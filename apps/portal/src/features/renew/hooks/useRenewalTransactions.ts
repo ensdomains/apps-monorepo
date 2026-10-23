@@ -83,7 +83,7 @@ type SingleFlow = TokenPayment & {
   readonly selectedName: SelectedName
   readonly duration: number
   /** Fixed at start so a late capabilities answer can't reshape the modal. */
-  readonly atomicBatching: boolean
+  readonly canBatchAtomically: boolean
 }
 
 // One approval target within a multi-renew batch: the renewer contract (ERC-20
@@ -102,7 +102,7 @@ type MultiFlow = {
   readonly tokenAddress: Address
   readonly tokenSymbol: 'USDC' | 'DAI'
   readonly payments: readonly RenewerPayment[]
-  readonly atomicBatching: boolean
+  readonly canBatchAtomically: boolean
 }
 
 type RenewalFlow = SingleFlow | MultiFlow
@@ -281,7 +281,7 @@ function buildMultiTransactions({
   // approvals are needed / skipClear); we only wrap each into a Transaction.
   const plannedSteps = planMultiRenewSteps(renewals, payments)
 
-  if (multiFlow.atomicBatching && plannedSteps.length > 1) {
+  if (multiFlow.canBatchAtomically && plannedSteps.length > 1) {
     const bundleFor = (account: Address) =>
       toEoaBatchIntent(
         plannedSteps.map((step) =>
@@ -313,7 +313,8 @@ function buildMultiTransactions({
         },
         onStart: async () => {
           const signer = await getSigner()
-          transactionManager.clear()
+          // No clear(): a retried step must find its timed-out bundle to
+          // resume it rather than send (and pay for) a second one.
           transactionManager.startTransaction(bundleFor(from), signer, {
             id,
             publicClient,
@@ -422,7 +423,7 @@ export const useRenewalTransactions = ({
   // abandoned run would otherwise leave its finished actors behind.
   const attempt = useFlowAttempt()
   const [flow, setFlow] = useState<RenewalFlow | null>(null)
-  const atomicBatching = useAtomicBatchSupport(ensChain.id)
+  const canBatchAtomically = useAtomicBatchSupport(ensChain.id)
 
   const getRuntime = async (): Promise<RenewalRuntime | null> => {
     if (!connection.address || !publicClient) return null
@@ -548,7 +549,8 @@ export const useRenewalTransactions = ({
     const runtime = await getRuntime()
     if (!runtime) return
 
-    transactionManager.clear()
+    // No clear(): a retried step must find its timed-out bundle to resume it
+    // rather than send (and pay for) a second approval + renewal.
     transactionManager.startTransaction(
       buildSingleRenewalBundle(flow, runtime.from, runtime.publicClient),
       runtime.signer,
@@ -603,7 +605,7 @@ export const useRenewalTransactions = ({
 
       if (single.tokenAllowance >= single.tokenPrice) return [renewTx]
 
-      if (single.atomicBatching && publicClient) {
+      if (single.canBatchAtomically && publicClient) {
         const bundleTx: Transaction = {
           id: RENEWAL_TX_IDS.bundle(single.selectedName.name, attempt.scope),
           title: `Extend ${single.selectedName.name}`,
@@ -662,7 +664,7 @@ export const useRenewalTransactions = ({
       tokenPrice: flowConfig.tokenPrice,
       tokenAllowance: flowConfig.tokenAllowance ?? 0n,
       tokenSymbol,
-      atomicBatching,
+      canBatchAtomically,
     })
   }
 
@@ -684,7 +686,7 @@ export const useRenewalTransactions = ({
       tokenAddress: flowConfig.tokenAddress,
       payments: flowConfig.payments,
       tokenSymbol,
-      atomicBatching,
+      canBatchAtomically,
     })
   }
 

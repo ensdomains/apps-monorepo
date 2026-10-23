@@ -258,7 +258,7 @@ export const MigrationPage = () => {
     refreshAccount,
   } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
-  const atomicBatching = useAtomicBatchSupport(chain.id)
+  const canBatchAtomically = useAtomicBatchSupport(chain.id)
   const queryClient = useQueryClient()
   const migrationNftEnabled = useMigrationNftEnabled()
   const isMigrationSuccess = step === 'success'
@@ -478,7 +478,7 @@ export const MigrationPage = () => {
             domains: v1Names.filter(({ name }) => selected.has(name)),
             hcaAddress: hcaAddress as Address,
             requestSteps: renewalGasEstimate.stepDescriptors,
-            atomicBatching,
+            canBatchAtomically,
           },
           signer,
           hcaClient,
@@ -508,7 +508,7 @@ export const MigrationPage = () => {
     hcaClient,
     refreshAccount,
     wagmiWalletClient,
-    atomicBatching,
+    canBatchAtomically,
     gasEstimate,
     gasFundingStatus,
     graceDomains,

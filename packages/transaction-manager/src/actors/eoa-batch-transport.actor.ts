@@ -50,8 +50,8 @@ export async function getAtomicBatchSupport(params: {
  * lands — see {@link waitForEOABatchHash}.
  */
 export function submitEOABatch(input: {
-  request: TransactionRequest
-  signer: EOASigner
+  readonly request: TransactionRequest
+  readonly signer: EOASigner
 }): ResultAsync<
   string,
   | TransactionSubmissionError

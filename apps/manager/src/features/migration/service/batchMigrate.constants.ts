@@ -26,5 +26,5 @@ export const GRANT_ROLES_GAS = 80_000n
 // revoke in one atomic wallet bundle (revoke + the wallet's batch overhead).
 export const BUNDLED_CLEANUP_GAS = 200_000n
 
-export const maxOuterGasFor = (atomicBatching = false): bigint =>
-  atomicBatching ? TARGET_GAS - BUNDLED_CLEANUP_GAS : TARGET_GAS
+export const maxOuterGasFor = (canBatchAtomically = false): bigint =>
+  canBatchAtomically ? TARGET_GAS - BUNDLED_CLEANUP_GAS : TARGET_GAS

@@ -100,7 +100,7 @@ export type MigrationPlan = {
   /** Reconcile durable intents/receipts and live V2 state before submitting. */
   readonly requiresReconciliation?: boolean
   /** The owner wallet bundles calls atomically (EIP-5792); see buildStepDescriptors. */
-  readonly atomicBatching?: boolean
+  readonly canBatchAtomically?: boolean
 }
 
 /** Names whose V1 `pubkey` record is dropped: the V2 PermissionedResolver has no pubkey profile. */
@@ -476,7 +476,7 @@ export const buildMigrationPlan = async (params: {
   publicClient: PublicClient
   preflight: MigrationPreflight
   /** The owner wallet bundles calls atomically (EIP-5792). */
-  atomicBatching?: boolean
+  canBatchAtomically?: boolean
   signal?: AbortSignal
 }): Promise<MigrationPlan> => {
   const {
@@ -486,7 +486,7 @@ export const buildMigrationPlan = async (params: {
     managerRestorationNames = [],
     publicClient,
     preflight,
-    atomicBatching = false,
+    canBatchAtomically = false,
     signal,
   } = params
   signal?.throwIfAborted()
@@ -571,7 +571,7 @@ export const buildMigrationPlan = async (params: {
     resolverDeployed,
     walletCoAdminGranted,
     resolverWriter,
-    maxOuterGas: maxOuterGasFor(atomicBatching),
+    maxOuterGas: maxOuterGasFor(canBatchAtomically),
     estimateBatchGas: ({ names, innerExecutions, walletExecutions }) =>
       previewBatchGas({
         classifiedByName,
@@ -596,7 +596,7 @@ export const buildMigrationPlan = async (params: {
     cleanupApprovals: preflight.migrationCleanupApprovals,
     atomicBatches: atomicPlan.batches,
     registrationApprovalTargets,
-    atomicBatching,
+    canBatchAtomically,
   })
 
   return {
@@ -613,7 +613,7 @@ export const buildMigrationPlan = async (params: {
     directRoutes,
     atomicBatches: atomicPlan.batches,
     stepDescriptors,
-    atomicBatching,
+    canBatchAtomically,
   }
 }
 
@@ -726,7 +726,7 @@ export const buildMigrationRecoveryPlan = async (params: {
   readonly hcaAddress: Address
   readonly migrationOwner: Address
   readonly publicClient: PublicClient
-  readonly atomicBatching?: boolean
+  readonly canBatchAtomically?: boolean
   readonly signal?: AbortSignal
 }): Promise<MigrationPlan> => {
   const {
@@ -734,7 +734,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     hcaAddress,
     migrationOwner,
     publicClient,
-    atomicBatching = false,
+    canBatchAtomically = false,
     signal,
   } = params
   signal?.throwIfAborted()
@@ -855,7 +855,7 @@ export const buildMigrationRecoveryPlan = async (params: {
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
     resolverWriter: resolverWriterFor(resolverReadiness),
-    maxOuterGas: maxOuterGasFor(atomicBatching),
+    maxOuterGas: maxOuterGasFor(canBatchAtomically),
     estimateBatchGas: ({ names, innerExecutions, walletExecutions }) =>
       previewBatchGas({
         classifiedByName,
@@ -912,7 +912,7 @@ export const buildMigrationRecoveryPlan = async (params: {
       name: domain.name,
       tokenId: BigInt(domain.labelhash),
     })),
-    atomicBatching,
+    canBatchAtomically,
   })
 
   return {
@@ -941,7 +941,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     stepDescriptors,
     priorCompletedOperations: snapshot.completedOperations,
     requiresReconciliation: true,
-    atomicBatching,
+    canBatchAtomically,
   }
 }
 
@@ -1015,7 +1015,7 @@ export const adjustPlanForRetry = (
       name: domain.name,
       tokenId: BigInt(domain.labelhash),
     })),
-    atomicBatching: plan.atomicBatching,
+    canBatchAtomically: plan.canBatchAtomically,
   })
 
   return {

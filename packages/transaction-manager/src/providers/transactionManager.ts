@@ -279,6 +279,40 @@ class TransactionManager {
     return true
   }
 
+  /**
+   * Whether `id` still belongs to work under way, after retiring a settled
+   * occupant (or resuming a timed-out bundle, which puts it back in flight).
+   */
+  private isIdInFlight(id: string): boolean {
+    if (!this.transactions.has(id)) return false
+    if (this.resumeTimedOutBundle(id)) return true
+    if (this.retireTransaction(id)) return false
+    logger.warn(
+      `Transaction ${id} is already in flight; ignoring duplicate start`,
+    )
+    return true
+  }
+
+  /**
+   * A restarted step whose accepted EIP-5792 bundle timed out resumes waiting
+   * on that bundle rather than prompting for (and paying) a second one.
+   */
+  private resumeTimedOutBundle(id: string): boolean {
+    const actor = this.transactions.get(id)
+    const snapshot = actor?.getSnapshot()
+    if (
+      !actor ||
+      !snapshot?.matches({ error: 'timeout' }) ||
+      snapshot.context.callsId === undefined
+    ) {
+      return false
+    }
+    // The timeout was archived as terminal; let the real outcome report too.
+    this.completedTelemetry.delete(id)
+    actor.send({ type: 'RETRY' })
+    return true
+  }
+
   /** Drops an id from every in-memory index. */
   private forgetTransaction(id: string): void {
     this.transactions.delete(id)
@@ -358,13 +392,7 @@ class TransactionManager {
     // An occupant that is still in flight is the same work already under way
     // (a double-clicked start, say), so hand back the running transaction
     // rather than opening a second wallet prompt and orphaning the first.
-    const existing = this.transactions.get(txId)
-    if (existing && !this.retireTransaction(txId)) {
-      logger.warn(
-        `Transaction ${txId} is already in flight; ignoring duplicate start`,
-      )
-      return txId
-    }
+    if (this.isIdInFlight(txId)) return txId
 
     // The id belongs to this attempt now, so it must not inherit a retirement
     // marker or a "terminal side effects already ran" flag. Retiring an
