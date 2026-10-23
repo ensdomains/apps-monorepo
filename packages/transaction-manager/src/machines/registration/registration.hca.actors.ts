@@ -44,6 +44,7 @@ import {
   registerLegGasLimit,
   withBudgetDrift,
 } from '@ens-apps/smart-account'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { ethRegistrarCommitmentsSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import {
   permissionedRegistryGetResolverSnippet,
@@ -55,6 +56,8 @@ import {
   errAsync,
   fromPromise,
   fromThrowable,
+  ok,
+  type Result,
   type ResultAsync,
 } from 'neverthrow'
 import type {
@@ -693,7 +696,7 @@ const HCA_CREDIT_WAIT_MS = 2 * 60_000
  * landed guarantees: a lagging node still reads the balance from before it.
  * Gives the last read after `timeoutMs`, as a balance spent since never gets there.
  */
-export function readHcaUsdcBalanceAtLeastActor(input: {
+export const readHcaUsdcBalanceAtLeastActor = ResultFn(async function* (input: {
   hca: Address
   publicClient: PublicClient
   chainId: number
@@ -701,31 +704,24 @@ export function readHcaUsdcBalanceAtLeastActor(input: {
   signal?: AbortSignal
   pollIntervalMs?: number
   timeoutMs?: number
-}): ResultAsync<bigint, Error> {
+}) {
   const deadline = Date.now() + (input.timeoutMs ?? HCA_CREDIT_WAIT_MS)
-  return fromPromise(
-    (async () => {
-      let balance: bigint | undefined
-      let lastError: Error | undefined
-      do {
-        const read = await readHcaUsdcBalanceActor(input)
-        if (read.isOk()) {
-          balance = read.value
-          if (balance >= input.atLeast) return balance
-        } else {
-          lastError = read.error
-        }
-        await sleepUnlessAborted(
-          input.pollIntervalMs ?? HCA_CREDIT_POLL_MS,
-          input.signal,
-        )
-      } while (!input.signal?.aborted && Date.now() < deadline)
-      if (balance === undefined) throw lastError
-      return balance
-    })(),
-    (error) => (error instanceof Error ? error : new Error(String(error))),
-  )
-}
+  let balance: bigint | undefined
+  let read: Result<bigint, Error>
+  do {
+    read = await readHcaUsdcBalanceActor(input)
+    if (read.isOk()) {
+      balance = read.value
+      if (balance >= input.atLeast) return ok(balance)
+    }
+    await sleepUnlessAborted(
+      input.pollIntervalMs ?? HCA_CREDIT_POLL_MS,
+      input.signal,
+    )
+  } while (!input.signal?.aborted && Date.now() < deadline)
+  // No read succeeded, so the last one's error is the result.
+  return ok(balance ?? (yield* read))
+})
 
 /**
  * Bounds a funding permit's value must satisfy before the wallet is asked to
