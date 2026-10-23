@@ -2,7 +2,7 @@ import { getCoderByCoinName } from '@ensdomains/address-encoder'
 import {
   getProtocolType,
   isValidContentHash as isValidEncodedContentHash,
-} from '@ensdomains/ensjs/utils'
+} from '@storywithoutend/effect-ens/utils'
 import { getAddress } from 'viem'
 import type { EditableRecord } from './editRecordUtils'
 
