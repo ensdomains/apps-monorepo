@@ -74,7 +74,9 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     // the parallel notification-settings region is waiting for a choice.
     await page.getByRole('button', { name: 'Set up later' }).click()
 
-    const successBanner = page.locator('p.text-ens-peridot-text-dark')
+    const successBanner = page
+      .getByRole('status')
+      .filter({ hasText: 'Registration Complete' })
 
     // The registration itself needs no eth_sendTransaction on the HCA path
     // (payment is an auto-authorized EIP-2612 permit carried into the
@@ -89,7 +91,7 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       () => registrationComplete,
     )
     await expectFlowSuccess(page, {
-      success: successBanner.filter({ hasText: 'Registration Complete' }),
+      success: successBanner,
       failureTitle: 'Registration Failed',
       timeout: 240_000,
     })
