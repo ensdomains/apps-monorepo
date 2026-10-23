@@ -1392,6 +1392,10 @@ msgstr ""
 msgid "It takes two transactions from your wallet, one to set up the account and one to reset access. Both require ETH for gas. You will need to enable a new smart session afterwards."
 msgstr ""
 
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "its parent name was upgraded without it."
+msgstr ""
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Join the community"
 msgstr ""

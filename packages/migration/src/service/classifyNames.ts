@@ -43,6 +43,7 @@ export type IneligibleReason =
   | 'registry-only'
   | 'not-transferable'
   | 'missing-parent'
+  | 'parent-upgraded'
   | 'frozen-approval'
   | 'already-migrated'
   | 'unknown-label'
@@ -543,6 +544,11 @@ export const classifyName = (
     : classifyWithoutActiveWrapper(context)
 }
 
+const isCopyRoot = (name: ClassifiedName): boolean =>
+  name.action === 'migrate' &&
+  name.parentName === 'eth' &&
+  (name.tokenType === 'unwrapped' || name.tokenType === 'unlocked')
+
 export type ClassifyNamesResult = {
   readonly classified: ClassifiedName[]
   readonly ineligible: IneligibleName[]
@@ -564,27 +570,25 @@ export const classifyNames = (
     }
   }
 
-  const hasCompleteCopyRoute = (name: CopyClassifiedName): boolean => {
+  const copyRouteGap = (name: CopyClassifiedName): IneligibleReason | null => {
     const visited = new Set<string>()
-    let parentName: string | null = name.parentName
+    let child: ClassifiedName = name
 
-    while (parentName && parentName !== 'eth') {
-      const key = parentName.toLowerCase()
-      if (visited.has(key)) return false
+    while (child.action === 'copy' && child.parentName) {
+      const key = child.parentName.toLowerCase()
+      if (visited.has(key)) return 'missing-parent'
       visited.add(key)
 
       const parent = classifiedByName.get(key)
-      if (!parent) return false
-      if (parent.action === 'migrate') {
-        return (
-          parent.parentName === 'eth' &&
-          (parent.tokenType === 'unwrapped' || parent.tokenType === 'unlocked')
-        )
+      if (!parent) {
+        return child.domain.parent?.isUpgraded
+          ? 'parent-upgraded'
+          : 'missing-parent'
       }
-      parentName = parent.parentName
+      child = parent
     }
 
-    return false
+    return isCopyRoot(child) ? null : 'missing-parent'
   }
 
   const classified: ClassifiedName[] = []
@@ -593,11 +597,10 @@ export const classifyNames = (
   for (const result of results) {
     if (!result) continue
     if (result.type === 'classified') {
-      if (result.name.action === 'copy' && !hasCompleteCopyRoute(result.name)) {
-        ineligible.push({
-          domain: result.name.domain,
-          reason: 'missing-parent',
-        })
+      const gap =
+        result.name.action === 'copy' ? copyRouteGap(result.name) : null
+      if (gap) {
+        ineligible.push({ domain: result.name.domain, reason: gap })
         continue
       }
       classified.push(result.name)

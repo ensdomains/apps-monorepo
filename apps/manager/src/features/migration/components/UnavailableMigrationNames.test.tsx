@@ -17,6 +17,7 @@ describe('UnavailableMigrationNames', () => {
         names={[
           unavailable('banner.eth', 'not-reserved'),
           unavailable('bare.eth', 'missing-registration'),
+          unavailable('left.done.eth', 'parent-upgraded'),
         ]}
       />,
     )
@@ -27,6 +28,9 @@ describe('UnavailableMigrationNames', () => {
     )
     expect(screen.getByText('bare.eth').parentElement).toHaveTextContent(
       'bare.eth: no ENSv1 registration was found for it.',
+    )
+    expect(screen.getByText('left.done.eth').parentElement).toHaveTextContent(
+      'left.done.eth: its parent name was upgraded without it.',
     )
   })
 

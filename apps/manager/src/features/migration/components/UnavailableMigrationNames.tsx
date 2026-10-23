@@ -1,5 +1,6 @@
 import type { IneligibleName } from '@ens-apps/migration'
 import { Trans } from '@lingui/react/macro'
+import { match } from 'ts-pattern'
 
 /** Names the owner holds that cannot be upgraded, each with the reason. */
 export const UnavailableMigrationNames = ({
@@ -19,11 +20,16 @@ export const UnavailableMigrationNames = ({
             <span className="font-medium">{domain.name}</span>
             {': '}
             <span className="text-ens-garnet-900/75">
-              {reason === 'not-reserved' ? (
-                <Trans>it has no ENSv2 reservation.</Trans>
-              ) : (
-                <Trans>no ENSv1 registration was found for it.</Trans>
-              )}
+              {match(reason)
+                .with('not-reserved', () => (
+                  <Trans>it has no ENSv2 reservation.</Trans>
+                ))
+                .with('parent-upgraded', () => (
+                  <Trans>its parent name was upgraded without it.</Trans>
+                ))
+                .otherwise(() => (
+                  <Trans>no ENSv1 registration was found for it.</Trans>
+                ))}
             </span>
           </li>
         ))}
