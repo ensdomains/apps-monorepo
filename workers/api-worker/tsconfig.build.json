@@ -3,7 +3,8 @@
   "compilerOptions": {
     "outDir": "./dist",
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "rewriteRelativeImportExtensions": true
   },
   "include": ["src/hc.ts", "worker-configuration.gen.d.ts"]
   // "include": ["src/hc.ts", "worker-configuration.gen.d.ts", "src/**/*"]

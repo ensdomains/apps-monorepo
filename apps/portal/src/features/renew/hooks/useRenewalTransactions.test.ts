@@ -11,11 +11,15 @@ import {
   decodeFunctionData,
   erc20Abi,
   type PublicClient,
+  parseAbi,
 } from 'viem'
 import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { ensChain } from '@/lib/wagmi'
-import { buildRenewIntent } from '../utils/buildRenewIntent'
+import {
+  buildRenewBatchIntent,
+  buildRenewIntent,
+} from '../utils/buildRenewIntent'
 import { getRenewerAddress } from '../utils/renewer'
 import { useRenewalTransactions } from './useRenewalTransactions'
 
@@ -135,6 +139,71 @@ describe('useRenewalTransactions approval amount', () => {
   })
 })
 
+describe('useRenewalTransactions batch renew', () => {
+  beforeEach(() => {
+    vi.mocked(transactionManager.startTransaction).mockClear()
+  })
+
+  it('renews every name on a renewer in one renewBatch, at its own duration', async () => {
+    const { result } = renderHook(() => useRenewalTransactions())
+    act(() =>
+      result.current.startMultiFlow({
+        renewals: [
+          { selectedName: { name: 'a.eth', isV2: true }, duration: 100 },
+          { selectedName: { name: 'b.eth', isV2: false }, duration: 200 },
+          { selectedName: { name: 'c.eth', isV2: true }, duration: 300 },
+        ],
+        tokenAddress: SUPPORTED_TOKENS.USDC,
+        payments: [
+          { renewer: getRenewerAddress(true), total: 1n, allowance: 1n },
+          { renewer: getRenewerAddress(false), total: 1n, allowance: 1n },
+        ],
+      }),
+    )
+
+    const { transactions } = result.current
+    expect(transactions.map((tx) => tx.title)).toEqual([
+      'Extend 2 v2 names',
+      'Extend b.eth',
+    ])
+    for (const tx of transactions) await act(() => tx.onStart?.())
+
+    const renewBatchAbi = parseAbi([
+      'function renewBatch((string label, uint64 duration, bytes32 referrer)[] rds, address paymentToken)',
+    ])
+    const submitted = vi
+      .mocked(transactionManager.startTransaction)
+      .mock.calls.map(([intent]) => {
+        const call = getPrimaryCall((intent as CustomTransactionIntent).request)
+        assert(call?.data)
+        return {
+          to: call.to,
+          args: decodeFunctionData({ abi: renewBatchAbi, data: call.data })
+            .args,
+        }
+      })
+    expect(submitted).toEqual([
+      {
+        to: getRenewerAddress(true),
+        args: [
+          [
+            { label: 'a', duration: 100n, referrer: `0x${'0'.repeat(60)}1234` },
+            { label: 'c', duration: 300n, referrer: `0x${'0'.repeat(60)}1234` },
+          ],
+          SUPPORTED_TOKENS.USDC,
+        ],
+      },
+      {
+        to: getRenewerAddress(false),
+        args: [
+          [{ label: 'b', duration: 200n, referrer: `0x${'0'.repeat(60)}1234` }],
+          SUPPORTED_TOKENS.USDC,
+        ],
+      },
+    ])
+  })
+})
+
 const FROM = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const USDC = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
 
@@ -163,6 +232,20 @@ describe('buildRenewIntent', () => {
     ['an uppercase TLD', 'alice.ETH'],
   ])('refuses %s', (_case, name) => {
     expect(() => buildRenewIntent(renewParams(name))).toThrow(/normalized form/)
+  })
+
+  it('refuses a batch holding a non-canonical name', () => {
+    expect(() =>
+      buildRenewBatchIntent({
+        renewals: [
+          { selectedName: { name: 'bob.eth', isV2: true }, duration: 1 },
+          { selectedName: { name: 'ALICE.eth', isV2: true }, duration: 1 },
+        ],
+        renewer: getRenewerAddress(true),
+        tokenAddress: USDC,
+        from: FROM,
+      }),
+    ).toThrow(/normalized form/)
   })
 
   it('builds the intent for the canonical spelling', () => {
@@ -230,11 +313,23 @@ describe('renewal referrer propagation', () => {
         assert(intent.type === 'custom')
         const call = getPrimaryCall(intent.request)
         assert(call?.data)
-        const decoded = decodeFunctionData({
-          abi: ethRegistrarRenewSnippet,
-          data: call.data,
-        })
-        expect(decoded.args?.[0].referrer).toBe(`0x${'0'.repeat(60)}1234`)
+        if (kind === 'single') {
+          const decoded = decodeFunctionData({
+            abi: ethRegistrarRenewSnippet,
+            data: call.data,
+          })
+          expect(decoded.args?.[0].referrer).toBe(`0x${'0'.repeat(60)}1234`)
+        } else {
+          const decoded = decodeFunctionData({
+            abi: parseAbi([
+              'function renewBatch((string label, uint64 duration, bytes32 referrer)[] rds, address paymentToken)',
+            ]),
+            data: call.data,
+          })
+          expect(decoded.args[0].map((entry) => entry.referrer)).toEqual([
+            `0x${'0'.repeat(60)}1234`,
+          ])
+        }
       }
     },
   )

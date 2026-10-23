@@ -29,8 +29,18 @@ const makeTokenApproval = (tokenId = 1n): MigrationApproval => ({
   tokenId,
 })
 
-const makeAtomicBatch = (estimatedGas: bigint): AtomicMigrationBatch =>
-  ({ estimatedGas }) as AtomicMigrationBatch
+const makeAtomicBatch = (
+  estimatedGas: bigint,
+  walletEstimatedGas = 0n,
+): AtomicMigrationBatch =>
+  ({
+    estimatedGas,
+    walletEstimatedGas,
+    walletCall:
+      walletEstimatedGas === 0n
+        ? null
+        : { to: contract, data: '0x', value: 0n },
+  }) as AtomicMigrationBatch
 
 const makePlan = (overrides: Partial<MigrationPlan> = {}): MigrationPlan =>
   ({
@@ -162,6 +172,21 @@ describe('estimateMigrationGasCost', () => {
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
+    expect(estimate.transactionCount).toBe(2)
+  })
+
+  it('counts the owner-wallet record replay as its own transaction', async () => {
+    const publicClient = makePublicClient({ maxFeePerGas: 2n })
+    const plan = makePlan({
+      atomicBatches: [makeAtomicBatch(100n, 40n)],
+    })
+
+    const estimate = await estimateMigrationGasCost({ plan, publicClient })
+
+    expect(estimate.status).toBe('ready')
+    if (estimate.status !== 'ready') throw new Error('expected ready estimate')
+    // The wallet pays for the replay as well as the batch itself.
+    expect(estimate.gasUnits).toBe(140n)
     expect(estimate.transactionCount).toBe(2)
   })
 

@@ -10,6 +10,7 @@ export type MigrationError =
   | { type: 'plan-changed' }
   | { type: 'retry-blocked' }
   | { type: 'subregistry-conflict' }
+  | { type: 'resolver-not-writable' }
   | { type: 'cleanup-failed' }
   | {
       type: 'profile-fetch-failed'
@@ -326,11 +327,15 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
   // Refused rather than failed: a selected name already points at a live child
   // registry, so migrating it would detach that registry (WEB-1249).
   const invariant = findNamedError(err, 'MigrationContractInvariantError')
-  if (
-    (invariant as { invariant?: string } | undefined)?.invariant ===
-    'live-subregistry-overwrite'
-  ) {
+  const invariantKind = (invariant as { invariant?: string } | undefined)
+    ?.invariant
+  if (invariantKind === 'live-subregistry-overwrite') {
     return { type: 'subregistry-conflict' }
+  }
+  // Neither the account nor the wallet holds the resolver's roles, so the
+  // records cannot be written by anyone the app can prompt for.
+  if (invariantKind === 'resolver-writer-roles') {
+    return { type: 'resolver-not-writable' }
   }
 
   const timeout = findTimeoutError(err)

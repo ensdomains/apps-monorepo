@@ -627,6 +627,50 @@ describe('classifyNames', () => {
       'missing-parent',
     ])
   })
+
+  it('names every copy left under an already upgraded parent', () => {
+    const child = makeDomain({
+      id: '0x1',
+      name: 'foo.raffy.eth',
+      labelName: 'foo',
+      parentName: 'raffy.eth',
+      resolverAddress: null,
+      registrantId: null,
+    })
+    const domains: V1Domain[] = [
+      {
+        ...child,
+        parent: { name: 'raffy.eth', wrappedDomain: null, isUpgraded: true },
+      },
+      makeDomain({
+        id: '0x2',
+        name: 'bar.foo.raffy.eth',
+        labelName: 'bar',
+        parentName: 'foo.raffy.eth',
+        resolverAddress: null,
+        registrantId: null,
+      }),
+      makeDomain({
+        id: '0x3',
+        name: 'sub.other.eth',
+        labelName: 'sub',
+        parentName: 'other.eth',
+        resolverAddress: null,
+        registrantId: null,
+      }),
+    ]
+
+    const result = classifyNames(domains, OWNER, envConfig.chain.id)
+
+    expect(result.classified).toEqual([])
+    expect(
+      result.ineligible.map(({ domain, reason }) => [domain.name, reason]),
+    ).toEqual([
+      ['foo.raffy.eth', 'parent-upgraded'],
+      ['bar.foo.raffy.eth', 'parent-upgraded'],
+      ['sub.other.eth', 'missing-parent'],
+    ])
+  })
 })
 
 describe('groupClassifiedNames', () => {

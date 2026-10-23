@@ -69,6 +69,14 @@ msgstr "{count, plural, one {# subname} other {# subnames}}"
 msgid "{count, plural, one {Approve # name} other {Approve # names}}"
 msgstr "{count, plural, one {Approve # name} other {Approve # names}}"
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{count, plural, one {Copy records for # name} other {Copy records for # names}}"
+msgstr "{count, plural, one {Copy records for # name} other {Copy records for # names}}"
+
+#: src/features/migration/components/GameStep.tsx
+msgid "{count, plural, one {Copying records for # name in your wallet...} other {Copying records for # names in your wallet...}}"
+msgstr "{count, plural, one {Copying records for # name in your wallet...} other {Copying records for # names in your wallet...}}"
+
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "{count, plural, one {Renew # name for} other {Renew # names for}}"
 msgstr "{count, plural, one {Renew # name for} other {Renew # names for}}"
@@ -479,6 +487,14 @@ msgstr "Blog"
 msgid "Bot access needed"
 msgstr "Bot access needed"
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Brave disables push messaging by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, then reload this page and try again."
+msgstr "Brave disables push messaging by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, then reload this page and try again."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Brave's push service is turned off"
+msgstr "Brave's push service is turned off"
+
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Browser Notifications"
 msgstr "Browser Notifications"
@@ -826,6 +842,14 @@ msgstr "Couldn’t check this name’s resolver. Please try again in a moment."
 msgid "Couldn’t check when this name expires, so editing is paused until it can be read."
 msgstr "Couldn’t check when this name expires, so editing is paused until it can be read."
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Couldn't disable notifications"
+msgstr "Couldn't disable notifications"
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Couldn't enable notifications"
+msgstr "Couldn't enable notifications"
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't estimate the network fee"
 msgstr "Couldn't estimate the network fee"
@@ -975,10 +999,6 @@ msgstr "Download WebP"
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Downloading artwork…"
 msgstr "Downloading artwork…"
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
-msgstr "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
@@ -1387,6 +1407,10 @@ msgstr "it has no ENSv2 reservation."
 msgid "It takes two transactions from your wallet, one to set up the account and one to reset access. Both require ETH for gas. You will need to enable a new smart session afterwards."
 msgstr "It takes two transactions from your wallet, one to set up the account and one to reset access. Both require ETH for gas. You will need to enable a new smart session afterwards."
 
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "its parent name, or one above it, was upgraded without it."
+msgstr "its parent name, or one above it, was upgraded without it."
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Join the community"
 msgstr "Join the community"
@@ -1726,6 +1750,10 @@ msgstr "No names to display"
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "No push service is available in this browser"
+msgstr "No push service is available in this browser"
+
 #: src/features/navigation/Header/search/SearchSuggestions.tsx
 msgid "No recent searches"
 msgstr "No recent searches"
@@ -1776,13 +1804,30 @@ msgstr "Notification Settings"
 msgid "Notifications"
 msgstr "Notifications"
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Notifications are misconfigured"
+msgstr "Notifications are misconfigured"
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "Notifications are sent 30, 7 and 1 day before expiry, and 7 and 1 day before the end of the grace period, before the name is released."
 msgstr "Notifications are sent 30, 7 and 1 day before expiry, and 7 and 1 day before the end of the grace period, before the name is released."
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Notifications aren't supported in this browser"
+msgstr "Notifications aren't supported in this browser"
+
 #: src/features/notifications/settings/contact-methods/push.tsx
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Notifications blocked"
 msgstr "Notifications blocked"
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Notifications couldn't be set up"
+msgstr "Notifications couldn't be set up"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Notifications worked here before, but the permission ended with your last session. When you re-enable, picking the permanent option keeps them working after you close the browser."
+msgstr "Notifications worked here before, but the permission ended with your last session. When you re-enable, picking the permanent option keeps them working after you close the browser."
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "One approval covers all the .eth names you selected."
@@ -2538,6 +2583,10 @@ msgstr "Setting the default wallet address on your name"
 msgid "Setting things up"
 msgstr "Setting things up"
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Setting up notifications timed out"
+msgstr "Setting up notifications timed out"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting up registration"
 msgstr "Setting up registration"
@@ -2667,6 +2716,14 @@ msgstr "Something went wrong"
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Something went wrong preparing the save. Please try again."
 msgstr "Something went wrong preparing the save. Please try again."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Something went wrong while setting up browser notifications. Please try again."
+msgstr "Something went wrong while setting up browser notifications. Please try again."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Something went wrong while turning off browser notifications. Please try again."
+msgstr "Something went wrong while turning off browser notifications. Please try again."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Something went wrong. Refresh and try again."
@@ -2846,6 +2903,18 @@ msgstr "The mint transaction was cancelled. You can try minting again."
 msgid "The mint transaction was replaced by another transaction. Check your wallet before trying again."
 msgstr "The mint transaction was replaced by another transaction. Check your wallet before trying again."
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "The notification prompt was blocked"
+msgstr "The notification prompt was blocked"
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "The notification prompt was dismissed"
+msgstr "The notification prompt was dismissed"
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "The notification service returned an invalid key. Please try again later."
+msgstr "The notification service returned an invalid key. Please try again later."
+
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "The page you're looking for doesn't exist or may have been moved."
 msgstr "The page you're looking for doesn't exist or may have been moved."
@@ -2891,13 +2960,25 @@ msgstr "The session wasn't enabled."
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr "The upgrade contracts don't match this account. Please contact support."
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "There was a problem reaching the notification service. Please try again in a moment."
+msgstr "There was a problem reaching the notification service. Please try again in a moment."
+
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "These names can't be upgraded"
 msgstr "These names can't be upgraded"
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."
+msgstr "This app needs its notification service worker to receive push messages. Reload the page and try again."
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This browser cannot safely coordinate your mint. Try an up-to-date browser."
 msgstr "This browser cannot safely coordinate your mint. Try an up-to-date browser."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "This browser doesn't support push notifications. Try Chrome, Firefox, or Safari, or use email or Telegram notifications instead."
+msgstr "This browser doesn't support push notifications. Try Chrome, Firefox, or Safari, or use email or Telegram notifications instead."
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This commemorative NFT has already been minted."
@@ -2951,11 +3032,16 @@ msgstr "This wasn't set up with the wallet you're using now. Connect the origina
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr "Times shown in your local time zone ({timezoneLabel})"
 
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Tip: if your browser asks how long to allow notifications, pick the permanent option."
+msgstr "Tip: if your browser asks how long to allow notifications, pick the permanent option."
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "To enable these features later, open your wallet menu and select Verify wallet ownership."
 msgstr "To enable these features later, open your wallet menu and select Verify wallet ownership."
 
 #: src/features/notifications/settings/contact-methods/push.tsx
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
 msgstr "To enable, go to your browser's site settings for this page and allow notifications."
 
@@ -3013,9 +3099,17 @@ msgstr "Try again"
 msgid "Try Again"
 msgstr "Try Again"
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Try again and allow notifications when your browser asks."
+msgstr "Try again and allow notifications when your browser asks."
+
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Try it out"
 msgstr "Try it out"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Turn notifications back on"
+msgstr "Turn notifications back on"
 
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Unable to load names for this address. Please try again."
@@ -3501,6 +3595,18 @@ msgstr "Your account"
 msgid "Your account could not be checked. Please try again."
 msgstr "Your account could not be checked. Please try again."
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Your browser blocked the permission prompt, so notifications couldn't be enabled. Allow notifications for this site, then try again."
+msgstr "Your browser blocked the permission prompt, so notifications couldn't be enabled. Allow notifications for this site, then try again."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Your browser can't reach a push delivery service. Check your browser's push settings, then try again."
+msgstr "Your browser can't reach a push delivery service. Check your browser's push settings, then try again."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Your browser took too long to register for push messages. Check your connection, then try again."
+msgstr "Your browser took too long to register for push messages. Check your connection, then try again."
+
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Your card is ready to preview. Minting is optional and you pay the network gas."
 msgstr "Your card is ready to preview. Minting is optional and you pay the network gas."
@@ -3565,6 +3671,10 @@ msgstr "Your name was registered, but we couldn't set it as your primary name. Y
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Your names are upgraded one batch at a time. If an upgrade transaction fails, none of the names in that batch change. Earlier batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
+msgstr "Your names are upgraded one batch at a time. If an upgrade transaction fails, none of the names in that batch change. Earlier batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names can't be upgraded"
@@ -3647,6 +3757,14 @@ msgstr "Your wallet address can only have one primary ENS name, which will displ
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
 msgstr "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again."
+msgstr "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again."
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again. No names were changed."
+msgstr "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again. No names were changed."
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
@@ -3655,6 +3773,10 @@ msgstr "Your wallet does not have permission to change the resolver for this nam
 #: src/components/HcaFundingConfirmDialog.tsx
 msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
 msgstr "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Your wallet sends this one, because your temporary account no longer has permission to update these records."
+msgstr "Your wallet sends this one, because your temporary account no longer has permission to update these records."
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Your wallet shows the final fee before you approve."

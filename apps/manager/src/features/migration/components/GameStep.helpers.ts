@@ -116,6 +116,7 @@ export type StepDescription =
       readonly total: number
       readonly count: number
     }
+  | { readonly kind: 'record-replay'; readonly count: number }
   | { readonly kind: 'cleanup' }
 
 export const describeNextStep = (params: {
@@ -152,6 +153,10 @@ export const describeNextStep = (params: {
       kind: 'atomic-batch' as const,
       index: descriptor.index,
       total: descriptor.total,
+      count: descriptor.count,
+    }))
+    .with({ descriptor: { type: 'record-replay' } }, ({ descriptor }) => ({
+      kind: 'record-replay' as const,
       count: descriptor.count,
     }))
     .with({ descriptor: { type: 'cleanup' } }, () => ({

@@ -17,6 +17,8 @@ export type V1Domain = {
   parent: {
     name: string
     wrappedDomain: { fuses: number } | null
+    /** The parent already lives in ENSv2, so this name can no longer be copied under it. */
+    isUpgraded?: true
   } | null
   registration: {
     expiryDate: string
@@ -71,12 +73,14 @@ export const needsParentFuses = (record: LookupRecord): boolean =>
 const toParent = (
   parentName: string | null,
   parentFuses: ReadonlyMap<string, number>,
+  upgradedParents: ReadonlySet<string>,
 ): V1Domain['parent'] => {
   if (parentName === null) return null
   const fuses = parentFuses.get(parentName)
   return {
     name: parentName,
     wrappedDomain: fuses === undefined ? null : { fuses },
+    ...(upgradedParents.has(parentName) && { isUpgraded: true }),
   }
 }
 
@@ -111,6 +115,7 @@ export const toV1Domain = (
   record: LookupRecord,
   parentFuses: ReadonlyMap<string, number>,
   nameWrapper: string,
+  upgradedParents: ReadonlySet<string> = new Set(),
 ): V1Domain => {
   const label = labelOf(record.name)
   const parentName = parentNameOf(record.name)
@@ -130,7 +135,7 @@ export const toV1Domain = (
     owner: { id: registryOwner },
     registrant: isDotEth2ld ? { id: registrant } : null,
     wrappedOwner: wrapperFuses ? { id: holder } : null,
-    parent: toParent(parentName, parentFuses),
+    parent: toParent(parentName, parentFuses, upgradedParents),
     registration:
       isDotEth2ld && registrationExpiry
         ? { expiryDate: registrationExpiry }

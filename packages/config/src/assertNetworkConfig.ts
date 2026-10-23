@@ -3,7 +3,7 @@ import {
   buildConfig,
   type EndpointKey,
   NetworkConfigError,
-} from './buildConfig'
+} from './buildConfig.ts'
 
 /**
  * Build-time guard: resolve the network configuration from a loaded env and
