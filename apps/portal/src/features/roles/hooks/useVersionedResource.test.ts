@@ -15,7 +15,7 @@ vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok({ chain: { id: 11155111 } }),
 }))
 
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v2', () => ({
   getResource: (...args: unknown[]) => mockGetResource(...args),
 }))
 

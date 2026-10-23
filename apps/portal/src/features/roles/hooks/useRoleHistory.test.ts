@@ -25,7 +25,7 @@ vi.mock('@/lib/indexer', () => ({
   },
 }))
 
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v2', () => ({
   getResource: (...args: unknown[]) => mockGetResource(...args),
 }))
 
