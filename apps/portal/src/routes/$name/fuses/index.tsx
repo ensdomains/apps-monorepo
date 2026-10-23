@@ -2,7 +2,7 @@ import {
   ChildFuseKeys,
   type DecodedFuses,
   FullParentFuseKeys,
-} from '@ensdomains/ensjs/utils'
+} from '@storywithoutend/effect-ens/utils'
 import { useQueries } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'

@@ -1,7 +1,7 @@
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { DecodedFuses } from '@ensdomains/ensjs/utils'
+import type { DecodedFuses } from '@storywithoutend/effect-ens/utils'
 import { ok } from 'neverthrow'
 import {
   type GetNameWrapperDataParameters,

@@ -1,4 +1,4 @@
-import type { DecodedFuses } from '@ensdomains/ensjs/utils'
+import type { DecodedFuses } from '@storywithoutend/effect-ens/utils'
 
 type FuseScope = 'Parent' | 'Owner'
 

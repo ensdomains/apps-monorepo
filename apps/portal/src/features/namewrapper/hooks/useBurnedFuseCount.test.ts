@@ -1,4 +1,4 @@
-import type { DecodedFuses } from '@ensdomains/ensjs/utils'
+import type { DecodedFuses } from '@storywithoutend/effect-ens/utils'
 import { describe, expect, it, vi } from 'vitest'
 
 // Mock to avoid pulling the full wallet stack into the test

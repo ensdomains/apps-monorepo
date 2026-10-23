@@ -1,4 +1,8 @@
-import { ChildFuses, decodeFuses, ParentFuses } from '@ensdomains/ensjs/utils'
+import {
+  ChildFuses,
+  decodeFuses,
+  ParentFuses,
+} from '@storywithoutend/effect-ens/utils'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { deriveV1NameState, type V1NameReads } from './getV1NameState'

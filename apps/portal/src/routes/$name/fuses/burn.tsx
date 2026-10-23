@@ -1,5 +1,8 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import { ChildFuseKeys, type DecodedFuses } from '@ensdomains/ensjs/utils'
+import {
+  ChildFuseKeys,
+  type DecodedFuses,
+} from '@storywithoutend/effect-ens/utils'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {

@@ -7,8 +7,8 @@
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
-import type { ChildFuseKeys } from '@ensdomains/ensjs/utils'
 import { setFusesWriteParameters } from '@ensdomains/ensjs/wallet/v1'
+import type { ChildFuseKeys } from '@storywithoutend/effect-ens/utils'
 import {
   type Address,
   encodeFunctionData,

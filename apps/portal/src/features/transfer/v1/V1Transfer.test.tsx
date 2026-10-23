@@ -1,4 +1,8 @@
-import { ChildFuses, decodeFuses, ParentFuses } from '@ensdomains/ensjs/utils'
+import {
+  ChildFuses,
+  decodeFuses,
+  ParentFuses,
+} from '@storywithoutend/effect-ens/utils'
 import { render, screen } from '@testing-library/react'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
