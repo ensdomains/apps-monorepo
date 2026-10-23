@@ -64,6 +64,7 @@ msgstr "{amount} needed to register name"
 
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "{chainName} est. fee: {0}"
 msgstr "{chainName} est. fee: {0}"
 
@@ -1621,8 +1622,8 @@ msgstr "Lowest upfront cost"
 
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "Mainnet est. fee: {0}"
-msgstr "Mainnet est. fee: {0}"
+#~ msgid "Mainnet est. fee: {0}"
+#~ msgstr "Mainnet est. fee: {0}"
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Make it yours"

@@ -69,6 +69,7 @@ msgstr ""
 
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "{chainName} est. fee: {0}"
 msgstr ""
 
@@ -1626,8 +1627,8 @@ msgstr ""
 
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "Mainnet est. fee: {0}"
-msgstr ""
+#~ msgid "Mainnet est. fee: {0}"
+#~ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Make it yours"

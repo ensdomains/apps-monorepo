@@ -12,7 +12,7 @@ const renderRow = (
       amount="$0.00"
       amountLabel="balance"
       error="not enough funds to pay network fees"
-      fee="Mainnet est. fee: $0.27"
+      fee="Sepolia est. fee: $0.27"
       feeTooltip="An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
       feeTooltipLabel="What is the network fee?"
       icon={
@@ -38,7 +38,7 @@ describe('PaymentMethodRow', () => {
     expect(screen.getByText('USDC')).toBeVisible()
     expect(screen.getByText('$0.00')).toBeVisible()
     expect(screen.getByText('balance')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $0.27')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $0.27')).toBeVisible()
     expect(
       screen.getByRole('button', { name: 'What is the network fee?' }),
     ).toBeVisible()

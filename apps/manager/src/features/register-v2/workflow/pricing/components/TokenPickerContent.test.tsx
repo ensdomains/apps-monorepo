@@ -657,7 +657,7 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('Name price')).toBeVisible()
     expect(screen.getByText('$160.00')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $4.32')).toBeVisible()
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
     expect(screen.getByText('Left from your last attempt')).toBeVisible()
     expect(screen.getByText('-$1.82')).toBeVisible()
@@ -704,7 +704,7 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('balance')).toBeVisible()
     expect(screen.queryByText('in your wallet')).not.toBeInTheDocument()
-    expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $4.32')).toBeVisible()
     expect(
       screen.getByRole('button', { name: 'What is the network fee?' }),
     ).toBeVisible()
@@ -717,7 +717,7 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    const fee = screen.getByText('Mainnet est. fee: —')
+    const fee = screen.getByText('Sepolia est. fee: —')
     expect(fee).toBeVisible()
     expect(fee.parentElement).toHaveClass('animate-pulse')
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
@@ -736,7 +736,7 @@ describe('TokenPickerContentBase', () => {
   it('leaves the EOA route alone when there is no budget to quote', () => {
     renderPicker({ selectedToken: 'USDC' })
 
-    expect(screen.getByText('Mainnet est. fee: —')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: —')).toBeVisible()
     expect(screen.getByText('$330.00')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
     expect(screen.queryByText('up to')).not.toBeInTheDocument()
@@ -767,7 +767,7 @@ describe('TokenPickerContentBase', () => {
     expect(button).toBeDisabled()
     expect(button).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByLabelText('Calculating total')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $4.32')).toBeVisible()
   })
 
   it('suppresses a funded note when there is a global error', () => {
@@ -848,7 +848,7 @@ describe('TokenPickerContentBase', () => {
     })
 
     expect(screen.getByText('-$1.01')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $1.01')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $1.01')).toBeVisible()
     expect(screen.getAllByText('$1.00').length).toBeGreaterThanOrEqual(2)
   })
 
@@ -911,7 +911,7 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('Name price')).toBeVisible()
     expect(screen.getByText('$4.99')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $5.00')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $5.00')).toBeVisible()
     expect(screen.getByText('Left from your last attempt')).toBeVisible()
     expect(screen.getByText('-$0.01')).toBeVisible()
     expect(screen.getByText('You pay now')).toBeVisible()
@@ -933,7 +933,7 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('Name price')).toBeVisible()
     expect(screen.getByText('$14.27')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $0.00')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $0.00')).toBeVisible()
     expect(screen.getByText('-$7.97')).toBeVisible()
     expect(screen.getByText('You pay now')).toBeVisible()
     expect(screen.getByText('$6.30')).toBeVisible()
@@ -952,7 +952,7 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('Mainnet est. fee: $0.15')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $0.15')).toBeVisible()
     expect(screen.queryByText('Name price')).not.toBeInTheDocument()
     expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
     expect(screen.getByText('Total')).toBeVisible()
@@ -974,7 +974,7 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('Name price')).toBeVisible()
     expect(screen.getByText('$1.01')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $0.14')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $0.14')).toBeVisible()
     expect(screen.getByText('-$0.15')).toBeVisible()
     expect(screen.getByText('You pay now')).toBeVisible()
     expect(screen.getByText('$1.00')).toBeVisible()
