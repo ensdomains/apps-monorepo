@@ -363,9 +363,6 @@ export const useTransferName = ({
           queryKey: getV1NameStateQueryOptions({ name }).queryKey,
         }),
         queryClient.invalidateQueries({
-          queryKey: getV1NameManagerQueryOptions({ name }).queryKey,
-        }),
-        queryClient.invalidateQueries({
           queryKey: getPrimaryNameQueryOptions(account).queryKey,
         }),
         queryClient.invalidateQueries({
@@ -686,6 +683,16 @@ export const useTransferName = ({
     ])
   }
 
+  // A confirmed `reclaim` has moved the manager even if the move after it is
+  // rejected, so the Manager row is refreshed now, not when the flow finishes.
+  const markConfirmed = (step: TransferStepKind) => {
+    setConfirmedSteps((prev) => new Set(prev).add(step))
+    if (step === 'reclaim')
+      void queryClient.invalidateQueries({
+        queryKey: getV1NameManagerQueryOptions({ name }).queryKey,
+      })
+  }
+
   // Built fresh each render (like useRenewalTransactions): the modal holds the
   // array in a ref for auto-advance, so referential stability isn't needed.
   const buildTransactions = (): Transaction[] => {
@@ -736,7 +743,7 @@ export const useTransferName = ({
           },
         )
         await waitForTransaction(txId)
-        setConfirmedSteps((prev) => new Set(prev).add(step.kind))
+        markConfirmed(step.kind)
       } catch (err) {
         // Tx reverts surface via the modal's machine state; non-tx failures
         // (e.g. a wallet with no connected account, or the step's actor being

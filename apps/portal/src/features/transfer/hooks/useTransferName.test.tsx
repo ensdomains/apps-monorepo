@@ -330,8 +330,8 @@ describe('useTransferName — token id at the move step', () => {
 })
 
 // The registrant's `reclaim` hands the manager role to the recipient. The
-// Manager row caches it for the portal's hour, so a finish that skips it shows
-// the old manager beside the new owner (WEB-1866).
+// Manager row caches it for the portal's hour, so a refresh that waits for the
+// move shows the old manager whenever the move is rejected (WEB-1866).
 describe('useTransferName — V1 manager handover', () => {
   const MANAGER = '0xcccccccccccccccccccccccccccccccccccccccc' as Address
   const registrar: TransferSubject = {
@@ -344,7 +344,7 @@ describe('useTransferName — V1 manager handover', () => {
     vi.clearAllMocks()
   })
 
-  it('refreshes the manager once the transfer lands', async () => {
+  it('refreshes the manager once the reclaim lands, before the move', async () => {
     getV1NameState.mockReturnValue({
       subject: registrar,
       registration: 'active',
@@ -375,8 +375,8 @@ describe('useTransferName — V1 manager handover', () => {
       expect(result.current.transactions).toHaveLength(2)
     })
 
-    act(() => {
-      result.current.transactions[1].onDone?.()
+    await act(async () => {
+      await result.current.transactions[0].onStart?.()
     })
 
     expect(queryClient.getQueryState(managerKey)?.isInvalidated).toBe(true)
