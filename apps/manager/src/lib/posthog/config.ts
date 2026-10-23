@@ -40,5 +40,14 @@ export const POSTHOG_CONFIG = {
   person_profiles: 'identified_only',
   opt_out_capturing_by_default: true,
   before_send: (event) => (hasAnalyticsConsent() ? event : null),
-  loaded: applyAnalyticsConsent,
+  loaded: (client) => {
+    // Runs before the first flag request. A visitor still identified by
+    // wallet without consent (from before the banner) becomes anonymous again.
+    if (
+      !hasAnalyticsConsent() &&
+      client.get_property('$user_state') === 'identified'
+    )
+      client.reset()
+    applyAnalyticsConsent(client)
+  },
 } satisfies Partial<PostHogConfig>

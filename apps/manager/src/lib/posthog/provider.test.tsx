@@ -30,6 +30,7 @@ vi.mock('posthog-js/dist/module.full.no-external', () => ({
     opt_in_capturing: vi.fn(),
     opt_out_capturing: vi.fn(),
     set_config: vi.fn(),
+    setPersonPropertiesForFlags: vi.fn(),
   },
 }))
 vi.mock('wagmi', () => ({ useConnectionEffect: vi.fn() }))
@@ -41,6 +42,11 @@ vi.mock('@ens-apps/transaction-manager', () => ({
 }))
 
 const INTERCOM_APP_ID = 're9q5yti'
+const WALLET = {
+  address: '0x1111111111111111111111111111111111111111',
+  chainId: 1,
+  connector: { name: 'test-wallet' },
+}
 
 const renderProvider = () =>
   render(
@@ -48,6 +54,14 @@ const renderProvider = () =>
       <div>child</div>
     </PHProvider>,
   )
+
+const connectWallet = () => {
+  const callbacks = vi.mocked(useConnectionEffect).mock.calls[0]?.[0]
+  if (!callbacks) throw new Error('Missing connection callbacks')
+  callbacks.onConnect?.(
+    WALLET as Parameters<NonNullable<typeof callbacks.onConnect>>[0],
+  )
+}
 
 describe('PostHog provider', () => {
   beforeEach(() => {
@@ -82,32 +96,55 @@ describe('PostHog provider', () => {
     })
   })
 
-  it('identifies and tracks wallet connects', () => {
+  it('gives the wallet to flag rules only, without consent', () => {
     renderProvider()
-    const wallet = {
-      address: '0x1111111111111111111111111111111111111111',
-      chainId: 1,
-      connector: { name: 'test-wallet' },
-    }
-    const callbacks = vi.mocked(useConnectionEffect).mock.calls[0]?.[0]
-    callbacks?.onConnect?.(
-      wallet as Parameters<NonNullable<typeof callbacks.onConnect>>[0],
-    )
+    connectWallet()
 
-    expect(posthog.identify).toHaveBeenCalledWith(
-      wallet.address,
-      { address: wallet.address },
-      { initial_address: wallet.address },
-    )
-    expect(posthog.capture).toHaveBeenCalledWith('wallet:connect', {
-      wallet_address: wallet.address,
+    expect(posthog.setPersonPropertiesForFlags).toHaveBeenCalledWith({
+      address: WALLET.address,
+    })
+    expect(posthog.identify).not.toHaveBeenCalled()
+    expect(posthog.register).not.toHaveBeenCalled()
+    expect(trackEvent).toHaveBeenCalledWith('wallet:connect', {
+      wallet_address: WALLET.address,
       chain_id: 1,
       wallet_connector: 'test-wallet',
     })
-    expect(trackEvent).toHaveBeenCalledWith('wallet:connect', {
-      wallet_address: wallet.address,
+  })
+
+  it('identifies and tracks wallet connects with consent', () => {
+    storeAnalyticsConsent('granted')
+    renderProvider()
+    connectWallet()
+
+    expect(posthog.identify).toHaveBeenCalledWith(
+      WALLET.address,
+      { address: WALLET.address },
+      { initial_address: WALLET.address },
+    )
+    expect(posthog.capture).toHaveBeenCalledWith('wallet:connect', {
+      wallet_address: WALLET.address,
       chain_id: 1,
       wallet_connector: 'test-wallet',
+    })
+  })
+
+  it('identifies a connected wallet on Accept and forgets it on Decline', () => {
+    renderProvider()
+    connectWallet()
+
+    storeAnalyticsConsent('granted')
+    expect(posthog.identify).toHaveBeenCalledWith(
+      WALLET.address,
+      { address: WALLET.address },
+      { initial_address: WALLET.address },
+    )
+
+    vi.mocked(posthog.setPersonPropertiesForFlags).mockClear()
+    storeAnalyticsConsent('denied')
+    expect(posthog.reset).toHaveBeenCalled()
+    expect(posthog.setPersonPropertiesForFlags).toHaveBeenCalledWith({
+      address: WALLET.address,
     })
   })
 

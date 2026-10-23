@@ -36,6 +36,10 @@ vi.mock('@/lib/connection-cookie', () => ({
 }))
 
 const WALLET_ADDRESS = '0x1111111111111111111111111111111111111111'
+// The check runs under a throwaway UUID, never the wallet.
+const ANONYMOUS_ID = expect.stringMatching(
+  /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/,
+)
 const MIGRATION_FLAG_INPUT = { data: { flag: 'migration' as const } }
 const MIGRATION_NFT_FLAG_INPUT = {
   data: { flag: 'migration-nft' as const },
@@ -65,7 +69,7 @@ describe('getFeatureFlag', () => {
     })
     expect(isFeatureEnabledMock).toHaveBeenCalledWith(
       'migration',
-      WALLET_ADDRESS,
+      ANONYMOUS_ID,
       {
         personProperties: { address: WALLET_ADDRESS },
         sendFeatureFlagEvents: false,
@@ -86,7 +90,7 @@ describe('getFeatureFlag', () => {
     await expect(getFeatureFlag(MIGRATION_NFT_FLAG_INPUT)).resolves.toBe(true)
     expect(isFeatureEnabledMock).toHaveBeenCalledWith(
       'migration-nft',
-      WALLET_ADDRESS,
+      ANONYMOUS_ID,
       {
         personProperties: { address: WALLET_ADDRESS },
         sendFeatureFlagEvents: false,

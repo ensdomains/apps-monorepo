@@ -24,17 +24,41 @@ import type { PostHog } from 'posthog-js'
 // Toolbar (a dev-only feature we don't use in prod). See PostHog's CSP guide:
 // https://posthog.com/docs/advanced/content-security-policy
 import posthog from 'posthog-js/dist/module.full.no-external'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useConnectionEffect } from 'wagmi'
 import { INTERCOM_APP_ID } from '@/lib/intercom'
 import { applyAnalyticsConsent, POSTHOG_CONFIG } from './config'
 import { track, trackWithOptions } from './events'
+
+type ConnectedWallet = {
+  readonly address: string
+  readonly chainId: number
+  readonly connector: { readonly name: string }
+}
+
+// With consent the wallet becomes the analytics identity. Without it nothing
+// is sent: the Explorer's flags don't use the address.
+const identifyWallet = (wallet: ConnectedWallet) => {
+  if (!hasAnalyticsConsent()) return
+  posthog.identify(
+    wallet.address,
+    { address: wallet.address },
+    { initial_address: wallet.address },
+  )
+  posthog.register({
+    wallet_address: wallet.address,
+    chain_id: wallet.chainId,
+    wallet_connector: wallet.connector.name,
+  })
+}
 
 export const PHProvider = ({
   children,
 }: {
   children: React.ReactNode
 }): React.ReactNode => {
+  const wallet = useRef<ConnectedWallet | null>(null)
+
   useEffect(() => {
     // Flag evaluation and support must not crash the app if either SDK fails.
     try {
@@ -77,31 +101,20 @@ export const PHProvider = ({
       console.warn('[intercom] init failed', error)
     }
 
-    // Follows the visitor's answer to the analytics banner without a reload.
-    return subscribeAnalyticsConsent(() => applyAnalyticsConsent(posthog))
+    // Follows the banner answer without a reload. Declining forgets a wallet
+    // identity from an earlier Accept.
+    return subscribeAnalyticsConsent(() => {
+      if (!hasAnalyticsConsent()) posthog.reset()
+      applyAnalyticsConsent(posthog)
+      if (wallet.current) identifyWallet(wallet.current)
+    })
   }, [])
 
   useConnectionEffect({
     onConnect(data) {
-      // Wallet-targeted flags need identify, so it runs for everyone and flag
-      // requests carry the address; events only leave with consent.
+      wallet.current = data
       try {
-        posthog.identify(
-          data.address,
-          {
-            address: data.address,
-          },
-          {
-            initial_address: data.address,
-          },
-        )
-
-        posthog.register({
-          wallet_address: data.address,
-          chain_id: data.chainId,
-          wallet_connector: data.connector.name,
-        })
-
+        identifyWallet(data)
         track('wallet:connect', {
           wallet_address: data.address,
           chain_id: data.chainId,
@@ -122,6 +135,7 @@ export const PHProvider = ({
       }
     },
     onDisconnect() {
+      wallet.current = null
       try {
         track('wallet:disconnect')
         posthog.reset()

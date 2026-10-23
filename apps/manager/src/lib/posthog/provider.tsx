@@ -20,10 +20,36 @@ import type { PostHog } from 'posthog-js'
 // approach as portal; see PostHog's CSP guide:
 // https://posthog.com/docs/advanced/content-security-policy
 import posthog from 'posthog-js/dist/module.full.no-external'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useConnectionEffect } from 'wagmi'
 import { applyAnalyticsConsent, POSTHOG_CONFIG } from './config'
 import { track, trackWithOptions } from './events'
+
+type ConnectedWallet = {
+  readonly address: string
+  readonly chainId: number
+  readonly connector: { readonly name: string }
+}
+
+// With consent the wallet becomes the analytics identity. Without it PostHog
+// stays anonymous and gets the address only as an input to wallet-targeted
+// flag rules (migration testers).
+const identifyWallet = (wallet: ConnectedWallet) => {
+  if (!hasAnalyticsConsent()) {
+    posthog.setPersonPropertiesForFlags({ address: wallet.address })
+    return
+  }
+  posthog.identify(
+    wallet.address,
+    { address: wallet.address },
+    { initial_address: wallet.address },
+  )
+  posthog.register({
+    wallet_address: wallet.address,
+    chain_id: wallet.chainId,
+    wallet_connector: wallet.connector.name,
+  })
+}
 
 export const PHProvider = ({
   children,
@@ -31,6 +57,7 @@ export const PHProvider = ({
   children: React.ReactNode
 }): React.ReactNode => {
   const isHydrated = useHydrated()
+  const wallet = useRef<ConnectedWallet | null>(null)
 
   useEffect(() => {
     if (!isHydrated) return
@@ -76,10 +103,13 @@ export const PHProvider = ({
       console.warn('[intercom] init failed', error)
     }
 
-    // Follows the visitor's answer to the analytics banner without a reload.
-    const unsubscribeConsent = subscribeAnalyticsConsent(() =>
-      applyAnalyticsConsent(posthog),
-    )
+    // Follows the banner answer without a reload. Declining forgets a wallet
+    // identity from an earlier Accept.
+    const unsubscribeConsent = subscribeAnalyticsConsent(() => {
+      if (!hasAnalyticsConsent()) posthog.reset()
+      applyAnalyticsConsent(posthog)
+      if (wallet.current) identifyWallet(wallet.current)
+    })
 
     const unsubscribeFailed = transactionManager.onFailedRunTelemetry(
       (payload) => {
@@ -154,25 +184,9 @@ export const PHProvider = ({
 
   useConnectionEffect({
     onConnect(data) {
-      // Wallet-targeted flags need identify, so it runs for everyone and flag
-      // requests carry the address; events only leave with consent.
+      wallet.current = data
       try {
-        posthog.identify(
-          data.address,
-          {
-            address: data.address,
-          },
-          {
-            initial_address: data.address,
-          },
-        )
-
-        posthog.register({
-          wallet_address: data.address,
-          chain_id: data.chainId,
-          wallet_connector: data.connector.name,
-        })
-
+        identifyWallet(data)
         track('wallet:connect', {
           wallet_address: data.address,
           chain_id: data.chainId,
@@ -191,6 +205,10 @@ export const PHProvider = ({
       } catch (error) {
         console.warn('[intercom] wallet:connect failed', error)
       }
+    },
+    // WalletLifecycle resets PostHog itself.
+    onDisconnect() {
+      wallet.current = null
     },
   })
 

@@ -52,6 +52,14 @@ const connectionCallbacks = () => {
   return callbacks
 }
 
+const connectWallet = () => {
+  const callbacks = connectionCallbacks()
+  callbacks.onConnect?.(
+    WALLET as Parameters<NonNullable<typeof callbacks.onConnect>>[0],
+  )
+  return callbacks
+}
+
 describe('PostHog provider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -88,11 +96,8 @@ describe('PostHog provider', () => {
   it('tracks wallet connects and keeps consent after the disconnect reset', () => {
     storeAnalyticsConsent('granted')
     renderProvider()
-    const callbacks = connectionCallbacks()
+    const callbacks = connectWallet()
 
-    callbacks.onConnect?.(
-      WALLET as Parameters<NonNullable<typeof callbacks.onConnect>>[0],
-    )
     expect(posthog.identify).toHaveBeenCalledWith(
       WALLET.address,
       { address: WALLET.address },
@@ -116,6 +121,29 @@ describe('PostHog provider', () => {
     expect(posthog.opt_in_capturing).toHaveBeenCalledWith({
       captureEventName: false,
     })
+  })
+
+  it('sends no wallet address to PostHog without consent', () => {
+    renderProvider()
+    connectWallet()
+
+    expect(posthog.identify).not.toHaveBeenCalled()
+    expect(posthog.register).not.toHaveBeenCalled()
+  })
+
+  it('identifies a connected wallet on Accept and forgets it on Decline', () => {
+    renderProvider()
+    connectWallet()
+
+    storeAnalyticsConsent('granted')
+    expect(posthog.identify).toHaveBeenCalledWith(
+      WALLET.address,
+      { address: WALLET.address },
+      { initial_address: WALLET.address },
+    )
+
+    storeAnalyticsConsent('denied')
+    expect(posthog.reset).toHaveBeenCalled()
   })
 
   it('applies the banner answer without a reload', () => {

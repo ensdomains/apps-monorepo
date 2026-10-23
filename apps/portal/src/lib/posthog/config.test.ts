@@ -31,12 +31,19 @@ const initClient = () => {
   return { client, requests }
 }
 
-const onlyFlagRequests = (
-  requests: ReturnType<typeof initClient>['requests'],
-) =>
+type Requests = ReturnType<typeof initClient>['requests']
+
+const onlyFlagRequests = (requests: Requests) =>
   requests.mock.calls.every(
     ([request]) =>
       request.url.includes('/flags/') || request.url.includes('/config'),
+  )
+
+const flagBodies = (requests: Requests) =>
+  requests.mock.calls.flatMap(([request]) =>
+    request.url.includes('/flags/') && !Array.isArray(request.data)
+      ? [request.data]
+      : [],
   )
 
 describe('PostHog consent', () => {
@@ -57,8 +64,8 @@ describe('PostHog consent', () => {
       if (hasEarlierOptIn) localStorage.setItem('__ph_opt_in_out_test-key', '1')
       const { client, requests } = initClient()
 
-      client.identify(WALLET, { address: WALLET })
-      client.reloadFeatureFlags()
+      // Without consent the address only feeds wallet-targeted flag rules.
+      client.setPersonPropertiesForFlags({ address: WALLET })
       client.capture('wallet:connect', { wallet_address: WALLET })
       history.pushState({}, '', '/consent-test')
       await vi.advanceTimersByTimeAsync(3000)
@@ -69,8 +76,29 @@ describe('PostHog consent', () => {
       client.getSurveys(surveys)
       expect(surveys).toHaveBeenCalledWith([])
       expect(onlyFlagRequests(requests)).toBe(true)
+      const bodies = flagBodies(requests)
+      expect(
+        bodies.some((body) => body?.person_properties?.address === WALLET),
+      ).toBe(true)
+      expect(bodies.every((body) => body?.distinct_id !== WALLET)).toBe(true)
     },
   )
+
+  it('makes a visitor identified before the banner anonymous before flags load', async () => {
+    // The pre-banner app identified every connected wallet.
+    storeAnalyticsConsent('granted')
+    initClient().client.identify(WALLET)
+    localStorage.removeItem('analytics-consent')
+
+    const { client, requests } = initClient()
+    await vi.advanceTimersByTimeAsync(3000)
+
+    expect(client.get_distinct_id()).not.toBe(WALLET)
+    expect(flagBodies(requests).length).toBeGreaterThan(0)
+    expect(
+      flagBodies(requests).every((body) => body?.distinct_id !== WALLET),
+    ).toBe(true)
+  })
 
   it('sends events after the visitor accepts, including after a reset', async () => {
     const { client, requests } = initClient()
