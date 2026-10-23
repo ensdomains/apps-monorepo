@@ -1,9 +1,8 @@
 import {
   ANALYTICS_CONSENT_COOKIE,
-  connectAnalyticsConsent,
+  type AnalyticsConsent,
   hasAnalyticsConsent,
-  readAnalyticsConsent,
-  storeAnalyticsConsent,
+  notifyAnalyticsConsent,
 } from '@ens-apps/utils/posthog/analyticsConsent'
 import type {
   PostHog,
@@ -13,35 +12,49 @@ import type {
 // `loaded` gets the SDK's narrower PostHogInterface, so take only what's used.
 type ConsentTarget = Pick<
   PostHog,
-  'opt_in_capturing' | 'opt_out_capturing' | 'reset' | 'set_config'
+  | 'get_explicit_consent_status'
+  | 'opt_in_capturing'
+  | 'opt_out_capturing'
+  | 'reset'
+  | 'set_config'
 > & { readonly __loaded?: boolean }
 
-/**
- * Lines PostHog up with the visitor's answer. Writing the answer again also
- * renews its cookie, which Safari drops 7 days after it was written.
- */
-export const applyAnalyticsConsent = (client: ConsentTarget): void => {
+// Writes an answer to PostHog's consent cookie.
+const writeConsent = (client: ConsentTarget, consent: AnalyticsConsent) => {
+  if (consent === 'granted')
+    client.opt_in_capturing({ captureEventName: false })
+  if (consent === 'denied') client.opt_out_capturing()
+}
+
+/** Records the visitor's answer. Declining also forgets their identity. */
+export const setAnalyticsConsent = (
+  client: ConsentTarget,
+  granted: boolean,
+): void => {
+  if (!granted) client.reset()
+  writeConsent(client, granted ? 'granted' : 'denied')
+  notifyAnalyticsConsent()
+}
+
+/** Forgets the visitor's identity. A plain `reset()` deletes their answer too. */
+export const resetKeepingConsent = (client: ConsentTarget): void => {
   if (!client.__loaded) return
-  const consent = readAnalyticsConsent()
-  const isGranted = consent === 'granted'
-  if (isGranted) client.opt_in_capturing({ captureEventName: false })
-  else if (consent === 'denied') client.opt_out_capturing()
+  const consent = client.get_explicit_consent_status()
+  client.reset()
+  writeConsent(client, consent)
+}
+
+/** Session recording and surveys only run with consent. */
+export const applyAnalyticsConsent = (client: ConsentTarget): void => {
+  const isGranted = hasAnalyticsConsent(client)
   client.set_config({
     disable_session_recording: !isGranted || import.meta.env.DEV,
     disable_surveys: !isGranted,
   })
 }
 
-/** Forgets the visitor's identity. A plain `reset()` deletes their answer too. */
-export const resetKeepingConsent = (client: ConsentTarget): void => {
-  if (!client.__loaded) return
-  const consent = readAnalyticsConsent()
-  client.reset()
-  if (consent) storeAnalyticsConsent(consent)
-}
-
-// Capture stays opted out until the visitor accepts, and every event is
-// checked against their answer before it leaves. Feature flags work either way.
+// Capture stays opted out until the visitor accepts. Feature flags work
+// either way.
 export const POSTHOG_CONFIG = {
   capture_pageview: 'history_change',
   // Turned on with consent by applyAnalyticsConsent.
@@ -58,16 +71,17 @@ export const POSTHOG_CONFIG = {
   // is on by default), so the Explorer and the Manager share one answer.
   opt_out_capturing_persistence_type: 'cookie',
   consent_persistence_name: ANALYTICS_CONSENT_COOKIE,
-  before_send: (event) => (hasAnalyticsConsent() ? event : null),
   loaded: (client) => {
-    connectAnalyticsConsent(client)
     // Runs before the first flag request. A visitor still identified by
     // wallet without consent (from before the banner) becomes anonymous again.
     if (
-      !hasAnalyticsConsent() &&
+      !hasAnalyticsConsent(client) &&
       client.get_property('$user_state') === 'identified'
     )
       resetKeepingConsent(client)
-    applyAnalyticsConsent(client)
+    // Writing the answer again renews its cookie, which Safari drops 7 days
+    // after it was written.
+    writeConsent(client, client.get_explicit_consent_status())
+    notifyAnalyticsConsent()
   },
 } satisfies Partial<PostHogConfig>

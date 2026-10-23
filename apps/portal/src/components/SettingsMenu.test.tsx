@@ -3,9 +3,15 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const displaySurvey = vi.fn()
+// PostHog's answer to the analytics banner.
+let consent = 'pending'
 
 vi.mock('@posthog/react', () => ({
-  usePostHog: () => ({ displaySurvey }),
+  usePostHog: () => ({
+    __loaded: true,
+    get_explicit_consent_status: () => consent,
+    displaySurvey,
+  }),
 }))
 
 vi.mock('./ThemeToggle', () => ({
@@ -18,27 +24,15 @@ vi.mock('./RpcSettingsDialog', () => ({
 }))
 
 // FEEDBACK_SURVEY_ID is read at module scope, so the env must be stubbed
-// before a fresh import of the component, which comes with a fresh consent store.
-const importSettingsMenu = async (
-  surveyId: string | undefined,
-  consent: 'granted' | 'pending' = 'pending',
-) => {
+// before a fresh import of the component.
+const importSettingsMenu = async (surveyId: string | undefined) => {
   vi.resetModules()
   vi.stubEnv('VITE_PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID', surveyId)
-  const { connectAnalyticsConsent } = await import(
-    '@ens-apps/utils/posthog/analyticsConsent'
-  )
-  // Stands in for PostHog, which keeps the answer.
-  connectAnalyticsConsent({
-    get_explicit_consent_status: () => consent,
-    opt_in_capturing: vi.fn(),
-    opt_out_capturing: vi.fn(),
-  })
   return (await import('./SettingsMenu')).SettingsMenu
 }
 
-const openMenu = async (surveyId: string | undefined, consent?: 'granted') => {
-  const SettingsMenu = await importSettingsMenu(surveyId, consent)
+const openMenu = async (surveyId: string | undefined) => {
+  const SettingsMenu = await importSettingsMenu(surveyId)
   const user = userEvent.setup()
   render(<SettingsMenu />)
   await user.click(screen.getByRole('button', { name: 'Settings' }))
@@ -48,12 +42,14 @@ const openMenu = async (surveyId: string | undefined, consent?: 'granted') => {
 
 afterEach(() => {
   vi.unstubAllEnvs()
+  consent = 'pending'
   displaySurvey.mockClear()
 })
 
 describe('SettingsMenu', () => {
   it('opens the PostHog feedback survey once analytics are accepted', async () => {
-    const user = await openMenu('survey-123', 'granted')
+    consent = 'granted'
+    const user = await openMenu('survey-123')
 
     await user.click(screen.getByRole('menuitem', { name: /feedback/i }))
 
@@ -70,7 +66,8 @@ describe('SettingsMenu', () => {
   })
 
   it('hides feedback when no survey id is configured', async () => {
-    await openMenu(undefined, 'granted')
+    consent = 'granted'
+    await openMenu(undefined)
     expect(screen.queryByRole('menuitem', { name: /feedback/i })).toBeNull()
   })
 

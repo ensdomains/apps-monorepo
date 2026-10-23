@@ -191,7 +191,7 @@ export const backendClient = hc<AppRouter>(DEFAULT_BACKEND_API_URL, {
     return {
       ...(auth ? { Authorization: `Bearer ${auth}` } : {}),
       // Links backend requests to analytics, only for visitors who accepted.
-      ...(posthog.__loaded && hasAnalyticsConsent()
+      ...(hasAnalyticsConsent(posthog)
         ? { 'X-PostHog-Distinct-ID': posthog.get_distinct_id() }
         : {}),
     }

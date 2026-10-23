@@ -247,10 +247,6 @@ msgstr "A simpler way to get paid."
 msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 msgstr "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 
-#: src/components/AnalyticsConsentBanner.tsx
-msgid "Accept"
-msgstr "Accept"
-
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr "Account address:"
@@ -923,10 +919,6 @@ msgstr "DAO Forum"
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: src/components/AnalyticsConsentBanner.tsx
-msgid "Decline"
-msgstr "Decline"
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying resolver"
 msgstr "Deploying resolver"
@@ -1357,6 +1349,10 @@ msgstr "Growing your corner of the decentralized web"
 msgid "hasn't been imported to ENS yet"
 msgstr "hasn't been imported to ENS yet"
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Help us improve ENS"
+msgstr "Help us improve ENS"
+
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 msgid "Here's a gift to celebrate your upgrade to the next era of ENS"
@@ -1774,6 +1770,10 @@ msgstr "No recent searches"
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No stablecoins available"
 msgstr "No stablecoins available"
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "No thanks"
+msgstr "No thanks"
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "No upgrade access to remove"
@@ -2635,6 +2635,10 @@ msgstr "Share profile"
 msgid "Share profile link"
 msgstr "Share profile link"
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Share usage data to help us find problems and make ENS better for everyone. This is optional."
+msgstr "Share usage data to help us find problems and make ENS better for everyone. This is optional."
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Should I register now or wait?"
 msgstr "Should I register now or wait?"
@@ -3461,10 +3465,6 @@ msgstr "We couldn't work out the full cost of this registration right now, so we
 msgid "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
 msgstr "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
 
-#: src/components/AnalyticsConsentBanner.tsx
-msgid "We'd like to collect usage analytics with PostHog to improve the ENS app."
-msgstr "We'd like to collect usage analytics with PostHog to improve the ENS app."
-
 #: src/features/migration/components/success/CommemorativeNftDashboardSection.tsx
 msgid "Welcome to ENSv2"
 msgstr "Welcome to ENSv2"
@@ -3518,6 +3518,10 @@ msgstr "Wrapped name access"
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Wrong wallet connected"
 msgstr "Wrong wallet connected"
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Yes, happy to help"
+msgstr "Yes, happy to help"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the app looks up the address automatically."

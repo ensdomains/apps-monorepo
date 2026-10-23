@@ -1,15 +1,10 @@
-import {
-  connectAnalyticsConsent,
-  readAnalyticsConsent,
-  storeAnalyticsConsent,
-} from '@ens-apps/utils/posthog/analyticsConsent'
 import { boot, trackEvent, update } from '@intercom/messenger-js-sdk'
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnectionEffect } from 'wagmi'
 import { INTERCOM_APP_ID } from '@/lib/intercom'
-import { POSTHOG_CONFIG } from './config'
+import { POSTHOG_CONFIG, setAnalyticsConsent } from './config'
 import { PHProvider } from './provider'
 
 vi.mock('@intercom/messenger-js-sdk', () => ({
@@ -78,7 +73,6 @@ describe('PostHog provider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     consent.stored = 'pending'
-    connectAnalyticsConsent(posthog)
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
   })
   afterEach(() => {
@@ -99,7 +93,7 @@ describe('PostHog provider', () => {
     expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
     expect(update).not.toHaveBeenCalled()
 
-    storeAnalyticsConsent('granted')
+    act(() => setAnalyticsConsent(posthog, true))
     expect(update).toHaveBeenCalledWith({
       posthog_distinct_id: 'distinct-id',
       recent_replay: 'replay-url',
@@ -107,7 +101,7 @@ describe('PostHog provider', () => {
   })
 
   it('tracks wallet connects and keeps consent after the disconnect reset', () => {
-    storeAnalyticsConsent('granted')
+    setAnalyticsConsent(posthog, true)
     renderProvider()
     const callbacks = connectWallet()
 
@@ -134,7 +128,7 @@ describe('PostHog provider', () => {
     expect(posthog.opt_in_capturing).toHaveBeenCalledWith({
       captureEventName: false,
     })
-    expect(readAnalyticsConsent()).toBe('granted')
+    expect(posthog.get_explicit_consent_status()).toBe('granted')
   })
 
   it('sends no wallet address to PostHog without consent', () => {
@@ -149,26 +143,27 @@ describe('PostHog provider', () => {
     renderProvider()
     connectWallet()
 
-    storeAnalyticsConsent('granted')
+    act(() => setAnalyticsConsent(posthog, true))
     expect(posthog.identify).toHaveBeenCalledWith(
       WALLET.address,
       { address: WALLET.address },
       { initial_address: WALLET.address },
     )
 
-    storeAnalyticsConsent('denied')
+    act(() => setAnalyticsConsent(posthog, false))
     expect(posthog.reset).toHaveBeenCalled()
-    expect(readAnalyticsConsent()).toBe('denied')
+    expect(posthog.get_explicit_consent_status()).toBe('denied')
   })
 
   it('applies the banner answer without a reload', () => {
     renderProvider()
 
-    storeAnalyticsConsent('granted')
-    expect(posthog.opt_in_capturing).toHaveBeenCalled()
+    act(() => setAnalyticsConsent(posthog, true))
+    expect(posthog.set_config).toHaveBeenLastCalledWith(
+      expect.objectContaining({ disable_surveys: false }),
+    )
 
-    storeAnalyticsConsent('denied')
-    expect(posthog.opt_out_capturing).toHaveBeenCalled()
+    act(() => setAnalyticsConsent(posthog, false))
     expect(posthog.set_config).toHaveBeenLastCalledWith({
       disable_session_recording: true,
       disable_surveys: true,

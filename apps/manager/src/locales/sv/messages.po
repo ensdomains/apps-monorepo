@@ -252,10 +252,6 @@ msgstr ""
 msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 msgstr ""
 
-#: src/components/AnalyticsConsentBanner.tsx
-msgid "Accept"
-msgstr ""
-
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr ""
@@ -928,10 +924,6 @@ msgstr ""
 msgid "Dashboard"
 msgstr "Översikt"
 
-#: src/components/AnalyticsConsentBanner.tsx
-msgid "Decline"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying resolver"
 msgstr ""
@@ -1362,6 +1354,10 @@ msgstr ""
 msgid "hasn't been imported to ENS yet"
 msgstr ""
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Help us improve ENS"
+msgstr ""
+
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 msgid "Here's a gift to celebrate your upgrade to the next era of ENS"
@@ -1778,6 +1774,10 @@ msgstr ""
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No stablecoins available"
+msgstr ""
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "No thanks"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -2640,6 +2640,10 @@ msgstr ""
 msgid "Share profile link"
 msgstr ""
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Share usage data to help us find problems and make ENS better for everyone. This is optional."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Should I register now or wait?"
 msgstr ""
@@ -3466,10 +3470,6 @@ msgstr ""
 msgid "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
 msgstr ""
 
-#: src/components/AnalyticsConsentBanner.tsx
-msgid "We'd like to collect usage analytics with PostHog to improve the ENS app."
-msgstr ""
-
 #: src/features/migration/components/success/CommemorativeNftDashboardSection.tsx
 msgid "Welcome to ENSv2"
 msgstr ""
@@ -3522,6 +3522,10 @@ msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Wrong wallet connected"
+msgstr ""
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Yes, happy to help"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx

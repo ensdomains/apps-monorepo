@@ -23,7 +23,7 @@ const FEEDBACK_SURVEY_ID = import.meta.env
 const FeedbackMenuItem = () => {
   const posthog = usePostHog()
   // Surveys load only with analytics consent (lib/posthog/config.ts).
-  const consent = useAnalyticsConsent()
+  const consent = useAnalyticsConsent(posthog)
 
   if (!FEEDBACK_SURVEY_ID || consent !== 'granted') return null
 

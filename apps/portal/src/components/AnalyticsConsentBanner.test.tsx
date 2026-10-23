@@ -1,45 +1,40 @@
-import {
-  connectAnalyticsConsent,
-  readAnalyticsConsent,
-  storeAnalyticsConsent,
-} from '@ens-apps/utils/posthog/analyticsConsent'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AnalyticsConsentBanner } from './AnalyticsConsentBanner'
+
+// PostHog, keeping the answer the way its consent cookie does.
+const posthog = vi.hoisted(() => {
+  const client = {
+    __loaded: true,
+    stored: 'pending',
+    get_explicit_consent_status: () => client.stored,
+    opt_in_capturing: () => {
+      client.stored = 'granted'
+    },
+    opt_out_capturing: () => {
+      client.stored = 'denied'
+    },
+    reset: () => {
+      client.stored = 'pending'
+    },
+  }
+  return client
+})
+vi.mock('posthog-js/dist/module.full.no-external', () => ({ default: posthog }))
 
 const queryBanner = () =>
   screen.queryByRole('region', { name: 'Analytics consent' })
 
-// Stands in for PostHog, which keeps the answer in a cookie.
-const connectPostHog = (
-  stored: 'granted' | 'denied' | 'pending' = 'pending',
-) => {
-  const cookie = { stored }
-  connectAnalyticsConsent({
-    get_explicit_consent_status: () => cookie.stored,
-    opt_in_capturing: () => {
-      cookie.stored = 'granted'
-    },
-    opt_out_capturing: () => {
-      cookie.stored = 'denied'
-    },
-  })
-  return cookie
-}
-
 describe('AnalyticsConsentBanner', () => {
   beforeEach(() => {
-    vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
-  })
-  afterEach(() => {
-    vi.unstubAllEnvs()
+    posthog.__loaded = true
+    posthog.stored = 'pending'
   })
 
   it.each([
-    ['Accept', 'granted'],
-    ['Decline', 'denied'],
+    ['Yes, happy to help', 'granted'],
+    ['No thanks', 'denied'],
   ] as const)('stores the answer on %s and goes away', (button, consent) => {
-    const cookie = connectPostHog()
     render(<AnalyticsConsentBanner />)
     expect(
       screen.getByRole('link', { name: 'Privacy policy' }).getAttribute('href'),
@@ -47,49 +42,30 @@ describe('AnalyticsConsentBanner', () => {
 
     fireEvent.click(screen.getByRole('button', { name: button }))
 
-    expect(cookie.stored).toBe(consent)
+    expect(posthog.stored).toBe(consent)
     expect(queryBanner()).toBeNull()
   })
 
   it('stays hidden once answered', () => {
-    connectPostHog('denied')
+    posthog.stored = 'denied'
     render(<AnalyticsConsentBanner />)
     expect(queryBanner()).toBeNull()
   })
 
-  it('stays hidden without a PostHog project', () => {
-    connectPostHog()
-    vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', '')
+  it('stays hidden until PostHog loads', () => {
+    posthog.__loaded = false
     render(<AnalyticsConsentBanner />)
     expect(queryBanner()).toBeNull()
   })
 
   it('follows an answer given in another tab or app', () => {
-    const cookie = connectPostHog()
     render(<AnalyticsConsentBanner />)
 
-    cookie.stored = 'granted'
+    posthog.stored = 'granted'
     act(() => {
       window.dispatchEvent(new Event('focus'))
     })
 
     expect(queryBanner()).toBeNull()
-  })
-
-  it('keeps the answer for this page when the browser refuses the cookie', () => {
-    connectAnalyticsConsent({
-      get_explicit_consent_status: () => 'pending',
-      opt_in_capturing: vi.fn(),
-      opt_out_capturing: vi.fn(),
-    })
-    render(<AnalyticsConsentBanner />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Accept' }))
-
-    expect(readAnalyticsConsent()).toBe('granted')
-    expect(queryBanner()).toBeNull()
-    // A stored answer clears the page one for the tests after this.
-    connectPostHog()
-    storeAnalyticsConsent('denied')
   })
 })

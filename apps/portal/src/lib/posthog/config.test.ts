@@ -1,15 +1,11 @@
 // @vitest-environment happy-dom
-import {
-  ANALYTICS_CONSENT_COOKIE,
-  readAnalyticsConsent,
-  storeAnalyticsConsent,
-} from '@ens-apps/utils/posthog/analyticsConsent'
+import { ANALYTICS_CONSENT_COOKIE } from '@ens-apps/utils/posthog/analyticsConsent'
 import { PostHog } from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  applyAnalyticsConsent,
   POSTHOG_CONFIG,
   resetKeepingConsent,
+  setAnalyticsConsent,
 } from './config'
 
 const WALLET = '0x1111111111111111111111111111111111111111'
@@ -82,7 +78,7 @@ describe('PostHog consent', () => {
       expect(client.isFeatureEnabled('migration')).toBe(true)
       expect(client.has_opted_out_capturing()).toBe(true)
       // Loading must not answer for the visitor: that answer is every app's.
-      expect(readAnalyticsConsent()).toBeNull()
+      expect(client.get_explicit_consent_status()).toBe('pending')
       const surveys = vi.fn()
       client.getSurveys(surveys)
       expect(surveys).toHaveBeenCalledWith([])
@@ -110,8 +106,7 @@ describe('PostHog consent', () => {
   })
 
   it('keeps the answer in the cookie the ens.domains apps share', () => {
-    initClient()
-    storeAnalyticsConsent('granted')
+    setAnalyticsConsent(initClient().client, true)
 
     expect(document.cookie).toContain(`${ANALYTICS_CONSENT_COOKIE}=1`)
     // Another app's PostHog starts with the same answer.
@@ -121,29 +116,29 @@ describe('PostHog consent', () => {
   it('sends events after the visitor accepts, and keeps the answer through a reset', async () => {
     const { client, requests } = initClient()
 
-    storeAnalyticsConsent('granted')
-    applyAnalyticsConsent(client)
+    setAnalyticsConsent(client, true)
     client.capture('wallet:connect', { wallet_address: WALLET })
     await vi.advanceTimersByTimeAsync(3000)
     expect(onlyFlagRequests(requests)).toBe(false)
 
     // A plain reset() deletes the answer, for every app sharing the cookie.
     resetKeepingConsent(client)
-    expect(readAnalyticsConsent()).toBe('granted')
+    expect(client.get_explicit_consent_status()).toBe('granted')
     expect(client.has_opted_out_capturing()).toBe(false)
   })
 
-  it('stops sending events when the visitor declines', async () => {
+  it('stops sending events and forgets the wallet when the visitor declines', async () => {
     const { client, requests } = initClient()
-    storeAnalyticsConsent('granted')
+    setAnalyticsConsent(client, true)
+    client.identify(WALLET)
     await vi.advanceTimersByTimeAsync(3000)
 
-    storeAnalyticsConsent('denied')
-    applyAnalyticsConsent(client)
+    setAnalyticsConsent(client, false)
     requests.mockClear()
     client.capture('wallet:connect', { wallet_address: WALLET })
     await vi.advanceTimersByTimeAsync(3000)
 
+    expect(client.get_distinct_id()).not.toBe(WALLET)
     expect(client.has_opted_out_capturing()).toBe(true)
     expect(onlyFlagRequests(requests)).toBe(true)
   })

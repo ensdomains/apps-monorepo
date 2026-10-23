@@ -1,14 +1,10 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import {
-  connectAnalyticsConsent,
-  storeAnalyticsConsent,
-} from '@ens-apps/utils/posthog/analyticsConsent'
 import { boot, trackEvent, update } from '@intercom/messenger-js-sdk'
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnectionEffect } from 'wagmi'
-import { POSTHOG_CONFIG } from './config'
+import { POSTHOG_CONFIG, setAnalyticsConsent } from './config'
 import { PHProvider } from './provider'
 
 vi.mock('@tanstack/react-router', () => ({ useHydrated: () => true }))
@@ -80,7 +76,6 @@ describe('PostHog provider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     consent.stored = 'pending'
-    connectAnalyticsConsent(posthog)
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
   })
   afterEach(() => {
@@ -101,7 +96,7 @@ describe('PostHog provider', () => {
     expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
     expect(update).not.toHaveBeenCalled()
 
-    storeAnalyticsConsent('granted')
+    act(() => setAnalyticsConsent(posthog, true))
     expect(update).toHaveBeenCalledWith({
       posthog_distinct_id: 'distinct-id',
       recent_replay: 'replay-url',
@@ -125,7 +120,7 @@ describe('PostHog provider', () => {
   })
 
   it('identifies and tracks wallet connects with consent', () => {
-    storeAnalyticsConsent('granted')
+    setAnalyticsConsent(posthog, true)
     renderProvider()
     connectWallet()
 
@@ -145,7 +140,7 @@ describe('PostHog provider', () => {
     renderProvider()
     connectWallet()
 
-    storeAnalyticsConsent('granted')
+    act(() => setAnalyticsConsent(posthog, true))
     expect(posthog.identify).toHaveBeenCalledWith(
       WALLET.address,
       { address: WALLET.address },
@@ -153,7 +148,7 @@ describe('PostHog provider', () => {
     )
 
     vi.mocked(posthog.setPersonPropertiesForFlags).mockClear()
-    storeAnalyticsConsent('denied')
+    act(() => setAnalyticsConsent(posthog, false))
     expect(posthog.reset).toHaveBeenCalled()
     expect(posthog.setPersonPropertiesForFlags).toHaveBeenCalledWith({
       address: WALLET.address,
@@ -163,17 +158,20 @@ describe('PostHog provider', () => {
   it('applies the banner answer without a reload, until unmounted', () => {
     const { unmount } = renderProvider()
 
-    storeAnalyticsConsent('granted')
-    expect(posthog.set_config).toHaveBeenCalledTimes(1)
-    storeAnalyticsConsent('denied')
+    act(() => setAnalyticsConsent(posthog, true))
+    expect(posthog.set_config).toHaveBeenLastCalledWith(
+      expect.objectContaining({ disable_surveys: false }),
+    )
+    act(() => setAnalyticsConsent(posthog, false))
     expect(posthog.set_config).toHaveBeenLastCalledWith({
       disable_session_recording: true,
       disable_surveys: true,
     })
 
     unmount()
-    storeAnalyticsConsent('granted')
-    expect(posthog.set_config).toHaveBeenCalledTimes(2)
+    vi.mocked(posthog.set_config).mockClear()
+    setAnalyticsConsent(posthog, true)
+    expect(posthog.set_config).not.toHaveBeenCalled()
   })
 
   it('boots Intercom even when PostHog initialization fails', () => {

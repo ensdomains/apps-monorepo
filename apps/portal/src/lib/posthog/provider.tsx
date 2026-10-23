@@ -1,6 +1,6 @@
 import {
   hasAnalyticsConsent,
-  subscribeAnalyticsConsent,
+  useAnalyticsConsent,
 } from '@ens-apps/utils/posthog/analyticsConsent'
 import {
   boot as bootIntercom,
@@ -25,7 +25,7 @@ import type { PostHog } from 'posthog-js'
 // Toolbar (a dev-only feature we don't use in prod). See PostHog's CSP guide:
 // https://posthog.com/docs/advanced/content-security-policy
 import posthog from 'posthog-js/dist/module.full.no-external'
-import { useEffect, useRef } from 'react'
+import { type RefObject, useEffect, useRef } from 'react'
 import { useConnectionEffect } from 'wagmi'
 import { INTERCOM_APP_ID } from '@/lib/intercom'
 import {
@@ -44,7 +44,7 @@ type ConnectedWallet = {
 // With consent the wallet becomes the analytics identity. Without it nothing
 // is sent: the Explorer's flags don't use the address.
 const identifyWallet = (wallet: ConnectedWallet) => {
-  if (!hasAnalyticsConsent()) return
+  if (!hasAnalyticsConsent(posthog)) return
   posthog.identify(
     wallet.address,
     { address: wallet.address },
@@ -57,10 +57,9 @@ const identifyWallet = (wallet: ConnectedWallet) => {
   })
 }
 
-// Links support chats to analytics, only for visitors who accepted. Runs at
-// boot and again on Accept, so an answer given mid-visit links this visit too.
+// Links support chats to analytics, only for visitors who accepted.
 const linkIntercomToAnalytics = () => {
-  if (!posthog.__loaded || !hasAnalyticsConsent()) return
+  if (!hasAnalyticsConsent(posthog)) return
   updateIntercom({
     posthog_distinct_id: posthog.get_distinct_id(),
     recent_replay: posthog.get_session_replay_url(),
@@ -70,6 +69,20 @@ const linkIntercomToAnalytics = () => {
     trackWithOptions('intercom:booted', undefined, {
       $set: { intercom_visitor_id: intercomVisitorId },
     })
+}
+
+// Applies PostHog's answer once it's known and whenever it changes: on load,
+// on Accept or Decline, and when another tab or app answers.
+const useApplyAnalyticsConsent = (
+  wallet: RefObject<ConnectedWallet | null>,
+) => {
+  const consent = useAnalyticsConsent(posthog)
+  useEffect(() => {
+    if (!consent) return
+    applyAnalyticsConsent(posthog)
+    if (wallet.current) identifyWallet(wallet.current)
+    linkIntercomToAnalytics()
+  }, [consent, wallet])
 }
 
 export const PHProvider = ({
@@ -98,20 +111,12 @@ export const PHProvider = ({
 
     try {
       bootIntercom({ app_id: INTERCOM_APP_ID })
-      linkIntercomToAnalytics()
     } catch (error) {
       console.warn('[intercom] init failed', error)
     }
-
-    // Follows the answer without a reload, also one given in another tab or
-    // app. Declining forgets a wallet identity from an earlier Accept.
-    return subscribeAnalyticsConsent(() => {
-      if (!hasAnalyticsConsent()) resetKeepingConsent(posthog)
-      applyAnalyticsConsent(posthog)
-      if (wallet.current) identifyWallet(wallet.current)
-      linkIntercomToAnalytics()
-    })
   }, [])
+
+  useApplyAnalyticsConsent(wallet)
 
   useConnectionEffect({
     onConnect(data) {
