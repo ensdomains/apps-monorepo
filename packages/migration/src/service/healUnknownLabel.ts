@@ -3,11 +3,7 @@ import { labelhash } from 'viem'
 
 const ENCODED_LABELHASH = /^\[([0-9a-fA-F]{64})\]$/
 
-/**
- * Replace labels bigname only knows by hash with the labels the caller asked
- * for, when they hash to the same value. bigname matches a lookup by hash but
- * can answer with the stored, unhealed name.
- */
+/** Put the requested labels back where bigname answered with their hashes. */
 export const healUnknownLabel = (
   record: LookupRecord,
   requestedName: string,
