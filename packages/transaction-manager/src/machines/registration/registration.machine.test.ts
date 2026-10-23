@@ -618,6 +618,58 @@ describe('registrationMachine — paid from an L2', () => {
     expect(actor.getSnapshot().context.unsettledL2Bridge).toBeUndefined()
   })
 
+  // Resuming re-quotes the budget, which may have outgrown the run's bridge.
+  it("bridges the rest when a resumed run's own bridge no longer covers it", async () => {
+    const PRICIER = BUDGET + 3_000_000n
+    const reads: (bigint | undefined)[] = []
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      estimateHcaBudget: vi
+        .fn()
+        .mockReturnValueOnce(new Promise(() => {}))
+        .mockResolvedValue({ total: PRICIER, expectedMaximum: PRICIER }),
+      readHcaUsdcBalance: vi.fn(
+        async ({ input }: { input: { atLeast?: bigint } }) => {
+          reads.push(input.atLeast)
+          return reads.length === 1 ? 0n : BUDGET
+        },
+      ),
+      l2Funding,
+    })
+
+    actor.send({ type: 'SUSPEND' })
+    actor.send({
+      type: 'RESUME',
+      stage: 'checkingHcaFunding',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        unsettledL2Bridge: {
+          intentId: 9n,
+          claimableUntil: 0,
+          fundsHcaTo: BUDGET,
+        },
+        isL2BridgeFromPriorRun: false,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        l2Funding,
+      },
+    })
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length > 0)
+
+    expect(reads).toEqual([undefined, BUDGET])
+    expect(submitL2Bridge.mock.calls[0][0].input.payment.amount).toBe(
+      PRICIER - BUDGET,
+    )
+  })
+
   // A cancelled run's bridge may still arrive, and was sized for that run.
   const cancelledRunBridge = (fundsHcaTo: bigint) => ({
     intentId: 9n,

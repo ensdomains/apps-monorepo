@@ -1505,15 +1505,20 @@ export const registrationMachine = setup({
         }),
         onDone: [
           {
+            // This run's bridge, and still enough: a resumed run re-quotes the
+            // budget, which may have grown since the bridge was sized.
             guard: ({ context, event }) =>
-              event.output === 'landed' && !context.isL2BridgeFromPriorRun,
+              event.output === 'landed' &&
+              !context.isL2BridgeFromPriorRun &&
+              // biome-ignore lint/style/noNonNullAssertion: guarded by hasUnsettledL2Bridge
+              context.unsettledL2Bridge!.fundsHcaTo >= context.hcaBudget!,
             target: 'submittingSetupBundle',
             actions: assign({ unsettledL2Bridge: () => undefined }),
           },
           {
-            // Sized for another registration, so read again; but only a read
-            // that shows the bridge, or a lagging one asks for it again. The
-            // bridge stays until then, so a reload mid-read waits for it again.
+            // Sized for another registration or budget, so read again; but only
+            // a read that shows the bridge, or a lagging one asks for it again.
+            // The bridge stays until then, so a reload mid-read waits for it.
             guard: ({ event }) => event.output === 'landed',
             target: 'checkingHcaFunding',
             actions: assign({
