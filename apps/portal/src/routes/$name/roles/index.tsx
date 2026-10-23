@@ -17,21 +17,14 @@ export const Route = createFileRoute('/$name/roles/')({
 
 function RouteComponent() {
   const { name } = Route.useParams()
-  const labels = name.split('.')
-  const isSupportedName =
-    name.endsWith('.eth') && (labels.length === 2 || labels.length === 3)
 
+  // Owner resolution walks the V2 registry tree at any depth, and non-.eth
+  // names resolve as ENSv1, so the protocol check below is the only gate.
   const {
     data: owner,
     isLoading,
     error,
-  } = useQuery({
-    ...getEnsOwnerQueryOptions({ name }),
-    enabled: isSupportedName,
-  })
-
-  if (!isSupportedName)
-    return <ErrorMessage title="Only 2LD and 3LD .eth names are supported" />
+  } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (isLoading) return <LoadingMessage />
 
