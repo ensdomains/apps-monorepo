@@ -99,7 +99,7 @@ describe('useEligibleV1Names grace-period names', () => {
     'removes a grace-period row at its exact grace boundary (wrapped: %s)',
     (isWrapped) => {
       vi.useFakeTimers()
-      vi.setSystemTime(10_000_000_500)
+      vi.setSystemTime(10_000_001_500)
       const graceName = makeDomain({
         isWrapped,
         registrationExpiry: isWrapped ? null : '2224001',

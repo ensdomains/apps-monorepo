@@ -21,6 +21,8 @@ import {
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 import { useV1NameClassificationTime } from './useV1NameClassificationTime'
 
+const EMPTY_WRAPPER_SYNC_NAMES: readonly ClassifiedName[] = []
+
 type UseEligibleV1NamesOptions = {
   readonly enabled?: boolean
   readonly fallbackToClassified?: boolean
@@ -134,6 +136,9 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
     eligible,
     gracePeriodNames,
     unavailableNames,
+    wrapperSyncNames: recoverySnapshot
+      ? EMPTY_WRAPPER_SYNC_NAMES
+      : (eligibility?.needsWrapperSync ?? EMPTY_WRAPPER_SYNC_NAMES),
     recoveryState,
     isPending:
       enabled &&

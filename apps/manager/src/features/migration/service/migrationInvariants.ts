@@ -1,21 +1,21 @@
-import { isKnownPublicResolver } from '@ens-apps/migration'
 import {
   computeResolverAddress,
   ROLES_ALL,
   verifyStandaloneHca,
 } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { registryResolverSnippet } from '@ensdomains/ensjs-abi/registry'
 import { permissionedRegistryGetSubregistrySnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   type Address,
   isAddressEqual,
+  namehash,
   type PublicClient,
   parseAbi,
   zeroAddress,
 } from 'viem'
-import { envConfig } from '@/config'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import { V2_CONTRACTS } from '../contracts/addresses'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 import {
   computeExpectedWrapperRegistry,
@@ -106,12 +106,9 @@ export const assertRequiredMigrationContractCode = async (params: {
   }
 }
 
-const requiresPinnedPublicResolverMembership = (
-  name: ClassifiedName,
-): name is ClassifiedName & { readonly v1ResolverAddress: Address } =>
+const hasPinnedResolver = (name: ClassifiedName): boolean =>
   (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child') &&
-  hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER) &&
-  isKnownPublicResolver(name.v1ResolverAddress, envConfig.chain.id)
+  hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER)
 
 type RequiredMigrationContractsParams = {
   readonly remaining: readonly ClassifiedName[]
@@ -168,8 +165,7 @@ const nameContracts = (
     )
   )
     contracts.push('DefaultResolver')
-  if (requiresPinnedPublicResolverMembership(name))
-    contracts.push('PublicResolverSet')
+  if (hasPinnedResolver(name)) contracts.push('PublicResolverSet')
   return contracts
 }
 
@@ -204,54 +200,90 @@ export const getRequiredMigrationContracts = (
   ]
 }
 
-/**
- * Locked migration cannot apply the app's resolver choice when
- * CANNOT_SET_RESOLVER is burned. The controller replaces the old resolver only
- * when PublicResolverSet certifies it, so prove that membership before asking
- * the wallet to sign anything.
- */
-export const assertLockedPublicResolverSetMembership = async (params: {
+/** Mirror the locked receiver's resolver selection at one block, including resolvers absent from the app's static list. */
+export const resolveLockedMigrationResolvers = async (params: {
   readonly publicClient: PublicClient
   readonly names: readonly ClassifiedName[]
-}): Promise<void> => {
-  const resolvers = new Map<string, Address>()
-  for (const name of params.names) {
-    if (!requiresPinnedPublicResolverMembership(name)) continue
-    resolvers.set(name.v1ResolverAddress.toLowerCase(), name.v1ResolverAddress)
+}): Promise<ClassifiedName[]> => {
+  const candidates = params.names.filter(hasPinnedResolver)
+  if (candidates.length === 0) return [...params.names]
+
+  try {
+    const blockNumber = await params.publicClient.getBlockNumber()
+    const liveResolvers = await params.publicClient.multicall({
+      allowFailure: false,
+      blockNumber,
+      contracts: candidates.map((name) => ({
+        address: V1_CONTRACTS.LegacyRegistry,
+        abi: registryResolverSnippet,
+        functionName: 'resolver' as const,
+        args: [namehash(name.domain.name)] as const,
+      })),
+    })
+    const resolvers = [
+      ...new Set(
+        liveResolvers.map((resolver) => resolver.toLowerCase() as Address),
+      ),
+    ].filter((resolver) => !isAddressEqual(resolver, zeroAddress))
+    const memberships =
+      resolvers.length > 0
+        ? await params.publicClient.multicall({
+            allowFailure: false,
+            blockNumber,
+            contracts: resolvers.map((resolver) => ({
+              address: V2_CONTRACTS.PublicResolverSet,
+              abi: publicResolverSetAbi,
+              functionName: 'includes' as const,
+              args: [resolver] as const,
+            })),
+          })
+        : []
+    const replacements = new Map(
+      resolvers.map((resolver, index) => [
+        resolver,
+        memberships[index] ? V2_CONTRACTS.DefaultResolver : resolver,
+      ]),
+    )
+    const byName = new Map(
+      candidates.map((name, index) => {
+        const resolver = liveResolvers[index]
+        if (!resolver)
+          throw new Error(`Missing resolver state for ${name.domain.name}`)
+        return [
+          name.domain.name,
+          {
+            resolver,
+            replacement:
+              replacements.get(resolver.toLowerCase() as Address) ??
+              zeroAddress,
+          },
+        ] as const
+      }),
+    )
+    return params.names.map((name) => {
+      const state = byName.get(name.domain.name)
+      if (name.action !== 'migrate' || !hasPinnedResolver(name) || !state)
+        return name
+      const resolver = isAddressEqual(state.resolver, zeroAddress)
+        ? null
+        : { address: state.resolver }
+      return {
+        ...name,
+        domain: { ...name.domain, resolver },
+        v1ResolverAddress: resolver?.address ?? null,
+        lockedResolverAddress: state.replacement,
+      }
+    })
+  } catch (cause) {
+    throw new MigrationContractInvariantError({
+      invariant: 'public-resolver-set-membership',
+      contractName: 'PublicResolverSet',
+      address: V2_CONTRACTS.PublicResolverSet,
+      expected: 'verified',
+      actual: 'unverified',
+      cause,
+    })
   }
-
-  await Promise.all(
-    [...resolvers.values()].map(async (resolver) => {
-      let included: boolean
-      try {
-        included = await params.publicClient.readContract({
-          address: V2_CONTRACTS.PublicResolverSet,
-          abi: publicResolverSetAbi,
-          functionName: 'includes',
-          args: [resolver],
-        })
-      } catch (cause) {
-        throw new MigrationContractInvariantError({
-          invariant: 'public-resolver-set-membership',
-          contractName: 'PublicResolverSet',
-          address: resolver,
-          expected: 'included',
-          actual: 'unverified',
-          cause,
-        })
-      }
-
-      if (!included) {
-        throw new MigrationContractInvariantError({
-          invariant: 'public-resolver-set-membership',
-          contractName: 'PublicResolverSet',
-          address: resolver,
-          expected: 'included',
-          actual: 'not-included',
-        })
-      }
-    }),
-  )
 }
 
 type SubregistryWrite = {

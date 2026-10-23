@@ -70,6 +70,8 @@ export type DirectClassifiedName = ClassifiedNameBase & {
   readonly action: 'migrate'
   readonly tokenType: MigrationTokenType
   readonly resolverStrategy: ResolverStrategy
+  /** Resolver the locked receiver will use, verified against the live V1 registry and PublicResolverSet. */
+  readonly lockedResolverAddress?: Address
   /**
    * The live ENSv1 registry controller, recorded only when it differs from the
    * registrant. V1 keeps the two separate and a plain `transferFrom` moves the
@@ -228,14 +230,14 @@ const hasExpiredDotEthRegistration = (
   const registrationExpiry = domain.registration?.expiryDate
   if (registrationExpiry) return BigInt(registrationExpiry) <= nowSeconds
   // Fall back to the wrapper expiry only while the name is genuinely in its
-  // grace period: `wrapperExpiry - GRACE <= now < wrapperExpiry`. A wrapper
+  // grace period: `wrapperExpiry - GRACE <= now <= wrapperExpiry`. A wrapper
   // expiry fully in the past means the wrapper is stale/expired (the name has
   // reverted to its registrant) — not a grace-period registration — so it must
   // not be flagged here.
   const wrappedExpiry = domain.wrappedDomain?.expiryDate
   if (wrappedExpiry) {
     const expiry = BigInt(wrappedExpiry)
-    return expiry - GRACE_PERIOD_SECONDS <= nowSeconds && nowSeconds < expiry
+    return expiry - GRACE_PERIOD_SECONDS <= nowSeconds && nowSeconds <= expiry
   }
   return false
 }

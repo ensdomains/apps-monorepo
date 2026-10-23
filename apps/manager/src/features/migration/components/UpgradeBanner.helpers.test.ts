@@ -6,11 +6,12 @@ const name = (value: string) =>
   makeClassified({ id: value, name: value, label: value.split('.')[0] })
 
 describe('shouldShowUpgradeBanner', () => {
-  it('shows the account-level banner when only grace-period names remain before migration', () => {
+  it('shows the account-level banner when only names needing sync remain before migration', () => {
     expect(
       shouldShowUpgradeBanner({
         eligibleV1Names: [],
-        gracePeriodNameCount: 1,
+        gracePeriodNameCount: 0,
+        wrapperSyncNames: [name('alice.eth')],
         migratedCount: 0,
       }),
     ).toBe(true)
@@ -65,10 +66,11 @@ describe('shouldShowUpgradeBanner', () => {
     ).toBe(false)
   })
 
-  it('shows the profile banner when the current profile is eligible for migration', () => {
+  it('shows the profile banner when the current profile needs syncing before migration', () => {
     expect(
       shouldShowUpgradeBanner({
-        eligibleV1Names: [name('alice.eth')],
+        eligibleV1Names: [],
+        wrapperSyncNames: [name('alice.eth')],
         migratedCount: 1,
         profileName: 'Alice.eth',
       }),

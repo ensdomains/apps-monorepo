@@ -7,6 +7,7 @@ import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Name
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
+import { useWrapperSync } from '@/features/migration/hooks/useWrapperSync'
 import { cn } from '@/lib/utils'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
@@ -20,6 +21,7 @@ import {
   shouldUseSmallSelectionCard,
 } from './selectNames.helpers'
 import { UnavailableMigrationNames } from './UnavailableMigrationNames'
+import { WrapperSyncNotice } from './WrapperSyncNotice'
 
 type SelectNamesStepProps = {
   readonly ownerAddress?: string | null
@@ -37,16 +39,21 @@ const SelectionTitle = ({
   eligibleCount,
   graceCount,
   unavailableCount,
+  wrapperSyncCount,
   isRecoveryStale,
 }: {
   readonly eligibleCount: number
   readonly graceCount: number
   readonly unavailableCount: number
+  readonly wrapperSyncCount: number
   readonly isRecoveryStale: boolean
 }) => {
   if (isRecoveryStale) return <Trans>Your saved upgrade needs attention</Trans>
   if (eligibleCount === 0 && graceCount > 0) {
     return <Trans>Renew your names before upgrading</Trans>
+  }
+  if (eligibleCount === 0 && wrapperSyncCount > 0) {
+    return <Trans>Sync your names before upgrading</Trans>
   }
   if (eligibleCount === 0 && unavailableCount > 0) {
     return <Trans>Your names can&apos;t be upgraded</Trans>
@@ -69,9 +76,11 @@ export const SelectNamesStep = ({
     eligible,
     gracePeriodNames,
     unavailableNames,
+    wrapperSyncNames = [],
     isPending: isEligibilityPending,
     recoveryState,
   } = useEligibleV1Names()
+  const wrapperSync = useWrapperSync(wrapperSyncNames)
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
   const isRecovery = recoveryState.status === 'recovering'
@@ -136,6 +145,7 @@ export const SelectNamesStep = ({
     isPending ||
     isRecoveryStale ||
     isStarting ||
+    wrapperSync.isPending ||
     isWaitingForGasEstimate ||
     isWaitingForGasFunding
   const showBulkSelection = shouldShowBulkSelection(visibleCount)
@@ -180,6 +190,7 @@ export const SelectNamesStep = ({
               graceCount={gracePeriodNames.length}
               isRecoveryStale={isRecoveryStale}
               unavailableCount={unavailableNames.length}
+              wrapperSyncCount={wrapperSyncNames.length}
             />
           </h1>
 
@@ -242,6 +253,12 @@ export const SelectNamesStep = ({
             />
           )}
 
+          <WrapperSyncNotice
+            error={wrapperSync.error}
+            isPending={wrapperSync.isPending}
+            names={wrapperSyncNames}
+            onSync={() => wrapperSync.mutate()}
+          />
           <UnavailableMigrationNames names={unavailableNames} />
         </div>
       </div>

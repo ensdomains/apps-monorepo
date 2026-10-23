@@ -31,12 +31,18 @@ export const useDashboardMigrationEligibility = (migrationEnabled: boolean) => {
     () =>
       migrationEnabled
         ? new Set(
-            (eligibility?.eligible ?? classified).map((name) =>
-              name.domain.id.toLowerCase(),
-            ),
+            [
+              ...(eligibility?.eligible ?? classified),
+              ...(eligibility?.needsWrapperSync ?? []),
+            ].map((name) => name.domain.id.toLowerCase()),
           )
         : NO_NAMES,
-    [classified, eligibility?.eligible, migrationEnabled],
+    [
+      classified,
+      eligibility?.eligible,
+      eligibility?.needsWrapperSync,
+      migrationEnabled,
+    ],
   )
 
   return {

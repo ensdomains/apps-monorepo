@@ -3,6 +3,9 @@ export const SECONDS_PER_DAY = 24 * 60 * 60
 
 export const V1_GRACE_PERIOD_DAYS = 90
 export const V2_GRACE_PERIOD_DAYS = 28
+/** BaseRegistrar remains renewable at expiry + 90 days; availability starts one second later. */
+export const V1_RENEWAL_WINDOW_SECONDS =
+  BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY) + 1n
 /** Alias for the v1 grace window; prefer `V1_GRACE_PERIOD_DAYS` in new code. */
 export const GRACE_PERIOD_DAYS = V1_GRACE_PERIOD_DAYS
 

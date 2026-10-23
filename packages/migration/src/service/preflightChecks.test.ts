@@ -310,6 +310,7 @@ describe('runEligibilityChecks', () => {
       alreadyMigrated: [],
       notPremigrated: [],
       failed: [],
+      needsWrapperSync: [],
     })
     expect(multicallMock).not.toHaveBeenCalled()
   })
