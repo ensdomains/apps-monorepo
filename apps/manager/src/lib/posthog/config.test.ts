@@ -3,6 +3,7 @@ import { ANALYTICS_CONSENT_COOKIE } from '@ens-apps/utils/posthog/analyticsConse
 import { PostHog } from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  applyAnalyticsConsent,
   POSTHOG_CONFIG,
   resetKeepingConsent,
   setAnalyticsConsent,
@@ -141,5 +142,18 @@ describe('PostHog consent', () => {
     expect(client.get_distinct_id()).not.toBe(WALLET)
     expect(client.has_opted_out_capturing()).toBe(true)
     expect(onlyFlagRequests(requests)).toBe(true)
+  })
+
+  it('forgets the wallet once another tab or app declines', () => {
+    const { client } = initClient()
+    setAnalyticsConsent(client, true)
+    client.identify(WALLET)
+
+    // Another tab or app declines: the shared cookie now says no.
+    client.opt_out_capturing()
+    applyAnalyticsConsent(client)
+
+    expect(client.get_distinct_id()).not.toBe(WALLET)
+    expect(client.get_explicit_consent_status()).toBe('denied')
   })
 })

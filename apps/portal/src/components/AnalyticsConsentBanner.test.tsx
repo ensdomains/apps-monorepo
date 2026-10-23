@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AnalyticsConsentBanner } from './AnalyticsConsentBanner'
 
 // PostHog, keeping the answer the way its consent cookie does.
@@ -29,6 +29,9 @@ describe('AnalyticsConsentBanner', () => {
   beforeEach(() => {
     posthog.__loaded = true
     posthog.stored = 'pending'
+  })
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it.each([
@@ -64,6 +67,18 @@ describe('AnalyticsConsentBanner', () => {
     posthog.stored = 'granted'
     act(() => {
       window.dispatchEvent(new Event('focus'))
+    })
+
+    expect(queryBanner()).toBeNull()
+  })
+
+  it('follows an answer from another tab or app within seconds, without focus', () => {
+    vi.useFakeTimers()
+    render(<AnalyticsConsentBanner />)
+
+    posthog.stored = 'granted'
+    act(() => {
+      vi.advanceTimersByTime(5000)
     })
 
     expect(queryBanner()).toBeNull()

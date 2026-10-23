@@ -26,11 +26,15 @@ export const notifyAnalyticsConsent = (): void => {
 
 const subscribe = (listener: () => void) => {
   listeners.add(listener)
-  // Another tab or ens.domains app can answer, and cookies fire no event.
+  // Another tab or ens.domains app can answer, and cookies fire no event, so
+  // look again on focus and every few seconds, well before PostHog's 5-minute
+  // flag refresh could send an identity the visitor has since declined.
   window.addEventListener('focus', listener)
+  const poll = setInterval(listener, 5000)
   return () => {
     listeners.delete(listener)
     window.removeEventListener('focus', listener)
+    clearInterval(poll)
   }
 }
 

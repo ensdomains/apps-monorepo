@@ -32,6 +32,7 @@ vi.mock('posthog-js/dist/module.full.no-external', () => ({
     get_distinct_id: vi.fn(() => 'distinct-id'),
     get_session_replay_url: vi.fn(() => 'replay-url'),
     get_explicit_consent_status: () => consent.stored,
+    get_property: vi.fn(),
     opt_in_capturing: vi.fn(() => {
       consent.stored = 'granted'
     }),
@@ -151,6 +152,24 @@ describe('PostHog provider', () => {
     act(() => setAnalyticsConsent(posthog, false))
     expect(posthog.reset).toHaveBeenCalled()
     expect(posthog.setPersonPropertiesForFlags).toHaveBeenCalledWith({
+      address: WALLET.address,
+    })
+  })
+
+  it('forgets the wallet when another tab or app declines', () => {
+    setAnalyticsConsent(posthog, true)
+    renderProvider()
+    connectWallet()
+    vi.mocked(posthog.get_property).mockReturnValueOnce('identified')
+
+    // The shared cookie changes under this tab, which notices on focus.
+    consent.stored = 'denied'
+    act(() => {
+      window.dispatchEvent(new Event('focus'))
+    })
+
+    expect(posthog.reset).toHaveBeenCalled()
+    expect(posthog.setPersonPropertiesForFlags).toHaveBeenLastCalledWith({
       address: WALLET.address,
     })
   })

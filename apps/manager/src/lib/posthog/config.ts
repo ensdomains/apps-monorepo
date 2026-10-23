@@ -13,6 +13,7 @@ import type {
 type ConsentTarget = Pick<
   PostHog,
   | 'get_explicit_consent_status'
+  | 'get_property'
   | 'opt_in_capturing'
   | 'opt_out_capturing'
   | 'reset'
@@ -44,9 +45,14 @@ export const resetKeepingConsent = (client: ConsentTarget): void => {
   writeConsent(client, consent)
 }
 
-/** Session recording and surveys only run with consent. */
+/**
+ * Lines PostHog up with its answer. Without consent it keeps no wallet
+ * identity, and session recording and surveys stay off.
+ */
 export const applyAnalyticsConsent = (client: ConsentTarget): void => {
   const isGranted = hasAnalyticsConsent(client)
+  if (!isGranted && client.get_property('$user_state') === 'identified')
+    resetKeepingConsent(client)
   client.set_config({
     disable_session_recording: !isGranted || import.meta.env.DEV,
     disable_surveys: !isGranted,
@@ -72,13 +78,9 @@ export const POSTHOG_CONFIG = {
   opt_out_capturing_persistence_type: 'cookie',
   consent_persistence_name: ANALYTICS_CONSENT_COOKIE,
   loaded: (client) => {
-    // Runs before the first flag request. A visitor still identified by
-    // wallet without consent (from before the banner) becomes anonymous again.
-    if (
-      !hasAnalyticsConsent(client) &&
-      client.get_property('$user_state') === 'identified'
-    )
-      resetKeepingConsent(client)
+    // Runs before the first flag request, so a wallet identity kept without
+    // consent (such as one from before the banner) is gone before flags load.
+    applyAnalyticsConsent(client)
     // Writing the answer again renews its cookie, which Safari drops 7 days
     // after it was written.
     writeConsent(client, client.get_explicit_consent_status())
