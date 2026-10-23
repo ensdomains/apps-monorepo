@@ -17,6 +17,7 @@
     /* Module Resolution */
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "noEmit": true,
     // Enabling verbatimModuleSyntax can result in server bundles leaking into client bundles! (https://tanstack.com/start/latest/docs/framework/react/build-from-scratch#typescript-configuration)

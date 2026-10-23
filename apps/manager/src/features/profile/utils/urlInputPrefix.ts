@@ -1,8 +1,8 @@
 export const URL_INPUT_PREFIX = 'https://'
 
 const URL_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i
-const DOMAIN_LIKE_URL =
-  /^[\p{L}\p{N}_-]+(?:\.[\p{L}\p{N}_-]+)*\.(?:\p{L}{2,}|xn--[a-z0-9-]+)(?::\d{1,5})?(?:[/#?].*)?$/iu
+// A host:port like example.com:8443 is not a scheme
+const URL_SCHEME_PREFIX = /^[a-z][a-z0-9+.-]*:(?!\d+(?:[/?#]|$))/i
 
 // The prefilled https:// on its own counts as empty for validation
 export const getUrlInputCheckValue = (value: string): string =>
@@ -19,11 +19,13 @@ export const getUrlInputChangeValue = (value: string): string => {
   return URL_SCHEME.test(rest) ? rest : value
 }
 
-export const getUrlInputBlurValue = (value: string): string => {
-  const trimmed = value.trim()
-  if (trimmed === URL_INPUT_PREFIX) return ''
+/** Trim, treat a lone https:// as empty, and add https:// to schemeless input. */
+export const normalizeUrlInput = (value: string): string => {
+  const trimmed = getUrlInputCheckValue(value).trim()
+  if (trimmed === '' || URL_SCHEME_PREFIX.test(trimmed)) return trimmed
 
-  return DOMAIN_LIKE_URL.test(trimmed)
-    ? `${URL_INPUT_PREFIX}${trimmed}`
-    : trimmed
+  return `${URL_INPUT_PREFIX}${trimmed}`
 }
+
+export const getUrlInputBlurValue = (value: string): string =>
+  normalizeUrlInput(value)

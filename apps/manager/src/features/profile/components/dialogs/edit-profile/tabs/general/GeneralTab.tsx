@@ -1,4 +1,5 @@
 import { Combobox } from '@base-ui/react/combobox'
+import type { MessageDescriptor } from '@lingui/core'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
@@ -73,7 +74,7 @@ const mobileHiddenShortcutFields: ReadonlySet<GeneralField> = new Set([
 
 interface UrlFieldProps {
   readonly disabled: boolean
-  readonly errorMessage?: string
+  readonly errorMessage?: MessageDescriptor
   readonly onChange: (value: string) => void
   readonly value: string
 }
@@ -84,6 +85,7 @@ const UrlField = ({
   onChange,
   value,
 }: UrlFieldProps) => {
+  const { t } = useLingui()
   const updateValue = (nextValue: string) => {
     if (nextValue !== value) onChange(nextValue)
   }
@@ -117,7 +119,7 @@ const UrlField = ({
             className="ms-opsz-12 ms-wght-400 mt-px shrink-0"
             symbol="warning"
           />
-          <span>{errorMessage}</span>
+          <span>{t(errorMessage)}</span>
         </p>
       ) : null}
     </div>

@@ -282,6 +282,8 @@ const recoverySnapshotFor = (
         addresses: [],
         contentHash: null,
         abis: [],
+        interfaces: [],
+        pubkey: null,
       })
     }
   }

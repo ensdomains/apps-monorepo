@@ -217,6 +217,49 @@ describe('readV1NamesForAddress', () => {
     ])
   })
 
+  it('reads an unlisted parent and keeps subnames left under an upgraded one visible', async () => {
+    const rows = new Map(
+      [
+        record('carol.eth', { authority: 'ens_v2' }),
+        record('sub.carol.eth'),
+        unwrapped2ld('alice.eth'),
+        record('sub.alice.eth'),
+      ].map((row) => [row.name, row]),
+    )
+    const lookup = vi.fn<BignameClient['lookup']>(lookupFrom(rows))
+
+    const result = await settle(
+      readV1NamesForAddress(
+        {
+          addressNames: () =>
+            okAsync(
+              listPage([
+                listRow('alice.eth'),
+                listRow('sub.alice.eth'),
+                listRow('sub.carol.eth'),
+              ]),
+            ),
+          lookup,
+        },
+        USER,
+      ),
+    )
+    const domains = result._unsafeUnwrap()
+
+    expect(lookup.mock.calls[1]?.[0].inputs).toEqual([
+      { id: '0', name: 'carol.eth' },
+    ])
+    expect(classifyNames(domains, USER, SEPOLIA)).toMatchObject({
+      classified: [
+        { domain: { name: 'alice.eth' } },
+        { domain: { name: 'sub.alice.eth' } },
+      ],
+      ineligible: [
+        { domain: { name: 'sub.carol.eth' }, reason: 'parent-upgraded' },
+      ],
+    })
+  })
+
   it('fails instead of classifying around a name it could not read', async () => {
     const result = await settle(
       readV1NamesForAddress(

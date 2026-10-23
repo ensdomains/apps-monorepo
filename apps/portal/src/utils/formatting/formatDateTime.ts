@@ -27,19 +27,6 @@ export const formatExpiryDate = (date: Temporal.PlainDate): string =>
   })
 
 /**
- * Formats a Temporal.Instant as a short date + local time string.
- * Format: "MMM DD, YYYY, HH:MM AM/PM" (e.g., "Feb 17, 2029, 10:30 AM")
- */
-export const formatExpiryDateTimeLocal = (instant: Temporal.Instant): string =>
-  new Date(instant.epochMilliseconds).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-
-/**
  * Formats the time remaining until an expiry date as whole years and the
  * leftover days (months collapsed into days).
  * Format: "1 year 123 days" (e.g., "2 years 5 days", "45 days", "3 years").

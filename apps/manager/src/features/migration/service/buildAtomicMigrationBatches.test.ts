@@ -300,6 +300,8 @@ describe('buildAtomicMigrationBatches', () => {
       addresses: [{ coinType: 60n, value: PROFILE_ADDRESS }],
       contentHash: '0xe301' as Hex,
       abis: [{ contentType: 1n, value: '0x5b5d' as Hex }],
+      interfaces: [{ interfaceId: '0x01ffc9a7', implementer: PROFILE_ADDRESS }],
+      pubkey: null,
     }
 
     const plan = await buildPlan({
@@ -387,6 +389,7 @@ describe('buildAtomicMigrationBatches', () => {
       'profile-address',
       'profile-contenthash',
       'profile-abi',
+      'profile-interface',
       'name-owner',
       'name-resolver',
       'name-owner-roles',
@@ -554,6 +557,8 @@ describe('buildAtomicMigrationBatches', () => {
       addresses: [{ coinType: 60n, value: PROFILE_ADDRESS }],
       contentHash: '0xe301' as Hex,
       abis: [{ contentType: 1n, value: '0x5b5d' as Hex }],
+      interfaces: [],
+      pubkey: null,
     }
 
     const plan = await buildPlan({

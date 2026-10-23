@@ -53,6 +53,19 @@ export const flattenProfileInnerCalls = (
         }),
       )
     }
+    for (const interfaceRecord of profile.interfaces) {
+      innerCalls.push(
+        encodeFunctionData({
+          abi: PERMISSIONED_RESOLVER_ABI,
+          functionName: 'setInterface',
+          args: [
+            encodedName,
+            interfaceRecord.interfaceId,
+            interfaceRecord.implementer,
+          ],
+        }),
+      )
+    }
   }
   return innerCalls
 }

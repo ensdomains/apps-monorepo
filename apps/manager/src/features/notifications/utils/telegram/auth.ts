@@ -118,23 +118,3 @@ export async function loginWithTelegramPopup(
     console.debug('[TelegramLogin] Waiting for authentication result...')
   })
 }
-
-/**
- * If Telegram redirected back with a hash fragment (#tgAuthResult=...)
- * extract it and return the parsed TelegramUser
- */
-export function decodeTelegramAuthDataFromUrlHash(
-  hash: string,
-): TelegramAuthData | null {
-  const match = hash.match(/[#?&]tgAuthResult=([A-Za-z0-9\-_]*)$/)
-  if (!match) return null
-  try {
-    let data = match[1]?.replace(/-/g, '+').replace(/_/g, '/') || ''
-    const pad = data.length % 4
-    if (pad > 1) data += '='.repeat(4 - pad)
-    const decoded = atob(data)
-    return JSON.parse(decoded)
-  } catch {
-    return null
-  }
-}
