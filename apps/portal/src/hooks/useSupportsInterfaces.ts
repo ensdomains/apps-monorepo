@@ -5,7 +5,7 @@ import {
   type GetSupportedInterfacesErrorType,
   type GetSupportedInterfacesParameters,
   getSupportedInterfaces,
-} from '@ensdomains/ensjs/public'
+} from '@storywithoutend/effect-ens/public'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Hex } from 'viem'

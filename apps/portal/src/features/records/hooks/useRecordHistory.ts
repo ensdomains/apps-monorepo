@@ -1,7 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { GetSupportedInterfacesErrorType } from '@ensdomains/ensjs/public'
+import type { GetSupportedInterfacesErrorType } from '@storywithoutend/effect-ens/public'
 import type {
   GetRecordHistoryErrorType,
   GetRecordHistoryParameters,
