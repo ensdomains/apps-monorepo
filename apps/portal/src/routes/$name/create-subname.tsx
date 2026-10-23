@@ -1,6 +1,6 @@
 import { isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import { getResolver } from '@ensdomains/ensjs/public'
+import { getResolver } from '@storywithoutend/effect-ens/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, Loader2 } from 'lucide-react'

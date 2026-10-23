@@ -1,8 +1,8 @@
 # Local package artifacts
 
-`storywithoutend-effect-ens-0.0.0-849d153.tgz` is the package produced by
-`pnpm pack` at commit `849d153adf1e9d3da04593fe8eac03891b75777e` in the local
+`storywithoutend-effect-ens-0.0.0-5aaece2.tgz` is the package produced by
+`pnpm pack` at commit `5aaece2783c5b5585e580d0f3c400b4d1a281a37` in the local
 `effect-ens` repository. Portal uses the tarball rather than a source alias so
 its typecheck, tests, and build exercise the package boundary that would ship.
 
-SHA-256: `7331a98973062921da2e57b665b2f4f8fe6ceb101cf05f833ef3f4ebf65ce75c`
+SHA-256: `a248dedcef3fd5728f9b845d81b44dcb5684664920e7149f603deb0b03b2673f`
