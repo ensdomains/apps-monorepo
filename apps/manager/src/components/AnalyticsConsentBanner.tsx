@@ -26,7 +26,8 @@ export const AnalyticsConsentBanner = () => {
         <p>
           <Trans>
             Share usage data to help us find problems and make ENS better for
-            everyone. This is optional.
+            everyone. This is optional, and you can change your choice in
+            Settings.
           </Trans>{' '}
           <a
             className="underline underline-offset-2"

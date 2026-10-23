@@ -2611,6 +2611,10 @@ msgstr "Setting up registration"
 msgid "Setting..."
 msgstr "Setting..."
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "Settings"
+msgstr "Settings"
+
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
 msgstr "Share"
@@ -2635,9 +2639,13 @@ msgstr "Share profile"
 msgid "Share profile link"
 msgstr "Share profile link"
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "Share usage data"
+msgstr "Share usage data"
+
 #: src/components/AnalyticsConsentBanner.tsx
-msgid "Share usage data to help us find problems and make ENS better for everyone. This is optional."
-msgstr "Share usage data to help us find problems and make ENS better for everyone. This is optional."
+msgid "Share usage data to help us find problems and make ENS better for everyone. This is optional, and you can change your choice in Settings."
+msgstr "Share usage data to help us find problems and make ENS better for everyone. This is optional, and you can change your choice in Settings."
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Should I register now or wait?"
