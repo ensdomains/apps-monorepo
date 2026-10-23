@@ -30,7 +30,7 @@ describe('UnavailableMigrationNames', () => {
       'bare.eth: no ENSv1 registration was found for it.',
     )
     expect(screen.getByText('left.done.eth').parentElement).toHaveTextContent(
-      'left.done.eth: its parent name was upgraded without it.',
+      'left.done.eth: its parent name, or one above it, was upgraded without it.',
     )
   })
 

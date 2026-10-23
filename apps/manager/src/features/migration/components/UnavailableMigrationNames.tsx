@@ -25,7 +25,9 @@ export const UnavailableMigrationNames = ({
                   <Trans>it has no ENSv2 reservation.</Trans>
                 ))
                 .with('parent-upgraded', () => (
-                  <Trans>its parent name was upgraded without it.</Trans>
+                  <Trans>
+                    its parent name, or one above it, was upgraded without it.
+                  </Trans>
                 ))
                 .otherwise(() => (
                   <Trans>no ENSv1 registration was found for it.</Trans>

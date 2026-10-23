@@ -1393,7 +1393,7 @@ msgid "It takes two transactions from your wallet, one to set up the account and
 msgstr ""
 
 #: src/features/migration/components/UnavailableMigrationNames.tsx
-msgid "its parent name was upgraded without it."
+msgid "its parent name, or one above it, was upgraded without it."
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
