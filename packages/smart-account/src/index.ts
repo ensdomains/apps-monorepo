@@ -119,6 +119,7 @@ export {
   ROLES_ALL,
   readCommitment,
   readCommitmentAges,
+  readHcaSessionNonce,
   readQuotedGasRefunds,
   readRegisterPrice,
   rebuildDestinationSession,

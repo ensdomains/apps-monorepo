@@ -303,12 +303,22 @@ describe('submitHcaRenewal', () => {
     })
   })
 
-  it('reports the tx id as soon as it is submitted', async () => {
+  it('reports the tx id as soon as the record exists, and submission when the transport says so', async () => {
     const onTxId = vi.fn()
+    const onSubmitted = vi.fn()
+    mocks.waitForTransaction.mockImplementation(async () => {
+      // The transport fires this after the signature, before the fill.
+      expect(onSubmitted).not.toHaveBeenCalled()
+      const [{ request }] = mocks.startTransaction.mock.calls[0] as [
+        { request: { rhinestoneParams: { onIntentSubmitted?: () => void } } },
+      ]
+      request.rhinestoneParams.onIntentSubmitted?.()
+    })
 
-    await submitHcaRenewal({ ...params, onTxId })
+    await submitHcaRenewal({ ...params, onTxId, onSubmitted })
 
     expect(onTxId).toHaveBeenCalledWith('tx-1')
+    expect(onSubmitted).toHaveBeenCalledWith('tx-1')
   })
 
   it('refuses to sign with a wallet that does not control the owner', async () => {

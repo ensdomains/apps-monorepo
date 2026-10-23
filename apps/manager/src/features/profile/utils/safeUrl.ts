@@ -11,10 +11,6 @@ const SAFE_RECORD_HREF_PROTOCOLS = [
 
 export { isSafeHttpUrl }
 
-// Chromium escapes spaces in a hostname instead of rejecting it, so typed URLs are checked for whitespace too.
-export const isValidUrlInput = (value: string): boolean =>
-  !/\s/.test(value.trim()) && isSafeHttpUrl(value)
-
 export const safeHttpHref = (
   value: string | null | undefined,
 ): string | undefined => {
@@ -43,8 +39,6 @@ export const safeRecordHref = (
   if (!trimmed || !isSafeRecordHref(trimmed)) return undefined
   return trimmed
 }
-
-export const isSafeImageSrc = isSafeHttpUrl
 
 export const safeImageSrc = (
   value: string | null | undefined,

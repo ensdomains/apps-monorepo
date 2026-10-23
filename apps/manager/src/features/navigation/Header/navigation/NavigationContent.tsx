@@ -45,7 +45,7 @@ const navigationSections: readonly NavigationSection[] = [
     title: '',
     links: [
       {
-        label: msg`ENS app landing page`,
+        label: msg`ENS Manager`,
         linkOptions: linkOptions({
           to: '/',
           search: {

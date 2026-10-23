@@ -35,12 +35,6 @@ const rolesForAccount = (
   )
 }
 
-/** The `_ADMIN` roles `account` holds — i.e. the roles it can grant/revoke. */
-export const getAccountAdminRoles = (
-  rows: readonly RootRoleHolder[] | undefined,
-  account: Address | undefined,
-): Set<Role> => new Set(rolesForAccount(rows, account).filter(isAdminRole))
-
 /**
  * Subset of `currentRoles` whose `_ADMIN` counterpart is in `callerAdminRoles`
  * — i.e. the roles the caller is permitted to revoke.

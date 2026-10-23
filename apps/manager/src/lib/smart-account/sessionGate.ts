@@ -96,3 +96,30 @@ export function sessionHydrationKey(
   const account = accountAddress?.toLowerCase() ?? null
   return account ? `${owner}:${account}` : owner
 }
+
+/**
+ * Whether a stored session has been revoked on-chain: `revokeSessions()` bumps
+ * the account's nonce, and every authorization signed against a lower one is
+ * dead, including copies on other devices. Unknown nonce (not read yet, or an
+ * undeployed account) means not revoked.
+ */
+export function isSessionRevokedOnChain(
+  session: { readonly hcaSessionNonce: string } | null,
+  onChainNonce: bigint | null | undefined,
+): boolean {
+  if (!session || onChainNonce === null || onChainNonce === undefined) {
+    return false
+  }
+  return BigInt(session.hcaSessionNonce) < onChainNonce
+}
+
+/**
+ * What to hold once the held session proves revoked: the stored session if it
+ * is a newer one (another tab enabled it after the revoke), else nothing.
+ */
+export function resolveSessionAfterRevocation<
+  T extends { readonly hcaSessionNonce: string },
+>(stored: T | null, onChainNonce: bigint | null | undefined): T | null {
+  if (!stored || isSessionRevokedOnChain(stored, onChainNonce)) return null
+  return stored
+}

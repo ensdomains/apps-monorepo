@@ -1,7 +1,8 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
-import { WalletIcon } from 'lucide-react'
+import { ShieldAlert, WalletIcon } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import { useAccount } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -25,11 +26,12 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
     ownerAddress,
     isLoading,
     hasActiveSession,
+    isEnablingSession,
+    enableSession,
     isRevokingSession,
     revokeError,
     revokeErrorReason,
     revokeSession,
-    forgetLocalSession,
   } = useSmartAccountContext()
   const [isRevokeOpen, setIsRevokeOpen] = useState(false)
   const { address: connectedAddress } = useAccount()
@@ -45,6 +47,13 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
   const handleDisconnect = async () => {
     await disconnect()
     onAction()
+  }
+
+  // The one ENABLE signature. A decline leaves the row as is; a failure says why.
+  const handleEnableSessions = async () => {
+    const outcome = await enableSession()
+    if (outcome.status === 'enabled') onAction()
+    if (outcome.status === 'failed') toast.error(outcome.message)
   }
 
   return (
@@ -110,28 +119,51 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         </AccountMenuItemButton>
       )}
 
-      {/* Shown for any HCA, not just one with a session saved HERE: sessions
-          live in the signed authorization, not in this browser, so a fresh
-          browser is exactly where an owner goes to kill a session they think
-          leaked elsewhere. Disconnect deliberately keeps sessions alive for a
-          prompt-free reconnect, so this is the only way to end one early —
-          and unlike the rest of the HCA flow it is a gas-paying owner
-          transaction, hence the confirm step. EOA mode has no HCA. */}
+      {/* Reset is offered without a local session too: a leaked session lives on
+          another device, so a fresh browser is where its owner revokes it. */}
       {accountAddress && !isFeatureEnabled('USE_EOA') && (
-        <AccountMenuItemButton onClick={() => setIsRevokeOpen(true)}>
-          <Trans>Revoke smart sessions</Trans>
-        </AccountMenuItemButton>
+        <>
+          <AccountMenuItemStatus
+            className="text-ens-quartz-400"
+            prefix={
+              <MSymbol
+                className="ms-opsz-20"
+                symbol={hasActiveSession ? 'fingerprint' : 'flash_off'}
+              />
+            }
+          >
+            {hasActiveSession ? (
+              <Trans>Smart sessions on</Trans>
+            ) : (
+              <Trans>Smart sessions off</Trans>
+            )}
+          </AccountMenuItemStatus>
+          {!hasActiveSession && (
+            <AccountMenuItemButton
+              disabled={isEnablingSession}
+              onClick={() => void handleEnableSessions()}
+            >
+              {isEnablingSession ? (
+                <Trans>Enabling smart sessions…</Trans>
+              ) : (
+                <Trans>Enable smart sessions</Trans>
+              )}
+            </AccountMenuItemButton>
+          )}
+          <AccountMenuItemButton
+            disabled={isRevokingSession}
+            onClick={() => setIsRevokeOpen(true)}
+            prefix={<ShieldAlert className="size-5" />}
+          >
+            <Trans>Reset smart session access</Trans>
+          </AccountMenuItemButton>
+        </>
       )}
 
       <RevokeSessionsModal
         errorMessage={revokeError}
-        hasLocalSession={hasActiveSession}
         isRevoking={isRevokingSession}
         isUndeployed={revokeErrorReason === 'not-deployed'}
-        onForgetLocalSession={() => {
-          forgetLocalSession()
-          onAction()
-        }}
         onOpenChange={setIsRevokeOpen}
         onRevokeSessions={async (options) => {
           const revoked = await revokeSession(options)
@@ -139,7 +171,6 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           return revoked
         }}
         open={isRevokeOpen}
-        smartAccountAddress={accountAddress ?? undefined}
       />
 
       <AccountMenuItemButton

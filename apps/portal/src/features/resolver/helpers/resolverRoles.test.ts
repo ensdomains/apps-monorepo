@@ -1,5 +1,6 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
+  encodeResolverSetterScope,
   RESOLVER_ROLE_LINK,
   RESOLVER_ROLE_SET_ADDRESS,
   RESOLVER_ROLE_SET_TEXT,
@@ -16,7 +17,6 @@ import type { IntentContext } from '@/features/transaction-manager/types'
 import { resourceIdFromChainValue } from '@/lib/resource/resourceId'
 import {
   computeResolverResource,
-  encodeResolverSetterScope,
   ROOT_RESOURCE,
 } from '@/lib/roles/resolverRoles'
 import { prepareGrantResolverRolesTransaction } from './grantResolverRoles'

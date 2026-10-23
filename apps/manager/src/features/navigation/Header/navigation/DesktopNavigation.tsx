@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro'
+import { Link } from '@tanstack/react-router'
 import type React from 'react'
 import { useState } from 'react'
 import ensLogo from '@/assets/icons/ens.svg'
@@ -12,6 +14,7 @@ import { NavigationContent } from './NavigationContent'
 
 type DesktopNavigationProps = {
   readonly anchorRef?: React.RefObject<HTMLElement | null>
+  readonly isConnected: boolean
   readonly profileHeader?: boolean
   readonly profileThemeColor?: string
 }
@@ -38,9 +41,11 @@ const ProfileThemeEnsLogo = ({ color }: { readonly color?: string }) => (
 
 export const DesktopNavigation = ({
   anchorRef,
+  isConnected,
   profileHeader = false,
   profileThemeColor,
 }: DesktopNavigationProps) => {
+  const { t } = useLingui()
   const [open, setOpen] = useState(false)
 
   const handleAction = () => {
@@ -49,24 +54,32 @@ export const DesktopNavigation = ({
 
   return (
     <Popover onOpenChange={setOpen} open={open}>
-      <PopoverTrigger
-        aria-label="Open navigation"
-        className="group flex shrink-0 items-center justify-center gap-4"
-      >
-        {profileHeader ? (
-          <ProfileThemeEnsLogo color={profileThemeColor} />
-        ) : (
-          <img alt="ENS Logo" className="h-6.5 shrink-0" src={ensLogo} />
-        )}
-        <MSymbol
-          className={tw(
-            'ms-font-rounded shrink-0 transition-transform duration-200 group-data-popup-open:-rotate-180',
-            profileHeader && 'text-[#093C52]',
+      <div className="flex shrink-0 items-center gap-2">
+        <Link
+          className="flex shrink-0 items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
+          to={isConnected ? '/dashboard' : '/'}
+        >
+          {profileHeader ? (
+            <ProfileThemeEnsLogo color={profileThemeColor} />
+          ) : (
+            <img alt="ENS Logo" className="h-6.5 shrink-0" src={ensLogo} />
           )}
-          style={profileHeader ? { color: profileThemeColor } : undefined}
-          symbol="keyboard_arrow_down"
-        />
-      </PopoverTrigger>
+        </Link>
+        <PopoverTrigger
+          aria-label={t`Open navigation`}
+          className="group flex size-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-ens-gray-two/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
+          type="button"
+        >
+          <MSymbol
+            className={tw(
+              'ms-font-rounded shrink-0 transition-transform duration-200 group-data-popup-open:-rotate-180',
+              profileHeader && 'text-ens-blue-midnight',
+            )}
+            style={profileHeader ? { color: profileThemeColor } : undefined}
+            symbol="keyboard_arrow_down"
+          />
+        </PopoverTrigger>
+      </div>
       <PopoverContent
         align="start"
         anchor={anchorRef}

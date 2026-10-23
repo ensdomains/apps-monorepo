@@ -84,7 +84,10 @@ export const MobileHeader = ({
               key="mobile-chrome"
               transition={{ duration: 0.16, ease: 'easeOut' }}
             >
-              <Link className="flex shrink-0 items-center" to="/">
+              <Link
+                className="flex shrink-0 items-center"
+                to={isConnected ? '/dashboard' : '/'}
+              >
                 <img
                   alt="ENS Logo"
                   className="h-8 shrink-0"

@@ -3,7 +3,6 @@ import { LanguagesIcon } from 'lucide-react'
 import { MobileHeader } from '@/components/MobileHeader'
 import { PageContainer } from '@/components/PageContainer'
 import { RegisterSidebar } from '@/components/RegisterSidebar'
-import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { MessageCard } from '@/components/ui/message-card'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { RegisterName } from '@/features/register/components'
@@ -20,7 +19,6 @@ const RegisterPage = () => {
       <RegisterSidebar />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
-        <SepoliaNoticeBanner />
         <PageContainer className="min-h-screen flex flex-col pt-4">
           {!name ? (
             <MessageCard

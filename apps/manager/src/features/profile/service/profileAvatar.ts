@@ -18,6 +18,3 @@ const buildNameImageUrl = ({
 
 export const buildNameAvatarUrl = (name: string): string =>
   buildNameImageUrl({ kind: 'avatar', name })
-
-export const buildNameHeaderUrl = (name: string): string =>
-  buildNameImageUrl({ kind: 'header', name })

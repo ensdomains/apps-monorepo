@@ -18,6 +18,7 @@ export {
   type ResolverStrategy,
   registryControllerOf,
   withManagerRestorationOptIn,
+  wrappedCopyExpiry,
 } from './service/classifyNames'
 export {
   type EligibilityResult,

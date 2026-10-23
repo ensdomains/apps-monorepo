@@ -10,6 +10,7 @@ import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
+import { useIsAwaitingRenewalApproval } from '@/features/renew/state/renewalUi.selectors'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { type RENEWAL_TOKEN, RENEWAL_TOKEN_SYMBOLS, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -31,6 +32,7 @@ export const TokenPickerContent = () => {
       ] as const,
   )
   const token = selectedToken ?? TOKENS.USDC.symbol
+  const isAwaitingApproval = useIsAwaitingRenewalApproval(uiActor)
 
   const pricingQuery = useQuery({
     ...getRenewPriceQueryOptions(label, duration, token, protocol),
@@ -106,6 +108,7 @@ export const TokenPickerContent = () => {
         ? { fundedAmount: pricingQuery.data.funded }
         : {})}
       funding={funding}
+      isBusy={isAwaitingApproval}
       isConnected={isConnected}
       isLoadingBalances={balances.isLoading}
       isQuotingFunding={isQuoting}
@@ -116,7 +119,13 @@ export const TokenPickerContent = () => {
           It is collected together with the renewal price, in the same approval.
         </Trans>
       }
-      nextMessage={<Trans>Renew name</Trans>}
+      nextMessage={
+        isAwaitingApproval ? (
+          <Trans>Approve in wallet</Trans>
+        ) : (
+          <Trans>Renew name</Trans>
+        )
+      }
       onNext={startRenewal}
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.price}

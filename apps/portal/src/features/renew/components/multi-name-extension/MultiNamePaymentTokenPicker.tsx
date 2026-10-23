@@ -90,8 +90,8 @@ export const MultiNamePaymentTokenPicker = ({
   })
 
   // Price each name against its own renewer so v1 names are quoted by
-  // ETHRenewerV1 and v2 names by the v2 ETHRegistrar. One useQueries over both
-  // payment tokens, flattened (USDC block then DAI block) the same way as the
+  // ETHRenewerV1 and v2 names by the v2 ETHRegistrar. One useQueries over the
+  // payment tokens, flattened (one block per token) the same way as the
   // allowance reads above, then sliced back into per-token views.
   const priceQueries = useQueries({
     queries: PAYMENT_TOKENS.flatMap((token) =>
@@ -105,14 +105,17 @@ export const MultiNamePaymentTokenPicker = ({
       ),
     ),
   })
-  const usdcPriceQueries = priceQueries.slice(0, renewals.length)
-  const daiPriceQueries = priceQueries.slice(renewals.length)
+  const priceQueriesByToken = PAYMENT_TOKENS.map((_, tokenIndex) =>
+    priceQueries.slice(
+      tokenIndex * renewals.length,
+      (tokenIndex + 1) * renewals.length,
+    ),
+  )
 
   const isLoading =
     balancesQuery.isLoading ||
     allowancesQuery.isLoading ||
-    usdcPriceQueries.some((q) => q.isLoading) ||
-    daiPriceQueries.some((q) => q.isLoading)
+    priceQueries.some((q) => q.isLoading)
 
   if (isLoading) return <Skeleton />
 
@@ -120,9 +123,9 @@ export const MultiNamePaymentTokenPicker = ({
   // understate a renewer's approval total (risking an on-chain revert) and make
   // a token look affordable when it isn't. If any name's price failed to resolve,
   // block selection and prompt a retry rather than price the batch wrong.
-  const pricesResolved =
-    usdcPriceQueries.every((q) => q.data && isPriceResult(q.data)) &&
-    daiPriceQueries.every((q) => q.data && isPriceResult(q.data))
+  const pricesResolved = priceQueries.every(
+    (q) => q.data && isPriceResult(q.data),
+  )
 
   if (!pricesResolved) {
     return (
@@ -151,7 +154,7 @@ export const MultiNamePaymentTokenPicker = ({
   const allowanceFor = (tokenIndex: number, renewerIndex: number): bigint =>
     allowanceResults[tokenIndex * renewers.length + renewerIndex] ?? 0n
 
-  const sumTotal = (queries: typeof usdcPriceQueries): bigint =>
+  const sumTotal = (queries: typeof priceQueries): bigint =>
     queries.reduce(
       (sum, q) => (q.data && isPriceResult(q.data) ? sum + q.data.total : sum),
       0n,
@@ -160,10 +163,7 @@ export const MultiNamePaymentTokenPicker = ({
   // Per-renewer approval breakdown for a token: group each name's charge by its
   // renewer, then attach that renewer's current allowance (by position in the
   // `renewers` list, matching the flattened allowance reads above).
-  const buildPayments = (
-    queries: typeof usdcPriceQueries,
-    tokenIndex: number,
-  ) =>
+  const buildPayments = (queries: typeof priceQueries, tokenIndex: number) =>
     computeRenewerPayments(
       renewals.map((renewal, i) => {
         const q = queries[i]
@@ -175,23 +175,18 @@ export const MultiNamePaymentTokenPicker = ({
       (renewer) => allowanceFor(tokenIndex, renewers.indexOf(renewer)),
     )
 
-  const paymentsByToken: readonly (readonly RenewerPayment[])[] = [
-    buildPayments(usdcPriceQueries, 0),
-    buildPayments(daiPriceQueries, 1),
-  ]
+  const paymentsByToken: readonly (readonly RenewerPayment[])[] =
+    priceQueriesByToken.map((queries, tokenIndex) =>
+      buildPayments(queries, tokenIndex),
+    )
 
-  const tokenData: PaymentTokenDisplay[] = [
-    {
-      ...PAYMENT_TOKENS[0],
-      balance: balances[0] ?? 0n,
-      price: { total: sumTotal(usdcPriceQueries) },
-    },
-    {
-      ...PAYMENT_TOKENS[1],
-      balance: balances[1] ?? 0n,
-      price: { total: sumTotal(daiPriceQueries) },
-    },
-  ]
+  const tokenData: PaymentTokenDisplay[] = PAYMENT_TOKENS.map(
+    (token, tokenIndex) => ({
+      ...token,
+      balance: balances[tokenIndex] ?? 0n,
+      price: { total: sumTotal(priceQueriesByToken[tokenIndex] ?? []) },
+    }),
+  )
 
   const noSupportedTokenHasSufficientBalance = tokenData.every(
     (token) => token.balance < token.price.total,
@@ -215,7 +210,7 @@ export const MultiNamePaymentTokenPicker = ({
           icon={<AlertTriangle className="size-6" />}
           title="Insufficient balance"
           className="xl:min-w-none"
-          description="You'll need to hold USDC or DAI in your connected wallet to complete the renewal."
+          description="You'll need to hold USDC in your connected wallet to complete the renewal."
         />
       ) : (
         <PaymentTokenList

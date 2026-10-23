@@ -2,9 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   FEATURE_FLAGS,
   type FeatureFlag,
-  getTransactionInfra,
   isFeatureEnabled,
-  resolveInfrastructure,
 } from './feature-flags'
 
 type MutableFeatureFlags = Record<
@@ -249,26 +247,6 @@ describe('feature-flags', () => {
           delete mutableFlags[key]
         }
       }
-    })
-  })
-
-  describe('provider and infra helpers', () => {
-    it('getTransactionInfra always returns warp (Warp-only infra)', () => {
-      expect(getTransactionInfra()).toBe('warp')
-    })
-
-    it('resolveInfrastructure prioritizes explicit override', () => {
-      expect(resolveInfrastructure({ infrastructure: 'warp' }, 'warp')).toBe(
-        'warp',
-      )
-    })
-
-    it('resolveInfrastructure prioritizes signer default', () => {
-      expect(resolveInfrastructure(undefined, 'warp')).toBe('warp')
-    })
-
-    it('resolveInfrastructure falls back to the Warp-only default', () => {
-      expect(resolveInfrastructure()).toBe('warp')
     })
   })
 })

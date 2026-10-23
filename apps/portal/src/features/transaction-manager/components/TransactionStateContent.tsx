@@ -82,7 +82,6 @@ export const TransactionStateContent = ({
 
       <TransactionFlowProgressBar
         transactions={transactions}
-        activeTransaction={activeTransaction}
         activeTransactionsMap={activeTransactionsMap}
       />
 

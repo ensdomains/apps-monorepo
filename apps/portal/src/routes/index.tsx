@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import {
   ConnectWalletMessage,
   EnsV2InfoMessage,
@@ -22,14 +21,9 @@ function RouteComponent() {
 
   return (
     <main className="min-h-screen flex flex-col items-center gap-18 px-6 pt-6 pb-18">
-      {/* Logo and the Sepolia notice share one row so the notice doesn't
-          push the page down; `sm:items-start` keeps the logo pinned at the
-          same y as the sidebar's. Below `sm` they stack and the logo centres. */}
-      <div className="w-full flex flex-col items-center gap-6 sm:flex-row sm:items-start">
+      {/* `sm:items-start` pins the logo at the sidebar's y; below `sm` it centres. */}
+      <div className="w-full flex flex-col items-center sm:flex-row sm:items-start">
         <HomeHeader />
-        <div className="flex-1 min-w-0">
-          <SepoliaNoticeBanner />
-        </div>
       </div>
 
       {/* -mt-6 trims this one gap from the grid's 72px to 48px; the page's

@@ -122,6 +122,7 @@ export const renewalUiMachine = setup({
           /** Formatted base price */
           priceNumber: number
         }
+      | { type: 'renewal.submitted'; txId: string }
       | { type: 'retry' }
       | { type: 'cancel' }
       | { type: 'label.changed' },
@@ -300,12 +301,22 @@ export const renewalUiMachine = setup({
     // intent has filled, so success needs no polling step of its own.
     submittingHcaRenewal: {
       tags: 'renewing',
+      // Until the intent is submitted the owner is still approving (the
+      // funding prompt, then the signature), so the payment dialog stays up
+      // as it does for registration; `renewalTxId` marks the hand-over.
+      on: {
+        'renewal.submitted': {
+          actions: assign({ renewalTxId: ({ event }) => event.txId }),
+        },
+      },
       invoke: {
         id: 'submitHcaRenewal',
         src: 'submitHcaRenewalIntent',
-        input: ({ context }) => {
+        input: ({ context, self }) => {
           const submission = requireSubmissionData(context.submissionData)
           return {
+            onSubmitted: (txId: string) =>
+              self.send({ type: 'renewal.submitted', txId }),
             items: [
               {
                 label: submission.label,

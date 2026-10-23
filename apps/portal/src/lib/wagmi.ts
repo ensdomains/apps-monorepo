@@ -1,9 +1,11 @@
 import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/config'
 import { walletConnect } from '@wagmi/connectors'
-import { createClient, fallback, http } from 'viem'
+import { match, P } from 'ts-pattern'
+import { createClient, fallback, http, webSocket } from 'viem'
 import { createConfig } from 'wagmi'
 import { envConfig } from '@/config'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
+import { getCustomRpcUrl, WEBSOCKET_URL } from '@/lib/customRpc'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
 /**
@@ -18,7 +20,7 @@ export { WALLETCONNECT_PROJECT_ID }
 
 // Failover across the app's attributed primary and the network's shared
 // public endpoints.
-export const fallbackTransport = fallback(
+const defaultTransport = fallback(
   envConfig.rpcUrls.map((url) =>
     http(url, {
       retryCount: 2,
@@ -31,6 +33,14 @@ export const fallbackTransport = fallback(
   // ranking, which would let a fast public node steal traffic from our key.
   { rank: false, retryCount: 2 },
 )
+
+// A user-chosen RPC replaces the defaults entirely: no fallback, so requests
+// never leak to the default providers.
+export const fallbackTransport = match(getCustomRpcUrl())
+  .with(null, () => defaultTransport)
+  .with(P.string.regex(WEBSOCKET_URL), (url) => webSocket(url))
+  .with(P.string, (url) => http(url, { retryCount: 2, batch: { wait: 10 } }))
+  .exhaustive()
 
 // The build's network, mainnet or Sepolia, with its ENS contracts.
 export const ensChain = envConfig.chain

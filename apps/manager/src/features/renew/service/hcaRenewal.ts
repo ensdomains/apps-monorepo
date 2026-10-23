@@ -100,8 +100,14 @@ export interface SubmitHcaRenewalParams {
   readonly walletClient: WalletClient
   readonly publicClient: PublicClient
   readonly chainId: number
-  /** Called with the submitted txId so the UI can track it. */
+  /** Called with the transaction-manager id as soon as the record exists, so the UI can track it. */
   readonly onTxId?: (txId: string) => void
+  /**
+   * Called once the owner has signed and the orchestrator holds the intent,
+   * before the fill: nothing is left to approve, so a payment dialog can hand
+   * over to progress.
+   */
+  readonly onSubmitted?: (txId: string) => void
   /**
    * Show the USDC the funding permit will authorize and wait for the user to
    * accept it. Called only when the HCA cannot cover the renewal out of its own
@@ -306,6 +312,7 @@ export async function submitHcaRenewal(
     publicClient,
     chainId,
     onTxId,
+    onSubmitted,
     confirmFunding,
   } = params
 
@@ -365,6 +372,9 @@ export async function submitHcaRenewal(
     purpose: RENEWAL_PERMIT_PURPOSE,
   })
 
+  // Assigned by `startTransaction` below; the transport reports the submitted
+  // intent only after that returns.
+  let txId: string | undefined
   const request: RhinestoneTransactionRequest = {
     type: 'rhinestone-intent',
     from: hca,
@@ -376,6 +386,11 @@ export async function submitHcaRenewal(
       ...(funding.auxiliaryFunds
         ? { auxiliaryFunds: funding.auxiliaryFunds }
         : {}),
+      // Fires once the owner has signed and the orchestrator holds the
+      // intent, before the fill: nothing is left to approve from here.
+      onIntentSubmitted: () => {
+        if (txId) onSubmitted?.(txId)
+      },
     },
   }
 
@@ -383,7 +398,7 @@ export async function submitHcaRenewal(
     ? `Renew ${single.label}.eth`
     : `Renew ${items.length} names`
 
-  const txId = transactionManager.startTransaction(
+  txId = transactionManager.startTransaction(
     { type: 'custom', request },
     ownerSigner,
     {

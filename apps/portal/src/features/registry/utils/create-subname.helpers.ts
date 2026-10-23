@@ -6,6 +6,7 @@
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { createSubnameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import { registrySetSubnodeRecordSnippet } from '@ensdomains/ensjs-abi/registry'
 import { nameWrapperSetSubnodeRecordSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
@@ -19,6 +20,7 @@ import {
   type WalletClient,
   zeroAddress,
 } from 'viem'
+import type { SubnameLabelStatus } from '@/features/profile/hooks/useSubnames'
 import { toEoaIntent } from '@/features/transaction-manager/helpers/intents'
 import type {
   V1ParentState,
@@ -266,3 +268,30 @@ export const getV1SubnameCreateGate = (
     target: { protocol: 'ENSv1', isWrapped: held.parent.isWrapped },
   }
 }
+
+/** The root roles `register` checks on a V2 subregistry, one per label state. */
+export type RegistrarAccess = {
+  readonly canRegister: boolean
+  readonly canRegisterReserved: boolean
+}
+
+export const getRegistrarAccess = (
+  rootRoles: readonly Role[],
+): RegistrarAccess => ({
+  canRegister: rootRoles.includes('ROLE_REGISTRAR'),
+  canRegisterReserved: rootRoles.includes('ROLE_REGISTER_RESERVED'),
+})
+
+/** The root role `register` would demand for a label in `status` that `access` lacks, or null. */
+export const getMissingRegistrarRole = (
+  access: RegistrarAccess,
+  status: SubnameLabelStatus,
+): 'ROLE_REGISTRAR' | 'ROLE_REGISTER_RESERVED' | null =>
+  match(status)
+    .with('available', () => (access.canRegister ? null : 'ROLE_REGISTRAR'))
+    .with('reserved', () =>
+      access.canRegisterReserved ? null : 'ROLE_REGISTER_RESERVED',
+    )
+    // A taken label is refused before any role is asked about.
+    .with('registered', () => null)
+    .exhaustive()

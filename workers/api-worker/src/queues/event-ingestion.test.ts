@@ -4,7 +4,6 @@ import { makeMockEnv, makeMockQueue } from '#test-utils/env.js'
 import { runQueue } from '#test-utils/queue.js'
 import {
   buildIdempotencyKey,
-  collapseExpiryEvents,
   shouldCreateExternalDeliveries,
 } from './event-ingestion.js'
 
@@ -90,45 +89,27 @@ it('uses a stable identity and owner-specific external delivery preferences', ()
   expect(shouldCreateExternalDeliveries('manual', settings)).toBe(true)
 })
 
-it('selects the most advanced overlapping stage and merges routing data', () => {
-  expect(
-    collapseExpiryEvents([
-      {
-        ...event,
-        stage: 'grace-start',
-        owner: undefined,
-        includeFavorites: false,
-      },
-      {
-        ...event,
-        stage: 'expiry-30d',
-        owner: '0xowner',
-        includeFavorites: true,
-      },
-    ]),
-  ).toEqual([
-    expect.objectContaining({
-      stage: 'grace-start',
-      owner: '0xowner',
-      includeFavorites: true,
-    }),
-  ])
-})
-
 it('processes overlapping messages once and ACKs every source message', async () => {
   const db = controlledDb()
   vi.mocked(getDatabase).mockReturnValue(db as never)
   const result = await runQueue(
     'app-api-worker-event-ingestion',
     [
-      { ...event, stage: 'expiry-30d', owner: undefined },
-      { ...event, stage: 'expiry-7d', includeFavorites: true },
+      { ...event, stage: 'expiry-30d', includeFavorites: true },
+      { ...event, stage: 'expiry-7d', owner: undefined },
     ],
     makeMockEnv(),
   )
   expect(result.explicitAcks).toEqual(['message-0', 'message-1'])
   expect(result.retryMessages).toEqual([])
   expect(db.insert).toHaveBeenCalledTimes(2)
+  // The most advanced stage wins; owner and favourites merge across sources.
+  expect(db.query.favorites.findMany).toHaveBeenCalledTimes(1)
+  expect(
+    db.insert.mock.results[0]?.value.values.mock.calls[0]?.[0],
+  ).toMatchObject([
+    { user_id: 'owner', idempotency_key: notification.idempotency_key },
+  ])
 })
 
 it('reconciles persisted identities, emits all channel jobs, and ACKs the source', async () => {

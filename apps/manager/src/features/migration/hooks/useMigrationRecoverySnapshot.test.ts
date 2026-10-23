@@ -54,6 +54,8 @@ const makeRecoverySnapshot = (): MigrationRecoverySnapshot => {
     addresses: [],
     contentHash: null,
     abis: [],
+    interfaces: [],
+    pubkey: null,
   } as const
 
   return {

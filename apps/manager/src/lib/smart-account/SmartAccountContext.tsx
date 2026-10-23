@@ -66,6 +66,7 @@ import type {
   WalletSource as BaseWalletSource,
   RhinestoneAccountState,
 } from './types'
+import { useSessionRevocationWatch } from './useSessionRevocationWatch'
 import { useSmartAccountBalances } from './useSmartAccountBalances'
 
 export interface RevokeSessionOptions {
@@ -664,6 +665,15 @@ export const SmartAccountContextProvider = ({
     setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
   }, [sessionOwnerAddress, accountAddress])
 
+  const isActiveSessionRevoked = useSessionRevocationWatch({
+    activeSession,
+    accountAddress,
+    ownerAddress: sessionOwnerAddress,
+    chainId: appChain.id,
+    publicClient: wagmiPublicClient as PublicClient | undefined,
+    onRevoked: setActiveSession,
+  })
+
   // Authorize (or reuse) a session and return a signer carrying it. With
   // `replaceWithCaps`, always authorizes a new session with those caps.
   // Resolves to an Error, never throws, so each caller decides how to fail.
@@ -1047,7 +1057,7 @@ export const SmartAccountContextProvider = ({
             walletClient:
               (wagmiWalletClient as WalletClient | undefined) ?? null,
             infrastructure,
-            hasActiveSession: !!activeSession,
+            hasActiveSession: !!activeSession && !isActiveSessionRevoked,
             isEnablingSession,
             sessionError,
             enableSession,
@@ -1084,6 +1094,7 @@ export const SmartAccountContextProvider = ({
       snapshot.context.walletSource,
       infrastructure,
       activeSession,
+      isActiveSessionRevoked,
       isEnablingSession,
       sessionError,
       enableSession,
