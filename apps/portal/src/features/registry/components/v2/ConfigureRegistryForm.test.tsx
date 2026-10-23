@@ -65,8 +65,8 @@ vi.mock('@/features/registry/hooks/useSetSubregistry', () => ({
   }),
 }))
 
-vi.mock('@/features/registry/hooks/useRegistryParentStep', () => ({
-  useRegistryParentStep: ({ next }: { readonly next: () => void }) => ({
+vi.mock('@/features/registry/hooks/useRegistryParentMutation', () => ({
+  useRegistryParentMutation: ({ next }: { readonly next: () => void }) => ({
     start: next,
     steps: [],
     isPending: false,

@@ -20,7 +20,7 @@ import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/se
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
-import { useRegistryParentStep } from '@/features/registry/hooks/useRegistryParentStep'
+import { useRegistryParentMutation } from '@/features/registry/hooks/useRegistryParentMutation'
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
@@ -204,7 +204,7 @@ const SubregistryConfiguratorForm = ({
     setSubregistry(deployed)
   }
 
-  const parentStep = useRegistryParentStep({
+  const registryParent = useRegistryParentMutation({
     name,
     parentRegistry,
     id: setRegistryParentTxId,
@@ -253,7 +253,7 @@ const SubregistryConfiguratorForm = ({
 
   const buttonText = match({
     isDeployConfirming,
-    isSetRegistryParentPending: parentStep.isPending,
+    isSetRegistryParentPending: registryParent.isPending,
     isSetSubregistryPending,
     showSuccessButtonLabel,
   })
@@ -362,9 +362,9 @@ const SubregistryConfiguratorForm = ({
                       }),
                   },
                   onStart: handleDeploySubregistryStart,
-                  onDone: parentStep.start,
+                  onDone: registryParent.start,
                 },
-                ...parentStep.steps,
+                ...registryParent.steps,
                 {
                   id: setSubregistryTxId,
                   title: 'Set subregistry',

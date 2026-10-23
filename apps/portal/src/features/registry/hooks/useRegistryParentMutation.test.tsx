@@ -33,7 +33,9 @@ vi.mock(
   }),
 )
 
-const { useRegistryParentStep } = await import('./useRegistryParentStep')
+const { useRegistryParentMutation } = await import(
+  './useRegistryParentMutation'
+)
 
 const wrapper = ({ children }: { readonly children: ReactNode }) => (
   <QueryClientProvider client={new QueryClient()}>
@@ -45,7 +47,7 @@ const render = (name: string) => {
   const next = vi.fn()
   const { result } = renderHook(
     () =>
-      useRegistryParentStep({
+      useRegistryParentMutation({
         name,
         parentRegistry: PARENT_REGISTRY,
         id: 'tx-set-registry-parent',
@@ -61,7 +63,7 @@ beforeEach(() => {
   setRegistryParent.mockReset()
 })
 
-describe('useRegistryParentStep', () => {
+describe('useRegistryParentMutation', () => {
   it('claims the parent before linking, and links only once the claim is done', async () => {
     setRegistryParent.mockResolvedValue({ txId: 'tx', hash: '0x' })
     const { result, next } = render('koala.eth')

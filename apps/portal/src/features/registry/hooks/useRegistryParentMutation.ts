@@ -10,7 +10,7 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { ensChain } from '@/lib/wagmi'
 
-interface UseRegistryParentStepParams {
+interface UseRegistryParentMutationParams {
   readonly name: string
   readonly parentRegistry: Address | null
   readonly id: string
@@ -23,13 +23,13 @@ interface UseRegistryParentStepParams {
  * The deploy flow's `setParent` step. Skipped for a name whose label is
  * encoded, since there is no label to claim.
  */
-export const useRegistryParentStep = ({
+export const useRegistryParentMutation = ({
   name,
   parentRegistry,
   id,
   deployedRegistryRef,
   next,
-}: UseRegistryParentStepParams) => {
+}: UseRegistryParentMutationParams) => {
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()
   const label = registryParentLabel(name)
