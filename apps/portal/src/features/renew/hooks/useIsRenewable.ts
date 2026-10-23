@@ -5,7 +5,7 @@ import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import {
   isRenewable as ensjs_isRenewable,
   type IsRenewableErrorType,
-} from '@ensdomains/ensjs/public'
+} from '@storywithoutend/effect-ens/public'
 import { useQueries } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'

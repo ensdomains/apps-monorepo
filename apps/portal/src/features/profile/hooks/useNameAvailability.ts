@@ -4,7 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   type GetAvailableErrorType,
   getAvailable,
-} from '@ensdomains/ensjs/public'
+} from '@storywithoutend/effect-ens/public'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
