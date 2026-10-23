@@ -1,5 +1,5 @@
 import { storeAnalyticsConsent } from '@ens-apps/utils/posthog/analyticsConsent'
-import { boot, trackEvent } from '@intercom/messenger-js-sdk'
+import { boot, trackEvent, update } from '@intercom/messenger-js-sdk'
 import { render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,6 +12,7 @@ vi.mock('@intercom/messenger-js-sdk', () => ({
   boot: vi.fn(),
   getVisitorId: vi.fn(),
   trackEvent: vi.fn(),
+  update: vi.fn(),
 }))
 vi.mock('@posthog/react', () => ({
   PostHogProvider: ({ children }: { children: unknown }) => children,
@@ -79,15 +80,13 @@ describe('PostHog provider', () => {
     )
   })
 
-  it('links Intercom to analytics only after consent', () => {
-    const { unmount } = renderProvider()
-    expect(boot).toHaveBeenLastCalledWith({ app_id: INTERCOM_APP_ID })
-    unmount()
+  it('links Intercom to analytics only with consent, including after Accept', () => {
+    renderProvider()
+    expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
+    expect(update).not.toHaveBeenCalled()
 
     storeAnalyticsConsent('granted')
-    renderProvider()
-    expect(boot).toHaveBeenLastCalledWith({
-      app_id: INTERCOM_APP_ID,
+    expect(update).toHaveBeenCalledWith({
       posthog_distinct_id: 'distinct-id',
       recent_replay: 'replay-url',
     })

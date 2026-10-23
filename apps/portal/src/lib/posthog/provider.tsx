@@ -6,6 +6,7 @@ import {
   boot as bootIntercom,
   getVisitorId,
   trackEvent as trackIntercomEvent,
+  update as updateIntercom,
 } from '@intercom/messenger-js-sdk'
 import { PostHogProvider } from '@posthog/react'
 // @posthog/react types its `client` prop with the `PostHog` type from the
@@ -52,6 +53,21 @@ const identifyWallet = (wallet: ConnectedWallet) => {
   })
 }
 
+// Links support chats to analytics, only for visitors who accepted. Runs at
+// boot and again on Accept, so an answer given mid-visit links this visit too.
+const linkIntercomToAnalytics = () => {
+  if (!posthog.__loaded || !hasAnalyticsConsent()) return
+  updateIntercom({
+    posthog_distinct_id: posthog.get_distinct_id(),
+    recent_replay: posthog.get_session_replay_url(),
+  })
+  const intercomVisitorId = getVisitorId()
+  if (intercomVisitorId)
+    trackWithOptions('intercom:booted', undefined, {
+      $set: { intercom_visitor_id: intercomVisitorId },
+    })
+}
+
 export const PHProvider = ({
   children,
 }: {
@@ -77,26 +93,8 @@ export const PHProvider = ({
     }
 
     try {
-      bootIntercom({
-        app_id: INTERCOM_APP_ID,
-        // Links support chats to analytics, only for visitors who accepted.
-        ...(posthog.__loaded && hasAnalyticsConsent()
-          ? {
-              posthog_distinct_id: posthog.get_distinct_id(),
-              recent_replay: posthog.get_session_replay_url(),
-            }
-          : {}),
-      })
-
-      const intercomVisitorId = getVisitorId()
-
-      if (intercomVisitorId) {
-        trackWithOptions('intercom:booted', undefined, {
-          $set: {
-            intercom_visitor_id: intercomVisitorId,
-          },
-        })
-      }
+      bootIntercom({ app_id: INTERCOM_APP_ID })
+      linkIntercomToAnalytics()
     } catch (error) {
       console.warn('[intercom] init failed', error)
     }
@@ -107,6 +105,7 @@ export const PHProvider = ({
       if (!hasAnalyticsConsent()) posthog.reset()
       applyAnalyticsConsent(posthog)
       if (wallet.current) identifyWallet(wallet.current)
+      linkIntercomToAnalytics()
     })
   }, [])
 
