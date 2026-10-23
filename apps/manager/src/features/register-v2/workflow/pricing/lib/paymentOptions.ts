@@ -1,3 +1,4 @@
+import { match, P } from 'ts-pattern'
 import type { L2Source } from '@/l2Sources'
 
 /** The payment row for the registration paid with USDC on an L2. */
@@ -24,13 +25,17 @@ const getStatus = (
   amountRaw: bigint | null,
   isLoaded: boolean,
   balanceRaw: bigint | null,
-): L2PaymentOptionStatus => {
-  if (amountRaw === null || !isLoaded) return 'loading'
-  if (balanceRaw === null) return 'unavailable'
-  // Nothing to bridge: the account's credit already covers the registration.
-  if (amountRaw === 0n) return 'available'
-  return balanceRaw > amountRaw ? 'available' : 'insufficient'
-}
+): L2PaymentOptionStatus =>
+  match({ amountRaw, isLoaded, balanceRaw })
+    .returnType<L2PaymentOptionStatus>()
+    .with({ amountRaw: null }, { isLoaded: false }, () => 'loading')
+    .with({ balanceRaw: null }, () => 'unavailable')
+    // Nothing to bridge: the account's credit already covers the registration.
+    .with({ amountRaw: 0n }, () => 'available')
+    .with({ amountRaw: P.bigint, balanceRaw: P.bigint }, (option) =>
+      option.balanceRaw > option.amountRaw ? 'available' : 'insufficient',
+    )
+    .exhaustive()
 
 /**
  * One row per L2 source. `amountRaw`, what paying from an L2 sends the HCA, is
