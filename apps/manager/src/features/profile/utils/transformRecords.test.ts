@@ -527,6 +527,23 @@ describe('profile transformRecords utils', () => {
       ])
     })
 
+    it('should save bare domain links with https://', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        links: [
+          { name: 'Site', url: ' asdfdf4t4.com/blog?a=1#top ' },
+          { name: 'Plain', url: 'http://example.com' },
+        ],
+      }
+
+      const normalized = normalizeProfileRecords(records)
+
+      expect(normalized.links).toEqual([
+        { name: 'Site', url: 'https://asdfdf4t4.com/blog?a=1#top' },
+        { name: 'Plain', url: 'http://example.com' },
+      ])
+    })
+
     it('should remove empty address drafts without changing filled addresses', () => {
       const records = {
         ...newEmptyProfileRecords(),

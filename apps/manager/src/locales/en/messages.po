@@ -247,6 +247,10 @@ msgstr "Account address:"
 msgid "Active access"
 msgstr "Active access"
 
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Add a domain extension, like .com"
+msgstr "Add a domain extension, like .com"
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Add an external contact method if you also want reminders by email or Telegram or in your browser."
 msgstr "Add an external contact method if you also want reminders by email or Telegram or in your browser."
@@ -620,6 +624,10 @@ msgstr "Checking your account…"
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Checking your subnames"
 msgstr "Checking your subnames"
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Choose a different name (reserved key)"
+msgstr "Choose a different name (reserved key)"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Choose Primary Name"
@@ -1071,9 +1079,21 @@ msgstr "ENSv1 only"
 msgid "ENSv2 commemorative NFT"
 msgstr "ENSv2 commemorative NFT"
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Enter a link"
+msgstr "Enter a link"
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Enter a price you'd be willing to pay. We'll calculate when the fee will reach that price."
 msgstr "Enter a price you'd be willing to pay. We'll calculate when the fee will reach that price."
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Enter a title"
+msgstr "Enter a title"
+
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Enter a valid URL, like https://example.com"
+msgstr "Enter a valid URL, like https://example.com"
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Enter the code from your email in Notification Settings while signed in to the account that requested it."
@@ -1434,6 +1454,10 @@ msgstr "links"
 msgid "Links"
 msgstr "Links"
 
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Links can't contain spaces. Remove them and try again"
+msgstr "Links can't contain spaces. Remove them and try again"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
 msgid "Load {hiddenCount} more"
 msgstr "Load {hiddenCount} more"
@@ -1786,6 +1810,10 @@ msgstr "One username everywhere"
 #: src/features/dashboard/components/PrimaryNameV1Warning.tsx
 msgid "Only ENSv2 Names Supported"
 msgstr "Only ENSv2 Names Supported"
+
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Only http:// and https:// links are supported"
+msgstr "Only http:// and https:// links are supported"
 
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"

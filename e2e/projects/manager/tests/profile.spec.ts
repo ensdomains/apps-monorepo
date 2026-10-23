@@ -147,12 +147,10 @@ test.describe('ENS profile', () => {
 
     // Links tab: fill only the URL field with an invalid URL — the draft stays
     // a draft (title is empty) but validation still runs on non-empty drafts.
-    // Use exact match to distinguish from the General-tab "Enter a valid URL
-    // (e.g. https://example.com)" message which may still be in the DOM.
     await page.getByRole('tab', { name: 'Links' }).click()
     await page.getByRole('textbox', { name: 'Link 1 URL' }).fill('not a url')
     await expect(
-      page.getByText('Enter a valid URL', { exact: true }),
+      page.getByText("Links can't contain spaces. Remove them and try again"),
     ).toBeVisible({ timeout: 10_000 })
 
     console.log(`[profile] ✅ Validation errors correctly shown for ${name}`)

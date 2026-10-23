@@ -252,6 +252,10 @@ msgstr ""
 msgid "Active access"
 msgstr ""
 
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Add a domain extension, like .com"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Add an external contact method if you also want reminders by email or Telegram or in your browser."
 msgstr ""
@@ -624,6 +628,10 @@ msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Checking your subnames"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Choose a different name (reserved key)"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -1076,8 +1084,20 @@ msgstr ""
 msgid "ENSv2 commemorative NFT"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Enter a link"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Enter a price you'd be willing to pay. We'll calculate when the fee will reach that price."
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Enter a title"
+msgstr ""
+
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Enter a valid URL, like https://example.com"
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
@@ -1439,6 +1459,10 @@ msgstr ""
 msgid "Links"
 msgstr ""
 
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Links can't contain spaces. Remove them and try again"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
 msgid "Load {hiddenCount} more"
 msgstr ""
@@ -1790,6 +1814,10 @@ msgstr ""
 
 #: src/features/dashboard/components/PrimaryNameV1Warning.tsx
 msgid "Only ENSv2 Names Supported"
+msgstr ""
+
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Only http:// and https:// links are supported"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
