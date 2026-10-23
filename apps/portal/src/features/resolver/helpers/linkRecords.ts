@@ -7,7 +7,7 @@ import {
 import {
   linkToNodeWriteParameters,
   linkToRecordWriteParameters,
-} from '@ensdomains/ensjs/wallet/v2'
+} from '@storywithoutend/effect-ens/wallet/v2'
 import {
   type Address,
   encodeFunctionData,

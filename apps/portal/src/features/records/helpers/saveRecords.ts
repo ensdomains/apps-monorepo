@@ -13,8 +13,8 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { setRecordsWriteParameters as setRecordsWriteParametersV1 } from '@ensdomains/ensjs/wallet/v1'
-import { setRecordsWriteParameters as setRecordsWriteParametersV2 } from '@ensdomains/ensjs/wallet/v2'
+import { setRecordsWriteParameters as setRecordsWriteParametersV1 } from '@storywithoutend/effect-ens/wallet/v1'
+import { setRecordsWriteParameters as setRecordsWriteParametersV2 } from '@storywithoutend/effect-ens/wallet/v2'
 import {
   type Address,
   encodeFunctionData,

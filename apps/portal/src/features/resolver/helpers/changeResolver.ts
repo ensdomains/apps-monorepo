@@ -13,7 +13,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { permissionedRegistrySetResolverSnippet } from '@ensdomains/ensjs/contracts'
+import { permissionedRegistrySetResolverSnippet } from '@storywithoutend/effect-ens/contracts'
 import {
   type Address,
   encodeFunctionData,

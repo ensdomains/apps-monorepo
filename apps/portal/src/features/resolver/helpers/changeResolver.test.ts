@@ -1,4 +1,4 @@
-import { permissionedRegistrySetResolverSnippet } from '@ensdomains/ensjs/contracts'
+import { permissionedRegistrySetResolverSnippet } from '@storywithoutend/effect-ens/contracts'
 import {
   type Address,
   decodeFunctionData,

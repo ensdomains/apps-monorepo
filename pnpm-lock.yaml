@@ -640,9 +640,6 @@ importers:
       '@ensdomains/dnsprovejs':
         specifier: ^1.0.0
         version: 1.0.0
-      '@ensdomains/ensjs':
-        specifier: 'catalog:'
-        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.2
@@ -698,8 +695,8 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@storywithoutend/effect-ens':
-        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-456bdc7.tgz
-        version: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-456bdc7.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-20ac3ad.tgz
+        version: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-20ac3ad.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@tanstack/react-hotkeys':
         specifier: ^0.4.1
         version: 0.4.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -5340,8 +5337,8 @@ packages:
       '@tanstack/start-client-core':
         optional: true
 
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-456bdc7.tgz':
-    resolution: {integrity: sha512-xKSSi+H4DzzeFpiY7pKfqO45KJFdDEXsCTpto/SrmOMJFw2j9+X8HQZT3AB/LDN71XhRcCTgGOpx/ae0i1CySQ==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-456bdc7.tgz}
+  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-20ac3ad.tgz':
+    resolution: {integrity: sha512-dxSINv5g88gxCsVUtzVLDREDJEwhwZhy+85vursiHnSy8vWW/BoIB6lwMjMxaEZT2qtGAHVBClYLo/k7sgsgBA==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-20ac3ad.tgz}
     version: 0.0.0
     engines: {node: ^22.18.0 || >=24.11.0}
     peerDependencies:
@@ -13070,12 +13067,13 @@ snapshots:
       - supports-color
       - typescript
 
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-456bdc7.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
+  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-20ac3ad.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.4
       '@ensdomains/content-hash': 3.1.0-rc.1
       '@ensdomains/dnsprovejs': 0.5.1
+      '@ensdomains/ensjs-abi': 5.0.2
       effect: 4.0.5
       viem: 2.52.2(typescript@7.0.2)(zod@4.6.5)
 

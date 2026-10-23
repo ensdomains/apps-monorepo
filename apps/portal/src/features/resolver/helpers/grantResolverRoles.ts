@@ -4,7 +4,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { grantResolverRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import { grantResolverRolesWriteParameters } from '@storywithoutend/effect-ens/wallet/v2'
 import {
   type Address,
   encodeFunctionData,

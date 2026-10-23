@@ -1,5 +1,5 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
-import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet'
+import { renewNameWriteParameters } from '@storywithoutend/effect-ens/wallet'
 import {
   type Address,
   encodeFunctionData,

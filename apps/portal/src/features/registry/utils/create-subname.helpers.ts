@@ -5,7 +5,7 @@
  */
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
-import { createSubnameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import { createSubnameWriteParameters } from '@storywithoutend/effect-ens/wallet/v2'
 import type { Address, WalletClient } from 'viem'
 import { encodeFunctionData, zeroAddress } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
