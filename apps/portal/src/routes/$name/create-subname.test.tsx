@@ -317,6 +317,8 @@ describe('create subname under a V2 parent', () => {
 
 it('opens the newly created child profile after completion', async () => {
   protocolVersion = 'ENSv2'
+  rootRoles = ['ROLE_REGISTRAR']
+  labelLookup = 'available'
   renderRoute()
   await userEvent.type(await screen.findByLabelText('Subname'), 'child')
   await userEvent.click(
