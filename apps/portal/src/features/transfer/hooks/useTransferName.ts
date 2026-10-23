@@ -20,6 +20,7 @@ import { match } from 'ts-pattern'
 import { type Address, getAddress, isAddress, isAddressEqual } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getResolvedAddressQueryOptions } from '@/features/address/queries/getResolvedAddress'
+import { getV1NameManagerQueryOptions } from '@/features/ownership/queries/getV1NameManager'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
@@ -362,6 +363,9 @@ export const useTransferName = ({
           queryKey: getV1NameStateQueryOptions({ name }).queryKey,
         }),
         queryClient.invalidateQueries({
+          queryKey: getV1NameManagerQueryOptions({ name }).queryKey,
+        }),
+        queryClient.invalidateQueries({
           queryKey: getPrimaryNameQueryOptions(account).queryKey,
         }),
         queryClient.invalidateQueries({
@@ -675,6 +679,9 @@ export const useTransferName = ({
       }),
       queryClient.invalidateQueries({
         queryKey: getV1NameStateQueryOptions({ name }).queryKey,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: getV1NameManagerQueryOptions({ name }).queryKey,
       }),
     ])
   }

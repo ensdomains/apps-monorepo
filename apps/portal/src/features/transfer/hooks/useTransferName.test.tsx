@@ -3,8 +3,10 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { ok, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getV1NameManagerQueryOptions } from '@/features/ownership/queries/getV1NameManager'
 import type { TransferSubject } from '../types'
 import type { TransferOptions, TransferStep } from '../utils/buildTransferPlan'
+import type { V1NameState } from '../v1/getV1NameState'
 import { NonCanonicalNameError, useTransferName } from './useTransferName'
 
 const ACCOUNT = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
@@ -94,6 +96,18 @@ vi.mock('../queries/getIsRegistryEmancipated', () => ({
   getIsRegistryEmancipated: () => getIsRegistryEmancipated(),
 }))
 
+vi.mock('@/utils/query/pollForIndexerSync', () => ({
+  pollForIndexerSync: vi.fn(),
+}))
+
+const getV1NameState = vi.fn((): V1NameState | null => null)
+vi.mock('../v1/getV1NameState', () => ({
+  getV1NameStateQueryOptions: () => ({
+    queryKey: ['transfer-v1-name-state'],
+    queryFn: () => getV1NameState(),
+  }),
+}))
+
 const subject: TransferSubject = { kind: 'v2', registryAddress: REGISTRY }
 
 // Move-only: the pre-move options are off, so the plan is the single step the
@@ -105,12 +119,23 @@ const options: TransferOptions = {
   revokeRoles: false,
 }
 
-const renderTransfer = (name: string) => {
-  const queryClient = new QueryClient({
+const makeQueryClient = () =>
+  new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
-  return renderHook(
-    () => useTransferName({ name, account: ACCOUNT, subject }),
+
+const renderTransfer = (
+  name: string,
+  {
+    transferSubject = subject,
+    queryClient = makeQueryClient(),
+  }: {
+    readonly transferSubject?: TransferSubject
+    readonly queryClient?: QueryClient
+  } = {},
+) =>
+  renderHook(
+    () => useTransferName({ name, account: ACCOUNT, subject: transferSubject }),
     {
       wrapper: ({ children }) => (
         <QueryClientProvider client={queryClient}>
@@ -119,7 +144,6 @@ const renderTransfer = (name: string) => {
       ),
     },
   )
-}
 
 // The route refuses non-canonical names before the form is offered, but the
 // route gate can only speak for its own page. This is the same gate inside the
@@ -302,5 +326,59 @@ describe('useTransferName — token id at the move step', () => {
       { kind: 'transfer-token' },
       expect.objectContaining({ tokenId: 2n }),
     )
+  })
+})
+
+// The registrant's `reclaim` hands the manager role to the recipient. The
+// Manager row caches it for the portal's hour, so a finish that skips it shows
+// the old manager beside the new owner (WEB-1866).
+describe('useTransferName — V1 manager handover', () => {
+  const MANAGER = '0xcccccccccccccccccccccccccccccccccccccccc' as Address
+  const registrar: TransferSubject = {
+    kind: 'v1-registrar',
+    registrant: ACCOUNT,
+    controller: MANAGER,
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('refreshes the manager once the transfer lands', async () => {
+    getV1NameState.mockReturnValue({
+      subject: registrar,
+      registration: 'active',
+      resolverAddress: RESOLVER,
+      parent: null,
+      ancestorRegistration: null,
+    })
+    const queryClient = makeQueryClient()
+    const managerKey = getV1NameManagerQueryOptions({
+      name: 'alice.eth',
+    }).queryKey
+    queryClient.setQueryData(managerKey, MANAGER)
+    const { result } = renderTransfer('alice.eth', {
+      transferSubject: registrar,
+      queryClient,
+    })
+
+    act(() => {
+      result.current.startTransfer({
+        recipient: RECIPIENT,
+        recipientInput: RECIPIENT,
+        roleGrants: [],
+        hasRemainingRoleHolders: false,
+        options,
+      })
+    })
+    await waitFor(() => {
+      expect(result.current.transactions).toHaveLength(2)
+    })
+
+    act(() => {
+      result.current.transactions[1].onDone?.()
+    })
+
+    expect(queryClient.getQueryState(managerKey)?.isInvalidated).toBe(true)
   })
 })
