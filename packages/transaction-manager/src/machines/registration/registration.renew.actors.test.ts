@@ -1,3 +1,4 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import { ensL1Contracts, extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import type { Address, PublicClient, WalletClient } from 'viem'
@@ -30,7 +31,11 @@ vi.mock('../../providers/transactionManager', () => ({
 
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
 const CONTRACTS = ensL1Contracts[sepolia.id]
-const TOKENS = { USDC: CONTRACTS.usdc, DAI: CONTRACTS.dai }
+// USDC is the manifest's (Circle's on Sepolia), not ensjs' MockUSDC.
+const TOKENS = {
+  USDC: { address: getDestinationContracts(sepolia.id).usdc },
+  DAI: CONTRACTS.dai,
+}
 const V1_RENEWER = CONTRACTS.ensEthRenewerV1.address
 const signer = {
   type: 'eoa',

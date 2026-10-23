@@ -302,7 +302,10 @@ export type TOKEN_SYMBOL = 'USDC' | 'DAI'
 
 export const PAYMENT_TOKEN_CONTRACT = { USDC: 'usdc', DAI: 'dai' } as const
 
+// USDC is the manifest's, the token checkout reads and the HCA route pays in,
+// not ensjs' MockUSDC: the registrar and renewers accept both on Sepolia.
 function getPaymentTokenAddress(token: TOKEN_SYMBOL, chain: Chain): Address {
+  if (token === 'USDC') return getDestinationContracts(chain.id).usdc
   return getChainContractAddress({
     chain,
     contract: PAYMENT_TOKEN_CONTRACT[token],
@@ -700,7 +703,7 @@ export function readPaymentTokenAllowanceActor(input: {
   publicClient: PublicClient
   /** Spender to read the allowance for. Defaults to the legacy registrar. */
   registrarAddress?: Address
-  /** Payment token to read. Defaults to the legacy mock token for the symbol. */
+  /** Payment token to read. Defaults to the symbol's payment token. */
   paymentTokenAddress?: Address
 }): ResultAsync<bigint, Error> {
   const registrarAddress =
@@ -741,7 +744,7 @@ export function readPaymentAuthorizationActor(input: {
   publicClient: PublicClient
   /** Spender/pricer to read. Defaults to the legacy registrar. */
   registrarAddress?: Address
-  /** Payment token to read. Defaults to the legacy mock token for the symbol. */
+  /** Payment token to read. Defaults to the symbol's payment token. */
   paymentTokenAddress?: Address
 }): ResultAsync<{ allowance: bigint; livePrice: bigint }, MulticallErrorType> {
   const registrarAddress =
@@ -1166,7 +1169,7 @@ export function submitApprovalActor(input: {
   id?: string
   /** Spender to approve. Defaults to the legacy registrar. */
   registrarAddress?: Address
-  /** Token to approve. Defaults to the legacy mock token for the symbol. */
+  /** Token to approve. Defaults to the symbol's payment token. */
   paymentTokenAddress?: Address
 }): ResultAsync<string, Error> {
   const registrarAddress =
