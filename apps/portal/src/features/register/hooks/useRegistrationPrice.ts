@@ -6,7 +6,7 @@ import {
   type GetRegisterPriceErrorType,
   type GetRenewPriceErrorType,
   getRegisterPrice,
-} from '@ensdomains/ensjs/public'
+} from '@storywithoutend/effect-ens/public'
 import { fromPromise, ok } from 'neverthrow'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { safeGetClient } from '@/lib/wagmi/helpers'
