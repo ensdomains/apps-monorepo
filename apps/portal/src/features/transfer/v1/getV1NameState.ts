@@ -1,7 +1,6 @@
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
   type GetExpiryErrorType,
   type GetExpiryReturnType,
@@ -14,6 +13,7 @@ import {
   getWrapperData,
 } from '@ensdomains/ensjs/public/v1'
 import { registryResolverSnippet } from '@ensdomains/ensjs-abi/registry'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { fromPromise, ok } from 'neverthrow'
 import { match, P } from 'ts-pattern'
 import {

@@ -698,8 +698,8 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@storywithoutend/effect-ens':
-        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-fbc02ad.tgz
-        version: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-fbc02ad.tgz(typescript@7.0.2)(zod@4.6.5)
+        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-dd38852.tgz
+        version: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-dd38852.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@tanstack/react-hotkeys':
         specifier: ^0.4.1
         version: 0.4.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -5336,10 +5336,12 @@ packages:
       '@tanstack/start-client-core':
         optional: true
 
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-fbc02ad.tgz':
-    resolution: {integrity: sha512-4tENKEox4ayRZOKlUQlr3DHRf/TQ8xgq8ig/LM6JyO10XutsLkisugCHVunnrcwxL0H0CWXVGZx2uV8Cwba/mg==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-fbc02ad.tgz}
+  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-dd38852.tgz':
+    resolution: {integrity: sha512-QPiCzo+DvBeYN3ZDYV0915EinkeRfh9rF04yH2ahQnKPyMLWq29iHZMYTWzRgIghOJ6tdXjhWNpQgMBhf29yIQ==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-dd38852.tgz}
     version: 0.0.0
     engines: {node: ^22.18.0 || >=24.11.0}
+    peerDependencies:
+      viem: ^2.9.2
 
   '@tailwindcss/node@4.2.4':
     resolution: {integrity: sha512-Ai7+yQPxz3ddrDQzFfBKdHEVBg0w3Zl83jnjuwxnZOsnH9pGn93QHQtpU0p/8rYWxvbFZHneni6p1BSLK4DkGA==}
@@ -7902,14 +7904,6 @@ packages:
       typescript:
         optional: true
 
-  ox@0.14.56:
-    resolution: {integrity: sha512-Feinlj+deWEam6RIwurRE+eHZ2N3hoUb3AAjQ10BmxRCYIymfqNkv0eZ+4ln4GkgDmSGLD2rGtTMqsFYSVDC6w==}
-    peerDependencies:
-      typescript: '>=5.4.0'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-
   ox@0.6.7:
     resolution: {integrity: sha512-17Gk/eFsFRAZ80p5eKqv89a57uXjd3NgIf1CaXojATPBuujVc/fQSVhBeAU9JCRB+k7J50WQAyWTxK19T9GgbA==}
     peerDependencies:
@@ -9051,14 +9045,6 @@ packages:
 
   viem@2.52.2:
     resolution: {integrity: sha512-HSU12p5aD/kAPZfrlbCUqdiP4P/c6hQ9AhfTS51VbLUQIjkWd1d5EjrCx/SCxZ0zhZVRn4Iv5X5WDqXPG8Ubew==}
-    peerDependencies:
-      typescript: '>=5.0.4'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-
-  viem@2.57.7:
-    resolution: {integrity: sha512-x3UqqrcQuESaRVK6a0BvNmoNP0SVhu913uxEAxYLJx1lNYnj6ylTntfUdakCUKjk1+T+63gkdwFGJQ2O5C/nRw==}
     peerDependencies:
       typescript: '>=5.0.4'
     peerDependenciesMeta:
@@ -13074,17 +13060,12 @@ snapshots:
       - supports-color
       - typescript
 
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-fbc02ad.tgz(typescript@7.0.2)(zod@4.6.5)':
+  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-dd38852.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
     dependencies:
       '@ensdomains/address-encoder': 1.1.4
       '@ensdomains/content-hash': 3.1.0-rc.1
       effect: 4.0.5
-      viem: 2.57.7(typescript@7.0.2)(zod@4.6.5)
-    transitivePeerDependencies:
-      - bufferutil
-      - typescript
-      - utf-8-validate
-      - zod
+      viem: 2.52.2(typescript@7.0.2)(zod@4.6.5)
 
   '@tailwindcss/node@4.2.4':
     dependencies:
@@ -13810,6 +13791,14 @@ snapshots:
       '@vitest/pretty-format': 4.1.11
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
+
+  '@wagmi/connectors@8.1.0(@wagmi/core@3.6.4(@tanstack/query-core@5.104.0)(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(use-sync-external-store@1.4.0(react@19.2.5))(viem@2.52.2(typescript@7.0.2)(zod@4.6.5)))(@walletconnect/ethereum-provider@2.21.8(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(zod@4.6.5))(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
+    dependencies:
+      '@wagmi/core': 3.6.4(@tanstack/query-core@5.104.0)(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(use-sync-external-store@1.4.0(react@19.2.5))(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+      viem: 2.52.2(typescript@7.0.2)(zod@4.6.5)
+    optionalDependencies:
+      '@walletconnect/ethereum-provider': 2.21.8(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(zod@4.6.5)
+      typescript: 7.0.2
 
   '@wagmi/connectors@8.1.0(@wagmi/core@3.6.4(@tanstack/query-core@5.104.0)(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(use-sync-external-store@1.6.0(react@19.2.5))(viem@2.52.2(typescript@7.0.2)(zod@4.6.5)))(@walletconnect/ethereum-provider@2.21.8(@types/react@19.2.7)(react@19.2.5)(typescript@7.0.2)(zod@4.6.5))(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
     dependencies:
@@ -15461,10 +15450,6 @@ snapshots:
     dependencies:
       ws: 8.20.1
 
-  isows@1.0.7(ws@8.21.0):
-    dependencies:
-      ws: 8.21.0
-
   isows@1.0.7(ws@8.21.3):
     dependencies:
       ws: 8.21.3
@@ -15983,21 +15968,6 @@ snapshots:
       - zod
 
   ox@0.14.29(typescript@7.0.2)(zod@4.6.5):
-    dependencies:
-      '@adraffy/ens-normalize': 1.11.1
-      '@noble/ciphers': 1.3.0
-      '@noble/curves': 1.9.1
-      '@noble/hashes': 1.8.0
-      '@scure/bip32': 1.7.0
-      '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@7.0.2)(zod@4.6.5)
-      eventemitter3: 5.0.1
-    optionalDependencies:
-      typescript: 7.0.2
-    transitivePeerDependencies:
-      - zod
-
-  ox@0.14.56(typescript@7.0.2)(zod@4.6.5):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@noble/ciphers': 1.3.0
@@ -17254,23 +17224,6 @@ snapshots:
       - utf-8-validate
       - zod
 
-  viem@2.57.7(typescript@7.0.2)(zod@4.6.5):
-    dependencies:
-      '@noble/curves': 1.9.1
-      '@noble/hashes': 1.8.0
-      '@scure/bip32': 1.7.0
-      '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@7.0.2)(zod@4.6.5)
-      isows: 1.0.7(ws@8.21.0)
-      ox: 0.14.56(typescript@7.0.2)(zod@4.6.5)
-      ws: 8.21.0
-    optionalDependencies:
-      typescript: 7.0.2
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-      - zod
-
   vite@8.0.16(@types/node@22.19.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.33.0
@@ -17303,8 +17256,8 @@ snapshots:
 
   vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0):
     dependencies:
-      lightningcss: 1.32.0
-      picomatch: 4.0.5
+      lightningcss: 1.33.0
+      picomatch: 4.0.7
       postcss: 8.5.15
       rolldown: 1.0.3
       tinyglobby: 0.2.17

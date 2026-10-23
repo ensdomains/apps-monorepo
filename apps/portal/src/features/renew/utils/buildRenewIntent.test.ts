@@ -1,5 +1,5 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { decodeFunctionData, getAddress, type PublicClient } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { ensChain } from '@/lib/wagmi'

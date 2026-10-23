@@ -1,9 +1,9 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
   encodeRoleBitmap,
   labelToCanonicalId,
 } from '@ensdomains/ensjs/utils/v2'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import {
   decodeFunctionData,
   getAddress,

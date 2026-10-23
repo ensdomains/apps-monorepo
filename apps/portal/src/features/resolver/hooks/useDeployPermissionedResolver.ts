@@ -4,7 +4,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type Address, encodeFunctionData, type Hash, parseAbi } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'

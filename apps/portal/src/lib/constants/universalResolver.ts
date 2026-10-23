@@ -1,4 +1,4 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { ensChain } from '@/lib/wagmi'
 
 export const universalResolverAddress = getChainContractAddress({

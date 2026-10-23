@@ -5,7 +5,7 @@ const getOwnerMock = vi.fn()
 vi.mock('@ensdomains/ensjs/public/v1', () => ({
   getOwner: (...args: unknown[]) => getOwnerMock(...args),
 }))
-vi.mock('@ensdomains/ensjs/chain', () => ({
+vi.mock('@storywithoutend/effect-ens/chain', () => ({
   getChainContractAddress: ({ contract }: { contract: string }) => {
     if (contract !== 'ensLegacyDnsRegistrar') {
       throw new Error(`unexpected contract ${contract}`)

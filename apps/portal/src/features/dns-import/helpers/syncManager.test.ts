@@ -1,8 +1,8 @@
+import { dnsRegistrarProveAndClaimSnippet } from '@ensdomains/ensjs/contracts'
 import {
   extendChainWithEns,
   getChainContractAddress,
-} from '@ensdomains/ensjs/chain'
-import { dnsRegistrarProveAndClaimSnippet } from '@ensdomains/ensjs/contracts'
+} from '@storywithoutend/effect-ens/chain'
 import { decodeFunctionData, toHex } from 'viem'
 import { sepolia } from 'viem/chains'
 import { packetToBytes } from 'viem/ens'

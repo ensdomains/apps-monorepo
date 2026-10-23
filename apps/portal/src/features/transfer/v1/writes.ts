@@ -12,7 +12,6 @@
  */
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import {
   registrySetOwnerSnippet,
@@ -28,6 +27,7 @@ import {
   nameWrapperSetResolverSnippet,
   nameWrapperSetSubnodeOwnerSnippet,
 } from '@ensdomains/ensjs-abi/v1/nameWrapper'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { match } from 'ts-pattern'
 import { type Address, encodeFunctionData, namehash, zeroAddress } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'

@@ -3,7 +3,7 @@ import {
   type SupportedL1Contract,
   supportedL1Chains,
   supportedL1Contracts,
-} from '@ensdomains/ensjs/chain'
+} from '@storywithoutend/effect-ens/chain'
 import { type Address, zeroAddress } from 'viem'
 
 /** Human-readable display names for known ENS L1 contracts */

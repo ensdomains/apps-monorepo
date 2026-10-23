@@ -1,5 +1,5 @@
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { useQuery } from '@tanstack/react-query'
 import { type Address, parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'

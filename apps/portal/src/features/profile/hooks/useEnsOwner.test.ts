@@ -12,7 +12,7 @@ vi.mock('@/lib/wagmi/helpers', () => ({
 // fallback only — the V2 path reads everything by name via the UR).
 const V2_ETH_REGISTRY = '0x00000000000000000000000000000000000e2000'
 const V1_ETH_REGISTRY = '0x00000000000000000000000000000000000e1000'
-vi.mock('@ensdomains/ensjs/chain', () => ({
+vi.mock('@storywithoutend/effect-ens/chain', () => ({
   getChainContractAddress: () => V1_ETH_REGISTRY,
 }))
 

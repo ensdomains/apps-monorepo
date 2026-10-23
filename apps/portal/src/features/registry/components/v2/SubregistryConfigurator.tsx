@@ -1,5 +1,5 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { useQuery } from '@tanstack/react-query'
 import { ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'

@@ -7,12 +7,12 @@
  * has been extended with the ENS contracts (e.g. `extendChainWithEns(sepolia)`).
  */
 import type { EnsChain } from '@ens-apps/config'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getOwner as getOwnerV1 } from '@ensdomains/ensjs/public/v1'
 import {
   getNameRegistries,
   getOwner as getOwnerV2,
 } from '@ensdomains/ensjs/public/v2'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { type Address, type Client, type Transport, zeroAddress } from 'viem'
 
 import type { ProtocolVersion } from '@/utils/types'

@@ -10,7 +10,7 @@ vi.mock('viem/utils', async (importOriginal) => ({
   ...(await importOriginal<typeof import('viem/utils')>()),
   getAction: () => readContractMock,
 }))
-vi.mock('@ensdomains/ensjs/chain', () => ({
+vi.mock('@storywithoutend/effect-ens/chain', () => ({
   getChainContractAddress: ({ contract }: { contract: string }) => {
     if (contract === 'ensLegacyRegistry') return LEGACY_REGISTRY
     if (contract === 'ensNameWrapper') return NAME_WRAPPER

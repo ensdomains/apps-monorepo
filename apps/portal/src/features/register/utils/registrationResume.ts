@@ -14,7 +14,7 @@ import {
   getResumeTarget,
   type PersistedRegistrationRecord,
 } from '@ens-apps/transaction-manager'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { ResultAsync } from 'neverthrow'
 import { type Address, type Client, erc20Abi, type Hash, parseAbi } from 'viem'
 import { getBlock, readContract } from 'viem/actions'

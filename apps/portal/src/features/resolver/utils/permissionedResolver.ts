@@ -1,6 +1,6 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryVerifyContractSnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import {
   type Address,
   bytesToHex,

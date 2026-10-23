@@ -9,7 +9,7 @@ import {
   subscribeRegistrationPersistence,
   transactionManager,
 } from '@ens-apps/transaction-manager'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'

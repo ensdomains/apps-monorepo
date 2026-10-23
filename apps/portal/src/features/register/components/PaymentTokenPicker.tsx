@@ -1,4 +1,4 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useEffect, useState } from 'react'

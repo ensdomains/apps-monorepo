@@ -1,4 +1,4 @@
-import { ensL1Contracts } from '@ensdomains/ensjs/chain'
+import { ensL1Contracts } from '@storywithoutend/effect-ens/chain'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { getContractLabel, getEnsContractName } from './ensContractNames'
