@@ -6,6 +6,7 @@ import type {
 import {
   type ClassifiedName,
   classifyName,
+  healUnknownLabel,
   needsParentFuses,
   parentNameOf,
   runEligibilityChecks,
@@ -96,10 +97,16 @@ const getV1Domain = ResultFn(async function* (name: string) {
       inputs: [{ name }, ...(withParent ? [{ name: parentName }] : [])],
     })
     .mapErr((cause) => new GetMigrationStatusError({ cause }))
-  const record = yield* recordOf(data[0])
-  if (!record || !isMigratableRecord(record)) return ok(null)
-  const parent =
+  const stored = yield* recordOf(data[0])
+  if (!stored || !isMigratableRecord(stored)) return ok(null)
+  // bigname matches the lookup by hash but may answer with unhealed labels.
+  const record = healUnknownLabel(stored, name)
+  const storedParent =
     withParent && needsParentFuses(record) ? yield* recordOf(data[1]) : null
+  const parent =
+    storedParent && parentName !== null
+      ? healUnknownLabel(storedParent, parentName)
+      : null
   return ok(
     toV1Domain(record, toParentFuses(parent ? [parent] : []), NAME_WRAPPER),
   )
