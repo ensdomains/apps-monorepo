@@ -65,6 +65,20 @@ describe('getPaymentBreakdownFigures', () => {
 
   // The real credit is sub-cent even when independently rounded charges could
   // otherwise imply a negative deduction.
+  it('reconciles the lines to a rounded-up debit without credit', () => {
+    const figures = getPaymentBreakdownFigures({
+      registration: 9.68,
+      networkFee: 0.010001,
+      walletDebit: 9.7,
+      hcaCredit: 0,
+    })
+    expect(figures.registration + figures.networkFee).toBeCloseTo(
+      figures.walletDebit,
+      10,
+    )
+    expect(figures.walletDebit).toBe(9.7)
+  })
+
   it('reports no credit when the balance is under a cent', () => {
     expect(
       getPaymentBreakdownFigures({

@@ -364,7 +364,11 @@ test.describe('ENS profile', () => {
 
     // For non-owners the new profile view shows a ThirdPartyRenewalDialog before
     // navigating — click the button to open it, then confirm with "I Understand".
-    await page.getByRole('button', { name: /renew name/i }).click()
+    await page
+      .getByRole('button', {
+        name: /^(sign renewal|continue in wallet|renew name)$/i,
+      })
+      .click()
     await page.getByRole('link', { name: /i understand/i }).click()
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2_000)

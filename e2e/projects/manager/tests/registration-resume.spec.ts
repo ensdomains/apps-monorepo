@@ -34,6 +34,7 @@ import { testClient } from '../../../helpers/anvil-client.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
 import { expectFlowSuccess } from '../../../helpers/flow-completion.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
+import { selectUsdcIfOffered } from '../../../helpers/payment-picker.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
 const COMMIT_TX_ID = 'tx-reg-commit'
@@ -79,13 +80,15 @@ async function registerUntilCommitConfirmed(page: Page, label: string) {
   // HCA path: the EnableSessions modal gates "Pay with stablecoins", before the
   // token picker. No-op in EOA mode.
   await clickThroughEnableSessions(page)
-  await page.getByRole('button', { name: 'Select USDC' }).click()
+  await selectUsdcIfOffered(page)
 
   const monitor = createConsoleMonitor(page, { logConsoleMessages: false })
 
   await page
-    .getByRole('dialog', { name: 'Approve and register name' })
-    .getByRole('button', { name: /^(approve and register|register name)$/i })
+    .getByRole('dialog', { name: 'Review registration' })
+    .getByRole('button', {
+      name: /^(sign payment approval|approve and register|start registration|register name)$/i,
+    })
     .click()
   await dismissNotificationSettings(page)
 

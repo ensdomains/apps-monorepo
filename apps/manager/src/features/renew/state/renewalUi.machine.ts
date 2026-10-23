@@ -42,6 +42,7 @@ type SubmissionData = {
 
   /** Formatted base price */
   priceNumber: number
+  readonly displayedWalletDebitUsdc?: bigint
 
   /**
    * The account context's signer. `rhinestone` selects the intent route (the
@@ -77,6 +78,17 @@ const requireRhinestoneSigner = (signer: Signer): RhinestoneSigner => {
   return signer
 }
 
+type RenewalPayment =
+  | { readonly stage: 'preparing' }
+  | { readonly stage: 'reviewing'; readonly prompt: HcaFundingPrompt }
+  | { readonly stage: 'signing'; readonly prompt?: HcaFundingPrompt }
+
+const promptOf = (payment: RenewalPayment): HcaFundingPrompt | undefined =>
+  'prompt' in payment ? payment.prompt : undefined
+
+// The pending funding decision, held beside the actor rather than in its context.
+const pendingDecisions = new WeakMap<object, (approved: boolean) => void>()
+
 export const renewalUiMachine = setup({
   types: {
     context: {} as {
@@ -89,16 +101,11 @@ export const renewalUiMachine = setup({
       submissionData?: SubmissionData
       approvalTxId?: string
       renewalTxId?: string
-      /**
-       * Parks the HCA funding on the user's answer. Lives in context so the
-       * invoked intent submit can reach the component that renders the prompt.
-       */
-      confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
+      payment: RenewalPayment
     },
     input: {} as {
       currentExpiry: bigint
       protocol: RenewalProtocol
-      confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
     },
     events: {} as
       | { type: 'pricing.step.next' }
@@ -119,8 +126,17 @@ export const renewalUiMachine = setup({
 
           /** Formatted base price */
           priceNumber: number
+          readonly displayedWalletDebitUsdc?: bigint
         }
       | { type: 'renewal.submitted'; txId: string }
+      | { type: 'renewal.signing' }
+      | {
+          type: 'renewal.funding.requested'
+          prompt: HcaFundingPrompt
+          decide: (approved: boolean) => void
+        }
+      | { type: 'renewal.funding.approve' }
+      | { type: 'renewal.funding.decline' }
       | { type: 'retry' }
       | { type: 'cancel' }
       | { type: 'label.changed' },
@@ -145,8 +161,24 @@ export const renewalUiMachine = setup({
     // The intent route submits and WAITS for the fill here, so there is nothing
     // left to poll afterwards.
     submitHcaRenewalIntent: fromPromise(
-      async ({ input }: { input: Parameters<typeof submitHcaRenewal>[0] }) =>
-        (await submitHcaRenewal(input)).txId,
+      async ({
+        input,
+        signal,
+      }: {
+        input: Parameters<typeof submitHcaRenewal>[0]
+        signal: AbortSignal
+      }) =>
+        (
+          await submitHcaRenewal({
+            ...input,
+            signal,
+            // A stopped attempt's late prompt resolves here, whatever rail raised it.
+            confirmFunding: (prompt) =>
+              signal.aborted
+                ? false
+                : (input.confirmFunding?.(prompt) ?? false),
+          })
+        ).txId,
     ),
     readExpiry: fromResultAsync(
       (input: { name: string; protocol: RenewalProtocol }) =>
@@ -170,6 +202,15 @@ export const renewalUiMachine = setup({
       params.expiry !== null && params.expiry > context.currentExpiry,
   },
   actions: {
+    resetPayment: assign({ payment: () => ({ stage: 'preparing' as const }) }),
+    approveFunding: ({ self }) => {
+      pendingDecisions.get(self)?.(true)
+      pendingDecisions.delete(self)
+    },
+    declineFunding: ({ self }) => {
+      pendingDecisions.get(self)?.(false)
+      pendingDecisions.delete(self)
+    },
     setDuration: assign({
       duration: ({ event, context }) =>
         event.type === 'pricing.duration.set'
@@ -204,6 +245,7 @@ export const renewalUiMachine = setup({
               token: event.token,
               priceRaw: event.priceRaw,
               priceNumber: event.priceNumber,
+              displayedWalletDebitUsdc: event.displayedWalletDebitUsdc,
               ownerAddress: event.ownerAddress,
               walletClient: event.walletClient,
             }
@@ -246,7 +288,7 @@ export const renewalUiMachine = setup({
     ),
     selectedToken: undefined,
     lastErrorMessage: undefined,
-    confirmFunding: input.confirmFunding,
+    payment: { stage: 'preparing' },
   }),
   initial: 'pricing',
   states: {
@@ -298,10 +340,45 @@ export const renewalUiMachine = setup({
     // intent has filled, so success needs no polling step of its own.
     submittingHcaRenewal: {
       tags: 'renewing',
+      entry: 'resetPayment',
+      exit: ['declineFunding', 'resetPayment'],
       // Until the intent is submitted the owner is still approving (the
       // funding prompt, then the signature), so the payment dialog stays up
       // as it does for registration; `renewalTxId` marks the hand-over.
       on: {
+        'renewal.funding.requested': {
+          actions: [
+            ({ self, event }) => pendingDecisions.set(self, event.decide),
+            assign({
+              payment: ({ event }) => ({
+                stage: 'reviewing' as const,
+                prompt: event.prompt,
+              }),
+            }),
+          ],
+        },
+        'renewal.funding.approve': {
+          actions: [
+            'approveFunding',
+            assign({
+              payment: ({ context }) => ({
+                stage: 'signing' as const,
+                prompt: promptOf(context.payment),
+              }),
+            }),
+          ],
+        },
+        'renewal.funding.decline': {
+          actions: ['declineFunding', 'resetPayment'],
+        },
+        'renewal.signing': {
+          actions: assign({
+            payment: ({ context }) => ({
+              stage: 'signing' as const,
+              prompt: promptOf(context.payment),
+            }),
+          }),
+        },
         'renewal.submitted': {
           actions: assign({ renewalTxId: ({ event }) => event.txId }),
         },
@@ -312,20 +389,27 @@ export const renewalUiMachine = setup({
         input: ({ context, self }) => {
           const submission = requireSubmissionData(context.submissionData)
           return {
+            onSigningRequested: () => self.send({ type: 'renewal.signing' }),
             onSubmitted: (txId: string) =>
               self.send({ type: 'renewal.submitted', txId }),
             items: [{ label: submission.label, duration: submission.duration }],
             renewerAddress: context.renewerAddress,
             protocol: context.protocol,
             token: submission.token,
+            displayedWalletDebitUsdc: submission.displayedWalletDebitUsdc,
             signer: requireRhinestoneSigner(submission.signer),
             ownerAddress: submission.ownerAddress,
             walletClient: submission.walletClient,
             publicClient,
             chainId: envConfig.chain.id,
-            ...(context.confirmFunding
-              ? { confirmFunding: context.confirmFunding }
-              : {}),
+            confirmFunding: (prompt: HcaFundingPrompt) =>
+              new Promise<boolean>((decide) =>
+                self.send({
+                  type: 'renewal.funding.requested',
+                  prompt,
+                  decide,
+                }),
+              ),
           }
         },
         onDone: {

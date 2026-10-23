@@ -3,8 +3,8 @@ import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { PaymentMethodRow } from './PaymentMethodRow'
-import { PaymentDialogBase } from './TokenPickerDialog'
+import { PaymentMethodRow } from '@/features/register-v2/workflow/pricing/components/PaymentMethodRow'
+import { PaymentDialogBase } from '@/features/shared/payment/components/PaymentDialog'
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
 

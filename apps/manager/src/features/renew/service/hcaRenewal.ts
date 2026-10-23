@@ -1,6 +1,7 @@
 import {
   type Call,
   getSmartAccountAddress,
+  HcaFundingDeclinedError,
   type HcaFundingPrompt,
   hcaMaxIntentFeeUsdcFor,
   type PermitPurpose,
@@ -23,6 +24,7 @@ import type { Address, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData, erc20Abi, isAddressEqual } from 'viem'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { getRenewPrice } from '../data/queries/renewPricing.query'
+import { isRenewalFundingWithinConsent } from '../utils/renewalPaymentConsent'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 
 /**
@@ -107,14 +109,18 @@ export interface SubmitHcaRenewalParams {
    * over to progress.
    */
   readonly onSubmitted?: (txId: string) => void
+  readonly onSigningRequested?: () => void
+  /** Maximum USDC debit the user confirmed in the payment modal, in raw units. */
+  readonly displayedWalletDebitUsdc?: bigint
   /**
-   * Show the USDC the funding permit will authorize and wait for the user to
-   * accept it. Called only when the HCA cannot cover the renewal out of its own
-   * balance, and always before the wallet is asked to sign anything.
+   * Request consent before signing when the wallet debit increased or no prior
+   * maximum was provided. Existing bulk/legacy callers retain explicit review.
    */
   readonly confirmFunding?: (
     prompt: HcaFundingPrompt,
   ) => Promise<boolean> | boolean
+  /** An abandoned attempt declines every prompt, confirmed maximum or not. */
+  readonly signal?: AbortSignal
 }
 
 /**
@@ -234,7 +240,7 @@ export type QuoteHcaRenewalFeeParams = Pick<
 /**
  * The USDC (6dp) fee the rail quotes for this renewal intent, over the same
  * batch `submitHcaRenewal` sends. Nothing is signed. `null` when it cannot be
- * priced; the submit re-quotes and shows the final figure before any signature.
+ * priced; submission re-quotes and asks again only above the confirmed maximum.
  */
 export async function quoteHcaRenewalFee(
   params: QuoteHcaRenewalFeeParams,
@@ -307,7 +313,10 @@ export async function submitHcaRenewal(
     chainId,
     onTxId,
     onSubmitted,
+    onSigningRequested,
     confirmFunding,
+    displayedWalletDebitUsdc,
+    signal,
   } = params
 
   const single = items.length === 1 ? items[0] : undefined
@@ -342,6 +351,14 @@ export async function submitHcaRenewal(
   // legal in the same batch.
   const ownerSigner: RhinestoneSigner = { ...signer, session: undefined }
 
+  // The first signature can be the permit or the intent; report it once.
+  let hasRequestedSigning = false
+  const requestSigning = () => {
+    if (hasRequestedSigning) return
+    hasRequestedSigning = true
+    onSigningRequested?.()
+  }
+
   const funding = await planHcaIntentFunding({
     signer: ownerSigner,
     ownerAddress,
@@ -360,9 +377,28 @@ export async function submitHcaRenewal(
     },
     gasLimit,
     maxFeeUsdc: hcaMaxIntentFeeUsdcFor(gasLimit),
-    // The amounts are quoted here, not on any earlier screen, so this is the
-    // only place they can be shown before a signature is requested.
-    ...(confirmFunding ? { confirmFunding } : {}),
+    // The rail invokes this before signing or pulling funds, even with a
+    // standing allowance. Only amounts already confirmed may skip the UI.
+    ...(confirmFunding
+      ? {
+          confirmFunding: async (prompt: HcaFundingPrompt) => {
+            if (signal?.aborted) return false
+            if (
+              isRenewalFundingWithinConsent(
+                prompt,
+                displayedWalletDebitUsdc,
+                token,
+              )
+            ) {
+              requestSigning()
+              return true
+            }
+            const approved = await confirmFunding(prompt)
+            if (approved) requestSigning()
+            return approved
+          },
+        }
+      : {}),
     purpose: RENEWAL_PERMIT_PURPOSE,
   })
 
@@ -392,6 +428,9 @@ export async function submitHcaRenewal(
     ? `Renew ${single.label}.eth`
     : `Renew ${items.length} names`
 
+  // A fully covered renewal never prompts, so the abort has to be read here too.
+  if (signal?.aborted) throw new HcaFundingDeclinedError()
+  requestSigning()
   txId = transactionManager.startTransaction(
     { type: 'custom', request },
     ownerSigner,

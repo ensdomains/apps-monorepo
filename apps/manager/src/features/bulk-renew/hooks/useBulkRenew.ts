@@ -16,7 +16,7 @@ import {
   type StablecoinBalance,
   useSmartAccountContext,
 } from '@/lib/smart-account'
-import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
+import { type RENEWAL_TOKEN, RENEWAL_TOKEN_SYMBOLS, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { hasInsufficientBalance } from '@/utils/payment'
 import type {
@@ -84,9 +84,21 @@ export const useBulkRenew = ({
   const route = getRenewalPaymentRoute(signer)
   const {
     wallet: stablecoinBalances,
-    accountCredit,
+    accountCreditRaw,
     isLoading: isLoadingBalances,
   } = useRenewalBalances()
+  const accountCredit = useMemo(
+    () =>
+      Object.fromEntries(
+        RENEWAL_TOKEN_SYMBOLS.flatMap((symbol) => {
+          const amount = accountCreditRaw[symbol]
+          return amount === undefined
+            ? []
+            : [[symbol, decimalBigintToNumber(amount, TOKENS[symbol].decimals)]]
+        }),
+      ) as Partial<Record<RENEWAL_TOKEN, number>>,
+    [accountCreditRaw],
+  )
 
   const minSelectableDate = useMemo(() => {
     const latestExpiry = names.reduce(

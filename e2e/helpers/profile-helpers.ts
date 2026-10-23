@@ -6,6 +6,7 @@ import {
   authorizeTransaction,
   clickThroughEnableSessions,
 } from './manager-auth.js'
+import { selectUsdcIfOffered } from './payment-picker.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -102,8 +103,12 @@ export async function renewFor28Days(page: Page): Promise<string> {
   // EnableSessions modal BEFORE the token picker — same gate as registration.
   // Idempotent no-op in EOA mode or when sessions are already active.
   await clickThroughEnableSessions(page)
-  await page.getByRole('button', { name: 'Select USDC' }).click()
-  await page.getByRole('button', { name: /renew name/i }).click()
+  await selectUsdcIfOffered(page)
+  await page
+    .getByRole('button', {
+      name: /^(sign renewal|continue in wallet|renew name)$/i,
+    })
+    .click()
 
   await expectFlowSuccess(page, {
     success: page.getByText('Renewal Complete!'),

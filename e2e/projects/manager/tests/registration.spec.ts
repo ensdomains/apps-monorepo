@@ -7,6 +7,7 @@ import {
   clickThroughEnableSessions,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
+import { selectUsdcIfOffered } from '../../../helpers/payment-picker.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
@@ -63,10 +64,12 @@ test.describe('ENS name registration', () => {
     // Click through it (auto-authorized via PERMITTED_SIGN_KINDS). The helper is
     // idempotent — a no-op in EOA mode where the modal never appears.
     await clickThroughEnableSessions(page)
-    await page.getByRole('button', { name: 'Select USDC' }).click()
+    await selectUsdcIfOffered(page)
     await page
-      .getByRole('dialog', { name: 'Approve and register name' })
-      .getByRole('button', { name: /^(approve and register|register name)$/i })
+      .getByRole('dialog', { name: 'Review registration' })
+      .getByRole('button', {
+        name: /^(sign payment approval|approve and register|start registration|register name)$/i,
+      })
       .click()
 
     // RegistrationDetails (including the completion banner) stays hidden while

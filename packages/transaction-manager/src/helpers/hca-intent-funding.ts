@@ -53,6 +53,7 @@ import {
 } from '../machines/registration/registration.hca.actors'
 import type { RhinestoneSigner, Signer } from '../types/signer.types'
 import type { Call } from '../types/transaction.types'
+import { divCeil } from './math'
 
 const erc2612Abi = parseAbi([
   'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
@@ -98,8 +99,6 @@ export const HCA_MAX_STANDALONE_INTENT_FEE_USDC = 10_000_000n
  * rate carries fixed overhead, and would let a 25-name batch reach ~100 USDC.
  */
 export const HCA_MAX_INTENT_FEE_USDC_PER_MGAS = 10_000_000n
-
-const divCeil = (a: bigint, b: bigint): bigint => (a + b - 1n) / b
 
 /**
  * Fee ceiling (USDC, 6dp) for an intent quoted against `gasLimit`, which the

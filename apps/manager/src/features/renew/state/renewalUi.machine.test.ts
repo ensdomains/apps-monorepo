@@ -47,6 +47,7 @@ const expiryOnChain = (expiry: bigint) =>
 const startRenewal = (
   protocol: 'v1' | 'v2' = 'v1',
   route: 'eoa' | 'smart-account' = 'eoa',
+  displayedWalletDebitUsdc?: bigint,
 ) => {
   const actor = createActor(renewalUiMachine, {
     input: { currentExpiry: CURRENT_EXPIRY, protocol },
@@ -60,6 +61,7 @@ const startRenewal = (
     duration: 31_536_000n,
     token: 'USDC',
     priceRaw: 10n,
+    displayedWalletDebitUsdc,
     priceNumber: 10,
     signer: { type: route === 'eoa' ? 'eoa' : 'rhinestone' } as never,
     ownerAddress: OWNER,
@@ -315,6 +317,29 @@ describe('smart-account renewal state machine', () => {
 
     expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce()
     expect(snapshot.context.lastErrorMessage).toBeUndefined()
+    actor.stop()
+  })
+})
+
+describe('renewal payment confirmation snapshot', () => {
+  it('carries the displayed maximum to submission and updates the signing phase', async () => {
+    let finish: (value: { txId: string; quotedFeeUsdc: bigint }) => void =
+      () => {}
+    mocks.submitHcaRenewal.mockImplementation((input) => {
+      expect(input.displayedWalletDebitUsdc).toBe(6690000n)
+      input.onSigningRequested()
+      return new Promise((resolve) => {
+        finish = resolve
+      })
+    })
+    const actor = startRenewal('v2', 'smart-account', 6690000n)
+    await waitFor(actor, (state) => state.context.payment.stage === 'signing')
+    expect(
+      actor.getSnapshot().context.submissionData?.displayedWalletDebitUsdc,
+    ).toBe(6690000n)
+    expect(actor.getSnapshot().matches('submittingHcaRenewal')).toBe(true)
+    finish({ txId: 'signed-tx', quotedFeeUsdc: 10000n })
+    await waitForState(actor, 'success')
     actor.stop()
   })
 })

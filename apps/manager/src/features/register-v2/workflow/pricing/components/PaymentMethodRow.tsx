@@ -53,7 +53,8 @@ export const PaymentMethodRow = ({
       className={cn(
         // The intrinsic grid tracks and Figma #f5f5f5 desktop fill have no exact theme tokens.
         'relative grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 rounded text-left sm:gap-y-0',
-        'px-3 py-2',
+        'border-2 px-3 py-2',
+        isSelected ? 'border-ens-blue' : 'border-transparent',
         isSelected
           ? 'bg-ens-quartz-75 sm:bg-[#f5f5f5] sm:p-3'
           : 'sm:px-4 sm:py-3',

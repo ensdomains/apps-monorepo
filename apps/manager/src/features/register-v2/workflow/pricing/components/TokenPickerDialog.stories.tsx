@@ -4,6 +4,8 @@ import { type ReactNode, useState } from 'react'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { PaymentDialogBase } from '@/features/shared/payment/components/PaymentDialog'
+import type { PaymentFundingSummary } from '@/features/shared/payment/payment.types'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
@@ -14,11 +16,7 @@ import {
 } from './PaymentMethodList'
 import { PaymentMethodRow } from './PaymentMethodRow'
 import { PaymentTotalRow } from './PaymentTotalRow'
-import {
-  type RegistrationFundingSummary,
-  TokenPickerContentBase,
-} from './TokenPickerContent'
-import { PaymentDialogBase } from './TokenPickerDialog'
+import { TokenPickerContentBase } from './TokenPickerContent'
 
 const FUNDED_USDC: StablecoinBalance = {
   address: '0x0000000000000000000000000000000000000001',
@@ -45,10 +43,12 @@ interface TokenPickerDialogShellProps {
   readonly stablecoinBalances?: StablecoinBalance[]
   readonly globalErrorMessage?: string | null
   readonly infoMessage?: string
+  readonly isBusy?: boolean
+  readonly nextMessage?: ReactNode
   readonly footer?: ReactNode
   readonly methodErrorMessage?: string | null
   readonly initialSelectedToken?: SUPPORTED_TOKEN
-  readonly funding?: RegistrationFundingSummary
+  readonly funding?: PaymentFundingSummary
   readonly isQuotingFunding?: boolean
   readonly isFeeTooltipOpen?: boolean
 }
@@ -65,6 +65,8 @@ export const TokenPickerDialogShell = ({
   globalErrorMessage = null,
   infoMessage,
   footer,
+  isBusy = false,
+  nextMessage = <Trans>Sign payment approval</Trans>,
   methodErrorMessage = null,
   initialSelectedToken,
   funding,
@@ -78,16 +80,18 @@ export const TokenPickerDialogShell = ({
 
   return (
     <PaymentDialogBase
+      isDismissible={!isBusy}
       onOpenChange={setOpen}
       open={open}
       registrationLayout
-      title="Select payment"
+      title="Review registration"
     >
       <TokenPickerContentBase
         footer={footer}
         funding={funding}
         globalErrorMessage={globalErrorMessage}
         infoMessage={infoMessage}
+        isBusy={isBusy}
         isConnected={isConnected}
         isFeeTooltipOpen={isFeeTooltipOpen}
         isInPriceCooldown={isInPriceCooldown}
@@ -95,6 +99,7 @@ export const TokenPickerDialogShell = ({
         isQuotingFunding={isQuotingFunding}
         label={label}
         methodErrorMessage={methodErrorMessage}
+        nextMessage={nextMessage}
         onNext={() => {}}
         onSelectCoin={setSelectedToken}
         pricingData={pricingData}
@@ -434,7 +439,7 @@ export const LongNameWithApprovalDetails: Story = {
     },
     label: 'rh-resume-c-mvfdmryi7p3',
     infoMessage:
-      "What was left from your last attempt covers the 160.00 USDC this registration needs, so you won't be asked to approve a payment.",
+      'Your available balance covers this registration. No additional payment is needed.',
   },
   render: (args) => (
     <TokenPickerDialogShell
@@ -490,4 +495,86 @@ export const FixtureNoValidCommonMethods: Story = {
 export const FixtureEmptyMethods: Story = {
   name: '[Fixture only] Empty supplied list',
   render: () => <FixtureTokenPickerDialogShell methods={[]} />,
+}
+
+/** Real registration modal with deterministic funding data, no wallet connection needed. */
+export const FullyCovered: Story = {
+  args: {
+    label: 'example',
+    pricingData: 8.8,
+    stablecoinBalances: [],
+    funding: {
+      registration: 8.8,
+      networkFee: 0.01,
+      total: 8.81,
+      walletDebit: 0,
+      hcaCredit: 8.81,
+      isLoading: false,
+    },
+  },
+}
+
+export const PartiallyCovered: Story = {
+  args: {
+    label: 'example',
+    initialSelectedToken: 'USDC',
+    pricingData: 8.8,
+    stablecoinBalances: [
+      { ...FUNDED_USDC, balance: '941140000', formattedBalance: '941.14' },
+    ],
+    infoMessage:
+      'Sign a payment approval in your wallet to use the amount shown for registration and network fees. Registration starts after you sign.',
+    funding: {
+      registration: 8.8,
+      networkFee: 0.01,
+      total: 8.81,
+      walletDebit: 5.81,
+      hcaCredit: 3,
+      isLoading: false,
+    },
+  },
+}
+
+export const NotCovered: Story = {
+  args: {
+    ...PartiallyCovered.args,
+    funding: {
+      registration: 8.8,
+      networkFee: 0.01,
+      total: 8.81,
+      walletDebit: 8.81,
+      hcaCredit: 0,
+      isLoading: false,
+    },
+  },
+}
+
+// Additional production presentation states for reviewing the complete payment journey.
+export const PreparingRegistration: Story = {
+  args: {
+    ...PartiallyCovered.args,
+    isBusy: true,
+    nextMessage: <Trans>Preparing registration...</Trans>,
+  },
+}
+export const SigningPayment: Story = {
+  args: {
+    ...PartiallyCovered.args,
+    isBusy: true,
+    nextMessage: <Trans>Sign in wallet</Trans>,
+  },
+}
+export const CalculatingCost: Story = {
+  args: {
+    ...PartiallyCovered.args,
+    isQuotingFunding: true,
+    nextMessage: <Trans>Calculating cost...</Trans>,
+  },
+}
+export const ApprovalFailed: Story = {
+  args: {
+    ...PartiallyCovered.args,
+    globalErrorMessage:
+      "We couldn't approve your payment. Please try again and approve the payment in your wallet.",
+  },
 }

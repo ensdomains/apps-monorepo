@@ -125,7 +125,7 @@ describe('TokenPickerContent budget quote', () => {
     // The wallet covers the rent, so only the failed quote can block here.
     expect(await screen.findByText(QUOTE_FAILED_MESSAGE)).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Approve and register' }),
+      screen.getByRole('button', { name: 'Sign payment approval' }),
     ).toBeDisabled()
     expect(screen.getByText('up to')).toBeInTheDocument()
   })

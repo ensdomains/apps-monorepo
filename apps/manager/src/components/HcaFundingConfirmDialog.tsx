@@ -76,6 +76,8 @@ interface HcaFundingConfirmDialogProps {
   readonly lines?: readonly HcaFundingLine[]
   /** Anything else the user needs to know to judge the figure. */
   readonly note?: ReactNode
+  readonly balanceLabel?: ReactNode
+  readonly actionLabel?: ReactNode
   readonly onApprove: () => void
   readonly onDecline: () => void
 }
@@ -97,6 +99,8 @@ export const HcaFundingConfirmDialog = ({
   note,
   onApprove,
   onDecline,
+  balanceLabel,
+  actionLabel,
 }: HcaFundingConfirmDialogProps) => {
   const legs = prompt ? legsOf(prompt) : []
   const covered = legs.filter((leg) => leg.covered > 0n)
@@ -165,7 +169,9 @@ export const HcaFundingConfirmDialog = ({
             {covered.length > 0 && (
               <div className="flex items-baseline justify-between gap-4">
                 <dt className="text-muted-foreground">
-                  <Trans>Covered by your account balance</Trans>
+                  {balanceLabel ?? (
+                    <Trans>Covered by your account balance</Trans>
+                  )}
                 </dt>
                 <dd className="flex flex-col items-end font-mono text-foreground">
                   {covered.map((leg) => (
@@ -220,7 +226,7 @@ export const HcaFundingConfirmDialog = ({
             size="lg"
             type="button"
           >
-            <Trans>Approve</Trans>
+            {actionLabel ?? <Trans>Approve</Trans>}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

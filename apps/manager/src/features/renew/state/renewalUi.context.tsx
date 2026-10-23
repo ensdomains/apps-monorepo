@@ -1,16 +1,20 @@
+import type { HcaFundingPrompt } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useRef } from 'react'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
-import { useHcaFundingPrompt } from '@/lib/smart-account'
 import { RenewalFundingDialog } from '../components/RenewalFundingDialog'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 import { renewalUiMachine } from './renewalUi.machine'
 
 const RenewalUiContext = createContext<{
-  uiActor: Actor<typeof renewalUiMachine>
-  label: string
-  currentExpiry: bigint
-  protocol: RenewalProtocol
+  readonly uiActor: Actor<typeof renewalUiMachine>
+  readonly label: string
+  readonly currentExpiry: bigint
+  readonly protocol: RenewalProtocol
+  readonly fundingPrompt: HcaFundingPrompt | null
+  readonly isFundingDecisionPending: boolean
+  readonly approveFunding: () => void
+  readonly declineFunding: () => void
 } | null>(null)
 
 export type RenewalUiActor = ActorRefFrom<typeof renewalUiMachine>
@@ -27,19 +31,15 @@ export const RenewalUiProvider = ({
   currentExpiry: bigint
   protocol: RenewalProtocol
 }) => {
-  // The renewal intent is quoted inside the submit call, and only then is the
-  // funding amount known — so the machine parks on this promise and the dialog
-  // below resolves it. Nothing else asks the wallet for a signature first.
-  const {
-    prompt: fundingPrompt,
-    confirmFunding,
-    approve: approveFunding,
-    decline: declineFunding,
-  } = useHcaFundingPrompt()
-
   const uiActor = useActorRef(renewalUiMachine, {
-    input: { currentExpiry, protocol, confirmFunding },
+    input: { currentExpiry, protocol },
   })
+  const payment = useSelector(uiActor, (state) => state.context.payment)
+  const fundingPrompt =
+    payment.stage === 'preparing' ? null : (payment.prompt ?? null)
+  const isFundingDecisionPending = payment.stage === 'reviewing'
+  const approveFunding = () => uiActor.send({ type: 'renewal.funding.approve' })
+  const declineFunding = () => uiActor.send({ type: 'renewal.funding.decline' })
   const previousLabel = useRef(label)
 
   useEffect(() => {
@@ -63,13 +63,27 @@ export const RenewalUiProvider = ({
 
   return (
     <RenewalUiContext.Provider
-      value={{ uiActor, label, currentExpiry, protocol }}
+      value={{
+        uiActor,
+        label,
+        currentExpiry,
+        protocol,
+        fundingPrompt: fundingPrompt?.token ? null : fundingPrompt,
+        isFundingDecisionPending:
+          isFundingDecisionPending && !fundingPrompt?.token,
+        approveFunding,
+        declineFunding,
+      }}
     >
       {children}
       <RenewalFundingDialog
         onApprove={approveFunding}
         onDecline={declineFunding}
-        prompt={fundingPrompt}
+        prompt={
+          isFundingDecisionPending && fundingPrompt?.token
+            ? fundingPrompt
+            : null
+        }
       />
     </RenewalUiContext.Provider>
   )

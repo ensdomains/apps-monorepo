@@ -10,16 +10,18 @@ import {
   TOKENS,
 } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
-import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 export type RenewalBalances = {
   /** The owner wallet's balance of each renewal token. */
   readonly wallet: readonly StablecoinBalance[]
   /** What the smart account already holds of each; empty off the HCA route. */
-  readonly accountCredit: Partial<Record<RENEWAL_TOKEN, number>>
+  readonly accountCreditRaw: Partial<Record<RENEWAL_TOKEN, bigint>>
 }
 
-const NO_BALANCES: RenewalBalances = { wallet: [], accountCredit: {} }
+const NO_BALANCES: RenewalBalances = {
+  wallet: [],
+  accountCreditRaw: {},
+}
 
 const readBalances = (holder: Address) =>
   Promise.allSettled(
@@ -57,18 +59,10 @@ const readRenewalBalances = async (
         },
       ]
     }),
-    // An unreadable account balance earns no credit: the stricter gate.
-    accountCredit: Object.fromEntries(
+    accountCreditRaw: Object.fromEntries(
       RENEWAL_SYMBOLS.flatMap((symbol, index) => {
         const read = account[index]
-        return read?.status === 'fulfilled'
-          ? [
-              [
-                symbol,
-                decimalBigintToNumber(read.value, TOKENS[symbol].decimals),
-              ],
-            ]
-          : []
+        return read?.status === 'fulfilled' ? [[symbol, read.value]] : []
       }),
     ),
   }
@@ -97,5 +91,6 @@ export const useRenewalBalances = () => {
     refetchInterval: 30_000,
   })
 
-  return { ...(query.data ?? NO_BALANCES), isLoading: query.isLoading }
+  const balances = query.data ?? NO_BALANCES
+  return { ...balances, isLoading: query.isLoading }
 }

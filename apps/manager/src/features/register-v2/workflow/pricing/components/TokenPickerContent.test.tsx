@@ -242,7 +242,7 @@ describe('TokenPickerContent', () => {
   it('starts registration after checking availability and preparing the session', async () => {
     renderContainer()
     fireEvent.click(
-      screen.getByRole('button', { name: 'Approve and register' }),
+      screen.getByRole('button', { name: 'Sign payment approval' }),
     )
 
     await waitFor(() =>
@@ -263,7 +263,7 @@ describe('TokenPickerContent', () => {
     )
     renderContainer()
     fireEvent.click(
-      screen.getByRole('button', { name: 'Approve and register' }),
+      screen.getByRole('button', { name: 'Sign payment approval' }),
     )
 
     await waitFor(() =>
@@ -288,7 +288,7 @@ describe('TokenPickerContent', () => {
     }
     const view = renderContainer()
     fireEvent.click(
-      screen.getByRole('button', { name: 'Approve and register' }),
+      screen.getByRole('button', { name: 'Sign payment approval' }),
     )
     await screen.findByText('$999.00 needed to register name')
     return view
@@ -349,7 +349,7 @@ describe('TokenPickerContent', () => {
     containerMocks.availabilityError = new Error('availability failed')
     renderContainer()
     fireEvent.click(
-      screen.getByRole('button', { name: 'Approve and register' }),
+      screen.getByRole('button', { name: 'Sign payment approval' }),
     )
 
     const error = await screen.findByText(
@@ -366,6 +366,27 @@ describe('TokenPickerContent', () => {
 })
 
 describe('TokenPickerContentBase', () => {
+  it('keeps the renewal signing CTA when the quoted renewal is fully covered', () => {
+    renderPicker({
+      flow: 'renewal',
+      selectedToken: 'USDC',
+      nextMessage: 'Sign renewal',
+      funding: {
+        registration: 9.68,
+        networkFee: 0.01,
+        total: 9.69,
+        walletDebit: 0,
+        hcaCredit: 9.69,
+        isLoading: false,
+      },
+    })
+    expect(screen.getByRole('button', { name: 'Sign renewal' })).toBeEnabled()
+    expect(screen.getByText('Renewal total')).toBeVisible()
+    expect(screen.getByText('Renewal fully covered')).toBeVisible()
+    expect(screen.queryByText('Start registration')).not.toBeInTheDocument()
+    expect(screen.queryByText('Select payment')).not.toBeInTheDocument()
+  })
+
   it('selects the only payment option automatically', () => {
     const onSelectCoin = renderPicker()
 
@@ -459,7 +480,92 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+    expect(
+      screen.getByRole('button', { name: 'Start registration' }),
+    ).toBeEnabled()
+    expect(screen.queryByText('Select payment')).not.toBeInTheDocument()
+    expect(screen.getByText('Registration fully covered')).toBeVisible()
+  })
+
+  it('allows a fully covered registration with no wallet balance and selects USDC automatically', () => {
+    const select = renderPicker({
+      selectedToken: undefined,
+      stablecoinBalances: [],
+      funding: {
+        registration: 8.8,
+        networkFee: 0.01,
+        total: 8.81,
+        walletDebit: 0,
+        hcaCredit: 8.81,
+        isLoading: false,
+      },
+    })
+    expect(select).toHaveBeenCalledWith('USDC')
+    expect(screen.queryByText('Select payment')).not.toBeInTheDocument()
+    expect(screen.queryByText('Stables accepted')).not.toBeInTheDocument()
+    expect(screen.queryByText('Your unspent USDC')).not.toBeInTheDocument()
+    expect(screen.getByText('-$8.81')).toBeVisible()
+    expect(screen.getByText('$0.00')).toBeVisible()
+  })
+
+  it('confirms a covered registration even when the connected wallet has no token entries', () => {
+    renderPicker({
+      selectedToken: 'USDC',
+      stablecoinBalances: [],
+      funding: {
+        registration: 8.8,
+        networkFee: 0.01,
+        total: 8.81,
+        walletDebit: 0,
+        hcaCredit: 8.81,
+        isLoading: false,
+      },
+    })
+    expect(
+      screen.getByRole('button', { name: 'Start registration' }),
+    ).toBeEnabled()
+  })
+
+  it.each([{ isQuoteStale: true }, { hasBudgetQuoteFailed: true }])(
+    'does not promise full coverage for an invalid quote: %j',
+    (quoteState) => {
+      renderPicker({
+        selectedToken: 'USDC',
+        funding: {
+          registration: 8.8,
+          networkFee: 0.01,
+          total: 8.81,
+          walletDebit: 0,
+          hcaCredit: 8.81,
+          isLoading: false,
+        },
+        ...quoteState,
+      })
+      expect(
+        screen.queryByText('Registration fully covered'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'Register name' }),
+      ).toBeDisabled()
+    },
+  )
+
+  it('requires payment for an exact sub-cent shortfall even when it displays as zero', () => {
+    renderPicker({
+      selectedToken: 'USDC',
+      funding: {
+        registration: 8.8,
+        networkFee: 0.01,
+        total: 8.81,
+        walletDebit: 0.000001,
+        hcaCredit: 8.809999,
+        isLoading: false,
+      },
+    })
+    expect(screen.getByText('Select payment')).toBeVisible()
+    expect(
+      screen.queryByText('Registration fully covered'),
+    ).not.toBeInTheDocument()
   })
 
   it('blocks checkout when the wallet cannot cover the debit', () => {
@@ -495,16 +601,15 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('Name price')).toBeVisible()
-    expect(screen.getByText('$160.00')).toBeVisible()
+    expect(screen.getByText('Registration total')).toBeVisible()
+    expect(screen.getAllByText('$164.32')[0]).toBeVisible()
     expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
-    expect(screen.getByText('Left from your last attempt')).toBeVisible()
+    expect(screen.getByText('Balance from a previous attempt')).toBeVisible()
     expect(screen.getByText('-$1.82')).toBeVisible()
-    expect(screen.getByText('You pay now')).toBeVisible()
+    expect(screen.getByText('Due from your wallet')).toBeVisible()
     expect(screen.getByText('$162.50')).toBeVisible()
     expect(screen.queryByText('Total')).not.toBeInTheDocument()
-    expect(screen.queryByText('$164.32')).not.toBeInTheDocument()
   })
 
   it('keeps a single total when the account carries nothing', () => {
@@ -520,13 +625,13 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('Total')).toBeVisible()
-    expect(screen.getByText('$164.32')).toBeVisible()
+    expect(screen.getByText('Registration total')).toBeVisible()
+    expect(screen.getAllByText('$164.32')[0]).toBeVisible()
     expect(
-      screen.queryByText('Left from your last attempt'),
+      screen.queryByText('Balance from a previous attempt'),
     ).not.toBeInTheDocument()
-    expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
-    expect(screen.queryByText('Name price')).not.toBeInTheDocument()
+    expect(screen.getByText('Due from your wallet')).toBeVisible()
+    expect(screen.getByText('Registration total')).toBeVisible()
   })
 
   it('moves the exact fee disclosure and balance label onto USDC', () => {
@@ -689,7 +794,8 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('-$1.01')).toBeVisible()
     expect(screen.getByText('Mainnet est. fee: $1.01')).toBeVisible()
-    expect(screen.getAllByText('$1.00').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText('$2.01')).toBeVisible()
+    expect(screen.getByText('$1.00')).toBeVisible()
   })
 
   // A balance under a cent: the deduction would print as "--$0.01", money the
@@ -708,12 +814,12 @@ describe('TokenPickerContentBase', () => {
     })
 
     expect(
-      screen.queryByText('Left from your last attempt'),
+      screen.queryByText('Balance from a previous attempt'),
     ).not.toBeInTheDocument()
     expect(screen.queryByText(/^--/)).not.toBeInTheDocument()
-    expect(screen.getByText('Total')).toBeVisible()
+    expect(screen.getByText('Registration total')).toBeVisible()
     // The headline is still what the wallet pays, not the total.
-    expect(screen.getByText('$9.99')).toBeVisible()
+    expect(screen.getAllByText('$9.99')[0]).toBeVisible()
   })
 
   it('does not show a credit row for a real balance under a cent', () => {
@@ -730,10 +836,10 @@ describe('TokenPickerContentBase', () => {
     })
 
     expect(
-      screen.queryByText('Left from your last attempt'),
+      screen.queryByText('Balance from a previous attempt'),
     ).not.toBeInTheDocument()
-    expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
-    expect(screen.getByText('Total')).toBeVisible()
+    expect(screen.getByText('Due from your wallet')).toBeVisible()
+    expect(screen.getByText('Registration total')).toBeVisible()
   })
 
   it('keeps a visible cent of credit and closes the displayed equation', () => {
@@ -749,12 +855,12 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('Name price')).toBeVisible()
-    expect(screen.getByText('$4.99')).toBeVisible()
+    expect(screen.getByText('Registration total')).toBeVisible()
+    expect(screen.getAllByText('$9.99')[0]).toBeVisible()
     expect(screen.getByText('Mainnet est. fee: $5.00')).toBeVisible()
-    expect(screen.getByText('Left from your last attempt')).toBeVisible()
+    expect(screen.getByText('Balance from a previous attempt')).toBeVisible()
     expect(screen.getByText('-$0.01')).toBeVisible()
-    expect(screen.getByText('You pay now')).toBeVisible()
+    expect(screen.getByText('Due from your wallet')).toBeVisible()
     expect(screen.getByText('$9.98')).toBeVisible()
   })
 
@@ -771,11 +877,11 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('Name price')).toBeVisible()
+    expect(screen.getByText('Registration total')).toBeVisible()
     expect(screen.getByText('$14.27')).toBeVisible()
     expect(screen.getByText('Mainnet est. fee: $0.00')).toBeVisible()
     expect(screen.getByText('-$7.97')).toBeVisible()
-    expect(screen.getByText('You pay now')).toBeVisible()
+    expect(screen.getByText('Due from your wallet')).toBeVisible()
     expect(screen.getByText('$6.30')).toBeVisible()
   })
 
@@ -793,10 +899,10 @@ describe('TokenPickerContentBase', () => {
     })
 
     expect(screen.getByText('Mainnet est. fee: $0.15')).toBeVisible()
-    expect(screen.queryByText('Name price')).not.toBeInTheDocument()
-    expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
-    expect(screen.getByText('Total')).toBeVisible()
-    expect(screen.getByText('$1.15')).toBeVisible()
+    expect(screen.getByText('Registration total')).toBeVisible()
+    expect(screen.getByText('Due from your wallet')).toBeVisible()
+    expect(screen.getByText('Registration total')).toBeVisible()
+    expect(screen.getAllByText('$1.15')[0]).toBeVisible()
   })
 
   it('matches formatter half-up cents and closes the credited equation', () => {
@@ -812,11 +918,11 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('Name price')).toBeVisible()
-    expect(screen.getByText('$1.01')).toBeVisible()
+    expect(screen.getByText('Registration total')).toBeVisible()
+    expect(screen.getAllByText('$1.15')[0]).toBeVisible()
     expect(screen.getByText('Mainnet est. fee: $0.14')).toBeVisible()
     expect(screen.getByText('-$0.15')).toBeVisible()
-    expect(screen.getByText('You pay now')).toBeVisible()
+    expect(screen.getByText('Due from your wallet')).toBeVisible()
     expect(screen.getByText('$1.00')).toBeVisible()
   })
 
@@ -836,9 +942,9 @@ describe('TokenPickerContentBase', () => {
     })
 
     expect(
-      screen.queryByText('Left from your last attempt'),
+      screen.queryByText('Balance from a previous attempt'),
     ).not.toBeInTheDocument()
-    expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
-    expect(screen.getByText('Total')).toBeVisible()
+    expect(screen.getByText('Due from your wallet')).toBeVisible()
+    expect(screen.getByText('Registration total')).toBeVisible()
   })
 })

@@ -63,8 +63,10 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
     return (
       <button
         aria-label={t`Select ${stablecoin.symbol}`}
+        aria-pressed={isSelected}
         className={cn(
-          'flex h-11 items-center justify-between rounded px-3 py-4 transition-colors',
+          'flex min-h-14 items-center justify-between rounded border-2 px-3 py-3 transition-colors',
+          isSelected ? 'border-ens-blue' : 'border-transparent',
           isSelected ? 'bg-ens-quartz-75' : 'hover:bg-ens-quartz-50',
           !isFunded && 'cursor-not-allowed opacity-50',
         )}

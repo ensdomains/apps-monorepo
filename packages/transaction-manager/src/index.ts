@@ -31,6 +31,7 @@ export {
   type QuoteHcaIntentParams,
   quoteHcaIntentFeeUsdc,
 } from './helpers/hca-intent-funding'
+export { divCeil } from './helpers/math'
 export { pollTransactionStatus } from './helpers/pollTransactionStatus.actor'
 // Persistence
 export {

@@ -8,18 +8,31 @@ import type { TOKEN_SYMBOL } from '@/lib/tokens'
  */
 export const useAutoSelectOnlyToken = <T extends TOKEN_SYMBOL>({
   selectedToken,
+  automaticToken,
   stablecoinBalances,
   isLoadingBalances,
   onSelectCoin,
 }: {
+  readonly automaticToken?: T
   readonly selectedToken: T | undefined
   readonly stablecoinBalances: readonly StablecoinBalance[] | undefined
   readonly isLoadingBalances: boolean
   readonly onSelectCoin: (coin: T) => void
 }) => {
   useEffect(() => {
+    // A fully covered registration uses its existing USDC without a payment choice.
+    if (automaticToken) {
+      if (selectedToken !== automaticToken) onSelectCoin(automaticToken)
+      return
+    }
     const onlyCoin = stablecoinBalances?.length === 1 && stablecoinBalances[0]
     if (selectedToken || isLoadingBalances || !onlyCoin) return
     onSelectCoin(onlyCoin.symbol as T)
-  }, [selectedToken, isLoadingBalances, stablecoinBalances, onSelectCoin])
+  }, [
+    automaticToken,
+    selectedToken,
+    isLoadingBalances,
+    stablecoinBalances,
+    onSelectCoin,
+  ])
 }

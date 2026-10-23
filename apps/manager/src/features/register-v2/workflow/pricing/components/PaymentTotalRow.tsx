@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import type { ReactNode } from 'react'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 /**
@@ -16,10 +17,12 @@ import { formatUsd } from '@/utils/formatting/formatUsdCeil'
  */
 export const PaymentTotalRow = ({
   total,
+  label,
   isEstimate,
   hasAccountCredit = false,
   isLoading = false,
 }: {
+  readonly label?: ReactNode
   readonly total: number | undefined
   readonly isEstimate: boolean
   /** The figure is still being quoted: hold its place rather than show an interim one. */
@@ -33,7 +36,8 @@ export const PaymentTotalRow = ({
 }) => (
   <div className="flex w-full items-baseline justify-between">
     <span className="text-ens-quartz-350 text-lg leading-ens-none tracking-[-0.36px]">
-      {hasAccountCredit ? <Trans>You pay now</Trans> : <Trans>Total</Trans>}
+      {label ??
+        (hasAccountCredit ? <Trans>You pay now</Trans> : <Trans>Total</Trans>)}
     </span>
     <div className="flex items-center gap-2">
       {isLoading ? (

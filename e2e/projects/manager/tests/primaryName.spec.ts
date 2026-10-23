@@ -6,6 +6,7 @@ import {
 } from '../../../fixtures/playwright.manager.fixture.js'
 import { expectFlowSuccess } from '../../../helpers/flow-completion.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
+import { selectUsdcIfOffered } from '../../../helpers/payment-picker.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -63,10 +64,12 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
     // the EnableSessions modal before the token picker. Idempotent no-op in
     // EOA mode. See registration-rhinestone.spec.ts.
     await clickThroughEnableSessions(page)
-    await page.getByRole('button', { name: 'Select USDC' }).click()
+    await selectUsdcIfOffered(page)
     await page
-      .getByRole('dialog', { name: 'Approve and register name' })
-      .getByRole('button', { name: /^(approve and register|register name)$/i })
+      .getByRole('dialog', { name: 'Review registration' })
+      .getByRole('button', {
+        name: /^(sign payment approval|approve and register|start registration|register name)$/i,
+      })
       .click()
 
     // RegisteringStep renders NotificationSettings for as long as the

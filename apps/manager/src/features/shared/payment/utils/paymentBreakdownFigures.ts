@@ -38,12 +38,9 @@ export const getPaymentBreakdownFigures = (funding: {
 }): PaymentBreakdownFigures => {
   const registration = roundUsdToCents(funding.registration)
   const networkFee = roundUsdToCents(funding.networkFee)
+  // The debit is what the wallet signs for; the lines reconcile to it.
   const walletDebit = roundUsdToCents(funding.walletDebit)
   const credit = Math.max(0, roundUsdToCents(funding.hcaCredit))
-
-  if (credit === 0) {
-    return { registration, networkFee, walletDebit, credit }
-  }
 
   const roundingResidual = roundUsdToCents(
     walletDebit + credit - registration - networkFee,
