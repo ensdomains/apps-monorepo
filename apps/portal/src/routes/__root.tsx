@@ -18,6 +18,7 @@ import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
 import { MockWalletAutoConnect } from '@/features/wallet/MockWalletAutoConnect'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
 import { useCustomRpcCandidateCheck } from '@/hooks/useCustomRpcCandidateCheck'
+import { type CustomRpcCandidate, getCustomRpcCandidate } from '@/lib/customRpc'
 import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { PHProvider } from '@/lib/posthog/provider'
 import { ensChain, wagmiConfig } from '@/lib/wagmi'
@@ -30,9 +31,16 @@ const AutoFundOnLowBalance = () => {
   return null
 }
 
-// Checks a newly saved custom RPC on the load after saving (Settings → RPC).
-const CustomRpcCandidateCheck = () => {
-  useCustomRpcCandidateCheck()
+// A custom RPC saved on the previous load (Settings → RPC), checked now that
+// this page's CSP allows its origin.
+const customRpcCandidate = getCustomRpcCandidate()
+
+const CustomRpcCandidateCheck = ({
+  candidate,
+}: {
+  readonly candidate: CustomRpcCandidate
+}) => {
+  useCustomRpcCandidateCheck(candidate)
   return null
 }
 
@@ -111,7 +119,9 @@ export const Route = createRootRoute({
 
         <Toaster position="top-right" richColors duration={4000} />
         {/* After the Toaster, so it is subscribed before the first toast. */}
-        <CustomRpcCandidateCheck />
+        {customRpcCandidate !== null && (
+          <CustomRpcCandidateCheck candidate={customRpcCandidate} />
+        )}
         <TanStackRouterDevtools position="bottom-right" />
       </>
     )

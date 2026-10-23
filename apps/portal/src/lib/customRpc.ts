@@ -1,5 +1,7 @@
 import { fromSync, TaggedError } from '@ens-apps/utils/neverthrow'
-import { err, ok, type Result, ResultAsync } from 'neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { err, ok, okAsync, type Result, ResultAsync } from 'neverthrow'
 import { envConfig } from '@/config'
 import {
   CUSTOM_RPC_CANDIDATE_COOKIE,
@@ -89,7 +91,32 @@ const readSlot = (slot: Slot): string | null => {
 // Read once at startup (wagmi clients are built once); null means the default.
 export const getCustomRpcUrl = (): string | null => readSlot(ACTIVE)
 
-export const getCustomRpcCandidate = (): string | null => readSlot(CANDIDATE)
+// Each save gets its own attempt, so a check that finishes after another tab
+// saved again or reset can tell its candidate is gone.
+const CANDIDATE_ATTEMPT_KEY = 'custom-rpc-candidate-attempt'
+
+export type CustomRpcCandidate = {
+  readonly url: string
+  readonly attempt: string
+}
+
+export const getCustomRpcCandidate = (): CustomRpcCandidate | null => {
+  const url = readSlot(CANDIDATE)
+  const attempt = fromSync(
+    () => localStorage.getItem(CANDIDATE_ATTEMPT_KEY),
+    () => null,
+  ).unwrapOr(null)
+  return url === null || attempt === null ? null : { url, attempt }
+}
+
+const isCurrentCandidate = (candidate: CustomRpcCandidate): boolean => {
+  const stored = getCustomRpcCandidate()
+  return (
+    stored !== null &&
+    stored.url === candidate.url &&
+    stored.attempt === candidate.attempt
+  )
+}
 
 // Async so a missing Cookie Store API rejects instead of throwing past
 // fromPromise. Cookie Store cookies are always Secure, as `__Host-` requires.
@@ -124,39 +151,58 @@ const writeSlot = (
     ),
   )
 
+const writeCandidate = (
+  candidate: CustomRpcCandidate | null,
+): ResultAsync<void, RpcStorageError> =>
+  writeSlot(CANDIDATE, candidate?.url ?? null).andThen(() =>
+    fromSync(
+      () =>
+        candidate === null
+          ? localStorage.removeItem(CANDIDATE_ATTEMPT_KEY)
+          : localStorage.setItem(CANDIDATE_ATTEMPT_KEY, candidate.attempt),
+      (cause) => new RpcStorageError({ cause }),
+    ),
+  )
+
 // Read back, so blocked or full storage reports an error instead of
 // reloading unchanged.
-const confirmSlot = (slot: Slot, url: string): Result<void, RpcStorageError> =>
-  readSlot(slot) === url
-    ? ok()
-    : err(new RpcStorageError({ cause: 'setting did not persist' }))
+const notPersisted = () =>
+  new RpcStorageError({ cause: 'setting did not persist' })
 
 // The page can only reach origins it loaded with, so a new URL is stored as
 // the candidate and the page reloads; that load checks it and promotes it if
 // it passes. wagmi builds its clients once, so promotion reloads again.
 export const proposeCustomRpcUrl = (
   url: string,
-): ResultAsync<void, RpcStorageError> =>
-  writeSlot(CANDIDATE, url)
-    .andThen(() => confirmSlot(CANDIDATE, url))
+): ResultAsync<void, RpcStorageError> => {
+  const candidate = { url, attempt: crypto.randomUUID() }
+  return writeCandidate(candidate)
+    .andThen(() => (isCurrentCandidate(candidate) ? ok() : err(notPersisted())))
     .map(() => window.location.reload())
+}
 
+// Promotion and discarding act only on the candidate this load checked, so a
+// slow check can't undo a newer save or reset made in another tab.
 export const promoteCustomRpcCandidate = (
-  url: string,
+  candidate: CustomRpcCandidate,
 ): ResultAsync<void, RpcStorageError> =>
-  writeSlot(ACTIVE, url)
-    .andThen(() => writeSlot(CANDIDATE, null))
-    .andThen(() => confirmSlot(ACTIVE, url))
-    .map(() => window.location.reload())
+  isCurrentCandidate(candidate)
+    ? writeSlot(ACTIVE, candidate.url)
+        .andThen(() => writeCandidate(null))
+        .andThen(() =>
+          readSlot(ACTIVE) === candidate.url ? ok() : err(notPersisted()),
+        )
+        .map(() => window.location.reload())
+    : okAsync()
 
-export const discardCustomRpcCandidate = (): ResultAsync<
-  void,
-  RpcStorageError
-> => writeSlot(CANDIDATE, null)
+export const discardCustomRpcCandidate = (
+  candidate: CustomRpcCandidate,
+): ResultAsync<void, RpcStorageError> =>
+  isCurrentCandidate(candidate) ? writeCandidate(null) : okAsync()
 
 export const resetCustomRpcUrl = (): ResultAsync<void, RpcStorageError> =>
   writeSlot(ACTIVE, null)
-    .andThen(() => writeSlot(CANDIDATE, null))
+    .andThen(() => writeCandidate(null))
     .map(() => window.location.reload())
 
 const isWebSocketUrl = (url: string): boolean => WEBSOCKET_URL.test(url)
@@ -203,13 +249,13 @@ const fetchChainId = async (url: string, signal: AbortSignal) => {
   })
 }
 
-export const checkRpcEndpoint = async (
+export const checkRpcEndpoint = (
   url: string,
-): Promise<Result<void, RpcCheckError>> => {
+): ResultAsync<void, RpcCheckError> => {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS)
-  const result = await ResultAsync.fromPromise(
-    fetchChainId(url, controller.signal),
+  return ResultAsync.fromPromise(
+    fetchChainId(url, controller.signal).finally(() => clearTimeout(timer)),
     (cause) => new RpcCheckError({ reason: 'unreachable', cause }),
   ).andThen((chainId): Result<void, RpcCheckError> => {
     if (typeof chainId !== 'string' || !/^0x[0-9a-f]+$/i.test(chainId))
@@ -218,6 +264,22 @@ export const checkRpcEndpoint = async (
       ? ok()
       : err(new RpcCheckError({ reason: 'wrong-chain', cause: chainId }))
   })
-  clearTimeout(timer)
-  return result
 }
+
+const getCustomRpcCheckQueryKey = createQueryKey<
+  'custom-rpc-check',
+  CustomRpcCandidate
+>('custom-rpc-check')
+
+// One check per saved attempt: never retried or refetched, since a pass
+// reloads the page and a failure drops the candidate.
+export const getCustomRpcCheckQueryOptions = (candidate: CustomRpcCandidate) =>
+  resultQueryOptions({
+    queryKey: getCustomRpcCheckQueryKey(candidate),
+    queryFn: ({ queryKey: [, { url }] }) =>
+      checkRpcEndpoint(url).map(() => url),
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })

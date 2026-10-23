@@ -1,10 +1,7 @@
-import { errAsync, ResultAsync } from 'neverthrow'
+import type { ResultAsync } from 'neverthrow'
 import { match } from 'ts-pattern'
 import {
-  checkRpcEndpoint,
-  discardCustomRpcCandidate,
   type InvalidRpcUrlError,
-  promoteCustomRpcCandidate,
   proposeCustomRpcUrl,
   type RpcCheckError,
   type RpcStorageError,
@@ -39,18 +36,6 @@ export const applyCustomRpc = (
   input: string,
 ): ResultAsync<void, InvalidRpcUrlError | RpcStorageError> =>
   validateRpcUrl(input).asyncAndThen(proposeCustomRpcUrl)
-
-// Checks the candidate this load may reach. A passing one becomes the active
-// RPC (reloading the page); a failing one is dropped.
-export const confirmCustomRpcCandidate = (
-  candidate: string,
-): ResultAsync<void, RpcCheckError | RpcStorageError> =>
-  ResultAsync.fromSafePromise(checkRpcEndpoint(candidate))
-    .andThen((checked) => checked)
-    .andThen(() => promoteCustomRpcCandidate(candidate))
-    .orElse((error) =>
-      discardCustomRpcCandidate().andThen(() => errAsync(error)),
-    )
 
 export const describeRpcError = (
   error: CustomRpcError,
