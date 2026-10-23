@@ -135,35 +135,39 @@ const startHcaRegistration = (overrides: {
   )
 
   actor.start()
-  actor.send({
-    type: 'START_REGISTRATION',
-    name: 'myname.eth',
-    duration: 31_536_000n,
-    token: 'USDC',
-    price: 5_000_000n,
-    signer: { type: 'rhinestone' } as unknown as Signer,
-    accountAddress: HCA,
-    ownerAddress: WALLET,
-    publicClient: { chain: sepolia } as unknown as PublicClient,
-    hcaSessionEnable: overrides.hcaSessionEnable ?? SESSION_ENABLE,
-    ...(overrides.hcaBudget !== undefined
-      ? { hcaBudget: overrides.hcaBudget }
-      : {}),
-    ...(overrides.displayedWalletDebit !== undefined
-      ? { displayedWalletDebit: overrides.displayedWalletDebit }
-      : {}),
-    ...(overrides.fetchIntentStatus
-      ? { fetchIntentStatus: overrides.fetchIntentStatus }
-      : {}),
-    ...(overrides.l2Funding ? { l2Funding: overrides.l2Funding } : {}),
-    ...(overrides.displayedL2Charge !== undefined
-      ? { displayedL2Charge: overrides.displayedL2Charge }
-      : {}),
-    unsettledL2Bridge: overrides.unsettledL2Bridge,
-  })
+  const start = () =>
+    actor.send({
+      type: 'START_REGISTRATION',
+      name: 'myname.eth',
+      duration: 31_536_000n,
+      token: 'USDC',
+      price: 5_000_000n,
+      signer: { type: 'rhinestone' } as unknown as Signer,
+      accountAddress: HCA,
+      ownerAddress: WALLET,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+      hcaSessionEnable: overrides.hcaSessionEnable ?? SESSION_ENABLE,
+      ...(overrides.hcaBudget !== undefined
+        ? { hcaBudget: overrides.hcaBudget }
+        : {}),
+      ...(overrides.displayedWalletDebit !== undefined
+        ? { displayedWalletDebit: overrides.displayedWalletDebit }
+        : {}),
+      ...(overrides.fetchIntentStatus
+        ? { fetchIntentStatus: overrides.fetchIntentStatus }
+        : {}),
+      ...(overrides.l2Funding ? { l2Funding: overrides.l2Funding } : {}),
+      ...(overrides.displayedL2Charge !== undefined
+        ? { displayedL2Charge: overrides.displayedL2Charge }
+        : {}),
+      unsettledL2Bridge: overrides.unsettledL2Bridge,
+    })
+  start()
 
   return {
     actor,
+    /** Starts another run on the same actor, as a changed label does. */
+    start,
     estimateHcaBudget,
     signFundingPermit,
     submitFundingAndCommit,
@@ -563,6 +567,55 @@ describe('registrationMachine — paid from an L2', () => {
     await waitFor(actor, (s) => s.matches('error'))
     actor.send({ type: 'RETRY' })
     await waitFor(actor, () => submitL2Bridge.mock.calls.length === 2)
+  })
+
+  // The next run must neither take a cancelled run's payment over (same tx
+  // id) nor pay alongside it, as that payment was sized for the old name.
+  it("waits out a cancelled run's running bridge, then bridges the rest", async () => {
+    const PRICIER = BUDGET + 3_000_000n
+    const reads: (bigint | undefined)[] = []
+    let fill = () => {}
+    const { actor, start, submitL2Bridge } = startHcaRegistration({
+      estimateHcaBudget: vi
+        .fn()
+        .mockResolvedValueOnce({ total: BUDGET, expectedMaximum: PRICIER })
+        .mockResolvedValue({ total: PRICIER, expectedMaximum: PRICIER }),
+      readHcaUsdcBalance: vi.fn(
+        async ({ input }: { input: { atLeast?: bigint } }) => {
+          reads.push(input.atLeast)
+          return reads.length === 1 ? 0n : BUDGET
+        },
+      ),
+      l2Funding,
+      pollTransactionStatus: vi
+        .fn()
+        .mockReturnValueOnce(new Promise(() => {}))
+        .mockReturnValueOnce(
+          new Promise<void>((resolve) => {
+            fill = resolve
+          }),
+        )
+        .mockReturnValue(new Promise(() => {})),
+    })
+
+    await waitFor(actor, (s) => s.matches('waitingForL2Bridge'))
+    actor.send({ type: 'CANCEL' })
+    start()
+    await waitFor(actor, (s) => s.matches('awaitingPriorL2BridgeTx'))
+    // The old payment's intent is accepted while the new run waits.
+    submitL2Bridge.mock.calls[0][0].input.onIntentSubmitted(9n)
+    expect(actor.getSnapshot().context).toMatchObject({
+      unsettledL2Bridge: { intentId: 9n, fundsHcaTo: BUDGET },
+      isL2BridgeFromPriorRun: true,
+    })
+    fill()
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length === 2)
+
+    expect(reads).toEqual([undefined, BUDGET])
+    expect(submitL2Bridge.mock.calls[1][0].input.payment.amount).toBe(
+      PRICIER - BUDGET,
+    )
+    expect(actor.getSnapshot().context.unsettledL2Bridge).toBeUndefined()
   })
 
   // A cancelled run's bridge may still arrive, and was sized for that run.
