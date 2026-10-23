@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { Connector } from 'wagmi'
 import { checkIsSafeWallet } from './safe'
 
-const wcConnector = (metadata?: { name: string; url: string }) =>
+const wcConnector = (metadata?: {
+  readonly name: string
+  readonly url: string
+}) =>
   ({
     type: 'walletConnect',
     getProvider: async () => ({

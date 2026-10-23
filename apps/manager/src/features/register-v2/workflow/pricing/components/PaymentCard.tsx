@@ -117,6 +117,7 @@ export const PaymentCard = () => {
       />
       {sessionModal}
       <SafeWalletDialog
+        isOpen={isSafeDialogOpen}
         label={label}
         onDismiss={() => setIsSafeDialogOpen(false)}
         onUseDifferentWallet={async () => {
@@ -124,7 +125,6 @@ export const PaymentCard = () => {
           await disconnect()
           openConnectModal?.()
         }}
-        open={isSafeDialogOpen}
       />
     </>
   )

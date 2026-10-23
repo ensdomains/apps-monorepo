@@ -17,12 +17,12 @@ export const getExplorerRegisterUrl = (label: string) =>
 // A Safe can't sign the HCA session (ECDSA only), so registration goes through
 // the Explorer, which sends the transactions to the Safe directly.
 export const SafeWalletDialog = ({
-  open,
+  isOpen,
   label,
   onDismiss,
   onUseDifferentWallet,
 }: {
-  readonly open: boolean
+  readonly isOpen: boolean
   readonly label: string
   readonly onDismiss: () => void
   readonly onUseDifferentWallet: () => void
@@ -31,10 +31,10 @@ export const SafeWalletDialog = ({
 
   return (
     <Dialog
-      onOpenChange={(isOpen) => {
-        if (!isOpen) onDismiss()
+      onOpenChange={(isNextOpen) => {
+        if (!isNextOpen) onDismiss()
       }}
-      open={open}
+      open={isOpen}
     >
       <DialogContent className="max-w-xl gap-6 border-ens-gray-two p-8">
         <div className="flex flex-col items-center gap-4 text-center">

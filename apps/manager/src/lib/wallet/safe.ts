@@ -8,7 +8,9 @@ const SAFE_WALLET_URL = 'https://app.safe.global'
 
 type WalletConnectProvider = {
   readonly session?: {
-    readonly peer: { readonly metadata: { name: string; url: string } }
+    readonly peer: {
+      readonly metadata: { readonly name: string; readonly url: string }
+    }
   }
 }
 
@@ -29,7 +31,10 @@ export const checkIsSafeWallet = async (
 
 const isSafeWalletQueryKey = createQueryKey<
   'isSafeWallet',
-  { connectorUid: string | undefined; address: Address | undefined }
+  {
+    readonly connectorUid: string | undefined
+    readonly address: Address | undefined
+  }
 >('isSafeWallet')
 
 // Keyed on the address too: a later WalletConnect session reuses the connector.
