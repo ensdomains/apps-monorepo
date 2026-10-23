@@ -1,7 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useSelector } from '@xstate/react'
-import { XCircle } from 'lucide-react'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useRenewalUiContext } from '../../state/renewalUi.context'
 import { RenewPageLayout } from '../components/RenewPageLayout'
@@ -16,21 +16,15 @@ export const RenewFailureStep = () => {
 
   return (
     <RenewPageLayout>
-      <div className="flex items-start gap-3 rounded-lg border border-ens-lapis-dust bg-ens-lapis-tint p-4">
-        <XCircle
-          aria-hidden="true"
-          className="mt-0.5 h-4 w-4 shrink-0 text-ens-lapis-dense"
-        />
-        <div className="flex min-w-0 flex-col gap-1">
-          <p className="font-medium text-ens-lapis-dense text-sm leading-5">
-            <Trans>Renewal Failed</Trans>
-          </p>
-          <p className="wrap-anywhere max-h-32 overflow-y-auto text-ens-lapis-dense/70 text-sm leading-5">
-            {message ??
-              t`The renewal for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`}
-          </p>
-        </div>
-      </div>
+      <Alert variant="error">
+        <AlertTitle>
+          <Trans>Renewal Failed</Trans>
+        </AlertTitle>
+        <AlertDescription className="max-h-32 overflow-y-auto">
+          {message ??
+            t`The renewal for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`}
+        </AlertDescription>
+      </Alert>
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-16">
         <div className="w-full lg:w-1/2">

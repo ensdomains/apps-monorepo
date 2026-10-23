@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { AlertCircle } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 interface PrimaryNameV1WarningProps {
@@ -14,9 +14,8 @@ export const PrimaryNameV1Warning = ({
   if (!isError && upgradeableNameCount === 0) return null
 
   return (
-    <Alert variant="warning">
-      <AlertCircle />
-      <AlertTitle className="line-clamp-none">
+    <Alert icon={<CircleAlert className="size-4" />} variant="warning">
+      <AlertTitle>
         <Trans>Only ENSv2 Names Supported</Trans>
       </AlertTitle>
       <AlertDescription>

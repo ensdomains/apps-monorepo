@@ -111,8 +111,15 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
       variant="browser-not"
     >
       {isSupported && permission === 'denied' && (
-        <Alert variant="destructive">
-          <MSymbol className="ms-opsz-16 ms-wght-300 block" symbol="warning" />
+        <Alert
+          icon={
+            <MSymbol
+              className="ms-opsz-16 ms-wght-300 block"
+              symbol="warning"
+            />
+          }
+          variant="destructive"
+        >
           <AlertTitle>
             <Trans>Notifications blocked</Trans>
           </AlertTitle>
