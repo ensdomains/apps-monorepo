@@ -7,7 +7,7 @@ const getAddressRecordMock = vi.fn()
 vi.mock('@ensdomains/ensjs/dns', () => ({
   getDnsOffchainData: (...args: unknown[]) => getDnsOffchainDataMock(...args),
 }))
-vi.mock('@ensdomains/ensjs/public', () => ({
+vi.mock('@storywithoutend/effect-ens/public', () => ({
   getAddressRecord: (...args: unknown[]) => getAddressRecordMock(...args),
 }))
 vi.mock('@/lib/wagmi', () => ({

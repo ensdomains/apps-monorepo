@@ -5,7 +5,7 @@ import {
   type GetDnsOffchainDataErrorType,
   getDnsOffchainData,
 } from '@ensdomains/ensjs/dns'
-import { getAddressRecord } from '@ensdomains/ensjs/public'
+import { getAddressRecord } from '@storywithoutend/effect-ens/public'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, isAddressEqual } from 'viem'
 import { ensChain } from '@/lib/wagmi'

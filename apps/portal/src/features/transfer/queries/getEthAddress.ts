@@ -4,7 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   type GetAddressRecordErrorType,
   getAddressRecord,
-} from '@ensdomains/ensjs/public'
+} from '@storywithoutend/effect-ens/public'
 import { fromPromise, ok } from 'neverthrow'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { safeGetClient } from '@/lib/wagmi/helpers'
