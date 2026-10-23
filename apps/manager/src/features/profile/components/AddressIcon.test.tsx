@@ -8,7 +8,7 @@ vi.mock('../data/records/address', () => ({
   getAddressPresentation: vi.fn(),
 }))
 
-const setIcon = (icon: string | undefined) =>
+const setIcon = (icon: ReturnType<typeof getAddressPresentation>['icon']) =>
   vi.mocked(getAddressPresentation).mockReturnValue({
     coinType: 60,
     label: 'Ethereum',
@@ -19,7 +19,12 @@ const setIcon = (icon: string | undefined) =>
 describe('AddressIcon', () => {
   beforeEach(() => setIcon('/eth.svg'))
 
-  it.each([undefined, 'javascript:alert(1)', '//untrusted.example/icon.svg'])(
+  it.each([
+    undefined,
+    '',
+    'javascript:alert(1)',
+    '//untrusted.example/icon.svg',
+  ])(
     'uses decorative fallback artwork for missing or rejected source %s',
     (src) => {
       setIcon(src)
@@ -29,6 +34,26 @@ describe('AddressIcon', () => {
       expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true')
     },
   )
+
+  it('renders component artwork without an image or fallback', () => {
+    setIcon(({ className }) => (
+      <svg className={className} data-testid="brand-artwork" />
+    ))
+    const { container, getByTestId } = render(<AddressIcon coinType={784} />)
+    expect(getByTestId('brand-artwork')).toHaveClass('size-full')
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelector('.lucide-network')).toBeNull()
+  })
+
+  it('renders approved HTTPS artwork', () => {
+    setIcon('https://example.com/coin.svg')
+    const { container } = render(<AddressIcon coinType={60} />)
+    expect(container.querySelector('img')).toHaveAttribute(
+      'src',
+      'https://example.com/coin.svg',
+    )
+    expect(container.querySelector('.lucide-network')).toBeNull()
+  })
 
   it('falls back after a loading error and retries when the source changes', () => {
     const { container, rerender } = render(<AddressIcon coinType={60} />)
