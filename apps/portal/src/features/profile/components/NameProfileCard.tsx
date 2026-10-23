@@ -13,7 +13,7 @@ import {
   recordCoinsToObject,
   recordTextsToObject,
 } from '@/utils/records/transformRecordsForDisplay'
-import { hasEncodedLabelhash } from '@/utils/token/isNormalized'
+import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 import { getRecordsQueryOptions } from '../hooks/useRecords'
 import { CoinRecord, type CoinTypeWithIcon } from './CoinRecord'
 import { NameAvatar } from './NameAvatar'
@@ -33,8 +33,7 @@ export const NameProfileCard = ({
   stacked?: boolean
 }) => {
   const { labels, parent } = parseLabelsAndParent(name)
-  // ensjs normalises the name, and ENSIP-15 rejects an encoded labelhash.
-  const hasUnknownLabel = hasEncodedLabelhash(name)
+  const hasUnknownLabel = name.split('.').some(isEncodedLabelhash)
 
   const {
     data: records,

@@ -13,10 +13,6 @@ const ENCODED_LABELHASH_RE = /^\[[0-9a-f]{64}\]$/
 export const isEncodedLabelhash = (label: string) =>
   ENCODED_LABELHASH_RE.test(label)
 
-/** Some label of `name` is only known by its hash. */
-export const hasEncodedLabelhash = (name: string) =>
-  name.split('.').some(isEncodedLabelhash)
-
 /** `label` is already its own ENSIP-15 form (so it names the token its hash names). */
 export const isNormalizedLabel = (label: string) => {
   try {

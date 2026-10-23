@@ -1,5 +1,6 @@
+import type { LookupRecord } from '@ens-apps/indexer/bigname'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
-import type { Address, PublicClient } from 'viem'
+import { type Address, namehash, type PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import type {
   ClassifiedName,
@@ -19,6 +20,23 @@ export const OTHER: Address = '0x0000000000000000000000000000000000000002'
 export const publicClient = {
   chain: extendChainWithEns(sepolia),
 } as unknown as PublicClient
+
+/** An active, unwrapped ENSv1 record as bigname's detail lookup returns it. */
+export const lookupRecord = (
+  name: string,
+  overrides: Partial<LookupRecord> = {},
+): LookupRecord => ({
+  name,
+  display_name: name,
+  namespace: 'ens',
+  namehash: namehash(name),
+  owner: OWNER,
+  manager: OWNER,
+  status: 'active',
+  authority: 'ens_v1',
+  read_status: 'ok',
+  ...overrides,
+})
 
 export const ok = <T>(result: T) => ({ status: 'success' as const, result })
 export const fail = () => ({
