@@ -1,6 +1,6 @@
+import type { MessageDescriptor } from '@lingui/core'
 import type { MaterialSymbol } from '@/components/ui/material-symbol'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
-import { getUrlInputCheckValue } from '@/features/profile/utils/urlInputPrefix'
 import { validateUrl } from '@/features/profile/utils/validateUrl'
 
 type GeneralShortcut = {
@@ -24,7 +24,7 @@ export type GeneralField = (typeof generalShortcuts)[number]['field']
 
 export interface GeneralValidationIssue {
   readonly field: GeneralField
-  readonly message: string
+  readonly message: MessageDescriptor
 }
 
 export const getTextRecordValue = (
@@ -33,7 +33,7 @@ export const getTextRecordValue = (
 ) => records.find((record) => record.key === key)?.value ?? ''
 
 export const getGeneralUrlErrorMessage = (value: string | undefined) =>
-  validateUrl(value && getUrlInputCheckValue(value))
+  validateUrl(value)
 
 export const DESCRIPTION_MAX_LENGTH = 500
 

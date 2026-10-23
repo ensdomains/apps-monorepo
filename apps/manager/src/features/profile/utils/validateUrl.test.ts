@@ -1,45 +1,69 @@
+import { i18n } from '@lingui/core'
 import { describe, expect, it } from 'vitest'
 import { validateEmail, validateUrl } from './validateUrl'
 
+i18n.loadAndActivate({ locale: 'en', messages: {} })
+
+const urlMessage = (value: string | undefined) => {
+  const message = validateUrl(value)
+  return message ? i18n._(message) : undefined
+}
+
 describe('validateUrl', () => {
   it('should return undefined for empty values', () => {
-    expect(validateUrl(undefined)).toBeUndefined()
-    expect(validateUrl('')).toBeUndefined()
-    expect(validateUrl('  ')).toBeUndefined()
+    expect(urlMessage(undefined)).toBeUndefined()
+    expect(urlMessage('')).toBeUndefined()
+    expect(urlMessage('  ')).toBeUndefined()
   })
 
   it('should accept valid https URLs', () => {
-    expect(validateUrl('https://example.com')).toBeUndefined()
-    expect(validateUrl('https://ens.domains/about')).toBeUndefined()
-    expect(validateUrl('https://sub.domain.co.uk/path?q=1')).toBeUndefined()
+    expect(urlMessage('https://example.com')).toBeUndefined()
+    expect(urlMessage('https://ens.domains/about')).toBeUndefined()
+    expect(urlMessage('https://sub.domain.co.uk/path?q=1')).toBeUndefined()
   })
 
   it('should accept valid http URLs', () => {
-    expect(validateUrl('http://example.com')).toBeUndefined()
+    expect(urlMessage('http://example.com')).toBeUndefined()
+  })
+
+  it('should accept bare domains by normalizing to https', () => {
+    expect(urlMessage('example.com')).toBeUndefined()
+    expect(urlMessage('www.example.com')).toBeUndefined()
   })
 
   it('should reject non-http URL schemes', () => {
-    expect(validateUrl('javascript:alert(1)')).toBeDefined()
-    expect(
-      validateUrl('data:text/html,<script>alert(1)</script>'),
-    ).toBeDefined()
-    expect(validateUrl('vbscript:msgbox("xss")')).toBeDefined()
-    expect(validateUrl('file:///etc/passwd')).toBeDefined()
+    expect(urlMessage('javascript:alert(1)')).toBe(
+      'Only http:// and https:// links are supported',
+    )
+    expect(urlMessage('data:text/html,<script>alert(1)</script>')).toBe(
+      'Only http:// and https:// links are supported',
+    )
+    expect(urlMessage('vbscript:msgbox("xss")')).toBe(
+      'Only http:// and https:// links are supported',
+    )
+    expect(urlMessage('file:///etc/passwd')).toBe(
+      'Only http:// and https:// links are supported',
+    )
   })
 
-  it('should reject strings without a protocol', () => {
-    expect(validateUrl('example.com')).toBeDefined()
-    expect(validateUrl('www.example.com')).toBeDefined()
+  it('should reject random text without a domain extension', () => {
+    expect(urlMessage('hello')).toBe('Add a domain extension, like .com')
   })
 
-  it('should reject random text', () => {
-    expect(validateUrl('not a url')).toBeDefined()
-    expect(validateUrl('hello')).toBeDefined()
+  it('should reject URLs with spaces', () => {
+    expect(urlMessage('not a url')).toBe(
+      "Links can't contain spaces. Remove them and try again",
+    )
   })
 
-  it('should reject partial URLs', () => {
-    expect(validateUrl('https://')).toBeDefined()
-    expect(validateUrl('://')).toBeDefined()
+  it('should treat the prefilled https:// as empty', () => {
+    expect(urlMessage('https://')).toBeUndefined()
+  })
+
+  it('should reject malformed URLs', () => {
+    expect(urlMessage('://')).toBe(
+      'Enter a valid URL, like https://example.com',
+    )
   })
 })
 

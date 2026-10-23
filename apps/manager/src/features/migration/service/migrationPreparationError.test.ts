@@ -37,6 +37,11 @@ describe('migration preparation errors', () => {
       'contract-incompatible',
     ],
     [
+      'MigrationContractInvariantError',
+      { invariant: 'resolver-writer-roles' },
+      'resolver-not-writable',
+    ],
+    [
       'LockedResolverRecordSafetyError',
       { reason: 'inventory-missing' },
       'records-unavailable',
@@ -113,6 +118,15 @@ describe('migration preparation errors', () => {
     )
     expect(message(failure('MigrationRecoveryPlanError'), 'recovery')).toBe(
       "Couldn't restore your upgrade progress. Reload to check the latest state.",
+    )
+  })
+
+  it('names the lost resolver permission instead of a contract mismatch', () => {
+    const lostRoles = failure('MigrationContractInvariantError', {
+      invariant: 'resolver-writer-roles',
+    })
+    expect(message(lostRoles)).toBe(
+      "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again.",
     )
   })
 

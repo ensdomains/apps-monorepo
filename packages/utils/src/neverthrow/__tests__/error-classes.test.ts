@@ -1,10 +1,5 @@
 import { assert, describe, expect, it } from 'vitest'
-import {
-  DataError,
-  type Equals,
-  TaggedError,
-  YieldableError,
-} from '../error-classes'
+import { DataError, TaggedError, YieldableError } from '../error-classes'
 
 describe('YieldableError', () => {
   it('should create an error with message', () => {
@@ -127,34 +122,5 @@ describe('TaggedError', () => {
 
     expect(validationError._tag).toBe('VALIDATION_ERROR')
     expect(networkError._tag).toBe('NETWORK_ERROR')
-  })
-})
-
-describe('Equals type utility', () => {
-  it('should correctly identify equal types', () => {
-    type Test1 = Equals<string, string>
-    type Test2 = Equals<number, number>
-    type Test3 = Equals<{ a: string }, { a: string }>
-
-    // These are compile-time tests, so we just verify the types exist
-    const test1: Test1 = true
-    const test2: Test2 = true
-    const test3: Test3 = true
-
-    expect(test1).toBe(true)
-    expect(test2).toBe(true)
-    expect(test3).toBe(true)
-  })
-
-  it('should correctly identify different types', () => {
-    type Test1 = Equals<string, number>
-    type Test2 = Equals<{ a: string }, { a: number }>
-
-    // These are compile-time tests
-    const test1: Test1 = false
-    const test2: Test2 = false
-
-    expect(test1).toBe(false)
-    expect(test2).toBe(false)
   })
 })

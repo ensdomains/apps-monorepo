@@ -25,7 +25,6 @@ export {
   computeResolverResource,
   decodeResolverRoleBitmap,
   encodeResolverRoleBitmap,
-  encodeResolverSetterScope,
   resolverSetterScopeRole,
 } from '@ensdomains/ensjs/utils/v2'
 export type { ResolverRole, ResolverSetterScope }

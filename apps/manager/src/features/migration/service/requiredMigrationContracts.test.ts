@@ -25,6 +25,7 @@ const select = (
       implementation: RESOLVER,
       hcaHasRootRoles: true,
       walletHasWildcardRoles: true,
+      writer: 'hca',
     },
     ownedResolver: RESOLVER,
     ...options,

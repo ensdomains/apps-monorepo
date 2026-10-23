@@ -536,6 +536,7 @@ describe('checkMigrationResolverReadiness', () => {
       status: 'verified',
       resolver: RESOLVER,
       implementation: V2_CONTRACTS.PermissionedResolverImpl,
+      writer: 'hca',
       hcaHasRootRoles: true,
       walletHasWildcardRoles: false,
     })
@@ -548,6 +549,49 @@ describe('checkMigrationResolverReadiness', () => {
       { functionName: 'hasRootRoles', args: [ROLES_ALL, HCA] },
       { functionName: 'hasRootRoles', args: [ROLES_ALL, WALLET] },
     ])
+  })
+
+  it('falls back to the wallet when the HCA lost its resolver roles', async () => {
+    const publicClient = makePublicClient()
+    vi.mocked(publicClient.getCode).mockResolvedValue('0x01')
+    vi.mocked(publicClient.readContract)
+      .mockResolvedValueOnce(V2_CONTRACTS.PermissionedResolverImpl)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true)
+
+    await expect(
+      checkMigrationResolverReadiness({
+        publicClient,
+        resolver: RESOLVER,
+        hca: HCA,
+        wallet: WALLET,
+      }),
+    ).resolves.toEqual({
+      status: 'verified',
+      resolver: RESOLVER,
+      implementation: V2_CONTRACTS.PermissionedResolverImpl,
+      writer: 'wallet',
+      hcaHasRootRoles: false,
+      walletHasWildcardRoles: true,
+    })
+  })
+
+  it('rejects a resolver neither account can write', async () => {
+    const publicClient = makePublicClient()
+    vi.mocked(publicClient.getCode).mockResolvedValue('0x01')
+    vi.mocked(publicClient.readContract)
+      .mockResolvedValueOnce(V2_CONTRACTS.PermissionedResolverImpl)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+
+    await expect(
+      checkMigrationResolverReadiness({
+        publicClient,
+        resolver: RESOLVER,
+        hca: HCA,
+        wallet: WALLET,
+      }),
+    ).rejects.toMatchObject({ invariant: 'resolver-writer-roles' })
   })
 
   it('rejects a resolver proxy with the wrong implementation', async () => {

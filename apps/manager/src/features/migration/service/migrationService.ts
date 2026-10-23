@@ -26,7 +26,12 @@ import {
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { TARGET_GAS } from './batchMigrate.constants'
-import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
+import {
+  type AtomicMigrationBatch,
+  buildAtomicMigrationBatches,
+  maxBatchGas,
+  walletReplayNames,
+} from './buildAtomicMigrationBatches'
 import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
 import type {
   CopyClassifiedName,
@@ -73,10 +78,12 @@ import {
 import {
   assertNoLiveSubregistryOverwrite,
   checkDeterministicMigrationResolverReadiness,
+  resolverWriterFor,
 } from './migrationInvariants'
 import {
   describeRecoveredOperations,
   describeUpgradeOperations,
+  nameCount,
 } from './migrationProgressCopy'
 import {
   reconcileAtomicMigrationBatch,
@@ -282,6 +289,8 @@ const recoverySnapshotFor = (
         addresses: [],
         contentHash: null,
         abis: [],
+        interfaces: [],
+        pubkey: null,
       })
     }
   }
@@ -1279,6 +1288,59 @@ const recoverMaskedRpcEstimate = async (params: {
   }
 }
 
+/** The one estimate request both the wrapped HCA call and the wallet replay use. */
+const estimateCallGas = (params: {
+  readonly ctx: Pick<MigrationCtx, 'publicClient' | 'walletAddress'>
+  readonly call: Call
+}): Promise<bigint> =>
+  params.ctx.publicClient.estimateGas({
+    account: params.ctx.walletAddress,
+    to: params.call.to,
+    data: params.call.data,
+    value: params.call.value,
+  })
+
+/**
+ * Live estimate of the outer `executeByOwner` call. A permission-missing revert
+ * can be a lagging approval head rather than a real refusal, so it retries
+ * briefly before falling back to the masked-estimate recovery.
+ */
+const estimateOuterCallGas = async (params: {
+  readonly ctx: MigrationCtx
+  readonly call: Call
+  readonly retryPermissionHeadLag: boolean
+}): Promise<bigint> => {
+  let retryIndex = 0
+  while (true) {
+    try {
+      return await estimateCallGas(params)
+    } catch (error) {
+      const decodedError = decodeMigrationError(error)
+      const retryDelay = APPROVAL_HEAD_LAG_RETRY_DELAYS_MS[retryIndex]
+      if (
+        params.retryPermissionHeadLag &&
+        retryDelay !== undefined &&
+        decodedError.type === 'permission-missing'
+      ) {
+        retryIndex += 1
+        await delay(retryDelay)
+        continue
+      }
+
+      const recoveredEstimate = await recoverMaskedRpcEstimate({
+        ctx: params.ctx,
+        call: params.call,
+        error: decodedError,
+      })
+      if (recoveredEstimate !== null) return recoveredEstimate
+      throw error
+    }
+  }
+}
+
+/** Keep 10% headroom over an estimate, rounding up. */
+const withGasBuffer = (gas: bigint): bigint => (gas * 110n + 99n) / 100n
+
 const buildNextAtomicBatch = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
@@ -1328,46 +1390,26 @@ const buildNextAtomicBatch = async (params: {
     walletCoAdminGranted:
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
+    resolverWriter: resolverWriterFor(resolverReadiness),
     maxOuterGas: TARGET_GAS,
     firstBatchOnly: true,
     initialBatchSize,
-    estimateOuterGas: async ({ call }) => {
-      let retryIndex = 0
-      while (true) {
-        try {
-          return await ctx.publicClient.estimateGas({
-            account: ctx.walletAddress,
-            to: call.to,
-            data: call.data,
-            value: call.value,
-          })
-        } catch (error) {
-          const decodedError = decodeMigrationError(error)
-          const retryDelay = APPROVAL_HEAD_LAG_RETRY_DELAYS_MS[retryIndex]
-          if (
-            retryPermissionHeadLag &&
-            retryDelay !== undefined &&
-            decodedError.type === 'permission-missing'
-          ) {
-            retryIndex += 1
-            await delay(retryDelay)
-            continue
-          }
-
-          const recoveredEstimate = await recoverMaskedRpcEstimate({
-            ctx,
-            call,
-            error: decodedError,
-          })
-          if (recoveredEstimate !== null) return recoveredEstimate
-          throw error
-        }
-      }
-    },
+    estimateBatchGas: async ({ call, walletCall }) => ({
+      outerGas: await estimateOuterCallGas({
+        ctx,
+        call,
+        retryPermissionHeadLag,
+      }),
+      // The replay is a plain transaction, so nothing can lag behind it and the
+      // masked dRPC recovery (an ERC-1155 wrapper ceiling) does not apply.
+      walletGas: walletCall
+        ? await estimateCallGas({ ctx, call: walletCall })
+        : 0n,
+    }),
   })
   const batch = atomicPlan.batches[0]
   if (!batch) throw new Error('Atomic migration did not produce a batch')
-  if (batch.estimatedGas <= 0n || batch.estimatedGas > TARGET_GAS) {
+  if (batch.estimatedGas <= 0n || maxBatchGas(batch) > TARGET_GAS) {
     throw new Error('Migration batch exceeds the supported gas budget')
   }
   return batch
@@ -1512,6 +1554,64 @@ const prepareExecutionPlan = async (params: {
   }
 }
 
+/**
+ * True when the batch's profile records are already on the resolver, which is
+ * what a retry sees after its wallet replay landed but the outer call did not.
+ * Uses the shared reconciler so a deterministic mismatch (resend) is not
+ * confused with an indeterminate read: the latter stops the run instead of
+ * guessing from a partial picture.
+ */
+const walletReplayAlreadyApplied = async (params: {
+  readonly publicClient: PublicClient
+  readonly batch: AtomicMigrationBatch
+}): Promise<boolean> => {
+  const profileExpectations = params.batch.verificationExpectations.filter(
+    (expectation) => expectation.type.startsWith('profile-'),
+  )
+  if (profileExpectations.length === 0) return false
+
+  const reconciliation = await reconcileAtomicMigrationBatch({
+    publicClient: params.publicClient,
+    batch: {
+      index: params.batch.index,
+      verificationExpectations: profileExpectations,
+    },
+  })
+  return reconciliation.status === 'complete'
+}
+
+/**
+ * Records the HCA can no longer write are replayed by the owner wallet first:
+ * a failed replay then leaves the names unmigrated, so a retry replays them
+ * instead of treating the batch as done and skipping its records.
+ */
+const replayWalletRecords = async (params: {
+  readonly ctx: MigrationCtx
+  readonly publicClient: PublicClient
+  readonly batch: AtomicMigrationBatch
+}): Promise<void> => {
+  const { batch } = params
+  if (!batch.walletCall) return
+
+  const replayNames = walletReplayNames(batch)
+  const description = `Copying records for ${nameCount(replayNames.length)}`
+  if (await walletReplayAlreadyApplied(params)) {
+    params.ctx.tracker.next()
+    params.ctx.tracker.emit('Records already copied')
+    return
+  }
+
+  await submitCall(
+    params.ctx,
+    batch.walletCall,
+    description,
+    undefined,
+    withGasBuffer(batch.walletEstimatedGas),
+  )
+  params.ctx.tracker.next()
+  params.ctx.tracker.emit('Records copied')
+}
+
 const executeRemainingAtomicBatches = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
@@ -1543,6 +1643,15 @@ const executeRemainingAtomicBatches = async (params: {
       registryContext: params.plan.registryContext,
     })
     const description = describeUpgradeOperations(batch.operations)
+    try {
+      await replayWalletRecords({
+        ctx: params.ctx,
+        publicClient: params.publicClient,
+        batch,
+      })
+    } catch (error) {
+      throw wrapMigrationError(error, description)
+    }
     const intent = {
       id: createAtomicMigrationIntentId(),
       names: batch.names,
@@ -1573,7 +1682,7 @@ const executeRemainingAtomicBatches = async (params: {
           }
           removePendingAtomicMigrationIntent(journalScope, intent.id)
         },
-        (batch.estimatedGas * 110n + 99n) / 100n,
+        withGasBuffer(batch.estimatedGas),
       )
       await verifyAtomicMigrationBatch({
         publicClient: params.publicClient,

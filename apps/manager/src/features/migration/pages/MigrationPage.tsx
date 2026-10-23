@@ -122,6 +122,16 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
           </Trans>
         </div>
       )
+    case 'resolver-not-writable':
+      return (
+        <div>
+          <Trans>
+            Your wallet and your smart account both lost permission to update
+            your names&apos; records. Restore the permission in your profile,
+            then try again. No names were changed.
+          </Trans>
+        </div>
+      )
     case 'cleanup-failed':
       return (
         <div>

@@ -23,6 +23,19 @@ genuinely requires shared code updates (e.g., packages/).
 Run `pnpm typecheck` from the app directory (e.g. `apps/portal/`) to type-check.
 Do **not** use `npx tsc`, `pnpx tsc`, or `./node_modules/.bin/tsc` — they resolve to the wrong binary or skip project-level configuration.
 
+## Writing Tests
+
+Every test must be able to fail when real behaviour breaks. Fewer, sharper tests beat many shallow ones. Don't write:
+
+- **Tests of dead code.** If nothing outside tests imports a function, delete the function rather than testing it. Don't export a helper only so a test can reach it; test it through the live entry point.
+- **Tests of the mock.** Asserting a value the mock itself returned, or that a mocked child component rendered its props, proves nothing.
+- **Tests of libraries or the compiler.** Don't re-test viem, zod/valibot, neverthrow, clsx/tailwind-merge, TanStack, `Intl`/`Date`, or properties TypeScript already enforces (shapes, `typeof`, type-level `Equals`).
+- **Tests that can't fail.** Examples: `expect(x).toBeDefined()` after a `getBy*`, `length > 0`, an un-awaited `waitFor`, an `if` around the assertion, "is deterministic"/"is pure", or a constant asserted against a copy of itself.
+- **Pins of constants, copy, or styling.** Tailwind class strings, label text, address tables, `staleTime` values. Pin these only when the value is a deliberate decision you'd want a review to catch.
+- **The same behaviour twice.** Test logic once, at the lowest layer that owns it. Hooks, components and wrappers then get one wiring test, not a replay of the helper's input table. Same for a pure util in an app and a package: test it where it lives. Before adding a case, check it hits a branch no existing case covers.
+
+Prefer `it.each` tables over copy-pasted `it` blocks that differ only by input, and file-local builders (`run(overrides)`, `makeX()`) over repeating the same args object. Reuse existing fixtures (`@ens-apps/migration/test-fixtures`, `src/test-utils`) rather than redefining them. Keep one test file per module.
+
 ## Package-Specific Documentation
 
 When working in specific packages, consult these design documents:

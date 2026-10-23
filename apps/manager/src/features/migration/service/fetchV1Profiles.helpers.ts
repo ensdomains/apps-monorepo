@@ -1,4 +1,4 @@
-import type { Address, Hex } from 'viem'
+import { type Address, type Hex, zeroAddress, zeroHash } from 'viem'
 import { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
 import type { Profile } from './fetchV1Profiles'
 
@@ -14,6 +14,7 @@ export type ProfileKeyEntry = {
   readonly coinTypes: readonly number[]
   readonly hasContentHash: boolean
   readonly abiContentTypes: readonly bigint[]
+  readonly interfaceIds: readonly Hex[]
 }
 
 export type ResolverCall =
@@ -29,11 +30,23 @@ export type ResolverCall =
       readonly kind: 'abi'
       readonly contentType: bigint
     }
+  | {
+      readonly name: NameForFetch
+      readonly kind: 'interface'
+      readonly interfaceId: Hex
+    }
+  | { readonly name: NameForFetch; readonly kind: 'pubkey' }
 
 export type MulticallContract = {
   readonly address: Address
   readonly abi: typeof V1_RESOLVER_PROFILE_ABI
-  readonly functionName: 'text' | 'addr' | 'contenthash' | 'ABI'
+  readonly functionName:
+    | 'text'
+    | 'addr'
+    | 'contenthash'
+    | 'ABI'
+    | 'interfaceImplementer'
+    | 'pubkey'
   readonly args: readonly unknown[]
 }
 
@@ -100,6 +113,23 @@ export const buildProfileMulticallPlan = (
         args: [name.nodeHex, contentType],
       })
     }
+    for (const interfaceId of new Set(entry.interfaceIds)) {
+      calls.push({ name, kind: 'interface', interfaceId })
+      contracts.push({
+        address: name.v1ResolverAddress,
+        abi: V1_RESOLVER_PROFILE_ABI,
+        functionName: 'interfaceImplementer',
+        args: [name.nodeHex, interfaceId],
+      })
+    }
+    // No indexer lists pubkeys, so every name is read for the drop warning.
+    calls.push({ name, kind: 'pubkey' })
+    contracts.push({
+      address: name.v1ResolverAddress,
+      abi: V1_RESOLVER_PROFILE_ABI,
+      functionName: 'pubkey',
+      args: [name.nodeHex],
+    })
   }
   return { calls, contracts }
 }
@@ -114,6 +144,8 @@ export const initEmptyProfileBuckets = (
       addresses: [],
       contentHash: null,
       abis: [],
+      interfaces: [],
+      pubkey: null,
     })
   }
   return out
@@ -170,6 +202,26 @@ export const mergeMulticallResultsIntoProfiles = (params: {
             ...bucket,
             abis: [...bucket.abis, { contentType, value }],
           })
+        }
+        break
+      }
+      case 'interface': {
+        const implementer = res.result as Address
+        if (implementer && implementer !== zeroAddress) {
+          buckets.set(nodeKey, {
+            ...bucket,
+            interfaces: [
+              ...bucket.interfaces,
+              { interfaceId: call.interfaceId, implementer },
+            ],
+          })
+        }
+        break
+      }
+      case 'pubkey': {
+        const [x, y] = res.result as readonly [Hex, Hex]
+        if (x !== zeroHash || y !== zeroHash) {
+          buckets.set(nodeKey, { ...bucket, pubkey: { x, y } })
         }
         break
       }

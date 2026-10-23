@@ -37,8 +37,6 @@ export {
   archiveTransaction,
   clearAllTransactions,
   clearTransactionHistory,
-  exportAllData,
-  getActiveCount,
   getAllTransactions,
   getArchivedTransactions,
   getHistoryCount,

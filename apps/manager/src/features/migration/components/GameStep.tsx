@@ -126,6 +126,12 @@ const useStepDescriptionText = (
             other: `Upgrading batch ${index + 1} of ${total} (# names)...`,
           }),
     )
+    .with({ kind: 'record-replay' }, ({ count }) =>
+      plural(count, {
+        one: 'Copying records for # name in your wallet...',
+        other: 'Copying records for # names in your wallet...',
+      }),
+    )
     .with({ kind: 'cleanup' }, () => `${t`Removing temporary access`}...`)
     .exhaustive()
 }

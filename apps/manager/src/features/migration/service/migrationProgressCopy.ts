@@ -1,6 +1,6 @@
 import type { MigrationJournalOperation } from './migrationBatchJournal'
 
-const nameCount = (count: number): string =>
+export const nameCount = (count: number): string =>
   `${count} ${count === 1 ? 'name' : 'names'}`
 
 export const describeUpgradeOperations = (

@@ -6,6 +6,7 @@ import { match } from 'ts-pattern'
 import { formatUnits } from 'viem'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
+import { namesWithDroppedPubkey } from '@/features/migration/service/buildMigrationPlan'
 import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
 import { TOKENS } from '@/lib/tokens'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
@@ -13,6 +14,26 @@ import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import { GrainOverlay } from './GrainOverlay'
 import { MigrationUpgradeButton } from './MigrationUpgradeButton'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
+
+const DroppedPubkeyWarning = ({
+  names,
+}: {
+  readonly names: readonly string[]
+}) => {
+  if (names.length === 0) return null
+  const nameList = names.join(', ')
+  return (
+    <p className="flex items-start gap-1 text-ens-garnet-900" role="note">
+      <CircleAlert className="mt-0.5 size-3.5 shrink-0" strokeWidth={1.8} />
+      <span>
+        <Trans>
+          Public key records can&apos;t be carried over by this upgrade and will
+          stop resolving for {nameList}.
+        </Trans>
+      </span>
+    </p>
+  )
+}
 
 type GasEstimateMessageProps = {
   readonly gasEstimate: MigrationGasEstimateState | GraceRenewalGasEstimateState
@@ -85,6 +106,13 @@ const GasEstimateMessage = ({
             </Trans>
           </p>
         )}
+        <DroppedPubkeyWarning
+          names={
+            'plan' in estimate
+              ? namesWithDroppedPubkey(estimate.plan)
+              : estimate.droppedPubkeyNames
+          }
+        />
       </div>
     ))
     .with({ gasEstimate: { status: 'error' } }, ({ gasEstimate: estimate }) => (

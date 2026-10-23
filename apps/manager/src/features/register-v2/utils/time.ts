@@ -55,34 +55,6 @@ export const getCanonicalDurationYears = (
   return candidateYears
 }
 
-export const getCalendarYearDurationYears = (
-  duration: number,
-  referenceDate: Date = new Date(),
-) => {
-  const normalizedReferenceDate = getStartOfDay(referenceDate)
-  const expiryDate = getDurationExpiryDateForDisplay(duration, referenceDate)
-  const normalizedExpiryDate = getStartOfDay(expiryDate)
-  const calendarYears = differenceInCalendarYears(
-    normalizedExpiryDate,
-    normalizedReferenceDate,
-  )
-
-  if (calendarYears < 1) {
-    return null
-  }
-
-  const remainingDays = differenceInCalendarDays(
-    normalizedExpiryDate,
-    addYears(normalizedReferenceDate, calendarYears),
-  )
-
-  if (remainingDays !== 0) {
-    return null
-  }
-
-  return calendarYears
-}
-
 export type DurationDisplayParts = {
   readonly years: number
   readonly months: number

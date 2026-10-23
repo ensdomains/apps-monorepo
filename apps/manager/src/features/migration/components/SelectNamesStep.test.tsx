@@ -1,5 +1,6 @@
 import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { fireEvent, waitFor } from '@testing-library/react'
+import { namehash, zeroHash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
@@ -92,7 +93,11 @@ import { SelectNamesStep } from './SelectNamesStep'
 
 const readyGasEstimate: MigrationGasEstimateState = {
   status: 'ready',
-  plan: { stepDescriptors: [] } as unknown as MigrationPlan,
+  plan: {
+    stepDescriptors: [],
+    classified: [],
+    profiles: new Map(),
+  } as unknown as MigrationPlan,
   formattedEth: '0.001',
   gasUnits: 1n,
   feeWei: 1n,
@@ -244,6 +249,33 @@ describe('SelectNamesStep', () => {
     expect(getByText(/Not enough ETH for gas/i)).toBeInTheDocument()
     // The fee quote would read as "you can proceed", so it must not also show.
     expect(queryByText(/Estimated network fee/i)).not.toBeInTheDocument()
+  })
+
+  it('warns which names will lose their public key record', () => {
+    const { getByRole } = renderStep({
+      gasEstimate: {
+        ...readyGasEstimate,
+        plan: {
+          stepDescriptors: [],
+          classified: [
+            {
+              domain: { name: 'status.eth' },
+              resolverStrategy: 'to-owned-permres',
+            },
+          ],
+          profiles: new Map([
+            [
+              namehash('status.eth'),
+              { pubkey: { x: `0x${'aa'.repeat(32)}`, y: zeroHash } },
+            ],
+          ]),
+        } as unknown as MigrationPlan,
+      },
+    })
+
+    expect(getByRole('note')).toHaveTextContent(
+      /Public key records can.t be carried over .* for status\.eth\./i,
+    )
   })
 
   it('keeps the fee in the requests dialog when the balance cannot be read', () => {

@@ -41,13 +41,12 @@ export const findExistingPermRes = async (params: {
 
 /**
  * Build the `deployProxy` call for the owner's dedicated PermissionedResolver,
- * without submitting it. `owner` must be the EOA that owns the name, even when
- * a smart account executes the call: the resolver resolves smart-account
- * callers to their HCA owner before checking roles, so roles granted to the
- * smart account itself would lock the owner out. The VerifiableFactory also
- * mixes `msg.sender` into the proxy address, so who executes this call changes
- * where it lands. Lets callers batch the deploy alongside `setResolver` and a
- * record write in a single intent.
+ * without submitting it. `owner` must be the EOA that owns the name: the
+ * resolver checks roles against the raw `msg.sender` (it has no smart-account
+ * mapping), so the owner has to hold the roles it grants itself, and the
+ * VerifiableFactory also mixes `msg.sender` into the proxy address. Lets
+ * callers batch the deploy alongside `setResolver` and a record write in a
+ * single intent.
  */
 export const buildDeployOwnedPermResCall = (owner: Address): Call => ({
   to: V2_CONTRACTS.VerifiableFactory,

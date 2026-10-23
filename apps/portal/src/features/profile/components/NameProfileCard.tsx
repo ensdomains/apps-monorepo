@@ -13,6 +13,7 @@ import {
   recordCoinsToObject,
   recordTextsToObject,
 } from '@/utils/records/transformRecordsForDisplay'
+import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 import { getRecordsQueryOptions } from '../hooks/useRecords'
 import { CoinRecord, type CoinTypeWithIcon } from './CoinRecord'
 import { NameAvatar } from './NameAvatar'
@@ -32,13 +33,15 @@ export const NameProfileCard = ({
   stacked?: boolean
 }) => {
   const { labels, parent } = parseLabelsAndParent(name)
+  const hasUnknownLabel = name.split('.').some(isEncodedLabelhash)
 
   const {
     data: records,
     isLoading,
     error,
-  } = useQuery(
-    getRecordsQueryOptions({
+  } = useQuery({
+    enabled: !hasUnknownLabel,
+    ...getRecordsQueryOptions({
       name,
       texts: [
         'name',
@@ -69,7 +72,7 @@ export const NameProfileCard = ({
         coinNameToTypeMap.strk,
       ],
     }),
-  )
+  })
 
   const texts = recordTextsToObject(records?.texts)
 
@@ -78,6 +81,13 @@ export const NameProfileCard = ({
   const evmChains = filterEvmChains(coins, evmCoinTypes)
 
   const nonEvmChains = filterNonEvmChains(coins, nonEvmCoinTypes)
+
+  if (hasUnknownLabel)
+    return (
+      <div className="text-muted-foreground">
+        Records can't be shown for a label that is only known by its hash.
+      </div>
+    )
 
   if (error) return <div>Failed to fetch records: {error.cause?.message}</div>
 
