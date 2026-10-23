@@ -6,9 +6,9 @@ import {
   ROLES_ALL,
 } from '@ens-apps/smart-account'
 import type { Call } from '@ens-apps/transaction-manager'
-import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { permissionedResolverGrantRootRolesSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
+import { labelToCanonicalId } from '@storywithoutend/effect-ens/utils/v2'
 import {
   type Address,
   encodeFunctionData,

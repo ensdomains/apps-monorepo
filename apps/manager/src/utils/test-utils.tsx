@@ -1,4 +1,4 @@
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
+import { extendChainWithEns } from '@storywithoutend/effect-ens/chain'
 import {
   render as baseRender,
   type RenderOptions,

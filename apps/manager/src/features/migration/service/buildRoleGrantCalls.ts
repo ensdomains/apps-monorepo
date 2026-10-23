@@ -1,5 +1,5 @@
 import type { Call } from '@ens-apps/transaction-manager'
-import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
+import { labelToCanonicalId } from '@storywithoutend/effect-ens/utils/v2'
 import { encodeFunctionData } from 'viem'
 import { ETH_REGISTRY_V2_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'

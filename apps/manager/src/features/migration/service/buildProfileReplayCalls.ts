@@ -1,5 +1,5 @@
 import type { Call } from '@ens-apps/transaction-manager'
-import { dnsEncodeName } from '@ensdomains/ensjs/utils/v2'
+import { dnsEncodeName } from '@storywithoutend/effect-ens/utils/v2'
 import { type Address, encodeFunctionData, type Hex } from 'viem'
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
 import type { Profile } from './fetchV1Profiles'

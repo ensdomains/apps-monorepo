@@ -1,5 +1,5 @@
 import { getCoderByCoinType } from '@ensdomains/address-encoder'
-import * as ensUtils from '@ensdomains/ensjs/utils'
+import * as ensUtils from '@storywithoutend/effect-ens/utils'
 import * as viem from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -12,9 +12,9 @@ vi.mock('viem', async (importOriginal) => {
   const actual = await importOriginal<typeof import('viem')>()
   return { ...actual, decodeFunctionResult: vi.fn(actual.decodeFunctionResult) }
 })
-vi.mock('@ensdomains/ensjs/utils', async (importOriginal) => {
+vi.mock('@storywithoutend/effect-ens/utils', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@ensdomains/ensjs/utils')>()
+    await importOriginal<typeof import('@storywithoutend/effect-ens/utils')>()
   return {
     ...actual,
     decodeAddressResultFromPrimitiveTypes: vi.fn(

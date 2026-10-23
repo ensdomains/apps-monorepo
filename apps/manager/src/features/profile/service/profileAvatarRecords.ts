@@ -1,7 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getRecords } from '@ensdomains/ensjs/public'
+import { getRecords } from '@storywithoutend/effect-ens/public'
 import { fromPromise, ok } from 'neverthrow'
 import { DEBUG_PROFILE } from '@/features/profile/MOCK'
 import { safeGetClient } from '@/lib/wagmi/helpers'

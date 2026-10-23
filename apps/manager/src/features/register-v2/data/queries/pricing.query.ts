@@ -2,11 +2,11 @@ import { getDestinationContracts } from '@ens-apps/smart-account'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import {
   type GetRenewPriceErrorType as EnsGetRenewPriceErrorType,
   getRenewPrice as ensGetRenewPrice,
-} from '@ensdomains/ensjs/public'
+} from '@storywithoutend/effect-ens/public'
 import { err, fromPromise, ok } from 'neverthrow'
 import { parseAbi } from 'viem'
 import { chain } from '@/config'

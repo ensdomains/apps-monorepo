@@ -6,7 +6,9 @@ const mocks = vi.hoisted(() => ({
   isDebugProfileName: vi.fn(() => false),
 }))
 
-vi.mock('@ensdomains/ensjs/public', () => ({ getRecords: mocks.getRecords }))
+vi.mock('@storywithoutend/effect-ens/public', () => ({
+  getRecords: mocks.getRecords,
+}))
 vi.mock('@/lib/wagmi/helpers', async () => {
   const { ok } = await import('neverthrow')
   return { safeGetClient: () => ok(mocks.client) }

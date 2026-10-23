@@ -2,7 +2,7 @@ import {
   buildHcaOwnerExecutionCall,
   getDestinationContracts,
 } from '@ens-apps/smart-account'
-import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
+import { labelToCanonicalId } from '@storywithoutend/effect-ens/utils/v2'
 import { Storage } from 'happy-dom'
 import { type Address, type Hex, type PublicClient, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'

@@ -18,11 +18,11 @@ vi.mock('@/features/shared/service/nameDetail', () => ({
   getNameDetail: mocks.getNameDetail,
 }))
 
-vi.mock('@ensdomains/ensjs/public/v1', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v1', () => ({
   getExpiry: mocks.getV1Expiry,
 }))
 
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v2', () => ({
   getExpiry: mocks.getV2Expiry,
 }))
 

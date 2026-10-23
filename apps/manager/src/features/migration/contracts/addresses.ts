@@ -1,5 +1,5 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
 const destination = getDestinationContracts(sepoliaWithEns.id)

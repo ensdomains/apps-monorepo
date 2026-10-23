@@ -13,7 +13,7 @@ import {
 import {
   defaultReverseRegistrarSetNameSnippet,
   reverseRegistrarSetNameSnippet,
-} from '@ensdomains/ensjs/contracts'
+} from '@storywithoutend/effect-ens/contracts'
 import {
   type Address,
   encodeFunctionData,

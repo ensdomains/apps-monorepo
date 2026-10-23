@@ -1,6 +1,6 @@
 import { buildConfig } from '@ens-apps/config'
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
-import { getNameRegistries } from '@ensdomains/ensjs/public/v2'
+import { extendChainWithEns } from '@storywithoutend/effect-ens/chain'
+import { getNameRegistries } from '@storywithoutend/effect-ens/public/v2'
 import {
   createPublicClient,
   custom,

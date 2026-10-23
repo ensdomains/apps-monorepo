@@ -1,6 +1,6 @@
 import type { Call } from '@ens-apps/transaction-manager'
-import { getNameRegistries } from '@ensdomains/ensjs/public/v2'
 import { permissionedRegistrySetResolverSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
+import { getNameRegistries } from '@storywithoutend/effect-ens/public/v2'
 import { type Address, encodeFunctionData, labelhash, zeroAddress } from 'viem'
 import { normalize } from 'viem/ens'
 import { publicClient } from '@/lib/wagmi'

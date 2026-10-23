@@ -1,8 +1,8 @@
-import { decodeAddressResultFromPrimitiveTypes } from '@ensdomains/ensjs/utils'
 import {
   publicResolverMultiAddrSnippet,
   publicResolverSingleAddrSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
+import { decodeAddressResultFromPrimitiveTypes } from '@storywithoutend/effect-ens/utils'
 import { fromThrowable } from 'neverthrow'
 import { decodeFunctionResult, type Hex } from 'viem'
 

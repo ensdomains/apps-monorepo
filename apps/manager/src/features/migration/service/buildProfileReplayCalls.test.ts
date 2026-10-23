@@ -1,4 +1,4 @@
-import { dnsEncodeName } from '@ensdomains/ensjs/utils/v2'
+import { dnsEncodeName } from '@storywithoutend/effect-ens/utils/v2'
 import { type Address, decodeFunctionData, type Hex } from 'viem'
 import { assert, describe, expect, it } from 'vitest'
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'

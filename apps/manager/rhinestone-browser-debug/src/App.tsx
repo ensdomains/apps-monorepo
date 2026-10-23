@@ -1,5 +1,4 @@
 import { NETWORKS } from '@ens-apps/config'
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
   type RhinestoneAccount,
   RhinestoneSDK,
@@ -7,6 +6,10 @@ import {
   walletClientToAccount,
 } from '@rhinestone/sdk'
 import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessions'
+import {
+  ensL1Contracts,
+  supportedL1Chains,
+} from '@storywithoutend/effect-ens/chain'
 import { useEffect, useRef, useState } from 'react'
 import {
   type Address,

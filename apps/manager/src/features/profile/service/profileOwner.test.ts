@@ -1,4 +1,4 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { labelhash, namehash, zeroAddress } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -18,12 +18,12 @@ const mocks = vi.hoisted(() => ({
   readContract: vi.fn(),
 }))
 
-vi.mock('@ensdomains/ensjs/public/v1', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v1', () => ({
   getExpiry: mocks.getV1Expiry,
   getOwner: mocks.getV1Owner,
 }))
 
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v2', () => ({
   getOwner: mocks.getV2Owner,
 }))
 

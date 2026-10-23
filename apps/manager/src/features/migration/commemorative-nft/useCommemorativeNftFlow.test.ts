@@ -43,7 +43,9 @@ const mockEnvConfig = vi.hoisted((): { network: EnsNetwork } => ({
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
 
 vi.mock('@/config', async () => {
-  const { extendChainWithEns } = await import('@ensdomains/ensjs/chain')
+  const { extendChainWithEns } = await import(
+    '@storywithoutend/effect-ens/chain'
+  )
   const { mainnet } = await import('viem/chains')
   return {
     envConfig: {

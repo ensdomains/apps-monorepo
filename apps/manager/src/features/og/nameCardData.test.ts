@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockGetRecords = vi.fn()
 
-vi.mock('@ensdomains/ensjs/public', () => ({
+vi.mock('@storywithoutend/effect-ens/public', () => ({
   getRecords: (...args: unknown[]) => mockGetRecords(...args),
 }))
 

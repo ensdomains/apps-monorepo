@@ -1,11 +1,11 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getRecords } from '@ensdomains/ensjs/public'
+import { getRecords } from '@storywithoutend/effect-ens/public'
 import {
   type GetContentHashReturnType,
   getCoderFromCoin,
-} from '@ensdomains/ensjs/utils'
+} from '@storywithoutend/effect-ens/utils'
 import { errAsync, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'

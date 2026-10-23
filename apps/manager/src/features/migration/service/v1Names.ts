@@ -12,7 +12,7 @@ import {
   toV1Domain,
 } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import { ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { envConfig } from '@/config'

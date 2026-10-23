@@ -1,5 +1,8 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { getAvailable, getRegisterPrice } from '@ensdomains/ensjs/public'
+import {
+  getAvailable,
+  getRegisterPrice,
+} from '@storywithoutend/effect-ens/public'
 import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, formatUnits } from 'viem'
 import { getChainId } from 'viem/actions'

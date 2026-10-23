@@ -1,4 +1,4 @@
-import { getRecords } from '@ensdomains/ensjs/public'
+import { getRecords } from '@storywithoutend/effect-ens/public'
 import { concatBytes } from 'viem/utils'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { publicClient } from '@/lib/wagmi'

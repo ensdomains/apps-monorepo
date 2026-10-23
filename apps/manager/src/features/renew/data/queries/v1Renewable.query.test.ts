@@ -10,8 +10,10 @@ const mocks = vi.hoisted(() => ({
   client: {},
 }))
 
-vi.mock('@ensdomains/ensjs/public', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@ensdomains/ensjs/public')>()),
+vi.mock('@storywithoutend/effect-ens/public', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@storywithoutend/effect-ens/public')
+  >()),
   isRenewable: mocks.isRenewable,
 }))
 

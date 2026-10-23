@@ -1,14 +1,14 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
+import { permissionedRegistryGetStateSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import {
   getExpiry as ensjsv1_getExpiry,
   getOwner as ensjsv1_getOwner,
-} from '@ensdomains/ensjs/public/v1'
-import { getOwner as ensjsv2_getOwner } from '@ensdomains/ensjs/public/v2'
-import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
-import { permissionedRegistryGetStateSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
+} from '@storywithoutend/effect-ens/public/v1'
+import { getOwner as ensjsv2_getOwner } from '@storywithoutend/effect-ens/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,

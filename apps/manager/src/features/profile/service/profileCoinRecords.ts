@@ -1,5 +1,5 @@
-import { resolveNameData } from '@ensdomains/ensjs/public'
-import { getAddressParameters } from '@ensdomains/ensjs/utils'
+import { resolveNameData } from '@storywithoutend/effect-ens/public'
+import { getAddressParameters } from '@storywithoutend/effect-ens/utils'
 import { type Client, encodeFunctionData, type Transport } from 'viem'
 import type { sepoliaWithEns } from '@/lib/wagmi'
 import { decodeCoinResult } from './decodeCoinRecord'

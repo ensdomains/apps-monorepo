@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/bigname', () => ({
   bigname: { nameRecords: mocks.nameRecords },
 }))
-vi.mock('@ensdomains/ensjs/public', () => ({
+vi.mock('@storywithoutend/effect-ens/public', () => ({
   getRecords: mocks.getRecords,
   resolveNameData: mocks.resolveNameData,
 }))

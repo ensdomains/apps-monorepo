@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   getOwner: vi.fn(),
 }))
 
-vi.mock('@ensdomains/ensjs/public/v2', () => ({
+vi.mock('@storywithoutend/effect-ens/public/v2', () => ({
   getRegistrationDate: mocks.getRegistrationDate,
 }))
 

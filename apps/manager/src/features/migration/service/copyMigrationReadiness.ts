@@ -1,12 +1,12 @@
 import { BASE_REGISTRAR_ABI, isKnownPublicResolver } from '@ens-apps/migration'
 import { ROLES_ALL } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import {
   registryOwnerSnippet,
   registryResolverSnippet,
 } from '@ensdomains/ensjs-abi/registry'
 import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
+import { labelToCanonicalId } from '@storywithoutend/effect-ens/utils/v2'
 import {
   type Address,
   isAddressEqual,

@@ -2,16 +2,16 @@ import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getChainContractAddress } from '@storywithoutend/effect-ens/chain'
 import {
   getExpiry as ensjsv1_getExpiry,
   type GetExpiryErrorType as GetV1ExpiryErrorType,
   type GetExpiryReturnType as GetV1ExpiryReturnType,
-} from '@ensdomains/ensjs/public/v1'
+} from '@storywithoutend/effect-ens/public/v1'
 import {
   getExpiry as ensjsv2_getExpiry,
   type GetExpiryErrorType as GetV2ExpiryErrorType,
-} from '@ensdomains/ensjs/public/v2'
+} from '@storywithoutend/effect-ens/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import {
   getNameExpiryStatus,

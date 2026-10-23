@@ -324,9 +324,6 @@ importers:
       '@ensdomains/address-encoder':
         specifier: ^1.1.2
         version: 1.1.4
-      '@ensdomains/ensjs':
-        specifier: 'catalog:'
-        version: 5.2.1(@ensdomains/dnsprovejs@1.0.0)(graphql@17.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.2
@@ -384,6 +381,9 @@ importers:
       '@rhinestone/sdk':
         specifier: 'catalog:'
         version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+      '@storywithoutend/effect-ens':
+        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-8719b63.tgz
+        version: file:apps/manager/vendor/storywithoutend-effect-ens-0.0.0-8719b63.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@tailwindcss/vite':
         specifier: ^4.2.4
         version: 4.2.4(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
@@ -5336,6 +5336,13 @@ packages:
         optional: true
       '@tanstack/start-client-core':
         optional: true
+
+  '@storywithoutend/effect-ens@file:apps/manager/vendor/storywithoutend-effect-ens-0.0.0-8719b63.tgz':
+    resolution: {integrity: sha512-vXqFv2oqUOTPie1xfD2t54eE+QsjxFtErCdeK3HyVkJBf8OxjMld2MmI923ZHUr5H+p+fByb4GRFzthz4Jtv5w==, tarball: file:apps/manager/vendor/storywithoutend-effect-ens-0.0.0-8719b63.tgz}
+    version: 0.0.0
+    engines: {node: ^22.18.0 || >=24.11.0}
+    peerDependencies:
+      viem: ^2.9.2
 
   '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-745ff81.tgz':
     resolution: {integrity: sha512-xocnoTJq0o3WpsT1RzmoR9UvlYpZycxRphhiR55UEcN5olkDAx5J5TKjm2xm/ooZ3oPRckzPKCIw+rNzKzwayA==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-745ff81.tgz}
@@ -13066,6 +13073,16 @@ snapshots:
       - rollup
       - supports-color
       - typescript
+
+  '@storywithoutend/effect-ens@file:apps/manager/vendor/storywithoutend-effect-ens-0.0.0-8719b63.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
+    dependencies:
+      '@adraffy/ens-normalize': 1.10.1
+      '@ensdomains/address-encoder': 1.1.4
+      '@ensdomains/content-hash': 3.1.0-rc.1
+      '@ensdomains/dnsprovejs': 0.5.1
+      '@ensdomains/ensjs-abi': 5.0.2
+      effect: 4.0.5
+      viem: 2.52.2(typescript@7.0.2)(zod@4.6.5)
 
   '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-745ff81.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
     dependencies:

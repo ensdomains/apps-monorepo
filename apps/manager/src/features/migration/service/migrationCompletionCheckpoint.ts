@@ -1,6 +1,6 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
-import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { userRegistryRegisterSnippet } from '@ensdomains/ensjs-abi/v2/userRegistry'
+import { labelToCanonicalId } from '@storywithoutend/effect-ens/utils/v2'
 import {
   type Address,
   decodeFunctionData,

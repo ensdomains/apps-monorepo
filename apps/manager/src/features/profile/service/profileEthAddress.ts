@@ -1,5 +1,5 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { getRecords } from '@ensdomains/ensjs/public'
+import { getRecords } from '@storywithoutend/effect-ens/public'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, getAddress, isAddress, zeroAddress } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'

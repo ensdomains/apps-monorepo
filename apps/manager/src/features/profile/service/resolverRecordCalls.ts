@@ -12,13 +12,13 @@
  * same encoding as the write it gates.
  */
 
-import { getSupportedInterfaces } from '@ensdomains/ensjs/public'
-import { resolverMulticallParameters as nodeSetterCalls } from '@ensdomains/ensjs/utils'
+import { permissionedResolverLinkToRecordSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import { getSupportedInterfaces } from '@storywithoutend/effect-ens/public'
+import { resolverMulticallParameters as nodeSetterCalls } from '@storywithoutend/effect-ens/utils'
 import {
   dnsEncodeName,
   resolverMulticallParameters as nameSetterCalls,
-} from '@ensdomains/ensjs/utils/v2'
-import { permissionedResolverLinkToRecordSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+} from '@storywithoutend/effect-ens/utils/v2'
 import {
   type Address,
   encodeFunctionData,

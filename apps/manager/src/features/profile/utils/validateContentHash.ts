@@ -1,7 +1,7 @@
 import {
   getProtocolType,
   isValidContentHash as isValidEncodedContentHash,
-} from '@ensdomains/ensjs/utils'
+} from '@storywithoutend/effect-ens/utils'
 
 /**
  * Validates a content hash value per ENSIP-7.
