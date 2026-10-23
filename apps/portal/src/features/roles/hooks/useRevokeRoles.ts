@@ -5,7 +5,7 @@
  * Invalidates name roles queries on success with indexer sync polling.
  */
 
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@storywithoutend/effect-ens/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'

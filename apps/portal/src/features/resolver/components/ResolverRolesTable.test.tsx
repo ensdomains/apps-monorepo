@@ -1,4 +1,4 @@
-import { computeResolverResource } from '@ensdomains/ensjs/utils/v2'
+import { computeResolverResource } from '@storywithoutend/effect-ens/utils/v2'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Address } from 'viem'

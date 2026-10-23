@@ -1,4 +1,4 @@
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@storywithoutend/effect-ens/utils/v2'
 import { zeroAddress } from 'viem'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'

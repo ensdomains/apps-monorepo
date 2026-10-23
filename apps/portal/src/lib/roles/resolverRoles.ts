@@ -2,7 +2,7 @@
  * Portal-side presentation of the `PermissionedResolver` role model.
  *
  * The bit layout, the setter-scope resources and the calldata `grantSetterRoles`
- * takes all live in `@ensdomains/ensjs/utils/v2`; this module only adds what the
+ * takes all live in `@storywithoutend/effect-ens/utils/v2`; this module only adds what the
  * UI needs on top: titles and descriptions for the permission list, a readable
  * label for an EAC resource, and grouping role rows by account and scope.
  */
@@ -12,7 +12,7 @@ import {
   decodeResolverRoleBitmap,
   type ResolverRole,
   type ResolverSetterScope,
-} from '@ensdomains/ensjs/utils/v2'
+} from '@storywithoutend/effect-ens/utils/v2'
 import { toHex } from 'viem'
 import {
   type ResourceId,
@@ -26,7 +26,7 @@ export {
   encodeResolverRoleBitmap,
   encodeResolverSetterScope,
   resolverSetterScopeRole,
-} from '@ensdomains/ensjs/utils/v2'
+} from '@storywithoutend/effect-ens/utils/v2'
 export type { ResolverRole, ResolverSetterScope }
 
 /** A role a user can be granted from the UI, admin variants excluded. */

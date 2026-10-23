@@ -1,15 +1,15 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
-  RESOLVER_ROLE_LINK,
-  RESOLVER_ROLE_SET_ADDRESS,
-  RESOLVER_ROLE_SET_TEXT,
-} from '@ensdomains/ensjs/utils/v2'
-import {
   permissionedResolverGrantRootRolesSnippet,
   permissionedResolverGrantSetterRolesSnippet,
   permissionedResolverRevokeRolesSnippet,
   permissionedResolverRevokeRootRolesSnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import {
+  RESOLVER_ROLE_LINK,
+  RESOLVER_ROLE_SET_ADDRESS,
+  RESOLVER_ROLE_SET_TEXT,
+} from '@storywithoutend/effect-ens/utils/v2'
 import { type Address, decodeFunctionData, type WalletClient } from 'viem'
 import { describe, expect, it } from 'vitest'
 import type { IntentContext } from '@/features/transaction-manager/types'

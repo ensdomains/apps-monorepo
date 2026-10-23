@@ -1,9 +1,9 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
-import { dnsEncodeName } from '@ensdomains/ensjs/utils/v2'
 import {
   permissionedResolverLinkToNodeSnippet,
   permissionedResolverLinkToRecordSnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import { dnsEncodeName } from '@storywithoutend/effect-ens/utils/v2'
 import { type Address, decodeFunctionData, type WalletClient } from 'viem'
 import { namehash } from 'viem/ens'
 import { describe, expect, it } from 'vitest'

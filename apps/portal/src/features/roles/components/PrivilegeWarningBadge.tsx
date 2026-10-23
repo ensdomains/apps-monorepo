@@ -1,4 +1,4 @@
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@storywithoutend/effect-ens/utils/v2'
 import { TriangleAlert } from 'lucide-react'
 import { Fragment, type ReactNode } from 'react'
 import {

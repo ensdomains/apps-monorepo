@@ -1,4 +1,4 @@
-import { registryRoles } from '@ensdomains/ensjs/utils/v2'
+import { registryRoles } from '@storywithoutend/effect-ens/utils/v2'
 import { describe, expect, it } from 'vitest'
 import { decodeRoleBitmap } from './decodeRoleBitmap'
 

@@ -3,7 +3,7 @@
  * @see https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/registry/libraries/RegistryRolesLib.sol
  */
 
-import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
+import { type Role, registryRoles } from '@storywithoutend/effect-ens/utils/v2'
 
 /**
  * Whether a raw string names a registry role. Worth checking before a value

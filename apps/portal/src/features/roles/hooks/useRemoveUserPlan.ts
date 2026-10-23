@@ -1,5 +1,5 @@
 import type { GetNameRolesAccountsReturnType } from '@ensdomains/ensjs/public/v2'
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@storywithoutend/effect-ens/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, zeroAddress } from 'viem'

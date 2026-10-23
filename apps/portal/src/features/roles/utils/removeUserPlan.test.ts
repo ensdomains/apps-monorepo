@@ -1,4 +1,4 @@
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@storywithoutend/effect-ens/utils/v2'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { buildRemoveUserPlan, type NameRoleHolder } from './removeUserPlan'

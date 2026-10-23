@@ -1,4 +1,4 @@
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@storywithoutend/effect-ens/utils/v2'
 import { type Address, isAddressEqual } from 'viem'
 import { isAdminRole, isRegistryRole } from '@/lib/roles/permissions'
 import type { NameRoleGrant, TransferRoleRevocations } from '../types'

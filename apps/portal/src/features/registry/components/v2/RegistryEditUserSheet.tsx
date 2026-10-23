@@ -1,5 +1,5 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@storywithoutend/effect-ens/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 import { type FormEvent, useEffect, useState } from 'react'

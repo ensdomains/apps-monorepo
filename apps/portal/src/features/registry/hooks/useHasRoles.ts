@@ -5,12 +5,12 @@ import {
   type HasRolesParameters as EnsjsHasRolesParameters,
   hasRoles as ensjsHasRoles,
 } from '@ensdomains/ensjs/public/v2'
+import { eacHasRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import {
   encodeRoleBitmap,
   type ResolverRole,
   type Role,
-} from '@ensdomains/ensjs/utils/v2'
-import { eacHasRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+} from '@storywithoutend/effect-ens/utils/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { readContract } from 'viem/actions'

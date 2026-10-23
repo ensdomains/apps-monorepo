@@ -1,4 +1,4 @@
-import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
+import { type Role, registryRoles } from '@storywithoutend/effect-ens/utils/v2'
 
 /**
  * Decodes a role bitmap into an array of role names.

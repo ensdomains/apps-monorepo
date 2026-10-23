@@ -1,4 +1,4 @@
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@storywithoutend/effect-ens/utils/v2'
 import type { RootRoleHolder } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 
 /**

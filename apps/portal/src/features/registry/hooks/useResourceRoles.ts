@@ -21,8 +21,11 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { encodeRoleBitmap, type Role } from '@ensdomains/ensjs/utils/v2'
 import { eacHasRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import {
+  encodeRoleBitmap,
+  type Role,
+} from '@storywithoutend/effect-ens/utils/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address, MulticallErrorType } from 'viem'
 import { multicall } from 'viem/actions'

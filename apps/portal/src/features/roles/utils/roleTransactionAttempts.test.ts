@@ -17,7 +17,7 @@ import {
   runStepToSuccess,
   type TestWallet,
 } from '@ens-apps/transaction-manager/test-utils/transactionActor'
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@storywithoutend/effect-ens/utils/v2'
 import type { Address } from 'viem'
 import { afterEach, describe, expect, it } from 'vitest'
 import { getStatus } from '@/features/transaction-manager/utils/getStatus'

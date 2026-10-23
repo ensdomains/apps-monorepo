@@ -11,8 +11,8 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { grantRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import type { Role } from '@storywithoutend/effect-ens/utils/v2'
 import {
   type Address,
   encodeFunctionData,

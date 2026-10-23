@@ -2,11 +2,11 @@ import {
   createFlowScope,
   scopeTransactionId,
 } from '@ens-apps/transaction-manager'
-import { computeResolverResource } from '@ensdomains/ensjs/utils/v2'
 import {
   permissionedResolverRevokeRolesSnippet,
   permissionedResolverRevokeRootRolesSnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import { computeResolverResource } from '@storywithoutend/effect-ens/utils/v2'
 import {
   type Address,
   decodeFunctionData,

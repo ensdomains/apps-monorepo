@@ -1,4 +1,4 @@
-import { registryRoles } from '@ensdomains/ensjs/utils/v2'
+import { registryRoles } from '@storywithoutend/effect-ens/utils/v2'
 import { type Address, getAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

@@ -1,4 +1,4 @@
-import { computeResolverResource } from '@ensdomains/ensjs/utils/v2'
+import { computeResolverResource } from '@storywithoutend/effect-ens/utils/v2'
 import { describe, expect, it } from 'vitest'
 import {
   describeResolverResource,

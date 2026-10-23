@@ -7,7 +7,7 @@
  */
 
 import type { FlowScope } from '@ens-apps/transaction-manager'
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type { Role } from '@storywithoutend/effect-ens/utils/v2'
 import type { Address } from 'viem'
 import type { Transaction } from '@/features/transaction-manager/types'
 import type { ResourceId } from '@/lib/resource/resourceId'
