@@ -3,7 +3,6 @@ import {
   type ErrorLike,
   getErrorCause,
   isErrorLike,
-  serializeError,
   serializeLogValue,
 } from './logger.js'
 
@@ -61,15 +60,10 @@ describe('logger helper functions', () => {
 })
 
 describe('logger serializers', () => {
-  it('returns non-error values unchanged in serializeError', () => {
-    expect(serializeError('boom')).toBe('boom')
-    expect(serializeError(123)).toBe(123)
-  })
-
   it('serializes a plain Error with type, message, and stack', () => {
     const error = new Error('boom')
 
-    const serialized = serializeError(error) as Record<string, unknown>
+    const serialized = serializeLogValue(error) as Record<string, unknown>
 
     expect(serialized.type).toBe('Error')
     expect(serialized.message).toBe('boom')
@@ -80,7 +74,7 @@ describe('logger serializers', () => {
     const cause = new Error('root cause')
     const error = new Error('outer error', { cause })
 
-    const serialized = serializeError(error) as {
+    const serialized = serializeLogValue(error) as {
       cause?: { message?: string; type?: string }
       message?: string
     }
@@ -95,7 +89,7 @@ describe('logger serializers', () => {
       cause: { code: 'E_CONTEXT', retry: true },
     })
 
-    const serialized = serializeError(error) as {
+    const serialized = serializeLogValue(error) as {
       cause?: { code?: string; retry?: boolean }
     }
 
@@ -113,7 +107,7 @@ describe('logger serializers', () => {
       },
     }
 
-    const serialized = serializeError(errorWithFunctionCause) as {
+    const serialized = serializeLogValue(errorWithFunctionCause) as {
       cause?: { message?: string; type?: string }
     }
 
@@ -124,7 +118,7 @@ describe('logger serializers', () => {
   it('serializes aggregate errors', () => {
     const error = new AggregateError([new Error('a'), new Error('b')], 'agg')
 
-    const serialized = serializeError(error) as {
+    const serialized = serializeLogValue(error) as {
       aggregateErrors?: Array<{ message?: string }>
     }
 
@@ -143,7 +137,7 @@ describe('logger serializers', () => {
       requestId: 'req-1',
     }
 
-    const serialized = serializeError(error) as {
+    const serialized = serializeLogValue(error) as {
       code?: string
       details?: { requestId?: string }
     }
@@ -156,7 +150,7 @@ describe('logger serializers', () => {
     const error = new Error('boom') as Error & { cause?: unknown }
     error.cause = error
 
-    const serialized = serializeError(error) as {
+    const serialized = serializeLogValue(error) as {
       cause?: { circular?: boolean; message?: string }
     }
 
@@ -166,7 +160,7 @@ describe('logger serializers', () => {
 
   it('keeps raw as a non-enumerable reference', () => {
     const error = new Error('boom')
-    const serialized = serializeError(error) as Record<string, unknown> & {
+    const serialized = serializeLogValue(error) as Record<string, unknown> & {
       raw?: unknown
     }
 

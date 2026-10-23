@@ -281,6 +281,16 @@ type ProfileAbiExpectation = {
   readonly value: Hex
 }
 
+type ProfileInterfaceExpectation = {
+  readonly id: string
+  readonly type: 'profile-interface'
+  readonly name: string
+  readonly node: Hex
+  readonly resolver: Address
+  readonly interfaceId: Hex
+  readonly implementer: Address
+}
+
 export type AtomicMigrationVerificationExpectation =
   | ResolverImplementationExpectation
   | ResolverRootRolesExpectation
@@ -300,6 +310,7 @@ export type AtomicMigrationVerificationExpectation =
   | ProfileAddressExpectation
   | ProfileContenthashExpectation
   | ProfileAbiExpectation
+  | ProfileInterfaceExpectation
 
 export type AtomicMigrationNameExecution = {
   readonly classified: ClassifiedName
@@ -579,7 +590,8 @@ const profileForName = (
     profile.texts.length > 0 ||
     profile.addresses.length > 0 ||
     profile.contentHash !== null ||
-    profile.abis.length > 0
+    profile.abis.length > 0 ||
+    profile.interfaces.length > 0
   return hasRecords ? { node, profile } : null
 }
 
@@ -1023,6 +1035,19 @@ const buildProfileReplayFragment = (params: {
         resolver: params.resolver,
         contentType: record.contentType,
         value: record.value,
+      })),
+      ...profileEntry.profile.interfaces.map((record, index) => ({
+        id: expectationId(
+          name,
+          'profile-interface',
+          `${index}:${record.interfaceId}`,
+        ),
+        type: 'profile-interface' as const,
+        name,
+        node: profileEntry.node,
+        resolver: params.resolver,
+        interfaceId: record.interfaceId,
+        implementer: record.implementer,
       })),
     ],
   }

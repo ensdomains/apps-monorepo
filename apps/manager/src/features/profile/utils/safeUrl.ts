@@ -40,8 +40,6 @@ export const safeRecordHref = (
   return trimmed
 }
 
-export const isSafeImageSrc = isSafeHttpUrl
-
 export const safeImageSrc = (
   value: string | null | undefined,
 ): string | undefined => {

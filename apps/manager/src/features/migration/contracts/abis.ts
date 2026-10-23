@@ -17,6 +17,7 @@ import {
   permissionedResolverSetAbiSnippet,
   permissionedResolverSetAddressSnippet,
   permissionedResolverSetContenthashSnippet,
+  permissionedResolverSetInterfaceSnippet,
   permissionedResolverSetTextSnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
@@ -28,6 +29,11 @@ export { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '@ens-apps/migration'
 // to @ensdomains/ensjs-abi/v2/permissionedRegistry and drop this local snippet.
 const ethRegistryGetStatusSnippet = parseAbi([
   'function getStatus(uint256 anyId) view returns (uint8)',
+])
+
+const publicResolverInterfaceAndPubkeySnippet = parseAbi([
+  'function interfaceImplementer(bytes32 node, bytes4 interfaceID) view returns (address)',
+  'function pubkey(bytes32 node) view returns (bytes32 x, bytes32 y)',
 ])
 
 // Shared by the V1 NFT contracts and the V2 registry. Migration grants the
@@ -57,6 +63,7 @@ export const V1_RESOLVER_PROFILE_ABI = [
   ...publicResolverMultiAddrSnippet,
   ...publicResolverContenthashSnippet,
   ...publicResolverAbiSnippet,
+  ...publicResolverInterfaceAndPubkeySnippet,
 ] as const
 
 /**
@@ -75,6 +82,7 @@ export const PERMISSIONED_RESOLVER_ABI = [
   ...permissionedResolverSetAddressSnippet,
   ...permissionedResolverSetContenthashSnippet,
   ...permissionedResolverSetAbiSnippet,
+  ...permissionedResolverSetInterfaceSnippet,
   ...permissionedResolverLinkToRecordSnippet,
 ] as const
 

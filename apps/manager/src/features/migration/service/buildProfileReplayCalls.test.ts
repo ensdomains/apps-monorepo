@@ -17,7 +17,17 @@ describe('buildProfileReplayCalls helpers', () => {
     expect(
       flattenProfileInnerCalls(
         new Map<string, Profile>([
-          [NAME, { texts: [], addresses: [], contentHash: null, abis: [] }],
+          [
+            NAME,
+            {
+              texts: [],
+              addresses: [],
+              contentHash: null,
+              abis: [],
+              interfaces: [],
+              pubkey: null,
+            },
+          ],
         ]),
       ),
     ).toEqual([])
@@ -34,11 +44,22 @@ describe('buildProfileReplayCalls helpers', () => {
       ],
       contentHash: '0xe301' as Hex,
       abis: [{ contentType: 1n, value: '0x5b5d' as Hex }],
+      interfaces: [
+        {
+          interfaceId: '0x01ffc9a7',
+          implementer: '0x000000000000000000000000000000000000beef',
+        },
+      ],
+      pubkey: {
+        x: '0x00000000000000000000000000000000000000000000000000000000000000aa',
+        y: '0x00000000000000000000000000000000000000000000000000000000000000bb',
+      },
     }
     const innerCalls = flattenProfileInnerCalls(
       new Map<string, Profile>([[NAME, profile]]),
     )
-    expect(innerCalls).toHaveLength(4)
+    // The pubkey has no V2 setter, so it is never replayed.
+    expect(innerCalls).toHaveLength(5)
 
     const call = wrapInnerCallsAsMulticall(RESOLVER, innerCalls)
     expect(call.to).toBe(RESOLVER)
@@ -51,8 +72,9 @@ describe('buildProfileReplayCalls helpers', () => {
     expect(functionName).toBe('multicall')
     const [wrappedInnerCalls] = args as [readonly Hex[]]
     expect(wrappedInnerCalls).toEqual(innerCalls)
-    const [firstInner, secondInner, thirdInner, fourthInner] = wrappedInnerCalls
-    assert(firstInner && secondInner && thirdInner && fourthInner)
+    const [firstInner, secondInner, thirdInner, fourthInner, fifthInner] =
+      wrappedInnerCalls
+    assert(firstInner && secondInner && thirdInner && fourthInner && fifthInner)
 
     const setText = decodeFunctionData({
       abi: PERMISSIONED_RESOLVER_ABI,
@@ -96,6 +118,17 @@ describe('buildProfileReplayCalls helpers', () => {
       dnsEncodeName(NAME),
       1n,
       '0x5b5d',
+    ])
+
+    const setInterface = decodeFunctionData({
+      abi: PERMISSIONED_RESOLVER_ABI,
+      data: fifthInner,
+    })
+    expect(setInterface.functionName).toBe('setInterface')
+    expect(setInterface.args as [Hex, Hex, Address]).toEqual([
+      dnsEncodeName(NAME),
+      '0x01ffc9a7',
+      '0x000000000000000000000000000000000000bEEF',
     ])
   })
 })

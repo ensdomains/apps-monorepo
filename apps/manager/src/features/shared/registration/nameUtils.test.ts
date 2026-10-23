@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  determinePremium,
-  getErrorMessage,
-  getPremiumLabel,
-  isNameAvailabilityError,
-  NameAvailabilityError,
-} from './nameUtils'
+import { determinePremium, getPremiumLabel } from './nameUtils'
 
 describe('register utils', () => {
   describe('determinePremium', () => {
@@ -115,58 +109,6 @@ describe('register utils', () => {
         variant: 'premium-4',
       })
       expect(getPremiumLabel('🎲🎲🎲🎲🎲')).toBeUndefined() // 5 code points = not premium
-    })
-  })
-
-  describe('isNameAvailabilityError', () => {
-    it('should return true for NameAvailabilityError instances', () => {
-      const error = new NameAvailabilityError({ cause: 'Not available' })
-      expect(isNameAvailabilityError(error)).toBe(true)
-    })
-
-    it('should return false for regular Error', () => {
-      const error = new Error('Regular error')
-      expect(isNameAvailabilityError(error)).toBe(false)
-    })
-
-    it('should return false for string', () => {
-      expect(isNameAvailabilityError('error string')).toBe(false)
-    })
-
-    it('should return false for null', () => {
-      expect(isNameAvailabilityError(null)).toBe(false)
-    })
-
-    it('should return false for undefined', () => {
-      expect(isNameAvailabilityError(undefined)).toBe(false)
-    })
-
-    it('should return false for plain object', () => {
-      expect(isNameAvailabilityError({ message: 'error' })).toBe(false)
-    })
-  })
-
-  describe('getErrorMessage', () => {
-    it('should return cause for NameAvailabilityError', () => {
-      const error = new NameAvailabilityError({ cause: 'Name not available' })
-      expect(getErrorMessage(error)).toBe('Name not available')
-    })
-
-    it('should return the error itself for other error types', () => {
-      const error = new Error('Regular error')
-      expect(getErrorMessage(error)).toBe(error)
-    })
-
-    it('should return string as-is', () => {
-      expect(getErrorMessage('error string')).toBe('error string')
-    })
-
-    it('should return null as-is', () => {
-      expect(getErrorMessage(null)).toBeNull()
-    })
-
-    it('should return undefined as-is', () => {
-      expect(getErrorMessage(undefined)).toBeUndefined()
     })
   })
 })

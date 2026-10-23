@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  getCalendarYearDurationYears,
   getCanonicalDurationYears,
   getDurationDisplayParts,
   getDurationExpiryDateForDisplay,
@@ -63,9 +62,6 @@ describe('register-v2 time utils', () => {
       expect(
         getCanonicalDurationYears(manualDuration, referenceDate),
       ).toBeNull()
-      expect(getCalendarYearDurationYears(manualDuration, referenceDate)).toBe(
-        1,
-      )
       expect(getDurationDisplayParts(manualDuration, referenceDate)).toEqual({
         years: 1,
         months: 0,

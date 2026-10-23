@@ -4,7 +4,6 @@ import {
   formatDateTimeLocal,
   formatDottedDateTimeLocal,
   formatExpiryDate,
-  formatExpiryDateTimeLocal,
   formatExpiryDuration,
   formatUnixDateTimeLocal,
 } from './formatDateTime'
@@ -91,25 +90,6 @@ describe('formatExpiryDuration', () => {
       formatExpiryDuration(Temporal.PlainDate.from('2025-12-31'), today),
     ).toBe('Expired')
     expect(formatExpiryDuration(today, today)).toBe('Expired')
-  })
-})
-
-describe('formatExpiryDateTimeLocal', () => {
-  it('should include date and time', () => {
-    const instant = Temporal.Instant.from('2029-02-17T10:30:00Z')
-    const result = formatExpiryDateTimeLocal(instant)
-    expect(result).toMatch(/Feb/)
-    expect(result).toMatch(/17/)
-    expect(result).toMatch(/2029/)
-    expect(result).toMatch(/\d{1,2}:\d{2}\s*(AM|PM)/)
-  })
-
-  it('should use short month format', () => {
-    const instant = Temporal.Instant.from('2025-06-15T14:00:00Z')
-    const result = formatExpiryDateTimeLocal(instant)
-    expect(result).toMatch(/Jun/)
-    expect(result).toMatch(/15/)
-    expect(result).toMatch(/2025/)
   })
 })
 

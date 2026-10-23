@@ -32,9 +32,6 @@ Invalid payloads and unknown kinds are dropped from UI.
 - `inbox/`
 - notifications page item/list UI
 
-- `dropdown/`
-- navbar dropdown UI
-
 - `settings/`
 - contact methods and preferences UI
 
@@ -48,7 +45,7 @@ Invalid payloads and unknown kinds are dropped from UI.
 - settings/contact method UI types
 
 - `utils/`
-- formatting/grouping/telegram helpers
+- grouping/telegram helpers
 
 ## Add A New Notification Kind
 
@@ -70,11 +67,11 @@ Invalid payloads and unknown kinds are dropped from UI.
 
 - payload and kind validation happens in query select (`selectValidNotifications`)
 - `NotificationItem` renders known kinds without re-validating payload on each render
-- invalid payloads and unknown kinds are filtered before reaching list/dropdown UIs
+- invalid payloads and unknown kinds are filtered before reaching list UIs
 
 ## Testing Checklist
 
 - kind registry covers all backend kinds
 - invalid payloads/unknown kinds are filtered
-- dropdown and inbox states remain correct
+- inbox states remain correct
 - settings and channel mutations still invalidate queries correctly
