@@ -5,7 +5,7 @@ import { envConfig } from '@/config'
 
 const mockResolveEnsOwner = vi.fn()
 
-vi.mock('@ensdomains/ensjs/public', () => ({
+vi.mock('@storywithoutend/effect-ens/public', () => ({
   getRecords: vi.fn(),
 }))
 
@@ -758,7 +758,7 @@ describe('fetchEnsData (worker) — description size', () => {
   })
 
   const mockDescription = async (description: string) => {
-    const { getRecords } = await import('@ensdomains/ensjs/public')
+    const { getRecords } = await import('@storywithoutend/effect-ens/public')
     vi.mocked(getRecords).mockResolvedValue({
       texts: [{ key: 'description', value: description }],
       coins: [],

@@ -1,4 +1,4 @@
-import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
+import type { GetRecordsReturnType } from '@storywithoutend/effect-ens/public'
 import { describe, expect, it } from 'vitest'
 import { recordsToTableData } from './recordsToTableData'
 

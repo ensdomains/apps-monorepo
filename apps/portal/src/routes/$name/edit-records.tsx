@@ -1,5 +1,5 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
+import type { GetRecordsReturnType } from '@storywithoutend/effect-ens/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'

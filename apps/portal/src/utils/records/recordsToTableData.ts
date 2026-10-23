@@ -1,4 +1,4 @@
-import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
+import type { GetRecordsReturnType } from '@storywithoutend/effect-ens/public'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 
 type Entries<T> = {

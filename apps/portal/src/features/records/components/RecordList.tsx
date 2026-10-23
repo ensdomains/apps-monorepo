@@ -1,4 +1,4 @@
-import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
+import type { GetRecordsReturnType } from '@storywithoutend/effect-ens/public'
 import { Link } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,

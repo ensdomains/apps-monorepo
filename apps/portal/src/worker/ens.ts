@@ -1,4 +1,4 @@
-import { getRecords } from '@ensdomains/ensjs/public'
+import { getRecords } from '@storywithoutend/effect-ens/public'
 import type { Address } from 'viem'
 
 import { isVerifiedPermissionedResolver } from '@/features/resolver/utils/permissionedResolver'

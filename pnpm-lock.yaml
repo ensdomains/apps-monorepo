@@ -698,8 +698,8 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@storywithoutend/effect-ens':
-        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-f468c9e.tgz
-        version: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-f468c9e.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-2328e83.tgz
+        version: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-2328e83.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@tanstack/react-hotkeys':
         specifier: ^0.4.1
         version: 0.4.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -5336,8 +5336,8 @@ packages:
       '@tanstack/start-client-core':
         optional: true
 
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-f468c9e.tgz':
-    resolution: {integrity: sha512-+aisyw5Y/gS3KQQr24IFkNNoi1qbEUYvAcMrs8D+k2teR7LUCP1GcS0WQCsVnUToW1MNPIh0kCgqtkkwauOLwA==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-f468c9e.tgz}
+  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-2328e83.tgz':
+    resolution: {integrity: sha512-cNQNw28DVguOdTPnqIp9bEVBIAX+BBo5xei4H9rFtZzAO5pch9Z8aIdKEtDjzJJZmNSaRwt0Yzc6d4z7Ilc/Fw==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-2328e83.tgz}
     version: 0.0.0
     engines: {node: ^22.18.0 || >=24.11.0}
     peerDependencies:
@@ -13060,7 +13060,7 @@ snapshots:
       - supports-color
       - typescript
 
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-f468c9e.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
+  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-2328e83.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.4

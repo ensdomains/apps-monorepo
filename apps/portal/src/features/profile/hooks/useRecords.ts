@@ -5,7 +5,7 @@ import {
   getRecords as ensjs_getRecords,
   type GetRecordsErrorType,
   type GetRecordsParameters,
-} from '@ensdomains/ensjs/public'
+} from '@storywithoutend/effect-ens/public'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 

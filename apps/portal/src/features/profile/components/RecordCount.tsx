@@ -1,4 +1,4 @@
-import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
+import type { GetRecordsReturnType } from '@storywithoutend/effect-ens/public'
 import { useMemo } from 'react'
 import type { Address } from 'viem'
 import { CardsStackIcon } from '@/assets/icons'
