@@ -11,7 +11,7 @@ export const healUnknownLabel = (
   const stored = record.name.split('.')
   const requested = requestedName.split('.')
   if (stored.length !== requested.length) return record
-  let healed = false
+  let hasHealedLabel = false
   const labels = stored.map((label, i) => {
     const hash = ENCODED_LABELHASH.exec(label)?.[1]
     const candidate = requested[i]
@@ -19,8 +19,8 @@ export const healUnknownLabel = (
     if (labelhash(candidate.toLowerCase()) !== `0x${hash.toLowerCase()}`) {
       return label
     }
-    healed = true
+    hasHealedLabel = true
     return candidate.toLowerCase()
   })
-  return healed ? { ...record, name: labels.join('.') } : record
+  return hasHealedLabel ? { ...record, name: labels.join('.') } : record
 }
