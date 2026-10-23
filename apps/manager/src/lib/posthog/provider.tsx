@@ -23,7 +23,11 @@ import type { PostHog } from 'posthog-js'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { useEffect, useRef } from 'react'
 import { useConnectionEffect } from 'wagmi'
-import { applyAnalyticsConsent, POSTHOG_CONFIG } from './config'
+import {
+  applyAnalyticsConsent,
+  POSTHOG_CONFIG,
+  resetKeepingConsent,
+} from './config'
 import { track, trackWithOptions } from './events'
 
 type ConnectedWallet = {
@@ -101,10 +105,10 @@ export const PHProvider = ({
       console.warn('[intercom] init failed', error)
     }
 
-    // Follows the banner answer without a reload. Declining forgets a wallet
-    // identity from an earlier Accept.
+    // Follows the answer without a reload, also one given in another tab or
+    // app. Declining forgets a wallet identity from an earlier Accept.
     const unsubscribeConsent = subscribeAnalyticsConsent(() => {
-      if (!hasAnalyticsConsent()) posthog.reset()
+      if (!hasAnalyticsConsent()) resetKeepingConsent(posthog)
       applyAnalyticsConsent(posthog)
       if (wallet.current) identifyWallet(wallet.current)
       linkIntercomToAnalytics()

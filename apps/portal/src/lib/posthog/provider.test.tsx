@@ -1,4 +1,8 @@
-import { storeAnalyticsConsent } from '@ens-apps/utils/posthog/analyticsConsent'
+import {
+  connectAnalyticsConsent,
+  readAnalyticsConsent,
+  storeAnalyticsConsent,
+} from '@ens-apps/utils/posthog/analyticsConsent'
 import { boot, trackEvent, update } from '@intercom/messenger-js-sdk'
 import { render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
@@ -17,6 +21,8 @@ vi.mock('@intercom/messenger-js-sdk', () => ({
 vi.mock('@posthog/react', () => ({
   PostHogProvider: ({ children }: { children: unknown }) => children,
 }))
+// The answer PostHog keeps in its cookie.
+const consent = vi.hoisted(() => ({ stored: 'pending' }))
 vi.mock('posthog-js/dist/module.full.no-external', () => ({
   default: {
     __loaded: true,
@@ -24,11 +30,18 @@ vi.mock('posthog-js/dist/module.full.no-external', () => ({
     identify: vi.fn(),
     register: vi.fn(),
     capture: vi.fn(),
-    reset: vi.fn(),
+    reset: vi.fn(() => {
+      consent.stored = 'pending'
+    }),
     get_distinct_id: vi.fn(() => 'distinct-id'),
     get_session_replay_url: vi.fn(() => 'replay-url'),
-    opt_in_capturing: vi.fn(),
-    opt_out_capturing: vi.fn(),
+    get_explicit_consent_status: () => consent.stored,
+    opt_in_capturing: vi.fn(() => {
+      consent.stored = 'granted'
+    }),
+    opt_out_capturing: vi.fn(() => {
+      consent.stored = 'denied'
+    }),
     set_config: vi.fn(),
   },
 }))
@@ -64,7 +77,8 @@ const connectWallet = () => {
 describe('PostHog provider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
+    consent.stored = 'pending'
+    connectAnalyticsConsent(posthog)
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
   })
   afterEach(() => {
@@ -120,6 +134,7 @@ describe('PostHog provider', () => {
     expect(posthog.opt_in_capturing).toHaveBeenCalledWith({
       captureEventName: false,
     })
+    expect(readAnalyticsConsent()).toBe('granted')
   })
 
   it('sends no wallet address to PostHog without consent', () => {
@@ -143,6 +158,7 @@ describe('PostHog provider', () => {
 
     storeAnalyticsConsent('denied')
     expect(posthog.reset).toHaveBeenCalled()
+    expect(readAnalyticsConsent()).toBe('denied')
   })
 
   it('applies the banner answer without a reload', () => {

@@ -1,4 +1,3 @@
-import { ANALYTICS_CONSENT_KEY } from '@ens-apps/utils/posthog/analyticsConsent'
 import { REGISTRATION_RESUME_STORAGE_KEY } from '@/features/register-v2/service/registrationPersistence'
 
 // Blanket localStorage.clear() corrupts reconnection — preserve wagmi.*
@@ -18,13 +17,10 @@ import { REGISTRATION_RESUME_STORAGE_KEY } from '@/features/register-v2/service/
 // owner can pick it back up on reconnect; wiping the record here left nothing
 // to resume. It is bound to its owner, and any other wallet is shown plain
 // pricing.
-//
-// And the visitor's analytics answer, which belongs to them, not the wallet.
 const PRESERVED_KEY_PREFIXES = [
   'wagmi',
   'ens-session',
   REGISTRATION_RESUME_STORAGE_KEY,
-  ANALYTICS_CONSENT_KEY,
 ] as const
 
 export const clearAppLocalStorage = () => {

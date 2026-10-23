@@ -1,8 +1,16 @@
 // @vitest-environment happy-dom
-import { storeAnalyticsConsent } from '@ens-apps/utils/posthog/analyticsConsent'
+import {
+  ANALYTICS_CONSENT_COOKIE,
+  readAnalyticsConsent,
+  storeAnalyticsConsent,
+} from '@ens-apps/utils/posthog/analyticsConsent'
 import { PostHog } from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { applyAnalyticsConsent, POSTHOG_CONFIG } from './config'
+import {
+  applyAnalyticsConsent,
+  POSTHOG_CONFIG,
+  resetKeepingConsent,
+} from './config'
 
 const WALLET = '0x1111111111111111111111111111111111111111'
 
@@ -47,7 +55,8 @@ const flagBodies = (requests: Requests) =>
   )
 
 describe('PostHog consent', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await cookieStore.delete({ name: ANALYTICS_CONSENT_COOKIE, path: '/' })
     vi.useFakeTimers()
     localStorage.clear()
     sessionStorage.clear()
@@ -72,6 +81,8 @@ describe('PostHog consent', () => {
 
       expect(client.isFeatureEnabled('migration')).toBe(true)
       expect(client.has_opted_out_capturing()).toBe(true)
+      // Loading must not answer for the visitor: that answer is every app's.
+      expect(readAnalyticsConsent()).toBeNull()
       const surveys = vi.fn()
       client.getSurveys(surveys)
       expect(surveys).toHaveBeenCalledWith([])
@@ -86,9 +97,7 @@ describe('PostHog consent', () => {
 
   it('makes a visitor identified before the banner anonymous before flags load', async () => {
     // The pre-banner app identified every connected wallet.
-    storeAnalyticsConsent('granted')
     initClient().client.identify(WALLET)
-    localStorage.removeItem('analytics-consent')
 
     const { client, requests } = initClient()
     await vi.advanceTimersByTimeAsync(3000)
@@ -100,7 +109,16 @@ describe('PostHog consent', () => {
     ).toBe(true)
   })
 
-  it('sends events after the visitor accepts, including after a reset', async () => {
+  it('keeps the answer in the cookie the ens.domains apps share', () => {
+    initClient()
+    storeAnalyticsConsent('granted')
+
+    expect(document.cookie).toContain(`${ANALYTICS_CONSENT_COOKIE}=1`)
+    // Another app's PostHog starts with the same answer.
+    expect(initClient().client.get_explicit_consent_status()).toBe('granted')
+  })
+
+  it('sends events after the visitor accepts, and keeps the answer through a reset', async () => {
     const { client, requests } = initClient()
 
     storeAnalyticsConsent('granted')
@@ -109,15 +127,15 @@ describe('PostHog consent', () => {
     await vi.advanceTimersByTimeAsync(3000)
     expect(onlyFlagRequests(requests)).toBe(false)
 
-    // reset() drops the opt-in; applying consent again restores it.
-    client.reset()
-    applyAnalyticsConsent(client)
+    // A plain reset() deletes the answer, for every app sharing the cookie.
+    resetKeepingConsent(client)
+    expect(readAnalyticsConsent()).toBe('granted')
     expect(client.has_opted_out_capturing()).toBe(false)
   })
 
   it('stops sending events when the visitor declines', async () => {
-    storeAnalyticsConsent('granted')
     const { client, requests } = initClient()
+    storeAnalyticsConsent('granted')
     await vi.advanceTimersByTimeAsync(3000)
 
     storeAnalyticsConsent('denied')

@@ -1,5 +1,8 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { storeAnalyticsConsent } from '@ens-apps/utils/posthog/analyticsConsent'
+import {
+  connectAnalyticsConsent,
+  storeAnalyticsConsent,
+} from '@ens-apps/utils/posthog/analyticsConsent'
 import { boot, trackEvent, update } from '@intercom/messenger-js-sdk'
 import { render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
@@ -18,6 +21,8 @@ vi.mock('@intercom/messenger-js-sdk', () => ({
 vi.mock('@posthog/react', () => ({
   PostHogProvider: ({ children }: { children: unknown }) => children,
 }))
+// The answer PostHog keeps in its cookie.
+const consent = vi.hoisted(() => ({ stored: 'pending' }))
 vi.mock('posthog-js/dist/module.full.no-external', () => ({
   default: {
     __loaded: true,
@@ -25,11 +30,18 @@ vi.mock('posthog-js/dist/module.full.no-external', () => ({
     identify: vi.fn(),
     register: vi.fn(),
     capture: vi.fn(),
-    reset: vi.fn(),
+    reset: vi.fn(() => {
+      consent.stored = 'pending'
+    }),
     get_distinct_id: vi.fn(() => 'distinct-id'),
     get_session_replay_url: vi.fn(() => 'replay-url'),
-    opt_in_capturing: vi.fn(),
-    opt_out_capturing: vi.fn(),
+    get_explicit_consent_status: () => consent.stored,
+    opt_in_capturing: vi.fn(() => {
+      consent.stored = 'granted'
+    }),
+    opt_out_capturing: vi.fn(() => {
+      consent.stored = 'denied'
+    }),
     set_config: vi.fn(),
     setPersonPropertiesForFlags: vi.fn(),
   },
@@ -67,7 +79,8 @@ const connectWallet = () => {
 describe('PostHog provider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
+    consent.stored = 'pending'
+    connectAnalyticsConsent(posthog)
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
   })
   afterEach(() => {
@@ -151,13 +164,16 @@ describe('PostHog provider', () => {
     const { unmount } = renderProvider()
 
     storeAnalyticsConsent('granted')
-    expect(posthog.opt_in_capturing).toHaveBeenCalledTimes(1)
+    expect(posthog.set_config).toHaveBeenCalledTimes(1)
     storeAnalyticsConsent('denied')
-    expect(posthog.opt_out_capturing).toHaveBeenCalledTimes(1)
+    expect(posthog.set_config).toHaveBeenLastCalledWith({
+      disable_session_recording: true,
+      disable_surveys: true,
+    })
 
     unmount()
     storeAnalyticsConsent('granted')
-    expect(posthog.opt_in_capturing).toHaveBeenCalledTimes(1)
+    expect(posthog.set_config).toHaveBeenCalledTimes(2)
   })
 
   it('boots Intercom even when PostHog initialization fails', () => {

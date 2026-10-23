@@ -1,4 +1,7 @@
-import { readAnalyticsConsent } from '@ens-apps/utils/posthog/analyticsConsent'
+import {
+  connectAnalyticsConsent,
+  readAnalyticsConsent,
+} from '@ens-apps/utils/posthog/analyticsConsent'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -17,9 +20,23 @@ const renderBanner = () =>
 const queryBanner = () =>
   screen.queryByRole('region', { name: 'Analytics consent' })
 
+// Stands in for PostHog, which keeps the answer in a cookie.
+const connectPostHog = (stored: 'granted' | 'denied' | 'pending') => {
+  const cookie = { stored }
+  connectAnalyticsConsent({
+    get_explicit_consent_status: () => cookie.stored,
+    opt_in_capturing: () => {
+      cookie.stored = 'granted'
+    },
+    opt_out_capturing: () => {
+      cookie.stored = 'denied'
+    },
+  })
+}
+
 describe('AnalyticsConsentBanner', () => {
   beforeEach(() => {
-    localStorage.clear()
+    connectPostHog('pending')
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
   })
   afterEach(() => {
@@ -42,7 +59,7 @@ describe('AnalyticsConsentBanner', () => {
   })
 
   it('stays hidden once answered', () => {
-    localStorage.setItem('analytics-consent', 'denied')
+    connectPostHog('denied')
     renderBanner()
     expect(queryBanner()).toBeNull()
   })

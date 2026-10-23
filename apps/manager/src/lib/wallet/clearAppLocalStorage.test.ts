@@ -17,17 +17,15 @@ describe('clearAppLocalStorage', () => {
     )
   })
 
-  it('keeps the wallet connection, HCA sessions and analytics answer, and clears the rest', () => {
+  it('keeps the wallet connection and HCA sessions, and clears the rest', () => {
     localStorage.setItem('wagmi.store', 'connection')
     localStorage.setItem('ens-sessions-0xabc', 'session')
-    localStorage.setItem('analytics-consent', 'granted')
     localStorage.setItem('search-history', 'app state')
 
     clearAppLocalStorage()
 
     expect(localStorage.getItem('wagmi.store')).toBe('connection')
     expect(localStorage.getItem('ens-sessions-0xabc')).toBe('session')
-    expect(localStorage.getItem('analytics-consent')).toBe('granted')
     expect(localStorage.getItem('search-history')).toBeNull()
   })
 })

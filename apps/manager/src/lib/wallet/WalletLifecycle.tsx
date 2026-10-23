@@ -2,7 +2,7 @@ import { transactionManager } from '@ens-apps/transaction-manager'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { useEffect } from 'react'
 import { useConnection, useConnectionEffect } from 'wagmi'
-import { applyAnalyticsConsent } from '@/lib/posthog/config'
+import { resetKeepingConsent } from '@/lib/posthog/config'
 import { track } from '@/lib/posthog/events'
 import { backendAuthStore } from '@/utils/backend-client'
 import { clearAppLocalStorage } from './clearAppLocalStorage'
@@ -31,8 +31,7 @@ export const WalletLifecycle = () => {
       backendAuthStore.trigger.signOut()
       clearAppLocalStorage()
       track('wallet:disconnect')
-      posthog.reset()
-      applyAnalyticsConsent(posthog)
+      resetKeepingConsent(posthog)
     },
   })
 

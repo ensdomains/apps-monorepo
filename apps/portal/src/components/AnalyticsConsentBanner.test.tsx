@@ -1,4 +1,5 @@
 import {
+  connectAnalyticsConsent,
   readAnalyticsConsent,
   storeAnalyticsConsent,
 } from '@ens-apps/utils/posthog/analyticsConsent'
@@ -9,9 +10,25 @@ import { AnalyticsConsentBanner } from './AnalyticsConsentBanner'
 const queryBanner = () =>
   screen.queryByRole('region', { name: 'Analytics consent' })
 
+// Stands in for PostHog, which keeps the answer in a cookie.
+const connectPostHog = (
+  stored: 'granted' | 'denied' | 'pending' = 'pending',
+) => {
+  const cookie = { stored }
+  connectAnalyticsConsent({
+    get_explicit_consent_status: () => cookie.stored,
+    opt_in_capturing: () => {
+      cookie.stored = 'granted'
+    },
+    opt_out_capturing: () => {
+      cookie.stored = 'denied'
+    },
+  })
+  return cookie
+}
+
 describe('AnalyticsConsentBanner', () => {
   beforeEach(() => {
-    localStorage.clear()
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
   })
   afterEach(() => {
@@ -22,6 +39,7 @@ describe('AnalyticsConsentBanner', () => {
     ['Accept', 'granted'],
     ['Decline', 'denied'],
   ] as const)('stores the answer on %s and goes away', (button, consent) => {
+    const cookie = connectPostHog()
     render(<AnalyticsConsentBanner />)
     expect(
       screen.getByRole('link', { name: 'Privacy policy' }).getAttribute('href'),
@@ -29,49 +47,49 @@ describe('AnalyticsConsentBanner', () => {
 
     fireEvent.click(screen.getByRole('button', { name: button }))
 
-    expect(readAnalyticsConsent()).toBe(consent)
+    expect(cookie.stored).toBe(consent)
     expect(queryBanner()).toBeNull()
   })
 
   it('stays hidden once answered', () => {
-    localStorage.setItem('analytics-consent', 'denied')
+    connectPostHog('denied')
     render(<AnalyticsConsentBanner />)
     expect(queryBanner()).toBeNull()
   })
 
   it('stays hidden without a PostHog project', () => {
+    connectPostHog()
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', '')
     render(<AnalyticsConsentBanner />)
     expect(queryBanner()).toBeNull()
   })
 
-  it('follows an answer given in another tab', () => {
+  it('follows an answer given in another tab or app', () => {
+    const cookie = connectPostHog()
     render(<AnalyticsConsentBanner />)
 
-    localStorage.setItem('analytics-consent', 'granted')
+    cookie.stored = 'granted'
     act(() => {
-      window.dispatchEvent(
-        new StorageEvent('storage', { key: 'analytics-consent' }),
-      )
+      window.dispatchEvent(new Event('focus'))
     })
 
     expect(queryBanner()).toBeNull()
   })
 
-  it('keeps the answer for this page when storage refuses it', () => {
-    const setItem = vi
-      .spyOn(window.localStorage, 'setItem')
-      .mockImplementation(() => {
-        throw new DOMException('full', 'QuotaExceededError')
-      })
+  it('keeps the answer for this page when the browser refuses the cookie', () => {
+    connectAnalyticsConsent({
+      get_explicit_consent_status: () => 'pending',
+      opt_in_capturing: vi.fn(),
+      opt_out_capturing: vi.fn(),
+    })
     render(<AnalyticsConsentBanner />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Accept' }))
 
     expect(readAnalyticsConsent()).toBe('granted')
     expect(queryBanner()).toBeNull()
-    // A saved answer clears the in-memory one for the tests after this.
-    setItem.mockRestore()
+    // A stored answer clears the page one for the tests after this.
+    connectPostHog()
     storeAnalyticsConsent('denied')
   })
 })
