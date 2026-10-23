@@ -9,7 +9,6 @@ import {
   isPastGracePeriod,
   isRenewableV2EthName,
   MS_PER_DAY,
-  shouldShowProminentRenew,
   V2_GRACE_PERIOD_DAYS,
 } from './gracePeriod'
 
@@ -101,30 +100,6 @@ describe('getDaysSinceExpiry', () => {
 
   it('returns days since expiry', () => {
     expect(getDaysSinceExpiry(base)).toBe(3)
-  })
-})
-
-describe('shouldShowProminentRenew', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('returns true when in grace', () => {
-    vi.setSystemTime(base.getTime() + MS_PER_DAY)
-    expect(shouldShowProminentRenew(base, 'v2')).toBe(true)
-  })
-
-  it('returns true within 30 days before expiry', () => {
-    vi.setSystemTime(base.getTime() - 10 * MS_PER_DAY)
-    expect(shouldShowProminentRenew(base, 'v2')).toBe(true)
-  })
-
-  it('returns false more than 30 days before expiry', () => {
-    vi.setSystemTime(base.getTime() - 31 * MS_PER_DAY)
-    expect(shouldShowProminentRenew(base, 'v2')).toBe(false)
   })
 })
 

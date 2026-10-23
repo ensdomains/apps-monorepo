@@ -224,14 +224,6 @@ const readDomains = async (
   )
 }
 
-export const readGraceRenewalDomains = (params: ReadDomainsParameters) =>
-  fromPromise(
-    params.publicClient
-      .getBlock({ blockTag: 'latest' })
-      .then((block) => readDomains(params, block)),
-    (cause) => new GraceRenewalError({ cause }),
-  )
-
 export const getGraceRenewalDuration = (
   expiry: bigint,
   now: bigint,

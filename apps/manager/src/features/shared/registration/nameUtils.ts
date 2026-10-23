@@ -1,27 +1,7 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
-import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { DAI as DAIIcon, USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { chain } from '@/config'
 import { TOKENS } from '@/lib/tokens'
-
-export class NameAvailabilityError extends TaggedError(
-  'NameAvailabilityError',
-)<{
-  cause: unknown
-}> {}
-
-export const isNameAvailabilityError = (
-  error: unknown,
-): error is NameAvailabilityError => {
-  return error instanceof NameAvailabilityError
-}
-
-export const getErrorMessage = (error: unknown): unknown => {
-  if (isNameAvailabilityError(error)) {
-    return error.cause
-  }
-  return error
-}
 
 /** The bare label of a 2LD: strips a trailing `.eth`, passes labels through. */
 export const toLabel = (name: string): string =>

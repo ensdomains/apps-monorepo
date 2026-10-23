@@ -5,8 +5,6 @@ import {
   extractRegisterName,
   isAddressRoute,
   isAddrSubpage,
-  isRegistryRoute,
-  isResolverRoute,
   matchContractRoute,
   RESERVED_ROUTE_SEGMENTS,
   STATIC_PATH_PREFIXES,
@@ -307,21 +305,6 @@ describe('routing', () => {
       expect(
         matchContractRoute('/resolver/not-an-address', 'resolver'),
       ).toBeNull()
-    })
-  })
-
-  describe('isResolverRoute / isRegistryRoute', () => {
-    it('detects resolver routes', () => {
-      expect(isResolverRoute(`/resolver/${ADDR}`)).toBe(true)
-      expect(isResolverRoute(`/resolver/${ADDR}/roles`)).toBe(true)
-      expect(isResolverRoute(`/registry/${ADDR}`)).toBe(false)
-      expect(isResolverRoute('/resolver')).toBe(false)
-    })
-
-    it('detects registry routes', () => {
-      expect(isRegistryRoute(`/registry/${ADDR}`)).toBe(true)
-      expect(isRegistryRoute(`/registry/${ADDR}/labels`)).toBe(true)
-      expect(isRegistryRoute(`/resolver/${ADDR}`)).toBe(false)
     })
   })
 })

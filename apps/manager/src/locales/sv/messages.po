@@ -1159,7 +1159,6 @@ msgstr ""
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
-#: src/features/notifications/dropdown/notification-dropdown.tsx
 #: src/features/notifications/inbox/list.tsx
 msgid "Failed to load notifications"
 msgstr ""
@@ -1738,7 +1737,6 @@ msgstr ""
 msgid "Nothing has been lost. Contact ENS support before trying again."
 msgstr ""
 
-#: src/features/notifications/dropdown/notification-dropdown.tsx
 #: src/features/notifications/inbox/list.tsx
 msgid "Nothing here yet!"
 msgstr ""
@@ -1752,7 +1750,6 @@ msgid "Notification Settings"
 msgstr ""
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-#: src/features/notifications/dropdown/notification-dropdown.tsx
 msgid "Notifications"
 msgstr ""
 
@@ -2402,10 +2399,6 @@ msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Search notifications"
-msgstr ""
-
-#: src/features/notifications/dropdown/notification-dropdown.tsx
-msgid "See all"
 msgstr ""
 
 #. placeholder {0}: stablecoin.symbol
