@@ -315,8 +315,9 @@ export type RegistrationContext = {
   /** The L2 bridge's transaction, while `waitingForL2Bridge`. */
   l2BridgeTxId?: string
   /**
-   * The L2 bridge, from submission until it settles. Persisted, so neither a
-   * retry nor a resumed run pays again while it may still fill.
+   * The L2 bridge, from submission until it settles, or for a prior run's,
+   * until a balance read shows it landed. Persisted, so neither a retry nor a
+   * resumed run pays again while it may still fill.
    */
   unsettledL2Bridge?: UnsettledL2Bridge
   /**
@@ -854,9 +855,11 @@ export const registrationMachine = setup({
     shouldBundleEoaSetup: ({ context }) => shouldBundleEoaSetup(context),
     isL2Funded: ({ context }) =>
       context.signer?.type === 'rhinestone' && context.l2Funding !== undefined,
+    // A landed bridge kept for the balance read is not awaited again.
     hasUnsettledL2Bridge: ({ context }) =>
       context.signer?.type === 'rhinestone' &&
-      context.unsettledL2Bridge !== undefined,
+      context.unsettledL2Bridge !== undefined &&
+      context.hcaBalanceFloor === undefined,
   },
 
   actions: {
@@ -913,11 +916,23 @@ export const registrationMachine = setup({
         hcaBudget: undefined,
         hcaBudgetBreakdown: undefined,
         hcaUsdcBalance: undefined,
+        hcaBalanceFloor: undefined,
         error: undefined,
         retryTarget: undefined,
         suspended: undefined,
       }
     }),
+
+    /** Drop a prior run's landed bridge once the balance read that waited on it is done. */
+    settleLandedL2Bridge: assign(({ context }) =>
+      context.hcaBalanceFloor === undefined
+        ? {}
+        : {
+            hcaBalanceFloor: undefined,
+            unsettledL2Bridge: undefined,
+            isL2BridgeFromPriorRun: false,
+          },
+    ),
 
     /** Swap in the session `reauthorizingSession` obtained. */
     applySessionReauthorization: assign(({ context, event }) => {
@@ -1209,8 +1224,6 @@ export const registrationMachine = setup({
 
     checkingHcaFunding: {
       entry: ['logTransition'],
-      // Read once: it only ever guards the read right after a bridge landed.
-      exit: assign({ hcaBalanceFloor: () => undefined }),
       invoke: {
         src: 'readHcaUsdcBalance',
         input: ({ context }) => ({
@@ -1233,9 +1246,12 @@ export const registrationMachine = setup({
               return balance >= context.hcaBudget!
             },
             target: 'submittingSetupBundle',
-            actions: assign({
-              hcaUsdcBalance: ({ event }) => event.output as bigint,
-            }),
+            actions: [
+              assign({
+                hcaUsdcBalance: ({ event }) => event.output as bigint,
+              }),
+              'settleLandedL2Bridge',
+            ],
           },
           {
             // A bridge already sent may still fill: settle it before paying again.
@@ -1249,15 +1265,21 @@ export const registrationMachine = setup({
             // Paid from an L2: bridge the shortfall in instead of a permit.
             guard: 'isL2Funded',
             target: 'bridgingFromL2',
-            actions: assign({
-              hcaUsdcBalance: ({ event }) => event.output as bigint,
-            }),
+            actions: [
+              assign({
+                hcaUsdcBalance: ({ event }) => event.output as bigint,
+              }),
+              'settleLandedL2Bridge',
+            ],
           },
           {
             target: 'signingFundingPermit',
-            actions: assign({
-              hcaUsdcBalance: ({ event }) => event.output as bigint,
-            }),
+            actions: [
+              assign({
+                hcaUsdcBalance: ({ event }) => event.output as bigint,
+              }),
+              'settleLandedL2Bridge',
+            ],
           },
         ],
         // If the read fails, fall back to authorizing rather than blocking.
@@ -1275,11 +1297,17 @@ export const registrationMachine = setup({
           {
             guard: 'isL2Funded',
             target: 'bridgingFromL2',
-            actions: assign({ hcaUsdcBalance: () => 0n }),
+            actions: [
+              assign({ hcaUsdcBalance: () => 0n }),
+              'settleLandedL2Bridge',
+            ],
           },
           {
             target: 'signingFundingPermit',
-            actions: assign({ hcaUsdcBalance: () => 0n }),
+            actions: [
+              assign({ hcaUsdcBalance: () => 0n }),
+              'settleLandedL2Bridge',
+            ],
           },
         ],
       },
@@ -1427,14 +1455,13 @@ export const registrationMachine = setup({
           },
           {
             // Sized for another registration, so read again; but only a read
-            // that shows the bridge, or a lagging one asks for it again.
+            // that shows the bridge, or a lagging one asks for it again. The
+            // bridge stays until then, so a reload mid-read waits for it again.
             guard: ({ event }) => event.output === 'landed',
             target: 'checkingHcaFunding',
             actions: assign({
               hcaBalanceFloor: ({ context }) =>
                 context.unsettledL2Bridge?.fundsHcaTo,
-              unsettledL2Bridge: () => undefined,
-              isL2BridgeFromPriorRun: () => false,
             }),
           },
           {

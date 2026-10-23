@@ -598,6 +598,27 @@ describe('registrationMachine — paid from an L2', () => {
     expect(actor.getSnapshot().context.hcaBalanceFloor).toBeUndefined()
   })
 
+  // A reload mid-read must still find the bridge, or it would pay again.
+  it("keeps a cancelled run's landed bridge until the read shows it", async () => {
+    const { actor } = startHcaRegistration({
+      readHcaUsdcBalance: vi.fn(({ input }: { input: { atLeast?: bigint } }) =>
+        input.atLeast === undefined
+          ? Promise.resolve(0n)
+          : new Promise(() => {}),
+      ),
+      l2Funding,
+      unsettledL2Bridge: cancelledRunBridge(BUDGET),
+    })
+
+    await waitFor(
+      actor,
+      () => actor.getSnapshot().context.hcaBalanceFloor !== undefined,
+    )
+
+    expect(actor.getSnapshot().value).toBe('checkingHcaFunding')
+    expect(actor.getSnapshot().context.unsettledL2Bridge?.intentId).toBe(9n)
+  })
+
   it("reads the balance plainly after a cancelled run's dead bridge", async () => {
     const reads: (bigint | undefined)[] = []
     const { actor, submitL2Bridge } = startHcaRegistration({
