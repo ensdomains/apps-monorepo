@@ -247,6 +247,10 @@ msgstr "A simpler way to get paid."
 msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 msgstr "A temporary permission on the ENS registry. No managers are being added in this upgrade."
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Accept"
+msgstr "Accept"
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr "Account address:"
@@ -332,6 +336,10 @@ msgstr "An estimate of what the transaction that renews your name will cost. It 
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Analytics consent"
+msgstr "Analytics consent"
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Another address registered this name first, so it can no longer be registered here. Look for a different name."
@@ -914,6 +922,10 @@ msgstr "DAO Forum"
 #: src/features/navigation/Header/account/NavSection.tsx
 msgid "Dashboard"
 msgstr "Dashboard"
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Decline"
+msgstr "Decline"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying resolver"
@@ -2029,6 +2041,10 @@ msgstr "Primary Name Profile"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Primary name set successfully"
 msgstr "Primary name set successfully"
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Privacy policy"
+msgstr "Privacy policy"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Privacy Policy"
@@ -3444,6 +3460,10 @@ msgstr "We couldn't work out the full cost of this registration right now, so we
 #: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
 msgid "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
 msgstr "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "We'd like to collect usage analytics with PostHog to improve the ENS app."
+msgstr "We'd like to collect usage analytics with PostHog to improve the ENS app."
 
 #: src/features/migration/components/success/CommemorativeNftDashboardSection.tsx
 msgid "Welcome to ENSv2"

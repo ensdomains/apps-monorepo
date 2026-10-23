@@ -25,30 +25,43 @@ const importSettingsMenu = async (surveyId: string | undefined) => {
   return (await import('./SettingsMenu')).SettingsMenu
 }
 
+const openMenu = async (surveyId: string | undefined) => {
+  const SettingsMenu = await importSettingsMenu(surveyId)
+  const user = userEvent.setup()
+  render(<SettingsMenu />)
+  await user.click(screen.getByRole('button', { name: 'Settings' }))
+  expect(await screen.findByTestId('theme-toggle')).toBeInTheDocument()
+  return user
+}
+
 afterEach(() => {
   vi.unstubAllEnvs()
+  localStorage.clear()
   displaySurvey.mockClear()
 })
 
 describe('SettingsMenu', () => {
-  it('hides PostHog feedback even when a survey id is configured', async () => {
-    const SettingsMenu = await importSettingsMenu('survey-123')
-    const user = userEvent.setup()
-    render(<SettingsMenu />)
-    await user.click(screen.getByRole('button', { name: 'Settings' }))
-    expect(await screen.findByTestId('theme-toggle')).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: /feedback/i })).toBeNull()
-    expect(displaySurvey).not.toHaveBeenCalled()
+  it('opens the PostHog feedback survey once analytics are accepted', async () => {
+    localStorage.setItem('analytics-consent', 'granted')
+    const user = await openMenu('survey-123')
+
+    await user.click(screen.getByRole('menuitem', { name: /feedback/i }))
+
+    expect(displaySurvey).toHaveBeenCalledWith('survey-123', {
+      displayType: 'popover',
+      ignoreConditions: true,
+      ignoreDelay: true,
+    })
   })
 
-  it('hides the feedback item when no survey id is configured', async () => {
-    const SettingsMenu = await importSettingsMenu(undefined)
-    const user = userEvent.setup()
-    render(<SettingsMenu />)
+  it('hides feedback until analytics are accepted', async () => {
+    await openMenu('survey-123')
+    expect(screen.queryByRole('menuitem', { name: /feedback/i })).toBeNull()
+  })
 
-    await user.click(screen.getByRole('button', { name: 'Settings' }))
-
-    expect(await screen.findByTestId('theme-toggle')).toBeInTheDocument()
+  it('hides feedback when no survey id is configured', async () => {
+    localStorage.setItem('analytics-consent', 'granted')
+    await openMenu(undefined)
     expect(screen.queryByRole('menuitem', { name: /feedback/i })).toBeNull()
   })
 

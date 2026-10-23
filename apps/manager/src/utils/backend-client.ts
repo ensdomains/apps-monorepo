@@ -1,6 +1,8 @@
+import { hasAnalyticsConsent } from '@ens-apps/utils/posthog/analyticsConsent'
 import { createStore } from '@xstate/store-react'
 import type { AppRouter } from 'api-worker/hc'
 import { hc } from 'hono/client'
+import posthog from 'posthog-js/dist/module.full.no-external'
 import * as v from 'valibot'
 import { envConfig, isTestnet } from '@/config'
 import { DEBUG_FEATURES_ENABLED } from './debug-features'
@@ -186,20 +188,13 @@ const authFetch: typeof fetch = async (input, init) => {
 export const backendClient = hc<AppRouter>(DEFAULT_BACKEND_API_URL, {
   headers: (): Record<string, string> => {
     const auth = backendAuthStore.get().context.authKey
-    // POSTHOG_LAUNCH_PAUSE: analytics correlation paused. To restore, import posthog from posthog-js/dist/module.full.no-external and replace the return below.
-    // const posthogId = posthog.get_distinct_id()
-    //
-    // if (!auth) {
-    //   return {
-    //     'X-PostHog-Distinct-ID': posthogId,
-    //   } as Record<string, string>
-    // }
-    //
-    // return {
-    //   Authorization: `Bearer ${auth}`,
-    //   'X-PostHog-Distinct-ID': posthogId,
-    // }
-    return auth ? { Authorization: `Bearer ${auth}` } : {}
+    return {
+      ...(auth ? { Authorization: `Bearer ${auth}` } : {}),
+      // Links backend requests to analytics, only for visitors who accepted.
+      ...(posthog.__loaded && hasAnalyticsConsent()
+        ? { 'X-PostHog-Distinct-ID': posthog.get_distinct_id() }
+        : {}),
+    }
   },
 
   fetch: authFetch,

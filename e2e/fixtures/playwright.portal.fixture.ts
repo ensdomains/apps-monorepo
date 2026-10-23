@@ -202,6 +202,10 @@ const bignameMock = createBignameMock()
 
 export const test = base.extend<PortalFixtures>({
   page: async ({ page }, use) => {
+    // Answer the analytics banner up front so it never covers a control.
+    await page.addInitScript(() =>
+      localStorage.setItem('analytics-consent', 'denied'),
+    )
     await bignameMock.installIfEnabled(page)
     await use(page)
   },

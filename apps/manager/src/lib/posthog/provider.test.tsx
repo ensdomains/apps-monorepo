@@ -1,15 +1,17 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
+import { storeAnalyticsConsent } from '@ens-apps/utils/posthog/analyticsConsent'
 import { boot, trackEvent } from '@intercom/messenger-js-sdk'
 import { render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnectionEffect } from 'wagmi'
-import { FEATURE_FLAGS_ONLY_CONFIG } from './config'
+import { POSTHOG_CONFIG } from './config'
 import { PHProvider } from './provider'
 
 vi.mock('@tanstack/react-router', () => ({ useHydrated: () => true }))
 vi.mock('@intercom/messenger-js-sdk', () => ({
   boot: vi.fn(),
+  getVisitorId: vi.fn(),
   trackEvent: vi.fn(),
 }))
 vi.mock('@posthog/react', () => ({
@@ -17,11 +19,17 @@ vi.mock('@posthog/react', () => ({
 }))
 vi.mock('posthog-js/dist/module.full.no-external', () => ({
   default: {
+    __loaded: true,
     init: vi.fn(),
     identify: vi.fn(),
     register: vi.fn(),
     capture: vi.fn(),
     reset: vi.fn(),
+    get_distinct_id: vi.fn(() => 'distinct-id'),
+    get_session_replay_url: vi.fn(() => 'replay-url'),
+    opt_in_capturing: vi.fn(),
+    opt_out_capturing: vi.fn(),
+    set_config: vi.fn(),
   },
 }))
 vi.mock('wagmi', () => ({ useConnectionEffect: vi.fn() }))
@@ -32,9 +40,19 @@ vi.mock('@ens-apps/transaction-manager', () => ({
   },
 }))
 
-describe('launch PostHog provider', () => {
+const INTERCOM_APP_ID = 're9q5yti'
+
+const renderProvider = () =>
+  render(
+    <PHProvider>
+      <div>child</div>
+    </PHProvider>,
+  )
+
+describe('PostHog provider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
   })
   afterEach(() => {
@@ -42,26 +60,30 @@ describe('launch PostHog provider', () => {
     vi.restoreAllMocks()
   })
 
-  it('initializes flags with collection disabled and boots Intercom without analytics metadata', () => {
-    render(
-      <PHProvider>
-        <div>child</div>
-      </PHProvider>,
-    )
+  it('initializes PostHog with the consent-gated config', () => {
+    renderProvider()
     expect(posthog.init).toHaveBeenCalledWith(
       'test-key',
-      expect.objectContaining(FEATURE_FLAGS_ONLY_CONFIG),
+      expect.objectContaining(POSTHOG_CONFIG),
     )
-    expect(boot).toHaveBeenCalledWith({ app_id: 're9q5yti' })
-    expect(posthog.capture).not.toHaveBeenCalled()
   })
 
-  it('keeps wallet targeting and Intercom operational without analytics properties', () => {
-    render(
-      <PHProvider>
-        <div>child</div>
-      </PHProvider>,
-    )
+  it('links Intercom to analytics only after consent', () => {
+    const { unmount } = renderProvider()
+    expect(boot).toHaveBeenLastCalledWith({ app_id: INTERCOM_APP_ID })
+    unmount()
+
+    storeAnalyticsConsent('granted')
+    renderProvider()
+    expect(boot).toHaveBeenLastCalledWith({
+      app_id: INTERCOM_APP_ID,
+      posthog_distinct_id: 'distinct-id',
+      recent_replay: 'replay-url',
+    })
+  })
+
+  it('identifies and tracks wallet connects', () => {
+    renderProvider()
     const wallet = {
       address: '0x1111111111111111111111111111111111111111',
       chainId: 1,
@@ -71,13 +93,17 @@ describe('launch PostHog provider', () => {
     callbacks?.onConnect?.(
       wallet as Parameters<NonNullable<typeof callbacks.onConnect>>[0],
     )
+
     expect(posthog.identify).toHaveBeenCalledWith(
       wallet.address,
       { address: wallet.address },
       { initial_address: wallet.address },
     )
-    expect(posthog.register).not.toHaveBeenCalled()
-    expect(posthog.capture).not.toHaveBeenCalled()
+    expect(posthog.capture).toHaveBeenCalledWith('wallet:connect', {
+      wallet_address: wallet.address,
+      chain_id: 1,
+      wallet_connector: 'test-wallet',
+    })
     expect(trackEvent).toHaveBeenCalledWith('wallet:connect', {
       wallet_address: wallet.address,
       chain_id: 1,
@@ -85,19 +111,29 @@ describe('launch PostHog provider', () => {
     })
   })
 
+  it('applies the banner answer without a reload, until unmounted', () => {
+    const { unmount } = renderProvider()
+
+    storeAnalyticsConsent('granted')
+    expect(posthog.opt_in_capturing).toHaveBeenCalledTimes(1)
+    storeAnalyticsConsent('denied')
+    expect(posthog.opt_out_capturing).toHaveBeenCalledTimes(1)
+
+    unmount()
+    storeAnalyticsConsent('granted')
+    expect(posthog.opt_in_capturing).toHaveBeenCalledTimes(1)
+  })
+
   it('boots Intercom even when PostHog initialization fails', () => {
     vi.mocked(posthog.init).mockImplementationOnce(() => {
       throw new Error('blocked')
     })
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    render(
-      <PHProvider>
-        <div>child</div>
-      </PHProvider>,
-    )
-    expect(boot).toHaveBeenCalledWith({ app_id: 're9q5yti' })
+    renderProvider()
+    expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
   })
-  it('keeps failure diagnostics local without PostHog telemetry', () => {
+
+  it('logs failed runs locally and tracks them for PostHog', () => {
     vi.stubEnv('DEV', true)
     const groupCollapsed = vi
       .spyOn(console, 'groupCollapsed')
@@ -115,21 +151,18 @@ describe('launch PostHog provider', () => {
       unsubscribeLive,
     )
 
-    const { unmount } = render(
-      <PHProvider>
-        <div>child</div>
-      </PHProvider>,
-    )
+    const { unmount } = renderProvider()
     const listener = vi.mocked(transactionManager.onFailedRunTelemetry).mock
       .calls[0]?.[0]
     expect(transactionManager.onFailedRunTelemetry).toHaveBeenCalledTimes(1)
     expect(transactionManager.onRunTelemetryEvent).toHaveBeenCalledTimes(1)
-    expect(listener).toBeTypeOf('function')
     if (!listener) throw new Error('Missing failure telemetry listener')
     listener({
       run: { txId: 'tx', runId: 'run', status: 'error' },
       summary: { failureStage: 'submission' },
+      truncation: { totalEvents: 3, truncated: false, droppedEvents: 0 },
     } as Parameters<NonNullable<typeof listener>>[0])
+
     expect(groupCollapsed).toHaveBeenCalledWith(
       '[TM-RUN] failed tx status=error stage=submission',
     )
@@ -143,11 +176,20 @@ describe('launch PostHog provider', () => {
       }),
     )
     expect(groupEnd).toHaveBeenCalledTimes(1)
+    expect(posthog.capture).toHaveBeenCalledWith(
+      'tm:failed_run',
+      expect.objectContaining({
+        tm_run_id: 'run',
+        tm_tx_id: 'tx',
+        tm_failure_stage: 'submission',
+        tm_event_count: 3,
+        source_app: 'manager',
+      }),
+    )
     expect(unsubscribeFailed).not.toHaveBeenCalled()
     expect(unsubscribeLive).not.toHaveBeenCalled()
     unmount()
     expect(unsubscribeFailed).toHaveBeenCalledTimes(1)
     expect(unsubscribeLive).toHaveBeenCalledTimes(1)
-    expect(posthog.capture).not.toHaveBeenCalled()
   })
 })

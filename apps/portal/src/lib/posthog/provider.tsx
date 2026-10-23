@@ -1,5 +1,10 @@
 import {
+  hasAnalyticsConsent,
+  subscribeAnalyticsConsent,
+} from '@ens-apps/utils/posthog/analyticsConsent'
+import {
   boot as bootIntercom,
+  getVisitorId,
   trackEvent as trackIntercomEvent,
 } from '@intercom/messenger-js-sdk'
 import { PostHogProvider } from '@posthog/react'
@@ -22,7 +27,8 @@ import posthog from 'posthog-js/dist/module.full.no-external'
 import { useEffect } from 'react'
 import { useConnectionEffect } from 'wagmi'
 import { INTERCOM_APP_ID } from '@/lib/intercom'
-import { FEATURE_FLAGS_ONLY_CONFIG } from './config'
+import { applyAnalyticsConsent, POSTHOG_CONFIG } from './config'
+import { track, trackWithOptions } from './events'
 
 export const PHProvider = ({
   children,
@@ -39,40 +45,46 @@ export const PHProvider = ({
       if (posthogKey) {
         posthog.init(posthogKey, {
           api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-          ...FEATURE_FLAGS_ONLY_CONFIG,
+          ...POSTHOG_CONFIG,
         })
       }
     } catch (error) {
-      console.warn('[posthog] flag init failed', error)
+      console.warn('[posthog] init failed', error)
     }
 
     try {
       bootIntercom({
         app_id: INTERCOM_APP_ID,
-        // POSTHOG_LAUNCH_PAUSE: analytics correlation paused until consent/privacy support lands.
-        // posthog_distinct_id: posthog.get_distinct_id(),
-        // recent_replay: posthog.get_session_replay_url(),
+        // Links support chats to analytics, only for visitors who accepted.
+        ...(posthog.__loaded && hasAnalyticsConsent()
+          ? {
+              posthog_distinct_id: posthog.get_distinct_id(),
+              recent_replay: posthog.get_session_replay_url(),
+            }
+          : {}),
       })
 
-      // POSTHOG_LAUNCH_PAUSE: Intercom boot analytics paused. Restore getVisitorId and trackWithOptions imports when re-enabling.
-      // const intercomVisitorId = getVisitorId()
-      //
-      // if (intercomVisitorId) {
-      //   trackWithOptions('intercom:booted', undefined, {
-      //     $set: {
-      //       intercom_visitor_id: intercomVisitorId,
-      //     },
-      //   })
-      // }
+      const intercomVisitorId = getVisitorId()
+
+      if (intercomVisitorId) {
+        trackWithOptions('intercom:booted', undefined, {
+          $set: {
+            intercom_visitor_id: intercomVisitorId,
+          },
+        })
+      }
     } catch (error) {
       console.warn('[intercom] init failed', error)
     }
+
+    // Follows the visitor's answer to the analytics banner without a reload.
+    return subscribeAnalyticsConsent(() => applyAnalyticsConsent(posthog))
   }, [])
 
   useConnectionEffect({
     onConnect(data) {
-      // Keep wallet identity/properties solely for existing flag targeting.
-      // Capture is blocked, so identify cannot create a profile or merge event history.
+      // Wallet-targeted flags need identify, so it runs for everyone and flag
+      // requests carry the address; events only leave with consent.
       try {
         posthog.identify(
           data.address,
@@ -84,20 +96,19 @@ export const PHProvider = ({
           },
         )
 
-        // POSTHOG_LAUNCH_PAUSE: wallet analytics paused; identify above remains for flags. Restore the ./events track import when re-enabling.
-        // posthog.register({
-        //   wallet_address: data.address,
-        //   chain_id: data.chainId,
-        //   wallet_connector: data.connector.name,
-        // })
-        //
-        // track('wallet:connect', {
-        //   wallet_address: data.address,
-        //   chain_id: data.chainId,
-        //   wallet_connector: data.connector.name,
-        // })
+        posthog.register({
+          wallet_address: data.address,
+          chain_id: data.chainId,
+          wallet_connector: data.connector.name,
+        })
+
+        track('wallet:connect', {
+          wallet_address: data.address,
+          chain_id: data.chainId,
+          wallet_connector: data.connector.name,
+        })
       } catch (error) {
-        console.warn('[posthog] wallet flag targeting failed', error)
+        console.warn('[posthog] wallet identify failed', error)
       }
 
       try {
@@ -112,11 +123,11 @@ export const PHProvider = ({
     },
     onDisconnect() {
       try {
-        // POSTHOG_LAUNCH_PAUSE: disconnect analytics paused. Restore the ./events track import when re-enabling.
-        // track('wallet:disconnect')
+        track('wallet:disconnect')
         posthog.reset()
+        applyAnalyticsConsent(posthog)
       } catch (error) {
-        console.warn('[posthog] wallet flag reset failed', error)
+        console.warn('[posthog] wallet reset failed', error)
       }
     },
   })
