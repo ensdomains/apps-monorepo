@@ -37,9 +37,9 @@ const VerificationEmail = ({
       {`Enter this code in Notification Settings in the ENS app. It expires in ${expiresInMinutes} minutes. Don’t share it with anyone. ENS will never ask you for it.`}
     </EmailParagraph>
     <EmailFacts
-      stacked
+      isStacked
       facts={[
-        { label: 'Requested for wallet', value: accountAddress, mono: true },
+        { label: 'Requested for wallet', value: accountAddress, isMono: true },
       ]}
     />
   </EmailLayout>

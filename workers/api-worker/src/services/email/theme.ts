@@ -38,6 +38,26 @@ export const resolveThemeColor = (record: string | null): string =>
 const THEME_LOOKUP_TIMEOUT_MS = 3_000
 
 /**
+ * The theme value from a records response, read defensively: the client only
+ * checks the envelope, and a malformed body must not fail the email.
+ */
+const themeValueFrom = (data: unknown): string | null => {
+  const records =
+    typeof data === 'object' && data !== null && 'records' in data
+      ? data.records
+      : null
+  const answer =
+    typeof records === 'object' && records !== null && 'text:theme' in records
+      ? records['text:theme']
+      : null
+  if (typeof answer !== 'object' || answer === null) return null
+  if (!('status' in answer && answer.status === 'ok' && 'value' in answer)) {
+    return null
+  }
+  return typeof answer.value === 'string' ? answer.value : null
+}
+
+/**
  * Reads a name's `theme` text record. Never fails: an email with the default
  * header is better than a delayed or failed email.
  */
@@ -51,10 +71,7 @@ export const readThemeRecord = (
       { namespace: 'ens', keys: ['text:theme'] },
       { signal: AbortSignal.timeout(THEME_LOOKUP_TIMEOUT_MS) },
     )
-    .map(({ data }) => {
-      const answer = data.records['text:theme']
-      return answer?.status === 'ok' ? (answer.value ?? null) : null
-    })
+    .map(({ data }) => themeValueFrom(data))
     .mapErr((error) => {
       logger.warn('Could not read theme record for email', {
         name,

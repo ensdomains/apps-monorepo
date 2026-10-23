@@ -65,6 +65,25 @@ describe('readThemeRecord', () => {
     await expect(readThemeRecord(client, 'alice.eth')).resolves.toBeNull()
   })
 
+  it.each([
+    ['no data', { data: null, meta: {} }],
+    ['no records', { data: {}, meta: {} }],
+    [
+      'a non-string value',
+      {
+        data: { records: { 'text:theme': { status: 'ok', value: 42 } } },
+        meta: {},
+      },
+    ],
+  ])('returns null for a malformed response with %s', async (_case, body) => {
+    const { client } = clientReturning(
+      new Response(JSON.stringify(body), {
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    await expect(readThemeRecord(client, 'alice.eth')).resolves.toBeNull()
+  })
+
   it('returns null instead of failing when the indexer is down', async () => {
     const { client } = clientReturning(new Error('connection refused'))
     await expect(readThemeRecord(client, 'alice.eth')).resolves.toBeNull()

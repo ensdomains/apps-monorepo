@@ -98,7 +98,7 @@ const getOwnerCopy = (expiry: NameExpiryDeliveryContext): NameExpiryCopy => {
       body: `When ${name} expires it stops resolving, so wallets and apps can’t use it and it can’t be transferred. Renew it before ${expires} to keep it working.`,
       facts: [
         { label: 'Expires', value: expires },
-        { label: 'Grace period ends', value: graceEnds, emphasis: true },
+        { label: 'Grace period ends', value: graceEnds, isEmphasized: true },
         AFTER_GRACE,
       ],
       action: 'renew' as const,
@@ -110,7 +110,7 @@ const getOwnerCopy = (expiry: NameExpiryDeliveryContext): NameExpiryCopy => {
       body: `${name} has stopped resolving and can’t be transferred. It’s still yours until ${formatShortDate(expiry.graceEndDate)}. Renew it before then and it starts working again.`,
       facts: [
         { label: 'Expired', value: expires },
-        { label: 'Renew before', value: graceEnds, emphasis: true },
+        { label: 'Renew before', value: graceEnds, isEmphasized: true },
         AFTER_GRACE,
       ],
       action: 'renew' as const,
@@ -129,7 +129,7 @@ const getOwnerCopy = (expiry: NameExpiryDeliveryContext): NameExpiryCopy => {
         body: `${name} isn’t resolving. Renew it before ${graceEnds} to restore it. After that, you lose it and anyone can register it.`,
         facts: [
           { label: 'Expired', value: expires },
-          { label: 'Renew before', value: graceEnds, emphasis: true },
+          { label: 'Renew before', value: graceEnds, isEmphasized: true },
         ],
         action: 'renew' as const,
         isInGrace: true,
@@ -144,7 +144,7 @@ const getOwnerCopy = (expiry: NameExpiryDeliveryContext): NameExpiryCopy => {
         {
           label: 'Normal price from',
           value: formatEmailDate(premiumEndDate(expiry)),
-          emphasis: true,
+          isEmphasized: true,
         },
       ],
       action: 'register' as const,
@@ -162,7 +162,7 @@ const getWatcherCopy = (expiry: NameExpiryDeliveryContext): NameExpiryCopy => {
   const opensUp = `The owner has until ${formatShortDate(expiry.graceEndDate)} to renew it. If they don’t, anyone can register it from then, with a temporary premium that falls to the normal price by ${formatShortDate(premiumEnds)}.`
   const graceFacts: readonly EmailFact[] = [
     { label: 'Expired', value: formatEmailDate(expiry.expiryDate) },
-    { label: 'Could be available from', value: graceEnds, emphasis: true },
+    { label: 'Could be available from', value: graceEnds, isEmphasized: true },
     { label: 'Normal price from', value: formatEmailDate(premiumEnds) },
   ]
   return match(expiry.noticeKind)
@@ -172,7 +172,11 @@ const getWatcherCopy = (expiry: NameExpiryDeliveryContext): NameExpiryCopy => {
       body: `If it isn’t renewed, ${name} stops resolving on ${formatShortDate(expiry.expiryDate)} and has a ${V2_GRACE_PERIOD_DAYS}-day grace period, during which only renewal is possible. It could become available on ${formatShortDate(expiry.graceEndDate)}.`,
       facts: [
         { label: 'Expires', value: formatEmailDate(expiry.expiryDate) },
-        { label: 'Could be available from', value: graceEnds, emphasis: true },
+        {
+          label: 'Could be available from',
+          value: graceEnds,
+          isEmphasized: true,
+        },
       ],
       action: 'check' as const,
       isInGrace: false,
@@ -202,7 +206,7 @@ const getWatcherCopy = (expiry: NameExpiryDeliveryContext): NameExpiryCopy => {
         {
           label: 'Normal price from',
           value: formatEmailDate(premiumEnds),
-          emphasis: true,
+          isEmphasized: true,
         },
       ],
       action: 'register' as const,

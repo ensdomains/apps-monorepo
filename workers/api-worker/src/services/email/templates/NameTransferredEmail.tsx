@@ -43,10 +43,10 @@ const NameTransferredEmail = ({
       {/* Full values, never shortened: shortened addresses are what
           address-poisoning scams imitate. */}
       <EmailFacts
-        stacked
+        isStacked
         facts={[
-          { label: 'New owner', value: payload.to, mono: true },
-          { label: 'Transaction', value: payload.txHash, mono: true },
+          { label: 'New owner', value: payload.to, isMono: true },
+          { label: 'Transaction', value: payload.txHash, isMono: true },
         ]}
       />
       <EmailWarning title="Didn’t make this transfer?">

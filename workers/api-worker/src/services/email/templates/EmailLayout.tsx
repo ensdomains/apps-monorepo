@@ -190,13 +190,13 @@ const unlinkable = (value: string): string =>
 /** The manager app's host, rendered so mail clients cannot link it. */
 export const AppHost = ({
   context,
-  quiet = false,
+  isQuiet = false,
 }: {
   readonly context: EmailContext
   /** In running small print, without the monospaced emphasis. */
-  readonly quiet?: boolean
+  readonly isQuiet?: boolean
 }) => (
-  <span style={quiet ? undefined : appHostStyle}>
+  <span style={isQuiet ? undefined : appHostStyle}>
     {unlinkable(context.appHost)}
   </span>
 )
@@ -220,31 +220,31 @@ export interface EmailFact {
   readonly label: string
   readonly value: string
   /** Bold, for the date the reader has to act by. */
-  readonly emphasis?: boolean
+  readonly isEmphasized?: boolean
   /** Monospaced, for addresses and hashes. */
-  readonly mono?: boolean
+  readonly isMono?: boolean
 }
 
 const factValueStyle = (fact: EmailFact): CSSProperties => ({
   color: COLOR.ink,
-  fontWeight: fact.emphasis ? 700 : 400,
-  ...(fact.mono ? monoValueStyle : {}),
+  fontWeight: fact.isEmphasized ? 700 : 400,
+  ...(fact.isMono ? monoValueStyle : {}),
 })
 
 /**
- * Facts as ruled rows. Short values sit beside their label; long ones (`stacked`)
+ * Facts as ruled rows. Short values sit beside their label; long ones (`isStacked`)
  * go underneath so addresses get the full width.
  */
 export const EmailFacts = ({
   facts,
-  stacked = false,
+  isStacked = false,
 }: {
   readonly facts: readonly EmailFact[]
-  readonly stacked?: boolean
+  readonly isStacked?: boolean
 }) => (
   <Section style={factsStyle}>
     {facts.map((fact) =>
-      stacked ? (
+      isStacked ? (
         <Row key={fact.label}>
           <Column style={factLabelStyle}>
             {fact.label}
@@ -445,7 +445,7 @@ export const EmailLayout = ({
                 <>
                   {' '}
                   To stop these emails, go to{' '}
-                  <AppHost context={context} quiet /> and open Notification
+                  <AppHost context={context} isQuiet /> and open Notification
                   Settings.
                 </>
               )}
