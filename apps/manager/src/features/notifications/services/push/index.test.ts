@@ -199,9 +199,9 @@ describe('push notification service', () => {
 
     it('replaces a stale subscription created with a different server key', async () => {
       // 'dGVzdA' decodes to [0x74, 0x65, 0x73, 0x74]
-      let unsubscribeCalled = false
+      let hasUnsubscribed = false
       const unsubscribeFn = vi.fn(() => {
-        unsubscribeCalled = true
+        hasUnsubscribed = true
         return Promise.resolve(true)
       })
       const subscription = {
@@ -212,7 +212,7 @@ describe('push notification service', () => {
         unsubscribe: unsubscribeFn,
       } as unknown as PushSubscription
       const subscribeFn = vi.fn(() => {
-        if (unsubscribeCalled) {
+        if (hasUnsubscribed) {
           return Promise.resolve(subscription)
         }
         return Promise.reject(new Error('should have replaced first'))

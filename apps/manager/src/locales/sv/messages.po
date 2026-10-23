@@ -479,11 +479,11 @@ msgstr ""
 msgid "Bot access needed"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Brave disables push messaging by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, then reload this page and try again."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Brave's push service is turned off"
 msgstr ""
 
@@ -830,11 +830,11 @@ msgstr ""
 msgid "Couldn’t check when this name expires, so editing is paused until it can be read."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Couldn't disable notifications"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Couldn't enable notifications"
 msgstr ""
 
@@ -1698,7 +1698,7 @@ msgstr "Inga namn att visa"
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "No push service is available in this browser"
 msgstr ""
 
@@ -1758,7 +1758,7 @@ msgstr ""
 msgid "Notifications"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Notifications are misconfigured"
 msgstr ""
 
@@ -1766,16 +1766,16 @@ msgstr ""
 msgid "Notifications are sent 30, 7 and 1 day before expiry, and 7 and 1 day before the end of the grace period, before the name is released."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Notifications aren't supported in this browser"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
 #: src/features/notifications/settings/contact-methods/push.tsx
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Notifications blocked"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Notifications couldn't be set up"
 msgstr ""
 
@@ -2524,7 +2524,7 @@ msgstr ""
 msgid "Setting things up"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Setting up notifications timed out"
 msgstr ""
 
@@ -2654,11 +2654,11 @@ msgstr ""
 msgid "Something went wrong preparing the save. Please try again."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Something went wrong while setting up browser notifications. Please try again."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Something went wrong while turning off browser notifications. Please try again."
 msgstr ""
 
@@ -2840,15 +2840,15 @@ msgstr ""
 msgid "The mint transaction was replaced by another transaction. Check your wallet before trying again."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "The notification prompt was blocked"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "The notification prompt was dismissed"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "The notification service returned an invalid key. Please try again later."
 msgstr ""
 
@@ -2897,7 +2897,7 @@ msgstr ""
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "There was a problem reaching the notification service. Please try again in a moment."
 msgstr ""
 
@@ -2905,7 +2905,7 @@ msgstr ""
 msgid "These names can't be upgraded"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."
 msgstr ""
 
@@ -2913,7 +2913,7 @@ msgstr ""
 msgid "This browser cannot safely coordinate your mint. Try an up-to-date browser."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "This browser doesn't support push notifications. Try Chrome, Firefox, or Safari, or use email or Telegram notifications instead."
 msgstr ""
 
@@ -2981,8 +2981,8 @@ msgstr ""
 msgid "To enable these features later, open your wallet menu and select Verify wallet ownership."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
 #: src/features/notifications/settings/contact-methods/push.tsx
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
 msgstr ""
 
@@ -3040,7 +3040,7 @@ msgstr ""
 msgid "Try Again"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Try again and allow notifications when your browser asks."
 msgstr ""
 
@@ -3536,15 +3536,15 @@ msgstr ""
 msgid "Your account could not be checked. Please try again."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Your browser blocked the permission prompt, so notifications couldn't be enabled. Allow notifications for this site, then try again."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Your browser can't reach a push delivery service. Check your browser's push settings, then try again."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push-error-copy.ts
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Your browser took too long to register for push messages. Check your connection, then try again."
 msgstr ""
 

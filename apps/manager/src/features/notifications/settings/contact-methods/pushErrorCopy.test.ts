@@ -1,6 +1,6 @@
 import { i18n } from '@lingui/core'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { pushErrorCopy } from './push-error-copy'
+import { pushErrorCopy } from './pushErrorCopy'
 
 describe('pushErrorCopy', () => {
   // The @lingui/core/macro t transpiles to i18n._; activating a bare locale

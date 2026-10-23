@@ -15,7 +15,7 @@ import {
 } from '@/features/notifications/data/queries/push'
 import type { PushErrorCode } from '@/features/notifications/types/push'
 import { ContactMethodCard } from './contact-method-card'
-import { pushErrorCopy } from './push-error-copy'
+import { pushErrorCopy } from './pushErrorCopy'
 
 type PushContactMethodProps = {
   pushChannels: Channel[]
