@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
-import { getCoinByCoinType, getCoinByName, SUPPORTED_COINS } from './coins'
+import { getCoinByName, SUPPORTED_COINS } from './coins'
 
 describe('coins', () => {
   describe('SUPPORTED_COINS', () => {
@@ -100,33 +100,6 @@ describe('coins', () => {
 
     it('returns undefined for unknown coin', () => {
       const coin = getCoinByName('unknown-coin-xyz')
-      expect(coin).toBeUndefined()
-    })
-  })
-
-  describe('getCoinByCoinType', () => {
-    it('returns ETH coin for coinType 60', () => {
-      const coin = getCoinByCoinType(60)
-      expect(coin).toBeDefined()
-      expect(coin?.name).toBe('eth')
-      expect(coin?.coinType).toBe(60)
-    })
-
-    it('returns BTC coin for coinType 0', () => {
-      const coin = getCoinByCoinType(0)
-      expect(coin).toBeDefined()
-      expect(coin?.name).toBe('btc')
-      expect(coin?.coinType).toBe(0)
-    })
-
-    it('returns SOL coin for coinType 501', () => {
-      const coin = getCoinByCoinType(501)
-      expect(coin).toBeDefined()
-      expect(coin?.name).toBe('sol')
-    })
-
-    it('returns undefined for unknown coinType', () => {
-      const coin = getCoinByCoinType(999999999)
       expect(coin).toBeUndefined()
     })
   })

@@ -62,14 +62,6 @@ export function matchContractRoute(
   return { address: match[1], subpage: match[2] ?? null }
 }
 
-export function isResolverRoute(pathname: string): boolean {
-  return matchContractRoute(pathname, 'resolver') !== null
-}
-
-export function isRegistryRoute(pathname: string): boolean {
-  return matchContractRoute(pathname, 'registry') !== null
-}
-
 export function isTldRoute(pathname: string): boolean {
   return pathname.startsWith('/tld/')
 }

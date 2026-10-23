@@ -10,7 +10,7 @@ import {
   isTldRoute,
   matchContractRoute,
 } from './utils/routePaths'
-import { withSecurityHeaders } from './worker/csp'
+import { getCustomRpcOrigins, withSecurityHeaders } from './worker/csp'
 import { fetchEnsData, fetchIsPermissionedResolver } from './worker/ens'
 import { MetaTagInjector, TitleRewriter } from './worker/html-rewriter'
 import {
@@ -70,7 +70,7 @@ async function injectMeta(
   const response = await env.ASSETS.fetch(request)
   const rewriter = new HTMLRewriter().on(
     'head',
-    new MetaTagInjector(buildMetaTags(options)),
+    new MetaTagInjector(buildMetaTags(options), getCustomRpcOrigins(request)),
   )
   if (options.pageTitle) {
     rewriter.on('title', new TitleRewriter(options.pageTitle))
@@ -249,6 +249,7 @@ async function handleNamePage(
           type: 'profile',
           imageAlt: avatar ? `${decodedName} avatar` : null,
         }),
+        getCustomRpcOrigins(request),
       ),
     )
     .on('title', new TitleRewriter(pageTitle))
@@ -369,11 +370,30 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (!wantsHtml(request)) {
     return env.ASSETS.fetch(request)
   }
-  return handlePageMeta(request, url, env)
+  return withoutValidators(await handlePageMeta(request, url, env))
+}
+
+/**
+ * Pages carry the requesting browser's CSP (its custom RPC cookie), so HTML is
+ * served without validators: a 304 would reuse a body whose meta tag was built
+ * for an older cookie.
+ */
+function withoutValidators(response: Response): Response {
+  if (!response.headers.get('Content-Type')?.startsWith('text/html')) {
+    return response
+  }
+  const result = new Response(response.body, response)
+  result.headers.delete('ETag')
+  result.headers.delete('Last-Modified')
+  result.headers.set('Cache-Control', 'private, no-cache')
+  return result
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    return withSecurityHeaders(await handle(request, env))
+    return withSecurityHeaders(
+      await handle(request, env),
+      getCustomRpcOrigins(request),
+    )
   },
 }

@@ -770,19 +770,6 @@ const mergeExpiryEvents = (
   }
 }
 
-/** Collapse overlapping lifecycle stages without any queue-message behavior. */
-export const collapseExpiryEvents = (
-  events: readonly ExpiryEvent[],
-): ExpiryEvent[] => {
-  const grouped = new Map<string, ExpiryEvent>()
-  for (const event of events) {
-    const key = expiryEventGroupKey(event)
-    const existing = grouped.get(key)
-    grouped.set(key, existing ? mergeExpiryEvents(existing, event) : event)
-  }
-  return [...grouped.values()]
-}
-
 const groupValidExpiryMessages = (
   validMessages: readonly ValidExpiryMessage[],
 ): ExpiryMessageGroup[] => {

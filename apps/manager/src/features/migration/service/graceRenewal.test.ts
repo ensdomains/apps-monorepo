@@ -27,7 +27,6 @@ import {
   type GraceRenewalStatus,
   getGraceRenewalDuration,
   getGraceRenewalQuote,
-  readGraceRenewalDomains,
 } from './graceRenewal'
 import {
   pendingGraceRenewalForQuote,
@@ -308,17 +307,20 @@ describe('bulk grace renewal', () => {
 
   it('keeps a live name ineligible when its onchain reservation is absent', async () => {
     const s = setup([domain('alice.eth')])
+    const quote = await s.quote()
     s.state.expiry.set(labelhash('alice'), NOW + 7n * DAY)
     s.state.reservationStatus = 0
-    const result = await readGraceRenewalDomains({
-      domains: s.domains,
-      ownerAddress: OWNER,
+
+    const result = await executeGraceRenewal({
+      quote,
       publicClient: s.publicClient,
+      walletClient: s.walletClient,
     })
 
     expect(
       classifyNames(result._unsafeUnwrap(), OWNER, chain.id).ineligible,
     ).toMatchObject([{ reason: 'not-reserved' }])
+    expect(s.writeContract).not.toHaveBeenCalled()
   })
 
   it('fails before requesting payment if reservation status cannot be read', async () => {

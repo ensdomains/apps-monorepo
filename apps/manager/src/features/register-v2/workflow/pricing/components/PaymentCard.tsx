@@ -6,6 +6,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
+import { useState } from 'react'
 import { useConnection } from 'wagmi'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
@@ -15,7 +16,8 @@ import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { TOKENS } from '@/lib/tokens'
-import { useConnectModal } from '@/lib/wallet'
+import { useConnectModal, useWalletDisconnect } from '@/lib/wallet'
+import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
@@ -27,6 +29,7 @@ import {
   PaymentCardBaseLine,
   PaymentCardPremiumLine,
 } from './PaymentCardLineItems'
+import { SafeWalletDialog } from './SafeWalletDialog'
 
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
@@ -77,6 +80,28 @@ export const PaymentCard = () => {
     onSettled: () => uiActor.send({ type: 'pricing.step.next' }),
   })
 
+  // A Safe can't enable the session, so send it to the Explorer instead.
+  const { connector, address } = useConnection()
+  const isSafeWalletOptions = getIsSafeWalletQueryOptions({
+    connector,
+    address,
+  })
+  useQuery({ ...isSafeWalletOptions, enabled: !!connector })
+  const [isSafeDialogOpen, setIsSafeDialogOpen] = useState(false)
+  const { disconnect } = useWalletDisconnect()
+  const { openConnectModal } = useConnectModal()
+
+  const onNext = async () => {
+    const isSafeWallet = await queryClient
+      .ensureQueryData(isSafeWalletOptions)
+      .catch(() => false)
+    if (isSafeWallet) {
+      setIsSafeDialogOpen(true)
+      return
+    }
+    gate(() => openTokenPicker.mutate())
+  }
+
   return (
     <>
       <PaymentCardBase
@@ -86,11 +111,21 @@ export const PaymentCard = () => {
         discountAmount={discountAmount}
         isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
         isPreparing={openTokenPicker.isPending}
-        onNext={() => gate(() => openTokenPicker.mutate())}
+        onNext={() => void onNext()}
         premiumAmount={pricingQuery.data?.premiumPrice}
         type="register"
       />
       {sessionModal}
+      <SafeWalletDialog
+        isOpen={isSafeDialogOpen}
+        label={label}
+        onDismiss={() => setIsSafeDialogOpen(false)}
+        onUseDifferentWallet={async () => {
+          setIsSafeDialogOpen(false)
+          await disconnect()
+          openConnectModal?.()
+        }}
+      />
     </>
   )
 }

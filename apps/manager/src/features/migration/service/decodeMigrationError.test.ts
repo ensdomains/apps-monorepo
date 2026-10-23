@@ -109,6 +109,18 @@ describe('decodeMigrationError — direct mappings', () => {
     })
   })
 
+  it('maps a lost resolver permission to its own state, not a generic failure', () => {
+    const invariant = Object.assign(new Error(''), {
+      name: 'MigrationContractInvariantError',
+      invariant: 'resolver-writer-roles',
+    })
+    const outer = new Error('migration failed', { cause: invariant })
+
+    expect(decodeMigrationError(outer)).toEqual({
+      type: 'resolver-not-writable',
+    })
+  })
+
   it('leaves other contract invariants generic', () => {
     const invariant = Object.assign(new Error('missing code'), {
       name: 'MigrationContractInvariantError',

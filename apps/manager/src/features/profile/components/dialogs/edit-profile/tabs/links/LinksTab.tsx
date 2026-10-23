@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react'
 import { Pencil, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LinkItem, ProfileRecords } from '@/features/profile/types'
@@ -83,6 +84,7 @@ export const LinksTab = ({
   onLinksChange,
   values,
 }: LinksTabProps) => {
+  const { _ } = useLingui()
   const { isSaving } = useEditProfileDialogStatus()
   const nextRowKeyRef = useRef(0)
   const createRowKey = useCallback(() => {
@@ -299,8 +301,8 @@ export const LinksTab = ({
 
               {(nameError || urlError) && (
                 <div className="flex flex-col gap-0.5 text-destructive text-xs">
-                  {nameError && <p>{nameError}</p>}
-                  {urlError && <p>{urlError}</p>}
+                  {nameError && <p>{_(nameError)}</p>}
+                  {urlError && <p>{_(urlError)}</p>}
                 </div>
               )}
             </div>

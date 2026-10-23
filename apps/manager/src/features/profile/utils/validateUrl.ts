@@ -1,11 +1,10 @@
+import type { MessageDescriptor } from '@lingui/core'
 import * as v from 'valibot'
-import { isValidUrlInput } from './safeUrl'
-
-const urlSchema = v.pipe(
-  v.string(),
-  v.trim(),
-  v.check(isValidUrlInput, 'Enter a valid URL (e.g. https://example.com)'),
-)
+import { getUrlInputCheckValue } from './urlInputPrefix'
+import {
+  URL_INPUT_ISSUE_MESSAGES,
+  validateUrlInput,
+} from './urlInputValidation'
 
 const emailSchema = v.pipe(
   v.string(),
@@ -13,13 +12,21 @@ const emailSchema = v.pipe(
   v.email('Enter a valid email address'),
 )
 
-const validate = (
-  schema: v.GenericSchema<string>,
+export const validateUrl = (
   value: string | undefined,
-): string | undefined => {
+): MessageDescriptor | undefined => {
+  if (!value || getUrlInputCheckValue(value).trim() === '') return undefined
+
+  const result = validateUrlInput(value)
+  return result.isErr()
+    ? URL_INPUT_ISSUE_MESSAGES[result.error.reason]
+    : undefined
+}
+
+export const validateEmail = (value: string | undefined) => {
   if (!value || value.trim() === '') return undefined
 
-  const result = v.safeParse(schema, value)
+  const result = v.safeParse(emailSchema, value)
 
   if (!result.success) {
     return result.issues[0]?.message
@@ -27,9 +34,3 @@ const validate = (
 
   return undefined
 }
-
-export const validateUrl = (value: string | undefined) =>
-  validate(urlSchema, value)
-
-export const validateEmail = (value: string | undefined) =>
-  validate(emailSchema, value)

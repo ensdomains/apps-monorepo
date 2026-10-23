@@ -1,14 +1,14 @@
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { zeroAddress } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
-import { NetworkConfigError } from './errors'
+import { NetworkConfigError } from './errors.ts'
 import {
   ENS_NETWORKS,
   type EnsNetwork,
   isEnsNetwork,
   NETWORKS,
   type NetworkEndpoints,
-} from './networks'
+} from './networks.ts'
 
 export { NetworkConfigError }
 

@@ -1,4 +1,4 @@
-import type { Address } from 'viem'
+import type { Address, Hex } from 'viem'
 import { describe, expect, it } from 'vitest'
 import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
 import { buildStepDescriptors } from './buildStepDescriptors'
@@ -350,5 +350,69 @@ describe('buildStepDescriptors role grants (WEB-1528)', () => {
       approvalId: 'name-wrapper:hca',
       roleGrants: undefined,
     })
+  })
+})
+
+describe('buildStepDescriptors owner-wallet record replay', () => {
+  const replayExecution = (name: string) => ({
+    phase: 'profile-replay' as const,
+    name,
+    names: [name],
+    call: { to: CONTRACT, data: '0x' as Hex, value: 0n },
+    innerCalls: ['0x' as Hex],
+  })
+
+  const batchWithReplays = (
+    names: readonly string[],
+    replayNames: readonly string[],
+  ): AtomicMigrationBatch =>
+    ({
+      names,
+      operations: names.map((name) => ({ name, action: 'migrate' })),
+      nameExecutions: names.map((name) => ({
+        classified: {
+          action: 'migrate',
+          domain: { name },
+          managerAddress: null,
+        },
+        walletExecutions: replayNames.includes(name)
+          ? [replayExecution(name)]
+          : [],
+      })),
+      walletCall: { to: CONTRACT, data: '0x' as Hex, value: 0n },
+    }) as unknown as AtomicMigrationBatch
+
+  it('puts the replay step before the batch it feeds', () => {
+    const descriptors = buildStepDescriptors({
+      hcaDeploymentRequired: false,
+      approvals: [],
+      atomicBatches: [
+        batchWithReplays(['alice.eth'], ['alice.eth']),
+        batches(['bob.eth'])[0] as AtomicMigrationBatch,
+      ],
+      registrationApprovalTargets: [],
+    })
+
+    expect(descriptors.map(({ type }) => type)).toEqual([
+      'record-replay',
+      'atomic-batch',
+      'atomic-batch',
+    ])
+    expect(descriptors[0]).toMatchObject({ index: 0, count: 1 })
+    expect(descriptors[1]).toMatchObject({ type: 'atomic-batch', index: 0 })
+  })
+
+  it('counts only the names whose records the replay carries', () => {
+    const descriptors = buildStepDescriptors({
+      hcaDeploymentRequired: false,
+      approvals: [],
+      atomicBatches: [
+        batchWithReplays(['alice.eth', 'bob.eth'], ['alice.eth']),
+      ],
+      registrationApprovalTargets: [],
+    })
+
+    expect(descriptors[0]).toMatchObject({ type: 'record-replay', count: 1 })
+    expect(descriptors[1]).toMatchObject({ type: 'atomic-batch', count: 2 })
   })
 })

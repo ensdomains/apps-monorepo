@@ -31,6 +31,7 @@ export const DesktopHeader = ({
       <FloatingWrapper className="w-full max-w-xl" ref={leftBlockRef}>
         <DesktopNavigation
           anchorRef={leftBlockRef}
+          isConnected={isConnected}
           profileHeader={transparentBackground}
           profileThemeColor={profileThemeColor}
         />

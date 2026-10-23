@@ -262,7 +262,7 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
     expect(getV1ProfileKeysMock).not.toHaveBeenCalled()
   })
 
-  it('is true when all profile keys are empty', async () => {
+  it('is false even with an empty inventory, so pubkeys are still read on-chain', async () => {
     const result = await run({
       domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
       profileKeys: ok([
@@ -272,40 +272,7 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
           coinTypes: [],
           hasContentHash: false,
           abiContentTypes: [],
-        },
-      ]),
-    })
-    expect(result.skipFetchProfilesPhase).toBe(true)
-  })
-
-  it('is false when any profile has at least one text or coin type', async () => {
-    const result = await run({
-      domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-      profileKeys: ok([
-        {
-          id: '0xabc',
-          texts: ['email'],
-          coinTypes: [],
-          hasContentHash: false,
-          abiContentTypes: [],
-        },
-      ]),
-    })
-    expect(result.skipFetchProfilesPhase).toBe(false)
-  })
-
-  it.each([
-    ['contenthash', { hasContentHash: true, abiContentTypes: [] }],
-    ['ABI', { hasContentHash: false, abiContentTypes: [1n] }],
-  ])('is false when the profile only has a %s record', async (_, records) => {
-    const result = await run({
-      domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-      profileKeys: ok([
-        {
-          id: '0xabc',
-          texts: [],
-          coinTypes: [],
-          ...records,
+          interfaceIds: [],
         },
       ]),
     })
