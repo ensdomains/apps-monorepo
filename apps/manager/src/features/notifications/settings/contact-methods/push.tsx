@@ -182,8 +182,11 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
           a session-scoped (or silently revoked) grant that expired while the
           browser was closed. Explain why re-enabling is expected here. */}
       {isSupported && permission === 'default' && matchedChannel && (
-        <Alert>
-          <MSymbol className="ms-opsz-16 ms-wght-300 block" symbol="info" />
+        <Alert
+          icon={
+            <MSymbol className="ms-opsz-16 ms-wght-300 block" symbol="info" />
+          }
+        >
           <AlertTitle>
             <Trans>Turn notifications back on</Trans>
           </AlertTitle>
@@ -197,8 +200,15 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
         </Alert>
       )}
       {lastEnableErrorCopy && (
-        <Alert variant="destructive">
-          <MSymbol className="ms-opsz-16 ms-wght-300 block" symbol="warning" />
+        <Alert
+          icon={
+            <MSymbol
+              className="ms-opsz-16 ms-wght-300 block"
+              symbol="warning"
+            />
+          }
+          variant="destructive"
+        >
           <AlertTitle>{lastEnableErrorCopy.title}</AlertTitle>
           <AlertDescription>{lastEnableErrorCopy.description}</AlertDescription>
         </Alert>

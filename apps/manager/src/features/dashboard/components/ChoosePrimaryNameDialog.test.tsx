@@ -401,7 +401,7 @@ describe('chooser ENSv2 upgrade warning', () => {
 
     const dialog = await openChooser()
 
-    expect(within(dialog).getByRole('alert')).toHaveTextContent(WARNING)
+    expect(within(dialog).getByRole('status')).toHaveTextContent(WARNING)
   })
 
   it('shows the same warning when the V1 lookup fails', async () => {
@@ -409,7 +409,7 @@ describe('chooser ENSv2 upgrade warning', () => {
 
     const dialog = await openChooser()
 
-    expect(within(dialog).getByRole('alert')).toHaveTextContent(WARNING)
+    expect(within(dialog).getByRole('status')).toHaveTextContent(WARNING)
   })
 
   it.each([

@@ -25,7 +25,8 @@ const alertVariants = cva(
         success:
           'border-ens-peridot-border bg-ens-peridot-bg text-ens-peridot-text-dark',
         error: 'border-ens-lapis-dust bg-ens-lapis-tint text-ens-lapis-dense',
-        warning: 'border-ens-orange-light bg-ens-yellow-light text-ens-gray',
+        warning:
+          'border-ens-signal-warning-400 bg-ens-signal-warning-100 text-ens-signal-warning-800',
         info: 'border-ens-lapis-dust bg-ens-lapis-bg text-ens-lapis-dense',
         // Legacy red style kept for existing callers; prefer `error`.
         destructive: 'bg-card text-destructive',
@@ -45,7 +46,7 @@ const alertDescriptionVariants = cva('', {
       default: 'text-ens-gray',
       success: 'text-ens-peridot-text-medium',
       error: 'text-ens-lapis-dense/70',
-      warning: 'text-ens-gray',
+      warning: 'text-ens-signal-warning-800',
       info: 'text-ens-lapis-core',
       destructive: 'text-destructive/90',
     },
@@ -70,7 +71,8 @@ const ALERT_LIVE_REGIONS: Readonly<
   default: { role: 'status', live: 'polite' },
   success: { role: 'status', live: 'polite' },
   error: { role: 'alert', live: 'assertive' },
-  warning: { role: 'alert', live: 'assertive' },
+  // Warnings are standing context, not interruptions
+  warning: { role: 'status', live: 'polite' },
   info: { role: 'status', live: 'polite' },
   destructive: { role: 'alert', live: 'assertive' },
 }
@@ -111,7 +113,7 @@ const Alert = ({
           aria-hidden="true"
           className={cn(
             'mt-0.5 flex shrink-0 *:size-4',
-            variant === 'warning' && 'text-ens-orange',
+            variant === 'warning' && 'text-ens-signal-warning-700',
           )}
           data-slot="alert-icon"
         >
