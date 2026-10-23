@@ -8,13 +8,13 @@ import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 import { isFeatureEnabled } from '@/utils/feature-flags'
-import { subscribePendingL2Bridge } from '../service/pendingL2Bridge'
 import { createRegistrationPersistenceAdapter } from '../service/registrationPersistence'
 import {
   getRegistrationV2ChildActor,
   getSuspendableRunOwner,
   registrationV2UiMachine,
 } from './registrationUi.machine'
+import { usePendingL2BridgePersistence } from './usePendingL2BridgePersistence'
 import { useRegistrationLockSweep } from './useRegistrationLockSweep'
 import {
   type RegistrationResumeState,
@@ -82,14 +82,7 @@ export const RegistrationV2UiProvider = ({
     return subscription.unsubscribe
   }, [registrationV2UiActor])
 
-  // Not gated on resume: a cancelled run's payment must be waited for anyway.
-  useEffect(
-    () =>
-      registrationActor
-        ? subscribePendingL2Bridge(registrationActor)
-        : undefined,
-    [registrationActor],
-  )
+  usePendingL2BridgePersistence(registrationActor)
 
   // The kill switch gates the writes and the resume together: a record that
   // will never be picked up should not be written either. Orphan cleanup is
