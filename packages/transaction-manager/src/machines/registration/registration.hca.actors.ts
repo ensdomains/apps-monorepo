@@ -697,13 +697,13 @@ const HCA_CREDIT_WAIT_MS = 2 * 60_000
  * Gives the last read after `timeoutMs`, as a balance spent since never gets there.
  */
 export const readHcaUsdcBalanceAtLeastActor = ResultFn(async function* (input: {
-  hca: Address
-  publicClient: PublicClient
-  chainId: number
-  atLeast: bigint
-  signal?: AbortSignal
-  pollIntervalMs?: number
-  timeoutMs?: number
+  readonly hca: Address
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly atLeast: bigint
+  readonly signal?: AbortSignal
+  readonly pollIntervalMs?: number
+  readonly timeoutMs?: number
 }) {
   const deadline = Date.now() + (input.timeoutMs ?? HCA_CREDIT_WAIT_MS)
   let balance: bigint | undefined
