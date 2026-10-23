@@ -1784,6 +1784,10 @@ msgstr "One username everywhere"
 msgid "Only ENSv2 Names Supported"
 msgstr "Only ENSv2 Names Supported"
 
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "Open in ENS Explorer"
+msgstr "Open in ENS Explorer"
+
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"
 msgstr "Open navigation"
@@ -2026,6 +2030,10 @@ msgstr "Reconnect your owner wallet to continue."
 #: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
 msgid "Register name"
 msgstr "Register name"
+
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "Register this name in the ENS Explorer"
+msgstr "Register this name in the ENS Explorer"
 
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx
 msgid "Register to date"
@@ -3096,6 +3104,10 @@ msgstr "Upgrading names with a different manager requires temporary permission f
 msgid "USD"
 msgstr "USD"
 
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "Use a different wallet"
+msgstr "Use a different wallet"
+
 #: src/features/landing/IntegrationsSection.tsx
 msgid "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
 msgstr "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
@@ -3313,6 +3325,10 @@ msgstr "We couldn't upgrade one of your names. Try again."
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
 msgstr "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
+
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
+msgstr "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
 
 #: src/features/migration/components/success/CommemorativeNftDashboardSection.tsx
 msgid "Welcome to ENSv2"
