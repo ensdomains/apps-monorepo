@@ -19,7 +19,13 @@ vi.mock('@/features/migration/service/migrationInvariants', () => ({
 vi.mock('./changeResolver', () => ({
   buildSetResolverCall: vi.fn(() => SET_RESOLVER_CALL),
   resolveNameRegistry: vi.fn(async () => LOCATION),
+  readNameResolver: vi.fn(
+    async () => '0x5555555555555555555555555555555555555555',
+  ),
   NameRegistryNotFoundError: class NameRegistryNotFoundError extends Error {},
+}))
+vi.mock('./resolverImport', () => ({
+  verifyResolverRecords: vi.fn(async () => {}),
 }))
 vi.mock('./profileRecordTransactions', () => ({
   saveRecords: vi.fn(async () => ({ hash: '0xrecords' })),
@@ -70,12 +76,22 @@ const publicClient = {} as PublicClient
 
 const signer: EOASigner = {
   type: 'eoa',
-  walletClient: { account: { address: OWNER } } as WalletClient,
+  walletClient: {
+    account: { address: OWNER },
+    getChainId: async () => CHAIN_ID,
+    getAddresses: async () => [OWNER],
+  } as unknown as WalletClient,
 }
 
 const snapshots = {
-  before: { texts: [], coins: [] },
-  after: { texts: [], coins: [{ coinType: 60, value: OWNER }] },
+  before: {
+    texts: [{ key: 'description', value: 'Retained source description' }],
+    coins: [],
+  },
+  after: {
+    texts: [{ key: 'description', value: 'Retained source description' }],
+    coins: [{ coinType: 60, value: OWNER }],
+  },
 }
 
 const startTransaction = vi.mocked(transactionManager.startTransaction)
@@ -122,7 +138,7 @@ describe('setupControlledResolver', () => {
       wallet: OWNER,
       publicClient,
     })
-    expect(locateRegistry).toHaveBeenCalledWith('leon.eth')
+    expect(locateRegistry).toHaveBeenCalledWith('leon.eth', publicClient)
     expect(buildSetResolverCall).toHaveBeenCalledWith({
       ...LOCATION,
       newResolver: RESOLVER,
@@ -142,7 +158,8 @@ describe('setupControlledResolver', () => {
         accountAddress: OWNER,
         resolverAddress: RESOLVER,
         shouldClearRecords: true,
-        ...snapshots,
+        before: { texts: [], coins: [] },
+        after: snapshots.after,
       }),
     )
     expect(startTransaction.mock.invocationCallOrder[0]).toBeLessThan(
@@ -349,7 +366,7 @@ describe('setupControlledResolver', () => {
       }),
     ).resolves.toBe(RESOLVER)
 
-    expect(locateRegistry).toHaveBeenCalledWith('sub.leon.eth')
+    expect(locateRegistry).toHaveBeenCalledWith('sub.leon.eth', publicClient)
     expect(buildSetResolverCall).toHaveBeenCalledWith({
       label: 'sub',
       registryAddress: PARENT_REGISTRY,
@@ -367,7 +384,7 @@ describe('setupControlledResolver', () => {
       ...snapshots,
     })
 
-    expect(locateRegistry).toHaveBeenCalledWith('leon.eth')
+    expect(locateRegistry).toHaveBeenCalledWith('leon.eth', publicClient)
   })
 
   it('leaves a name that already carries a TLD alone', async () => {
@@ -388,7 +405,7 @@ describe('setupControlledResolver', () => {
       }),
     ).rejects.toBeInstanceOf(NameRegistryNotFoundError)
 
-    expect(locateRegistry).toHaveBeenCalledWith('jobintime.xyz')
+    expect(locateRegistry).toHaveBeenCalledWith('jobintime.xyz', publicClient)
     expect(startTransaction).not.toHaveBeenCalled()
   })
 

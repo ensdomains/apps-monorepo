@@ -13,7 +13,6 @@ import {
   type PublicClient,
 } from 'viem'
 import { envConfig } from '@/config'
-
 import { V2_CONTRACTS } from '../contracts/addresses'
 import {
   GAS_HEURISTIC,
@@ -78,9 +77,19 @@ import {
   getRequiredMigrationContracts,
   resolverWriterFor,
 } from './migrationInvariants'
+import { checkRetainedManagerResolvers } from './retainedManagerResolver'
+import {
+  applySubnameRecreation,
+  assertSubnameRecreationUnchanged,
+  type SubnameRecreationSnapshot,
+} from './subnameRecreation'
+import { SubnameRecreationError } from './subnameRecreationError'
 import { getV1ProfileKeys, type V1ProfileKeys } from './v1ProfileKeys'
 
 export type MigrationPlan = {
+  readonly subnameRecreation?: SubnameRecreationSnapshot
+  /** Recovery may reconcile receipts and clean up even while rollout is off. */
+  readonly subnameRecreationEnabled?: boolean
   readonly hcaAddress: Address
   readonly hcaDeploymentRequired: boolean
   readonly migrationOwner: Address
@@ -144,6 +153,7 @@ const STATIC_INNER_EXECUTION_GAS = {
   'user-registry-deployment': 300_000n,
   'user-registry-wallet-grant': 80_000n,
   'user-registry-parent': 70_000n,
+  'subregistry-attachment': 80_000n,
   'copy-register': 0n,
   'manager-role-grant': GRANT_ROLES_GAS,
   migrate: 0n,
@@ -467,6 +477,9 @@ export const assertLockedResolverReplacementRecordSafety = async (
 
 export const buildMigrationPlan = async (params: {
   domains: readonly V1Domain[]
+  subnameRecreation?: {
+    readonly snapshot: SubnameRecreationSnapshot
+  }
   hcaAddress: Address
   migrationOwner: Address
   /** Names whose ENSv1 registry controller the owner chose to keep as manager. */
@@ -494,10 +507,24 @@ export const buildMigrationPlan = async (params: {
   // Classification never appoints a manager on its own: a v1 registry
   // controller that differs from the registrant is only carried across for the
   // names the owner explicitly opted in for.
-  const classified = withManagerRestorationOptIn(
+  const ordinaryClassified = withManagerRestorationOptIn(
     classifiedNamesResult.classified,
     managerRestorationNames,
   )
+  const classified = params.subnameRecreation
+    ? applySubnameRecreation({
+        domains,
+        classified: ordinaryClassified,
+        snapshot: params.subnameRecreation.snapshot,
+        owner: migrationOwner,
+      })
+    : ordinaryClassified
+  if (params.subnameRecreation)
+    await assertSubnameRecreationUnchanged({
+      publicClient,
+      snapshot: params.subnameRecreation.snapshot,
+      domains,
+    })
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )
@@ -522,7 +549,19 @@ export const buildMigrationPlan = async (params: {
     registryContext: classified,
   })
   signal?.throwIfAborted()
-  const { ineligible } = classifiedNamesResult
+  if (params.subnameRecreation)
+    await assertRequiredMigrationContractCode({
+      publicClient,
+      contracts: [
+        'UserRegistryImpl',
+        'VerifiableFactoryProxyLogic',
+        'PermissionedResolverImpl',
+      ],
+    })
+  const ineligible = classifiedNamesResult.ineligible.filter(
+    ({ domain }) =>
+      !classified.some((name) => name.domain.name === domain.name),
+  )
   const groups = groupClassifiedNames([...classified])
   const namesToOwnedPermRes = classified.filter(
     (n) => n.resolverStrategy === 'to-owned-permres',
@@ -566,6 +605,13 @@ export const buildMigrationPlan = async (params: {
     resolverDeployed,
     walletCoAdminGranted,
     resolverWriter,
+    deployedManagerResolvers: await checkRetainedManagerResolvers({
+      publicClient,
+      chainId: requireChainId(publicClient, 'migration'),
+      hca: hcaAddress,
+      wallet: migrationOwner,
+      classified,
+    }),
     maxOuterGas: TARGET_GAS,
     estimateBatchGas: ({ names, innerExecutions, walletExecutions }) =>
       previewBatchGas({
@@ -597,6 +643,7 @@ export const buildMigrationPlan = async (params: {
     hcaAddress,
     hcaDeploymentRequired,
     migrationOwner,
+    subnameRecreation: params.subnameRecreation?.snapshot,
     classified,
     registryContext: classified,
     ineligible,
@@ -666,8 +713,16 @@ export const classifyMigrationRecoverySnapshot = (params: {
 } => {
   // The opt-in is replayed from the durable snapshot, never re-derived: the
   // resumed run must grant exactly what the first attempt planned.
+  const ordinaryDomains = params.snapshot.subnameRecreation
+    ? params.snapshot.registryDomains.filter(
+        (domain) =>
+          !params.snapshot.subnameRecreation?.roots.some((root) =>
+            domain.name.endsWith(`.${root}`),
+          ),
+      )
+    : params.snapshot.registryDomains
   const result = classifyNames(
-    [...params.snapshot.registryDomains],
+    [...ordinaryDomains],
     params.migrationOwner,
     envConfig.chain.id,
   )
@@ -677,7 +732,7 @@ export const classifyMigrationRecoverySnapshot = (params: {
   )
   if (
     result.ineligible.length > 0 ||
-    result.classified.length !== params.snapshot.registryDomains.length
+    result.classified.length !== ordinaryDomains.length
   ) {
     throw new MigrationRecoveryPlanError({
       message:
@@ -685,7 +740,26 @@ export const classifyMigrationRecoverySnapshot = (params: {
       reason: 'classification-changed',
     })
   }
-  const registryContext = withOptIn
+  const recreate = (): readonly ClassifiedName[] => {
+    try {
+      return applySubnameRecreation({
+        domains: params.snapshot.registryDomains,
+        classified: withOptIn,
+        snapshot: params.snapshot
+          .subnameRecreation as SubnameRecreationSnapshot,
+        owner: params.migrationOwner,
+      })
+    } catch (cause) {
+      if (!(cause instanceof SubnameRecreationError)) throw cause
+      throw new MigrationRecoveryPlanError({
+        message: cause.message,
+        reason: 'classification-changed',
+      })
+    }
+  }
+  const registryContext = params.snapshot.subnameRecreation
+    ? recreate()
+    : withOptIn
   assertRecoveryOperationsMatch({
     classified: registryContext,
     snapshot: params.snapshot,
@@ -697,6 +771,19 @@ export const classifyMigrationRecoverySnapshot = (params: {
   const remainingNames = new Set(
     params.snapshot.remainingOperations.map(({ name }) => name),
   )
+  for (const root of params.snapshot.subnameRecreation?.roots ?? []) {
+    const tree = registryContext.filter(
+      ({ domain }) => domain.name === root || domain.name.endsWith(`.${root}`),
+    )
+    const remaining = tree.filter(({ domain }) =>
+      remainingNames.has(domain.name),
+    )
+    if (remaining.length && remaining.length !== tree.length)
+      throw new MigrationRecoveryPlanError({
+        message: `Recreation tree "${root}" is only partially complete; reconcile the confirmed receipt before continuing.`,
+        reason: 'operation-mismatch',
+      })
+  }
   const classified = registryContext.filter(({ domain }) =>
     remainingNames.has(domain.name),
   )
@@ -748,44 +835,6 @@ export const buildMigrationRecoveryPlan = async (params: {
     })
   }
 
-  const directNames = classified.filter(
-    (name): name is DirectClassifiedName => name.action === 'migrate',
-  )
-  await assertLockedPublicResolverSetMembership({
-    publicClient,
-    names: classified,
-  })
-  signal?.throwIfAborted()
-  const [directRoutes, hcaReadiness, resolverReadiness] = await Promise.all([
-    resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
-    checkMigrationHcaReadiness({
-      publicClient,
-      hca: hcaAddress,
-      expectedOwner: migrationOwner,
-    }),
-    needsOwnedPermRes
-      ? checkDeterministicMigrationResolverReadiness({
-          publicClient,
-          hca: hcaAddress,
-          wallet: migrationOwner,
-        })
-      : Promise.resolve({ status: 'not-required' } as const),
-  ])
-  signal?.throwIfAborted()
-
-  await assertRequiredMigrationContractCode({
-    publicClient,
-    contracts: getRequiredMigrationContracts({
-      remaining: classified,
-      registryContext,
-      directRoutes,
-      hcaReadiness,
-      resolverReadiness,
-      ownedResolver: expectedOwnedPermRes,
-    }),
-  })
-  signal?.throwIfAborted()
-
   const scope: MigrationBatchJournalScope = {
     chainId,
     owner: migrationOwner,
@@ -813,14 +862,60 @@ export const buildMigrationRecoveryPlan = async (params: {
   const recordedAttemptNames = new Set(
     durableTreeOperations.map(({ name }) => name),
   )
-  await assertCopyMigrationReadiness({
+  const directNames = classified.filter(
+    (name): name is DirectClassifiedName => name.action === 'migrate',
+  )
+  await assertLockedPublicResolverSetMembership({
     publicClient,
-    hca: hcaAddress,
-    wallet: migrationOwner,
-    remaining: classified,
-    registryContext,
-    recordedAttemptNames,
+    names: classified.filter(
+      ({ domain }) => !recordedAttemptNames.has(domain.name),
+    ),
   })
+  signal?.throwIfAborted()
+  const [directRoutes, hcaReadiness, resolverReadiness] = await Promise.all([
+    resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
+    recordedAttemptNames.size || classified.length === 0
+      ? Promise.resolve({ status: 'deferred' as const, hca: hcaAddress })
+      : checkMigrationHcaReadiness({
+          publicClient,
+          hca: hcaAddress,
+          expectedOwner: migrationOwner,
+        }),
+    needsOwnedPermRes &&
+    recordedAttemptNames.size === 0 &&
+    classified.length > 0
+      ? checkDeterministicMigrationResolverReadiness({
+          publicClient,
+          hca: hcaAddress,
+          wallet: migrationOwner,
+        })
+      : Promise.resolve({ status: 'not-required' } as const),
+  ])
+  signal?.throwIfAborted()
+
+  await assertRequiredMigrationContractCode({
+    publicClient,
+    contracts: getRequiredMigrationContracts({
+      remaining: classified,
+      registryContext,
+      directRoutes,
+      hcaReadiness,
+      resolverReadiness,
+      ownedResolver: expectedOwnedPermRes,
+    }),
+  })
+  signal?.throwIfAborted()
+
+  if (classified.length > 0) {
+    await assertCopyMigrationReadiness({
+      publicClient,
+      hca: hcaAddress,
+      wallet: migrationOwner,
+      remaining: classified,
+      registryContext,
+      recordedAttemptNames,
+    })
+  }
   signal?.throwIfAborted()
 
   const classifiedByName = new Map(
@@ -839,7 +934,21 @@ export const buildMigrationRecoveryPlan = async (params: {
     walletCoAdminGranted:
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
-    resolverWriter: resolverWriterFor(resolverReadiness),
+    // A journal does not persist the generic resolver's writer. Historical
+    // completion requires the owner grant and copied values, without inventing
+    // an HCA grant that could already have been revoked before the transaction.
+    resolverWriter: recordedAttemptNames.size
+      ? 'wallet'
+      : resolverWriterFor(resolverReadiness),
+    deployedManagerResolvers: await checkRetainedManagerResolvers({
+      publicClient,
+      chainId,
+      hca: hcaAddress,
+      wallet: migrationOwner,
+      classified: classified.filter(
+        ({ domain }) => !recordedAttemptNames.has(domain.name),
+      ),
+    }),
     maxOuterGas: TARGET_GAS,
     estimateBatchGas: ({ names, innerExecutions, walletExecutions }) =>
       previewBatchGas({
@@ -874,6 +983,22 @@ export const buildMigrationRecoveryPlan = async (params: {
       }),
     ]
   })
+  // Saved helper trees may predate explicit ETHRegistry attachment. Include
+  // its approval and cleanup in the resumed review before any wallet request.
+  if (
+    classified.some(
+      (name) =>
+        name.action === 'migrate' &&
+        registryContext.some(
+          (child) =>
+            child.action === 'copy' &&
+            child.recreationRoot === name.domain.name,
+        ),
+    ) &&
+    !plannedApprovals.some(requiresMigrationApprovalCleanup)
+  ) {
+    plannedApprovals.push(temporaryMigrationHcaApproval(hcaAddress))
+  }
   const willGrantHcaApproval = plannedApprovals.some(
     requiresMigrationApprovalCleanup,
   )
@@ -924,6 +1049,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     atomicBatches: atomicPlan.batches,
     stepDescriptors,
     priorCompletedOperations: snapshot.completedOperations,
+    subnameRecreation: snapshot.subnameRecreation,
     requiresReconciliation: true,
   }
 }
@@ -934,6 +1060,18 @@ export const adjustPlanForRetry = (
 ): MigrationPlan => {
   if (migratedNames.length === 0) return plan
   const migratedSet = new Set(migratedNames)
+  for (const root of plan.subnameRecreation?.roots ?? []) {
+    const tree = plan.classified.filter(
+      ({ domain }) => domain.name === root || domain.name.endsWith(`.${root}`),
+    )
+    const completed = tree.filter(({ domain }) => migratedSet.has(domain.name))
+    if (completed.length && completed.length !== tree.length) {
+      throw new MigrationRecoveryPlanError({
+        message: `Recreation tree "${root}" is only partially verified; reconcile its confirmed receipt before continuing.`,
+        reason: 'operation-mismatch',
+      })
+    }
+  }
   const remainingClassified = plan.classified.filter(
     (c) => !migratedSet.has(c.domain.name),
   )

@@ -22,7 +22,6 @@ import {
   type PublicClient,
   type TransactionReceipt,
 } from 'viem'
-
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { TARGET_GAS } from './batchMigrate.constants'
@@ -76,6 +75,7 @@ import {
   verifyAndPersistMigrationCompletionCheckpoint,
 } from './migrationCompletionCheckpoint'
 import {
+  assertLockedPublicResolverSetMembership,
   assertNoLiveSubregistryOverwrite,
   checkDeterministicMigrationResolverReadiness,
   resolverWriterFor,
@@ -85,6 +85,12 @@ import {
   describeUpgradeOperations,
   nameCount,
 } from './migrationProgressCopy'
+import { checkRetainedManagerResolvers } from './retainedManagerResolver'
+import {
+  assertSubnameRecreationUnchanged,
+  assertSupportedSubnameMigration,
+} from './subnameRecreation'
+import { assertSubnameRecreationSnapshotCurrent } from './subnameRecreationError'
 import {
   reconcileAtomicMigrationBatch,
   verifyAtomicMigrationBatch,
@@ -112,6 +118,13 @@ class MigrationPlanChangedError extends TaggedError(
   readonly currentApprovalKeys: readonly string[]
   readonly plannedCleanupApprovalKeys: readonly string[]
   readonly currentCleanupApprovalKeys: readonly string[]
+}> {}
+
+class MigrationSourceChangedError extends TaggedError(
+  'MigrationSourceChangedError',
+)<{
+  readonly message: string
+  readonly cause: unknown
 }> {}
 
 class SubmittedAtomicMigrationIndeterminateError extends TaggedError(
@@ -295,6 +308,7 @@ const recoverySnapshotFor = (
     }
   }
   return {
+    subnameRecreation: plan.subnameRecreation,
     registryDomains: plan.registryContext.map(({ domain }) => domain),
     registryOperations,
     remainingOperations: registryOperations.filter(({ name }) =>
@@ -497,7 +511,7 @@ const approvalDescription = (approval: MigrationApproval): string => {
     case 'name-wrapper:hca':
       return 'Getting permission to upgrade your wrapped names'
     case 'eth-registry:hca':
-      return 'Getting permission to restore your managers'
+      return 'Getting permission to configure your upgraded names'
   }
 }
 
@@ -527,6 +541,11 @@ const getCurrentMigrationApprovals = async (params: {
     ...basicNeeds,
     requiresManagerRestoration: plan.classified.some(
       (name) => name.managerAddress !== null,
+    ),
+    requiresRegistryConfiguration: plan.atomicBatches.some((batch) =>
+      batch.innerExecutions.some(
+        ({ phase }) => phase === 'subregistry-attachment',
+      ),
     ),
   }
   const status = await checkMigrationApprovals({
@@ -815,6 +834,16 @@ const reconcileSubmittedAtomicBatch = async (params: {
     (name) => params.executions.get(name)?.verificationExpectations ?? [],
   )
   try {
+    if (params.plan.subnameRecreation)
+      await assertSubnameRecreationUnchanged({
+        publicClient: params.ctx.publicClient,
+        snapshot: params.plan.subnameRecreation,
+        domains: params.plan.registryContext
+          .filter(({ domain }) => submission.names.includes(domain.name))
+          .map(({ domain }) => domain),
+        toBlock: receipt.blockNumber,
+        ownTransactionHash: submission.hash,
+      })
     await verifyAtomicMigrationBatch({
       publicClient: params.ctx.publicClient,
       batch: { index: 0, verificationExpectations },
@@ -1348,6 +1377,10 @@ const buildNextAtomicBatch = async (params: {
   readonly retryPermissionHeadLag: boolean
 }) => {
   const { ctx, plan, remaining, retryPermissionHeadLag } = params
+  await assertLockedPublicResolverSetMembership({
+    publicClient: ctx.publicClient,
+    names: remaining,
+  })
   await assertCopyMigrationReadiness({
     publicClient: ctx.publicClient,
     hca: ctx.hcaAddress,
@@ -1391,6 +1424,13 @@ const buildNextAtomicBatch = async (params: {
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
     resolverWriter: resolverWriterFor(resolverReadiness),
+    deployedManagerResolvers: await checkRetainedManagerResolvers({
+      publicClient: ctx.publicClient,
+      chainId: requireChainId(ctx.publicClient, 'migration'),
+      hca: ctx.hcaAddress,
+      wallet: ctx.walletAddress,
+      classified: remaining,
+    }),
     maxOuterGas: TARGET_GAS,
     firstBatchOnly: true,
     initialBatchSize,
@@ -1642,6 +1682,10 @@ const executeRemainingAtomicBatches = async (params: {
       remaining,
       registryContext: params.plan.registryContext,
     })
+    await assertSupportedSubnameMigration({
+      publicClient: params.publicClient,
+      classified: remaining,
+    })
     const description = describeUpgradeOperations(batch.operations)
     try {
       await replayWalletRecords({
@@ -1652,6 +1696,14 @@ const executeRemainingAtomicBatches = async (params: {
     } catch (error) {
       throw wrapMigrationError(error, description)
     }
+    if (params.plan.subnameRecreation)
+      await assertSubnameRecreationUnchanged({
+        publicClient: params.publicClient,
+        snapshot: params.plan.subnameRecreation,
+        domains: params.plan.registryContext
+          .filter(({ domain }) => batch.names.includes(domain.name))
+          .map(({ domain }) => domain),
+      })
     const intent = {
       id: createAtomicMigrationIntentId(),
       names: batch.names,
@@ -1684,6 +1736,16 @@ const executeRemainingAtomicBatches = async (params: {
         },
         withGasBuffer(batch.estimatedGas),
       )
+      if (params.plan.subnameRecreation)
+        await assertSubnameRecreationUnchanged({
+          publicClient: params.publicClient,
+          snapshot: params.plan.subnameRecreation,
+          domains: params.plan.registryContext
+            .filter(({ domain }) => batch.names.includes(domain.name))
+            .map(({ domain }) => domain),
+          toBlock: receipt.blockNumber,
+          ownTransactionHash: hash,
+        })
       await verifyAtomicMigrationBatch({
         publicClient: params.publicClient,
         batch,
@@ -1747,6 +1809,9 @@ export const executeMigration = async (params: {
     onProgress,
     onBatchComplete,
   } = params
+  if (plan.subnameRecreation) {
+    assertSubnameRecreationSnapshotCurrent(plan.subnameRecreation)
+  }
   const { classified, ineligible } = plan
   const reconcileBeforeSubmit =
     params.reconcileBeforeSubmit ?? plan.requiresReconciliation ?? false
@@ -1782,6 +1847,14 @@ export const executeMigration = async (params: {
     })
 
     if (executionPlan.classified.length > 0) {
+      if (
+        executionPlan.subnameRecreation &&
+        executionPlan.subnameRecreationEnabled === false
+      ) {
+        throw new Error(
+          'Subname migration is not enabled for this session. Your transaction history has been reconciled; remaining imports are preserved for later.',
+        )
+      }
       // Re-read every destination pointer this plan writes, immediately before
       // the first wallet prompt. Preflight checks it too, but that verdict is as
       // old as the preview the user has been reading — and a retry rebuilds the
@@ -1794,6 +1867,23 @@ export const executeMigration = async (params: {
         publicClient,
         names: executionPlan.classified,
       })
+      // The reviewed preview may predate a renewal or source change. Check
+      // again before setup signatures, after reconciling any mined batches.
+      try {
+        await assertCopyMigrationReadiness({
+          publicClient,
+          hca: executionPlan.hcaAddress,
+          wallet: executionPlan.migrationOwner,
+          remaining: executionPlan.classified,
+          registryContext: executionPlan.registryContext,
+        })
+      } catch (cause) {
+        throw new MigrationSourceChangedError({
+          message:
+            'The reviewed migration source could not be verified. Refresh before upgrading.',
+          cause,
+        })
+      }
     }
 
     // Permission state is mutable outside this flow. Check both grants and
@@ -1840,7 +1930,11 @@ export const executeMigration = async (params: {
   } catch (error) {
     // A changed preview must return for a new estimate without opening an
     // unplanned revocation prompt. No transaction has been attempted yet.
-    if (error instanceof MigrationPlanChangedError) throw error
+    if (
+      error instanceof MigrationPlanChangedError ||
+      error instanceof MigrationSourceChangedError
+    )
+      throw error
     // A grant can be confirmed even when a later wallet prompt or batch fails.
     // Keep the original failure if cleanup succeeds; surface cleanup failure
     // when the wallet declines the revocation.

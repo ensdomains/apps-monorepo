@@ -88,6 +88,8 @@ export interface SaveRecordsParams {
   chainId: number
   resolverAddress: Address
   retryCount?: number
+  readonly assertCurrentIdentity?: () => void
+  readonly assertCurrentResolver?: () => Promise<void>
 }
 
 export interface SaveRecordsResult extends WaitForTransactionResult {
@@ -408,6 +410,15 @@ export async function buildRecordsUpdateCalls(
       value: value ?? '',
     }))
   }
+  // A cleared target seeded from an empty snapshot is a complete import.
+  // Keep reviewed text bytes (including meaningful whitespace) verbatim.
+  if (
+    shouldClearRecords &&
+    before.texts.length === 0 &&
+    after.texts.length > 0
+  ) {
+    ensParams.texts = after.texts.map(({ key, value }) => ({ key, value }))
+  }
 
   if (changes.coins.length > 0) {
     ensParams.coins = changes.coins.map(({ coin, value }) => ({
@@ -514,7 +525,14 @@ async function buildRecordsUpdateRequest(
 export async function saveRecords(
   params: SaveRecordsParams,
 ): Promise<SaveRecordsResult> {
-  const { publicClient, chainId, retryCount, ...requestParams } = params
+  const {
+    publicClient,
+    chainId,
+    retryCount,
+    assertCurrentIdentity,
+    assertCurrentResolver,
+    ...requestParams
+  } = params
 
   // Build the transaction request (validates and computes diff)
   const { request, description } = await buildRecordsUpdateRequest({
@@ -522,6 +540,8 @@ export async function saveRecords(
     publicClient,
     chainId,
   })
+  await assertCurrentResolver?.()
+  assertCurrentIdentity?.()
 
   console.log('🚀 [SAVE_RECORDS] Starting transaction:', {
     name: params.name,

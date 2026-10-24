@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { memo, useId, useState } from 'react'
+import { memo, type ReactNode, useId, useState } from 'react'
 import type { Address } from 'viem'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -13,12 +13,14 @@ import type { ClassifiedName } from '../service/classifyNames'
 import { getMigrationAvatarUrl } from './nameAvatar.helpers'
 
 type NameRowProps = {
-  readonly item: Pick<ClassifiedName, 'domain'>
+  readonly item: Pick<ClassifiedName, 'domain'> &
+    Partial<Pick<ClassifiedName, 'resolverStrategy'>>
   readonly isSelected: boolean
   readonly isPrimary?: boolean
   readonly isInGrace?: boolean
   readonly depth: number
   readonly onToggle?: (name: string) => void
+  readonly disabledReason?: ReactNode
   /** The v1 registry controller, when it differs from the registrant. */
   readonly managerCandidate?: Address
   readonly isManagerRestored?: boolean
@@ -32,20 +34,22 @@ type NameRowProps = {
  *
  * It always shows the address, because the account is neither the owner nor
  * anything the rest of the flow names: for a name bought on a marketplace it is
- * the seller, and granting it `ROLE_SET_RESOLVER` would let it keep changing
- * the name's resolver after the upgrade.
+ * the seller. Retaining it permits resolver changes and, when records are
+ * copied, edits on the name's dedicated resolver.
  */
 const ManagerRestorationOptIn = ({
   name,
   manager,
   isRestored,
   isLocked,
+  copiesProfile,
   onToggle,
 }: {
   readonly name: string
   readonly manager: Address
   readonly isRestored: boolean
   readonly isLocked: boolean
+  readonly copiesProfile: boolean
   readonly onToggle: (name: string) => void
 }) => (
   <label
@@ -74,8 +78,18 @@ const ManagerRestorationOptIn = ({
         <span className="font-semi-mono text-ens-garnet-900">
           {truncateAddress(manager)}
         </span>{' '}
-        as a manager. It can change this name&apos;s resolver after the upgrade.
-      </Trans>
+        as a manager.
+      </Trans>{' '}
+      {copiesProfile ? (
+        <Trans>
+          It can edit copied profile records and change this name&apos;s
+          resolver after the upgrade. Ownership stays with you.
+        </Trans>
+      ) : (
+        <Trans>
+          It can change this name&apos;s resolver after the upgrade.
+        </Trans>
+      )}
       {isLocked && (
         <span className="block text-ens-garnet-900/50">
           <Trans>Carried over from your earlier attempt.</Trans>
@@ -92,6 +106,7 @@ const NameRowComponent = ({
   isInGrace = false,
   depth,
   onToggle,
+  disabledReason,
   managerCandidate,
   isManagerRestored = false,
   isManagerRestorationLocked = false,
@@ -103,8 +118,13 @@ const NameRowComponent = ({
   const showAvatar = failedAvatarUrl !== avatarUrl
   const primaryNameId = useId()
   const renewalId = useId()
+  const disabledReasonId = useId()
   const descriptions =
-    [isPrimary && primaryNameId, isInGrace && renewalId]
+    [
+      isPrimary && primaryNameId,
+      isInGrace && renewalId,
+      disabledReason && disabledReasonId,
+    ]
       .filter(Boolean)
       .join(' ') || undefined
   const badgeClass = cn(
@@ -217,7 +237,8 @@ const NameRowComponent = ({
 
   const rowClass = cn(
     'relative flex max-w-full items-center gap-1',
-    isNested ? 'cursor-default' : 'cursor-pointer',
+    isNested || disabledReason ? 'cursor-default' : 'cursor-pointer',
+    !!disabledReason && 'opacity-65',
   )
 
   if (isNested) {
@@ -231,6 +252,7 @@ const NameRowComponent = ({
   // A locked row with nothing recorded has no choice left to show.
   const showManagerOptIn =
     isSelected &&
+    !disabledReason &&
     !!managerCandidate &&
     !!onToggleManagerRestoration &&
     (!isManagerRestorationLocked || isManagerRestored)
@@ -243,13 +265,23 @@ const NameRowComponent = ({
           aria-label={item.domain.name}
           checked={isSelected}
           className="peer sr-only"
-          onChange={() => onToggle?.(item.domain.name)}
+          disabled={!!disabledReason}
+          onChange={() => !disabledReason && onToggle?.(item.domain.name)}
           type="checkbox"
         />
         {content}
       </label>
+      {disabledReason && (
+        <p
+          className="mt-2 max-w-full text-ens-garnet-900/75 text-sm leading-5"
+          id={disabledReasonId}
+        >
+          {disabledReason}
+        </p>
+      )}
       {showManagerOptIn && (
         <ManagerRestorationOptIn
+          copiesProfile={item.resolverStrategy === 'to-owned-permres'}
           isLocked={isManagerRestorationLocked}
           isRestored={isManagerRestored}
           manager={managerCandidate}

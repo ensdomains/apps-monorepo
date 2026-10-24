@@ -20,6 +20,7 @@ import {
   assertCopyMigrationTopology,
   assertCopySourcesFresh,
 } from './copyMigrationReadiness'
+import { MIGRATION_EXPIRY_BONUS_SECONDS } from './migrationExpiry'
 import { computeUserRegistryAddress } from './userRegistryMigration'
 
 const WALLET: Address = '0x0000000000000000000000000000000000000010'
@@ -125,13 +126,28 @@ const makeClient = (params: {
     getCode: vi.fn(async ({ address }: { address: Address }) =>
       params.getCode?.(address),
     ),
-    readContract: vi.fn(async (request: ReadRequest) => params.read(request)),
+    readContract: vi.fn(async (request: ReadRequest) => {
+      if (request.functionName === 'nameExpires')
+        return WRAPPED_EXPIRY - 7776000n
+      if (
+        request.functionName === 'getState' &&
+        sameAddress(request.address, V2_CONTRACTS.ETHRegistry)
+      )
+        return {
+          status: 1,
+          expiry: WRAPPED_EXPIRY - 7776000n + MIGRATION_EXPIRY_BONUS_SECONDS,
+          latestOwner: zeroAddress,
+          tokenId: 0n,
+          resource: BigInt(String(request.args?.[0])),
+        }
+      return params.read(request)
+    }),
   }) as unknown as PublicClient
 
 const migratingRoot = (
   tokenType: 'unwrapped' | 'unlocked' | 'locked-2ld' = 'unwrapped',
-): DirectClassifiedName =>
-  makeClassified({
+): DirectClassifiedName => {
+  const root = makeClassified({
     action: 'migrate',
     tokenType,
     id: '0x01',
@@ -140,6 +156,15 @@ const migratingRoot = (
     parentName: 'eth',
     tokenHolder: WALLET,
   })
+  return {
+    ...root,
+    domain: {
+      ...root.domain,
+      registration: { expiryDate: (WRAPPED_EXPIRY - 7776000n).toString() },
+      wrappedDomain: { expiryDate: WRAPPED_EXPIRY.toString(), fuses: 0 },
+    },
+  }
+}
 
 const registryCopy = (
   params: {
@@ -481,6 +506,40 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
       'source-owner-changed',
     )
   })
+
+  it.each(['unwrapped', 'unlocked', 'locked-2ld'] as const)(
+    'blocks a stale active reservation for direct %s before signing',
+    async (tokenType) => {
+      const root = migratingRoot(tokenType)
+      const client = makeClient({
+        read: () => {
+          throw new Error('Unexpected read')
+        },
+      })
+      vi.mocked(client.readContract).mockImplementation(async (request) =>
+        request.functionName === 'nameExpires'
+          ? WRAPPED_EXPIRY - 7776000n
+          : {
+              status: 1,
+              expiry:
+                WRAPPED_EXPIRY - 7776000n + MIGRATION_EXPIRY_BONUS_SECONDS - 1n,
+              latestOwner: zeroAddress,
+              tokenId: 0n,
+              resource: 2n,
+            },
+      )
+      await expectReason(
+        assertCopyMigrationReadiness({
+          publicClient: client,
+          hca: HCA,
+          wallet: WALLET,
+          remaining: [root],
+          registryContext: [root],
+        }),
+        'reservation-expiry-mismatch',
+      )
+    },
+  )
 
   it('allows a migrating 2LD to preserve its exact custom resolver', async () => {
     const customRoot = {

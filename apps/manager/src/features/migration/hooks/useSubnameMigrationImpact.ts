@@ -4,12 +4,15 @@ import {
 } from '@ens-apps/migration'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { match } from 'ts-pattern'
 import type { PublicClient } from 'viem'
 import { bigname } from '@/lib/bigname'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { publicClient } from '@/lib/wagmi'
+import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
 type Parameters = {
   readonly selectedNames: readonly string[]
@@ -71,6 +74,14 @@ export const useSubnameMigrationImpact = ({
   isPrepared,
   isRefetchEnabled = true,
 }: Parameters) => {
+  const recoverySnapshot = useMigrationRecoverySnapshot()
+  const isCleanupRecovery =
+    !!recoverySnapshot && recoverySnapshot.remainingOperations.length === 0
+  const importsEnabled =
+    useFeatureFlagEnabled(
+      POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
+      false,
+    ) === true
   const selected = new Set(selectedNames.map((name) => name.toLowerCase()))
   const migratingNames = [
     ...new Set([
@@ -87,7 +98,11 @@ export const useSubnameMigrationImpact = ({
   const copiedNames = classified
     .filter(
       (name) =>
-        name.action === 'copy' && selected.has(name.domain.name.toLowerCase()),
+        name.action === 'copy' &&
+        (!name.recreationRoot || importsEnabled) &&
+        (selected.has(name.domain.name.toLowerCase()) ||
+          (!!name.recreationRoot &&
+            selected.has(name.recreationRoot.toLowerCase()))),
     )
     .map(({ domain }) => domain.name)
     .sort()
@@ -95,6 +110,13 @@ export const useSubnameMigrationImpact = ({
     selected: [...selected].sort(),
     migratingNames,
     copiedNames,
+    importsEnabled,
+    recovery: recoverySnapshot
+      ? {
+          source: recoverySnapshot.subnameRecreation,
+          operations: recoverySnapshot.remainingOperations,
+        }
+      : null,
     renewingNames: [...renewingNames].sort(),
     owner: ownerAddress?.toLowerCase(),
     managers: [...managerRestorationNames].sort(),
@@ -118,27 +140,41 @@ export const useSubnameMigrationImpact = ({
       migratingNames,
       copiedNames,
       renewingNames,
-      isEnabled,
+      isEnabled: isEnabled && !recoverySnapshot,
       isPrepared,
       hasSelectedNames: selected.size > 0,
       isRefetchEnabled,
     }),
   )
+  // Recovery first reconciles recorded transactions and temporary approvals.
+  // A fresh indexer outage cannot stop that work. The execution service checks
+  // the saved source and feature availability before any further submission.
+  const impact = recoverySnapshot
+    ? {
+        parents: [],
+        affectedCount: 0,
+        fingerprint: selectionKey,
+        checkedAt: 0,
+      }
+    : query.data
   const status = match({
-    hasSelectedNames: selected.size > 0,
-    isLoading: !isPrepared || query.isPending || query.isFetching,
-    isError: query.isError,
+    hasSelectedNames: selected.size > 0 || isCleanupRecovery,
+    isLoading:
+      !isPrepared ||
+      (!recoverySnapshot && (query.isPending || query.isFetching)),
+    isError: !recoverySnapshot && query.isError,
   })
     .with({ hasSelectedNames: false }, () => 'idle' as const)
     .with({ isLoading: true }, () => 'loading' as const)
     .with({ isError: true }, () => 'error' as const)
     .otherwise(() => 'ready' as const)
-  const canReview = isReady && selected.size > 0
+  const canReview = isReady && (selected.size > 0 || isCleanupRecovery)
 
   const checkBeforeStart = async (
-    confirmedFingerprint?: string,
+    _confirmedFingerprint?: string,
   ): Promise<boolean> => {
     if (!canReview || status !== 'ready') return false
+    if (recoverySnapshot) return true
     const current = query.data
     const revision = currentSelection.current.revision
     const result = await query.refetch()
@@ -151,18 +187,19 @@ export const useSubnameMigrationImpact = ({
       currentSelection.current.revision === revision &&
       currentSelection.current.isReady &&
       result.data.fingerprint === current?.fingerprint &&
-      (result.data.affectedCount === 0 ||
-        result.data.fingerprint === confirmedFingerprint)
+      result.data.affectedCount === 0
     )
   }
 
   return {
     status,
-    impact: query.data,
+    impact,
     selectionKey,
     canReview,
+    isBlocked: status === 'ready' && (impact?.affectedCount ?? 0) > 0,
     checkBeforeStart,
     retry: () => {
+      if (recoverySnapshot) return
       void query.refetch()
     },
   }

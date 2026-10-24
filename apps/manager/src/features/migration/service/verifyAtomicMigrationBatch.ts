@@ -37,6 +37,7 @@ const permissionedRegistryReadAbi = parseAbi([
 const STATUS_REGISTERED = 2
 
 const permissionedResolverReadAbi = parseAbi([
+  'function roles(uint256 resource, address account) view returns (uint256)',
   'function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)',
 ])
 
@@ -303,20 +304,20 @@ const checkExpectation = async (
       })
       return isAddressEqual(implementation, expectation.expectedImplementation)
     }
+    case 'wallet-name-roles':
     case 'resolver-root-roles': {
       if (expectation.rootName !== '0x00') return false
       if (!(await hasContractCode(context, expectation.resolver))) return false
-      return context.publicClient.readContract({
-        address: expectation.resolver,
-        abi: permissionedResolverReadAbi,
-        functionName: 'hasRootRoles',
-        args: [expectation.roleBitmap, expectation.account],
-        ...block,
-      })
-    }
-    case 'wallet-name-roles': {
-      if (expectation.rootName !== '0x00') return false
-      if (!(await hasContractCode(context, expectation.resolver))) return false
+      if (expectation.exact)
+        return (
+          (await context.publicClient.readContract({
+            address: expectation.resolver,
+            abi: permissionedResolverReadAbi,
+            functionName: 'roles',
+            args: [0n, expectation.account],
+            ...block,
+          })) === expectation.roleBitmap
+        )
       return context.publicClient.readContract({
         address: expectation.resolver,
         abi: permissionedResolverReadAbi,

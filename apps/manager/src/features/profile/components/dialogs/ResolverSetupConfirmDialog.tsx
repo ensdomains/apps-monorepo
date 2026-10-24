@@ -48,12 +48,24 @@ const getCopy = (
       ),
       confirmLabel: <Trans>Continue</Trans>,
     }))
-    .with({ intent: 'edit-profile' }, () => ({
+    .with({ intent: 'edit-profile', isReplacing: false }, () => ({
       title: <Trans>Set up this name’s resolver?</Trans>,
       description: (
         <Trans>
-          To save these changes, we’ll set a resolver your wallet controls and
-          keep only the changes you save.
+          We’ll prepare a resolver your wallet controls with the records you
+          reviewed, verify them, then assign it to this name.
+        </Trans>
+      ),
+      confirmLabel: <Trans>Set up & Save</Trans>,
+    }))
+    .with({ intent: 'edit-profile', isReplacing: true }, () => ({
+      title: <Trans>Set up this name’s resolver?</Trans>,
+      description: (
+        <Trans>
+          We’ll prepare a resolver your wallet controls with the records you
+          reviewed, verify them, then switch this name to it. Missing records
+          will not be copied. Your current resolver stays active until the
+          replacement is ready.
         </Trans>
       ),
       confirmLabel: <Trans>Replace & Save</Trans>,

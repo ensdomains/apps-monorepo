@@ -91,8 +91,10 @@ export type CopyClassifiedName = ClassifiedNameBase & {
   readonly action: 'copy'
   readonly tokenType: CopyTokenType
   readonly copySource: CopySource
+  /** Complete-tree helper only; the source controller receives manager access. */
+  readonly recreationRoot?: string
   readonly sourceExpiry: bigint
-  readonly resolverStrategy: 'to-owned-permres'
+  readonly resolverStrategy: ResolverStrategy
   readonly registryController: null
   readonly managerAddress: null
 }

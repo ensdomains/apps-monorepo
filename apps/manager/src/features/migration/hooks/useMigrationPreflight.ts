@@ -18,6 +18,7 @@ type EnsureOptions = {
   readonly staleTime?: number
   /** Whether any name was opted in to manager restoration. */
   readonly requiresManagerRestoration?: boolean
+  readonly requiresRegistryConfiguration?: boolean
 }
 
 export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
@@ -44,6 +45,8 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
     // re-running it.
     const requiresManagerRestoration =
       options.requiresManagerRestoration ?? false
+    const requiresRegistryConfiguration =
+      options.requiresRegistryConfiguration ?? false
     const preflight = await queryClient.fetchQuery({
       queryKey: [
         'migration-preflight',
@@ -51,6 +54,7 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
         hcaAddress?.toLowerCase() ?? '',
         ids,
         requiresManagerRestoration,
+        requiresRegistryConfiguration,
       ] as const,
       queryFn: () =>
         computeMigrationPreflight({
@@ -58,6 +62,7 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
           hcaAddress,
           domains,
           requiresManagerRestoration,
+          requiresRegistryConfiguration,
           wagmiConfig,
           publicClient: publicClient as unknown as PublicClient,
           signal: options.signal,

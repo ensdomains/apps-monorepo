@@ -28,6 +28,17 @@ vi.mock('@/lib/wagmi/helpers', async () => {
   return { safeGetClient: () => ok(mocks.client) }
 })
 vi.mock('@/utils/debug-features', () => ({ isDebugProfileName: () => false }))
+vi.mock('./changeResolver', () => {
+  class NameRegistryNotFoundError extends Error {}
+  return {
+    NameRegistryNotFoundError,
+    resolveNameRegistry: async () => {
+      throw new NameRegistryNotFoundError()
+    },
+    readNameResolver: vi.fn(),
+    hasV2NameEntry: vi.fn(),
+  }
+})
 vi.mock('../data/records', () => ({
   addressRecords: [{ coinType: 60 }, { coinType: 121 }, { coinType: 501 }],
   alwaysProbeAddressRecords: [],

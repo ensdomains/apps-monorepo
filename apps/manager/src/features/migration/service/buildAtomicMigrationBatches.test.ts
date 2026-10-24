@@ -65,14 +65,31 @@ const hcaOwnerExecutionAbi = parseAbi([
 const makeName = (
   name: string,
   overrides: Parameters<typeof makeClassified>[0] = {},
-): ClassifiedName =>
-  makeClassified({
+): ClassifiedName => {
+  const classified = makeClassified({
     id: name,
     labelhash: name,
     label: name.split('.')[0],
     name,
     ...overrides,
   })
+  return classified.action === 'copy'
+    ? classified
+    : {
+        ...classified,
+        domain: {
+          ...classified.domain,
+          registration:
+            classified.parentName === 'eth'
+              ? { expiryDate: '4094668800' }
+              : null,
+          wrappedDomain: {
+            expiryDate: '4102444800',
+            fuses: Number(classified.fuses),
+          },
+        },
+      }
+}
 
 const directRoutesFor = (
   classified: readonly ClassifiedName[],
@@ -313,6 +330,20 @@ describe('buildAtomicMigrationBatches', () => {
     })
     const batch = plan.batches[0]
     assert(batch)
+    expect(batch.verificationExpectations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'name-expiry',
+          name: 'parent.eth',
+          expectedExpiry: 4100025601n,
+        }),
+        expect.objectContaining({
+          type: 'name-expiry',
+          name: 'sub.parent.eth',
+          expectedExpiry: 4102444800n,
+        }),
+      ]),
+    )
 
     expect(batch.names).toEqual(['parent.eth', 'sub.parent.eth'])
     expect(batch.innerExecutions.map((execution) => execution.phase)).toEqual([
@@ -384,6 +415,7 @@ describe('buildAtomicMigrationBatches', () => {
       'wallet-name-roles',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-owner-roles',
       'wrapper-subregistry',
       'wrapper-root-roles',
@@ -395,6 +427,7 @@ describe('buildAtomicMigrationBatches', () => {
       'profile-interface',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-owner-roles',
       'wrapper-subregistry',
       'wrapper-root-roles',
@@ -981,9 +1014,11 @@ describe('buildAtomicMigrationBatches', () => {
       'wallet-name-roles',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-subregistry',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-subregistry',
     ])
 

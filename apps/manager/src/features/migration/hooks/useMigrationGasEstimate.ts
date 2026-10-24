@@ -1,6 +1,7 @@
 // biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: this hook keeps standard preview, durable recovery, account readiness, and query result states in one stable hook order.
 
 import type { V1Domain } from '@ens-apps/migration'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, formatEther, type PublicClient } from 'viem'
@@ -19,6 +20,11 @@ import {
   migrationPreparationFailure,
   runMigrationPreparationStage,
 } from '@/features/migration/service/migrationPreparationError'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import {
+  assertSupportedSubnameMigration,
+  discoverSubnameRecreation,
+} from '../service/subnameRecreation'
 import { useMigrationPreflight } from './useMigrationPreflight'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
@@ -86,6 +92,7 @@ const buildEstimate = async (params: {
   readonly recoverySnapshot: MigrationRecoverySnapshot | null
   readonly recoverySelectionMatches: boolean
   readonly domains: readonly V1Domain[]
+  readonly recreateSubnames: boolean
   readonly managerRestorationNames: readonly string[]
   readonly signal: AbortSignal
   readonly ensurePreflight: (
@@ -94,6 +101,7 @@ const buildEstimate = async (params: {
       readonly signal: AbortSignal
       readonly staleTime: number
       readonly requiresManagerRestoration: boolean
+      readonly requiresRegistryConfiguration: boolean
     },
   ) => Promise<MigrationPreflight>
 }) => {
@@ -132,19 +140,40 @@ const buildEstimate = async (params: {
       return result
     })
     params.signal.throwIfAborted()
-    return { estimate, plan }
+    return {
+      estimate,
+      plan: { ...plan, subnameRecreationEnabled: params.recreateSubnames },
+    }
   }
+  const discovery = params.recreateSubnames
+    ? await runMigrationPreparationStage('plan', () =>
+        discoverSubnameRecreation({
+          domains: params.domains,
+          owner: ownerAddress,
+          publicClient,
+          signal: params.signal,
+        }),
+      )
+    : undefined
+  const recreation = discovery?.snapshot.roots.length ? discovery : undefined
   const preflight = await runMigrationPreparationStage('preflight', () =>
     params.ensurePreflight(params.domains, {
       signal: params.signal,
       staleTime: 0,
       requiresManagerRestoration: params.managerRestorationNames.length > 0,
+      requiresRegistryConfiguration:
+        recreation?.snapshot.names.some((name) =>
+          recreation.snapshot.roots.some((root) => name.endsWith(`.${root}`)),
+        ) ?? false,
     }),
   )
   params.signal.throwIfAborted()
   const plan = await runMigrationPreparationStage('plan', () =>
     buildMigrationPlan({
-      domains: params.domains,
+      domains: recreation?.domains ?? params.domains,
+      subnameRecreation: recreation
+        ? { snapshot: recreation.snapshot }
+        : undefined,
       hcaAddress,
       migrationOwner: ownerAddress,
       managerRestorationNames: params.managerRestorationNames,
@@ -154,6 +183,13 @@ const buildEstimate = async (params: {
     }),
   )
   params.signal.throwIfAborted()
+  await runMigrationPreparationStage('plan', () =>
+    assertSupportedSubnameMigration({
+      publicClient,
+      classified: plan.classified,
+      signal: params.signal,
+    }),
+  )
   const estimate = await runMigrationPreparationStage('fee', async () => {
     const result = await estimateMigrationGasCost({ plan, publicClient })
     if (result.status === 'error') throw result.error
@@ -172,6 +208,12 @@ export const useMigrationGasEstimate = ({
   v1Names,
   enabled: estimateEnabled = true,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
+  // Roll out the reviewed-snapshot import independently of ordinary migration.
+  const helperFlag = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
+    false,
+  )
+  const recreateSubnames = helperFlag === true
   const publicClient = usePublicClient()
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress,
@@ -213,19 +255,28 @@ export const useMigrationGasEstimate = ({
     !!ownerAddress &&
     !!hcaAddress &&
     !!publicClient &&
-    selectedNames.length > 0 &&
+    (selectedNames.length > 0 || !!recoverySnapshot) &&
     domains.length > 0
   const recoverySelectionMatches =
     !recoverySnapshot ||
-    (selectedNames.length === recoverySnapshot.remainingOperations.length &&
-      recoverySnapshot.remainingOperations.every(({ name }) =>
-        selectedNameSet.has(name),
+    (recoverySnapshot.remainingOperations.every(
+      ({ name }) =>
+        selectedNameSet.has(name) ||
+        recoverySnapshot.subnameRecreation?.roots.some(
+          (root) => selectedNameSet.has(root) && name.endsWith(`.${root}`),
+        ),
+    ) &&
+      selectedNames.every((name) =>
+        recoverySnapshot.remainingOperations.some(
+          (operation) => operation.name === name,
+        ),
       ))
 
   const query = useQuery({
     queryKey: [
       'migration-gas-estimate',
       {
+        recreateSubnames,
         ownerAddress: ownerAddress?.toLowerCase() ?? '',
         hcaAddress: hcaAddress?.toLowerCase() ?? '',
         domainIds,
@@ -247,6 +298,7 @@ export const useMigrationGasEstimate = ({
         publicClient: publicClient as unknown as PublicClient | undefined,
         recoverySnapshot,
         recoverySelectionMatches,
+        recreateSubnames,
         domains,
         managerRestorationNames: managerRestorationKey,
         ensurePreflight,

@@ -14,6 +14,11 @@ const mocks = vi.hoisted(() => ({
   estimate: vi.fn(),
   recovery: vi.fn(),
 }))
+vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: () => false }))
+vi.mock('../service/subnameRecreation', () => ({
+  discoverSubnameRecreation: vi.fn(),
+  assertSupportedSubnameMigration: vi.fn().mockResolvedValue(undefined),
+}))
 vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.query }))
 vi.mock('wagmi', () => ({ usePublicClient: mocks.client }))
 vi.mock('./useMigrationPreflight', () => ({

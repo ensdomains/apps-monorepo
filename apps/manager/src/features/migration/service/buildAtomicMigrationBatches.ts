@@ -15,6 +15,7 @@ import {
   type Hex,
   isAddressEqual,
   namehash,
+  parseAbi,
   zeroAddress,
 } from 'viem'
 
@@ -46,7 +47,14 @@ import {
 } from './encodeMigration'
 import type { Profile } from './fetchV1Profiles'
 import { profileMapKey } from './fetchV1Profiles'
+import { directMigrationExpiry } from './migrationExpiry'
 import type { MigrationResolverWriter } from './migrationInvariants'
+import {
+  computeRetainedManagerResolverAddress,
+  computeRetainedManagerResolverSalt,
+  needsRetainedManagerResolver,
+  RETAINED_MANAGER_RECORD_ROLES,
+} from './retainedManagerResolver'
 import {
   buildRegisterCopiedSubnameCall,
   buildUserRegistrySetupCalls,
@@ -70,6 +78,7 @@ type AtomicMigrationExecutionPhase =
   | 'user-registry-wallet-grant'
   | 'user-registry-parent'
   | 'migrate'
+  | 'subregistry-attachment'
   | 'copy-register'
   | 'manager-role-grant'
   | 'profile-replay'
@@ -125,6 +134,7 @@ type ResolverImplementationExpectation = {
 }
 
 type ResolverRootRolesExpectation = {
+  readonly exact?: boolean
   readonly id: string
   readonly type: 'resolver-root-roles'
   readonly name: string
@@ -135,6 +145,7 @@ type ResolverRootRolesExpectation = {
 }
 
 type WalletNameRolesExpectation = {
+  readonly exact?: boolean
   readonly id: string
   readonly type: 'wallet-name-roles'
   readonly name: string
@@ -418,6 +429,7 @@ export type BuildAtomicMigrationBatchesParams = {
   readonly defaultResolver?: Address
   readonly resolverDeployed: boolean
   readonly walletCoAdminGranted: boolean
+  readonly deployedManagerResolvers?: ReadonlySet<string>
   /**
    * Which account writes the resolver's records (default `'hca'`). `'wallet'`
    * means the HCA lost its roles: the co-admin grant step is skipped, the HCA
@@ -579,12 +591,34 @@ export const lockedWrapperRootRoleBitmap = (fuses: bigint): bigint => {
 const buildResolverDeploymentCall = (params: {
   readonly chainId: number
   readonly hca: Address
+  readonly salt: bigint
+  readonly wallet: Address
+  readonly manager: Address | null
+  readonly managerRoles: bigint
 }): Call => {
   const contracts = getDestinationContracts(params.chainId)
   const initializeData = encodeFunctionData({
     abi: PERMISSIONED_RESOLVER_ABI,
     functionName: 'initialize',
-    args: [[{ account: params.hca, roleBitmap: ROLES_ALL }], []],
+    args: [
+      [
+        { account: params.hca, roleBitmap: ROLES_ALL },
+        ...(params.manager
+          ? [
+              { account: params.wallet, roleBitmap: ROLES_ALL },
+              ...(isAddressEqual(params.manager, params.wallet)
+                ? []
+                : [
+                    {
+                      account: params.manager,
+                      roleBitmap: params.managerRoles,
+                    },
+                  ]),
+            ]
+          : []),
+      ],
+      [],
+    ],
   })
 
   return {
@@ -592,11 +626,7 @@ const buildResolverDeploymentCall = (params: {
     data: encodeFunctionData({
       abi: verifiableFactoryDeployProxySnippet,
       functionName: 'deployProxy',
-      args: [
-        contracts.permissionedResolverImpl,
-        computeResolverSalt(params.hca),
-        initializeData,
-      ],
+      args: [contracts.permissionedResolverImpl, params.salt, initializeData],
     }),
     value: 0n,
   }
@@ -640,6 +670,7 @@ const profileForName = (
 }
 
 type BuildNameExecutionParams = {
+  readonly attachSubregistry: boolean
   readonly chainId: number
   readonly hca: Address
   readonly wallet: Address
@@ -647,6 +678,9 @@ type BuildNameExecutionParams = {
   readonly directRoute: DirectMigrationRoute | null
   readonly userRegistries: ReadonlyMap<string, Address>
   readonly resolver: Address
+  readonly resolverSalt: bigint
+  readonly resolverManager: Address | null
+  readonly managerRoles: bigint
   readonly defaultResolver: Address
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly resolverWriter: MigrationResolverWriter
@@ -673,6 +707,9 @@ const buildResolverSetupFragment = (params: {
   readonly wallet: Address
   readonly name: string
   readonly resolver: Address
+  readonly resolverSalt: bigint
+  readonly resolverManager: Address | null
+  readonly managerRoles: bigint
   readonly resolverWriter: MigrationResolverWriter
   readonly includeResolverVerification: boolean
   readonly includeResolverDeployment: boolean
@@ -691,6 +728,10 @@ const buildResolverSetupFragment = (params: {
               call: buildResolverDeploymentCall({
                 chainId: params.chainId,
                 hca: params.hca,
+                salt: params.resolverSalt,
+                wallet: params.wallet,
+                manager: params.resolverManager,
+                managerRoles: params.managerRoles,
               }),
             },
           ]
@@ -720,7 +761,7 @@ const buildResolverSetupFragment = (params: {
             factory: contracts.verifiableFactory,
             expectedImplementation: contracts.permissionedResolverImpl,
             deployer: params.hca,
-            salt: computeResolverSalt(params.hca),
+            salt: params.resolverSalt,
           },
           // The HCA's grant is what it lost; the wallet's is what replaces it.
           ...(isHcaWriter
@@ -745,6 +786,24 @@ const buildResolverSetupFragment = (params: {
             rootName: ROOT_NAME,
             roleBitmap: ROLES_ALL,
           },
+          ...(params.resolverManager
+            ? [
+                {
+                  id: expectationId(
+                    params.name,
+                    'resolver-root-roles',
+                    'manager',
+                  ),
+                  type: 'resolver-root-roles' as const,
+                  name: params.name,
+                  resolver: params.resolver,
+                  account: params.resolverManager,
+                  rootName: ROOT_NAME,
+                  roleBitmap: params.managerRoles,
+                  exact: true,
+                },
+              ]
+            : []),
         ]
       : [],
   }
@@ -782,12 +841,14 @@ const buildUserRegistryFragment = (params: {
   ] as const
 
   return {
-    innerExecutions: setupCalls.map((call, index) => ({
-      phase: setupPhases[index] ?? 'user-registry-parent',
-      name,
-      names: [name],
-      call,
-    })),
+    innerExecutions: [
+      ...setupCalls.map((call, index) => ({
+        phase: setupPhases[index] ?? 'user-registry-parent',
+        name,
+        names: [name],
+        call,
+      })),
+    ],
     walletExecutions: [],
     verificationExpectations: [
       {
@@ -853,7 +914,9 @@ const buildCopyRegistrationExecution = (params: {
       call: buildRegisterCopiedSubnameCall({
         registry: parentRegistry,
         label: params.classified.label,
-        owner: params.wallet,
+        owner: params.classified.recreationRoot
+          ? params.classified.tokenHolder
+          : params.wallet,
         childRegistry: params.childRegistry,
         resolver: params.expectedResolver,
         expiry: params.classified.sourceExpiry,
@@ -873,6 +936,10 @@ const buildNameStateExpectations = (params: {
   const { classified, directRoute, wallet, expectedResolver, childRegistry } =
     params
   const name = classified.domain.name
+  const expectedOwner =
+    classified.action === 'copy' && classified.recreationRoot
+      ? classified.tokenHolder
+      : wallet
   const node = namehash(name) as Hex
   const resource = labelToCanonicalId(classified.label)
   const registryPath = registryPathFor(classified)
@@ -888,7 +955,7 @@ const buildNameStateExpectations = (params: {
         resource,
         tokenType: classified.tokenType,
         registryPath,
-        expectedOwner: wallet,
+        expectedOwner,
       },
       {
         id: expectationId(name, 'name-resolver'),
@@ -899,6 +966,17 @@ const buildNameStateExpectations = (params: {
         resource,
         registryPath,
         expectedResolver,
+      },
+      {
+        id: expectationId(name, 'name-expiry'),
+        type: 'name-expiry',
+        name,
+        registryPath,
+        resource,
+        expectedExpiry:
+          classified.action === 'copy'
+            ? classified.sourceExpiry
+            : directMigrationExpiry(classified),
       },
     ]
   const subregistryExpectations: readonly AtomicMigrationVerificationExpectation[] =
@@ -923,16 +1001,8 @@ const buildNameStateExpectations = (params: {
             name,
             registryPath,
             resource,
-            account: wallet,
+            account: expectedOwner,
             roleBitmap: ROLES_ALL,
-          },
-          {
-            id: expectationId(name, 'name-expiry'),
-            type: 'name-expiry',
-            name,
-            registryPath,
-            resource,
-            expectedExpiry: classified.sourceExpiry,
           },
         ]
       : []
@@ -986,17 +1056,17 @@ const buildNameStateExpectations = (params: {
   ]
 }
 
-/**
- * A manager role is only ever restored for a name the owner opted in for, which
- * is the only thing that sets `managerAddress` — see `classifyNames`.
- */
-const buildManagerRoleFragment = (
-  classified: ClassifiedName,
-): NameExecutionFragment => {
-  if (classified.action !== 'migrate' || !classified.managerAddress) {
+/** Direct .eth managers require the owner's explicit opt-in. */
+const buildManagerRoleFragment = (params: {
+  readonly classified: ClassifiedName
+  readonly userRegistries: ReadonlyMap<string, Address>
+  readonly wallet: Address
+}): NameExecutionFragment => {
+  const { classified } = params
+  const manager =
+    classified.action === 'migrate' ? classified.managerAddress : null
+  if (!manager || isAddressEqual(manager, params.wallet))
     return EMPTY_NAME_EXECUTION_FRAGMENT
-  }
-
   const name = classified.domain.name
   return {
     innerExecutions: [
@@ -1004,7 +1074,7 @@ const buildManagerRoleFragment = (
         phase: 'manager-role-grant',
         name,
         names: [name],
-        call: buildRoleGrantCall(classified),
+        call: buildRoleGrantCall(classified as DirectClassifiedName),
       },
     ],
     walletExecutions: [],
@@ -1016,7 +1086,7 @@ const buildManagerRoleFragment = (
         label: classified.label,
         registry: V2_CONTRACTS.ETHRegistry,
         resource: labelToCanonicalId(classified.label),
-        account: classified.managerAddress,
+        account: manager,
         roleBitmap: ROLE_SET_RESOLVER,
       },
     ],
@@ -1127,7 +1197,7 @@ const buildNameExecution = (
       ? createMigrationData({
           label: params.classified.label,
           owner: params.wallet,
-          subregistry: childRegistry,
+          subregistry: params.attachSubregistry ? zeroAddress : childRegistry,
           resolver: expectedResolver,
         })
       : null
@@ -1140,11 +1210,34 @@ const buildNameExecution = (
     childRegistry,
   })
   const nameState: NameExecutionFragment = {
-    innerExecutions: buildCopyRegistrationExecution({
-      ...params,
-      childRegistry,
-      expectedResolver,
-    }),
+    innerExecutions: [
+      ...(params.attachSubregistry
+        ? [
+            {
+              phase: 'subregistry-attachment' as const,
+              name,
+              names: [name],
+              call: {
+                to: V2_CONTRACTS.ETHRegistry,
+                value: 0n,
+                data: encodeFunctionData({
+                  abi: parseAbi(['function setSubregistry(uint256,address)']),
+                  functionName: 'setSubregistry',
+                  args: [
+                    labelToCanonicalId(params.classified.label),
+                    childRegistry,
+                  ],
+                }),
+              },
+            },
+          ]
+        : []),
+      ...buildCopyRegistrationExecution({
+        ...params,
+        childRegistry,
+        expectedResolver,
+      }),
+    ],
     walletExecutions: [],
     verificationExpectations: buildNameStateExpectations({
       ...params,
@@ -1152,7 +1245,7 @@ const buildNameExecution = (
       expectedResolver,
     }),
   }
-  const managerRole = buildManagerRoleFragment(params.classified)
+  const managerRole = buildManagerRoleFragment(params)
   const profileReplay = buildProfileReplayFragment(params)
   const fragments = [
     resolverSetup,
@@ -1189,6 +1282,7 @@ const buildNameExecutions = (params: {
   readonly resolverWriter: MigrationResolverWriter
   readonly resolverDeployed: boolean
   readonly walletCoAdminGranted: boolean
+  readonly deployedManagerResolvers: ReadonlySet<string>
 }): readonly AtomicMigrationNameExecution[] => {
   const directNames = params.classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
@@ -1202,10 +1296,13 @@ const buildNameExecutions = (params: {
     registryContext: params.registryContext,
   })
   const firstResolverNameIndex = ordered.findIndex(
-    (name) => name.resolverStrategy === 'to-owned-permres',
+    (name) =>
+      name.resolverStrategy === 'to-owned-permres' &&
+      !needsRetainedManagerResolver(name),
   )
 
   return ordered.map((classified, index) => {
+    const dedicatedResolver = needsRetainedManagerResolver(classified)
     const receivesResolverSetup = index === firstResolverNameIndex
     const directRoute =
       classified.action === 'migrate'
@@ -1218,13 +1315,34 @@ const buildNameExecutions = (params: {
     }
     return buildNameExecution({
       ...params,
+      attachSubregistry:
+        classified.action === 'migrate' &&
+        params.registryContext.some(
+          (child) =>
+            child.action === 'copy' &&
+            child.recreationRoot === classified.domain.name,
+        ),
+      resolver: dedicatedResolver
+        ? computeRetainedManagerResolverAddress({
+            ...params,
+            name: classified.domain.name,
+          })
+        : params.resolver,
+      resolverSalt: dedicatedResolver
+        ? computeRetainedManagerResolverSalt(classified.domain.name)
+        : computeResolverSalt(params.hca),
+      resolverManager: dedicatedResolver ? classified.managerAddress : null,
+      managerRoles: RETAINED_MANAGER_RECORD_ROLES,
+      resolverWriter: dedicatedResolver ? 'hca' : params.resolverWriter,
       classified,
       directRoute,
       userRegistries,
-      includeResolverVerification: receivesResolverSetup,
-      includeResolverDeployment:
-        receivesResolverSetup && !params.resolverDeployed,
+      includeResolverVerification: dedicatedResolver || receivesResolverSetup,
+      includeResolverDeployment: dedicatedResolver
+        ? !params.deployedManagerResolvers.has(classified.domain.name)
+        : receivesResolverSetup && !params.resolverDeployed,
       includeWalletCoAdminGrant:
+        !dedicatedResolver &&
         receivesResolverSetup &&
         (!params.resolverDeployed || !params.walletCoAdminGranted),
     })
@@ -1280,6 +1398,7 @@ export const buildAtomicMigrationInnerExecutions = (params: {
     ...executionsForPhase('user-registry-wallet-grant'),
     ...executionsForPhase('user-registry-parent'),
     ...helperExecutions,
+    ...executionsForPhase('subregistry-attachment'),
     ...executionsForPhase('copy-register'),
     ...executionsForPhase('manager-role-grant'),
     ...executionsForPhase('profile-replay'),
@@ -1504,9 +1623,35 @@ export const buildAtomicMigrationBatches = async (
     resolverWriter: params.resolverWriter ?? 'hca',
     resolverDeployed: params.resolverDeployed,
     walletCoAdminGranted: params.walletCoAdminGranted,
+    deployedManagerResolvers: params.deployedManagerResolvers ?? new Set(),
   })
 
-  if (params.firstBatchOnly) {
+  const roots = new Set(
+    params.classified.flatMap((name) =>
+      name.action === 'copy' && name.recreationRoot
+        ? [name.recreationRoot]
+        : [],
+    ),
+  )
+  const grouped = new Map<string, AtomicMigrationNameExecution[]>()
+  for (const execution of nameExecutions) {
+    const name = execution.classified
+    const key =
+      name.action === 'copy' && name.recreationRoot
+        ? name.recreationRoot
+        : name.domain.name
+    grouped.set(key, [...(grouped.get(key) ?? []), execution])
+  }
+  for (const root of roots) {
+    if (
+      !params.classified.some(
+        (name) => name.action === 'migrate' && name.domain.name === root,
+      )
+    ) {
+      throw new Error(`Cannot resume a partial recreation tree for "${root}"`)
+    }
+  }
+  if (params.firstBatchOnly && roots.size === 0) {
     const batch = await buildFirstAtomicMigrationBatch({
       hca: params.hca,
       wallet: params.wallet,
@@ -1523,8 +1668,21 @@ export const buildAtomicMigrationBatches = async (
   let currentNameExecutions: readonly AtomicMigrationNameExecution[] = []
   let currentBatch: AtomicMigrationBatch | null = null
 
-  for (const nameExecution of nameExecutions) {
-    const candidateNameExecutions = [...currentNameExecutions, nameExecution]
+  for (const nameGroup of grouped.values()) {
+    const nameExecution = nameGroup[0]
+    if (!nameExecution) continue
+    const requestedHint = Math.trunc(params.initialBatchSize ?? 1)
+    const firstBatchBoundary = Number.isFinite(requestedHint)
+      ? Math.max(1, requestedHint)
+      : 1
+    if (
+      params.firstBatchOnly &&
+      currentBatch &&
+      currentNameExecutions.length + nameGroup.length > firstBatchBoundary
+    ) {
+      return { resolver, batches: [currentBatch] }
+    }
+    const candidateNameExecutions = [...currentNameExecutions, ...nameGroup]
     const candidate = await estimateBatch({
       index: batches.length,
       hca: params.hca,
@@ -1549,12 +1707,13 @@ export const buildAtomicMigrationBatches = async (
     }
 
     batches.push(currentBatch)
+    if (params.firstBatchOnly) return { resolver, batches }
     const singleNameBatch = await estimateBatch({
       index: batches.length,
       hca: params.hca,
       wallet: params.wallet,
       resolver,
-      nameExecutions: [nameExecution],
+      nameExecutions: nameGroup,
       estimateBatchGas: params.estimateBatchGas,
     })
     if (maxBatchGas(singleNameBatch) > params.maxOuterGas) {
@@ -1564,7 +1723,7 @@ export const buildAtomicMigrationBatches = async (
         maxOuterGas: params.maxOuterGas,
       })
     }
-    currentNameExecutions = [nameExecution]
+    currentNameExecutions = nameGroup
     currentBatch = singleNameBatch
   }
 

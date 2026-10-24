@@ -1,20 +1,22 @@
+import { computeVerifiableProxyAddress } from '@ens-apps/smart-account'
 import type { Call } from '@ens-apps/transaction-manager'
 import {
   type Address,
   encodeFunctionData,
+  isAddressEqual,
   type PublicClient,
-  parseAbiItem,
+  parseAbi,
 } from 'viem'
 import { VERIFIABLE_FACTORY_ABI } from '../contracts/abis'
-import { V2_CONTRACTS, V2_DEPLOY_BLOCK } from '../contracts/addresses'
+import { V2_CONTRACTS } from '../contracts/addresses'
 import {
   computeOwnedResolverSalt,
   getOwnedPermResInitCalldata,
 } from '../contracts/permissionedResolverAddress'
 
-const proxyDeployedEvent = parseAbiItem(
-  'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
-)
+const factoryVerificationAbi = parseAbi([
+  'function verifyContract(address) view returns(address)',
+])
 
 export const findExistingPermRes = async (params: {
   eoa: Address
@@ -23,18 +25,28 @@ export const findExistingPermRes = async (params: {
 }): Promise<Address | null> => {
   const { eoa, deployer, publicClient } = params
   const expectedSalt = computeOwnedResolverSalt(eoa, 0n)
-  const impl = V2_CONTRACTS.PermissionedResolverImpl.toLowerCase()
-  const logs = await publicClient.getLogs({
-    address: V2_CONTRACTS.VerifiableFactory,
-    event: proxyDeployedEvent,
-    args: { sender: deployer ? [eoa, deployer] : eoa },
-    fromBlock: V2_DEPLOY_BLOCK,
-    toBlock: 'latest',
-  })
-  for (const log of [...logs].reverse()) {
-    if (log.args.implementation?.toLowerCase() !== impl) continue
-    if (log.args.salt !== expectedSalt) continue
-    return log.args.proxyAddress as Address
+  // The factory address is deterministic. Looking it up directly avoids an
+  // unbounded historical event scan and still verifies the live implementation.
+  for (const account of new Set([eoa, ...(deployer ? [deployer] : [])])) {
+    const resolver = computeVerifiableProxyAddress({
+      factory: V2_CONTRACTS.VerifiableFactory,
+      proxyLogic: V2_CONTRACTS.VerifiableFactoryProxyLogic,
+      deployer: account,
+      salt: expectedSalt,
+    })
+    const code = await publicClient.getCode({ address: resolver })
+    if (!code || code === '0x') continue
+    const implementation = await publicClient.readContract({
+      address: V2_CONTRACTS.VerifiableFactory,
+      abi: factoryVerificationAbi,
+      functionName: 'verifyContract',
+      args: [resolver],
+    })
+    if (!isAddressEqual(implementation, V2_CONTRACTS.PermissionedResolverImpl))
+      throw new Error(
+        'Your existing resolver has an unsupported implementation. Review it before replacing the resolver.',
+      )
+    return resolver
   }
   return null
 }

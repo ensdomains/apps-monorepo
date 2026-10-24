@@ -75,6 +75,16 @@ async function nameRecordCalls(
 ): Promise<Hex[]> {
   const setters = encodeCalls(await nameSetterCalls({ name, ...records }))
   if (!clearRecords) return setters
+  // Unlink alone reads the resolver's default record. Allocate a fresh empty
+  // record even for an empty reviewed draft so unrelated defaults cannot leak.
+  const freshSetters = setters.length
+    ? setters
+    : encodeCalls(
+        await nameSetterCalls({
+          name,
+          texts: [{ key: 'description', value: '' }],
+        }),
+      )
   // The name-based resolver has no `clearRecords`. Unlinking the name drops it
   // to the resolver's default record, and the setters that follow in the same
   // multicall allocate it a fresh one, which is the same clean slate.
@@ -84,7 +94,7 @@ async function nameRecordCalls(
       functionName: 'linkToRecord',
       args: [dnsEncodeName(name), 0n],
     }),
-    ...setters,
+    ...freshSetters,
   ]
 }
 

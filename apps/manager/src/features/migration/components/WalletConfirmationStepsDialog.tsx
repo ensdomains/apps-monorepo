@@ -160,12 +160,12 @@ const StepCopy = ({ step }: StepCopyProps) =>
         ) : (
           <>
             <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
-              <Trans>Allow manager changes</Trans>
+              <Trans>Allow registry setup</Trans>
             </h3>
             <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
               <Trans>
-                A temporary permission on the ENS registry. No managers are
-                being added in this upgrade.
+                Allow your smart account to configure your upgraded names and
+                their subnames. No managers are being added in this upgrade.
               </Trans>
             </p>
           </>
