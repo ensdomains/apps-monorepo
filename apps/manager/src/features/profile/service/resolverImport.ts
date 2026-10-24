@@ -219,7 +219,11 @@ export const readResolverRecords = async ({
   readonly texts: readonly string[]
   readonly coins: readonly number[]
   readonly publicClient: PublicClient
-}): Promise<{ records: ProfileRecordsResult; failedKeys: string[] }> => {
+}): Promise<{
+  records: ProfileRecordsResult
+  failedKeys: string[]
+  readErrors: unknown[]
+}> => {
   const kind = await getResolverSetterKind(client, resolver)
   const reads: RecordRead[] = [
     ...texts.map((key) => ({
@@ -238,7 +242,12 @@ export const readResolverRecords = async ({
   ]
   const read = async (
     request: RecordRead,
-  ): Promise<Partial<ProfileRecordsResult> & { failedKeys: string[] }> => {
+  ): Promise<
+    Partial<ProfileRecordsResult> & {
+      failedKeys: string[]
+      readErrors: unknown[]
+    }
+  > => {
     try {
       const response =
         kind === 'name'
@@ -249,10 +258,19 @@ export const readResolverRecords = async ({
               args: [dnsEncodeName(name), request.data],
             })
           : (await client.call({ to: resolver, data: request.data })).data
-      if (!response) throw new Error('Resolver returned no data')
-      return { ...(await decodeRecordRead(request, response)), failedKeys: [] }
-    } catch {
-      return { failedKeys: [request.key] }
+      // Legacy resolvers may return no data for record types they do not support.
+      if (!response || response === '0x')
+        return { failedKeys: [request.key], readErrors: [] }
+      return {
+        ...(await decodeRecordRead(request, response)),
+        failedKeys: [],
+        readErrors: [],
+      }
+    } catch (error) {
+      return {
+        failedKeys: [request.key],
+        readErrors: isContractRevert(error) ? [] : [error],
+      }
     }
   }
   // Bound RPC concurrency without losing successful reads to a failed batch.
@@ -276,6 +294,7 @@ export const readResolverRecords = async ({
       resolverAddress: resolver,
     },
     failedKeys: results.flatMap((record) => record.failedKeys),
+    readErrors: results.flatMap((record) => record.readErrors),
   }
 }
 

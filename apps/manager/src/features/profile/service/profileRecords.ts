@@ -16,7 +16,7 @@ import {
   getContentHashParameters,
   getTextParameters,
 } from '@ensdomains/ensjs/utils'
-import { fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
+import { err, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
 import type { PublicClient } from 'viem'
 import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
@@ -132,7 +132,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   if (v2Source.hasV2Entry)
     return ok({ texts: [], coins: [] } satisfies ProfileRecordsResult)
   if (v2Source.resolver) {
-    const { records } = yield* fromPromise(
+    const { records, readErrors } = yield* fromPromise(
       readResolverRecords({
         name,
         resolver: v2Source.resolver,
@@ -142,6 +142,9 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       }),
       (error) => new GetProfileRecordsError({ cause: error }),
     )
+    // Unsupported probes are expected; failed reads must reach query retry/error handling.
+    if (readErrors.length)
+      return err(new GetProfileRecordsError({ cause: readErrors[0] }))
     return ok(records)
   }
 
