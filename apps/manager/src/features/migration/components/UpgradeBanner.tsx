@@ -64,12 +64,12 @@ export const UpgradeBanner = ({
   return (
     <div
       className={cn(
-        '@container relative overflow-hidden xs:rounded-lg bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 @3xl:px-5 px-4 @3xl:py-5.5 py-6',
+        '@container relative overflow-hidden xs:rounded-lg bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200',
         className,
       )}
     >
       <GrainOverlay />
-      <div className="relative z-10 flex @3xl:flex-row flex-col @3xl:items-end @3xl:justify-between @3xl:gap-6 gap-4">
+      <div className="relative z-10 flex @3xl:flex-row flex-col @3xl:items-end @3xl:justify-between @3xl:gap-6 gap-4 @3xl:px-5 px-4 @3xl:py-5.5 py-6">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <h2 className="text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
             {isProfileBanner ? (
