@@ -19,6 +19,8 @@ export const REGISTRATION_STAGE_PROGRESS = {
   waitingForResolverDeployment: 15,
   preparingCommitment: 23,
   committingTransaction: 31,
+  // Explorer-only (pure-EOA, atomic-batching wallet); manager never enters it.
+  submittingEoaSetupBundle: 31,
   // Standalone-HCA commit leg: size the budget → check funding → (permit) →
   // fund+enable+commit as one session-signed request. Sits alongside
   // `committingTransaction`.

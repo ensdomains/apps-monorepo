@@ -15,6 +15,11 @@ msgstr ""
 
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{0, plural, one {# step in one request} other {# steps in one request}}"
+msgstr "{0, plural, one {# step in one request} other {# steps in one request}}"
+
+#. placeholder {0}: steps.length
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{0, plural, one {# step} other {# steps}}"
 msgstr "{0, plural, one {# step} other {# steps}}"
 
@@ -332,6 +337,10 @@ msgstr "An estimate of what the transaction that renews your name will cost. It 
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Analytics consent"
+msgstr "Analytics consent"
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Another address registered this name first, so it can no longer be registered here. Look for a different name."
@@ -1345,6 +1354,10 @@ msgstr "Growing your corner of the decentralized web"
 msgid "hasn't been imported to ENS yet"
 msgstr "hasn't been imported to ENS yet"
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Help us improve ENS"
+msgstr "Help us improve ENS"
+
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 msgid "Here's a gift to celebrate your upgrade to the next era of ENS"
@@ -1763,6 +1776,10 @@ msgstr "No recent searches"
 msgid "No stablecoins available"
 msgstr "No stablecoins available"
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "No thanks"
+msgstr "No thanks"
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "No upgrade access to remove"
 msgstr "No upgrade access to remove"
@@ -2029,6 +2046,10 @@ msgstr "Primary Name Profile"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Primary name set successfully"
 msgstr "Primary name set successfully"
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Privacy policy"
+msgstr "Privacy policy"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Privacy Policy"
@@ -2595,6 +2616,10 @@ msgstr "Setting up registration"
 msgid "Setting..."
 msgstr "Setting..."
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "Settings"
+msgstr "Settings"
+
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
 msgstr "Share"
@@ -2618,6 +2643,14 @@ msgstr "Share profile"
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share profile link"
 msgstr "Share profile link"
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "Share usage data"
+msgstr "Share usage data"
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Share usage data to help us find problems and make ENS better for everyone. This is optional, and you can change your choice in Settings."
+msgstr "Share usage data to help us find problems and make ENS better for everyone. This is optional, and you can change your choice in Settings."
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Should I register now or wait?"
@@ -3498,6 +3531,10 @@ msgstr "Wrapped name access"
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Wrong wallet connected"
 msgstr "Wrong wallet connected"
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Yes, happy to help"
+msgstr "Yes, happy to help"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the app looks up the address automatically."

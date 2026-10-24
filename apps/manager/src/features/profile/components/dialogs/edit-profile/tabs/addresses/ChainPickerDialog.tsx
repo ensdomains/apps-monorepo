@@ -2,8 +2,8 @@ import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { AddressIcon } from '@/features/profile/components/AddressIcon'
 import { getAddressOption } from './AddressesTab.helpers'
-import { AddressIcon } from './AddressIcon'
 import { AddressPickerPill } from './AddressPickerPill'
 import {
   type AddressOption,
@@ -36,9 +36,7 @@ const ChainPickerOptionButton = ({
   <AddressPickerPill
     active={active}
     disabled={disabled}
-    icon={
-      <AddressIcon coinType={option.coinType} label={option.label} size="xs" />
-    }
+    icon={<AddressIcon coinType={option.coinType} size="xs" />}
     label={option.label}
     onClick={onClick}
   />

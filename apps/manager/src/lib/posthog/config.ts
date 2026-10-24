@@ -1,45 +1,89 @@
-import type { PostHogConfig } from 'posthog-js/dist/module.full.no-external'
+import {
+  ANALYTICS_CONSENT_COOKIE,
+  type AnalyticsConsent,
+  hasAnalyticsConsent,
+  notifyAnalyticsConsent,
+} from '@ens-apps/utils/posthog/analyticsConsent'
+import type {
+  PostHog,
+  PostHogConfig,
+} from 'posthog-js/dist/module.full.no-external'
 
-// Temporary launch state: keep flag evaluation and its identity persistence,
-// but prevent every analytics event, including identify and flag-read events.
-// POSTHOG_LAUNCH_PAUSE restoration entry point (temporary legal/privacy hold):
-// 1. Apply the approved consent policy before removing capture suppression.
-//    This pause persists opt-out: changing config alone will not opt existing
-//    browsers back in. Only call opt_in_capturing() after valid consent.
-// 2. Replace this launch config with the approved collection settings. Previous
-//    init settings are preserved below as a reference, not a consent solution.
-// 3. Search both apps for POSTHOG_LAUNCH_PAUSE to restore the commented wallet,
-//    transaction, Intercom correlation, backend header, CSP, and survey sections
-//    as appropriate. Each section lists the imports and companion changes.
-// 4. Update launch-specific assertions in config.test.ts, provider.test.tsx,
-//    csp.test.ts, and Portal's SettingsMenu.test.tsx for the approved behavior.
-// Previous SDK init settings:
-// capture_pageview: 'history_change',
-// disable_session_recording: !!import.meta.env.DEV,
-// defaults: '2025-11-30',
-// person_profiles: 'identified_only',
-export const FEATURE_FLAGS_ONLY_CONFIG = {
-  capture_pageview: false,
-  capture_pageleave: false,
-  autocapture: false,
-  capture_dead_clicks: false,
-  capture_heatmaps: false,
-  capture_performance: false,
-  capture_exceptions: false,
-  save_campaign_params: false,
-  save_referrer: false,
+// `loaded` gets the SDK's narrower PostHogInterface, so take only what's used.
+type ConsentTarget = Pick<
+  PostHog,
+  | 'get_explicit_consent_status'
+  | 'get_property'
+  | 'opt_in_capturing'
+  | 'opt_out_capturing'
+  | 'reset'
+  | 'set_config'
+> & { readonly __loaded?: boolean }
+
+// Writes an answer to PostHog's consent cookie.
+const writeConsent = (client: ConsentTarget, consent: AnalyticsConsent) => {
+  if (consent === 'granted')
+    client.opt_in_capturing({ captureEventName: false })
+  if (consent === 'denied') client.opt_out_capturing()
+}
+
+/** Records the visitor's answer. Declining also forgets their identity. */
+export const setAnalyticsConsent = (
+  client: ConsentTarget,
+  granted: boolean,
+): void => {
+  if (!granted) client.reset()
+  writeConsent(client, granted ? 'granted' : 'denied')
+  notifyAnalyticsConsent()
+}
+
+/** Forgets the visitor's identity. A plain `reset()` deletes their answer too. */
+export const resetKeepingConsent = (client: ConsentTarget): void => {
+  if (!client.__loaded) return
+  const consent = client.get_explicit_consent_status()
+  client.reset()
+  writeConsent(client, consent)
+}
+
+/**
+ * Lines PostHog up with its answer. Without consent it keeps no wallet
+ * identity, and session recording and surveys stay off.
+ */
+export const applyAnalyticsConsent = (client: ConsentTarget): void => {
+  const isGranted = hasAnalyticsConsent(client)
+  if (!isGranted && client.get_property('$user_state') === 'identified')
+    resetKeepingConsent(client)
+  client.set_config({
+    disable_session_recording: !isGranted || import.meta.env.DEV,
+    disable_surveys: !isGranted,
+  })
+}
+
+// Capture stays opted out until the visitor accepts. Feature flags work
+// either way.
+export const POSTHOG_CONFIG = {
+  capture_pageview: 'history_change',
+  // Turned on with consent by applyAnalyticsConsent.
+  disable_session_recording: true,
   disable_surveys: true,
+  // Neither app uses these.
   disable_product_tours: true,
   disable_web_experiments: true,
   disable_conversations: true,
-  opt_out_capturing_by_default: true,
-  // Also protects existing browsers with a persisted capture opt-in.
-  // This drops events only; flag/config requests are unaffected.
-  before_send: () => null,
-  loaded: (client) => client.opt_out_capturing(),
-  disable_session_recording: true,
   defaults: '2025-11-30',
-  // `never` would make identify() a no-op and break wallet flag targeting.
-  // Profile events are blocked by opt-out and before_send instead.
   person_profiles: 'identified_only',
+  opt_out_capturing_by_default: true,
+  // The answer lives in a cookie on the parent domain (cross_subdomain_cookie
+  // is on by default), so the Explorer and the Manager share one answer.
+  opt_out_capturing_persistence_type: 'cookie',
+  consent_persistence_name: ANALYTICS_CONSENT_COOKIE,
+  loaded: (client) => {
+    // Runs before the first flag request, so a wallet identity kept without
+    // consent (such as one from before the banner) is gone before flags load.
+    applyAnalyticsConsent(client)
+    // Writing the answer again renews its cookie, which Safari drops 7 days
+    // after it was written.
+    writeConsent(client, client.get_explicit_consent_status())
+    notifyAnalyticsConsent()
+  },
 } satisfies Partial<PostHogConfig>

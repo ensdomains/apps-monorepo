@@ -1,6 +1,6 @@
 import { isEvmCoinType } from '@ensdomains/address-encoder/utils'
 import {
-  getAddressRecordDef,
+  getAddressPresentation,
   getRecordDef,
   getRecordDisplayValue,
   getRecordHref,
@@ -70,7 +70,7 @@ export type SafeProfileLink = LinkItem & {
 export type ProfileAddressItem = AddressRecordValue & {
   readonly label: string
   readonly notation: string
-  readonly icon?: NonNullable<ReturnType<typeof getAddressRecordDef>>['icon']
+  readonly icon?: ReturnType<typeof getAddressPresentation>['icon']
 }
 
 type IndexedProfileAddressItem = ProfileAddressItem & {
@@ -215,16 +215,11 @@ const toAddressItem = (
   const value = address.value.trim()
   if (!value) return undefined
 
-  const recordDef = getAddressRecordDef(address.coinType)
-  const notation = (recordDef?.notation ?? `#${address.coinType}`).toUpperCase()
-
   return {
     ...address,
+    ...getAddressPresentation(address.coinType),
     value,
     sourceIndex,
-    label: recordDef?.name ?? notation,
-    notation,
-    icon: recordDef?.icon,
   }
 }
 

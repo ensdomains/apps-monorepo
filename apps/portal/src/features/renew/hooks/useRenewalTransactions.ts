@@ -4,6 +4,7 @@ import {
   type Signer,
   scopeTransactionId,
   transactionManager,
+  useAtomicBatchSupport,
 } from '@ens-apps/transaction-manager'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
@@ -17,7 +18,10 @@ import { getRegistrationDataQueryOptions } from '@/features/profile/hooks/useReg
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { buildApproveIntent } from '@/features/transaction-manager/helpers/intents'
+import {
+  buildApproveIntent,
+  toEoaBatchIntent,
+} from '@/features/transaction-manager/helpers/intents'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
@@ -58,6 +62,9 @@ export const RENEWAL_TX_IDS = {
     scopeTransactionId(`renewal-renew-${name}`, scope),
   renewBatch: (renewer: Address, batch: number, scope: FlowScope | null) =>
     scopeTransactionId(`renewal-renew-batch-${renewer}-${batch}`, scope),
+  // Every approval and renew of one flow in a single EIP-5792 bundle.
+  bundle: (key: string, scope: FlowScope | null) =>
+    scopeTransactionId(`renewal-bundle-${key}`, scope),
 } as const
 
 // The resolved payment for a flow: token + prices + the human symbol we derive
@@ -77,6 +84,8 @@ type SingleFlow = TokenPayment & {
   readonly kind: 'single'
   readonly selectedName: SelectedName
   readonly duration: number
+  /** Fixed at start so a late capabilities answer can't reshape the modal. */
+  readonly canBatchAtomically: boolean
 }
 
 // One approval target within a multi-renew batch: the renewer contract (ERC-20
@@ -96,6 +105,7 @@ type MultiFlow = {
   readonly tokenAddress: Address
   readonly tokenSymbol: 'USDC' | 'DAI'
   readonly payments: readonly RenewerPayment[]
+  readonly canBatchAtomically: boolean
 }
 
 type RenewalFlow = SingleFlow | MultiFlow
@@ -211,6 +221,31 @@ function buildApproveTransaction(
   )
 }
 
+// Approve + renew of one name as a single EIP-5792 bundle.
+function buildSingleRenewalBundle(
+  single: SingleFlow,
+  from: Address,
+  publicClient: PublicClient,
+): CustomTransactionIntent {
+  return toEoaBatchIntent([
+    buildRenewalApproveIntent({
+      from,
+      tokenAddress: single.tokenAddress,
+      renewer: getRenewerAddress(single.selectedName.isV2),
+      tokenPrice: single.tokenPrice,
+    }),
+    buildRenewIntent({
+      name: single.selectedName.name,
+      duration: single.duration,
+      referrer: single.referrer,
+      tokenAddress: single.tokenAddress,
+      from,
+      publicClient,
+      isV2: single.selectedName.isV2,
+    }),
+  ])
+}
+
 function buildRenewTransaction(
   params: RenewParams,
   signer: Signer,
@@ -249,6 +284,52 @@ function buildMultiTransactions({
   // Pure planner decides the ordered approve-then-renew steps (and which
   // approvals are needed / skipClear); we only wrap each into a Transaction.
   const plannedSteps = planMultiRenewSteps(renewals, payments)
+
+  if (multiFlow.canBatchAtomically && plannedSteps.length > 1) {
+    const bundleFor = (account: Address) =>
+      toEoaBatchIntent(
+        plannedSteps.map((step) =>
+          step.kind === 'approve'
+            ? buildRenewalApproveIntent({
+                from: account,
+                tokenAddress,
+                renewer: step.renewer,
+                tokenPrice: step.total,
+              })
+            : buildRenewBatchIntent({
+                renewals: step.renewals,
+                referrer: multiFlow.referrer,
+                renewer: step.renewer,
+                tokenAddress,
+                from: account,
+              }),
+        ),
+      )
+    const id = RENEWAL_TX_IDS.bundle('multi', scope)
+    const transactionName = `Extend ${renewals.length} names`
+    return [
+      {
+        id,
+        title: transactionName,
+        transactionName,
+        intent: {
+          prepare: ({ walletClient }) =>
+            bundleFor(walletClient.account.address),
+        },
+        onStart: async () => {
+          const signer = await getSigner()
+          // No clear(): a retried step must find its timed-out bundle to
+          // resume it rather than send (and pay for) a second one.
+          transactionManager.startTransaction(bundleFor(from), signer, {
+            id,
+            publicClient,
+            description: transactionName,
+          })
+        },
+        onDone: handleDone,
+      },
+    ]
+  }
 
   // A renew reverts on a live estimate until its renewer is approved, so only
   // renews whose renewer has NO pending approval in this batch are estimable
@@ -350,6 +431,7 @@ export const useRenewalTransactions = ({
   // abandoned run would otherwise leave its finished actors behind.
   const attempt = useFlowAttempt()
   const [flow, setFlow] = useState<RenewalFlow | null>(null)
+  const canBatchAtomically = useAtomicBatchSupport(ensChain.id)
 
   const getRuntime = async (): Promise<RenewalRuntime | null> => {
     if (!connection.address || !publicClient) return null
@@ -470,6 +552,25 @@ export const useRenewalTransactions = ({
     )
   }
 
+  const handleBundleStart = async () => {
+    if (flow?.kind !== 'single') return
+
+    const runtime = await getRuntime()
+    if (!runtime) return
+
+    // No clear(): a retried step must find its timed-out bundle to resume it
+    // rather than send (and pay for) a second approval + renewal.
+    transactionManager.startTransaction(
+      buildSingleRenewalBundle(flow, runtime.from, runtime.publicClient),
+      runtime.signer,
+      {
+        id: RENEWAL_TX_IDS.bundle(flow.selectedName.name, attempt.scope),
+        publicClient: runtime.publicClient,
+        description: `Approve ${flow.tokenSymbol} and extend ${flow.selectedName.name}`,
+      },
+    )
+  }
+
   const transactions: Transaction[] = match(flow)
     .with(P.nullish, () => [])
     .with({ kind: 'multi' }, (multiFlow) => {
@@ -514,6 +615,25 @@ export const useRenewalTransactions = ({
 
       if (single.tokenAllowance >= single.tokenPrice) return [renewTx]
 
+      if (single.canBatchAtomically && publicClient) {
+        const bundleTx: Transaction = {
+          id: RENEWAL_TX_IDS.bundle(single.selectedName.name, attempt.scope),
+          title: `Extend ${single.selectedName.name}`,
+          transactionName: `Approve ${single.tokenSymbol} and extend ${single.selectedName.name}`,
+          intent: {
+            prepare: ({ walletClient }) =>
+              buildSingleRenewalBundle(
+                single,
+                walletClient.account.address,
+                publicClient,
+              ),
+          },
+          onStart: handleBundleStart,
+          onDone: handleDone,
+        }
+        return [bundleTx]
+      }
+
       const approveTx: Transaction = {
         id: RENEWAL_TX_IDS.approve(renewer, attempt.scope),
         title: 'Approve payment',
@@ -555,6 +675,7 @@ export const useRenewalTransactions = ({
       tokenPrice: flowConfig.tokenPrice,
       tokenAllowance: flowConfig.tokenAllowance ?? 0n,
       tokenSymbol,
+      canBatchAtomically,
     })
   }
 
@@ -577,6 +698,7 @@ export const useRenewalTransactions = ({
       tokenAddress: flowConfig.tokenAddress,
       payments: flowConfig.payments,
       tokenSymbol,
+      canBatchAtomically,
     })
   }
 

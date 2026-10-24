@@ -218,6 +218,35 @@ export class TransactionTimeoutError
   }
 }
 
+/** A `wallet_sendCalls` bundle did not report a final status in time. */
+export class CallsBundleTimeoutError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'CallsBundleTimeoutError'
+  constructor(
+    public readonly id: string,
+    public readonly timeout: number,
+    cause?: unknown,
+  ) {
+    super(`Batched calls ${id} timed out after ${timeout}ms`, cause)
+  }
+}
+
+/**
+ * The wallet stopped reporting atomic `supported` between planning a bundle and
+ * sending it. Sending anyway could prompt an EIP-7702 upgrade of the EOA.
+ */
+export class AtomicBatchUnsupportedError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'AtomicBatchUnsupportedError'
+  constructor(public readonly chainId: number) {
+    super(`Wallet no longer batches calls atomically on chain ${chainId}`)
+  }
+}
+
 export class TransactionRevertedError
   extends TransactionError
   implements ITaggedError

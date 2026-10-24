@@ -279,6 +279,58 @@ class TransactionManager {
     return true
   }
 
+  /**
+   * Whether `id` still belongs to work under way, after retiring a settled
+   * occupant (or resuming a timed-out bundle, which puts it back in flight).
+   */
+  private isIdInFlight(id: string): boolean {
+    if (!this.transactions.has(id)) return false
+    if (this.resumeTimedOutBundle(id)) return true
+    if (this.retireTransaction(id)) return false
+    logger.warn(
+      `Transaction ${id} is already in flight; ignoring duplicate start`,
+    )
+    return true
+  }
+
+  /**
+   * Whether `id` is an EIP-5792 bundle the wallet accepted but that timed out
+   * before reporting an outcome: it may still land, so it must not be resent.
+   */
+  hasTimedOutBundle(id: string): boolean {
+    const snapshot = this.transactions.get(id)?.getSnapshot()
+    return (
+      snapshot?.matches({ error: 'timeout' }) === true &&
+      snapshot.context.callsId !== undefined
+    )
+  }
+
+  /**
+   * A restarted step whose accepted EIP-5792 bundle timed out resumes waiting
+   * on that bundle rather than prompting for (and paying) a second one.
+   */
+  resumeTimedOutBundle(id: string): boolean {
+    const actor = this.transactions.get(id)
+    if (!actor || !this.hasTimedOutBundle(id)) return false
+    const snapshot = actor.getSnapshot()
+    // The timeout already archived and closed its telemetry run; open a new
+    // run so the real outcome (or a later failure) is reported too.
+    const { chainId, intent, request, signer, options, useSmartAccount } =
+      snapshot.context
+    this.completedTelemetry.delete(id)
+    this.runTelemetry.startRun({
+      txId: id,
+      chainId: chainId ?? request?.chainId,
+      intent,
+      request,
+      signer,
+      options,
+      useSmartAccount,
+    })
+    actor.send({ type: 'RETRY' })
+    return true
+  }
+
   /** Drops an id from every in-memory index. */
   private forgetTransaction(id: string): void {
     this.transactions.delete(id)
@@ -358,13 +410,7 @@ class TransactionManager {
     // An occupant that is still in flight is the same work already under way
     // (a double-clicked start, say), so hand back the running transaction
     // rather than opening a second wallet prompt and orphaning the first.
-    const existing = this.transactions.get(txId)
-    if (existing && !this.retireTransaction(txId)) {
-      logger.warn(
-        `Transaction ${txId} is already in flight; ignoring duplicate start`,
-      )
-      return txId
-    }
+    if (this.isIdInFlight(txId)) return txId
 
     // The id belongs to this attempt now, so it must not inherit a retirement
     // marker or a "terminal side effects already ran" flag. Retiring an

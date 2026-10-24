@@ -15,6 +15,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
+import { AnalyticsConsentBanner } from '@/components/AnalyticsConsentBanner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { NoticeBanner } from '@/components/NoticeBanner'
 import { isSepoliaBuild } from '@/config'
@@ -114,6 +115,7 @@ export const Route = createRootRoute({
                 <PHProvider>
                   <NoticeBanner />
                   <Outlet />
+                  <AnalyticsConsentBanner />
                 </PHProvider>
               </TransactionManagerSetup>
             </ConnectModalProvider>

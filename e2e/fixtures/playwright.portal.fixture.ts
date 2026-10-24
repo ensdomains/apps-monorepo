@@ -201,7 +201,11 @@ type PortalFixtures = {
 const bignameMock = createBignameMock()
 
 export const test = base.extend<PortalFixtures>({
-  page: async ({ page }, use) => {
+  page: async ({ page, baseURL }, use) => {
+    // Answer the analytics banner up front so it never covers a control.
+    await page
+      .context()
+      .addCookies([{ name: 'ens_analytics_consent', value: '0', url: baseURL }])
     await bignameMock.installIfEnabled(page)
     await use(page)
   },

@@ -1,4 +1,7 @@
-import type { EOATransactionRequest } from '@ens-apps/transaction-manager'
+import type {
+  EOABatchTransactionRequest,
+  EOATransactionRequest,
+} from '@ens-apps/transaction-manager'
 import type { UseQueryResult } from '@tanstack/react-query'
 import {
   BaseError,
@@ -11,6 +14,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   deriveStatus,
   estimateGasForCall,
+  estimateGasForRequest,
   isRevertError,
 } from './useTransactionGasEstimate'
 
@@ -102,6 +106,46 @@ describe('estimateGasForCall', () => {
     const eoa = { ...baseEoa, gas: 500_000n }
     // A transient blip must bubble up (retryable), not silently take the cap.
     await expect(estimateGasForCall(client, eoa)).rejects.toBe(transientError)
+  })
+})
+
+describe('estimateGasForRequest with an EIP-5792 bundle', () => {
+  const bundle: EOABatchTransactionRequest = {
+    type: 'eoa-batch',
+    from: baseEoa.from,
+    chainId: 1,
+    calls: [
+      { to: baseEoa.to, data: '0x01', value: 0n },
+      { to: baseEoa.to, data: '0x02', value: 0n },
+    ],
+  }
+  const clientSimulating = (results: unknown[]) =>
+    ({
+      simulateCalls: vi.fn(() => Promise.resolve({ results })),
+    }) as unknown as PublicClient
+
+  // Each call alone may revert (spend before approve), so the bundle is
+  // simulated in order and priced as the sum.
+  it('sums the gas of every call simulated in order', async () => {
+    const client = clientSimulating([
+      { status: 'success', gasUsed: 46_000n },
+      { status: 'success', gasUsed: 120_000n },
+    ])
+    expect(await estimateGasForRequest(client, bundle)).toBe(166_000n)
+    expect(client.simulateCalls).toHaveBeenCalledWith({
+      account: bundle.from,
+      calls: bundle.calls,
+    })
+  })
+
+  it('surfaces a failing call as its revert', async () => {
+    const client = clientSimulating([
+      { status: 'success', gasUsed: 46_000n },
+      { status: 'failure', gasUsed: 0n, error: revertError },
+    ])
+    await expect(estimateGasForRequest(client, bundle)).rejects.toBe(
+      revertError,
+    )
   })
 })
 

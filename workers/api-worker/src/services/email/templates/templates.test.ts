@@ -3,6 +3,7 @@ import { getGraceEndDate, MS_PER_DAY } from '@ens-apps/utils/gracePeriod'
 import { describe, expect, it } from 'vitest'
 import { buildEmailContext } from '../context.js'
 import type { RenderedEmail } from '../render.js'
+import { DEFAULT_THEME_COLOR, GRACE_THEME_COLOR } from '../theme.js'
 import { ZERO_WIDTH_NON_JOINER } from './EmailLayout.js'
 import { renderNameExpiryEmail } from './NameExpiryEmail.js'
 import { renderNameTransferredEmail } from './NameTransferredEmail.js'
@@ -74,12 +75,17 @@ describe('link-free emails', () => {
     expect(email.text).toContain('ENS emails never contain links')
   })
 
-  it.each(renderers)('%s loads only the logo', async (_name, render) => {
+  it.each(renderers)('%s loads only its own images', async (_name, render) => {
     const { html } = await render()
     const urls = html.match(/https?:\/\/[^"'\s)]+/g) ?? []
     // The XHTML doctype names its DTD by URL; it is not fetched or shown.
-    expect(urls.filter((url) => !url.startsWith('http://www.w3.org/'))).toEqual(
-      ['https://app-api.ens.domains/email/ens-logo.png'],
+    expect(
+      new Set(urls.filter((url) => !url.startsWith('http://www.w3.org/'))),
+    ).toEqual(
+      new Set([
+        'https://app-api.ens.domains/email/ens-logo-white.png',
+        'https://app-api.ens.domains/email/pattern.png',
+      ]),
     )
   })
 
@@ -104,7 +110,7 @@ describe('network marking', () => {
 
   it('marks testnet emails in the subject, sender and body', async () => {
     const email = await renderNameTransferredEmail(sepolia, transferPayload)
-    expect(email.subject).toBe('[Sepolia] Your name was transferred')
+    expect(email.subject).toBe('[Sepolia] alice.eth was transferred')
     expect(email.fromName).toBe('ENS (Sepolia)')
     expect(email.text).toContain('Sepolia testnet')
     expect(email.text.replaceAll(ZERO_WIDTH_NON_JOINER, '')).toContain(
@@ -141,25 +147,44 @@ describe('verification email', () => {
 
 describe('name expiry email', () => {
   const graceEnd = getGraceEndDate(expiry, 'v2')
+  const weekBefore = new Date(expiry.getTime() - 7 * MS_PER_DAY)
 
   it.each([
-    ['expiry-7d', expiry, 'Your name is expiring', 'Renew'],
-    ['grace-start', expiry, 'Your name has expired', 'Renew'],
+    [
+      'expiry-30d',
+      new Date(expiry.getTime() - 30 * MS_PER_DAY),
+      'alice.eth expires on 13 Mar',
+      'How to renew',
+    ],
+    ['expiry-7d', weekBefore, 'alice.eth expires in 7 days', 'How to renew'],
+    [
+      'expiry-1d',
+      new Date(expiry.getTime() - MS_PER_DAY),
+      'alice.eth expires in 1 day',
+      'How to renew',
+    ],
+    ['grace-start', expiry, 'alice.eth has expired', 'How to renew'],
+    [
+      'grace-7d',
+      new Date(graceEnd.getTime() - 7 * MS_PER_DAY),
+      '7 days left to renew alice.eth',
+      'How to renew',
+    ],
     [
       'grace-1d',
       new Date(graceEnd.getTime() - MS_PER_DAY),
-      'Your name’s grace period is ending',
-      'Renew',
+      'Last day to renew alice.eth',
+      'How to renew',
     ],
     [
       'premium-start',
       graceEnd,
-      'Your name’s grace period has ended',
-      'Register',
+      'You no longer own alice.eth',
+      'How to register it',
     ],
   ] as const)(
-    'renders the %s lifecycle notice',
-    async (stage, now, subject, action) => {
+    'renders the %s notice for owners',
+    async (stage, now, subject, steps) => {
       const email = await renderNameExpiryEmail(
         mainnet,
         expiryPayload({ stage }),
@@ -168,18 +193,36 @@ describe('name expiry email', () => {
       expect(email.subject).toBe(subject)
       for (const part of [email.html, email.text]) {
         expect(part).toContain('alice.eth')
-        expect(part).toContain(`${action} in the ENS app`)
+        expect(part).toContain(steps)
       }
     },
   )
 
+  it('says today when a reminder is only sent at expiry', async () => {
+    const email = await renderNameExpiryEmail(
+      mainnet,
+      expiryPayload({ stage: 'expiry-1d' }),
+      { managerAppUrl, now: expiry },
+    )
+    expect(email.subject).toBe('alice.eth expires today')
+  })
+
   it('writes dates the same way in every locale', async () => {
     const email = await renderNameExpiryEmail(mainnet, expiryPayload(), {
       managerAppUrl,
-      now: new Date(expiry.getTime() - 7 * MS_PER_DAY),
+      now: weekBefore,
     })
-    expect(email.text).toContain('Expires in: 7 days')
-    expect(email.text).toContain('Expiry date: 13 Mar 2026, 12:00 UTC')
+    expect(email.text).toContain('13 Mar 2026, 12:00 UTC')
+    expect(email.text).toContain('10 Apr 2026, 12:00 UTC')
+  })
+
+  it('keeps labels and values apart in the text part', async () => {
+    const email = await renderNameExpiryEmail(mainnet, expiryPayload(), {
+      managerAppUrl,
+      now: weekBefore,
+    })
+    expect(email.text).toMatch(/Expires\s+13 Mar 2026/)
+    expect(email.text).toMatch(/1\.\s+Type/)
   })
 
   it('renders hostile names as literal content', async () => {
@@ -194,36 +237,36 @@ describe('name expiry email', () => {
   })
 
   it('tells watchers apart from owners', async () => {
-    const options = { managerAppUrl, now: expiry }
+    const options = { managerAppUrl, now: weekBefore }
     const owner = await renderNameExpiryEmail(mainnet, expiryPayload(), options)
     const watcher = await renderNameExpiryEmail(
       mainnet,
       expiryPayload({ isOwner: false, watchReason: 'favourited' }),
       options,
     )
-    expect(owner.text).toContain('you own this name')
-    expect(watcher.subject).toBe('A name you watch is expiring')
-    expect(watcher.text).toContain('you are watching this name')
+    expect(owner.text).toContain('you own alice.eth')
+    expect(watcher.text).toContain('A name you watch is expiring')
+    expect(watcher.text).toContain('you are watching alice.eth')
   })
 
   // Favourite watchers receive every stage after the 30-day notice.
   it.each([
     ['expiry-7d', 'A name you watch is expiring'],
     ['grace-start', 'A name you watch has expired'],
-    ['grace-1d', 'A name you watch is near the end of its grace period'],
-    ['premium-start', 'A name you watch is out of its grace period'],
+    ['grace-1d', 'A name you watch may become available'],
+    ['premium-start', 'A name you watch is available'],
   ] as const)(
     'never calls a watched name yours at %s',
-    async (stage, subject) => {
+    async (stage, heading) => {
       const email = await renderNameExpiryEmail(
         mainnet,
         expiryPayload({ stage, isOwner: false, watchReason: 'favourited' }),
         { managerAppUrl, now: expiry },
       )
-      expect(email.subject).toBe(subject)
-      for (const part of [email.html, email.text]) {
+      expect(email.text).toContain(heading)
+      for (const part of [email.subject, email.html, email.text]) {
         expect(part).not.toMatch(/\byour name\b/i)
-        expect(part).not.toMatch(/\byou can still renew\b/i)
+        expect(part).not.toMatch(/\byou no longer own\b/i)
       }
     },
   )
@@ -232,27 +275,61 @@ describe('name expiry email', () => {
     const email = await renderNameExpiryEmail(
       mainnet,
       expiryPayload({ name: `${'a'.repeat(80)}.eth` }),
-      { managerAppUrl, now: expiry },
+      { managerAppUrl, now: weekBefore },
     )
+    // The innermost paragraph or cell around each mention of the name.
     const nameBlocks =
-      email.html.match(/<p[^>]*>(?:(?!<\/p>).)*?a{80}\.eth/gs) ?? []
-    // The chip, the body and the directions all repeat the name.
-    expect(nameBlocks).toHaveLength(3)
+      email.html.match(
+        /<(?:p|td)\b[^>]*>(?:(?!<\/(?:p|td)>|<(?:p|td)\b).)*?a{80}\.eth/gs,
+      ) ?? []
+    // The header, the body, the directions and the footer all repeat it.
+    expect(nameBlocks).toHaveLength(4)
     for (const block of nameBlocks) {
       expect(block).toMatch(/overflow-wrap:anywhere|word-break:break-all/)
     }
+  })
+
+  it('colours the header with the name’s theme', async () => {
+    const email = await renderNameExpiryEmail(
+      mainnet,
+      expiryPayload(),
+      { managerAppUrl, now: weekBefore },
+      '#e72a96',
+    )
+    expect(email.html).toContain('background-color:#E72A96')
+  })
+
+  it('uses the grace colour whatever the theme', async () => {
+    const email = await renderNameExpiryEmail(
+      mainnet,
+      expiryPayload({ stage: 'grace-start' }),
+      { managerAppUrl, now: expiry },
+      '#E72A96',
+    )
+    expect(email.html).toContain(`background-color:${GRACE_THEME_COLOR}`)
+    expect(email.html).not.toContain('#E72A96')
   })
 })
 
 describe('name transferred email', () => {
   it('shows the name, recipient and transaction', async () => {
     const email = await renderNameTransferredEmail(mainnet, transferPayload)
-    expect(email.subject).toBe('Your name was transferred')
+    expect(email.subject).toBe('alice.eth was transferred')
     for (const part of [email.html, email.text]) {
       expect(part).toContain('alice.eth')
       expect(part).toContain(transferPayload.to)
       expect(part).toContain(transferPayload.txHash)
     }
+  })
+
+  it('falls back to the default theme for unknown theme records', async () => {
+    const email = await renderNameTransferredEmail(
+      mainnet,
+      transferPayload,
+      'url(https://evil.example)',
+    )
+    expect(email.html).toContain(`background-color:${DEFAULT_THEME_COLOR}`)
+    expect(email.html).not.toContain('evil.example')
   })
 
   it('renders hostile names literally', async () => {

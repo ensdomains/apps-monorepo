@@ -20,6 +20,11 @@ msgstr ""
 
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{0, plural, one {# step in one request} other {# steps in one request}}"
+msgstr ""
+
+#. placeholder {0}: steps.length
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{0, plural, one {# step} other {# steps}}"
 msgstr ""
 
@@ -336,6 +341,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
+msgstr ""
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Analytics consent"
 msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
@@ -1350,6 +1359,10 @@ msgstr ""
 msgid "hasn't been imported to ENS yet"
 msgstr ""
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Help us improve ENS"
+msgstr ""
+
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 msgid "Here's a gift to celebrate your upgrade to the next era of ENS"
@@ -1768,6 +1781,10 @@ msgstr ""
 msgid "No stablecoins available"
 msgstr ""
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "No thanks"
+msgstr ""
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "No upgrade access to remove"
 msgstr ""
@@ -2034,6 +2051,10 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Primary name set successfully"
 msgstr "Primärt namn angivet"
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Privacy policy"
+msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Privacy Policy"
@@ -2600,6 +2621,10 @@ msgstr ""
 msgid "Setting..."
 msgstr "Anger..."
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "Settings"
+msgstr ""
+
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
 msgstr ""
@@ -2622,6 +2647,14 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share profile link"
+msgstr ""
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "Share usage data"
+msgstr ""
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Share usage data to help us find problems and make ENS better for everyone. This is optional, and you can change your choice in Settings."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
@@ -3502,6 +3535,10 @@ msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Wrong wallet connected"
+msgstr ""
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Yes, happy to help"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
