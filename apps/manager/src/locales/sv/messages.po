@@ -8,7 +8,7 @@ msgstr ""
 "Language: sv\n"
 "Project-Id-Version: ens-app\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-06-09 16:55\n"
+"PO-Revision-Date: 2026-10-24 16:08\n"
 "Last-Translator: \n"
 "Language-Team: Swedish\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -257,7 +257,7 @@ msgstr ""
 
 #: src/routes/index.tsx
 #~ msgid "A simple, portable identity that you control"
-#~ msgstr "En enkel, portabel identitet som du kontrollerar"
+#~ msgstr "A simple, portable identity that you control"
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "A simpler way to get paid."
@@ -530,25 +530,25 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #~ msgid "Bridge {bridgeAmount} to your wallet"
-#~ msgstr ""
+#~ msgstr "Bridge {bridgeAmount} to your wallet"
 
 #. placeholder {0}: toUsd(feeRaw)
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #~ msgid "Bridge {bridgeAmount} to your wallet, fee {0}"
-#~ msgstr ""
+#~ msgstr "Bridge {bridgeAmount} to your wallet, fee {0}"
 
 #. placeholder {0}: selectedL2.source.chain.name
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #~ msgid "Bridge from {0}"
-#~ msgstr ""
+#~ msgstr "Bridge from {0}"
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #~ msgid "Bridging from {chainName} isn't available right now"
-#~ msgstr ""
+#~ msgstr "Bridging from {chainName} isn't available right now"
 
 #: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
 #~ msgid "Bridging USDC"
-#~ msgstr ""
+#~ msgstr "Bridging USDC"
 
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Browser Notifications"
@@ -710,7 +710,7 @@ msgstr "Välj primärt namn"
 
 #: src/routes/index.tsx
 #~ msgid "Claim your"
-#~ msgstr ""
+#~ msgstr "Claim your"
 
 #: src/components/molecules/SearchField/SearchField.tsx
 #: src/features/navigation/Header/search/SearchInput.tsx
@@ -764,7 +764,7 @@ msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
 #~ msgid "Confirm purchase"
-#~ msgstr ""
+#~ msgstr "Confirm purchase"
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "Confirm renewal"
@@ -1340,7 +1340,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #~ msgid "for"
-#~ msgstr ""
+#~ msgstr "for"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Frequently Asked Questions"
@@ -1456,7 +1456,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
 #~ msgid "If the transfer completes, the USDC arrives in your wallet on {to}. If it doesn't, it stays on {from}."
-#~ msgstr ""
+#~ msgstr "If the transfer completes, the USDC arrives in your wallet on {to}. If it doesn't, it stays on {from}."
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "If you think a smart session has been compromised, reset access to revoke all existing smart sessions for this account on this network, across every browser and device."
@@ -1464,7 +1464,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #~ msgid "If your connected wallet has fewer than two names and no primary name yet, ENS may set this name as your primary name and link it to your connected wallet automatically."
-#~ msgstr ""
+#~ msgstr "If your connected wallet has fewer than two names and no primary name yet, ENS may set this name as your primary name and link it to your connected wallet automatically."
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 msgid "Image not available"
@@ -1492,7 +1492,7 @@ msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 #~ msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
-#~ msgstr ""
+#~ msgstr "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "It takes two transactions from your wallet, one to set up the account and one to reset access. Both require ETH for gas. You will need to enable a new smart session afterwards."
@@ -1628,7 +1628,7 @@ msgstr ""
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 #~ msgid "Mainnet est. fee: {0}"
-#~ msgstr ""
+#~ msgstr "Mainnet est. fee: {0}"
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Make it yours"
@@ -2239,7 +2239,7 @@ msgstr "Registrerad"
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #~ msgid "Registering"
-#~ msgstr ""
+#~ msgstr "Registering"
 
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Registering for"
@@ -2448,7 +2448,7 @@ msgstr ""
 
 #: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
 #~ msgid "Renewing"
-#~ msgstr ""
+#~ msgstr "Renewing"
 
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Renewing for"
@@ -2555,16 +2555,16 @@ msgstr ""
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 #~ msgid "Revoke sessions"
-#~ msgstr ""
+#~ msgstr "Revoke sessions"
 
 #: src/features/navigation/Header/account/WalletSection.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 #~ msgid "Revoke smart sessions"
-#~ msgstr ""
+#~ msgstr "Revoke smart sessions"
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 #~ msgid "Revoking…"
-#~ msgstr ""
+#~ msgstr "Revoking…"
 
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
 #: src/features/bulk-renew/components/DurationPresets.tsx
@@ -2638,7 +2638,7 @@ msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
 #~ msgid "Select coin"
-#~ msgstr ""
+#~ msgstr "Select coin"
 
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -2819,11 +2819,11 @@ msgstr ""
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 #~ msgid "Smart account"
-#~ msgstr ""
+#~ msgstr "Smart account"
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 #~ msgid "Smart Account"
-#~ msgstr ""
+#~ msgstr "Smart Account"
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Smart account access"
@@ -2831,7 +2831,7 @@ msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 #~ msgid "Smart sessions are required to use this app."
-#~ msgstr ""
+#~ msgstr "Smart sessions are required to use this app."
 
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Smart sessions off"
@@ -3126,11 +3126,11 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2FundingView.tsx
 #~ msgid "The USDC approval on {from} didn't go through."
-#~ msgstr ""
+#~ msgstr "The USDC approval on {from} didn't go through."
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #~ msgid "The USDC is bridged to your wallet first, then the registration is paid from there. You approve USDC once per network and sign the transfer."
-#~ msgstr ""
+#~ msgstr "The USDC is bridged to your wallet first, then the registration is paid from there. You approve USDC once per network and sign the transfer."
 
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "There was a problem reaching the notification service. Please try again in a moment."
@@ -3627,7 +3627,7 @@ msgstr ""
 
 #: src/routes/index.tsx
 #~ msgid "web3 username"
-#~ msgstr ""
+#~ msgstr "web3 username"
 
 #: src/features/migration/components/success/CommemorativeNftDashboardSection.tsx
 msgid "Welcome to ENSv2"
@@ -3978,3 +3978,4 @@ msgstr ""
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
 msgstr ""
+
