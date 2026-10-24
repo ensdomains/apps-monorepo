@@ -1,4 +1,6 @@
+import { ANALYTICS_CONSENT_COOKIE } from '@ens-apps/utils/posthog/analyticsConsent'
 import { createServerFn } from '@tanstack/react-start'
+import { getCookie } from '@tanstack/react-start/server'
 import { PostHog } from 'posthog-node'
 import { isAddress } from 'viem'
 import { getConnectionCookie } from '@/lib/connection-cookie'
@@ -50,13 +52,17 @@ export const getFeatureFlag = createServerFn({ method: 'GET' })
     })
 
     try {
-      // The address only feeds the flag's wallet rules; a throwaway id keeps
-      // this server check from naming the visitor in PostHog.
+      // The address only feeds the flag's wallet rules, and only once the
+      // visitor accepted analytics (PostHog writes 1 to its consent cookie).
+      // A throwaway id keeps this server check from naming the visitor.
+      const hasConsent = getCookie(ANALYTICS_CONSENT_COOKIE) === '1'
       const enabled = await posthog.isFeatureEnabled(
         data.flag,
         crypto.randomUUID(),
         {
-          personProperties: { address: walletAddress },
+          ...(hasConsent
+            ? { personProperties: { address: walletAddress } }
+            : {}),
           sendFeatureFlagEvents: false,
         },
       )

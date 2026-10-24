@@ -132,12 +132,14 @@ export const PHProvider = ({
         console.warn('[posthog] wallet identify failed', error)
       }
 
+      // Intercom runs for everyone, for support; the wallet only with consent.
       try {
-        trackIntercomEvent('wallet:connect', {
-          wallet_address: data.address,
-          chain_id: data.chainId,
-          wallet_connector: data.connector.name,
-        })
+        if (hasAnalyticsConsent(posthog))
+          trackIntercomEvent('wallet:connect', {
+            wallet_address: data.address,
+            chain_id: data.chainId,
+            wallet_connector: data.connector.name,
+          })
       } catch (error) {
         console.warn('[intercom] wallet:connect failed', error)
       }

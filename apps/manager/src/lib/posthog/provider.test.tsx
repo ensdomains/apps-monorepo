@@ -104,20 +104,14 @@ describe('PostHog provider', () => {
     })
   })
 
-  it('gives the wallet to flag rules only, without consent', () => {
+  it('sends nothing about the wallet without consent', () => {
     renderProvider()
     connectWallet()
 
-    expect(posthog.setPersonPropertiesForFlags).toHaveBeenCalledWith({
-      address: WALLET.address,
-    })
+    expect(posthog.setPersonPropertiesForFlags).not.toHaveBeenCalled()
     expect(posthog.identify).not.toHaveBeenCalled()
     expect(posthog.register).not.toHaveBeenCalled()
-    expect(trackEvent).toHaveBeenCalledWith('wallet:connect', {
-      wallet_address: WALLET.address,
-      chain_id: 1,
-      wallet_connector: 'test-wallet',
-    })
+    expect(trackEvent).not.toHaveBeenCalled()
   })
 
   it('identifies and tracks wallet connects with consent', () => {
@@ -135,6 +129,11 @@ describe('PostHog provider', () => {
       chain_id: 1,
       wallet_connector: 'test-wallet',
     })
+    expect(trackEvent).toHaveBeenCalledWith('wallet:connect', {
+      wallet_address: WALLET.address,
+      chain_id: 1,
+      wallet_connector: 'test-wallet',
+    })
   })
 
   it('identifies a connected wallet on Accept and forgets it on Decline', () => {
@@ -148,12 +147,9 @@ describe('PostHog provider', () => {
       { initial_address: WALLET.address },
     )
 
-    vi.mocked(posthog.setPersonPropertiesForFlags).mockClear()
     act(() => setAnalyticsConsent(posthog, false))
     expect(posthog.reset).toHaveBeenCalled()
-    expect(posthog.setPersonPropertiesForFlags).toHaveBeenCalledWith({
-      address: WALLET.address,
-    })
+    expect(posthog.setPersonPropertiesForFlags).not.toHaveBeenCalled()
   })
 
   it('forgets the wallet when another tab or app declines', () => {
@@ -169,9 +165,7 @@ describe('PostHog provider', () => {
     })
 
     expect(posthog.reset).toHaveBeenCalled()
-    expect(posthog.setPersonPropertiesForFlags).toHaveBeenLastCalledWith({
-      address: WALLET.address,
-    })
+    expect(posthog.setPersonPropertiesForFlags).not.toHaveBeenCalled()
   })
 
   it('applies the banner answer without a reload, until unmounted', () => {
