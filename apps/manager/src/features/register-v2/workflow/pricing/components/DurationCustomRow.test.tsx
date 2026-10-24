@@ -5,7 +5,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { addSeconds, differenceInCalendarDays, startOfDay } from 'date-fns'
 import { describe, expect, it, vi } from 'vitest'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
-import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import {
+  MIN_REGISTER_DURATION_SECONDS,
+  MIN_RENEW_DURATION_SECONDS,
+} from '@/features/shared/registration/pricing'
 import { DurationCustomRow } from './DurationCustomRow'
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
@@ -102,6 +105,33 @@ describe('DurationCustomRow', () => {
     expect(onDurationSet).toHaveBeenCalledWith(
       expectedMinimumDuration(referenceDate),
     )
+  })
+
+  // Renewing has no 28-day floor on either renewer, unlike registering.
+  it('offers a one-day minimum when renewing', async () => {
+    const referenceDate = new Date(2026, 6, 29)
+    const onDurationSet = vi.fn()
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <DurationCustomRow
+          isSelected={false}
+          onDurationSet={onDurationSet}
+          referenceDate={referenceDate}
+          selectedDuration={getDurationInSecondsFromYears(1, referenceDate)}
+          type="renew"
+        />
+      </I18nProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /renew to date/i }))
+    await waitFor(() => {
+      expect(document.querySelector('[data-slot="calendar"]')).toBeTruthy()
+    })
+
+    pressKeys(['m', 'i', 'n'])
+
+    expect(onDurationSet).toHaveBeenCalledWith(MIN_RENEW_DURATION_SECONDS)
   })
 
   it('does nothing when MIN is typed while the calendar is closed', () => {
