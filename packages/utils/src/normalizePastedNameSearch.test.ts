@@ -26,6 +26,22 @@ describe('normalizePastedNameSearch', () => {
   it('leaves already-normalized input unchanged', () => {
     expect(normalizePastedNameSearch('helloworld.eth')).toBe('helloworld.eth')
   })
+
+  it('keeps a zero-width joiner that joins two emoji', () => {
+    for (const name of ['👨‍💻.eth', '🏳️‍🌈.eth', '👩🏽‍💻.eth', '🏴‍☠️.eth']) {
+      expect(normalizePastedNameSearch(name)).toBe(name)
+    }
+  })
+
+  it('strips a zero-width joiner that does not join two emoji', () => {
+    expect(normalizePastedNameSearch('hello\u200Dworld')).toBe('helloworld')
+    expect(normalizePastedNameSearch('\u200Dabc\u200D')).toBe('abc')
+    expect(normalizePastedNameSearch('👍\u200Dabc')).toBe('👍abc')
+  })
+
+  it('strips a zero-width joiner between emoji that ENS does not join', () => {
+    expect(normalizePastedNameSearch('😀\u200D😀.eth')).toBe('😀😀.eth')
+  })
 })
 
 describe('insertNormalizedNameSearchPaste', () => {
