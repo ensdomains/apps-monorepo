@@ -35,6 +35,13 @@ export const resolverFor = (
   const cannotSetResolverLocked =
     (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child') &&
     hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER)
+  if (
+    cannotSetResolverLocked &&
+    name.action === 'migrate' &&
+    name.lockedResolverAddress !== undefined
+  ) {
+    return name.lockedResolverAddress
+  }
   const resolver: Address = (() => {
     switch (name.resolverStrategy) {
       case 'keep-v1':

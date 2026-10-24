@@ -85,6 +85,8 @@ export type DirectClassifiedName = ClassifiedNameBase & {
    * classification — see `registryController`.
    */
   readonly managerAddress: Address | null
+  /** The resolver the locked receiver will set, read on-chain when CANNOT_SET_RESOLVER is burned. */
+  readonly lockedResolverAddress?: Address
 }
 
 export type CopyClassifiedName = ClassifiedNameBase & {
