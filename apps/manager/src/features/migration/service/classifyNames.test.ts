@@ -132,6 +132,24 @@ describe('classifyName — grace period registrations', () => {
       ),
     ).toBe('expired-registration')
   })
+
+  it('keeps a wrapper-only grace name on the renewal path through its last second', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(2_000_000_000_000)
+    const atWrapperExpiry = (wrappedExpiry: string) => {
+      const result = classify({
+        isWrapped: true,
+        registrationExpiry: null,
+        wrappedExpiry,
+        fuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+      })
+      return result?.type === 'ineligible' ? result.name.reason : null
+    }
+
+    expect(atWrapperExpiry('2000000000')).toBe('expired-registration')
+    expect(atWrapperExpiry('1999999999')).not.toBe('expired-registration')
+    vi.useRealTimers()
+  })
 })
 
 describe('classifyName — migration availability', () => {

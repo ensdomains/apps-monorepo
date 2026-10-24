@@ -70,11 +70,11 @@ import {
   type MigrationRecoverySnapshot,
 } from './migrationBatchJournal'
 import {
-  assertLockedPublicResolverSetMembership,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
   getRequiredMigrationContracts,
+  resolveLockedMigrationResolvers,
   resolverWriterFor,
 } from './migrationInvariants'
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
@@ -512,10 +512,14 @@ export const buildMigrationPlan = async (params: {
   // Classification never appoints a manager on its own: a v1 registry
   // controller that differs from the registrant is only carried across for the
   // names the owner explicitly opted in for.
-  const ordinaryClassified = withManagerRestorationOptIn(
-    classifiedNamesResult.classified,
-    managerRestorationNames,
-  )
+  const ordinaryClassified = await resolveLockedMigrationResolvers({
+    publicClient,
+    names: withManagerRestorationOptIn(
+      classifiedNamesResult.classified,
+      managerRestorationNames,
+    ),
+  })
+  signal?.throwIfAborted()
   const classified = params.subnameRecreation
     ? applySubnameRecreation({
         domains,
@@ -826,10 +830,21 @@ export const buildMigrationRecoveryPlan = async (params: {
     signal,
   } = params
   signal?.throwIfAborted()
-  const { registryContext, classified } = classifyMigrationRecoverySnapshot({
+  const recovered = classifyMigrationRecoverySnapshot({
     snapshot,
     migrationOwner,
   })
+  const classified = await resolveLockedMigrationResolvers({
+    publicClient,
+    names: recovered.classified,
+  })
+  signal?.throwIfAborted()
+  const resolvedByName = new Map(
+    classified.map((name) => [name.domain.name, name]),
+  )
+  const registryContext = recovered.registryContext.map(
+    (name) => resolvedByName.get(name.domain.name) ?? name,
+  )
 
   const chainId = requireChainId(publicClient, 'migration')
   const needsOwnedPermRes = registryContext.some(
@@ -881,12 +896,11 @@ export const buildMigrationRecoveryPlan = async (params: {
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )
-  await assertLockedPublicResolverSetMembership({
+  await assertLockedResolverReplacementRecordSafety(
+    classified.filter(({ domain }) => !recordedAttemptNames.has(domain.name)),
     publicClient,
-    names: classified.filter(
-      ({ domain }) => !recordedAttemptNames.has(domain.name),
-    ),
-  })
+    signal,
+  )
   signal?.throwIfAborted()
   const [directRoutes, hcaReadiness, resolverReadiness] = await Promise.all([
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
