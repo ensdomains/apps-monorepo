@@ -32,7 +32,11 @@ import {
   maxBatchGas,
   walletReplayNames,
 } from './buildAtomicMigrationBatches'
-import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
+import {
+  adjustPlanForRetry,
+  assertLockedResolverReplacementRecordSafety,
+  type MigrationPlan,
+} from './buildMigrationPlan'
 import type {
   CopyClassifiedName,
   DirectClassifiedName,
@@ -1537,6 +1541,7 @@ const buildNextAtomicBatch = async (params: {
     publicClient: ctx.publicClient,
     names: remaining,
   })
+  await assertLockedResolverReplacementRecordSafety(remaining, ctx.publicClient)
   const directMigrationExpiries = await assertCopyMigrationReadiness({
     publicClient: ctx.publicClient,
     hca: ctx.hcaAddress,

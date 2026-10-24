@@ -4,7 +4,7 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { invalidateMigrationQueries } from '../pages/MigrationPage.helpers'
 import type { ClassifiedName } from '../service/classifyNames'
-import { syncMigrationWrappers } from '../service/wrapperSync'
+import { syncMigrationWrappers, WrapperSyncError } from '../service/wrapperSync'
 
 export const useWrapperSync = (names: readonly ClassifiedName[]) => {
   const { walletClient, ownerAddress } = useSmartAccountContext()
@@ -12,7 +12,10 @@ export const useWrapperSync = (names: readonly ClassifiedName[]) => {
   return useMutation({
     mutationFn: async () => {
       if (!walletClient || !ownerAddress)
-        throw new Error('Connect your wallet to sync these names.')
+        throw new WrapperSyncError({
+          reason: 'not-connected',
+          message: 'Connect your wallet to sync these names.',
+        })
       await syncMigrationWrappers({
         names,
         owner: ownerAddress as Address,

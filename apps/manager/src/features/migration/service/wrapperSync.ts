@@ -6,6 +6,7 @@ import {
   SECONDS_PER_DAY,
   V1_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { baseRegistrarNameExpiresSnippet } from '@ensdomains/ensjs-abi/v1/baseRegistrar'
 import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import {
@@ -25,6 +26,17 @@ import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 
 const WRAPPER_GRACE_SECONDS = BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 const SYNC_WRAPPER_ABI = parseAbi(['function syncWrapper(string[] labels)'])
+
+export class WrapperSyncError extends TaggedError('WrapperSyncError')<{
+  readonly reason:
+    | 'not-connected'
+    | 'wrong-network'
+    | 'wrong-wallet'
+    | 'name-unavailable'
+    | 'reverted'
+    | 'unconfirmed'
+  readonly cause?: unknown
+}> {}
 
 const readWrapperSyncState = async (params: {
   readonly names: readonly ClassifiedName[]
@@ -46,7 +58,10 @@ const readWrapperSyncState = async (params: {
         name.parentName !== 'eth' ||
         label.isErr()
       ) {
-        throw new Error(`Cannot sync ${name.domain.name}.`)
+        throw new WrapperSyncError({
+          reason: 'name-unavailable',
+          message: `Cannot sync ${name.domain.name}.`,
+        })
       }
       const node = namehash(name.domain.name)
       const tokenId = BigInt(labelhash(label.value))
@@ -81,9 +96,10 @@ const readWrapperSyncState = async (params: {
         !hasFuse(BigInt(fuses), FUSES.IS_DOT_ETH) ||
         hasFuse(BigInt(fuses), FUSES.CANNOT_TRANSFER)
       ) {
-        throw new Error(
-          `${name.domain.name} is no longer available to sync. Refresh your names and try again.`,
-        )
+        throw new WrapperSyncError({
+          reason: 'name-unavailable',
+          message: `${name.domain.name} is no longer available to sync. Refresh your names and try again.`,
+        })
       }
       return {
         label: label.value,
@@ -108,10 +124,16 @@ export const syncMigrationWrappers = async (params: {
     walletClient.getAddresses(),
   ])
   if (publicClient.chain?.id !== chainId || walletChainId !== chainId) {
-    throw new Error('Switch to the migration network and try again.')
+    throw new WrapperSyncError({
+      reason: 'wrong-network',
+      message: 'Switch to the migration network and try again.',
+    })
   }
   if (!addresses.some((address) => isAddressEqual(address, owner))) {
-    throw new Error('Reconnect the wallet that owns these names.')
+    throw new WrapperSyncError({
+      reason: 'wrong-wallet',
+      message: 'Reconnect the wallet that owns these names.',
+    })
   }
   const states = await readWrapperSyncState(params)
   const labels = [
@@ -156,14 +178,19 @@ export const syncMigrationWrappers = async (params: {
   const confirmed =
     receipt ?? (await publicClient.waitForTransactionReceipt({ hash }))
   if (confirmed.status !== 'success')
-    throw new Error('Name sync reverted. Please try again.')
+    throw new WrapperSyncError({
+      reason: 'reverted',
+      message: 'Name sync reverted. Please try again.',
+    })
   const refreshed = await readWrapperSyncState({
     ...params,
     blockNumber: confirmed.blockNumber,
   })
   if (refreshed.some(({ needsSync }) => needsSync)) {
-    throw new Error(
-      'Could not confirm the updated expiry. Refresh your names before trying again.',
-    )
+    throw new WrapperSyncError({
+      reason: 'unconfirmed',
+      message:
+        'Could not confirm the updated expiry. Refresh your names before trying again.',
+    })
   }
 }
