@@ -1,5 +1,6 @@
 import { requireEnsChain } from '@ens-apps/config'
 import { registryOwnerSnippet } from '@ensdomains/ensjs-abi/registry'
+import { baseRegistrarNameExpiresSnippet } from '@ensdomains/ensjs-abi/v1/baseRegistrar'
 import { permissionedRegistryGetStatusSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   type Address,
@@ -120,7 +121,7 @@ const checkWrapperSyncExpiries = async (params: {
         chain: params.chain,
         contract: 'ensBaseRegistrarImplementation',
       }),
-      abi: BASE_REGISTRAR_ABI,
+      abi: baseRegistrarNameExpiresSnippet,
       functionName: 'nameExpires' as const,
       args: [BigInt(name.domain.labelhash)] as const,
     })),

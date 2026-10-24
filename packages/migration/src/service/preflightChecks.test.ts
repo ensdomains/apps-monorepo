@@ -1,4 +1,4 @@
-import { type Address, namehash, zeroAddress } from 'viem'
+import { type Address, encodeFunctionData, namehash, zeroAddress } from 'viem'
 import { multicall } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -367,6 +367,8 @@ describe('runEligibilityChecks', () => {
       wrapperExpiry,
     ] as const)
     multicallMock.mockImplementation(async (_, { contracts }) => {
+      // Encode like viem does, so a call missing from its ABI fails here.
+      for (const contract of contracts) encodeFunctionData(contract as never)
       switch (
         (contracts[0] as { readonly functionName?: string }).functionName
       ) {
