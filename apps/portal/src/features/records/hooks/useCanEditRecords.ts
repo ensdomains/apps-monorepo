@@ -5,8 +5,10 @@ import { match } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import type { RecordEditLock } from '@/features/records/helpers/recordEditLock'
 import { useNameHasOwnResolver } from '@/features/records/hooks/useNameHasOwnResolver'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
+import { useRecordEditLock } from '@/features/records/hooks/useRecordEditLock'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { getResolverSetterGrantsQueryOptions } from '@/features/resolver/hooks/useResolverSetterGrants'
@@ -86,6 +88,8 @@ type UseCanEditRecordsReturn = {
   hasOwnResolver: boolean | undefined
   resolverAddress: Address | null | undefined
   editableTypes: EditableTypes
+  /** Set when ownership alone would have allowed editing but the resolver refuses this wallet. */
+  readonly editLock: RecordEditLock | undefined
 }
 
 /**
@@ -99,7 +103,8 @@ type UseCanEditRecordsReturn = {
  *   previous owner typically retains them while the new token owner does not.
  * - V2 names on any other resolver: only PublicResolverV2's own
  *   `canModifyName` counts; ownership grants nothing elsewhere.
- * - V1 names on a non-permissioned resolver: falls back to token ownership.
+ * - V1 names on a non-permissioned resolver: falls back to token ownership,
+ *   except where {@link useRecordEditLock} finds that locked out.
  *
  * Either way the name must own its resolver. One inherited through ENSIP-10
  * wildcard resolution — a DNS name resolving through its TLD's
@@ -216,6 +221,19 @@ export function useCanEditRecords({
     !!ownerQuery.data?.owner &&
     isAddressEqual(connectedAddress, ownerQuery.data.owner)
 
+  // Scoped to the ownership fallback, the only branch that can be locked out.
+  const { editLock, queries: lockQueries } = useRecordEditLock({
+    name,
+    enabled:
+      enabled &&
+      isOwner &&
+      !isV2 &&
+      isPermissionedQuery.isSuccess &&
+      !isPermissioned,
+    resolverAddress,
+    account: connectedAddress,
+  })
+
   // A disabled query is neither loading nor errored, so each read only counts
   // once its `enabled` gate opens.
   const queries = [
@@ -226,6 +244,7 @@ export function useCanEditRecords({
     ...(isReadingGrants ? [grantsQuery] : []),
     ...roleQueries,
     publicResolverV2Query,
+    ...lockQueries,
   ]
   const isLoading = enabled && queries.some((query) => query.isLoading)
   const isError = queries.some((query) => query.isError)
@@ -247,7 +266,7 @@ export function useCanEditRecords({
       () => grantedRoles.length + grantedScopes.length > 0,
     )
     .with({ isV2: true }, () => publicResolverV2Query.data === true)
-    .otherwise(() => isOwner)
+    .otherwise(() => isOwner && !editLock)
 
   return {
     canEdit,
@@ -256,6 +275,7 @@ export function useCanEditRecords({
     isOwner,
     hasOwnResolver,
     resolverAddress,
+    editLock,
     editableTypes: match({ canEdit, isPermissioned })
       .with({ canEdit: false }, () => NO_EDITABLE_TYPES)
       .with({ isPermissioned: false }, () => ALL_EDITABLE_TYPES)
