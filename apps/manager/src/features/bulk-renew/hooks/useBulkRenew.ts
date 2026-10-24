@@ -1,6 +1,6 @@
 import { authorizedPaymentAmount } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
-import { addSeconds } from 'date-fns'
+import { addDays, startOfDay } from 'date-fns'
 import { useMemo } from 'react'
 import { getNameRowProfilePreview } from '@/features/dashboard/components/nameRowProfileRecords'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -11,7 +11,10 @@ import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
-import { MIN_RENEW_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import {
+  MIN_RENEW_DURATION_SECONDS,
+  SECONDS_PER_DAY,
+} from '@/features/shared/registration/pricing'
 import {
   type StablecoinBalance,
   useSmartAccountContext,
@@ -93,9 +96,10 @@ export const useBulkRenew = ({
       (max, n) => (n.currentExpiry > max ? n.currentExpiry : max),
       0n,
     )
-    return addSeconds(
-      new Date(Number(latestExpiry) * 1000),
-      MIN_RENEW_DURATION_SECONDS,
+    // Calendar days, not seconds, so a DST shift cannot hide a valid duration.
+    return addDays(
+      startOfDay(new Date(Number(latestExpiry) * 1000)),
+      MIN_RENEW_DURATION_SECONDS / SECONDS_PER_DAY,
     )
   }, [names])
 

@@ -1,8 +1,8 @@
 import { Trans } from '@lingui/react/macro'
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import {
+  addDays,
   addMonths,
-  addSeconds,
   differenceInCalendarDays,
   format,
   startOfDay,
@@ -20,6 +20,7 @@ import { getDurationExpiryDateForDisplay } from '@/features/register-v2/utils/ti
 import {
   MIN_REGISTER_DURATION_SECONDS,
   MIN_RENEW_DURATION_SECONDS,
+  SECONDS_PER_DAY,
 } from '@/features/shared/registration/pricing'
 import { cn } from '@/lib/utils'
 
@@ -65,13 +66,20 @@ export const DurationCustomRow = memo(function DurationCustomRow({
     type === 'renew'
       ? MIN_RENEW_DURATION_SECONDS
       : MIN_REGISTER_DURATION_SECONDS
-  const minSelectableDate = addSeconds(referenceDate, minDurationSeconds)
+  // Calendar days, not seconds: a DST shift inside the span would otherwise
+  // push the boundary onto the next day and hide a valid duration.
+  const minSelectableDate = addDays(
+    startOfDay(referenceDate),
+    minDurationSeconds / SECONDS_PER_DAY,
+  )
 
   const selectMinimumDuration = () => {
-    const minDate = new Date(minSelectableDate)
-    minDate.setHours(0, 0, 0, 0)
     onDurationSet(
-      getDurationFromSelectedDate(minDate, referenceDate, minDurationSeconds),
+      getDurationFromSelectedDate(
+        minSelectableDate,
+        referenceDate,
+        minDurationSeconds,
+      ),
     )
   }
 
