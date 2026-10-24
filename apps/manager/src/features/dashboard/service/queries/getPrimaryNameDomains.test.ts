@@ -16,11 +16,12 @@ const OWNER = '0x0000000000000000000000000000000000000def'
 const summary = (
   name: string,
   namehash: `0x${string}` = `0x${name.length}`,
+  protocol: NameSummary['protocol'] = 'v2',
 ): NameSummary => ({
   name,
   displayName: name,
   namehash,
-  protocol: 'v2',
+  protocol,
   relations: ['owner'],
   isPrimary: false,
   isMigrated: false,
@@ -38,19 +39,28 @@ const page = (
 ): Page<NameSummary> => ({ items, nextCursor, totalCount: null })
 
 describe('getPrimaryNameDomains', () => {
-  it('asks for owned ENSv2 names by name and maps them to dialog rows', async () => {
+  // An ENSv1 name that resolves to its owner can be a primary name, so the
+  // read must not ask bigname for one protocol.
+  it('asks for owned names of either protocol and maps them to dialog rows', async () => {
     const readNames = vi.fn<ReadNamesForAddress>(() =>
-      okAsync(page([summary('alice.eth', '0x01')])),
+      okAsync(
+        page([
+          summary('alice.eth', '0x01'),
+          summary('sub.legacy.eth', '0x02', 'v1'),
+        ]),
+      ),
     )
 
     const result = await getPrimaryNameDomains(readNames, ADDRESS)
 
-    expect(result._unsafeUnwrap()).toEqual([{ id: '0x01', name: 'alice.eth' }])
+    expect(result._unsafeUnwrap()).toEqual([
+      { id: '0x01', name: 'alice.eth' },
+      { id: '0x02', name: 'sub.legacy.eth' },
+    ])
     expect(readNames).toHaveBeenCalledWith(
       {
         address: ADDRESS,
         relations: ['owner'],
-        protocol: 'v2',
         sort: 'name',
         order: 'asc',
         pageSize: 200,
