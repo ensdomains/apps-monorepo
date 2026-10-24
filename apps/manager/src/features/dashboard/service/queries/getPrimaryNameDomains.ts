@@ -24,7 +24,6 @@ const toPrimaryNameDomain = (name: NameSummary): PrimaryNameDomain => ({
 })
 
 const nameQuery = {
-  protocol: 'v2',
   sort: 'name',
   order: 'asc',
 } as const
@@ -33,10 +32,10 @@ const byName = (a: NameSummary, b: NameSummary) =>
   Number(a.name > b.name) - Number(a.name < b.name)
 
 /**
- * Every owned ENSv2 name, plus every name whose ETH record still resolves to
- * the owner wallet (e.g. transferred with the record kept), all pages, so
- * local search never silently omits later names. A label bigname cannot
- * normalize comes back as a bracketed labelhash, which can't be set as a
+ * Every owned name, ENSv1 and ENSv2 alike, plus every name whose ETH record
+ * still resolves to the owner wallet (e.g. transferred with the record kept),
+ * all pages, so local search never silently omits later names. A label bigname
+ * cannot normalize comes back as a bracketed labelhash, which can't be set as a
  * primary name.
  */
 export const getPrimaryNameDomains = (
