@@ -7,6 +7,7 @@ import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { initializeIntercom } from '@/lib/intercom'
 import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
@@ -49,6 +50,8 @@ declare module '@tanstack/react-router' {
     router: typeof router
   }
 }
+
+initializeIntercom()
 
 // Render the app
 const rootElement = document.getElementById('app')

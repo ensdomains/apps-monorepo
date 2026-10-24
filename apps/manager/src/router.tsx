@@ -7,6 +7,7 @@ import { createRouter as createTanStackRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { getGlobalStartContext } from '@tanstack/react-start'
 import { NotFoundPage } from './features/not-found/pages/NotFoundPage'
+import { initializeIntercom } from './lib/intercom'
 import { getLocale, loadCatalog } from './lib/locale'
 import { routeTree } from './routeTree.gen'
 import {
@@ -75,6 +76,8 @@ export async function getRouter() {
     router,
     queryClient,
   })
+
+  initializeIntercom()
 
   return router
 }

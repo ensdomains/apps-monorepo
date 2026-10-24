@@ -1,23 +1,10 @@
 import { update } from '@intercom/messenger-js-sdk'
 import { act, render } from '@testing-library/react'
 import { useState } from 'react'
-import {
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest'
-import { startIntercom } from '@/lib/intercom'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useIntercomClearance } from './useIntercomClearance'
 
-vi.mock('@intercom/messenger-js-sdk', () => ({
-  boot: vi.fn(),
-  Intercom: vi.fn(),
-  update: vi.fn(),
-}))
+vi.mock('@intercom/messenger-js-sdk', () => ({ update: vi.fn() }))
 
 const BAR_HEIGHT = 90
 
@@ -42,11 +29,6 @@ const mockBar = (
   } as DOMRect)
 
 describe('useIntercomClearance', () => {
-  // Intercom only runs with analytics consent; these tests start it.
-  beforeAll(() => {
-    startIntercom()
-  })
-
   beforeEach(() => {
     vi.useFakeTimers()
     vi.mocked(update).mockClear()

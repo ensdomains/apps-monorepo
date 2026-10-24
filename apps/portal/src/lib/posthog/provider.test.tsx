@@ -1,20 +1,17 @@
-import { trackEvent, update } from '@intercom/messenger-js-sdk'
+import { boot, trackEvent, update } from '@intercom/messenger-js-sdk'
 import { act, render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnectionEffect } from 'wagmi'
-import { startIntercom, stopIntercom } from '@/lib/intercom'
+import { INTERCOM_APP_ID } from '@/lib/intercom'
 import { POSTHOG_CONFIG, setAnalyticsConsent } from './config'
 import { PHProvider } from './provider'
 
 vi.mock('@intercom/messenger-js-sdk', () => ({
+  boot: vi.fn(),
   getVisitorId: vi.fn(),
   trackEvent: vi.fn(),
   update: vi.fn(),
-}))
-vi.mock('@/lib/intercom', () => ({
-  startIntercom: vi.fn(),
-  stopIntercom: vi.fn(),
 }))
 vi.mock('@posthog/react', () => ({
   PostHogProvider: ({ children }: { children: unknown }) => children,
@@ -92,13 +89,12 @@ describe('PostHog provider', () => {
     )
   })
 
-  it('starts and links Intercom only with consent, including after Accept', () => {
+  it('links Intercom to analytics only with consent, including after Accept', () => {
     renderProvider()
-    expect(startIntercom).not.toHaveBeenCalled()
+    expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
     expect(update).not.toHaveBeenCalled()
 
     act(() => setAnalyticsConsent(posthog, true))
-    expect(startIntercom).toHaveBeenCalled()
     expect(update).toHaveBeenCalledWith({
       posthog_distinct_id: 'distinct-id',
       recent_replay: 'replay-url',
@@ -175,7 +171,6 @@ describe('PostHog provider', () => {
 
     expect(posthog.reset).toHaveBeenCalled()
     expect(posthog.get_explicit_consent_status()).toBe('denied')
-    expect(stopIntercom).toHaveBeenCalled()
   })
 
   it('applies the banner answer without a reload', () => {
@@ -193,12 +188,12 @@ describe('PostHog provider', () => {
     })
   })
 
-  it('survives a PostHog init failure without starting Intercom', () => {
+  it('boots Intercom even when PostHog initialization fails', () => {
     vi.mocked(posthog.init).mockImplementationOnce(() => {
       throw new Error('blocked')
     })
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     renderProvider()
-    expect(startIntercom).not.toHaveBeenCalled()
+    expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
   })
 })
