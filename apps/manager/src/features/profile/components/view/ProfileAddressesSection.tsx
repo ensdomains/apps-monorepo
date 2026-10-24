@@ -14,6 +14,8 @@ import {
   ProfileCard,
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
+  profileFieldLabelClassName,
+  profileFieldValueClassName,
   profileTileClassName,
 } from './ProfileCard'
 import {
@@ -37,7 +39,7 @@ const addressCardClassName = cn(
 )
 
 const AddressValue = ({ value }: { readonly value: string }) => (
-  <span className="min-w-0 truncate font-mono text-[13px] text-ens-quartz-400 leading-[1.1] tracking-[-0.26px] xl:text-sm xl:tracking-[-0.28px]">
+  <span className={cn('min-w-0 truncate', profileFieldValueClassName)}>
     {formatProfileAddress(value)}
   </span>
 )
@@ -147,8 +149,13 @@ const ChainAddressCard = ({
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <AddressIcon coinType={address.coinType} size="lg" />
-          <div className="flex min-w-0 flex-1 flex-col gap-1 text-left">
-            <span className="whitespace-normal break-words font-sans text-ens-quartz-600 text-xs">
+          <div className="flex min-w-0 flex-1 flex-col text-left">
+            <span
+              className={cn(
+                'whitespace-normal break-words',
+                profileFieldLabelClassName,
+              )}
+            >
               {address.label}
             </span>
             <AddressValue value={address.value} />
