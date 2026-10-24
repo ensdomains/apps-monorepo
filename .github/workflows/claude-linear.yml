@@ -44,8 +44,16 @@ jobs:
           set -euo pipefail
           if [ "$EVENT" = repository_dispatch ]; then
             [[ "$TICKET_ID" =~ ^[A-Za-z]+-[0-9]+$ ]] || { echo "Invalid ticket id"; exit 1; }
-            echo "name=claude/$TICKET_ID" >> "$GITHUB_OUTPUT"
-            echo "create=$([ "$IS_FOLLOWUP" = true ] && echo false || echo true)" >> "$GITHUB_OUTPUT"
+            branch="claude/$TICKET_ID"
+            echo "name=$branch" >> "$GITHUB_OUTPUT"
+            # A rerun of the first dispatch must build on the commits the last
+            # one saved, not push a fresh branch over them.
+            if [ "$IS_FOLLOWUP" = true ] ||
+              gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" >/dev/null 2>&1; then
+              echo "create=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "create=true" >> "$GITHUB_OUTPUT"
+            fi
           else
             pr=$(gh pr view "$PR_NUMBER" -R "$GITHUB_REPOSITORY" --json headRefName,isCrossRepository) || { echo "Not a pull request"; exit 1; }
             [ "$(jq -r .isCrossRepository <<<"$pr")" = false ] || { echo "Fork pull requests are not supported"; exit 1; }
