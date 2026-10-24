@@ -39,6 +39,16 @@ describe('followChain', () => {
     ])
   })
 
+  it('moves the wallet to its chain before a call bundle', async () => {
+    const { client, ensureChain, forwarded } = setup()
+    await client.request({
+      method: 'wallet_sendCalls',
+      params: [{ chainId: numberToHex(sepolia.id), calls: [] }],
+    } as never)
+    expect(ensureChain.mock.calls).toEqual([[sepolia.id]])
+    expect(ensureChain).toHaveBeenCalledBefore(forwarded)
+  })
+
   const signForBase = (client: ReturnType<typeof setup>['client']) =>
     client.signTypedData({
       domain: { name: 'Permit2', chainId: baseSepolia.id },

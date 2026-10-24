@@ -9,10 +9,12 @@ import {
 } from 'viem'
 
 // Answered for the wallet's active chain, so it must be on the client's chain.
+// Wallets run a `wallet_sendCalls` bundle there too, whatever chain it names.
 const CHAIN_BOUND_METHODS = new Set([
   'eth_chainId',
   'eth_sendTransaction',
   'wallet_sendTransaction',
+  'wallet_sendCalls',
 ])
 
 /** The chain an `eth_signTypedData_v4` payload's domain names, if any. */
