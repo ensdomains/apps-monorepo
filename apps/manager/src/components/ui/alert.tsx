@@ -1,24 +1,35 @@
 import { cva, type VariantProps } from 'class-variance-authority'
-import type * as React from 'react'
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  Info,
+  type LucideIcon,
+  TriangleAlert,
+} from 'lucide-react'
+import {
+  type ComponentProps,
+  createContext,
+  type ReactElement,
+  use,
+} from 'react'
 
 import { cn } from '@/lib/utils'
 
 const alertVariants = cva(
-  cn(
-    'relative grid w-full items-start gap-y-0.5',
-    'grid-cols-[0_1fr] has-[>svg,>.material-symbol]:grid-cols-[calc(var(--spacing)*4)_1fr]',
-    'rounded-lg border px-4 py-3 text-sm',
-    'has-[>svg,>.material-symbol]:gap-x-3',
-    '[&>svg,&>.material-symbol]:size-4 [&>svg,&>.material-symbol]:translate-y-0.5 [&>svg,&>.material-symbol]:text-current',
-  ),
+  'flex w-full items-start gap-3 rounded-lg border p-4 text-sm',
   {
     variants: {
       variant: {
-        default: 'bg-card text-card-foreground',
-        destructive:
-          'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg,&>.material-symbol]:text-current',
+        default: 'border-ens-gray-two bg-white text-ens-blue-dark',
+        success:
+          'border-ens-peridot-border bg-ens-peridot-bg text-ens-peridot-text-dark',
+        error: 'border-ens-lapis-dust bg-ens-lapis-tint text-ens-lapis-dense',
         warning:
-          'border-amber-200 bg-amber-50 text-amber-900 *:data-[slot=alert-description]:text-amber-900/90 [&>svg,&>.material-symbol]:text-current',
+          'border-ens-signal-warning-400 bg-ens-signal-warning-100 text-ens-signal-warning-800',
+        info: 'border-ens-lapis-dust bg-ens-lapis-bg text-ens-lapis-dense',
+        // Legacy red style kept for existing callers; prefer `error`.
+        destructive: 'bg-card text-destructive',
       },
     },
     defaultVariants: {
@@ -27,50 +38,119 @@ const alertVariants = cva(
   },
 )
 
-function Alert({
+type AlertVariant = NonNullable<VariantProps<typeof alertVariants>['variant']>
+
+const alertDescriptionVariants = cva('', {
+  variants: {
+    variant: {
+      default: 'text-ens-gray',
+      success: 'text-ens-peridot-text-medium',
+      error: 'text-ens-lapis-dense/70',
+      warning: 'text-ens-signal-warning-800',
+      info: 'text-ens-lapis-core',
+      destructive: 'text-destructive/90',
+    },
+  },
+})
+
+const ALERT_ICONS: Readonly<Record<AlertVariant, LucideIcon>> = {
+  default: Info,
+  success: CircleCheck,
+  error: CircleX,
+  warning: TriangleAlert,
+  info: Info,
+  destructive: CircleAlert,
+}
+
+const ALERT_LIVE_REGIONS: Readonly<
+  Record<
+    AlertVariant,
+    { readonly role: 'alert' | 'status'; readonly live: 'assertive' | 'polite' }
+  >
+> = {
+  default: { role: 'status', live: 'polite' },
+  success: { role: 'status', live: 'polite' },
+  error: { role: 'alert', live: 'assertive' },
+  // Warnings are standing context, not interruptions
+  warning: { role: 'status', live: 'polite' },
+  info: { role: 'status', live: 'polite' },
+  destructive: { role: 'alert', live: 'assertive' },
+}
+
+const AlertVariantContext = createContext<AlertVariant>('default')
+
+type AlertProps = Readonly<
+  ComponentProps<'div'> & {
+    variant?: AlertVariant
+    /** Replaces the variant's icon; `null` renders none. */
+    icon?: ReactElement | null
+  }
+>
+
+const Alert = ({
   className,
-  variant,
+  variant = 'default',
+  icon,
+  children,
   ...props
-}: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
+}: AlertProps) => {
+  const DefaultIcon = ALERT_ICONS[variant]
+  const iconNode =
+    icon === undefined ? <DefaultIcon className="size-4" /> : icon
+  const { role, live } = ALERT_LIVE_REGIONS[variant]
+
   return (
     <div
       aria-atomic="true"
-      aria-live="assertive"
+      aria-live={live}
       className={cn(alertVariants({ variant }), className)}
       data-slot="alert"
-      role="alert"
+      role={role}
       {...props}
-    />
+    >
+      {iconNode ? (
+        <span
+          aria-hidden="true"
+          className={cn(
+            'mt-0.5 flex shrink-0 *:size-4',
+            variant === 'warning' && 'text-ens-signal-warning-700',
+          )}
+          data-slot="alert-icon"
+        >
+          {iconNode}
+        </span>
+      ) : null}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <AlertVariantContext value={variant}>{children}</AlertVariantContext>
+      </div>
+    </div>
   )
 }
 
-function AlertTitle({ className, ...props }: React.ComponentProps<'div'>) {
-  return (
-    <div
-      className={cn(
-        'col-start-2 min-h-4',
-        'line-clamp-1',
-        'font-medium tracking-tight',
-        className,
-      )}
-      data-slot="alert-title"
-      {...props}
-    />
-  )
-}
-
-function AlertDescription({
+const AlertTitle = ({
   className,
   ...props
-}: React.ComponentProps<'div'>) {
+}: Readonly<ComponentProps<'div'>>) => (
+  <div
+    className={cn('wrap-anywhere font-medium leading-5', className)}
+    data-slot="alert-title"
+    {...props}
+  />
+)
+
+const AlertDescription = ({
+  className,
+  ...props
+}: Readonly<ComponentProps<'div'>>) => {
+  const variant = use(AlertVariantContext)
+
   return (
     <div
       className={cn(
-        'col-start-2 grid min-w-0 justify-items-start gap-1',
-        // A chain error carries unbroken hex; without this it widens the alert
-        // past the page instead of wrapping.
-        'wrap-anywhere text-muted-foreground text-sm',
-        '[&_p]:leading-relaxed',
+        'grid min-w-0 justify-items-start gap-1',
+        // Chain errors carry unbroken hex; without this they widen the alert.
+        'wrap-anywhere leading-5',
+        alertDescriptionVariants({ variant }),
         className,
       )}
       data-slot="alert-description"
@@ -79,4 +159,5 @@ function AlertDescription({
   )
 }
 
+export type { AlertVariant }
 export { Alert, AlertDescription, AlertTitle }

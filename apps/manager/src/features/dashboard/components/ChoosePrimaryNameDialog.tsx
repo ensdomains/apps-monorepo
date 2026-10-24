@@ -3,7 +3,7 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, Check } from 'lucide-react'
+import { Check, CircleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
@@ -242,7 +242,6 @@ const PrimaryNameErrorNotice = ({
 
   return (
     <Alert variant="destructive">
-      <AlertCircle />
       <AlertDescription>{errorMessage}</AlertDescription>
     </Alert>
   )
@@ -260,8 +259,7 @@ const EthAddressUpdateNotice = ({
   const { t } = useLingui()
   if (!ownerAddress) return null
   return (
-    <Alert id={id} variant="warning">
-      <AlertCircle />
+    <Alert icon={<CircleAlert className="size-4" />} id={id} variant="warning">
       <AlertDescription>
         <p>
           {existingEthAddress
