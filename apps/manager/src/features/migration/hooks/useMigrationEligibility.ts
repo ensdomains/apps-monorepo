@@ -1,14 +1,8 @@
-import {
-  BASE_REGISTRAR_ABI,
-  getSubnameMigrationImpact,
-} from '@ens-apps/migration'
+import { getSubnameMigrationImpact } from '@ens-apps/migration'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { baseRegistrarNameExpiresSnippet } from '@ensdomains/ensjs-abi/v1/baseRegistrar'
-import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
-import { type Address, isAddressEqual, type PublicClient } from 'viem'
-import { V1_CONTRACTS } from '@/features/migration/contracts/addresses'
+import type { Address, PublicClient } from 'viem'
 import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import { runEligibilityChecks } from '@/features/migration/service/preflightChecks'
 import { discoverSubnameRecreation } from '@/features/migration/service/subnameRecreation'
@@ -29,7 +23,6 @@ export type SubnameMigrationBlockReason =
   | 'incomplete-inventory'
   | 'unverified-source'
   | 'requires-parent'
-  | 'wrapper-needs-sync'
 
 export type BlockedSubnameMigration = {
   readonly name: ClassifiedName
@@ -53,53 +46,6 @@ const discoveryFailureReason = (
 const canImportDirectSubnames = (name: ClassifiedName): boolean =>
   name.parentName === 'eth' &&
   (name.tokenType === 'unwrapped' || name.tokenType === 'unlocked')
-
-const findUnsyncedWrappers = async (
-  client: PublicClient,
-  names: readonly ClassifiedName[],
-): Promise<readonly BlockedSubnameMigration[]> => {
-  const candidates = names.filter(
-    (name) => name.tokenType === 'unlocked' || name.tokenType === 'locked-2ld',
-  )
-  if (candidates.length === 0) return []
-  const block = await client.getBlock()
-  const results = await Promise.all(
-    candidates.map(async (name): Promise<BlockedSubnameMigration | null> => {
-      const [registrant, registrationExpiry, [, , wrapperExpiry]] =
-        await Promise.all([
-          client.readContract({
-            address: V1_CONTRACTS.BaseRegistrar,
-            abi: BASE_REGISTRAR_ABI,
-            functionName: 'ownerOf',
-            args: [BigInt(name.domain.labelhash)],
-            blockNumber: block.number,
-          }),
-          client.readContract({
-            address: V1_CONTRACTS.BaseRegistrar,
-            abi: baseRegistrarNameExpiresSnippet,
-            functionName: 'nameExpires',
-            args: [BigInt(name.domain.labelhash)],
-            blockNumber: block.number,
-          }),
-          client.readContract({
-            address: V1_CONTRACTS.NameWrapper,
-            abi: nameWrapperGetDataSnippet,
-            functionName: 'getData',
-            args: [BigInt(name.domain.id)],
-            blockNumber: block.number,
-          }),
-        ])
-      return isAddressEqual(registrant, V1_CONTRACTS.NameWrapper) &&
-        registrationExpiry > block.timestamp &&
-        wrapperExpiry < registrationExpiry + 90n * 24n * 60n * 60n
-        ? { name, reason: 'wrapper-needs-sync' }
-        : null
-    }),
-  )
-  return results.filter(
-    (result): result is BlockedSubnameMigration => result !== null,
-  )
-}
 
 const checkSubnameCandidates = async (params: {
   readonly candidates: readonly ClassifiedName[]
@@ -190,7 +136,6 @@ export const useMigrationEligibility = (
       // Include children controlled by other wallets: the owner's name list
       // alone cannot establish that the complete tree can be preserved.
       const blocked = [
-        ...(await findUnsyncedWrappers(client, result.alreadyMigrated)),
         ...(await checkSubnameCandidates({
           candidates: direct,
           importsEnabled,

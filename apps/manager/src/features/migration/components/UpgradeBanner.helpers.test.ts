@@ -6,15 +6,21 @@ const name = (value: string) =>
   makeClassified({ id: value, name: value, label: value.split('.')[0] })
 
 describe('shouldShowUpgradeBanner', () => {
-  it('shows the account-level banner when only grace-period names remain before migration', () => {
-    expect(
-      shouldShowUpgradeBanner({
-        eligibleV1Names: [],
-        gracePeriodNameCount: 1,
-        migratedCount: 0,
-      }),
-    ).toBe(true)
-  })
+  it.each([
+    ['grace-period names', { gracePeriodNameCount: 1 }],
+    ['names needing sync', { wrapperSyncNames: [name('alice.eth')] }],
+  ])(
+    'shows the account-level banner when only %s remain before migration',
+    (_, rest) => {
+      expect(
+        shouldShowUpgradeBanner({
+          eligibleV1Names: [],
+          migratedCount: 0,
+          ...rest,
+        }),
+      ).toBe(true)
+    },
+  )
 
   it('leaves grace-period names to the progress banner after migration has started', () => {
     expect(
@@ -65,15 +71,24 @@ describe('shouldShowUpgradeBanner', () => {
     ).toBe(false)
   })
 
-  it('shows the profile banner when the current profile is eligible for migration', () => {
-    expect(
-      shouldShowUpgradeBanner({
-        eligibleV1Names: [name('alice.eth')],
-        migratedCount: 1,
-        profileName: 'Alice.eth',
-      }),
-    ).toBe(true)
-  })
+  it.each([
+    ['is eligible for', { eligibleV1Names: [name('alice.eth')] }],
+    [
+      'needs syncing before',
+      { eligibleV1Names: [], wrapperSyncNames: [name('alice.eth')] },
+    ],
+  ])(
+    'shows the profile banner when the current profile %s migration',
+    (_, names) => {
+      expect(
+        shouldShowUpgradeBanner({
+          ...names,
+          migratedCount: 1,
+          profileName: 'Alice.eth',
+        }),
+      ).toBe(true)
+    },
+  )
 
   it('shows the profile banner without an account-level migrated count', () => {
     expect(

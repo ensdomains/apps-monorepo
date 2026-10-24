@@ -310,6 +310,7 @@ describe('runEligibilityChecks', () => {
       alreadyMigrated: [],
       notPremigrated: [],
       failed: [],
+      needsWrapperSync: [],
     })
     expect(multicallMock).not.toHaveBeenCalled()
   })
@@ -343,6 +344,51 @@ describe('runEligibilityChecks', () => {
     expect(result.notPremigrated).toEqual([])
     expect(result.failed).toEqual([])
     expect(multicallMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('offers a wrapper sync only when the registrar lease outlives the wrapper', async () => {
+    const now = BigInt(Math.floor(Date.now() / 1000))
+    const wrapperExpiry = now + 3600n
+    const stale = makeClassified({
+      id: '0xa1',
+      label: 'a',
+      name: 'a.eth',
+      tokenType: 'unlocked',
+    })
+    const inGrace = makeClassified({
+      id: '0xb1',
+      label: 'b',
+      name: 'b.eth',
+      tokenType: 'unlocked',
+    })
+    const wrapped = ok([
+      OWNER,
+      Number(FUSES.IS_DOT_ETH),
+      wrapperExpiry,
+    ] as const)
+    multicallMock.mockImplementation(async (_, { contracts }) => {
+      switch (
+        (contracts[0] as { readonly functionName?: string }).functionName
+      ) {
+        case 'getData':
+          return [wrapped, wrapped]
+        case 'nameExpires':
+          // a.eth was renewed past the wrapper; b.eth is really in grace.
+          return [ok(now + 365n * 86_400n), ok(wrapperExpiry - 90n * 86_400n)]
+        default:
+          return contracts.map(() => ok(1))
+      }
+    })
+
+    const result = await runEligibilityChecks(
+      publicClient,
+      [stale, inGrace],
+      OWNER,
+    )
+
+    expect(result.needsWrapperSync.map((n) => n.domain.id)).toEqual(['0xa1'])
+    expect(result.alreadyMigrated.map((n) => n.domain.id)).toEqual(['0xb1'])
+    expect(result.eligible).toEqual([])
   })
 
   it('reports unreadable ownership checks in `failed` (and keeps them out of eligible)', async () => {
