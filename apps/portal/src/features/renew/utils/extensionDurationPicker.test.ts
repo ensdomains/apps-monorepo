@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
 import {
   MAX_REGISTRATION_YEARS,
-  MIN_REGISTRATION_DURATION,
+  MIN_RENEWAL_DURATION,
   SECONDS_PER_DAY,
 } from '@/lib/constants/duration'
 import {
@@ -85,14 +85,24 @@ describe('extensionDurationPicker', () => {
     })
 
     it('falls back to the minimum for a target at or before the expiry', () => {
-      // Unreachable from the picker (its min date is expiry + 28 days), but the
-      // contract cannot shorten an expiry, so never emit a negative duration.
+      // Unreachable from the picker (its min date is the day after expiry), but
+      // the contract cannot shorten an expiry, so never emit a negative duration.
       expect(
         getExtensionDurationSeconds(plainDate('2040-01-01'), {
           type: 'date',
           date: plainDate('2030-01-01'),
         }),
-      ).toBe(MIN_REGISTRATION_DURATION)
+      ).toBe(MIN_RENEWAL_DURATION)
+    })
+
+    // Renewing has no 28-day floor on either renewer, unlike registering.
+    it('prices a one-day extension as one day', () => {
+      expect(
+        getExtensionDurationSeconds(plainDate('2030-01-01'), {
+          type: 'date',
+          date: plainDate('2030-01-02'),
+        }),
+      ).toBe(SECONDS_PER_DAY)
     })
 
     it('measures each name from its own expiry towards a shared target', () => {

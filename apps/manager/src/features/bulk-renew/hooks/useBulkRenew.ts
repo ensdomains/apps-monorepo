@@ -11,7 +11,7 @@ import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
-import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import { MIN_RENEW_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import {
   type StablecoinBalance,
   useSmartAccountContext,
@@ -95,7 +95,7 @@ export const useBulkRenew = ({
     )
     return addSeconds(
       new Date(Number(latestExpiry) * 1000),
-      MIN_REGISTER_DURATION_SECONDS,
+      MIN_RENEW_DURATION_SECONDS,
     )
   }, [names])
 

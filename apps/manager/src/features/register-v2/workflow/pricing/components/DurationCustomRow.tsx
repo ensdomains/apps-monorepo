@@ -17,12 +17,19 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { getDurationExpiryDateForDisplay } from '@/features/register-v2/utils/time'
-import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import {
+  MIN_REGISTER_DURATION_SECONDS,
+  MIN_RENEW_DURATION_SECONDS,
+} from '@/features/shared/registration/pricing'
 import { cn } from '@/lib/utils'
 
-const getDurationFromSelectedDate = (date: Date, referenceDate: Date) =>
+const getDurationFromSelectedDate = (
+  date: Date,
+  referenceDate: Date,
+  minDurationSeconds: number,
+) =>
   Math.max(
-    MIN_REGISTER_DURATION_SECONDS,
+    minDurationSeconds,
     differenceInCalendarDays(startOfDay(date), startOfDay(referenceDate)) *
       86_400,
   )
@@ -53,15 +60,19 @@ export const DurationCustomRow = memo(function DurationCustomRow({
     referenceDate,
   )
 
-  const minSelectableDate = addSeconds(
-    referenceDate,
-    MIN_REGISTER_DURATION_SECONDS,
-  )
+  // Only registration has a 28-day floor; renewals are priced down to a day.
+  const minDurationSeconds =
+    type === 'renew'
+      ? MIN_RENEW_DURATION_SECONDS
+      : MIN_REGISTER_DURATION_SECONDS
+  const minSelectableDate = addSeconds(referenceDate, minDurationSeconds)
 
   const selectMinimumDuration = () => {
     const minDate = new Date(minSelectableDate)
     minDate.setHours(0, 0, 0, 0)
-    onDurationSet(getDurationFromSelectedDate(minDate, referenceDate))
+    onDurationSet(
+      getDurationFromSelectedDate(minDate, referenceDate, minDurationSeconds),
+    )
   }
 
   useHotkeySequence(['M', 'I', 'N'], selectMinimumDuration, {
@@ -120,7 +131,13 @@ export const DurationCustomRow = memo(function DurationCustomRow({
               return
             }
             date.setHours(0, 0, 0, 0)
-            onDurationSet(getDurationFromSelectedDate(date, referenceDate))
+            onDurationSet(
+              getDurationFromSelectedDate(
+                date,
+                referenceDate,
+                minDurationSeconds,
+              ),
+            )
           }}
           selected={expirationDate}
           startMonth={minSelectableDate}
