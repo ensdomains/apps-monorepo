@@ -87,7 +87,7 @@ const mockAccount = (
   smartAccountMock.useSmartAccountContext.mockReturnValue({
     accountAddress: '0x000000000000000000000000000000000000dEaD',
     ownerAddress: null,
-    signer: { type: 'rhinestone' },
+    signer: { type: 'rhinestone', account: { config: {} } },
     stablecoinBalances: [usdc],
     isLoadingBalances: false,
     isConnected: true,

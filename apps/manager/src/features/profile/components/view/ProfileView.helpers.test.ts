@@ -101,26 +101,15 @@ describe('ProfileView helpers', () => {
     ).toBe('0xCC692…2a3b4')
   })
 
-  it('formats dates as compact uppercase labels for mobile', () => {
+  it('formats dates as short sentence case at every width', () => {
     expect(formatProfileDetailDate(new Date('2022-11-11T12:00:00Z'))).toBe(
-      'NOV.11.2022',
+      'Nov 11, 2022',
     )
-  })
-
-  it('formats dates with the full month and comma for desktop', () => {
-    expect(
-      formatProfileDetailDate(new Date('2022-11-11T12:00:00Z'), 'desktop'),
-    ).toBe('NOVEMBER 11, 2022')
   })
 
   it('uses the local calendar day when timeZone is "local"', () => {
     const localNov11 = new Date(2022, 10, 11, 12, 0)
-    expect(formatProfileDetailDate(localNov11, 'mobile', 'local')).toBe(
-      'NOV.11.2022',
-    )
-    expect(formatProfileDetailDate(localNov11, 'desktop', 'local')).toBe(
-      'NOVEMBER 11, 2022',
-    )
+    expect(formatProfileDetailDate(localNov11, 'local')).toBe('Nov 11, 2022')
   })
 
   it('keeps contact records separate from featured social records', () => {

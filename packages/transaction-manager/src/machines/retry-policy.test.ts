@@ -2,6 +2,7 @@ import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
   ChainIdMismatchError,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   SignerAddressMismatchError,
   TransactionSubmissionError,
@@ -48,6 +49,15 @@ describe('isRetryableSubmissionError', () => {
   it('does not retry a chain mismatch', () => {
     expect(
       isRetryableSubmissionError(new ChainIdMismatchError(mainnet.id, sepolia)),
+    ).toBe(false)
+  })
+
+  // Nothing left the app; a resend only prompts again.
+  it('does not resend an L2 payment that was never sent', () => {
+    expect(
+      isRetryableSubmissionError(
+        new L2PaymentNotSentError(request, new Error('insufficient funds')),
+      ),
     ).toBe(false)
   })
 

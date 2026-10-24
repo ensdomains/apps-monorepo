@@ -22,7 +22,6 @@ import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { publicClient } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { isDebugProfileName } from '@/utils/debug-features'
 import {
   addressRecords,
   alwaysProbeAddressRecords,
@@ -30,7 +29,7 @@ import {
   staticTextRecords,
   textRecords,
 } from '../data/records'
-import { DEBUG_PROFILE } from '../MOCK'
+import { getDebugProfileRecords } from '../MOCK'
 import {
   hasV2NameEntry,
   NameRegistryNotFoundError,
@@ -77,9 +76,8 @@ const isSupportedCoinType = (coinType: number): boolean =>
 const MAX_RESOLVER_SPLIT_DEPTH = 1
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
-  if (isDebugProfileName(name)) {
-    return ok(DEBUG_PROFILE)
-  }
+  const debugProfile = getDebugProfileRecords(name)
+  if (debugProfile) return ok(debugProfile)
 
   const client = yield* safeGetClient()
   // A name bigname has not indexed has no indexed keys; the static ones still apply.

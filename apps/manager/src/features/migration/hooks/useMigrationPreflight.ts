@@ -2,6 +2,7 @@ import type { V1Domain } from '@ens-apps/migration'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
+import { chain } from '@/config'
 import {
   computeMigrationPreflight,
   EMPTY_PREFLIGHT,
@@ -22,7 +23,7 @@ type EnsureOptions = {
 }
 
 export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
-  const publicClient = usePublicClient()
+  const publicClient = usePublicClient({ chainId: chain.id })
   const wagmiConfig = useConfig()
   const queryClient = useQueryClient()
 

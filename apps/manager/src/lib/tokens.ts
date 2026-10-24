@@ -1,7 +1,8 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { PermitKind } from '@ens-apps/transaction-manager'
 import { chain, envConfig } from '@/config'
 
-const { usdc, dai } = chain.contracts
+const { dai } = chain.contracts
 
 /**
  * Mainnet DAI predates EIP-2612 and has only its own legacy `permit`. Sepolia's
@@ -11,12 +12,13 @@ const daiPermitKind: PermitKind =
   envConfig.network === 'mainnet' ? 'dai-legacy' : 'eip2612'
 
 /**
- * Addresses come from the chain. Decimals, symbols and permit shapes are the
- * only things ensjs does not carry, so they are the only things declared here.
+ * USDC is the HCA route's payment token from the manifest (not ensjs' MockUSDC),
+ * so every flow pays in the same token. Decimals, symbols and permit shapes are
+ * declared here.
  */
 export const TOKENS = {
   USDC: {
-    address: usdc.address,
+    address: getDestinationContracts(chain.id).usdc,
     decimals: 6,
     symbol: 'USDC',
     permitKind: 'eip2612' as PermitKind,

@@ -36,10 +36,11 @@ const KNOWN_STATUSES: ReadonlySet<string> = new Set([
 /**
  * Fetch the status of one intent operation.
  *
- * Returns `null` for every inconclusive outcome — unknown id, endpoint
- * unreachable, unrecognized status value — because the caller's fallback (the
- * blind on-chain grace poll) is always safe, while acting on a wrong "dead"
- * verdict is not.
+ * Returns `null` for every inconclusive outcome — endpoint unreachable,
+ * unrecognized status value — because the caller's fallback (the blind
+ * on-chain grace poll) is always safe, while acting on a wrong "dead" verdict
+ * is not. A 404 is `'NOT_FOUND'`: the orchestrator answered that it holds no
+ * such intent, which callers may treat as inconclusive too.
  */
 export async function fetchIntentOperationStatus(params: {
   readonly intentId: bigint
@@ -47,7 +48,7 @@ export async function fetchIntentOperationStatus(params: {
   /** Orchestrator base URL; defaults to the prod deployment. */
   readonly endpointUrl?: string
   readonly signal?: AbortSignal
-}): Promise<IntentOperationStatus | null> {
+}): Promise<IntentOperationStatus | 'NOT_FOUND' | null> {
   const base = (params.endpointUrl ?? DEFAULT_ORCHESTRATOR_URL).replace(
     /\/$/,
     '',
@@ -61,6 +62,7 @@ export async function fetchIntentOperationStatus(params: {
         signal: params.signal ?? null,
       },
     )
+    if (response.status === 404) return 'NOT_FOUND'
     if (!response.ok) return null
 
     const body: unknown = await response.json()

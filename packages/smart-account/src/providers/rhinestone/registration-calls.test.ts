@@ -215,6 +215,35 @@ describe('buildRevealBatch ordering', () => {
     expect(calls[adapterIdx].data.startsWith('0xab863445')).toBe(true)
   })
 
+  it('clears addr.reverse after setNameWithHCA, and only with a primary name', () => {
+    const withName = buildRevealBatch({
+      ...base,
+      resolverDeployed: true,
+      setPrimaryName: 'myname.eth',
+      clearAddrReverse: true,
+    })
+    const last = withName.at(-1)
+    expect(last?.to).toBe(C.reverseRegistrarHcaAdapter)
+    // claimWithHCA(address,address), with resolver 0 so it only clears.
+    expect(last?.data).toBe(
+      encodeFunctionData({
+        abi: parseAbi([
+          'function claimWithHCA(address addr, address resolver) returns (bytes32)',
+        ]),
+        args: [WALLET, '0x0000000000000000000000000000000000000000'],
+      }),
+    )
+
+    const withoutName = buildRevealBatch({
+      ...base,
+      resolverDeployed: true,
+      clearAddrReverse: true,
+    })
+    expect(withoutName.some((c) => c.to === C.reverseRegistrarHcaAdapter)).toBe(
+      false,
+    )
+  })
+
   it('registers the wallet (not the HCA) as owner and approves exactly the price', () => {
     const calls = buildRevealBatch({ ...base, resolverDeployed: true })
     const register = calls[1]

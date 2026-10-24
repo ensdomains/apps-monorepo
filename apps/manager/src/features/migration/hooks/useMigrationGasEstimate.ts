@@ -219,7 +219,7 @@ export const useMigrationGasEstimate = ({
     false,
   )
   const recreateSubnames = helperFlag === true
-  const publicClient = usePublicClient()
+  const publicClient = usePublicClient({ chainId: chain.id })
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress,
     hcaAddress,

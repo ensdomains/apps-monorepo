@@ -67,6 +67,12 @@ msgstr ""
 msgid "{amount} needed to register name"
 msgstr ""
 
+#. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "{chainName} est. fee: {0}"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {# request} other {# requests}}"
 msgstr ""
@@ -347,6 +353,10 @@ msgstr ""
 msgid "Allow your smart account to configure your upgraded names and their subnames. No managers are being added in this upgrade."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
+msgstr ""
+
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
 msgstr ""
@@ -436,6 +446,10 @@ msgstr ""
 msgid "Approve this name in your wallet"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Approve USDC on {l2ChainName} if your wallet asks, then sign the payment"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve your names"
 msgstr ""
@@ -493,6 +507,7 @@ msgstr ""
 msgid "Back to selection"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "balance"
 msgstr ""
@@ -666,6 +681,10 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Checking your account…"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking your earlier payment"
 msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
@@ -915,6 +934,10 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t read the wallet address for {name}"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Couldn't read your balance on {chainName}"
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
@@ -1614,11 +1637,6 @@ msgstr ""
 msgid "Lowest upfront cost"
 msgstr ""
 
-#. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "Mainnet est. fee: {0}"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Make it yours"
 msgstr ""
@@ -1863,6 +1881,10 @@ msgstr ""
 msgid "not enough funds to pay network fees"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Not enough USDC on {chainName}"
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
 msgstr ""
@@ -1986,6 +2008,14 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Pay with stablecoins"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Paying from {chainName} isn't available right now"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Paying from {l2ChainName}"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -2624,6 +2654,10 @@ msgstr ""
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
 msgid "Select payment"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Select USDC on {chainName}"
 msgstr ""
 
 #: src/features/dashboard/components/PrimaryNameListControls.tsx
@@ -3399,6 +3433,10 @@ msgstr ""
 msgid "USD"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "USDC on {chainName}"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
 msgid "Use a different wallet"
 msgstr ""
@@ -3542,6 +3580,10 @@ msgid "Waiting for the commitment confirmation"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting for the payment you already signed to arrive"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for the registration confirmation"
 msgstr ""
 
@@ -3669,6 +3711,7 @@ msgstr ""
 msgid "What is a primary name?"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "What is the network fee?"
 msgstr ""
@@ -3996,4 +4039,8 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment approval (permit) for the amount shown. This lets ENS use your USDC to pay for registration and network fees. Registration starts after you approve."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
 msgstr ""
