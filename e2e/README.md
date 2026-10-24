@@ -8,6 +8,9 @@ The E2E test suite lives in `e2e/` at the monorepo root and uses **Playwright** 
 > premium, expiry) by hand — advancing Anvil **and** the browser clock yourself
 > as many times as you like — see [`docs/manual-time-travel.md`](docs/manual-time-travel.md).
 
+For registration, renewal, and subname attribution checks, see the
+[referrer preservation QA guide](docs/web-1911-referrer-qa.md).
+
 ---
 
 ## Stack

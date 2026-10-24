@@ -1,9 +1,11 @@
 import { DevDrawer } from '@ens-apps/dev-tools'
+import { referrerSearch } from '@ens-apps/utils/referrer'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
   HeadContent,
   Outlet,
+  retainSearchParams,
   Scripts,
 } from '@tanstack/react-router'
 import { lazy, Suspense } from 'react'
@@ -37,6 +39,8 @@ const toastIconClassName =
   'ens-sonner-icon ms-fill ms-opsz-24 ms-wght-400 size-6 text-2xl leading-none'
 
 export const Route = createRootRouteWithContext<RootRouterContext>()({
+  validateSearch: referrerSearch,
+  search: { middlewares: [retainSearchParams(['referrer'])] },
   head: () => ({
     meta: [
       {

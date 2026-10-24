@@ -154,6 +154,7 @@ const EOA_COMMITMENT = {
  * there.
  */
 const startEoaRegistration = (overrides: {
+  referrer?: `0x${string}`
   checkResolverDeployment?: ReturnType<typeof vi.fn>
   deployResolver?: ReturnType<typeof vi.fn>
   resolveResolverDeployment?: ReturnType<typeof vi.fn>
@@ -228,6 +229,7 @@ const startEoaRegistration = (overrides: {
   actor.start()
   actor.send({
     type: 'START_REGISTRATION',
+    referrer: overrides.referrer,
     name: 'myname.eth',
     duration: 31_536_000n,
     token: 'USDC',
@@ -775,6 +777,7 @@ describe('registrationMachine — failed commit send', () => {
   )
 
   const startEoaRegistration = (overrides: {
+    referrer?: `0x${string}`
     generateCommitment?: ReturnType<typeof vi.fn>
     submitCommitment?: ReturnType<typeof vi.fn>
     validateCommitment?: ReturnType<typeof vi.fn>
@@ -962,6 +965,7 @@ describe('registrationMachine — RESUME', () => {
         },
       })
 
+      expect(actor.getSnapshot().context.referrer).toBe(`0x${'0'.repeat(64)}`)
       await waitFor(
         actor,
         (state) =>
@@ -1896,4 +1900,17 @@ describe('registrationMachine — session refund caps', () => {
     )
     actor.stop()
   })
+})
+
+it('keeps the confirmed referrer from commitment through EOA reveal', async () => {
+  const { actor, generateCommitment, submitRegistration } =
+    startEoaRegistration({
+      referrer: '0x1234',
+      submitCommitment: vi.fn(async () => 'commit-tx'),
+    })
+  await waitFor(actor, (snapshot) => snapshot.matches('registeringDomain'))
+  const expected = `0x${'0'.repeat(60)}1234`
+  expect(generateCommitment.mock.calls[0][0].input.referrer).toBe(expected)
+  expect(submitRegistration.mock.calls[0][0].input.referrer).toBe(expected)
+  actor.stop()
 })

@@ -61,6 +61,7 @@ export type PersistedRegistrationContext = {
   chainId: number
   name: string
   duration: bigint
+  readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
   tokenPrice: bigint
   signerType: Signer['type']
@@ -217,6 +218,7 @@ export function serializeRegistrationContext(
     chainId: context.chainId,
     name: context.name,
     duration: context.duration,
+    referrer: context.referrer,
     selectedToken: context.selectedToken,
     tokenPrice: context.tokenPrice,
     // The subscriber refuses to persist a context with no signer, so the
@@ -301,6 +303,7 @@ const persistedContextSchema = v.object({
   chainId: v.number(),
   name: v.string(),
   duration: v.bigint(),
+  referrer: v.optional(v.pipe(v.string(), v.regex(/^0x[0-9a-fA-F]{64}$/))),
   // Derived from the payment-token table so adding a token cannot silently
   // invalidate records.
   selectedToken: v.picklist(

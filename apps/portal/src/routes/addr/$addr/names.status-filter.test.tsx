@@ -25,6 +25,7 @@ const V2_GRACE = 'v2grace.eth'
 const V2_EXPIRED = 'v2expired.eth'
 
 vi.mock('@tanstack/react-router', () => ({
+  useSearch: () => ({}),
   Link: ({ children, to }: { children: ReactNode; to: string }) => (
     <a href={to}>{children}</a>
   ),

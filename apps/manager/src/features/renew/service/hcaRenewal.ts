@@ -72,6 +72,7 @@ export interface HcaRenewalItem {
   readonly label: string
   /** Duration in SECONDS. */
   readonly duration: bigint
+  readonly referrer?: `0x${string}`
 }
 
 export interface HcaRenewalResult {
@@ -207,7 +208,12 @@ const buildRenewalIntent = async (params: {
       to: renewerAddress,
       value: 0n,
       data: single
-        ? encodeRenewData(single.label, single.duration, tokenAddress)
+        ? encodeRenewData(
+            single.label,
+            single.duration,
+            tokenAddress,
+            single.referrer,
+          )
         : encodeRenewBatchData(items, tokenAddress),
     },
   ]

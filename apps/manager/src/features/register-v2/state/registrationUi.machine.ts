@@ -8,6 +8,7 @@ import {
 } from '@ens-apps/transaction-manager'
 import { isUserRejectionError } from '@ens-apps/transaction-manager/errors/transaction.errors'
 import { getResumeTarget } from '@ens-apps/transaction-manager/machines/registration/registration.persistence'
+import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match, P } from 'ts-pattern'
 import {
@@ -99,6 +100,7 @@ type PostRegistrationProgress = {
 export type RegistrationConfirmedData = {
   label: string
   duration: bigint
+  readonly referrer?: `0x${string}`
   ownerAddress: Address
   token: SUPPORTED_TOKEN
   totalPrice: bigint
@@ -170,6 +172,7 @@ type Events =
       type: 'registration.start'
       label: string
       duration: bigint
+      readonly referrer?: string
       token: SUPPORTED_TOKEN
       totalPrice: bigint
       account: SmartAccountContextValue
@@ -770,10 +773,13 @@ const startRegistrationAction = machineSetup.createAction(
         ? asEthName(event.label)
         : undefined
 
+    const referrer = normalizeReferrer(event.referrer)
+
     enqueue.assign({
       confirmedData: {
         label: event.label,
         duration: event.duration,
+        referrer,
         ownerAddress,
         token: event.token,
         totalPrice: event.totalPrice,
@@ -827,6 +833,7 @@ const startRegistrationAction = machineSetup.createAction(
         approveBeforeCommit: true,
         name: asEthName(event.label),
         duration: event.duration,
+        referrer,
         token: event.token,
         price: event.totalPrice,
         signer: event.account.signer,

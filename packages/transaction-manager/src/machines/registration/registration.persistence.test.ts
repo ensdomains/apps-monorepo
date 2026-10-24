@@ -193,6 +193,7 @@ describe('registration record serialization', () => {
   it('round-trips bigints and the commitment secret', () => {
     const context = baseContext({
       duration: 63_072_000n,
+      referrer: `0x${'12'.repeat(32)}`,
       tokenPrice: 12_345_678n,
       resolverSalt: 2n ** 200n,
       commitment: { commitment: COMMITMENT, secret: SECRET },
@@ -629,5 +630,24 @@ describe('subscribeRegistrationPersistence', () => {
 
     expect(adapter.saved).toHaveLength(0)
     actor.stop()
+  })
+})
+
+it('accepts a legacy record without a referrer and preserves its commitment', () => {
+  const record = buildRegistrationRecord(
+    'commitmentCooldown',
+    baseContext({
+      referrer: undefined,
+      commitment: { commitment: COMMITMENT, secret: SECRET },
+    }),
+    42,
+  )
+  const serialized = serializeRegistrationRecord(record)
+  expect(serialized).not.toContain('"referrer"')
+  const restored = parseRegistrationRecord(serialized)._unsafeUnwrap()
+  expect(restored.context.referrer).toBeUndefined()
+  expect(restored.context.commitment).toEqual({
+    commitment: COMMITMENT,
+    secret: SECRET,
   })
 })

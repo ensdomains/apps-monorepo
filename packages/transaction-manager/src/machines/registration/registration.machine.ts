@@ -1,4 +1,5 @@
 import type { HcaBudgetBreakdown } from '@ens-apps/smart-account'
+import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
@@ -204,6 +205,7 @@ export type RegistrationContext = {
   // Registration params
   name: string
   duration: bigint
+  readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
   tokenPrice: bigint
   /**
@@ -347,6 +349,7 @@ export type RegistrationEvent =
       name: string
       /** Duration in seconds */
       duration: bigint
+      readonly referrer?: Hex
       token: TOKEN_SYMBOL
       price: bigint
       signer: Signer
@@ -458,6 +461,7 @@ export const registrationMachine = setup({
       (input: {
         name: string
         duration: bigint
+        readonly referrer?: Hex
         publicClient: PublicClient
         chainId: number
         signer?: Signer
@@ -496,6 +500,7 @@ export const registrationMachine = setup({
         wallet: Address
         hca: Address
         duration: bigint
+        readonly referrer?: Hex
         permit?: PermitSignature
         sessionEnable?: HcaSessionEnableParams
         signer: Signer
@@ -511,6 +516,7 @@ export const registrationMachine = setup({
         wallet: Address
         hca: Address
         duration: bigint
+        readonly referrer?: Hex
         secret: Hex
         sessionEnable?: HcaSessionEnableParams
         signer: Signer
@@ -550,6 +556,7 @@ export const registrationMachine = setup({
         name,
         owner,
         duration,
+        referrer,
         publicClient,
         selectedToken,
         resolverAddress,
@@ -557,6 +564,7 @@ export const registrationMachine = setup({
         name: string
         owner: Address
         duration: bigint
+        readonly referrer?: Hex
         publicClient: PublicClient
         selectedToken: TOKEN_SYMBOL
         resolverAddress: Address
@@ -565,6 +573,7 @@ export const registrationMachine = setup({
           name,
           owner,
           duration,
+          referrer,
           publicClient,
           selectedToken,
           resolverAddress,
@@ -604,6 +613,7 @@ export const registrationMachine = setup({
         commitment: CommitmentData
         signer: Signer
         duration: bigint
+        readonly referrer?: Hex
         selectedToken: TOKEN_SYMBOL
         owner: Address
         publicClient: PublicClient
@@ -755,6 +765,7 @@ export const registrationMachine = setup({
       return {
         ...context,
         ...restored,
+        referrer: normalizeReferrer(restored.referrer),
         signer: event.deps.signer,
         approvalSigner: event.deps.approvalSigner,
         approveBeforeCommit: event.deps.approveBeforeCommit,
@@ -896,6 +907,7 @@ export const registrationMachine = setup({
             assign({
               name: ({ event }) => event.name,
               duration: ({ event }) => event.duration,
+              referrer: ({ event }) => normalizeReferrer(event.referrer),
               selectedToken: ({ event }) => event.token,
               tokenPrice: ({ event }) => event.price,
               signer: ({ event }) => event.signer,
@@ -1012,6 +1024,7 @@ export const registrationMachine = setup({
         input: ({ context }) => ({
           name: context.name,
           duration: context.duration,
+          referrer: context.referrer,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           chainId: context.chainId,
@@ -1185,6 +1198,7 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           hca: context.accountAddress!,
           duration: context.duration,
+          referrer: context.referrer,
           permit: context.permit,
           // Always attach the proof: the validator rejects any session
           // signature without it (see `hcaSessionEnable`). It costs no wallet
@@ -1386,6 +1400,7 @@ export const registrationMachine = setup({
             // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             owner: context.ownerAddress ?? context.accountAddress!,
             duration: context.duration,
+            referrer: context.referrer,
             // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             publicClient: context.publicClient!,
             selectedToken: context.selectedToken,
@@ -1776,6 +1791,7 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           hca: context.accountAddress!,
           duration: context.duration,
+          referrer: context.referrer,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           secret: context.commitment!.secret,
           sessionEnable: context.hcaSessionEnable,
@@ -2105,6 +2121,7 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           duration: context.duration,
+          referrer: context.referrer,
           selectedToken: context.selectedToken,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,

@@ -86,6 +86,7 @@ vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   useNavigate: () => vi.fn(),
+  useSearch: () => ({ referrer: '0x1234' }),
 }))
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
@@ -247,7 +248,11 @@ describe('TokenPickerContent', () => {
 
     await waitFor(() =>
       expect(containerMocks.send).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'registration.start', label: 'jeff' }),
+        expect.objectContaining({
+          type: 'registration.start',
+          label: 'jeff',
+          referrer: '0x1234',
+        }),
       ),
     )
   })

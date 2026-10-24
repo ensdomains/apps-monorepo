@@ -116,11 +116,18 @@ describe('submitFundingAndCommitActor', () => {
   it('bundles funding and the commit into one user-paid request', async () => {
     const result = await submitFundingAndCommitActor({
       ...input,
+      referrer: '0x1234',
       permit,
       sessionEnable,
     })
 
     expect(result.isOk()).toBe(true)
+    expect(commitClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'makeCommitment',
+        args: expect.arrayContaining([`0x${'0'.repeat(60)}1234`]),
+      }),
+    )
     const request = submittedRequest()
     const calls = request.rhinestoneParams.calls
 
@@ -235,6 +242,7 @@ describe('submitRevealBatchActor', () => {
       hca: HCA,
       duration: 31_536_000n,
       secret: `0x${'dd'.repeat(32)}` as Hex,
+      referrer: '0x1234',
       sessionEnable,
       signer: rhinestoneSigner,
       publicClient: revealClient,
@@ -244,6 +252,18 @@ describe('submitRevealBatchActor', () => {
     expect(submittedRequest().rhinestoneParams.sessionEnableData).toBe(
       sessionEnable.enableData,
     )
+    const register = submittedRequest().rhinestoneParams.calls.find(
+      (call) => call.to === C.ethRegistrar,
+    )
+    expect(register).toBeDefined()
+    if (!register) return
+    const decoded = decodeFunctionData({
+      abi: parseAbi([
+        'function register(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 referrer)',
+      ]),
+      data: register.data,
+    })
+    expect(decoded.args[7]).toBe(`0x${'0'.repeat(60)}1234`)
   })
 })
 

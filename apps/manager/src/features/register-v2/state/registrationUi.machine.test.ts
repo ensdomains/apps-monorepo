@@ -10,7 +10,11 @@ import { assign, createActor, createMachine } from 'xstate'
  * hoisted `vi.mock` factory below can still reference it.
  */
 type RegistrationStubEvent =
-  | { type: 'START_REGISTRATION'; primaryName?: string }
+  | {
+      type: 'START_REGISTRATION'
+      primaryName?: string
+      referrer?: `0x${string}`
+    }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
   | { type: 'FORCE_APPROVAL_SUCCESS' }
@@ -55,6 +59,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       nameUnavailable: undefined as boolean | undefined,
       retryCount: 0,
       primaryName: undefined as string | undefined,
+      referrer: undefined as `0x${string}` | undefined,
       /** Captures the RESUME payload so tests can assert what was forwarded. */
       resumed: undefined as
         | { stage: string; context: any; deps: any }
@@ -67,6 +72,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
           START_REGISTRATION: {
             target: 'running',
             actions: assign({
+              referrer: ({ event }) => event.referrer,
               primaryName: ({ event }) =>
                 event.type === 'START_REGISTRATION'
                   ? event.primaryName
@@ -1527,4 +1533,29 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
     expect(actor.getSnapshot().matches('registering')).toBe(true)
     expect(childRetryCount(actor)).toBe(1)
   })
+})
+
+describe('registration referrer boundary', () => {
+  it.each([
+    ['0x1234', `0x${'0'.repeat(60)}1234`],
+    ['0xgg', `0x${'0'.repeat(64)}`],
+    [undefined, `0x${'0'.repeat(64)}`],
+  ])(
+    'normalizes %s before saving confirmed data and starting the child',
+    (referrer, expected) => {
+      const actor = startActorInTokens()
+      actor.send({
+        ...startEvent({
+          signer: { type: 'eoa' },
+          accountAddress: EOA_ADDRESS,
+          ownerAddress: EOA_ADDRESS,
+          walletClient: {},
+        } as unknown as SmartAccountContextValue),
+        referrer,
+      })
+      expect(actor.getSnapshot().context.confirmedData?.referrer).toBe(expected)
+      expect(getChild(actor).getSnapshot().context.referrer).toBe(expected)
+      actor.stop()
+    },
+  )
 })
