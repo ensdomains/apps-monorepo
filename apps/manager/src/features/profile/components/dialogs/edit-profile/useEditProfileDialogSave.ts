@@ -25,7 +25,10 @@ import {
   type SaveRecordsParams,
   saveRecords,
 } from '@/features/profile/service/profileRecordTransactions'
-import type { ResolverCopySource } from '@/features/profile/service/resolverImport'
+import type {
+  ResolverCopySource,
+  ResolverImport,
+} from '@/features/profile/service/resolverImport'
 import {
   assertProfileResolverState,
   resolverWriteStateQuery,
@@ -76,6 +79,7 @@ interface UseEditProfileDialogSaveParams {
   readonly owner?: Address
   readonly savedRecords: ProfileRecords
   readonly resolverCopySource?: ResolverCopySource
+  readonly resolverImport?: ResolverImport
   readonly canSave: boolean
 }
 
@@ -220,6 +224,7 @@ export const useEditProfileDialogSave = ({
   owner,
   savedRecords,
   resolverCopySource,
+  resolverImport,
   canSave,
 }: UseEditProfileDialogSaveParams) => {
   const account = useSmartAccountContext()
@@ -333,6 +338,7 @@ export const useEditProfileDialogSave = ({
         description: `Update profile records for ${pendingSave.name}`,
         sourceResolver: pendingSave.sourceResolver,
         assertCurrentIdentity: pendingSave.assertCurrentIdentity,
+        resolverImport,
       })
 
       return {

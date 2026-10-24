@@ -1,3 +1,4 @@
+import { readAllCollectionPages } from '@ens-apps/indexer/bigname'
 import { isKnownPublicResolver } from '@ens-apps/migration'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
@@ -25,10 +26,12 @@ import {
   encodeFunctionData,
   type Hex,
   isAddressEqual,
+  namehash,
   type PublicClient,
   parseAbi,
   toHex,
   zeroAddress,
+  zeroHash,
 } from 'viem'
 import { envConfig } from '@/config'
 import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
@@ -50,7 +53,10 @@ import {
 import { decodeCoinResult } from './decodeCoinRecord'
 import type { ProfileRecordsResult } from './profileRecords'
 import type { ServiceRecordSnapshot } from './profileRecordTransactions'
-import { getResolverSetterKind } from './resolverRecordCalls'
+import {
+  getResolverSetterKind,
+  type SupplementalResolverRecords,
+} from './resolverRecordCalls'
 import { canWriteEthAddressRecord } from './resolverWriteAccess'
 import { canSetNameResolver } from './setResolverAccess'
 
@@ -159,6 +165,20 @@ export const resolverCopySourceQuery = (name: string, wallet?: Address) => ({
 
 type RecordRead = { readonly key: string; readonly data: Hex }
 
+const supplementalAbi = parseAbi([
+  'function pubkey(bytes32 node) view returns (bytes32 x, bytes32 y)',
+  'function interfaceImplementer(bytes32 node, bytes4 interfaceId) view returns (address)',
+  'function data(bytes32 node, string key) view returns (bytes)',
+])
+const supportsInterfaceAbi = parseAbi([
+  'function supportsInterface(bytes4) view returns (bool)',
+])
+
+export type ImportedResolverRecords = ProfileRecordsResult &
+  SupplementalResolverRecords & {
+    readonly pubkey?: { readonly x: Hex; readonly y: Hex }
+  }
+
 const decodeImportedCoin = (
   coinType: number,
   data: Hex,
@@ -181,7 +201,33 @@ const decodeImportedCoin = (
 const decodeRecordRead = async (
   { key }: RecordRead,
   data: Hex,
-): Promise<Partial<ProfileRecordsResult>> => {
+): Promise<Partial<ImportedResolverRecords>> => {
+  if (key === 'pubkey') {
+    const [x, y] = decodeFunctionResult({
+      abi: supplementalAbi,
+      functionName: 'pubkey',
+      data,
+    })
+    return x === zeroHash && y === zeroHash ? {} : { pubkey: { x, y } }
+  }
+  if (key.startsWith('interface:')) {
+    const implementer = decodeFunctionResult({
+      abi: supplementalAbi,
+      functionName: 'interfaceImplementer',
+      data,
+    })
+    return isAddressEqual(implementer, zeroAddress)
+      ? {}
+      : { interfaces: [{ interfaceId: key.slice(10) as Hex, implementer }] }
+  }
+  if (key.startsWith('data:')) {
+    const value = decodeFunctionResult({
+      abi: supplementalAbi,
+      functionName: 'data',
+      data,
+    })
+    return value === '0x' ? {} : { data: [{ key: key.slice(5), value }] }
+  }
   if (key.startsWith('text:')) {
     const value = decodeTextResult(data, { strict: true })
     return { texts: value ? [{ key: key.slice(5), value }] : [] }
@@ -212,16 +258,23 @@ export const readResolverRecords = async ({
   resolver,
   texts,
   coins,
+  interfaceIds = [],
+  dataKeys = [],
+  shouldReadPubkey = false,
   publicClient: client,
 }: {
   readonly name: string
   readonly resolver: Address
   readonly texts: readonly string[]
   readonly coins: readonly number[]
+  readonly interfaceIds?: readonly Hex[]
+  readonly dataKeys?: readonly string[]
+  readonly shouldReadPubkey?: boolean
   readonly publicClient: PublicClient
 }): Promise<{
-  records: ProfileRecordsResult
+  records: ImportedResolverRecords
   failedKeys: string[]
+  unsupportedKeys: string[]
   readErrors: unknown[]
 }> => {
   const kind = await getResolverSetterKind(client, resolver)
@@ -239,12 +292,41 @@ export const readResolverRecords = async ({
       data: encodeFunctionData(getContentHashParameters({ name })),
     },
     { key: 'ABI', data: encodeFunctionData(getAbiParameters({ name })) },
+    ...interfaceIds.map((id) => ({
+      key: `interface:${id}`,
+      data: encodeFunctionData({
+        abi: supplementalAbi,
+        functionName: 'interfaceImplementer',
+        args: [namehash(name), id],
+      }),
+    })),
+    ...dataKeys.map((key) => ({
+      key: `data:${key}`,
+      data: encodeFunctionData({
+        abi: supplementalAbi,
+        functionName: 'data',
+        args: [namehash(name), key],
+      }),
+    })),
+    ...(shouldReadPubkey && kind === 'node'
+      ? [
+          {
+            key: 'pubkey',
+            data: encodeFunctionData({
+              abi: supplementalAbi,
+              functionName: 'pubkey',
+              args: [namehash(name)],
+            }),
+          },
+        ]
+      : []),
   ]
   const read = async (
     request: RecordRead,
   ): Promise<
-    Partial<ProfileRecordsResult> & {
+    Partial<ImportedResolverRecords> & {
       failedKeys: string[]
+      unsupportedKeys: string[]
       readErrors: unknown[]
     }
   > => {
@@ -260,15 +342,21 @@ export const readResolverRecords = async ({
           : (await client.call({ to: resolver, data: request.data })).data
       // Legacy resolvers may return no data for record types they do not support.
       if (!response || response === '0x')
-        return { failedKeys: [request.key], readErrors: [] }
+        return {
+          failedKeys: [request.key],
+          unsupportedKeys: [request.key],
+          readErrors: [],
+        }
       return {
         ...(await decodeRecordRead(request, response)),
         failedKeys: [],
+        unsupportedKeys: [],
         readErrors: [],
       }
     } catch (error) {
       return {
         failedKeys: [request.key],
+        unsupportedKeys: isContractRevert(error) ? [request.key] : [],
         readErrors: isContractRevert(error) ? [] : [error],
       }
     }
@@ -292,16 +380,27 @@ export const readResolverRecords = async ({
       contentHash: results.find((record) => record.contentHash)?.contentHash,
       abi: results.find((record) => record.abi)?.abi,
       resolverAddress: resolver,
+      ...(interfaceIds.length
+        ? { interfaces: results.flatMap((record) => record.interfaces ?? []) }
+        : {}),
+      ...(dataKeys.length
+        ? { data: results.flatMap((record) => record.data ?? []) }
+        : {}),
+      ...(results.some((record) => record.pubkey)
+        ? { pubkey: results.find((record) => record.pubkey)?.pubkey }
+        : {}),
     },
     failedKeys: results.flatMap((record) => record.failedKeys),
+    unsupportedKeys: results.flatMap((record) => record.unsupportedKeys),
     readErrors: results.flatMap((record) => record.readErrors),
   }
 }
 
 export type ResolverImport = {
   readonly source: ResolverCopySource
-  readonly records: ProfileRecordsResult
+  readonly records: ImportedResolverRecords
   readonly warnings: readonly string[]
+  readonly blockedKeys: readonly string[]
 }
 
 export const importResolverRecords = async (
@@ -313,13 +412,77 @@ export const importResolverRecords = async (
   const warnings = [
     'Only discovered and commonly used records can be imported. Review the recovered records and add any missing records before replacing the resolver.',
   ]
+  const blockedKeys: string[] = []
   const inventory = await bigname.nameRecords(name, {
     namespace: 'ens',
     include: ['inventory'],
   })
   const indexedKeys = inventory.isOk()
-    ? inventory.value.data.inventory?.known_keys
+    ? inventory.value.data.inventory
+      ? [
+          ...inventory.value.data.inventory.known_keys,
+          ...inventory.value.data.inventory.unset_keys,
+        ]
+      : undefined
     : undefined
+  // Interface and data keys are recorded in resolver events, not every inventory.
+  // Use the same paginated event source as migration replay, including cleared keys.
+  const events = await readAllCollectionPages((cursor, signal) =>
+    bigname.events(
+      {
+        name,
+        resolver: `${envConfig.chain.id}:${source.resolver.toLowerCase()}`,
+        type: ['record'],
+        include: ['data'],
+        page_size: 200,
+        ...(cursor !== undefined && { cursor }),
+      },
+      { signal },
+    ),
+  )
+  const eventKeys = events.isOk()
+    ? events.value.flatMap((row) =>
+        row.type === 'record' && row.data?.key ? [row.data.key] : [],
+      )
+    : []
+  if (events.isErr()) {
+    blockedKeys.push('record inventory')
+    warnings.push(
+      'Interface and data record keys could not be loaded. Retry before replacing the resolver.',
+    )
+  }
+  const keys = [...new Set([...(indexedKeys ?? []), ...eventKeys])]
+  const interfaceKeys = keys.filter((key) => key.startsWith('interface:'))
+  const interfaceIds = interfaceKeys
+    .filter((key) => /^interface:0x[0-9a-fA-F]{8}$/.test(key))
+    .map((key) => key.slice(10) as Hex)
+  blockedKeys.push(
+    ...interfaceKeys.filter((key) => !/^interface:0x[0-9a-fA-F]{8}$/.test(key)),
+  )
+  const dataKeys = keys
+    .filter((key) => key.startsWith('data:'))
+    .map((key) => key.slice(5))
+  let shouldReadPubkey = false
+  if (
+    (await getResolverSetterKind(
+      publicClient as PublicClient,
+      source.resolver,
+    )) === 'node'
+  ) {
+    try {
+      shouldReadPubkey = await publicClient.readContract({
+        address: source.resolver,
+        abi: supportsInterfaceAbi,
+        functionName: 'supportsInterface',
+        args: ['0xc8690233'],
+      })
+    } catch {
+      blockedKeys.push('pubkey')
+      warnings.push(
+        'Pubkey support could not be checked. Retry before replacing the resolver.',
+      )
+    }
+  }
   if (!indexedKeys)
     warnings.push(
       'The record index is unavailable or incomplete. Custom records may be missing from this import.',
@@ -331,7 +494,7 @@ export const importResolverRecords = async (
       ...forceFetchRecords.always,
       ...forceFetchRecords.whenNotIndexed,
       'links',
-      ...(indexedKeys ?? [])
+      ...keys
         .filter((key) => key.startsWith('text:'))
         .map((key) => key.slice(5)),
     ]),
@@ -340,7 +503,7 @@ export const importResolverRecords = async (
     ...new Set([
       ...alwaysProbeAddressRecords.map(Number),
       ...addressRecords.map((record) => record.coinType),
-      ...(indexedKeys ?? [])
+      ...keys
         .filter((key) => key.startsWith('addr:'))
         .map((key) => Number(key.slice(5))),
     ]),
@@ -353,21 +516,44 @@ export const importResolverRecords = async (
       return false
     }
   })
-  if (coins.length !== allCoins.length)
+  if (coins.length !== allCoins.length) {
+    blockedKeys.push(
+      ...allCoins
+        .filter((coin) => !coins.includes(coin))
+        .map((coin) => `addr:${coin}`),
+    )
     warnings.push(
       'Some indexed address formats are not supported and could not be imported.',
     )
-  const { records, failedKeys } = await readResolverRecords({
+  }
+  const { records, failedKeys, unsupportedKeys } = await readResolverRecords({
     name,
     resolver: source.resolver,
     texts,
     coins,
+    interfaceIds,
+    dataKeys,
+    shouldReadPubkey,
     publicClient: publicClient as PublicClient,
   })
-  if (failedKeys.length)
+  const requiredKeys = new Set([
+    ...keys,
+    ...(shouldReadPubkey ? ['pubkey'] : []),
+  ])
+  const failures = failedKeys.filter(
+    (key) => requiredKeys.has(key) || !unsupportedKeys.includes(key),
+  )
+  blockedKeys.push(...failures)
+  if (failures.length)
     warnings.push(
-      `Some records could not be read: ${failedKeys.join(', ')}. Their values have not been copied.`,
+      `Some records could not be read: ${failures.join(', ')}. Retry before replacing the resolver.`,
     )
+  if (records.pubkey) {
+    blockedKeys.push('pubkey')
+    warnings.push(
+      'The source has a pubkey record. PermissionedResolver cannot store pubkeys, so this resolver cannot be replaced without losing that record.',
+    )
+  }
   const currentLocation = await resolveNameRegistry(name)
   const currentResolver = await readNameResolver(
     currentLocation,
@@ -383,7 +569,7 @@ export const importResolverRecords = async (
     throw new Error(
       'The source resolver changed. Open the editor again to import the current records.',
     )
-  return { source, records, warnings }
+  return { source, records, warnings, blockedKeys: [...new Set(blockedKeys)] }
 }
 
 export const verifyResolverRecords = async (
@@ -397,6 +583,8 @@ export const verifyResolverRecords = async (
     resolver,
     texts: expected.texts.map((record) => record.key),
     coins: expected.coins.map((record) => record.coinType),
+    interfaceIds: expected.interfaces?.map((record) => record.interfaceId),
+    dataKeys: expected.data?.map((record) => record.key),
     publicClient: client,
   })
   const normalizedAbi = (value?: string) =>
@@ -421,7 +609,20 @@ export const verifyResolverRecords = async (
     }) &&
     normalizedContentHash(records.contentHash) ===
       normalizedContentHash(expected.contentHash) &&
-    normalizedAbi(records.abi) === normalizedAbi(expected.abi)
+    normalizedAbi(records.abi) === normalizedAbi(expected.abi) &&
+    (expected.interfaces ?? []).every(({ interfaceId, implementer }) => {
+      const actual = records.interfaces?.find(
+        (record) =>
+          record.interfaceId.toLowerCase() === interfaceId.toLowerCase(),
+      )?.implementer
+      return actual !== undefined && isAddressEqual(actual, implementer)
+    }) &&
+    (expected.data ?? []).every(
+      ({ key, value }) =>
+        records.data
+          ?.find((record) => record.key === key)
+          ?.value.toLowerCase() === value.toLowerCase(),
+    )
   if (failedKeys.length || !matches)
     throw new Error(
       'The replacement records could not be verified. Your source resolver is still active. Review the draft and retry.',

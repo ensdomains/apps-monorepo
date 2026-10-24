@@ -31,6 +31,7 @@ import {
   encodeResolverRecordsCall,
   getResolverSetterKind,
   type ResolverRecords,
+  type SupplementalResolverRecords,
 } from './resolverRecordCalls'
 
 export { type RecordIssue, RecordsValidationError } from './profileRecordErrors'
@@ -47,7 +48,7 @@ interface ServiceCoinRecord {
   readonly value: string
 }
 
-export interface ServiceRecordSnapshot {
+export interface ServiceRecordSnapshot extends SupplementalResolverRecords {
   texts: ServiceTextRecord[]
   coins: ServiceCoinRecord[]
   contentHash?: string
@@ -454,6 +455,7 @@ export async function buildRecordsUpdateCalls(
     kind: await getResolverSetterKind(publicClient, resolverAddress),
     name,
     records: ensParams,
+    supplemental: shouldClearRecords ? after : undefined,
   })
 
   return {

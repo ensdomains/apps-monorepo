@@ -35,7 +35,7 @@ msgstr ""
 
 #. placeholder {0}: children.length
 #: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "{0, plural, one {Review # subname included in your upgrade} other {Review # subnames included in your upgrade}}"
+msgid "{0, plural, one {Review # subname} other {Review # subnames}}"
 msgstr ""
 
 #. placeholder {0}: selectedNames.length
@@ -612,6 +612,10 @@ msgstr ""
 msgid "Check your wallet activity first. Only discard if the previous renewal was never sent or was cancelled. If it is still pending and you renew again, you could pay twice. Discarding does not cancel a wallet transaction."
 msgstr ""
 
+#: src/features/migration/components/SubnameRecreationReview.tsx
+msgid "Checked {cutoff}"
+msgstr ""
+
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Checking"
 msgstr ""
@@ -868,6 +872,16 @@ msgstr ""
 msgid "Copy Link"
 msgstr ""
 
+#. placeholder {0}: child.tokenHolder
+#: src/features/migration/components/SubnameRecreationReview.tsx
+msgid "Copy owner {0}"
+msgstr ""
+
+#. placeholder {0}: child.v1ResolverAddress
+#: src/features/migration/components/SubnameRecreationReview.tsx
+msgid "Copy resolver {0}"
+msgstr ""
+
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
@@ -1045,10 +1059,6 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Downloading artwork…"
-msgstr ""
-
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Each subname will belong to the owner shown below and keep its existing resolver and records. You keep control of the parent name and can reclaim its subnames."
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.helpers.ts
@@ -2502,6 +2512,10 @@ msgstr ""
 msgid "Resolver"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
+msgid "Resolver replacement is blocked. These records could not be read or preserved:"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Restore the managers you chose"
 msgstr ""
@@ -2512,6 +2526,10 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Retry artwork"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
+msgid "Retry import"
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
@@ -2802,10 +2820,6 @@ msgstr ""
 msgid "Smart sessions on"
 msgstr ""
 
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Snapshot details"
-msgstr ""
-
 #: src/features/profile/components/view/ProfileSocialSection.tsx
 msgid "Social"
 msgstr ""
@@ -2824,10 +2838,6 @@ msgstr ""
 
 #: src/features/dashboard/components/MyNamesList.tsx
 msgid "Some names could not be loaded"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
-msgid "Some records may be missing"
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
@@ -2925,6 +2935,10 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
+msgstr ""
+
+#: src/features/migration/components/SubnameRecreationReview.tsx
+msgid "Subnames keep the owners and resolvers shown below. You retain control through the parent name."
 msgstr ""
 
 #: src/features/bulk-renew/components/NamesBreakdown.tsx
@@ -3111,10 +3125,6 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "These names need to stay on ENSv1 for now"
-msgstr ""
-
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "These owners and resolvers were checked as of {cutoff}. We check again before sending, but changes made while you approve or while the transaction is pending may not be included. Later ENSv1 transfers and resolver changes will not update these copied names."
 msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
@@ -3576,6 +3586,10 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Wallet isn’t ready yet. Try again in a moment."
+msgstr ""
+
+#: src/features/migration/components/SubnameRecreationReview.tsx
+msgid "We check again before sending. Changes during signing or confirmation may be missed. Later ENSv1 changes will not sync to these subnames."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx

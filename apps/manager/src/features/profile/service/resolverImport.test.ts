@@ -17,8 +17,10 @@ import {
   type Hex,
   namehash,
   type PublicClient,
+  parseAbi,
   toHex,
   zeroAddress,
+  zeroHash,
 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -27,13 +29,14 @@ const mocks = vi.hoisted(() => ({
   readContract: vi.fn(),
   multicall: vi.fn(),
   nameRecords: vi.fn(),
+  events: vi.fn(),
 }))
 vi.mock('@/lib/wagmi', async () => ({
   publicClient: { ...mocks, chain: (await import('@/config')).envConfig.chain },
   sepoliaWithEns: (await import('@/config')).envConfig.chain,
 }))
 vi.mock('@/lib/bigname', () => ({
-  bigname: { nameRecords: mocks.nameRecords },
+  bigname: { nameRecords: mocks.nameRecords, events: mocks.events },
 }))
 
 import { envConfig } from '@/config'
@@ -65,6 +68,11 @@ const recordAbi = [
   ...publicResolverMultiAddrSnippet,
   ...publicResolverContenthashSnippet,
   ...publicResolverAbiSnippet,
+  ...parseAbi([
+    'function pubkey(bytes32) view returns (bytes32, bytes32)',
+    'function interfaceImplementer(bytes32, bytes4) view returns (address)',
+    'function data(bytes32, string) view returns (bytes)',
+  ]),
 ] as const
 const bytes = (value: Hex) => encodeAbiParameters([{ type: 'bytes' }], [value])
 const expected: ServiceRecordSnapshot = {
@@ -92,6 +100,10 @@ const fixture = (nameBased = false) => {
     resolver: RESOLVER as Address,
     registry: REGISTRY as Address,
     failure: null as 'rpc' | 'unsupported' | 'malformed' | null,
+    pubkey: [zeroHash, zeroHash] as readonly [Hex, Hex],
+    hasPubkeyFailure: false,
+    interfaces: {} as Record<string, Address>,
+    data: {} as Record<string, Hex>,
   }
   const readText = (key: string): Hex => {
     if (key === CUSTOM_KEY && state.failure) {
@@ -120,6 +132,19 @@ const fixture = (nameBased = false) => {
           [{ type: 'uint256' }, { type: 'bytes' }],
           [state.abi ? 1n : 0n, toHex(state.abi)],
         )
+      case 'pubkey':
+        if (state.hasPubkeyFailure) throw new Error('Pubkey RPC failure')
+        return encodeAbiParameters(
+          [{ type: 'bytes32' }, { type: 'bytes32' }],
+          state.pubkey,
+        )
+      case 'interfaceImplementer':
+        return encodeAbiParameters(
+          [{ type: 'address' }],
+          [state.interfaces[call.args[1]] ?? zeroAddress],
+        )
+      case 'data':
+        return bytes(state.data[call.args[1]] ?? '0x')
     }
   }
   mocks.multicall.mockResolvedValue([{ status: 'success', result: nameBased }])
@@ -140,6 +165,8 @@ const fixture = (nameBased = false) => {
       args: readonly unknown[]
     }) => {
       switch (functionName) {
+        case 'supportsInterface':
+          return true
         case 'findRegistries':
           return [zeroAddress, state.registry]
         case 'getResolver':
@@ -170,6 +197,22 @@ const fixture = (nameBased = false) => {
         },
       },
       meta: {},
+    }),
+  )
+  mocks.events.mockReturnValue(
+    okAsync({
+      data: [
+        { type: 'record', data: { key: 'interface:0x12345678' } },
+        { type: 'record', data: { key: 'data:org.example.binary' } },
+      ],
+      page: {
+        cursor: null,
+        next_cursor: null,
+        page_size: 200,
+        total_count: 2,
+        has_more: false,
+      },
+      meta: { as_of: {} },
     }),
   )
   return state
@@ -218,18 +261,80 @@ describe('resolver record import', () => {
   })
 
   it.each(['rpc', 'unsupported', 'malformed'] as const)(
-    'warns rather than silently losing a record on %s failure',
+    'blocks replacement on %s failure while keeping recovered records for review',
     async (failure) => {
       fixture().failure = failure
       const imported = await importResolverRecords(NAME, source)
       expect(imported.records.texts).toEqual([
         { key: 'description', value: 'An existing profile' },
       ])
-      expect(imported.warnings.join('\n')).toContain(
-        `Some records could not be read: text:${CUSTOM_KEY}`,
-      )
+      expect(imported.blockedKeys).toContain(`text:${CUSTOM_KEY}`)
     },
   )
+
+  it('recovers interface records and V2 binary data from the complete event inventory', async () => {
+    const state = fixture(true)
+    state.interfaces['0x12345678'] = WALLET
+    state.data['org.example.binary'] = '0x00ff0100'
+    const imported = await importResolverRecords(NAME, source)
+    expect(imported.blockedKeys).toEqual([])
+    expect(imported.records.interfaces).toEqual([
+      { interfaceId: '0x12345678', implementer: WALLET },
+    ])
+    expect(imported.records.data).toEqual([
+      { key: 'org.example.binary', value: '0x00ff0100' },
+    ])
+    await expect(
+      verifyResolverRecords(
+        NAME,
+        RESOLVER,
+        {
+          ...expected,
+          interfaces: imported.records.interfaces,
+          data: imported.records.data,
+        },
+        publicClient as PublicClient,
+      ),
+    ).resolves.toBeUndefined()
+    state.data['org.example.binary'] = '0x00ff'
+    await expect(
+      verifyResolverRecords(
+        NAME,
+        RESOLVER,
+        { ...expected, data: imported.records.data },
+        publicClient as PublicClient,
+      ),
+    ).rejects.toThrow(/could not be verified/)
+    state.interfaces['0x12345678'] = RESOLVER
+    await expect(
+      verifyResolverRecords(
+        NAME,
+        RESOLVER,
+        { ...expected, interfaces: imported.records.interfaces },
+        publicClient as PublicClient,
+      ),
+    ).rejects.toThrow(/could not be verified/)
+  })
+
+  it.each(['present', 'read failure'] as const)(
+    'blocks a legacy pubkey that is %s',
+    async (kind) => {
+      const state = fixture()
+      state.pubkey = [`0x${'aa'.repeat(32)}`, zeroHash]
+      state.hasPubkeyFailure = kind === 'read failure'
+      const imported = await importResolverRecords(NAME, source)
+      expect(imported.blockedKeys).toContain('pubkey')
+    },
+  )
+
+  it('blocks replacement when the supplemental record inventory cannot be completed', async () => {
+    fixture()
+    mocks.events.mockReturnValue(
+      errAsync(new BignameError({ code: 'network', message: 'offline' })),
+    )
+    const imported = await importResolverRecords(NAME, source)
+    expect(imported.blockedKeys).toContain('record inventory')
+  })
 
   it.each(['resolver', 'registry'] as const)(
     'rejects an import if its source %s changed while reading',

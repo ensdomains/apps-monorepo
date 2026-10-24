@@ -21,7 +21,7 @@ import {
   type ServiceRecordSnapshot,
   saveRecords,
 } from './profileRecordTransactions'
-import { verifyResolverRecords } from './resolverImport'
+import { type ResolverImport, verifyResolverRecords } from './resolverImport'
 import { canSetNameResolver } from './setResolverAccess'
 
 export class ResolverChangeNotAuthorizedError extends Error {
@@ -66,11 +66,15 @@ const hasRecords = ({
   coins,
   contentHash,
   abi,
+  interfaces,
+  data,
 }: ServiceRecordSnapshot): boolean =>
   texts.length > 0 ||
   coins.length > 0 ||
   Boolean(contentHash?.trim()) ||
-  Boolean(abi?.trim())
+  Boolean(abi?.trim()) ||
+  Boolean(interfaces?.length) ||
+  Boolean(data?.length)
 
 /**
  * `name` arrives either as a bare label (`alice`) or as a full name
@@ -105,6 +109,7 @@ export interface SetupControlledResolverParams {
   /** Pointer reviewed by the user; a change requires a new import/review. */
   readonly sourceResolver?: Address
   readonly assertCurrentIdentity?: () => void
+  readonly resolverImport?: ResolverImport
 }
 
 /**
@@ -134,7 +139,21 @@ export async function setupControlledResolver({
   description = `Set up resolver for ${name}`,
   sourceResolver,
   assertCurrentIdentity,
+  resolverImport,
 }: SetupControlledResolverParams): Promise<Address> {
+  if (resolverImport?.blockedKeys.length || resolverImport?.records.pubkey)
+    throw new Error(
+      'Some source records cannot be preserved. Retry the import before replacing the resolver.',
+    )
+  const reviewedRecords: ServiceRecordSnapshot = {
+    ...after,
+    ...(resolverImport
+      ? {
+          interfaces: resolverImport.records.interfaces,
+          data: resolverImport.records.data,
+        }
+      : {}),
+  }
   const location = await resolveNameRegistry(qualifyName(name), publicClient)
   const source =
     sourceResolver ?? (await readNameResolver(location, publicClient))
@@ -227,14 +246,14 @@ export async function setupControlledResolver({
 
   await assertOwnedResolverReady({ resolver, ownerAddress, publicClient })
 
-  if (existing || hasRecords(before) || hasRecords(after)) {
+  if (existing || hasRecords(before) || hasRecords(reviewedRecords)) {
     await assertFresh()
     await saveRecords({
       name,
       // The target is cleared: seed every reviewed value, including unchanged
       // source records, rather than only the source before/after difference.
       before: { texts: [], coins: [] },
-      after,
+      after: reviewedRecords,
       shouldClearRecords: true,
       signer,
       accountAddress: ownerAddress,
@@ -246,7 +265,7 @@ export async function setupControlledResolver({
   }
 
   await assertOwnedResolverReady({ resolver, ownerAddress, publicClient })
-  await verifyResolverRecords(name, resolver, after, publicClient)
+  await verifyResolverRecords(name, resolver, reviewedRecords, publicClient)
   await assertFresh()
 
   const canStillRepoint = await canSetNameResolver({

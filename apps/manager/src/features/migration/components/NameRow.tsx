@@ -42,14 +42,14 @@ const ManagerRestorationOptIn = ({
   manager,
   isRestored,
   isLocked,
-  copiesProfile,
+  isCopyingProfile,
   onToggle,
 }: {
   readonly name: string
   readonly manager: Address
   readonly isRestored: boolean
   readonly isLocked: boolean
-  readonly copiesProfile: boolean
+  readonly isCopyingProfile: boolean
   readonly onToggle: (name: string) => void
 }) => (
   <label
@@ -80,7 +80,7 @@ const ManagerRestorationOptIn = ({
         </span>{' '}
         as a manager.
       </Trans>{' '}
-      {copiesProfile ? (
+      {isCopyingProfile ? (
         <Trans>
           It can edit copied profile records and change this name&apos;s
           resolver after the upgrade. Ownership stays with you.
@@ -281,7 +281,7 @@ const NameRowComponent = ({
       )}
       {showManagerOptIn && (
         <ManagerRestorationOptIn
-          copiesProfile={item.resolverStrategy === 'to-owned-permres'}
+          isCopyingProfile={item.resolverStrategy === 'to-owned-permres'}
           isLocked={isManagerRestorationLocked}
           isRestored={isManagerRestored}
           manager={managerCandidate}

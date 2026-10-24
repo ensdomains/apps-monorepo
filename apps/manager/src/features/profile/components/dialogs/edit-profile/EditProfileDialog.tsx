@@ -100,8 +100,12 @@ export const EditProfileDialog = ({
     owner,
     savedRecords,
     resolverCopySource: resolverPreparationSource,
+    resolverImport,
     canSave:
-      canStartEdit && (canEditNormal || Boolean(resolverPreparationSource)),
+      canStartEdit &&
+      !resolverImport?.blockedKeys.length &&
+      !importMutation.isPending &&
+      (canEditNormal || Boolean(resolverPreparationSource)),
   })
 
   const {
@@ -152,6 +156,23 @@ export const EditProfileDialog = ({
 
     resetPreparedImageSaveState()
     dialogActor.send({ type: 'CLOSE' })
+  }
+
+  const handleRetryImport = async () => {
+    try {
+      const imported = await importMutation.mutateAsync()
+      setResolverImport(imported)
+      const importedDraft = createResolverImportDraft(imported.records)
+      form.reset(importedDraft)
+      dialogActor.send({ type: 'CLOSE' })
+      dialogActor.send({ type: 'OPEN', name, records: importedDraft })
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Could not import resolver records. Please retry.',
+      )
+    }
   }
 
   return (
@@ -217,14 +238,21 @@ export const EditProfileDialog = ({
         <EditProfileDialogProvider actor={dialogActor}>
           <EditProfileDialogBody
             form={form}
+            importBlockedKeys={resolverImport?.blockedKeys}
             importWarnings={resolverImport?.warnings}
             isFinalizingImageSave={isFinalizingImageSave}
-            isResolverAccessPending={isResolverAccessPending}
+            isImportPending={importMutation.isPending}
+            isResolverAccessPending={
+              isResolverAccessPending &&
+              !resolverImport?.blockedKeys.length &&
+              !importMutation.isPending
+            }
             name={name}
             onCancel={handleClose}
             onImageUploadPrepared={handleImageUploadPrepared}
             onPreview={handlePreview}
             onRecheckPermissions={recheckResolverAccess}
+            onRetryImport={() => void handleRetryImport()}
             open={open}
             owner={owner}
             preparedImageUploads={preparedImageUploads}

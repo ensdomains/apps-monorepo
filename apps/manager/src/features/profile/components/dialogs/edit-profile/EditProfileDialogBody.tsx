@@ -38,6 +38,9 @@ interface EditProfileDialogBodyProps {
   readonly savedRecords: ProfileRecords
   readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
   readonly importWarnings?: readonly string[]
+  readonly importBlockedKeys?: readonly string[]
+  readonly isImportPending?: boolean
+  readonly onRetryImport?: () => void
   readonly onRecheckPermissions: () => void
   readonly requiresResolverPreparation?: boolean
 }
@@ -69,6 +72,9 @@ export const EditProfileDialogBody = withForm({
     preparedImageUploads,
     savedRecords,
     importWarnings,
+    importBlockedKeys,
+    isImportPending,
+    onRetryImport,
     onRecheckPermissions,
     requiresResolverPreparation,
   }) => {
@@ -77,6 +83,10 @@ export const EditProfileDialogBody = withForm({
     const [hasDraftLinkValidationIssues, setHasDraftLinkValidationIssues] =
       useState(false)
     const [importConfirmed, setImportConfirmed] = useState(false)
+
+    useEffect(() => {
+      if (importWarnings) setImportConfirmed(false)
+    }, [importWarnings])
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: reset draft link validation whenever the dialog open state changes
     useEffect(() => {
@@ -129,6 +139,8 @@ export const EditProfileDialogBody = withForm({
             canSubmit &&
             !isFinalizingImageSave &&
             !isResolverAccessPending &&
+            !isImportPending &&
+            !importBlockedKeys?.length &&
             !hasAddressValidationIssues &&
             !hasGeneralValidationIssues &&
             !hasLinkValidationIssues &&
@@ -206,8 +218,11 @@ export const EditProfileDialogBody = withForm({
               ) : null}
               {importWarnings ? (
                 <ResolverImportReview
+                  blockedKeys={importBlockedKeys}
                   confirmed={importConfirmed}
+                  isPending={isImportPending}
                   onConfirmedChange={setImportConfirmed}
+                  onRetry={onRetryImport}
                   warnings={importWarnings}
                 />
               ) : null}

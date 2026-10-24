@@ -1,5 +1,8 @@
-import { Plural, Trans } from '@lingui/react/macro'
+import { Plural, Trans, useLingui } from '@lingui/react/macro'
 import { useId } from 'react'
+import { CopyableButton } from '@/components/atoms/CopyableButton/CopyableButton'
+import { MSymbol } from '@/components/ui/material-symbol'
+import { cn, truncateAddress } from '@/lib/utils'
 import type { ClassifiedName } from '../service/classifyNames'
 import type { SubnameRecreationSnapshot } from '../service/subnameRecreation'
 
@@ -14,6 +17,7 @@ export const SubnameRecreationReview = ({
   readonly isReviewed: boolean
   readonly onReviewChange: (isReviewed: boolean) => void
 }) => {
+  const { t } = useLingui()
   const titleId = useId()
   const descriptionId = useId()
   const roots = new Set(snapshot.roots)
@@ -26,7 +30,7 @@ export const SubnameRecreationReview = ({
   if (children.length === 0) return null
   const cutoff = new Date(Number(snapshot.timestamp) * 1000).toLocaleString(
     undefined,
-    { dateStyle: 'medium', timeStyle: 'long' },
+    { dateStyle: 'medium', timeStyle: 'short' },
   )
 
   return (
@@ -36,8 +40,8 @@ export const SubnameRecreationReview = ({
     >
       <h2 className="font-medium text-base" id={titleId}>
         <Plural
-          one="Review # subname included in your upgrade"
-          other="Review # subnames included in your upgrade"
+          one="Review # subname"
+          other="Review # subnames"
           value={children.length}
         />
       </h2>
@@ -47,44 +51,65 @@ export const SubnameRecreationReview = ({
       >
         <p>
           <Trans>
-            Each subname will belong to the owner shown below and keep its
-            existing resolver and records. You keep control of the parent name
-            and can reclaim its subnames.
-          </Trans>
-        </p>
-        <p>
-          <Trans>
-            These owners and resolvers were checked as of {cutoff}. We check
-            again before sending, but changes made while you approve or while
-            the transaction is pending may not be included. Later ENSv1
-            transfers and resolver changes will not update these copied names.
+            Subnames keep the owners and resolvers shown below. You retain
+            control through the parent name.
           </Trans>
         </p>
       </div>
-      <ul className="mt-4 max-h-72 divide-y divide-ens-garnet-900/10 overflow-y-auto rounded-lg border border-ens-garnet-900/10 bg-white/50 px-3">
+      <ul className="my-3 max-h-72 divide-y divide-ens-garnet-900/10 overflow-y-auto border-ens-garnet-900/10 border-y">
         {children.map((child) => (
           <li className="py-3" key={child.domain.id}>
-            <p className="break-all font-medium text-sm">{child.domain.name}</p>
-            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs leading-5">
-              <dt className="text-ens-garnet-900/65">
-                <Trans>Owner</Trans>
-              </dt>
-              <dd className="min-w-0 break-all font-semi-mono">
-                {child.tokenHolder}
-              </dd>
-              <dt className="text-ens-garnet-900/65">
-                <Trans>Resolver</Trans>
-              </dt>
-              <dd className="min-w-0 break-all font-semi-mono">
-                {child.v1ResolverAddress ?? <Trans>No resolver set</Trans>}
-              </dd>
+            <p className="wrap-anywhere font-medium text-sm">
+              {child.domain.name}
+            </p>
+            <dl className="mt-1 flex flex-wrap gap-x-6 gap-y-1 text-xs leading-5">
+              <div className="flex items-center gap-2">
+                <dt className="text-ens-garnet-900/70">
+                  <Trans>Owner</Trans>
+                </dt>
+                <dd>
+                  <CopyableButton
+                    aria-label={t`Copy owner ${child.tokenHolder}`}
+                    className="h-8 px-1 font-semi-mono text-xs hover:bg-ens-garnet-900/5"
+                    value={child.tokenHolder}
+                    variant="ghost"
+                  >
+                    {truncateAddress(child.tokenHolder)}
+                  </CopyableButton>
+                </dd>
+              </div>
+              <div className="flex items-center gap-2">
+                <dt className="text-ens-garnet-900/70">
+                  <Trans>Resolver</Trans>
+                </dt>
+                <dd>
+                  {child.v1ResolverAddress ? (
+                    <CopyableButton
+                      aria-label={t`Copy resolver ${child.v1ResolverAddress}`}
+                      className="h-8 px-1 font-semi-mono text-xs hover:bg-ens-garnet-900/5"
+                      value={child.v1ResolverAddress}
+                      variant="ghost"
+                    >
+                      {truncateAddress(child.v1ResolverAddress)}
+                    </CopyableButton>
+                  ) : (
+                    <Trans>No resolver set</Trans>
+                  )}
+                </dd>
+              </div>
             </dl>
           </li>
         ))}
       </ul>
-      <details className="mt-3 text-ens-garnet-900/65 text-xs">
+      <p className="text-ens-garnet-900/75 text-xs leading-relaxed">
+        <Trans>
+          We check again before sending. Changes during signing or confirmation
+          may be missed. Later ENSv1 changes will not sync to these subnames.
+        </Trans>
+      </p>
+      <details className="text-ens-garnet-900/70 text-xs">
         <summary className="min-h-11 cursor-pointer py-3 font-medium focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900">
-          <Trans>Snapshot details</Trans>
+          <Trans>Checked {cutoff}</Trans>
         </summary>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 pb-3 leading-5">
           <dt>
@@ -103,10 +128,27 @@ export const SubnameRecreationReview = ({
         <input
           aria-describedby={descriptionId}
           checked={isReviewed}
-          className="mt-0.5 size-5 shrink-0 accent-ens-garnet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2"
+          className="peer sr-only"
           onChange={(event) => onReviewChange(event.target.checked)}
           type="checkbox"
         />
+        <span
+          aria-hidden
+          className={cn(
+            'mt-0.5 flex size-4.5 shrink-0 items-center justify-center rounded-sm border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ens-garnet-900 peer-focus-visible:ring-offset-2',
+            isReviewed
+              ? 'border-ens-garnet-500 bg-ens-garnet-500'
+              : 'border-ens-quartz-500',
+          )}
+        >
+          <MSymbol
+            className={cn(
+              'size-3.25 text-xs leading-none',
+              isReviewed ? 'text-ens-garnet-100' : 'text-transparent',
+            )}
+            symbol="check"
+          />
+        </span>
         <span>
           <Trans>
             I have reviewed these owners, resolvers and snapshot timing.

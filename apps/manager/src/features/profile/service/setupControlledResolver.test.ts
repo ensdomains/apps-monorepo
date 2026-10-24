@@ -50,6 +50,7 @@ import {
   resolveNameRegistry,
 } from './changeResolver'
 import { saveRecords } from './profileRecordTransactions'
+import { type ResolverImport, verifyResolverRecords } from './resolverImport'
 import { canSetNameResolver } from './setResolverAccess'
 import {
   OwnedResolverNotReadyError,
@@ -115,6 +116,79 @@ beforeEach(() => {
 })
 
 describe('setupControlledResolver', () => {
+  it('refuses a blocked import before sending any transaction', async () => {
+    const resolverImport: ResolverImport = {
+      source: {
+        kind: 'copy',
+        resolver: '0x5555555555555555555555555555555555555555',
+        location: LOCATION,
+        wallet: OWNER,
+        chainId: CHAIN_ID,
+      },
+      records: { texts: [], coins: [] },
+      blockedKeys: ['pubkey'],
+      warnings: [],
+    }
+    await expect(
+      setupControlledResolver({
+        name: 'leon.eth',
+        signer,
+        ownerAddress: OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+        ...snapshots,
+        resolverImport,
+      }),
+    ).rejects.toThrow(/cannot be preserved/)
+    expect(startTransaction).not.toHaveBeenCalled()
+    expect(writeRecords).not.toHaveBeenCalled()
+  })
+
+  it('seeds and verifies imported interface and data records before switching the pointer', async () => {
+    const supplemental = {
+      interfaces: [{ interfaceId: '0x12345678' as const, implementer: OWNER }],
+      data: [{ key: 'binary', value: '0x00ff' as const }],
+    }
+    const resolverImport: ResolverImport = {
+      source: {
+        kind: 'copy',
+        resolver: '0x5555555555555555555555555555555555555555',
+        location: LOCATION,
+        wallet: OWNER,
+        chainId: CHAIN_ID,
+      },
+      records: { texts: [], coins: [], ...supplemental },
+      blockedKeys: [],
+      warnings: [],
+    }
+    await setupControlledResolver({
+      name: 'leon.eth',
+      signer,
+      ownerAddress: OWNER,
+      publicClient,
+      chainId: CHAIN_ID,
+      before: { texts: [], coins: [] },
+      after: { texts: [], coins: [] },
+      resolverImport,
+    })
+    expect(writeRecords).toHaveBeenCalledWith(
+      expect.objectContaining({
+        after: { texts: [], coins: [], ...supplemental },
+      }),
+    )
+    expect(verifyResolverRecords).toHaveBeenCalledWith(
+      'leon.eth',
+      RESOLVER,
+      { texts: [], coins: [], ...supplemental },
+      publicClient,
+    )
+    const verifiedAt = vi.mocked(verifyResolverRecords).mock
+      .invocationCallOrder[0]!
+    expect(writeRecords.mock.invocationCallOrder[0]).toBeLessThan(verifiedAt)
+    expect(startTransaction.mock.invocationCallOrder.at(-1)).toBeGreaterThan(
+      verifiedAt,
+    )
+  })
   it('deploys, writes records, then sets the resolver from the owner EOA', async () => {
     await expect(
       setupControlledResolver({

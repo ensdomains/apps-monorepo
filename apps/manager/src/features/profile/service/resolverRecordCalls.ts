@@ -18,7 +18,11 @@ import {
   dnsEncodeName,
   resolverMulticallParameters as nameSetterCalls,
 } from '@ensdomains/ensjs/utils/v2'
-import { permissionedResolverLinkToRecordSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import {
+  permissionedResolverLinkToRecordSnippet,
+  permissionedResolverSetDataSnippet,
+  permissionedResolverSetInterfaceSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import {
   type Address,
   encodeFunctionData,
@@ -29,6 +33,15 @@ import {
 } from 'viem'
 
 export type ResolverSetterKind = 'name' | 'node'
+
+/** Records preserved by resolver replacement, outside the editable profile fields. */
+export type SupplementalResolverRecords = {
+  readonly interfaces?: readonly {
+    readonly interfaceId: Hex
+    readonly implementer: Address
+  }[]
+  readonly data?: readonly { readonly key: string; readonly value: Hex }[]
+}
 
 /**
  * ERC-165 id of `IAddressSetter` (a single-function interface). Only resolvers
@@ -72,8 +85,25 @@ const encodeCalls = (calls: readonly unknown[]): Hex[] =>
 async function nameRecordCalls(
   name: string,
   { clearRecords, ...records }: ResolverRecords,
+  supplemental: SupplementalResolverRecords,
 ): Promise<Hex[]> {
-  const setters = encodeCalls(await nameSetterCalls({ name, ...records }))
+  const setters = [
+    ...encodeCalls(await nameSetterCalls({ name, ...records })),
+    ...(supplemental.interfaces ?? []).map(({ interfaceId, implementer }) =>
+      encodeFunctionData({
+        abi: permissionedResolverSetInterfaceSnippet,
+        functionName: 'setInterface',
+        args: [dnsEncodeName(name), interfaceId, implementer],
+      }),
+    ),
+    ...(supplemental.data ?? []).map(({ key, value }) =>
+      encodeFunctionData({
+        abi: permissionedResolverSetDataSnippet,
+        functionName: 'setData',
+        args: [dnsEncodeName(name), key, value],
+      }),
+    ),
+  ]
   if (!clearRecords) return setters
   // Unlink alone reads the resolver's default record. Allocate a fresh empty
   // record even for an empty reviewed draft so unrelated defaults cannot leak.
@@ -108,11 +138,19 @@ export async function encodeResolverRecordsCall(params: {
   readonly kind: ResolverSetterKind
   readonly name: string
   readonly records: ResolverRecords
+  readonly supplemental?: SupplementalResolverRecords
 }): Promise<Hex> {
-  const { kind, name, records } = params
+  const { kind, name, records, supplemental = {} } = params
+  if (
+    kind !== 'name' &&
+    (supplemental.interfaces?.length || supplemental.data?.length)
+  )
+    throw new Error(
+      'The target resolver cannot preserve interface and data records.',
+    )
   const calls =
     kind === 'name'
-      ? await nameRecordCalls(name, records)
+      ? await nameRecordCalls(name, records, supplemental)
       : encodeCalls(await nodeSetterCalls({ name, ...records }))
 
   const [firstCall] = calls
