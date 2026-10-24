@@ -3,7 +3,6 @@ import {
   useAnalyticsConsent,
 } from '@ens-apps/utils/posthog/analyticsConsent'
 import {
-  boot as bootIntercom,
   getVisitorId,
   trackEvent as trackIntercomEvent,
   update as updateIntercom,
@@ -27,7 +26,7 @@ import type { PostHog } from 'posthog-js'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { type RefObject, useEffect, useRef } from 'react'
 import { useConnectionEffect } from 'wagmi'
-import { INTERCOM_APP_ID } from '@/lib/intercom'
+import { startIntercom, stopIntercom } from '@/lib/intercom'
 import {
   applyAnalyticsConsent,
   POSTHOG_CONFIG,
@@ -72,7 +71,8 @@ const linkIntercomToAnalytics = () => {
 }
 
 // Applies PostHog's answer once it's known and whenever it changes: on load,
-// on Accept or Decline, and when another tab or app answers.
+// on Accept or Decline, and when another tab or app answers. Intercom only
+// runs with consent.
 const useApplyAnalyticsConsent = (
   wallet: RefObject<ConnectedWallet | null>,
 ) => {
@@ -81,7 +81,10 @@ const useApplyAnalyticsConsent = (
     if (!consent) return
     applyAnalyticsConsent(posthog)
     if (wallet.current) identifyWallet(wallet.current)
-    linkIntercomToAnalytics()
+    if (consent === 'granted') {
+      startIntercom()
+      linkIntercomToAnalytics()
+    } else stopIntercom()
   }, [consent, wallet])
 }
 
@@ -93,11 +96,10 @@ export const PHProvider = ({
   const wallet = useRef<ConnectedWallet | null>(null)
 
   useEffect(() => {
-    // Flag evaluation and support must not crash the app if either SDK fails.
+    // Flag evaluation must not crash the app if PostHog fails.
     try {
       // PostHog is optional: deployments without a key (local dev, e2e)
       // skip flag initialization for an undefined project.
-      // Intercom still boots either way.
       const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY
       if (posthogKey) {
         posthog.init(posthogKey, {
@@ -107,12 +109,6 @@ export const PHProvider = ({
       }
     } catch (error) {
       console.warn('[posthog] init failed', error)
-    }
-
-    try {
-      bootIntercom({ app_id: INTERCOM_APP_ID })
-    } catch (error) {
-      console.warn('[intercom] init failed', error)
     }
   }, [])
 
@@ -133,11 +129,12 @@ export const PHProvider = ({
       }
 
       try {
-        trackIntercomEvent('wallet:connect', {
-          wallet_address: data.address,
-          chain_id: data.chainId,
-          wallet_connector: data.connector.name,
-        })
+        if (hasAnalyticsConsent(posthog))
+          trackIntercomEvent('wallet:connect', {
+            wallet_address: data.address,
+            chain_id: data.chainId,
+            wallet_connector: data.connector.name,
+          })
       } catch (error) {
         console.warn('[intercom] wallet:connect failed', error)
       }

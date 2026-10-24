@@ -1,18 +1,22 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { boot, trackEvent, update } from '@intercom/messenger-js-sdk'
+import { trackEvent, update } from '@intercom/messenger-js-sdk'
 import { act, render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnectionEffect } from 'wagmi'
+import { startIntercom, stopIntercom } from '@/lib/intercom'
 import { POSTHOG_CONFIG, setAnalyticsConsent } from './config'
 import { PHProvider } from './provider'
 
 vi.mock('@tanstack/react-router', () => ({ useHydrated: () => true }))
 vi.mock('@intercom/messenger-js-sdk', () => ({
-  boot: vi.fn(),
   getVisitorId: vi.fn(),
   trackEvent: vi.fn(),
   update: vi.fn(),
+}))
+vi.mock('@/lib/intercom', () => ({
+  startIntercom: vi.fn(),
+  stopIntercom: vi.fn(),
 }))
 vi.mock('@posthog/react', () => ({
   PostHogProvider: ({ children }: { children: unknown }) => children,
@@ -51,7 +55,6 @@ vi.mock('@ens-apps/transaction-manager', () => ({
   },
 }))
 
-const INTERCOM_APP_ID = 're9q5yti'
 const WALLET = {
   address: '0x1111111111111111111111111111111111111111',
   chainId: 1,
@@ -92,32 +95,27 @@ describe('PostHog provider', () => {
     )
   })
 
-  it('links Intercom to analytics only with consent, including after Accept', () => {
+  it('starts and links Intercom only with consent, including after Accept', () => {
     renderProvider()
-    expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
+    expect(startIntercom).not.toHaveBeenCalled()
     expect(update).not.toHaveBeenCalled()
 
     act(() => setAnalyticsConsent(posthog, true))
+    expect(startIntercom).toHaveBeenCalled()
     expect(update).toHaveBeenCalledWith({
       posthog_distinct_id: 'distinct-id',
       recent_replay: 'replay-url',
     })
   })
 
-  it('gives the wallet to flag rules only, without consent', () => {
+  it('sends nothing about the wallet without consent', () => {
     renderProvider()
     connectWallet()
 
-    expect(posthog.setPersonPropertiesForFlags).toHaveBeenCalledWith({
-      address: WALLET.address,
-    })
+    expect(posthog.setPersonPropertiesForFlags).not.toHaveBeenCalled()
     expect(posthog.identify).not.toHaveBeenCalled()
     expect(posthog.register).not.toHaveBeenCalled()
-    expect(trackEvent).toHaveBeenCalledWith('wallet:connect', {
-      wallet_address: WALLET.address,
-      chain_id: 1,
-      wallet_connector: 'test-wallet',
-    })
+    expect(trackEvent).not.toHaveBeenCalled()
   })
 
   it('identifies and tracks wallet connects with consent', () => {
@@ -135,6 +133,11 @@ describe('PostHog provider', () => {
       chain_id: 1,
       wallet_connector: 'test-wallet',
     })
+    expect(trackEvent).toHaveBeenCalledWith('wallet:connect', {
+      wallet_address: WALLET.address,
+      chain_id: 1,
+      wallet_connector: 'test-wallet',
+    })
   })
 
   it('identifies a connected wallet on Accept and forgets it on Decline', () => {
@@ -148,12 +151,10 @@ describe('PostHog provider', () => {
       { initial_address: WALLET.address },
     )
 
-    vi.mocked(posthog.setPersonPropertiesForFlags).mockClear()
     act(() => setAnalyticsConsent(posthog, false))
     expect(posthog.reset).toHaveBeenCalled()
-    expect(posthog.setPersonPropertiesForFlags).toHaveBeenCalledWith({
-      address: WALLET.address,
-    })
+    expect(posthog.setPersonPropertiesForFlags).not.toHaveBeenCalled()
+    expect(stopIntercom).toHaveBeenCalled()
   })
 
   it('forgets the wallet when another tab or app declines', () => {
@@ -169,9 +170,7 @@ describe('PostHog provider', () => {
     })
 
     expect(posthog.reset).toHaveBeenCalled()
-    expect(posthog.setPersonPropertiesForFlags).toHaveBeenLastCalledWith({
-      address: WALLET.address,
-    })
+    expect(stopIntercom).toHaveBeenCalled()
   })
 
   it('applies the banner answer without a reload, until unmounted', () => {
@@ -193,13 +192,13 @@ describe('PostHog provider', () => {
     expect(posthog.set_config).not.toHaveBeenCalled()
   })
 
-  it('boots Intercom even when PostHog initialization fails', () => {
+  it('survives a PostHog init failure without starting Intercom', () => {
     vi.mocked(posthog.init).mockImplementationOnce(() => {
       throw new Error('blocked')
     })
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     renderProvider()
-    expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
+    expect(startIntercom).not.toHaveBeenCalled()
   })
 
   it('logs failed runs locally and tracks them for PostHog', () => {
