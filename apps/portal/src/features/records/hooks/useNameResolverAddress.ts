@@ -5,13 +5,18 @@
  * the UniversalResolver V2 contract on L1.
  */
 
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getResolver } from '@ensdomains/ensjs/public'
+import { registryResolverSnippet } from '@ensdomains/ensjs-abi/registry'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, zeroAddress } from 'viem'
+import { type Address, namehash, zeroAddress } from 'viem'
+import { readContract } from 'viem/actions'
+import { normalize } from 'viem/ens'
+import { getAction } from 'viem/utils'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 // ============================================================================
@@ -50,11 +55,38 @@ export const getNameResolverAddress = ResultFn(async function* (
     (e) => new GetNameResolverAddressError({ cause: e }),
   )
 
-  if (!resolverAddress || resolverAddress === zeroAddress) {
-    return ok<Address | null>(null)
+  if (resolverAddress && resolverAddress !== zeroAddress) {
+    return ok<Address | null>(resolverAddress)
   }
 
-  return ok<Address | null>(resolverAddress)
+  // A lapsed ENSv1 name leaves the UniversalResolver walk when its v2
+  // reservation expires, 28 days before its v1 grace ends, while the legacy
+  // registry still names the resolver its owner is authorised to write.
+  const node = yield* fromSync(
+    () => namehash(normalize(name)),
+    (e) => new GetNameResolverAddressError({ cause: e }),
+  )
+
+  const legacyResolver = yield* fromPromise(
+    getAction(
+      client,
+      readContract,
+      'readContract',
+    )({
+      address: getChainContractAddress({
+        chain: client.chain,
+        contract: 'ensLegacyRegistry',
+      }),
+      abi: registryResolverSnippet,
+      functionName: 'resolver',
+      args: [node],
+    }),
+    (e) => new GetNameResolverAddressError({ cause: e }),
+  )
+
+  return ok<Address | null>(
+    legacyResolver && legacyResolver !== zeroAddress ? legacyResolver : null,
+  )
 })
 
 // ============================================================================

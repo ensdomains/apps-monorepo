@@ -13,7 +13,18 @@ import {
   getNameRegistries,
   getOwner as getOwnerV2,
 } from '@ensdomains/ensjs/public/v2'
-import { type Address, type Client, type Transport, zeroAddress } from 'viem'
+import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
+import {
+  type Address,
+  type Client,
+  isAddressEqual,
+  namehash,
+  type Transport,
+  zeroAddress,
+} from 'viem'
+import { readContract } from 'viem/actions'
+import { normalize } from 'viem/ens'
+import { getAction } from 'viem/utils'
 import { isContractRevert } from '@/utils/errors/isContractRevert'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -109,11 +120,44 @@ export async function resolveEnsOwner(
   const v1Owner = await getOwnerV1(client, { name })
   if (v1Owner?.owner && v1Owner.owner !== zeroAddress) {
     return {
-      owner: v1Owner.owner,
+      owner: await unwrapV1Owner(client, name, v1Owner.owner),
       registryAddress: v1EthRegistry,
       protocolVersion: 'ENSv1',
     }
   }
 
   return null
+}
+
+/**
+ * The holder behind a wrapped name, where the registry names the NameWrapper.
+ *
+ * Normally ensjs reports the wrapper's owner itself, but once the registration
+ * lapses the registrar stops naming a registrant and the read falls back to the
+ * registry slot, which is the wrapper contract. Left alone, a name in grace
+ * reads as owned by a contract and its holder loses every owner-gated action.
+ */
+async function unwrapV1Owner(
+  client: EnsResolveClient,
+  name: string,
+  owner: Address,
+): Promise<Address> {
+  const nameWrapper = getChainContractAddress({
+    chain: client.chain,
+    contract: 'ensNameWrapper',
+  })
+  if (!isAddressEqual(owner, nameWrapper)) return owner
+
+  const [wrappedOwner] = await getAction(
+    client,
+    readContract,
+    'readContract',
+  )({
+    address: nameWrapper,
+    abi: nameWrapperGetDataSnippet,
+    functionName: 'getData',
+    args: [BigInt(namehash(normalize(name)))],
+  })
+
+  return wrappedOwner && wrappedOwner !== zeroAddress ? wrappedOwner : owner
 }
