@@ -24,6 +24,41 @@ const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
     ),
   },
   {
+    id: 'subname-upgrades',
+    question: <Trans>What happens to subnames when I upgrade?</Trans>,
+    answer: (
+      <div className="space-y-3">
+        <p>
+          <Trans>
+            Supported direct subnames, such as alice.example.eth, can be
+            included when you upgrade an unwrapped or unlocked example.eth. Each
+            keeps the owner and resolver shown in your review. Existing subname
+            records stay on that resolver, and you keep control of the parent
+            name.
+          </Trans>
+        </p>
+        <p>
+          <Trans>
+            The review uses a saved point in time. We check for changes again
+            before sending, but changes made during wallet approval or while the
+            transaction is pending may not be included. Later ENSv1 transfers
+            and resolver changes do not update the copied names.
+          </Trans>
+        </p>
+        <p>
+          <Trans>
+            Names with deeper subnames, wrapped protections we cannot preserve,
+            an incomplete subname list, or too many subnames for one safe
+            upgrade must stay on ENSv1 for now. If subname copying is
+            unavailable, the parent upgrade is blocked. There is no option to
+            acknowledge the loss and continue. Your names keep working on ENSv1
+            while you wait.
+          </Trans>
+        </p>
+      </div>
+    ),
+  },
+  {
     id: 'send-crypto',
     question: (
       <Trans>Can I send crypto to a .eth name (instead of an address)?</Trans>
@@ -85,9 +120,9 @@ export const FaqSection = () => (
     </h2>
     <div className="flex flex-col">
       {faqItems.map(({ id, question, answer }) => (
-        <Collapsible key={id}>
+        <Collapsible id={id} key={id}>
           <div className="border-ens-gray-two border-b-[0.4px] last:border-b-0">
-            <CollapsibleTrigger className="group flex h-14 w-full items-center justify-between text-left font-sans text-[16px] text-foreground leading-[20px] md:text-[20px] md:leading-[22px]">
+            <CollapsibleTrigger className="group flex min-h-14 w-full items-center justify-between gap-3 py-3 text-left font-sans text-[16px] text-foreground leading-[20px] md:text-[20px] md:leading-[22px]">
               <span>{question}</span>
               <CircleArrowDown
                 className="size-6 text-foreground transition-transform duration-200 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-data-[state=open]:rotate-180 motion-reduce:transition-none"

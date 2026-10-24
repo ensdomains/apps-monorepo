@@ -13,6 +13,14 @@ const mocks = vi.hoisted(() => ({
   recoveryPlan: vi.fn(),
   estimate: vi.fn(),
   recovery: vi.fn(),
+  isRecreationEnabled: false,
+}))
+vi.mock('@posthog/react', () => ({
+  useFeatureFlagEnabled: () => mocks.isRecreationEnabled,
+}))
+vi.mock('../service/subnameRecreation', () => ({
+  discoverSubnameRecreation: vi.fn(),
+  assertSupportedSubnameMigration: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.query }))
 vi.mock('wagmi', () => ({
@@ -57,6 +65,7 @@ const invokeQuery = () => {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.isRecreationEnabled = false
   mocks.client.mockReturnValue({})
   mocks.query.mockReturnValue({ isPending: true })
   mocks.recovery.mockReturnValue(null)
@@ -71,6 +80,27 @@ beforeEach(() => {
   })
 })
 afterEach(() => vi.restoreAllMocks())
+
+it('marks fresh plans with the rollout state and refreshes it when the flag changes', async () => {
+  mocks.isRecreationEnabled = true
+  const { result, rerender } = renderHook(() => useMigrationGasEstimate(params))
+  const prepared = (await invokeQuery()) as {
+    plan: { subnameRecreationEnabled?: boolean }
+  }
+  expect(prepared.plan.subnameRecreationEnabled).toBe(true)
+  mocks.isRecreationEnabled = false
+  mocks.query.mockReturnValue({
+    data: {
+      estimate: { feeWei: 2n, gasUnits: 1n, transactionCount: 1 },
+      plan: prepared.plan,
+    },
+  })
+  rerender()
+  expect(result.current).toMatchObject({
+    status: 'ready',
+    plan: { subnameRecreationEnabled: false },
+  })
+})
 
 describe('useMigrationGasEstimate failure stages', () => {
   it.each(['preflight', 'plan', 'fee'] as const)(

@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   checkResolverReadiness: vi.fn(),
   assertCopyMigrationReadiness: vi.fn(),
   assertCopySourcesFresh: vi.fn(),
+  assertSupportedSubnameMigration: vi.fn(),
   reconcileAtomicMigrationBatch: vi.fn(),
   verifyAtomicMigrationBatch: vi.fn(),
   assertNoLiveSubregistryOverwrite: vi.fn(),
@@ -70,6 +71,11 @@ vi.mock('./migrationInvariants', async (importOriginal) => ({
 vi.mock('./copyMigrationReadiness', () => ({
   assertCopyMigrationReadiness: mocks.assertCopyMigrationReadiness,
   assertCopySourcesFresh: mocks.assertCopySourcesFresh,
+}))
+
+vi.mock('./subnameRecreation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./subnameRecreation')>()),
+  assertSupportedSubnameMigration: mocks.assertSupportedSubnameMigration,
 }))
 
 vi.mock('./verifyAtomicMigrationBatch', async (importOriginal) => ({
@@ -424,6 +430,7 @@ const runExecute = async (
     onBatchComplete?: OnBatchComplete
     reconcileBeforeSubmit?: boolean
     onProgress?: (progress: MigrationProgress) => void
+    canRecreateSubnames?: () => boolean
   } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
@@ -441,12 +448,14 @@ const runExecute = async (
     },
     onBatchComplete: overrides.onBatchComplete,
     reconcileBeforeSubmit: overrides.reconcileBeforeSubmit,
+    canRecreateSubnames: overrides.canRecreateSubnames,
   })
   return { progressEvents, refreshAccount, result }
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.assertSupportedSubnameMigration.mockResolvedValue(undefined)
   vi.stubGlobal('localStorage', new Storage())
 
   let nextTransaction = 0
@@ -709,7 +718,7 @@ describe('executeMigration HCA orchestration', () => {
 
     await runExecute({ plan })
 
-    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
+    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(3)
     expect(
       mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[0],
     ).toBeLessThan(
@@ -717,7 +726,7 @@ describe('executeMigration HCA orchestration', () => {
         Number.POSITIVE_INFINITY,
     )
     expect(
-      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[1],
+      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[2],
     ).toBeLessThan(
       mocks.startTransaction.mock.invocationCallOrder[0] ??
         Number.POSITIVE_INFINITY,
@@ -1400,6 +1409,94 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
+  it('reconciles a mined bundled run and revokes planned access even if the wallet loses batching', async () => {
+    setHcaApprovalActive()
+    mocks.getAtomicBatchSupport.mockResolvedValue(false)
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'mined-bundle-cleanup',
+        names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
+      },
+    )
+    const plan = {
+      ...planFor(),
+      canBatchAtomically: true,
+      preflight: {
+        ...planFor().preflight,
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
+      },
+    }
+    const { result } = await runExecute({ plan, reconcileBeforeSubmit: true })
+    expect(result.completed).toBe(1)
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(mocks.buildHcaDeploymentCall).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(mocks.startTransaction.mock.calls[0]?.[0]).toMatchObject({
+      request: { to: V2_CONTRACTS.ETHRegistry },
+    })
+  })
+
+  it('blocks changed source state and revokes previously planned temporary access', async () => {
+    setHcaApprovalActive()
+    const cause = new Error('The ENSv1 expiry changed after review')
+    mocks.assertCopyMigrationReadiness.mockRejectedValueOnce(cause)
+    const plan = {
+      ...planFor(),
+      hcaDeploymentRequired: true,
+      preflight: {
+        ...planFor().preflight,
+        migrationApprovals: [MANAGER_APPROVAL],
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
+      },
+    }
+
+    await expect(runExecute({ plan })).rejects.toMatchObject({
+      name: 'MigrationSourceChangedError',
+      cause,
+    })
+    expect(mocks.buildHcaDeploymentCall).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(mocks.startTransaction.mock.calls[0]?.[0]).toMatchObject({
+      request: { to: V2_CONTRACTS.ETHRegistry },
+    })
+  })
+
+  it.each([
+    { canBatchAtomically: false, hasFlagChangedAfterReadiness: false },
+    { canBatchAtomically: false, hasFlagChangedAfterReadiness: true },
+    { canBatchAtomically: true, hasFlagChangedAfterReadiness: false },
+    { canBatchAtomically: true, hasFlagChangedAfterReadiness: true },
+  ])(
+    'blocks recreation when the rollout flag turns off (%j)',
+    async ({ canBatchAtomically, hasFlagChangedAfterReadiness }) => {
+      mocks.getAtomicBatchSupport.mockResolvedValue(true)
+      const plan: MigrationPlan = {
+        ...planFor(),
+        canBatchAtomically,
+        subnameRecreationEnabled: true,
+        subnameRecreation: {
+          version: 5,
+          roots: ['alice.eth'],
+          names: ['alice.eth'],
+          blockNumber: '100',
+          timestamp: '1000',
+          blockHash: `0x${'11'.repeat(32)}`,
+          chainId: 11155111,
+          inventoryDigest: `0x${'22'.repeat(32)}`,
+        },
+      }
+      const canRecreateSubnames = vi.fn(() => false)
+      if (hasFlagChangedAfterReadiness)
+        canRecreateSubnames.mockReturnValueOnce(true)
+      await expect(runExecute({ plan, canRecreateSubnames })).rejects.toThrow(
+        /not enabled/,
+      )
+      expect(mocks.startTransaction).not.toHaveBeenCalled()
+    },
+  )
+
   it('does not prompt for unplanned cleanup when an earlier read fails', async () => {
     setHcaApprovalActive()
     mocks.assertNoLiveSubregistryOverwrite.mockRejectedValueOnce(
@@ -1970,7 +2067,7 @@ describe('executeMigration HCA orchestration', () => {
       wallet: OWNER,
       copies: [copy],
     })
-    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
+    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(3)
     expect(readContractMock).not.toHaveBeenCalledWith(
       expect.objectContaining({ functionName: 'ownerOf' }),
     )

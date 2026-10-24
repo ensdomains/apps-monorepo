@@ -19,7 +19,13 @@ vi.mock('@/features/migration/service/migrationInvariants', () => ({
 vi.mock('./changeResolver', () => ({
   buildSetResolverCall: vi.fn(() => SET_RESOLVER_CALL),
   resolveNameRegistry: vi.fn(async () => LOCATION),
+  readNameResolver: vi.fn(
+    async () => '0x5555555555555555555555555555555555555555',
+  ),
   NameRegistryNotFoundError: class NameRegistryNotFoundError extends Error {},
+}))
+vi.mock('./resolverImport', () => ({
+  verifyResolverRecords: vi.fn(async () => {}),
 }))
 vi.mock('./profileRecordTransactions', () => ({
   saveRecords: vi.fn(async () => ({ hash: '0xrecords' })),
@@ -44,6 +50,7 @@ import {
   resolveNameRegistry,
 } from './changeResolver'
 import { saveRecords } from './profileRecordTransactions'
+import { type ResolverImport, verifyResolverRecords } from './resolverImport'
 import { canSetNameResolver } from './setResolverAccess'
 import {
   OwnedResolverNotReadyError,
@@ -70,12 +77,22 @@ const publicClient = {} as PublicClient
 
 const signer: EOASigner = {
   type: 'eoa',
-  walletClient: { account: { address: OWNER } } as WalletClient,
+  walletClient: {
+    account: { address: OWNER },
+    getChainId: async () => CHAIN_ID,
+    getAddresses: async () => [OWNER],
+  } as unknown as WalletClient,
 }
 
 const snapshots = {
-  before: { texts: [], coins: [] },
-  after: { texts: [], coins: [{ coinType: 60, value: OWNER }] },
+  before: {
+    texts: [{ key: 'description', value: 'Retained source description' }],
+    coins: [],
+  },
+  after: {
+    texts: [{ key: 'description', value: 'Retained source description' }],
+    coins: [{ coinType: 60, value: OWNER }],
+  },
 }
 
 const startTransaction = vi.mocked(transactionManager.startTransaction)
@@ -99,6 +116,79 @@ beforeEach(() => {
 })
 
 describe('setupControlledResolver', () => {
+  it('refuses a blocked import before sending any transaction', async () => {
+    const resolverImport: ResolverImport = {
+      source: {
+        kind: 'copy',
+        resolver: '0x5555555555555555555555555555555555555555',
+        location: LOCATION,
+        wallet: OWNER,
+        chainId: CHAIN_ID,
+      },
+      records: { texts: [], coins: [] },
+      blockedKeys: ['pubkey'],
+      warnings: [],
+    }
+    await expect(
+      setupControlledResolver({
+        name: 'leon.eth',
+        signer,
+        ownerAddress: OWNER,
+        publicClient,
+        chainId: CHAIN_ID,
+        ...snapshots,
+        resolverImport,
+      }),
+    ).rejects.toThrow(/cannot be preserved/)
+    expect(startTransaction).not.toHaveBeenCalled()
+    expect(writeRecords).not.toHaveBeenCalled()
+  })
+
+  it('seeds and verifies imported interface and data records before switching the pointer', async () => {
+    const supplemental = {
+      interfaces: [{ interfaceId: '0x12345678' as const, implementer: OWNER }],
+      data: [{ key: 'binary', value: '0x00ff' as const }],
+    }
+    const resolverImport: ResolverImport = {
+      source: {
+        kind: 'copy',
+        resolver: '0x5555555555555555555555555555555555555555',
+        location: LOCATION,
+        wallet: OWNER,
+        chainId: CHAIN_ID,
+      },
+      records: { texts: [], coins: [], ...supplemental },
+      blockedKeys: [],
+      warnings: [],
+    }
+    await setupControlledResolver({
+      name: 'leon.eth',
+      signer,
+      ownerAddress: OWNER,
+      publicClient,
+      chainId: CHAIN_ID,
+      before: { texts: [], coins: [] },
+      after: { texts: [], coins: [] },
+      resolverImport,
+    })
+    expect(writeRecords).toHaveBeenCalledWith(
+      expect.objectContaining({
+        after: { texts: [], coins: [], ...supplemental },
+      }),
+    )
+    expect(verifyResolverRecords).toHaveBeenCalledWith(
+      'leon.eth',
+      RESOLVER,
+      { texts: [], coins: [], ...supplemental },
+      publicClient,
+    )
+    const verifiedAt = vi.mocked(verifyResolverRecords).mock
+      .invocationCallOrder[0]!
+    expect(writeRecords.mock.invocationCallOrder[0]).toBeLessThan(verifiedAt)
+    expect(startTransaction.mock.invocationCallOrder.at(-1)).toBeGreaterThan(
+      verifiedAt,
+    )
+  })
   it('deploys, writes records, then sets the resolver from the owner EOA', async () => {
     await expect(
       setupControlledResolver({
@@ -122,7 +212,7 @@ describe('setupControlledResolver', () => {
       wallet: OWNER,
       publicClient,
     })
-    expect(locateRegistry).toHaveBeenCalledWith('leon.eth')
+    expect(locateRegistry).toHaveBeenCalledWith('leon.eth', publicClient)
     expect(buildSetResolverCall).toHaveBeenCalledWith({
       ...LOCATION,
       newResolver: RESOLVER,
@@ -142,7 +232,8 @@ describe('setupControlledResolver', () => {
         accountAddress: OWNER,
         resolverAddress: RESOLVER,
         shouldClearRecords: true,
-        ...snapshots,
+        before: { texts: [], coins: [] },
+        after: snapshots.after,
       }),
     )
     expect(startTransaction.mock.invocationCallOrder[0]).toBeLessThan(
@@ -349,7 +440,7 @@ describe('setupControlledResolver', () => {
       }),
     ).resolves.toBe(RESOLVER)
 
-    expect(locateRegistry).toHaveBeenCalledWith('sub.leon.eth')
+    expect(locateRegistry).toHaveBeenCalledWith('sub.leon.eth', publicClient)
     expect(buildSetResolverCall).toHaveBeenCalledWith({
       label: 'sub',
       registryAddress: PARENT_REGISTRY,
@@ -367,7 +458,7 @@ describe('setupControlledResolver', () => {
       ...snapshots,
     })
 
-    expect(locateRegistry).toHaveBeenCalledWith('leon.eth')
+    expect(locateRegistry).toHaveBeenCalledWith('leon.eth', publicClient)
   })
 
   it('leaves a name that already carries a TLD alone', async () => {
@@ -388,7 +479,7 @@ describe('setupControlledResolver', () => {
       }),
     ).rejects.toBeInstanceOf(NameRegistryNotFoundError)
 
-    expect(locateRegistry).toHaveBeenCalledWith('jobintime.xyz')
+    expect(locateRegistry).toHaveBeenCalledWith('jobintime.xyz', publicClient)
     expect(startTransaction).not.toHaveBeenCalled()
   })
 

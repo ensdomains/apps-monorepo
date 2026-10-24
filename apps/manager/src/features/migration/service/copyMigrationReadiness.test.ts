@@ -20,6 +20,7 @@ import {
   assertCopyMigrationTopology,
   assertCopySourcesFresh,
 } from './copyMigrationReadiness'
+import { MIGRATION_EXPIRY_BONUS_SECONDS } from './migrationExpiry'
 import { computeUserRegistryAddress } from './userRegistryMigration'
 
 const WALLET: Address = '0x0000000000000000000000000000000000000010'
@@ -125,13 +126,28 @@ const makeClient = (params: {
     getCode: vi.fn(async ({ address }: { address: Address }) =>
       params.getCode?.(address),
     ),
-    readContract: vi.fn(async (request: ReadRequest) => params.read(request)),
+    readContract: vi.fn(async (request: ReadRequest) => {
+      if (request.functionName === 'nameExpires')
+        return WRAPPED_EXPIRY - 7776000n
+      if (
+        request.functionName === 'getState' &&
+        sameAddress(request.address, V2_CONTRACTS.ETHRegistry)
+      )
+        return {
+          status: 1,
+          expiry: WRAPPED_EXPIRY - 7776000n + MIGRATION_EXPIRY_BONUS_SECONDS,
+          latestOwner: zeroAddress,
+          tokenId: 0n,
+          resource: BigInt(String(request.args?.[0])),
+        }
+      return params.read(request)
+    }),
   }) as unknown as PublicClient
 
 const migratingRoot = (
   tokenType: 'unwrapped' | 'unlocked' | 'locked-2ld' = 'unwrapped',
-): DirectClassifiedName =>
-  makeClassified({
+): DirectClassifiedName => {
+  const root = makeClassified({
     action: 'migrate',
     tokenType,
     id: '0x01',
@@ -140,6 +156,15 @@ const migratingRoot = (
     parentName: 'eth',
     tokenHolder: WALLET,
   })
+  return {
+    ...root,
+    domain: {
+      ...root.domain,
+      registration: { expiryDate: (WRAPPED_EXPIRY - 7776000n).toString() },
+      wrappedDomain: { expiryDate: WRAPPED_EXPIRY.toString(), fuses: 0 },
+    },
+  }
+}
 
 const registryCopy = (
   params: {
@@ -205,7 +230,7 @@ const sourceOnlyClient = (
   })
 
 const expectReason = async (
-  result: Promise<void>,
+  result: Promise<unknown>,
   reason: string,
 ): Promise<void> => {
   await expect(result).rejects.toMatchObject({ reason })
@@ -336,6 +361,22 @@ describe('assertCopySourcesFresh', () => {
       }),
       'source-expiry-changed',
     )
+  })
+
+  it('keeps a reviewed zero-fuse recreation child usable after its wrapper expiry', async () => {
+    const copy: CopyClassifiedName = {
+      ...wrappedCopy(null, MAX_UINT64),
+      recreationRoot: 'example.eth',
+      domain: {
+        ...wrappedCopy().domain,
+        wrappedDomain: { fuses: 0, expiryDate: '1' },
+      },
+    }
+    await assertCopySourcesFresh({
+      publicClient: sourceOnlyClient({ expiry: 1n }),
+      wallet: WALLET,
+      copies: [copy],
+    })
   })
 
   it('accepts the live registry owner with the non-expiring sentinel', async () => {
@@ -482,6 +523,77 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
     )
   })
 
+  it.each(['unwrapped', 'unlocked', 'locked-2ld'] as const)(
+    'blocks a stale active reservation for direct %s before signing',
+    async (tokenType) => {
+      const root = migratingRoot(tokenType)
+      const client = makeClient({
+        read: () => {
+          throw new Error('Unexpected read')
+        },
+      })
+      vi.mocked(client.readContract).mockImplementation(async (request) =>
+        request.functionName === 'nameExpires'
+          ? WRAPPED_EXPIRY - 7776000n
+          : {
+              status: 1,
+              expiry:
+                WRAPPED_EXPIRY - 7776000n + MIGRATION_EXPIRY_BONUS_SECONDS - 2n,
+              latestOwner: zeroAddress,
+              tokenId: 0n,
+              resource: 2n,
+            },
+      )
+      await expectReason(
+        assertCopyMigrationReadiness({
+          publicClient: client,
+          hca: HCA,
+          wallet: WALLET,
+          remaining: [root],
+          registryContext: [root],
+        }),
+        'reservation-expiry-mismatch',
+      )
+    },
+  )
+
+  it.each(['unwrapped', 'unlocked', 'locked-2ld'] as const)(
+    'captures the on-chain reservation expiry for %s with either deployed bonus',
+    async (tokenType) => {
+      for (const bonus of [
+        MIGRATION_EXPIRY_BONUS_SECONDS - 1n,
+        MIGRATION_EXPIRY_BONUS_SECONDS,
+      ]) {
+        const root = migratingRoot(tokenType)
+        const expiry = WRAPPED_EXPIRY - 7776000n + bonus
+        const client = makeClient({
+          read: () => {
+            throw new Error('Unexpected read')
+          },
+        })
+        vi.mocked(client.readContract).mockImplementation(async (request) =>
+          request.functionName === 'nameExpires'
+            ? WRAPPED_EXPIRY - 7776000n
+            : {
+                status: 1,
+                expiry,
+                latestOwner: zeroAddress,
+                tokenId: 0n,
+                resource: 2n,
+              },
+        )
+        const expiries = await assertCopyMigrationReadiness({
+          publicClient: client,
+          hca: HCA,
+          wallet: WALLET,
+          remaining: [root],
+          registryContext: [root],
+        })
+        expect(expiries.get(root.domain.name)).toBe(expiry)
+      }
+    },
+  )
+
   it('allows a migrating 2LD to preserve its exact custom resolver', async () => {
     const customRoot = {
       ...root,
@@ -502,15 +614,13 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
       },
     })
 
-    await expect(
-      assertCopyMigrationReadiness({
-        publicClient: client,
-        hca: HCA,
-        wallet: WALLET,
-        remaining: [customRoot, copy],
-        registryContext: [customRoot, copy],
-      }),
-    ).resolves.toBeUndefined()
+    await assertCopyMigrationReadiness({
+      publicClient: client,
+      hca: HCA,
+      wallet: WALLET,
+      remaining: [customRoot, copy],
+      registryContext: [customRoot, copy],
+    })
   })
 
   it('rejects a migrating unlocked 2LD that became locked', async () => {
@@ -585,15 +695,13 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
       }),
     })
 
-    await expect(
-      assertCopyMigrationReadiness({
-        publicClient: client,
-        hca: HCA,
-        wallet: WALLET,
-        remaining: [child],
-        registryContext: [root, parent, child],
-      }),
-    ).resolves.toBeUndefined()
+    await assertCopyMigrationReadiness({
+      publicClient: client,
+      hca: HCA,
+      wallet: WALLET,
+      remaining: [child],
+      registryContext: [root, parent, child],
+    })
   })
 
   it('checks independent registry routes concurrently and reads each code address once', async () => {
@@ -648,7 +756,7 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
     } finally {
       releaseRootRegistry?.()
     }
-    await expect(readiness).resolves.toBeUndefined()
+    await readiness
 
     const getCode = vi.mocked(client.getCode)
     for (const address of [
@@ -688,16 +796,14 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
       }),
     })
 
-    await expect(
-      assertCopyMigrationReadiness({
-        publicClient: client,
-        hca: HCA,
-        wallet: WALLET,
-        remaining: [root, copy],
-        registryContext: [root, copy],
-        recordedAttemptNames: new Set([root.domain.name]),
-      }),
-    ).resolves.toBeUndefined()
+    await assertCopyMigrationReadiness({
+      publicClient: client,
+      hca: HCA,
+      wallet: WALLET,
+      remaining: [root, copy],
+      registryContext: [root, copy],
+      recordedAttemptNames: new Set([root.domain.name]),
+    })
   })
 
   it('rejects an uncertified existing parent proxy on retry', async () => {

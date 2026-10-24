@@ -92,24 +92,39 @@ const computeApprovalPreflight = async (params: {
   readonly hcaAddress?: Address
   readonly needs: ApprovalNeeds
   readonly requiresManagerRestoration: boolean
+  readonly requiresRegistryConfiguration: boolean
   readonly wagmiConfig: WagmiConfig
 }): Promise<{
   readonly migrationApprovals?: readonly MigrationApproval[]
   readonly migrationCleanupApprovals?: readonly MigrationCleanupApproval[]
 }> => {
-  const { eoa, hcaAddress, needs, requiresManagerRestoration, wagmiConfig } =
-    params
+  const {
+    eoa,
+    hcaAddress,
+    needs,
+    requiresManagerRestoration,
+    requiresRegistryConfiguration,
+    wagmiConfig,
+  } = params
   if (!hcaAddress) return {}
 
   const hcaApprovalStatus = await checkMigrationApprovals({
     eoa,
     hcaAddress,
-    needs: { ...needs, requiresManagerRestoration },
+    needs: {
+      ...needs,
+      requiresManagerRestoration,
+      requiresRegistryConfiguration,
+    },
     wagmiConfig,
   })
   const migrationApprovals = planMigrationApprovals({
     hcaAddress,
-    needs: { ...needs, requiresManagerRestoration },
+    needs: {
+      ...needs,
+      requiresManagerRestoration,
+      requiresRegistryConfiguration,
+    },
     status: hcaApprovalStatus,
   })
   const migrationCleanupApprovals =
@@ -185,6 +200,7 @@ export const computeMigrationPreflight = async (params: {
    * of this (cached) computation.
    */
   requiresManagerRestoration?: boolean
+  requiresRegistryConfiguration?: boolean
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
   signal?: AbortSignal
@@ -194,6 +210,7 @@ export const computeMigrationPreflight = async (params: {
     hcaAddress,
     domains,
     requiresManagerRestoration = false,
+    requiresRegistryConfiguration = false,
     wagmiConfig,
     publicClient,
     signal,
@@ -234,6 +251,7 @@ export const computeMigrationPreflight = async (params: {
       hcaAddress,
       needs,
       requiresManagerRestoration,
+      requiresRegistryConfiguration,
       wagmiConfig,
     }),
     computeProfilePreflight(namesToOwnedPermRes, signal),

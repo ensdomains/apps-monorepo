@@ -1,5 +1,6 @@
 import type { Address } from 'viem'
 import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
+import type { ResolverCopySource } from '@/features/profile/service/resolverImport'
 import type { ProfileRecords } from '@/features/profile/types'
 
 export interface EditProfileForm {
@@ -13,6 +14,9 @@ export interface EditProfileDialogProps {
   readonly onUpdated?: () => undefined | Promise<unknown>
   readonly editButtonClassName: string
   readonly leftActions?: React.ReactNode
+  readonly resolverCopySource?: ResolverCopySource
+  readonly canEditNormal?: boolean
+  readonly canStartEdit?: boolean
 }
 
 interface EditProfileSaveOptions {

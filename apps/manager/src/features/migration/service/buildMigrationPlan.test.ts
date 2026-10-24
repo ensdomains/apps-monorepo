@@ -85,6 +85,7 @@ const publicClientWithProfileResults = (
     // The recovery plan resolves its chain from the client and refuses a
     // client without one.
     chain: { id: 11155111 },
+    getCode: vi.fn().mockResolvedValue('0x'),
     multicall: vi.fn(() => Promise.resolve(results)),
     readContract: vi.fn().mockResolvedValue(false),
   }) as unknown as PublicClient
@@ -164,7 +165,7 @@ beforeEach(() => {
     batches: [],
   })
   assertCopyMigrationReadinessMock.mockReset()
-  assertCopyMigrationReadinessMock.mockResolvedValue(undefined)
+  assertCopyMigrationReadinessMock.mockResolvedValue(new Map())
 })
 
 describe('assertLockedResolverReplacementRecordSafety', () => {
@@ -379,7 +380,10 @@ describe('buildMigrationPlan resolver preservation', () => {
       domains: [domain],
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
       preflight,
     })
 
@@ -405,7 +409,10 @@ describe('buildMigrationPlan gas preview', () => {
       domains: [makeDomain()],
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
       preflight: {
         skipFetchProfilesPhase: true,
         hcaReadiness: { status: 'deployment-required', hca: HCA },
@@ -478,7 +485,10 @@ describe('buildMigrationRecoveryPlan', () => {
       snapshot,
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
     })
 
     const checkedContracts = vi.mocked(assertRequiredMigrationContractCode).mock
@@ -542,7 +552,10 @@ describe('buildMigrationRecoveryPlan', () => {
         snapshot,
         hcaAddress: HCA,
         migrationOwner: OWNER,
-        publicClient: { chain: { id: 11155111 } } as PublicClient,
+        publicClient: {
+          chain: { id: 11155111 },
+          getCode: vi.fn().mockResolvedValue('0x'),
+        } as unknown as PublicClient,
       }),
     ).resolves.toBeDefined()
 
@@ -569,7 +582,10 @@ describe('buildMigrationRecoveryPlan', () => {
         snapshot,
         hcaAddress: HCA,
         migrationOwner: OWNER,
-        publicClient: { chain: { id: 11155111 } } as PublicClient,
+        publicClient: {
+          chain: { id: 11155111 },
+          getCode: vi.fn().mockResolvedValue('0x'),
+        } as unknown as PublicClient,
       }),
     ).rejects.toMatchObject({
       name: 'MigrationRecoveryPlanError',
@@ -620,7 +636,10 @@ describe('buildMigrationRecoveryPlan manager restoration (WEB-1528)', () => {
       snapshot,
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
     })
 
   it('replays the opt-in recorded on the durable snapshot', async () => {

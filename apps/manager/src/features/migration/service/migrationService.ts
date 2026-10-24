@@ -23,7 +23,6 @@ import {
   type PublicClient,
   type TransactionReceipt,
 } from 'viem'
-
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { maxOuterGasFor } from './batchMigrate.constants'
@@ -77,6 +76,7 @@ import {
   verifyAndPersistMigrationCompletionCheckpoint,
 } from './migrationCompletionCheckpoint'
 import {
+  assertLockedPublicResolverSetMembership,
   assertNoLiveSubregistryOverwrite,
   checkDeterministicMigrationResolverReadiness,
   resolverWriterFor,
@@ -86,6 +86,12 @@ import {
   describeUpgradeOperations,
   nameCount,
 } from './migrationProgressCopy'
+import { checkRetainedManagerResolvers } from './retainedManagerResolver'
+import {
+  assertSubnameRecreationUnchanged,
+  assertSupportedSubnameMigration,
+} from './subnameRecreation'
+import { assertSubnameRecreationSnapshotCurrent } from './subnameRecreationError'
 import {
   reconcileAtomicMigrationBatch,
   verifyAtomicMigrationBatch,
@@ -113,6 +119,13 @@ class MigrationPlanChangedError extends TaggedError(
   readonly currentApprovalKeys: readonly string[]
   readonly plannedCleanupApprovalKeys: readonly string[]
   readonly currentCleanupApprovalKeys: readonly string[]
+}> {}
+
+class MigrationSourceChangedError extends TaggedError(
+  'MigrationSourceChangedError',
+)<{
+  readonly message: string
+  readonly cause: unknown
 }> {}
 
 class SubmittedAtomicMigrationIndeterminateError extends TaggedError(
@@ -298,6 +311,7 @@ const recoverySnapshotFor = (
     }
   }
   return {
+    subnameRecreation: plan.subnameRecreation,
     registryDomains: plan.registryContext.map(({ domain }) => domain),
     registryOperations,
     remainingOperations: registryOperations.filter(({ name }) =>
@@ -535,7 +549,7 @@ const approvalDescription = (approval: MigrationApproval): string => {
     case 'name-wrapper:hca':
       return 'Getting permission to upgrade your wrapped names'
     case 'eth-registry:hca':
-      return 'Getting permission to restore your managers'
+      return 'Getting permission to configure your upgraded names'
   }
 }
 
@@ -565,6 +579,11 @@ const getCurrentMigrationApprovals = async (params: {
     ...basicNeeds,
     requiresManagerRestoration: plan.classified.some(
       (name) => name.managerAddress !== null,
+    ),
+    requiresRegistryConfiguration: plan.atomicBatches.some((batch) =>
+      batch.innerExecutions.some(
+        ({ phase }) => phase === 'subregistry-attachment',
+      ),
     ),
   }
   const status = await checkMigrationApprovals({
@@ -967,6 +986,16 @@ const reconcileSubmittedAtomicBatch = async (params: {
     (name) => params.executions.get(name)?.verificationExpectations ?? [],
   )
   try {
+    if (params.plan.subnameRecreation)
+      await assertSubnameRecreationUnchanged({
+        publicClient: params.ctx.publicClient,
+        snapshot: params.plan.subnameRecreation,
+        domains: params.plan.registryContext
+          .filter(({ domain }) => submission.names.includes(domain.name))
+          .map(({ domain }) => domain),
+        toBlock: receipt.blockNumber,
+        ownTransactionHash: submission.hash,
+      })
     await verifyAtomicMigrationBatch({
       publicClient: params.ctx.publicClient,
       batch: { index: 0, verificationExpectations },
@@ -1504,7 +1533,11 @@ const buildNextAtomicBatch = async (params: {
 }) => {
   const { ctx, plan, remaining, retryPermissionHeadLag } = params
   const maxOuterGas = maxOuterGasFor(ctx.canBatchAtomically)
-  await assertCopyMigrationReadiness({
+  await assertLockedPublicResolverSetMembership({
+    publicClient: ctx.publicClient,
+    names: remaining,
+  })
+  const directMigrationExpiries = await assertCopyMigrationReadiness({
     publicClient: ctx.publicClient,
     hca: ctx.hcaAddress,
     wallet: ctx.walletAddress,
@@ -1534,6 +1567,7 @@ const buildNextAtomicBatch = async (params: {
       )
       .find((count) => count > 0) ?? 1
   const atomicPlan = await buildAtomicMigrationBatches({
+    directMigrationExpiries,
     chainId: requireChainId(ctx.publicClient, 'migration'),
     hca: ctx.hcaAddress,
     wallet: ctx.walletAddress,
@@ -1547,6 +1581,13 @@ const buildNextAtomicBatch = async (params: {
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
     resolverWriter: resolverWriterFor(resolverReadiness),
+    deployedManagerResolvers: await checkRetainedManagerResolvers({
+      publicClient: ctx.publicClient,
+      chainId: requireChainId(ctx.publicClient, 'migration'),
+      hca: ctx.hcaAddress,
+      wallet: ctx.walletAddress,
+      classified: remaining,
+    }),
     maxOuterGas,
     firstBatchOnly: true,
     initialBatchSize,
@@ -1769,6 +1810,21 @@ const replayWalletRecords = async (params: {
   params.ctx.tracker.emit('Records copied')
 }
 
+const assertSubnameRecreationEnabled = (
+  plan: MigrationPlan,
+  canRecreateSubnames?: () => boolean,
+): void => {
+  if (
+    plan.subnameRecreation &&
+    (plan.subnameRecreationEnabled === false ||
+      canRecreateSubnames?.() === false)
+  ) {
+    throw new Error(
+      'Subname migration is not enabled for this session. Your transaction history has been reconciled; remaining imports are preserved for later.',
+    )
+  }
+}
+
 /**
  * The temporary-access revoke, when the preview budgeted it and it is still
  * active, so it can ride atomically with the final batch.
@@ -1799,6 +1855,7 @@ const executeRemainingAtomicBatches = async (params: {
   readonly publicClient: PublicClient
   readonly onBatchComplete?: OnBatchComplete
   readonly retryPermissionHeadLag: boolean
+  readonly canRecreateSubnames?: () => boolean
   readonly plannedCleanupApprovals: readonly MigrationCleanupApproval[]
 }): Promise<readonly Hex[]> => {
   const hashes: Hex[] = []
@@ -1807,6 +1864,7 @@ const executeRemainingAtomicBatches = async (params: {
   let retryPermissionHeadLag = params.retryPermissionHeadLag
 
   while (remaining.length > 0) {
+    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const batch = await buildNextAtomicBatch({
       ctx: params.ctx,
       plan: params.plan,
@@ -1824,6 +1882,11 @@ const executeRemainingAtomicBatches = async (params: {
       remaining,
       registryContext: params.plan.registryContext,
     })
+    await assertSupportedSubnameMigration({
+      publicClient: params.publicClient,
+      classified: remaining,
+    })
+    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const description = describeUpgradeOperations(batch.operations)
     try {
       await replayWalletRecords({
@@ -1834,6 +1897,14 @@ const executeRemainingAtomicBatches = async (params: {
     } catch (error) {
       throw wrapMigrationError(error, description)
     }
+    if (params.plan.subnameRecreation)
+      await assertSubnameRecreationUnchanged({
+        publicClient: params.publicClient,
+        snapshot: params.plan.subnameRecreation,
+        domains: params.plan.registryContext
+          .filter(({ domain }) => batch.names.includes(domain.name))
+          .map(({ domain }) => domain),
+      })
     const intent = {
       id: createAtomicMigrationIntentId(),
       names: batch.names,
@@ -1847,6 +1918,7 @@ const executeRemainingAtomicBatches = async (params: {
             plannedCleanupApprovals: params.plannedCleanupApprovals,
           })
         : null
+    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     persistPendingAtomicMigrationIntent(journalScope, intent)
     let submittedHash: Hex | undefined
     const onSubmitted = (nextHash: Hex) => {
@@ -1882,6 +1954,16 @@ const executeRemainingAtomicBatches = async (params: {
             onSubmitted,
             withGasBuffer(batch.estimatedGas),
           )
+      if (params.plan.subnameRecreation)
+        await assertSubnameRecreationUnchanged({
+          publicClient: params.publicClient,
+          snapshot: params.plan.subnameRecreation,
+          domains: params.plan.registryContext
+            .filter(({ domain }) => batch.names.includes(domain.name))
+            .map(({ domain }) => domain),
+          toBlock: receipt.blockNumber,
+          ownTransactionHash: hash,
+        })
       await verifyAtomicMigrationBatch({
         publicClient: params.publicClient,
         batch,
@@ -1959,6 +2041,7 @@ export const executeMigration = async (params: {
   readonly onBatchComplete?: OnBatchComplete
   /** Set on retry to reconcile a receipt whose post-state polling was uncertain. */
   readonly reconcileBeforeSubmit?: boolean
+  readonly canRecreateSubnames?: () => boolean
 }): Promise<MigrationResult> => {
   const {
     plan,
@@ -1970,6 +2053,9 @@ export const executeMigration = async (params: {
     onProgress,
     onBatchComplete,
   } = params
+  if (plan.subnameRecreation) {
+    assertSubnameRecreationSnapshotCurrent(plan.subnameRecreation)
+  }
   const { classified, ineligible } = plan
   const reconcileBeforeSubmit =
     params.reconcileBeforeSubmit ?? plan.requiresReconciliation ?? false
@@ -1997,8 +2083,6 @@ export const executeMigration = async (params: {
   const txHashes: Hex[] = []
 
   try {
-    await assertAtomicBatchingAvailable(ctx)
-
     const executionPlan = await prepareExecutionPlan({
       reconcileBeforeSubmit,
       publicClient,
@@ -2008,6 +2092,10 @@ export const executeMigration = async (params: {
     })
 
     if (executionPlan.classified.length > 0) {
+      // Reconcile mined work before checking capabilities: cleanup-only retries
+      // do not need a wallet bundle and must not resubmit completed migrations.
+      await assertAtomicBatchingAvailable(ctx)
+      assertSubnameRecreationEnabled(executionPlan, params.canRecreateSubnames)
       // Re-read every destination pointer this plan writes, immediately before
       // the first wallet prompt. Preflight checks it too, but that verdict is as
       // old as the preview the user has been reading — and a retry rebuilds the
@@ -2020,6 +2108,23 @@ export const executeMigration = async (params: {
         publicClient,
         names: executionPlan.classified,
       })
+      // The reviewed preview may predate a renewal or source change. Check
+      // again before setup signatures, after reconciling any mined batches.
+      try {
+        await assertCopyMigrationReadiness({
+          publicClient,
+          hca: executionPlan.hcaAddress,
+          wallet: executionPlan.migrationOwner,
+          remaining: executionPlan.classified,
+          registryContext: executionPlan.registryContext,
+        })
+      } catch (cause) {
+        throw new MigrationSourceChangedError({
+          message:
+            'The reviewed migration source could not be verified. Refresh before upgrading.',
+          cause,
+        })
+      }
     }
 
     // Permission state is mutable outside this flow. Check both grants and
@@ -2033,6 +2138,7 @@ export const executeMigration = async (params: {
     })
 
     if (executionPlan.classified.length > 0) {
+      assertSubnameRecreationEnabled(executionPlan, params.canRecreateSubnames)
       const setup = await ensureMigrationSetup({
         ctx,
         plan: executionPlan,
@@ -2056,6 +2162,7 @@ export const executeMigration = async (params: {
           retryPermissionHeadLag: setup.hasGrantedApprovals,
           plannedCleanupApprovals:
             plan.preflight.migrationCleanupApprovals ?? [],
+          canRecreateSubnames: params.canRecreateSubnames,
         })),
       )
     }

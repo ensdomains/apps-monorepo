@@ -91,8 +91,10 @@ export type CopyClassifiedName = ClassifiedNameBase & {
   readonly action: 'copy'
   readonly tokenType: CopyTokenType
   readonly copySource: CopySource
+  /** Reviewed direct-child import; the V1 owner receives the child token with ALL roles. */
+  readonly recreationRoot?: string
   readonly sourceExpiry: bigint
-  readonly resolverStrategy: 'to-owned-permres'
+  readonly resolverStrategy: ResolverStrategy
   readonly registryController: null
   readonly managerAddress: null
 }

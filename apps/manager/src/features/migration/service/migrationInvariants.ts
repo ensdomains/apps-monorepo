@@ -158,7 +158,10 @@ const nameContracts = (
     contracts.push('VerifiableFactoryProxyLogic')
   if (name.resolverStrategy === 'to-owned-permres') {
     contracts.push('PermissionedResolverImpl')
-    if (params.resolverReadiness?.status === 'deployment-required')
+    if (
+      params.resolverReadiness?.status === 'deployment-required' ||
+      name.managerAddress
+    )
       contracts.push('VerifiableFactoryProxyLogic')
   }
   if (
@@ -400,6 +403,8 @@ export const assertNoLiveSubregistryOverwrite = async ({
 }
 
 export type MigrationHcaReadiness =
+  /** Receipt recovery defers current authority until further writes are needed. */
+  | { readonly status: 'deferred'; readonly hca: Address }
   | { readonly status: 'deployment-required'; readonly hca: Address }
   | {
       readonly status: 'verified'
