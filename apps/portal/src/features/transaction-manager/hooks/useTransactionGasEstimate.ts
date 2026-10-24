@@ -1,4 +1,5 @@
 import type {
+  EOABatchTransactionRequest,
   EOATransactionRequest,
   TransactionMachineActor,
   TransactionRequest,
@@ -54,8 +55,52 @@ export type StepGasEstimateParams = {
   readonly data: string | undefined
   readonly value: string | undefined
   readonly gas: string | undefined
+  /** An EIP-5792 bundle's calls, serialized; unset for a single call. */
+  readonly calls?: string | undefined
   readonly started: boolean
 }
+
+/** A request the modal can price: one EOA call, or an EIP-5792 bundle of them. */
+export type EstimableRequest =
+  | EOATransactionRequest
+  | EOABatchTransactionRequest
+
+export const toEstimableRequest = (
+  request: TransactionRequest | undefined,
+): EstimableRequest | undefined =>
+  request?.type === 'eoa' || request?.type === 'eoa-batch' ? request : undefined
+
+export const isEstimable = (request: EstimableRequest | undefined): boolean =>
+  request?.type === 'eoa-batch'
+    ? request.calls.length > 0
+    : Boolean(request?.to && request.data)
+
+export const stepGasEstimateParams = (
+  request: EstimableRequest | undefined,
+  started: boolean,
+): StepGasEstimateParams =>
+  request?.type === 'eoa-batch'
+    ? {
+        chainId: request.chainId,
+        from: request.from,
+        to: undefined,
+        data: undefined,
+        value: undefined,
+        gas: undefined,
+        calls: request.calls
+          .map(({ to, data, value }) => `${to}:${data}:${value}`)
+          .join('|'),
+        started,
+      }
+    : {
+        chainId: request?.chainId,
+        from: request?.from,
+        to: request?.to,
+        data: request?.data,
+        value: request?.value?.toString(),
+        gas: request?.gas?.toString(),
+        started,
+      }
 
 export const stepGasEstimateQueryKey = createQueryKey<
   'step-gas-estimate',
@@ -101,6 +146,32 @@ export const estimateGasForCall = async (
 }
 
 /**
+ * Prices a bundle by simulating its calls in order (`eth_simulateV1`): a later
+ * call usually only succeeds after an earlier one (approve → spend), so each
+ * call alone would revert under `eth_estimateGas`.
+ */
+const estimateGasForBundle = async (
+  publicClient: PublicClient,
+  bundle: EOABatchTransactionRequest,
+): Promise<bigint> => {
+  const { results } = await publicClient.simulateCalls({
+    account: bundle.from,
+    calls: bundle.calls.map(({ to, data, value }) => ({ to, data, value })),
+  })
+  const failed = results.find(({ status }) => status === 'failure')
+  if (failed?.error) throw failed.error
+  return results.reduce((total, { gasUsed }) => total + gasUsed, 0n)
+}
+
+export const estimateGasForRequest = (
+  publicClient: PublicClient,
+  request: EstimableRequest,
+): Promise<bigint> =>
+  request.type === 'eoa-batch'
+    ? estimateGasForBundle(publicClient, request)
+    : estimateGasForCall(publicClient, request)
+
+/**
  * Derives the honest {@link GasEstimateStatus} from the two queries. Only a
  * genuine on-chain revert becomes `error` ("Unavailable"); a transient RPC
  * failure (after retries) or a fee-lookup failure falls back to the neutral
@@ -141,9 +212,8 @@ export const useTransactionGasEstimate = (
   // actually change (it passes `undefined` to the selector when `actor` is).
   const activeRequest = useSelector(actor, (s) => s?.context.request)
   const receipt = useSelector(actor, (s) => s?.context.receipt)
-  const candidate =
-    activeRequest?.type === 'eoa' ? activeRequest : fallbackRequest
-  const eoa = candidate?.type === 'eoa' ? candidate : null
+  const eoa =
+    toEstimableRequest(activeRequest) ?? toEstimableRequest(fallbackRequest)
 
   // Estimate against the chain the transaction actually targets, not whatever
   // chain the wallet happens to be on. Returns undefined (→ disabled) when the
@@ -169,16 +239,10 @@ export const useTransactionGasEstimate = (
     // Shared with useFlowGasAffordability so a step is estimated once and both
     // read the same number. `started` re-estimates once the step actually runs:
     // a call that reverted at modal-open can succeed after the prior step.
-    queryKey: stepGasEstimateQueryKey({
-      chainId: eoa?.chainId,
-      from: eoa?.from,
-      to: eoa?.to,
-      data: eoa?.data,
-      value: eoa?.value?.toString(),
-      gas: eoa?.gas?.toString(),
-      started: Boolean(activeRequest),
-    }),
-    enabled: Boolean(eoa?.to && eoa?.data && publicClient && !receipt),
+    queryKey: stepGasEstimateQueryKey(
+      stepGasEstimateParams(eoa, Boolean(activeRequest)),
+    ),
+    enabled: Boolean(isEstimable(eoa) && publicClient && !receipt),
     staleTime: PREVIEW_STALE_TIME,
     refetchOnWindowFocus: false,
     // Retry transient RPC failures, but never a genuine revert — that verdict
@@ -187,7 +251,7 @@ export const useTransactionGasEstimate = (
       !isRevertError(error) && failureCount < MAX_TRANSIENT_RETRIES,
     queryFn: (): Promise<bigint> => {
       if (!eoa || !publicClient) throw new Error('No call to estimate')
-      return estimateGasForCall(publicClient, eoa)
+      return estimateGasForRequest(publicClient, eoa)
     },
   })
 

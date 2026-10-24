@@ -219,6 +219,24 @@ const StepCopy = ({ step }: StepCopyProps) =>
         </p>
       </>
     ))
+    .with({ type: 'bundle' }, ({ steps }) => (
+      <>
+        <p className="font-semi-mono text-ens-garnet-800/60 text-xs uppercase">
+          <Plural
+            one="# step in one request"
+            other="# steps in one request"
+            value={steps.length}
+          />
+        </p>
+        <ul className="flex flex-col gap-3">
+          {steps.map((inner) => (
+            <li className="flex flex-col gap-1" key={stepKey(inner)}>
+              <StepCopy step={inner} />
+            </li>
+          ))}
+        </ul>
+      </>
+    ))
     .exhaustive()
 
 const stepKey = (step: MigrationWalletRequestDescriptor): string =>
@@ -234,6 +252,7 @@ const stepKey = (step: MigrationWalletRequestDescriptor): string =>
     .with({ type: 'atomic-batch' }, ({ index }) => `atomic-batch-${index}`)
     .with({ type: 'record-replay' }, ({ index }) => `record-replay-${index}`)
     .with({ type: 'cleanup' }, ({ approvalId }) => `cleanup-${approvalId}`)
+    .with({ type: 'bundle' }, ({ steps }) => steps.map(stepKey).join('+'))
     .exhaustive()
 
 type WalletConfirmationStepsDialogProps = {

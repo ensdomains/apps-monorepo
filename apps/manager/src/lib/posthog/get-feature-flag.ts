@@ -50,10 +50,16 @@ export const getFeatureFlag = createServerFn({ method: 'GET' })
     })
 
     try {
-      const enabled = await posthog.isFeatureEnabled(data.flag, walletAddress, {
-        personProperties: { address: walletAddress },
-        sendFeatureFlagEvents: false,
-      })
+      // The address only feeds the flag's wallet rules; a throwaway id keeps
+      // this server check from naming the visitor in PostHog.
+      const enabled = await posthog.isFeatureEnabled(
+        data.flag,
+        crypto.randomUUID(),
+        {
+          personProperties: { address: walletAddress },
+          sendFeatureFlagEvents: false,
+        },
+      )
 
       // PostHog omits disabled boolean flags from a successful /flags response,
       // which the Node SDK exposes as undefined.

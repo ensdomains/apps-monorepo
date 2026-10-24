@@ -21,3 +21,10 @@ export const SETINTERFACE_GAS = 40_000n
 export const MULTICALL_OVERHEAD = 60_000n
 
 export const GRANT_ROLES_GAS = 80_000n
+
+// Headroom kept under TARGET_GAS when the final batch carries the cleanup
+// revoke in one atomic wallet bundle (revoke + the wallet's batch overhead).
+export const BUNDLED_CLEANUP_GAS = 200_000n
+
+export const maxOuterGasFor = (canBatchAtomically = false): bigint =>
+  canBatchAtomically ? TARGET_GAS - BUNDLED_CLEANUP_GAS : TARGET_GAS

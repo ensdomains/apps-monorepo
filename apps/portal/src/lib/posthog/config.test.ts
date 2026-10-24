@@ -1,13 +1,59 @@
 // @vitest-environment happy-dom
-import posthog, { PostHog } from 'posthog-js/dist/module.full.no-external'
+import { ANALYTICS_CONSENT_COOKIE } from '@ens-apps/utils/posthog/analyticsConsent'
+import { PostHog } from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FEATURE_FLAGS_ONLY_CONFIG } from './config'
-import { track, trackWithOptions } from './events'
+import {
+  applyAnalyticsConsent,
+  POSTHOG_CONFIG,
+  resetKeepingConsent,
+  setAnalyticsConsent,
+} from './config'
 
 const WALLET = '0x1111111111111111111111111111111111111111'
 
-describe('feature-flags-only SDK network behavior', () => {
-  beforeEach(() => {
+// A client that records its requests instead of sending them.
+const initClient = () => {
+  const client = new PostHog()
+  const requests = vi
+    .spyOn(client, '_send_request')
+    .mockImplementation((request) => {
+      request.callback?.({
+        statusCode: 200,
+        json: {
+          featureFlags: { migration: true },
+          sessionRecording: { endpoint: '/s/' },
+          surveys: [{ id: 'survey' }],
+        },
+      })
+    })
+  client.init('test-key', {
+    api_host: 'https://posthog.example',
+    ...POSTHOG_CONFIG,
+    // HappyDOM's user agent reads as a bot, which PostHog drops before any
+    // consent check; without this every "no events" assertion passes vacuously.
+    opt_out_useragent_filter: true,
+  })
+  return { client, requests }
+}
+
+type Requests = ReturnType<typeof initClient>['requests']
+
+const onlyFlagRequests = (requests: Requests) =>
+  requests.mock.calls.every(
+    ([request]) =>
+      request.url.includes('/flags/') || request.url.includes('/config'),
+  )
+
+const flagBodies = (requests: Requests) =>
+  requests.mock.calls.flatMap(([request]) =>
+    request.url.includes('/flags/') && !Array.isArray(request.data)
+      ? [request.data]
+      : [],
+  )
+
+describe('PostHog consent', () => {
+  beforeEach(async () => {
+    await cookieStore.delete({ name: ANALYTICS_CONSENT_COOKIE, path: '/' })
     vi.useFakeTimers()
     localStorage.clear()
     sessionStorage.clear()
@@ -18,103 +64,96 @@ describe('feature-flags-only SDK network behavior', () => {
     vi.restoreAllMocks()
   })
 
-  it.each([
-    [false, false],
-    [false, true],
-    [true, false],
-    [true, true],
-  ])(
-    'keeps wallet flags working without event requests (previous opt-in: %s, flag value: %s)',
-    async (previousOptIn, enabled) => {
-      const client = new PostHog()
-      if (previousOptIn) localStorage.setItem('__ph_opt_in_out_test-key', '1')
-      const requests = vi
-        .spyOn(client, '_send_request')
-        .mockImplementation((request) => {
-          request.callback?.({
-            statusCode: 200,
-            json: {
-              featureFlags: {
-                migration: enabled,
-                'migration-nft': enabled,
-                i18n: enabled,
-              },
-              autocapture: true,
-              sessionRecording: { endpoint: '/s/' },
-              surveys: [{ id: 'survey' }],
-              capturePerformance: true,
-              autocaptureExceptions: true,
-            },
-          })
-        })
-      client.init('test-key', {
-        api_host: 'https://posthog.example',
-        ...FEATURE_FLAGS_ONLY_CONFIG,
-      })
-      client.identify(WALLET, { address: WALLET }, { initial_address: WALLET })
-      client.reloadFeatureFlags()
-      await vi.advanceTimersByTimeAsync(1000)
+  it.each([false, true])(
+    'keeps flags working and sends no events without consent (earlier PostHog opt-in: %s)',
+    async (hasEarlierOptIn) => {
+      if (hasEarlierOptIn) localStorage.setItem('__ph_opt_in_out_test-key', '1')
+      const { client, requests } = initClient()
 
+      // Without consent the address only feeds wallet-targeted flag rules.
+      client.setPersonPropertiesForFlags({ address: WALLET })
+      client.capture('wallet:connect', { wallet_address: WALLET })
+      history.pushState({}, '', '/consent-test')
+      await vi.advanceTimersByTimeAsync(3000)
+
+      expect(client.isFeatureEnabled('migration')).toBe(true)
       expect(client.has_opted_out_capturing()).toBe(true)
-      expect(client.get_distinct_id()).toBe(WALLET)
-      for (const flag of ['migration', 'migration-nft', 'i18n']) {
-        expect(client.isFeatureEnabled(flag)).toBe(enabled)
-      }
-      expect(
-        requests.mock.calls.some(
-          ([request]) =>
-            request.url.includes('/flags/') &&
-            !Array.isArray(request.data) &&
-            request.data?.distinct_id === WALLET &&
-            request.data?.person_properties.address === WALLET,
-        ),
-      ).toBe(true)
-
+      // Loading must not answer for the visitor: that answer is every app's.
+      expect(client.get_explicit_consent_status()).toBe('pending')
       const surveys = vi.fn()
       client.getSurveys(surveys)
       expect(surveys).toHaveBeenCalledWith([])
-      client.capture('wallet:connect', { wallet_address: WALLET })
-      client.capture('tm:failed_run', { private: 'transaction details' })
-      client.captureException(new Error('test failure'))
-      history.pushState({}, '', '/launch-test')
-      document.body.click()
-      window.dispatchEvent(new Event('pagehide'))
-      expect(client.sessionRecordingStarted()).toBe(false)
-      client.reset()
-      await vi.advanceTimersByTimeAsync(1000)
-      expect(client.get_distinct_id()).not.toBe(WALLET)
-      expect(client.has_opted_out_capturing()).toBe(true)
-      expect(requests.mock.calls.length).toBeGreaterThan(0)
+      expect(onlyFlagRequests(requests)).toBe(true)
+      const bodies = flagBodies(requests)
       expect(
-        requests.mock.calls.every(
-          ([request]) =>
-            request.url.includes('/flags/') || request.url.includes('/config'),
-        ),
+        bodies.some((body) => body?.person_properties?.address === WALLET),
       ).toBe(true)
+      expect(bodies.every((body) => body?.distinct_id !== WALLET)).toBe(true)
     },
   )
 
-  it('blocks existing explicit helpers and capture even if code attempts to opt in', async () => {
-    const requests = vi
-      .spyOn(posthog, '_send_request')
-      .mockImplementation(() => {})
-    posthog.init('helpers-test-key', {
-      api_host: 'https://posthog.example',
-      ...FEATURE_FLAGS_ONLY_CONFIG,
-    })
-    requests.mockClear()
-    track('wallet:connect', {
-      wallet_address: WALLET,
-      chain_id: 1,
-      wallet_connector: 'test',
-    })
-    trackWithOptions('intercom:booted', undefined, {
-      $set: { intercom_visitor_id: 'visitor' },
-    })
-    posthog.opt_in_capturing()
-    posthog.capture('should-still-be-dropped')
+  it('makes a visitor identified before the banner anonymous before flags load', async () => {
+    // The pre-banner app identified every connected wallet.
+    initClient().client.identify(WALLET)
+
+    const { client, requests } = initClient()
     await vi.advanceTimersByTimeAsync(3000)
-    expect(requests).not.toHaveBeenCalled()
-    posthog.opt_out_capturing()
+
+    expect(client.get_distinct_id()).not.toBe(WALLET)
+    expect(flagBodies(requests).length).toBeGreaterThan(0)
+    expect(
+      flagBodies(requests).every((body) => body?.distinct_id !== WALLET),
+    ).toBe(true)
+  })
+
+  it('keeps the answer in the cookie the ens.domains apps share', () => {
+    setAnalyticsConsent(initClient().client, true)
+
+    expect(document.cookie).toContain(`${ANALYTICS_CONSENT_COOKIE}=1`)
+    // Another app's PostHog starts with the same answer.
+    expect(initClient().client.get_explicit_consent_status()).toBe('granted')
+  })
+
+  it('sends events after the visitor accepts, and keeps the answer through a reset', async () => {
+    const { client, requests } = initClient()
+
+    setAnalyticsConsent(client, true)
+    client.capture('wallet:connect', { wallet_address: WALLET })
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(onlyFlagRequests(requests)).toBe(false)
+
+    // A plain reset() deletes the answer, for every app sharing the cookie.
+    resetKeepingConsent(client)
+    expect(client.get_explicit_consent_status()).toBe('granted')
+    expect(client.has_opted_out_capturing()).toBe(false)
+  })
+
+  it('stops sending events and forgets the wallet when the visitor declines', async () => {
+    const { client, requests } = initClient()
+    setAnalyticsConsent(client, true)
+    client.identify(WALLET)
+    await vi.advanceTimersByTimeAsync(3000)
+
+    setAnalyticsConsent(client, false)
+    requests.mockClear()
+    client.capture('wallet:connect', { wallet_address: WALLET })
+    await vi.advanceTimersByTimeAsync(3000)
+
+    expect(client.get_distinct_id()).not.toBe(WALLET)
+    expect(client.has_opted_out_capturing()).toBe(true)
+    expect(onlyFlagRequests(requests)).toBe(true)
+  })
+
+  it('forgets the wallet once another tab or app declines', () => {
+    const { client } = initClient()
+    setAnalyticsConsent(client, true)
+    client.identify(WALLET)
+
+    // Another tab or app declines: the shared cookie now says no.
+    client.opt_out_capturing()
+    applyAnalyticsConsent(client)
+
+    expect(client.get_distinct_id()).not.toBe(WALLET)
+    expect(client.get_explicit_consent_status()).toBe('denied')
   })
 })

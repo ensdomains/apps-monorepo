@@ -23,7 +23,7 @@ import {
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
-import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
+import { errAsync, fromPromise, okAsync, ResultAsync } from 'neverthrow'
 import type {
   Address,
   Hash,
@@ -516,6 +516,24 @@ export function encodeDeployDedicatedResolverCall(input: {
         getResolverInitCalldata(input.owner),
       ],
     }),
+    value: 0n,
+  }
+}
+
+/**
+ * The registrar `commit` call. Exported so the app's pre-start estimate of a
+ * setup bundle encodes the commit exactly as the machine submits it.
+ */
+export function encodeCommitCall(input: {
+  readonly commitment: Hash
+  readonly chain: Chain
+}): { to: Address; data: Hex; value: bigint } {
+  return {
+    to: getChainContractAddress({
+      chain: input.chain,
+      contract: 'ensEthRegistrar',
+    }),
+    data: encodeCommitmentData(input.commitment),
     value: 0n,
   }
 }
@@ -1207,6 +1225,107 @@ export function submitApprovalActor(input: {
       return txId
     }),
     (error) => new Error(`Failed to submit approval: ${error}`),
+  )
+}
+
+/**
+ * Pure-EOA on a wallet that bundles atomically (EIP-5792): everything before
+ * the commitment cooldown goes out as ONE confirmation — the wallet's resolver
+ * (first registration only), the commit, and the payment approval when the
+ * live price isn't already covered. Returns the approved price (null when no
+ * approve was needed) so the machine tracks what was authorized.
+ */
+export function submitEoaSetupBundleActor(input: {
+  readonly name: string
+  readonly commitment: CommitmentData
+  /** The account the resolver grants its roles to. */
+  readonly resolverOwner: Address
+  readonly shouldDeployResolver: boolean
+  /** The name owner, who pays the registrar. */
+  readonly owner: Address
+  readonly duration: bigint
+  readonly selectedToken: TOKEN_SYMBOL
+  /** Approved when the live price can't be read. */
+  readonly tokenPrice: bigint
+  readonly signer: Signer
+  readonly publicClient: PublicClient
+  readonly id?: string
+}): ResultAsync<
+  { readonly txId: string; readonly approvedPrice: bigint | null },
+  Error
+> {
+  // An unreadable allowance falls back to approving the quote, as the
+  // sequential `checkingAllowance` does.
+  const approvalPrice = readPaymentAuthorizationActor({
+    owner: input.owner,
+    name: input.name,
+    duration: input.duration,
+    selectedToken: input.selectedToken,
+    publicClient: input.publicClient,
+  })
+    .map(({ allowance, livePrice }) =>
+      allowance >= livePrice ? null : livePrice,
+    )
+    .orElse(() => okAsync(input.tokenPrice))
+
+  return approvalPrice.andThen((approvedPrice) =>
+    ResultAsync.fromPromise(
+      Promise.resolve().then(() => {
+        const chain = requireEnsChain(input.publicClient, 'registration')
+        const registrarAddress = getChainContractAddress({
+          chain,
+          contract: 'ensEthRegistrar',
+        })
+        const from = getSignerAddress(input.signer)
+        const calls: Call[] = [
+          ...(input.shouldDeployResolver
+            ? [
+                encodeDeployDedicatedResolverCall({
+                  owner: input.resolverOwner,
+                  chain,
+                }),
+              ]
+            : []),
+          encodeCommitCall({ commitment: input.commitment.commitment, chain }),
+          ...(approvedPrice === null
+            ? []
+            : [
+                {
+                  to: getPaymentTokenAddress(input.selectedToken, chain),
+                  data: encodeTokenApprovalData(
+                    registrarAddress,
+                    authorizedPaymentAmount(approvedPrice),
+                  ),
+                  value: 0n,
+                },
+              ]),
+        ]
+        // A lone commit is a plain transaction: only real bundles go through
+        // `wallet_sendCalls`.
+        const request: TransactionRequest =
+          calls.length > 1
+            ? { type: 'eoa-batch', from, chainId: chain.id, calls }
+            : createTransactionRequest({
+                signer: input.signer,
+                from,
+                chainId: chain.id,
+                calls,
+              })
+
+        const txId = transactionManager.startTransaction(
+          { type: 'custom', request },
+          input.signer,
+          {
+            id: input.id,
+            description: `Set up registration for ${input.name}.eth`,
+            publicClient: input.publicClient,
+            timeout: 120_000,
+          },
+        )
+        return { txId, approvedPrice }
+      }),
+      (error) => new Error(`Failed to submit registration setup: ${error}`),
+    ),
   )
 }
 
