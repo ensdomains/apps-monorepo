@@ -382,8 +382,8 @@ importers:
         specifier: 'catalog:'
         version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@storywithoutend/effect-ens':
-        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-8719b63.tgz
-        version: file:apps/manager/vendor/storywithoutend-effect-ens-0.0.0-8719b63.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        specifier: 0.1.0
+        version: 0.1.0(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@tailwindcss/vite':
         specifier: ^4.2.4
         version: 4.2.4(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
@@ -695,8 +695,8 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@storywithoutend/effect-ens':
-        specifier: file:vendor/storywithoutend-effect-ens-0.0.0-61eddfc.tgz
-        version: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-61eddfc.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
+        specifier: 0.1.0
+        version: 0.1.0(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))
       '@tanstack/react-hotkeys':
         specifier: ^0.4.1
         version: 0.4.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -5337,16 +5337,8 @@ packages:
       '@tanstack/start-client-core':
         optional: true
 
-  '@storywithoutend/effect-ens@file:apps/manager/vendor/storywithoutend-effect-ens-0.0.0-8719b63.tgz':
-    resolution: {integrity: sha512-vXqFv2oqUOTPie1xfD2t54eE+QsjxFtErCdeK3HyVkJBf8OxjMld2MmI923ZHUr5H+p+fByb4GRFzthz4Jtv5w==, tarball: file:apps/manager/vendor/storywithoutend-effect-ens-0.0.0-8719b63.tgz}
-    version: 0.0.0
-    engines: {node: ^22.18.0 || >=24.11.0}
-    peerDependencies:
-      viem: ^2.9.2
-
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-61eddfc.tgz':
-    resolution: {integrity: sha512-XEXeZtYfMb9KNdmflapXf7ZmqibXttDIE1ra3nYxV3BjH/o2aytjZo3NlK9/QRe/NOCH9PzaQSe/LnSdxBsU/A==, tarball: file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-61eddfc.tgz}
-    version: 0.0.0
+  '@storywithoutend/effect-ens@0.1.0':
+    resolution: {integrity: sha512-cImPLPY+eAW9KdRmJDyS/uhHoCEe6xNehUb3oa5LdMwCjoXU7eFgFVdqJ+QQfkMUY75FTPNeYiQjFiTCfq1RuA==}
     engines: {node: ^22.18.0 || >=24.11.0}
     peerDependencies:
       viem: ^2.9.2
@@ -13074,17 +13066,7 @@ snapshots:
       - supports-color
       - typescript
 
-  '@storywithoutend/effect-ens@file:apps/manager/vendor/storywithoutend-effect-ens-0.0.0-8719b63.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
-    dependencies:
-      '@adraffy/ens-normalize': 1.10.1
-      '@ensdomains/address-encoder': 1.1.4
-      '@ensdomains/content-hash': 3.1.0-rc.1
-      '@ensdomains/dnsprovejs': 0.5.1
-      '@ensdomains/ensjs-abi': 5.0.2
-      effect: 4.0.5
-      viem: 2.52.2(typescript@7.0.2)(zod@4.6.5)
-
-  '@storywithoutend/effect-ens@file:apps/portal/vendor/storywithoutend-effect-ens-0.0.0-61eddfc.tgz(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
+  '@storywithoutend/effect-ens@0.1.0(viem@2.52.2(typescript@7.0.2)(zod@4.6.5))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.4

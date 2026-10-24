@@ -113,3 +113,4 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - '@ensdomains/ensjs-abi@5.0.2'
   - '@ensdomains/ensjs@5.2.0 || 5.2.1'
+  - '@storywithoutend/effect-ens@0.1.0'
