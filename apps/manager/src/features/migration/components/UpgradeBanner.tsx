@@ -64,12 +64,12 @@ export const UpgradeBanner = ({
   return (
     <div
       className={cn(
-        'relative overflow-hidden xs:rounded-lg bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 px-4 py-6 md:px-5 md:py-5.5',
+        '@container relative overflow-hidden xs:rounded-lg bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 @3xl:px-5 px-4 @3xl:py-5.5 py-6',
         className,
       )}
     >
       <GrainOverlay />
-      <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6">
+      <div className="relative z-10 flex @3xl:flex-row flex-col @3xl:items-end @3xl:justify-between @3xl:gap-6 gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <h2 className="text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
             {isProfileBanner ? (
@@ -125,7 +125,7 @@ export const UpgradeBanner = ({
           ) : null}
         </div>
         <MigrationUpgradeButton
-          className="w-full shrink-0 md:w-75"
+          className="@3xl:w-75 w-full shrink-0"
           onClick={() => navigate({ to: '/upgrade' })}
           showNftPlaceholder={
             !shouldRenewNames && nftCopyEnabled && isConfirmedUnclaimed
