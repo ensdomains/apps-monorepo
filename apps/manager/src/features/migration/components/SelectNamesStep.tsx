@@ -15,7 +15,6 @@ import { NameRow } from './NameRow'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
-import { SubnameRecreationReview } from './SubnameRecreationReview'
 import {
   shouldShowBulkSelection,
   shouldShowNameSearch,
@@ -163,9 +162,6 @@ export const SelectNamesStep = ({
     recoveryState,
   } = useEligibleV1Names()
   const [isStarting, setIsStarting] = useState(false)
-  const [reviewedSnapshotKey, setReviewedSnapshotKey] = useState<string | null>(
-    null,
-  )
   const isRecoveryStale = recoveryState.status === 'stale'
   const isRecovery = recoveryState.status === 'recovering'
   const { isPending, excludedNames } = useDefaultMigrationSelection({
@@ -232,20 +228,8 @@ export const SelectNamesStep = ({
     preparedPlan?.classified.some(
       (name) => name.action === 'copy' && !!name.recreationRoot,
     ) ?? false
-  const snapshotReviewKey = recreation
-    ? JSON.stringify([
-        recreation,
-        preparedPlan?.classified.map((name) => [
-          name.domain.name,
-          name.tokenHolder,
-          name.v1ResolverAddress,
-        ]),
-      ])
-    : null
-  const isSnapshotReviewed =
-    !!snapshotReviewKey && reviewedSnapshotKey === snapshotReviewKey
-  const isWaitingForSubnameReview =
-    hasSubnameCopies && (recreation?.version !== 5 || !isSnapshotReviewed)
+  const isWaitingForSubnameSnapshot =
+    hasSubnameCopies && recreation?.version !== 5
   const hasBlockedSelection = blockedSubnames.some(({ name }) =>
     selected.has(name.domain.name),
   )
@@ -256,7 +240,7 @@ export const SelectNamesStep = ({
     isStarting ||
     isEligibilityError ||
     hasBlockedSelection ||
-    isWaitingForSubnameReview ||
+    isWaitingForSubnameSnapshot ||
     isWaitingForGasEstimate ||
     isWaitingForGasFunding
   const showBulkSelection = shouldShowBulkSelection(visibleCount)
@@ -264,8 +248,7 @@ export const SelectNamesStep = ({
   const isCompactLayout = shouldUseCompactSelectionLayout(displayedCount)
   const isSmallSelectionCard =
     !isPending && shouldUseSmallSelectionCard(displayedCount)
-  const hasAdditionalDetails =
-    hasSubnameCopies || blockedSubnames.length > 0 || isEligibilityError
+  const hasAdditionalDetails = blockedSubnames.length > 0 || isEligibilityError
   const showSelectionOptions =
     !isFinishingRecovery &&
     (blockedSubnames.length === 0 ||
@@ -432,16 +415,6 @@ export const SelectNamesStep = ({
                 <Trans>Learn how subnames affect upgrades</Trans>
               </a>
             </section>
-          )}
-          {recreation && preparedPlan && (
-            <SubnameRecreationReview
-              isReviewed={isSnapshotReviewed}
-              names={preparedPlan.classified}
-              onReviewChange={(isReviewed) =>
-                setReviewedSnapshotKey(isReviewed ? snapshotReviewKey : null)
-              }
-              snapshot={recreation}
-            />
           )}
         </div>
       </div>

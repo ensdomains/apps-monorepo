@@ -38,11 +38,6 @@ msgstr ""
 msgid "{0, plural, one {Lets the upgrade give # manager the access you picked, listed with the upgrade below.} other {Lets the upgrade give # managers the access you picked, listed with the upgrade below.}}"
 msgstr ""
 
-#. placeholder {0}: children.length
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "{0, plural, one {Review # subname} other {Review # subnames}}"
-msgstr ""
-
 #. placeholder {0}: selectedNames.length
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
@@ -514,14 +509,6 @@ msgstr ""
 msgid "Best yearly price"
 msgstr ""
 
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Block"
-msgstr ""
-
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Block hash"
-msgstr ""
-
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Blog"
 msgstr ""
@@ -619,10 +606,6 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Check your wallet activity first. Only discard if the previous renewal was never sent or was cancelled. If it is still pending and you renew again, you could pay twice. Discarding does not cancel a wallet transaction."
-msgstr ""
-
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Checked {cutoff}"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
@@ -879,16 +862,6 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Copy Link"
-msgstr ""
-
-#. placeholder {0}: child.tokenHolder
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Copy owner {0}"
-msgstr ""
-
-#. placeholder {0}: child.v1ResolverAddress
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Copy resolver {0}"
 msgstr ""
 
 #: src/features/profile/components/view/AddressProfileHeader.tsx
@@ -1457,10 +1430,6 @@ msgstr ""
 msgid "I have reviewed the imported records and understand that missing records will not be copied."
 msgstr ""
 
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "I have reviewed these owners, resolvers and snapshot timing."
-msgstr ""
-
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "I Understand"
 msgstr ""
@@ -1873,10 +1842,6 @@ msgstr ""
 msgid "No recent searches"
 msgstr ""
 
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "No resolver set"
-msgstr ""
-
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No stablecoins available"
@@ -2011,7 +1976,6 @@ msgid "Owned"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
-#: src/features/migration/components/SubnameRecreationReview.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Owner"
 msgstr ""
@@ -2529,10 +2493,6 @@ msgstr ""
 msgid "Resolve errors before previewing changes."
 msgstr ""
 
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Resolver"
-msgstr ""
-
 #: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
 msgid "Resolver replacement is blocked. These records could not be read or preserved:"
 msgstr ""
@@ -2968,10 +2928,6 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
-msgstr ""
-
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Subnames keep the owners and resolvers shown below. You retain control through the parent name."
 msgstr ""
 
 #: src/features/bulk-renew/components/NamesBreakdown.tsx
@@ -3619,10 +3575,6 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Wallet isn’t ready yet. Try again in a moment."
-msgstr ""
-
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "We check again before sending. Changes during signing or confirmation may be missed. Later ENSv1 changes will not sync to these subnames."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx

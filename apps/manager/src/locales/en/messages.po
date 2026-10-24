@@ -33,11 +33,6 @@ msgstr "{0, plural, one {# year} other {# years}}"
 msgid "{0, plural, one {Lets the upgrade give # manager the access you picked, listed with the upgrade below.} other {Lets the upgrade give # managers the access you picked, listed with the upgrade below.}}"
 msgstr "{0, plural, one {Lets the upgrade give # manager the access you picked, listed with the upgrade below.} other {Lets the upgrade give # managers the access you picked, listed with the upgrade below.}}"
 
-#. placeholder {0}: children.length
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "{0, plural, one {Review # subname} other {Review # subnames}}"
-msgstr "{0, plural, one {Review # subname} other {Review # subnames}}"
-
 #. placeholder {0}: selectedNames.length
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
@@ -509,14 +504,6 @@ msgstr "Base price"
 msgid "Best yearly price"
 msgstr "Best yearly price"
 
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Block"
-msgstr "Block"
-
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Block hash"
-msgstr "Block hash"
-
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Blog"
 msgstr "Blog"
@@ -615,10 +602,6 @@ msgstr "Check status"
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Check your wallet activity first. Only discard if the previous renewal was never sent or was cancelled. If it is still pending and you renew again, you could pay twice. Discarding does not cancel a wallet transaction."
 msgstr "Check your wallet activity first. Only discard if the previous renewal was never sent or was cancelled. If it is still pending and you renew again, you could pay twice. Discarding does not cancel a wallet transaction."
-
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Checked {cutoff}"
-msgstr "Checked {cutoff}"
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Checking"
@@ -875,16 +858,6 @@ msgstr "Copy link"
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Copy Link"
 msgstr "Copy Link"
-
-#. placeholder {0}: child.tokenHolder
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Copy owner {0}"
-msgstr "Copy owner {0}"
-
-#. placeholder {0}: child.v1ResolverAddress
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Copy resolver {0}"
-msgstr "Copy resolver {0}"
 
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
@@ -1452,10 +1425,6 @@ msgstr "How it works"
 msgid "I have reviewed the imported records and understand that missing records will not be copied."
 msgstr "I have reviewed the imported records and understand that missing records will not be copied."
 
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "I have reviewed these owners, resolvers and snapshot timing."
-msgstr "I have reviewed these owners, resolvers and snapshot timing."
-
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "I Understand"
 msgstr "I Understand"
@@ -1868,10 +1837,6 @@ msgstr "No push service is available in this browser"
 msgid "No recent searches"
 msgstr "No recent searches"
 
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "No resolver set"
-msgstr "No resolver set"
-
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No stablecoins available"
@@ -2006,7 +1971,6 @@ msgid "Owned"
 msgstr "Owned"
 
 #: src/features/dashboard/components/DashboardPills.tsx
-#: src/features/migration/components/SubnameRecreationReview.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Owner"
 msgstr "Owner"
@@ -2524,10 +2488,6 @@ msgstr "Resetting access…"
 msgid "Resolve errors before previewing changes."
 msgstr "Resolve errors before previewing changes."
 
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Resolver"
-msgstr "Resolver"
-
 #: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
 msgid "Resolver replacement is blocked. These records could not be read or preserved:"
 msgstr "Resolver replacement is blocked. These records could not be read or preserved:"
@@ -2964,10 +2924,6 @@ msgstr "Submitting token approval"
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
 msgstr "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
-
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "Subnames keep the owners and resolvers shown below. You retain control through the parent name."
-msgstr "Subnames keep the owners and resolvers shown below. You retain control through the parent name."
 
 #: src/features/bulk-renew/components/NamesBreakdown.tsx
 msgid "Subtotal:"
@@ -3615,10 +3571,6 @@ msgstr "Wallet funded successfully"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr "Wallet isn’t ready yet. Try again in a moment."
-
-#: src/features/migration/components/SubnameRecreationReview.tsx
-msgid "We check again before sending. Changes during signing or confirmation may be missed. Later ENSv1 changes will not sync to these subnames."
-msgstr "We check again before sending. Changes during signing or confirmation may be missed. Later ENSv1 changes will not sync to these subnames."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "We could not check whether your names and subnames can be safely upgraded. Try again before continuing."

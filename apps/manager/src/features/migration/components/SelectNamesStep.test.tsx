@@ -237,7 +237,7 @@ describe('SelectNamesStep', () => {
     expect(onNext).not.toHaveBeenCalled()
   })
 
-  it('enables upgrade after gas funding settles and the subname snapshot is reviewed', () => {
+  it('enables upgrade for prepared subnames without an extra acknowledgement', async () => {
     const parent = makeName('sub1234.eth', 'unwrapped')
     const child = {
       ...makeName('gm.sub1234.eth', 'registry-child', 'copy'),
@@ -246,7 +246,7 @@ describe('SelectNamesStep', () => {
       v1ResolverAddress: '0x00000000000000000000000000000000000000a1',
     } as ClassifiedName
     const onNext = vi.fn(async () => true)
-    const { getByRole } = renderStep({
+    const { getByRole, queryByRole } = renderStep({
       gasEstimate: {
         ...readyGasEstimate,
         plan: {
@@ -266,15 +266,14 @@ describe('SelectNamesStep', () => {
       onNext,
     })
     const button = getByRole('button', { name: 'Upgrade 10 names' })
-    expect(button).toBeDisabled()
-    fireEvent.click(button)
-    expect(onNext).not.toHaveBeenCalled()
-    fireEvent.click(
-      getByRole('checkbox', {
+    expect(
+      queryByRole('checkbox', {
         name: 'I have reviewed these owners, resolvers and snapshot timing.',
       }),
-    )
+    ).not.toBeInTheDocument()
     expect(button).not.toBeDisabled()
+    fireEvent.click(button)
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1))
   })
 
   it('allows finishing a cleanup-only recovery and retrying if start exits without transitioning', async () => {
