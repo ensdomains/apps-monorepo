@@ -428,6 +428,7 @@ const runExecute = async (
     onBatchComplete?: OnBatchComplete
     reconcileBeforeSubmit?: boolean
     onProgress?: (progress: MigrationProgress) => void
+    canRecreateSubnames?: () => boolean
   } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
@@ -445,6 +446,7 @@ const runExecute = async (
     },
     onBatchComplete: overrides.onBatchComplete,
     reconcileBeforeSubmit: overrides.reconcileBeforeSubmit,
+    canRecreateSubnames: overrides.canRecreateSubnames,
   })
   return { progressEvents, refreshAccount, result }
 }
@@ -1405,7 +1407,7 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
-  it('blocks changed source state before setup or cleanup signatures', async () => {
+  it('blocks changed source state and revokes previously planned temporary access', async () => {
     setHcaApprovalActive()
     const cause = new Error('The ENSv1 expiry changed after review')
     mocks.assertCopyMigrationReadiness.mockRejectedValueOnce(cause)
@@ -1424,8 +1426,38 @@ describe('executeMigration HCA orchestration', () => {
       cause,
     })
     expect(mocks.buildHcaDeploymentCall).not.toHaveBeenCalled()
-    expect(mocks.startTransaction).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(mocks.startTransaction.mock.calls[0]?.[0]).toMatchObject({
+      request: { to: V2_CONTRACTS.ETHRegistry },
+    })
   })
+
+  it.each([false, true])(
+    'blocks a prepared recreation plan when the rollout flag turns off after source checks: %s',
+    async (hasFlagChangedAfterReadiness) => {
+      const plan: MigrationPlan = {
+        ...planFor(),
+        subnameRecreationEnabled: true,
+        subnameRecreation: {
+          version: 5,
+          roots: ['alice.eth'],
+          names: ['alice.eth'],
+          blockNumber: '100',
+          timestamp: '1000',
+          blockHash: `0x${'11'.repeat(32)}`,
+          chainId: 11155111,
+          inventoryDigest: `0x${'22'.repeat(32)}`,
+        },
+      }
+      const canRecreateSubnames = vi.fn(() => false)
+      if (hasFlagChangedAfterReadiness)
+        canRecreateSubnames.mockReturnValueOnce(true)
+      await expect(runExecute({ plan, canRecreateSubnames })).rejects.toThrow(
+        /not enabled/,
+      )
+      expect(mocks.startTransaction).not.toHaveBeenCalled()
+    },
+  )
 
   it('does not prompt for unplanned cleanup when an earlier read fails', async () => {
     setHcaApprovalActive()

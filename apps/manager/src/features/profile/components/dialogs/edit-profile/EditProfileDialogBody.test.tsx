@@ -16,6 +16,56 @@ vi.mock('./EditProfileDialogHeader', () => ({
 }))
 
 describe('resolver import review in the profile editor', () => {
+  it.each(['{"legacy":true}', 'https://example.com/contract-abi.json'])(
+    'allows an unrelated edit while preserving an unchanged legacy ABI: %s',
+    async (abi) => {
+      const records: ReturnType<typeof newEmptyProfileRecords> = {
+        ...newEmptyProfileRecords(),
+        abi,
+      }
+      const onPreview = vi.fn()
+      const Harness = () => {
+        const form = useAppForm({ defaultValues: records })
+        return (
+          <>
+            <button
+              onClick={() =>
+                form.setFieldValue('base.description', 'Updated description')
+              }
+              type="button"
+            >
+              Change description
+            </button>
+            <EditProfileDialogBody
+              form={form}
+              isFinalizingImageSave={false}
+              isResolverAccessPending={false}
+              name="alice.eth"
+              onCancel={vi.fn()}
+              onImageUploadPrepared={vi.fn()}
+              onPreview={onPreview}
+              onRecheckPermissions={vi.fn()}
+              open
+              preparedImageUploads={[]}
+              savedRecords={records}
+            />
+          </>
+        )
+      }
+      const view = render(<Harness />)
+      fireEvent.click(view.getByRole('button', { name: 'Change description' }))
+      const preview = view.getByRole('button', { name: 'Preview' })
+      expect(preview).toHaveAttribute('aria-disabled', 'false')
+      fireEvent.click(preview)
+      expect(onPreview).toHaveBeenCalledWith(
+        expect.objectContaining({
+          abi,
+          base: expect.objectContaining({ description: 'Updated description' }),
+        }),
+        expect.anything(),
+      )
+    },
+  )
   it('blocks confirmation and preview for a failed key, offers retry, then requires a fresh review', () => {
     const onPreview = vi.fn()
     const onRetry = vi.fn()

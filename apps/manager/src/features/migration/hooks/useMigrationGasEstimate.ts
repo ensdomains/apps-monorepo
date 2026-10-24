@@ -161,10 +161,7 @@ const buildEstimate = async (params: {
       signal: params.signal,
       staleTime: 0,
       requiresManagerRestoration: params.managerRestorationNames.length > 0,
-      requiresRegistryConfiguration:
-        recreation?.snapshot.names.some((name) =>
-          recreation.snapshot.roots.some((root) => name.endsWith(`.${root}`)),
-        ) ?? false,
+      requiresRegistryConfiguration: false,
     }),
   )
   params.signal.throwIfAborted()
@@ -196,7 +193,10 @@ const buildEstimate = async (params: {
     return result
   })
   params.signal.throwIfAborted()
-  return { estimate, plan }
+  return {
+    estimate,
+    plan: { ...plan, subnameRecreationEnabled: params.recreateSubnames },
+  }
 }
 
 export const useMigrationGasEstimate = ({
@@ -336,6 +336,6 @@ export const useMigrationGasEstimate = ({
     gasUnits: query.data.estimate.gasUnits,
     feeWei: query.data.estimate.feeWei,
     transactionCount: query.data.estimate.transactionCount,
-    plan: query.data.plan,
+    plan: { ...query.data.plan, subnameRecreationEnabled: recreateSubnames },
   }
 }

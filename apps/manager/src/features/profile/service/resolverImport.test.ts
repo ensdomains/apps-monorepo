@@ -102,6 +102,7 @@ const fixture = (nameBased = false) => {
     failure: null as 'rpc' | 'unsupported' | 'malformed' | null,
     pubkey: [zeroHash, zeroHash] as readonly [Hex, Hex],
     hasPubkeyFailure: false,
+    hasAbiFailure: false,
     interfaces: {} as Record<string, Address>,
     data: {} as Record<string, Hex>,
   }
@@ -128,6 +129,10 @@ const fixture = (nameBased = false) => {
       case 'contenthash':
         return bytes(state.contentHash)
       case 'ABI':
+        if (state.hasAbiFailure)
+          throw new BaseError('ABI read reverted', {
+            cause: new ExecutionRevertedError(),
+          })
         return encodeAbiParameters(
           [{ type: 'uint256' }, { type: 'bytes' }],
           [state.abi ? 1n : 0n, toHex(state.abi)],
@@ -221,6 +226,25 @@ const fixture = (nameBased = false) => {
 beforeEach(() => vi.resetAllMocks())
 
 describe('resolver record import', () => {
+  it.each([['abi'], ['ABI'], []])(
+    'blocks a failed ABI read advertised by the inventory with keys %j',
+    async (...knownKeys: string[]) => {
+      fixture().hasAbiFailure = true
+      mocks.nameRecords.mockReturnValue(
+        okAsync({
+          data: {
+            inventory: {
+              known_keys: knownKeys,
+              unset_keys: [],
+              abi_content_types: ['1'],
+            },
+          },
+        }),
+      )
+      const imported = await importResolverRecords(NAME, source)
+      expect(imported.blockedKeys).toContain('ABI')
+    },
+  )
   it.each([false, true])(
     'recovers indexed and probed records exactly (name-based: %s)',
     async (nameBased) => {

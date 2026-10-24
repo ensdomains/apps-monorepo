@@ -109,7 +109,10 @@ export const EditProfileDialogBody = withForm({
           const hasChanges = Object.keys(diff).length > 0
           const needsReplacement = Boolean(requiresResolverPreparation)
           const hasOtherValidationIssues =
-            getOtherRecordIssues(values).length > 0
+            getOtherRecordIssues(
+              values,
+              requiresResolverPreparation ? undefined : savedRecords.abi,
+            ).length > 0
           const activePreparedImageUploads = getActiveSignedProfileImageUploads(
             {
               images: preparedImageUploads,
@@ -246,6 +249,9 @@ export const EditProfileDialogBody = withForm({
                 onSocialChange={handleSocialChange}
                 owner={owner}
                 preparedImageUploads={activePreparedImageUploads}
+                savedAbi={
+                  requiresResolverPreparation ? undefined : savedRecords.abi
+                }
                 savedDescription={savedRecords.base.description}
                 values={values}
               />

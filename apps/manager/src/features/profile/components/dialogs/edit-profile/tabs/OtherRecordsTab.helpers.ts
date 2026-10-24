@@ -3,7 +3,10 @@ import type { ProfileRecords } from '@/features/profile/types'
 import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
 import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
 
-export const getOtherRecordIssues = (records: ProfileRecords): string[] => {
+export const getOtherRecordIssues = (
+  records: ProfileRecords,
+  savedAbi?: string,
+): string[] => {
   const texts = transformToServiceFormat(records).texts
   const abi = parseAbiRecord(records.abi)
   return [
@@ -15,6 +18,6 @@ export const getOtherRecordIssues = (records: ProfileRecords): string[] => {
       : [
           t`Each text record needs a unique key. Remove the duplicate custom record to edit it in its existing field.`,
         ]),
-    ...(abi.success ? [] : [abi.message]),
+    ...(records.abi === savedAbi || abi.success ? [] : [abi.message]),
   ]
 }

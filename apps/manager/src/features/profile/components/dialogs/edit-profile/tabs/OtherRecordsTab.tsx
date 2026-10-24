@@ -10,8 +10,10 @@ import { getOtherRecordIssues } from './OtherRecordsTab.helpers'
 export const OtherRecordsTab = ({
   values,
   onChange,
+  savedAbi,
 }: {
   readonly values: ProfileRecords
+  readonly savedAbi?: string
   readonly onChange: (
     value: Pick<ProfileRecords, 'unknown' | 'contentHash' | 'abi'>,
   ) => void
@@ -29,7 +31,7 @@ export const OtherRecordsTab = ({
     })
   return (
     <div className="space-y-5">
-      {getOtherRecordIssues(values).map((issue) => (
+      {getOtherRecordIssues(values, savedAbi).map((issue) => (
         <p className="text-destructive text-sm" key={issue} role="alert">
           {issue}
         </p>

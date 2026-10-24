@@ -15,7 +15,6 @@ import {
   type Hex,
   isAddressEqual,
   namehash,
-  parseAbi,
   zeroAddress,
 } from 'viem'
 
@@ -256,6 +255,8 @@ type NameExpiryExpectation = {
   readonly registryPath: AtomicMigrationRegistryPath
   readonly resource: bigint
   readonly expectedExpiry: bigint
+  /** Older recovery snapshots did not retain the actual reservation expiry. */
+  readonly canUseLegacyReservationExpiry?: boolean
 }
 
 type ManagerRoleExpectation = {
@@ -425,6 +426,7 @@ export type BuildAtomicMigrationBatchesParams = {
   /** Full selected tree retained while execution removes completed nodes. */
   readonly registryContext?: readonly ClassifiedName[]
   readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
+  readonly directMigrationExpiries?: ReadonlyMap<string, bigint>
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly defaultResolver?: Address
   readonly resolverDeployed: boolean
@@ -670,7 +672,7 @@ const profileForName = (
 }
 
 type BuildNameExecutionParams = {
-  readonly attachSubregistry: boolean
+  readonly directMigrationExpiries?: ReadonlyMap<string, bigint>
   readonly chainId: number
   readonly hca: Address
   readonly wallet: Address
@@ -926,6 +928,7 @@ const buildCopyRegistrationExecution = (params: {
 }
 
 const buildNameStateExpectations = (params: {
+  readonly directMigrationExpiries?: ReadonlyMap<string, bigint>
   readonly classified: ClassifiedName
   readonly directRoute: DirectMigrationRoute | null
   readonly wallet: Address
@@ -976,7 +979,17 @@ const buildNameStateExpectations = (params: {
         expectedExpiry:
           classified.action === 'copy'
             ? classified.sourceExpiry
-            : directMigrationExpiry(classified),
+            : directMigrationExpiry(
+                classified,
+                params.directMigrationExpiries?.get(name),
+              ),
+        ...(classified.action === 'migrate' &&
+        ['unwrapped', 'unlocked', 'locked-2ld'].includes(
+          classified.tokenType,
+        ) &&
+        !params.directMigrationExpiries?.has(name)
+          ? { canUseLegacyReservationExpiry: true }
+          : {}),
       },
     ]
   const subregistryExpectations: readonly AtomicMigrationVerificationExpectation[] =
@@ -1197,7 +1210,7 @@ const buildNameExecution = (
       ? createMigrationData({
           label: params.classified.label,
           owner: params.wallet,
-          subregistry: params.attachSubregistry ? zeroAddress : childRegistry,
+          subregistry: childRegistry,
           resolver: expectedResolver,
         })
       : null
@@ -1211,27 +1224,6 @@ const buildNameExecution = (
   })
   const nameState: NameExecutionFragment = {
     innerExecutions: [
-      ...(params.attachSubregistry
-        ? [
-            {
-              phase: 'subregistry-attachment' as const,
-              name,
-              names: [name],
-              call: {
-                to: V2_CONTRACTS.ETHRegistry,
-                value: 0n,
-                data: encodeFunctionData({
-                  abi: parseAbi(['function setSubregistry(uint256,address)']),
-                  functionName: 'setSubregistry',
-                  args: [
-                    labelToCanonicalId(params.classified.label),
-                    childRegistry,
-                  ],
-                }),
-              },
-            },
-          ]
-        : []),
       ...buildCopyRegistrationExecution({
         ...params,
         childRegistry,
@@ -1270,6 +1262,7 @@ const buildNameExecution = (
 }
 
 const buildNameExecutions = (params: {
+  readonly directMigrationExpiries?: ReadonlyMap<string, bigint>
   readonly chainId: number
   readonly hca: Address
   readonly wallet: Address
@@ -1314,14 +1307,8 @@ const buildNameExecutions = (params: {
       )
     }
     return buildNameExecution({
+      directMigrationExpiries: params.directMigrationExpiries,
       ...params,
-      attachSubregistry:
-        classified.action === 'migrate' &&
-        params.registryContext.some(
-          (child) =>
-            child.action === 'copy' &&
-            child.recreationRoot === classified.domain.name,
-        ),
       resolver: dedicatedResolver
         ? computeRetainedManagerResolverAddress({
             ...params,
@@ -1611,6 +1598,7 @@ export const buildAtomicMigrationBatches = async (
     hca: params.hca,
   })
   const nameExecutions = buildNameExecutions({
+    directMigrationExpiries: params.directMigrationExpiries,
     chainId: params.chainId,
     hca: params.hca,
     wallet: params.wallet,

@@ -109,6 +109,8 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     (async () => {
       try {
         const location = await resolveNameRegistry(name)
+        if (!(await hasV2NameEntry(location, publicClient as PublicClient)))
+          return { resolver: undefined, hasV2Entry: false }
         const resolver = await readNameResolver(
           location,
           publicClient as PublicClient,
@@ -117,10 +119,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
           return { resolver, hasV2Entry: false }
         return {
           resolver: undefined,
-          hasV2Entry: await hasV2NameEntry(
-            location,
-            publicClient as PublicClient,
-          ),
+          hasV2Entry: true,
         }
       } catch (error) {
         if (!(error instanceof NameRegistryNotFoundError)) throw error
@@ -139,6 +138,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
         texts,
         coins,
         publicClient: publicClient as PublicClient,
+        shouldDecodeStrictly: false,
       }),
       (error) => new GetProfileRecordsError({ cause: error }),
     )

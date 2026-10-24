@@ -1381,7 +1381,7 @@ const buildNextAtomicBatch = async (params: {
     publicClient: ctx.publicClient,
     names: remaining,
   })
-  await assertCopyMigrationReadiness({
+  const directMigrationExpiries = await assertCopyMigrationReadiness({
     publicClient: ctx.publicClient,
     hca: ctx.hcaAddress,
     wallet: ctx.walletAddress,
@@ -1411,6 +1411,7 @@ const buildNextAtomicBatch = async (params: {
       )
       .find((count) => count > 0) ?? 1
   const atomicPlan = await buildAtomicMigrationBatches({
+    directMigrationExpiries,
     chainId: requireChainId(ctx.publicClient, 'migration'),
     hca: ctx.hcaAddress,
     wallet: ctx.walletAddress,
@@ -1652,12 +1653,28 @@ const replayWalletRecords = async (params: {
   params.ctx.tracker.emit('Records copied')
 }
 
+const assertSubnameRecreationEnabled = (
+  plan: MigrationPlan,
+  canRecreateSubnames?: () => boolean,
+): void => {
+  if (
+    plan.subnameRecreation &&
+    (plan.subnameRecreationEnabled === false ||
+      canRecreateSubnames?.() === false)
+  ) {
+    throw new Error(
+      'Subname migration is not enabled for this session. Your transaction history has been reconciled; remaining imports are preserved for later.',
+    )
+  }
+}
+
 const executeRemainingAtomicBatches = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
   readonly publicClient: PublicClient
   readonly onBatchComplete?: OnBatchComplete
   readonly retryPermissionHeadLag: boolean
+  readonly canRecreateSubnames?: () => boolean
 }): Promise<readonly Hex[]> => {
   const hashes: Hex[] = []
   let remaining = [...params.plan.classified]
@@ -1665,6 +1682,7 @@ const executeRemainingAtomicBatches = async (params: {
   let retryPermissionHeadLag = params.retryPermissionHeadLag
 
   while (remaining.length > 0) {
+    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const batch = await buildNextAtomicBatch({
       ctx: params.ctx,
       plan: params.plan,
@@ -1686,6 +1704,7 @@ const executeRemainingAtomicBatches = async (params: {
       publicClient: params.publicClient,
       classified: remaining,
     })
+    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const description = describeUpgradeOperations(batch.operations)
     try {
       await replayWalletRecords({
@@ -1704,6 +1723,7 @@ const executeRemainingAtomicBatches = async (params: {
           .filter(({ domain }) => batch.names.includes(domain.name))
           .map(({ domain }) => domain),
       })
+    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const intent = {
       id: createAtomicMigrationIntentId(),
       names: batch.names,
@@ -1798,6 +1818,7 @@ export const executeMigration = async (params: {
   readonly onBatchComplete?: OnBatchComplete
   /** Set on retry to reconcile a receipt whose post-state polling was uncertain. */
   readonly reconcileBeforeSubmit?: boolean
+  readonly canRecreateSubnames?: () => boolean
 }): Promise<MigrationResult> => {
   const {
     plan,
@@ -1847,14 +1868,7 @@ export const executeMigration = async (params: {
     })
 
     if (executionPlan.classified.length > 0) {
-      if (
-        executionPlan.subnameRecreation &&
-        executionPlan.subnameRecreationEnabled === false
-      ) {
-        throw new Error(
-          'Subname migration is not enabled for this session. Your transaction history has been reconciled; remaining imports are preserved for later.',
-        )
-      }
+      assertSubnameRecreationEnabled(executionPlan, params.canRecreateSubnames)
       // Re-read every destination pointer this plan writes, immediately before
       // the first wallet prompt. Preflight checks it too, but that verdict is as
       // old as the preview the user has been reading — and a retry rebuilds the
@@ -1897,6 +1911,7 @@ export const executeMigration = async (params: {
     })
 
     if (executionPlan.classified.length > 0) {
+      assertSubnameRecreationEnabled(executionPlan, params.canRecreateSubnames)
       const deploymentHash = await ensureHcaDeployment({
         ctx,
         hcaClient,
@@ -1924,17 +1939,14 @@ export const executeMigration = async (params: {
           publicClient,
           onBatchComplete,
           retryPermissionHeadLag: approvalHashes.length > 0,
+          canRecreateSubnames: params.canRecreateSubnames,
         })),
       )
     }
   } catch (error) {
     // A changed preview must return for a new estimate without opening an
     // unplanned revocation prompt. No transaction has been attempted yet.
-    if (
-      error instanceof MigrationPlanChangedError ||
-      error instanceof MigrationSourceChangedError
-    )
-      throw error
+    if (error instanceof MigrationPlanChangedError) throw error
     // A grant can be confirmed even when a later wallet prompt or batch fails.
     // Keep the original failure if cleanup succeeds; surface cleanup failure
     // when the wallet declines the revocation.

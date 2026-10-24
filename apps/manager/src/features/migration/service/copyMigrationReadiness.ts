@@ -170,7 +170,7 @@ const assertWrappedSourceFresh = async (params: {
   }
   if (
     hasFuse(BigInt(fuses), FUSES.CANNOT_UNWRAP) ||
-    (copy.recreationRoot && fuses !== 0)
+    (copy.recreationRoot && BigInt(fuses) !== 0n)
   ) {
     throw sourceError(
       copy,
@@ -187,7 +187,8 @@ const assertWrappedSourceFresh = async (params: {
             BigInt(copy.domain.wrappedDomain?.fuses ?? 0),
           )
         : copy.sourceExpiry) ||
-    liveExpiry <= BigInt(Math.floor(Date.now() / 1000))
+    (!copy.recreationRoot &&
+      liveExpiry <= BigInt(Math.floor(Date.now() / 1000)))
   ) {
     throw sourceError(
       copy,
@@ -780,13 +781,13 @@ const assertDirectMigrationExpiries = async (params: {
   readonly publicClient: PublicClient
   readonly remaining: readonly ClassifiedName[]
   readonly recordedAttemptNames?: ReadonlySet<string>
-}): Promise<void> => {
+}): Promise<ReadonlyMap<string, bigint>> => {
   const direct = params.remaining.filter(
     (name): name is DirectClassifiedName =>
       name.action === 'migrate' &&
       !params.recordedAttemptNames?.has(name.domain.name),
   )
-  await Promise.all(
+  const expiries = await Promise.all(
     direct.map(async (name) => {
       try {
         const expectedExpiry = directMigrationExpiry(name)
@@ -803,7 +804,7 @@ const assertDirectMigrationExpiries = async (params: {
               'source-expiry-changed',
               `The ENSv1 expiry of "${name.domain.name}" changed. Refresh before upgrading.`,
             )
-          return
+          return [name.domain.name, expiry] as const
         }
         const [registrationExpiry, state] = await Promise.all([
           params.publicClient.readContract({
@@ -828,12 +829,17 @@ const assertDirectMigrationExpiries = async (params: {
             'source-expiry-changed',
             `The ENSv1 expiry of "${name.domain.name}" changed. Refresh before upgrading.`,
           )
-        if (state.status !== 1 || state.expiry !== expectedExpiry)
+        if (
+          state.status !== 1 ||
+          (state.expiry !== expectedExpiry &&
+            state.expiry !== expectedExpiry - 1n)
+        )
           throw sourceError(
             name,
             'reservation-expiry-mismatch',
             `The ENSv2 reservation for "${name.domain.name}" has not caught up with its ENSv1 expiry. Wait for it to update before upgrading.`,
           )
+        return [name.domain.name, state.expiry] as const
       } catch (cause) {
         if (cause instanceof CopyMigrationReadinessError) throw cause
         throw new CopyMigrationReadinessError({
@@ -845,6 +851,7 @@ const assertDirectMigrationExpiries = async (params: {
       }
     }),
   )
+  return new Map(expiries)
 }
 
 export const assertCopyMigrationReadiness = async (params: {
@@ -855,7 +862,7 @@ export const assertCopyMigrationReadiness = async (params: {
   readonly registryContext: readonly ClassifiedName[]
   /** Durable wallet attempts may already have created exact V2 state. */
   readonly recordedAttemptNames?: ReadonlySet<string>
-}): Promise<void> => {
+}): Promise<ReadonlyMap<string, bigint>> => {
   assertCopyMigrationTopology(params.registryContext)
   const remainingNames = new Set(
     params.remaining.map((name) => normalizedName(name.domain.name)),
@@ -868,13 +875,14 @@ export const assertCopyMigrationReadiness = async (params: {
     ({ domain }) => !params.recordedAttemptNames?.has(domain.name),
   )
   const hasCode = createHasCode(params.publicClient)
+  const expiryReadiness = assertDirectMigrationExpiries({
+    publicClient: params.publicClient,
+    remaining: params.remaining,
+    recordedAttemptNames: params.recordedAttemptNames,
+  })
 
   await assertConcurrentChecks([
-    assertDirectMigrationExpiries({
-      publicClient: params.publicClient,
-      remaining: params.remaining,
-      recordedAttemptNames: params.recordedAttemptNames,
-    }),
+    expiryReadiness.then(() => {}),
     assertRequiredMigratingRootsFresh({
       publicClient: params.publicClient,
       wallet: params.wallet,
@@ -904,4 +912,5 @@ export const assertCopyMigrationReadiness = async (params: {
       hasCode,
     }),
   ])
+  return expiryReadiness
 }

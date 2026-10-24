@@ -151,6 +151,23 @@ const fixture = (
 }
 
 describe('direct subname source checks', () => {
+  it.each(['partial', 'stale'] as const)(
+    'does not make a childless name a recreation root when its inventory is %s',
+    async (kind) => {
+      const context = fixture({
+        count: 0,
+        rows: [],
+        ...(kind === 'partial'
+          ? { metadata: { ...meta, completeness: 'partial' } }
+          : {}),
+      })
+      if (kind === 'stale') context.state.head = 1000n
+      const discovered = await context.discover()
+      expect(discovered.snapshot.roots).toEqual([])
+      expect(discovered.domains.map(({ name }) => name)).toEqual([ROOT])
+      expect(context.client.readContract).not.toHaveBeenCalled()
+    },
+  )
   it.each([false, true])(
     'preserves canonical ownership and the exact resolver (wrapped: %s)',
     async (wrapped) => {

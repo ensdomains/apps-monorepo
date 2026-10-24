@@ -254,11 +254,12 @@ const readDirectInventory = async (
   if (detail.isErr())
     fail(name, 'the indexed child inventory could not be read.')
   const rootRecord = detail.value
-  recordPublication(rootRecord.meta, name, publications)
   assertIdentity(rootRecord.data.name, rootRecord.data.namehash)
   if (rootRecord.data.name !== name || rootRecord.data.read_status !== 'ok')
     fail(name, 'the parent inventory is unavailable.')
   const count = countOf(name, rootRecord.data.subname_count)
+  if (count === 0) return []
+  recordPublication(rootRecord.meta, name, publications)
   if (count > MAX_DIRECT_CHILDREN)
     fail(name, 'this tree is too large for a single safe import batch.')
   const pages = await readAllEnvelopes(
@@ -422,20 +423,24 @@ export const discoverSubnameRecreation = async (params: {
     params.owner,
     envConfig.chain.id,
   ).classified
-  const roots = classified.filter(
+  const candidates = classified.filter(
     (name) =>
       name.action === 'migrate' &&
       name.parentName === 'eth' &&
       ['unwrapped', 'unlocked'].includes(name.tokenType),
   )
+  const roots: typeof candidates = []
   const domains = new Map(params.domains.map((domain) => [domain.name, domain]))
   const publications = new Map<bigint, Hex>()
   const rowsByRoot = new Map<string, readonly Subname[]>()
-  for (const root of roots) {
+  for (const root of candidates) {
     signal?.throwIfAborted()
     const name = root.domain.name
     const rows = await readDirectInventory(indexer, name, publications, signal)
-    rowsByRoot.set(name, rows)
+    if (rows.length > 0) {
+      roots.push(root)
+      rowsByRoot.set(name, rows)
+    }
   }
   const block = await publicClient.getBlock({ blockTag: 'latest' })
   if (!block.hash)

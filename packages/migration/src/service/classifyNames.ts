@@ -91,7 +91,7 @@ export type CopyClassifiedName = ClassifiedNameBase & {
   readonly action: 'copy'
   readonly tokenType: CopyTokenType
   readonly copySource: CopySource
-  /** Complete-tree helper only; the source controller receives manager access. */
+  /** Reviewed direct-child import; the V1 owner receives the child token with ALL roles. */
   readonly recreationRoot?: string
   readonly sourceExpiry: bigint
   readonly resolverStrategy: ResolverStrategy

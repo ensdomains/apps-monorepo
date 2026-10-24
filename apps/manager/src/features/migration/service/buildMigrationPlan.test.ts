@@ -165,7 +165,7 @@ beforeEach(() => {
     batches: [],
   })
   assertCopyMigrationReadinessMock.mockReset()
-  assertCopyMigrationReadinessMock.mockResolvedValue(undefined)
+  assertCopyMigrationReadinessMock.mockResolvedValue(new Map())
 })
 
 describe('assertLockedResolverReplacementRecordSafety', () => {

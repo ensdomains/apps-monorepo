@@ -1,13 +1,15 @@
 import type { DirectClassifiedName } from './classifyNames'
 
-// The pinned ETHRenewerV1 deployment adds 62 days plus one second during
-// premigration, preserving the end of the 90-day ENSv1 grace window after the
-// 28-day ENSv2 grace window. Migration controllers consume the reserved expiry.
+// ETHRenewerV1 uses 62 days plus one second; the initial premigration used
+// exactly 62 days. Controllers preserve the actual reservation in either case.
 export const MIGRATION_EXPIRY_BONUS_SECONDS = 62n * 24n * 60n * 60n + 1n
 const V1_GRACE_PERIOD_SECONDS = 90n * 24n * 60n * 60n
 
 /** Exact expiry the deployed direct migration route must preserve. */
-export const directMigrationExpiry = (name: DirectClassifiedName): bigint => {
+export const directMigrationExpiry = (
+  name: DirectClassifiedName,
+  reservedExpiry?: bigint,
+): bigint => {
   if (
     name.tokenType === 'locked-child' ||
     name.tokenType === 'detached-child'
@@ -15,6 +17,7 @@ export const directMigrationExpiry = (name: DirectClassifiedName): bigint => {
     const expiry = name.domain.wrappedDomain?.expiryDate
     if (expiry !== undefined) return BigInt(expiry)
   } else {
+    if (reservedExpiry !== undefined) return reservedExpiry
     const expiry = name.domain.registration?.expiryDate
     if (expiry !== undefined)
       return BigInt(expiry) + MIGRATION_EXPIRY_BONUS_SECONDS

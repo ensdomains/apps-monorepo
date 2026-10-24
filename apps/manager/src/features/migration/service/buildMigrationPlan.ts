@@ -541,7 +541,7 @@ export const buildMigrationPlan = async (params: {
       classified: directNames,
     }))
   signal?.throwIfAborted()
-  await assertCopyMigrationReadiness({
+  const directMigrationExpiries = await assertCopyMigrationReadiness({
     publicClient,
     hca: hcaAddress,
     wallet: migrationOwner,
@@ -594,6 +594,7 @@ export const buildMigrationPlan = async (params: {
     preflight.hcaResolverReadiness.walletHasWildcardRoles
   const resolverWriter = resolverWriterFor(preflight.hcaResolverReadiness)
   const atomicPlan = await buildAtomicMigrationBatches({
+    directMigrationExpiries,
     chainId: requireChainId(publicClient, 'migration'),
     hca: hcaAddress,
     wallet: migrationOwner,
@@ -906,22 +907,24 @@ export const buildMigrationRecoveryPlan = async (params: {
   })
   signal?.throwIfAborted()
 
-  if (classified.length > 0) {
-    await assertCopyMigrationReadiness({
-      publicClient,
-      hca: hcaAddress,
-      wallet: migrationOwner,
-      remaining: classified,
-      registryContext,
-      recordedAttemptNames,
-    })
-  }
+  const directMigrationExpiries =
+    classified.length > 0
+      ? await assertCopyMigrationReadiness({
+          publicClient,
+          hca: hcaAddress,
+          wallet: migrationOwner,
+          remaining: classified,
+          registryContext,
+          recordedAttemptNames,
+        })
+      : new Map<string, bigint>()
   signal?.throwIfAborted()
 
   const classifiedByName = new Map(
     classified.map((name) => [name.domain.name, name] as const),
   )
   const atomicPlan = await buildAtomicMigrationBatches({
+    directMigrationExpiries,
     chainId,
     hca: hcaAddress,
     wallet: migrationOwner,

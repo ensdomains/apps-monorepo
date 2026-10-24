@@ -145,6 +145,26 @@ const buildPlan = (
   })
 }
 
+describe('direct reservation expiry snapshots', () => {
+  it.each([5356800n, 5356801n])(
+    'keeps the exact on-chain expiry with bonus %s',
+    async (bonus) => {
+      const classified = makeName('alice.eth')
+      const expiry = 2000000000n + bonus
+      const plan = await buildPlan({
+        classified: [classified],
+        directMigrationExpiries: new Map([[classified.domain.name, expiry]]),
+      })
+      const expectations = plan.batches.flatMap(
+        (batch) => batch.verificationExpectations,
+      )
+      expect(
+        expectations.find((item) => item.type === 'name-expiry'),
+      ).toMatchObject({ expectedExpiry: expiry })
+    },
+  )
+})
+
 type OwnerExecution = {
   readonly target: Address
   readonly value: bigint
@@ -654,6 +674,45 @@ describe('buildAtomicMigrationBatches', () => {
         'profile-replay',
       )
     })
+  })
+
+  it('attaches a recreated child registry in the migration call without a later ETHRegistry write', async () => {
+    const root = makeName('example.eth', {
+      action: 'migrate',
+      tokenType: 'unwrapped',
+      parentName: 'eth',
+    })
+    const child = {
+      ...makeName('child.example.eth', {
+        action: 'copy',
+        tokenType: 'registry-child',
+        parentName: 'example.eth',
+        sourceExpiry: (1n << 64n) - 1n,
+      }),
+      recreationRoot: 'example.eth',
+    } as ClassifiedName
+    const plan = await buildPlan({ classified: [child, root] })
+    const batch = plan.batches[0]
+    assert(batch)
+    const migration = batch.nameExecutions.find(
+      ({ classified }) => classified.domain.name === root.domain.name,
+    )
+    expect(migration?.migrationData?.subregistry.toLowerCase()).toBe(
+      computeUserRegistryAddress({
+        hca: HCA,
+        parentName: root.domain.name,
+      }).toLowerCase(),
+    )
+    expect(batch.innerExecutions.map(({ phase }) => phase)).not.toContain(
+      'subregistry-attachment',
+    )
+    expect(
+      batch.innerExecutions.findIndex(
+        ({ phase }) => phase === 'user-registry-parent',
+      ),
+    ).toBeLessThan(
+      batch.innerExecutions.findIndex(({ phase }) => phase === 'migrate'),
+    )
   })
 
   it('builds an arbitrary-depth copy tree in dependency-safe calldata order', async () => {

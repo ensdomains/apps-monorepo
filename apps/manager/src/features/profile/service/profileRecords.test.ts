@@ -27,6 +27,9 @@ const mocks = vi.hoisted(() => ({
   call: vi.fn(),
   resolveNameRegistry: vi.fn(),
   readNameResolver: vi.fn(),
+  hasV2NameEntry: vi.fn(),
+  readContract: vi.fn(),
+  isExtendedResolver: false,
 }))
 
 vi.mock('@/lib/bigname', () => ({
@@ -34,10 +37,13 @@ vi.mock('@/lib/bigname', () => ({
 }))
 vi.mock('@ensdomains/ensjs/public', () => ({
   resolveNameData: mocks.resolveNameData,
-  getSupportedInterfaces: async () => [false],
+  getSupportedInterfaces: async (
+    _client: unknown,
+    { interfaces }: { interfaces: readonly string[] },
+  ) => [interfaces[0] === '0x9061b923' && mocks.isExtendedResolver],
 }))
 vi.mock('@/lib/wagmi', async () => ({
-  publicClient: { call: mocks.call },
+  publicClient: { call: mocks.call, readContract: mocks.readContract },
   sepoliaWithEns: (await import('@/config')).envConfig.chain,
 }))
 vi.mock('@/lib/wagmi/helpers', async () => {
@@ -51,7 +57,7 @@ vi.mock('./changeResolver', () => {
     NameRegistryNotFoundError,
     resolveNameRegistry: mocks.resolveNameRegistry,
     readNameResolver: mocks.readNameResolver,
-    hasV2NameEntry: vi.fn(),
+    hasV2NameEntry: mocks.hasV2NameEntry,
   }
 })
 vi.mock('../data/records', () => ({
@@ -166,7 +172,75 @@ describe('profile records', () => {
     )
     mocks.readNameResolver.mockResolvedValue(resolverAddress)
     mocks.call.mockReset().mockImplementation(directRead)
+    mocks.hasV2NameEntry.mockResolvedValue(true)
+    mocks.isExtendedResolver = false
   })
+
+  it.each([resolverAddress, zeroAddress])(
+    'uses universal resolution for a reserved V1 name with resolver %s',
+    async (resolver) => {
+      mocks.resolveNameRegistry.mockResolvedValue({
+        label: 'reserved',
+        registryAddress: ethAddress,
+      })
+      mocks.hasV2NameEntry.mockResolvedValue(false)
+      mocks.readNameResolver.mockResolvedValue(resolver)
+      const profile = (await getProfileRecords('reserved.eth'))._unsafeUnwrap()
+      expect(profile.texts).toEqual([{ key: 'theme', value: '#123456' }])
+      expect(mocks.resolveNameData).toHaveBeenCalledOnce()
+      expect(mocks.call).not.toHaveBeenCalled()
+    },
+  )
+
+  it('uses ENSIP-10 for an extended resolver with node-based setters', async () => {
+    mocks.resolveNameRegistry.mockResolvedValue({
+      label: 'child',
+      registryAddress: ethAddress,
+    })
+    mocks.isExtendedResolver = true
+    mocks.readContract.mockImplementation(async ({ functionName, args }) => {
+      if (functionName !== 'resolve')
+        throw new Error('Unexpected resolver read')
+      return (await directRead({ data: args[1] })).data
+    })
+    mocks.call.mockRejectedValue(new Error('Plain getter is unsupported'))
+    const profile = (
+      await getProfileRecords('child.parent.eth')
+    )._unsafeUnwrap()
+    expect(profile.texts).toEqual([{ key: 'theme', value: '#123456' }])
+    expect(mocks.call).not.toHaveBeenCalled()
+  })
+
+  it.each(['text', 'addr', 'contenthash', 'ABI'] as const)(
+    'keeps the profile readable when a direct %s record is malformed',
+    async (recordType) => {
+      mocks.resolveNameRegistry.mockResolvedValue({
+        label: 'child',
+        registryAddress: ethAddress,
+      })
+      mocks.call.mockImplementation(async ({ data }) => {
+        const call = decodeFunctionData({ abi: recordAbi, data })
+        if (
+          call.functionName === recordType &&
+          (recordType !== 'text' || call.args[1] === 'avatar')
+        ) {
+          if (
+            recordType === 'addr' &&
+            call.args.length === 2 &&
+            call.args[1] === 501n
+          )
+            return { data: bytesResult(`0x${'11'.repeat(31)}`) }
+          if (recordType !== 'addr') return { data: '0x1234' }
+        }
+        return directRead({ data })
+      })
+      const profile = (
+        await getProfileRecords('child.parent.eth')
+      )._unsafeUnwrap()
+      expect(profile.texts).toEqual([{ key: 'theme', value: '#123456' }])
+      expect(profile.coins).toEqual([])
+    },
+  )
 
   it.each([
     { description: 'not indexed yet', indexedKeys: ['text:theme'] },

@@ -76,7 +76,7 @@ export const hasV2NameEntry = async (
     functionName: 'getState',
     args: [BigInt(labelhash(location.label))],
   })
-  return state.latestOwner.toLowerCase() !== zeroAddress
+  return state.status === 2
 }
 
 /**

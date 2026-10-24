@@ -1,6 +1,7 @@
 import { readAllCollectionPages } from '@ens-apps/indexer/bigname'
 import { isKnownPublicResolver } from '@ens-apps/migration'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getSupportedInterfaces } from '@ensdomains/ensjs/public'
 import {
   decodeAbiResult,
   decodeContentHashResult,
@@ -201,6 +202,7 @@ const decodeImportedCoin = (
 const decodeRecordRead = async (
   { key }: RecordRead,
   data: Hex,
+  shouldDecodeStrictly: boolean,
 ): Promise<Partial<ImportedResolverRecords>> => {
   if (key === 'pubkey') {
     const [x, y] = decodeFunctionResult({
@@ -229,13 +231,19 @@ const decodeRecordRead = async (
     return value === '0x' ? {} : { data: [{ key: key.slice(5), value }] }
   }
   if (key.startsWith('text:')) {
-    const value = decodeTextResult(data, { strict: true })
+    const value = decodeTextResult(data, { strict: shouldDecodeStrictly })
     return { texts: value ? [{ key: key.slice(5), value }] : [] }
   }
-  if (key.startsWith('addr:'))
-    return decodeImportedCoin(Number(key.slice(5)), data)
+  if (key.startsWith('addr:')) {
+    const coinType = Number(key.slice(5))
+    if (shouldDecodeStrictly) return decodeImportedCoin(coinType, data)
+    const coin = decodeCoinResult(coinType, data)
+    return { coins: coin ? [coin] : [] }
+  }
   if (key === 'contenthash') {
-    const value = decodeContentHashResult(data, { strict: true })
+    const value = decodeContentHashResult(data, {
+      strict: shouldDecodeStrictly,
+    })
     if (!value) return {}
     return {
       contentHash: value.protocolType
@@ -243,7 +251,7 @@ const decodeRecordRead = async (
         : value.decoded,
     }
   }
-  const value = await decodeAbiResult(data, { strict: true })
+  const value = await decodeAbiResult(data, { strict: shouldDecodeStrictly })
   return value
     ? {
         abi:
@@ -261,6 +269,7 @@ export const readResolverRecords = async ({
   interfaceIds = [],
   dataKeys = [],
   shouldReadPubkey = false,
+  shouldDecodeStrictly = true,
   publicClient: client,
 }: {
   readonly name: string
@@ -270,6 +279,8 @@ export const readResolverRecords = async ({
   readonly interfaceIds?: readonly Hex[]
   readonly dataKeys?: readonly string[]
   readonly shouldReadPubkey?: boolean
+  /** Viewing skips malformed values; imports and replacement verification remain strict. */
+  readonly shouldDecodeStrictly?: boolean
   readonly publicClient: PublicClient
 }): Promise<{
   records: ImportedResolverRecords
@@ -277,7 +288,13 @@ export const readResolverRecords = async ({
   unsupportedKeys: string[]
   readErrors: unknown[]
 }> => {
-  const kind = await getResolverSetterKind(client, resolver)
+  const [kind, [hasExtendedResolution]] = await Promise.all([
+    getResolverSetterKind(client, resolver),
+    getSupportedInterfaces(
+      client as unknown as Parameters<typeof getSupportedInterfaces>[0],
+      { address: resolver, interfaces: ['0x9061b923'] },
+    ),
+  ])
   const reads: RecordRead[] = [
     ...texts.map((key) => ({
       key: `text:${key}`,
@@ -330,9 +347,10 @@ export const readResolverRecords = async ({
       readErrors: unknown[]
     }
   > => {
+    let isDecoding = false
     try {
       const response =
-        kind === 'name'
+        kind === 'name' || hasExtendedResolution
           ? await client.readContract({
               address: resolver,
               abi: permissionedResolverResolveSnippet,
@@ -347,8 +365,9 @@ export const readResolverRecords = async ({
           unsupportedKeys: [request.key],
           readErrors: [],
         }
+      isDecoding = true
       return {
-        ...(await decodeRecordRead(request, response)),
+        ...(await decodeRecordRead(request, response, shouldDecodeStrictly)),
         failedKeys: [],
         unsupportedKeys: [],
         readErrors: [],
@@ -357,7 +376,10 @@ export const readResolverRecords = async ({
       return {
         failedKeys: [request.key],
         unsupportedKeys: isContractRevert(error) ? [request.key] : [],
-        readErrors: isContractRevert(error) ? [] : [error],
+        readErrors:
+          isContractRevert(error) || (isDecoding && !shouldDecodeStrictly)
+            ? []
+            : [error],
       }
     }
   }
@@ -537,7 +559,11 @@ export const importResolverRecords = async (
     publicClient: publicClient as PublicClient,
   })
   const requiredKeys = new Set([
-    ...keys,
+    ...keys.map((key) => (key.toLowerCase() === 'abi' ? 'ABI' : key)),
+    ...(inventory.isOk() &&
+    inventory.value.data.inventory?.abi_content_types?.length
+      ? ['ABI']
+      : []),
     ...(shouldReadPubkey ? ['pubkey'] : []),
   ])
   const failures = failedKeys.filter(

@@ -40,6 +40,7 @@ interface EditProfileDialogTabsProps {
   readonly owner?: Address
   readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
   readonly savedDescription?: string
+  readonly savedAbi?: string
   readonly values: ProfileRecords
 }
 
@@ -108,6 +109,7 @@ export const EditProfileDialogTabs = ({
   owner,
   preparedImageUploads,
   savedDescription,
+  savedAbi,
   values,
 }: EditProfileDialogTabsProps) => {
   const [isScrolling, setIsScrolling] = useState(false)
@@ -193,7 +195,11 @@ export const EditProfileDialogTabs = ({
             />
           </TabsContent>
           <TabsContent className="min-h-0 flex-1" value="other">
-            <OtherRecordsTab onChange={onOtherChange} values={values} />
+            <OtherRecordsTab
+              onChange={onOtherChange}
+              savedAbi={savedAbi}
+              values={values}
+            />
           </TabsContent>
         </div>
       </div>

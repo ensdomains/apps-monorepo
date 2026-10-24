@@ -475,6 +475,29 @@ const checkExpectation = async (
         args: [expectation.resource],
         ...block,
       })
+      // Legacy journals predate the reservation snapshot. For the initial
+      // premigration's one-second-shorter bonus, prove the exact expiry from
+      // the reservation before the mined batch instead of guessing it.
+      if (
+        expectation.canUseLegacyReservationExpiry &&
+        state.expiry === expectation.expectedExpiry - 1n &&
+        context.blockNumber !== undefined &&
+        context.blockNumber > 0n
+      ) {
+        const reservation = await context.publicClient.readContract({
+          address: registry,
+          abi: permissionedRegistryReadAbi,
+          functionName: 'getState',
+          args: [expectation.resource],
+          blockNumber: context.blockNumber - 1n,
+        })
+        return (
+          state.status === STATUS_REGISTERED &&
+          reservation.status === 1 &&
+          reservation.expiry === state.expiry &&
+          state.resource === expectation.resource
+        )
+      }
       return (
         state.status === STATUS_REGISTERED &&
         state.expiry === expectation.expectedExpiry &&
