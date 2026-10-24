@@ -1,0 +1,23 @@
+name: Verify Avatar Worker
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@v3
+        env:
+          PNPM_CONFIG_FROZEN_LOCKFILE: true
+        with:
+          runtime: node@lts
+          cache: true
+      - run: pnpm --filter avatar-worker typecheck
+      - run: pnpm --filter avatar-worker lint
+      - run: pnpm --filter avatar-worker build

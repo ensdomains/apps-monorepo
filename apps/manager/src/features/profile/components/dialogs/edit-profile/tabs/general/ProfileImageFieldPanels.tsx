@@ -213,6 +213,7 @@ const CancelPreviewButton = ({
 
 interface ImageActionPanelProps {
   readonly disabled?: boolean
+  readonly isUploadDisabled?: boolean
   readonly error: string | null
   readonly onManual: () => void
   readonly onNft?: () => void
@@ -222,6 +223,7 @@ interface ImageActionPanelProps {
 
 const ImageActionPanel = ({
   disabled,
+  isUploadDisabled,
   error,
   onManual,
   onNft,
@@ -240,6 +242,7 @@ const ImageActionPanel = ({
         icon="upload"
         label="Upload image"
         onClick={onUpload}
+        {...(isUploadDisabled ? { disabled: true } : {})}
       />
       {onNft ? (
         <ProfileImageAction
@@ -268,6 +271,7 @@ const ImageActionPanel = ({
 
 interface ActiveImageOptionsProps extends ImagePreviewProps {
   readonly disabled?: boolean
+  readonly isUploadDisabled?: boolean
   readonly error: string | null
   readonly onCancel: () => void
   readonly onDragOver: (event: React.DragEvent) => void
@@ -280,6 +284,7 @@ interface ActiveImageOptionsProps extends ImagePreviewProps {
 
 export const ActiveImageOptions = ({
   disabled,
+  isUploadDisabled,
   displayImage,
   error,
   hasImage,
@@ -309,6 +314,7 @@ export const ActiveImageOptions = ({
     <ImageActionPanel
       disabled={disabled}
       error={error}
+      isUploadDisabled={isUploadDisabled}
       onManual={onManual}
       onNft={kind === 'avatar' ? onNft : undefined}
       onRemove={onRemove}

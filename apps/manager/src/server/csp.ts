@@ -29,6 +29,7 @@ const COMMEMORATIVE_ASSET_ORIGIN = getCommemorativeNftConfig().assetOrigin
 // The RPC and indexer overrides are already folded into `config`, so they are
 // covered below rather than read from env a second time.
 const OVERRIDE_CONNECT_ORIGINS = [
+  envConfig.profileMediaOrigin ?? null,
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
   originFromEnvUrl(import.meta.env?.VITE_API_URL || envConfig.appApiUrl),
   originFromEnvUrl(import.meta.env?.VITE_RHINESTONE_ENDPOINT_URL),

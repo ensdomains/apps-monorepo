@@ -1,9 +1,15 @@
+import { getProfileImagePath } from '@ens-apps/shared-schema/profile-media'
 import type { SignTypedDataMutateAsync } from '@wagmi/core/query'
-import { sha256 } from 'viem'
+import { type Address, sha256 } from 'viem'
 import { envConfig } from '@/config'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
+import {
+  submitProfileMediaUpload,
+  validatePreparedProfileMedia,
+} from './profileMediaUpload'
 
 const UPLOAD_TIMEOUT_MS = 30000
+const { profileMediaOrigin } = envConfig
 const ONE_WEEK_MS = 1000 * 60 * 60 * 24 * 7
 const JPEG_QUALITY = 0.9
 
@@ -82,6 +88,8 @@ const getUploadEndpoint = ({
   readonly type: ImageType
 }) => {
   const chainName = envConfig.network
+  if (profileMediaOrigin)
+    return `${profileMediaOrigin}${getProfileImagePath(chainName, name, type)}`
   const baseUrlRoot = AVATAR_UPLOAD_BASE_URL
 
   if (type === 'avatar') {
@@ -184,7 +192,10 @@ export const prepareProfileImageUpload = async ({
   readonly name: string
   readonly file: File
 }): Promise<PreparedProfileImageUpload> => {
-  const dataURL = await fileToJpegDataURL(file)
+  const dataURL = await (profileMediaOrigin
+    ? fileToDataURL(file)
+    : fileToJpegDataURL(file))
+  if (profileMediaOrigin) validatePreparedProfileMedia(dataURL)
   const imageUrl = getUploadEndpoint({ name, type })
 
   return {
@@ -199,12 +210,21 @@ export const prepareProfileImageUpload = async ({
 export const submitPreparedProfileImageUpload = async ({
   upload,
   address,
+  account,
   signTypedDataAsync,
 }: {
   readonly upload: PreparedProfileImageUpload
   readonly address: string
+  readonly account?: Address
   readonly signTypedDataAsync: SignTypedDataMutateAsync<unknown>
 }) => {
+  if (profileMediaOrigin)
+    return submitProfileMediaUpload({
+      upload,
+      address,
+      account,
+      signTypedDataAsync,
+    })
   const expiry = `${Date.now() + ONE_WEEK_MS}`
   const sig = await signImageUpload({
     expiry,

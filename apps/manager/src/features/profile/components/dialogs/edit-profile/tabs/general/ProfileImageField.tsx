@@ -121,6 +121,7 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
         displayImage={editor.displayImage}
         error={editor.state.context.error}
         hasImage={editor.hasImage}
+        isUploadDisabled={!editor.canUpload}
         kind={kind}
         name={name}
         onCancel={editor.handleCancel}
@@ -155,6 +156,7 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
       <input
         accept={IMAGE_UPLOAD_ACCEPT}
         className="hidden"
+        disabled={disabled || !editor.canUpload}
         onChange={editor.handleFileChange}
         ref={editor.fileInputRef}
         type="file"

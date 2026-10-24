@@ -1,0 +1,29 @@
+{
+  "name": "avatar-worker",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "cf-typegen": "wrangler types --env-interface AvatarWorkerEnv worker-configuration.gen.d.ts",
+    "typecheck": "tsc --noEmit",
+    "pretypecheck": "pnpm cf-typegen",
+    "lint": "biome check",
+    "build": "wrangler deploy --env '' --minify --dry-run --outdir dist",
+    "deploy": "wrangler deploy --minify"
+  },
+  "dependencies": {
+    "@ens-apps/config": "workspace:*",
+    "@ens-apps/shared-schema": "workspace:*",
+    "@ens-apps/smart-account": "workspace:*",
+    "@ens-apps/utils": "workspace:*",
+    "@ensdomains/ensjs": "catalog:",
+    "hono": "^4.13.13",
+    "valibot": "^1.5.0",
+    "viem": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
+  }
+}

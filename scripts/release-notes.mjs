@@ -26,6 +26,7 @@ const APP_DIRS = {
   portal: 'apps/portal',
   manager: 'apps/manager',
   'api-worker': 'workers/api-worker',
+  'avatar-worker': 'workers/avatar-worker',
 };
 // Shared code every app ships with. Keep in sync with include_paths in
 // .github/workflows/linear-releases.yml.
