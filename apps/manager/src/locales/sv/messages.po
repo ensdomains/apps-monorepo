@@ -167,6 +167,10 @@ msgstr ""
 msgid "{selectedCount} selected"
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
+msgstr ""
+
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "{selectedNameCount, plural, one {The selected name has subnames which will be deleted when upgrading to ENS v2.} other {The selected names have subnames which will be deleted when upgrading to ENS v2.}}"
 msgstr ""

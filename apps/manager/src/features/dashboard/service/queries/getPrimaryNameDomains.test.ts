@@ -54,8 +54,10 @@ describe('getPrimaryNameDomains', () => {
     const result = await getPrimaryNameDomains(readNames, ADDRESS)
 
     expect(result._unsafeUnwrap()).toEqual([
-      { id: '0x01', name: 'alice.eth' },
-      { id: '0x02', name: 'sub.legacy.eth' },
+      { id: '0x01', name: 'alice.eth', protocol: 'v2' },
+      // The protocol rides along: the dialog needs it to tell an ENSv1 name
+      // apart before offering ENSv2-only resolver setup.
+      { id: '0x02', name: 'sub.legacy.eth', protocol: 'v1' },
     ])
     expect(readNames).toHaveBeenCalledWith(
       {
@@ -82,7 +84,9 @@ describe('getPrimaryNameDomains', () => {
 
     const result = await getPrimaryNameDomains(readNames, ADDRESS)
 
-    expect(result._unsafeUnwrap()).toEqual([{ id: '0x01', name: 'alice.eth' }])
+    expect(result._unsafeUnwrap()).toEqual([
+      { id: '0x01', name: 'alice.eth', protocol: 'v2' },
+    ])
   })
 
   it('follows the cursor until every page is read', async () => {

@@ -500,8 +500,13 @@ export const ChoosePrimaryNameDialog = ({
     reverseName,
     selectedName,
   })
-  const { domains, isLoading, hasForwardAddressError, isSelectedNameOffered } =
-    nameList
+  const {
+    domains,
+    isLoading,
+    hasForwardAddressError,
+    isSelectedNameOffered,
+    selectedProtocol,
+  } = nameList
 
   const { isSuccess: recordsSettled, isError: isRecordsError } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
@@ -618,6 +623,19 @@ export const ChoosePrimaryNameDialog = ({
     )
     if (!preparation) {
       setConfirmation(null)
+      return
+    }
+
+    // Setting up a resolver goes through the v2 registry, so an ENSv1 name
+    // with no resolver this wallet can write has no path here. Say so instead
+    // of walking the user into a setup that cannot complete.
+    if (preparation.kind === 'setup-resolver' && selectedProtocol === 'v1') {
+      setConfirmation(null)
+      setPreparationError(
+        new Error(
+          t`${selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app.`,
+        ),
+      )
       return
     }
 

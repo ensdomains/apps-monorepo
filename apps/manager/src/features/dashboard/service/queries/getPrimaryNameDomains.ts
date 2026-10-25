@@ -16,11 +16,14 @@ import { bigname } from '@/lib/bigname'
 export type PrimaryNameDomain = {
   readonly id: string
   readonly name: string
+  /** Null when no deployment currently answers for the name. */
+  readonly protocol: NameSummary['protocol']
 }
 
 const toPrimaryNameDomain = (name: NameSummary): PrimaryNameDomain => ({
   id: name.namehash,
   name: name.name,
+  protocol: name.protocol,
 })
 
 const nameQuery = {
