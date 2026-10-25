@@ -13,14 +13,20 @@ import { useId, useMemo, useState } from 'react'
 import { EditNoteIcon } from '@/assets/icons'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
+import {
+  RECORD_EDIT_LOCK_TITLE,
+  RecordEditLockReason,
+} from '@/features/records/components/RecordEditLockReason'
 import { columns } from '@/features/records/components/RecordsTable/columns'
 import { RecordsTable } from '@/features/records/components/RecordsTable/RecordsTable'
+import type { RecordEditLock } from '@/features/records/helpers/recordEditLock'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -28,12 +34,15 @@ export const RecordList = ({
   name,
   records: rawRecords,
   canEdit = false,
+  editLock,
   protocolVersion,
 }: {
   name: string
   records: GetRecordsReturnType
   /** Whether the connected user can edit records */
   canEdit?: boolean
+  /** Set when the owner is shut out of their own records, to say why. */
+  readonly editLock?: RecordEditLock
   /** The protocol version of the name */
   protocolVersion?: ProtocolVersion
 }) => {
@@ -95,6 +104,14 @@ export const RecordList = ({
           </InputGroup>
         )}
       </header>
+      {editLock && (
+        <Alert variant="warning">
+          <AlertTitle>{RECORD_EDIT_LOCK_TITLE}</AlertTitle>
+          <AlertDescription>
+            <RecordEditLockReason lock={editLock} name={name} />
+          </AlertDescription>
+        </Alert>
+      )}
       {recordCount > 0 ? (
         <div className="overflow-x-auto">
           <RecordsTable

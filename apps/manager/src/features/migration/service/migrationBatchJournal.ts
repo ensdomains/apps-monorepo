@@ -2,6 +2,7 @@ import type { V1Domain } from '@ens-apps/migration'
 import { type Address, type Hex, isAddress } from 'viem'
 import type { Profile } from './fetchV1Profiles'
 import type { MigrationApprovalId } from './migrationApprovals'
+import type { SubnameRecreationSnapshot } from './subnameRecreation'
 
 const JOURNAL_VERSION = 1 as const
 const STORAGE_KEY =
@@ -109,6 +110,7 @@ export type PendingAtomicMigrationIntent = {
  * are regenerated from this validated source data and the pinned manifest.
  */
 export type MigrationRecoverySnapshot = {
+  readonly subnameRecreation?: SubnameRecreationSnapshot
   readonly registryDomains: readonly V1Domain[]
   readonly registryOperations: readonly MigrationJournalOperation[]
   readonly remainingOperations: readonly MigrationJournalOperation[]
@@ -141,6 +143,9 @@ type StoredRecoveryProfile = {
     readonly contentType: string
     readonly value: Hex
   }[]
+  /** Absent on snapshots written before interface replay existed, which replay none. */
+  readonly interfaces?: Profile['interfaces']
+  readonly pubkey?: Profile['pubkey']
 }
 
 type StoredRecoverySnapshot = Omit<
@@ -310,7 +315,22 @@ const parseStoredProfile = (value: unknown): StoredRecoveryProfile | null => {
         isRecord(entry) &&
         isUintString(entry.contentType) &&
         isHex(entry.value),
-    )
+    ) ||
+    (value.interfaces !== undefined &&
+      (!Array.isArray(value.interfaces) ||
+        !value.interfaces.every(
+          (entry) =>
+            isRecord(entry) &&
+            typeof entry.interfaceId === 'string' &&
+            /^0x[0-9a-fA-F]{8}$/.test(entry.interfaceId) &&
+            typeof entry.implementer === 'string' &&
+            isAddress(entry.implementer),
+        ))) ||
+    (value.pubkey !== undefined &&
+      value.pubkey !== null &&
+      (!isRecord(value.pubkey) ||
+        !isTransactionHash(value.pubkey.x) ||
+        !isTransactionHash(value.pubkey.y)))
   ) {
     return null
   }
@@ -340,6 +360,40 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
   ) {
     return null
   }
+  const recreation = value.subnameRecreation
+  if (
+    recreation !== undefined &&
+    (!isRecord(recreation) ||
+      (recreation.version !== 1 &&
+        recreation.version !== 2 &&
+        recreation.version !== 3 &&
+        recreation.version !== 4 &&
+        recreation.version !== 5) ||
+      !Array.isArray(recreation.roots) ||
+      !recreation.roots.length ||
+      !Array.isArray(recreation.names) ||
+      !recreation.names.length ||
+      !recreation.names.every((name) => typeof name === 'string') ||
+      new Set(recreation.names).size !== recreation.names.length ||
+      !recreation.roots.every(
+        (name) =>
+          typeof name === 'string' &&
+          name.split('.').length === 2 &&
+          name.endsWith('.eth'),
+      ) ||
+      new Set(recreation.roots).size !== recreation.roots.length ||
+      !isUintString(recreation.blockNumber) ||
+      !isUintString(recreation.timestamp) ||
+      typeof recreation.blockHash !== 'string' ||
+      !/^0x[0-9a-fA-F]{64}$/.test(recreation.blockHash) ||
+      (recreation.version === 5 &&
+        (typeof recreation.chainId !== 'number' ||
+          !Number.isSafeInteger(recreation.chainId) ||
+          recreation.chainId <= 0 ||
+          typeof recreation.inventoryDigest !== 'string' ||
+          !/^0x[0-9a-fA-F]{64}$/.test(recreation.inventoryDigest))))
+  )
+    return null
   const managerRestorationNames = parseManagerRestorationNames(
     value.managerRestorationNames,
   )
@@ -370,6 +424,13 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
   )
   if (plannedApprovals.some((approval) => approval === null)) return null
   const domainNames = registryDomains.map((domain) => domain?.name ?? '')
+  if (
+    isRecord(recreation) &&
+    Array.isArray(recreation.names) &&
+    (recreation.names.length !== domainNames.length ||
+      recreation.names.some((name) => !domainNames.includes(String(name))))
+  )
+    return null
   if (new Set(domainNames).size !== domainNames.length) return null
   const registryOperations = parseOperations(
     value.registryOperations,
@@ -403,6 +464,9 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
   }
   return {
     registryDomains: registryDomains as V1Domain[],
+    ...(recreation
+      ? { subnameRecreation: recreation as SubnameRecreationSnapshot }
+      : {}),
     registryOperations,
     remainingOperations,
     completedOperations,
@@ -609,6 +673,8 @@ const hydrateRecovery = (
           contentType: BigInt(contentType),
           value,
         })),
+        interfaces: profile.interfaces ?? [],
+        pubkey: profile.pubkey ?? null,
       },
     ]),
   ),
@@ -636,6 +702,8 @@ const storeRecovery = (
       contentType: contentType.toString(),
       value,
     })),
+    interfaces: profile.interfaces,
+    pubkey: profile.pubkey,
   })),
   plannedApprovals: recovery.plannedApprovals.map((approval) => ({
     id: approval.id,

@@ -1,3 +1,4 @@
+import { getCookie } from '@tanstack/react-start/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getConnectionCookie } from '@/lib/connection-cookie'
 import { getFeatureFlag } from './get-feature-flag'
@@ -35,7 +36,14 @@ vi.mock('@/lib/connection-cookie', () => ({
   getConnectionCookie: vi.fn(),
 }))
 
+// Reads the analytics consent cookie.
+vi.mock('@tanstack/react-start/server', () => ({ getCookie: vi.fn() }))
+
 const WALLET_ADDRESS = '0x1111111111111111111111111111111111111111'
+// The check runs under a throwaway UUID, never the wallet.
+const ANONYMOUS_ID = expect.stringMatching(
+  /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/,
+)
 const MIGRATION_FLAG_INPUT = { data: { flag: 'migration' as const } }
 const MIGRATION_NFT_FLAG_INPUT = {
   data: { flag: 'migration-nft' as const },
@@ -47,6 +55,7 @@ describe('getFeatureFlag', () => {
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
     vi.stubEnv('VITE_PUBLIC_POSTHOG_HOST', 'https://posthog.example')
     vi.mocked(getConnectionCookie).mockReturnValue(WALLET_ADDRESS)
+    vi.mocked(getCookie).mockReturnValue('1')
   })
 
   afterEach(() => {
@@ -65,13 +74,28 @@ describe('getFeatureFlag', () => {
     })
     expect(isFeatureEnabledMock).toHaveBeenCalledWith(
       'migration',
-      WALLET_ADDRESS,
+      ANONYMOUS_ID,
       {
         personProperties: { address: WALLET_ADDRESS },
         sendFeatureFlagEvents: false,
       },
     )
     expect(shutdownMock).toHaveBeenCalledWith(100)
+  })
+
+  it.each([
+    ['no answer', undefined],
+    ['a Decline', '0'],
+  ])('leaves the wallet address out after %s', async (_answer, cookie) => {
+    vi.mocked(getCookie).mockReturnValue(cookie)
+    isFeatureEnabledMock.mockResolvedValue(false)
+
+    await expect(getFeatureFlag(MIGRATION_FLAG_INPUT)).resolves.toBe(false)
+    expect(isFeatureEnabledMock).toHaveBeenCalledWith(
+      'migration',
+      ANONYMOUS_ID,
+      { sendFeatureFlagEvents: false },
+    )
   })
 
   it('returns false when the server-side migration flag is disabled', async () => {
@@ -86,7 +110,7 @@ describe('getFeatureFlag', () => {
     await expect(getFeatureFlag(MIGRATION_NFT_FLAG_INPUT)).resolves.toBe(true)
     expect(isFeatureEnabledMock).toHaveBeenCalledWith(
       'migration-nft',
-      WALLET_ADDRESS,
+      ANONYMOUS_ID,
       {
         personProperties: { address: WALLET_ADDRESS },
         sendFeatureFlagEvents: false,

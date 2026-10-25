@@ -37,6 +37,7 @@ const permissionedRegistryReadAbi = parseAbi([
 const STATUS_REGISTERED = 2
 
 const permissionedResolverReadAbi = parseAbi([
+  'function roles(uint256 resource, address account) view returns (uint256)',
   'function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)',
 ])
 
@@ -48,13 +49,19 @@ const permissionedResolverReadAbi = parseAbi([
  * the record from the DNS-encoded name instead. Calling them on the resolver
  * would hit its fallback and revert with empty data.
  */
-type ResolverProfileFunction = 'text' | 'addr' | 'contenthash' | 'ABI'
+type ResolverProfileFunction =
+  | 'text'
+  | 'addr'
+  | 'contenthash'
+  | 'ABI'
+  | 'interfaceImplementer'
 
 const resolverProfileAbi = parseAbi([
   'function text(bytes32 node, string key) view returns (string)',
   'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
   'function contenthash(bytes32 node) view returns (bytes)',
   'function ABI(bytes32 node, uint256 contentTypes) view returns (uint256, bytes)',
+  'function interfaceImplementer(bytes32 node, bytes4 interfaceID) view returns (address)',
 ])
 
 const resolveProfileAbi = parseAbi([
@@ -141,7 +148,9 @@ type DecodeResolverProfileResult<fn extends ResolverProfileFunction> =
     ? string
     : fn extends 'addr' | 'contenthash'
       ? Hex
-      : readonly [bigint, Hex]
+      : fn extends 'interfaceImplementer'
+        ? Address
+        : readonly [bigint, Hex]
 
 /** Read one record through `resolve`, returning the decoded getter result. */
 const resolveRecord = async <fn extends ResolverProfileFunction>(
@@ -295,20 +304,20 @@ const checkExpectation = async (
       })
       return isAddressEqual(implementation, expectation.expectedImplementation)
     }
+    case 'wallet-name-roles':
     case 'resolver-root-roles': {
       if (expectation.rootName !== '0x00') return false
       if (!(await hasContractCode(context, expectation.resolver))) return false
-      return context.publicClient.readContract({
-        address: expectation.resolver,
-        abi: permissionedResolverReadAbi,
-        functionName: 'hasRootRoles',
-        args: [expectation.roleBitmap, expectation.account],
-        ...block,
-      })
-    }
-    case 'wallet-name-roles': {
-      if (expectation.rootName !== '0x00') return false
-      if (!(await hasContractCode(context, expectation.resolver))) return false
+      if (expectation.isExact)
+        return (
+          (await context.publicClient.readContract({
+            address: expectation.resolver,
+            abi: permissionedResolverReadAbi,
+            functionName: 'roles',
+            args: [0n, expectation.account],
+            ...block,
+          })) === expectation.roleBitmap
+        )
       return context.publicClient.readContract({
         address: expectation.resolver,
         abi: permissionedResolverReadAbi,
@@ -466,6 +475,29 @@ const checkExpectation = async (
         args: [expectation.resource],
         ...block,
       })
+      // Legacy journals predate the reservation snapshot. For the initial
+      // premigration's one-second-shorter bonus, prove the exact expiry from
+      // the reservation before the mined batch instead of guessing it.
+      if (
+        expectation.canUseLegacyReservationExpiry &&
+        state.expiry === expectation.expectedExpiry - 1n &&
+        context.blockNumber !== undefined &&
+        context.blockNumber > 0n
+      ) {
+        const reservation = await context.publicClient.readContract({
+          address: registry,
+          abi: permissionedRegistryReadAbi,
+          functionName: 'getState',
+          args: [expectation.resource],
+          blockNumber: context.blockNumber - 1n,
+        })
+        return (
+          state.status === STATUS_REGISTERED &&
+          reservation.status === 1 &&
+          reservation.expiry === state.expiry &&
+          state.resource === expectation.resource
+        )
+      }
       return (
         state.status === STATUS_REGISTERED &&
         state.expiry === expectation.expectedExpiry &&
@@ -540,6 +572,18 @@ const checkExpectation = async (
         contentType === expectation.contentType &&
         value.toLowerCase() === expectation.value.toLowerCase()
       )
+    }
+    case 'profile-interface': {
+      if (!(await hasContractCode(context, expectation.resolver))) return false
+      const implementer = await resolveRecord(
+        context,
+        block,
+        expectation.resolver,
+        expectation.name,
+        'interfaceImplementer',
+        [expectation.node, expectation.interfaceId],
+      )
+      return isAddressEqual(implementer, expectation.implementer)
     }
   }
 }

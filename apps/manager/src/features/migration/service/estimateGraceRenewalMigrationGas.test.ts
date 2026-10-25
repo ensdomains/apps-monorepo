@@ -14,7 +14,10 @@ import { estimateGraceRenewalMigrationGas } from './estimateGraceRenewalMigratio
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type { GraceRenewalItem, GraceRenewalQuote } from './graceRenewal'
 
-vi.mock('./buildMigrationPlan', () => ({ buildMigrationPlan: vi.fn() }))
+vi.mock('./buildMigrationPlan', () => ({
+  buildMigrationPlan: vi.fn(),
+  namesWithDroppedPubkey: vi.fn(() => ['pubkey.eth']),
+}))
 vi.mock('./computeMigrationPreflight', () => ({
   computeMigrationPreflight: vi.fn(),
 }))
@@ -210,6 +213,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
         { type: 'renew-grace', count: 2 },
         ...migrationSteps,
       ],
+      droppedPubkeyNames: ['pubkey.eth'],
     })
     expect(estimateGraceRenewalGas).toHaveBeenCalledWith({
       quote: input.quote,
@@ -232,6 +236,10 @@ describe('estimateGraceRenewalMigrationGas', () => {
     expect(computeMigrationPreflight).toHaveBeenCalledWith(
       expect.objectContaining({ domains: projected, eoa: OWNER }),
     )
+    // Only renewed names carry a projected expiry the chain doesn't show yet.
+    expect(
+      vi.mocked(buildMigrationPlan).mock.calls[0]?.[0].projectedExpiryNames,
+    ).toEqual(new Set([unwrapped.name, wrapped.name]))
     expect(unwrapped.registration?.expiryDate).toBe(EXPIRY.toString())
     expect(wrapped.wrappedDomain?.expiryDate).toBe(
       (EXPIRY + 90n * DAY).toString(),
@@ -253,6 +261,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
       feeWei: 3_450n,
       transactionCount: 5,
       stepDescriptors: [{ type: 'renew-grace', count: 2 }, ...migrationSteps],
+      droppedPubkeyNames: ['pubkey.eth'],
     })
     expect(result.stepDescriptors).toHaveLength(result.transactionCount)
   })
@@ -339,6 +348,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
       feeWei: 3_000n,
       transactionCount: 4,
       stepDescriptors: migrationSteps,
+      droppedPubkeyNames: ['pubkey.eth'],
     })
     expect(vi.mocked(buildMigrationPlan).mock.calls[0]?.[0].domains[0]).toBe(
       renewed,

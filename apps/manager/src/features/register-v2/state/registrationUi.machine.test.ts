@@ -1,5 +1,6 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: focused machine tests use compact fixtures
 import type { Address } from 'viem'
+import { baseSepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assign, createActor, createMachine } from 'xstate'
 
@@ -10,7 +11,12 @@ import { assign, createActor, createMachine } from 'xstate'
  * hoisted `vi.mock` factory below can still reference it.
  */
 type RegistrationStubEvent =
-  | { type: 'START_REGISTRATION'; primaryName?: string }
+  | {
+      type: 'START_REGISTRATION'
+      primaryName?: string
+      referrer?: `0x${string}`
+      l2Funding?: { chain: { id: number } }
+    }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
   | { type: 'FORCE_APPROVAL_SUCCESS' }
@@ -55,6 +61,9 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       nameUnavailable: undefined as boolean | undefined,
       retryCount: 0,
       primaryName: undefined as string | undefined,
+      referrer: undefined as `0x${string}` | undefined,
+      /** The L2 the run was handed to pay from. */
+      l2FundingChainId: undefined as number | undefined,
       /** Captures the RESUME payload so tests can assert what was forwarded. */
       resumed: undefined as
         | { stage: string; context: any; deps: any }
@@ -67,9 +76,14 @@ vi.mock('@ens-apps/transaction-manager', () => ({
           START_REGISTRATION: {
             target: 'running',
             actions: assign({
+              referrer: ({ event }) => event.referrer,
               primaryName: ({ event }) =>
                 event.type === 'START_REGISTRATION'
                   ? event.primaryName
+                  : undefined,
+              l2FundingChainId: ({ event }) =>
+                event.type === 'START_REGISTRATION'
+                  ? event.l2Funding?.chain.id
                   : undefined,
             }),
           },
@@ -167,10 +181,6 @@ vi.mock('../service/syncEthAddressRecord', () => ({
 vi.mock('../../profile/service/setPrimaryName', () => ({
   submitPrimaryNameForward: vi.fn(async () => 'tx-primary-forward'),
   submitPrimaryNameReverse: vi.fn(async () => 'tx-primary-reverse'),
-  // Default to a clean owner: the cleanup pass is a no-op for anyone who has
-  // never set an `addr.reverse` name, which is the common case.
-  hasStaleAddrReverse: vi.fn(async () => false),
-  submitClearAddrReverse: vi.fn(() => 'tx-addr-reverse-clear'),
 }))
 
 vi.mock('@/features/shared/registration/pricing', () => ({
@@ -198,8 +208,6 @@ vi.mock('../service/registrationPersistence', () => ({
 import { waitForTransaction } from '@ens-apps/transaction-manager'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import {
-  hasStaleAddrReverse,
-  submitClearAddrReverse,
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
@@ -215,8 +223,6 @@ const waitForKnownTransaction = vi.mocked(waitForTransaction)
 const startSyncEthRecord = vi.mocked(startSyncEthAddressRecordTransaction)
 const startPrimaryNameForward = vi.mocked(submitPrimaryNameForward)
 const startPrimaryNameReverse = vi.mocked(submitPrimaryNameReverse)
-const checkStaleAddrReverse = vi.mocked(hasStaleAddrReverse)
-const startAddrReverseClear = vi.mocked(submitClearAddrReverse)
 
 const HCA_ADDRESS = '0x1111111111111111111111111111111111111111' as const
 const EOA_ADDRESS = '0x2222222222222222222222222222222222222222' as const
@@ -733,86 +739,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     expect(startSyncEthRecord).not.toHaveBeenCalled()
     expect(startPrimaryNameForward).not.toHaveBeenCalled()
     expect(startPrimaryNameReverse).not.toHaveBeenCalled()
-    // The cleanup pass still runs, but finds nothing to clear and so never
-    // prompts the wallet.
-    expect(checkStaleAddrReverse).toHaveBeenCalledTimes(1)
-    expect(startAddrReverseClear).not.toHaveBeenCalled()
     expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(false)
-    expect(
-      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
-    ).toBe(true)
-  })
-
-  it('clears a shadowing addr.reverse from the owner EOA after an HCA bundle', async () => {
-    // `addr.reverse` outranks the `default.reverse` claim the reveal batch
-    // made, so without this the new primary name never resolves.
-    checkStaleAddrReverse.mockResolvedValueOnce(true)
-    waitForKnownTransaction.mockReturnValueOnce(
-      deferred<{ hash: '0xclear' }>().promise as never,
-    )
-
-    const actor = startActorInTokens()
-    actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
-    sendToChild(actor, { type: 'FORCE_SUCCESS' })
-    await flush(16)
-
-    expect(startAddrReverseClear).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ownerAddress: EOA_ADDRESS,
-        signer: expect.objectContaining({ type: 'eoa' }),
-      }),
-    )
-    expect(actor.getSnapshot().context.addrReverseClearTxId).toBe(
-      'tx-addr-reverse-clear',
-    )
-    expect(
-      actor.getSnapshot().matches({
-        registering: { transaction: 'waitingForAddrReverseClear' },
-      }),
-    ).toBe(true)
-  })
-
-  it('reaches success once the addr.reverse clear confirms', async () => {
-    checkStaleAddrReverse.mockResolvedValueOnce(true)
-    waitForKnownTransaction.mockResolvedValueOnce({ hash: '0xclear' } as never)
-
-    const actor = startActorInTokens()
-    actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
-    sendToChild(actor, { type: 'FORCE_SUCCESS' })
-    await flush(16)
-
-    // Attempted exactly once — the decision state is re-entered afterwards and
-    // must not loop back into the clear.
-    expect(startAddrReverseClear).toHaveBeenCalledTimes(1)
-    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(false)
-    expect(
-      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
-    ).toBe(true)
-  })
-
-  it('skips the addr.reverse cleanup when no primary name was bundled', async () => {
-    const actor = startActorInTokens()
-    actor.send(startEvent(smartAccount))
-    sendToChild(actor, { type: 'FORCE_SUCCESS' })
-    await flush(16)
-
-    expect(checkStaleAddrReverse).not.toHaveBeenCalled()
-    expect(
-      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
-    ).toBe(true)
-  })
-
-  it('still succeeds when the addr.reverse clear is rejected', async () => {
-    checkStaleAddrReverse.mockRejectedValueOnce(new Error('user rejected'))
-
-    const actor = startActorInTokens()
-    actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
-    sendToChild(actor, { type: 'FORCE_SUCCESS' })
-    await flush(16)
-
-    // The name is registered and the default claim is written; only the
-    // cleanup failed, so this is a flagged success, not a failure.
-    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
     expect(
       actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
     ).toBe(true)
@@ -943,7 +870,11 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 })
 
 const resumeRecord = (
-  overrides: { stage?: string; primaryName?: string } = {},
+  overrides: {
+    stage?: string
+    primaryName?: string
+    l2FundingChainId?: number
+  } = {},
 ) => ({
   v: 1,
   fingerprint: 'test-fingerprint',
@@ -964,12 +895,18 @@ const resumeRecord = (
       secret: `0x${'cd'.repeat(32)}` as const,
     },
     primaryName: overrides.primaryName,
+    l2FundingChainId: overrides.l2FundingChainId,
   },
 })
 
 const resumeEvent = (
   account: SmartAccountContextValue,
-  overrides: { stage?: string; primaryName?: string; totalPrice?: bigint } = {},
+  overrides: {
+    stage?: string
+    primaryName?: string
+    totalPrice?: bigint
+    l2FundingChainId?: number
+  } = {},
 ) =>
   ({
     type: 'registration.resume' as const,
@@ -1147,16 +1084,6 @@ describe('registrationV2UiMachine — registration.resume', () => {
       totalPrice: 1_200_000n,
       basePriceNumber: 1.2,
     })
-  })
-
-  it('carries the primary name the ORIGINAL run committed to', () => {
-    // The reveal batch already bundles it; re-deriving from current UI state
-    // could disagree with the batch that is in flight.
-    const actor = startActorInTokens()
-
-    actor.send(resumeEvent(hcaAccount, { primaryName: 'example.eth' }))
-
-    expect(actor.getSnapshot().context.hcaPrimaryName).toBe('example.eth')
   })
 
   it('restores the resolver so post-registration does not deploy a second one', () => {
@@ -1526,5 +1453,93 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
 
     expect(actor.getSnapshot().matches('registering')).toBe(true)
     expect(childRetryCount(actor)).toBe(1)
+  })
+})
+
+describe('registration referrer boundary', () => {
+  it.each([
+    ['0x1234', `0x${'0'.repeat(60)}1234`],
+    ['0xgg', `0x${'0'.repeat(64)}`],
+    [undefined, `0x${'0'.repeat(64)}`],
+  ])(
+    'normalizes %s before saving confirmed data and starting the child',
+    (referrer, expected) => {
+      const actor = startActorInTokens()
+      actor.send({
+        ...startEvent({
+          signer: { type: 'eoa' },
+          accountAddress: EOA_ADDRESS,
+          ownerAddress: EOA_ADDRESS,
+          walletClient: {},
+        } as unknown as SmartAccountContextValue),
+        referrer,
+      })
+      expect(actor.getSnapshot().context.confirmedData?.referrer).toBe(expected)
+      expect(getChild(actor).getSnapshot().context.referrer).toBe(expected)
+      actor.stop()
+    },
+  )
+})
+
+describe('paying from an L2', () => {
+  const smartAccount = {
+    signer: {
+      type: 'rhinestone',
+      account: {} as never,
+      config: { accountAddress: HCA_ADDRESS },
+    },
+    accountAddress: HCA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    walletClient: { account: { address: EOA_ADDRESS } } as any,
+  } as unknown as SmartAccountContextValue
+
+  it('picks an L2 row without changing what the registration pays in', () => {
+    const actor = startActorInTokens()
+    actor.send({
+      type: 'pricing.fundingSource.select',
+      chainId: baseSepolia.id,
+    })
+    expect(actor.getSnapshot().context).toMatchObject({
+      fundingSourceChainId: baseSepolia.id,
+      selectedToken: 'USDC',
+    })
+
+    actor.send({ type: 'pricing.token.select', token: 'USDC' })
+    expect(actor.getSnapshot().context.fundingSourceChainId).toBeUndefined()
+  })
+
+  it('hands the registration the L2 it pays from', () => {
+    const actor = startActorInTokens()
+    actor.send({
+      ...startEvent(smartAccount),
+      l2FundingChainId: baseSepolia.id,
+    })
+
+    expect(
+      (getChild(actor).getSnapshot().context as any).l2FundingChainId,
+    ).toBe(baseSepolia.id)
+    actor.stop()
+  })
+
+  it('refuses to start from an L2 the app does not list', () => {
+    const actor = startActorInTokens()
+    actor.send({ ...startEvent(smartAccount), l2FundingChainId: 1 })
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(getChild(actor).getSnapshot().matches('idle')).toBe(true)
+    actor.stop()
+  })
+
+  it('keeps paying from the same L2 when a run resumes', () => {
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+
+    actor.send(resumeEvent(smartAccount, { l2FundingChainId: baseSepolia.id }))
+
+    const { resumed } = getChild(actor).getSnapshot().context as any
+    expect(resumed.deps.l2Funding.chain.id).toBe(baseSepolia.id)
+    actor.stop()
   })
 })

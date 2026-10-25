@@ -2,7 +2,7 @@ import {
   buildHcaOwnerExecutionCall,
   getDestinationContracts,
 } from '@ens-apps/smart-account'
-import type { Signer } from '@ens-apps/transaction-manager'
+import type { Call, Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import { Storage } from 'happy-dom'
@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   buildHcaDeploymentCall: vi.fn(),
   verifyStandaloneHca: vi.fn(),
   startTransaction: vi.fn(),
+  getAtomicBatchSupport: vi.fn(),
   waitForTransactionHash: vi.fn(),
   waitForTransaction: vi.fn(),
   buildAtomicMigrationBatches: vi.fn(),
@@ -30,9 +31,17 @@ const mocks = vi.hoisted(() => ({
   checkResolverReadiness: vi.fn(),
   assertCopyMigrationReadiness: vi.fn(),
   assertCopySourcesFresh: vi.fn(),
+  assertSupportedSubnameMigration: vi.fn(),
   reconcileAtomicMigrationBatch: vi.fn(),
   verifyAtomicMigrationBatch: vi.fn(),
   assertNoLiveSubregistryOverwrite: vi.fn(),
+  assertLockedResolverReplacementRecordSafety: vi.fn(),
+}))
+
+vi.mock('./buildMigrationPlan', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./buildMigrationPlan')>()),
+  assertLockedResolverReplacementRecordSafety:
+    mocks.assertLockedResolverReplacementRecordSafety,
 }))
 
 vi.mock('@ens-apps/smart-account', async (importOriginal) => ({
@@ -43,6 +52,7 @@ vi.mock('@ens-apps/smart-account', async (importOriginal) => ({
 
 vi.mock('@ens-apps/transaction-manager', () => ({
   transactionManager: { startTransaction: mocks.startTransaction },
+  getAtomicBatchSupport: mocks.getAtomicBatchSupport,
   waitForTransactionHash: mocks.waitForTransactionHash,
   waitForTransaction: mocks.waitForTransaction,
 }))
@@ -59,7 +69,8 @@ vi.mock('./migrationApprovals', async (importOriginal) => ({
   buildMigrationApprovalCall: mocks.buildMigrationApprovalCall,
 }))
 
-vi.mock('./migrationInvariants', () => ({
+vi.mock('./migrationInvariants', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./migrationInvariants')>()),
   checkDeterministicMigrationResolverReadiness: mocks.checkResolverReadiness,
   assertNoLiveSubregistryOverwrite: mocks.assertNoLiveSubregistryOverwrite,
 }))
@@ -67,6 +78,11 @@ vi.mock('./migrationInvariants', () => ({
 vi.mock('./copyMigrationReadiness', () => ({
   assertCopyMigrationReadiness: mocks.assertCopyMigrationReadiness,
   assertCopySourcesFresh: mocks.assertCopySourcesFresh,
+}))
+
+vi.mock('./subnameRecreation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./subnameRecreation')>()),
+  assertSupportedSubnameMigration: mocks.assertSupportedSubnameMigration,
 }))
 
 vi.mock('./verifyAtomicMigrationBatch', async (importOriginal) => ({
@@ -77,6 +93,7 @@ vi.mock('./verifyAtomicMigrationBatch', async (importOriginal) => ({
 
 import type { V1Domain } from '@ens-apps/migration'
 import type {
+  AtomicMigrationBatch,
   AtomicMigrationNameExecution,
   BuildAtomicMigrationBatchesParams,
 } from './buildAtomicMigrationBatches'
@@ -275,6 +292,7 @@ const planFromClassified = (
               }
             : null,
         innerExecutions: [],
+        walletExecutions: [],
         verificationExpectations: [
           {
             id: `${name}:name-owner`,
@@ -341,7 +359,9 @@ const planFromClassified = (
               nameExecutions,
               innerExecutions: [],
               outerCall: { to: HCA, data: OUTER_DATA, value: 0n },
+              walletCall: null,
               estimatedGas: 500_000n,
+              walletEstimatedGas: 0n,
               verificationExpectations: nameExecutions.flatMap(
                 (execution) => execution.verificationExpectations,
               ),
@@ -354,6 +374,62 @@ const planFromClassified = (
 const planFor = (labels: readonly string[] = ['alice']): MigrationPlan =>
   planFromClassified(labels.map(classifiedFor))
 
+/** A batch whose profile text records the owner wallet has to write itself. */
+const walletReplayBatch = (params: {
+  readonly names: readonly string[]
+  readonly outerCall: Call
+  readonly walletCall?: Call
+  readonly estimatedGas?: bigint
+  readonly walletEstimatedGas?: bigint
+}): AtomicMigrationBatch => {
+  const nameExecutions: AtomicMigrationNameExecution[] = params.names.map(
+    (name) => ({
+      classified: classifiedFor(name.replace(/\.eth$/, '')),
+      directRoute: null,
+      migrationData: null,
+      innerExecutions: [],
+      walletExecutions: [
+        {
+          phase: 'profile-replay',
+          name,
+          names: [name],
+          call: { to: RESOLVER, data: '0xreplay' as Hex, value: 0n },
+          innerCalls: ['0xsets' as Hex],
+        },
+      ],
+      verificationExpectations: [
+        {
+          id: `${name}:profile-text:0:email`,
+          type: 'profile-text',
+          name,
+          node: hashFor(99),
+          resolver: RESOLVER,
+          key: 'email',
+          value: `${name}@example.com`,
+        },
+      ],
+    }),
+  )
+  return {
+    index: 0,
+    names: params.names,
+    operations: params.names.map((name) => ({ name, action: 'migrate' })),
+    nameExecutions,
+    innerExecutions: [],
+    outerCall: params.outerCall,
+    walletCall: params.walletCall ?? {
+      to: RESOLVER,
+      data: '0xrecords' as Hex,
+      value: 0n,
+    },
+    estimatedGas: params.estimatedGas ?? 500_000n,
+    walletEstimatedGas: params.walletEstimatedGas ?? 120_000n,
+    verificationExpectations: nameExecutions.flatMap(
+      (execution) => execution.verificationExpectations,
+    ),
+  }
+}
+
 const runExecute = async (
   overrides: {
     plan?: MigrationPlan
@@ -361,6 +437,7 @@ const runExecute = async (
     onBatchComplete?: OnBatchComplete
     reconcileBeforeSubmit?: boolean
     onProgress?: (progress: MigrationProgress) => void
+    canRecreateSubnames?: () => boolean
   } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
@@ -378,12 +455,14 @@ const runExecute = async (
     },
     onBatchComplete: overrides.onBatchComplete,
     reconcileBeforeSubmit: overrides.reconcileBeforeSubmit,
+    canRecreateSubnames: overrides.canRecreateSubnames,
   })
   return { progressEvents, refreshAccount, result }
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.assertSupportedSubnameMigration.mockResolvedValue(undefined)
   vi.stubGlobal('localStorage', new Storage())
 
   let nextTransaction = 0
@@ -413,12 +492,14 @@ beforeEach(() => {
     }),
   )
   mocks.assertNoLiveSubregistryOverwrite.mockResolvedValue(undefined)
+  mocks.assertLockedResolverReplacementRecordSafety.mockResolvedValue(undefined)
   mocks.checkResolverReadiness.mockResolvedValue({
     status: 'verified',
     resolver: RESOLVER,
     implementation: RESOLVER,
     hcaHasRootRoles: true,
     walletHasWildcardRoles: true,
+    writer: 'hca',
   })
   mocks.assertCopyMigrationReadiness.mockResolvedValue(undefined)
   mocks.assertCopySourcesFresh.mockResolvedValue(undefined)
@@ -426,14 +507,16 @@ beforeEach(() => {
     async ({
       hca,
       classified,
-      estimateOuterGas,
+      estimateBatchGas,
     }: BuildAtomicMigrationBatchesParams) => {
       const names = classified.map(({ domain }) => domain.name)
       const outerCall = { to: hca, data: OUTER_DATA, value: 0n }
-      const estimatedGas = await estimateOuterGas({
+      const { outerGas } = await estimateBatchGas({
         call: outerCall,
         names,
         innerExecutions: [],
+        walletCall: null,
+        walletExecutions: [],
       })
       return {
         resolver: RESOLVER,
@@ -448,7 +531,9 @@ beforeEach(() => {
             nameExecutions: [],
             innerExecutions: [],
             outerCall,
-            estimatedGas,
+            walletCall: null,
+            estimatedGas: outerGas,
+            walletEstimatedGas: 0n,
             verificationExpectations: [],
           },
         ],
@@ -494,11 +579,18 @@ describe('executeMigration HCA orchestration', () => {
       async ({
         hca,
         classified,
-        estimateOuterGas,
+        estimateBatchGas,
       }: BuildAtomicMigrationBatchesParams) => {
         const first = classified.slice(0, 1)
         const names = first.map(({ domain }) => domain.name)
         const outerCall = { to: hca, data: OUTER_DATA, value: 0n }
+        const { outerGas } = await estimateBatchGas({
+          call: outerCall,
+          names,
+          innerExecutions: [],
+          walletCall: null,
+          walletExecutions: [],
+        })
         return {
           resolver: RESOLVER,
           batches: [
@@ -512,11 +604,9 @@ describe('executeMigration HCA orchestration', () => {
               nameExecutions: [],
               innerExecutions: [],
               outerCall,
-              estimatedGas: await estimateOuterGas({
-                call: outerCall,
-                names,
-                innerExecutions: [],
-              }),
+              walletCall: null,
+              estimatedGas: outerGas,
+              walletEstimatedGas: 0n,
               verificationExpectations: [],
             },
           ],
@@ -636,7 +726,7 @@ describe('executeMigration HCA orchestration', () => {
 
     await runExecute({ plan })
 
-    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
+    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(3)
     expect(
       mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[0],
     ).toBeLessThan(
@@ -644,7 +734,7 @@ describe('executeMigration HCA orchestration', () => {
         Number.POSITIVE_INFINITY,
     )
     expect(
-      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[1],
+      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[2],
     ).toBeLessThan(
       mocks.startTransaction.mock.invocationCallOrder[0] ??
         Number.POSITIVE_INFINITY,
@@ -760,6 +850,180 @@ describe('executeMigration HCA orchestration', () => {
     const { progressEvents } = await runExecute({ onProgress })
     expect(progressEvents.at(-1)).toMatchObject({ currentStep: 1 })
     expect(progressEvents.at(-1)?.isAwaitingConfirmation).toBeUndefined()
+  })
+
+  it('replays records from the wallet before submitting the atomic batch', async () => {
+    const plan = planFor()
+    const walletCall = { to: RESOLVER, data: '0xrecords' as Hex, value: 0n }
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
+      status: 'incomplete',
+      verification: { batchIndex: 0, status: 'confirmed', results: [] },
+      mismatches: [],
+    })
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({ hca, classified }: BuildAtomicMigrationBatchesParams) => {
+        const names = classified.map(({ domain }) => domain.name)
+        return {
+          resolver: RESOLVER,
+          batches: [
+            walletReplayBatch({
+              names,
+              outerCall: { to: hca, data: OUTER_DATA, value: 0n },
+              walletCall,
+            }),
+          ],
+        }
+      },
+    )
+
+    await runExecute({ plan })
+
+    const submitted = mocks.startTransaction.mock.calls.map((call) => {
+      const [request] = call as [
+        { request: { to: Address; data: Hex; gas?: bigint } },
+      ]
+      return request.request
+    })
+    const walletIndex = submitted.findIndex(
+      ({ to, data }: { to: Address; data: Hex }) =>
+        to === RESOLVER && data === walletCall.data,
+    )
+    const outerIndex = submitted.findIndex(
+      ({ to, data }: { to: Address; data: Hex }) =>
+        to === HCA && data === OUTER_DATA,
+    )
+    expect(walletIndex).toBeGreaterThanOrEqual(0)
+    // A failed replay must leave the names unmigrated, so it goes first.
+    expect(walletIndex).toBeLessThan(outerIndex)
+    expect(submitted[walletIndex]).toMatchObject({
+      from: OWNER,
+      gas: 132_000n,
+    })
+  })
+
+  it('skips the replay when its records already landed on the resolver', async () => {
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
+      status: 'complete',
+      verification: { batchIndex: 0, status: 'confirmed', results: [] },
+    })
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({ hca, classified }: BuildAtomicMigrationBatchesParams) => ({
+        resolver: RESOLVER,
+        batches: [
+          walletReplayBatch({
+            names: classified.map(({ domain }) => domain.name),
+            outerCall: { to: hca, data: OUTER_DATA, value: 0n },
+          }),
+        ],
+      }),
+    )
+
+    await runExecute({ plan: planFor() })
+
+    // Only the batch went out; the replay was recognised as already applied.
+    const submitted = mocks.startTransaction.mock.calls.map((call) => {
+      const [request] = call as [{ request: { to: Address } }]
+      return request.request
+    })
+    expect(submitted.some(({ to }: { to: Address }) => to === RESOLVER)).toBe(
+      false,
+    )
+    expect(submitted.some(({ to }: { to: Address }) => to === HCA)).toBe(true)
+    // The check is scoped to the profile record reads it can prove, not to
+    // ownership/expiry expectations the replay never writes.
+    const reconcileRequest = mocks.reconcileAtomicMigrationBatch.mock
+      .calls[0]?.[0] as {
+      readonly batch: {
+        readonly verificationExpectations: readonly { readonly type: string }[]
+      }
+    }
+    expect(
+      reconcileRequest.batch.verificationExpectations.map(({ type }) => type),
+    ).toEqual(['profile-text'])
+  })
+
+  it('stops the run when the replay state cannot be read', async () => {
+    mocks.reconcileAtomicMigrationBatch.mockRejectedValueOnce(
+      new AtomicMigrationBatchReconciliationIndeterminateError({
+        message: 'records could not be read',
+        batchIndex: 0,
+        readFailures: [],
+      }),
+    )
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({ hca, classified }: BuildAtomicMigrationBatchesParams) => ({
+        resolver: RESOLVER,
+        batches: [
+          walletReplayBatch({
+            names: classified.map(({ domain }) => domain.name),
+            outerCall: { to: hca, data: OUTER_DATA, value: 0n },
+          }),
+        ],
+      }),
+    )
+
+    await expect(runExecute({ plan: planFor() })).rejects.toThrow()
+
+    // Nothing was submitted: an unreadable state must not turn into a guessed
+    // replay, and the batch must not run behind it.
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('estimates the wallet replay as its own transaction', async () => {
+    const walletCall = { to: RESOLVER, data: '0xrecords' as Hex, value: 0n }
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
+      status: 'incomplete',
+      verification: { batchIndex: 0, status: 'confirmed', results: [] },
+      mismatches: [],
+    })
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({
+        hca,
+        classified,
+        estimateBatchGas,
+      }: BuildAtomicMigrationBatchesParams) => {
+        const names = classified.map(({ domain }) => domain.name)
+        const outerCall = { to: hca, data: OUTER_DATA, value: 0n }
+        const gas = await estimateBatchGas({
+          call: outerCall,
+          names,
+          innerExecutions: [],
+          walletCall,
+          walletExecutions: [],
+        })
+        return {
+          resolver: RESOLVER,
+          batches: [
+            walletReplayBatch({
+              names,
+              outerCall,
+              walletCall,
+              estimatedGas: gas.outerGas,
+              walletEstimatedGas: gas.walletGas,
+            }),
+          ],
+        }
+      },
+    )
+
+    await runExecute({ plan: planFor() })
+
+    expect(estimateGasMock).toHaveBeenCalledWith(
+      expect.objectContaining({ to: RESOLVER, data: walletCall.data }),
+    )
+    const submitted = mocks.startTransaction.mock.calls.map((call) => {
+      const [request] = call as [
+        { request: { to: Address; data: Hex; gas?: bigint } },
+      ]
+      return request.request
+    })
+    expect(submitted).toContainEqual(
+      expect.objectContaining({
+        to: RESOLVER,
+        data: walletCall.data,
+        gas: 550_000n,
+      }),
+    )
   })
 
   it('submits executeByOwner as a wallet-paid EOA transaction targeting the HCA', async () => {
@@ -1153,6 +1417,94 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
+  it('reconciles a mined bundled run and revokes planned access even if the wallet loses batching', async () => {
+    setHcaApprovalActive()
+    mocks.getAtomicBatchSupport.mockResolvedValue(false)
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'mined-bundle-cleanup',
+        names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
+      },
+    )
+    const plan = {
+      ...planFor(),
+      canBatchAtomically: true,
+      preflight: {
+        ...planFor().preflight,
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
+      },
+    }
+    const { result } = await runExecute({ plan, reconcileBeforeSubmit: true })
+    expect(result.completed).toBe(1)
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(mocks.buildHcaDeploymentCall).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(mocks.startTransaction.mock.calls[0]?.[0]).toMatchObject({
+      request: { to: V2_CONTRACTS.ETHRegistry },
+    })
+  })
+
+  it('blocks changed source state and revokes previously planned temporary access', async () => {
+    setHcaApprovalActive()
+    const cause = new Error('The ENSv1 expiry changed after review')
+    mocks.assertCopyMigrationReadiness.mockRejectedValueOnce(cause)
+    const plan = {
+      ...planFor(),
+      hcaDeploymentRequired: true,
+      preflight: {
+        ...planFor().preflight,
+        migrationApprovals: [MANAGER_APPROVAL],
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
+      },
+    }
+
+    await expect(runExecute({ plan })).rejects.toMatchObject({
+      name: 'MigrationSourceChangedError',
+      cause,
+    })
+    expect(mocks.buildHcaDeploymentCall).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(mocks.startTransaction.mock.calls[0]?.[0]).toMatchObject({
+      request: { to: V2_CONTRACTS.ETHRegistry },
+    })
+  })
+
+  it.each([
+    { canBatchAtomically: false, hasFlagChangedAfterReadiness: false },
+    { canBatchAtomically: false, hasFlagChangedAfterReadiness: true },
+    { canBatchAtomically: true, hasFlagChangedAfterReadiness: false },
+    { canBatchAtomically: true, hasFlagChangedAfterReadiness: true },
+  ])(
+    'blocks recreation when the rollout flag turns off (%j)',
+    async ({ canBatchAtomically, hasFlagChangedAfterReadiness }) => {
+      mocks.getAtomicBatchSupport.mockResolvedValue(true)
+      const plan: MigrationPlan = {
+        ...planFor(),
+        canBatchAtomically,
+        isSubnameRecreationEnabled: true,
+        subnameRecreation: {
+          version: 5,
+          roots: ['alice.eth'],
+          names: ['alice.eth'],
+          blockNumber: '100',
+          timestamp: '1000',
+          blockHash: `0x${'11'.repeat(32)}`,
+          chainId: 11155111,
+          inventoryDigest: `0x${'22'.repeat(32)}`,
+        },
+      }
+      const canRecreateSubnames = vi.fn(() => false)
+      if (hasFlagChangedAfterReadiness)
+        canRecreateSubnames.mockReturnValueOnce(true)
+      await expect(runExecute({ plan, canRecreateSubnames })).rejects.toThrow(
+        /not enabled/,
+      )
+      expect(mocks.startTransaction).not.toHaveBeenCalled()
+    },
+  )
+
   it('does not prompt for unplanned cleanup when an earlier read fails', async () => {
     setHcaApprovalActive()
     mocks.assertNoLiveSubregistryOverwrite.mockRejectedValueOnce(
@@ -1188,6 +1540,26 @@ describe('executeMigration HCA orchestration', () => {
       names: [expect.objectContaining({ label: 'alice' })],
     })
     expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('re-checks locked resolver records before each batch, including resumed ones', async () => {
+    mocks.assertLockedResolverReplacementRecordSafety.mockRejectedValueOnce(
+      Object.assign(new Error('records found'), {
+        name: 'LockedResolverRecordSafetyError',
+      }),
+    )
+
+    await expect(runExecute()).rejects.toMatchObject({
+      name: 'LockedResolverRecordSafetyError',
+    })
+
+    expect(
+      mocks.assertLockedResolverReplacementRecordSafety,
+    ).toHaveBeenCalledWith(
+      [expect.objectContaining({ label: 'alice' })],
+      PUBLIC_CLIENT,
+    )
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
@@ -1723,7 +2095,7 @@ describe('executeMigration HCA orchestration', () => {
       wallet: OWNER,
       copies: [copy],
     })
-    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
+    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(3)
     expect(readContractMock).not.toHaveBeenCalledWith(
       expect.objectContaining({ functionName: 'ownerOf' }),
     )
@@ -2076,6 +2448,124 @@ describe('executeMigration HCA orchestration', () => {
 })
 
 afterEach(() => vi.unstubAllGlobals())
+
+describe('executeMigration with an atomic-batching wallet (EIP-5792)', () => {
+  const bundledPlan = (): MigrationPlan => ({
+    ...planFor(),
+    hcaDeploymentRequired: true,
+    canBatchAtomically: true,
+    preflight: {
+      ...planFor().preflight,
+      migrationApprovals: [APPROVAL, MANAGER_APPROVAL],
+      migrationCleanupApprovals: [CLEANUP_APPROVAL],
+    },
+    stepDescriptors: [
+      {
+        type: 'bundle',
+        steps: [
+          { type: 'deploy-hca' },
+          { type: 'approval', approvalId: APPROVAL.id },
+          { type: 'approval', approvalId: MANAGER_APPROVAL.id },
+        ],
+      },
+      {
+        type: 'bundle',
+        steps: [
+          {
+            type: 'atomic-batch',
+            index: 0,
+            total: 1,
+            count: 1,
+            migrateCount: 1,
+            copyCount: 0,
+            roleGrants: [],
+          },
+          { type: 'cleanup', approvalId: MANAGER_APPROVAL.id },
+        ],
+      },
+    ],
+  })
+
+  const requestOf = (call: number) =>
+    mocks.startTransaction.mock.calls[call]?.[0].request
+
+  beforeEach(() => {
+    mocks.getAtomicBatchSupport.mockResolvedValue(true)
+    getCodeMock.mockResolvedValue('0x')
+    mocks.checkMigrationApprovals.mockResolvedValue({
+      ethRegistryHcaApproved: false,
+    })
+    mocks.planMigrationApprovals.mockReturnValue([APPROVAL, MANAGER_APPROVAL])
+    // Temporary access is live from the setup bundle until the final bundle.
+    readContractMock.mockImplementation(
+      ({ functionName }: { functionName: string }) => {
+        if (functionName === 'ownerOf') return Promise.resolve(OWNER)
+        if (functionName === 'balanceOf') return Promise.resolve(1n)
+        if (functionName === 'isApprovedForAll') {
+          return Promise.resolve(mocks.startTransaction.mock.calls.length === 1)
+        }
+        return Promise.resolve(true)
+      },
+    )
+  })
+
+  it('confirms setup in one bundle and the final batch with its cleanup in another', async () => {
+    const refreshAccount = vi.fn(() => Promise.resolve())
+
+    const { progressEvents, result } = await runExecute({
+      plan: bundledPlan(),
+      refreshAccount,
+    })
+
+    expect(mocks.startTransaction).toHaveBeenCalledTimes(2)
+    expect(requestOf(0)).toEqual({
+      type: 'eoa-batch',
+      from: OWNER,
+      chainId: 11155111,
+      calls: [
+        { to: FACTORY, data: DEPLOY_DATA, value: 0n },
+        { to: APPROVAL_CONTRACT, data: GRANT_DATA, value: 0n },
+        { to: APPROVAL_CONTRACT, data: GRANT_DATA, value: 0n },
+      ],
+    })
+    expect(requestOf(1)).toMatchObject({
+      type: 'eoa-batch',
+      calls: [
+        { to: HCA, data: OUTER_DATA, value: 0n },
+        { to: V2_CONTRACTS.ETHRegistry },
+      ],
+    })
+    expect(mocks.verifyStandaloneHca).toHaveBeenCalledOnce()
+    expect(refreshAccount).toHaveBeenCalledOnce()
+    expect(mocks.buildAtomicMigrationBatches).toHaveBeenCalledWith(
+      expect.objectContaining({ maxOuterGas: 14_800_000n }),
+    )
+    expect(result.txHashes).toEqual([hashFor(1), hashFor(2)])
+    expect(progressEvents.at(-1)).toMatchObject({
+      currentStep: 2,
+      totalSteps: 2,
+    })
+  })
+
+  it('verifies an existing HCA before granting it anything', async () => {
+    getCodeMock.mockResolvedValue('0x6000')
+    mocks.verifyStandaloneHca.mockRejectedValueOnce(new Error('wrong owner'))
+
+    await expect(runExecute({ plan: bundledPlan() })).rejects.toMatchObject({
+      name: 'MigrationError',
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('asks for a new preview when the wallet can no longer bundle', async () => {
+    mocks.getAtomicBatchSupport.mockResolvedValue(false)
+
+    await expect(runExecute({ plan: bundledPlan() })).rejects.toMatchObject({
+      name: 'MigrationPlanChangedError',
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+})
 
 describe('durable migration completion handoff', () => {
   const scope = { chainId: 11155111, owner: OWNER, hca: HCA }

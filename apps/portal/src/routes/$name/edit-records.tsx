@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { EditRecordsDeniedMessage } from '@/features/records/components/EditRecordsDeniedMessage'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
 import { prepareSaveRecordsTransaction } from '@/features/records/helpers/saveRecords'
@@ -35,7 +36,12 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
-import type { RecordType } from '@/utils/records/editRecordUtils'
+import {
+  canEditType,
+  type EditableTypes,
+  hasDisallowedChanges,
+  type RecordType,
+} from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 import { validateRecords } from '@/utils/records/validateRecord'
 
@@ -73,8 +79,11 @@ function EditRecordsPage() {
     useNameResolverAddress({ name })
   const {
     canEdit,
+    editLock,
     hasOwnResolver,
+    editableTypes,
     isLoading: isCanEditLoading,
+    isError: isPermissionsError,
   } = useCanEditRecords({ name })
 
   const isLoading =
@@ -195,15 +204,10 @@ function EditRecordsPage() {
           </Link>
           <h1 className="text-h1">{name}</h1>
         </div>
-        <ErrorMessage
-          title="Permission Denied"
-          description={
-            <>
-              You don't have permission to edit records for{' '}
-              <strong>{name}</strong>. Record edits require the relevant
-              resolver roles (or ownership on a non-permissioned resolver).
-            </>
-          }
+        <EditRecordsDeniedMessage
+          editLock={editLock}
+          isPermissionsError={isPermissionsError}
+          name={name}
         />
       </div>
     )
@@ -214,6 +218,7 @@ function EditRecordsPage() {
       name={name}
       records={profileQuery.data.records}
       resolverAddress={resolverAddress}
+      editableTypes={editableTypes}
     />
   )
 }
@@ -222,22 +227,28 @@ const EditRecordsContent = ({
   name,
   records: rawRecords,
   resolverAddress,
+  editableTypes,
 }: {
   name: string
   records: GetRecordsReturnType
   resolverAddress: Address
+  editableTypes: EditableTypes
 }) => {
   const navigate = useNavigate()
   const { isConnected } = useAccount()
 
   // Form state
-  const [selectedType, setSelectedType] = useState<RecordType | ''>('')
+  const [pickedType, setPickedType] = useState<RecordType | ''>('')
+  const selectedType =
+    pickedType !== '' && canEditType(editableTypes, pickedType)
+      ? pickedType
+      : ''
   const [keyInput, setKeyInput] = useState('')
   const [valueInput, setValueInput] = useState('')
 
   // Reset key input when type changes (different types have different key requirements)
   const handleTypeChange = (newType: RecordType | '') => {
-    setSelectedType(newType)
+    setPickedType(newType)
     setKeyInput('') // Reset key when type changes
   }
 
@@ -286,6 +297,7 @@ const EditRecordsContent = ({
   // Validate records whenever they change
   const validationErrors = useMemo(() => validateRecords(records), [records])
   const hasValidationErrors = validationErrors.length > 0
+  const isSaveBlocked = hasDisallowedChanges(records, editableTypes)
 
   // Navigate to records page after sync completes.
   // This avoids the issue where deleted records reappear if we clear local state
@@ -354,6 +366,8 @@ const EditRecordsContent = ({
   })
 
   const handleOpenSaveRecordsFlow = () => {
+    if (isSaveBlocked) return
+
     if (isWrongChain) {
       switchToRequiredNetwork()
       return
@@ -407,7 +421,7 @@ const EditRecordsContent = ({
     addRecord(selectedType, keyInput, valueInput)
 
     // Reset form
-    setSelectedType('')
+    setPickedType('')
     setKeyInput('')
     setValueInput('')
   }
@@ -444,7 +458,9 @@ const EditRecordsContent = ({
                 className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
               >
                 <option value="">Select...</option>
-                {RECORD_TYPES.map((type) => (
+                {RECORD_TYPES.filter((type) =>
+                  canEditType(editableTypes, type.value),
+                ).map((type) => (
                   <option key={type.value} value={type.value}>
                     {type.label}
                   </option>
@@ -467,6 +483,11 @@ const EditRecordsContent = ({
                 value={keyInput}
                 onChange={setKeyInput}
                 placeholder="Select coin..."
+                coinTypes={
+                  editableTypes.address === 'all'
+                    ? undefined
+                    : editableTypes.address
+                }
                 // Sits in a row of plain inputs, so it takes their flat fill
                 // rather than the outline button's dark tint.
                 className="dark:bg-background dark:hover:bg-accent"
@@ -481,14 +502,33 @@ const EditRecordsContent = ({
               >
                 Key
               </label>
-              <input
-                id={keyInputId}
-                type="text"
-                value={keyInput}
-                onChange={(e) => setKeyInput(e.target.value)}
-                placeholder=""
-                className="h-9 w-full rounded-sm border border-input bg-background px-3 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-              />
+              {editableTypes.text === 'all' ? (
+                <input
+                  id={keyInputId}
+                  type="text"
+                  value={keyInput}
+                  onChange={(e) => setKeyInput(e.target.value)}
+                  placeholder=""
+                  className="h-9 w-full rounded-sm border border-input bg-background px-3 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                />
+              ) : (
+                <div className="relative">
+                  <select
+                    id={keyInputId}
+                    value={keyInput}
+                    onChange={(e) => setKeyInput(e.target.value)}
+                    className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
+                  >
+                    <option value="">Select...</option>
+                    {[...editableTypes.text].toSorted().map((key) => (
+                      <option key={key} value={key}>
+                        {key}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              )}
             </div>
           )}
 
@@ -581,6 +621,7 @@ const EditRecordsContent = ({
             <EditRecordsTable
               records={filteredRecords}
               globalFilter={globalFilter}
+              editableTypes={editableTypes}
               onDeleteRecord={deleteRecord}
               onUpdateRecord={updateRecord}
               validationErrors={validationErrors}
@@ -603,6 +644,7 @@ const EditRecordsContent = ({
         isConnected={isConnected}
         errorMessage={saveError?.message}
         hasValidationErrors={hasValidationErrors}
+        hasDisallowedChanges={isSaveBlocked}
       />
       <TransactionModal
         transactions={[

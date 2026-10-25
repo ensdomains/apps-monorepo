@@ -16,15 +16,17 @@ import { bigname } from '@/lib/bigname'
 export type PrimaryNameDomain = {
   readonly id: string
   readonly name: string
+  /** Null when no deployment currently answers for the name. */
+  readonly protocol: NameSummary['protocol']
 }
 
 const toPrimaryNameDomain = (name: NameSummary): PrimaryNameDomain => ({
   id: name.namehash,
   name: name.name,
+  protocol: name.protocol,
 })
 
 const nameQuery = {
-  protocol: 'v2',
   sort: 'name',
   order: 'asc',
 } as const
@@ -33,10 +35,10 @@ const byName = (a: NameSummary, b: NameSummary) =>
   Number(a.name > b.name) - Number(a.name < b.name)
 
 /**
- * Every owned ENSv2 name, plus every name whose ETH record still resolves to
- * the owner wallet (e.g. transferred with the record kept), all pages, so
- * local search never silently omits later names. A label bigname cannot
- * normalize comes back as a bracketed labelhash, which can't be set as a
+ * Every owned name, ENSv1 and ENSv2 alike, plus every name whose ETH record
+ * still resolves to the owner wallet (e.g. transferred with the record kept),
+ * all pages, so local search never silently omits later names. A label bigname
+ * cannot normalize comes back as a bracketed labelhash, which can't be set as a
  * primary name.
  */
 export const getPrimaryNameDomains = (

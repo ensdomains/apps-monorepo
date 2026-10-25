@@ -48,10 +48,17 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
-import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
+import {
+  useConfig,
+  useConnection,
+  usePublicClient,
+  useWalletClient,
+} from 'wagmi'
 import { type EventFromLogic, waitFor } from 'xstate'
 import { chain as appChain, isTestnet } from '@/config'
 import { SUPPORTED_TOKENS } from '@/lib/tokens'
+import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
+import { followChain } from '@/lib/wallet/followChain'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'
@@ -66,6 +73,7 @@ import type {
   WalletSource as BaseWalletSource,
   RhinestoneAccountState,
 } from './types'
+import { useSessionRevocationWatch } from './useSessionRevocationWatch'
 import { useSmartAccountBalances } from './useSmartAccountBalances'
 
 export interface RevokeSessionOptions {
@@ -374,7 +382,21 @@ export const SmartAccountContextProvider = ({
   const queryClient = useQueryClient()
   const { t } = useLingui()
   const { isConnecting, isReconnecting } = useConnection()
-  const { data: wagmiWalletClient } = useWalletClient()
+  const wagmiConfig = useConfig()
+  // Pinned to the app chain while the wallet may sit on an L2; chain-bound
+  // requests move the wallet back first.
+  const { data: connectorWalletClient } = useWalletClient({
+    chainId: appChain.id,
+    assertChainId: false,
+  })
+  const wagmiWalletClient = useMemo(
+    () =>
+      connectorWalletClient &&
+      followChain(connectorWalletClient, appChain, (chainId) =>
+        ensureWalletChain(wagmiConfig, chainId),
+      ),
+    [connectorWalletClient, wagmiConfig],
+  )
   const wagmiPublicClient = usePublicClient({ chainId: appChain.id })
 
   // True while the connector is still establishing/restoring a session, so
@@ -486,6 +508,8 @@ export const SmartAccountContextProvider = ({
     anvilSetupDoneRef.current.add(ownerAddress)
     anvilSetupOwner(ownerAddress, appChain, {
       USDC: SUPPORTED_TOKENS.USDC,
+      // Circle's FiatToken keeps balances at slot 9 and has no open `mint`.
+      usdcBalanceSlot: 9n,
     }).catch(() => {
       anvilSetupDoneRef.current.delete(ownerAddress)
     })
@@ -558,8 +582,9 @@ export const SmartAccountContextProvider = ({
   }, [balances.stablecoinBalances])
 
   useEffect(() => {
-    // The faucet mints MockUSDC, which is also the payment token of the
-    // standalone-HCA route, so auto-fund runs on real Sepolia too.
+    // The faucet mints MockUSDC, not the Circle USDC the route pays in, so on
+    // real Sepolia a top-up never clears the low balance and would repeat.
+    if (!isTimeTravelEnabled()) return
 
     // NOTE: deliberately NOT gated on the smart-account machine's `isLoading`.
     // Funding tops up the EOA owner's stablecoins, which is independent of HCA
@@ -663,6 +688,15 @@ export const SmartAccountContextProvider = ({
     })
     setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
   }, [sessionOwnerAddress, accountAddress])
+
+  const isActiveSessionRevoked = useSessionRevocationWatch({
+    activeSession,
+    accountAddress,
+    ownerAddress: sessionOwnerAddress,
+    chainId: appChain.id,
+    publicClient: wagmiPublicClient as PublicClient | undefined,
+    onRevoked: setActiveSession,
+  })
 
   // Authorize (or reuse) a session and return a signer carrying it. With
   // `replaceWithCaps`, always authorizes a new session with those caps.
@@ -1047,7 +1081,7 @@ export const SmartAccountContextProvider = ({
             walletClient:
               (wagmiWalletClient as WalletClient | undefined) ?? null,
             infrastructure,
-            hasActiveSession: !!activeSession,
+            hasActiveSession: !!activeSession && !isActiveSessionRevoked,
             isEnablingSession,
             sessionError,
             enableSession,
@@ -1084,6 +1118,7 @@ export const SmartAccountContextProvider = ({
       snapshot.context.walletSource,
       infrastructure,
       activeSession,
+      isActiveSessionRevoked,
       isEnablingSession,
       sessionError,
       enableSession,

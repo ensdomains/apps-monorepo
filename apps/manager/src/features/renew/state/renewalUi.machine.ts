@@ -36,6 +36,7 @@ import { getQueryClient } from '@/utils/router/root-context'
 type SubmissionData = {
   label: string
   duration: bigint
+  readonly referrer?: `0x${string}`
   token: RENEWAL_TOKEN
   /** Price in token units */
   priceRaw: bigint
@@ -110,6 +111,7 @@ export const renewalUiMachine = setup({
           type: 'renewal.start'
           label: string
           duration: bigint
+          readonly referrer?: `0x${string}`
           token: RENEWAL_TOKEN
           /** Price in token units */
           priceRaw: bigint
@@ -120,6 +122,7 @@ export const renewalUiMachine = setup({
           /** Formatted base price */
           priceNumber: number
         }
+      | { type: 'renewal.submitted'; txId: string }
       | { type: 'retry' }
       | { type: 'cancel' }
       | { type: 'label.changed' },
@@ -199,6 +202,7 @@ export const renewalUiMachine = setup({
           ? {
               label: event.label,
               duration: event.duration,
+              referrer: event.referrer,
               signer: event.signer,
               token: event.token,
               priceRaw: event.priceRaw,
@@ -297,13 +301,29 @@ export const renewalUiMachine = setup({
     // intent has filled, so success needs no polling step of its own.
     submittingHcaRenewal: {
       tags: 'renewing',
+      // Until the intent is submitted the owner is still approving (the
+      // funding prompt, then the signature), so the payment dialog stays up
+      // as it does for registration; `renewalTxId` marks the hand-over.
+      on: {
+        'renewal.submitted': {
+          actions: assign({ renewalTxId: ({ event }) => event.txId }),
+        },
+      },
       invoke: {
         id: 'submitHcaRenewal',
         src: 'submitHcaRenewalIntent',
-        input: ({ context }) => {
+        input: ({ context, self }) => {
           const submission = requireSubmissionData(context.submissionData)
           return {
-            items: [{ label: submission.label, duration: submission.duration }],
+            onSubmitted: (txId: string) =>
+              self.send({ type: 'renewal.submitted', txId }),
+            items: [
+              {
+                label: submission.label,
+                referrer: submission.referrer,
+                duration: submission.duration,
+              },
+            ],
             renewerAddress: context.renewerAddress,
             protocol: context.protocol,
             token: submission.token,
@@ -448,6 +468,7 @@ export const renewalUiMachine = setup({
           const submission = requireSubmissionData(context.submissionData)
           return {
             label: submission.label,
+            referrer: submission.referrer,
             duration: submission.duration,
             selectedToken: submission.token,
             signer: submission.signer,

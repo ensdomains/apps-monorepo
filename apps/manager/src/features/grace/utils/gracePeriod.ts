@@ -8,7 +8,6 @@ import { match, P } from 'ts-pattern'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 
 export { GRACE_PERIOD_DAYS, getGraceEndDate, MS_PER_DAY, V2_GRACE_PERIOD_DAYS }
-export const PROMINENT_RENEW_THRESHOLD_DAYS = 30
 
 const normalizeExpiryDate = (
   expiryDate: Date | null | undefined,
@@ -63,26 +62,6 @@ export const getDaysSinceExpiry = (
   now: Date = new Date(),
 ): number =>
   Math.max(0, Math.ceil((now.getTime() - expiryDate.getTime()) / MS_PER_DAY))
-
-export const shouldShowProminentRenew = (
-  expiryDate: Date | null | undefined,
-  protocol: RenewalProtocol,
-  now: Date = new Date(),
-): boolean => {
-  const date = normalizeExpiryDate(expiryDate)
-  return match(date)
-    .with(P.nullish, () => false)
-    .when(
-      (value) => isInGracePeriod(value, protocol, now),
-      () => true,
-    )
-    .otherwise((value) => {
-      const daysUntil = Math.ceil(
-        (value.getTime() - now.getTime()) / MS_PER_DAY,
-      )
-      return daysUntil > 0 && daysUntil <= PROMINENT_RENEW_THRESHOLD_DAYS
-    })
-}
 
 export const getDisplayExpiryDate = (
   expiryDate: Date | null | undefined,

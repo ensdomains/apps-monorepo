@@ -38,6 +38,7 @@ vi.mock('@xstate/react', () => ({
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   useNavigate: () => vi.fn(),
+  useSearch: () => ({ referrer: '0x1234' }),
 }))
 
 vi.mock('../../../data/queries/pricing.query', () => ({
@@ -87,7 +88,7 @@ const mockAccount = (
   smartAccountMock.useSmartAccountContext.mockReturnValue({
     accountAddress: '0x000000000000000000000000000000000000dEaD',
     ownerAddress: null,
-    signer: { type: 'rhinestone' },
+    signer: { type: 'rhinestone', account: { config: {} } },
     stablecoinBalances: [usdc],
     isLoadingBalances: false,
     isConnected: true,

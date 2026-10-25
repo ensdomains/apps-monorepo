@@ -1,4 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import { useId } from 'react'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Card } from '@/components/ui/card'
 import {
@@ -6,13 +7,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { IconRenderer } from '@/features/profile/components/IconRenderer'
+import { AddressIcon } from '@/features/profile/components/AddressIcon'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
 import {
   ProfileCard,
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
+  profileFieldLabelClassName,
+  profileFieldValueClassName,
   profileTileClassName,
 } from './ProfileCard'
 import {
@@ -27,51 +30,71 @@ type ProfileAddressesSectionProps = {
   readonly records: ProfileRecords
 }
 
-// A 24px icon row inside 24px padding, so every address card is 72px tall.
+const COMPACT_CHAIN_COUNT = 5
+
+// Smaller padding gives the address and wrapping network group more room.
 const addressCardClassName = cn(
   profileTileClassName,
-  'h-auto min-h-18 w-full flex-row items-center justify-between gap-3 p-6 transition hover:bg-ens-quartz-50 has-[>svg]:px-6',
+  'h-auto min-h-16 w-full flex-row items-center justify-between gap-3 p-4 transition hover:bg-ens-quartz-50 has-[>svg]:px-4',
 )
 
 const AddressValue = ({ value }: { readonly value: string }) => (
-  <span className="min-w-0 truncate font-mono text-[13px] text-ens-quartz-400 leading-[1.1] tracking-[-0.26px] xl:text-sm xl:tracking-[-0.28px]">
+  <span className={cn('min-w-0 truncate', profileFieldValueClassName)}>
     {formatProfileAddress(value)}
   </span>
 )
 
-const ChainIconTooltip = ({
+const ReceivingChainBadge = ({
   chain,
+  isCompact,
 }: {
   readonly chain: ProfileAddressItem
-}) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <span
-        aria-label={chain.label}
-        className="inline-flex size-6 shrink-0"
-        role="img"
-        title=""
-      >
-        <IconRenderer className="size-6 object-contain" icon={chain.icon} />
+  readonly isCompact: boolean
+}) => {
+  const badge = (
+    <span
+      className={cn(
+        'inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-ens-quartz-50 text-ens-quartz-600 text-xs',
+        isCompact ? 'p-1' : 'px-2 py-1',
+      )}
+    >
+      <AddressIcon
+        coinType={chain.coinType}
+        shouldShowFallbackLabel={isCompact}
+        size={isCompact ? 'lg' : 'sm'}
+      />
+      <span className={isCompact ? 'sr-only' : 'min-w-0 break-words'}>
+        {chain.label}
       </span>
-    </TooltipTrigger>
-    <TooltipContent>{chain.label}</TooltipContent>
-  </Tooltip>
-)
+    </span>
+  )
 
-const ReceivingChainIcons = ({
+  if (!isCompact) return badge
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{badge}</TooltipTrigger>
+      <TooltipContent>{chain.label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+const ReceivingChainBadges = ({
   chains,
+  id,
 }: {
   readonly chains: readonly ProfileAddressItem[]
+  readonly id: string
 }) => {
-  const withIcon = chains.filter((chain) => chain.icon)
-  if (withIcon.length === 0) return null
-
+  const isCompact = chains.length >= COMPACT_CHAIN_COUNT
   return (
-    <div className="flex max-w-full flex-wrap items-center gap-1">
-      {withIcon.map((chain) => (
-        <ChainIconTooltip
+    <div
+      className="flex min-w-0 max-w-full flex-wrap items-center gap-2 whitespace-normal text-left font-sans"
+      id={id}
+    >
+      {chains.map((chain) => (
+        <ReceivingChainBadge
           chain={chain}
+          isCompact={isCompact}
           key={`${chain.coinType}-${chain.value}`}
         />
       ))}
@@ -87,10 +110,12 @@ const MainAddressCard = ({
   readonly chains: readonly ProfileAddressItem[]
 }) => {
   const { t } = useLingui()
+  const chainsId = useId()
 
   return (
     <Card asChild className={addressCardClassName}>
       <CopyableButton
+        aria-describedby={chainsId}
         aria-label={t`Copy address ${address.value}`}
         iconClassName={profileCardCopyIconClassName}
         iconStrokeWidth={profileCardTrailingIconStrokeWidth}
@@ -98,7 +123,7 @@ const MainAddressCard = ({
         variant="ghost"
       >
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-          <ReceivingChainIcons chains={chains} />
+          <ReceivingChainBadges chains={chains} id={chainsId} />
           <AddressValue value={address.value} />
         </div>
       </CopyableButton>
@@ -123,8 +148,18 @@ const ChainAddressCard = ({
         variant="ghost"
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <ChainIconTooltip chain={address} />
-          <AddressValue value={address.value} />
+          <AddressIcon coinType={address.coinType} size="lg" />
+          <div className="flex min-w-0 flex-1 flex-col text-left">
+            <span
+              className={cn(
+                'whitespace-normal break-words',
+                profileFieldLabelClassName,
+              )}
+            >
+              {address.label}
+            </span>
+            <AddressValue value={address.value} />
+          </div>
         </div>
       </CopyableButton>
     </Card>

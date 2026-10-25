@@ -18,9 +18,11 @@ export {
   type ResolverStrategy,
   registryControllerOf,
   withManagerRestorationOptIn,
+  wrappedCopyExpiry,
 } from './service/classifyNames'
 export {
   type EligibilityResult,
+  holdsSyncableWrapper,
   runEligibilityChecks,
 } from './service/preflightChecks'
 export {

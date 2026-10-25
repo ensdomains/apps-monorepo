@@ -6,6 +6,7 @@ import { match } from 'ts-pattern'
 import { formatUnits } from 'viem'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
+import { namesWithDroppedPubkey } from '@/features/migration/service/buildMigrationPlan'
 import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
 import { TOKENS } from '@/lib/tokens'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
@@ -14,11 +15,32 @@ import { GrainOverlay } from './GrainOverlay'
 import { MigrationUpgradeButton } from './MigrationUpgradeButton'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
 
+const DroppedPubkeyWarning = ({
+  names,
+}: {
+  readonly names: readonly string[]
+}) => {
+  if (names.length === 0) return null
+  const nameList = names.join(', ')
+  return (
+    <p className="flex items-start gap-1 text-ens-garnet-900" role="note">
+      <CircleAlert className="mt-0.5 size-3.5 shrink-0" strokeWidth={1.8} />
+      <span>
+        <Trans>
+          Public key records can&apos;t be carried over by this upgrade and will
+          stop resolving for {nameList}.
+        </Trans>
+      </span>
+    </p>
+  )
+}
+
 type GasEstimateMessageProps = {
   readonly gasEstimate: MigrationGasEstimateState | GraceRenewalGasEstimateState
   readonly gasAffordability: GasAffordability
   readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
+  readonly isFinishingRecovery?: boolean
   readonly renewal?: GraceRenewalQuoteState
 }
 
@@ -27,10 +49,11 @@ const GasEstimateMessage = ({
   gasAffordability,
   isWaitingForGasFunding,
   totalSelected,
+  isFinishingRecovery = false,
   renewal,
 }: GasEstimateMessageProps) => {
   const { _ } = useLingui()
-  if (totalSelected === 0) return null
+  if (totalSelected === 0 && !isFinishingRecovery) return null
 
   // The gas drip request only resolves once any sepETH top-up is confirmed
   // on-chain. Surface it so the owner knows why the button is briefly blocked.
@@ -85,6 +108,13 @@ const GasEstimateMessage = ({
             </Trans>
           </p>
         )}
+        <DroppedPubkeyWarning
+          names={
+            'plan' in estimate
+              ? namesWithDroppedPubkey(estimate.plan)
+              : estimate.droppedPubkeyNames
+          }
+        />
       </div>
     ))
     .with({ gasEstimate: { status: 'error' } }, ({ gasEstimate: estimate }) => (
@@ -99,6 +129,7 @@ type UpgradeButtonLabelProps = {
   readonly isStarting: boolean
   readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
+  readonly isFinishingRecovery?: boolean
 }
 
 const UpgradeButtonLabel = ({
@@ -107,11 +138,13 @@ const UpgradeButtonLabel = ({
   isStarting,
   isWaitingForGasFunding,
   totalSelected,
+  isFinishingRecovery = false,
 }: UpgradeButtonLabelProps) => {
   if (isStarting) return <Trans>Starting...</Trans>
   if (hasInsufficientUsdc) return <Trans>Insufficient USDC</Trans>
   if (isEstimatingGas) return <Trans>Estimating...</Trans>
   if (isWaitingForGasFunding) return <Trans>Preparing wallet...</Trans>
+  if (isFinishingRecovery) return <Trans>Finish upgrade</Trans>
   return (
     <Plural
       one="Upgrade # name"
@@ -126,6 +159,7 @@ type SelectNamesStepFooterProps = {
   readonly gasAffordability: GasAffordability
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
+  readonly isFinishingRecovery?: boolean
   readonly isUpgradeDisabled: boolean
   readonly isWaitingForGasFunding: boolean
   readonly onUpgrade: () => void
@@ -164,6 +198,7 @@ export const SelectNamesStepFooter = ({
   gasAffordability,
   isEstimatingGas,
   isStarting,
+  isFinishingRecovery = false,
   isUpgradeDisabled,
   isWaitingForGasFunding,
   onUpgrade,
@@ -187,6 +222,7 @@ export const SelectNamesStepFooter = ({
           <GasEstimateMessage
             gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
+            isFinishingRecovery={isFinishingRecovery}
             isWaitingForGasFunding={isWaitingForGasFunding}
             totalSelected={totalSelected}
           />
@@ -216,6 +252,7 @@ export const SelectNamesStepFooter = ({
           <UpgradeButtonLabel
             hasInsufficientUsdc={hasInsufficientUsdc}
             isEstimatingGas={isEstimatingGas}
+            isFinishingRecovery={isFinishingRecovery}
             isStarting={isStarting}
             isWaitingForGasFunding={isWaitingForGasFunding}
             totalSelected={totalSelected}

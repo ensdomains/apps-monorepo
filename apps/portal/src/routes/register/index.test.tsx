@@ -9,6 +9,7 @@ const ACCOUNT: Address = '0x1111111111111111111111111111111111111111'
 
 const search: { name?: string } = {}
 vi.mock('@tanstack/react-router', () => ({
+  useSearch: () => ({ referrer: '0x1234' }),
   createFileRoute: () => (options: Record<string, unknown>) => ({
     ...options,
     useSearch: () => search,
@@ -76,6 +77,8 @@ vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
   useConfig: () => ({}),
+  // No EIP-5792 support: the flow keeps its sequential steps.
+  useCapabilities: () => ({ data: undefined }),
   useConnection: () => ({ address: ACCOUNT }),
   usePublicClient: () => ({}),
   // The flow re-reads the allowance on start instead of trusting the cache.
@@ -112,8 +115,8 @@ vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
 
 vi.mock('@/components/RegisterSidebar', () => ({ RegisterSidebar: () => null }))
 vi.mock('@/components/MobileHeader', () => ({ MobileHeader: () => null }))
-vi.mock('@/components/SepoliaNoticeBanner', () => ({
-  SepoliaNoticeBanner: () => null,
+vi.mock('@/components/NoticeBanner', () => ({
+  NoticeBanner: () => null,
 }))
 vi.mock('@/components/ui/sidebar', () => ({
   SidebarProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -158,6 +161,9 @@ describe('/register', () => {
     await act(() => flow.transactions[0].onStart?.())
     const expensive = flow.actor
     expect(expensive.getSnapshot().context.name).toBe('expensive.eth')
+    expect(expensive.getSnapshot().context.referrer).toBe(
+      `0x${'0'.repeat(60)}1234`,
+    )
     expect(expensive.getSnapshot().value).toBe('deployingResolver')
 
     search.name = 'cheap.eth'

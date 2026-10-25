@@ -29,7 +29,7 @@ import type {
 } from 'viem'
 import type { TransactionInfra } from './signer.types'
 
-export type TransactionType = 'eoa' | 'rhinestone-intent'
+export type TransactionType = 'eoa' | 'eoa-batch' | 'rhinestone-intent'
 
 /**
  * Fields shared by every transaction request, regardless of how it is
@@ -133,8 +133,21 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   rhinestoneParams: RhinestoneIntentParams
 }
 
+/**
+ * Several calls from the connected wallet, sent as ONE atomic EIP-5792
+ * `wallet_sendCalls` bundle (one prompt, all-or-nothing). Only build one after
+ * the wallet reports atomic support — see `getAtomicBatchSupport`. Gas is
+ * estimated by the wallet for the bundle as a whole.
+ */
+export interface EOABatchTransactionRequest extends BaseTransactionRequest {
+  type: 'eoa-batch'
+  /** Executed in order from `from`. Must be non-empty. */
+  readonly calls: readonly Call[]
+}
+
 export type TransactionRequest =
   | EOATransactionRequest
+  | EOABatchTransactionRequest
   | RhinestoneTransactionRequest
 
 /**
@@ -155,7 +168,10 @@ export function getPrimaryCall(
     return { to: request.to, data: request.data, value: request.value }
   }
 
-  const primary = request.rhinestoneParams.calls[0]
+  const primary =
+    request.type === 'eoa-batch'
+      ? request.calls[0]
+      : request.rhinestoneParams.calls[0]
   if (!primary) return undefined
   return { to: primary.to, data: primary.data, value: primary.value }
 }

@@ -1,9 +1,10 @@
 import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/config'
-import { createPublicClient, fallback, http } from 'viem'
+import { createPublicClient } from 'viem'
 import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
-import { envConfig } from '@/config'
+import { envConfig, l2Sources } from '@/config'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
+import { failover } from '@/lib/rpc'
 
 /**
  * wagmi wiring. The network, chain and RPC endpoints are resolved in
@@ -14,19 +15,7 @@ const readBatch = {
   multicall: { batchSize: 8192, wait: 16 },
 } as const
 
-// Failover across the app's attributed primary and the network's shared
-// public endpoints. `rank: false` keeps the declared order (primary first)
-// instead of latency ranking, which would let a fast public node steal
-// traffic from our key.
-export const sepoliaFallbackTransport = fallback(
-  envConfig.rpcUrls.map((url) =>
-    http(url, {
-      retryCount: 2,
-      batch: { batchSize: 20, wait: 16 },
-    }),
-  ),
-  { rank: false, retryCount: 2 },
-)
+export const sepoliaFallbackTransport = failover(envConfig.rpcUrls)
 
 export const sepoliaWithEns = envConfig.chain
 
@@ -41,9 +30,15 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: true,
   multiInjectedProviderDiscovery: true,
-  chains: [sepoliaWithEns],
+  // The app chain must stay first: it is wagmi's default chain and where a
+  // wallet on an unsupported chain is sent at connect. The L2s only exist so a
+  // wallet on one can connect as-is and bridge USDC from it.
+  chains: [sepoliaWithEns, ...l2Sources.map(({ chain }) => chain)],
   transports: {
     [sepoliaWithEns.id]: sepoliaFallbackTransport,
+    ...Object.fromEntries(
+      l2Sources.map(({ chain, rpcUrls }) => [chain.id, failover(rpcUrls)]),
+    ),
   },
   // Injected wallets (MetaMask, Rabby, Frame, …) are discovered via EIP-6963
   // (multiInjectedProviderDiscovery above), so WalletConnect is the only

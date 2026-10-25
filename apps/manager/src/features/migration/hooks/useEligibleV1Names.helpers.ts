@@ -2,6 +2,7 @@ import type { IneligibleReason, V1Domain } from '@ens-apps/migration'
 import {
   SECONDS_PER_DAY,
   V1_GRACE_PERIOD_DAYS,
+  V1_RENEWAL_WINDOW_SECONDS,
 } from '@ens-apps/utils/gracePeriod'
 import type { IneligibleName } from '../service/classifyNames'
 
@@ -20,10 +21,14 @@ export const getNextNameExpiryBoundary = (
     const registrationExpiry = domain.registration?.expiryDate
     if (registrationExpiry) {
       const expiry = BigInt(registrationExpiry)
-      return [...boundaries, expiry, expiry + V1_GRACE_PERIOD_SECONDS]
+      return [...boundaries, expiry, expiry + V1_RENEWAL_WINDOW_SECONDS]
     }
     if (wrappedExpiry) {
-      return [...boundaries, BigInt(wrappedExpiry) - V1_GRACE_PERIOD_SECONDS]
+      return [
+        ...boundaries,
+        BigInt(wrappedExpiry) - V1_GRACE_PERIOD_SECONDS,
+        BigInt(wrappedExpiry) + 1n,
+      ]
     }
     return boundaries
   })
@@ -50,7 +55,8 @@ export const getGracePeriodNames = (
       if (registrationExpiry) {
         const expiry = BigInt(registrationExpiry)
         return (
-          expiry <= nowSeconds && nowSeconds < expiry + V1_GRACE_PERIOD_SECONDS
+          expiry <= nowSeconds &&
+          nowSeconds < expiry + V1_RENEWAL_WINDOW_SECONDS
         )
       }
 
@@ -59,7 +65,7 @@ export const getGracePeriodNames = (
       if (!wrappedExpiry) return false
       const expiry = BigInt(wrappedExpiry)
       return (
-        expiry - V1_GRACE_PERIOD_SECONDS <= nowSeconds && nowSeconds < expiry
+        expiry - V1_GRACE_PERIOD_SECONDS <= nowSeconds && nowSeconds <= expiry
       )
     })
     .sort((a, b) => a.domain.name.localeCompare(b.domain.name))
@@ -67,6 +73,7 @@ export const getGracePeriodNames = (
 const UNAVAILABLE_REASONS: ReadonlySet<IneligibleReason> = new Set([
   'missing-registration',
   'not-reserved',
+  'parent-upgraded',
 ])
 
 /** Names the owner holds that no upgrade or renewal here can move. */

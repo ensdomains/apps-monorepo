@@ -1,6 +1,6 @@
 import type { SupportedL1ChainId } from '@ensdomains/ensjs/chain'
 import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
-import { type Address, isAddress, zeroAddress } from 'viem'
+import { type Address, isAddress, maxUint64, zeroAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
 import { GRACE_PERIOD_SECONDS } from './constants'
 import type { V1Domain } from './v1Domain'
@@ -43,6 +43,7 @@ export type IneligibleReason =
   | 'registry-only'
   | 'not-transferable'
   | 'missing-parent'
+  | 'parent-upgraded'
   | 'frozen-approval'
   | 'already-migrated'
   | 'unknown-label'
@@ -84,14 +85,18 @@ export type DirectClassifiedName = ClassifiedNameBase & {
    * classification — see `registryController`.
    */
   readonly managerAddress: Address | null
+  /** The resolver the locked receiver will set, read on-chain when CANNOT_SET_RESOLVER is burned. */
+  readonly lockedResolverAddress?: Address
 }
 
 export type CopyClassifiedName = ClassifiedNameBase & {
   readonly action: 'copy'
   readonly tokenType: CopyTokenType
   readonly copySource: CopySource
+  /** Reviewed direct-child import; the V1 owner receives the child token with ALL roles. */
+  readonly recreationRoot?: string
   readonly sourceExpiry: bigint
-  readonly resolverStrategy: 'to-owned-permres'
+  readonly resolverStrategy: ResolverStrategy
   readonly registryController: null
   readonly managerAddress: null
 }
@@ -137,6 +142,12 @@ export const withManagerRestorationOptIn = <T extends ClassifiedName>(
 export const hasFuse = (fuses: bigint, fuse: bigint): boolean =>
   (fuses & fuse) !== 0n
 
+/** ENSv2 expiry for a wrapped copy; an unset zero expiry on a parent-controlled subname copies as non-expiring. */
+export const wrappedCopyExpiry = (expiry: bigint, fuses: bigint): bigint =>
+  expiry === 0n && !hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL)
+    ? maxUint64
+    : expiry
+
 const resolverStrategyFor = (params: {
   tokenType: MigrationTokenType
   fuses: bigint
@@ -170,7 +181,6 @@ type ClassifyResult =
   | null
 
 const UNKNOWN_LABEL_PATTERN = /\[[0-9a-fA-F]{64}\]/
-const MAX_UINT64 = (1n << 64n) - 1n
 
 /**
  * The ENSv1 registry controller of an unwrapped `.eth` name when it is someone
@@ -222,14 +232,14 @@ const hasExpiredDotEthRegistration = (
   const registrationExpiry = domain.registration?.expiryDate
   if (registrationExpiry) return BigInt(registrationExpiry) <= nowSeconds
   // Fall back to the wrapper expiry only while the name is genuinely in its
-  // grace period: `wrapperExpiry - GRACE <= now < wrapperExpiry`. A wrapper
+  // grace period: `wrapperExpiry - GRACE <= now <= wrapperExpiry`. A wrapper
   // expiry fully in the past means the wrapper is stale/expired (the name has
   // reverted to its registrant) — not a grace-period registration — so it must
   // not be flagged here.
   const wrappedExpiry = domain.wrappedDomain?.expiryDate
   if (wrappedExpiry) {
     const expiry = BigInt(wrappedExpiry)
-    return expiry - GRACE_PERIOD_SECONDS <= nowSeconds && nowSeconds < expiry
+    return expiry - GRACE_PERIOD_SECONDS <= nowSeconds && nowSeconds <= expiry
   }
   return false
 }
@@ -296,7 +306,7 @@ const classifyWithoutActiveWrapper = (
         domain,
         tokenType: 'registry-child',
         copySource: 'registry',
-        sourceExpiry: MAX_UINT64,
+        sourceExpiry: maxUint64,
         label,
         parentName,
         fuses: 0n,
@@ -415,12 +425,11 @@ const classifyUnlockedWrapper = (
   }
   if (!isDotEthSubname(domain, parentName)) return null
 
-  const sourceExpiry = BigInt(wrappedDomain.expiryDate)
-  // Parent-controlled NameWrapper subnames may retain an unset zero expiry.
-  // Once emancipated, the same value is already expired.
-  const hasNoIndependentExpiry =
-    sourceExpiry === 0n && !hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL)
-  if (!hasNoIndependentExpiry && sourceExpiry <= nowSeconds) {
+  const sourceExpiry = wrappedCopyExpiry(
+    BigInt(wrappedDomain.expiryDate),
+    fuses,
+  )
+  if (sourceExpiry <= nowSeconds) {
     return ineligible(domain, 'expired-registration')
   }
   if (!hasSupportedCopyResolver(v1ResolverAddress, chainId)) {
@@ -539,6 +548,11 @@ export const classifyName = (
     : classifyWithoutActiveWrapper(context)
 }
 
+const isCopyRoot = (name: ClassifiedName): boolean =>
+  name.action === 'migrate' &&
+  name.parentName === 'eth' &&
+  (name.tokenType === 'unwrapped' || name.tokenType === 'unlocked')
+
 export type ClassifyNamesResult = {
   readonly classified: ClassifiedName[]
   readonly ineligible: IneligibleName[]
@@ -560,27 +574,25 @@ export const classifyNames = (
     }
   }
 
-  const hasCompleteCopyRoute = (name: CopyClassifiedName): boolean => {
+  const copyRouteGap = (name: CopyClassifiedName): IneligibleReason | null => {
     const visited = new Set<string>()
-    let parentName: string | null = name.parentName
+    let child: ClassifiedName = name
 
-    while (parentName && parentName !== 'eth') {
-      const key = parentName.toLowerCase()
-      if (visited.has(key)) return false
+    while (child.action === 'copy' && child.parentName) {
+      const key = child.parentName.toLowerCase()
+      if (visited.has(key)) return 'missing-parent'
       visited.add(key)
 
       const parent = classifiedByName.get(key)
-      if (!parent) return false
-      if (parent.action === 'migrate') {
-        return (
-          parent.parentName === 'eth' &&
-          (parent.tokenType === 'unwrapped' || parent.tokenType === 'unlocked')
-        )
+      if (!parent) {
+        return child.domain.parent?.isUpgraded
+          ? 'parent-upgraded'
+          : 'missing-parent'
       }
-      parentName = parent.parentName
+      child = parent
     }
 
-    return false
+    return isCopyRoot(child) ? null : 'missing-parent'
   }
 
   const classified: ClassifiedName[] = []
@@ -589,11 +601,10 @@ export const classifyNames = (
   for (const result of results) {
     if (!result) continue
     if (result.type === 'classified') {
-      if (result.name.action === 'copy' && !hasCompleteCopyRoute(result.name)) {
-        ineligible.push({
-          domain: result.name.domain,
-          reason: 'missing-parent',
-        })
+      const gap =
+        result.name.action === 'copy' ? copyRouteGap(result.name) : null
+      if (gap) {
+        ineligible.push({ domain: result.name.domain, reason: gap })
         continue
       }
       classified.push(result.name)

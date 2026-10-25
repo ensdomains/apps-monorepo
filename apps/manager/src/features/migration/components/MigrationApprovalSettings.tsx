@@ -13,7 +13,8 @@ const approvalDescription = (id: MigrationOperatorApproval['id']) => {
         detail: (
           <Trans>
             Lets your smart account manage every ENSv2 name you own. Used
-            temporarily to restore managers during an upgrade.
+            temporarily to restore managers and set up subnames during an
+            upgrade.
           </Trans>
         ),
       }

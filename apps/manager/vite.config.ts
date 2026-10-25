@@ -9,8 +9,8 @@ import { defineConfig, loadEnv } from 'vite'
 import {
   assertDeploymentEnvironment,
   assertNetworkConfig,
-} from '../../packages/config/src/index'
-import { MANAGER_ENDPOINTS } from './src/endpoints'
+} from '../../packages/config/src/index.ts'
+import { MANAGER_ENDPOINTS } from './src/endpoints.ts'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {

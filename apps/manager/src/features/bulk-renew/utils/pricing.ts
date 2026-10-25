@@ -4,7 +4,7 @@ import {
   getDurationExpiryDateForDisplay,
   getDurationInSecondsFromYears,
 } from '@/features/register-v2/utils/time'
-import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import { MIN_RENEW_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import { TOKENS } from '@/lib/tokens'
 import type { Selection } from '../types'
 
@@ -51,7 +51,7 @@ export const durationSecondsForName = (
   if (selection.kind === 'preset')
     return getDurationInSecondsFromYears(selection.years, referenceDate)
   return Math.max(
-    MIN_REGISTER_DURATION_SECONDS,
+    MIN_RENEW_DURATION_SECONDS,
     differenceInCalendarDays(
       startOfDay(new Date(selection.targetMs)),
       startOfDay(referenceDate),

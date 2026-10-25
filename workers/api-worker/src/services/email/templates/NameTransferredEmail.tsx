@@ -4,11 +4,12 @@ import type { PersonalNotificationPayloads } from '@ens-apps/shared-schema/notif
 import { normalizeNotificationName } from '#services/delivery/templates/sanitize.js'
 import type { EmailContext } from '../context.js'
 import { type RenderedEmail, renderEmail } from '../render.js'
+import { resolveThemeColor } from '../theme.js'
 import {
-  AppHost,
-  EmailDetail,
+  EmailFacts,
   EmailLayout,
   EmailParagraph,
+  EmailWarning,
 } from './EmailLayout.js'
 
 export type NameTransferredPayload =
@@ -17,38 +18,42 @@ export type NameTransferredPayload =
 interface NameTransferredEmailProps {
   readonly context: EmailContext
   readonly payload: NameTransferredPayload
+  readonly themeColor: string
 }
-
-const SUBJECT = 'Your name was transferred'
 
 const NameTransferredEmail = ({
   context,
   payload,
+  themeColor,
 }: NameTransferredEmailProps) => {
   const name = normalizeNotificationName(payload.name)
   return (
     <EmailLayout
       context={context}
-      preview={`${SUBJECT}: ${name}`}
-      heading={SUBJECT}
+      preview={`${name} has moved to a new owner.`}
+      heading="Your name was transferred"
+      themeColor={themeColor}
       name={name}
-      action={{
-        title: 'Check the name in the ENS app',
-        body: (
-          <>
-            Go to <AppHost context={context} /> in your browser, then search for{' '}
-            {name} to see its owner and history.
-          </>
-        ),
-      }}
-      reason="you turned on transfer alerts for this name"
+      reason={`you turned on transfer alerts for ${name}`}
     >
       <EmailParagraph>
         {name} has moved to a new owner. If you made this transfer, there’s
         nothing else to do.
       </EmailParagraph>
-      <EmailDetail label="New owner" value={payload.to} />
-      <EmailDetail label="Transaction" value={payload.txHash} />
+      {/* Full values, never shortened: shortened addresses are what
+          address-poisoning scams imitate. */}
+      <EmailFacts
+        isStacked
+        facts={[
+          { label: 'New owner', value: payload.to, isMono: true },
+          { label: 'Transaction', value: payload.txHash, isMono: true },
+        ]}
+      />
+      <EmailWarning title="Didn’t make this transfer?">
+        ENS can’t reverse it. Your wallet may be compromised, so move what’s
+        left in it to a new wallet. Anyone who offers to recover the name for
+        you is running a scam.
+      </EmailWarning>
     </EmailLayout>
   )
 }
@@ -56,9 +61,17 @@ const NameTransferredEmail = ({
 export const renderNameTransferredEmail = (
   context: EmailContext,
   payload: NameTransferredPayload,
-): Promise<RenderedEmail> =>
-  renderEmail(
+  /** The name's `theme` text record, if it could be read. */
+  themeRecord: string | null = null,
+): Promise<RenderedEmail> => {
+  const name = normalizeNotificationName(payload.name)
+  return renderEmail(
     context,
-    SUBJECT,
-    <NameTransferredEmail context={context} payload={payload} />,
+    `${name} was transferred`,
+    <NameTransferredEmail
+      context={context}
+      payload={payload}
+      themeColor={resolveThemeColor(themeRecord)}
+    />,
   )
+}

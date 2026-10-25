@@ -1,4 +1,4 @@
-import { NetworkConfigError } from './errors'
+import { NetworkConfigError } from './errors.ts'
 
 /** Keep the browser network and the plugin's Worker target in agreement. */
 export const assertDeploymentEnvironment = (

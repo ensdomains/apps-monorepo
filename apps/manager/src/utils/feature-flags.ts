@@ -120,31 +120,3 @@ export function isFeatureEnabled(
 
   return baseEnabled
 }
-
-export function getTransactionInfra(
-  _identifier?: UserIdentifier,
-): TransactionInfra {
-  // Rhinestone HCA operations always route through the Warp orchestrator
-  // (intent-based, user-paid). Warp is the only supported infra.
-  return 'warp'
-}
-
-/**
- * Resolves which infrastructure to use for a transaction.
- * Priority: explicit override > signer default > feature flag
- */
-export function resolveInfrastructure(
-  options?: { infrastructure?: TransactionInfra },
-  signerDefaultInfra?: TransactionInfra,
-  identifier?: UserIdentifier,
-): TransactionInfra {
-  if (options?.infrastructure) {
-    return options.infrastructure
-  }
-
-  if (signerDefaultInfra) {
-    return signerDefaultInfra
-  }
-
-  return getTransactionInfra(identifier)
-}

@@ -116,6 +116,7 @@ export type StepDescription =
       readonly total: number
       readonly count: number
     }
+  | { readonly kind: 'record-replay'; readonly count: number }
   | { readonly kind: 'cleanup' }
 
 export const describeNextStep = (params: {
@@ -154,9 +155,17 @@ export const describeNextStep = (params: {
       total: descriptor.total,
       count: descriptor.count,
     }))
+    .with({ descriptor: { type: 'record-replay' } }, ({ descriptor }) => ({
+      kind: 'record-replay' as const,
+      count: descriptor.count,
+    }))
     .with({ descriptor: { type: 'cleanup' } }, () => ({
       kind: 'cleanup' as const,
     }))
+    // One confirmation covering several steps reads as the first of them.
+    .with({ descriptor: { type: 'bundle' } }, ({ descriptor, ...rest }) =>
+      describeNextStep({ ...rest, descriptor: descriptor.steps[0] }),
+    )
     .exhaustive()
 
 export type GiantMode = 'collapsed' | 'excited' | 'idle'

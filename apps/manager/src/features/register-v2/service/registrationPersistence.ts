@@ -31,8 +31,11 @@ import { type SUPPORTED_TOKEN, SUPPORTED_TOKENS } from '@/lib/tokens'
 import type { RegistrationPostRegistrationSetup } from '../state/registrationAutoSetup'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
 
-/** Bump when {@link StoredRegistrationEnvelope} changes shape. */
-export const REGISTRATION_RESUME_VERSION = 1
+/**
+ * Bump when {@link StoredRegistrationEnvelope} changes shape, or when stored
+ * runs can no longer complete (v2: the payment token moved to Circle USDC).
+ */
+export const REGISTRATION_RESUME_VERSION = 2
 
 /** Exported so the disconnect-time storage sweep can leave the record alone. */
 export const REGISTRATION_RESUME_STORAGE_KEY = 'ens-apps:register-v2:resume:v1'
@@ -78,6 +81,11 @@ const bigintStringSchema = v.pipe(v.string(), v.regex(/^\d+$/))
 const confirmedDataSchema = v.object({
   label: v.string(),
   duration: bigintStringSchema,
+  referrer: v.optional(
+    v.custom<`0x${string}`>(
+      (value) => typeof value === 'string' && /^0x[0-9a-fA-F]{64}$/.test(value),
+    ),
+  ),
   ownerAddress: addressSchema,
   token: v.picklist(Object.keys(SUPPORTED_TOKENS) as SUPPORTED_TOKEN[]),
   totalPrice: bigintStringSchema,
@@ -118,6 +126,7 @@ const encodeConfirmedData = (
 ): StoredRegistrationEnvelope['confirmedData'] => ({
   label: confirmedData.label,
   duration: confirmedData.duration.toString(),
+  referrer: confirmedData.referrer,
   ownerAddress: confirmedData.ownerAddress,
   token: confirmedData.token,
   totalPrice: confirmedData.totalPrice.toString(),
@@ -130,6 +139,7 @@ const decodeConfirmedData = (
 ): RegistrationConfirmedData => ({
   label: stored.label,
   duration: BigInt(stored.duration),
+  referrer: stored.referrer,
   ownerAddress: stored.ownerAddress,
   token: stored.token,
   totalPrice: BigInt(stored.totalPrice),

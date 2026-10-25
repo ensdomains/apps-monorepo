@@ -1,3 +1,4 @@
+import { useAnalyticsConsent } from '@ens-apps/utils/posthog/analyticsConsent'
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
 import { useLingui } from '@lingui/react'
@@ -10,7 +11,10 @@ import {
   TwitterIcon,
   YoutubeIcon,
 } from 'lucide-react'
+import posthog from 'posthog-js/dist/module.full.no-external'
+import { Switch } from '@/components/ui/switch'
 import { EXPLORER_URL } from '@/constants'
+import { setAnalyticsConsent } from '@/lib/posthog/config'
 
 type NavigationContentProps = {
   readonly onAction: () => void
@@ -45,7 +49,7 @@ const navigationSections: readonly NavigationSection[] = [
     title: '',
     links: [
       {
-        label: msg`ENS app landing page`,
+        label: msg`ENS Manager`,
         linkOptions: linkOptions({
           to: '/',
           search: {
@@ -135,6 +139,35 @@ const socialIcons: readonly SocialIcon[] = [
 
 const linkClassName =
   'w-fit text-ens-quartz-450 text-sm leading-ens-normal tracking-ens-wide transition-colors hover:underline'
+const sectionClassName =
+  'flex flex-col gap-4 border-ens-quartz-75 border-t pt-4'
+const sectionTitleClassName =
+  'font-medium text-base text-ens-quartz-450 leading-ens-normal tracking-ens-wide'
+
+/** Changes the answer given in the analytics banner, which the Explorer shares. */
+export const AnalyticsSetting = () => {
+  const { _ } = useLingui()
+  const consent = useAnalyticsConsent(posthog)
+
+  // Nothing to change until PostHog has loaded, which needs a project key.
+  if (!consent) return null
+
+  const label = _(msg`Share usage data`)
+
+  return (
+    <div className={sectionClassName}>
+      <h3 className={sectionTitleClassName}>{_(msg`Settings`)}</h3>
+      <div className="flex items-center justify-between gap-3 text-ens-quartz-450 text-sm leading-ens-normal tracking-ens-wide">
+        {label}
+        <Switch
+          aria-label={label}
+          checked={consent === 'granted'}
+          onCheckedChange={(checked) => setAnalyticsConsent(posthog, checked)}
+        />
+      </div>
+    </div>
+  )
+}
 
 const NavigationLinkItem = ({
   link,
@@ -187,17 +220,11 @@ export const NavigationContent = ({ onAction }: NavigationContentProps) => {
         return (
           <div
             className={
-              sectionIndex > 0
-                ? 'flex flex-col gap-4 border-ens-quartz-75 border-t pt-4'
-                : 'flex flex-col gap-4'
+              sectionIndex > 0 ? sectionClassName : 'flex flex-col gap-4'
             }
             key={title}
           >
-            {title && (
-              <h3 className="font-medium text-base text-ens-quartz-450 leading-ens-normal tracking-ens-wide">
-                {title}
-              </h3>
-            )}
+            {title && <h3 className={sectionTitleClassName}>{title}</h3>}
             <div className="flex flex-col gap-3">
               {section.links.map((link) => (
                 <NavigationLinkItem
@@ -210,6 +237,8 @@ export const NavigationContent = ({ onAction }: NavigationContentProps) => {
           </div>
         )
       })}
+
+      <AnalyticsSetting />
 
       <div className="flex items-center gap-9 pt-2">
         {socialIcons.map(({ href, icon: Icon }) => (

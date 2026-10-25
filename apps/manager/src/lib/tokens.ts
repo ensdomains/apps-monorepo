@@ -1,7 +1,8 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { PermitKind } from '@ens-apps/transaction-manager'
 import { chain, envConfig } from '@/config'
 
-const { usdc, dai } = chain.contracts
+const { dai } = chain.contracts
 
 /**
  * Mainnet DAI predates EIP-2612 and has only its own legacy `permit`. Sepolia's
@@ -11,12 +12,13 @@ const daiPermitKind: PermitKind =
   envConfig.network === 'mainnet' ? 'dai-legacy' : 'eip2612'
 
 /**
- * Addresses come from the chain. Decimals, symbols and permit shapes are the
- * only things ensjs does not carry, so they are the only things declared here.
+ * USDC is the HCA route's payment token from the manifest (not ensjs' MockUSDC),
+ * so every flow pays in the same token. Decimals, symbols and permit shapes are
+ * declared here.
  */
 export const TOKENS = {
   USDC: {
-    address: usdc.address,
+    address: getDestinationContracts(chain.id).usdc,
     decimals: 6,
     symbol: 'USDC',
     permitKind: 'eip2612' as PermitKind,
@@ -53,7 +55,10 @@ export const RENEWAL_TOKENS = {
 export type RENEWAL_TOKEN = keyof typeof RENEWAL_TOKENS
 
 /**
- * The renewal tokens offered on this network. Mainnet DAI's funding leg signs
- * its legacy permit (see `permitKind`), so DAI is offered everywhere.
+ * The renewal tokens offered: the same set registration offers. DAI stays in
+ * `RENEWAL_TOKENS` because the renewers settle it, but it does not work with
+ * the HCA, so it is not shown.
  */
-export const RENEWAL_TOKEN_SYMBOLS: readonly RENEWAL_TOKEN[] = ['USDC', 'DAI']
+export const RENEWAL_TOKEN_SYMBOLS: readonly RENEWAL_TOKEN[] = Object.keys(
+  SUPPORTED_TOKENS,
+) as SUPPORTED_TOKEN[]

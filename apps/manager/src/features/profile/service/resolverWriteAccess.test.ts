@@ -14,9 +14,21 @@ const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const client = vi.hoisted(() => ({
   multicall: vi.fn(),
   call: vi.fn(),
+  getCode: vi.fn(async () => '0x6000'),
 }))
 
 vi.mock('@/lib/wagmi', () => ({ publicClient: client }))
+vi.mock('./changeResolver', () => ({
+  resolveNameRegistry: vi.fn(async () => ({
+    label: 'leon',
+    registryAddress: RESOLVER,
+  })),
+  readNameResolver: vi.fn(
+    async () => '0x0000000000000000000000000000000000000000',
+  ),
+  hasV2NameEntry: vi.fn(async () => false),
+  NameRegistryNotFoundError: class extends Error {},
+}))
 
 vi.mock('./profileEthAddress', async () => {
   const { okAsync } = await import('neverthrow')

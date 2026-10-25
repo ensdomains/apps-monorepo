@@ -1,8 +1,8 @@
 import { getCoderByCoinType } from '@ensdomains/address-encoder'
-import { getAddressRecordDef } from '@/features/profile/data/records'
+import { getAddressPresentation } from '@/features/profile/data/records'
 
 export const getAddressRecordLabel = (coinType: number): string =>
-  getAddressRecordDef(coinType)?.name ?? `Address ${coinType}`
+  getAddressPresentation(coinType).label
 
 export const validateAddressRecordValue = (
   coinType: number,

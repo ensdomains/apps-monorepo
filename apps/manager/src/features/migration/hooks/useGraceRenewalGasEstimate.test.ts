@@ -16,7 +16,10 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQuery: mocks.query,
 }))
-vi.mock('wagmi', () => ({ useConfig: mocks.config }))
+vi.mock('wagmi', () => ({
+  useConfig: mocks.config,
+  useCapabilities: () => ({ data: undefined }),
+}))
 vi.mock('../service/estimateGraceRenewalMigrationGas', () => ({
   estimateGraceRenewalMigrationGas: mocks.estimate,
 }))
@@ -70,6 +73,7 @@ const estimate: GraceRenewalMigrationGasEstimate = {
       roleGrants: [],
     },
   ],
+  droppedPubkeyNames: [],
 }
 type Params = Parameters<typeof useGraceRenewalGasEstimate>[0]
 const params: Params = {
@@ -120,6 +124,7 @@ describe('useGraceRenewalGasEstimate', () => {
       publicClient: params.publicClient,
       wagmiConfig,
       managerRestorationNames: [],
+      canBatchAtomically: false,
       signal,
     })
     unmount()
@@ -369,6 +374,7 @@ describe('useGraceRenewalGasEstimate', () => {
       gasUnits: estimate.gasUnits,
       transactionCount: estimate.transactionCount,
       stepDescriptors: estimate.stepDescriptors,
+      droppedPubkeyNames: estimate.droppedPubkeyNames,
       feeWei: 123_400_000n,
       formattedEth: '0.0000000001234',
     })

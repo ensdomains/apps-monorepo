@@ -131,25 +131,6 @@ describe('transaction persistence on the localStorage backend', () => {
     expect(all.some((t) => Array.isArray(t))).toBe(false)
   })
 
-  it('getActiveCount() is not inflated by the history key', async () => {
-    const { getActiveCount } = await loadModule()
-    seedHistory(['archived-1', 'archived-2'])
-    seedActive(['active-1', 'active-2'])
-
-    expect(await getActiveCount()).toBe(2)
-  })
-
-  it('exportAllData() separates active records from history', async () => {
-    const { exportAllData } = await loadModule()
-    seedHistory(['archived-1', 'archived-2'])
-    seedActive(['active-1'])
-
-    const { active, history } = await exportAllData()
-
-    expect(active.map((t) => t.id)).toEqual(['active-1'])
-    expect(history.map((t) => t.id)).toEqual(['archived-1', 'archived-2'])
-  })
-
   it('clearTransactionHistory() still clears the archive only', async () => {
     const { clearTransactionHistory, getTransactionHistory } =
       await loadModule()

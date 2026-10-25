@@ -79,7 +79,7 @@ export const MigrationModal = () => {
             )}
           </DialogDescription>
 
-          <MigrationValuePropsCarousel />
+          <MigrationValuePropsCarousel isNftSlideVisible={nftCopyEnabled} />
 
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: dismiss wrapper, button inside handles keyboard */}
           {/* biome-ignore lint/a11y/noStaticElementInteractions: dismiss wrapper, button inside handles keyboard */}

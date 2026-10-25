@@ -27,10 +27,10 @@
 // registers, renews and reads on the canonical deployment, not the superseded
 // standalone-HCA one.
 //
-// `usdc` is ensjs' MockUSDC: the orchestrator accepts it as payment token and
-// the faucet can mint it, so the whole route runs on one token.
+// `usdc` is Circle's Sepolia USDC, not ensjs' MockUSDC: the route pays in the
+// token bridges can deliver from L2s.
 const STANDALONE = {
-  usdc: '0x240b0316Df57887DBBE58b586508b19e633a14aa',
+  usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
   ethRegistrar: '0xf633e7FC17e2bbE0D0965D18ec1821dcB754a3d3',
   ethRegistry: '0xD4eBcbBdF463C9c45784603Db0dDD499BC44A8B4',
 }

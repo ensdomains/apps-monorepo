@@ -47,7 +47,7 @@ export const permissions: Permission[] = [
   },
 ] as const
 
-const nonSettableManagerRoles = new Set<Role>(['ROLE_REGISTRAR', 'ROLE_RENEW'])
+const nonSettableManagerRoles = new Set<Role>(['ROLE_REGISTRAR'])
 
 /**
  * The .eth registry rejects ROLE_UNREGISTER grants for 2LDs because only the
@@ -68,6 +68,15 @@ export const isManagerRoleSettable = (
   if (is2LD && nonSettableManagerRolesFor2LD.has(role)) return false
   return true
 }
+
+/** Whether a caller holding `callerAdminRoles` (name and root) can grant or revoke `role` on a name. */
+export const canCallerSetManagerRole = (
+  role: Role,
+  callerAdminRoles: ReadonlySet<Role>,
+  context?: IsManagerRoleSettableContext,
+) =>
+  isManagerRoleSettable(role, context) &&
+  callerAdminRoles.has(`${role}_ADMIN` as Role)
 
 export type RegistryRootPermission = {
   readonly key: PermissionKey | null
@@ -114,3 +123,9 @@ export const registryRootPermissions: readonly RegistryRootPermission[] = [
     description: 'Can update canonical parent',
   },
 ] as const
+
+/** Whether a caller holding `callerAdminRoles` at the registry root can manage any root role. */
+export const canManageRegistryRootRoles = (
+  callerAdminRoles: ReadonlySet<Role>,
+): boolean =>
+  registryRootPermissions.some(({ adminKey }) => callerAdminRoles.has(adminKey))

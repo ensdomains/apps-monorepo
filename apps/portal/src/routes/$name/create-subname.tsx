@@ -26,21 +26,27 @@ import { MessageCard } from '@/components/ui/message-card'
 import { AddressNameInput } from '@/features/address/components/AddressNameInput'
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { getIsSubnameTakenQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { getSubnameLabelStatusQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { prepareCreateSubnameSubmit } from '@/features/registry/helpers/prepareCreateSubnameSubmit'
 import { useCreateSubname } from '@/features/registry/hooks/useCreateSubname'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import {
   type CreateSubnameTarget,
   type CreateSubnameWrite,
+  getMissingRegistrarRole,
+  getRegistrarAccess,
   getV1SubnameCreateGate,
   prepareCreateSubnameTransaction,
+  type RegistrarAccess,
 } from '@/features/registry/utils/create-subname.helpers'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import { useDebouncedValue } from '@/hooks/useDebounce'
+import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { getLabelRegistrationError } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/create-subname')({
@@ -84,6 +90,8 @@ function useSyncOwnerWithConnectedAddress(
 interface CreateSubnameFormProps {
   readonly name: string
   readonly target: CreateSubnameTarget
+  /** V2 with a wallet connected: the subregistry root roles `register` checks. */
+  readonly registrarAccess?: RegistrarAccess
 }
 
 const CREATE_SUBNAME_TRANSACTION_ID = 'tx-create-ens-subname'
@@ -103,7 +111,11 @@ const computeSubnameExpires = (): bigint => {
     : nowSeconds + ONE_YEAR_SECONDS
 }
 
-const CreateSubnameForm = ({ name, target }: CreateSubnameFormProps) => {
+const CreateSubnameForm = ({
+  name,
+  target,
+  registrarAccess,
+}: CreateSubnameFormProps) => {
   const navigate = useNavigate()
   const { address: connectedAddress, isConnected } = useConnection()
 
@@ -156,21 +168,29 @@ const CreateSubnameForm = ({ name, target }: CreateSubnameFormProps) => {
 
   // Asked about the one label rather than read off the list: a name can hold
   // thousands of subnames, and the list is only ever loaded a page at a time.
-  const labelTakenQuery = useQuery({
-    ...getIsSubnameTakenQueryOptions({
-      name,
-      label: lookupLabel,
-      protocolVersion: target.protocol,
-    }),
+  const labelStatusQuery = useQuery({
+    ...getSubnameLabelStatusQueryOptions(
+      target.protocol === 'ENSv1'
+        ? { name, label: lookupLabel, protocolVersion: 'ENSv1' }
+        : {
+            name,
+            label: lookupLabel,
+            protocolVersion: 'ENSv2',
+            registryAddress: target.registryAddress,
+          },
+    ),
     enabled: Boolean(lookupLabel) && !getLabelRegistrationError(lookupLabel),
   })
-  const isLabelTaken = isLookupCurrent && labelTakenQuery.data === true
-  const hasLookupFailed = isLookupCurrent && labelTakenQuery.isError
-  // V1 `setSubnodeRecord` overwrites an existing subname, so it waits for a
-  // settled answer; a taken V2 label just reverts.
-  const isAvailabilityUnknown =
-    target.protocol === 'ENSv1' &&
-    !(isLookupCurrent && labelTakenQuery.isSuccess)
+  const labelStatus = isLookupCurrent ? labelStatusQuery.data : undefined
+  const isLabelTaken = labelStatus === 'registered'
+  const hasLookupFailed = isLookupCurrent && labelStatusQuery.isError
+  // V1 `setSubnodeRecord` overwrites an existing subname, and V2 `register`
+  // checks a different role for a reserved label, so both wait for the answer.
+  const isAvailabilityUnknown = labelStatus === undefined
+  const missingRole =
+    registrarAccess && labelStatus
+      ? getMissingRegistrarRole(registrarAccess, labelStatus)
+      : null
 
   const handleStartTransaction = () => {
     if (!ownerAddress || !write || labelError) {
@@ -240,6 +260,21 @@ const CreateSubnameForm = ({ name, target }: CreateSubnameFormProps) => {
             </p>
           )}
           {labelError && <p className="text-p text-danger">{labelError}</p>}
+          {match(missingRole)
+            .with('ROLE_REGISTRAR', () => (
+              <p className="text-p text-danger">
+                The connected wallet can only register reserved labels under{' '}
+                {name}.
+              </p>
+            ))
+            .with('ROLE_REGISTER_RESERVED', () => (
+              <p className="text-p text-danger">
+                {trimmedLabel}.{name} is reserved, and the connected wallet
+                can’t register reserved labels.
+              </p>
+            ))
+            .with(null, () => null)
+            .exhaustive()}
           {hasLookupFailed && (
             <div className="flex items-center gap-2">
               <p className="text-p text-danger">
@@ -250,7 +285,7 @@ const CreateSubnameForm = ({ name, target }: CreateSubnameFormProps) => {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => labelTakenQuery.refetch()}
+                onClick={() => labelStatusQuery.refetch()}
               >
                 Retry
               </Button>
@@ -293,6 +328,7 @@ const CreateSubnameForm = ({ name, target }: CreateSubnameFormProps) => {
             !isConnected ||
             isLabelTaken ||
             isAvailabilityUnknown ||
+            missingRole !== null ||
             Boolean(labelError)
           }
           className="w-full sm:w-fit"
@@ -338,7 +374,10 @@ const CreateSubnameForm = ({ name, target }: CreateSubnameFormProps) => {
               closeTransactionModal()
               clearTransaction()
               attempt.end()
-              navigate({ to: '/$name/subnames', params: { name } })
+              navigate({
+                to: '/$name',
+                params: { name: `${trimmedLabel}.${name}` },
+              })
             },
           },
         ]}
@@ -392,11 +431,59 @@ const V2CreateSubname = ({ name }: CreateSubnameContentProps) => {
     )
   }
 
+  return <V2RegistrarGate name={name} registryAddress={subregistryAddress} />
+}
+
+interface V2RegistrarGateProps {
+  readonly name: string
+  readonly registryAddress: Address
+}
+
+/** `register` checks the subregistry's root roles, so a wallet with neither never sees the form. */
+const V2RegistrarGate = ({ name, registryAddress }: V2RegistrarGateProps) => {
+  const { address: connectedAddress } = useConnection()
+  const rolesQuery = useQuery({
+    ...getNameRolesForAccountQueryOptions({
+      registryAddress,
+      resource: ROOT_RESOURCE_ID,
+      account: connectedAddress ?? zeroAddress,
+    }),
+    select: ({ decoded }) => getRegistrarAccess(decoded),
+    enabled: Boolean(connectedAddress),
+  })
+  const target = { protocol: 'ENSv2', registryAddress } as const
+
+  // The form asks for a wallet before anything can be signed.
+  if (!connectedAddress)
+    return <CreateSubnameForm name={name} target={target} />
+
+  if (rolesQuery.isLoading) return <LoadingMessage />
+
+  if (rolesQuery.error)
+    return (
+      <ErrorMessage
+        title="Couldn’t check your permissions"
+        description={extractErrorMessage(rolesQuery.error, '')}
+      />
+    )
+
+  const access = rolesQuery.data
+  if (!access?.canRegister && !access?.canRegisterReserved)
+    return (
+      <MessageCard
+        icon={<ShieldX className="size-8" />}
+        title="You can’t create subnames here"
+        description={
+          <p>
+            Creating a subname needs the registrar role on this name’s
+            subregistry, which the connected wallet doesn’t hold.
+          </p>
+        }
+      />
+    )
+
   return (
-    <CreateSubnameForm
-      name={name}
-      target={{ protocol: 'ENSv2', registryAddress: subregistryAddress }}
-    />
+    <CreateSubnameForm name={name} target={target} registrarAccess={access} />
   )
 }
 

@@ -58,6 +58,7 @@ beforeEach(() => {
     alreadyMigrated: [],
     notPremigrated: [],
     failed: [],
+    needsWrapperSync: [],
   }))
 })
 

@@ -1,13 +1,16 @@
 import { DevDrawer } from '@ens-apps/dev-tools'
+import { referrerSearch } from '@ens-apps/utils/referrer'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
   HeadContent,
   Outlet,
+  retainSearchParams,
   Scripts,
 } from '@tanstack/react-router'
 import { lazy, Suspense } from 'react'
 import { Toaster } from 'sonner'
+import { AnalyticsConsentBanner } from '@/components/AnalyticsConsentBanner'
 import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
@@ -36,6 +39,8 @@ const toastIconClassName =
   'ens-sonner-icon ms-fill ms-opsz-24 ms-wght-400 size-6 text-2xl leading-none'
 
 export const Route = createRootRouteWithContext<RootRouterContext>()({
+  validateSearch: referrerSearch,
+  search: { middlewares: [retainSearchParams(['referrer'])] },
   head: () => ({
     meta: [
       {
@@ -94,6 +99,7 @@ function RootComponent() {
           <Layout>
             <Outlet />
           </Layout>
+          <AnalyticsConsentBanner />
           <Toaster
             icons={{
               error: (

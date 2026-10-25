@@ -16,7 +16,10 @@ import {
 import { sepolia } from 'viem/chains'
 import { assert, describe, expect, it, vi } from 'vitest'
 
-import { MIGRATION_HELPER_ABI } from '../contracts/abis'
+import {
+  MIGRATION_HELPER_ABI,
+  PERMISSIONED_RESOLVER_ABI,
+} from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { dnsEncodeName } from '../utils/dnsEncodeName'
 import { makeClassified } from './_fixtures'
@@ -62,14 +65,31 @@ const hcaOwnerExecutionAbi = parseAbi([
 const makeName = (
   name: string,
   overrides: Parameters<typeof makeClassified>[0] = {},
-): ClassifiedName =>
-  makeClassified({
+): ClassifiedName => {
+  const classified = makeClassified({
     id: name,
     labelhash: name,
     label: name.split('.')[0],
     name,
     ...overrides,
   })
+  return classified.action === 'copy'
+    ? classified
+    : {
+        ...classified,
+        domain: {
+          ...classified.domain,
+          registration:
+            classified.parentName === 'eth'
+              ? { expiryDate: '4094668800' }
+              : null,
+          wrappedDomain: {
+            expiryDate: '4102444800',
+            fuses: Number(classified.fuses),
+          },
+        },
+      }
+}
 
 const directRoutesFor = (
   classified: readonly ClassifiedName[],
@@ -118,12 +138,32 @@ const buildPlan = (
     resolverDeployed: false,
     walletCoAdminGranted: false,
     maxOuterGas: 1_000_000n,
-    estimateOuterGas: () => 100_000n,
+    estimateBatchGas: () => ({ outerGas: 100_000n, walletGas: 0n }),
     ...overrides,
     classified,
     directRoutes: overrides.directRoutes ?? directRoutesFor(classified),
   })
 }
+
+describe('direct reservation expiry snapshots', () => {
+  it.each([5356800n, 5356801n])(
+    'keeps the exact on-chain expiry with bonus %s',
+    async (bonus) => {
+      const classified = makeName('alice.eth')
+      const expiry = 2000000000n + bonus
+      const plan = await buildPlan({
+        classified: [classified],
+        directMigrationExpiries: new Map([[classified.domain.name, expiry]]),
+      })
+      const expectations = plan.batches.flatMap(
+        (batch) => batch.verificationExpectations,
+      )
+      expect(
+        expectations.find((item) => item.type === 'name-expiry'),
+      ).toMatchObject({ expectedExpiry: expiry })
+    },
+  )
+})
 
 type OwnerExecution = {
   readonly target: Address
@@ -300,6 +340,8 @@ describe('buildAtomicMigrationBatches', () => {
       addresses: [{ coinType: 60n, value: PROFILE_ADDRESS }],
       contentHash: '0xe301' as Hex,
       abis: [{ contentType: 1n, value: '0x5b5d' as Hex }],
+      interfaces: [{ interfaceId: '0x01ffc9a7', implementer: PROFILE_ADDRESS }],
+      pubkey: null,
     }
 
     const plan = await buildPlan({
@@ -308,6 +350,20 @@ describe('buildAtomicMigrationBatches', () => {
     })
     const batch = plan.batches[0]
     assert(batch)
+    expect(batch.verificationExpectations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'name-expiry',
+          name: 'parent.eth',
+          expectedExpiry: 4100025601n,
+        }),
+        expect.objectContaining({
+          type: 'name-expiry',
+          name: 'sub.parent.eth',
+          expectedExpiry: 4102444800n,
+        }),
+      ]),
+    )
 
     expect(batch.names).toEqual(['parent.eth', 'sub.parent.eth'])
     expect(batch.innerExecutions.map((execution) => execution.phase)).toEqual([
@@ -379,6 +435,7 @@ describe('buildAtomicMigrationBatches', () => {
       'wallet-name-roles',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-owner-roles',
       'wrapper-subregistry',
       'wrapper-root-roles',
@@ -387,8 +444,10 @@ describe('buildAtomicMigrationBatches', () => {
       'profile-address',
       'profile-contenthash',
       'profile-abi',
+      'profile-interface',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-owner-roles',
       'wrapper-subregistry',
       'wrapper-root-roles',
@@ -525,6 +584,137 @@ describe('buildAtomicMigrationBatches', () => {
     ])
   })
 
+  describe('resolver written by the owner wallet', () => {
+    const parentNode = namehash('parent.eth') as Hex
+    const profile: Profile = {
+      texts: [{ key: 'email', value: 'parent@example.com' }],
+      addresses: [{ coinType: 60n, value: PROFILE_ADDRESS }],
+      contentHash: null,
+      abis: [],
+      interfaces: [],
+      pubkey: null,
+    }
+    const parent = () =>
+      makeName('parent.eth', {
+        action: 'migrate',
+        tokenType: 'unwrapped',
+        parentName: 'eth',
+        label: 'parent',
+        resolverStrategy: 'to-owned-permres',
+      })
+
+    it('moves the profile replay into one wallet call before the batch', async () => {
+      const plan = await buildPlan({
+        classified: [parent()],
+        profiles: new Map([[parentNode, profile]]),
+        resolverDeployed: true,
+        walletCoAdminGranted: false,
+        resolverWriter: 'wallet',
+      })
+      const batch = plan.batches[0]
+      assert(batch)
+
+      // The HCA can no longer make these setters, so they are not in its batch.
+      expect(batch.innerExecutions.map(({ phase }) => phase)).toEqual(
+        ['migrate', 'profile-replay'].filter(
+          (phase) => phase !== 'profile-replay',
+        ),
+      )
+      expect(batch.walletCall).not.toBeNull()
+      expect(batch.walletCall?.to).toBe(
+        computeResolverAddress({ chainId: sepolia.id, hca: HCA }),
+      )
+      const decoded = decodeFunctionData({
+        abi: PERMISSIONED_RESOLVER_ABI,
+        data: batch.walletCall?.data ?? '0x',
+      })
+      expect(decoded.functionName).toBe('multicall')
+      expect(decoded.args[0]).toHaveLength(2)
+      // Profile checks stay: the wallet's writes have to be verified too.
+      expect(
+        batch.verificationExpectations.some(
+          ({ type }) => type === 'profile-text',
+        ),
+      ).toBe(true)
+    })
+
+    it('drops the HCA grant check and never grants the wallet co-admin', async () => {
+      const plan = await buildPlan({
+        classified: [parent()],
+        resolverDeployed: true,
+        walletCoAdminGranted: false,
+        resolverWriter: 'wallet',
+      })
+      const batch = plan.batches[0]
+      assert(batch)
+
+      expect(batch.innerExecutions.map(({ phase }) => phase)).not.toContain(
+        'wallet-co-admin-grant',
+      )
+      expect(
+        batch.verificationExpectations.map(({ type }) => type),
+      ).not.toContain('resolver-root-roles')
+      expect(batch.verificationExpectations.map(({ type }) => type)).toContain(
+        'wallet-name-roles',
+      )
+    })
+
+    it('keeps every record on the HCA when it still holds the roles', async () => {
+      const plan = await buildPlan({
+        classified: [parent()],
+        profiles: new Map([[parentNode, profile]]),
+        resolverDeployed: true,
+        walletCoAdminGranted: true,
+      })
+      const batch = plan.batches[0]
+      assert(batch)
+
+      expect(batch.walletCall).toBeNull()
+      expect(batch.innerExecutions.map(({ phase }) => phase)).toContain(
+        'profile-replay',
+      )
+    })
+  })
+
+  it('attaches a recreated child registry in the migration call without a later ETHRegistry write', async () => {
+    const root = makeName('example.eth', {
+      action: 'migrate',
+      tokenType: 'unwrapped',
+      parentName: 'eth',
+    })
+    const child = {
+      ...makeName('child.example.eth', {
+        action: 'copy',
+        tokenType: 'registry-child',
+        parentName: 'example.eth',
+        sourceExpiry: (1n << 64n) - 1n,
+      }),
+      recreationRoot: 'example.eth',
+    } as ClassifiedName
+    const plan = await buildPlan({ classified: [child, root] })
+    const batch = plan.batches[0]
+    assert(batch)
+    const migration = batch.nameExecutions.find(
+      ({ classified }) => classified.domain.name === root.domain.name,
+    )
+    expect(migration?.migrationData?.subregistry.toLowerCase()).toBe(
+      computeUserRegistryAddress({
+        hca: HCA,
+        parentName: root.domain.name,
+      }).toLowerCase(),
+    )
+    expect(batch.innerExecutions.map(({ phase }) => phase)).not.toContain(
+      'subregistry-attachment',
+    )
+    expect(
+      batch.innerExecutions.findIndex(
+        ({ phase }) => phase === 'user-registry-parent',
+      ),
+    ).toBeLessThan(
+      batch.innerExecutions.findIndex(({ phase }) => phase === 'migrate'),
+    )
+  })
+
   it('builds an arbitrary-depth copy tree in dependency-safe calldata order', async () => {
     const root = makeName('example.eth', {
       action: 'migrate',
@@ -554,6 +744,8 @@ describe('buildAtomicMigrationBatches', () => {
       addresses: [{ coinType: 60n, value: PROFILE_ADDRESS }],
       contentHash: '0xe301' as Hex,
       abis: [{ contentType: 1n, value: '0x5b5d' as Hex }],
+      interfaces: [],
+      pubkey: null,
     }
 
     const plan = await buildPlan({
@@ -881,9 +1073,11 @@ describe('buildAtomicMigrationBatches', () => {
       'wallet-name-roles',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-subregistry',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-subregistry',
     ])
 
@@ -916,18 +1110,18 @@ describe('buildAtomicMigrationBatches', () => {
   })
 
   it('splits only between complete name units using wrapped-call estimates', async () => {
-    const estimateOuterGas = vi.fn(
+    const estimateBatchGas = vi.fn(
       ({
         call,
         names,
       }: Parameters<
         NonNullable<
-          Parameters<typeof buildAtomicMigrationBatches>[0]['estimateOuterGas']
+          Parameters<typeof buildAtomicMigrationBatches>[0]['estimateBatchGas']
         >
       >[0]) => {
         expect(call.to).toBe(HCA)
         expect(decodeOwnerExecutions(call.data)).not.toHaveLength(0)
-        return BigInt(names.length) * 100n
+        return { outerGas: BigInt(names.length) * 100n, walletGas: 0n }
       },
     )
     const classified = ['alice.eth', 'bob.eth', 'carol.eth'].map((name) =>
@@ -940,7 +1134,7 @@ describe('buildAtomicMigrationBatches', () => {
     const plan = await buildPlan({
       classified,
       maxOuterGas: 250n,
-      estimateOuterGas,
+      estimateBatchGas,
     })
 
     expect(plan.batches.map((batch) => batch.names)).toEqual([
@@ -958,6 +1152,33 @@ describe('buildAtomicMigrationBatches', () => {
         ),
       ),
     ).toEqual(['alice.eth', 'bob.eth', 'carol.eth'])
+  })
+
+  it('splits when the wallet replay, not the HCA call, exceeds the limit', async () => {
+    const classified = ['alice.eth', 'bob.eth', 'carol.eth'].map((name) =>
+      makeName(name, {
+        resolverStrategy: 'keep-v1',
+        v1ResolverAddress: V1_RESOLVER,
+      }),
+    )
+
+    const plan = await buildPlan({
+      classified,
+      maxOuterGas: 250n,
+      estimateBatchGas: ({ names }) => ({
+        outerGas: BigInt(names.length) * 10n,
+        walletGas: BigInt(names.length) * 100n,
+      }),
+    })
+
+    expect(plan.batches.map((batch) => batch.names)).toEqual([
+      ['alice.eth', 'bob.eth'],
+      ['carol.eth'],
+    ])
+    expect(plan.batches.map((batch) => batch.walletEstimatedGas)).toEqual([
+      200n,
+      100n,
+    ])
   })
 
   it('splits a copy tree only after each node setup and registration unit', async () => {
@@ -981,8 +1202,11 @@ describe('buildAtomicMigrationBatches', () => {
       label: 'bar',
       sourceExpiry: (1n << 64n) - 1n,
     })
-    const estimateOuterGas = vi.fn(
-      ({ names }: { names: readonly string[] }) => BigInt(names.length) * 100n,
+    const estimateBatchGas = vi.fn(
+      ({ names }: { names: readonly string[] }) => ({
+        outerGas: BigInt(names.length) * 100n,
+        walletGas: 0n,
+      }),
     )
 
     const plan = await buildPlan({
@@ -990,7 +1214,7 @@ describe('buildAtomicMigrationBatches', () => {
       resolverDeployed: true,
       walletCoAdminGranted: true,
       maxOuterGas: 200n,
-      estimateOuterGas,
+      estimateBatchGas,
     })
 
     expect(plan.batches.map(({ names }) => names)).toEqual([
@@ -1057,9 +1281,9 @@ describe('buildAtomicMigrationBatches', () => {
       maxOuterGas: 9_000n,
       firstBatchOnly: true,
       initialBatchSize: 90,
-      estimateOuterGas: ({ names }) => {
+      estimateBatchGas: ({ names }) => {
         estimatedSizes.push(names.length)
-        return BigInt(names.length) * 100n
+        return { outerGas: BigInt(names.length) * 100n, walletGas: 0n }
       },
     })
 
@@ -1076,14 +1300,14 @@ describe('buildAtomicMigrationBatches', () => {
         v1ResolverAddress: V1_RESOLVER,
       }),
     )
-    const estimateOuterGas = vi.fn(
+    const estimateBatchGas = vi.fn(
       ({ names }: { names: readonly string[] }) => {
         if (names.length > 38) {
           throw new Error(
             'ERC1155: transfer to non ERC1155Receiver implementer',
           )
         }
-        return BigInt(names.length) * 100n
+        return { outerGas: BigInt(names.length) * 100n, walletGas: 0n }
       },
     )
 
@@ -1093,17 +1317,17 @@ describe('buildAtomicMigrationBatches', () => {
         maxOuterGas: 20_000n,
         firstBatchOnly: true,
         initialBatchSize: 90,
-        estimateOuterGas,
+        estimateBatchGas,
       }),
     ).rejects.toThrow('ERC1155: transfer to non ERC1155Receiver implementer')
 
     expect(
-      estimateOuterGas.mock.calls.map(([{ names }]) => names.length),
+      estimateBatchGas.mock.calls.map(([{ names }]) => names.length),
     ).toEqual([90])
   })
 
   it('does not split unrelated estimate failures', async () => {
-    const estimateOuterGas = vi.fn((_input: { names: readonly string[] }) => {
+    const estimateBatchGas = vi.fn((_input: { names: readonly string[] }) => {
       throw new Error('permission missing')
     })
 
@@ -1112,11 +1336,11 @@ describe('buildAtomicMigrationBatches', () => {
         classified: [makeName('alice.eth'), makeName('bob.eth')],
         firstBatchOnly: true,
         initialBatchSize: 2,
-        estimateOuterGas,
+        estimateBatchGas,
       }),
     ).rejects.toThrow('permission missing')
     expect(
-      estimateOuterGas.mock.calls.map(([{ names }]) => names.length),
+      estimateBatchGas.mock.calls.map(([{ names }]) => names.length),
     ).toEqual([2])
   })
 
@@ -1132,7 +1356,10 @@ describe('buildAtomicMigrationBatches', () => {
       maxOuterGas: TARGET_GAS,
       firstBatchOnly: true,
       initialBatchSize: 85,
-      estimateOuterGas: ({ names }) => BigInt(names.length) * 300_000n,
+      estimateBatchGas: ({ names }) => ({
+        outerGas: BigInt(names.length) * 300_000n,
+        walletGas: 0n,
+      }),
     })
     const firstBatch = first.batches[0]
     assert(firstBatch)
@@ -1147,7 +1374,10 @@ describe('buildAtomicMigrationBatches', () => {
       maxOuterGas: TARGET_GAS,
       firstBatchOnly: true,
       initialBatchSize: remaining.length,
-      estimateOuterGas: ({ names }) => BigInt(names.length) * 300_000n,
+      estimateBatchGas: ({ names }) => ({
+        outerGas: BigInt(names.length) * 300_000n,
+        walletGas: 0n,
+      }),
     })
     expect(second.batches[0]?.names).toHaveLength(35)
     expect([...firstBatch.names, ...(second.batches[0]?.names ?? [])]).toEqual(
@@ -1169,9 +1399,9 @@ describe('buildAtomicMigrationBatches', () => {
       maxOuterGas: 6_500n,
       firstBatchOnly: true,
       initialBatchSize: 90,
-      estimateOuterGas: ({ names }) => {
+      estimateBatchGas: ({ names }) => {
         estimatedSizes.push(names.length)
-        return BigInt(names.length) * 100n
+        return { outerGas: BigInt(names.length) * 100n, walletGas: 0n }
       },
     })
 
@@ -1182,7 +1412,7 @@ describe('buildAtomicMigrationBatches', () => {
   })
 
   it('surfaces an estimate failure when one name cannot simulate', async () => {
-    const estimateOuterGas = vi.fn(() => {
+    const estimateBatchGas = vi.fn(() => {
       throw new Error('ERC1155: transfer to non ERC1155Receiver implementer')
     })
 
@@ -1191,10 +1421,10 @@ describe('buildAtomicMigrationBatches', () => {
         classified: [makeName('alice.eth')],
         firstBatchOnly: true,
         initialBatchSize: 1,
-        estimateOuterGas,
+        estimateBatchGas,
       }),
     ).rejects.toThrow('ERC1155: transfer to non ERC1155Receiver implementer')
-    expect(estimateOuterGas).toHaveBeenCalledOnce()
+    expect(estimateBatchGas).toHaveBeenCalledOnce()
   })
 
   it('rebuilds the helper groups after retry removes a name', async () => {
@@ -1240,7 +1470,7 @@ describe('buildAtomicMigrationBatches', () => {
     const promise = buildPlan({
       classified: [makeName('oversized.eth')],
       maxOuterGas: 499n,
-      estimateOuterGas: () => 500n,
+      estimateBatchGas: () => ({ outerGas: 500n, walletGas: 0n }),
     })
 
     await expect(promise).rejects.toMatchObject({

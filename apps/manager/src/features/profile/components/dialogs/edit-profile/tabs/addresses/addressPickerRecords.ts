@@ -3,7 +3,10 @@ import {
   type ReverseRegistrarChainId,
 } from '@ens-apps/l2-primary/v1'
 import { envConfig } from '@/config'
-import { addressRecords } from '@/features/profile/data/records'
+import {
+  addressRecords,
+  getAddressPresentation,
+} from '@/features/profile/data/records'
 import type { AddressRecordDef } from '@/features/profile/data/records/types'
 
 export interface AddressOption {
@@ -28,20 +31,25 @@ export const BSC_COIN_TYPE = 2147483704
 const l2CoinType = (chainId: ReverseRegistrarChainId) =>
   getCoinTypeForReverseRegistrarChainId(chainId, envConfig.network)
 
+const toAddressOption = (coinType: number): AddressOption => {
+  const { label } = getAddressPresentation(coinType)
+  return { coinType, label }
+}
+
 export const evmChainOptions: readonly AddressOption[] = [
-  { coinType: l2CoinType(10), label: 'Optimism' },
-  { coinType: l2CoinType(8453), label: 'Base' },
-  { coinType: l2CoinType(42161), label: 'Arbitrum' },
-  { coinType: 2147483972, label: 'ZKsync' },
-  { coinType: 2147483785, label: 'Polygon' },
-  { coinType: BSC_COIN_TYPE, label: 'BNB' },
-]
+  l2CoinType(10),
+  l2CoinType(8453),
+  l2CoinType(42161),
+  2147483972, // ZKsync
+  2147483785, // Polygon
+  BSC_COIN_TYPE,
+].map(toAddressOption)
 
 export const otherNetworkOptions: readonly AddressOption[] = [
-  { coinType: 0, label: 'Bitcoin' },
-  { coinType: 501, label: 'Solana' },
-  { coinType: BNB_COIN_TYPE, label: 'Binance Chain' },
-]
+  0,
+  501,
+  BNB_COIN_TYPE,
+].map(toAddressOption)
 
 const POPULAR_PICKER_RECORD_COUNT = 5
 const EVM_PICKER_POPULAR_COIN_TYPES = [

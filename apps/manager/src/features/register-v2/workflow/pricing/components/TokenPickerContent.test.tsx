@@ -2,13 +2,17 @@ import '@testing-library/jest-dom'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { L2Source } from '@/l2Sources'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import {
   acquireRegistrationLock,
   getBlockingRegistration,
   releaseRegistrationLock,
 } from '../../../service/registrationLock'
+import type { L2PaymentRow } from '../hooks/useL2Payment'
+import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
 import {
   TokenPickerContent,
   TokenPickerContentBase,
@@ -19,6 +23,7 @@ const containerMocks = vi.hoisted(() => ({
     total: bigint
     registrationPrice: bigint
     hcaBalance: bigint
+    commitCost?: bigint
   } | null,
   revalidatedBudget: null as {
     total: bigint
@@ -32,6 +37,14 @@ const containerMocks = vi.hoisted(() => ({
   getSessionEnablePayload: vi.fn<() => Promise<undefined>>(),
   getSnapshot: vi.fn<() => object>(),
   isApproving: false,
+  approvalOutcome: 'none' as 'none' | 'failed' | 'rejected',
+  lastErrorMessage: undefined as string | undefined,
+  l2Balances: undefined as Record<number, bigint | null> | undefined,
+  ownerAddress: null as string | null,
+  fundingSourceChainId: undefined as number | undefined,
+  /** What every quoted L2 row is charged. */
+  l2AmountIn: undefined as bigint | undefined,
+  l2QuoteKeys: [] as string[],
 }))
 
 vi.mock('@xstate/react', () => ({
@@ -42,6 +55,9 @@ vi.mock('@xstate/react', () => ({
           context: {
             duration: 31_536_000,
             selectedToken: 'USDC',
+            fundingSourceChainId: containerMocks.fundingSourceChainId,
+            approvalOutcome: containerMocks.approvalOutcome,
+            lastErrorMessage: containerMocks.lastErrorMessage,
             confirmedData: containerMocks.isApproving
               ? { ownerAddress: '0x1111111111111111111111111111111111111111' }
               : undefined,
@@ -67,8 +83,8 @@ vi.mock('@/lib/smart-account/useSmartAccountBalances', () => ({
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
   useSmartAccountContext: () => ({
     accountAddress: '0x0000000000000000000000000000000000000001',
-    ownerAddress: null,
-    signer: { type: 'rhinestone' },
+    ownerAddress: containerMocks.ownerAddress,
+    signer: { type: 'rhinestone', account: { config: {} } },
     stablecoinBalances: [
       {
         address: '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238',
@@ -86,6 +102,7 @@ vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   useNavigate: () => vi.fn(),
+  useSearch: () => ({ referrer: '0x1234' }),
 }))
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
@@ -106,15 +123,37 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
       }
       if (key.includes('hca-budget')) {
         return {
-          data: containerMocks.renderBudget,
+          data: containerMocks.renderBudget
+            ? { commitCost: 0n, ...containerMocks.renderBudget }
+            : undefined,
           isError: false,
           isLoading: false,
           isFetching: false,
           isPlaceholderData: false,
         }
       }
+      if (key.includes('l2-usdc-balances')) {
+        return { data: containerMocks.l2Balances, isLoading: false }
+      }
       return { data: undefined, isLoading: false }
     },
+    useQueries: ({
+      queries,
+    }: {
+      queries: { queryKey?: unknown; enabled?: boolean }[]
+    }) =>
+      queries.map(({ queryKey, enabled }) => {
+        if (enabled) containerMocks.l2QuoteKeys.push(JSON.stringify(queryKey))
+        const { l2AmountIn } = containerMocks
+        return {
+          data:
+            enabled && l2AmountIn !== undefined
+              ? { amountIn: l2AmountIn }
+              : undefined,
+          isLoading: false,
+          isError: false,
+        }
+      }),
     useQueryClient: () => ({
       fetchQuery: async () => {
         containerMocks.fetchCalls += 1
@@ -129,14 +168,17 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     }),
     useMutation: (options: {
       mutationFn: () => Promise<unknown>
-      onSuccess?: (data: unknown) => Promise<void>
+      onSuccess?: (data: unknown) => unknown
     }) => {
       const [error, setError] = React.useState<Error | null>(null)
       return {
         error,
         isError: error !== null,
         mutate: () =>
-          void options.mutationFn().then(options.onSuccess).catch(setError),
+          void options
+            .mutationFn()
+            .then((data) => options.onSuccess?.(data))
+            .catch(setError),
       }
     },
   }
@@ -207,11 +249,18 @@ describe('TokenPickerContent', () => {
     containerMocks.availabilityError = null
     containerMocks.fetchCalls = 0
     containerMocks.isApproving = false
+    containerMocks.approvalOutcome = 'none'
+    containerMocks.lastErrorMessage = undefined
     containerMocks.send.mockClear()
     containerMocks.getSnapshot.mockReset().mockReturnValue({})
     containerMocks.getSessionEnablePayload
       .mockReset()
       .mockResolvedValue(undefined)
+    containerMocks.l2Balances = undefined
+    containerMocks.ownerAddress = null
+    containerMocks.fundingSourceChainId = undefined
+    containerMocks.l2AmountIn = undefined
+    containerMocks.l2QuoteKeys = []
   })
 
   it('keeps the wallet locked while payment approval takes longer than a minute', () => {
@@ -247,7 +296,11 @@ describe('TokenPickerContent', () => {
 
     await waitFor(() =>
       expect(containerMocks.send).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'registration.start', label: 'jeff' }),
+        expect.objectContaining({
+          type: 'registration.start',
+          label: 'jeff',
+          referrer: '0x1234',
+        }),
       ),
     )
   })
@@ -277,6 +330,118 @@ describe('TokenPickerContent', () => {
     )
     expect(containerMocks.send).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'registration.start' }),
+    )
+  })
+
+  const fiveUsdcBudget = {
+    total: 5_000_000n,
+    registrationPrice: 4_800_000n,
+    hcaBalance: 0n,
+  }
+
+  it('lists the wallet USDC and every L2 USDC, including ones that cannot pay', () => {
+    containerMocks.renderBudget = fiveUsdcBudget
+    containerMocks.l2Balances = {
+      [baseSepolia.id]: 25_000_000n,
+      [arbitrumSepolia.id]: 0n,
+      [optimismSepolia.id]: null,
+    }
+    renderContainer()
+
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeEnabled()
+    expect(
+      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).toBeEnabled()
+    expect(
+      screen.getByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByText('Not enough USDC on Arbitrum Sepolia'),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Select USDC on OP Sepolia' }),
+    ).toBeDisabled()
+  })
+
+  it('still lists the L2s when the account credit covers it all, bridging nothing', () => {
+    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+    containerMocks.renderBudget = { ...fiveUsdcBudget, hcaBalance: 5_000_000n }
+    containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
+    renderContainer()
+
+    expect(
+      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).toBeEnabled()
+    expect(containerMocks.l2QuoteKeys).toHaveLength(0)
+  })
+
+  it('quotes each L2 that can pay for what the permit would carry', () => {
+    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+    containerMocks.renderBudget = { ...fiveUsdcBudget, commitCost: 100_000n }
+    containerMocks.l2Balances = {
+      [baseSepolia.id]: 25_000_000n,
+      [arbitrumSepolia.id]: 0n,
+    }
+    containerMocks.l2AmountIn = 5_012_000n
+    renderContainer()
+
+    // Only Base Sepolia holds enough to be quoted, for the whole shortfall:
+    // the legs pay their fees from the account, as after a permit.
+    const quoted = [...new Set(containerMocks.l2QuoteKeys)]
+    expect(quoted).toHaveLength(1)
+    expect(quoted[0]).toContain(`${baseSepolia.id}`)
+    expect(quoted[0]).toContain('"5000000"')
+    // $5.012 charged there for a $4.80 name.
+    expect(screen.getByText('Base Sepolia est. fee: $0.21')).toBeVisible()
+  })
+
+  it('registers from the chosen L2 whatever the wallet holds', async () => {
+    containerMocks.walletBalance = '0'
+    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+    containerMocks.renderBudget = fiveUsdcBudget
+    containerMocks.revalidatedBudget = fiveUsdcBudget
+    containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
+    containerMocks.l2AmountIn = 5_012_000n
+    containerMocks.fundingSourceChainId = baseSepolia.id
+    renderContainer()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Approve and register' }),
+    )
+
+    await waitFor(() =>
+      expect(containerMocks.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'registration.start',
+          l2FundingChainId: baseSepolia.id,
+        }),
+      ),
+    )
+  })
+
+  // An L2 payment can fail for a reason the user acts on, like one still settling.
+  it('shows why a payment from the L2 failed rather than a generic approval error', () => {
+    containerMocks.renderBudget = fiveUsdcBudget
+    containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
+    containerMocks.l2AmountIn = 5_012_000n
+    containerMocks.fundingSourceChainId = baseSepolia.id
+    containerMocks.approvalOutcome = 'failed'
+    containerMocks.lastErrorMessage =
+      'The earlier L2 payment has not settled yet, so not paying again.'
+    renderContainer()
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'The earlier L2 payment has not settled yet, so not paying again.',
+    )
+  })
+
+  it('keeps the generic approval error for a payment from the wallet', () => {
+    containerMocks.approvalOutcome = 'failed'
+    containerMocks.lastErrorMessage = 'User denied transaction signature.'
+    renderContainer()
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "We couldn't approve your payment.",
     )
   })
 
@@ -497,7 +662,7 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('Name price')).toBeVisible()
     expect(screen.getByText('$160.00')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $4.32')).toBeVisible()
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
     expect(screen.getByText('Left from your last attempt')).toBeVisible()
     expect(screen.getByText('-$1.82')).toBeVisible()
@@ -544,7 +709,7 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('balance')).toBeVisible()
     expect(screen.queryByText('in your wallet')).not.toBeInTheDocument()
-    expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $4.32')).toBeVisible()
     expect(
       screen.getByRole('button', { name: 'What is the network fee?' }),
     ).toBeVisible()
@@ -557,7 +722,7 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    const fee = screen.getByText('Mainnet est. fee: —')
+    const fee = screen.getByText('Sepolia est. fee: —')
     expect(fee).toBeVisible()
     expect(fee.parentElement).toHaveClass('animate-pulse')
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
@@ -576,7 +741,7 @@ describe('TokenPickerContentBase', () => {
   it('leaves the EOA route alone when there is no budget to quote', () => {
     renderPicker({ selectedToken: 'USDC' })
 
-    expect(screen.getByText('Mainnet est. fee: —')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: —')).toBeVisible()
     expect(screen.getByText('$330.00')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
     expect(screen.queryByText('up to')).not.toBeInTheDocument()
@@ -607,7 +772,7 @@ describe('TokenPickerContentBase', () => {
     expect(button).toBeDisabled()
     expect(button).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByLabelText('Calculating total')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $4.32')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $4.32')).toBeVisible()
   })
 
   it('suppresses a funded note when there is a global error', () => {
@@ -688,7 +853,7 @@ describe('TokenPickerContentBase', () => {
     })
 
     expect(screen.getByText('-$1.01')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $1.01')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $1.01')).toBeVisible()
     expect(screen.getAllByText('$1.00').length).toBeGreaterThanOrEqual(2)
   })
 
@@ -751,7 +916,7 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('Name price')).toBeVisible()
     expect(screen.getByText('$4.99')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $5.00')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $5.00')).toBeVisible()
     expect(screen.getByText('Left from your last attempt')).toBeVisible()
     expect(screen.getByText('-$0.01')).toBeVisible()
     expect(screen.getByText('You pay now')).toBeVisible()
@@ -773,7 +938,7 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('Name price')).toBeVisible()
     expect(screen.getByText('$14.27')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $0.00')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $0.00')).toBeVisible()
     expect(screen.getByText('-$7.97')).toBeVisible()
     expect(screen.getByText('You pay now')).toBeVisible()
     expect(screen.getByText('$6.30')).toBeVisible()
@@ -792,7 +957,7 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    expect(screen.getByText('Mainnet est. fee: $0.15')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $0.15')).toBeVisible()
     expect(screen.queryByText('Name price')).not.toBeInTheDocument()
     expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
     expect(screen.getByText('Total')).toBeVisible()
@@ -814,7 +979,7 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('Name price')).toBeVisible()
     expect(screen.getByText('$1.01')).toBeVisible()
-    expect(screen.getByText('Mainnet est. fee: $0.14')).toBeVisible()
+    expect(screen.getByText('Sepolia est. fee: $0.14')).toBeVisible()
     expect(screen.getByText('-$0.15')).toBeVisible()
     expect(screen.getByText('You pay now')).toBeVisible()
     expect(screen.getByText('$1.00')).toBeVisible()
@@ -840,5 +1005,132 @@ describe('TokenPickerContentBase', () => {
     ).not.toBeInTheDocument()
     expect(screen.queryByText('You pay now')).not.toBeInTheDocument()
     expect(screen.getByText('Total')).toBeVisible()
+  })
+})
+
+describe('TokenPickerContentBase L2 rows', () => {
+  const underfunded = {
+    registration: 4.8,
+    networkFee: 0.2,
+    total: 5,
+    walletDebit: 5,
+    hcaCredit: 0,
+    isLoading: false,
+  }
+  const baseSepoliaRow = (
+    status: L2PaymentOption['status'],
+    overrides: Partial<L2PaymentRow> = {},
+  ): L2PaymentRow => ({
+    option: {
+      id: l2PaymentOptionId(baseSepolia.id),
+      source: {
+        chain: baseSepolia,
+        usdc: emptyUsdc.address,
+        rpcUrls: [],
+        client: {} as L2Source['client'],
+      },
+      balanceRaw: 25_000_000n,
+      status,
+    },
+    amountInRaw: undefined,
+    isQuoteLoading: false,
+    hasQuoteFailed: false,
+    ...overrides,
+  })
+  const l2Payment = (
+    row: L2PaymentRow,
+    selectedChainId: number | undefined = undefined,
+  ) => ({ rows: [row], selectedChainId, onSelect: vi.fn() })
+
+  it('lists an L2 next to a wallet that cannot pay, and selects it on click', () => {
+    const payment = l2Payment(baseSepoliaRow('available'))
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: payment,
+    })
+
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeDisabled()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    )
+    expect(payment.onSelect).toHaveBeenCalledWith(baseSepolia.id)
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('registers from a chosen L2 once quoted, and totals what it is charged', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: l2Payment(
+        baseSepoliaRow('available', { amountInRaw: 5_012_573n }),
+        baseSepolia.id,
+      ),
+    })
+
+    expect(screen.getByText('Base Sepolia est. fee: $0.21')).toBeVisible()
+    expect(screen.getByText('$5.01')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+  })
+
+  it('holds the registration until the chosen L2 is quoted', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      l2Payment: l2Payment(baseSepoliaRow('available'), baseSepolia.id),
+    })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('refuses a chosen L2 whose balance falls short of its quote', () => {
+    const row = baseSepoliaRow('available', { amountInRaw: 5_012_573n })
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      l2Payment: l2Payment(
+        { ...row, option: { ...row.option, balanceRaw: 5_000_001n } },
+        baseSepolia.id,
+      ),
+    })
+
+    expect(screen.getByText('Not enough USDC on Base Sepolia')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('says so when an L2 that can pay has no route', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      l2Payment: l2Payment(
+        baseSepoliaRow('available', { hasQuoteFailed: true }),
+        baseSepolia.id,
+      ),
+    })
+
+    expect(
+      screen.getByText("Paying from Base Sepolia isn't available right now"),
+    ).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('keeps an L2 without enough USDC listed next to a funded wallet', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      l2Payment: l2Payment(baseSepoliaRow('insufficient')),
+    })
+
+    expect(
+      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).toBeDisabled()
+    expect(screen.getByText('Not enough USDC on Base Sepolia')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
   })
 })
