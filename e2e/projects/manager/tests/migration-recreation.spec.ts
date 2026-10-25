@@ -645,7 +645,7 @@ test.describe('#1494 WEB-1938 resolver copy/review/replace', () => {
     page,
     wallet,
     accounts,
-    mockIndexer,
+    mockBigname,
   }) => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const parent = await createMakeV1Name({ userAccount: owner })({
@@ -698,7 +698,7 @@ test.describe('#1494 WEB-1938 resolver copy/review/replace', () => {
       [amy, amyRecords.texts],
       [pk, pkRecords.texts],
     ] as const)
-      mockIndexer.addName({
+      mockBigname.addName({
         name,
         owner: owner.address,
         ...(name !== parent && { resolver: V1_PUBLIC_RESOLVER }),
@@ -900,7 +900,7 @@ test.describe('#1494 + #1497 primary name picker offers ENSv1 names', () => {
     page,
     wallet,
     accounts,
-    mockIndexer,
+    mockBigname,
   }) => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const makeV1Name = createMakeV1Name({ userAccount: owner })
@@ -910,7 +910,7 @@ test.describe('#1494 + #1497 primary name picker offers ENSv1 names', () => {
     })
     const bare = await makeV1Name({ label: 'p1497-bare' })
     for (const name of [resolving, bare])
-      mockIndexer.addName({
+      mockBigname.addName({
         name,
         owner: owner.address,
         protocol: 'v1',

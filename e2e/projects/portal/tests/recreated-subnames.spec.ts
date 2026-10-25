@@ -43,7 +43,7 @@ import {
   assertUserRegistryAttached,
   readGraveyard,
 } from '../../../helpers/migration-assertions.js'
-import { createIndexerMock } from '../../../helpers/mock-indexer.js'
+import { createBignameMock } from '../../../helpers/mock-bigname.js'
 import {
   asPlainEoas,
   recreateTree,
@@ -75,7 +75,7 @@ const readV1Text = (resolver: Address, name: string, key: string) =>
 /** Leave the manager's V1 index routes behind; the explorer gets a plain catch-all. */
 async function resetIndexRoutes(page: Page) {
   await page.unrouteAll({ behavior: 'ignoreErrors' })
-  await createIndexerMock().install(page)
+  await createBignameMock().install(page)
 }
 
 /**
