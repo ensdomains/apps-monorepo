@@ -192,6 +192,23 @@ const StepCopy = ({ step }: StepCopyProps) =>
         <RoleGrantList roleGrants={roleGrants} />
       </>
     ))
+    .with({ type: 'record-replay' }, ({ count }) => (
+      <>
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
+          <Plural
+            one="Copy records for # name"
+            other="Copy records for # names"
+            value={count}
+          />
+        </h3>
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+          <Trans>
+            Your wallet sends this one, because your temporary account no longer
+            has permission to update these records.
+          </Trans>
+        </p>
+      </>
+    ))
     .with({ type: 'cleanup' }, () => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
@@ -200,6 +217,24 @@ const StepCopy = ({ step }: StepCopyProps) =>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
           <Trans>Remove the temporary permission after the upgrade.</Trans>
         </p>
+      </>
+    ))
+    .with({ type: 'bundle' }, ({ steps }) => (
+      <>
+        <p className="font-semi-mono text-ens-garnet-800/60 text-xs uppercase">
+          <Plural
+            one="# step in one request"
+            other="# steps in one request"
+            value={steps.length}
+          />
+        </p>
+        <ul className="flex flex-col gap-3">
+          {steps.map((inner) => (
+            <li className="flex flex-col gap-1" key={stepKey(inner)}>
+              <StepCopy step={inner} />
+            </li>
+          ))}
+        </ul>
       </>
     ))
     .exhaustive()
@@ -215,7 +250,9 @@ const stepKey = (step: MigrationWalletRequestDescriptor): string =>
     )
     .with({ type: 'approval' }, ({ approvalId }) => `approval-${approvalId}`)
     .with({ type: 'atomic-batch' }, ({ index }) => `atomic-batch-${index}`)
+    .with({ type: 'record-replay' }, ({ index }) => `record-replay-${index}`)
     .with({ type: 'cleanup' }, ({ approvalId }) => `cleanup-${approvalId}`)
+    .with({ type: 'bundle' }, ({ steps }) => steps.map(stepKey).join('+'))
     .exhaustive()
 
 type WalletConfirmationStepsDialogProps = {
@@ -317,10 +354,10 @@ export const WalletConfirmationStepsDialog = ({
 
         <p className="text-pretty px-5 pt-2 pb-5 text-ens-garnet-800/70 text-xs leading-normal sm:px-6 sm:pb-6">
           <Trans>
-            Each batch of your names is upgraded in a single transaction. If any
-            part of a batch fails, no changes from that batch are applied.
-            Earlier completed batches and permissions stay in place. Nothing is
-            signed automatically, so review every request in your wallet.
+            Your names are upgraded one batch at a time. If an upgrade
+            transaction fails, none of the names in that batch change. Earlier
+            batches and permissions stay in place. Nothing is signed
+            automatically, so review every request in your wallet.
           </Trans>
         </p>
       </DialogContent>

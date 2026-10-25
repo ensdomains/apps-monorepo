@@ -19,18 +19,20 @@ import {
   GAS_HEURISTIC,
   GRANT_ROLES_GAS,
   MULTICALL_OVERHEAD,
+  maxOuterGasFor,
   PER_BATCH_OVERHEAD,
   SETABI_GAS,
   SETADDR_GAS,
   SETCONTENTHASH_GAS,
+  SETINTERFACE_GAS,
   SETTEXT_GAS,
-  TARGET_GAS,
 } from './batchMigrate.constants'
 import {
   type AtomicMigrationBatch,
   type AtomicMigrationInnerExecution,
   buildAtomicMigrationBatches,
   buildAtomicMigrationInnerExecutions,
+  buildAtomicMigrationWalletCall,
 } from './buildAtomicMigrationBatches'
 import {
   buildStepDescriptors,
@@ -74,6 +76,7 @@ import {
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
   getRequiredMigrationContracts,
+  resolverWriterFor,
 } from './migrationInvariants'
 import { getV1ProfileKeys, type V1ProfileKeys } from './v1ProfileKeys'
 
@@ -96,7 +99,21 @@ export type MigrationPlan = {
   readonly priorCompletedOperations?: readonly MigrationJournalOperation[]
   /** Reconcile durable intents/receipts and live V2 state before submitting. */
   readonly requiresReconciliation?: boolean
+  /** The owner wallet bundles calls atomically (EIP-5792); see buildStepDescriptors. */
+  readonly canBatchAtomically?: boolean
 }
+
+/** Names whose V1 `pubkey` record is dropped: the V2 PermissionedResolver has no pubkey profile. */
+export const namesWithDroppedPubkey = (
+  plan: Pick<MigrationPlan, 'classified' | 'profiles'>,
+): readonly string[] =>
+  plan.classified
+    .filter(
+      (name) =>
+        name.resolverStrategy === 'to-owned-permres' &&
+        !!plan.profiles.get(profileMapKey(namehash(name.domain.name)))?.pubkey,
+    )
+    .map(({ domain }) => domain.name)
 
 const fetchProfilesForNames = async (params: {
   namesToOwnedPermRes: readonly ClassifiedName[]
@@ -153,7 +170,8 @@ const profileReplayGas = (params: {
     BigInt(profile.texts.length) * SETTEXT_GAS +
     BigInt(profile.addresses.length) * SETADDR_GAS +
     (profile.contentHash ? SETCONTENTHASH_GAS : 0n) +
-    BigInt(profile.abis.length) * SETABI_GAS
+    BigInt(profile.abis.length) * SETABI_GAS +
+    BigInt(profile.interfaces.length) * SETINTERFACE_GAS
   )
 }
 
@@ -167,6 +185,22 @@ const innerExecutionGas = (params: {
   }
   return STATIC_INNER_EXECUTION_GAS[params.execution.phase]
 }
+
+const sumExecutionGas = (params: {
+  readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly executions: readonly AtomicMigrationInnerExecution[]
+}): bigint =>
+  params.executions.reduce(
+    (gas, execution) =>
+      gas +
+      innerExecutionGas({
+        execution,
+        classifiedByName: params.classifiedByName,
+        profiles: params.profiles,
+      }),
+    0n,
+  )
 
 const previewAtomicBatchGas = (params: {
   readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
@@ -184,19 +218,44 @@ const previewAtomicBatchGas = (params: {
         : 200_000n)
     )
   }, 0n)
-  const executionGas = params.innerExecutions.reduce(
-    (gas, execution) =>
-      gas +
-      innerExecutionGas({
-        execution,
-        classifiedByName: params.classifiedByName,
-        profiles: params.profiles,
-      }),
-    0n,
-  )
 
-  return PER_BATCH_OVERHEAD + nameGas + executionGas
+  return (
+    PER_BATCH_OVERHEAD +
+    nameGas +
+    sumExecutionGas({
+      classifiedByName: params.classifiedByName,
+      profiles: params.profiles,
+      executions: params.innerExecutions,
+    })
+  )
 }
+
+/**
+ * Gas for the owner-wallet record replay, which is a plain transaction rather
+ * than a wrapped `executeByOwner` call.
+ */
+const previewWalletReplayGas = (params: {
+  readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly walletExecutions: readonly AtomicMigrationInnerExecution[]
+}): bigint =>
+  sumExecutionGas({ ...params, executions: params.walletExecutions })
+
+/**
+ * The batch's own gas plus the replay the owner wallet sends. Both preview and
+ * execution split them the same way: `outerGas` is capped by `maxOuterGas`,
+ * `walletGas` is a plain EOA transaction.
+ */
+const previewBatchGas = (params: {
+  readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly names: readonly string[]
+  readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+  readonly walletExecutions: readonly AtomicMigrationInnerExecution[]
+}): { readonly outerGas: bigint; readonly walletGas: bigint } => ({
+  outerGas: previewAtomicBatchGas(params),
+  walletGas: previewWalletReplayGas(params),
+})
 
 class LockedResolverRecordSafetyError extends TaggedError(
   'LockedResolverRecordSafetyError',
@@ -212,6 +271,8 @@ class LockedResolverRecordSafetyError extends TaggedError(
   readonly addressRecordCount?: number
   readonly contentHashRecordCount?: number
   readonly abiRecordCount?: number
+  readonly interfaceRecordCount?: number
+  readonly pubkeyRecordCount?: number
   readonly cause?: unknown
 }> {}
 
@@ -336,7 +397,9 @@ const assertLockedResolverProfilesEmpty = (
       profile.texts.length === 0 &&
       profile.addresses.length === 0 &&
       profile.contentHash === null &&
-      profile.abis.length === 0
+      profile.abis.length === 0 &&
+      profile.interfaces.length === 0 &&
+      profile.pubkey === null
     ) {
       continue
     }
@@ -350,6 +413,8 @@ const assertLockedResolverProfilesEmpty = (
       addressRecordCount: profile.addresses.length,
       contentHashRecordCount: profile.contentHash ? 1 : 0,
       abiRecordCount: profile.abis.length,
+      interfaceRecordCount: profile.interfaces.length,
+      pubkeyRecordCount: profile.pubkey ? 1 : 0,
     })
   }
 }
@@ -410,6 +475,8 @@ export const buildMigrationPlan = async (params: {
   managerRestorationNames?: readonly string[]
   publicClient: PublicClient
   preflight: MigrationPreflight
+  /** The owner wallet bundles calls atomically (EIP-5792). */
+  canBatchAtomically?: boolean
   signal?: AbortSignal
 }): Promise<MigrationPlan> => {
   const {
@@ -419,6 +486,7 @@ export const buildMigrationPlan = async (params: {
     managerRestorationNames = [],
     publicClient,
     preflight,
+    canBatchAtomically = false,
     signal,
   } = params
   signal?.throwIfAborted()
@@ -490,6 +558,7 @@ export const buildMigrationPlan = async (params: {
   const walletCoAdminGranted =
     preflight.hcaResolverReadiness?.status === 'verified' &&
     preflight.hcaResolverReadiness.walletHasWildcardRoles
+  const resolverWriter = resolverWriterFor(preflight.hcaResolverReadiness)
   const atomicPlan = await buildAtomicMigrationBatches({
     chainId: requireChainId(publicClient, 'migration'),
     hca: hcaAddress,
@@ -501,13 +570,15 @@ export const buildMigrationPlan = async (params: {
     defaultResolver: V2_CONTRACTS.DefaultResolver,
     resolverDeployed,
     walletCoAdminGranted,
-    maxOuterGas: TARGET_GAS,
-    estimateOuterGas: ({ names, innerExecutions }) =>
-      previewAtomicBatchGas({
+    resolverWriter,
+    maxOuterGas: maxOuterGasFor(canBatchAtomically),
+    estimateBatchGas: ({ names, innerExecutions, walletExecutions }) =>
+      previewBatchGas({
         classifiedByName,
         profiles,
         names,
         innerExecutions,
+        walletExecutions,
       }),
   })
   signal?.throwIfAborted()
@@ -525,6 +596,7 @@ export const buildMigrationPlan = async (params: {
     cleanupApprovals: preflight.migrationCleanupApprovals,
     atomicBatches: atomicPlan.batches,
     registrationApprovalTargets,
+    canBatchAtomically,
   })
 
   return {
@@ -541,6 +613,7 @@ export const buildMigrationPlan = async (params: {
     directRoutes,
     atomicBatches: atomicPlan.batches,
     stepDescriptors,
+    canBatchAtomically,
   }
 }
 
@@ -653,9 +726,17 @@ export const buildMigrationRecoveryPlan = async (params: {
   readonly hcaAddress: Address
   readonly migrationOwner: Address
   readonly publicClient: PublicClient
+  readonly canBatchAtomically?: boolean
   readonly signal?: AbortSignal
 }): Promise<MigrationPlan> => {
-  const { snapshot, hcaAddress, migrationOwner, publicClient, signal } = params
+  const {
+    snapshot,
+    hcaAddress,
+    migrationOwner,
+    publicClient,
+    canBatchAtomically = false,
+    signal,
+  } = params
   signal?.throwIfAborted()
   const { registryContext, classified } = classifyMigrationRecoverySnapshot({
     snapshot,
@@ -773,13 +854,15 @@ export const buildMigrationRecoveryPlan = async (params: {
     walletCoAdminGranted:
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
-    maxOuterGas: TARGET_GAS,
-    estimateOuterGas: ({ names, innerExecutions }) =>
-      previewAtomicBatchGas({
+    resolverWriter: resolverWriterFor(resolverReadiness),
+    maxOuterGas: maxOuterGasFor(canBatchAtomically),
+    estimateBatchGas: ({ names, innerExecutions, walletExecutions }) =>
+      previewBatchGas({
         classifiedByName,
         profiles: snapshot.profiles,
         names,
         innerExecutions,
+        walletExecutions,
       }),
   })
   signal?.throwIfAborted()
@@ -829,6 +912,7 @@ export const buildMigrationRecoveryPlan = async (params: {
       name: domain.name,
       tokenId: BigInt(domain.labelhash),
     })),
+    canBatchAtomically,
   })
 
   return {
@@ -857,6 +941,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     stepDescriptors,
     priorCompletedOperations: snapshot.completedOperations,
     requiresReconciliation: true,
+    canBatchAtomically,
   }
 }
 
@@ -888,6 +973,14 @@ export const adjustPlanForRetry = (
       const innerExecutions = buildAtomicMigrationInnerExecutions({
         nameExecutions,
       })
+      const walletCall = plan.ownedPermRes
+        ? buildAtomicMigrationWalletCall({
+            resolver: plan.ownedPermRes,
+            executions: nameExecutions.flatMap(
+              (execution) => execution.walletExecutions,
+            ),
+          })
+        : null
       return {
         ...batch,
         names: nameExecutions.map(
@@ -903,6 +996,9 @@ export const adjustPlanForRetry = (
           hca: plan.hcaAddress,
           calls: innerExecutions.map((execution) => execution.call),
         }),
+        walletCall,
+        // Re-derived from the same upper-bound heuristic as `estimatedGas`.
+        walletEstimatedGas: walletCall ? batch.walletEstimatedGas : 0n,
         verificationExpectations: nameExecutions.flatMap(
           (execution) => execution.verificationExpectations,
         ),
@@ -919,6 +1015,7 @@ export const adjustPlanForRetry = (
       name: domain.name,
       tokenId: BigInt(domain.labelhash),
     })),
+    canBatchAtomically: plan.canBatchAtomically,
   })
 
   return {

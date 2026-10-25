@@ -20,11 +20,12 @@ const A: NameForFetch = {
   v1ResolverAddress: V1_RESOLVER,
 }
 const profileKeys = (
-  overrides: Omit<ProfileKeyEntry, 'hasContentHash' | 'abiContentTypes'> &
-    Partial<Pick<ProfileKeyEntry, 'hasContentHash' | 'abiContentTypes'>>,
+  overrides: Pick<ProfileKeyEntry, 'id' | 'texts' | 'coinTypes'> &
+    Partial<ProfileKeyEntry>,
 ): ProfileKeyEntry => ({
   hasContentHash: false,
   abiContentTypes: [],
+  interfaceIds: [],
   ...overrides,
 })
 
@@ -38,7 +39,7 @@ describe('indexNamesByNode', () => {
 })
 
 describe('buildProfileMulticallPlan', () => {
-  it('produces one text call + one addr call per key, skipping unknown node ids', () => {
+  it('produces one text call + one addr call per key, then the pubkey read, skipping unknown node ids', () => {
     const byNode = indexNamesByNode([A])
     const { calls, contracts } = buildProfileMulticallPlan(
       [
@@ -47,11 +48,38 @@ describe('buildProfileMulticallPlan', () => {
       ],
       byNode,
     )
-    expect(calls).toHaveLength(2)
-    expect(contracts).toHaveLength(2)
+    expect(calls).toHaveLength(3)
+    expect(contracts).toHaveLength(3)
     expect(calls[0]).toMatchObject({ kind: 'text', key: 'email' })
     expect(calls[1]).toMatchObject({ kind: 'addr', coinType: 60n })
+    expect(calls[2]).toMatchObject({ kind: 'pubkey' })
     expect(contracts[0]).toMatchObject({ functionName: 'text' })
     expect(contracts[1]).toMatchObject({ functionName: 'addr' })
+    expect(contracts[2]).toMatchObject({ functionName: 'pubkey' })
+  })
+
+  it('reads each distinct interface id, then the pubkey', () => {
+    const byNode = indexNamesByNode([A])
+    const { calls, contracts } = buildProfileMulticallPlan(
+      [
+        profileKeys({
+          id: NODE_A,
+          texts: [],
+          coinTypes: [],
+          interfaceIds: ['0x01ffc9a7', '0x01ffc9a7', '0x12345678'],
+        }),
+      ],
+      byNode,
+    )
+    expect(calls).toEqual([
+      { name: A, kind: 'interface', interfaceId: '0x01ffc9a7' },
+      { name: A, kind: 'interface', interfaceId: '0x12345678' },
+      { name: A, kind: 'pubkey' },
+    ])
+    expect(contracts.map(({ functionName }) => functionName)).toEqual([
+      'interfaceImplementer',
+      'interfaceImplementer',
+      'pubkey',
+    ])
   })
 })

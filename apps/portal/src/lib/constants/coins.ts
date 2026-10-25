@@ -242,10 +242,3 @@ export function getCoinByName(name: string): CoinConfig | undefined {
     (coin) => coin.name.toLowerCase() === name.toLowerCase(),
   )
 }
-
-/**
- * Get a coin configuration by coin type
- */
-export function getCoinByCoinType(coinType: number): CoinConfig | undefined {
-  return SUPPORTED_COINS.find((coin) => coin.coinType === coinType)
-}

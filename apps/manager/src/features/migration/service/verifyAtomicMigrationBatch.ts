@@ -48,13 +48,19 @@ const permissionedResolverReadAbi = parseAbi([
  * the record from the DNS-encoded name instead. Calling them on the resolver
  * would hit its fallback and revert with empty data.
  */
-type ResolverProfileFunction = 'text' | 'addr' | 'contenthash' | 'ABI'
+type ResolverProfileFunction =
+  | 'text'
+  | 'addr'
+  | 'contenthash'
+  | 'ABI'
+  | 'interfaceImplementer'
 
 const resolverProfileAbi = parseAbi([
   'function text(bytes32 node, string key) view returns (string)',
   'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
   'function contenthash(bytes32 node) view returns (bytes)',
   'function ABI(bytes32 node, uint256 contentTypes) view returns (uint256, bytes)',
+  'function interfaceImplementer(bytes32 node, bytes4 interfaceID) view returns (address)',
 ])
 
 const resolveProfileAbi = parseAbi([
@@ -141,7 +147,9 @@ type DecodeResolverProfileResult<fn extends ResolverProfileFunction> =
     ? string
     : fn extends 'addr' | 'contenthash'
       ? Hex
-      : readonly [bigint, Hex]
+      : fn extends 'interfaceImplementer'
+        ? Address
+        : readonly [bigint, Hex]
 
 /** Read one record through `resolve`, returning the decoded getter result. */
 const resolveRecord = async <fn extends ResolverProfileFunction>(
@@ -540,6 +548,18 @@ const checkExpectation = async (
         contentType === expectation.contentType &&
         value.toLowerCase() === expectation.value.toLowerCase()
       )
+    }
+    case 'profile-interface': {
+      if (!(await hasContractCode(context, expectation.resolver))) return false
+      const implementer = await resolveRecord(
+        context,
+        block,
+        expectation.resolver,
+        expectation.name,
+        'interfaceImplementer',
+        [expectation.node, expectation.interfaceId],
+      )
+      return isAddressEqual(implementer, expectation.implementer)
     }
   }
 }

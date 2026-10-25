@@ -1,6 +1,7 @@
 import { plainTextSelectors, render } from '@react-email/components'
 import type { ReactElement } from 'react'
 import { type EmailContext, isTestnet, networkLabel } from './context.js'
+import { TEXT_COLUMNS_CLASS } from './templates/EmailLayout.js'
 
 /** Provider-neutral output of a transactional email template. */
 export interface RenderedEmail {
@@ -17,6 +18,15 @@ const PLAIN_TEXT_SELECTORS = [
   { selector: 'h1', options: { uppercase: false } },
   { selector: 'h2', options: { uppercase: false } },
   { selector: 'h3', options: { uppercase: false } },
+  {
+    selector: `table.${TEXT_COLUMNS_CLASS}`,
+    format: 'dataTable',
+    options: {
+      colSpacing: 2,
+      maxColumnWidth: 200,
+      uppercaseHeaderCells: false,
+    },
+  },
 ]
 
 /**

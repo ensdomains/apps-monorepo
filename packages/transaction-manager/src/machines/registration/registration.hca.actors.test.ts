@@ -3,6 +3,7 @@
 import {
   computeResolverAddress,
   getDestinationContracts,
+  HCA_ADDR_REVERSE_CLEAR_GAS,
   primaryNameGas,
 } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient } from 'viem'
@@ -19,16 +20,24 @@ import {
 } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { EOASigner, Signer } from '../../types/signer.types'
+import type {
+  EOASigner,
+  L2FundingSource,
+  RhinestoneSigner,
+  Signer,
+} from '../../types/signer.types'
 import type { RhinestoneTransactionRequest } from '../../types/transaction.types'
 import type { PermitSignature } from './registration.actors'
 import {
+  awaitL2BridgeActor,
   estimateHcaBudgetActor,
+  readHcaUsdcBalanceAtLeastActor,
   readUsdcSpend,
   rejectPermitValue,
   signDaiFundingPermitActor,
   signFundingPermitActor,
   submitFundingAndCommitActor,
+  submitL2BridgeActor,
   submitRevealBatchActor,
   verifyHcaRegistrationActor,
 } from './registration.hca.actors'
@@ -55,6 +64,8 @@ const C = getDestinationContracts(sepolia.id)
 
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
 const HCA = '0xaaaa000000000000000000000000000000000001' as Address
+const RESOLVER_WITH_RECORD =
+  '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as Address
 const SESSION_KEY = '0x9999999999999999999999999999999999999999' as Address
 const COMMITMENT = `0x${'cc'.repeat(32)}` as Hex
 
@@ -218,6 +229,190 @@ describe('submitFundingAndCommitActor', () => {
   )
 })
 
+describe('submitL2BridgeActor', () => {
+  const source = {
+    chain: { id: 84532, name: 'Base Sepolia' },
+  } as unknown as L2FundingSource
+  const hcaSigner = {
+    type: 'rhinestone',
+    account: { id: 'hca' },
+    config: { chain: sepolia },
+    session: { session: {} },
+  } as unknown as RhinestoneSigner
+  const publicClient = { chain: sepolia } as unknown as PublicClient
+
+  it('has the wallet deliver the shortfall to the HCA there, running nothing on Sepolia', async () => {
+    const onIntentSubmitted = vi.fn()
+    const result = await submitL2BridgeActor({
+      hca: HCA,
+      payment: { source, amount: 15_000_000n, displayedCharge: 15_050_000n },
+      signer: hcaSigner,
+      publicClient,
+      onIntentSubmitted,
+    })
+
+    expect(result.isOk()).toBe(true)
+    const request = submittedRequest()
+    // Across runs an intent's calls from its own handler, so the legs stay
+    // with the HCA and this only delivers.
+    expect(request.rhinestoneParams.calls).toEqual([])
+    expect(request.rhinestoneParams.tokenRequests).toEqual([
+      { address: C.usdc, amount: 15_000_000n },
+    ])
+    expect(request.rhinestoneParams.sessionEnableData).toBeUndefined()
+    // Its id is what a retry or a resumed run settles before paying again.
+    expect(request.rhinestoneParams.onIntentSubmitted).toBe(onIntentSubmitted)
+
+    const [, signer, options] = startTransaction.mock.calls[0] as unknown as [
+      unknown,
+      RhinestoneSigner,
+      { retryCount?: number },
+    ]
+    // Signed by the wallet on the L2, so no session goes with it.
+    expect(signer).toEqual({
+      type: 'rhinestone',
+      account: hcaSigner.account,
+      config: hcaSigner.config,
+      l2Funding: source,
+      // The transport holds the fresh quote's charge to this.
+      l2DisplayedCharge: 15_050_000n,
+    })
+    // A resend would ask the wallet to sign a second payment.
+    expect(options.retryCount).toBe(0)
+  })
+
+  it('refuses an amount above what checkout showed, before the wallet is asked', async () => {
+    const result = await submitL2BridgeActor({
+      hca: HCA,
+      payment: {
+        source,
+        amount: 20_000_000n,
+        bounds: { displayedValue: 15_000_000n },
+      },
+      signer: hcaSigner,
+      publicClient,
+    })
+
+    expect(result._unsafeUnwrapErr().message).toMatch(
+      /Refusing to request a signature/,
+    )
+    expect(startTransaction).not.toHaveBeenCalled()
+  })
+})
+
+describe('awaitL2BridgeActor', () => {
+  const run = (
+    statuses: (string | null)[],
+    timeoutMs = 1_000,
+    claimableUntil = 0,
+  ) => {
+    const fetchIntentStatus = vi.fn(async () => statuses.shift() ?? null)
+    return {
+      fetchIntentStatus,
+      result: awaitL2BridgeActor({
+        intentId: 9n,
+        claimableUntil,
+        fetchIntentStatus,
+        pollIntervalMs: 0,
+        timeoutMs,
+      }),
+    }
+  }
+
+  // A lost submission is never known to the orchestrator; one it holds is.
+  it('reports a bridge still unknown once its permit lapsed as dead', async () => {
+    const { result } = run(['NOT_FOUND'])
+
+    expect((await result)._unsafeUnwrap()).toBe('dead')
+  })
+
+  // Its answer may have been lost, but the permit can still be claimed.
+  it('keeps waiting on an unknown bridge while its permit is claimable', async () => {
+    const { fetchIntentStatus, result } = run(
+      Array(5).fill('NOT_FOUND'),
+      20,
+      Date.now() + 60_000,
+    )
+
+    expect((await result).isErr()).toBe(true)
+    expect(fetchIntentStatus.mock.calls.length).toBeGreaterThan(1)
+  })
+
+  it('keeps waiting on a bridge the orchestrator comes to know', async () => {
+    const { result } = run(
+      ['NOT_FOUND', 'PENDING', 'COMPLETED'],
+      1_000,
+      Date.now() + 60_000,
+    )
+
+    expect((await result)._unsafeUnwrap()).toBe('landed')
+  })
+
+  it('waits through pending until the bridge fills', async () => {
+    const { fetchIntentStatus, result } = run([null, 'PENDING', 'COMPLETED'])
+
+    expect((await result)._unsafeUnwrap()).toBe('landed')
+    expect(fetchIntentStatus).toHaveBeenCalledTimes(3)
+    expect(fetchIntentStatus).toHaveBeenCalledWith(9n, undefined)
+  })
+
+  it('reports a failed or expired bridge as dead', async () => {
+    expect((await run(['FAILED']).result)._unsafeUnwrap()).toBe('dead')
+    expect((await run(['EXPIRED']).result)._unsafeUnwrap()).toBe('dead')
+  })
+
+  // An unconfirmed payment must never be followed by a second one.
+  it('fails rather than settling when the status never resolves', async () => {
+    const { result } = run([], 20)
+
+    expect((await result).isErr()).toBe(true)
+  })
+
+  it('fails without a status lookup', async () => {
+    const result = await awaitL2BridgeActor({ intentId: 9n, claimableUntil: 0 })
+
+    expect(result.isErr()).toBe(true)
+  })
+})
+
+describe('readHcaUsdcBalanceAtLeastActor', () => {
+  const run = (balances: (bigint | Error)[], timeoutMs = 1_000) => {
+    readContract.mockImplementation(async () => {
+      const next = balances.length > 1 ? balances.shift() : balances[0]
+      if (next instanceof Error) throw next
+      return next
+    })
+    return readHcaUsdcBalanceAtLeastActor({
+      hca: HCA,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+      chainId: sepolia.id,
+      atLeast: 10n,
+      pollIntervalMs: 0,
+      timeoutMs,
+    })
+  }
+
+  // A lagging node still reads the balance from before the bridge landed.
+  it('reads again until the balance shows the bridge', async () => {
+    const result = await run([0n, new Error('rpc'), 12n])
+
+    expect(result._unsafeUnwrap()).toBe(12n)
+    expect(readContract).toHaveBeenCalledTimes(3)
+  })
+
+  it('settles for the last read once it gives up', async () => {
+    const result = await run([4n], 20)
+
+    expect(result._unsafeUnwrap()).toBe(4n)
+  })
+
+  it('fails when no read ever succeeds', async () => {
+    const result = await run([new Error('rpc')], 20)
+
+    expect(result.isErr()).toBe(true)
+  })
+})
+
 describe('submitRevealBatchActor', () => {
   // The validator keeps no session state, so the reveal is rejected
   // (InvalidSessionData, surfaced as UnclassifiedRevert) unless it carries the
@@ -245,6 +440,60 @@ describe('submitRevealBatchActor', () => {
       sessionEnable.enableData,
     )
   })
+
+  // `addr.reverse` outranks the `default.reverse` claim, so a leftover entry
+  // is cleared in the same session-signed batch, not by a wallet prompt.
+  it.each([
+    { label: 'clears', addrReverseResolver: RESOLVER_WITH_RECORD },
+    { label: 'leaves', addrReverseResolver: zeroAddress },
+  ])(
+    '$label addr.reverse per its resolver',
+    async ({ addrReverseResolver }) => {
+      const revealClient = {
+        chain: sepolia,
+        readContract: vi.fn(({ functionName }: { functionName: string }) =>
+          Promise.resolve(
+            functionName === 'resolver'
+              ? addrReverseResolver
+              : [5_000_000n, 0n],
+          ),
+        ),
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient
+
+      const result = await submitRevealBatchActor({
+        name: 'myname.eth',
+        wallet: WALLET,
+        hca: HCA,
+        duration: 31_536_000n,
+        secret: `0x${'dd'.repeat(32)}` as Hex,
+        sessionEnable,
+        signer: rhinestoneSigner,
+        publicClient: revealClient,
+        primaryName: 'myname.eth',
+      })
+
+      expect(result.isOk()).toBe(true)
+      const calls = submittedRequest().rhinestoneParams.calls
+      const claim = calls.find((call) =>
+        isAddressEqual(call.to, C.reverseRegistrarHcaAdapter),
+      )
+      if (addrReverseResolver === zeroAddress) {
+        expect(claim).toBeUndefined()
+        return
+      }
+      // Last, after setNameWithHCA, for the wallet with resolver 0.
+      expect(claim).toBe(calls.at(-1))
+      const decoded = decodeFunctionData({
+        abi: parseAbi([
+          'function claimWithHCA(address addr, address resolver) returns (bytes32)',
+        ]),
+        // biome-ignore lint/style/noNonNullAssertion: asserted defined above
+        data: claim!.data,
+      })
+      expect(decoded.args).toEqual([WALLET, zeroAddress])
+    },
+  )
 })
 
 describe('verifyHcaRegistrationActor', () => {
@@ -911,7 +1160,9 @@ describe('estimateHcaBudgetActor', () => {
     await estimateHcaBudgetActor(input)
     const withoutName = registerLegParams().gasLimit
 
-    expect(withName - withoutName).toBe(primaryNameGas('myname.eth'))
+    expect(withName - withoutName).toBe(
+      primaryNameGas('myname.eth') + HCA_ADDR_REVERSE_CLEAR_GAS,
+    )
   })
 
   it('scales the widening with the name length', async () => {

@@ -1,5 +1,8 @@
 import type { Address } from 'viem'
-import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
+import {
+  type AtomicMigrationBatch,
+  walletReplayNames,
+} from './buildAtomicMigrationBatches'
 import type {
   MigrationApproval,
   MigrationApprovalId,
@@ -43,8 +46,22 @@ export type MigrationStepDescriptor =
       readonly roleGrants: readonly MigrationRoleGrantDescriptor[]
     }
   | {
+      /**
+       * The owner wallet replaying records the HCA can no longer write. Sits
+       * before its `atomic-batch` because it has to land first.
+       */
+      readonly type: 'record-replay'
+      readonly index: number
+      readonly count: number
+    }
+  | {
       readonly type: 'cleanup'
       readonly approvalId: MigrationApprovalId
+    }
+  | {
+      /** Several steps the wallet confirms at once, as one EIP-5792 bundle. */
+      readonly type: 'bundle'
+      readonly steps: readonly MigrationStepDescriptor[]
     }
 
 /**
@@ -73,11 +90,51 @@ export type BuildStepDescriptorsParams = {
   readonly cleanupApprovals?: readonly MigrationCleanupApproval[]
   readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly registrationApprovalTargets: readonly RegistrationApprovalTarget[]
+  /**
+   * The wallet bundles calls atomically: setup (deployment + approvals) is one
+   * confirmation, and cleanup rides with the final atomic batch.
+   */
+  readonly canBatchAtomically?: boolean
 }
 
 export type MigrationWalletRequestDescriptor =
   | MigrationStepDescriptor
   | { readonly type: 'renewal-approval' }
+
+const approvalDescriptor = (params: {
+  readonly approval: MigrationApproval
+  readonly registrationNameByTokenId: ReadonlyMap<bigint, string>
+  readonly registrationCount: number
+  readonly allRoleGrants: readonly MigrationRoleGrantDescriptor[]
+}): MigrationStepDescriptor => {
+  const { approval } = params
+  if (approval.kind === 'erc721-token') {
+    return {
+      type: 'approval',
+      approvalId: approval.id,
+      name: params.registrationNameByTokenId.get(approval.tokenId),
+      tokenId: approval.tokenId,
+    }
+  }
+
+  return {
+    type: 'approval',
+    approvalId: approval.id,
+    count:
+      approval.id === 'base-registrar:hca'
+        ? params.registrationCount
+        : undefined,
+    // What this approval will actually be spent on, so its copy can name the
+    // restoration instead of promising one. Left undefined when the plan grants
+    // nothing — a step must never advertise grants it does not carry, which is
+    // what a resumed run with no recorded opt-in produces. The addresses
+    // themselves are listed once, on the batch step that performs the grants.
+    roleGrants:
+      approval.id === 'eth-registry:hca' && params.allRoleGrants.length > 0
+        ? params.allRoleGrants
+        : undefined,
+  }
+}
 
 export const buildStepDescriptors = (
   params: BuildStepDescriptorsParams,
@@ -97,34 +154,14 @@ export const buildStepDescriptors = (
   const allRoleGrants = params.atomicBatches.flatMap(roleGrantsForBatch)
 
   for (const approval of params.approvals) {
-    if (approval.kind === 'erc721-token') {
-      descriptors.push({
-        type: 'approval',
-        approvalId: approval.id,
-        name: registrationNameByTokenId.get(approval.tokenId),
-        tokenId: approval.tokenId,
-      })
-      continue
-    }
-
-    descriptors.push({
-      type: 'approval',
-      approvalId: approval.id,
-      count:
-        approval.id === 'base-registrar:hca'
-          ? params.registrationApprovalTargets.length
-          : undefined,
-      // What this approval will actually be spent on, so its copy can name the
-      // restoration instead of promising one. Left undefined when the plan
-      // grants nothing — a step must never advertise grants it does not carry,
-      // which is what a resumed run with no recorded opt-in produces. The
-      // addresses themselves are listed once, on the batch step that performs
-      // the grants.
-      roleGrants:
-        approval.id === 'eth-registry:hca' && allRoleGrants.length > 0
-          ? allRoleGrants
-          : undefined,
-    })
+    descriptors.push(
+      approvalDescriptor({
+        approval,
+        registrationNameByTokenId,
+        registrationCount: params.registrationApprovalTargets.length,
+        allRoleGrants,
+      }),
+    )
   }
 
   for (const [index, batch] of params.atomicBatches.entries()) {
@@ -132,6 +169,16 @@ export const buildStepDescriptors = (
       ({ action }) => action === 'migrate',
     ).length
     const copyCount = batch.operations.length - migrateCount
+    // Ahead of the batch: the replay has to land before the names migrate.
+    // Count only the names whose records the call carries, not every name in
+    // the batch.
+    if (batch.walletCall) {
+      descriptors.push({
+        type: 'record-replay',
+        index,
+        count: walletReplayNames(batch).length,
+      })
+    }
     descriptors.push({
       type: 'atomic-batch',
       index,
@@ -148,5 +195,33 @@ export const buildStepDescriptors = (
     descriptors.push({ type: 'cleanup', approvalId: approval.id })
   }
 
-  return descriptors
+  return params.canBatchAtomically
+    ? bundleDescriptors(descriptors)
+    : descriptors
+}
+
+const bundleOf = (
+  steps: readonly MigrationStepDescriptor[],
+): MigrationStepDescriptor[] => {
+  if (steps.length === 0) return []
+  if (steps.length === 1) return [...steps]
+  return [{ type: 'bundle', steps }]
+}
+
+/** Regroups sequential descriptors into the confirmations an atomic wallet sees. */
+const bundleDescriptors = (
+  descriptors: readonly MigrationStepDescriptor[],
+): MigrationStepDescriptor[] => {
+  const setup = descriptors.filter(
+    ({ type }) => type === 'deploy-hca' || type === 'approval',
+  )
+  const batches = descriptors.filter(({ type }) => type === 'atomic-batch')
+  const cleanup = descriptors.filter(({ type }) => type === 'cleanup')
+  // Cleanup only rides along with a batch; a cleanup-only retry stays alone.
+  const finalBatch = batches.at(-1)
+  return [
+    ...bundleOf(setup),
+    ...batches.slice(0, -1),
+    ...(finalBatch ? bundleOf([finalBatch, ...cleanup]) : cleanup),
+  ]
 }

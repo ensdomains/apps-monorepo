@@ -3,21 +3,21 @@
  *
  * This module provides utilities for working with neverthrow's Result type,
  * including generator-based error handling, tagged error classes, and
- * promise wrappers.
+ * result helpers.
  *
  * @example
  * ```typescript
- * import { ResultFn, TaggedError, createIntoResult } from '@ens-apps/utils/neverthrow'
+ * import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
  *
  * // Create a tagged error
- * const DatabaseError = TaggedError('DATABASE_ERROR')
- *
- * // Create a promise wrapper
- * const intoDbResult = createIntoResult(DatabaseError)
+ * class DatabaseError extends TaggedError('DATABASE_ERROR')<{ cause: unknown }> {}
  *
  * // Use generator-based error handling
  * const processUser = ResultFn(async function* (userId: string) {
- *   const user = yield* intoDbResult(db.query.users.findFirst({ where: eq(users.id, userId) }))
+ *   const user = yield* fromPromise(
+ *     db.query.users.findFirst({ where: eq(users.id, userId) }),
+ *     (cause) => new DatabaseError({ cause }),
+ *   )
  *   return ok(user)
  * })
  * ```
@@ -26,7 +26,6 @@
 // Error classes and factories
 export {
   DataError,
-  type Equals,
   TaggedError,
   YieldableError,
 } from './neverthrow/error-classes.js'
@@ -38,17 +37,12 @@ export {
   ResultFn,
 } from './neverthrow/generator-functions.js'
 
-// Promise wrappers and result utilities
+// Result utilities
 export {
-  asyncRes,
-  createIntoResult,
-  deserializeResult,
   fromThrowableV2,
   getFirstOrFallback,
   type InferErrTypes,
   type InferOkTypes,
-  type SerializedResult,
-  serializeResult,
 } from './neverthrow/result-helpers.js'
 
 // Type utilities (re-exported for convenience, but prefer importing from specific files)

@@ -386,7 +386,9 @@ function buildRequestSnapshot(
   const calls =
     request.type === 'rhinestone-intent'
       ? request.rhinestoneParams.calls
-      : undefined
+      : request.type === 'eoa-batch'
+        ? request.calls
+        : undefined
   const callCount = calls ? calls.length : 1
 
   return {

@@ -29,8 +29,11 @@
  * app's concern), the chain, and the Rhinestone API key + endpoint overrides.
  */
 
-import type { AccountProviderConfig, RhinestoneAccount } from '@rhinestone/sdk'
-import { RhinestoneSDK } from '@rhinestone/sdk'
+import type {
+  AccountProviderConfig,
+  RhinestoneAccount,
+  RhinestoneSDK,
+} from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import {
   type Account,
@@ -46,13 +49,14 @@ import {
 } from 'viem'
 import { AccountInitError, AccountVerificationError } from '../../errors'
 import { computeVerifiableProxyAddress } from '../../verifiable-factory'
-import { type RhinestoneAuth, toSdkAuth } from './auth'
+import type { RhinestoneAuth } from './auth'
 import {
   getDestinationContracts,
   STANDALONE_HCA_VERSION,
   USER_SALT,
 } from './manifest'
 import type { Call } from './registration-calls'
+import { createRhinestoneSdk } from './sdk'
 import { verifyStandaloneHca } from './verify-account'
 
 export {
@@ -356,16 +360,13 @@ function makeSdk(params: {
   readonly rhinestoneCustomRpcUrls?: Record<number, string>
 }): RhinestoneSDK {
   const defaultRpcUrl = params.chain.rpcUrls.default.http[0]
-  const urls: Record<number, string> = {
-    ...(defaultRpcUrl ? { [params.chain.id]: defaultRpcUrl } : {}),
-    ...(params.rhinestoneCustomRpcUrls ?? {}),
-  }
-  return new RhinestoneSDK({
-    auth: toSdkAuth(params.rhinestoneAuth),
-    provider: { type: 'custom', urls },
-    ...(params.rhinestoneEndpointUrl
-      ? { endpointUrl: params.rhinestoneEndpointUrl }
-      : {}),
+  return createRhinestoneSdk({
+    auth: params.rhinestoneAuth,
+    endpointUrl: params.rhinestoneEndpointUrl,
+    rpcUrls: {
+      ...(defaultRpcUrl ? { [params.chain.id]: defaultRpcUrl } : {}),
+      ...(params.rhinestoneCustomRpcUrls ?? {}),
+    },
   })
 }
 

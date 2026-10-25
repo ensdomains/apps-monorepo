@@ -67,6 +67,7 @@ export const getGracePeriodNames = (
 const UNAVAILABLE_REASONS: ReadonlySet<IneligibleReason> = new Set([
   'missing-registration',
   'not-reserved',
+  'parent-upgraded',
 ])
 
 /** Names the owner holds that no upgrade or renewal here can move. */

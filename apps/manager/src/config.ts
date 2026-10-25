@@ -1,6 +1,7 @@
 import { buildConfig, type EnsNetwork, isEnsNetwork } from '@ens-apps/config'
 import { createIsomorphicFn } from '@tanstack/react-start'
 import { MANAGER_ENDPOINTS } from './endpoints'
+import { getL2Sources } from './l2Sources'
 
 /**
  * The manager's composition root for configuration: the only module in the
@@ -87,3 +88,6 @@ export const envConfig = {
 }
 
 export const { chain, isTestnet, rpcUrls } = envConfig
+
+/** L2s whose USDC can be bridged to pay on `chain`. */
+export const l2Sources = getL2Sources(envConfig.network)

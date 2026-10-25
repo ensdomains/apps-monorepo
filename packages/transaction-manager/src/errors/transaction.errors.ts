@@ -115,6 +115,12 @@ export class TransactionSubmissionError
   }
 }
 
+/**
+ * An L2-paid intent stopped before it left the app: the approval, the quote or
+ * the signature failed. Nothing can fill, so there is nothing to wait for.
+ */
+export class L2PaymentNotSentError extends TransactionSubmissionError {}
+
 /** One violation in words, for a message a person reads. */
 function describeRefundViolation(v: GasRefundViolation): string {
   switch (v.field) {
@@ -215,6 +221,35 @@ export class TransactionTimeoutError
     public readonly timeout: number,
   ) {
     super(`Transaction ${hash} timed out after ${timeout}ms`)
+  }
+}
+
+/** A `wallet_sendCalls` bundle did not report a final status in time. */
+export class CallsBundleTimeoutError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'CallsBundleTimeoutError'
+  constructor(
+    public readonly id: string,
+    public readonly timeout: number,
+    cause?: unknown,
+  ) {
+    super(`Batched calls ${id} timed out after ${timeout}ms`, cause)
+  }
+}
+
+/**
+ * The wallet stopped reporting atomic `supported` between planning a bundle and
+ * sending it. Sending anyway could prompt an EIP-7702 upgrade of the EOA.
+ */
+export class AtomicBatchUnsupportedError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'AtomicBatchUnsupportedError'
+  constructor(public readonly chainId: number) {
+    super(`Wallet no longer batches calls atomically on chain ${chainId}`)
   }
 }
 

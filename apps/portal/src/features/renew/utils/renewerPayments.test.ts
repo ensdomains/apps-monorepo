@@ -108,38 +108,60 @@ describe('planMultiRenewSteps', () => {
     expect(planMultiRenewSteps([], [payment(V1, 10n, 0n)])).toEqual([])
   })
 
-  it('emits only renews when every allowance covers its total', () => {
-    const steps = planMultiRenewSteps(
-      [entry(true, 'a.eth'), entry(true, 'b.eth')],
-      [payment(V2, 10n, 10n)],
-    )
+  it('emits one renew for a same-renewer batch when its allowance covers it', () => {
+    const renewals = [entry(true, 'a.eth'), entry(true, 'b.eth')]
+    const steps = planMultiRenewSteps(renewals, [payment(V2, 10n, 10n)])
     expect(steps).toEqual([
-      { kind: 'renew', name: 'a.eth', duration: 1, isV2: true },
-      { kind: 'renew', name: 'b.eth', duration: 1, isV2: true },
+      { kind: 'renew', renewer: getRenewerAddress(true), batch: 0, renewals },
     ])
   })
 
-  it('emits one approval (skipClear false) then the renews', () => {
-    const steps = planMultiRenewSteps(
-      [entry(true, 'a.eth')],
-      [payment(V2, 10n, 0n)],
+  it('splits a renewer past 50 names into numbered batches', () => {
+    const renewals = Array.from({ length: 51 }, (_, i) =>
+      entry(false, `n${i}.eth`),
     )
+    const steps = planMultiRenewSteps(renewals, [payment(V1, 1n, 1n)])
     expect(steps).toEqual([
-      { kind: 'approve', renewer: V2, total: 10n, skipClear: false },
-      { kind: 'renew', name: 'a.eth', duration: 1, isV2: true },
+      {
+        kind: 'renew',
+        renewer: getRenewerAddress(false),
+        batch: 0,
+        renewals: renewals.slice(0, 50),
+      },
+      {
+        kind: 'renew',
+        renewer: getRenewerAddress(false),
+        batch: 1,
+        renewals: renewals.slice(50),
+      },
     ])
   })
 
-  it('emits two approvals for a mixed batch — first clears, second skips', () => {
+  it('emits two approvals for a mixed batch — first clears, second skips — then one renew per renewer', () => {
+    const [v1a, v2a, v1b] = [
+      entry(false, 'v1a.eth'),
+      entry(true, 'v2a.eth'),
+      entry(false, 'v1b.eth'),
+    ]
     const steps = planMultiRenewSteps(
-      [entry(false, 'v1.eth'), entry(true, 'v2.eth')],
+      [v1a, v2a, v1b],
       [payment(V1, 5n, 0n), payment(V2, 8n, 0n)],
     )
     expect(steps).toEqual([
       { kind: 'approve', renewer: V1, total: 5n, skipClear: false },
       { kind: 'approve', renewer: V2, total: 8n, skipClear: true },
-      { kind: 'renew', name: 'v1.eth', duration: 1, isV2: false },
-      { kind: 'renew', name: 'v2.eth', duration: 1, isV2: true },
+      {
+        kind: 'renew',
+        renewer: getRenewerAddress(false),
+        batch: 0,
+        renewals: [v1a, v1b],
+      },
+      {
+        kind: 'renew',
+        renewer: getRenewerAddress(true),
+        batch: 0,
+        renewals: [v2a],
+      },
     ])
   })
 

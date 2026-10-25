@@ -190,7 +190,7 @@ describe('getGracePeriodNames', () => {
 })
 
 describe('getUnavailableNames', () => {
-  it('keeps names without a reservation or a lease, sorted, and nothing else', () => {
+  it('keeps names without a reservation, a lease or a parent to copy under, sorted, and nothing else', () => {
     const named = (name: string, reason: IneligibleName['reason']) => ({
       domain: makeDomain({ id: name, name }),
       reason,
@@ -202,7 +202,9 @@ describe('getUnavailableNames', () => {
         named('grace.eth', 'expired-registration'),
         named('bare.eth', 'missing-registration'),
         named('locked.eth', 'not-transferable'),
+        named('left.done.eth', 'parent-upgraded'),
+        named('sub.theirs.eth', 'missing-parent'),
       ]).map(({ domain }) => domain.name),
-    ).toEqual(['bare.eth', 'zed.eth'])
+    ).toEqual(['bare.eth', 'left.done.eth', 'zed.eth'])
   })
 })

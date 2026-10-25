@@ -25,15 +25,20 @@ jobs:
           runtime: node@lts
           cache: true
 
+      # On push, origin/main already is HEAD, so diffing against it selects
+      # nothing; diff against the commit main pointed to before the push.
       - name: Determine base ref
         id: base
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BEFORE: ${{ github.event.before }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "ref=origin/${BASE_REF}" >> $GITHUB_OUTPUT
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            echo "ref=${BEFORE}" >> $GITHUB_OUTPUT
           else
-            echo "ref=origin/main" >> $GITHUB_OUTPUT
+            echo "ref=HEAD~1" >> $GITHUB_OUTPUT
           fi
 
       # A root-file change selects the workspace root, which has none of these

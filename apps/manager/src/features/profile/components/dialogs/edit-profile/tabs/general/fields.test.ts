@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core'
 import { describe, expect, it } from 'vitest'
 import type { ProfileRecords } from '@/features/profile/types'
 import {
@@ -7,6 +8,8 @@ import {
   isDescriptionOverLimit,
   removeGeneralFieldValue,
 } from './fields'
+
+i18n.loadAndActivate({ locale: 'en', messages: {} })
 
 const createRecords = (base: ProfileRecords['base'] = {}): ProfileRecords => ({
   base,
@@ -82,14 +85,13 @@ describe('general profile fields', () => {
   )
 
   it('reports invalid custom link values as general validation issues', () => {
-    expect(
-      getGeneralValidationIssues(createRecords({ url: 'fffasdf' })),
-    ).toEqual([
-      {
-        field: 'url',
-        message: 'Enter a valid URL (e.g. https://example.com)',
-      },
-    ])
+    const issues = getGeneralValidationIssues(createRecords({ url: 'fffasdf' }))
+
+    expect(issues).toHaveLength(1)
+    expect(issues[0]?.field).toBe('url')
+    expect(issues[0] && i18n._(issues[0].message)).toBe(
+      'Add a domain extension, like .com',
+    )
   })
 
   it('rejects an edited legacy description until it is within the limit', () => {

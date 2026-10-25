@@ -1,6 +1,17 @@
 import { err, ok } from 'neverthrow'
-import type { Address, Hex, PublicClient } from 'viem'
+import {
+  type Address,
+  ContractFunctionExecutionError,
+  ContractFunctionRevertedError,
+  ContractFunctionZeroDataError,
+  type Hex,
+  HttpRequestError,
+  type PublicClient,
+  zeroAddress,
+  zeroHash,
+} from 'viem'
 import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
+import { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
 import { fail as failCall, ok as okCall } from './_fixtures'
 import {
   fetchV1Profiles,
@@ -19,18 +30,41 @@ const NODE_A: Hex =
 const NODE_B: Hex =
   '0x2222222222222222222222222222222222222222222222222222222222222222'
 
+// Every name ends its batch with a pubkey read; this is an unset one.
+const NO_PUBKEY = okCall([zeroHash, zeroHash])
+
+const pubkeyFailure = (
+  cause: ContractFunctionRevertedError | ContractFunctionZeroDataError,
+) => ({
+  status: 'failure' as const,
+  error: new ContractFunctionExecutionError(cause, {
+    abi: V1_RESOLVER_PROFILE_ABI,
+    functionName: 'pubkey',
+    args: [NODE_A],
+  }),
+  result: undefined,
+})
+
+const PUBKEY_REVERT = pubkeyFailure(
+  new ContractFunctionRevertedError({
+    abi: V1_RESOLVER_PROFILE_ABI,
+    functionName: 'pubkey',
+  }),
+)
+
 const clientWith = (multicallImpl: (opts: unknown) => unknown): PublicClient =>
   ({ multicall: vi.fn(multicallImpl) }) as unknown as PublicClient
 
 const mockKeys = (
-  rows: (Omit<V1ProfileKeys, 'hasContentHash' | 'abiContentTypes'> &
-    Partial<Pick<V1ProfileKeys, 'hasContentHash' | 'abiContentTypes'>>)[],
+  rows: (Pick<V1ProfileKeys, 'id' | 'texts' | 'coinTypes'> &
+    Partial<V1ProfileKeys>)[],
 ) =>
   getV1ProfileKeysMock.mockReturnValueOnce(
     ok(
       rows.map((row) => ({
         hasContentHash: false,
         abiContentTypes: [],
+        interfaceIds: [],
         ...row,
       })),
     ) as never,
@@ -88,19 +122,19 @@ describe('fetchV1Profiles', () => {
     )
   })
 
-  it('returns empty-profile entries when bigname reports no keys', async () => {
+  it('still reads the pubkey when bigname reports no keys', async () => {
     mockKeys([{ id: NODE_A, texts: [], coinTypes: [] }])
     const result = await run(
       [A],
-      clientWith(() => {
-        throw new Error('should not be called')
-      }),
+      clientWith(() => [NO_PUBKEY]),
     )
     expect(result.get(profileMapKey(NODE_A))).toEqual({
       texts: [],
       addresses: [],
       contentHash: null,
       abis: [],
+      interfaces: [],
+      pubkey: null,
     })
   })
 
@@ -111,6 +145,7 @@ describe('fetchV1Profiles', () => {
       clientWith(() => [
         okCall('a@b.c'),
         okCall('0x000000000000000000000000000000000000abcd' as Hex),
+        NO_PUBKEY,
       ]),
     )
     const entry = result.get(profileMapKey(NODE_A))
@@ -137,6 +172,7 @@ describe('fetchV1Profiles', () => {
       clientWith(() => [
         okCall('https://mobile.twitter.com/she_256/'),
         okCall('github.com/rainbow-me/rainbow/'),
+        NO_PUBKEY,
       ]),
     )
 
@@ -149,7 +185,7 @@ describe('fetchV1Profiles', () => {
   it('uses supplied profile keys without querying bigname again', async () => {
     const result = await fetchV1Profiles({
       names: [A],
-      publicClient: clientWith(() => [okCall('a@b.c')]),
+      publicClient: clientWith(() => [okCall('a@b.c'), NO_PUBKEY]),
       profileKeys: [
         {
           id: NODE_A,
@@ -157,6 +193,7 @@ describe('fetchV1Profiles', () => {
           coinTypes: [],
           hasContentHash: false,
           abiContentTypes: [],
+          interfaceIds: [],
         },
       ],
     })
@@ -171,7 +208,7 @@ describe('fetchV1Profiles', () => {
     mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [60] }])
     const result = await run(
       [A],
-      clientWith(() => [okCall(''), okCall('0x' as Hex)]),
+      clientWith(() => [okCall(''), okCall('0x' as Hex), NO_PUBKEY]),
     )
     const entry = result.get(profileMapKey(NODE_A))
     assert(entry)
@@ -195,6 +232,7 @@ describe('fetchV1Profiles', () => {
         okCall('0xe301' as Hex),
         okCall([1n, '0x5b5d' as Hex]),
         okCall([0n, '0x' as Hex]),
+        NO_PUBKEY,
       ]),
     )
 
@@ -203,7 +241,92 @@ describe('fetchV1Profiles', () => {
       addresses: [],
       contentHash: '0xe301',
       abis: [{ contentType: 1n, value: '0x5b5d' }],
+      interfaces: [],
+      pubkey: null,
     })
+  })
+
+  it('keeps nonzero interface implementers and pubkeys, dropping zero values', async () => {
+    const implementer: Address = '0x000000000000000000000000000000000000beef'
+    const pubkey = { x: `0x${'aa'.repeat(32)}`, y: zeroHash } as const
+    mockKeys([
+      {
+        id: NODE_A,
+        texts: [],
+        coinTypes: [],
+        interfaceIds: ['0x01ffc9a7', '0x12345678'],
+      },
+      { id: NODE_B, texts: [], coinTypes: [] },
+    ])
+    const result = await run(
+      [A, B],
+      clientWith(() => [
+        okCall(implementer),
+        okCall(zeroAddress),
+        okCall([pubkey.x, pubkey.y]),
+        okCall([zeroHash, zeroHash]),
+      ]),
+    )
+
+    expect(result.get(profileMapKey(NODE_A))).toMatchObject({
+      interfaces: [{ interfaceId: '0x01ffc9a7', implementer }],
+      pubkey,
+    })
+    expect(result.get(profileMapKey(NODE_B))?.pubkey).toBeNull()
+  })
+
+  it('treats a resolver that reverts on pubkey as holding none', async () => {
+    mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [] }])
+    const result = await run(
+      [A],
+      clientWith(() => [okCall('a@b.c'), PUBKEY_REVERT]),
+    )
+    expect(result.get(profileMapKey(NODE_A))).toMatchObject({
+      texts: [{ key: 'email', value: 'a@b.c' }],
+      pubkey: null,
+    })
+  })
+
+  it('treats a resolver that returns no data for pubkey as holding none', async () => {
+    mockKeys([{ id: NODE_A, texts: [], coinTypes: [] }])
+    const result = await run(
+      [A],
+      clientWith(() => [
+        pubkeyFailure(
+          new ContractFunctionZeroDataError({ functionName: 'pubkey' }),
+        ),
+      ]),
+    )
+    expect(result.get(profileMapKey(NODE_A))?.pubkey).toBeNull()
+  })
+
+  it('fails closed when the multicall request fails on a pubkey-only chunk', async () => {
+    mockKeys([{ id: NODE_A, texts: [], coinTypes: [] }])
+    const requestError = new HttpRequestError({ url: 'https://rpc.test' })
+    await expect(
+      run(
+        [A],
+        clientWith(() => [
+          { status: 'failure', error: requestError, result: undefined },
+        ]),
+      ),
+    ).rejects.toSatisfy(
+      (error) =>
+        error instanceof ProfileFetchError && error.phase === 'onchain',
+    )
+  })
+
+  it('fails closed when a pubkey read fails for a reason other than a revert', async () => {
+    mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [] }])
+    await expect(
+      run(
+        [A],
+        clientWith(() => [okCall('a@b.c'), failCall()]),
+      ),
+    ).rejects.toSatisfy(
+      (error) =>
+        error instanceof ProfileFetchError && error.phase === 'onchain',
+    )
   })
 
   it('fails closed when any multicall record read fails', async () => {
@@ -211,7 +334,7 @@ describe('fetchV1Profiles', () => {
     await expect(
       run(
         [A],
-        clientWith(() => [failCall(), okCall('ok-value')]),
+        clientWith(() => [failCall(), okCall('ok-value'), NO_PUBKEY]),
       ),
     ).rejects.toSatisfy(
       (error) =>
@@ -251,7 +374,7 @@ describe('fetchV1Profiles', () => {
     mockKeys([{ id: NODE_A.toUpperCase(), texts: ['email'], coinTypes: [] }])
     const result = await run(
       [A],
-      clientWith(() => [okCall('matched')]),
+      clientWith(() => [okCall('matched'), NO_PUBKEY]),
     )
     expect(result.get(profileMapKey(NODE_A))?.texts).toEqual([
       { key: 'email', value: 'matched' },
@@ -259,7 +382,8 @@ describe('fetchV1Profiles', () => {
   })
 
   it('chunks multicall args into batches of 700 with batchSize:0', async () => {
-    const keys = Array.from({ length: 701 }, (_, i) => `text-${i}`)
+    // 700 text reads plus the pubkey read spill one call into a second chunk.
+    const keys = Array.from({ length: 700 }, (_, i) => `text-${i}`)
     mockKeys([{ id: NODE_A, texts: keys, coinTypes: [] }])
     const multicallSpy = vi.fn(async (opts: { contracts: unknown[] }) =>
       opts.contracts.map(() => okCall('v')),
@@ -277,7 +401,7 @@ describe('fetchV1Profiles', () => {
   })
 
   it('runs chunks with bounded concurrency (>1 in flight, cap respected)', async () => {
-    const keys = Array.from({ length: 700 * 8 }, (_, i) => `text-${i}`)
+    const keys = Array.from({ length: 700 * 8 - 1 }, (_, i) => `text-${i}`)
     mockKeys([{ id: NODE_A, texts: keys, coinTypes: [] }])
 
     let inFlight = 0
@@ -303,7 +427,7 @@ describe('fetchV1Profiles', () => {
     ])
     const result = await run(
       [A, B],
-      clientWith(() => [okCall('valA'), okCall('valB')]),
+      clientWith(() => [okCall('valA'), NO_PUBKEY, okCall('valB'), NO_PUBKEY]),
     )
     expect(result.get(profileMapKey(NODE_A))?.texts[0]).toEqual({
       key: 'keyA',

@@ -10,7 +10,7 @@
  */
 
 import { originFromEnvUrl } from '@ens-apps/config'
-import { envConfig } from '@/config'
+import { envConfig, l2Sources } from '@/config'
 
 import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
 
@@ -46,6 +46,11 @@ const DEFAULT_CONNECT_HOSTS = [
   // the transports read, so an endpoint change can never be silently blocked.
   // Relative primaries (`/rpc` in e2e) yield null and are covered by 'self'.
   ...envConfig.rpcUrls
+    .map(originFromEnvUrl)
+    .filter((origin): origin is string => origin !== null),
+  // The L2 bridge sources' RPCs (USDC balances, approval receipts).
+  ...l2Sources
+    .flatMap(({ rpcUrls }) => rpcUrls)
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
   // The indexer, resolved in `@/config`.

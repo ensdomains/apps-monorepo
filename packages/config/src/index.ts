@@ -1,5 +1,5 @@
-export { assertDeploymentEnvironment } from './assertDeploymentEnvironment'
-export { assertNetworkConfig } from './assertNetworkConfig'
+export { assertDeploymentEnvironment } from './assertDeploymentEnvironment.ts'
+export { assertNetworkConfig } from './assertNetworkConfig.ts'
 export {
   type BuildConfigInput,
   buildConfig,
@@ -8,7 +8,7 @@ export {
   type EnsChain,
   NetworkConfigError,
   orderedRpcUrls,
-} from './buildConfig'
+} from './buildConfig.ts'
 export {
   ENS_NETWORKS,
   type EnsNetwork,
@@ -16,7 +16,7 @@ export {
   NETWORKS,
   type NetworkEndpoints,
   type NetworkProfile,
-} from './networks'
-export { originFromEnvUrl } from './origin'
-export { requireChainId, requireEnsChain } from './requireChainId'
-export { WALLETCONNECT_PROJECT_ID } from './walletconnect'
+} from './networks.ts'
+export { originFromEnvUrl } from './origin.ts'
+export { requireChainId, requireEnsChain } from './requireChainId.ts'
+export { WALLETCONNECT_PROJECT_ID } from './walletconnect.ts'

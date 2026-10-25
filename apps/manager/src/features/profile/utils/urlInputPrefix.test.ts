@@ -66,14 +66,17 @@ describe('getUrlInputBlurValue', () => {
     )
   })
 
-  it('leaves other schemes and non-domains alone', () => {
+  it('leaves other schemes alone and prefixes schemeless text', () => {
     expect(getUrlInputBlurValue('http://ens.domains')).toBe(
       'http://ens.domains',
     )
     expect(getUrlInputBlurValue('ipfs://bafybeigdyrzt')).toBe(
       'ipfs://bafybeigdyrzt',
     )
-    expect(getUrlInputBlurValue('hello')).toBe('hello')
+    expect(getUrlInputBlurValue('hello')).toBe('https://hello')
+    expect(getUrlInputBlurValue('javascript:alert(1)')).toBe(
+      'javascript:alert(1)',
+    )
   })
 
   it('trims other values', () => {

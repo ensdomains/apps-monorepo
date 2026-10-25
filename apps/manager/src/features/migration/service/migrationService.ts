@@ -5,6 +5,7 @@ import {
 } from '@ens-apps/smart-account'
 import {
   type Call,
+  getAtomicBatchSupport,
   type Signer,
   type TransactionRequest,
   transactionManager,
@@ -25,8 +26,13 @@ import {
 
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import { TARGET_GAS } from './batchMigrate.constants'
-import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
+import { maxOuterGasFor } from './batchMigrate.constants'
+import {
+  type AtomicMigrationBatch,
+  buildAtomicMigrationBatches,
+  maxBatchGas,
+  walletReplayNames,
+} from './buildAtomicMigrationBatches'
 import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
 import type {
   CopyClassifiedName,
@@ -73,10 +79,12 @@ import {
 import {
   assertNoLiveSubregistryOverwrite,
   checkDeterministicMigrationResolverReadiness,
+  resolverWriterFor,
 } from './migrationInvariants'
 import {
   describeRecoveredOperations,
   describeUpgradeOperations,
+  nameCount,
 } from './migrationProgressCopy'
 import {
   reconcileAtomicMigrationBatch,
@@ -244,6 +252,8 @@ type MigrationCtx = {
   readonly walletAddress: Address
   readonly hcaAddress: Address
   readonly tracker: Tracker
+  /** Setup and the final batch + cleanup each go out as one wallet bundle. */
+  readonly canBatchAtomically: boolean
 }
 
 const batchJournalScope = (
@@ -282,6 +292,8 @@ const recoverySnapshotFor = (
         addresses: [],
         contentHash: null,
         abis: [],
+        interfaces: [],
+        pubkey: null,
       })
     }
   }
@@ -388,15 +400,50 @@ const wrapMigrationError = (
     ? new MigrationUserRejectedError({ step })
     : new MigrationError({ cause: error, step })
 
-const submitCall = async (
+const submitCall = (
   ctx: MigrationCtx,
   call: Call,
   description: string,
   onSubmitted?: (hash: Hex) => void,
   gas?: bigint,
+): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> =>
+  submitRequest(ctx, buildEOARequest(ctx, call, gas), description, onSubmitted)
+
+/**
+ * Sends `calls` as one atomic EIP-5792 bundle — a single wallet confirmation.
+ * Only for plans built with `canBatchAtomically`; the wallet estimates the gas.
+ */
+const submitCalls = (
+  ctx: MigrationCtx,
+  calls: readonly Call[],
+  description: string,
+  onSubmitted?: (hash: Hex) => void,
+): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> => {
+  const [only] = calls
+  if (calls.length === 1 && only) {
+    return submitCall(ctx, only, description, onSubmitted)
+  }
+  return submitRequest(
+    ctx,
+    {
+      type: 'eoa-batch',
+      from: ctx.walletAddress,
+      chainId: requireChainId(ctx.publicClient, 'migration'),
+      calls,
+    },
+    description,
+    onSubmitted,
+  )
+}
+
+const submitRequest = async (
+  ctx: MigrationCtx,
+  request: TransactionRequest,
+  description: string,
+  onSubmitted?: (hash: Hex) => void,
 ): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> => {
   const txId = transactionManager.startTransaction(
-    { type: 'custom', request: buildEOARequest(ctx, call, gas) },
+    { type: 'custom', request },
     ctx.signer,
     {
       description,
@@ -587,22 +634,19 @@ const assertMigrationApprovalPlanCurrent = async (params: {
   return missing
 }
 
-const ensureMigrationApprovals = async (params: {
-  readonly ctx: MigrationCtx
-  readonly plan: MigrationPlan
-  readonly currentMissing?: readonly MigrationApproval[]
-}): Promise<readonly Hex[]> => {
-  const { ctx, plan } = params
-  const missing =
-    params.currentMissing ??
-    (await getCurrentMigrationApprovals({ ctx, plan })).missing
-
-  const hashes: Hex[] = []
+/** Planned approvals in preview order (with what is still missing), then unplanned ones. */
+const orderMigrationApprovals = (
+  plan: MigrationPlan,
+  missing: readonly MigrationApproval[],
+): readonly {
+  readonly approval: MigrationApproval
+  readonly missing: MigrationApproval | undefined
+}[] => {
   const missingById = new Map(
     missing.map((approval) => [migrationApprovalKey(approval), approval]),
   )
   const plannedApprovals = plan.preflight.migrationApprovals ?? []
-  const orderedApprovals = [
+  return [
     ...plannedApprovals.map((approval) => ({
       approval,
       missing: missingById.get(migrationApprovalKey(approval)),
@@ -617,8 +661,96 @@ const ensureMigrationApprovals = async (params: {
       )
       .map((approval) => ({ approval, missing: approval })),
   ]
+}
 
-  for (const { approval, missing: missingApproval } of orderedApprovals) {
+/**
+ * HCA deployment and every missing approval as ONE wallet confirmation. The
+ * bundle is atomic, so approvals can never land for an HCA whose deployment
+ * failed; the deployment call itself is validated before it is signed, and an
+ * already-deployed HCA is verified before anything is granted to it.
+ */
+const ensureBundledSetup = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+  readonly hcaClient: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
+  readonly refreshAccount: () => Promise<void>
+  readonly currentMissing: readonly MigrationApproval[]
+}): Promise<{
+  readonly hash: Hex | null
+  readonly hasGrantedApprovals: boolean
+}> => {
+  const { ctx, plan } = params
+  const chainId = requireChainId(ctx.publicClient, 'migration')
+  const verifyHca = () =>
+    verifyStandaloneHca({
+      publicClient: ctx.publicClient,
+      hca: ctx.hcaAddress,
+      expectedOwner: ctx.walletAddress,
+      chainId,
+    })
+
+  try {
+    const shouldDeploy = !hasCode(
+      await ctx.publicClient.getCode({ address: ctx.hcaAddress }),
+    )
+    if (!shouldDeploy) await verifyHca()
+    const approvals = orderMigrationApprovals(plan, params.currentMissing)
+      .map(({ missing }) => missing)
+      .filter((approval) => approval !== undefined)
+    const calls = [
+      ...(shouldDeploy
+        ? [
+            buildHcaDeploymentCall({
+              client: params.hcaClient,
+              chainId,
+              expectedHca: ctx.hcaAddress,
+              expectedOwner: ctx.walletAddress,
+            }),
+          ]
+        : []),
+      ...approvals.map(buildMigrationApprovalCall),
+    ]
+
+    if (calls.length === 0) {
+      // A retry can find setup already done; consume its planned step.
+      if (
+        plan.hcaDeploymentRequired ||
+        (plan.preflight.migrationApprovals ?? []).length > 0
+      ) {
+        ctx.tracker.next()
+        ctx.tracker.emit('Already set up')
+      }
+      return { hash: null, hasGrantedApprovals: false }
+    }
+
+    const { hash } = await submitCalls(ctx, calls, 'Getting ready')
+    if (shouldDeploy) {
+      await verifyHca()
+      await params.refreshAccount()
+    }
+    ctx.tracker.next()
+    ctx.tracker.emit('Ready', hash)
+    return { hash, hasGrantedApprovals: approvals.length > 0 }
+  } catch (error) {
+    throw wrapMigrationError(error, 'Setting up HCA')
+  }
+}
+
+const ensureMigrationApprovals = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+  readonly currentMissing?: readonly MigrationApproval[]
+}): Promise<readonly Hex[]> => {
+  const { ctx, plan } = params
+  const missing =
+    params.currentMissing ??
+    (await getCurrentMigrationApprovals({ ctx, plan })).missing
+
+  const hashes: Hex[] = []
+  for (const { approval, missing: missingApproval } of orderMigrationApprovals(
+    plan,
+    missing,
+  )) {
     if (!missingApproval) {
       ctx.tracker.next()
       ctx.tracker.emit('Permission already granted')
@@ -639,6 +771,35 @@ const ensureMigrationApprovals = async (params: {
     }
   }
   return hashes
+}
+
+/** HCA deployment + approvals: one bundle, or one prompt each. */
+const ensureMigrationSetup = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+  readonly hcaClient: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
+  readonly refreshAccount: () => Promise<void>
+  readonly currentMissing: readonly MigrationApproval[]
+}): Promise<{
+  readonly hashes: readonly Hex[]
+  readonly hasGrantedApprovals: boolean
+}> => {
+  if (params.ctx.canBatchAtomically) {
+    const { hash, hasGrantedApprovals } = await ensureBundledSetup(params)
+    return { hashes: hash ? [hash] : [], hasGrantedApprovals }
+  }
+
+  const deploymentHash = await ensureHcaDeployment({
+    ctx: params.ctx,
+    hcaClient: params.hcaClient,
+    refreshAccount: params.refreshAccount,
+    plannedDeployment: params.plan.hcaDeploymentRequired,
+  })
+  const approvalHashes = await ensureMigrationApprovals(params)
+  return {
+    hashes: [...(deploymentHash ? [deploymentHash] : []), ...approvalHashes],
+    hasGrantedApprovals: approvalHashes.length > 0,
+  }
 }
 
 const cleanupDescription = (_approval: MigrationCleanupApproval): string =>
@@ -1246,6 +1407,7 @@ const recoverMaskedRpcEstimate = async (params: {
   readonly ctx: Pick<MigrationCtx, 'publicClient' | 'walletAddress'>
   readonly call: Call
   readonly error: ReturnType<typeof decodeMigrationError>
+  readonly maxGas: bigint
 }): Promise<bigint | null> => {
   if (
     params.error.type !== 'generic' ||
@@ -1260,9 +1422,9 @@ const recoverMaskedRpcEstimate = async (params: {
       to: params.call.to,
       data: params.call.data,
       value: params.call.value,
-      gas: TARGET_GAS,
+      gas: params.maxGas,
     })
-    return TARGET_GAS
+    return params.maxGas
   } catch {
     try {
       await params.ctx.publicClient.call({
@@ -1272,12 +1434,67 @@ const recoverMaskedRpcEstimate = async (params: {
         value: params.call.value,
         gas: 20_000_000n,
       })
-      return TARGET_GAS + 1n
+      return params.maxGas + 1n
     } catch {
       return null
     }
   }
 }
+
+/** The one estimate request both the wrapped HCA call and the wallet replay use. */
+const estimateCallGas = (params: {
+  readonly ctx: Pick<MigrationCtx, 'publicClient' | 'walletAddress'>
+  readonly call: Call
+}): Promise<bigint> =>
+  params.ctx.publicClient.estimateGas({
+    account: params.ctx.walletAddress,
+    to: params.call.to,
+    data: params.call.data,
+    value: params.call.value,
+  })
+
+/**
+ * Live estimate of the outer `executeByOwner` call. A permission-missing revert
+ * can be a lagging approval head rather than a real refusal, so it retries
+ * briefly before falling back to the masked-estimate recovery.
+ */
+const estimateOuterCallGas = async (params: {
+  readonly ctx: MigrationCtx
+  readonly call: Call
+  readonly retryPermissionHeadLag: boolean
+  readonly maxGas: bigint
+}): Promise<bigint> => {
+  let retryIndex = 0
+  while (true) {
+    try {
+      return await estimateCallGas(params)
+    } catch (error) {
+      const decodedError = decodeMigrationError(error)
+      const retryDelay = APPROVAL_HEAD_LAG_RETRY_DELAYS_MS[retryIndex]
+      if (
+        params.retryPermissionHeadLag &&
+        retryDelay !== undefined &&
+        decodedError.type === 'permission-missing'
+      ) {
+        retryIndex += 1
+        await delay(retryDelay)
+        continue
+      }
+
+      const recoveredEstimate = await recoverMaskedRpcEstimate({
+        ctx: params.ctx,
+        call: params.call,
+        error: decodedError,
+        maxGas: params.maxGas,
+      })
+      if (recoveredEstimate !== null) return recoveredEstimate
+      throw error
+    }
+  }
+}
+
+/** Keep 10% headroom over an estimate, rounding up. */
+const withGasBuffer = (gas: bigint): bigint => (gas * 110n + 99n) / 100n
 
 const buildNextAtomicBatch = async (params: {
   readonly ctx: MigrationCtx
@@ -1286,6 +1503,7 @@ const buildNextAtomicBatch = async (params: {
   readonly retryPermissionHeadLag: boolean
 }) => {
   const { ctx, plan, remaining, retryPermissionHeadLag } = params
+  const maxOuterGas = maxOuterGasFor(ctx.canBatchAtomically)
   await assertCopyMigrationReadiness({
     publicClient: ctx.publicClient,
     hca: ctx.hcaAddress,
@@ -1328,46 +1546,27 @@ const buildNextAtomicBatch = async (params: {
     walletCoAdminGranted:
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
-    maxOuterGas: TARGET_GAS,
+    resolverWriter: resolverWriterFor(resolverReadiness),
+    maxOuterGas,
     firstBatchOnly: true,
     initialBatchSize,
-    estimateOuterGas: async ({ call }) => {
-      let retryIndex = 0
-      while (true) {
-        try {
-          return await ctx.publicClient.estimateGas({
-            account: ctx.walletAddress,
-            to: call.to,
-            data: call.data,
-            value: call.value,
-          })
-        } catch (error) {
-          const decodedError = decodeMigrationError(error)
-          const retryDelay = APPROVAL_HEAD_LAG_RETRY_DELAYS_MS[retryIndex]
-          if (
-            retryPermissionHeadLag &&
-            retryDelay !== undefined &&
-            decodedError.type === 'permission-missing'
-          ) {
-            retryIndex += 1
-            await delay(retryDelay)
-            continue
-          }
-
-          const recoveredEstimate = await recoverMaskedRpcEstimate({
-            ctx,
-            call,
-            error: decodedError,
-          })
-          if (recoveredEstimate !== null) return recoveredEstimate
-          throw error
-        }
-      }
-    },
+    estimateBatchGas: async ({ call, walletCall }) => ({
+      outerGas: await estimateOuterCallGas({
+        ctx,
+        call,
+        retryPermissionHeadLag,
+        maxGas: maxOuterGas,
+      }),
+      // The replay is a plain transaction, so nothing can lag behind it and the
+      // masked dRPC recovery (an ERC-1155 wrapper ceiling) does not apply.
+      walletGas: walletCall
+        ? await estimateCallGas({ ctx, call: walletCall })
+        : 0n,
+    }),
   })
   const batch = atomicPlan.batches[0]
   if (!batch) throw new Error('Atomic migration did not produce a batch')
-  if (batch.estimatedGas <= 0n || batch.estimatedGas > TARGET_GAS) {
+  if (batch.estimatedGas <= 0n || maxBatchGas(batch) > maxOuterGas) {
     throw new Error('Migration batch exceeds the supported gas budget')
   }
   return batch
@@ -1512,12 +1711,95 @@ const prepareExecutionPlan = async (params: {
   }
 }
 
+/**
+ * True when the batch's profile records are already on the resolver, which is
+ * what a retry sees after its wallet replay landed but the outer call did not.
+ * Uses the shared reconciler so a deterministic mismatch (resend) is not
+ * confused with an indeterminate read: the latter stops the run instead of
+ * guessing from a partial picture.
+ */
+const walletReplayAlreadyApplied = async (params: {
+  readonly publicClient: PublicClient
+  readonly batch: AtomicMigrationBatch
+}): Promise<boolean> => {
+  const profileExpectations = params.batch.verificationExpectations.filter(
+    (expectation) => expectation.type.startsWith('profile-'),
+  )
+  if (profileExpectations.length === 0) return false
+
+  const reconciliation = await reconcileAtomicMigrationBatch({
+    publicClient: params.publicClient,
+    batch: {
+      index: params.batch.index,
+      verificationExpectations: profileExpectations,
+    },
+  })
+  return reconciliation.status === 'complete'
+}
+
+/**
+ * Records the HCA can no longer write are replayed by the owner wallet first:
+ * a failed replay then leaves the names unmigrated, so a retry replays them
+ * instead of treating the batch as done and skipping its records.
+ */
+const replayWalletRecords = async (params: {
+  readonly ctx: MigrationCtx
+  readonly publicClient: PublicClient
+  readonly batch: AtomicMigrationBatch
+}): Promise<void> => {
+  const { batch } = params
+  if (!batch.walletCall) return
+
+  const replayNames = walletReplayNames(batch)
+  const description = `Copying records for ${nameCount(replayNames.length)}`
+  if (await walletReplayAlreadyApplied(params)) {
+    params.ctx.tracker.next()
+    params.ctx.tracker.emit('Records already copied')
+    return
+  }
+
+  await submitCall(
+    params.ctx,
+    batch.walletCall,
+    description,
+    undefined,
+    withGasBuffer(batch.walletEstimatedGas),
+  )
+  params.ctx.tracker.next()
+  params.ctx.tracker.emit('Records copied')
+}
+
+/**
+ * The temporary-access revoke, when the preview budgeted it and it is still
+ * active, so it can ride atomically with the final batch.
+ */
+const bundledCleanupCall = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plannedCleanupApprovals: readonly MigrationCleanupApproval[]
+}): Promise<Call | null> => {
+  const approval = temporaryMigrationHcaApproval(params.ctx.hcaAddress)
+  const isPlanned = params.plannedCleanupApprovals.some(
+    (cleanup) =>
+      migrationApprovalKey(cleanup) === migrationApprovalKey(approval),
+  )
+  if (!isPlanned) return null
+  const isActive = await hasTemporaryMigrationHcaApproval({
+    publicClient: params.ctx.publicClient,
+    eoa: params.ctx.walletAddress,
+    hcaAddress: params.ctx.hcaAddress,
+  })
+  return isActive
+    ? buildMigrationOperatorApprovalRevocationCall(approval)
+    : null
+}
+
 const executeRemainingAtomicBatches = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
   readonly publicClient: PublicClient
   readonly onBatchComplete?: OnBatchComplete
   readonly retryPermissionHeadLag: boolean
+  readonly plannedCleanupApprovals: readonly MigrationCleanupApproval[]
 }): Promise<readonly Hex[]> => {
   const hashes: Hex[] = []
   let remaining = [...params.plan.classified]
@@ -1543,38 +1825,63 @@ const executeRemainingAtomicBatches = async (params: {
       registryContext: params.plan.registryContext,
     })
     const description = describeUpgradeOperations(batch.operations)
+    try {
+      await replayWalletRecords({
+        ctx: params.ctx,
+        publicClient: params.publicClient,
+        batch,
+      })
+    } catch (error) {
+      throw wrapMigrationError(error, description)
+    }
     const intent = {
       id: createAtomicMigrationIntentId(),
       names: batch.names,
       operations: batch.operations,
     }
+    const cleanupCall =
+      params.ctx.canBatchAtomically &&
+      removeNames(remaining, batch.names).length === 0
+        ? await bundledCleanupCall({
+            ctx: params.ctx,
+            plannedCleanupApprovals: params.plannedCleanupApprovals,
+          })
+        : null
     persistPendingAtomicMigrationIntent(journalScope, intent)
     let submittedHash: Hex | undefined
+    const onSubmitted = (nextHash: Hex) => {
+      const previousHash = submittedHash
+      submittedHash = nextHash
+      persistSubmittedAtomicMigrationBatch(journalScope, {
+        intentId: intent.id,
+        hash: nextHash,
+        names: batch.names,
+        operations: batch.operations,
+      })
+      if (
+        previousHash &&
+        previousHash.toLowerCase() !== nextHash.toLowerCase()
+      ) {
+        removeSubmittedAtomicMigrationBatch(journalScope, previousHash)
+      }
+      removePendingAtomicMigrationIntent(journalScope, intent.id)
+    }
 
     try {
-      const { hash, receipt } = await submitCall(
-        params.ctx,
-        batch.outerCall,
-        description,
-        (nextHash) => {
-          const previousHash = submittedHash
-          submittedHash = nextHash
-          persistSubmittedAtomicMigrationBatch(journalScope, {
-            intentId: intent.id,
-            hash: nextHash,
-            names: batch.names,
-            operations: batch.operations,
-          })
-          if (
-            previousHash &&
-            previousHash.toLowerCase() !== nextHash.toLowerCase()
-          ) {
-            removeSubmittedAtomicMigrationBatch(journalScope, previousHash)
-          }
-          removePendingAtomicMigrationIntent(journalScope, intent.id)
-        },
-        (batch.estimatedGas * 110n + 99n) / 100n,
-      )
+      const { hash, receipt } = cleanupCall
+        ? await submitCalls(
+            params.ctx,
+            [batch.outerCall, cleanupCall],
+            description,
+            onSubmitted,
+          )
+        : await submitCall(
+            params.ctx,
+            batch.outerCall,
+            description,
+            onSubmitted,
+            withGasBuffer(batch.estimatedGas),
+          )
       await verifyAtomicMigrationBatch({
         publicClient: params.publicClient,
         batch,
@@ -1614,6 +1921,31 @@ const executeRemainingAtomicBatches = async (params: {
   }
 
   return hashes
+}
+
+/**
+ * A plan previewed with bundled confirmations needs a wallet that still
+ * bundles atomically; otherwise the preview's confirmation count is wrong.
+ */
+const assertAtomicBatchingAvailable = async (
+  ctx: MigrationCtx,
+): Promise<void> => {
+  if (!ctx.canBatchAtomically) return
+  const isSupported =
+    ctx.signer.type === 'eoa' &&
+    (await getAtomicBatchSupport({
+      walletClient: ctx.signer.walletClient,
+      chainId: requireChainId(ctx.publicClient, 'migration'),
+    }))
+  if (isSupported) return
+  throw new MigrationPlanChangedError({
+    message:
+      'Your wallet can no longer combine confirmations. Return to selection to review the updated confirmation estimate.',
+    plannedApprovalKeys: [],
+    currentApprovalKeys: [],
+    plannedCleanupApprovalKeys: [],
+    currentCleanupApprovalKeys: [],
+  })
 }
 
 export const executeMigration = async (params: {
@@ -1660,10 +1992,13 @@ export const executeMigration = async (params: {
     walletAddress: plan.migrationOwner,
     hcaAddress: plan.hcaAddress,
     tracker: createTracker(onProgress, plan.stepDescriptors.length),
+    canBatchAtomically: plan.canBatchAtomically === true,
   }
   const txHashes: Hex[] = []
 
   try {
+    await assertAtomicBatchingAvailable(ctx)
+
     const executionPlan = await prepareExecutionPlan({
       reconcileBeforeSubmit,
       publicClient,
@@ -1698,20 +2033,14 @@ export const executeMigration = async (params: {
     })
 
     if (executionPlan.classified.length > 0) {
-      const deploymentHash = await ensureHcaDeployment({
-        ctx,
-        hcaClient,
-        refreshAccount,
-        plannedDeployment: executionPlan.hcaDeploymentRequired,
-      })
-      if (deploymentHash) txHashes.push(deploymentHash)
-
-      const approvalHashes = await ensureMigrationApprovals({
+      const setup = await ensureMigrationSetup({
         ctx,
         plan: executionPlan,
+        hcaClient,
+        refreshAccount,
         currentMissing,
       })
-      txHashes.push(...approvalHashes)
+      txHashes.push(...setup.hashes)
 
       const journalScope = batchJournalScope(ctx)
       // Refresh the durable snapshot after setup and immediately before the
@@ -1724,7 +2053,9 @@ export const executeMigration = async (params: {
           plan: executionPlan,
           publicClient,
           onBatchComplete,
-          retryPermissionHeadLag: approvalHashes.length > 0,
+          retryPermissionHeadLag: setup.hasGrantedApprovals,
+          plannedCleanupApprovals:
+            plan.preflight.migrationCleanupApprovals ?? [],
         })),
       )
     }

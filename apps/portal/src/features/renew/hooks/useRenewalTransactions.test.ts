@@ -10,27 +10,34 @@ import {
   decodeFunctionData,
   erc20Abi,
   type PublicClient,
+  parseAbi,
+  zeroHash,
 } from 'viem'
-import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { ensChain } from '@/lib/wagmi'
-import { buildRenewIntent } from '../utils/buildRenewIntent'
+import {
+  buildRenewBatchIntent,
+  buildRenewIntent,
+} from '../utils/buildRenewIntent'
 import { getRenewerAddress } from '../utils/renewer'
 import { useRenewalTransactions } from './useRenewalTransactions'
 
 const from: Address = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 const walletClient = { account: { address: from } }
+const wallet = vi.hoisted(() => ({ canBatchAtomically: false }))
 
 vi.mock('@ens-apps/transaction-manager', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ens-apps/transaction-manager')>()),
   transactionManager: { clear: vi.fn(), startTransaction: vi.fn() },
+  useAtomicBatchSupport: () => wallet.canBatchAtomically,
 }))
 
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
   useConfig: () => ({}),
   useConnection: () => ({ address: from }),
-  usePublicClient: () => ({}),
+  usePublicClient: () => ({ chain: ensChain }),
 }))
 
 vi.mock('@wagmi/core/actions', () => ({
@@ -134,6 +141,153 @@ describe('useRenewalTransactions approval amount', () => {
   })
 })
 
+describe('useRenewalTransactions batch renew', () => {
+  beforeEach(() => {
+    vi.mocked(transactionManager.startTransaction).mockClear()
+  })
+
+  it('renews every name on a renewer in one renewBatch, at its own duration', async () => {
+    const { result } = renderHook(() => useRenewalTransactions())
+    act(() =>
+      result.current.startMultiFlow({
+        renewals: [
+          { selectedName: { name: 'a.eth', isV2: true }, duration: 100 },
+          { selectedName: { name: 'b.eth', isV2: false }, duration: 200 },
+          { selectedName: { name: 'c.eth', isV2: true }, duration: 300 },
+        ],
+        tokenAddress: SUPPORTED_TOKENS.USDC,
+        payments: [
+          { renewer: getRenewerAddress(true), total: 1n, allowance: 1n },
+          { renewer: getRenewerAddress(false), total: 1n, allowance: 1n },
+        ],
+      }),
+    )
+
+    const { transactions } = result.current
+    expect(transactions.map((tx) => tx.title)).toEqual([
+      'Extend 2 v2 names',
+      'Extend b.eth',
+    ])
+    for (const tx of transactions) await act(() => tx.onStart?.())
+
+    const renewBatchAbi = parseAbi([
+      'function renewBatch((string label, uint64 duration, bytes32 referrer)[] rds, address paymentToken)',
+    ])
+    const submitted = vi
+      .mocked(transactionManager.startTransaction)
+      .mock.calls.map(([intent]) => {
+        const call = getPrimaryCall((intent as CustomTransactionIntent).request)
+        assert(call?.data)
+        return {
+          to: call.to,
+          args: decodeFunctionData({ abi: renewBatchAbi, data: call.data })
+            .args,
+        }
+      })
+    expect(submitted).toEqual([
+      {
+        to: getRenewerAddress(true),
+        args: [
+          [
+            { label: 'a', duration: 100n, referrer: zeroHash },
+            { label: 'c', duration: 300n, referrer: zeroHash },
+          ],
+          SUPPORTED_TOKENS.USDC,
+        ],
+      },
+      {
+        to: getRenewerAddress(false),
+        args: [
+          [{ label: 'b', duration: 200n, referrer: zeroHash }],
+          SUPPORTED_TOKENS.USDC,
+        ],
+      },
+    ])
+  })
+})
+
+// A wallet with EIP-5792 atomic support confirms the whole flow at once.
+describe('useRenewalTransactions with an atomic-batching wallet', () => {
+  beforeEach(() => {
+    wallet.canBatchAtomically = true
+    vi.mocked(transactionManager.startTransaction).mockClear()
+  })
+  afterEach(() => {
+    wallet.canBatchAtomically = false
+  })
+
+  const submittedBundle = () => {
+    const intent = vi.mocked(transactionManager.startTransaction).mock
+      .calls[0]?.[0] as CustomTransactionIntent | undefined
+    assert(intent?.request.type === 'eoa-batch')
+    return intent.request
+  }
+
+  it('approves and renews one name in a single confirmation', async () => {
+    const { result } = renderHook(() => useRenewalTransactions())
+    act(() =>
+      result.current.startFlow(
+        { name: 'example.eth', isV2: true },
+        {
+          duration: 31_536_000,
+          tokenAddress: SUPPORTED_TOKENS.USDC,
+          tokenPrice,
+        },
+      ),
+    )
+
+    expect(result.current.transactions).toHaveLength(1)
+    await act(() => result.current.transactions[0]?.onStart?.())
+
+    const bundle = submittedBundle()
+    expect(bundle.calls).toHaveLength(2)
+    const [approveCall, renewCall] = bundle.calls
+    assert(approveCall)
+    expect(
+      decodeFunctionData({ abi: erc20Abi, data: approveCall.data }).args,
+    ).toEqual([getRenewerAddress(true), tokenPrice])
+    expect(renewCall?.to).toBe(getRenewerAddress(true))
+  })
+
+  it('confirms every approval and renew of a batch at once, in order', async () => {
+    const { result } = renderHook(() => useRenewalTransactions())
+    act(() =>
+      result.current.startMultiFlow({
+        renewals: [
+          { selectedName: { name: 'a.eth', isV2: true }, duration: 31_536_000 },
+          {
+            selectedName: { name: 'b.eth', isV2: false },
+            duration: 31_536_000,
+          },
+        ],
+        tokenAddress: SUPPORTED_TOKENS.USDC,
+        payments: [
+          {
+            renewer: getRenewerAddress(true),
+            total: tokenPrice,
+            allowance: 0n,
+          },
+          {
+            renewer: getRenewerAddress(false),
+            total: 3_000_000n,
+            allowance: 0n,
+          },
+        ],
+      }),
+    )
+
+    expect(result.current.transactions).toHaveLength(1)
+    await act(() => result.current.transactions[0]?.onStart?.())
+
+    expect(submittedBundle().calls.map(({ to }) => to)).toEqual([
+      SUPPORTED_TOKENS.USDC,
+      SUPPORTED_TOKENS.USDC,
+      getRenewerAddress(true),
+      getRenewerAddress(false),
+    ])
+  })
+})
+
 const FROM = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const USDC = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
 
@@ -162,6 +316,20 @@ describe('buildRenewIntent', () => {
     ['an uppercase TLD', 'alice.ETH'],
   ])('refuses %s', (_case, name) => {
     expect(() => buildRenewIntent(renewParams(name))).toThrow(/normalized form/)
+  })
+
+  it('refuses a batch holding a non-canonical name', () => {
+    expect(() =>
+      buildRenewBatchIntent({
+        renewals: [
+          { selectedName: { name: 'bob.eth', isV2: true }, duration: 1 },
+          { selectedName: { name: 'ALICE.eth', isV2: true }, duration: 1 },
+        ],
+        renewer: getRenewerAddress(true),
+        tokenAddress: USDC,
+        from: FROM,
+      }),
+    ).toThrow(/normalized form/)
   })
 
   it('builds the intent for the canonical spelling', () => {

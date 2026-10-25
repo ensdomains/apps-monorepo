@@ -189,19 +189,6 @@ function _serializeError(
 }
 
 /**
- * Public error serializer entrypoint.
- *
- * Non error-like values are returned unchanged so call sites can safely pass
- * unknown values without pre-branching.
- */
-export function serializeError(error: unknown): unknown {
-  if (!isErrorLike(error)) {
-    return error
-  }
-  return _serializeError(error, new Set<object>(), new WeakSet<object>())
-}
-
-/**
  * Generic log value normalizer used before JSON stringification.
  *
  * Responsibilities:

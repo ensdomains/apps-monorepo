@@ -71,6 +71,34 @@ const urlBase64ToUint8Array = (base64String: string) =>
     (cause) => new PushSubscriptionError({ cause }),
   )
 
+const toUint8Array = (source: BufferSource): Uint8Array => {
+  if (source instanceof ArrayBuffer) {
+    return new Uint8Array(source)
+  }
+  return new Uint8Array(source.buffer, source.byteOffset, source.byteLength)
+}
+
+const applicationServerKeysAreEqual = (
+  stored: BufferSource | null | undefined,
+  requested: Uint8Array,
+): boolean => {
+  if (stored === null || stored === undefined) {
+    return false
+  }
+
+  try {
+    const storedBytes = toUint8Array(stored)
+    return (
+      storedBytes.length === requested.length &&
+      storedBytes.every((byte, index) => byte === requested[index])
+    )
+  } catch {
+    // Unexpected-but-possible shapes (e.g. a SharedArrayBuffer-backed view);
+    // treat them as different so the stale path is still taken
+    return false
+  }
+}
+
 export function isPushSupported(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -139,6 +167,27 @@ export const createPushSubscriptionResult = ResultFn(async function* (
     navigator.serviceWorker.ready,
     (cause) => new PushSubscriptionError({ cause }),
   )
+
+  // Replace a stale subscription: when an existing subscription was created
+  // with a different applicationServerKey (e.g. after a VAPID key rotation or
+  // another deployment on the same origin), subscribe() rejects it with
+  // InvalidStateError and simply retrying can never succeed.
+  const existingSubscription = yield* fromPromise(
+    registration.pushManager.getSubscription(),
+    (cause) => new PushSubscriptionError({ cause }),
+  )
+  if (
+    existingSubscription &&
+    !applicationServerKeysAreEqual(
+      existingSubscription.options?.applicationServerKey,
+      key,
+    )
+  ) {
+    yield* fromPromise(
+      existingSubscription.unsubscribe(),
+      (cause) => new PushSubscriptionError({ cause }),
+    )
+  }
 
   const subscription = yield* fromPromise(
     Promise.race([

@@ -1,5 +1,12 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import type { Address, Hex, PublicClient } from 'viem'
+import {
+  type Address,
+  ContractFunctionExecutionError,
+  ContractFunctionRevertedError,
+  ContractFunctionZeroDataError,
+  type Hex,
+  type PublicClient,
+} from 'viem'
 import type { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
 import { cleanResolverTextRecords } from './cleanResolverTextRecords'
 import {
@@ -30,7 +37,17 @@ export type Profile = {
   readonly addresses: readonly { coinType: bigint; value: Hex }[]
   readonly contentHash: Hex | null
   readonly abis: readonly { contentType: bigint; value: Hex }[]
+  readonly interfaces: readonly { interfaceId: Hex; implementer: Address }[]
+  readonly pubkey: { readonly x: Hex; readonly y: Hex } | null
 }
+
+// A resolver without the pubkey profile reverts `pubkey`; it holds none. A
+// failed multicall request also fails every call, so only a confirmed revert counts.
+const isUnsupportedPubkey = ({ error }: MulticallResult): boolean =>
+  error instanceof ContractFunctionExecutionError &&
+  error.functionName === 'pubkey' &&
+  (error.cause instanceof ContractFunctionRevertedError ||
+    error.cause instanceof ContractFunctionZeroDataError)
 
 const executeMulticallChunks = async (
   publicClient: PublicClient,
@@ -53,7 +70,7 @@ const executeMulticallChunks = async (
         contracts: [...chunk] as {
           address: Address
           abi: typeof V1_RESOLVER_PROFILE_ABI
-          functionName: 'text' | 'addr' | 'contenthash' | 'ABI'
+          functionName: MulticallContract['functionName']
           args: readonly unknown[]
         }[],
         allowFailure: true,
@@ -66,7 +83,7 @@ const executeMulticallChunks = async (
         )
       }
       const failedIndex = results.findIndex(
-        (result) => result.status !== 'success',
+        (result) => result.status !== 'success' && !isUnsupportedPubkey(result),
       )
       if (failedIndex !== -1) {
         const failedContract = chunk[failedIndex]

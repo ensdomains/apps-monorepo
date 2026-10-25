@@ -75,15 +75,3 @@ export interface RhinestoneAccountState extends BaseAccountState {
  * HCA mode. The connected external wallet is the account owner.
  */
 export type SmartAccountState = RhinestoneAccountState
-
-/**
- * Type guard to check if account is Rhinestone
- *
- * Retained for parity with previous API; always true given Rhinestone is
- * the only supported provider.
- */
-export function isRhinestoneAccount(
-  account: SmartAccountState,
-): account is RhinestoneAccountState {
-  return account.type === 'rhinestone'
-}

@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   type FilterGroup,
   getAllValuesFromGroups,
-  isGroupFullySelected,
-  toggleGroupSelection,
   toggleValue,
 } from './multiSelectFilter'
 
@@ -105,111 +103,6 @@ describe('multiSelectFilter', () => {
       const result = toggleValue(['a'], 'a')
 
       expect(result).toEqual([])
-    })
-  })
-
-  describe('toggleGroupSelection', () => {
-    it('should select all group values when none are selected', () => {
-      const selectedValues = ['x']
-      const groupValues = ['a', 'b', 'c']
-
-      const result = toggleGroupSelection(selectedValues, groupValues)
-
-      expect(result).toEqual(['x', 'a', 'b', 'c'])
-    })
-
-    it('should select all group values when some are selected', () => {
-      const selectedValues = ['a', 'x']
-      const groupValues = ['a', 'b', 'c']
-
-      const result = toggleGroupSelection(selectedValues, groupValues)
-
-      expect(result).toEqual(['a', 'x', 'b', 'c'])
-    })
-
-    it('should deselect all group values when all are selected', () => {
-      const selectedValues = ['x', 'a', 'b', 'c']
-      const groupValues = ['a', 'b', 'c']
-
-      const result = toggleGroupSelection(selectedValues, groupValues)
-
-      expect(result).toEqual(['x']) // Only 'x' remains
-    })
-
-    it('should not mutate original array', () => {
-      const selectedValues = ['a', 'b']
-      const groupValues = ['c', 'd']
-
-      const result = toggleGroupSelection(selectedValues, groupValues)
-
-      expect(selectedValues).toEqual(['a', 'b']) // Original unchanged
-      expect(result).toEqual(['a', 'b', 'c', 'd'])
-    })
-
-    it('should handle empty group values', () => {
-      const selectedValues = ['a', 'b']
-      const groupValues: string[] = []
-
-      const result = toggleGroupSelection(selectedValues, groupValues)
-
-      // Empty group is considered "all selected", so it deselects (no-op)
-      expect(result).toEqual(['a', 'b'])
-    })
-
-    it('should avoid duplicate values when selecting', () => {
-      const selectedValues = ['a', 'b']
-      const groupValues = ['b', 'c']
-
-      const result = toggleGroupSelection(selectedValues, groupValues)
-
-      expect(result).toEqual(['a', 'b', 'c']) // 'b' not duplicated
-    })
-  })
-
-  describe('isGroupFullySelected', () => {
-    it('should return true when all group values are selected', () => {
-      const selectedValues = ['a', 'b', 'c', 'd']
-      const groupValues = ['b', 'c']
-
-      const result = isGroupFullySelected(selectedValues, groupValues)
-
-      expect(result).toBe(true)
-    })
-
-    it('should return false when some group values are not selected', () => {
-      const selectedValues = ['a', 'b']
-      const groupValues = ['b', 'c']
-
-      const result = isGroupFullySelected(selectedValues, groupValues)
-
-      expect(result).toBe(false)
-    })
-
-    it('should return false when no group values are selected', () => {
-      const selectedValues = ['a']
-      const groupValues = ['b', 'c']
-
-      const result = isGroupFullySelected(selectedValues, groupValues)
-
-      expect(result).toBe(false)
-    })
-
-    it('should return true for empty group values', () => {
-      const selectedValues = ['a', 'b']
-      const groupValues: string[] = []
-
-      const result = isGroupFullySelected(selectedValues, groupValues)
-
-      expect(result).toBe(true) // .every() returns true for empty arrays
-    })
-
-    it('should return false when selected values is empty but group is not', () => {
-      const selectedValues: string[] = []
-      const groupValues = ['a', 'b']
-
-      const result = isGroupFullySelected(selectedValues, groupValues)
-
-      expect(result).toBe(false)
     })
   })
 })

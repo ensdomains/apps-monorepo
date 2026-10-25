@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import { useMutation } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store-react'
-import { useConnection, useWalletClient } from 'wagmi'
+import { useConnection } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
@@ -18,12 +18,12 @@ export const BackendAuthModal = () => {
   const signIn = useMutation(signInBackendMutation)
 
   const { isConnected: isWalletConnected } = useConnection()
-  const { data: walletClient } = useWalletClient()
   const { disconnect, isDisconnecting } = useWalletDisconnect()
 
   // Hold this modal until the SCA is live. Hook is null before the
   // provider mounts; then we don't wait, so EOA-only isn't stuck.
   const smartAccount = useSmartAccountContextSafe()
+  const walletClient = smartAccount?.walletClient
   const isSmartAccountReady =
     smartAccount === null || smartAccount.isAccountReady || !!smartAccount.error
   const shouldShowModal =
