@@ -8,8 +8,18 @@
  * two accounts a test thought to ask about.
  */
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { type Address, keccak256, parseAbi, parseAbiItem, toHex } from 'viem'
+import {
+  type Address,
+  encodeAbiParameters,
+  keccak256,
+  namehash,
+  parseAbi,
+  parseAbiItem,
+  stringToHex,
+  toHex,
+} from 'viem'
 import { getDestinationContracts } from '../../packages/smart-account/src/providers/rhinestone/manifest.ts'
+import { computeVerifiableProxyAddress } from '../../packages/smart-account/src/verifiable-factory.ts'
 import { publicClient } from './anvil-client.js'
 
 export const V2_ETH_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia]
@@ -103,6 +113,32 @@ export async function hcaOf(owner: Address): Promise<Address> {
     args: [owner, implementation, 0n],
   })
   return result
+}
+
+/**
+ * The UserRegistry the manager deploys for `parent`: the HCA's
+ * VerifiableFactory proxy under `computeUserRegistrySalt`
+ * (`apps/manager/src/features/migration/service/userRegistryMigration.ts`).
+ */
+export function predictUserRegistry(hca: Address, parent: string): Address {
+  const contracts = getDestinationContracts(supportedL1Chains.sepolia)
+  const salt = BigInt(
+    keccak256(
+      encodeAbiParameters(
+        [{ type: 'bytes32' }, { type: 'bytes32' }],
+        [
+          keccak256(stringToHex('ENSManagerMigrationUserRegistry:v1')),
+          namehash(parent),
+        ],
+      ),
+    ),
+  )
+  return computeVerifiableProxyAddress({
+    factory: contracts.verifiableFactory,
+    proxyLogic: contracts.verifiableFactoryProxyLogic,
+    deployer: hca,
+    salt,
+  })
 }
 
 /** The fork block: contracts the test deployed have no earlier history. */

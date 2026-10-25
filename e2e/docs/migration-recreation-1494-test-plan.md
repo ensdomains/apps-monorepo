@@ -75,6 +75,33 @@ for `b0480bcc8` it is the new head with only that commit's two files reverted.
 Tests 1–9 re-run at `b0480bcc8`: all pass (some after retries for upstream
 RPC timeouts in fixture setup).
 
+### 2c. Acceptance criteria after merge (`46b457d8d`, branch `retrofit/pr-1494-tests`)
+
+Run on the merged test branch with Anvil fork 11983209. Some runs needed retries for upstream RPC timeouts in fixture setup; no assertion was retried away.
+
+**WEB-1934 (direct-3LD recreation)**
+
+| Criterion | Status | Evidence |
+|---|---|---|
+| Inventory reconciled vs the reviewed snapshot and resulting owners, resolvers, roles, expiry | met | Test 3: three children, three holders; exact holder, token `ALL`, `maxUint64`, exact resolver; root holders `{wallet, HCA}` from the full role log |
+| Agreed authority; allowed and denied actions for both wallets | met | Permissions test: the holder may set its own resolver and subregistry and `unsafeTransfer` its name; `safeTransferFrom` is refused with `TransferUnsafeUntilRegistryIsEmancipated` while the parent keeps root roles (by design, #1391); the holder cannot touch a sibling, register, or grant itself root roles; an unrelated wallet cannot unregister. The parent can register and reclaim: after `unregister` the holder loses control, and the re-registered name starts a fresh role scope |
+| Records readable through retained resolvers; review before replace | met | Tests 3, 8, 10 |
+| Unsupported trees blocked with explanation and docs link; no acknowledgement bypass | met | Tests 4, 5, A1–A4, docs link (`/dashboard#subname-upgrades` resolves), phone viewport |
+| Abandonment, stale source, conflicts, failure, retry: no omission, duplication, overwrite or regrant | met except cleanup recovery (see finding) | Stale owner, A6 new child, A7 resolver change: refused, nothing written. B1 occupied slot: fails closed, unrelated name unchanged. C1 abandoned pending batch: reconciled, exactly one batch. C2 on-chain revert: nothing written, retry completes. C5: not offered again. Regrant refusal: PR unit tests only (grants share the atomic batch) |
+| Source-consistency policy and rollout decision | not met (process) | Signing/inclusion window is disclosed, not resolved |
+| Independent review and human QA | not met (process) | |
+
+**WEB-1933 (block and guard)**
+
+| Criterion | Status | Evidence |
+|---|---|---|
+| Unsupported names visible with specific reason and next step | met | Flag off, deeper tree, incomplete inventory, A1 unsupported parent, A2 wrapped protections (fuses forged; the NameWrapper refuses the real shape), A3 too large, A4 unknown label; docs link; desktop and phone |
+| Acknowledgement cannot make a blocked case eligible | met | No acknowledgement control; blocked rows stay unselected; controls upgrade, blocked parents stay RESERVED |
+| Same boundary at selection, preparation, recovery, execution; flags and stale UI cannot authorize an import | met | Rollout gate test (live flag withdrawal); stale-source tests; PR unit tests for the submit-time and recovery checks |
+| Complete reviewed plan required; unsupported descendants block the tree | met | A5: a 150-child family is refused whole at preparation, nothing written; A6 |
+| Recovery reconciles receipts and cleans up temporary approvals without rerunning migration | **partly met** | C1 reconciles a pending batch without resubmitting. **C3b fails**: an interrupted recreation run at the cleanup prompt offers no "Finish upgrade" (flag on or off) and the HCA keeps its ETHRegistry approval. C3a: same for a plain kept-manager run; the next upgrade revokes it |
+| Browser QA desktop and mobile, allowed and blocked cases | met (automated) | All of the above; human real-wallet pass still pending |
+
 ---
 
 ## 3. Results
@@ -134,5 +161,7 @@ subnames with `setSubnodeOwner`.
 | Low, pre-existing | "Checking your subnames" can spin with no timeout ("Continue migration" disabled, "Back to selection" works). Seen once on the PR build and in every recreation run on `main`; not a regression |
 | Medium | `b0480bcc8` gates the legacy-registry fallback only in `getNameResolverAddress`. `getProfile` (`apps/portal/src/features/profile/hooks/useProfile.ts`, from #1502), which feeds `/$name/records`, still falls back to the V1 registry resolver whenever no V2 resolver answers. A recreated child with no resolver on its V2 path (its own and its parent's cleared) shows its stale V1 records there, even though the resolver lookup `b0480bcc8` gated returns none for it. Test 11 stage 2. Fix: apply the same `resolveV2EthOwner` gate before the `getProfile` fallback |
 | Low, UX | After `Graveyard.clear()`, a recreated child's holder sees "Permission Denied" on edit-records, though they hold token `ALL` and could repoint the resolver; the message does not say so |
+| Medium | Cleanup-only recovery is missing after an interrupted run. When the user leaves at the "Remove temporary access" prompt, the journal keeps the submitted batch but no recovery snapshot, so the return visit shows no "Finish upgrade" (flag on or off) and the HCA keeps `setApprovalForAll` on the V2 ETHRegistry over all the owner's names until the next upgrade revokes it. The service comment intends to keep "its pre-batch recovery snapshot until temporary HCA access is revoked" for copy trees; `useMigrationRecoverySnapshot` discarding a snapshot that has no recorded attempt yet is a likely cause (unconfirmed). Tests C3a, C3b (`test.fail`) |
+| Note | A recreated child cannot be moved with `safeTransferFrom` while the parent keeps root roles (`TransferUnsafeUntilRegistryIsEmancipated`, 0x54838f98); `unsafeTransfer` works for the holder. Matches the protocol design and #1391 |
 | Unconfirmed | While the fee is estimating, the selection step lists only the parent, not the subnames being recreated (some held by other wallets). Not checked after the estimate finished |
-| Not covered | A nonzero-fuse wrapped child (the PR reports the NameWrapper refuses that fixture), and rejecting the final `setResolver` in the wallet (the headless wallet's reject is retried as transient) |
+| Not covered | A nonzero-fuse wrapped child is covered only with forged fuses (the NameWrapper refuses the real shape); rejecting the final `setResolver` in the wallet (the headless wallet's reject is retried as transient) |
