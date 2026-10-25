@@ -490,6 +490,8 @@ export const buildMigrationPlan = async (params: {
   preflight: MigrationPreflight
   /** The owner wallet bundles calls atomically (EIP-5792). */
   canBatchAtomically?: boolean
+  /** Names whose expiry projects a pending renewal; only fee previews pass this. */
+  projectedExpiryNames?: ReadonlySet<string>
   signal?: AbortSignal
 }): Promise<MigrationPlan> => {
   const {
@@ -556,6 +558,7 @@ export const buildMigrationPlan = async (params: {
     wallet: migrationOwner,
     remaining: classified,
     registryContext: classified,
+    projectedExpiryNames: params.projectedExpiryNames,
   })
   signal?.throwIfAborted()
   if (params.subnameRecreation)

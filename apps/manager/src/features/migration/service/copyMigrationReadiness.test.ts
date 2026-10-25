@@ -20,7 +20,10 @@ import {
   assertCopyMigrationTopology,
   assertCopySourcesFresh,
 } from './copyMigrationReadiness'
-import { MIGRATION_EXPIRY_BONUS_SECONDS } from './migrationExpiry'
+import {
+  directMigrationExpiry,
+  MIGRATION_EXPIRY_BONUS_SECONDS,
+} from './migrationExpiry'
 import { computeUserRegistryAddress } from './userRegistryMigration'
 
 const WALLET: Address = '0x0000000000000000000000000000000000000010'
@@ -556,6 +559,40 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
       )
     },
   )
+
+  // A renew-and-upgrade fee preview projects the renewed expiry before the
+  // renewal lands, so the live lease and reservation are still the old ones.
+  it('accepts the projected expiry of a name whose renewal is pending', async () => {
+    const root = migratingRoot('unwrapped')
+    const client = makeClient({
+      read: () => {
+        throw new Error('Unexpected read')
+      },
+    })
+    vi.mocked(client.readContract).mockImplementation(async (request) =>
+      request.functionName === 'nameExpires'
+        ? WRAPPED_EXPIRY - 7776000n
+        : {
+            status: 1,
+            expiry:
+              WRAPPED_EXPIRY - 7776000n + MIGRATION_EXPIRY_BONUS_SECONDS - 2n,
+            latestOwner: zeroAddress,
+            tokenId: 0n,
+            resource: 2n,
+          },
+    )
+
+    const expiries = await assertCopyMigrationReadiness({
+      publicClient: client,
+      hca: HCA,
+      wallet: WALLET,
+      remaining: [root],
+      registryContext: [root],
+      projectedExpiryNames: new Set([root.domain.name]),
+    })
+
+    expect(expiries.get(root.domain.name)).toBe(directMigrationExpiry(root))
+  })
 
   it.each(['unwrapped', 'unlocked', 'locked-2ld'] as const)(
     'captures the on-chain reservation expiry for %s with either deployed bonus',

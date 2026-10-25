@@ -781,6 +781,7 @@ const assertDirectMigrationExpiries = async (params: {
   readonly publicClient: PublicClient
   readonly remaining: readonly ClassifiedName[]
   readonly recordedAttemptNames?: ReadonlySet<string>
+  readonly projectedExpiryNames?: ReadonlySet<string>
 }): Promise<ReadonlyMap<string, bigint>> => {
   const direct = params.remaining.filter(
     (name): name is DirectClassifiedName =>
@@ -791,6 +792,8 @@ const assertDirectMigrationExpiries = async (params: {
     direct.map(async (name) => {
       try {
         const expectedExpiry = directMigrationExpiry(name)
+        if (params.projectedExpiryNames?.has(name.domain.name))
+          return [name.domain.name, expectedExpiry] as const
         if (!is2LD(name)) {
           const [, , expiry] = await params.publicClient.readContract({
             address: V1_CONTRACTS.NameWrapper,
@@ -862,6 +865,8 @@ export const assertCopyMigrationReadiness = async (params: {
   readonly registryContext: readonly ClassifiedName[]
   /** Durable wallet attempts may already have created exact V2 state. */
   readonly recordedAttemptNames?: ReadonlySet<string>
+  /** Fee previews of a pending renewal: their expiry is projected, not on chain yet. */
+  readonly projectedExpiryNames?: ReadonlySet<string>
 }): Promise<ReadonlyMap<string, bigint>> => {
   assertCopyMigrationTopology(params.registryContext)
   const remainingNames = new Set(
@@ -879,6 +884,7 @@ export const assertCopyMigrationReadiness = async (params: {
     publicClient: params.publicClient,
     remaining: params.remaining,
     recordedAttemptNames: params.recordedAttemptNames,
+    projectedExpiryNames: params.projectedExpiryNames,
   })
 
   await assertConcurrentChecks([

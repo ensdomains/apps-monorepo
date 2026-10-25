@@ -139,6 +139,11 @@ const estimateProjectedMigration = async (
     publicClient,
     preflight,
     canBatchAtomically: params.canBatchAtomically,
+    projectedExpiryNames: new Set(
+      quote.items.flatMap(({ domain, duration }) =>
+        duration > 0n ? [domain.name] : [],
+      ),
+    ),
     signal,
   })
   signal?.throwIfAborted()
