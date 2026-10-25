@@ -11,6 +11,7 @@ import {
   type MissingTokenError,
 } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
+import { getMinRenewDurationSeconds } from '@/features/renew/utils/renewalDuration'
 import { TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
@@ -29,6 +30,17 @@ export const DurationSelector = () => {
   const presetDurations = useMemo(
     () => getComputedDurationPresets(referenceDate),
     [referenceDate],
+  )
+  // An ENSv2 renewal has to carry an expired name back out of grace; an ENSv1
+  // one is left to any duration (product decision, WEB-1923).
+  const minDurationSeconds = useMemo(
+    () =>
+      getMinRenewDurationSeconds({
+        expiry: referenceDate,
+        now: new Date(),
+        requireFutureExpiry: protocol === 'v2',
+      }),
+    [referenceDate, protocol],
   )
   const selectedDuration = useSelector(
     uiActor,
@@ -92,6 +104,7 @@ export const DurationSelector = () => {
 
       <DurationCustomRow
         isSelected={selectedPresetIdx === -1}
+        minDurationSeconds={minDurationSeconds}
         onDurationSet={(duration) =>
           uiActor.send({
             type: 'pricing.duration.set',

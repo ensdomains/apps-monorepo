@@ -1,10 +1,12 @@
 // biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: this hook keeps standard preview, durable recovery, account readiness, and query result states in one stable hook order.
 
 import type { V1Domain } from '@ens-apps/migration'
+import { useAtomicBatchSupport } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, formatEther, type PublicClient } from 'viem'
 import { usePublicClient } from 'wagmi'
+import { chain } from '@/config'
 import {
   buildMigrationPlan,
   buildMigrationRecoveryPlan,
@@ -87,6 +89,7 @@ const buildEstimate = async (params: {
   readonly recoverySelectionMatches: boolean
   readonly domains: readonly V1Domain[]
   readonly managerRestorationNames: readonly string[]
+  readonly canBatchAtomically: boolean
   readonly signal: AbortSignal
   readonly ensurePreflight: (
     domains: readonly V1Domain[],
@@ -122,6 +125,7 @@ const buildEstimate = async (params: {
         hcaAddress,
         migrationOwner: ownerAddress,
         publicClient,
+        canBatchAtomically: params.canBatchAtomically,
         signal: params.signal,
       }),
     )
@@ -150,6 +154,7 @@ const buildEstimate = async (params: {
       managerRestorationNames: params.managerRestorationNames,
       publicClient,
       preflight,
+      canBatchAtomically: params.canBatchAtomically,
       signal: params.signal,
     }),
   )
@@ -172,12 +177,13 @@ export const useMigrationGasEstimate = ({
   v1Names,
   enabled: estimateEnabled = true,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
-  const publicClient = usePublicClient()
+  const publicClient = usePublicClient({ chainId: chain.id })
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress,
     hcaAddress,
   })
   const recoverySnapshot = useMigrationRecoverySnapshot()
+  const canBatchAtomically = useAtomicBatchSupport(chain.id)
 
   const selectedNameSet = useMemo(() => new Set(selectedNames), [selectedNames])
   const selectedNamesKey = useMemo(
@@ -232,6 +238,7 @@ export const useMigrationGasEstimate = ({
         selectedNames: selectedNamesKey,
         managerRestorationNames: managerRestorationKey,
         recoveryOperations,
+        canBatchAtomically,
       },
     ] as const,
     enabled,
@@ -249,6 +256,7 @@ export const useMigrationGasEstimate = ({
         recoverySelectionMatches,
         domains,
         managerRestorationNames: managerRestorationKey,
+        canBatchAtomically,
         ensurePreflight,
         signal,
       })

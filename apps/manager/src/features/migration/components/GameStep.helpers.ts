@@ -162,6 +162,10 @@ export const describeNextStep = (params: {
     .with({ descriptor: { type: 'cleanup' } }, () => ({
       kind: 'cleanup' as const,
     }))
+    // One confirmation covering several steps reads as the first of them.
+    .with({ descriptor: { type: 'bundle' } }, ({ descriptor, ...rest }) =>
+      describeNextStep({ ...rest, descriptor: descriptor.steps[0] }),
+    )
     .exhaustive()
 
 export type GiantMode = 'collapsed' | 'excited' | 'idle'

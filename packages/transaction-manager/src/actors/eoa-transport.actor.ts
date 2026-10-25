@@ -1,6 +1,6 @@
 import { logger } from '@ens-apps/utils/logger'
-import { errAsync, type ResultAsync } from 'neverthrow'
-import { type Hash, isAddressEqual } from 'viem'
+import { err, errAsync, ok, type Result, type ResultAsync } from 'neverthrow'
+import { type Chain, type Hash, isAddressEqual, type WalletClient } from 'viem'
 import {
   ChainIdMismatchError,
   isUserRejectionError,
@@ -11,6 +11,7 @@ import {
 import { safeSendTransaction } from '../helpers/viem-neverthrow.helpers'
 import type { EOASigner } from '../types/signer.types'
 import type {
+  EOABatchTransactionRequest,
   EOATransactionRequest,
   TransactionRequest,
 } from '../types/transaction.types'
@@ -32,8 +33,55 @@ export function submitEOATransaction(input: {
   | ChainIdMismatchError
 > {
   const { request, signer } = input
-  const { walletClient } = signer
   const eoaRequest = request as EOATransactionRequest
+
+  const walletChain = resolveEOAWalletChain(eoaRequest, signer.walletClient)
+  if (walletChain.isErr()) return errAsync(walletChain.error)
+
+  // Build transaction params - either legacy (gasPrice) or EIP-1559 (maxFeePerGas)
+  // biome-ignore lint/suspicious/noExplicitAny: txParams is built dynamically with conditional gas fields, not expressible as a single static type
+  const txParams: any = {
+    account: eoaRequest.from,
+    to: eoaRequest.to,
+    value: eoaRequest.value,
+    data: eoaRequest.data,
+    gas: eoaRequest.gas,
+    nonce: eoaRequest.nonce,
+    chain: walletChain.value,
+  }
+
+  // Use either legacy or EIP-1559 gas pricing (not both)
+  if (eoaRequest.maxFeePerGas !== undefined) {
+    txParams.maxFeePerGas = eoaRequest.maxFeePerGas
+    txParams.maxPriorityFeePerGas = eoaRequest.maxPriorityFeePerGas
+  } else if (eoaRequest.gasPrice !== undefined) {
+    txParams.gasPrice = eoaRequest.gasPrice
+  }
+
+  return safeSendTransaction(signer.walletClient, txParams).mapErr((error) => {
+    // Matched by name, not `instanceof`: the app builds the wallet client, and
+    // its errors are instances of this package's viem classes only while pnpm
+    // resolves both to one viem copy. Unrecognised, a declined send is retried
+    // as a submission failure, which puts the declined prompt straight back up.
+    if (isUserRejectionError(error)) {
+      return new TransactionUserRejectedError(eoaRequest, error)
+    }
+
+    logger.error('EOA transaction submission failed', error)
+    return new TransactionSubmissionError(eoaRequest, error)
+  })
+}
+
+/**
+ * The chain to hand viem for an EOA submission, once the wallet is proven to
+ * sign as `request.from` on `request.chainId`. Shared by the single-tx and
+ * `wallet_sendCalls` transports so both fail closed the same way.
+ */
+export function resolveEOAWalletChain(
+  request: EOATransactionRequest | EOABatchTransactionRequest,
+  walletClient: WalletClient,
+): Result<Chain, SignerAddressMismatchError | ChainIdMismatchError> {
+  const eoaRequest = request
 
   // Verify the request's declared `from` matches the account the wallet will
   // actually sign with. Viem signs for whatever `account` we pass, so a
@@ -45,9 +93,7 @@ export function submitEOATransaction(input: {
       from: eoaRequest.from,
       walletAccount: walletAddress,
     })
-    return errAsync(
-      new SignerAddressMismatchError(eoaRequest.from, walletAddress),
-    )
+    return err(new SignerAddressMismatchError(eoaRequest.from, walletAddress))
   }
 
   // Verify the wallet is on the chain this request was prepared for.
@@ -72,39 +118,8 @@ export function submitEOATransaction(input: {
       requestChainId: eoaRequest.chainId,
       walletChainId: walletChain?.id,
     })
-    return errAsync(new ChainIdMismatchError(eoaRequest.chainId, walletChain))
+    return err(new ChainIdMismatchError(eoaRequest.chainId, walletChain))
   }
 
-  // Build transaction params - either legacy (gasPrice) or EIP-1559 (maxFeePerGas)
-  // biome-ignore lint/suspicious/noExplicitAny: txParams is built dynamically with conditional gas fields, not expressible as a single static type
-  const txParams: any = {
-    account: eoaRequest.from,
-    to: eoaRequest.to,
-    value: eoaRequest.value,
-    data: eoaRequest.data,
-    gas: eoaRequest.gas,
-    nonce: eoaRequest.nonce,
-    chain: walletChain,
-  }
-
-  // Use either legacy or EIP-1559 gas pricing (not both)
-  if (eoaRequest.maxFeePerGas !== undefined) {
-    txParams.maxFeePerGas = eoaRequest.maxFeePerGas
-    txParams.maxPriorityFeePerGas = eoaRequest.maxPriorityFeePerGas
-  } else if (eoaRequest.gasPrice !== undefined) {
-    txParams.gasPrice = eoaRequest.gasPrice
-  }
-
-  return safeSendTransaction(walletClient, txParams).mapErr((error) => {
-    // Matched by name, not `instanceof`: the app builds the wallet client, and
-    // its errors are instances of this package's viem classes only while pnpm
-    // resolves both to one viem copy. Unrecognised, a declined send is retried
-    // as a submission failure, which puts the declined prompt straight back up.
-    if (isUserRejectionError(error)) {
-      return new TransactionUserRejectedError(eoaRequest, error)
-    }
-
-    logger.error('EOA transaction submission failed', error)
-    return new TransactionSubmissionError(eoaRequest, error)
-  })
+  return ok(walletChain)
 }

@@ -49,9 +49,10 @@ export const usePrimaryNameDomains = ({
     () => getPrimaryNamePage(allDomains, { searchQuery, page, reverseName }),
     [allDomains, searchQuery, page, reverseName],
   )
-  const ownsSelectedName = allDomains.some(
+  const selectedDomain = allDomains.find(
     (domain) => resolveDomainLabel(domain) === selectedName,
   )
+  const ownsSelectedName = Boolean(selectedDomain)
   const lookupNames = [
     ...new Set([
       ...pagination.domains.map(resolveDomainLabel),
@@ -77,6 +78,7 @@ export const usePrimaryNameDomains = ({
     ),
     isSelectedNameOffered:
       ownsSelectedName && checkedNames.has(selectedName ?? ''),
+    selectedProtocol: selectedDomain?.protocol ?? null,
     isLoading: isLoading || isCheckingNames,
     hasForwardAddressError: hasDomainsError || hasForwardAddressError,
     searchQuery,

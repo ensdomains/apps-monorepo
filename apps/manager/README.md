@@ -50,6 +50,10 @@ are debug-only and must never reach a production deploy:
 select mainnet. See [app environment configuration](../../README.md#app-environments)
 for env-file layering, local overrides and deployment behavior.
 
+On Sepolia every flow pays in Circle's testnet USDC
+([faucet.circle.com](https://faucet.circle.com)); the auto-fund faucet only runs
+against the local Anvil fork.
+
 Mainnet requires a Bigname endpoint in the network profile or
 `VITE_BIGNAME_API_URL`; validation fails until one is supplied. The mainnet
 Telegram bot ID is intentionally empty until provisioned. Configure the new

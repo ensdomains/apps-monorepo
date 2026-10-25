@@ -1,5 +1,6 @@
 import type { RhinestoneAccount, Session } from '@rhinestone/sdk'
-import type { Address, WalletClient } from 'viem'
+import type { ResultAsync } from 'neverthrow'
+import type { Address, Chain, WalletClient } from 'viem'
 
 import type { SessionEnableData, SmartAccountConfig } from './transaction.types'
 
@@ -78,6 +79,25 @@ export interface RhinestoneSigner {
   }
   /** Active scoped session, if any. Absent → owner-signed Intents. */
   session?: RhinestoneSessionContext
+  /** Pays this signer's intents from the wallet's USDC on an L2 instead. */
+  readonly l2Funding?: L2FundingSource
+  /** USDC (6dp) checkout showed `l2Funding` being charged, fee included. */
+  readonly l2DisplayedCharge?: bigint
+}
+
+/**
+ * The wallet's USDC on an L2, paying for an HCA intent on the app chain: the
+ * wallet signs one Permit2 transfer on `chain`, Across delivers the intent's
+ * token request to the HCA, and the HCA then runs the intent's calls.
+ */
+export interface L2FundingSource {
+  readonly chain: Chain
+  /** The USDC paid on `chain`. */
+  readonly token: Address
+  /** The wallet's SDK account on `chain`, which signs the transfer. */
+  readonly getAccount: () => ResultAsync<RhinestoneAccount, unknown>
+  /** Have Permit2 allowed to move `amount` of `token`, asking the wallet if not. */
+  readonly ensureAllowance: (amount: bigint) => Promise<void>
 }
 
 /**

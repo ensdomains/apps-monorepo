@@ -17,11 +17,14 @@ import type { Transaction } from '../types'
 import { prepareUnpaidStepRequests } from '../utils/flowGasSteps'
 import { getStatus } from '../utils/getStatus'
 import {
-  estimateGasForCall,
+  estimateGasForRequest,
+  isEstimable,
   isRevertError,
   MAX_TRANSIENT_RETRIES,
   PREVIEW_STALE_TIME,
+  stepGasEstimateParams,
   stepGasEstimateQueryKey,
+  toEstimableRequest,
 } from './useTransactionGasEstimate'
 
 const BALANCE_REFETCH_MS = 30_000
@@ -61,7 +64,7 @@ export function useFlowGasAffordability({
     activeRequestFor: (id) => {
       const request = activeTransactionsMap.get(id)?.getSnapshot()
         ?.context.request
-      return request?.type === 'eoa' ? request : undefined
+      return toEstimableRequest(request)
     },
     walletClient: readyWalletClient,
     chainId,
@@ -74,16 +77,10 @@ export function useFlowGasAffordability({
 
   const gasQueries = useQueries({
     queries: unpaidSteps.map(({ request, started }) => ({
-      queryKey: stepGasEstimateQueryKey({
-        chainId: request?.chainId,
-        from: request?.from,
-        to: request?.to,
-        data: request?.data,
-        value: request?.value?.toString(),
-        gas: request?.gas?.toString(),
-        started,
-      }),
-      enabled: Boolean(request?.to && request?.data && publicClient),
+      queryKey: stepGasEstimateQueryKey(
+        stepGasEstimateParams(request, started),
+      ),
+      enabled: Boolean(isEstimable(request) && publicClient),
       staleTime: PREVIEW_STALE_TIME,
       // A revert is deterministic and leaves the step unpriced; a transport
       // blip is worth retrying, or the flow quietly looks cheaper than it is.
@@ -91,7 +88,7 @@ export function useFlowGasAffordability({
         !isRevertError(error) && failureCount < MAX_TRANSIENT_RETRIES,
       queryFn: (): Promise<bigint> => {
         if (!request || !publicClient) throw new Error('No call to estimate')
-        return estimateGasForCall(publicClient, request)
+        return estimateGasForRequest(publicClient, request)
       },
     })),
   })

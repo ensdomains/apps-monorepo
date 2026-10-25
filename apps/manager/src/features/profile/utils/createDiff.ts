@@ -1,4 +1,8 @@
-import { allSections, getAddressRecordDef, getRecordDef } from '../data/records'
+import {
+  allSections,
+  getAddressPresentation,
+  getRecordDef,
+} from '../data/records'
 import type { ProfileRecords } from '../types'
 
 type DiffValue = string | undefined
@@ -42,7 +46,7 @@ const hasValueChanged = (oldVal: unknown, newVal: unknown): boolean =>
   toNormalizedString(oldVal) !== toNormalizedString(newVal)
 
 const getAddressDisplayName = (coinType: number): string =>
-  getAddressRecordDef(coinType)?.name || `Address ${coinType}`
+  getAddressPresentation(coinType).label
 
 const getBioDisplayName = (key: string): string => {
   const displayNames: Record<string, string> = {
