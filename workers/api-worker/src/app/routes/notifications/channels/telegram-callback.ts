@@ -1,14 +1,33 @@
 import { html } from 'hono/html'
+import {
+  TelegramAttemptRecoveryError,
+  TelegramTokenExchangeError,
+} from '#services/telegram/errors.js'
+
+const isTokenExchangeTimeout = (error: unknown): boolean => {
+  if (error instanceof TelegramAttemptRecoveryError)
+    return isTokenExchangeTimeout(error.failure)
+  return (
+    error instanceof TelegramTokenExchangeError &&
+    error.stage === 'request' &&
+    (error.cause instanceof Error || error.cause instanceof DOMException) &&
+    error.cause.name === 'TimeoutError'
+  )
+}
 
 export const telegramCallbackPage = ({
   isSuccess,
   nonce,
   managerUrl,
+  error,
 }: {
   readonly isSuccess: boolean
   readonly nonce: string
   readonly managerUrl?: string
-}) => html`<!doctype html>
+  readonly error?: unknown
+}) => {
+  const hasTimedOut = !isSuccess && isTokenExchangeTimeout(error)
+  return html`<!doctype html>
   <html lang="en">
     <head>
       <meta charset="utf-8">
@@ -91,18 +110,20 @@ export const telegramCallbackPage = ({
             }</span>
           </div>
           <p class="eyebrow">Telegram notifications</p>
-          <h1>${isSuccess ? 'Telegram connected' : 'Connection not completed'}</h1>
+          <h1>${isSuccess ? 'Telegram connected' : hasTimedOut ? 'Telegram sign-in timed out' : 'Connection not completed'}</h1>
           <p class="description">${
             isSuccess
               ? 'Your Telegram is ready. Head back to ENS Manager to finish setting your notification preferences.'
-              : 'We couldn’t finish connecting Telegram this time. Return to ENS Manager to try again.'
+              : hasTimedOut
+                ? 'Telegram took too long to respond. Return to your original ENS Manager tab and start a new connection. If you didn’t allow messages, enable that permission when you try again.'
+                : 'We couldn’t finish connecting Telegram this time. Return to ENS Manager to try again.'
           }</p>
           <div class="next-step">
-            <strong>${isSuccess ? 'Continue in your ENS Manager tab' : 'Try again from ENS Manager'}</strong>
+            <strong>${isSuccess ? 'Continue in your ENS Manager tab' : 'Try again and allow messages'}</strong>
             <p>${
               isSuccess
                 ? 'You can close this tab. Your connection will update automatically in Manager.'
-                : 'Start a new connection and allow the bot to send you messages when Telegram asks.'
+                : 'When Telegram asks, allow the notification bot to send you messages. This permission is required to receive ENS notifications.'
             }</p>
           </div>
           ${managerUrl ? html`<a class="manager-link" href="${managerUrl}" rel="noreferrer">Open ENS Manager <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>` : ''}
@@ -111,3 +132,4 @@ export const telegramCallbackPage = ({
       </div>
     </body>
   </html>`
+}

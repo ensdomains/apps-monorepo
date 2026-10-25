@@ -81,6 +81,7 @@ export default createApp()
     return c.html(
       telegramCallbackPage({
         isSuccess: result.isOk(),
+        error: result.isErr() ? result.error : undefined,
         nonce,
         managerUrl: c.env.MANAGER_APP_URL,
       }),
