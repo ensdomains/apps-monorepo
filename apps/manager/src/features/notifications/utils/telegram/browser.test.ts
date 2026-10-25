@@ -16,7 +16,7 @@ describe('Telegram browser handoff', () => {
       'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 WebView MetaMaskMobile',
       'safari',
     ],
-    ['Android Mobile MetaMaskMobile', 'new-tab'],
+    ['Android Mobile MetaMaskMobile', 'copy-link'],
     ['iPhone Safari', 'new-tab'],
   ] as const)('selects the opening strategy: %s', (userAgent, expected) => {
     expect(getTelegramOpeningStrategy(userAgent)).toBe(expected)

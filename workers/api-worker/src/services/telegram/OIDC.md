@@ -52,8 +52,11 @@ device-tested, undocumented `x-safari-https` scheme. Only the outer authorizatio
 URL's scheme changes; OAuth parameters and the registered HTTPS callback do not.
 Copy always uses the original HTTPS URL so another browser can complete login.
 The browser exception lives in Manager's Telegram browser helper; add narrow
-exceptions only after testing. Android MetaMask and other wallets currently use
-the default strategy and still require device verification.
+exceptions only after testing. Android MetaMask also replaces Manager, and both
+default-browser and Chrome intent handoffs failed in device testing. It offers
+Copy sign-in link with instructions to paste it into another browser and return
+to MetaMask afterward. Other wallets use the default strategy and still require
+device verification.
 The backend recovers pending status across remounts/reloads; the authorization
 URL is held only in memory. After a reload, a user whose Telegram tab was lost
 can cancel and start again. Starting again invalidates older authorization URLs.

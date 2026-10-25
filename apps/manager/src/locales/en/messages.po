@@ -820,6 +820,10 @@ msgstr "Copy Link"
 msgid "Copy sign-in link"
 msgstr "Copy sign-in link"
 
+#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+msgid "Copy the sign-in link, open your browser and paste it into the address bar. Complete Telegram sign-in, then return here. Keep ENS Manager open in MetaMask."
+msgstr "Copy the sign-in link, open your browser and paste it into the address bar. Complete Telegram sign-in, then return here. Keep ENS Manager open in MetaMask."
+
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"

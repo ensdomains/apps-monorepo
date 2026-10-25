@@ -121,6 +121,24 @@ describe('Telegram contact method', () => {
     },
   )
 
+  it('offers only copying and cancellation on Android MetaMask', () => {
+    vi.mocked(useTelegramLogin).mockReturnValue({
+      ...login,
+      openingStrategy: 'copy-link',
+      isPending: true,
+      authorizationUrl: 'https://oauth.telegram.org/auth?state=test',
+    })
+    render(<TelegramContactMethod />)
+    expect(screen.queryByRole('link')).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Copy sign-in link' }),
+    ).toBeEnabled()
+    expect(
+      screen.getByRole('button', { name: 'Cancel connection' }),
+    ).toBeEnabled()
+    expect(screen.getByText(/paste it into the address bar/)).toBeVisible()
+  })
+
   it('shows the linked account and confirms removal', () => {
     render(<TelegramContactMethod telegram={channel} />)
     expect(screen.getByText(channel.label)).toBeVisible()

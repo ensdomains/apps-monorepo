@@ -151,24 +151,30 @@ describe('shared Telegram login lifecycle', () => {
     hook.unmount()
   })
 
-  it('keeps a pending sign-in link without automatic opening on iOS MetaMask', async () => {
-    vi.stubGlobal('navigator', {
-      userAgent: 'iPhone WebView MetaMaskMobile',
-      userActivation: { isActive: true },
-    })
-    const open = vi.spyOn(window, 'open')
-    const hook = renderHook(useTelegramLogin, { wrapper })
-    await waitFor(() => expect(hook.result.current.isPending).toBe(true))
-    act(() => hook.result.current.connect())
-    await waitFor(() =>
-      expect(hook.result.current.authorizationUrl).toContain(
-        'oauth.telegram.org',
-      ),
-    )
-    expect(hook.result.current.openingStrategy).toBe('safari')
-    expect(open).not.toHaveBeenCalled()
-    hook.unmount()
-  })
+  it.each([
+    ['iPhone WebView MetaMaskMobile', 'safari'],
+    ['Android Mobile MetaMaskMobile', 'copy-link'],
+  ] as const)(
+    'keeps a pending link without automatic opening for %s',
+    async (userAgent, strategy) => {
+      vi.stubGlobal('navigator', {
+        userAgent,
+        userActivation: { isActive: true },
+      })
+      const open = vi.spyOn(window, 'open')
+      const hook = renderHook(useTelegramLogin, { wrapper })
+      await waitFor(() => expect(hook.result.current.isPending).toBe(true))
+      act(() => hook.result.current.connect())
+      await waitFor(() =>
+        expect(hook.result.current.authorizationUrl).toContain(
+          'oauth.telegram.org',
+        ),
+      )
+      expect(hook.result.current.openingStrategy).toBe(strategy)
+      expect(open).not.toHaveBeenCalled()
+      hook.unmount()
+    },
+  )
 
   it('expires locally and clears timers after unmount even when the network is unavailable', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })

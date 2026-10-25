@@ -37,6 +37,12 @@ export const TelegramPendingLogin = ({
             Open Safari to finish connecting Telegram, then return here. Keep
             ENS Manager open in MetaMask.
           </Trans>
+        ) : strategy === 'copy-link' ? (
+          <Trans>
+            Copy the sign-in link, open your browser and paste it into the
+            address bar. Complete Telegram sign-in, then return here. Keep ENS
+            Manager open in MetaMask.
+          </Trans>
         ) : (
           <Trans>
             Continue to Telegram if sign-in did not open automatically. You can
@@ -48,20 +54,22 @@ export const TelegramPendingLogin = ({
       <div className="flex flex-wrap items-center gap-2">
         {authorizationUrl && (
           <>
-            <Button asChild size="sm" variant="outline">
-              <a
-                href={getTelegramContinueUrl(authorizationUrl, strategy)}
-                rel="noopener noreferrer"
-                target={isSafariHandoff ? undefined : '_blank'}
-              >
-                {isSafariHandoff ? (
-                  <Trans>Open in Safari</Trans>
-                ) : (
-                  <Trans>Continue to Telegram</Trans>
-                )}
-                <ExternalLinkIcon aria-hidden="true" className="size-3.5" />
-              </a>
-            </Button>
+            {strategy !== 'copy-link' && (
+              <Button asChild size="sm" variant="outline">
+                <a
+                  href={getTelegramContinueUrl(authorizationUrl, strategy)}
+                  rel="noopener noreferrer"
+                  target={isSafariHandoff ? undefined : '_blank'}
+                >
+                  {isSafariHandoff ? (
+                    <Trans>Open in Safari</Trans>
+                  ) : (
+                    <Trans>Continue to Telegram</Trans>
+                  )}
+                  <ExternalLinkIcon aria-hidden="true" className="size-3.5" />
+                </a>
+              </Button>
+            )}
             <Button
               onClick={() => {
                 if (!authorizationUrl) return
@@ -81,7 +89,7 @@ export const TelegramPendingLogin = ({
               }}
               size="sm"
               type="button"
-              variant="outline"
+              variant={strategy === 'copy-link' ? 'blue' : 'outline'}
             >
               <Trans>Copy sign-in link</Trans>
               <CopyIcon aria-hidden="true" className="size-3.5" />

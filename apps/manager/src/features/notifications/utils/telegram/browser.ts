@@ -1,14 +1,17 @@
 import { fromSync } from '@ens-apps/utils/neverthrow'
 
-export type TelegramOpeningStrategy = 'new-tab' | 'safari'
+export type TelegramOpeningStrategy = 'new-tab' | 'safari' | 'copy-link'
 
 export const getTelegramOpeningStrategy = (
   userAgent: string,
 ): TelegramOpeningStrategy => {
-  // Verified on iOS MetaMask: blank tabs crash and HTTPS links replace Manager.
+  // MetaMask mobile can replace Manager instead of opening a tab. Safari
+  // handoff works on iOS; Android intent handoffs failed in device testing.
   // Add other browser exceptions here only after testing their behavior.
-  if (/MetaMaskMobile/i.test(userAgent) && /iPhone|iPad|iPod/i.test(userAgent))
-    return 'safari'
+  if (/MetaMaskMobile/i.test(userAgent)) {
+    if (/iPhone|iPad|iPod/i.test(userAgent)) return 'safari'
+    if (/Android/i.test(userAgent)) return 'copy-link'
+  }
   return 'new-tab'
 }
 
