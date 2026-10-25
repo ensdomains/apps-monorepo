@@ -10,7 +10,7 @@ import { useNameResolverAddress } from '@/features/records/hooks/useNameResolver
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { getResolverSetterGrantsQueryOptions } from '@/features/resolver/hooks/useResolverSetterGrants'
-import { getCanModifyOnPublicResolverV2QueryOptions } from '@/features/resolver/queries/getCanModifyOnPublicResolverV2'
+import { getCanModifyNameOnResolverQueryOptions } from '@/features/resolver/queries/getCanModifyNameOnResolver'
 import {
   computeResolverResource,
   type ResolverPermissionKey,
@@ -97,8 +97,10 @@ type UseCanEditRecordsReturn = {
  *   those keys in `editableTypes`. Roles are per
  *   resolver, not per name, so after a transfer that keeps the resolver the
  *   previous owner typically retains them while the new token owner does not.
- * - V2 names on any other resolver: only PublicResolverV2's own
- *   `canModifyName` counts; ownership grants nothing elsewhere.
+ * - V2 names on any other resolver: PublicResolverV2's `canModifyName`, or a
+ *   dry run of the record write for any other resolver (a recreated child
+ *   keeps its V1 PublicResolver, which still authorizes the V1 owner and its
+ *   delegates). Token ownership alone grants nothing there.
  * - V1 names on a non-permissioned resolver: falls back to token ownership.
  *
  * Either way the name must own its resolver. One inherited through ENSIP-10
@@ -200,8 +202,8 @@ export function useCanEditRecords({
 
   const isV2 = ownerQuery.data?.protocolVersion === 'ENSv2'
 
-  const publicResolverV2Query = useQuery({
-    ...getCanModifyOnPublicResolverV2QueryOptions({ ...roleHolder, name }),
+  const resolverWriteQuery = useQuery({
+    ...getCanModifyNameOnResolverQueryOptions({ ...roleHolder, name }),
     enabled:
       enabled &&
       !!connectedAddress &&
@@ -225,7 +227,7 @@ export function useCanEditRecords({
     isPermissionedQuery,
     ...(isReadingGrants ? [grantsQuery] : []),
     ...roleQueries,
-    publicResolverV2Query,
+    resolverWriteQuery,
   ]
   const isLoading = enabled && queries.some((query) => query.isLoading)
   const isError = queries.some((query) => query.isError)
@@ -246,7 +248,7 @@ export function useCanEditRecords({
       { isPermissioned: true },
       () => grantedRoles.length + grantedScopes.length > 0,
     )
-    .with({ isV2: true }, () => publicResolverV2Query.data === true)
+    .with({ isV2: true }, () => resolverWriteQuery.data === true)
     .otherwise(() => isOwner)
 
   return {
