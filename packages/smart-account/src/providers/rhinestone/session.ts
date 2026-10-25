@@ -8,11 +8,9 @@
  * intent carries that authorization plus the session config as its
  * `enableData` (envelope mode 0x05). No ENABLE transaction or call.
  *
- * First pass is SAME-CHAIN ONLY: we build just the destination (Sepolia) HCA
- * session and its enable-data. The source-session salt encoder is included as a
- * pure function (`computeSourceSessionSalt`) + tests so cross-chain can be
- * added later without reshaping this module — re-authorization is required to
- * add a source anyway.
+ * The authorization covers the HCA alone. Never add another account's session
+ * to it: the SDK encodes an action-less session as SUDO with no expiry, which a
+ * generic account's SmartSession module would honour.
  *
  * Field orders in the salt encoders are EXACT and load-bearing (they must match
  * the on-chain validator + the reference `liveHcaRhinestoneRegistration`
@@ -145,53 +143,6 @@ export function computeDestinationSessionSalt(params: {
             LEGACY_REFUND_CAPS.maxRefundGasOverhead,
         ),
         params.maxRefundAmount ?? LEGACY_REFUND_CAPS.maxRefundAmount,
-      ],
-    ),
-  )
-}
-
-/**
- * Compute the source (funding Nexus-side) session salt. EXACT field order:
- * address wallet, uint48 validUntil, address sourceToken, address hca,
- * address destinationToken, uint64 destinationChainId, uint96 maxSourceAmount,
- * uint96 maxDestinationAmount.
- *
- * NOTE: `acrossArbiter` is NOT part of the salt (updated handoff doc). The
- * source validator reads the active Across adapter from the Rhinestone Router
- * at claim time, so a compatible adapter change does not affect the source
- * permission ID. Kept as a pure function for the deferred cross-chain path.
- */
-export function computeSourceSessionSalt(params: {
-  readonly wallet: Address
-  readonly validUntil: bigint
-  readonly sourceToken: Address
-  readonly hca: Address
-  readonly destinationToken: Address
-  readonly destinationChainId: bigint
-  readonly maxSourceAmount: bigint
-  readonly maxDestinationAmount: bigint
-}): Hex {
-  return keccak256(
-    encodeAbiParameters(
-      [
-        { type: 'address' },
-        { type: 'uint48' },
-        { type: 'address' },
-        { type: 'address' },
-        { type: 'address' },
-        { type: 'uint64' },
-        { type: 'uint96' },
-        { type: 'uint96' },
-      ],
-      [
-        params.wallet,
-        Number(params.validUntil),
-        params.sourceToken,
-        params.hca,
-        params.destinationToken,
-        params.destinationChainId,
-        params.maxSourceAmount,
-        params.maxDestinationAmount,
       ],
     ),
   )

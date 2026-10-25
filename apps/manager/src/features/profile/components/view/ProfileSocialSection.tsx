@@ -13,14 +13,14 @@ import {
   ProfileCard,
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
+  profileFieldLabelClassName,
+  profileFieldValueClassName,
   profileTileClassName,
 } from './ProfileCard'
 import { getSecondarySocialRecords } from './ProfileView.helpers'
 
-const socialLabelClassName =
-  'truncate text-ens-quartz-500 text-xs leading-[16.5px] xl:leading-4.5'
-const socialValueClassName =
-  'truncate text-ens-quartz-700 text-[12px] leading-[19.5px] xl:text-sm xl:leading-6'
+const socialLabelClassName = `truncate ${profileFieldLabelClassName}`
+const socialValueClassName = `truncate ${profileFieldValueClassName}`
 const socialTrailingIconClassName =
   'size-[18px] shrink-0 text-ens-quartz-400 xl:size-7.5 xl:text-ens-quartz-700'
 const socialCardPaddingClassName =

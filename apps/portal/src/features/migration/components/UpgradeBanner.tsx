@@ -63,23 +63,27 @@ export const UpgradeBanner = ({
     }))
     .otherwise(() => ({ status: 'pending' }))
 
+  // Sized by the banner's own width, not the viewport: the sidebar decides how
+  // much room the long copy has beside the title and actions.
   return (
-    <Alert
-      variant="default"
-      className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:gap-10"
-    >
-      <div className="flex shrink-0 items-start gap-4 flex-col sm:flex-row sm:items-center">
-        <CircleAlert className="size-6 shrink-0" />
-        <p className="whitespace-nowrap text-3xl font-normal leading-none tracking-[-0.02em] font-serif">
-          Upgrade to ENSv2
-        </p>
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-4 lg:flex-row lg:items-center lg:gap-10">
-        <p className="min-w-0 text-p">
-          {describeUpgrade({ isWrapped, impact })}
-        </p>
-        <UpgradeActions name={name} isWrapped={isWrapped} />
-      </div>
-    </Alert>
+    <div className="@container/upgrade-banner">
+      <Alert
+        variant="default"
+        className="flex flex-col gap-3 p-5 @7xl/upgrade-banner:flex-row @7xl/upgrade-banner:items-center @7xl/upgrade-banner:gap-10"
+      >
+        <div className="flex shrink-0 items-start gap-4 flex-col sm:flex-row sm:items-center">
+          <CircleAlert className="size-6 shrink-0" />
+          <p className="whitespace-nowrap text-3xl font-normal leading-none tracking-[-0.02em] font-serif">
+            Upgrade to ENSv2
+          </p>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-4 @7xl/upgrade-banner:flex-row @7xl/upgrade-banner:items-center @7xl/upgrade-banner:gap-10">
+          <p className="min-w-0 text-p">
+            {describeUpgrade({ isWrapped, impact })}
+          </p>
+          <UpgradeActions name={name} isWrapped={isWrapped} />
+        </div>
+      </Alert>
+    </div>
   )
 }

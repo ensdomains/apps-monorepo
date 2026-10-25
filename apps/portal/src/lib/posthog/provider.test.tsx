@@ -132,12 +132,13 @@ describe('PostHog provider', () => {
     expect(posthog.get_explicit_consent_status()).toBe('granted')
   })
 
-  it('sends no wallet address to PostHog without consent', () => {
+  it('sends nothing about the wallet without consent', () => {
     renderProvider()
     connectWallet()
 
     expect(posthog.identify).not.toHaveBeenCalled()
     expect(posthog.register).not.toHaveBeenCalled()
+    expect(trackEvent).not.toHaveBeenCalled()
   })
 
   it('identifies a connected wallet on Accept and forgets it on Decline', () => {

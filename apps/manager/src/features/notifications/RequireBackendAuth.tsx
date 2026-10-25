@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useMutation } from '@tanstack/react-query'
 import { useAtom, useSelector } from '@xstate/store-react'
 import type { ReactNode } from 'react'
-import { useConnection, useWalletClient } from 'wagmi'
+import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -20,8 +20,7 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     backendAuthStore,
     (state) => state.context.address,
   )
-  const { data: walletClient } = useWalletClient()
-  const { ownerAddress } = useSmartAccountContext()
+  const { ownerAddress, walletClient } = useSmartAccountContext()
   const { openConnectModal } = useConnectModal()
 
   const { status: connectionStatus } = useConnection()

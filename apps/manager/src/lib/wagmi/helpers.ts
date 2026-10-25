@@ -9,14 +9,18 @@ import {
 } from '@wagmi/core'
 import { fromAsyncThrowable, fromThrowable } from 'neverthrow'
 import type { Client, CreateClientErrorType, Transport } from 'viem'
-import { type sepoliaWithEns, wagmiConfig } from '../wagmi'
+import { sepoliaWithEns, wagmiConfig } from '../wagmi'
 
 export class WagmiClientError extends TaggedError('Wagmi/ClientError')<{
   cause: CreateClientErrorType
 }> {}
 
 export const safeGetClient = fromThrowable(
-  () => wagmiConfig.getClient() as Client<Transport, typeof sepoliaWithEns>,
+  () =>
+    wagmiConfig.getClient({ chainId: sepoliaWithEns.id }) as Client<
+      Transport,
+      typeof sepoliaWithEns
+    >,
   (e) => new WagmiClientError({ cause: e as CreateClientErrorType }),
 )
 

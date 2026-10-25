@@ -3,6 +3,7 @@ export { getAtomicBatchSupport } from './actors/eoa-batch-transport.actor'
 // Errors
 export {
   ChainIdMismatchError,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   SignerAddressMismatchError,
   TransactionStoppedError,
@@ -71,6 +72,7 @@ export type {
   RegistrationEvent,
   RegistrationInput,
   SessionReauthorization,
+  UnsettledL2Bridge,
 } from './machines/registration/registration.machine'
 export {
   REGISTRATION_TX_IDS,
@@ -130,6 +132,7 @@ export type {
 } from './types/audit.types'
 export type {
   EOASigner,
+  L2FundingSource,
   RhinestoneSessionContext,
   RhinestoneSigner,
   Signer,

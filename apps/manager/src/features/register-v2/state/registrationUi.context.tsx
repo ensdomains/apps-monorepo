@@ -14,6 +14,7 @@ import {
   getSuspendableRunOwner,
   registrationV2UiMachine,
 } from './registrationUi.machine'
+import { usePendingL2BridgePersistence } from './usePendingL2BridgePersistence'
 import { useRegistrationLockSweep } from './useRegistrationLockSweep'
 import {
   type RegistrationResumeState,
@@ -80,6 +81,8 @@ export const RegistrationV2UiProvider = ({
 
     return subscription.unsubscribe
   }, [registrationV2UiActor])
+
+  usePendingL2BridgePersistence(registrationActor)
 
   // The kill switch gates the writes and the resume together: a record that
   // will never be picked up should not be written either. Orphan cleanup is
