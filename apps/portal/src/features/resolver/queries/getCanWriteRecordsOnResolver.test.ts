@@ -38,15 +38,21 @@ describe('getCanWriteRecordsOnResolver', () => {
     call.mockResolvedValue({ data: '0x' })
 
     expect((await probe())._unsafeUnwrap()).toBe(true)
-    expect(call).toHaveBeenCalledTimes(2)
+    // One per record type the editor offers: address, text, ABI, contenthash.
+    expect(call).toHaveBeenCalledTimes(4)
     expect(call).toHaveBeenCalledWith(
       expect.objectContaining({ account: ACCOUNT, to: RESOLVER }),
     )
   })
 
-  // A resolver may authorise text but not addresses, which is not a lockout.
-  it('still allows editing when only some setters revert', async () => {
-    call.mockImplementationOnce(revert).mockResolvedValueOnce({ data: '0x' })
+  // A resolver may authorise contenthash but not addresses or text, which is
+  // not a lockout: that edit would still succeed.
+  it('still allows editing when only the last setter is accepted', async () => {
+    call
+      .mockImplementationOnce(revert)
+      .mockImplementationOnce(revert)
+      .mockImplementationOnce(revert)
+      .mockResolvedValueOnce({ data: '0x' })
 
     expect((await probe())._unsafeUnwrap()).toBe(true)
   })

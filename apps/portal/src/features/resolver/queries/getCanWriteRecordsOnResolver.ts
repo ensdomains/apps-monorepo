@@ -2,7 +2,9 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
+  publicResolverSetAbiSnippet,
   publicResolverSetAddrSnippet,
+  publicResolverSetContenthashSnippet,
   publicResolverSetTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
 import { fromPromise, ok } from 'neverthrow'
@@ -14,6 +16,7 @@ import { isContractRevert } from '@/utils/errors/isContractRevert'
 
 const ETH_COIN_TYPE = 60n
 const PROBE_TEXT_KEY = 'avatar'
+const JSON_ABI_CONTENT_TYPE = 1n
 
 class CanWriteRecordsOnResolverError extends TaggedError(
   'CanWriteRecordsOnResolverError',
@@ -27,7 +30,7 @@ type GetCanWriteRecordsOnResolverParams = {
   readonly account: Address
 }
 
-/** One setter per record type a resolver may authorise separately. */
+/** One setter per record type the editor writes, since a resolver may authorise them separately. */
 const encodeProbes = ({
   node,
   account,
@@ -45,12 +48,23 @@ const encodeProbes = ({
     functionName: 'setText',
     args: [node, PROBE_TEXT_KEY, ''],
   }),
+  encodeFunctionData({
+    abi: publicResolverSetAbiSnippet,
+    functionName: 'setABI',
+    args: [node, JSON_ABI_CONTENT_TYPE, '0x'],
+  }),
+  encodeFunctionData({
+    abi: publicResolverSetContenthashSnippet,
+    functionName: 'setContenthash',
+    args: [node, '0x'],
+  }),
 ]
 
 /**
- * Whether `account` can write any of `name`'s records, by dry-running the
- * setters a save would send. `false` only when every one reverts; any other
- * failure throws, leaving writability unknown rather than read as a refusal.
+ * Whether `account` can write any of `name`'s records, by dry-running one
+ * setter per record type the editor offers. `false` only when every one
+ * reverts; any other failure throws, leaving writability unknown rather than
+ * read as a refusal.
  */
 export const getCanWriteRecordsOnResolver = ResultFn(async function* ({
   resolverAddress,
