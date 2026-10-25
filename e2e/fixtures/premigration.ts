@@ -48,6 +48,8 @@ const ZERO = '0x0000000000000000000000000000000000000000'
  * one out being simply unreserved. 2026-10-09: `hello` dropped — on a fork
  * taken that day it answered `0x61336d67…` while the other seven agreed on
  * `0x322B7581…`, i.e. it had been migrated or re-pointed on live Sepolia.
+ * 2026-10-25: `example` dropped for the same reason at fork block 11983209
+ * (`0xeA1Ce682…`).
  */
 const PROBE_LABELS = [
   'demo',
@@ -57,7 +59,6 @@ const PROBE_LABELS = [
   'nick',
   'alice',
   'bob',
-  'example',
   'sepolia',
 ] as const
 

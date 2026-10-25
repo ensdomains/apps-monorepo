@@ -33,7 +33,7 @@ export default defineConfig({
     {
       name: 'manager-migration',
       testMatch:
-        /migration(-(subname|grace|fuses|managers|approvals|records))?\.spec\.ts$/,
+        /migration(-(subname|grace|fuses|managers|approvals|records|recreation))?\.spec\.ts$/,
       dependencies: ['harness-manager'],
     },
     {

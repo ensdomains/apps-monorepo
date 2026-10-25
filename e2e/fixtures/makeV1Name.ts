@@ -167,6 +167,8 @@ export const FUSES = {
 // Constants
 // ---------------------------------------------------------------------------
 const DEFAULT_DURATION = 365 * 24 * 60 * 60
+/** The initial premigration's reservation bonus: exactly 62 days. */
+export const PREMIGRATION_BONUS = 62n * 24n * 60n * 60n
 
 const ANVIL_FUNDER = privateKeyToAccount(
   '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
@@ -226,6 +228,14 @@ export type V1NameConfig = {
    * controllers cannot claim (GA12).
    */
   reserveInV2?: boolean
+  /**
+   * Seconds added to the V1 expiry for the V2 reservation. Default 62 days,
+   * what the initial premigration wrote (`DEFAULT_BONUS_PERIOD_DAYS`);
+   * `ETHRenewerV1` writes 62 days plus one second. The manager requires one
+   * of the two (#1494), so a reservation at the bare V1 expiry is a shape
+   * Sepolia never has.
+   */
+  reservationBonus?: bigint
   /**
    * Runs after registration, while the name is still unwrapped and its
    * registry owner is still the owner's EOA — the only moment a registry-only
@@ -468,7 +478,11 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
     // ── 5. Reserve in V2 BEFORE any time advancement ───────────────
     // The reservation must be created while v1Expiry is still in the future
     // so the V2 slot gets the correct active expiry.
-    if (config.reserveInV2 !== false) await reserveInV2(uniqueLabel, v1Expiry)
+    if (config.reserveInV2 !== false)
+      await reserveInV2(
+        uniqueLabel,
+        v1Expiry + (config.reservationBonus ?? PREMIGRATION_BONUS),
+      )
 
     // ── 6. Wrap if requested ────────────────────────────────────────
     const nameType = config.type ?? 'unwrapped'
