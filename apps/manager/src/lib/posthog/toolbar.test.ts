@@ -3,7 +3,7 @@
 import { PostHog as DefaultBuildPostHog } from 'posthog-js'
 import posthog, { PostHog } from 'posthog-js/dist/module.full.no-external'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FEATURE_FLAGS_ONLY_CONFIG } from './config'
+import { POSTHOG_CONFIG } from './config'
 
 const TOKEN = 'phc_test_token'
 
@@ -11,7 +11,7 @@ const init = () => {
   const client = new PostHog()
   client.init(TOKEN, {
     api_host: 'https://example.invalid',
-    ...FEATURE_FLAGS_ONLY_CONFIG,
+    ...POSTHOG_CONFIG,
   })
   return client
 }

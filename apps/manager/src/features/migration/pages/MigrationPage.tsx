@@ -1,5 +1,8 @@
 import { classifyNames } from '@ens-apps/migration'
-import type { Signer } from '@ens-apps/transaction-manager'
+import {
+  type Signer,
+  useAtomicBatchSupport,
+} from '@ens-apps/transaction-manager'
 import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
@@ -9,9 +12,10 @@ import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient, WalletClient } from 'viem'
-import { useBalance, useWalletClient } from 'wagmi'
+import { useBalance } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { chain } from '@/config'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
@@ -252,8 +256,9 @@ export const MigrationPage = () => {
     client: hcaClient,
     error: hcaError,
     refreshAccount,
+    walletClient: wagmiWalletClient,
   } = useSmartAccountContext()
-  const { data: wagmiWalletClient } = useWalletClient()
+  const canBatchAtomically = useAtomicBatchSupport(chain.id)
   const queryClient = useQueryClient()
   const migrationNftEnabled = useMigrationNftEnabled()
   const isMigrationSuccess = step === 'success'
@@ -473,6 +478,7 @@ export const MigrationPage = () => {
             domains: v1Names.filter(({ name }) => selected.has(name)),
             hcaAddress: hcaAddress as Address,
             requestSteps: renewalGasEstimate.stepDescriptors,
+            canBatchAtomically,
           },
           signer,
           hcaClient,
@@ -502,6 +508,7 @@ export const MigrationPage = () => {
     hcaClient,
     refreshAccount,
     wagmiWalletClient,
+    canBatchAtomically,
     gasEstimate,
     gasFundingStatus,
     graceDomains,

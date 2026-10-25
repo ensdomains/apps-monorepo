@@ -1,6 +1,7 @@
 import { useLingui } from '@lingui/react/macro'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Address } from 'viem'
+import type { ResolverCopySource } from '@/features/profile/service/resolverImport'
 import type { ProfileRecords } from '@/features/profile/types'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import { useIntercomClearance } from '@/hooks/useIntercomClearance'
@@ -34,6 +35,7 @@ type ProfileActionsProps = {
   readonly records: ProfileRecords
   readonly renewalProtocol?: RenewalProtocol
   readonly url: string
+  readonly resolverCopySource?: ResolverCopySource
 }
 
 export const ProfileActions = ({
@@ -48,11 +50,16 @@ export const ProfileActions = ({
   records,
   renewalProtocol,
   url,
+  resolverCopySource,
 }: ProfileActionsProps) => {
   const { t } = useLingui()
   const [bar, setBar] = useState<HTMLElement | null>(null)
   useIntercomClearance(bar)
-  const hasFloatingBar = canEdit
+  // Keep an opened draft mounted across background capability/expiry refreshes.
+  // Actions and publishing are paused when fresh permission data is unavailable.
+  const hasEditor = useRef(false)
+  if (canEdit || resolverCopySource) hasEditor.current = true
+  const hasFloatingBar = hasEditor.current
   const hasBottomNav = isUpgradeRequired && !isInGrace
 
   const barActions = (
@@ -75,12 +82,15 @@ export const ProfileActions = ({
         canEdit={canEdit}
         className={profileButtonClassName}
         isInGrace={isInGrace}
+        isUpgradeRequired={isUpgradeRequired}
+        keepMounted
         leftActions={barActions}
         name={name}
         onUpdated={onUpdated}
         owner={owner}
         protocol={renewalProtocol}
         records={records}
+        resolverCopySource={resolverCopySource}
       />
     )
   }

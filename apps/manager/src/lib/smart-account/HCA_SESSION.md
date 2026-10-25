@@ -48,7 +48,7 @@ authorization inline (modes `0x04` / `0x05`), and `_validateSessionEnableProof`
 re-checks it each time — the key, `validUntil`, the refund caps, the owner
 signature, and that `proof.sessionNonce` equals the account's current
 `ownerAndSessionNonce()`. The nonce is also hashed into the salt the
-`permissionId` derives from. The record is persisted under `ens-sessions-v9`
+`permissionId` derives from. The record is persisted under `ens-sessions-v10`
 (see the storage-key changelog in `session-storage.ts` — the key is bumped
 whenever the record shape or a bound address changes).
 

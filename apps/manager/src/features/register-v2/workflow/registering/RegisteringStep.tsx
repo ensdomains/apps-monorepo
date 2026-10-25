@@ -40,6 +40,7 @@ const useChildRegistrationState = RegisterV2Context.createTxSelector(
     approvalTxId: state?.context.approvalTxId,
     registrationTxId: state?.context.registrationTxId,
     registerReadyTimestamp: state?.context.registerReadyTimestamp ?? null,
+    l2FundingChainName: state?.context.l2Funding?.chain.name,
     value: state?.value ?? 'idle',
   }),
 )

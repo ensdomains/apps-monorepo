@@ -15,27 +15,14 @@ export const useSubnameMigrationConfirmation = ({
 }) => {
   const [action, setAction] = useState<Action | null>(null)
   const [isChecking, setIsChecking] = useState(false)
-  const [acknowledgedImpactKey, setAcknowledgedImpactKey] = useState<
-    string | null
-  >(null)
   const requestRevision = useRef(0)
   const isBusy = useRef(false)
   const invokingElement = useRef<HTMLElement | null>(null)
   const reviewKey = impact.canReview ? impact.selectionKey : null
   const selection = useRef(reviewKey)
-  const impactKey = JSON.stringify([reviewKey, impact.impact?.fingerprint])
-  const hasAcknowledgedImpact =
-    action !== null && acknowledgedImpactKey === impactKey
-
-  useEffect(() => {
-    if (acknowledgedImpactKey !== null && acknowledgedImpactKey !== impactKey)
-      setAcknowledgedImpactKey(null)
-  }, [acknowledgedImpactKey, impactKey])
-
   const cancel = () => {
     requestRevision.current += 1
     setAction(null)
-    setAcknowledgedImpactKey(null)
   }
 
   useEffect(() => {
@@ -43,7 +30,6 @@ export const useSubnameMigrationConfirmation = ({
     if (reviewKey === null || selection.current !== reviewKey) {
       requestRevision.current += 1
       setAction(null)
-      setAcknowledgedImpactKey(null)
     }
     selection.current = reviewKey
   }, [reviewKey])
@@ -60,7 +46,6 @@ export const useSubnameMigrationConfirmation = ({
 
   const request = async (requestedAction: Action): Promise<boolean> => {
     if (isBusy.current || !impact.canReview) return false
-    setAcknowledgedImpactKey(null)
     invokingElement.current = focusedElement()
     const revision = ++requestRevision.current
     const selectionKey = impact.selectionKey
@@ -88,7 +73,8 @@ export const useSubnameMigrationConfirmation = ({
       action === null ||
       impact.status !== 'ready' ||
       !impact.canReview ||
-      ((impact.impact?.affectedCount ?? 0) > 0 && !hasAcknowledgedImpact)
+      !impact.impact ||
+      impact.impact.affectedCount > 0
     )
       return
     const revision = requestRevision.current
@@ -97,8 +83,8 @@ export const useSubnameMigrationConfirmation = ({
     try {
       const isSafe = await impact.checkBeforeStart(impact.impact?.fingerprint)
       if (!isSafe || requestRevision.current !== revision) return
-      // The checkbox acknowledgement is bound to the identities just shown.
-      // If the final read changes them, keep the dialog open for review again.
+      // Unsupported subnames are a hard stop. Only a fresh, unchanged result
+      // proving zero affected names can start or retry the upgrade.
       if (await onConfirm(action)) setAction(null)
     } finally {
       isBusy.current = false
@@ -109,11 +95,8 @@ export const useSubnameMigrationConfirmation = ({
   return {
     isOpen: action !== null,
     isChecking,
-    hasAcknowledgedImpact,
-    acknowledgeImpact: (isAcknowledged: boolean) => {
-      if (isBusy.current || action === null || impact.status !== 'ready') return
-      setAcknowledgedImpactKey(isAcknowledged ? impactKey : null)
-    },
+    hasAcknowledgedImpact: false,
+    acknowledgeImpact: (_isAcknowledged: boolean) => {},
     request,
     confirm,
     cancel,

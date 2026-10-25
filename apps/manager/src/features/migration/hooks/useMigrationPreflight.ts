@@ -2,6 +2,7 @@ import type { V1Domain } from '@ens-apps/migration'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
+import { chain } from '@/config'
 import {
   computeMigrationPreflight,
   EMPTY_PREFLIGHT,
@@ -18,10 +19,11 @@ type EnsureOptions = {
   readonly staleTime?: number
   /** Whether any name was opted in to manager restoration. */
   readonly requiresManagerRestoration?: boolean
+  readonly requiresRegistryConfiguration?: boolean
 }
 
 export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
-  const publicClient = usePublicClient()
+  const publicClient = usePublicClient({ chainId: chain.id })
   const wagmiConfig = useConfig()
   const queryClient = useQueryClient()
 
@@ -44,6 +46,8 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
     // re-running it.
     const requiresManagerRestoration =
       options.requiresManagerRestoration ?? false
+    const requiresRegistryConfiguration =
+      options.requiresRegistryConfiguration ?? false
     const preflight = await queryClient.fetchQuery({
       queryKey: [
         'migration-preflight',
@@ -51,6 +55,7 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
         hcaAddress?.toLowerCase() ?? '',
         ids,
         requiresManagerRestoration,
+        requiresRegistryConfiguration,
       ] as const,
       queryFn: () =>
         computeMigrationPreflight({
@@ -58,6 +63,7 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
           hcaAddress,
           domains,
           requiresManagerRestoration,
+          requiresRegistryConfiguration,
           wagmiConfig,
           publicClient: publicClient as unknown as PublicClient,
           signal: options.signal,

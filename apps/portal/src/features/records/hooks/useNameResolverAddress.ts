@@ -13,6 +13,8 @@ import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { getLegacyRegistryResolver } from '@/utils/ens/getLegacyRegistryResolver'
+import { resolveV2EthOwner } from '@/utils/ens/resolveEnsOwner'
 
 // ============================================================================
 // Types
@@ -50,11 +52,27 @@ export const getNameResolverAddress = ResultFn(async function* (
     (e) => new GetNameResolverAddressError({ cause: e }),
   )
 
-  if (!resolverAddress || resolverAddress === zeroAddress) {
-    return ok<Address | null>(null)
+  if (resolverAddress && resolverAddress !== zeroAddress) {
+    return ok<Address | null>(resolverAddress)
   }
 
-  return ok<Address | null>(resolverAddress)
+  // A V2 name with no resolver has none; its leftover V1 entry is stale.
+  if (name.endsWith('.eth')) {
+    const v2Owner = yield* fromPromise(
+      resolveV2EthOwner(client, name),
+      (e) => new GetNameResolverAddressError({ cause: e }),
+    )
+    if (v2Owner) return ok<Address | null>(null)
+  }
+
+  // A lapsed ENSv1 name leaves the UniversalResolver walk when its v2
+  // reservation expires, while the legacy registry still names its resolver.
+  const legacyResolver = yield* fromPromise(
+    getLegacyRegistryResolver(client, name),
+    (e) => new GetNameResolverAddressError({ cause: e }),
+  )
+
+  return ok<Address | null>(legacyResolver)
 })
 
 // ============================================================================

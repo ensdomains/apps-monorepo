@@ -13,7 +13,6 @@ import {
 import type { ComponentProps, ReactNode } from 'react'
 import { fn } from 'storybook/test'
 import { FailureStep as BulkRenewFailureStep } from '@/features/bulk-renew/components/FailureStep'
-import { PrimaryNameV1Warning as PrimaryNameV1WarningBanner } from '@/features/dashboard/components/PrimaryNameV1Warning'
 import { RegistrationCompletionBanner } from '@/features/register-v2/workflow/registering/components/RegistrationCompletionBanner'
 import { RenewalCompletionBanner } from '@/features/renew/workflow/renewing/components/RenewalCompletionBanner'
 import { cn } from '@/lib/utils'
@@ -213,20 +212,6 @@ const LegacyPrimaryNameSetupNotice = () => (
 )
 
 /** @deprecated Pre-WEB-1836 markup, kept for the before/after comparison only. */
-const LegacyPrimaryNameV1Warning = () => (
-  <LegacyAlert variant="warning">
-    <AlertCircle />
-    <LegacyAlertTitle className="line-clamp-none">
-      Only ENSv2 Names Supported
-    </LegacyAlertTitle>
-    <LegacyAlertDescription>
-      You own names that need to be upgraded to ENSv2 before they can be set as
-      your Primary Name
-    </LegacyAlertDescription>
-  </LegacyAlert>
-)
-
-/** @deprecated Pre-WEB-1836 markup, kept for the before/after comparison only. */
 const LegacyResumeConnectWalletBanner = () => (
   <LegacyAlert variant="warning">
     <Wallet className="h-4 w-4" />
@@ -407,14 +392,6 @@ const primaryNameSetupNoticeCase: ComparisonCase = {
   after: <PrimaryNameSetupNoticeAfter />,
 }
 
-const primaryNameV1WarningCase: ComparisonCase = {
-  title: 'Primary name v1 warning',
-  before: <LegacyPrimaryNameV1Warning />,
-  after: (
-    <PrimaryNameV1WarningBanner isError={false} upgradeableNameCount={3} />
-  ),
-}
-
 const resumeConnectWalletCase: ComparisonCase = {
   title: 'Resume, connect wallet',
   before: <LegacyResumeConnectWalletBanner />,
@@ -466,7 +443,6 @@ const allCases: readonly ComparisonCase[] = [
   renewFailureCase,
   bulkRenewFailureCase,
   primaryNameSetupNoticeCase,
-  primaryNameV1WarningCase,
   resumeConnectWalletCase,
   genericDefaultCase,
   genericDestructiveCase,
@@ -517,8 +493,6 @@ export const BulkRenewFailure: Story = { args: bulkRenewFailureCase }
 export const PrimaryNameSetupNotice: Story = {
   args: primaryNameSetupNoticeCase,
 }
-
-export const PrimaryNameV1Warning: Story = { args: primaryNameV1WarningCase }
 
 /** After mirrors the Alert that ResumeConnectWalletBanner renders; the component needs the registration context. */
 export const ResumeConnectWallet: Story = { args: resumeConnectWalletCase }

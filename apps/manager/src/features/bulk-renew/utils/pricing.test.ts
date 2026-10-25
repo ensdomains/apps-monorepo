@@ -2,7 +2,7 @@ import { differenceInCalendarDays, startOfDay } from 'date-fns'
 import { secondsInDay } from 'date-fns/constants'
 import { describe, expect, it } from 'vitest'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
-import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import { MIN_RENEW_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import type { Selection } from '../types'
 import {
   durationForName,
@@ -52,12 +52,23 @@ describe('durationForName', () => {
     ).toBe(BigInt(expected))
   })
 
-  it('floors renew-to-date at the minimum renewal duration', () => {
+  // Renewing has no 28-day floor on either renewer, unlike registering.
+  it('prices a renew-to-date shorter than a registration minimum as picked', () => {
     const expiryDate = new Date(2027, 0, 1)
-    const target = new Date(2027, 0, 15) // 14 days — below the 28-day minimum
+    const target = new Date(2027, 0, 2)
     expect(
       durationSecondsForName(custom(target.getTime()), expiryOf(expiryDate)),
-    ).toBe(MIN_REGISTER_DURATION_SECONDS)
+    ).toBe(MIN_RENEW_DURATION_SECONDS)
+  })
+
+  it('floors a target at or before the current expiry at one day', () => {
+    const expiryDate = new Date(2027, 0, 1)
+    expect(
+      durationSecondsForName(
+        custom(expiryDate.getTime()),
+        expiryOf(expiryDate),
+      ),
+    ).toBe(MIN_RENEW_DURATION_SECONDS)
   })
 })
 

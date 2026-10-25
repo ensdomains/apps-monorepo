@@ -8,6 +8,7 @@ import {
   migrationOperatorApprovalsQueryKey,
 } from '@/features/migration/service/migrationApprovalQueryKeys'
 import type { MigrationOperatorApproval } from '@/features/migration/service/migrationApprovals'
+import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 import { revokeMigrationApproval } from './revokeMigrationApproval'
 
 vi.mock('@wagmi/core', async (importOriginal) => ({
@@ -15,7 +16,11 @@ vi.mock('@wagmi/core', async (importOriginal) => ({
   waitForTransactionReceipt: vi.fn(),
   writeContract: vi.fn(),
 }))
+vi.mock('@/lib/wallet/ensureWalletChain', () => ({
+  ensureWalletChain: vi.fn(),
+}))
 
+const ensureWalletChainMock = vi.mocked(ensureWalletChain)
 const writeContractMock = vi.mocked(writeContract)
 const waitForTransactionReceiptMock = vi.mocked(waitForTransactionReceipt)
 const owner: Address = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
@@ -74,6 +79,8 @@ describe('revokeMigrationApproval', () => {
       queryClient,
     })
 
+    expect(ensureWalletChainMock).toHaveBeenCalledWith(wagmiConfig, chainId)
+    expect(ensureWalletChainMock).toHaveBeenCalledBefore(writeContractMock)
     expect(writeContractMock).toHaveBeenCalledWith(wagmiConfig, {
       address: approval.contractAddress,
       abi: expect.any(Array),

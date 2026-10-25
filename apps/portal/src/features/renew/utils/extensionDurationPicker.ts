@@ -3,7 +3,7 @@ import { getDurationInSecondsFromYears } from '@/features/register/utils/registr
 import {
   CONTRACT_SECONDS_PER_YEAR,
   MAX_REGISTRATION_YEARS,
-  MIN_REGISTRATION_DURATION,
+  MIN_RENEWAL_DURATION,
   SECONDS_PER_DAY,
 } from '@/lib/constants/duration'
 
@@ -68,9 +68,14 @@ export const getExtensionDurationSeconds = (
 
       return Temporal.PlainDate.compare(baseDate.add({ years }), date) === 0
         ? getDurationInSecondsFromYears(years, baseDate)
-        : Math.max(days * SECONDS_PER_DAY, MIN_REGISTRATION_DURATION)
+        : Math.max(days * SECONDS_PER_DAY, MIN_RENEWAL_DURATION)
     })
     .exhaustive()
+
+/** The earliest date the extend picker offers: one day past the current expiry. */
+export const getMinExtensionDateForPicker = (
+  baseDate: Temporal.PlainDate,
+): Temporal.PlainDate => baseDate.add({ days: 1 })
 
 /** The same span expressed the other way, so toggling modes never reprices. */
 export const getToggledExtensionSpan = (

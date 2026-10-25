@@ -48,11 +48,6 @@ export interface SetPrimaryNameParams {
 const reverseAdapterAbi = parseAbi([
   'function setNameWithHCA(address addr, string name)',
   'function claimWithHCA(address addr, address resolver) returns (bytes32)',
-  // `claim` is the non-HCA sibling of `claimWithHCA`: it authorizes through
-  // `AccountNamerLib.requireNamer(account, msg.sender)`, which passes on
-  // `account == msg.sender`. So the owner EOA can clear its own
-  // `addr.reverse` directly, with no HCA and no intent.
-  'function claim(address addr, address resolver) returns (bytes32)',
 ])
 
 const registryResolverAbi = parseAbi([
@@ -190,13 +185,10 @@ export async function setPrimaryNameWithHca(
   ]
 
   // Owner-signed on purpose: changing the primary identity warrants an
-  // explicit wallet approval, and it keeps the claim leg independent of the
-  // session's action allowlist — `claimWithHCA` is NOT one of the five targets
-  // `HCAOwnerAndSessionValidator` allows a session to call, so a session-signed
-  // version of this batch would revert `ActionNotAllowed`. The owner-signed
-  // path takes the 65-byte ECDSA branch in `isValidSignatureWithSender`, which
-  // applies no action policy at all — which is also what makes the funding
-  // permit legal here, unlike inside the session-signed commit leg.
+  // explicit wallet approval. The owner-signed path takes the 65-byte ECDSA
+  // branch in `isValidSignatureWithSender`, which applies no action policy —
+  // which is also what makes the funding permit legal here, unlike inside the
+  // session-signed commit leg.
   const ownerSigner: RhinestoneSigner = { ...signer, session: undefined }
 
   const funding = await planHcaIntentFunding({
@@ -278,54 +270,6 @@ export async function submitPrimaryNameForward(input: {
       chainId: input.chainId,
       operation: 'set-primary-name',
       name: cleanName,
-    },
-  )
-}
-
-/**
- * Clears a shadowing `addr.reverse` entry so a `default.reverse` claim can be
- * seen, as a plain owner-EOA transaction (~45k gas, no USDC, no intent).
- *
- * This exists because the HCA reveal batch *cannot* do it. The batch is
- * session-signed, and `HCAOwnerAndSessionValidator` allowlists call targets as
- * immutables: it carries `DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER` but has no
- * counterpart for the `addr.reverse` adapter, so a session-signed
- * `claimWithHCA` reverts `ActionNotAllowed`. Until the validator gains that
- * target, the cleanup has to be a separate owner-signed transaction.
- *
- * Passing `resolver = 0` clears the resolver rather than writing a new name:
- * we are not claiming `addr.reverse` for the new name, only getting it out of
- * the way of `default.reverse`.
- */
-export function submitClearAddrReverse(input: {
-  signer: Signer
-  ownerAddress: Address
-  publicClient: PublicClient
-  chainId: number
-}): string {
-  const data = encodeFunctionData({
-    abi: reverseAdapterAbi,
-    functionName: 'claim',
-    args: [input.ownerAddress, zeroAddress],
-  })
-
-  const request: TransactionRequest = {
-    type: 'eoa',
-    from: input.ownerAddress,
-    to: envConfig.chain.contracts.ensReverseRegistrarAdapter.address,
-    data,
-    value: 0n,
-    chainId: input.chainId,
-  }
-
-  return transactionManager.startTransaction(
-    { type: 'custom', request },
-    input.signer,
-    {
-      description: 'Clear outdated primary name record',
-      publicClient: input.publicClient,
-      chainId: input.chainId,
-      operation: 'set-primary-name',
     },
   )
 }

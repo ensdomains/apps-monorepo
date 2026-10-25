@@ -27,9 +27,21 @@ export const resolverFor = (
   defaultResolver: Address,
   ownedPermRes: Address | null,
 ): Address => {
+  // Imported children retain their source pointer, including a deliberately
+  // unset resolver. Record copying is a separate, reviewed profile action.
+  if (name.action === 'copy' && name.recreationRoot) {
+    return (name.v1ResolverAddress ?? zeroAddress) as Address
+  }
   const cannotSetResolverLocked =
     (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child') &&
     hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER)
+  if (
+    cannotSetResolverLocked &&
+    name.action === 'migrate' &&
+    name.lockedResolverAddress !== undefined
+  ) {
+    return name.lockedResolverAddress
+  }
   const resolver: Address = (() => {
     switch (name.resolverStrategy) {
       case 'keep-v1':

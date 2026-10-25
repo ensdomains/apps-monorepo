@@ -58,6 +58,11 @@ export type MigrationStepDescriptor =
       readonly type: 'cleanup'
       readonly approvalId: MigrationApprovalId
     }
+  | {
+      /** Several steps the wallet confirms at once, as one EIP-5792 bundle. */
+      readonly type: 'bundle'
+      readonly steps: readonly MigrationStepDescriptor[]
+    }
 
 /**
  * Every third-party account the batch grants `ROLE_SET_RESOLVER` to. Read off
@@ -85,6 +90,11 @@ export type BuildStepDescriptorsParams = {
   readonly cleanupApprovals?: readonly MigrationCleanupApproval[]
   readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly registrationApprovalTargets: readonly RegistrationApprovalTarget[]
+  /**
+   * The wallet bundles calls atomically: setup (deployment + approvals) is one
+   * confirmation, and cleanup rides with the final atomic batch.
+   */
+  readonly canBatchAtomically?: boolean
 }
 
 export type MigrationWalletRequestDescriptor =
@@ -185,5 +195,33 @@ export const buildStepDescriptors = (
     descriptors.push({ type: 'cleanup', approvalId: approval.id })
   }
 
-  return descriptors
+  return params.canBatchAtomically
+    ? bundleDescriptors(descriptors)
+    : descriptors
+}
+
+const bundleOf = (
+  steps: readonly MigrationStepDescriptor[],
+): MigrationStepDescriptor[] => {
+  if (steps.length === 0) return []
+  if (steps.length === 1) return [...steps]
+  return [{ type: 'bundle', steps }]
+}
+
+/** Regroups sequential descriptors into the confirmations an atomic wallet sees. */
+const bundleDescriptors = (
+  descriptors: readonly MigrationStepDescriptor[],
+): MigrationStepDescriptor[] => {
+  const setup = descriptors.filter(
+    ({ type }) => type === 'deploy-hca' || type === 'approval',
+  )
+  const batches = descriptors.filter(({ type }) => type === 'atomic-batch')
+  const cleanup = descriptors.filter(({ type }) => type === 'cleanup')
+  // Cleanup only rides along with a batch; a cleanup-only retry stays alone.
+  const finalBatch = batches.at(-1)
+  return [
+    ...bundleOf(setup),
+    ...batches.slice(0, -1),
+    ...(finalBatch ? bundleOf([finalBatch, ...cleanup]) : cleanup),
+  ]
 }

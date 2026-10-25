@@ -8,6 +8,7 @@ import {
   migrationOperatorApprovalsQueryKey,
 } from '@/features/migration/service/migrationApprovalQueryKeys'
 import type { MigrationOperatorApproval } from '@/features/migration/service/migrationApprovals'
+import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 
 export const revokeMigrationApproval = async (params: {
   readonly approval: MigrationOperatorApproval
@@ -36,6 +37,7 @@ export const revokeMigrationApproval = async (params: {
     throw new Error('Connect the owner wallet to remove this permission.')
   }
 
+  await ensureWalletChain(wagmiConfig, chainId)
   const hash = await writeContract(wagmiConfig, {
     address: approval.contractAddress,
     abi: OPERATOR_APPROVAL_ABI,

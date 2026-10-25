@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-router'
 import { lazy, Suspense } from 'react'
 import { Toaster } from 'sonner'
+import { AnalyticsConsentBanner } from '@/components/AnalyticsConsentBanner'
 import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
@@ -94,6 +95,7 @@ function RootComponent() {
           <Layout>
             <Outlet />
           </Layout>
+          <AnalyticsConsentBanner />
           <Toaster
             icons={{
               error: (

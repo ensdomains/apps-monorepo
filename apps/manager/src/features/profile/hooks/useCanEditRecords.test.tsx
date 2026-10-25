@@ -38,11 +38,12 @@ describe('useCanEditRecords', () => {
     mocks.canWrite.mockReset()
   })
 
-  it('lets the owner edit without probing the resolver', () => {
+  it('lets the owner edit after probing the resolver', async () => {
+    mocks.canWrite.mockResolvedValue(true)
     const { result } = renderCanEdit(true)
 
-    expect(result.current).toBe(true)
-    expect(mocks.canWrite).not.toHaveBeenCalled()
+    await waitFor(() => expect(result.current).toBe(true))
+    expect(mocks.canWrite).toHaveBeenCalled()
   })
 
   it('lets a previous owner edit while their wallet can still write the resolver', async () => {

@@ -2,6 +2,7 @@ import type { V1Domain } from '@ens-apps/migration'
 import {
   SECONDS_PER_DAY,
   V1_GRACE_PERIOD_DAYS,
+  V1_RENEWAL_WINDOW_SECONDS,
 } from '@ens-apps/utils/gracePeriod'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { baseRegistrarNameExpiresSnippet } from '@ensdomains/ensjs-abi/v1/baseRegistrar'
@@ -178,7 +179,10 @@ const readDomains = async (
             blockNumber: block.number,
           }),
         ])
-      if (expiry === 0n || block.timestamp >= expiry + GRACE_PERIOD) {
+      if (
+        expiry === 0n ||
+        block.timestamp >= expiry + V1_RENEWAL_WINDOW_SECONDS
+      ) {
         throw new Error(`${domain.name} is no longer in its grace period.`)
       }
 
@@ -323,8 +327,9 @@ export const getGraceRenewalQuote = (params: ReadDomainsParameters) =>
         quotedAtMs: Date.now(),
         expiresAt: items.reduce(
           (end, item) =>
-            item.duration > 0n && item.registrationExpiry + GRACE_PERIOD < end
-              ? item.registrationExpiry + GRACE_PERIOD
+            item.duration > 0n &&
+            item.registrationExpiry + V1_RENEWAL_WINDOW_SECONDS < end
+              ? item.registrationExpiry + V1_RENEWAL_WINDOW_SECONDS
               : end,
           block.timestamp + QUOTE_LIFETIME,
         ),

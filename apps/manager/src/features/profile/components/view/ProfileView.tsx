@@ -3,12 +3,13 @@ import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Address } from 'viem'
-import { useConnection } from 'wagmi'
+import { useChainId, useConnection } from 'wagmi'
 import { CommemorativeNftProfileSection } from '@/features/migration/components/success/CommemorativeNftProfileSection'
 import { isEligibleProfileName } from '@/features/migration/components/UpgradeBanner.helpers'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
+import { useResolverCopySource } from '@/features/profile/hooks/useResolverCopySource'
 import { canEditProfileHere } from '@/features/profile/service/profileEditability'
 import {
   getProfileExpiryResultStatus,
@@ -93,7 +94,9 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     false,
   )
   const commemorativeNftEnabled = useMigrationNftEnabled()
-  const { isConnected } = useSmartAccountContext()
+  const { isConnected, ownerAddress } = useSmartAccountContext()
+  const { address: connectedAddress } = useConnection()
+  const chainId = useChainId()
   const { eligible: eligibleV1Names, isPending: isV1NamesPending } =
     useEligibleV1Names({
       enabled: migrationEnabled,
@@ -143,6 +146,12 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     enabled: !expiry.isInGrace,
     isOwner: resolvedIsOwner,
     name,
+  })
+  const resolverCopySource = useResolverCopySource({
+    name,
+    isInGrace: expiry.isInGrace,
+    isExpiryError,
+    isUpgradeRequired,
   })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
@@ -259,11 +268,13 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
             isInGrace={expiry.isInGrace || isExpiryError}
             isOwner={resolvedIsOwner}
             isUpgradeRequired={isUpgradeRequired}
+            key={`${name}:${ownerAddress}:${connectedAddress}:${chainId}`}
             name={name}
             onUpdated={refetchRecords}
             owner={owner}
             records={records}
             renewalProtocol={ownerData?.protocol}
+            resolverCopySource={resolverCopySource}
             url={getProfileUrl(name)}
           />
         </ProfileDraftProvider>

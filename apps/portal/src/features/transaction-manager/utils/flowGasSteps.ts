@@ -1,6 +1,9 @@
-import type { EOATransactionRequest } from '@ens-apps/transaction-manager'
 import { fromThrowable } from 'neverthrow'
 import type { WalletClientWithAccount } from '@/utils/types'
+import {
+  type EstimableRequest,
+  toEstimableRequest,
+} from '../hooks/useTransactionGasEstimate'
 import type { Transaction } from '../types'
 
 /**
@@ -11,7 +14,7 @@ import type { Transaction } from '../types'
  * cannot be encoded yields `undefined` and later marks the sum incomplete.
  */
 export type UnpaidStep = {
-  readonly request: EOATransactionRequest | undefined
+  readonly request: EstimableRequest | undefined
   /** True once the machine holds the call, which is the key the row uses too. */
   readonly started: boolean
 }
@@ -25,7 +28,7 @@ export const prepareUnpaidStepRequests = ({
 }: {
   readonly transactions: readonly Transaction[]
   readonly isSettled: (id: string) => boolean
-  readonly activeRequestFor: (id: string) => EOATransactionRequest | undefined
+  readonly activeRequestFor: (id: string) => EstimableRequest | undefined
   readonly walletClient: WalletClientWithAccount | undefined
   readonly chainId: number
 }): readonly UnpaidStep[] =>
@@ -45,8 +48,5 @@ export const prepareUnpaidStepRequests = ({
         () => undefined,
       )({ walletClient, chainId }).unwrapOr(undefined)
       const request = prepared?.request
-      return {
-        request: request?.type === 'eoa' ? request : undefined,
-        started: false,
-      }
+      return { request: toEstimableRequest(request), started: false }
     })
