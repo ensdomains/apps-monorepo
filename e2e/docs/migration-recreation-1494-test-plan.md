@@ -1,9 +1,9 @@
 # #1494: UserRegistry subname recreation and resolver copy, QA test plan and report
 
-PR: [#1494 feat(manager): add UserReg migration and resolver imports](https://github.com/ensdomains/apps-monorepo/pull/1494) at `2a5cce392`
+PR: [#1494 feat(manager): add UserReg migration and resolver imports](https://github.com/ensdomains/apps-monorepo/pull/1494), first at `2a5cce392`, re-verified at `b0480bcc8` after main (#1496, #1497, #1498, #1502, #1506) was merged in
 Tickets: WEB-1933, WEB-1934, WEB-1938, plus review regressions R1 and R2
 App: **manager** (`apps/manager`, `:3000`), `packages/migration`
-Spec: `e2e/projects/manager/tests/migration-recreation.spec.ts`
+Specs: `e2e/projects/manager/tests/migration-recreation.spec.ts`, `e2e/projects/portal/tests/recreated-subnames.spec.ts`
 Run: `pnpm --filter @ens-apps/e2e exec playwright test --config=projects/manager/playwright.migration.config.ts --project=manager-migration --no-deps migration-recreation.spec.ts`
 
 ---
@@ -58,6 +58,23 @@ behaviour. Tests 1, 2 and 6 are guards for regressions found in review. Test 8
 fails on `main` before reaching its own assertion. Test 9 only discriminates on
 the PR build.
 
+### 2b. After the merges into the branch (`b0480bcc8`)
+
+None of #1494's own migration, profile or package code changed; the new
+commits are explorer (portal) changes for the names #1494 recreates, plus the
+manager primary-name picker. "Pre-merge" is the same test against `2a5cce392`;
+for `b0480bcc8` it is the new head with only that commit's two files reverted.
+
+| # | Test | What it proves | Pre-merge | `b0480bcc8` |
+|---|---|---|---|---|
+| 10 | #1506 + #1496: explorer on a recreated child | The V1 holder (another wallet) sees the record and "Edit records" on the kept V1 PublicResolver, saves, and the write lands there; a stranger gets "Permission Denied" with no editor; after `Graveyard.clear()` the holder gets the plain denial (not the fuse lock) and reads still work | FAIL: editor not reachable for the holder | pass |
+| 11 | b0480bcc8: no stale V1 records | Stage 1: the child's V2 resolver cleared, the parent's still set: "No records set". Stage 2: the parent's cleared too, so the walk finds no resolver: the Records page must still show none | stage 1 pass; with `b0480bcc8` reverted, stage 2 shows "zoe stale v1" | **FAIL at stage 2: still shows "zoe stale v1"** (finding) |
+| 12 | #1502: grace gap | A V1 name whose V2 reservation lapsed (AVAILABLE) inside V1 grace shows its records and opens the editor | FAIL: records not shown | pass |
+| 13 | #1497: primary-name picker | Two unmigrated V1 names are offered; one with no writable resolver shows "…needs a resolver this wallet can write…" and nothing is sent | FAIL: V1 name not offered | pass |
+
+Tests 1–9 re-run at `b0480bcc8`: all pass (some after retries for upstream
+RPC timeouts in fixture setup).
+
 ---
 
 ## 3. Results
@@ -76,7 +93,7 @@ the PR build.
   stack); `makeV1Name` reserves at V1 + 62 d (default) or a given bonus;
   `example` dropped from the ENSv1 resolver probe labels (re-pointed at fork
   block 11983209).
-- Environment: Anvil fork at 11983209 via Tenderly. `/upgrade`'s server-side
+- Environment: Anvil fork at 11983209 via Tenderly; fresh-state reads took 4–30 s at times, so fixture sends sometimes hit viem's timeout and needed a retry. The manager ran against a local PostHog stub (`migration` on) once edge.ens.domains stopped answering; client flags were forced by the tests as before. `/upgrade`'s server-side
   PostHog `migration` check has a 1 s budget and redirects on timeout; with a
   slow network some first attempts bounced to `/dashboard` and passed on retry.
 
@@ -115,5 +132,7 @@ subnames with `setSubnodeOwner`.
 | Process | CI's manager e2e never runs a migration spec (`testIgnore: /temporaryPremium|migration|notification/`). The PR's "all five shards passed" covers no migration flow |
 | Process | `main`'s migration e2e fixtures point at the superseded V1/V2 stack and reserve at the bare V1 expiry, which the PR's new expiry check rejects. They need the `e2e-tests-coverage` fixtures plus the 62 d bonus |
 | Low, pre-existing | "Checking your subnames" can spin with no timeout ("Continue migration" disabled, "Back to selection" works). Seen once on the PR build and in every recreation run on `main`; not a regression |
-| Low, UX | The selection step lists only the parent while it estimates; the recreated subnames (including ones held by other wallets) are not listed there |
+| Medium | `b0480bcc8` gates the legacy-registry fallback only in `getNameResolverAddress`. `getProfile` (`apps/portal/src/features/profile/hooks/useProfile.ts`, from #1502), which feeds `/$name/records`, still falls back to the V1 registry resolver whenever no V2 resolver answers. A recreated child with no resolver on its V2 path (its own and its parent's cleared) shows its stale V1 records there, even though the resolver lookup `b0480bcc8` gated returns none for it. Test 11 stage 2. Fix: apply the same `resolveV2EthOwner` gate before the `getProfile` fallback |
+| Low, UX | After `Graveyard.clear()`, a recreated child's holder sees "Permission Denied" on edit-records, though they hold token `ALL` and could repoint the resolver; the message does not say so |
+| Unconfirmed | While the fee is estimating, the selection step lists only the parent, not the subnames being recreated (some held by other wallets). Not checked after the estimate finished |
 | Not covered | A nonzero-fuse wrapped child (the PR reports the NameWrapper refuses that fixture), and rejecting the final `setResolver` in the wallet (the headless wallet's reject is retried as transient) |

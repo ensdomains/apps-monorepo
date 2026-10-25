@@ -1,30 +1,8 @@
-/**
- * #1494 — UserRegistry recreation of direct V1 subnames, the hard blocks
- * around it, and the flag-off regressions found in review.
- *
- * Tickets: WEB-1933 (unsupported parents stay on ENSv1, no acknowledgement
- * bypass), WEB-1934 (recreate direct 3LDs under an unwrapped/unlocked .eth
- * parent: effective V1 owner, token ALL, maxUint64, exact V1 resolver),
- * WEB-1938 (kept manager on an isolated resolver), and review regressions
- * R1 (RESERVED V1 profile reads) and R2 (reservation bonus 62d / 62d+1s).
- *
- * What these reach that the PR's unit tests do not: the real UI flow on a
- * Sepolia fork, real controllers and UserRegistry proxies, and every outcome
- * read back from the chain. The PR's CI browser shards never run a migration
- * spec (`testIgnore: /migration/` in the manager config).
- *
- * The recreation path refuses to plan without a fresh, canonical index
- * checkpoint, so the child inventory is served by `mockSubnameInventory`
- * with the Anvil head as `meta.as_of`. Owners, resolvers and fuses are read
- * by the app from the chain, not from the mock.
- */
-import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import {
   type Address,
   encodeFunctionData,
   type Hex,
-  labelhash,
   namehash,
   parseAbi,
   zeroAddress,
@@ -34,32 +12,17 @@ import { privateKeyToAccount } from 'viem/accounts'
 import {
   createMakeV1Name,
   PREMIGRATION_BONUS,
-  V1_ENS_REGISTRY,
   V1_PUBLIC_RESOLVER,
 } from '../../../fixtures/makeV1Name.js'
 import { wrapV1SubnameOfUnwrapped } from '../../../fixtures/makeV1Subname.js'
-import {
-  connectHeadless,
-  expect,
-  overrideManagerFeatureFlags,
-  test,
-  waitForManagerFeatureFlagOverride,
-} from '../../../fixtures/playwright.manager.fixture.js'
-import { splitController } from '../../../fixtures/v1-tails.js'
+import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
 import {
   cloneV1PublicResolver,
   setV1RecordsOn,
-  type V1Records,
 } from '../../../fixtures/v1-records.js'
-import {
-  publicClient,
-  testClient,
-  walletClient,
-} from '../../../helpers/anvil-client.js'
-import {
-  authorizeTransactionsWhile,
-  dismissBackendAuthModal,
-} from '../../../helpers/manager-auth.js'
+import { splitController } from '../../../fixtures/v1-tails.js'
+import { publicClient } from '../../../helpers/anvil-client.js'
+import { authorizeTransactionsWhile } from '../../../helpers/manager-auth.js'
 import {
   assertCopyResolver,
   assertNoUserRegistry,
@@ -75,6 +38,13 @@ import {
   selectOnlyRoots,
 } from '../../../helpers/migration-flow.js'
 import { mockSubnameInventory } from '../../../helpers/mock-subname-inventory.js'
+import {
+  asPlainEoas,
+  connectWithFlags,
+  registryChild,
+  type Signer,
+  send,
+} from '../../../helpers/recreation.js'
 import {
   dnsEncode,
   expectRecordsResolve,
@@ -95,136 +65,57 @@ import {
   v1Expiry,
 } from '../../../helpers/v2-reads.js'
 
-/** Connect with `migration` on and the recreation flag pinned either way. */
-async function connectWithFlags(
-  page: Page,
-  wallet: Web3ProviderBackend,
-  flags: { readonly recreation: boolean },
-): Promise<void> {
-  page.on('console', (message) => {
-    if (message.type() === 'error' || message.type() === 'warning')
-      console.log(`[browser ${message.type()}] ${message.text().slice(0, 600)}`)
-  })
-  await overrideManagerFeatureFlags(page, {
-    migration: true,
-    'profile-view-new': true,
-    'migration-subname-recreation': flags.recreation,
-  })
-  await connectHeadless(page, wallet)
-  await dismissBackendAuthModal(page)
-  await waitForManagerFeatureFlagOverride(page)
-}
-
 const RESERVATION_BONUSES = [
-  { title: 'V1 + 62 days (initial premigration)', bonus: PREMIGRATION_BONUS, tag: 'r2-62d' },
-  { title: 'V1 + 62 days + 1 s (ETHRenewerV1)', bonus: PREMIGRATION_BONUS + 1n, tag: 'r2-62d1s' },
+  {
+    title: 'V1 + 62 days (initial premigration)',
+    bonus: PREMIGRATION_BONUS,
+    tag: 'r2-62d',
+  },
+  {
+    title: 'V1 + 62 days + 1 s (ETHRenewerV1)',
+    bonus: PREMIGRATION_BONUS + 1n,
+    tag: 'r2-62d1s',
+  },
 ] as const
 
 test.describe('#1494 flag off: plain 2LD migration (R2)', () => {
   test.describe.configure({ timeout: 300_000 })
 
   for (const { title, bonus, tag } of RESERVATION_BONUSES)
-  test(`an unwrapped 2LD reserved at ${title} migrates and keeps that exact expiry`, async ({
-    page,
-    wallet,
-    accounts,
-  }) => {
-    const user = privateKeyToAccount(accounts.getPrivateKey('user'))
-    const makeV1Name = createMakeV1Name({ userAccount: user })
-    const name = await makeV1Name({ label: tag, reservationBonus: bonus })
-    const label = name.replace(/\.eth$/, '')
-    const reserved = await ethRegistryState(label)
+    test(`an unwrapped 2LD reserved at ${title} migrates and keeps that exact expiry`, async ({
+      page,
+      wallet,
+      accounts,
+    }) => {
+      const user = privateKeyToAccount(accounts.getPrivateKey('user'))
+      const makeV1Name = createMakeV1Name({ userAccount: user })
+      const name = await makeV1Name({ label: tag, reservationBonus: bonus })
+      const label = name.replace(/\.eth$/, '')
+      const reserved = await ethRegistryState(label)
 
-    await serveV1Names(page, [
-      {
-        name,
-        ownerAddress: user.address,
-        expiryDate: await v1Expiry(label),
-      },
-    ])
-    await mockSubnameInventory(page, [{ name }])
-    await connectWithFlags(page, wallet, { recreation: false })
+      await serveV1Names(page, [
+        {
+          name,
+          ownerAddress: user.address,
+          expiryDate: await v1Expiry(label),
+        },
+      ])
+      await mockSubnameInventory(page, [{ name }])
+      await connectWithFlags(page, wallet, { recreation: false })
 
-    await openMigrationFlow(page)
-    await selectOnlyRoots(page, [name])
-    await confirmAndAuthorize(page, wallet)
+      await openMigrationFlow(page)
+      await selectOnlyRoots(page, [name])
+      await confirmAndAuthorize(page, wallet)
 
-    await assertV2Registered(label)
-    const after = await ethRegistryState(label)
-    expect(after.latestOwner.toLowerCase()).toBe(user.address.toLowerCase())
-    expect(after.expiry, 'the reservation expiry is preserved exactly').toBe(
-      reserved.expiry,
-    )
-    await assertNoUserRegistry(name)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// V1 subname seeding. Each child is created by the parent's registry owner and
-// then configured by its OWN holder, as on mainnet: a parent cannot set a
-// resolver on a node it no longer owns.
-// ---------------------------------------------------------------------------
-
-type Signer = ReturnType<typeof privateKeyToAccount>
-
-/**
- * Anvil's well-known accounts carry leftover contract code on the Sepolia
- * fork, so ERC-1155 mints to them fail the receiver check. Make them plain
- * EOAs, as the manager fixture does for account 0.
- */
-async function asPlainEoas(...accounts: readonly Signer[]) {
-  for (const account of accounts)
-    await testClient.setCode({ address: account.address, bytecode: '0x' })
-}
-
-async function send(account: Signer, to: Address, data: Hex, what: string) {
-  const hash = await walletClient.sendTransaction({ account, to, data })
-  const receipt = await publicClient.waitForTransactionReceipt({ hash })
-  if (receipt.status !== 'success') throw new Error(`${what} reverted (${hash})`)
-}
-
-/** A registry-only `child.parent` owned by `holder`, with the holder's resolver and records. */
-async function registryChild(params: {
-  readonly parent: string
-  readonly label: string
-  readonly parentOwner: Signer
-  readonly holder: Signer
-  readonly resolver?: Address
-  readonly records?: V1Records
-}): Promise<string> {
-  const name = `${params.label}.${params.parent}`
-  await send(
-    params.parentOwner,
-    V1_ENS_REGISTRY,
-    encodeFunctionData({
-      abi: LEGACY_REGISTRY_ABI,
-      functionName: 'setSubnodeOwner',
-      args: [namehash(params.parent), labelhash(params.label), params.holder.address],
-    }),
-    `setSubnodeOwner(${name})`,
-  )
-  if (params.records)
-    await setV1RecordsOn(name, params.holder, false, params.records, {
-      resolver: params.resolver ?? V1_PUBLIC_RESOLVER,
+      await assertV2Registered(label)
+      const after = await ethRegistryState(label)
+      expect(after.latestOwner.toLowerCase()).toBe(user.address.toLowerCase())
+      expect(after.expiry, 'the reservation expiry is preserved exactly').toBe(
+        reserved.expiry,
+      )
+      await assertNoUserRegistry(name)
     })
-  else if (params.resolver)
-    await send(
-      params.holder,
-      V1_ENS_REGISTRY,
-      encodeFunctionData({
-        abi: LEGACY_REGISTRY_ABI,
-        functionName: 'setResolver',
-        args: [namehash(name), params.resolver],
-      }),
-      `setResolver(${name})`,
-    )
-  return name
-}
-
-const LEGACY_REGISTRY_ABI = parseAbi([
-  'function setSubnodeOwner(bytes32 node, bytes32 label, address owner) returns (bytes32)',
-  'function setResolver(bytes32 node, address resolver)',
-])
+})
 
 test.describe('#1494 WEB-1934 flag on: direct 3LD recreation', () => {
   test.describe.configure({ timeout: 420_000 })
@@ -250,7 +141,9 @@ test.describe('#1494 WEB-1934 flag on: direct 3LD recreation', () => {
     const parentLabel = parent.replace(/\.eth$/, '')
 
     // bob: registry-only, held by another wallet, records on the V1 public resolver.
-    const bobRecords = { texts: [{ key: 'description', value: 'bob keeps this' }] }
+    const bobRecords = {
+      texts: [{ key: 'description', value: 'bob keeps this' }],
+    }
     const bobName = await registryChild({
       parent,
       label: 'bob',
@@ -301,10 +194,7 @@ test.describe('#1494 WEB-1934 flag on: direct 3LD recreation', () => {
     await expect(rootRow(page, parent)).toBeVisible({ timeout: 60_000 })
     await selectOnlyRoots(page, [parent])
     await page.waitForTimeout(5_000)
-    console.log(`[probe] selection:\n${await page.locator('main').innerText()}`)
-    await page.screenshot({ path: 'test-results/probe-1934-selection.png', fullPage: true })
 
-    const before = await publicClient.getBlockNumber({ cacheTime: 0 })
     await confirmAndAuthorize(page, wallet)
 
     // ── Parent: REGISTERED to the owner, with a certified UserRegistry ──
@@ -343,7 +233,6 @@ test.describe('#1494 WEB-1934 flag on: direct 3LD recreation', () => {
     // ── Records: still served from the kept V1 resolvers through V2 ──
     await expectRecordsResolve(bobName, bobRecords)
     await expectRecordsResolve(parent, parentRecords)
-    console.log(`[probe] blocks used: ${(await publicClient.getBlockNumber({ cacheTime: 0 })) - before}`)
   })
 })
 
@@ -415,12 +304,12 @@ test.describe('#1494 WEB-1933 flag off: a parent with subnames stays on ENSv1', 
     await expect(rootRow(page, control.name)).toBeVisible({ timeout: 60_000 })
     await expect(page.getByText(parent).first()).toBeVisible()
     await page.waitForTimeout(5_000)
-    console.log(`[probe] flag-off block:\n${await page.locator('main').innerText()}`)
-    await page.screenshot({ path: 'test-results/probe-1933-off.png', fullPage: true })
     await expect(
-      page.getByText(
-        'Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working.',
-      ).first(),
+      page
+        .getByText(
+          'Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working.',
+        )
+        .first(),
     ).toBeVisible()
     await expectNotSelectable(page, parent)
 
@@ -496,18 +385,20 @@ test.describe('#1494 WEB-1933 flag on: unsupported trees cannot be selected', ()
     await openMigrationFlow(page)
     await expect(rootRow(page, control.name)).toBeVisible({ timeout: 60_000 })
     await page.waitForTimeout(8_000)
-    console.log(`[probe] flag-on blocks:\n${await page.locator('main').innerText()}`)
-    await page.screenshot({ path: 'test-results/probe-1933-on.png', fullPage: true })
 
     await expect(
-      page.getByText(
-        'This name has subnames with further subnames below them. Upgrading the whole tree is not supported yet.',
-      ).first(),
+      page
+        .getByText(
+          'This name has subnames with further subnames below them. Upgrading the whole tree is not supported yet.',
+        )
+        .first(),
     ).toBeVisible()
     await expect(
-      page.getByText(
-        "We could not verify a complete, current list of this name's subnames. Refresh and try again.",
-      ).first(),
+      page
+        .getByText(
+          "We could not verify a complete, current list of this name's subnames. Refresh and try again.",
+        )
+        .first(),
     ).toBeVisible()
     await expectNotSelectable(page, deep)
     await expectNotSelectable(page, partial)
@@ -558,9 +449,9 @@ test.describe('#1494 R1: RESERVED V1 profile reads', () => {
     await connectWithFlags(page, wallet, { recreation: false })
 
     await page.goto(`/p/${name}`)
-    await expect(
-      page.getByRole('heading', { name, level: 1 }),
-    ).toBeVisible({ timeout: 60_000 })
+    await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible({
+      timeout: 60_000,
+    })
     await expect(page.getByText('r1 still reads from v1')).toBeVisible({
       timeout: 30_000,
     })
@@ -837,9 +728,7 @@ test.describe('#1494 WEB-1938 resolver copy/review/replace', () => {
     await expect(page.getByRole('alert')).toHaveCount(0)
     await reviewCheckbox(page).check()
     await page.getByRole('button', { name: /^Preview$/i }).click()
-    await page
-      .getByRole('button', { name: /^Publish( changes)?$/i })
-      .click()
+    await page.getByRole('button', { name: /^Publish( changes)?$/i }).click()
     const confirm = page.getByRole('button', { name: 'Replace & Save' })
     await expect(confirm).toBeVisible({ timeout: 30_000 })
 
@@ -864,7 +753,9 @@ test.describe('#1494 WEB-1938 resolver copy/review/replace', () => {
     const target = (await pointer()) as Address
     // The new resolver is the owner's: the wallet holds ALL at root.
     expect(
-      (await roleHolders(target, ROOT_RESOURCE)).get(owner.address.toLowerCase()),
+      (await roleHolders(target, ROOT_RESOURCE)).get(
+        owner.address.toLowerCase(),
+      ),
       'the wallet controls the replacement resolver',
     ).toBe(ROLES_ALL)
     // The reviewed records resolve from it, and the old resolver still has them.
@@ -971,10 +862,14 @@ test.describe('#1494 rollout gate: migration-subname-recreation re-checked befor
     await page.waitForTimeout(30_000)
     done = true
     await Promise.race([authorizing, page.waitForTimeout(5_000)])
-    console.log(`[gate] page after flip:\n${await page.locator('main').innerText()}`)
+    console.log(
+      `[gate] page after flip:\n${await page.locator('main').innerText()}`,
+    )
 
     await expect(
-      page.getByRole('heading', { name: /your names? (has|have) been upgraded/i }),
+      page.getByRole('heading', {
+        name: /your names? (has|have) been upgraded/i,
+      }),
     ).toHaveCount(0)
     await assertV2Reserved(parent.replace(/\.eth$/, ''))
     const sent = await publicClient.getBlockNumber({ cacheTime: 0 })
@@ -985,9 +880,73 @@ test.describe('#1494 rollout gate: migration-subname-recreation re-checked befor
         includeTransactions: true,
       })
       fromOwner += block.transactions.filter(
-        (tx) => typeof tx !== 'string' && tx.from.toLowerCase() === owner.address.toLowerCase(),
+        (tx) =>
+          typeof tx !== 'string' &&
+          tx.from.toLowerCase() === owner.address.toLowerCase(),
       ).length
     }
     expect(fromOwner, 'no wallet transaction after the flag went off').toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// #1497 (merged into #1494): ENSv1 names in the primary-name picker
+// ---------------------------------------------------------------------------
+
+test.describe('#1494 + #1497 primary name picker offers ENSv1 names', () => {
+  test.describe.configure({ timeout: 300_000 })
+
+  test('an unmigrated V1 name is offered; one with no writable resolver is explained, not set up', async ({
+    page,
+    wallet,
+    accounts,
+    mockIndexer,
+  }) => {
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: owner })
+    const resolving = await makeV1Name({
+      label: 'p1497-v1',
+      records: { addresses: [{ coinType: 60, value: owner.address as Hex }] },
+    })
+    const bare = await makeV1Name({ label: 'p1497-bare' })
+    for (const name of [resolving, bare])
+      mockIndexer.addName({
+        name,
+        owner: owner.address,
+        protocol: 'v1',
+        ...(name === resolving && { resolver: V1_PUBLIC_RESOLVER }),
+      })
+    expect(
+      (await ethRegistryState(resolving.replace(/\.eth$/, ''))).status,
+    ).toBe(1)
+
+    await connectWithFlags(page, wallet, { recreation: false })
+    await page.goto('/dashboard')
+    await page
+      .getByRole('button', { name: /set primary name/i })
+      .first()
+      .click()
+
+    const pick = (name: string) =>
+      page.getByRole('button', { name: `Select ${name} as primary name` })
+    await expect(pick(resolving)).toBeVisible({ timeout: 60_000 })
+    await expect(pick(bare)).toBeVisible()
+
+    // A V1 name with no resolver this wallet can write cannot be set up from
+    // here (setup goes through the V2 registry): the dialog must say so
+    // rather than start a resolver setup that cannot complete.
+    const before = await publicClient.getBlockNumber({ cacheTime: 0 })
+    await pick(bare).click()
+    await expect(pick(bare)).toHaveAttribute('aria-pressed', 'true')
+    await page.getByRole('button', { name: /^Set as primary$/i }).click()
+    await expect(
+      page.getByText(
+        `${bare} needs a resolver this wallet can write before it can be a primary name`,
+      ),
+    ).toBeVisible({ timeout: 60_000 })
+    expect(
+      await publicClient.getBlockNumber({ cacheTime: 0 }),
+      'nothing was sent',
+    ).toBe(before)
   })
 })

@@ -8,13 +8,7 @@
  * two accounts a test thought to ask about.
  */
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import {
-  type Address,
-  keccak256,
-  parseAbi,
-  parseAbiItem,
-  toHex,
-} from 'viem'
+import { type Address, keccak256, parseAbi, parseAbiItem, toHex } from 'viem'
 import { getDestinationContracts } from '../../packages/smart-account/src/providers/rhinestone/manifest.ts'
 import { publicClient } from './anvil-client.js'
 
@@ -45,7 +39,8 @@ const ROLES_CHANGED = parseAbiItem(
   'event EACRolesChanged(uint256 indexed resource, address indexed account, uint256 oldRoleBitmap, uint256 newRoleBitmap)',
 )
 
-export const labelId = (label: string): bigint => BigInt(keccak256(toHex(label)))
+export const labelId = (label: string): bigint =>
+  BigInt(keccak256(toHex(label)))
 
 const V1_BASE_REGISTRAR = ensL1Contracts[supportedL1Chains.sepolia]
   .ensBaseRegistrarImplementation.address as Address

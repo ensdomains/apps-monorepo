@@ -95,7 +95,8 @@ export async function mockSubnameInventory(
       return route.fulfill({ status: 204, headers: CORS_HEADERS })
     const url = new URL(request.url())
     const match = url.pathname.match(/^\/v1\/names\/([^/]+)(\/subnames)?$/)
-    const node = match && byName.get(decodeURIComponent(match[1] ?? '').toLowerCase())
+    const node =
+      match && byName.get(decodeURIComponent(match[1] ?? '').toLowerCase())
     if (!node) return route.fallback()
 
     if (match?.[2]) {

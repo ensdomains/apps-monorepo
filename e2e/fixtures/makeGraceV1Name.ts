@@ -89,6 +89,13 @@ export async function makeGraceV1Name(config: {
   readonly locked?: boolean
   /** Resolver set when wrapping (default: none). */
   readonly resolver?: Address
+  /**
+   * Seconds added to the V1 expiry for the V2 reservation (default: the
+   * premigration bonus). A bonus of a few seconds puts the name in the gap
+   * where its V2 reservation has lapsed but its V1 grace has not (#1502),
+   * without moving the shared clock 62 days.
+   */
+  readonly reservationBonus?: bigint
 }): Promise<GraceV1Name> {
   const wrapped = config.wrapped || config.locked
   const label = `${config.label}-${Date.now().toString(36)}`
@@ -124,7 +131,10 @@ export async function makeGraceV1Name(config: {
   })
 
   // ── 2. Reserve in V2 the way pre-migration does (with the bonus) ──
-  await reserveInV2(label, expiry + PREMIGRATION_BONUS_PERIOD)
+  await reserveInV2(
+    label,
+    expiry + (config.reservationBonus ?? PREMIGRATION_BONUS_PERIOD),
+  )
 
   // ── 3. Wrap while still active ──
   if (wrapped) {
