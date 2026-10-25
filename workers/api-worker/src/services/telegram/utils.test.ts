@@ -5,20 +5,19 @@ afterEach(() => vi.restoreAllMocks())
 
 describe('Telegram Bot API request diagnostics', () => {
   it('preserves the original transport error and identifies the operation', async () => {
-    const cause = new DOMException('request timed out', 'TimeoutError')
+    const cause = new DOMException('deadline reached', 'TimeoutError')
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(cause)
     const result = await makeTelegramRequest('test-token', 'sendMessage', {
       chat_id: 123,
       text: 'test',
     })
-    expect(result.isErr()).toBe(true)
-    if (result.isErr())
-      expect(result.error).toMatchObject({
-        code: 'TELEGRAM_API_REQUEST_ERROR',
-        stage: 'request',
-        method: 'sendMessage',
-        error: cause,
-      })
+    expect(result._unsafeUnwrapErr()).toMatchObject({
+      code: 'TELEGRAM_API_REQUEST_ERROR',
+      stage: 'request',
+      method: 'sendMessage',
+      error: cause,
+      message: 'Telegram API request timed out',
+    })
   })
 
   it.each([

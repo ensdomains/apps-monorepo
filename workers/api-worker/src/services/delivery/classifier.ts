@@ -87,8 +87,9 @@ function classifyTelegramError(error: string): ClassificationResult {
     return { category: 'account_error' }
   }
 
-  // transient: gateway / server errors
+  // transient: request timeouts and gateway / server errors
   if (
+    /timeout|timed out/i.test(error) ||
     /Bad Gateway/i.test(error) ||
     /Internal Server Error/i.test(error) ||
     /Service Unavailable/i.test(error)

@@ -6,6 +6,7 @@ import {
 import { useMutation } from '@tanstack/react-query'
 import { CircleCheckIcon, Loader2Icon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
+import { match } from 'ts-pattern'
 import { TelegramIcon } from '@/components/icons/telegram'
 import {
   AlertDialog,
@@ -23,7 +24,7 @@ import {
 } from '@/features/notifications/data/queries/channels'
 import { useTelegramLogin } from '@/features/notifications/hooks/useTelegramLogin'
 import { ContactMethodCard } from './contact-method-card'
-import { TelegramPendingLogin } from './telegram-pending-login'
+import { TelegramPendingLogin } from './TelegramPendingLogin'
 
 export const TelegramContactMethod = ({
   telegram,
@@ -191,19 +192,25 @@ export const TelegramContactMethod = ({
             type="button"
             variant="blue"
           >
-            {login.isStarting ? (
-              <>
-                <Loader2Icon
-                  aria-hidden="true"
-                  className="size-4 animate-spin motion-reduce:animate-none"
-                />
-                <Trans>Connecting…</Trans>
-              </>
-            ) : telegram ? (
-              <Trans>Reconnect Telegram</Trans>
-            ) : (
-              <Trans>Connect Telegram</Trans>
-            )}
+            {match({
+              isStarting: login.isStarting,
+              hasChannel: Boolean(telegram),
+            })
+              .with({ isStarting: true }, () => (
+                <>
+                  <Loader2Icon
+                    aria-hidden="true"
+                    className="size-4 animate-spin motion-reduce:animate-none"
+                  />
+                  <Trans>Connecting…</Trans>
+                </>
+              ))
+              .with({ hasChannel: true }, () => (
+                <Trans>Reconnect Telegram</Trans>
+              ))
+              .otherwise(() => (
+                <Trans>Connect Telegram</Trans>
+              ))}
           </Button>
         </>
       )}

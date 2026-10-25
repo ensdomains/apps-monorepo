@@ -2,6 +2,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { CopyIcon, ExternalLinkIcon, Loader2Icon } from 'lucide-react'
 import { fromPromise } from 'neverthrow'
 import { toast } from 'sonner'
+import { match } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
 import {
   getTelegramContinueUrl,
@@ -32,24 +33,28 @@ export const TelegramPendingLogin = ({
         <Trans>Waiting for Telegram</Trans>
       </div>
       <p className="text-ens-quartz-550 leading-relaxed">
-        {isSafariHandoff ? (
-          <Trans>
-            Open Safari to finish connecting Telegram, then return here. Keep
-            ENS Manager open in MetaMask.
-          </Trans>
-        ) : strategy === 'copy-link' ? (
-          <Trans>
-            Copy the sign-in link, open your browser and paste it into the
-            address bar. Complete Telegram sign-in, then return here. Keep ENS
-            Manager open in MetaMask.
-          </Trans>
-        ) : (
-          <Trans>
-            Continue to Telegram if sign-in did not open automatically. You can
-            keep using ENS Manager, or copy the sign-in link to another browser
-            and return here afterward.
-          </Trans>
-        )}
+        {match(strategy)
+          .with('safari', () => (
+            <Trans>
+              Open Safari to finish connecting Telegram, then return here. Keep
+              ENS Manager open in MetaMask.
+            </Trans>
+          ))
+          .with('copy-link', () => (
+            <Trans>
+              Copy the sign-in link, open your browser and paste it into the
+              address bar. Complete Telegram sign-in, then return here. Keep ENS
+              Manager open in MetaMask.
+            </Trans>
+          ))
+          .with('new-tab', () => (
+            <Trans>
+              Continue to Telegram if sign-in did not open automatically. You
+              can keep using ENS Manager, or copy the sign-in link to another
+              browser and return here afterward.
+            </Trans>
+          ))
+          .exhaustive()}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         {authorizationUrl && (
@@ -71,20 +76,20 @@ export const TelegramPendingLogin = ({
               </Button>
             )}
             <Button
-              onClick={() => {
+              onClick={async () => {
                 if (!authorizationUrl) return
-                void fromPromise(
+                const result = await fromPromise(
                   copyToClipboard(authorizationUrl),
                   () => undefined,
-                ).match(
-                  () =>
-                    toast.success(
-                      t`Sign-in link copied. Open it in your browser, then return here.`,
-                    ),
-                  () =>
-                    toast.error(
-                      t`Could not copy the sign-in link. Please try again.`,
-                    ),
+                )
+                if (result.isErr()) {
+                  toast.error(
+                    t`Could not copy the sign-in link. Please try again.`,
+                  )
+                  return
+                }
+                toast.success(
+                  t`Sign-in link copied. Open it in your browser, then return here.`,
                 )
               }}
               size="sm"

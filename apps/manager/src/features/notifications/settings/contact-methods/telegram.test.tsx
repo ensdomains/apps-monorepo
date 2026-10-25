@@ -117,6 +117,7 @@ describe('Telegram contact method', () => {
       await waitFor(() =>
         expect(hasError ? toast.error : toast.success).toHaveBeenCalledOnce(),
       )
+      expect(hasError ? toast.success : toast.error).not.toHaveBeenCalled()
       expect(copyToClipboard).toHaveBeenCalledWith(url)
     },
   )

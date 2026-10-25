@@ -588,7 +588,7 @@ msgstr ""
 msgid "Cancel"
 msgstr "Avbryt"
 
-#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Cancel connection"
 msgstr ""
 
@@ -849,11 +849,11 @@ msgstr ""
 msgid "Continue migration"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Continue to Telegram"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Continue to Telegram if sign-in did not open automatically. You can keep using ENS Manager, or copy the sign-in link to another browser and return here afterward."
 msgstr ""
 
@@ -908,11 +908,11 @@ msgstr ""
 msgid "Copy Link"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Copy sign-in link"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Copy the sign-in link, open your browser and paste it into the address bar. Complete Telegram sign-in, then return here. Keep ENS Manager open in MetaMask."
 msgstr ""
 
@@ -929,7 +929,7 @@ msgstr ""
 msgid "Could not connect Telegram. Please try again and allow the bot to send messages."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Could not copy the sign-in link. Please try again."
 msgstr ""
 
@@ -2000,7 +2000,7 @@ msgstr ""
 msgid "Open in ENS Explorer"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Open in Safari"
 msgstr ""
 
@@ -2017,7 +2017,7 @@ msgstr ""
 msgid "Open Notification Settings"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Open Safari to finish connecting Telegram, then return here. Keep ENS Manager open in MetaMask."
 msgstr ""
 
@@ -2871,7 +2871,7 @@ msgstr ""
 msgid "Sign the gasless payment approval in your wallet"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Sign-in link copied. Open it in your browser, then return here."
 msgstr ""
 
@@ -3632,7 +3632,7 @@ msgstr ""
 msgid "Waiting for resolver submission"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Waiting for Telegram"
 msgstr ""
 

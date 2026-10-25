@@ -67,11 +67,21 @@ export const makeTelegramRequest = ResultFn(async function* <
       },
       body: JSON.stringify(body),
     }),
-    (cause) => ({
-      ...createIntoError('TELEGRAM_API_REQUEST_ERROR')(cause),
-      stage: 'request' as const,
-      method,
-    }),
+    (cause) => {
+      const requestError = createIntoError('TELEGRAM_API_REQUEST_ERROR')(cause)
+      return {
+        ...requestError,
+        // Queue delivery persists only the message; keep timeout classification
+        // independent of the runtime's DOMException wording.
+        message:
+          (cause instanceof Error || cause instanceof DOMException) &&
+          cause.name === 'TimeoutError'
+            ? 'Telegram API request timed out'
+            : requestError.message,
+        stage: 'request' as const,
+        method,
+      }
+    },
   )
 
   const json = yield* fromPromise(response.json(), (cause) => ({

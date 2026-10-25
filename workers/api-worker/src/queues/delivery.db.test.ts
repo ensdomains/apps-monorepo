@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers'
 import type { ChannelType } from '@ens-apps/shared-schema/notifications'
 import { eq, inArray } from 'drizzle-orm'
 import { sign } from 'hono/jwt'
-import { ok } from 'neverthrow'
+import { err, ok } from 'neverthrow'
 import {
   afterEach,
   beforeAll,
@@ -437,6 +437,41 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       })
       expect((await channelRow(source.id))?.status).toBe('unsubscribed')
       expect((await channelRow(other.id))?.status).toBe('verified')
+    })
+
+    it('requeues a Telegram delivery timeout through the DLQ without disabling its channel', async () => {
+      const user = await seedUser()
+      const source = await addChannel(user.id, 'telegram', '12345')
+      const [job] = await notify(user.id)
+      if (!job) throw new Error('Missing delivery job')
+      const timeout = new DOMException(
+        'The operation was aborted due to timeout',
+        'TimeoutError',
+      )
+      providers.telegram.mockReturnValueOnce(
+        err({ code: 'TELEGRAM_API_REQUEST_ERROR', message: timeout.message }),
+      )
+
+      const failed = await runQueue(queueName('telegram'), [job], bindings)
+      expect(failed.retryMessages).toEqual([{ msgId: 'message-0' }])
+      expect(await delivery(job.id)).toMatchObject({
+        status: 'failed',
+        error: timeout.message,
+      })
+      queues.telegram.send.mockClear()
+
+      const replay = await runQueue('app-api-worker-dlq', [job], bindings)
+      expect(await delivery(job.id)).toMatchObject({
+        status: 'queued',
+        failure_category: 'transient',
+        dlq_attempts: 1,
+      })
+      expect(queues.telegram.send).toHaveBeenCalledWith(job, {
+        delaySeconds: 3600,
+      })
+      expect(replay.explicitAcks).toEqual(['message-0'])
+      expect(replay.retryMessages).toEqual([])
+      expect((await channelRow(source.id))?.status).toBe('verified')
     })
 
     it('DLQ hard bounce marks only the source channel of a shared mailbox', async () => {
