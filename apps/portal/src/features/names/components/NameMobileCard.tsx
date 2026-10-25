@@ -53,9 +53,17 @@ export const NameMobileCard = ({
             aria-label="Select row"
           />
         )}
-        <EntityBadge variant="name" name={name ?? undefined} showAvatar>
-          {name}
-        </EntityBadge>
+        {name && (
+          <EntityBadge
+            variant="name"
+            name={name}
+            showAvatar
+            format="truncate"
+            containerClassName="max-w-72"
+          >
+            {name}
+          </EntityBadge>
+        )}
       </div>
 
       {/* Expiry section */}

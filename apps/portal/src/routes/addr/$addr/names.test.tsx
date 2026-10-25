@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { usePublicClient } from 'wagmi'
+import type { RegistryRole } from '@/lib/roles/registryPowerRoles'
 import {
   createTestWrapper,
   expectSettled,
@@ -17,9 +18,15 @@ const V2_NAME = 'ensv2sg2.eth'
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, to }: { children: ReactNode; to: string }) => (
-    <a href={to}>{children}</a>
-  ),
+  Link: ({
+    children,
+    to,
+    params,
+  }: {
+    children: ReactNode
+    to: string
+    params?: { name?: string }
+  }) => <a href={params?.name ? `/${params.name}` : to}>{children}</a>,
   createFileRoute: () => (options: Record<string, unknown>) => ({
     ...options,
     useParams: () => ({ addr: ADDRESS }),
@@ -37,7 +44,7 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
 // 90-day v1 grace — a fixed date would eventually fall outside it and quietly
 // stop exercising the renewable path while still passing. The read sorts
 // ascending by expiry, so the shorter v1 expiry keeps that name at row 0.
-const NAMES: AddressNameItem[] = [
+const BASE_NAMES: AddressNameItem[] = [
   {
     name: V1_NAME,
     expiryDate: new Date(Date.now() + 365 * MS_PER_DAY),
@@ -56,7 +63,11 @@ const NAMES: AddressNameItem[] = [
   },
 ]
 
-const ROLE_COUNTS: ReadonlyMap<string, number> = new Map()
+let NAMES = BASE_NAMES
+
+const ADDRESS_ROLES: ReadonlyMap<string, readonly RegistryRole[]> = new Map([
+  [V2_NAME, ['ROLE_RENEW', 'ROLE_SET_RESOLVER_ADMIN']],
+])
 
 // Cached and fresh, so the route renders the names without a request.
 vi.mock('@/features/dashboard/hooks/useAddressNames', () => ({
@@ -75,10 +86,10 @@ vi.mock(
     ...(await importOriginal<
       typeof import('@/features/dashboard/hooks/useAddressRoleCounts')
     >()),
-    getAddressRoleCountsQueryOptions: (params: unknown) => ({
-      queryKey: ['get-address-role-counts', params],
-      queryFn: () => ROLE_COUNTS,
-      initialData: ROLE_COUNTS,
+    getAddressRolesQueryOptions: (params: unknown) => ({
+      queryKey: ['get-address-roles', params],
+      queryFn: () => ADDRESS_ROLES,
+      initialData: ADDRESS_ROLES,
       staleTime: Number.POSITIVE_INFINITY,
     }),
   }),
@@ -143,6 +154,7 @@ const renderRoute = () => {
 const MAX_SETTLED_COMMITS = { onMount: 14, afterSelection: 14 }
 
 beforeEach(() => {
+  NAMES = BASE_NAMES
   requestedQueryKeys.length = 0
 })
 
@@ -180,5 +192,113 @@ describe('addr names route', () => {
     ])
 
     await expectSettled(counter, MAX_SETTLED_COMMITS.afterSelection)
+  })
+
+  it('selects only extendable 2LDs through Select all on desktop and mobile', async () => {
+    const user = userEvent.setup()
+    NAMES = [
+      ...BASE_NAMES.map((row) => ({
+        ...row,
+        graceEndDate: new Date(Date.now() + MS_PER_DAY),
+      })),
+      { ...BASE_NAMES[0], name: 'sub.parent.eth' },
+      {
+        ...BASE_NAMES[0],
+        name: 'wrapped.parent.eth',
+        expiryDate: new Date(Date.now() + MS_PER_DAY),
+      },
+      {
+        ...BASE_NAMES[1],
+        name: 'expired.eth',
+        graceEndDate: new Date(Date.now() - MS_PER_DAY),
+      },
+    ]
+    renderRoute()
+
+    expect(await screen.findByText('Names (5)')).toBeInTheDocument()
+    expect(screen.getAllByText('sub.parent.eth')).toHaveLength(2)
+    expect(screen.getAllByText('wrapped.parent.eth')).toHaveLength(2)
+    // One checkbox per eligible name in each layout. Ineligible rows have none.
+    expect(
+      screen.getAllByRole('checkbox', { name: 'Select row' }),
+    ).toHaveLength(4)
+    await user.click(screen.getByRole('checkbox', { name: 'Select all' }))
+    expect(await screen.findByText('2 selected')).toBeInTheDocument()
+    expect(
+      screen.getAllByRole('checkbox', { name: 'Select row', checked: true }),
+    ).toHaveLength(4)
+    await user.click(screen.getByRole('checkbox', { name: 'Select all' }))
+    expect(screen.queryByText('2 selected')).not.toBeInTheDocument()
+  })
+
+  it('combines level and V1 relationship filters and restores names on reset', async () => {
+    const user = userEvent.setup()
+    NAMES = [
+      ...BASE_NAMES,
+      { ...BASE_NAMES[0], name: 'sub.parent.eth', relations: ['manager'] },
+      { ...BASE_NAMES[0], name: 'owner.eth', relations: ['owner'] },
+    ]
+    renderRoute()
+    expect(await screen.findByText('Names (4)')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^Filters/ }))
+    await user.click(screen.getByText('Level', { selector: 'summary' }))
+    await user.click(screen.getByText('Subnames (3LD+)'))
+    await user.keyboard('{Escape}')
+    expect(await screen.findByText('Names (1 of 4 shown)')).toBeInTheDocument()
+    expect(screen.getAllByText('sub.parent.eth')).toHaveLength(2)
+    expect(screen.queryByText(V1_NAME)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^Filters/ }))
+    await user.click(screen.getByText('Roles', { selector: 'summary' }))
+    await user.click(screen.getByText('Owner', { selector: 'label' }))
+    expect(await screen.findByText('Names (0 of 4 shown)')).toBeInTheDocument()
+    await user.click(screen.getByText('Manager', { selector: 'label' }))
+    expect(await screen.findByText('Names (1 of 4 shown)')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close filters' }))
+    expect(
+      screen.getByRole('button', { name: 'Remove level filter' }),
+    ).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', { name: 'Remove roles filter' }),
+    )
+    expect(await screen.findByText('Names (1 of 4 shown)')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Clear all' }))
+    expect(await screen.findByText('Names (4)')).toBeInTheDocument()
+    expect(screen.getAllByText(V2_NAME)).toHaveLength(2)
+  })
+
+  it('uses compact name display in both table layouts', async () => {
+    const name = `[${'ab'.repeat(32)}].parent.eth`
+    NAMES = [{ ...BASE_NAMES[0], name }]
+    renderRoute()
+    expect(await screen.findByText('Names (1)')).toBeInTheDocument()
+    expect(screen.getAllByText('[abab…abab].parent.eth')).toHaveLength(2)
+  })
+
+  it('combines V1 relationships and searchable V2 roles in one Roles filter', async () => {
+    const user = userEvent.setup()
+    renderRoute()
+    expect(await screen.findByText('Names (2)')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Filters' }))
+    await user.click(screen.getByText('Roles', { selector: 'summary' }))
+    await user.click(screen.getByLabelText('Renew'))
+    expect(await screen.findByText('Names (1 of 2 shown)')).toBeInTheDocument()
+    expect(screen.getAllByText(V2_NAME)).toHaveLength(2)
+    expect(screen.queryByText(V1_NAME)).not.toBeInTheDocument()
+    await user.click(screen.getByLabelText('Owner'))
+    expect(await screen.findByText('Names (2 of 2 shown)')).toBeInTheDocument()
+    await user.type(
+      screen.getByRole('textbox', { name: 'Search roles' }),
+      'resolver',
+    )
+    expect(screen.queryByLabelText('Owner')).not.toBeInTheDocument()
+    await user.click(screen.getByLabelText('Set Resolver (admin)'))
+    await user.click(screen.getByRole('button', { name: 'Close filters' }))
+    expect(
+      screen.getByRole('button', { name: 'Remove roles filter' }),
+    ).toHaveTextContent('Set Resolver (admin)')
+    await user.click(
+      screen.getByRole('button', { name: 'Remove roles filter' }),
+    )
+    expect(await screen.findByText('Names (2)')).toBeInTheDocument()
   })
 })

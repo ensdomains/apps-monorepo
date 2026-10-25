@@ -24,8 +24,6 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
-import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
-import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -37,15 +35,19 @@ import {
   getAddressNamesQueryOptions,
 } from '@/features/dashboard/hooks/useAddressNames'
 import {
-  getAddressRoleCountsQueryOptions,
-  roleCountsOf,
-  withRoleCounts,
+  getAddressRolesQueryOptions,
+  withAddressRoles,
 } from '@/features/dashboard/hooks/useAddressRoleCounts'
+import {
+  EMPTY_NAMES_FILTERS,
+  NamesFilters,
+} from '@/features/names/components/NamesFilters'
 import {
   columns,
   getNameRowId,
   type NameRow,
 } from '@/features/names/components/NamesTable/columns'
+import { filterNameRows } from '@/features/names/components/NamesTable/filterNameRows'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
 import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extension/MultiNameExtendModal'
@@ -59,7 +61,6 @@ import {
   getNameStatus,
   getSelectedNames,
   isExtendable2LD,
-  isNonCanonicalEthName,
 } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
@@ -67,40 +68,8 @@ import {
   useActiveTransactionState,
 } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
-import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { isShownExpiryInRange } from '@/utils/names/addressNames'
 import { queryClient } from '@/utils/queryClient'
-
-const STATUS_FILTER_GROUPS: FilterGroup[] = [
-  {
-    title: 'Active',
-    options: [
-      { label: 'Registered', value: 'registered' },
-      { label: 'Expires with parent', value: 'expires-with-parent' },
-      { label: 'Does not expire', value: 'no-expiry' },
-    ],
-  },
-  {
-    title: 'Expired',
-    options: [
-      { label: 'Expired', value: 'expired' },
-      { label: 'Grace', value: 'grace' },
-      { label: 'Price cooldown', value: 'premium' },
-    ],
-  },
-]
-
-const LENGTH_FILTER_GROUPS: FilterGroup[] = [
-  {
-    title: 'Name Length',
-    options: [
-      { label: '3 characters', value: '3' },
-      { label: '4 characters', value: '4' },
-      { label: '5+ characters', value: '5+' },
-    ],
-  },
-]
 
 const NO_NAMES: NameRow[] = []
 const NAMES_INITIAL_COUNT = 100
@@ -154,6 +123,7 @@ const NamesList = ({
   search,
   onSearchChange,
   isSearching,
+  v2RolesState,
 }: {
   readonly address: Address
   /** The names shown so far. */
@@ -162,6 +132,7 @@ const NamesList = ({
   readonly search: string
   readonly onSearchChange: (search: string) => void
   readonly isSearching: boolean
+  readonly v2RolesState: 'ready' | 'loading' | 'unavailable'
 }) => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [sorting, setSorting] = useState<SortingState>([])
@@ -188,12 +159,17 @@ const NamesList = ({
   const { isOpen: isTransactionModalOpen } = useTransactionModal()
 
   // Filter state
-  const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
-  const [selectedLengths, setSelectedLengths] = useState<string[]>([])
+  const [filters, setFilters] = useState(EMPTY_NAMES_FILTERS)
+  const {
+    expiry: expiryDateRange,
+    statuses: selectedStatuses,
+    lengths: selectedLengths,
+    levels: selectedLevels,
+    roles: selectedRoles,
+  } = filters
   // Apply filters to data
   const filteredData = useMemo(() => {
-    let filtered = names
+    let filtered = filterNameRows(names, selectedLevels, selectedRoles)
 
     // Filter by expiry date range
     if (expiryDateRange.from || expiryDateRange.to) {
@@ -219,12 +195,26 @@ const NamesList = ({
     }
 
     return filtered
-  }, [names, expiryDateRange, selectedStatuses, selectedLengths])
+  }, [
+    names,
+    expiryDateRange,
+    selectedStatuses,
+    selectedLengths,
+    selectedLevels,
+    selectedRoles,
+  ])
 
   const table = useReactTable({
     data: filteredData,
     columns,
     getRowId: getNameRowId,
+    enableRowSelection: ({ original }) =>
+      original.name !== null &&
+      isExtendable2LD({
+        ...original,
+        name: original.name,
+        isV2: original.protocolVersion === 'ENSv2',
+      }),
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
@@ -247,9 +237,6 @@ const NamesList = ({
   // renewable now (drops non-renewable v1 names — see useRenewableNames).
   const selectedNames = getSelectedNames(rowSelection, filteredData)
   const coarseExtendable = selectedNames.filter(isExtendable2LD)
-  const nonCanonicalCount = selectedNames.filter((selected) =>
-    isNonCanonicalEthName(selected.name),
-  ).length
   const { names: extendableNames, isLoading: renewabilityLoading } =
     useRenewableNames(coarseExtendable)
 
@@ -259,7 +246,9 @@ const NamesList = ({
     expiryDateRange.from ||
       expiryDateRange.to ||
       selectedStatuses.length > 0 ||
-      selectedLengths.length > 0,
+      selectedLengths.length > 0 ||
+      selectedLevels.length > 0 ||
+      selectedRoles.length > 0,
   )
 
   return (
@@ -296,13 +285,6 @@ const NamesList = ({
               </button>
               {rowCount} selected
             </div>
-            {nonCanonicalCount > 0 && (
-              <p className="text-p text-muted-foreground">
-                {nonCanonicalCount} selected name(s) have a non-normalized label
-                and can’t be extended here: a renewal would go to a different
-                name.
-              </p>
-            )}
             <Button
               variant="default"
               size="sm"
@@ -334,43 +316,31 @@ const NamesList = ({
           </div>
         ) : (
           <>
-            <InputGroup className="bg-background rounded-sm">
-              <InputGroupInput
-                id={searchNamesId}
-                className="w-full"
-                placeholder="Search names..."
-                value={search}
-                onChange={(event) => onSearchChange(event.target.value)}
+            <div className="flex flex-wrap items-center gap-2">
+              <InputGroup className="bg-background min-w-0 flex-1 rounded-sm">
+                <InputGroupInput
+                  id={searchNamesId}
+                  className="w-full"
+                  placeholder="Search names..."
+                  value={search}
+                  onChange={(event) => onSearchChange(event.target.value)}
+                />
+                <InputGroupAddon>
+                  <Search />
+                </InputGroupAddon>
+              </InputGroup>
+              <NamesFilters
+                value={filters}
+                onChange={setFilters}
+                v2RolesState={v2RolesState}
               />
-              <InputGroupAddon>
-                <Search />
-              </InputGroupAddon>
-            </InputGroup>
+            </div>
             {loader.canShowMore && hasActiveFilters && (
               <p className="text-p text-muted-foreground">
                 Filters cover the {names.length} names shown so far. Show more
                 to include the rest.
               </p>
             )}
-            <div className="flex flex-row gap-2 flex-wrap">
-              <TableDateRangeFilter
-                label="Expiry"
-                dateRange={expiryDateRange}
-                onChange={setExpiryDateRange}
-              />
-              <TableMultiSelectFilter
-                label="Status"
-                groups={STATUS_FILTER_GROUPS}
-                selectedValues={selectedStatuses}
-                onChange={setSelectedStatuses}
-              />
-              <TableMultiSelectFilter
-                label="Length"
-                groups={LENGTH_FILTER_GROUPS}
-                selectedValues={selectedLengths}
-                onChange={setSelectedLengths}
-              />
-            </div>
           </>
         )}
       </header>
@@ -420,12 +390,19 @@ function RouteComponent() {
   const isSearching = search.trim() !== ''
 
   const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
-  const roleCounts = roleCountsOf(
-    useQuery(getAddressRoleCountsQueryOptions({ address })),
-  )
+  const rolesQuery = useQuery(getAddressRolesQueryOptions({ address }))
+  const v2RolesState = rolesQuery.data
+    ? 'ready'
+    : rolesQuery.isError
+      ? 'unavailable'
+      : 'loading'
   const allNames = useMemo(
-    () => withRoleCounts<NameRow>(namesQuery.data ?? NO_NAMES, roleCounts),
-    [namesQuery.data, roleCounts],
+    () =>
+      withAddressRoles<NameRow>(namesQuery.data ?? NO_NAMES, {
+        data: rolesQuery.data,
+        isError: rolesQuery.isError,
+      }),
+    [namesQuery.data, rolesQuery.data, rolesQuery.isError],
   )
   // bigname serves the whole list, so a search filters it here.
   const matching = useMemo(() => {
@@ -485,6 +462,7 @@ function RouteComponent() {
       search={search}
       onSearchChange={(next) => setTyped({ address, search: next })}
       isSearching={isSearching}
+      v2RolesState={v2RolesState}
     />
   )
 }

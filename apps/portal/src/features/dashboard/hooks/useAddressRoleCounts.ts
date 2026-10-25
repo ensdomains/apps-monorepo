@@ -5,7 +5,10 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Address } from 'viem'
 import { bigname } from '@/lib/bigname'
-import { registryPowersToRoles } from '@/lib/roles/registryPowerRoles'
+import {
+  type RegistryRole,
+  registryPowersToRoles,
+} from '@/lib/roles/registryPowerRoles'
 
 class GetAddressRoleCountsError extends TaggedError(
   'GetAddressRoleCountsError',
@@ -25,7 +28,7 @@ const readNames = readNamesForAddress(bigname)
  * The ENSv2 roles the address holds on each of its names, by name. Read apart
  * from the names list, so a slow or failed read only leaves out the counts.
  */
-const getAddressRoleCounts = (
+const getAddressRoles = (
   { address }: GetAddressRoleCountsParameters,
   signal: AbortSignal,
 ) =>
@@ -35,28 +38,28 @@ const getAddressRoleCounts = (
     { pageSize: ROLE_PAGE_SIZE, signal },
   )
     .map(
-      (names): ReadonlyMap<string, number> =>
+      (names): ReadonlyMap<string, readonly RegistryRole[]> =>
         new Map(
           names.map((name) => [
             name.name,
-            new Set(registryPowersToRoles(name.heldPowers ?? [])).size,
+            [...new Set(registryPowersToRoles(name.heldPowers ?? []))],
           ]),
         ),
     )
     .mapErr((cause) => new GetAddressRoleCountsError({ cause }))
 
-export const getAddressRoleCountsQueryKey = createQueryKey<
-  'get-address-role-counts',
+export const getAddressRolesQueryKey = createQueryKey<
+  'get-address-roles',
   GetAddressRoleCountsParameters
->('get-address-role-counts')
+>('get-address-roles')
 
-export const getAddressRoleCountsQueryOptions = (
+export const getAddressRolesQueryOptions = (
   params: GetAddressRoleCountsParameters,
 ) =>
   resultQueryOptions({
-    queryKey: getAddressRoleCountsQueryKey(params),
+    queryKey: getAddressRolesQueryKey(params),
     queryFn: ({ queryKey: [, params], signal }) =>
-      getAddressRoleCounts(params, signal),
+      getAddressRoles(params, signal),
   })
 
 /** An ENSv2 row's role count, or why there is none to show yet. */
@@ -96,3 +99,42 @@ export const withRoleCounts = <
       typeof roleCounts === 'string' ? roleCounts : roleCounts.get(row.name)
     return roleCount === undefined ? row : { ...row, roleCount }
   })
+
+const countRoles = (roles: ReadonlyMap<string, readonly RegistryRole[]>) =>
+  new Map([...roles].map(([name, held]) => [name, held.length]))
+
+/** Counts and full role details share one request and cache entry. */
+export const getAddressRoleCountsQueryOptions = (
+  params: GetAddressRoleCountsParameters,
+) => ({
+  ...getAddressRolesQueryOptions(params),
+  select: countRoles,
+})
+
+/** Retain the roles for filtering while displaying the same counts as the dashboard. */
+export const withAddressRoles = <
+  Row extends {
+    readonly name: string | null
+    readonly protocolVersion: string
+    readonly relations?: readonly string[]
+  },
+>(
+  rows: readonly Row[],
+  query: {
+    readonly data?: ReadonlyMap<string, readonly RegistryRole[]>
+    readonly isError: boolean
+  },
+) =>
+  withRoleCounts(
+    rows,
+    roleCountsOf({
+      data: query.data ? countRoles(query.data) : undefined,
+      isError: query.isError,
+    }),
+  ).map((row) =>
+    row.name &&
+    row.protocolVersion === 'ENSv2' &&
+    !isFormerOwnerOnly(row.relations)
+      ? { ...row, registryRoles: query.data?.get(row.name) }
+      : row,
+  )

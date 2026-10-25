@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { usePublicClient } from 'wagmi'
+import type { RegistryRole } from '@/lib/roles/registryPowerRoles'
 import { createTestWrapper, renderWithCommitCounter } from '@/test-utils'
 import type { AddressNameItem } from '@/utils/names/addressNames'
 
@@ -66,7 +67,7 @@ const NAMES: AddressNameItem[] = [
   row(V2_EXPIRED, Date.now() - 60 * MS_PER_DAY, 'ENSv2'),
 ]
 
-const ROLE_COUNTS: ReadonlyMap<string, number> = new Map()
+const ADDRESS_ROLES: ReadonlyMap<string, readonly RegistryRole[]> = new Map()
 
 // Cached and fresh, so the route renders the names without a request.
 vi.mock('@/features/dashboard/hooks/useAddressNames', () => ({
@@ -85,10 +86,10 @@ vi.mock(
     ...(await importOriginal<
       typeof import('@/features/dashboard/hooks/useAddressRoleCounts')
     >()),
-    getAddressRoleCountsQueryOptions: (params: unknown) => ({
-      queryKey: ['get-address-role-counts', params],
-      queryFn: () => ROLE_COUNTS,
-      initialData: ROLE_COUNTS,
+    getAddressRolesQueryOptions: (params: unknown) => ({
+      queryKey: ['get-address-roles', params],
+      queryFn: () => ADDRESS_ROLES,
+      initialData: ADDRESS_ROLES,
       staleTime: Number.POSITIVE_INFINITY,
     }),
   }),
@@ -134,8 +135,8 @@ const renderRoute = () => {
 }
 
 const openStatusFilter = async (user: ReturnType<typeof userEvent.setup>) => {
-  await user.click(screen.getByRole('button', { name: /^Status/ }))
-  expect(await screen.findByText('Filter by status')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /^Filters/ }))
+  await user.click(screen.getByText('Status', { selector: 'summary' }))
 }
 
 const shownNames = () =>
@@ -153,8 +154,8 @@ describe('addr names route status filter', () => {
     await openStatusFilter(user)
 
     const menu = screen
-      .getByText('Filter by status')
-      .closest('div[class*="p-4"]')
+      .getByText('Status', { selector: 'summary' })
+      .closest('details')
     expect(menu).not.toBeNull()
     const menuText = menu?.textContent ?? ''
     expect(menuText).toContain('Price cooldown')
@@ -176,11 +177,11 @@ describe('addr names route status filter', () => {
     expect(await screen.findByText('Names (7)')).toBeInTheDocument()
     await openStatusFilter(user)
 
-    await user.click(screen.getByText('Price cooldown'))
+    await user.click(screen.getByText('Price cooldown', { selector: 'label' }))
     expect(await screen.findByText('Names (1 of 7 shown)')).toBeInTheDocument()
     expect(shownNames()).toEqual([V1_PREMIUM])
 
-    await user.click(screen.getByText('Price cooldown'))
+    await user.click(screen.getByText('Price cooldown', { selector: 'label' }))
     expect(await screen.findByText('Names (7)')).toBeInTheDocument()
     expect(shownNames()).toHaveLength(7)
 

@@ -4,6 +4,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { RoleCount } from '@/features/dashboard/hooks/useAddressRoleCounts'
+import type { RegistryRole } from '@/lib/roles/registryPowerRoles'
 import {
   type AddressNameRelation,
   getShownExpiry,
@@ -19,6 +20,7 @@ export type NameRow = {
   graceEndDate: Date | null
   status: NameRegistrationStatus
   relations: readonly AddressNameRelation[]
+  registryRoles?: readonly RegistryRole[]
   roleCount?: RoleCount
   protocolVersion: ProtocolVersion
 }
@@ -26,12 +28,6 @@ export type NameRow = {
 /** A row's selection key: its name, not its position, which shifts as rows load. */
 export const getNameRowId = (row: NameRow, index: number): string =>
   row.name === null ? String(index) : `${row.protocolVersion}:${row.name}`
-
-const NameCell = ({ name }: { name: string }) => (
-  <EntityBadge variant="name" name={name} showAvatar>
-    {name}
-  </EntityBadge>
-)
 
 export const columns: ColumnDef<NameRow>[] = [
   {
@@ -43,17 +39,19 @@ export const columns: ColumnDef<NameRow>[] = [
           table.getIsAllPageRowsSelected() ||
           (table.getIsSomePageRowsSelected() && 'indeterminate')
         }
+        disabled={!table.getRowModel().rows.some((row) => row.getCanSelect())}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
       />
     ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
+    cell: ({ row }) =>
+      row.getCanSelect() ? (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ) : null,
   },
   {
     accessorKey: 'name',
@@ -68,7 +66,17 @@ export const columns: ColumnDef<NameRow>[] = [
     cell: ({ getValue }) => {
       const name = getValue() as string
       if (!name) return null
-      return <NameCell name={name} />
+      return (
+        <EntityBadge
+          variant="name"
+          name={name}
+          showAvatar
+          format="truncate"
+          containerClassName="max-w-72"
+        >
+          {name}
+        </EntityBadge>
+      )
     },
   },
   {
