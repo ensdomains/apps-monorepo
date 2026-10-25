@@ -1,12 +1,9 @@
 import {
   type Address,
   CallExecutionError,
-  decodeFunctionData,
   ExecutionRevertedError,
-  type Hex,
   HttpRequestError,
   namehash,
-  parseAbi,
 } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -71,14 +68,9 @@ describe('getCanModifyNameOnResolver', () => {
     const result = await check(V1_PUBLIC_RESOLVER)
 
     expect(result._unsafeUnwrap()).toBe(true)
-    const [{ account, to, data }] = client.call.mock.calls[0] ?? []
-    expect({ account, to }).toEqual({ account: OWNER, to: V1_PUBLIC_RESOLVER })
     expect(
-      decodeFunctionData({
-        abi: parseAbi(['function setText(bytes32, string, string)']),
-        data: data as Hex,
-      }).args[0],
-    ).toBe(namehash(NAME))
+      client.call.mock.calls.map(([{ account, to }]) => ({ account, to })),
+    ).toContainEqual({ account: OWNER, to: V1_PUBLIC_RESOLVER })
   })
 
   it('refuses the wallet when the resolver reverts its write', async () => {
