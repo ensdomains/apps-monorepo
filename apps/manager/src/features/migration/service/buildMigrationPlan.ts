@@ -1015,22 +1015,6 @@ export const buildMigrationRecoveryPlan = async (params: {
       }),
     ]
   })
-  // Saved helper trees may predate explicit ETHRegistry attachment. Include
-  // its approval and cleanup in the resumed review before any wallet request.
-  if (
-    classified.some(
-      (name) =>
-        name.action === 'migrate' &&
-        registryContext.some(
-          (child) =>
-            child.action === 'copy' &&
-            child.recreationRoot === name.domain.name,
-        ),
-    ) &&
-    !plannedApprovals.some(requiresMigrationApprovalCleanup)
-  ) {
-    plannedApprovals.push(temporaryMigrationHcaApproval(hcaAddress))
-  }
   const willGrantHcaApproval = plannedApprovals.some(
     requiresMigrationApprovalCleanup,
   )

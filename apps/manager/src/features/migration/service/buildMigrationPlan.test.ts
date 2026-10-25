@@ -17,7 +17,7 @@ import {
   buildMigrationRecoveryPlan,
   namesWithDroppedPubkey,
 } from './buildMigrationPlan'
-import { FUSES } from './classifyNames'
+import { type ClassifiedName, FUSES } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
 import type { Profile } from './fetchV1Profiles'
@@ -40,6 +40,14 @@ vi.mock('./buildAtomicMigrationBatches', async (importActual) => ({
 vi.mock('./copyMigrationReadiness', () => ({
   assertCopyMigrationReadiness: vi.fn(() => Promise.resolve()),
 }))
+const applySubnameRecreationMock = vi.hoisted(() => vi.fn())
+
+vi.mock('./subnameRecreation', async (importActual) => {
+  const actual = await importActual<typeof import('./subnameRecreation')>()
+  applySubnameRecreationMock.mockImplementation(actual.applySubnameRecreation)
+  return { ...actual, applySubnameRecreation: applySubnameRecreationMock }
+})
+
 vi.mock('./migrationInvariants', async (importActual) => ({
   ...(await importActual<typeof import('./migrationInvariants')>()),
   assertRequiredMigrationContractCode: vi.fn(() => Promise.resolve()),
@@ -478,6 +486,58 @@ describe('buildMigrationRecoveryPlan', () => {
         id: 'base-registrar:hca-token',
       }),
     ])
+  })
+
+  it('resumes a recreation tree without an ETHRegistry approval it never planned', async () => {
+    const { root, copy, snapshot } = makeRecoveryTree()
+    // Only the tree's shape matters here, not its saved source identity.
+    applySubnameRecreationMock.mockImplementationOnce(
+      ({ classified }: { readonly classified: readonly ClassifiedName[] }) => [
+        ...classified,
+        {
+          ...makeClassified({
+            action: 'copy',
+            tokenType: 'registry-child',
+            name: copy.name,
+            label: 'sub',
+            parentName: root.name,
+          }),
+          domain: copy,
+          recreationRoot: root.name,
+        },
+      ],
+    )
+
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: {
+        ...snapshot,
+        remainingOperations: [
+          { name: root.name, action: 'migrate' },
+          { name: copy.name, action: 'copy' },
+        ],
+        completedOperations: [],
+        plannedApprovals: [],
+        subnameRecreation: {
+          version: 5,
+          roots: [root.name],
+          names: [root.name, copy.name],
+          blockNumber: '100',
+          timestamp: '1000',
+          blockHash: `0x${'11'.repeat(32)}`,
+          chainId: 11155111,
+          inventoryDigest: `0x${'22'.repeat(32)}`,
+        },
+      },
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: publicClientWithProfileResults(),
+    })
+
+    expect(plan.registryContext).toContainEqual(
+      expect.objectContaining({ recreationRoot: root.name }),
+    )
+    expect(plan.preflight.migrationApprovals).toEqual([])
+    expect(plan.preflight.migrationCleanupApprovals).toEqual([])
   })
 
   it('rebuilds unsent copies with their completed root retained only as registry context', async () => {
