@@ -5,8 +5,10 @@ JavaScript SDK. Reference: https://core.telegram.org/bots/telegram-login
 
 ## Flow
 
-1. Manager opens an unsized blank tab directly from the click, then calls
-   authenticated `POST /notifications/channels/telegram/oauth`.
+1. Manager calls authenticated `POST /notifications/channels/telegram/oauth`
+   without opening a placeholder tab. After initiation it attempts to open the
+   actual authorization URL in a new tab only if user activation is still active.
+   The explicit Continue link remains available even after an automatic attempt.
 2. The Worker stores one current attempt per ENS user in PostgreSQL and returns
    the authorization URL. The attempt lasts ten minutes. Its random state is
    stored as a SHA-256 digest, separately from the status ID. The PKCE verifier
@@ -20,8 +22,7 @@ JavaScript SDK. Reference: https://core.telegram.org/bots/telegram-login
    fixed Telegram JWKS endpoint, requiring RS256, issuer, audience, subject,
    issued-at, expiry, nonce and the profile `id`. The ID accepts a positive safe
    integer or a decimal digit string, normalized to the existing numeric Bot API
-   ID. The OIDC `sub` is not
-   the Telegram Bot API chat ID. Telegram has no UserInfo endpoint.
+   ID. The OIDC `sub` is not the Telegram Bot API chat ID. Telegram has no UserInfo endpoint.
 5. Requested scopes are `openid profile telegram:bot_access`; no phone scope.
    Bot access has no documented ID-token claim. A successful bot message is
    required before linking. Any delivery failure rejects the new connection.
@@ -44,7 +45,15 @@ JavaScript SDK. Reference: https://core.telegram.org/bots/telegram-login
    Removing a Telegram channel also cancels the user's pending login in the
    same transaction, preventing a late callback from recreating the channel.
 
-Manager offers an explicit new-tab link if automatic opening/navigation fails.
+Manager offers an explicit new-tab link and Copy sign-in link while pending.
+On iOS MetaMask, tested new-tab approaches replace Manager and blank tabs crash,
+so automatic opening is skipped. An explicit Open in Safari link uses the
+device-tested, undocumented `x-safari-https` scheme. Only the outer authorization
+URL's scheme changes; OAuth parameters and the registered HTTPS callback do not.
+Copy always uses the original HTTPS URL so another browser can complete login.
+The browser exception lives in Manager's Telegram browser helper; add narrow
+exceptions only after testing. Android MetaMask and other wallets currently use
+the default strategy and still require device verification.
 The backend recovers pending status across remounts/reloads; the authorization
 URL is held only in memory. After a reload, a user whose Telegram tab was lost
 can cancel and start again. Starting again invalidates older authorization URLs.
@@ -131,19 +140,6 @@ this prerequisite is satisfied. Structured and invocation logs remain enabled.
 
 ## Validation
 
-Persistence uses Drizzle query/CTE builders, matching email challenge redemption.
-Completion and channel upsert remain atomic; SQL fragments are limited to typed
-scalar expressions and database functions. JSON parameters use Drizzle's column
-encoder. No handwritten SQL statements or additional database driver are used.
-
-OIDC, persistence and orchestration return typed neverthrow Results composed
-with `ResultFn`. Configuration, state, throttling, exchange, identity, messaging
-and database failures remain distinct. A failure to record a failed attempt
-retains both the original typed failure and the database error. Internal causes
-are retained for handling; HTTP responses and logs expose only safe messages,
-tags, stages and statuses. Manager uses the existing `resultQueryOptions` and
-`resultMutationOptions` adapters and validates JSON responses before using them.
-
 Failure logs include bounded nested cause/recovery diagnostics: library and
 database error codes, failed claims, recognized OAuth error codes, and validation
 field/expected-type/received-type summaries. Raw error messages, JWT payloads,
@@ -152,13 +148,8 @@ redirect mode because Telegram's token endpoint requires redirects to complete
 the exchange. The initial endpoint is fixed to Telegram's issuer; non-success
 responses still produce typed exchange failures.
 
-Testing follows `workers/api-worker/TESTING.md`: fast tests call the login
-functions directly and mock owned persistence/provider operations. Logging and
-page rendering are tested independently; route tests cover HTTP contracts.
-Database tests call the real persistence operations for state consumption,
-atomic linking, cancellation/replay races, reconnection, and failure cleanup,
-with one composed route flow. Provider adapters use controlled HTTP responses;
-automated tests never contact Telegram.
+Follow [TESTING.md](../../../TESTING.md) for test architecture. Automated tests
+use controlled provider responses and never contact Telegram.
 
 Worker: `pnpm typecheck`, `pnpm test`, and `pnpm test:db`.
 The real-DB harness requires the dedicated local `api_worker_test` database and

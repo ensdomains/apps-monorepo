@@ -4,12 +4,7 @@ import {
   AlertDialogCancel as AlertDialogCancelPrimitive,
 } from '@radix-ui/react-alert-dialog'
 import { useMutation } from '@tanstack/react-query'
-import {
-  CircleCheckIcon,
-  ExternalLinkIcon,
-  Loader2Icon,
-  Trash2Icon,
-} from 'lucide-react'
+import { CircleCheckIcon, Loader2Icon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { TelegramIcon } from '@/components/icons/telegram'
 import {
@@ -28,6 +23,7 @@ import {
 } from '@/features/notifications/data/queries/channels'
 import { useTelegramLogin } from '@/features/notifications/hooks/useTelegramLogin'
 import { ContactMethodCard } from './contact-method-card'
+import { TelegramPendingLogin } from './telegram-pending-login'
 
 export const TelegramContactMethod = ({
   telegram,
@@ -43,44 +39,12 @@ export const TelegramContactMethod = ({
       className="space-y-2 text-ens-quartz-550 text-sm empty:hidden"
     >
       {login.isPending && (
-        <div className="space-y-3 rounded-lg border border-ens-lapis-dust bg-ens-lapis-tint p-4 text-ens-lapis-dense">
-          <div className="flex items-center gap-2 font-medium">
-            <Loader2Icon
-              aria-hidden="true"
-              className="size-4 shrink-0 animate-spin motion-reduce:animate-none"
-            />
-            <Trans>Waiting for Telegram</Trans>
-          </div>
-          <p className="text-ens-quartz-550 leading-relaxed">
-            <Trans>
-              Finish connecting in the Telegram tab. You can keep using ENS
-              Manager.
-            </Trans>
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            {login.authorizationUrl && (
-              <Button asChild size="sm" variant="outline">
-                <a
-                  href={login.authorizationUrl}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <Trans>Open Telegram</Trans>
-                  <ExternalLinkIcon aria-hidden="true" className="size-3.5" />
-                </a>
-              </Button>
-            )}
-            <Button
-              disabled={login.isCancelling}
-              onClick={login.cancel}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              <Trans>Cancel connection</Trans>
-            </Button>
-          </div>
-        </div>
+        <TelegramPendingLogin
+          authorizationUrl={login.authorizationUrl}
+          isCancelling={login.isCancelling}
+          onCancel={login.cancel}
+          strategy={login.openingStrategy}
+        />
       )}
       {login.isExpired && (
         <p>

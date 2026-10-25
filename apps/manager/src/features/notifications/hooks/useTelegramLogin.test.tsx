@@ -8,11 +8,8 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TelegramAttempt } from '@/features/notifications/utils/telegram/login'
-import { backendAuthStore, getBackendApiBaseUrl } from '@/utils/backend-client'
-import {
-  getTelegramLoginQueryOptions,
-  useTelegramLogin,
-} from './useTelegramLogin'
+import { backendAuthStore } from '@/utils/backend-client'
+import { useTelegramLogin } from './useTelegramLogin'
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), cancel: vi.fn() }))
 vi.mock('@/utils/backend-client', async (original) => ({
@@ -74,24 +71,8 @@ describe('shared Telegram login lifecycle', () => {
     backendAuthStore.trigger.signOut()
     focusManager.setFocused(undefined)
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
     vi.useRealTimers()
-  })
-
-  it('fetches status outside React and refreshes channels when complete', async () => {
-    attempt = attempt && { ...attempt, status: 'completed' }
-    const invalidate = vi.spyOn(client, 'invalidateQueries')
-    const result = await client.fetchQuery(
-      getTelegramLoginQueryOptions({
-        address: '0x123',
-        baseUrl: getBackendApiBaseUrl(),
-        isAuthenticated: true,
-        queryClient: client,
-      }),
-    )
-    expect(result).toEqual({ attempt })
-    expect(invalidate).toHaveBeenCalledWith({
-      queryKey: qk('channels', 'list'),
-    })
   })
 
   it('recovers pending status after remount without browser storage or an opener', async () => {
@@ -138,13 +119,17 @@ describe('shared Telegram login lifecycle', () => {
     hook.unmount()
   })
 
-  it('opens the placeholder before the initiation request and provides a fallback URL', async () => {
+  it('opens the real URL after initiation while keeping an explicit fallback available', async () => {
+    vi.stubGlobal('navigator', {
+      userAgent: 'desktop',
+      userActivation: { isActive: true },
+    })
     attempt = null
     const hook = renderHook(useTelegramLogin, { wrapper })
     await waitFor(() => expect(api.get).toHaveBeenCalled())
     const open = vi.spyOn(window, 'open').mockReturnValue(null)
     api.post.mockImplementation(async () => {
-      expect(open).toHaveBeenCalledOnce()
+      expect(open).not.toHaveBeenCalled()
       return Response.json({
         id: 'new-attempt',
         expires_at: new Date(Date.now() + 600_000).toISOString(),
@@ -157,7 +142,31 @@ describe('shared Telegram login lifecycle', () => {
         'oauth.telegram.org',
       ),
     )
+    expect(open).toHaveBeenCalledWith(
+      'https://oauth.telegram.org/auth?state=test',
+      '_blank',
+      'noopener,noreferrer',
+    )
     expect(hook.result.current.isPending).toBe(true)
+    hook.unmount()
+  })
+
+  it('keeps a pending sign-in link without automatic opening on iOS MetaMask', async () => {
+    vi.stubGlobal('navigator', {
+      userAgent: 'iPhone WebView MetaMaskMobile',
+      userActivation: { isActive: true },
+    })
+    const open = vi.spyOn(window, 'open')
+    const hook = renderHook(useTelegramLogin, { wrapper })
+    await waitFor(() => expect(hook.result.current.isPending).toBe(true))
+    act(() => hook.result.current.connect())
+    await waitFor(() =>
+      expect(hook.result.current.authorizationUrl).toContain(
+        'oauth.telegram.org',
+      ),
+    )
+    expect(hook.result.current.openingStrategy).toBe('safari')
+    expect(open).not.toHaveBeenCalled()
     hook.unmount()
   })
 

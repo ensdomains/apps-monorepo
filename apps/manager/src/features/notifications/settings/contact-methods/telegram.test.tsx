@@ -1,15 +1,20 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Channel } from '@/features/notifications/data/queries/channels'
 import { useTelegramLogin } from '@/features/notifications/hooks/useTelegramLogin'
+import { copyToClipboard } from '@/lib/clipboard'
 import { render } from '@/utils/test-utils'
 import { TelegramContactMethod } from './telegram'
 
 vi.mock('@/features/notifications/hooks/useTelegramLogin', () => ({
   useTelegramLogin: vi.fn(),
 }))
+vi.mock('@/lib/clipboard', () => ({ copyToClipboard: vi.fn() }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const login = {
+  openingStrategy: 'new-tab',
   attempt: null,
   isPending: false,
   isExpired: false,
@@ -56,7 +61,7 @@ describe('Telegram contact method', () => {
     })
     render(<TelegramContactMethod />)
     expect(screen.getByText('Waiting for Telegram')).toBeVisible()
-    const link = screen.getByRole('link', { name: 'Open Telegram' })
+    const link = screen.getByRole('link', { name: 'Continue to Telegram' })
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
     expect(
@@ -69,11 +74,52 @@ describe('Telegram contact method', () => {
   it('keeps cancellation available after remounting without an authorization URL', () => {
     vi.mocked(useTelegramLogin).mockReturnValue({ ...login, isPending: true })
     render(<TelegramContactMethod />)
-    expect(screen.queryByRole('link', { name: 'Open Telegram' })).toBeNull()
+    expect(
+      screen.queryByRole('link', { name: 'Continue to Telegram' }),
+    ).toBeNull()
     expect(
       screen.getByRole('button', { name: 'Cancel connection' }),
     ).toBeEnabled()
   })
+
+  it('offers Safari handoff instructions without a new-window target on iOS MetaMask', () => {
+    vi.mocked(useTelegramLogin).mockReturnValue({
+      ...login,
+      openingStrategy: 'safari',
+      isPending: true,
+      authorizationUrl: 'https://oauth.telegram.org/auth?state=test',
+    })
+    render(<TelegramContactMethod />)
+    const link = screen.getByRole('link', { name: 'Open in Safari' })
+    expect(link).toHaveAttribute(
+      'href',
+      'x-safari-https://oauth.telegram.org/auth?state=test',
+    )
+    expect(link).not.toHaveAttribute('target')
+    expect(screen.getByText(/Keep ENS Manager open in MetaMask/)).toBeVisible()
+  })
+
+  it.each([false, true])(
+    'copies the HTTPS sign-in link and reports clipboard failure: %s',
+    async (hasError) => {
+      const url = 'https://oauth.telegram.org/auth?state=test'
+      vi.mocked(useTelegramLogin).mockReturnValue({
+        ...login,
+        openingStrategy: 'safari',
+        isPending: true,
+        authorizationUrl: url,
+      })
+      vi.mocked(copyToClipboard).mockImplementationOnce(() =>
+        hasError ? Promise.reject(new Error('denied')) : Promise.resolve(),
+      )
+      render(<TelegramContactMethod />)
+      fireEvent.click(screen.getByRole('button', { name: 'Copy sign-in link' }))
+      await waitFor(() =>
+        expect(hasError ? toast.error : toast.success).toHaveBeenCalledOnce(),
+      )
+      expect(copyToClipboard).toHaveBeenCalledWith(url)
+    },
+  )
 
   it('shows the linked account and confirms removal', () => {
     render(<TelegramContactMethod telegram={channel} />)

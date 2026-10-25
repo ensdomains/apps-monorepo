@@ -12,10 +12,13 @@ import {
 import { useSelector } from '@xstate/store-react'
 import { useEffect, useState } from 'react'
 import {
+  getTelegramOpeningStrategy,
+  tryOpenTelegramTab,
+} from '@/features/notifications/utils/telegram/browser'
+import {
   cancelTelegramLogin,
   getTelegramLoginPhase,
   getTelegramLoginStatus,
-  openTelegramTab,
   startTelegramLogin,
   telegramPollInterval,
 } from '@/features/notifications/utils/telegram/login'
@@ -52,6 +55,9 @@ export const getTelegramLoginQueryOptions = ({
   })
 
 export const useTelegramLogin = () => {
+  const openingStrategy = getTelegramOpeningStrategy(
+    typeof navigator === 'undefined' ? '' : navigator.userAgent,
+  )
   const auth = useSelector(backendAuthStore, (state) => state.context)
   const queryClient = useQueryClient()
   const queryOptions = getTelegramLoginQueryOptions({
@@ -81,6 +87,7 @@ export const useTelegramLogin = () => {
     resultMutationOptions({
       mutationFn: startTelegramLogin,
       onSuccess: async (result) => {
+        tryOpenTelegramTab(result.authorizationUrl, openingStrategy)
         // A status request started before initiation must not overwrite pending.
         await queryClient.cancelQueries({ queryKey })
         queryClient.setQueryData(queryKey, {
@@ -100,6 +107,7 @@ export const useTelegramLogin = () => {
     }),
   )
   return {
+    openingStrategy,
     attempt,
     isPending,
     isExpired: phase === 'expired',
@@ -115,7 +123,7 @@ export const useTelegramLogin = () => {
         : undefined,
     connect: () => {
       cancel.reset()
-      start.mutate(openTelegramTab())
+      start.mutate()
     },
     cancel: () => {
       if (attempt) cancel.mutate(attempt.id)

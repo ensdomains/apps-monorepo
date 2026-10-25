@@ -519,7 +519,7 @@ msgstr ""
 msgid "Cancel"
 msgstr "Avbryt"
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx
+#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
 msgid "Cancel connection"
 msgstr ""
 
@@ -770,6 +770,14 @@ msgstr ""
 msgid "Continue migration"
 msgstr ""
 
+#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+msgid "Continue to Telegram"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+msgid "Continue to Telegram if sign-in did not open automatically. You can keep using ENS Manager, or copy the sign-in link to another browser and return here afterward."
+msgstr ""
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue without signing in"
 msgstr ""
@@ -813,6 +821,10 @@ msgstr ""
 msgid "Copy Link"
 msgstr ""
 
+#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+msgid "Copy sign-in link"
+msgstr ""
+
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
@@ -824,6 +836,10 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Could not connect Telegram. Please try again and allow the bot to send messages."
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+msgid "Could not copy the sign-in link. Please try again."
 msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
@@ -1206,10 +1222,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx
 msgid "Fee at this moment"
-msgstr ""
-
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Finish connecting in the Telegram tab. You can keep using ENS Manager."
 msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
@@ -1783,6 +1795,10 @@ msgstr ""
 msgid "Only ENSv2 Names Supported"
 msgstr ""
 
+#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+msgid "Open in Safari"
+msgstr ""
+
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"
 msgstr ""
@@ -1795,8 +1811,8 @@ msgstr ""
 msgid "Open Notification Settings"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Open Telegram"
+#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+msgid "Open Safari to finish connecting Telegram, then return here. Keep ENS Manager open in MetaMask."
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
@@ -2585,6 +2601,10 @@ msgstr ""
 msgid "Sign the gasless payment approval in your wallet"
 msgstr ""
 
+#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
+msgid "Sign-in link copied. Open it in your browser, then return here."
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
@@ -3225,7 +3245,7 @@ msgstr ""
 msgid "Waiting for resolver submission"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx
+#: src/features/notifications/settings/contact-methods/telegram-pending-login.tsx
 msgid "Waiting for Telegram"
 msgstr ""
 

@@ -4,7 +4,6 @@ import {
   cancelTelegramLogin,
   getTelegramLoginPhase,
   getTelegramLoginStatus,
-  openTelegramTab,
   startTelegramLogin,
   telegramPollInterval,
 } from './login'
@@ -34,104 +33,29 @@ const result = () => ({
 describe('Telegram new-tab login', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('opens an unsized tab synchronously and removes its opener', () => {
-    const tab = {
-      opener: window,
-      document: document.implementation.createHTMLDocument(),
-    } as unknown as Window
-    const open = vi.spyOn(window, 'open').mockReturnValue(tab)
-    expect(openTelegramTab()).toBe(tab)
-    expect(open).toHaveBeenCalledWith('about:blank', '_blank')
-    expect(tab.opener).toBeNull()
-    expect(tab.document.querySelector('h1')?.textContent).toBe(
-      'Connecting Telegram…',
-    )
-    expect(tab.document.body.textContent).toContain('original tab')
-    expect(tab.document.querySelector('script, iframe, img, link')).toBeNull()
-    expect(
-      backendClient.notifications.channels.telegram.oauth.$post,
-    ).not.toHaveBeenCalled()
-  })
-
-  it('retains a usable URL when the tab is blocked or already closed', async () => {
-    vi.spyOn(window, 'open').mockReturnValue(null)
-    expect(openTelegramTab()).toBeNull()
+  it('initiates through the authenticated client without opening or changing a tab', async () => {
+    const open = vi.spyOn(window, 'open')
     vi.mocked(
       backendClient.notifications.channels.telegram.oauth.$post,
     ).mockImplementation(async () => Response.json(result()) as never)
-    expect(
-      (await startTelegramLogin(null))._unsafeUnwrap().authorizationUrl,
-    ).toContain('oauth.telegram.org')
-    const tab = {
-      closed: true,
-      location: { replace: vi.fn() },
-    } as unknown as Window
-    await startTelegramLogin(tab)
-    expect(tab.location.replace).not.toHaveBeenCalled()
-  })
-
-  it('does not treat embedded-browser navigation errors as failed authentication', async () => {
-    vi.spyOn(window, 'open').mockImplementation(() => {
-      throw new Error('unsupported')
-    })
-    expect(openTelegramTab()).toBeNull()
-    vi.mocked(
-      backendClient.notifications.channels.telegram.oauth.$post,
-    ).mockImplementation(async () => Response.json(result()) as never)
-    const tab = {
-      closed: false,
-      location: {
-        replace: vi.fn(() => {
-          throw new Error('blocked')
-        }),
-      },
-    } as unknown as Window
-    expect(
-      (await startTelegramLogin(tab))._unsafeUnwrap().authorizationUrl,
-    ).toContain('oauth.telegram.org')
-  })
-
-  it('navigates only the placeholder tab after initiating through the authenticated client', async () => {
-    vi.mocked(
-      backendClient.notifications.channels.telegram.oauth.$post,
-    ).mockImplementation(async () => Response.json(result()) as never)
-    const tab = {
-      closed: false,
-      location: { replace: vi.fn() },
-    } as unknown as Window
     const originalUrl = window.location.href
-    const response = (await startTelegramLogin(tab))._unsafeUnwrap()
-    expect(tab.location.replace).toHaveBeenCalledWith(response.authorizationUrl)
+    expect(
+      (await startTelegramLogin())._unsafeUnwrap().authorizationUrl,
+    ).toContain('oauth.telegram.org')
+    expect(open).not.toHaveBeenCalled()
     expect(window.location.href).toBe(originalUrl)
   })
 
-  it('closes the placeholder on initiation rejection', async () => {
-    vi.mocked(
-      backendClient.notifications.channels.telegram.oauth.$post,
-    ).mockResolvedValue(
-      Response.json({ error: 'Please wait' }, { status: 429 }) as never,
-    )
-    const tab = { close: vi.fn() } as unknown as Window
-    expect((await startTelegramLogin(tab))._unsafeUnwrapErr()).toMatchObject({
-      _tag: 'TelegramLoginRequestError',
-      message: 'Please wait',
-      status: 429,
-    })
-    expect(tab.close).toHaveBeenCalledOnce()
-  })
-
-  it('returns typed request failures and closes the placeholder', async () => {
+  it('returns typed request failures without opening a tab', async () => {
     const cause = new Error('offline')
     vi.mocked(
       backendClient.notifications.channels.telegram.oauth.$post,
     ).mockRejectedValueOnce(cause)
-    const tab = { close: vi.fn() } as unknown as Window
-    expect((await startTelegramLogin(tab))._unsafeUnwrapErr()).toMatchObject({
+    expect((await startTelegramLogin())._unsafeUnwrapErr()).toMatchObject({
       _tag: 'TelegramLoginRequestError',
       operation: 'initiate',
       cause,
     })
-    expect(tab.close).toHaveBeenCalledOnce()
   })
 
   it('preserves the HTTP status when an error response is not JSON', async () => {
@@ -140,7 +64,7 @@ describe('Telegram new-tab login', () => {
     ).mockResolvedValueOnce(
       new Response('Bad Gateway', { status: 502 }) as never,
     )
-    expect((await startTelegramLogin(null))._unsafeUnwrapErr()).toMatchObject({
+    expect((await startTelegramLogin())._unsafeUnwrapErr()).toMatchObject({
       _tag: 'TelegramLoginRequestError',
       operation: 'initiate',
       status: 502,
@@ -178,12 +102,10 @@ describe('Telegram new-tab login', () => {
       vi.mocked(
         backendClient.notifications.channels.telegram.oauth.$post,
       ).mockResolvedValueOnce(Response.json(body) as never)
-      expect((await startTelegramLogin(null))._unsafeUnwrapErr()).toMatchObject(
-        {
-          _tag: 'TelegramLoginRequestError',
-          operation: 'initiate',
-        },
-      )
+      expect((await startTelegramLogin())._unsafeUnwrapErr()).toMatchObject({
+        _tag: 'TelegramLoginRequestError',
+        operation: 'initiate',
+      })
     },
   )
 
