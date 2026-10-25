@@ -40,6 +40,7 @@ type GasEstimateMessageProps = {
   readonly gasAffordability: GasAffordability
   readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
+  readonly isFinishingRecovery?: boolean
   readonly renewal?: GraceRenewalQuoteState
 }
 
@@ -48,10 +49,11 @@ const GasEstimateMessage = ({
   gasAffordability,
   isWaitingForGasFunding,
   totalSelected,
+  isFinishingRecovery = false,
   renewal,
 }: GasEstimateMessageProps) => {
   const { _ } = useLingui()
-  if (totalSelected === 0) return null
+  if (totalSelected === 0 && !isFinishingRecovery) return null
 
   // The gas drip request only resolves once any sepETH top-up is confirmed
   // on-chain. Surface it so the owner knows why the button is briefly blocked.
@@ -127,6 +129,7 @@ type UpgradeButtonLabelProps = {
   readonly isStarting: boolean
   readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
+  readonly isFinishingRecovery?: boolean
 }
 
 const UpgradeButtonLabel = ({
@@ -135,11 +138,13 @@ const UpgradeButtonLabel = ({
   isStarting,
   isWaitingForGasFunding,
   totalSelected,
+  isFinishingRecovery = false,
 }: UpgradeButtonLabelProps) => {
   if (isStarting) return <Trans>Starting...</Trans>
   if (hasInsufficientUsdc) return <Trans>Insufficient USDC</Trans>
   if (isEstimatingGas) return <Trans>Estimating...</Trans>
   if (isWaitingForGasFunding) return <Trans>Preparing wallet...</Trans>
+  if (isFinishingRecovery) return <Trans>Finish upgrade</Trans>
   return (
     <Plural
       one="Upgrade # name"
@@ -154,6 +159,7 @@ type SelectNamesStepFooterProps = {
   readonly gasAffordability: GasAffordability
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
+  readonly isFinishingRecovery?: boolean
   readonly isUpgradeDisabled: boolean
   readonly isWaitingForGasFunding: boolean
   readonly onUpgrade: () => void
@@ -192,6 +198,7 @@ export const SelectNamesStepFooter = ({
   gasAffordability,
   isEstimatingGas,
   isStarting,
+  isFinishingRecovery = false,
   isUpgradeDisabled,
   isWaitingForGasFunding,
   onUpgrade,
@@ -215,6 +222,7 @@ export const SelectNamesStepFooter = ({
           <GasEstimateMessage
             gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
+            isFinishingRecovery={isFinishingRecovery}
             isWaitingForGasFunding={isWaitingForGasFunding}
             totalSelected={totalSelected}
           />
@@ -244,6 +252,7 @@ export const SelectNamesStepFooter = ({
           <UpgradeButtonLabel
             hasInsufficientUsdc={hasInsufficientUsdc}
             isEstimatingGas={isEstimatingGas}
+            isFinishingRecovery={isFinishingRecovery}
             isStarting={isStarting}
             isWaitingForGasFunding={isWaitingForGasFunding}
             totalSelected={totalSelected}

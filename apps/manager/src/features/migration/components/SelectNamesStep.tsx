@@ -7,9 +7,12 @@ import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Name
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
+import { useWrapperSync } from '@/features/migration/hooks/useWrapperSync'
 import { cn } from '@/lib/utils'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
+import type { SubnameMigrationBlockReason } from '../hooks/useMigrationEligibility'
+import { NameRow } from './NameRow'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
@@ -20,6 +23,78 @@ import {
   shouldUseSmallSelectionCard,
 } from './selectNames.helpers'
 import { UnavailableMigrationNames } from './UnavailableMigrationNames'
+import { WrapperSyncNotice } from './WrapperSyncNotice'
+
+const SubnameBlockReason = ({
+  reason,
+}: {
+  readonly reason: SubnameMigrationBlockReason
+}) => {
+  switch (reason) {
+    case 'imports-disabled':
+      return (
+        <Trans>
+          Subname copying is not available in this session. Keep this parent on
+          ENSv1 so its subnames keep working.
+        </Trans>
+      )
+    case 'unsupported-parent':
+      return (
+        <Trans>
+          This parent has subnames whose protections cannot be preserved by this
+          upgrade yet.
+        </Trans>
+      )
+    case 'deeper-subnames':
+      return (
+        <Trans>
+          This name has subnames with further subnames below them. Upgrading the
+          whole tree is not supported yet.
+        </Trans>
+      )
+    case 'wrapped-protections':
+      return (
+        <Trans>
+          This name has wrapped subnames whose permissions and protections
+          cannot be preserved yet.
+        </Trans>
+      )
+    case 'too-large':
+      return (
+        <Trans>
+          This name has too many subnames to include in one safe upgrade.
+        </Trans>
+      )
+    case 'unknown-label':
+      return (
+        <Trans>
+          A subname's complete name could not be verified. Keep this parent on
+          ENSv1 until it can be recovered.
+        </Trans>
+      )
+    case 'incomplete-inventory':
+      return (
+        <Trans>
+          We could not verify a complete, current list of this name's subnames.
+          Refresh and try again.
+        </Trans>
+      )
+    case 'requires-parent':
+      return (
+        <Trans>
+          This subname must be included through its parent name. It cannot be
+          copied on its own.
+        </Trans>
+      )
+    case 'unverified-source':
+      return (
+        <Trans>
+          A subname's owner or resolver could not be verified. Refresh and try
+          again before upgrading.
+        </Trans>
+      )
+  }
+}
 
 type SelectNamesStepProps = {
   readonly ownerAddress?: string | null
@@ -37,16 +112,27 @@ const SelectionTitle = ({
   eligibleCount,
   graceCount,
   unavailableCount,
+  wrapperSyncCount,
   isRecoveryStale,
+  isEligibilityError,
+  isFinishingRecovery,
 }: {
   readonly eligibleCount: number
   readonly graceCount: number
   readonly unavailableCount: number
+  readonly wrapperSyncCount: number
   readonly isRecoveryStale: boolean
+  readonly isEligibilityError: boolean
+  readonly isFinishingRecovery: boolean
 }) => {
   if (isRecoveryStale) return <Trans>Your saved upgrade needs attention</Trans>
+  if (isFinishingRecovery) return <Trans>Finish your upgrade</Trans>
+  if (isEligibilityError) return <Trans>We couldn't check your names</Trans>
   if (eligibleCount === 0 && graceCount > 0) {
     return <Trans>Renew your names before upgrading</Trans>
+  }
+  if (eligibleCount === 0 && wrapperSyncCount > 0) {
+    return <Trans>Sync your names before upgrading</Trans>
   }
   if (eligibleCount === 0 && unavailableCount > 0) {
     return <Trans>Your names can&apos;t be upgraded</Trans>
@@ -69,9 +155,14 @@ export const SelectNamesStep = ({
     eligible,
     gracePeriodNames,
     unavailableNames,
+    blockedSubnames = [],
+    isEligibilityError = false,
+    retryEligibility,
+    wrapperSyncNames,
     isPending: isEligibilityPending,
     recoveryState,
   } = useEligibleV1Names()
+  const wrapperSync = useWrapperSync(wrapperSyncNames)
   const [isStarting, setIsStarting] = useState(false)
   const isRecoveryStale = recoveryState.status === 'stale'
   const isRecovery = recoveryState.status === 'recovering'
@@ -131,11 +222,28 @@ export const SelectNamesStep = ({
   // migration that fails for lack of gas before the ETH has landed.
   const isWaitingForGasFunding =
     totalSelected > 0 && gasFundingStatus === 'funding'
+  const preparedPlan = gasEstimate.status === 'ready' ? gasEstimate.plan : null
+  const isFinishingRecovery =
+    isRecovery && preparedPlan !== null && preparedPlan.classified.length === 0
+  const recreation = preparedPlan?.subnameRecreation
+  const hasSubnameCopies =
+    preparedPlan?.classified.some(
+      (name) => name.action === 'copy' && !!name.recreationRoot,
+    ) ?? false
+  const isWaitingForSubnameSnapshot =
+    hasSubnameCopies && recreation?.version !== 5
+  const hasBlockedSelection = blockedSubnames.some(({ name }) =>
+    selected.has(name.domain.name),
+  )
   const isUpgradeDisabled =
-    totalSelected === 0 ||
+    (totalSelected === 0 && !isFinishingRecovery) ||
     isPending ||
     isRecoveryStale ||
     isStarting ||
+    isEligibilityError ||
+    hasBlockedSelection ||
+    isWaitingForSubnameSnapshot ||
+    wrapperSync.isPending ||
     isWaitingForGasEstimate ||
     isWaitingForGasFunding
   const showBulkSelection = shouldShowBulkSelection(visibleCount)
@@ -143,7 +251,15 @@ export const SelectNamesStep = ({
   const isCompactLayout = shouldUseCompactSelectionLayout(displayedCount)
   const isSmallSelectionCard =
     !isPending && shouldUseSmallSelectionCard(displayedCount)
-  const isContentHeightCard = isPending || isSmallSelectionCard
+  const hasAdditionalDetails = blockedSubnames.length > 0 || isEligibilityError
+  const showSelectionOptions =
+    !isFinishingRecovery &&
+    (blockedSubnames.length === 0 ||
+      eligible.length > 0 ||
+      gracePeriodNames.length > 0 ||
+      isPending)
+  const isContentHeightCard =
+    !hasAdditionalDetails && (isPending || isSmallSelectionCard)
   const isCompactOuterSpacing =
     isCompactLayout || isPending || displayedCount === 0
 
@@ -160,7 +276,7 @@ export const SelectNamesStep = ({
     <div className="relative z-10 flex min-h-0 w-full flex-1 flex-col self-stretch">
       <div
         className={cn(
-          'flex min-h-0 flex-1 flex-col items-center px-5 pt-6 pb-0 md:pb-5',
+          'flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-5 pt-6 pb-6 md:pb-5',
           isContentHeightCard
             ? 'md:justify-center md:pt-0 md:pb-0'
             : isCompactOuterSpacing
@@ -172,16 +288,31 @@ export const SelectNamesStep = ({
           className={cn(
             'flex min-h-0 w-full max-w-215 flex-1 flex-col items-center gap-6 md:gap-7',
             isContentHeightCard && 'md:flex-none',
+            hasAdditionalDetails && 'flex-none',
           )}
         >
           <h1 className="w-full shrink-0 text-left text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px] md:text-center md:text-[36px] md:tracking-[-0.72px]">
             <SelectionTitle
               eligibleCount={eligible.length}
               graceCount={gracePeriodNames.length}
+              isEligibilityError={isEligibilityError}
+              isFinishingRecovery={isFinishingRecovery}
               isRecoveryStale={isRecoveryStale}
-              unavailableCount={unavailableNames.length}
+              unavailableCount={
+                unavailableNames.length + blockedSubnames.length
+              }
+              wrapperSyncCount={wrapperSyncNames.length}
             />
           </h1>
+
+          {isFinishingRecovery && (
+            <p className="max-w-160 text-ens-garnet-900/75 text-sm leading-5 md:text-center">
+              <Trans>
+                Your names have been upgraded. Confirm the completed
+                transactions and finish any remaining permission cleanup.
+              </Trans>
+            </p>
+          )}
 
           {hasNamesNeedingManagerRestoration && !isRecoveryStale && (
             <p className="max-w-160 text-ens-garnet-900/75 text-sm leading-5 md:text-center">
@@ -191,6 +322,27 @@ export const SelectNamesStep = ({
                 remove that permission after the upgrade.
               </Trans>
             </p>
+          )}
+
+          {isEligibilityError && (
+            <div
+              className="w-full max-w-189 rounded-xl border border-ens-garnet-900/10 bg-white/60 p-4 text-ens-garnet-900 text-sm leading-5"
+              role="alert"
+            >
+              <p>
+                <Trans>
+                  We could not check whether your names and subnames can be
+                  safely upgraded. Try again before continuing.
+                </Trans>
+              </p>
+              <button
+                className="mt-2 min-h-11 rounded-sm font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900"
+                onClick={retryEligibility}
+                type="button"
+              >
+                <Trans>Check again</Trans>
+              </button>
+            </div>
           )}
 
           {isRecoveryStale ? (
@@ -217,7 +369,7 @@ export const SelectNamesStep = ({
                 </p>
               </div>
             </div>
-          ) : (
+          ) : showSelectionOptions ? (
             <SelectNamesStepSelectionOptions
               allSelected={allSelected}
               filteredGracePeriodNames={filteredGracePeriodNames}
@@ -240,9 +392,40 @@ export const SelectNamesStep = ({
               totalSelected={totalSelected}
               visibleCount={visibleCount}
             />
-          )}
+          ) : null}
 
+          <WrapperSyncNotice
+            error={wrapperSync.error}
+            isPending={wrapperSync.isPending}
+            names={wrapperSyncNames}
+            onSync={() => wrapperSync.mutate()}
+          />
           <UnavailableMigrationNames names={unavailableNames} />
+          {blockedSubnames.length > 0 && (
+            <section className="w-full max-w-189 text-ens-garnet-900 text-sm leading-5">
+              <h2 className="font-medium">
+                <Trans>These names need to stay on ENSv1 for now</Trans>
+              </h2>
+              <ul className="mt-3 space-y-4">
+                {blockedSubnames.map(({ name, reason }) => (
+                  <li key={name.domain.id}>
+                    <NameRow
+                      depth={0}
+                      disabledReason={<SubnameBlockReason reason={reason} />}
+                      isSelected={false}
+                      item={name}
+                    />
+                  </li>
+                ))}
+              </ul>
+              <a
+                className="mt-2 inline-flex min-h-11 items-center rounded-sm font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900"
+                href="/dashboard#subname-upgrades"
+              >
+                <Trans>Learn how subnames affect upgrades</Trans>
+              </a>
+            </section>
+          )}
         </div>
       </div>
 
@@ -250,6 +433,7 @@ export const SelectNamesStep = ({
         gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
         isEstimatingGas={isEstimatingGas}
+        isFinishingRecovery={isFinishingRecovery}
         isStarting={isStarting}
         isUpgradeDisabled={isUpgradeDisabled}
         isWaitingForGasFunding={isWaitingForGasFunding}

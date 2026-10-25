@@ -85,14 +85,18 @@ export type DirectClassifiedName = ClassifiedNameBase & {
    * classification — see `registryController`.
    */
   readonly managerAddress: Address | null
+  /** The resolver the locked receiver will set, read on-chain when CANNOT_SET_RESOLVER is burned. */
+  readonly lockedResolverAddress?: Address
 }
 
 export type CopyClassifiedName = ClassifiedNameBase & {
   readonly action: 'copy'
   readonly tokenType: CopyTokenType
   readonly copySource: CopySource
+  /** Reviewed direct-child import; the V1 owner receives the child token with ALL roles. */
+  readonly recreationRoot?: string
   readonly sourceExpiry: bigint
-  readonly resolverStrategy: 'to-owned-permres'
+  readonly resolverStrategy: ResolverStrategy
   readonly registryController: null
   readonly managerAddress: null
 }
@@ -228,14 +232,14 @@ const hasExpiredDotEthRegistration = (
   const registrationExpiry = domain.registration?.expiryDate
   if (registrationExpiry) return BigInt(registrationExpiry) <= nowSeconds
   // Fall back to the wrapper expiry only while the name is genuinely in its
-  // grace period: `wrapperExpiry - GRACE <= now < wrapperExpiry`. A wrapper
+  // grace period: `wrapperExpiry - GRACE <= now <= wrapperExpiry`. A wrapper
   // expiry fully in the past means the wrapper is stale/expired (the name has
   // reverted to its registrant) — not a grace-period registration — so it must
   // not be flagged here.
   const wrappedExpiry = domain.wrappedDomain?.expiryDate
   if (wrappedExpiry) {
     const expiry = BigInt(wrappedExpiry)
-    return expiry - GRACE_PERIOD_SECONDS <= nowSeconds && nowSeconds < expiry
+    return expiry - GRACE_PERIOD_SECONDS <= nowSeconds && nowSeconds <= expiry
   }
   return false
 }

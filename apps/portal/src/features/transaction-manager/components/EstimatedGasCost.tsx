@@ -11,7 +11,10 @@ import {
 } from '@/components/ui/tooltip'
 import { ensChain } from '@/lib/wagmi'
 import type { WalletClientWithAccount } from '@/utils/types'
-import { useTransactionGasEstimate } from '../hooks/useTransactionGasEstimate'
+import {
+  toEstimableRequest,
+  useTransactionGasEstimate,
+} from '../hooks/useTransactionGasEstimate'
 import type { Transaction } from '../types'
 
 /** An icon + label that reveals an explanation on hover/focus. */
@@ -105,7 +108,8 @@ export const EstimatedGasCost = ({
   // "Estimating…", overriding the gas query — which can't run until the intent
   // exists. Only applies before the step starts (the machine holds the real
   // request once running), so skip the override once the actor drives the call.
-  const hasActiveRequest = actor?.getSnapshot()?.context.request?.type === 'eoa'
+  const hasActiveRequest =
+    toEstimableRequest(actor?.getSnapshot()?.context.request) !== undefined
   const status = match({
     hasActiveRequest,
     prepareIntentError,

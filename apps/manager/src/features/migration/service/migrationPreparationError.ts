@@ -1,6 +1,7 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
+import { SubnameRecreationError } from './subnameRecreationError'
 
 type MigrationPreparationStage =
   | 'account'
@@ -18,6 +19,7 @@ type MigrationPreparationReason =
   | 'records-not-replayable'
   | 'recovery-changed'
   | 'parent-not-upgraded'
+  | 'reservation-not-synced'
   | 'rpc-unavailable'
   | 'fee-unavailable'
   | 'unknown'
@@ -57,6 +59,14 @@ const reasonFor = (
   cause: unknown,
 ): MigrationPreparationReason => {
   const chain = causeChain(cause)
+  if (
+    chain.some(
+      (error) =>
+        error.name === 'CopyMigrationReadinessError' &&
+        error.reason === 'reservation-expiry-mismatch',
+    )
+  )
+    return 'reservation-not-synced'
   // Before the fee fallback: the grace renewal estimate checks routes under the fee stage.
   if (
     chain.some(
@@ -177,11 +187,19 @@ const messages: Record<MigrationPreparationReason, MessageDescriptor> = {
   'records-not-replayable': msg`Some locked names have records that this upgrade cannot preserve. Deselect those names to continue.`,
   'recovery-changed': msg`Couldn't restore your upgrade progress. Reload to check the latest state.`,
   'parent-not-upgraded': msg`Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames.`,
+  'reservation-not-synced': msg`A renewed name's ENSv2 reservation is out of date. Wait for it to sync before upgrading. If this continues, contact support.`,
   'rpc-unavailable': msg`Couldn't reach the network to prepare your upgrade. Please try again.`,
   'fee-unavailable': msg`Couldn't estimate the network fee`,
   unknown: msg`Couldn't prepare your upgrade. Please try again.`,
 }
 
 export const migrationPreparationMessage = (
-  failure: Pick<MigrationPreparationFailure, 'reason'>,
-): MessageDescriptor => messages[failure.reason]
+  failure: Pick<MigrationPreparationFailure, 'reason'> &
+    Partial<Pick<MigrationPreparationFailure, 'cause'>>,
+): MessageDescriptor => {
+  if (failure.cause instanceof SubnameRecreationError) {
+    const details = failure.cause.message
+    return msg`${details}`
+  }
+  return messages[failure.reason]
+}

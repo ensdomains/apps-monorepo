@@ -33,12 +33,14 @@
  *   (no bump) records gained an optional `refundCaps`. A v9 row without it
  *            was signed with `LEGACY_REFUND_CAPS`, which is what it rebuilds
  *            with, so old rows stay valid.
+ *   v9 → v10: payment/refund token switched back to Circle Sepolia USDC, so
+ *            v9 sessions refund in a token the HCA no longer holds.
  */
 
 import type { Address } from 'viem'
 import type { RhinestoneStoredSession } from './types'
 
-const SESSION_STORAGE_KEY = 'ens-sessions-v9'
+const SESSION_STORAGE_KEY = 'ens-sessions-v10'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 const hasWindow = (): boolean => typeof window !== 'undefined'

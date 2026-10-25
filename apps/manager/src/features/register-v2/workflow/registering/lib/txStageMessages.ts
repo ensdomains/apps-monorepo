@@ -1,6 +1,6 @@
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import type { RegistrationStage } from '../../../state/registration.stages'
 
 export type RegisteringTxSnapshot = {
@@ -11,6 +11,8 @@ export type RegisteringTxSnapshot = {
   registrationTxId?: string
   ethRecordSyncTxId?: string
   primaryNameTxId?: string
+  /** The L2 a run pays from, whose commit leg the wallet signs there. */
+  l2FundingChainName?: string
 }
 
 export type TransactionState = string | undefined
@@ -24,8 +26,26 @@ export const getRegistrationStageMessages = (
   tx: RegisteringTxSnapshot,
   txState: TransactionState,
 ): StageMessages =>
-  match({ stage: tx.value, txState })
+  match({ stage: tx.value, txState, l2ChainName: tx.l2FundingChainName })
     .returnType<StageMessages>()
+    .with(
+      {
+        stage: P.union('bridgingFromL2', 'waitingForL2Bridge'),
+        l2ChainName: P.string,
+      },
+      ({ l2ChainName }) => ({
+        stageLabel: msg`Paying from ${l2ChainName}`,
+        stageDescription: msg`Approve USDC on ${l2ChainName} if your wallet asks, then sign the payment`,
+      }),
+    )
+    // An earlier payment may still arrive, so nothing is signed until it does.
+    .with(
+      { stage: P.union('awaitingL2Bridge', 'awaitingPriorL2BridgeTx') },
+      () => ({
+        stageLabel: msg`Checking your earlier payment`,
+        stageDescription: msg`Waiting for the payment you already signed to arrive`,
+      }),
+    )
     .with({ stage: 'idle' }, () => ({
       stageLabel: msg`Idle`,
       stageDescription: msg`The registration flow is idle`,

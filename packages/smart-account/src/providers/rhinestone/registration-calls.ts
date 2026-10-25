@@ -10,6 +10,8 @@
  *   3. ETHRegistrar.register(..., wallet as owner, ...)
  *   4. resolver setters                        — only selected records
  *   5. DefaultReverseRegistrarAdapter.setNameWithHCA(wallet, name) — primary only
+ *   6. ReverseRegistrarAdapter.claimWithHCA(wallet, 0) — only to clear a
+ *      shadowing `addr.reverse` entry
  *
  * Price MUST be read immediately before the reveal (never cached from commit
  * time) via `readRegisterPrice`, and `approve` must approve exactly that price.
@@ -30,7 +32,7 @@ import {
   toHex,
   zeroAddress,
 } from 'viem'
-import { packetToBytes } from 'viem/ens'
+import { namehash, packetToBytes } from 'viem/ens'
 import { computeVerifiableProxyAddress } from '../../verifiable-factory'
 import {
   COIN_TYPE_ETH,
@@ -56,6 +58,10 @@ const ethRegistrarAbi = parseAbi([
 ])
 const reverseAdapterAbi = parseAbi([
   'function setNameWithHCA(address addr, string name)',
+  'function claimWithHCA(address addr, address resolver) returns (bytes32)',
+])
+const registryResolverAbi = parseAbi([
+  'function resolver(bytes32 node) view returns (address)',
 ])
 const erc20Abi = parseAbi(['function approve(address spender, uint256 amount)'])
 
@@ -80,6 +86,26 @@ export function computeResolverAddress(params: {
     deployer: params.hca,
     salt,
   })
+}
+
+/**
+ * Whether the wallet's `addr.reverse` node has a resolver. `addr.reverse`
+ * outranks `default.reverse` (ENSIP-19), so a leftover entry hides the primary
+ * name the reveal sets.
+ */
+export async function hasAddrReverseResolver(params: {
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly wallet: Address
+}): Promise<boolean> {
+  const c = getDestinationContracts(params.chainId)
+  const resolver = await params.publicClient.readContract({
+    address: c.legacyRegistry,
+    abi: registryResolverAbi,
+    functionName: 'resolver',
+    args: [namehash(ethReverseName(params.wallet))],
+  })
+  return resolver !== zeroAddress
 }
 
 /** Read the commitment hash from the registrar (matches on-chain derivation). */
@@ -202,6 +228,11 @@ export interface RevealBatchParams {
   readonly records?: readonly ResolverRecord[]
   /** When set, adds the primary-name (default.reverse) call. */
   readonly setPrimaryName?: string
+  /**
+   * With `setPrimaryName`, also clears the wallet's `addr.reverse` resolver,
+   * which would otherwise shadow the new `default.reverse` claim.
+   */
+  readonly clearAddrReverse?: boolean
 }
 
 /**
@@ -341,6 +372,20 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
         args: [params.wallet, params.setPrimaryName],
       }),
     })
+
+    // 6. clear a shadowing addr.reverse. Resolver 0 only clears it; the
+    //    validator accepts `claimWithHCA` for the owner with that resolver.
+    if (params.clearAddrReverse) {
+      calls.push({
+        to: c.reverseRegistrarHcaAdapter,
+        value: 0n,
+        data: encodeFunctionData({
+          abi: reverseAdapterAbi,
+          functionName: 'claimWithHCA',
+          args: [params.wallet, zeroAddress],
+        }),
+      })
+    }
   }
 
   // NOTE: there is no trailing `authorizeNameRoles` call. It used to grant the

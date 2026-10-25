@@ -12,7 +12,7 @@ const feeRow = (
   <PaymentMethodRow
     amount="$100.00"
     amountLabel="balance"
-    fee="Mainnet est. fee: $4.32"
+    fee="Sepolia est. fee: $4.32"
     feeTooltip="Fee explanation"
     feeTooltipLabel="What is the network fee?"
     icon={<span>$</span>}

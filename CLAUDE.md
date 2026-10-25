@@ -36,6 +36,12 @@ Every test must be able to fail when real behaviour breaks. Fewer, sharper tests
 
 Prefer `it.each` tables over copy-pasted `it` blocks that differ only by input, and file-local builders (`run(overrides)`, `makeX()`) over repeating the same args object. Reuse existing fixtures (`@ens-apps/migration/test-fixtures`, `src/test-utils`) rather than redefining them. Keep one test file per module.
 
+## Testing
+
+Run only the test files affected by your change, e.g.
+`pnpm exec vitest run --maxWorkers=4 src/features/renew` from the app directory.
+Do **not** run an app's full test suite unless asked; CI covers it.
+
 ## Package-Specific Documentation
 
 When working in specific packages, consult these design documents:

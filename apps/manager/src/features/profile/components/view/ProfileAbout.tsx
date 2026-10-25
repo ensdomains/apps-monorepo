@@ -19,6 +19,8 @@ import { getDisplayHost, getSafeProfileHref } from './ProfileView.helpers'
 const getContactRecordValue = (records: ProfileRecords | null, key: string) =>
   records?.contact.find((record) => record.key === key)?.value?.trim()
 
+// Language codes stay uppercase (EN). Place names and timezones keep the
+// saved casing, so they are not restyled as a second label.
 const formatLanguage = (language: string | undefined) =>
   language
     ?.split(',')
@@ -104,10 +106,10 @@ const AboutMetaItem = ({
 
   return (
     <div className="flex min-w-0 items-center gap-1 text-ens-quartz-700">
-      <span className="flex size-5 shrink-0 items-center justify-center text-ens-quartz-700 leading-none xl:size-6">
+      <span className="flex size-5 shrink-0 items-center justify-center text-ens-quartz-500 leading-none">
         {icon}
       </span>
-      <span className="min-w-0 text-[12px] leading-4.5 xl:text-sm xl:leading-normal">
+      <span className="min-w-0 truncate font-sans text-[13px] leading-none tracking-[0.2px]">
         {value}
       </span>
     </div>
@@ -132,7 +134,7 @@ export const ProfileAbout = ({
   const description = records?.base.description?.trim()
   const timezone = getContactRecordValue(records, 'timezone')
   const language = formatLanguage(records?.base.language)
-  const location = getContactRecordValue(records, 'location')?.toUpperCase()
+  const location = getContactRecordValue(records, 'location')
 
   const hasContent = Boolean(
     fullName || description || websiteHref || timezone || language || location,
@@ -202,7 +204,7 @@ export const ProfileAbout = ({
               <AboutMetaItem
                 icon={
                   <MSymbol
-                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
+                    className="ms-opsz-20 ms-wght-300"
                     symbol="language"
                   />
                 }
@@ -211,7 +213,7 @@ export const ProfileAbout = ({
               <AboutMetaItem
                 icon={
                   <MSymbol
-                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
+                    className="ms-opsz-20 ms-wght-300"
                     symbol="translate"
                   />
                 }
@@ -220,7 +222,7 @@ export const ProfileAbout = ({
               <AboutMetaItem
                 icon={
                   <MSymbol
-                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
+                    className="ms-opsz-20 ms-wght-300"
                     symbol="distance"
                   />
                 }

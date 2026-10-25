@@ -76,6 +76,8 @@ vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
   useConfig: () => ({}),
+  // No EIP-5792 support: the flow keeps its sequential steps.
+  useCapabilities: () => ({ data: undefined }),
   useConnection: () => ({ address: ACCOUNT }),
   usePublicClient: () => ({}),
   // The flow re-reads the allowance on start instead of trusting the cache.

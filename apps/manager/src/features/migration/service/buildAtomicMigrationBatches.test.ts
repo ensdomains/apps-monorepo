@@ -65,14 +65,31 @@ const hcaOwnerExecutionAbi = parseAbi([
 const makeName = (
   name: string,
   overrides: Parameters<typeof makeClassified>[0] = {},
-): ClassifiedName =>
-  makeClassified({
+): ClassifiedName => {
+  const classified = makeClassified({
     id: name,
     labelhash: name,
     label: name.split('.')[0],
     name,
     ...overrides,
   })
+  return classified.action === 'copy'
+    ? classified
+    : {
+        ...classified,
+        domain: {
+          ...classified.domain,
+          registration:
+            classified.parentName === 'eth'
+              ? { expiryDate: '4094668800' }
+              : null,
+          wrappedDomain: {
+            expiryDate: '4102444800',
+            fuses: Number(classified.fuses),
+          },
+        },
+      }
+}
 
 const directRoutesFor = (
   classified: readonly ClassifiedName[],
@@ -127,6 +144,26 @@ const buildPlan = (
     directRoutes: overrides.directRoutes ?? directRoutesFor(classified),
   })
 }
+
+describe('direct reservation expiry snapshots', () => {
+  it.each([5356800n, 5356801n])(
+    'keeps the exact on-chain expiry with bonus %s',
+    async (bonus) => {
+      const classified = makeName('alice.eth')
+      const expiry = 2000000000n + bonus
+      const plan = await buildPlan({
+        classified: [classified],
+        directMigrationExpiries: new Map([[classified.domain.name, expiry]]),
+      })
+      const expectations = plan.batches.flatMap(
+        (batch) => batch.verificationExpectations,
+      )
+      expect(
+        expectations.find((item) => item.type === 'name-expiry'),
+      ).toMatchObject({ expectedExpiry: expiry })
+    },
+  )
+})
 
 type OwnerExecution = {
   readonly target: Address
@@ -313,6 +350,20 @@ describe('buildAtomicMigrationBatches', () => {
     })
     const batch = plan.batches[0]
     assert(batch)
+    expect(batch.verificationExpectations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'name-expiry',
+          name: 'parent.eth',
+          expectedExpiry: 4100025601n,
+        }),
+        expect.objectContaining({
+          type: 'name-expiry',
+          name: 'sub.parent.eth',
+          expectedExpiry: 4102444800n,
+        }),
+      ]),
+    )
 
     expect(batch.names).toEqual(['parent.eth', 'sub.parent.eth'])
     expect(batch.innerExecutions.map((execution) => execution.phase)).toEqual([
@@ -384,6 +435,7 @@ describe('buildAtomicMigrationBatches', () => {
       'wallet-name-roles',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-owner-roles',
       'wrapper-subregistry',
       'wrapper-root-roles',
@@ -395,6 +447,7 @@ describe('buildAtomicMigrationBatches', () => {
       'profile-interface',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-owner-roles',
       'wrapper-subregistry',
       'wrapper-root-roles',
@@ -621,6 +674,45 @@ describe('buildAtomicMigrationBatches', () => {
         'profile-replay',
       )
     })
+  })
+
+  it('attaches a recreated child registry in the migration call without a later ETHRegistry write', async () => {
+    const root = makeName('example.eth', {
+      action: 'migrate',
+      tokenType: 'unwrapped',
+      parentName: 'eth',
+    })
+    const child = {
+      ...makeName('child.example.eth', {
+        action: 'copy',
+        tokenType: 'registry-child',
+        parentName: 'example.eth',
+        sourceExpiry: (1n << 64n) - 1n,
+      }),
+      recreationRoot: 'example.eth',
+    } as ClassifiedName
+    const plan = await buildPlan({ classified: [child, root] })
+    const batch = plan.batches[0]
+    assert(batch)
+    const migration = batch.nameExecutions.find(
+      ({ classified }) => classified.domain.name === root.domain.name,
+    )
+    expect(migration?.migrationData?.subregistry.toLowerCase()).toBe(
+      computeUserRegistryAddress({
+        hca: HCA,
+        parentName: root.domain.name,
+      }).toLowerCase(),
+    )
+    expect(batch.innerExecutions.map(({ phase }) => phase)).not.toContain(
+      'subregistry-attachment',
+    )
+    expect(
+      batch.innerExecutions.findIndex(
+        ({ phase }) => phase === 'user-registry-parent',
+      ),
+    ).toBeLessThan(
+      batch.innerExecutions.findIndex(({ phase }) => phase === 'migrate'),
+    )
   })
 
   it('builds an arbitrary-depth copy tree in dependency-safe calldata order', async () => {
@@ -981,9 +1073,11 @@ describe('buildAtomicMigrationBatches', () => {
       'wallet-name-roles',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-subregistry',
       'name-owner',
       'name-resolver',
+      'name-expiry',
       'name-subregistry',
     ])
 

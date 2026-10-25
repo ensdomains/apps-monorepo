@@ -2,6 +2,7 @@ import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { fireEvent, waitFor } from '@testing-library/react'
 import { namehash, zeroHash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { BlockedSubnameMigration } from '@/features/migration/hooks/useMigrationEligibility'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
@@ -59,13 +60,29 @@ const eligibleFixture: readonly ClassifiedName[] = [
   makeName('managed.eth', 'unwrapped', 'migrate', CONTROLLER),
 ]
 
+const eligibilityState = vi.hoisted(() => ({
+  blockedSubnames: [] as BlockedSubnameMigration[],
+  wrapperSyncNames: [] as ClassifiedName[],
+  recoveryStatus: 'none' as 'none' | 'recovering',
+}))
+
 vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
   useEligibleV1Names: () => ({
-    eligible: eligibleFixture,
+    eligible: eligibleFixture.filter(
+      ({ domain }) =>
+        eligibilityState.recoveryStatus !== 'recovering' &&
+        !eligibilityState.blockedSubnames.some(
+          ({ name }) =>
+            domain.name === name.domain.name ||
+            domain.name.endsWith(`.${name.domain.name}`),
+        ),
+    ),
+    blockedSubnames: eligibilityState.blockedSubnames,
     gracePeriodNames: [],
     unavailableNames: [],
+    wrapperSyncNames: eligibilityState.wrapperSyncNames,
     isPending: false,
-    recoveryState: { status: 'none' },
+    recoveryState: { status: eligibilityState.recoveryStatus },
   }),
 }))
 
@@ -83,9 +100,23 @@ vi.mock('@/features/migration/hooks/useSubnameMigrationImpact', () => ({
   useSubnameMigrationImpact: () => impactState,
 }))
 
+const wrapperSync = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  isPending: false,
+  error: null,
+}))
+
+vi.mock('@/features/migration/hooks/useWrapperSync', () => ({
+  useWrapperSync: () => wrapperSync,
+}))
+
 beforeEach(() => {
+  wrapperSync.mutate.mockReset()
+  eligibilityState.wrapperSyncNames = []
   impactState.status = 'ready'
   impactState.impact.parents = []
+  eligibilityState.blockedSubnames = []
+  eligibilityState.recoveryStatus = 'none'
 })
 
 // eslint-disable-next-line import/first
@@ -139,14 +170,35 @@ describe('SelectNamesStep', () => {
     expect(onNamesChange).not.toHaveBeenCalled()
   })
 
-  it('does not default-select a group with affected subnames', () => {
-    impactState.impact.parents = [{ name: 'sub1234.eth', affectedCount: 1 }]
-    const { onNamesChange } = renderStep()
-    const selected = onNamesChange.mock.calls.at(-1)?.[0] ?? []
-    expect(selected).not.toContain('sub1234.eth')
-    expect(selected).not.toContain('gm.sub1234.eth')
-    expect(selected).toContain('one.eth')
+  it('offers a sync for names whose wrapper expiry is behind the registrar', () => {
+    const stale = eligibleFixture[0]
+    if (!stale) throw new Error('Missing fixture')
+    eligibilityState.wrapperSyncNames = [stale]
+    const { getByRole } = renderStep()
+
+    fireEvent.click(getByRole('button', { name: 'Sync names' }))
+
+    expect(wrapperSync.mutate).toHaveBeenCalledOnce()
   })
+
+  it.each([
+    ['deeper-subnames', /Upgrading the whole tree is not supported yet/],
+  ] as const)(
+    'keeps a blocked %s group visible and unavailable for selection',
+    (reason, message) => {
+      impactState.impact.parents = [{ name: 'sub1234.eth', affectedCount: 1 }]
+      const parent = eligibleFixture[0]
+      if (!parent) throw new Error('Missing parent fixture')
+      eligibilityState.blockedSubnames = [{ name: parent, reason }]
+      const { onNamesChange, getByRole, getByText } = renderStep()
+      const selected = onNamesChange.mock.calls.at(-1)?.[0] ?? []
+      expect(selected).not.toContain('sub1234.eth')
+      expect(selected).not.toContain('gm.sub1234.eth')
+      expect(selected).toContain('one.eth')
+      expect(getByRole('checkbox', { name: 'sub1234.eth' })).toBeDisabled()
+      expect(getByText(message)).toBeInTheDocument()
+    },
+  )
 
   it('does not default-select names when impact cannot be checked', () => {
     impactState.status = 'error'
@@ -209,29 +261,60 @@ describe('SelectNamesStep', () => {
     expect(onNext).not.toHaveBeenCalled()
   })
 
-  it('enables upgrade once gas funding has settled', () => {
-    const { getByRole } = renderStep({
-      gasEstimate: readyGasEstimate,
+  it('enables upgrade for prepared subnames without an extra acknowledgement', async () => {
+    const parent = makeName('sub1234.eth', 'unwrapped')
+    const child = {
+      ...makeName('gm.sub1234.eth', 'registry-child', 'copy'),
+      recreationRoot: parent.domain.name,
+      tokenHolder: CONTROLLER,
+      v1ResolverAddress: '0x00000000000000000000000000000000000000a1',
+    } as ClassifiedName
+    const onNext = vi.fn(async () => true)
+    const { getByRole, queryByRole } = renderStep({
+      gasEstimate: {
+        ...readyGasEstimate,
+        plan: {
+          ...readyGasEstimate.plan,
+          classified: [parent, child],
+          subnameRecreation: {
+            version: 5,
+            roots: [parent.domain.name],
+            names: [parent.domain.name, child.domain.name],
+            blockNumber: '123',
+            blockHash: zeroHash,
+            timestamp: '1792886400',
+          },
+        },
+      },
       gasFundingStatus: 'settled',
+      onNext,
     })
-    expect(getByRole('button', { name: 'Upgrade 10 names' })).not.toBeDisabled()
+    const button = getByRole('button', { name: 'Upgrade 10 names' })
+    expect(
+      queryByRole('checkbox', {
+        name: 'I have reviewed these owners, resolvers and snapshot timing.',
+      }),
+    ).not.toBeInTheDocument()
+    expect(button).not.toBeDisabled()
+    fireEvent.click(button)
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1))
   })
 
-  it('allows retrying when upgrade start exits without transitioning', async () => {
+  it('allows finishing a cleanup-only recovery and retrying if start exits without transitioning', async () => {
+    eligibilityState.recoveryStatus = 'recovering'
     const onNext = vi.fn(async () => false)
     const { getByRole } = renderStep({
       gasEstimate: readyGasEstimate,
       onNext,
     })
 
-    const button = getByRole('button', { name: 'Upgrade 10 names' })
+    const button = getByRole('button', { name: 'Finish upgrade' })
+    expect(button).not.toBeDisabled()
     fireEvent.click(button)
 
     await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1))
     await waitFor(() => {
-      expect(
-        getByRole('button', { name: 'Upgrade 10 names' }),
-      ).not.toBeDisabled()
+      expect(getByRole('button', { name: 'Finish upgrade' })).not.toBeDisabled()
     })
   })
 

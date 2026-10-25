@@ -236,6 +236,10 @@ describe('estimateGraceRenewalMigrationGas', () => {
     expect(computeMigrationPreflight).toHaveBeenCalledWith(
       expect.objectContaining({ domains: projected, eoa: OWNER }),
     )
+    // Only renewed names carry a projected expiry the chain doesn't show yet.
+    expect(
+      vi.mocked(buildMigrationPlan).mock.calls[0]?.[0].projectedExpiryNames,
+    ).toEqual(new Set([unwrapped.name, wrapped.name]))
     expect(unwrapped.registration?.expiryDate).toBe(EXPIRY.toString())
     expect(wrapped.wrappedDomain?.expiryDate).toBe(
       (EXPIRY + 90n * DAY).toString(),

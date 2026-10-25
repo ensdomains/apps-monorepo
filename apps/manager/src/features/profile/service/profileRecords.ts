@@ -16,11 +16,12 @@ import {
   getContentHashParameters,
   getTextParameters,
 } from '@ensdomains/ensjs/utils'
-import { errAsync, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
+import { err, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
+import type { PublicClient } from 'viem'
 import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
+import { publicClient } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { isDebugProfileName } from '@/utils/debug-features'
 import {
   addressRecords,
   alwaysProbeAddressRecords,
@@ -28,8 +29,15 @@ import {
   staticTextRecords,
   textRecords,
 } from '../data/records'
-import { DEBUG_PROFILE } from '../MOCK'
+import { getDebugProfileRecords } from '../MOCK'
+import {
+  hasV2NameEntry,
+  NameRegistryNotFoundError,
+  readNameResolver,
+  resolveNameRegistry,
+} from './changeResolver'
 import { decodeCoinResult } from './decodeCoinRecord'
+import { readResolverRecords } from './resolverImport'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
@@ -68,20 +76,17 @@ const isSupportedCoinType = (coinType: number): boolean =>
 const MAX_RESOLVER_SPLIT_DEPTH = 1
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
-  if (isDebugProfileName(name)) {
-    return ok(DEBUG_PROFILE)
-  }
+  const debugProfile = getDebugProfileRecords(name)
+  if (debugProfile) return ok(debugProfile)
 
   const client = yield* safeGetClient()
   // A name bigname has not indexed has no indexed keys; the static ones still apply.
   const recordKeys = yield* bigname
     .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
     .map(({ data }) => parseKnownKeys(data.inventory?.known_keys ?? []))
-    .orElse((error) =>
-      error.code === 'not_found'
-        ? okAsync(parseKnownKeys([]))
-        : errAsync(new GetProfileRecordsError({ cause: error })),
-    )
+    // Viewing/editing commonly used fields remains possible while the index
+    // is unavailable. Resolver replacement performs a separate warned import.
+    .orElse(() => okAsync(parseKnownKeys([])))
 
   const texts = unique([
     ...staticTextRecords,
@@ -97,6 +102,49 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     ...addressRecords.map((record) => record.coinType),
     ...recordKeys.coins,
   ]).filter(isSupportedCoinType)
+
+  const v2Source = yield* fromPromise(
+    (async () => {
+      try {
+        const location = await resolveNameRegistry(name)
+        if (!(await hasV2NameEntry(location, publicClient as PublicClient)))
+          return { resolver: undefined, hasV2Entry: false }
+        const resolver = await readNameResolver(
+          location,
+          publicClient as PublicClient,
+        )
+        if (resolver.toLowerCase() !== zeroAddress)
+          return { resolver, hasV2Entry: false }
+        return {
+          resolver: undefined,
+          hasV2Entry: true,
+        }
+      } catch (error) {
+        if (!(error instanceof NameRegistryNotFoundError)) throw error
+      }
+      return { resolver: undefined, hasV2Entry: false }
+    })(),
+    (error) => new GetProfileRecordsError({ cause: error }),
+  )
+  if (v2Source.hasV2Entry)
+    return ok({ texts: [], coins: [] } satisfies ProfileRecordsResult)
+  if (v2Source.resolver) {
+    const { records, readErrors } = yield* fromPromise(
+      readResolverRecords({
+        name,
+        resolver: v2Source.resolver,
+        texts,
+        coins,
+        publicClient: publicClient as PublicClient,
+        shouldDecodeStrictly: false,
+      }),
+      (error) => new GetProfileRecordsError({ cause: error }),
+    )
+    // Unsupported probes are expected; failed reads must reach query retry/error handling.
+    if (readErrors.length)
+      return err(new GetProfileRecordsError({ cause: readErrors[0] }))
+    return ok(records)
+  }
 
   const data = [
     ...texts.map((key) => encodeFunctionData(getTextParameters({ name, key }))),

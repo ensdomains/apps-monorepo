@@ -160,12 +160,12 @@ const StepCopy = ({ step }: StepCopyProps) =>
         ) : (
           <>
             <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
-              <Trans>Allow manager changes</Trans>
+              <Trans>Allow registry setup</Trans>
             </h3>
             <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
               <Trans>
-                A temporary permission on the ENS registry. No managers are
-                being added in this upgrade.
+                Allow your smart account to configure your upgraded names and
+                their subnames. No managers are being added in this upgrade.
               </Trans>
             </p>
           </>
@@ -219,6 +219,24 @@ const StepCopy = ({ step }: StepCopyProps) =>
         </p>
       </>
     ))
+    .with({ type: 'bundle' }, ({ steps }) => (
+      <>
+        <p className="font-semi-mono text-ens-garnet-800/60 text-xs uppercase">
+          <Plural
+            one="# step in one request"
+            other="# steps in one request"
+            value={steps.length}
+          />
+        </p>
+        <ul className="flex flex-col gap-3">
+          {steps.map((inner) => (
+            <li className="flex flex-col gap-1" key={stepKey(inner)}>
+              <StepCopy step={inner} />
+            </li>
+          ))}
+        </ul>
+      </>
+    ))
     .exhaustive()
 
 const stepKey = (step: MigrationWalletRequestDescriptor): string =>
@@ -234,6 +252,7 @@ const stepKey = (step: MigrationWalletRequestDescriptor): string =>
     .with({ type: 'atomic-batch' }, ({ index }) => `atomic-batch-${index}`)
     .with({ type: 'record-replay' }, ({ index }) => `record-replay-${index}`)
     .with({ type: 'cleanup' }, ({ approvalId }) => `cleanup-${approvalId}`)
+    .with({ type: 'bundle' }, ({ steps }) => steps.map(stepKey).join('+'))
     .exhaustive()
 
 type WalletConfirmationStepsDialogProps = {

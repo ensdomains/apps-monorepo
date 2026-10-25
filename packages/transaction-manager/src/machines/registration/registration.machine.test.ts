@@ -3,14 +3,22 @@ import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { createActor, fromPromise, waitFor } from 'xstate'
 import {
+  CallsBundleTimeoutError,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
   TransactionUserRejectedError,
 } from '../../errors/transaction.errors'
-import type { Signer } from '../../types/signer.types'
+import { transactionManager } from '../../providers/transactionManager'
+import type { L2FundingSource, Signer } from '../../types/signer.types'
 import type { TransactionRequest } from '../../types/transaction.types'
-import type { HcaSessionEnableParams } from './registration.hca.actors'
-import { registrationMachine } from './registration.machine'
+import {
+  type HcaSessionEnableParams,
+  L2_BRIDGE_CLAIMABLE_MS,
+} from './registration.hca.actors'
+import {
+  registrationMachine,
+  type UnsettledL2Bridge,
+} from './registration.machine'
 
 const HCA = '0xaaaa000000000000000000000000000000000001' as Address
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
@@ -62,6 +70,12 @@ const startHcaRegistration = (overrides: {
   validateCommitment?: ReturnType<typeof vi.fn>
   /** Orchestrator status lookup for the reveal intent. */
   fetchIntentStatus?: (intentId: bigint) => Promise<string | null>
+  /** Funds the HCA from an L2 instead of with a permit. */
+  l2Funding?: L2FundingSource
+  displayedL2Charge?: bigint
+  unsettledL2Bridge?: UnsettledL2Bridge
+  submitL2Bridge?: ReturnType<typeof vi.fn>
+  awaitL2Bridge?: ReturnType<typeof vi.fn>
 }) => {
   const estimateHcaBudget =
     overrides.estimateHcaBudget ??
@@ -81,6 +95,10 @@ const startHcaRegistration = (overrides: {
     overrides.submitFundingAndCommit ??
     vi.fn(() => new Promise(() => {})) /* park: assertions stop here */
 
+  const submitL2Bridge =
+    overrides.submitL2Bridge ?? vi.fn(async () => 'tx-reg-l2-bridge')
+  const awaitL2Bridge = overrides.awaitL2Bridge ?? vi.fn(async () => 'landed')
+
   const balances = overrides.balances ?? [0n]
   let fundingChecks = 0
 
@@ -99,6 +117,8 @@ const startHcaRegistration = (overrides: {
         ) as never,
         signFundingPermit: fromPromise(signFundingPermit) as never,
         submitFundingAndCommit: fromPromise(submitFundingAndCommit) as never,
+        submitL2Bridge: fromPromise(submitL2Bridge) as never,
+        awaitL2Bridge: fromPromise(awaitL2Bridge) as never,
         ...(overrides.pollTransactionStatus && {
           pollTransactionStatus: fromPromise(
             overrides.pollTransactionStatus,
@@ -115,29 +135,45 @@ const startHcaRegistration = (overrides: {
   )
 
   actor.start()
-  actor.send({
-    type: 'START_REGISTRATION',
-    name: 'myname.eth',
-    duration: 31_536_000n,
-    token: 'USDC',
-    price: 5_000_000n,
-    signer: { type: 'rhinestone' } as unknown as Signer,
-    accountAddress: HCA,
-    ownerAddress: WALLET,
-    publicClient: { chain: sepolia } as unknown as PublicClient,
-    hcaSessionEnable: overrides.hcaSessionEnable ?? SESSION_ENABLE,
-    ...(overrides.hcaBudget !== undefined
-      ? { hcaBudget: overrides.hcaBudget }
-      : {}),
-    ...(overrides.displayedWalletDebit !== undefined
-      ? { displayedWalletDebit: overrides.displayedWalletDebit }
-      : {}),
-    ...(overrides.fetchIntentStatus
-      ? { fetchIntentStatus: overrides.fetchIntentStatus }
-      : {}),
-  })
+  const start = () =>
+    actor.send({
+      type: 'START_REGISTRATION',
+      name: 'myname.eth',
+      duration: 31_536_000n,
+      token: 'USDC',
+      price: 5_000_000n,
+      signer: { type: 'rhinestone' } as unknown as Signer,
+      accountAddress: HCA,
+      ownerAddress: WALLET,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+      hcaSessionEnable: overrides.hcaSessionEnable ?? SESSION_ENABLE,
+      ...(overrides.hcaBudget !== undefined
+        ? { hcaBudget: overrides.hcaBudget }
+        : {}),
+      ...(overrides.displayedWalletDebit !== undefined
+        ? { displayedWalletDebit: overrides.displayedWalletDebit }
+        : {}),
+      ...(overrides.fetchIntentStatus
+        ? { fetchIntentStatus: overrides.fetchIntentStatus }
+        : {}),
+      ...(overrides.l2Funding ? { l2Funding: overrides.l2Funding } : {}),
+      ...(overrides.displayedL2Charge !== undefined
+        ? { displayedL2Charge: overrides.displayedL2Charge }
+        : {}),
+      unsettledL2Bridge: overrides.unsettledL2Bridge,
+    })
+  start()
 
-  return { actor, estimateHcaBudget, signFundingPermit, submitFundingAndCommit }
+  return {
+    actor,
+    /** Starts another run on the same actor, as a changed label does. */
+    start,
+    estimateHcaBudget,
+    signFundingPermit,
+    submitFundingAndCommit,
+    submitL2Bridge,
+    awaitL2Bridge,
+  }
 }
 
 const EOA_RESOLVER = '0xcccc000000000000000000000000000000000003' as Address
@@ -160,6 +196,11 @@ const startEoaRegistration = (overrides: {
   /** Stubbed only by the tests that walk past the commit. */
   submitRegistration?: ReturnType<typeof vi.fn>
   verifyRegistration?: ReturnType<typeof vi.fn>
+  /** The wallet bundles atomically (EIP-5792). */
+  canBatchAtomically?: boolean
+  submitEoaSetupBundle?: ReturnType<typeof vi.fn>
+  pollTransactionStatus?: ReturnType<typeof vi.fn>
+  validateCommitment?: ReturnType<typeof vi.fn>
 }) => {
   const checkResolverDeployment =
     overrides.checkResolverDeployment ??
@@ -180,6 +221,9 @@ const startEoaRegistration = (overrides: {
   const verifyRegistration =
     overrides.verifyRegistration ??
     vi.fn(async () => ({ verified: false, registeredToOther: false }))
+  const submitEoaSetupBundle =
+    overrides.submitEoaSetupBundle ??
+    vi.fn(async () => ({ txId: 'setup-bundle-tx', approvedPrice: 10n }))
 
   const actor = createActor(
     registrationMachine.provide({
@@ -191,9 +235,17 @@ const startEoaRegistration = (overrides: {
         ) as never,
         generateCommitment: fromPromise(generateCommitment) as never,
         submitCommitment: fromPromise(submitCommitment) as never,
+        submitEoaSetupBundle: fromPromise(submitEoaSetupBundle) as never,
         // The cooldown spine: nothing to assert on, so each step resolves
         // straight through to the reveal.
-        pollTransactionStatus: fromPromise(async () => undefined) as never,
+        pollTransactionStatus: fromPromise(
+          overrides.pollTransactionStatus ?? (async () => undefined),
+        ) as never,
+        ...(overrides.validateCommitment && {
+          validateCommitment: fromPromise(
+            overrides.validateCommitment,
+          ) as never,
+        }),
         readMinCommitmentAge: fromPromise(async () => 0n) as never,
         readPaymentAuthorization: fromPromise(async () => ({
           allowance: 10n,
@@ -218,6 +270,7 @@ const startEoaRegistration = (overrides: {
     accountAddress: WALLET,
     ownerAddress: WALLET,
     publicClient: { chain: sepolia } as unknown as PublicClient,
+    canBatchAtomically: overrides.canBatchAtomically,
   })
 
   return {
@@ -226,6 +279,7 @@ const startEoaRegistration = (overrides: {
     deployResolver,
     generateCommitment,
     submitCommitment,
+    submitEoaSetupBundle,
     submitRegistration,
     verifyRegistration,
   }
@@ -383,6 +437,340 @@ describe('registrationMachine — standalone-HCA funding', () => {
   })
 })
 
+describe('registrationMachine — paid from an L2', () => {
+  const l2Funding = { chain: { id: 84532 } } as unknown as L2FundingSource
+
+  it('bridges the shortfall in from the L2 instead of a permit, then commits as usual', async () => {
+    const balance = 1_000_000n
+    const { actor, signFundingPermit, submitL2Bridge, submitFundingAndCommit } =
+      startHcaRegistration({
+        balances: [balance],
+        displayedWalletDebit: BUDGET - balance,
+        l2Funding,
+        pollTransactionStatus: vi.fn(async () => undefined),
+      })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    expect(submitL2Bridge.mock.calls[0][0].input.payment).toEqual({
+      source: l2Funding,
+      // What the permit would have carried, bounded the same way.
+      amount: BUDGET - balance,
+      bounds: {
+        expectedMaximum: 30_000_000n - balance,
+        displayedValue: BUDGET - balance,
+      },
+    })
+    // The Sepolia commit leg, with no permit left to carry.
+    const { input } = submitFundingAndCommit.mock.calls[0][0]
+    expect(input.permit).toBeUndefined()
+    expect(input.sessionEnable).toBe(SESSION_ENABLE)
+  })
+
+  it('bridges nothing when the HCA already holds the budget', async () => {
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      balances: [BUDGET],
+      l2Funding,
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(submitL2Bridge).not.toHaveBeenCalled()
+  })
+
+  it('bridges the whole budget when the balance read fails', async () => {
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      readHcaUsdcBalance: vi.fn(async () => {
+        throw new Error('rpc down')
+      }),
+      l2Funding,
+    })
+
+    await waitFor(actor, (s) => s.matches('bridgingFromL2'))
+
+    expect(submitL2Bridge.mock.calls[0][0].input.payment.amount).toBe(BUDGET)
+  })
+
+  it('re-reads the balance on retry, so a bridge that landed is not paid twice', async () => {
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      balances: [0n, BUDGET],
+      l2Funding,
+      pollTransactionStatus: vi.fn(async () => {
+        throw new Error('lost track of the fill')
+      }),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(submitL2Bridge).toHaveBeenCalledOnce()
+  })
+
+  // The balance alone can't tell a bridge still filling from one never sent.
+  const sentBridge = () =>
+    vi.fn(
+      async ({
+        input,
+      }: {
+        input: { onIntentSubmitted?: (intentId: bigint) => void }
+      }) => {
+        input.onIntentSubmitted?.(9n)
+        return 'tx-reg-l2-bridge'
+      },
+    )
+
+  it('settles a sent bridge on retry instead of paying again', async () => {
+    const { actor, submitL2Bridge, awaitL2Bridge } = startHcaRegistration({
+      // Still filling when the retry reads the balance.
+      balances: [0n, 0n],
+      l2Funding,
+      submitL2Bridge: sentBridge(),
+      pollTransactionStatus: vi.fn(async () => {
+        throw new Error('lost track of the fill')
+      }),
+    })
+
+    const sentAt = Date.now()
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.unsettledL2Bridge).toEqual({
+      intentId: 9n,
+      claimableUntil: expect.any(Number),
+      fundsHcaTo: BUDGET,
+    })
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    const { input } = awaitL2Bridge.mock.calls[0][0]
+    expect(input.intentId).toBe(9n)
+    // Its permit may still be claimed until then, however long it stays unknown.
+    expect(input.claimableUntil).toBeGreaterThanOrEqual(
+      sentAt + L2_BRIDGE_CLAIMABLE_MS,
+    )
+    expect(submitL2Bridge).toHaveBeenCalledOnce()
+    expect(actor.getSnapshot().context.unsettledL2Bridge).toBeUndefined()
+  })
+
+  it('pays again once the sent bridge is dead', async () => {
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      balances: [0n, 0n],
+      l2Funding,
+      submitL2Bridge: sentBridge(),
+      awaitL2Bridge: vi.fn(async () => 'dead'),
+      pollTransactionStatus: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('intent failed'))
+        .mockImplementation(() => new Promise(() => {})),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length === 2)
+  })
+
+  // The next run must neither take a cancelled run's payment over (same tx
+  // id) nor pay alongside it, as that payment was sized for the old name.
+  it("waits out a cancelled run's running bridge, then bridges the rest", async () => {
+    const PRICIER = BUDGET + 3_000_000n
+    const reads: (bigint | undefined)[] = []
+    let fill = () => {}
+    const { actor, start, submitL2Bridge } = startHcaRegistration({
+      estimateHcaBudget: vi
+        .fn()
+        .mockResolvedValueOnce({ total: BUDGET, expectedMaximum: PRICIER })
+        .mockResolvedValue({ total: PRICIER, expectedMaximum: PRICIER }),
+      readHcaUsdcBalance: vi.fn(
+        async ({ input }: { input: { atLeast?: bigint } }) => {
+          reads.push(input.atLeast)
+          return reads.length === 1 ? 0n : BUDGET
+        },
+      ),
+      l2Funding,
+      pollTransactionStatus: vi
+        .fn()
+        .mockReturnValueOnce(new Promise(() => {}))
+        .mockReturnValueOnce(
+          new Promise<void>((resolve) => {
+            fill = resolve
+          }),
+        )
+        .mockReturnValue(new Promise(() => {})),
+    })
+
+    await waitFor(actor, (s) => s.matches('waitingForL2Bridge'))
+    actor.send({ type: 'CANCEL' })
+    start()
+    await waitFor(actor, (s) => s.matches('awaitingPriorL2BridgeTx'))
+    // The old payment's intent is accepted while the new run waits.
+    submitL2Bridge.mock.calls[0][0].input.onIntentSubmitted(9n)
+    expect(actor.getSnapshot().context).toMatchObject({
+      unsettledL2Bridge: { intentId: 9n, fundsHcaTo: BUDGET },
+      isL2BridgeFromPriorRun: true,
+    })
+    fill()
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length === 2)
+
+    expect(reads).toEqual([undefined, BUDGET])
+    expect(submitL2Bridge.mock.calls[1][0].input.payment.amount).toBe(
+      PRICIER - BUDGET,
+    )
+    expect(actor.getSnapshot().context.unsettledL2Bridge).toBeUndefined()
+  })
+
+  // Resuming re-quotes the budget, which may have outgrown the run's bridge.
+  it("bridges the rest when a resumed run's own bridge no longer covers it", async () => {
+    const PRICIER = BUDGET + 3_000_000n
+    const reads: (bigint | undefined)[] = []
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      estimateHcaBudget: vi
+        .fn()
+        .mockReturnValueOnce(new Promise(() => {}))
+        .mockResolvedValue({ total: PRICIER, expectedMaximum: PRICIER }),
+      readHcaUsdcBalance: vi.fn(
+        async ({ input }: { input: { atLeast?: bigint } }) => {
+          reads.push(input.atLeast)
+          return reads.length === 1 ? 0n : BUDGET
+        },
+      ),
+      l2Funding,
+    })
+
+    actor.send({ type: 'SUSPEND' })
+    actor.send({
+      type: 'RESUME',
+      stage: 'checkingHcaFunding',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        unsettledL2Bridge: {
+          intentId: 9n,
+          claimableUntil: 0,
+          fundsHcaTo: BUDGET,
+        },
+        isL2BridgeFromPriorRun: false,
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        l2Funding,
+      },
+    })
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length > 0)
+
+    expect(reads).toEqual([undefined, BUDGET])
+    expect(submitL2Bridge.mock.calls[0][0].input.payment.amount).toBe(
+      PRICIER - BUDGET,
+    )
+  })
+
+  // A cancelled run's bridge may still arrive, and was sized for that run.
+  const cancelledRunBridge = (fundsHcaTo: bigint) => ({
+    intentId: 9n,
+    claimableUntil: 0,
+    fundsHcaTo,
+  })
+
+  it("waits for a cancelled run's bridge, then reads the balance again", async () => {
+    const reads: (bigint | undefined)[] = []
+    // Short before the old bridge lands, covered after.
+    const balances = [0n, BUDGET]
+    const { actor, submitL2Bridge, awaitL2Bridge, submitFundingAndCommit } =
+      startHcaRegistration({
+        readHcaUsdcBalance: vi.fn(
+          async ({ input }: { input: { atLeast?: bigint } }) => {
+            reads.push(input.atLeast)
+            return balances[reads.length - 1]
+          },
+        ),
+        l2Funding,
+        unsettledL2Bridge: cancelledRunBridge(BUDGET),
+      })
+
+    await waitFor(actor, () => submitFundingAndCommit.mock.calls.length > 0)
+
+    expect(awaitL2Bridge.mock.calls[0][0].input.intentId).toBe(9n)
+    // Only a read that shows the bridge decides: a lagging one would pay again.
+    expect(reads).toEqual([undefined, BUDGET])
+    expect(submitL2Bridge).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.unsettledL2Bridge).toBeUndefined()
+    expect(actor.getSnapshot().context.hcaBalanceFloor).toBeUndefined()
+  })
+
+  // A reload mid-read must still find the bridge, or it would pay again.
+  it("keeps a cancelled run's landed bridge until the read shows it", async () => {
+    const { actor } = startHcaRegistration({
+      readHcaUsdcBalance: vi.fn(({ input }: { input: { atLeast?: bigint } }) =>
+        input.atLeast === undefined
+          ? Promise.resolve(0n)
+          : new Promise(() => {}),
+      ),
+      l2Funding,
+      unsettledL2Bridge: cancelledRunBridge(BUDGET),
+    })
+
+    await waitFor(
+      actor,
+      () => actor.getSnapshot().context.hcaBalanceFloor !== undefined,
+    )
+
+    expect(actor.getSnapshot().value).toBe('checkingHcaFunding')
+    expect(actor.getSnapshot().context.unsettledL2Bridge?.intentId).toBe(9n)
+  })
+
+  it("reads the balance plainly after a cancelled run's dead bridge", async () => {
+    const reads: (bigint | undefined)[] = []
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      readHcaUsdcBalance: vi.fn(
+        async ({ input }: { input: { atLeast?: bigint } }) => {
+          reads.push(input.atLeast)
+          return 0n
+        },
+      ),
+      l2Funding,
+      unsettledL2Bridge: cancelledRunBridge(BUDGET),
+      awaitL2Bridge: vi.fn(async () => 'dead'),
+    })
+
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length > 0)
+
+    expect(reads).toEqual([undefined, undefined])
+  })
+
+  it("bridges the rest when a cancelled run's bridge does not cover this one", async () => {
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      balances: [0n, 1_000_000n],
+      l2Funding,
+      unsettledL2Bridge: cancelledRunBridge(1_000_000n),
+    })
+
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length > 0)
+
+    expect(submitL2Bridge.mock.calls[0][0].input.payment.amount).toBe(
+      BUDGET - 1_000_000n,
+    )
+  })
+
+  it('carries what checkout showed the L2 charging into the bridge', async () => {
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      l2Funding,
+      displayedL2Charge: 10_050_000n,
+    })
+
+    await waitFor(actor, () => submitL2Bridge.mock.calls.length > 0)
+
+    expect(submitL2Bridge.mock.calls[0][0].input.payment.displayedCharge).toBe(
+      10_050_000n,
+    )
+  })
+})
+
 describe('registrationMachine — pure-EOA commitment retry', () => {
   it('regenerates the commitment on retry instead of committing nothing', async () => {
     // A failed generation leaves `commitment` unset. Retrying the commit
@@ -468,6 +856,141 @@ describe('registrationMachine — pure-EOA resolver reuse', () => {
     expect(checkResolverDeployment).toHaveBeenCalledTimes(2)
     expect(deployResolver).toHaveBeenCalledOnce()
     expect(actor.getSnapshot().context.resolverAddress).toBe(EOA_RESOLVER)
+  })
+})
+
+describe('registrationMachine — pure-EOA setup bundle (EIP-5792)', () => {
+  it('sends resolver, commit and approval as one bundle, then registers', async () => {
+    const {
+      actor,
+      deployResolver,
+      submitCommitment,
+      submitEoaSetupBundle,
+      submitRegistration,
+    } = startEoaRegistration({ canBatchAtomically: true })
+
+    await waitFor(actor, (s) => s.matches('registeringDomain'))
+
+    expect(submitEoaSetupBundle).toHaveBeenCalledOnce()
+    expect(submitEoaSetupBundle.mock.calls[0][0].input).toMatchObject({
+      commitment: EOA_COMMITMENT,
+      resolverOwner: WALLET,
+      shouldDeployResolver: true,
+    })
+    // Nothing goes out one by one.
+    expect(deployResolver).not.toHaveBeenCalled()
+    expect(submitCommitment).not.toHaveBeenCalled()
+    // The commitment names the resolver the bundle deploys.
+    expect(submitRegistration.mock.calls[0][0].input.resolverAddress).toBe(
+      EOA_RESOLVER,
+    )
+    expect(actor.getSnapshot().context.tokenPrice).toBe(10n)
+  })
+
+  it('leaves a resolver that is already deployed out of the bundle', async () => {
+    const { actor, submitEoaSetupBundle } = startEoaRegistration({
+      canBatchAtomically: true,
+      checkResolverDeployment: vi.fn(async () => ({
+        resolverAddress: EOA_RESOLVER,
+        deployed: true,
+      })),
+    })
+
+    await waitFor(actor, (s) => s.matches('registeringDomain'))
+
+    expect(
+      submitEoaSetupBundle.mock.calls[0][0].input.shouldDeployResolver,
+    ).toBe(false)
+  })
+
+  it('re-reads the resolver before resending a failed bundle', async () => {
+    const checkResolverDeployment = vi
+      .fn()
+      .mockResolvedValueOnce({ resolverAddress: EOA_RESOLVER, deployed: false })
+      .mockResolvedValue({ resolverAddress: EOA_RESOLVER, deployed: true })
+    const submitEoaSetupBundle = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('wallet hiccup'))
+      .mockResolvedValue({ txId: 'setup-bundle-tx', approvedPrice: null })
+    const { actor } = startEoaRegistration({
+      canBatchAtomically: true,
+      checkResolverDeployment,
+      submitEoaSetupBundle,
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe('checkingResolver')
+
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('registeringDomain'))
+
+    expect(checkResolverDeployment).toHaveBeenCalledTimes(2)
+    expect(
+      submitEoaSetupBundle.mock.calls[1][0].input.shouldDeployResolver,
+    ).toBe(false)
+  })
+
+  it('waits on a timed-out bundle again instead of resending it', async () => {
+    const hasTimedOutBundle = vi
+      .spyOn(transactionManager, 'hasTimedOutBundle')
+      .mockReturnValue(true)
+    const resumeTimedOutBundle = vi
+      .spyOn(transactionManager, 'resumeTimedOutBundle')
+      .mockReturnValue(true)
+    const { actor, generateCommitment, submitEoaSetupBundle } =
+      startEoaRegistration({
+        canBatchAtomically: true,
+        pollTransactionStatus: vi
+          .fn()
+          .mockRejectedValueOnce(new CallsBundleTimeoutError('0x01', 1))
+          .mockResolvedValue(undefined),
+        // Still pending, so the commitment isn't on-chain yet.
+        validateCommitment: vi.fn(async () => {
+          throw new Error('Commitment not found')
+        }),
+      })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('registeringDomain'))
+
+    expect(resumeTimedOutBundle).toHaveBeenCalledWith('setup-bundle-tx')
+    expect(submitEoaSetupBundle).toHaveBeenCalledOnce()
+    expect(generateCommitment).toHaveBeenCalledOnce()
+    hasTimedOutBundle.mockRestore()
+    resumeTimedOutBundle.mockRestore()
+  })
+
+  it('keeps the sequential steps when the wallet does not bundle', async () => {
+    const { actor, deployResolver, submitEoaSetupBundle } =
+      startEoaRegistration({ canBatchAtomically: false })
+
+    await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+    expect(deployResolver).toHaveBeenCalledOnce()
+    expect(submitEoaSetupBundle).not.toHaveBeenCalled()
+  })
+
+  it('never bundles for an HCA signer', () => {
+    const actor = createActor(registrationMachine, {
+      input: { chainId: sepolia.id },
+    })
+    actor.start()
+    actor.send({
+      type: 'START_REGISTRATION',
+      name: 'myname.eth',
+      duration: 31_536_000n,
+      token: 'USDC',
+      price: 5_000_000n,
+      signer: { type: 'rhinestone' } as unknown as Signer,
+      accountAddress: HCA,
+      ownerAddress: WALLET,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+      canBatchAtomically: true,
+    })
+
+    expect(actor.getSnapshot().matches('computingHcaBudget')).toBe(true)
+    actor.stop()
   })
 })
 
@@ -884,6 +1407,68 @@ describe('registrationMachine — RESUME', () => {
     // consume it treat "present" as "valid".
     expect(context.permit).toBeUndefined()
     expect(context.hcaBudget).toBeUndefined()
+    actor.stop()
+  })
+
+  it('waits for a stored L2 bridge instead of paying again', async () => {
+    const submitL2Bridge = vi.fn(async () => 'tx-reg-l2-bridge')
+    const awaitL2Bridge = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          estimateHcaBudget: fromPromise(async () => ({
+            total: BUDGET,
+            commitCost: 4_000_000n,
+            registerCost: 6_000_000n,
+            registrationPrice: 5_000_000n,
+            expectedMaximum: 30_000_000n,
+            source: 'quote' as const,
+          })) as never,
+          // The bridge has not landed yet.
+          readHcaUsdcBalance: fromPromise(async () => 0n) as never,
+          submitL2Bridge: fromPromise(submitL2Bridge) as never,
+          awaitL2Bridge: fromPromise(awaitL2Bridge) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'waitingForL2Bridge',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'rhinestone',
+        accountAddress: HCA,
+        ownerAddress: WALLET,
+        l2FundingChainId: 84532,
+        unsettledL2Bridge: {
+          intentId: 9n,
+          claimableUntil: 0,
+          fundsHcaTo: BUDGET,
+        },
+      },
+      deps: {
+        signer: { type: 'rhinestone' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+        hcaSessionEnable: SESSION_ENABLE,
+        l2Funding: { chain: { id: 84532 } } as unknown as L2FundingSource,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('awaitingL2Bridge'))
+
+    expect(awaitL2Bridge).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({ intentId: 9n }),
+      }),
+    )
+    expect(submitL2Bridge).not.toHaveBeenCalled()
     actor.stop()
   })
 

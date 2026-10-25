@@ -4,6 +4,7 @@ import {
   encodeFunctionData,
   erc20Abi,
   type Hex,
+  isAddressEqual,
   type WalletClient,
 } from 'viem'
 
@@ -34,6 +35,42 @@ export function toEoaCustomIntent(params: {
       value: params.value ?? 0n,
       chainId: params.chainId,
       ...(params.gas != null ? { gas: params.gas } : {}),
+    },
+  }
+}
+
+/**
+ * Several EOA intents as one atomic EIP-5792 bundle, executed in order — one
+ * wallet confirmation. Per-call gas caps are dropped: the wallet estimates the
+ * bundle as a whole. Only build one when the wallet reports atomic support.
+ */
+export function toEoaBatchIntent(
+  intents: readonly CustomTransactionIntent[],
+): CustomTransactionIntent {
+  const requests = intents.map(({ request }) => request)
+  const [first] = requests
+  if (!first) throw new Error('A bundle needs at least one call')
+  const calls = requests.map((request) => {
+    if (
+      request.type !== 'eoa' ||
+      !isAddressEqual(request.from, first.from) ||
+      request.chainId !== first.chainId
+    ) {
+      throw new Error('Only EOA calls from one account and chain can bundle')
+    }
+    return {
+      to: request.to,
+      data: request.data ?? '0x',
+      value: request.value ?? 0n,
+    }
+  })
+  return {
+    type: 'custom',
+    request: {
+      type: 'eoa-batch',
+      from: first.from,
+      chainId: first.chainId,
+      calls,
     },
   }
 }

@@ -15,12 +15,15 @@ vi.mock('@/utils/debug-features', () => ({
   isDebugProfileName: mocks.isDebugProfileName,
 }))
 vi.mock('@/features/profile/MOCK', () => ({
-  DEBUG_PROFILE: {
-    texts: [
-      { key: 'theme', value: '#123456' },
-      { key: 'description', value: 'Profile only' },
-    ],
-  },
+  getDebugProfileRecords: () =>
+    mocks.isDebugProfileName()
+      ? {
+          texts: [
+            { key: 'theme', value: '#123456' },
+            { key: 'description', value: 'Profile only' },
+          ],
+        }
+      : undefined,
 }))
 
 import { getNameRowRecords, nameRowRecordsQuery } from './nameRowRecordsQuery'

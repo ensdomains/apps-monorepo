@@ -15,10 +15,13 @@
  *     validator keeps no session state. `sponsored: { gas:false,
  *     bridging:false, swaps:false }`, `feeAsset: 'USDC'` — execution costs are
  *     refunded from the HCA's USDC.
+ *     Paid from an L2, the permit pair is replaced by an L2 bridge before the
+ *     commit (`submitL2BridgeActor`): the wallet signs an intent there that
+ *     delivers the same amount to the HCA and runs nothing on Sepolia.
  *   - Reveal leg (after cooldown, session-signed, no wallet prompt):
  *       price re-read immediately before; exact-ordered reveal batch from
  *       `buildRevealBatch` (deployProxy? → approve(price) → register(wallet) →
- *       setters → setNameWithHCA?).
+ *       setters → setNameWithHCA? → claimWithHCA?).
  */
 
 import { requireChainId } from '@ens-apps/config'
@@ -32,6 +35,8 @@ import {
   type HcaBudgetBreakdown,
   type Call as HcaCall,
   type HcaLeg,
+  hasAddrReverseResolver,
+  L2_BRIDGE_MAX_PERMIT_LIFETIME_S,
   type QuoteLegResult,
   readCommitment,
   readQuotedGasRefunds,
@@ -39,6 +44,7 @@ import {
   registerLegGasLimit,
   withBudgetDrift,
 } from '@ens-apps/smart-account'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { ethRegistrarCommitmentsSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import {
   permissionedRegistryGetResolverSnippet,
@@ -50,6 +56,8 @@ import {
   errAsync,
   fromPromise,
   fromThrowable,
+  ok,
+  type Result,
   type ResultAsync,
 } from 'neverthrow'
 import type {
@@ -74,7 +82,11 @@ import {
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
 import { normalize } from 'viem/ens'
 import { transactionManager } from '../../providers/transactionManager'
-import type { RhinestoneSigner, Signer } from '../../types/signer.types'
+import type {
+  L2FundingSource,
+  RhinestoneSigner,
+  Signer,
+} from '../../types/signer.types'
 import type {
   Call,
   RhinestoneTransactionRequest,
@@ -84,6 +96,7 @@ import {
   type DaiPermitSignature,
   type PermitSignature,
   pollUntilVerified,
+  sleepUnlessAborted,
   type VerifyPollOptions,
 } from './registration.actors'
 
@@ -488,7 +501,9 @@ export function estimateHcaBudgetActor(input: {
             // → 3277666 both times). The rail prices `/intents/route` purely
             // on `destinationGasUnits`, so what actually funds these calls is
             // `registerLegGasLimit` below, built from the same inputs.
-            ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
+            ...(input.primaryName
+              ? { setPrimaryName: input.primaryName, clearAddrReverse: true }
+              : {}),
           })
           return quoteIntentSpendUsdc(
             rhinestone.account,
@@ -620,6 +635,8 @@ function buildUserPaidRequest(params: {
    * needs telling.
    */
   incomingUsdc?: bigint
+  /** USDC (6dp) an L2 payment delivers to the HCA. */
+  deliveredUsdc?: bigint
 }): RhinestoneTransactionRequest {
   const contracts = getDestinationContracts(params.chainId)
   return {
@@ -631,6 +648,13 @@ function buildUserPaidRequest(params: {
       feeAsset: 'USDC',
       ...(params.sessionEnableData
         ? { sessionEnableData: params.sessionEnableData }
+        : {}),
+      ...(params.deliveredUsdc !== undefined
+        ? {
+            tokenRequests: [
+              { address: contracts.usdc, amount: params.deliveredUsdc },
+            ],
+          }
         : {}),
       ...(params.incomingUsdc !== undefined && params.incomingUsdc > 0n
         ? {
@@ -663,6 +687,41 @@ export function readHcaUsdcBalanceActor(input: {
     (error) => (error instanceof Error ? error : new Error(String(error))),
   )
 }
+
+const HCA_CREDIT_POLL_MS = 4_000
+const HCA_CREDIT_WAIT_MS = 2 * 60_000
+
+/**
+ * The HCA's balance once a read shows at least `atLeast`, which a bridge that
+ * landed guarantees: a lagging node still reads the balance from before it.
+ * Gives the last read after `timeoutMs`, as a balance spent since never gets there.
+ */
+export const readHcaUsdcBalanceAtLeastActor = ResultFn(async function* (input: {
+  readonly hca: Address
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly atLeast: bigint
+  readonly signal?: AbortSignal
+  readonly pollIntervalMs?: number
+  readonly timeoutMs?: number
+}) {
+  const deadline = Date.now() + (input.timeoutMs ?? HCA_CREDIT_WAIT_MS)
+  let balance: bigint | undefined
+  let read: Result<bigint, Error>
+  do {
+    read = await readHcaUsdcBalanceActor(input)
+    if (read.isOk()) {
+      balance = read.value
+      if (balance >= input.atLeast) return ok(balance)
+    }
+    await sleepUnlessAborted(
+      input.pollIntervalMs ?? HCA_CREDIT_POLL_MS,
+      input.signal,
+    )
+  } while (!input.signal?.aborted && Date.now() < deadline)
+  // No read succeeded, so the last one's error is the result.
+  return ok(balance ?? (yield* read))
+})
 
 /**
  * Bounds a funding permit's value must satisfy before the wallet is asked to
@@ -967,6 +1026,150 @@ function prepareFundingPermit(
       )
 
       return { walletClient, account, nonce, expiry, domain }
+    })(),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
+}
+
+/** Funding the HCA from an L2: `amount` is what the permit would have carried. */
+export interface L2BridgePayment {
+  readonly source: L2FundingSource
+  readonly amount: bigint
+  readonly bounds?: PermitValueBounds
+  /** What checkout showed the L2 being charged, fee included. */
+  readonly displayedCharge?: bigint
+}
+
+/**
+ * Bridge the funding into the HCA from an L2: an intent the wallet signs
+ * there, delivering `payment.amount` and running nothing on Sepolia. Across
+ * runs an intent's Sepolia calls from its own handler, not the HCA, so the
+ * legs stay session-signed from the HCA once it is funded.
+ */
+export function submitL2BridgeActor(input: {
+  readonly hca: Address
+  readonly payment: L2BridgePayment
+  readonly signer: Signer
+  readonly publicClient: PublicClient
+  readonly id?: string
+  /** Receives the bridge intent's id once the orchestrator accepts it. */
+  readonly onIntentSubmitted?: (intentId: bigint) => void
+}): ResultAsync<string, Error> {
+  const { payment, signer } = input
+  // Like the permit: a refusal must never reach the wallet.
+  const refusal =
+    payment.bounds && rejectPermitValue(payment.amount, payment.bounds)
+  if (refusal) return errAsync(new Error(refusal))
+  if (signer.type !== 'rhinestone') {
+    return errAsync(new Error('Paying from an L2 needs the HCA signer.'))
+  }
+  return fromPromise(
+    (async () => {
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
+      const request = buildUserPaidRequest({
+        from: input.hca,
+        chainId,
+        calls: [],
+        deliveredUsdc: payment.amount,
+      })
+      return transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request: {
+            ...request,
+            rhinestoneParams: {
+              ...request.rhinestoneParams,
+              onIntentSubmitted: input.onIntentSubmitted,
+            },
+          },
+        },
+        // The wallet signs this one itself, so no session goes with it.
+        {
+          type: 'rhinestone',
+          account: signer.account,
+          config: signer.config,
+          l2Funding: payment.source,
+          l2DisplayedCharge: payment.displayedCharge,
+        },
+        {
+          id: input.id,
+          description: `Pay from ${payment.source.chain.name}`,
+          publicClient: input.publicClient,
+          timeout: 120_000,
+          // A resend would ask the wallet to sign a second payment.
+          retryCount: 0,
+        },
+      )
+    })(),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
+}
+
+const L2_BRIDGE_POLL_MS = 4_000
+const L2_BRIDGE_WAIT_MS = 10 * 60_000
+
+/**
+ * How long after its id reaches the machine a bridge can still be claimed: its
+ * permit's deadline is at most this far past signing, which came first.
+ */
+export const L2_BRIDGE_CLAIMABLE_MS =
+  Number(L2_BRIDGE_MAX_PERMIT_LIFETIME_S) * 1_000
+
+/** What a bridge's status settles it as, or undefined to keep waiting. */
+const l2BridgeVerdict = (
+  status: string | null,
+  claimableUntil: number,
+): 'landed' | 'dead' | undefined => {
+  if (status === 'FILLED' || status === 'COMPLETED') return 'landed'
+  if (status === 'FAILED' || status === 'EXPIRED') return 'dead'
+  // A submission whose answer was lost may still arrive until then.
+  if (status === 'NOT_FOUND' && Date.now() >= claimableUntil) return 'dead'
+  return undefined
+}
+
+/**
+ * Settle a bridge an earlier attempt (or tab) already sent before paying
+ * again: `'landed'` once it filled, `'dead'` once the orchestrator gives up on
+ * it, or once it is still unknown to the orchestrator after `claimableUntil`.
+ * Anything else keeps waiting, and running out of time is an error, so an
+ * unconfirmed payment is never followed by a second one.
+ */
+export function awaitL2BridgeActor(input: {
+  readonly intentId: bigint
+  /** Epoch ms past which the bridge's permit can no longer be claimed. */
+  readonly claimableUntil: number
+  readonly fetchIntentStatus?: (
+    intentId: bigint,
+    signal?: AbortSignal,
+  ) => Promise<string | null>
+  readonly signal?: AbortSignal
+  readonly pollIntervalMs?: number
+  readonly timeoutMs?: number
+}): ResultAsync<'landed' | 'dead', Error> {
+  const { fetchIntentStatus, signal } = input
+  if (!fetchIntentStatus) {
+    return errAsync(
+      new Error('Cannot check the earlier L2 payment, so not paying again.'),
+    )
+  }
+  const deadline = Date.now() + (input.timeoutMs ?? L2_BRIDGE_WAIT_MS)
+  return fromPromise(
+    (async () => {
+      while (!signal?.aborted && Date.now() < deadline) {
+        const verdict = l2BridgeVerdict(
+          await fetchIntentStatus(input.intentId, signal),
+          input.claimableUntil,
+        )
+        if (verdict) return verdict
+        await sleepUnlessAborted(
+          input.pollIntervalMs ?? L2_BRIDGE_POLL_MS,
+          signal,
+        )
+      }
+      throw new Error(
+        'The earlier L2 payment has not settled yet, so not paying again. ' +
+          'Try again in a few minutes.',
+      )
     })(),
     (error) => (error instanceof Error ? error : new Error(String(error))),
   )
@@ -1457,6 +1660,14 @@ export function submitRevealBatchActor(input: {
         hca: input.hca,
       })
 
+      const clearAddrReverse = input.primaryName
+        ? await hasAddrReverseResolver({
+            publicClient: input.publicClient,
+            chainId,
+            wallet: input.wallet,
+          })
+        : false
+
       const revealCalls = buildRevealBatch({
         chainId,
         hca: input.hca,
@@ -1467,7 +1678,9 @@ export function submitRevealBatchActor(input: {
         secret: input.secret,
         price,
         duration: input.duration,
-        ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
+        ...(input.primaryName
+          ? { setPrimaryName: input.primaryName, clearAddrReverse }
+          : {}),
       })
 
       const request = buildUserPaidRequest({

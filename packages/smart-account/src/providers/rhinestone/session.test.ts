@@ -12,7 +12,6 @@ import { LEGACY_REFUND_CAPS, type RefundCaps } from './refund-caps'
 import {
   buildHcaSessionConfig,
   computeDestinationSessionSalt,
-  computeSourceSessionSalt,
   createDestinationSession,
   rebuildDestinationSession,
 } from './session'
@@ -85,25 +84,6 @@ describe('computeDestinationSessionSalt', () => {
     )
     expect(computeDestinationSessionSalt(base)).not.toBe(
       computeDestinationSessionSalt({ ...base, ...QUOTED_CAPS }),
-    )
-  })
-})
-
-describe('computeSourceSessionSalt', () => {
-  it('is deterministic and sensitive to maxSourceAmount', () => {
-    const base = {
-      wallet: '0x1111111111111111111111111111111111111111' as Address,
-      validUntil: 1_800_000_000n,
-      sourceToken: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address,
-      hca: HCA as Address,
-      destinationToken: REFUND_TOKEN as Address,
-      destinationChainId: 11155111n,
-      maxSourceAmount: 20_000_000n,
-      maxDestinationAmount: 14_000_000n,
-    }
-    expect(computeSourceSessionSalt(base)).toBe(computeSourceSessionSalt(base))
-    expect(computeSourceSessionSalt(base)).not.toBe(
-      computeSourceSessionSalt({ ...base, maxSourceAmount: 21_000_000n }),
     )
   })
 })
@@ -218,6 +198,26 @@ describe('createDestinationSession', () => {
     expect(value.enableData.hcaSessionNonce).toBe(0n)
     expect(value.enableData.userSignature).toMatch(/^0x[0-9a-f]+$/)
     expect(value.session.account?.toLowerCase()).toBe(HCA.toLowerCase())
+  })
+
+  // Any other account in the signed set would get a SUDO, never-expiring
+  // session from the same signature.
+  it('authorizes a session for the HCA alone', async () => {
+    const { account, experimental_getSessionDetails } = mockAccount()
+    await createDestinationSession({
+      rhinestoneAccount: account,
+      publicClient,
+      chain: sepolia as Chain,
+      hca: HCA,
+      resolver: RESOLVER,
+      sessionAccount,
+      validUntil: 1_800_000_000n,
+      alreadyDeployed: false,
+    })
+    expect(experimental_getSessionDetails).toHaveBeenCalledTimes(1)
+    const [sessions] = experimental_getSessionDetails.mock.calls[0] ?? []
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0].account).toBe(HCA)
   })
 
   it('carries the session config the salt was built from', async () => {

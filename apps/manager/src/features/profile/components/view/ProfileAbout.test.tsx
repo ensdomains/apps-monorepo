@@ -59,4 +59,23 @@ describe('ProfileAbout', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('UTC+2')).toBeInTheDocument()
   })
+
+  it('keeps place names as saved and shows language codes in uppercase', () => {
+    render(
+      <ProfileAbout
+        records={{
+          ...newEmptyProfileRecords(),
+          base: { language: 'en' },
+          contact: [
+            { key: 'timezone', value: 'UTC+2' },
+            { key: 'location', value: 'Canada' },
+          ],
+        }}
+      />,
+    )
+
+    expect(screen.getByText('Canada')).toBeInTheDocument()
+    expect(screen.queryByText('CANADA')).not.toBeInTheDocument()
+    expect(screen.getByText('EN')).toBeInTheDocument()
+  })
 })

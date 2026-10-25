@@ -22,6 +22,10 @@ import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import { getNameDetail } from '@/features/shared/service/nameDetail'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import {
+  NameRegistryNotFoundError,
+  resolveNameRegistry,
+} from './changeResolver'
 import { normalizeEth2LdName, normalizeEthName } from './profileName'
 import { getOwner, type ProfileProtocol } from './profileOwner'
 
@@ -79,13 +83,8 @@ const normalizeV1Expiry = (
 const MS_PER_SECOND = 1000
 
 /**
- * A subname's own expiry, as its registry records it.
- *
- * It lives in its parent's subregistry, which the profile has no address for,
- * so this reads the indexer. Deliberately not bounded by the ancestors: a v2
- * label carries its own expiry, and a detached or custom subregistry can
- * outlive its parent, so a computed minimum would report a date no registry
- * holds. A failed read is an error, not "no expiry".
+ * Legacy fallback only. V2 subnames read their holding registry directly, so
+ * missing indexing cannot hide a delegate's verified resolver-change action.
  */
 const getIndexedExpiry = (name: string) =>
   getNameDetail(name)
@@ -103,7 +102,30 @@ export const getExpiry = ResultFn(async function* (
   const subname = normalizeEthName(name)
 
   if (subname && subname.parentLabelsRootFirst.length > 0) {
-    const expiry = yield* getIndexedExpiry(subname.name)
+    const client = yield* safeGetClient()
+    const location = yield* fromPromise(
+      (async () => {
+        if (protocol === 'v1') return null
+        try {
+          return await resolveNameRegistry(subname.name)
+        } catch (error) {
+          if (error instanceof NameRegistryNotFoundError) return null
+          throw error
+        }
+      })(),
+      (cause) =>
+        new GetProfileExpiryError({ cause: cause as GetV2ExpiryErrorType }),
+    )
+    const expiry = location
+      ? yield* fromPromise(
+          ensjsv2_getExpiry(client, {
+            name: subname.name,
+            registryAddress: location.registryAddress,
+          }),
+          (cause) =>
+            new GetProfileExpiryError({ cause: cause as GetV2ExpiryErrorType }),
+        )
+      : yield* getIndexedExpiry(subname.name)
 
     return ok({
       expiry,

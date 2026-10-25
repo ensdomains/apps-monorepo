@@ -110,23 +110,23 @@ const ProfileDetailLoading = ({
   readonly symbol: MaterialSymbolProps['symbol']
   readonly valueWidth: string
 }) => (
-  <div className="flex min-w-0 flex-col items-start gap-0 xl:flex-row xl:items-center xl:gap-1.5">
+  <div className="flex min-w-0 flex-col items-start gap-0.5">
     <div
       className={cn(
-        'flex items-center text-ens-quartz-400 text-xs leading-5.25 xl:text-base xl:leading-normal',
+        'flex items-center text-[11px] text-ens-quartz-500 leading-none',
         iconGapClassName,
       )}
     >
-      <MSymbol className="ms-opsz-20 ms-wght-300 shrink-0" symbol={symbol} />
+      <MSymbol className="ms-opsz-11 ms-wght-300 shrink-0" symbol={symbol} />
       <span>{label}</span>
     </div>
-    <div className="flex min-w-0 items-center gap-1 pl-6 xl:pl-0">
+    <div className="flex min-w-0 items-center gap-0.5 py-1">
       <SkeletonBlock
-        className={tw('h-4.5 rounded-sm xl:h-5', valueWidth)}
+        className={tw('h-[13px] rounded-sm', valueWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
       {hasCopy ? (
-        <Copy className="size-3.5 shrink-0 text-ens-quartz-400 xl:size-4" />
+        <Copy className="size-[13px] shrink-0 text-ens-quartz-500" />
       ) : null}
     </div>
   </div>
@@ -153,7 +153,7 @@ export const ProfileHeaderLoading = ({
         shouldReduceMotion={shouldReduceMotion}
       />
       <div className="mt-10 w-full px-5 xl:mt-0 xl:px-0">
-        <div className="grid w-full grid-cols-3 gap-3 xl:flex xl:max-w-full xl:flex-wrap xl:items-center xl:gap-x-6 xl:gap-y-3">
+        <div className="grid w-full grid-cols-3 gap-3 xl:flex xl:max-w-full xl:flex-wrap xl:items-start xl:gap-7">
           <ProfileDetailLoading
             hasCopy
             iconGapClassName="gap-0.5"
@@ -213,12 +213,12 @@ export const ProfileHeaderLoading = ({
                 key={id}
               >
                 <SkeletonBlock
-                  className="size-5 shrink-0 rounded xl:size-6"
+                  className="size-5 shrink-0 rounded"
                   shouldReduceMotion={shouldReduceMotion}
                 />
                 <SkeletonBlock
                   className={tw(
-                    'h-5',
+                    'h-[13px]',
                     index === 0 ? 'w-36' : index === 1 ? 'w-24' : 'w-28',
                   )}
                   shouldReduceMotion={shouldReduceMotion}
