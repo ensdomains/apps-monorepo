@@ -38,7 +38,7 @@ let resolverQuery: QueryStub = idle()
 let ownResolverQuery: QueryStub = idle()
 let isPermissionedQuery: QueryStub = idle()
 let roleQueries: QueryStub[] = []
-let publicResolverV2Query: QueryStub = idle()
+let resolverWriteQuery: QueryStub = idle()
 let grantsQuery: QueryStub = idle()
 /** What the own-resolver check was asked, captured off its query key. */
 let ownResolverParams: unknown
@@ -87,7 +87,7 @@ vi.mock('@tanstack/react-query', async () => {
           return ownResolverQuery
         })
         .with('is-permissioned-resolver', () => isPermissionedQuery)
-        .with('can-modify-on-public-resolver-v2', () => publicResolverV2Query)
+        .with('can-modify-name-on-resolver', () => resolverWriteQuery)
         .otherwise(idle)
 
       return enabled === false ? { ...stub, isLoading: false } : stub
@@ -127,7 +127,7 @@ describe('useCanEditRecords', () => {
     ownResolverQuery = settled(true)
     isPermissionedQuery = settled(false)
     roleQueries = []
-    publicResolverV2Query = idle()
+    resolverWriteQuery = idle()
     grantsQuery = idle()
     ownResolverParams = undefined
   })
@@ -300,7 +300,7 @@ describe('useCanEditRecords', () => {
   // e.g. PublicResolverV2 for a name the NameWrapper never knew.
   it('refuses a v2 owner on a non-permissioned resolver that refuses them', () => {
     ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
-    publicResolverV2Query = settled(false)
+    resolverWriteQuery = settled(false)
 
     const result = render()
     expect(result.isOwner).toBe(true)
@@ -309,14 +309,14 @@ describe('useCanEditRecords', () => {
 
   it('lets a v2 name edit on PublicResolverV2 when canModifyName allows it', () => {
     ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
-    publicResolverV2Query = settled(true)
+    resolverWriteQuery = settled(true)
 
     expect(render().canEdit).toBe(true)
   })
 
   it('stays loading while the PublicResolverV2 check is in flight', () => {
     ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
-    publicResolverV2Query = loading()
+    resolverWriteQuery = loading()
 
     const result = render()
     expect(result.isLoading).toBe(true)
@@ -325,7 +325,7 @@ describe('useCanEditRecords', () => {
 
   it('reports a failed PublicResolverV2 read as an error', () => {
     ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
-    publicResolverV2Query = failed()
+    resolverWriteQuery = failed()
 
     const result = render()
     expect(result.isError).toBe(true)
