@@ -52,6 +52,16 @@ vi.mock(
   }),
 )
 
+// Pricing and ownership requests are covered by the renewal modal tests.
+// These tests exercise the table and must not start those unrelated requests.
+vi.mock('@/features/renew/components/ExtendNameModal', () => ({
+  ExtendNameModal: () => null,
+}))
+vi.mock(
+  '@/features/renew/components/multi-name-extension/MultiNameExtendModal',
+  () => ({ MultiNameExtendModal: () => null }),
+)
+
 const { Route } = await import('./names')
 const NamesRoute = (Route as unknown as { component: () => ReactNode })
   .component

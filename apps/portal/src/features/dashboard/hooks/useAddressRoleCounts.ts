@@ -111,7 +111,10 @@ export const getAddressRoleCountsQueryOptions = (
   select: countRoles,
 })
 
-/** Retain the roles for filtering while displaying the same counts as the dashboard. */
+/**
+ * Retain roles and counts in one pass. The fresh output array is mutable because
+ * TanStack Table requires it; input rows and nested role arrays stay readonly.
+ */
 export const withAddressRoles = <
   Row extends {
     readonly name: string | null
@@ -124,17 +127,22 @@ export const withAddressRoles = <
     readonly data?: ReadonlyMap<string, readonly RegistryRole[]>
     readonly isError: boolean
   },
-) =>
-  withRoleCounts(
-    rows,
-    roleCountsOf({
-      data: query.data ? countRoles(query.data) : undefined,
-      isError: query.isError,
-    }),
-  ).map((row) =>
-    row.name &&
-    row.protocolVersion === 'ENSv2' &&
-    !isFormerOwnerOnly(row.relations)
-      ? { ...row, registryRoles: query.data?.get(row.name) }
-      : row,
-  )
+): (Row & {
+  readonly registryRoles?: readonly RegistryRole[]
+  readonly roleCount?: RoleCount
+})[] =>
+  rows.map((row) => {
+    if (
+      row.name === null ||
+      row.protocolVersion !== 'ENSv2' ||
+      isFormerOwnerOnly(row.relations)
+    )
+      return row
+    if (!query.data) {
+      return { ...row, roleCount: query.isError ? 'unavailable' : 'loading' }
+    }
+    const roles = query.data.get(row.name)
+    return roles
+      ? { ...row, registryRoles: roles, roleCount: roles.length }
+      : row
+  })

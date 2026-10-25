@@ -1,10 +1,27 @@
 import type { NameRegistrationStatus } from '@ens-apps/indexer/reads'
 import type { SelectedName } from '@/features/renew/hooks/useRenewalTransactions'
 import { isCanonicalName, isNormalizedLabel } from '@/utils/token/isNormalized'
+import type { ProtocolVersion } from '@/utils/types'
 
 export const MS_PER_SECOND = 1000
 export const MS_PER_DAY = 24 * 60 * 60 * MS_PER_SECOND
 export const PREMIUM_PERIOD_DAYS = 21
+
+/** Adapt an indexed name to the renewal flow without depending on table row IDs. */
+export const toSelectedName = (row: {
+  readonly name: string | null
+  readonly protocolVersion: ProtocolVersion
+  readonly expiryDate?: Date | null
+  readonly graceEndDate: Date | null
+}): SelectedName | null =>
+  row.name === null
+    ? null
+    : {
+        name: row.name,
+        isV2: row.protocolVersion === 'ENSv2',
+        expiryDate: row.expiryDate,
+        graceEndDate: row.graceEndDate,
+      }
 
 export type NameStatusInput = {
   readonly expiryDate?: Date | null

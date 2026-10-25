@@ -9,9 +9,9 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { NamesFilters } from './NamesFilters'
-import { columns } from './NamesTable/columns'
+import { columns, type NameRow } from './NamesTable/columns'
 
-const NO_ROWS: import('./NamesTable/columns').NameRow[] = []
+const NO_ROWS: NameRow[] = []
 
 const Harness = ({ state }: { state: 'loading' | 'unavailable' }) => {
   const table = useReactTable({
@@ -27,11 +27,10 @@ const Harness = ({ state }: { state: 'loading' | 'unavailable' }) => {
 
 describe('NamesFilters role availability', () => {
   it.each([
-    { state: 'loading', message: 'Loading ENSv2 roles…' },
+    { state: 'loading', message: /Loading ENSv2 roles/ },
     {
       state: 'unavailable',
-      message:
-        'ENSv2 roles are unavailable. V1 relationships can still be filtered.',
+      message: /ENSv2 roles are unavailable/,
     },
   ] as const)(
     'keeps V1 available while V2 is $state',

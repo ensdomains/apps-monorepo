@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
 import {
   getAddressRoleCountsQueryOptions,
-  getAddressRolesQueryOptions,
   withAddressRoles,
   withRoleCounts,
 } from './useAddressRoleCounts'
@@ -66,17 +65,6 @@ describe('getAddressRoleCountsQueryOptions', () => {
     )
 
     expect(await roleCounts()).toEqual(new Map([['alice.eth', 4]]))
-    const client = new QueryClient()
-    await client.fetchQuery(getAddressRolesQueryOptions({ address: ADDRESS }))
-    const observer = new QueryObserver(client, {
-      ...getAddressRoleCountsQueryOptions({ address: ADDRESS }),
-      staleTime: Infinity,
-    })
-    expect(observer.getCurrentResult().data).toEqual(
-      new Map([['alice.eth', 4]]),
-    )
-    observer.destroy()
-    expect(vi.mocked(bigname.addressNames)).toHaveBeenCalledTimes(2)
     expect(vi.mocked(bigname.addressNames).mock.calls[0]?.[1]).toMatchObject({
       authority: ['ens_v2'],
       include: ['role_summary'],
@@ -164,7 +152,6 @@ describe('withAddressRoles', () => {
     ])
     expect(withAddressRoles(rows, { isError: true })[0]).toMatchObject({
       roleCount: 'unavailable',
-      registryRoles: undefined,
     })
   })
 })

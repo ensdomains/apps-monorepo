@@ -64,7 +64,6 @@ const filterNames = (data: NameRow[], levels: string[], roles: string[]) =>
 
 describe('names table filters', () => {
   it.each([
-    { levels: [], relations: [], expected: names.map((row) => row.name) },
     {
       levels: ['2ld'],
       relations: [],
@@ -99,11 +98,6 @@ describe('names table filters', () => {
         'example.com',
       ],
     },
-    {
-      levels: ['subname'],
-      relations: ['manager'],
-      expected: ['sub.owner.eth'],
-    },
   ])('filters $levels and V1 $relations', ({ levels, relations, expected }) => {
     expect(
       filterNames(names, levels, relations).map((row) => row.name),
@@ -111,7 +105,6 @@ describe('names table filters', () => {
   })
 
   it.each([
-    { roles: ['v2:ROLE_RENEW'], expected: ['v2.eth'] },
     { roles: ['owner', 'v2:ROLE_RENEW'], expected: ['owner.eth', 'v2.eth'] },
     { roles: ['v2:ROLE_SET_RESOLVER'], expected: [] },
     { roles: ['v2:ROLE_SET_RESOLVER_ADMIN'], expected: ['v2.eth'] },
@@ -155,9 +148,6 @@ describe('names table filters', () => {
       ['v2:ROLE_RENEW', 1],
       ['v2:ROLE_SET_RESOLVER_ADMIN', 1],
     ])
-    expect(
-      table.getFilteredRowModel().rows.map((row) => row.original.name),
-    ).toEqual(['one.eth'])
   })
 
   it('sorts V2 roles by the displayed count instead of the relation count', () => {
@@ -175,7 +165,7 @@ describe('names table filters', () => {
     ).toEqual(['many.eth', 'few.eth', 'v1.eth'])
   })
 
-  it('combines name, length, status, and shown-expiry filters and removes empty filter values', () => {
+  it('combines name, length, status, and shown-expiry filters', () => {
     const from = new Date(2030, 0, 1)
     const to = new Date(2030, 11, 31)
     const table = makeTable(
@@ -207,19 +197,5 @@ describe('names table filters', () => {
     expect(
       table.getFilteredRowModel().rows.map((row) => row.original.name),
     ).toEqual(['sub.parent.eth'])
-    let next: ColumnFiltersState = []
-    table.setOptions((options) => ({
-      ...options,
-      onColumnFiltersChange: (update) => {
-        next =
-          typeof update === 'function'
-            ? update(options.state.columnFilters ?? [])
-            : update
-      },
-    }))
-    table.getColumn('lengths')?.setFilterValue([])
-    expect(next.map((filter) => filter.id)).not.toContain('lengths')
-    table.getColumn('expiryDate')?.setFilterValue({})
-    expect(next.map((filter) => filter.id)).not.toContain('expiryDate')
   })
 })

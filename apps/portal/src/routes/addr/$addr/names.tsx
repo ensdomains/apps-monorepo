@@ -52,7 +52,10 @@ import {
   type SelectedName,
   useRenewalTransactions,
 } from '@/features/renew/hooks/useRenewalTransactions'
-import { isExtendable2LD } from '@/features/renew/utils/nameExtension'
+import {
+  isExtendable2LD,
+  toSelectedName,
+} from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
   isTransactionInFlight,
@@ -150,13 +153,10 @@ const NamesList = ({
     getRowId: getNameRowId,
     initialState: { columnVisibility: nameColumnVisibility },
     autoResetPageIndex: false,
-    enableRowSelection: ({ original }) =>
-      original.name !== null &&
-      isExtendable2LD({
-        ...original,
-        name: original.name,
-        isV2: original.protocolVersion === 'ENSv2',
-      }),
+    enableRowSelection: ({ original }) => {
+      const candidate = toSelectedName(original)
+      return candidate !== null && isExtendable2LD(candidate)
+    },
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
@@ -180,18 +180,8 @@ const NamesList = ({
 
   const selectedRows = table.getSelectedRowModel().rows
   const rowCount = selectedRows.length
-  const selectedNames: readonly SelectedName[] = selectedRows.flatMap(
-    ({ original: row }) =>
-      row.name === null
-        ? []
-        : [
-            {
-              name: row.name,
-              isV2: row.protocolVersion === 'ENSv2',
-              expiryDate: row.expiryDate,
-              graceEndDate: row.graceEndDate,
-            },
-          ],
+  const selectedNames = selectedRows.flatMap(
+    ({ original }) => toSelectedName(original) ?? [],
   )
   // Keep the authoritative on-chain V1 check after selection.
   const coarseExtendable = selectedNames.filter(isExtendable2LD)

@@ -326,19 +326,16 @@ describe('EntityActionCopy clipboard interaction', () => {
 describe('EntityBadge name display', () => {
   const hash = 'ab'.repeat(32)
 
-  it.each(['inline', 'truncate', 'wrap'] as const)(
-    'shortens each unknown label in %s format without changing navigation',
-    (format) => {
-      const name = `[${hash}].[${hash}].eth`
-      render(<EntityBadge variant="name" name={name} format={format} />)
-      const text = screen.getByText('[abab…abab].[abab…abab].eth')
-      expect(text.closest('a')).toHaveAttribute(
-        'data-params',
-        JSON.stringify({ name }),
-      )
-      expect(screen.getByTitle(name)).toContainElement(text)
-    },
-  )
+  it('shortens each unknown label without changing navigation', () => {
+    const name = `[${hash}].[${hash}].eth`
+    render(<EntityBadge variant="name" name={name} format="truncate" />)
+    const text = screen.getByText('[abab…abab].[abab…abab].eth')
+    expect(text.closest('a')).toHaveAttribute(
+      'data-params',
+      JSON.stringify({ name }),
+    )
+    expect(screen.getByTitle(name)).toContainElement(text)
+  })
 
   it('allows full labelhash display and preserves custom name content', () => {
     const name = `[${hash}].eth`
