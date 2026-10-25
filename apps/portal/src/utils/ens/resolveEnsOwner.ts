@@ -102,7 +102,9 @@ export const getExpiredV2Token = async (
     functionName: 'getState',
     args: [BigInt(labelhash(label))],
   })
-  return isAddressEqual(state.latestOwner, zeroAddress)
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+  return isAddressEqual(state.latestOwner, zeroAddress) ||
+    state.expiry > nowSeconds
     ? null
     : { expiry: state.expiry }
 }

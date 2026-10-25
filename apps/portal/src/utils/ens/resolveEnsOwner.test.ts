@@ -198,6 +198,26 @@ describe('resolveEnsOwner', () => {
     expect(result?.protocolVersion ?? null).toBe(protocolVersion)
   })
 
+  // A failed owner read on an active name must not make it look expired.
+  it('falls back to V1 when the V2 token has not expired', async () => {
+    mockGetOwnerV2.mockResolvedValueOnce(zeroAddress)
+    mockGetNameRegistries.mockResolvedValue([
+      zeroAddress,
+      ETH_REGISTRY,
+      ROOT_REGISTRY,
+    ])
+    mockReadContract.mockResolvedValue({
+      status: 2,
+      expiry: BigInt(Math.floor(Date.now() / 1000) + 86_400),
+      latestOwner: OWNER,
+    })
+    mockGetOwnerV1.mockResolvedValueOnce({ owner: OWNER })
+
+    expect((await resolveEnsOwner(client, 'legacy.eth'))?.protocolVersion).toBe(
+      'ENSv1',
+    )
+  })
+
   // WEB-1885: a parent whose subregistry has no registry behind it makes the
   // UniversalHelper walk revert; the subname is unreachable in V2, not an error.
   it('falls back to V1 when the V2 walk reverts on a registry along the path', async () => {
