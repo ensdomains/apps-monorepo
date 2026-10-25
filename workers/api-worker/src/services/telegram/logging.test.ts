@@ -3,9 +3,11 @@ import * as v from 'valibot'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { intoDbError } from '#core/database/index.js'
 import { logger } from '#utils/logger.js'
+import { createIntoError } from '#utils/result.js'
 import {
   TelegramAttemptRecoveryError,
   TelegramIdentityError,
+  TelegramMessagingError,
   TelegramTokenExchangeError,
 } from './errors.js'
 import { logTelegramLoginFailure } from './logging.js'
@@ -13,6 +15,109 @@ import { logTelegramLoginFailure } from './logging.js'
 afterEach(() => vi.restoreAllMocks())
 
 describe('Telegram login logging', () => {
+  it('preserves wrapped fetch failures without leaking URLs or request data', () => {
+    const secret = 'bot-secret private-code private-chat-id'
+    const networkError = Object.assign(new Error(secret), { code: 'ENOTFOUND' })
+    const cause = createIntoError('TELEGRAM_API_REQUEST_ERROR')(
+      new TypeError(secret, { cause: networkError }),
+    )
+    const log = vi.spyOn(logger, 'warn').mockImplementation(() => undefined)
+    logTelegramLoginFailure(
+      'callback',
+      new TelegramMessagingError({
+        cause: { ...cause, method: 'sendMessage', stage: 'request' },
+      }),
+    )
+    expect(log).toHaveBeenCalledWith(
+      'Telegram login unsuccessful',
+      expect.objectContaining({
+        cause: expect.objectContaining({
+          stage: 'request',
+          method: 'sendMessage',
+          error: expect.objectContaining({
+            errorName: 'TypeError',
+            cause: expect.objectContaining({ errorCode: 'ENOTFOUND' }),
+          }),
+        }),
+      }),
+    )
+    for (const value of secret.split(' '))
+      expect(JSON.stringify(log.mock.calls)).not.toContain(value)
+  })
+
+  it('identifies request timeouts in the shared error wrapper', () => {
+    const log = vi.spyOn(logger, 'warn').mockImplementation(() => undefined)
+    logTelegramLoginFailure(
+      'callback',
+      new TelegramMessagingError({
+        cause: createIntoError('TELEGRAM_API_REQUEST_ERROR')(
+          new DOMException('private request URL', 'TimeoutError'),
+        ),
+      }),
+    )
+    expect(log).toHaveBeenCalledWith(
+      'Telegram login unsuccessful',
+      expect.objectContaining({
+        cause: expect.objectContaining({
+          error: expect.objectContaining({ errorName: 'TimeoutError' }),
+        }),
+      }),
+    )
+    expect(JSON.stringify(log.mock.calls)).not.toContain('private request URL')
+  })
+
+  it.each([
+    [403, 'Forbidden: bot was blocked by the user', 'bot_blocked_by_user'],
+    [403, 'Forbidden: user is deactivated', 'user_deactivated'],
+    [
+      403,
+      "Forbidden: bot can't initiate conversation with a user",
+      'bot_cannot_initiate_conversation',
+    ],
+    [400, 'Bad Request: chat not found', 'chat_not_found'],
+    [
+      400,
+      "Bad Request: can't parse entities at byte offset 42",
+      'invalid_message_format',
+    ],
+    [401, 'Unauthorized', 'invalid_bot_credentials'],
+    [429, 'Too Many Requests: retry after 30', 'rate_limited'],
+    [500, 'private unknown response', 'unrecognized_provider_error'],
+  ])(
+    'explains Telegram refusal %s: %s',
+    (errorCode, message, telegramReason) => {
+      const log = vi.spyOn(logger, 'warn').mockImplementation(() => undefined)
+      logTelegramLoginFailure(
+        'callback',
+        new TelegramMessagingError({
+          cause: {
+            code: 'TELEGRAM_API_REQUEST_ERROR',
+            errorCode,
+            message,
+            stage: 'provider',
+            method: 'sendMessage',
+            status: errorCode,
+            parameters: { retry_after: 30, migrate_to_chat_id: 123456789 },
+          },
+        }),
+      )
+      expect(log).toHaveBeenCalledWith(
+        'Telegram login unsuccessful',
+        expect.objectContaining({
+          cause: expect.objectContaining({
+            telegramReason,
+            telegramErrorCode: errorCode,
+            status: errorCode,
+            stage: 'provider',
+            retryAfter: 30,
+          }),
+        }),
+      )
+      expect(JSON.stringify(log.mock.calls)).not.toContain(message)
+      expect(JSON.stringify(log.mock.calls)).not.toContain('123456789')
+    },
+  )
+
   it.each([false, true])(
     'redacts sensitive causes, including recovery failures: %s',
     (hasRecoveryFailure) => {

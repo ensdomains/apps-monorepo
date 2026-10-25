@@ -199,6 +199,9 @@ describe('Telegram login result handling', () => {
       errorCode: 403,
       message: 'Forbidden',
       parameters: undefined,
+      stage: 'provider' as const,
+      method: 'sendMessage' as const,
+      status: 403,
     }
     provider.send.mockReturnValueOnce(errAsync(cause))
     expect((await finish())._unsafeUnwrapErr()).toMatchObject({
@@ -246,6 +249,9 @@ describe('Telegram login result handling', () => {
       errorCode: 403,
       message: 'Forbidden',
       parameters: undefined,
+      stage: 'provider' as const,
+      method: 'sendMessage' as const,
+      status: 403,
     }
     const cause = intoDbError(new Error('availability write failed'))
     provider.send.mockReturnValueOnce(errAsync(delivery))

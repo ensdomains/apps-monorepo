@@ -67,17 +67,26 @@ export const makeTelegramRequest = ResultFn(async function* <
       },
       body: JSON.stringify(body),
     }),
-    createIntoError('TELEGRAM_API_REQUEST_ERROR'),
+    (cause) => ({
+      ...createIntoError('TELEGRAM_API_REQUEST_ERROR')(cause),
+      stage: 'request' as const,
+      method,
+    }),
   )
 
-  const json = yield* fromPromise(
-    response.json(),
-    createIntoError('TELEGRAM_API_RESPONSE_PARSE_ERROR'),
-  )
+  const json = yield* fromPromise(response.json(), (cause) => ({
+    ...createIntoError('TELEGRAM_API_RESPONSE_PARSE_ERROR')(cause),
+    stage: 'decode' as const,
+    status: response.status,
+    method,
+  }))
 
   const parsedResponse = yield* parseIntoResult(ApiResponseSchema, json, {
     code: 'TELEGRAM_API_RESPONSE_PARSE_ERROR',
     message: 'Failed to parse Telegram API response',
+    stage: 'response',
+    status: response.status,
+    method,
   })
 
   if (!parsedResponse.ok) {
@@ -86,6 +95,9 @@ export const makeTelegramRequest = ResultFn(async function* <
       message: parsedResponse.description,
       errorCode: parsedResponse.error_code,
       parameters: parsedResponse.parameters,
+      stage: 'provider',
+      status: response.status,
+      method,
     })
   }
 
