@@ -41,6 +41,7 @@ export const DurationCustomRow = memo(function DurationCustomRow({
   isSelected,
   type,
   referenceDate: referenceDateProp,
+  minDurationSeconds: minDurationSecondsProp,
 }: {
   selectedDuration: number
   onDurationSet: (duration: number) => void
@@ -48,6 +49,8 @@ export const DurationCustomRow = memo(function DurationCustomRow({
   type: 'register' | 'renew'
   /** Registration: defaults to start of today. Renewal: pass current on-chain expiry (same as PricingSummaryCard). */
   referenceDate?: Date
+  /** Overrides the floor for this flow, e.g. carrying an expired name past today. */
+  minDurationSeconds?: number
 }) {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
   const [defaultReferenceDate] = useState(() => {
@@ -63,9 +66,10 @@ export const DurationCustomRow = memo(function DurationCustomRow({
 
   // Only registration has a 28-day floor; renewals are priced down to a day.
   const minDurationSeconds =
-    type === 'renew'
+    minDurationSecondsProp ??
+    (type === 'renew'
       ? MIN_RENEW_DURATION_SECONDS
-      : MIN_REGISTER_DURATION_SECONDS
+      : MIN_REGISTER_DURATION_SECONDS)
   // Calendar days, not seconds: a DST shift inside the span would otherwise
   // push the boundary onto the next day and hide a valid duration.
   const minSelectableDate = addDays(
