@@ -31,8 +31,11 @@ import { type SUPPORTED_TOKEN, SUPPORTED_TOKENS } from '@/lib/tokens'
 import type { RegistrationPostRegistrationSetup } from '../state/registrationAutoSetup'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
 
-/** Bump when {@link StoredRegistrationEnvelope} changes shape. */
-export const REGISTRATION_RESUME_VERSION = 1
+/**
+ * Bump when {@link StoredRegistrationEnvelope} changes shape, or when stored
+ * runs can no longer complete (v2: the payment token moved to Circle USDC).
+ */
+export const REGISTRATION_RESUME_VERSION = 2
 
 /** Exported so the disconnect-time storage sweep can leave the record alone. */
 export const REGISTRATION_RESUME_STORAGE_KEY = 'ens-apps:register-v2:resume:v1'

@@ -1,5 +1,6 @@
 import type { HcaSessionEnablePayload } from '@ens-apps/smart-account'
 import {
+  type L2FundingSource,
   type PersistedRegistrationRecord,
   type RegistrationEvent,
   registrationMachine,
@@ -36,11 +37,11 @@ import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import {
-  hasStaleAddrReverse,
-  submitClearAddrReverse,
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
+import { getL2FundingSource } from '../service/l2FundingSource'
+import { readPendingL2Bridge } from '../service/pendingL2Bridge'
 import {
   getRegistrationFailureMessage,
   isNameNotAvailableError,
@@ -84,12 +85,6 @@ type PostRegistrationData = {
 type PostRegistrationProgress = {
   ethRecordSynced: boolean
   primaryNameForwardConfirmed: boolean
-  /**
-   * Set once the `addr.reverse` cleanup has run to completion — including the
-   * case where nothing needed clearing. Guards on this so the step is
-   * attempted exactly once per registration.
-   */
-  addrReverseClearAttempted: boolean
 }
 
 /**
@@ -112,6 +107,8 @@ type Context = {
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
+  /** The L2 row picked to pay from; the registration still pays in `selectedToken`. */
+  fundingSourceChainId?: number
   lastErrorMessage?: string
   approvalOutcome: ApprovalOutcome
   /**
@@ -152,13 +149,10 @@ type Context = {
   ethRecordSyncTxId?: string
   primaryNameTxId?: string
   /**
-   * The primary name the HCA reveal batch claimed on `default.reverse`, when
-   * the user opted in. Its presence is what marks the registration as needing
-   * the `addr.reverse` cleanup pass; the EOA path leaves it undefined and
-   * handles its own reverse leg.
+   * The primary name the HCA reveal batch claims, when the user opted in;
+   * the EOA path leaves it undefined and handles its own reverse leg.
    */
   hcaPrimaryName?: string
-  addrReverseClearTxId?: string
   maxProgressReached?: MaxProgressReached
 }
 
@@ -168,6 +162,7 @@ type Events =
   | { type: 'pricing.dialog.dismiss' }
   | { type: 'pricing.duration.set'; duration: number }
   | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+  | { type: 'pricing.fundingSource.select'; chainId: number }
   | {
       type: 'registration.start'
       label: string
@@ -191,6 +186,10 @@ type Events =
        * budget quote failed and only the rent was displayed.
        */
       displayedWalletDebit?: bigint
+      /** Standalone-HCA: the L2 whose USDC pays, instead of the wallet's here. */
+      l2FundingChainId?: number
+      /** What checkout showed that L2 being charged, fee included. */
+      displayedL2Charge?: bigint
     }
   | {
       /**
@@ -252,7 +251,6 @@ type Input = {
 const INITIAL_POST_REGISTRATION_PROGRESS: PostRegistrationProgress = {
   ethRecordSynced: false,
   primaryNameForwardConfirmed: false,
-  addrReverseClearAttempted: false,
 }
 
 const isRegistrationSnapshotEvent = (
@@ -286,15 +284,6 @@ const hasOwnerWallet = (context: Context) => {
 // batch via the reverse-registrar adapter, so this flow never runs there.
 const canSetPrimaryName = (context: Context) =>
   shouldSetPrimaryName(context) && hasOwnerWallet(context)
-
-// HCA path only. The reveal batch claims `default.reverse`, but a leftover
-// `addr.reverse` entry shadows it — so the claim silently does nothing until
-// that entry is cleared, which only the owner EOA can do (see
-// `submitClearAddrReverse`).
-const hasAddrReverseClearRemaining = (context: Context) =>
-  !!context.hcaPrimaryName &&
-  !context.postRegistrationProgress.addrReverseClearAttempted &&
-  hasOwnerWallet(context)
 
 const hasPrimaryNameForwardRemaining = (context: Context) =>
   canSetPrimaryName(context) &&
@@ -375,38 +364,6 @@ const machineSetup = setup({
       async ({ input }: { input: { txId: string } }) =>
         waitForTransaction(input.txId),
     ),
-    // Reads first so the wallet is only prompted when there is genuinely a
-    // shadowing entry to clear — most registrations need nothing here, and an
-    // unnecessary prompt right after a prompt-free registration is worse than
-    // the stale record it would avoid.
-    submitAddrReverseClear: fromPromise(
-      async ({
-        input,
-      }: {
-        input: {
-          ownerAddress: Address
-          walletClient: WalletClient
-          publicClient: PublicClient
-          chainId: number
-        }
-      }): Promise<{ txId?: string }> => {
-        const stale = await hasStaleAddrReverse({
-          publicClient: input.publicClient,
-          ownerAddress: input.ownerAddress,
-        })
-
-        if (!stale) return {}
-
-        return {
-          txId: submitClearAddrReverse({
-            signer: { type: 'eoa', walletClient: input.walletClient },
-            ownerAddress: input.ownerAddress,
-            publicClient: input.publicClient,
-            chainId: input.chainId,
-          }),
-        }
-      },
-    ),
   },
   guards: {
     isRestoredFailure: ({ context }) => context.restoredRun !== undefined,
@@ -430,12 +387,6 @@ const machineSetup = setup({
       !canSetPrimaryName(context) &&
       !context.postRegistrationProgress.primaryNameForwardConfirmed,
     hasEthRecordSyncTxId: ({ context }) => !!context.ethRecordSyncTxId,
-    hasAddrReverseClearRemaining: ({ context }) =>
-      hasAddrReverseClearRemaining(context),
-    // Reads the actor's output, not context: guards run before the
-    // transition's actions, so `addrReverseClearTxId` is still unset here.
-    addrReverseClearSubmitted: ({ event }) =>
-      !!(event as unknown as { output?: { txId?: string } }).output?.txId,
   },
   actions: {
     setDuration: assign({
@@ -458,8 +409,18 @@ const machineSetup = setup({
         confirmedData: event.confirmedData,
         postRegistrationSetup: event.postRegistrationSetup,
         hcaPrimaryName: event.record.context.primaryName,
+        fundingSourceChainId: event.record.context.l2FundingChainId,
       }
     }),
+    setFundingSource: assign({
+      fundingSourceChainId: ({ event, context }) =>
+        event.type === 'pricing.fundingSource.select'
+          ? event.chainId
+          : context.fundingSourceChainId,
+      // Every row ends up paying the registration in wallet USDC.
+      selectedToken: () => 'USDC' as const,
+    }),
+    clearFundingSource: assign({ fundingSourceChainId: () => undefined }),
     clearError: assign({
       lastErrorMessage: () => undefined,
       approvalOutcome: () => 'none' as const,
@@ -560,7 +521,6 @@ const machineSetup = setup({
       ethRecordSyncTxId: () => undefined,
       primaryNameTxId: () => undefined,
       hcaPrimaryName: () => undefined,
-      addrReverseClearTxId: () => undefined,
     }),
     invalidateNameQueries: ({ context }) => {
       const label = context.confirmedData?.label
@@ -621,10 +581,7 @@ const machineSetup = setup({
           : context.postRegistrationData,
       })
 
-      // `hcaPrimaryName` counts here too: the HCA path carries no
-      // `postRegistrationSetup`, but it still owes the `addr.reverse` cleanup
-      // pass, and skipping straight to success would never run it.
-      if (context.postRegistrationSetup || context.hcaPrimaryName) {
+      if (context.postRegistrationSetup) {
         enqueue.raise({ type: 'registration.completed' })
         return
       }
@@ -684,16 +641,6 @@ const machineSetup = setup({
         primaryNameForwardConfirmed: true,
       }),
     }),
-    storeAddrReverseClearTxId: assign({
-      addrReverseClearTxId: ({ event }) =>
-        (event as unknown as { output: { txId?: string } }).output.txId,
-    }),
-    markAddrReverseClearAttempted: assign({
-      postRegistrationProgress: ({ context }) => ({
-        ...context.postRegistrationProgress,
-        addrReverseClearAttempted: true,
-      }),
-    }),
   },
 })
 
@@ -712,8 +659,27 @@ const blockingRegistrationFor = (context: Context): string | null => {
 const registrationLockMessage = (blockingName: string | null): string =>
   `${blockingName ?? 'Another name'} is already being registered with this wallet, possibly in another tab. One registration runs at a time, so this one has not started.`
 
+/**
+ * The L2 a start pays from, whose wallet signs the commit leg there. One the
+ * run cannot pay from refuses the start rather than paying from the wallet.
+ */
+const getStartL2Funding = (
+  chainId: number | undefined,
+  owner: Address,
+  isHcaRegistration: boolean,
+): L2FundingSource | Error | undefined => {
+  if (chainId === undefined) return undefined
+  const source = isHcaRegistration
+    ? getL2FundingSource(owner, chainId)
+    : undefined
+  return (
+    source ??
+    new Error('Cannot register: paying from that network is not supported.')
+  )
+}
+
 const startRegistrationAction = machineSetup.createAction(
-  enqueueActions(({ enqueue, event }) => {
+  enqueueActions(({ enqueue, context, event }) => {
     if (event.type !== 'registration.start') {
       return enqueue.raise({
         type: '$error',
@@ -745,8 +711,7 @@ const startRegistrationAction = machineSetup.createAction(
     const ownerAddress =
       event.account.ownerAddress ?? event.account.accountAddress
 
-    const resolverOwnerAddress =
-      event.account.ownerAddress ?? event.account.accountAddress
+    const resolverOwnerAddress = ownerAddress
 
     const approvalSigner: Signer | undefined = event.account.walletClient
       ? { type: 'eoa', walletClient: event.account.walletClient }
@@ -763,6 +728,15 @@ const startRegistrationAction = machineSetup.createAction(
           'Cannot register: the wallet that owns this account is unavailable to sign the payment approval. Please reconnect your wallet and try again.',
         ),
       })
+    }
+
+    const l2Funding = getStartL2Funding(
+      event.l2FundingChainId,
+      ownerAddress,
+      isHcaRegistration,
+    )
+    if (l2Funding instanceof Error) {
+      return enqueue.raise({ type: '$error', error: l2Funding })
     }
 
     // The HCA reveal batch sets the ETH addr record itself and, when opted
@@ -804,7 +778,6 @@ const startRegistrationAction = machineSetup.createAction(
       ethRecordSyncTxId: undefined,
       primaryNameTxId: undefined,
       hcaPrimaryName: bundlePrimaryName,
-      addrReverseClearTxId: undefined,
     })
 
     // One registration at a time per wallet, across tabs. The commit batch
@@ -848,6 +821,13 @@ const startRegistrationAction = machineSetup.createAction(
         primaryName: bundlePrimaryName,
         // Consent bound on the funding permit: what the confirm screen showed.
         displayedWalletDebit: event.displayedWalletDebit,
+        l2Funding,
+        displayedL2Charge: event.displayedL2Charge,
+        // A cancelled run's bridge may still arrive: wait for it, don't pay twice.
+        unsettledL2Bridge: readPendingL2Bridge(
+          context.chainId,
+          event.account.accountAddress,
+        ),
         // `INTENT_SUBMITTED` captures the reveal intent id on live runs too,
         // so a dead intent fails verification in one orchestrator read instead
         // of sitting out the full grace poll before the retry screen.
@@ -933,7 +913,6 @@ const resumeRegistrationAction = machineSetup.createAction(
       // ORIGINAL run committed to — re-deriving it from current UI state could
       // disagree with the batch that is already in flight.
       hcaPrimaryName: event.record.context.primaryName,
-      addrReverseClearTxId: undefined,
     })
 
     // A resumed run has no claim on the wallet yet (a reload dropped this
@@ -969,6 +948,15 @@ const resumeRegistrationAction = machineSetup.createAction(
           approvalSigner,
           publicClient: defaultPublicClient,
           hcaSessionEnable: event.hcaSessionEnable,
+          // A run paid from an L2 keeps paying from it; one the app no longer
+          // lists falls back to the funding permit.
+          l2Funding:
+            event.record.context.l2FundingChainId === undefined
+              ? undefined
+              : getL2FundingSource(
+                  ownerAddress,
+                  event.record.context.l2FundingChainId,
+                ),
           // Lets a resumed verification ask the orchestrator whether the
           // persisted reveal intent is still filling or dead, instead of
           // sitting out the full grace poll before showing the retry screen.
@@ -1115,7 +1103,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               actions: 'clearError',
             },
             'pricing.token.select': {
-              actions: ['setToken', 'clearError'],
+              actions: ['setToken', 'clearFundingSource', 'clearError'],
+            },
+            'pricing.fundingSource.select': {
+              actions: 'setFundingSource',
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
@@ -1227,10 +1218,6 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   target: 'settingPrimaryNameReverse',
                 },
                 {
-                  guard: 'hasAddrReverseClearRemaining',
-                  target: 'clearingStaleAddrReverse',
-                },
-                {
                   guard: 'primaryNameSetupUnavailable',
                   target: 'success',
                   actions: [
@@ -1288,75 +1275,6 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                 onDone: {
                   target: 'postRegistrationDecision',
                   actions: ['markEthRecordSynced'],
-                },
-                onError: {
-                  target: 'success',
-                  actions: [
-                    'setRegistrationSuccessStage',
-                    'logPostRegistrationSetupError',
-                    'markPostRegistrationSetupFailed',
-                  ],
-                },
-              },
-            },
-            clearingStaleAddrReverse: {
-              entry: ['setPrimaryNameStage'],
-              invoke: {
-                src: 'submitAddrReverseClear',
-                input: ({ context }) => {
-                  const data = context.postRegistrationData
-                  if (!data?.walletClient) {
-                    throw new Error(
-                      'Cannot clear addr.reverse without the owner wallet',
-                    )
-                  }
-
-                  return {
-                    ownerAddress: data.ownerAddress,
-                    walletClient: data.walletClient,
-                    publicClient: data.publicClient,
-                    chainId: data.chainId,
-                  }
-                },
-                // Mark attempted on both branches: the no-op case is a
-                // completed cleanup, and re-entering the decision state
-                // without it would loop.
-                onDone: [
-                  {
-                    guard: 'addrReverseClearSubmitted',
-                    target: 'waitingForAddrReverseClear',
-                    actions: [
-                      'storeAddrReverseClearTxId',
-                      'markAddrReverseClearAttempted',
-                    ],
-                  },
-                  {
-                    target: 'postRegistrationDecision',
-                    actions: ['markAddrReverseClearAttempted'],
-                  },
-                ],
-                onError: {
-                  target: 'success',
-                  actions: [
-                    'setRegistrationSuccessStage',
-                    'logPostRegistrationSetupError',
-                    'markPostRegistrationSetupFailed',
-                  ],
-                },
-              },
-            },
-            waitingForAddrReverseClear: {
-              entry: ['setPrimaryNameStage'],
-              invoke: {
-                src: 'waitForKnownTransaction',
-                input: ({ context }) => {
-                  if (!context.addrReverseClearTxId) {
-                    throw new Error('addr.reverse clear transaction is missing')
-                  }
-                  return { txId: context.addrReverseClearTxId }
-                },
-                onDone: {
-                  target: 'postRegistrationDecision',
                 },
                 onError: {
                   target: 'success',

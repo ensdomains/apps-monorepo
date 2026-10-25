@@ -10,6 +10,8 @@ export const SECONDS_PER_YEAR = 365 * SECONDS_PER_DAY
 export const MIN_REGISTER_DURATION_SECONDS = 2419200
 export const MIN_REGISTER_DURATION_YEARS =
   MIN_REGISTER_DURATION_SECONDS / SECONDS_PER_YEAR
+/** Renewing has no 28-day floor on either renewer; the picker is day-granular. */
+export const MIN_RENEW_DURATION_SECONDS = SECONDS_PER_DAY
 
 export const PRICING_YEAR_DISCOUNTS: Record<PricingDuration, number> = {
   1: 0,

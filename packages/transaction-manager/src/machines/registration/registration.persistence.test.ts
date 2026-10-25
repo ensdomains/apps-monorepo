@@ -201,6 +201,11 @@ describe('registration record serialization', () => {
       registerReadyTimestamp: 1_800_000_000_000,
       // Real orchestrator ids are ~250-bit uint256s — far past Number range.
       registrationIntentId: 2n ** 250n + 123n,
+      unsettledL2Bridge: {
+        intentId: 2n ** 249n + 7n,
+        claimableUntil: 1_800_000_600_000,
+        fundsHcaTo: 15_000_000n,
+      },
     })
 
     const record = buildRegistrationRecord('commitmentCooldown', context, 42)
@@ -214,6 +219,9 @@ describe('registration record serialization', () => {
     expect(result._unsafeUnwrap().context.commitment?.secret).toBe(SECRET)
     expect(result._unsafeUnwrap().context.registrationIntentId).toBe(
       2n ** 250n + 123n,
+    )
+    expect(result._unsafeUnwrap().context.unsettledL2Bridge?.intentId).toBe(
+      2n ** 249n + 7n,
     )
   })
 
@@ -273,6 +281,22 @@ describe('registration record serialization', () => {
     expect(serialized).not.toHaveProperty('error')
     expect(serialized).not.toHaveProperty('retryTarget')
     expect(serialized.signerType).toBe('rhinestone')
+  })
+
+  it('keeps only the chain id of the L2 a run pays from', () => {
+    const record = buildRegistrationRecord(
+      'waitingForCommitment',
+      baseContext({
+        signer: rhinestoneSigner,
+        l2Funding: { chain: { id: 84532 } } as never,
+      }),
+      42,
+    )
+
+    const result = parseRegistrationRecord(serializeRegistrationRecord(record))
+
+    expect(result._unsafeUnwrap().context.l2FundingChainId).toBe(84532)
+    expect(result._unsafeUnwrap().context).not.toHaveProperty('l2Funding')
   })
 
   it('discards corrupt JSON', () => {

@@ -22,36 +22,21 @@ const PROFILE_HEADER_ONLY_RECORD_KEYS: ReadonlySet<string> = new Set([
   'location',
   'timezone',
 ])
-const COMPACT_MONTH_LABELS = [
-  'JAN',
-  'FEB',
-  'MAR',
-  'APR',
-  'MAY',
-  'JUN',
-  'JUL',
-  'AUG',
-  'SEP',
-  'OCT',
-  'NOV',
-  'DEC',
+// Short sentence case, matching the profile metadata frame ("Oct 23, 2026").
+const PROFILE_DETAIL_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ] as const
-const FULL_MONTH_LABELS = [
-  'JANUARY',
-  'FEBRUARY',
-  'MARCH',
-  'APRIL',
-  'MAY',
-  'JUNE',
-  'JULY',
-  'AUGUST',
-  'SEPTEMBER',
-  'OCTOBER',
-  'NOVEMBER',
-  'DECEMBER',
-] as const
-
-type ProfileDetailDateVariant = 'mobile' | 'desktop'
 
 export type ProfileContactItem = {
   readonly key: string
@@ -96,10 +81,11 @@ export const formatProfileAddress = (value: string): string => {
  * hydrated. Callers pass `timeZone: 'local'` after `useHydrated()` flips true.
  * Local is the app-wide convention (dashboard, registration, and renewal all use
  * it); UTC here is only the SSR default.
+ *
+ * One format at every width: "Oct 23, 2026".
  */
 export const formatProfileDetailDate = (
   date: Date | null | undefined,
-  variant: ProfileDetailDateVariant = 'mobile',
   timeZone: 'utc' | 'local' = 'utc',
 ) => {
   if (!date || Number.isNaN(date.getTime())) return undefined
@@ -108,16 +94,10 @@ export const formatProfileDetailDate = (
     timeZone === 'local'
       ? [date.getMonth(), date.getDate(), date.getFullYear()]
       : [date.getUTCMonth(), date.getUTCDate(), date.getUTCFullYear()]
-  const compactMonth = COMPACT_MONTH_LABELS[monthIndex]
-  const fullMonth = FULL_MONTH_LABELS[monthIndex]
-  if (!compactMonth || !fullMonth) return undefined
+  const month = PROFILE_DETAIL_MONTHS[monthIndex]
+  if (!month) return undefined
 
-  if (variant === 'desktop') {
-    return `${fullMonth} ${dayOfMonth}, ${fullYear}`
-  }
-
-  const day = String(dayOfMonth).padStart(2, '0')
-  return `${compactMonth}.${day}.${fullYear}`
+  return `${month} ${dayOfMonth}, ${fullYear}`
 }
 
 const toSafeHttpHref = (value: string): string | undefined => {

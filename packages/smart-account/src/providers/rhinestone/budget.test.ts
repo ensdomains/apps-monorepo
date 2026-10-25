@@ -5,6 +5,7 @@ import {
   commitLegGasLimit,
   estimateHcaBudget,
   HCA_ACCOUNT_DEPLOY_GAS,
+  HCA_ADDR_REVERSE_CLEAR_GAS,
   HCA_LEG_GAS_LIMITS,
   HCA_MAX_LEG_FEES_USDC,
   HCA_RESOLVER_DEPLOY_GAS,
@@ -367,7 +368,8 @@ describe('registerLegGasLimit', () => {
     ).toBe(
       HCA_LEG_GAS_LIMITS.register +
         HCA_RESOLVER_DEPLOY_GAS +
-        primaryNameGas('myname.eth'),
+        primaryNameGas('myname.eth') +
+        HCA_ADDR_REVERSE_CLEAR_GAS,
     )
   })
 

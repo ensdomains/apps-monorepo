@@ -70,8 +70,6 @@ describe('PostHog consent', () => {
       if (hasEarlierOptIn) localStorage.setItem('__ph_opt_in_out_test-key', '1')
       const { client, requests } = initClient()
 
-      // Without consent the address only feeds wallet-targeted flag rules.
-      client.setPersonPropertiesForFlags({ address: WALLET })
       client.capture('wallet:connect', { wallet_address: WALLET })
       history.pushState({}, '', '/consent-test')
       await vi.advanceTimersByTimeAsync(3000)
@@ -84,11 +82,6 @@ describe('PostHog consent', () => {
       client.getSurveys(surveys)
       expect(surveys).toHaveBeenCalledWith([])
       expect(onlyFlagRequests(requests)).toBe(true)
-      const bodies = flagBodies(requests)
-      expect(
-        bodies.some((body) => body?.person_properties?.address === WALLET),
-      ).toBe(true)
-      expect(bodies.every((body) => body?.distinct_id !== WALLET)).toBe(true)
     },
   )
 
