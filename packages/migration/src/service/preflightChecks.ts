@@ -6,6 +6,7 @@ import {
   type Address,
   type Chain,
   getChainContractAddress,
+  isAddressEqual,
   namehash,
   type PublicClient,
   zeroAddress,
@@ -93,18 +94,29 @@ const isWrappedResultUnavailable = (
 
 type StaleWrapper = { readonly name: ClassifiedName; readonly expiry: bigint }
 
-const wrapperSyncCandidate = (
+/**
+ * Whether NameWrapper data shows `owner` holding a transferable .eth 2LD. Once the
+ * wrapper expiry passes, getData zeroes owner and fuses, so the indexed holder stands in.
+ */
+export const holdsSyncableWrapper = (
   name: ClassifiedName,
-  result: readonly [Address, number, bigint],
-  expectedOwner: string,
-): StaleWrapper | null =>
-  name.action === 'migrate' &&
-  name.parentName === 'eth' &&
-  result[0].toLowerCase() === expectedOwner &&
-  hasFuse(BigInt(result[1]), FUSES.IS_DOT_ETH) &&
-  !hasFuse(BigInt(result[1]), FUSES.CANNOT_TRANSFER)
-    ? { name, expiry: result[2] }
-    : null
+  [wrappedOwner, fuses, wrapperExpiry]: readonly [Address, number, bigint],
+  owner: Address,
+  nowSeconds: bigint,
+): boolean => {
+  if (name.action !== 'migrate' || name.parentName !== 'eth') return false
+  const isExpired =
+    wrapperExpiry > 0n &&
+    wrapperExpiry < nowSeconds &&
+    isAddressEqual(wrappedOwner, zeroAddress)
+  const holder = isExpired ? name.tokenHolder : wrappedOwner
+  const currentFuses = isExpired ? name.fuses : BigInt(fuses)
+  return (
+    isAddressEqual(holder, owner) &&
+    hasFuse(currentFuses, FUSES.IS_DOT_ETH) &&
+    !hasFuse(currentFuses, FUSES.CANNOT_TRANSFER)
+  )
+}
 
 const checkWrapperSyncExpiries = async (params: {
   readonly publicClient: PublicClient
@@ -114,25 +126,61 @@ const checkWrapperSyncExpiries = async (params: {
   readonly needsWrapperSync: Set<string>
   readonly failed?: Set<string>
 }): Promise<void> => {
-  const expiries = await batchedMulticall<bigint>(
+  const registrar = getChainContractAddress({
+    chain: params.chain,
+    contract: 'ensBaseRegistrarImplementation',
+  })
+  const registry = getChainContractAddress({
+    chain: params.chain,
+    contract: 'ensLegacyRegistry',
+  })
+  const nameWrapper = getChainContractAddress({
+    chain: params.chain,
+    contract: 'ensNameWrapper',
+  })
+  const results = await batchedMulticall<bigint | Address>(
     params.publicClient,
-    params.candidates.map(({ name }) => ({
-      address: getChainContractAddress({
-        chain: params.chain,
-        contract: 'ensBaseRegistrarImplementation',
-      }),
-      abi: baseRegistrarNameExpiresSnippet,
-      functionName: 'nameExpires' as const,
-      args: [BigInt(name.domain.labelhash)] as const,
-    })),
+    params.candidates.flatMap(({ name }) => [
+      {
+        address: registrar,
+        abi: baseRegistrarNameExpiresSnippet,
+        functionName: 'nameExpires' as const,
+        args: [BigInt(name.domain.labelhash)] as const,
+      },
+      {
+        address: registrar,
+        abi: BASE_REGISTRAR_ABI,
+        functionName: 'ownerOf' as const,
+        args: [BigInt(name.domain.labelhash)] as const,
+      },
+      {
+        address: registry,
+        abi: registryOwnerSnippet,
+        functionName: 'owner' as const,
+        args: [namehash(name.domain.name)] as const,
+      },
+    ]),
   )
   for (const [index, candidate] of params.candidates.entries()) {
-    const expiry = expiries[index]
-    if (!expiry || expiry.status === 'failure') {
+    const [expiry, registrant, registryOwner] = results.slice(
+      index * 3,
+      index * 3 + 3,
+    )
+    if (
+      expiry?.status !== 'success' ||
+      registrant?.status !== 'success' ||
+      registryOwner?.status !== 'success'
+    ) {
       params.failed?.add(candidate.name.domain.id)
       continue
     }
+    // NameWrapper.renew only updates a name both V1 contracts still hold for it.
     if (
+      typeof expiry.result === 'bigint' &&
+      typeof registrant.result === 'string' &&
+      typeof registryOwner.result === 'string' &&
+      isAddressEqual(registrant.result, nameWrapper) &&
+      isAddressEqual(registryOwner.result, nameWrapper) &&
       expiry.result > params.nowSeconds &&
       candidate.expiry < expiry.result + GRACE_PERIOD_SECONDS
     ) {
@@ -175,9 +223,9 @@ export const checkOwnership = async (
           entry.result,
           nowSeconds,
         )
-          ? wrapperSyncCandidate(name, entry.result, expected)
-          : null
-        return candidate ? [candidate] : []
+          ? holdsSyncableWrapper(name, entry.result, migrationOwner, nowSeconds)
+          : false
+        return candidate ? [{ name, expiry: entry.result[2] }] : []
       })
     : []
   for (const [i, name] of names.entries()) {

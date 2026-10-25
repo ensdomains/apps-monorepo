@@ -1,4 +1,11 @@
-import { type Address, encodeFunctionData, namehash, zeroAddress } from 'viem'
+import {
+  type Address,
+  type Chain,
+  encodeFunctionData,
+  getChainContractAddress,
+  namehash,
+  zeroAddress,
+} from 'viem'
 import { multicall } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -346,51 +353,93 @@ describe('runEligibilityChecks', () => {
     expect(multicallMock).toHaveBeenCalledTimes(3)
   })
 
-  it('offers a wrapper sync only when the registrar lease outlives the wrapper', async () => {
+  describe('wrapper sync', () => {
     const now = BigInt(Math.floor(Date.now() / 1000))
-    const wrapperExpiry = now + 3600n
-    const stale = makeClassified({
+    const DAY = 86_400n
+    const LEASE = now + 365n * DAY
+    const NAME_WRAPPER = getChainContractAddress({
+      chain: publicClient.chain as Chain,
+      contract: 'ensNameWrapper',
+    })
+    const name = makeClassified({
       id: '0xa1',
       label: 'a',
       name: 'a.eth',
       tokenType: 'unlocked',
+      fuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
     })
-    const inGrace = makeClassified({
-      id: '0xb1',
-      label: 'b',
-      name: 'b.eth',
-      tokenType: 'unlocked',
-    })
-    const wrapped = ok([
-      OWNER,
-      Number(FUSES.IS_DOT_ETH),
-      wrapperExpiry,
-    ] as const)
-    multicallMock.mockImplementation(async (_, { contracts }) => {
-      // Encode like viem does, so a call missing from its ABI fails here.
-      for (const contract of contracts) encodeFunctionData(contract as never)
-      switch (
-        (contracts[0] as { readonly functionName?: string }).functionName
-      ) {
-        case 'getData':
-          return [wrapped, wrapped]
-        case 'nameExpires':
-          // a.eth was renewed past the wrapper; b.eth is really in grace.
-          return [ok(now + 365n * 86_400n), ok(wrapperExpiry - 90n * 86_400n)]
-        default:
-          return contracts.map(() => ok(1))
-      }
-    })
+    const live = (expiry: bigint) =>
+      [
+        OWNER,
+        Number(FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH),
+        expiry,
+      ] as const
+    // NameWrapper.getData zeroes owner and fuses once the wrapper expiry passes.
+    const expired = (expiry: bigint) => [zeroAddress, 0, expiry] as const
 
-    const result = await runEligibilityChecks(
-      publicClient,
-      [stale, inGrace],
-      OWNER,
-    )
+    it.each([
+      [
+        'a wrapper in its grace window',
+        live(now + 3600n),
+        LEASE,
+        NAME_WRAPPER,
+        'sync',
+      ],
+      [
+        'an expired wrapper with a live lease',
+        expired(now - 3600n),
+        LEASE,
+        NAME_WRAPPER,
+        'sync',
+      ],
+      [
+        'a lease that is really in grace',
+        live(now + 3600n),
+        now + 3600n - 90n * DAY,
+        NAME_WRAPPER,
+        'migrated',
+      ],
+      [
+        'an expired wrapper the registrar no longer holds',
+        expired(now - 3600n),
+        LEASE,
+        OTHER,
+        'migrated',
+      ],
+    ] as const)('classifies %s', async (_, data, lease, registrant, bucket) => {
+      multicallMock.mockImplementation(async (_, { contracts }) => {
+        // Encode like viem does, so a call missing from its ABI fails here.
+        return contracts.map((contract) => {
+          encodeFunctionData(contract as never)
+          switch (
+            (contract as { readonly functionName: string }).functionName
+          ) {
+            case 'getData':
+              return ok(data)
+            case 'nameExpires':
+              return ok(lease)
+            case 'ownerOf':
+              return ok(registrant)
+            case 'owner':
+              return ok(NAME_WRAPPER)
+            default:
+              return ok(1)
+          }
+        }) as never
+      })
 
-    expect(result.needsWrapperSync.map((n) => n.domain.id)).toEqual(['0xa1'])
-    expect(result.alreadyMigrated.map((n) => n.domain.id)).toEqual(['0xb1'])
-    expect(result.eligible).toEqual([])
+      const result = await runEligibilityChecks(publicClient, [name], OWNER)
+
+      expect({
+        sync: result.needsWrapperSync.length,
+        migrated: result.alreadyMigrated.length,
+        eligible: result.eligible.length,
+      }).toEqual({
+        sync: bucket === 'sync' ? 1 : 0,
+        migrated: bucket === 'migrated' ? 1 : 0,
+        eligible: 0,
+      })
+    })
   })
 
   it('reports unreadable ownership checks in `failed` (and keeps them out of eligible)', async () => {

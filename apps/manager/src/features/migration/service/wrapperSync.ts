@@ -1,3 +1,4 @@
+import { holdsSyncableWrapper } from '@ens-apps/migration'
 import {
   transactionManager,
   waitForTransaction,
@@ -7,6 +8,7 @@ import {
   V1_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { registryOwnerSnippet } from '@ensdomains/ensjs-abi/registry'
 import { baseRegistrarNameExpiresSnippet } from '@ensdomains/ensjs-abi/v1/baseRegistrar'
 import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import {
@@ -22,7 +24,7 @@ import { labelhash, namehash } from 'viem/ens'
 import { envConfig } from '@/config'
 import { resolveRenewalLabel } from '@/features/renew/utils/renewableName'
 import { V1_CONTRACTS } from '../contracts/addresses'
-import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+import type { ClassifiedName } from './classifyNames'
 
 const WRAPPER_GRACE_SECONDS = BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 const SYNC_WRAPPER_ABI = parseAbi(['function syncWrapper(string[] labels)'])
@@ -65,7 +67,7 @@ const readWrapperSyncState = async (params: {
       }
       const node = namehash(name.domain.name)
       const tokenId = BigInt(labelhash(label.value))
-      const [expiry, registrant, [wrappedOwner, fuses, wrapperExpiry]] =
+      const [expiry, registrant, registryOwner, wrapperData] =
         await Promise.all([
           publicClient.readContract({
             address: V1_CONTRACTS.BaseRegistrar,
@@ -82,6 +84,13 @@ const readWrapperSyncState = async (params: {
             blockNumber: block.number,
           }),
           publicClient.readContract({
+            address: V1_CONTRACTS.LegacyRegistry,
+            abi: registryOwnerSnippet,
+            functionName: 'owner',
+            args: [node],
+            blockNumber: block.number,
+          }),
+          publicClient.readContract({
             address: V1_CONTRACTS.NameWrapper,
             abi: nameWrapperGetDataSnippet,
             functionName: 'getData',
@@ -92,9 +101,8 @@ const readWrapperSyncState = async (params: {
       if (
         expiry <= block.timestamp ||
         !isAddressEqual(registrant, V1_CONTRACTS.NameWrapper) ||
-        !isAddressEqual(wrappedOwner, owner) ||
-        !hasFuse(BigInt(fuses), FUSES.IS_DOT_ETH) ||
-        hasFuse(BigInt(fuses), FUSES.CANNOT_TRANSFER)
+        !isAddressEqual(registryOwner, V1_CONTRACTS.NameWrapper) ||
+        !holdsSyncableWrapper(name, wrapperData, owner, block.timestamp)
       ) {
         throw new WrapperSyncError({
           reason: 'name-unavailable',
@@ -103,7 +111,7 @@ const readWrapperSyncState = async (params: {
       }
       return {
         label: label.value,
-        needsSync: wrapperExpiry < expiry + WRAPPER_GRACE_SECONDS,
+        needsSync: wrapperData[2] < expiry + WRAPPER_GRACE_SECONDS,
       }
     }),
   )

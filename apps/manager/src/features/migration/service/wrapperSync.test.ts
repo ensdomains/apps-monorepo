@@ -1,10 +1,13 @@
 import {
+  type Abi,
   type Address,
   decodeFunctionData,
+  encodeFunctionData,
   namehash,
   type PublicClient,
   parseAbi,
   type WalletClient,
+  zeroAddress,
 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { envConfig } from '@/config'
@@ -38,20 +41,21 @@ const setup = (state: Chain) => {
     chain: envConfig.chain,
     getBlock: vi.fn(async () => ({ number: 10n, timestamp: NOW })),
     readContract: vi.fn(
-      async ({
-        functionName,
-        args,
-      }: {
+      async (call: {
+        readonly abi: Abi
         readonly functionName: string
         readonly args: readonly [bigint]
       }) => {
-        if (functionName === 'nameExpires') return LEASE
-        if (functionName === 'ownerOf') return WRAPPER
-        return [
-          state.wrappedOwner,
-          Number(FUSES.IS_DOT_ETH),
-          state.wrapperExpiry.get(args[0]) ?? 0n,
-        ]
+        // Encode like viem does, so a call missing from its ABI fails here.
+        encodeFunctionData(call as never)
+        if (call.functionName === 'nameExpires') return LEASE
+        if (call.functionName === 'ownerOf' || call.functionName === 'owner')
+          return WRAPPER
+        const expiry = state.wrapperExpiry.get(call.args[0]) ?? 0n
+        // NameWrapper.getData zeroes owner and fuses once the expiry passes.
+        return expiry < NOW
+          ? [zeroAddress, 0, expiry]
+          : [state.wrappedOwner, Number(FUSES.IS_DOT_ETH), expiry]
       },
     ),
     simulateContract: vi.fn(async () => ({})),
@@ -70,6 +74,7 @@ const name = (label: string) =>
     label,
     name: `${label}.eth`,
     tokenType: 'unlocked',
+    fuses: FUSES.IS_DOT_ETH,
   })
 const node = (label: string) => BigInt(namehash(`${label}.eth`))
 
@@ -106,6 +111,30 @@ describe('syncMigrationWrappers', () => {
     expect(
       decodeFunctionData({ abi: SYNC_ABI, data: request.data }).args,
     ).toEqual([['stale']])
+  })
+
+  it('syncs a wrapper whose expiry passed while the registrar lease is live', async () => {
+    const state: Chain = {
+      wrappedOwner: OWNER,
+      wrapperExpiry: new Map([[node('lapsed'), NOW - 3600n]]),
+    }
+    const { publicClient, walletClient } = setup(state)
+    mocks.waitForTransaction.mockImplementation(async () => {
+      state.wrapperExpiry.set(node('lapsed'), LEASE + GRACE)
+      return { hash: '0x01', receipt: { status: 'success', blockNumber: 11n } }
+    })
+
+    await syncMigrationWrappers({
+      names: [name('lapsed')],
+      owner: OWNER,
+      walletClient,
+      publicClient,
+    })
+
+    const [{ request }] = mocks.startTransaction.mock.calls[0] ?? []
+    expect(
+      decodeFunctionData({ abi: SYNC_ABI, data: request.data }).args,
+    ).toEqual([['lapsed']])
   })
 
   it('refuses before any transaction when the wrapped name changed hands', async () => {
