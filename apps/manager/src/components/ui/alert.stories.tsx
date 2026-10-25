@@ -5,7 +5,7 @@ import { Alert, AlertDescription, AlertTitle, type AlertVariant } from './alert'
 const VARIANTS = [
   'default',
   'success',
-  'error',
+  'destructive',
   'warning',
   'info',
 ] as const satisfies readonly AlertVariant[]
@@ -64,10 +64,9 @@ export const Success: Story = {
   },
 }
 
-export const ErrorVariant: Story = {
-  name: 'Error',
+export const Destructive: Story = {
   args: {
-    variant: 'error',
+    variant: 'destructive',
     children: (
       <>
         <AlertTitle>Registration Failed</AlertTitle>
@@ -112,7 +111,7 @@ export const InfoVariant: Story = {
 /** Unbroken hex must wrap inside the alert instead of widening it. */
 export const LongHash: Story = {
   args: {
-    variant: 'error',
+    variant: 'destructive',
     children: (
       <>
         <AlertTitle>Renewal Failed</AlertTitle>
@@ -124,7 +123,7 @@ export const LongHash: Story = {
 
 export const CustomIcon: Story = {
   args: {
-    variant: 'error',
+    variant: 'destructive',
     icon: <Clock className="size-4" />,
     children: <AlertTitle>Another Registration Is Running</AlertTitle>,
   },

@@ -23,7 +23,7 @@ export const FailureStep = ({
       </DialogTitle>
     </DialogHeader>
 
-    <Alert className="font-sans" variant="error">
+    <Alert className="font-sans" variant="destructive">
       <AlertTitle>
         <Trans>Something went wrong</Trans>
       </AlertTitle>

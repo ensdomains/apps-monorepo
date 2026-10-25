@@ -80,7 +80,7 @@ export const FailureStepView = ({
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
       <Alert
         icon={isWalletBusy ? <Clock className="size-4" /> : undefined}
-        variant="error"
+        variant="destructive"
       >
         <AlertTitle>
           {match({ nameUnavailable, isWalletBusy })

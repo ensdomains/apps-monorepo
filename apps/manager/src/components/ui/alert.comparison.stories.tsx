@@ -252,7 +252,7 @@ const FailurePageBannerAfter = ({
 }) => (
   <Alert
     icon={isWalletBusy ? <Clock className="size-4" /> : undefined}
-    variant="error"
+    variant="destructive"
   >
     <AlertTitle>{title}</AlertTitle>
     <AlertDescription className="max-h-32 overflow-y-auto">

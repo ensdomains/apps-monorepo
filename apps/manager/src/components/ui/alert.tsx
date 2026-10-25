@@ -2,7 +2,6 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import {
   CircleAlert,
   CircleCheck,
-  CircleX,
   Info,
   type LucideIcon,
   TriangleAlert,
@@ -24,11 +23,9 @@ const alertVariants = cva(
         default: 'border-ens-gray-two bg-white text-ens-blue-dark',
         success:
           'border-ens-peridot-border bg-ens-peridot-bg text-ens-peridot-text-dark',
-        error: 'border-ens-lapis-dust bg-ens-lapis-tint text-ens-lapis-dense',
         warning:
           'border-ens-signal-warning-400 bg-ens-signal-warning-100 text-ens-signal-warning-800',
         info: 'border-ens-lapis-dust bg-ens-lapis-bg text-ens-lapis-dense',
-        // Legacy red style kept for existing callers; prefer `error`.
         destructive: 'bg-card text-destructive',
       },
     },
@@ -45,7 +42,6 @@ const alertDescriptionVariants = cva('', {
     variant: {
       default: 'text-ens-gray',
       success: 'text-ens-peridot-text-medium',
-      error: 'text-ens-lapis-dense/70',
       warning: 'text-ens-signal-warning-800',
       info: 'text-ens-lapis-core',
       destructive: 'text-destructive/90',
@@ -56,7 +52,6 @@ const alertDescriptionVariants = cva('', {
 const ALERT_ICONS: Readonly<Record<AlertVariant, LucideIcon>> = {
   default: Info,
   success: CircleCheck,
-  error: CircleX,
   warning: TriangleAlert,
   info: Info,
   destructive: CircleAlert,
@@ -70,7 +65,6 @@ const ALERT_LIVE_REGIONS: Readonly<
 > = {
   default: { role: 'status', live: 'polite' },
   success: { role: 'status', live: 'polite' },
-  error: { role: 'alert', live: 'assertive' },
   // Warnings are standing context, not interruptions
   warning: { role: 'status', live: 'polite' },
   info: { role: 'status', live: 'polite' },

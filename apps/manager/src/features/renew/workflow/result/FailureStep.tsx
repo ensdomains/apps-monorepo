@@ -16,7 +16,7 @@ export const RenewFailureStep = () => {
 
   return (
     <RenewPageLayout>
-      <Alert variant="error">
+      <Alert variant="destructive">
         <AlertTitle>
           <Trans>Renewal Failed</Trans>
         </AlertTitle>
