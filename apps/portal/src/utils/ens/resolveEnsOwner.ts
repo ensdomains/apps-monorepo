@@ -84,13 +84,13 @@ const registryStateAbi = parseAbi([
   'function getState(uint256 anyId) view returns (State state)',
 ])
 
-/** Whether a `.eth` 2LD was registered in V2 and has since expired (so `ownerOf` reads zero). */
-const hasExpiredV2Token = async (
+/** The expiry of a `.eth` 2LD registered in V2 that has since expired (so `ownerOf` reads zero), or null. */
+export const getExpiredV2Token = async (
   client: EnsResolveClient,
   name: string,
-): Promise<boolean> => {
+): Promise<{ readonly expiry: bigint } | null> => {
   const [, ethRegistry] = await getNameRegistries(client, { name })
-  if (!ethRegistry || isAddressEqual(ethRegistry, zeroAddress)) return false
+  if (!ethRegistry || isAddressEqual(ethRegistry, zeroAddress)) return null
   const label = name.split('.')[0] ?? ''
   const state = await getAction(
     client,
@@ -102,7 +102,9 @@ const hasExpiredV2Token = async (
     functionName: 'getState',
     args: [BigInt(labelhash(label))],
   })
-  return !isAddressEqual(state.latestOwner, zeroAddress)
+  return isAddressEqual(state.latestOwner, zeroAddress)
+    ? null
+    : { expiry: state.expiry }
 }
 
 /**
@@ -144,7 +146,7 @@ export async function resolveEnsOwner(
     }
     // A migrated name that expired still has a V2 token; its V1 entry is left
     // behind and must not make it read as ENSv1 (and hide its V2 renewal).
-    if (labels.length === 2 && (await hasExpiredV2Token(client, name)))
+    if (labels.length === 2 && (await getExpiredV2Token(client, name)))
       return null
   }
 

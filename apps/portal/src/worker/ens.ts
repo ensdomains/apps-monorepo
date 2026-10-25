@@ -1,8 +1,12 @@
+import {
+  SECONDS_PER_DAY,
+  V2_GRACE_PERIOD_DAYS,
+} from '@ens-apps/utils/gracePeriod'
 import { getRecords } from '@ensdomains/ensjs/public'
 import type { Address } from 'viem'
 
 import { isVerifiedPermissionedResolver } from '@/features/resolver/utils/permissionedResolver'
-import { resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
+import { getExpiredV2Token, resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
 import { resolveAvatarRecord } from './avatar'
 import { type AvatarBitmap, downscaleAvatar } from './avatar-image'
 import { createClient, type EnsClient } from './clients'
@@ -12,6 +16,8 @@ export interface EnsData {
   avatar: string | null
   description: string | null
   owner: string | null
+  /** No owner because a V2 name is in its grace period, not because it is available. */
+  isInGrace: boolean
 }
 
 /** Cap the avatar payload to avoid memory-exhaustion / amplification abuse. */
@@ -165,6 +171,22 @@ export async function fetchIsPermissionedResolver(
   }
 }
 
+/** Whether a `.eth` 2LD with no owner is an expired V2 name still inside its grace period. */
+const V2_GRACE_PERIOD_SECONDS =
+  BigInt(V2_GRACE_PERIOD_DAYS) * BigInt(SECONDS_PER_DAY)
+
+const isV2NameInGrace = async (
+  client: EnsClient,
+  name: string,
+): Promise<boolean> => {
+  const labels = name.split('.')
+  if (labels.length !== 2 || labels[1] !== 'eth') return false
+  const token = await getExpiredV2Token(client, name).catch(() => null)
+  if (!token) return false
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+  return nowSeconds < token.expiry + V2_GRACE_PERIOD_SECONDS
+}
+
 export async function fetchEnsData(
   env: Env,
   name: string,
@@ -179,12 +201,14 @@ export async function fetchEnsData(
       }).catch(() => null),
       resolveOwner(client, name),
     ])
+    const isInGrace = owner === null && (await isV2NameInGrace(client, name))
 
     if (!records) {
       return {
         avatar: null,
         description: null,
         owner,
+        isInGrace,
       }
     }
 
@@ -205,8 +229,9 @@ export async function fetchEnsData(
           ?.value?.slice(0, DESCRIPTION_MAX_CHARS)
           .replace(/[\uD800-\uDBFF]$/, '') ?? null,
       owner,
+      isInGrace,
     }
   } catch {
-    return { avatar: null, description: null, owner: null }
+    return { avatar: null, description: null, owner: null, isInGrace: false }
   }
 }
