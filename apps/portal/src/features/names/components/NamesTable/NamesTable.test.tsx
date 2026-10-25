@@ -16,7 +16,7 @@ vi.mock('@/components/EntityBadge', () => ({
 }))
 
 const { NamesTable } = await import('./NamesTable')
-const { columns } = await import('./columns')
+const { columns, nameColumnVisibility } = await import('./columns')
 
 const row = (name: string, expiryDate: Date | null): AddressNameItem => ({
   name,
@@ -31,6 +31,7 @@ const NamesTableHarness = ({ data }: { data: AddressNameItem[] }) => {
   const table = useReactTable({
     data,
     columns,
+    initialState: { columnVisibility: nameColumnVisibility },
     getCoreRowModel: getCoreRowModel(),
   })
   return <NamesTable table={table} />

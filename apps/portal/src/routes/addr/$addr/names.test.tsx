@@ -244,15 +244,21 @@ describe('addr names route', () => {
     await user.click(screen.getByText('Level', { selector: 'summary' }))
     await user.click(screen.getByText('Subnames (3LD+)'))
     await user.keyboard('{Escape}')
-    expect(await screen.findByText('Names (1 of 4 shown)')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Names (1 of 4 matching)'),
+    ).toBeInTheDocument()
     expect(screen.getAllByText('sub.parent.eth')).toHaveLength(2)
     expect(screen.queryByText(V1_NAME)).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^Filters/ }))
     await user.click(screen.getByText('Roles', { selector: 'summary' }))
     await user.click(screen.getByText('Owner', { selector: 'label' }))
-    expect(await screen.findByText('Names (0 of 4 shown)')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Names (0 of 4 matching)'),
+    ).toBeInTheDocument()
     await user.click(screen.getByText('Manager', { selector: 'label' }))
-    expect(await screen.findByText('Names (1 of 4 shown)')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Names (1 of 4 matching)'),
+    ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Close filters' }))
     expect(
       screen.getByRole('button', { name: 'Remove level filter' }),
@@ -260,7 +266,9 @@ describe('addr names route', () => {
     await user.click(
       screen.getByRole('button', { name: 'Remove roles filter' }),
     )
-    expect(await screen.findByText('Names (1 of 4 shown)')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Names (1 of 4 matching)'),
+    ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Clear all' }))
     expect(await screen.findByText('Names (4)')).toBeInTheDocument()
     expect(screen.getAllByText(V2_NAME)).toHaveLength(2)
@@ -281,11 +289,15 @@ describe('addr names route', () => {
     await user.click(screen.getByRole('button', { name: 'Filters' }))
     await user.click(screen.getByText('Roles', { selector: 'summary' }))
     await user.click(screen.getByLabelText('Renew'))
-    expect(await screen.findByText('Names (1 of 2 shown)')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Names (1 of 2 matching)'),
+    ).toBeInTheDocument()
     expect(screen.getAllByText(V2_NAME)).toHaveLength(2)
     expect(screen.queryByText(V1_NAME)).not.toBeInTheDocument()
     await user.click(screen.getByLabelText('Owner'))
-    expect(await screen.findByText('Names (2 of 2 shown)')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Names (2 of 2 matching)'),
+    ).toBeInTheDocument()
     await user.type(
       screen.getByRole('textbox', { name: 'Search roles' }),
       'resolver',
@@ -300,5 +312,21 @@ describe('addr names route', () => {
       screen.getByRole('button', { name: 'Remove roles filter' }),
     )
     expect(await screen.findByText('Names (2)')).toBeInTheDocument()
+  })
+
+  it('keeps name search when clearing the other filters', async () => {
+    const user = userEvent.setup()
+    renderRoute()
+    await screen.findByText('Names (2)')
+    await user.type(screen.getByPlaceholderText('Search names...'), 'ensv2')
+    expect(await screen.findByText('Names (1 matching)')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Filters' }))
+    await user.click(screen.getByText('Roles', { selector: 'summary' }))
+    await user.click(screen.getByLabelText('Renew'))
+    await user.click(screen.getByRole('button', { name: 'Close filters' }))
+    await user.click(screen.getByRole('button', { name: 'Clear all' }))
+    expect(screen.getByPlaceholderText('Search names...')).toHaveValue('ensv2')
+    expect(await screen.findByText('Names (1 matching)')).toBeInTheDocument()
+    expect(screen.queryByText(V1_NAME)).not.toBeInTheDocument()
   })
 })

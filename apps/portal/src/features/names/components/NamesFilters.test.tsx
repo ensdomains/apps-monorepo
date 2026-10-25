@@ -1,12 +1,28 @@
+import {
+  getCoreRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
+  getFilteredRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
-import { EMPTY_NAMES_FILTERS, NamesFilters } from './NamesFilters'
+import { NamesFilters } from './NamesFilters'
+import { columns } from './NamesTable/columns'
+
+const NO_ROWS: import('./NamesTable/columns').NameRow[] = []
 
 const Harness = ({ state }: { state: 'loading' | 'unavailable' }) => {
-  const [value, onChange] = useState(EMPTY_NAMES_FILTERS)
-  return <NamesFilters value={value} onChange={onChange} v2RolesState={state} />
+  const table = useReactTable({
+    data: NO_ROWS,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+  })
+  return <NamesFilters table={table} v2RolesState={state} />
 }
 
 describe('NamesFilters role availability', () => {

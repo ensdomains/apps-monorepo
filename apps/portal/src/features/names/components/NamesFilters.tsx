@@ -1,3 +1,4 @@
+import type { Table } from '@tanstack/react-table'
 import { ChevronDown, SlidersHorizontal, XIcon } from 'lucide-react'
 import { useId, useState } from 'react'
 import { DateRangeFilterFields } from '@/components/table/TableDateRangeFilter'
@@ -22,6 +23,7 @@ import {
   type DateRange,
   getDateRangeLabel,
 } from '@/utils/formatting/formatDateRange'
+import type { NameRow } from './NamesTable/columns'
 
 const STATUS_FILTER_GROUPS: FilterGroup[] = [
   {
@@ -83,22 +85,6 @@ const ROLE_FILTER_GROUPS: FilterGroup[] = [
   })),
 ]
 
-export type NamesFilterValues = {
-  levels: string[]
-  roles: string[]
-  statuses: string[]
-  lengths: string[]
-  expiry: DateRange
-}
-
-export const EMPTY_NAMES_FILTERS: NamesFilterValues = {
-  levels: [],
-  roles: [],
-  statuses: [],
-  lengths: [],
-  expiry: {},
-}
-
 const FILTERS = [
   { key: 'levels', label: 'Level', groups: LEVEL_FILTER_GROUPS },
   {
@@ -111,20 +97,42 @@ const FILTERS = [
 ] as const
 
 export const NamesFilters = ({
-  value,
-  onChange,
+  table,
   v2RolesState,
 }: {
-  readonly value: NamesFilterValues
-  readonly onChange: (value: NamesFilterValues) => void
+  readonly table: Table<NameRow>
   readonly v2RolesState: 'ready' | 'loading' | 'unavailable'
 }) => {
   const id = useId()
   const [open, setOpen] = useState(false)
   const [roleSearch, setRoleSearch] = useState('')
+  const values = (key: (typeof FILTERS)[number]['key']) =>
+    (table.getColumn(key)?.getFilterValue() as string[] | undefined) ?? []
+  const value = {
+    levels: values('levels'),
+    roles: values('roles'),
+    statuses: values('statuses'),
+    lengths: values('lengths'),
+    expiry:
+      (table.getColumn('expiryDate')?.getFilterValue() as
+        | DateRange
+        | undefined) ?? {},
+  }
+  const clearFilters = () =>
+    table.setColumnFilters((filters) =>
+      filters.filter((filter) => filter.id === 'name'),
+    )
   const active = FILTERS.filter(({ key }) => value[key].length > 0)
   const hasExpiry = !!(value.expiry.from || value.expiry.to)
   const count = active.length + Number(hasExpiry)
+  const optionCount = (
+    key: (typeof FILTERS)[number]['key'],
+    option: string,
+  ) => {
+    if (!open || (option.startsWith('v2:') && v2RolesState !== 'ready'))
+      return undefined
+    return table.getColumn(key)?.getFacetedUniqueValues().get(option) ?? 0
+  }
   const selectionLabel = (
     key: (typeof FILTERS)[number]['key'],
     groups: readonly FilterGroup[],
@@ -157,22 +165,11 @@ export const NamesFilters = ({
           <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
             <h3 className="font-semibold">Filters</h3>
             <div className="flex items-center gap-1">
-              {v2RolesState !== 'ready' &&
-                value.roles.some((role) => role.startsWith('v2:')) && (
-                  <p
-                    role="status"
-                    className="basis-full text-small text-muted-foreground"
-                  >
-                    {v2RolesState === 'loading'
-                      ? 'Loading ENSv2 role matches…'
-                      : 'ENSv2 role matches could not be loaded.'}
-                  </p>
-                )}
               {count > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onChange(EMPTY_NAMES_FILTERS)}
+                  onClick={() => clearFilters()}
                 >
                   Clear all
                 </Button>
@@ -245,15 +242,17 @@ export const NamesFilters = ({
                             <Checkbox
                               id={`${id}-${key}-${option.value}`}
                               checked={value[key].includes(option.value)}
+                              aria-describedby={`${id}-${key}-${option.value}-count`}
                               disabled={
                                 option.value.startsWith('v2:') &&
                                 v2RolesState !== 'ready'
                               }
                               onCheckedChange={() =>
-                                onChange({
-                                  ...value,
-                                  [key]: toggleValue(value[key], option.value),
-                                })
+                                table
+                                  .getColumn(key)
+                                  ?.setFilterValue(
+                                    toggleValue(value[key], option.value),
+                                  )
                               }
                             />
                             <Label
@@ -262,6 +261,27 @@ export const NamesFilters = ({
                             >
                               {option.label}
                             </Label>
+                            <span
+                              id={`${id}-${key}-${option.value}-count`}
+                              className="text-small tabular-nums text-muted-foreground"
+                            >
+                              {optionCount(key, option.value) === undefined ? (
+                                <>
+                                  <span aria-hidden="true">—</span>
+                                  <span className="sr-only">
+                                    Count unavailable
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  {optionCount(key, option.value)}
+                                  <span className="sr-only">
+                                    {' '}
+                                    matching names
+                                  </span>
+                                </>
+                              )}
+                            </span>
                           </div>
                         ))}
                       </fieldset>
@@ -282,13 +302,26 @@ export const NamesFilters = ({
               <div className="px-4 pb-4">
                 <DateRangeFilterFields
                   dateRange={value.expiry}
-                  onChange={(expiry) => onChange({ ...value, expiry })}
+                  onChange={(expiry) =>
+                    table.getColumn('expiryDate')?.setFilterValue(expiry)
+                  }
                 />
               </div>
             </details>
           </div>
         </PopoverContent>
       </Popover>
+      {v2RolesState !== 'ready' &&
+        value.roles.some((role) => role.startsWith('v2:')) && (
+          <p
+            role="status"
+            className="basis-full text-small text-muted-foreground"
+          >
+            {v2RolesState === 'loading'
+              ? 'Loading ENSv2 role matches…'
+              : 'ENSv2 role matches could not be loaded.'}
+          </p>
+        )}
       {count > 0 && (
         <div className="flex basis-full flex-wrap items-center gap-2">
           {active.map(({ key, label, groups }) => (
@@ -298,7 +331,7 @@ export const NamesFilters = ({
               size="sm"
               className="h-auto min-w-0 max-w-full whitespace-normal py-1 text-left"
               aria-label={`Remove ${label.toLowerCase()} filter`}
-              onClick={() => onChange({ ...value, [key]: [] })}
+              onClick={() => table.getColumn(key)?.setFilterValue(undefined)}
             >
               {label}: {selectionLabel(key, groups)}
               <XIcon className="size-3 shrink-0" />
@@ -310,17 +343,15 @@ export const NamesFilters = ({
               size="sm"
               className="h-auto max-w-full whitespace-normal py-1 text-left"
               aria-label="Remove expiry filter"
-              onClick={() => onChange({ ...value, expiry: {} })}
+              onClick={() =>
+                table.getColumn('expiryDate')?.setFilterValue(undefined)
+              }
             >
               Expiry: {getDateRangeLabel(value.expiry)}
               <XIcon className="size-3 shrink-0" />
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onChange(EMPTY_NAMES_FILTERS)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => clearFilters()}>
             Clear all
           </Button>
         </div>
