@@ -99,7 +99,7 @@ export const TelegramContactMethod = ({
     >
       {telegram && (
         <div className="flex min-w-0 items-center gap-3 rounded-lg border border-ens-quartz-150 bg-ens-quartz-0 p-3">
-          <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
             <p
               className="truncate text-ens-blue-dark text-sm"
               title={telegram.label}
