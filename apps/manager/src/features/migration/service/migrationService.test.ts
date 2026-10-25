@@ -35,6 +35,13 @@ const mocks = vi.hoisted(() => ({
   reconcileAtomicMigrationBatch: vi.fn(),
   verifyAtomicMigrationBatch: vi.fn(),
   assertNoLiveSubregistryOverwrite: vi.fn(),
+  assertLockedResolverReplacementRecordSafety: vi.fn(),
+}))
+
+vi.mock('./buildMigrationPlan', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./buildMigrationPlan')>()),
+  assertLockedResolverReplacementRecordSafety:
+    mocks.assertLockedResolverReplacementRecordSafety,
 }))
 
 vi.mock('@ens-apps/smart-account', async (importOriginal) => ({
@@ -485,6 +492,7 @@ beforeEach(() => {
     }),
   )
   mocks.assertNoLiveSubregistryOverwrite.mockResolvedValue(undefined)
+  mocks.assertLockedResolverReplacementRecordSafety.mockResolvedValue(undefined)
   mocks.checkResolverReadiness.mockResolvedValue({
     status: 'verified',
     resolver: RESOLVER,
@@ -1532,6 +1540,26 @@ describe('executeMigration HCA orchestration', () => {
       names: [expect.objectContaining({ label: 'alice' })],
     })
     expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('re-checks locked resolver records before each batch, including resumed ones', async () => {
+    mocks.assertLockedResolverReplacementRecordSafety.mockRejectedValueOnce(
+      Object.assign(new Error('records found'), {
+        name: 'LockedResolverRecordSafetyError',
+      }),
+    )
+
+    await expect(runExecute()).rejects.toMatchObject({
+      name: 'LockedResolverRecordSafetyError',
+    })
+
+    expect(
+      mocks.assertLockedResolverReplacementRecordSafety,
+    ).toHaveBeenCalledWith(
+      [expect.objectContaining({ label: 'alice' })],
+      PUBLIC_CLIENT,
+    )
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 

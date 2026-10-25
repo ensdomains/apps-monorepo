@@ -62,6 +62,7 @@ const eligibleFixture: readonly ClassifiedName[] = [
 
 const eligibilityState = vi.hoisted(() => ({
   blockedSubnames: [] as BlockedSubnameMigration[],
+  wrapperSyncNames: [] as ClassifiedName[],
   recoveryStatus: 'none' as 'none' | 'recovering',
 }))
 
@@ -79,6 +80,7 @@ vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
     blockedSubnames: eligibilityState.blockedSubnames,
     gracePeriodNames: [],
     unavailableNames: [],
+    wrapperSyncNames: eligibilityState.wrapperSyncNames,
     isPending: false,
     recoveryState: { status: eligibilityState.recoveryStatus },
   }),
@@ -98,7 +100,19 @@ vi.mock('@/features/migration/hooks/useSubnameMigrationImpact', () => ({
   useSubnameMigrationImpact: () => impactState,
 }))
 
+const wrapperSync = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  isPending: false,
+  error: null,
+}))
+
+vi.mock('@/features/migration/hooks/useWrapperSync', () => ({
+  useWrapperSync: () => wrapperSync,
+}))
+
 beforeEach(() => {
+  wrapperSync.mutate.mockReset()
+  eligibilityState.wrapperSyncNames = []
   impactState.status = 'ready'
   impactState.impact.parents = []
   eligibilityState.blockedSubnames = []
@@ -156,9 +170,19 @@ describe('SelectNamesStep', () => {
     expect(onNamesChange).not.toHaveBeenCalled()
   })
 
+  it('offers a sync for names whose wrapper expiry is behind the registrar', () => {
+    const stale = eligibleFixture[0]
+    if (!stale) throw new Error('Missing fixture')
+    eligibilityState.wrapperSyncNames = [stale]
+    const { getByRole } = renderStep()
+
+    fireEvent.click(getByRole('button', { name: 'Sync names' }))
+
+    expect(wrapperSync.mutate).toHaveBeenCalledOnce()
+  })
+
   it.each([
     ['deeper-subnames', /Upgrading the whole tree is not supported yet/],
-    ['wrapper-needs-sync', /wrapped expiry needs to be synced/],
   ] as const)(
     'keeps a blocked %s group visible and unavailable for selection',
     (reason, message) => {

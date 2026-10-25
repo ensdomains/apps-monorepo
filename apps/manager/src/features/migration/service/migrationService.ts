@@ -32,7 +32,11 @@ import {
   maxBatchGas,
   walletReplayNames,
 } from './buildAtomicMigrationBatches'
-import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
+import {
+  adjustPlanForRetry,
+  assertLockedResolverReplacementRecordSafety,
+  type MigrationPlan,
+} from './buildMigrationPlan'
 import type {
   CopyClassifiedName,
   DirectClassifiedName,
@@ -76,7 +80,7 @@ import {
   verifyAndPersistMigrationCompletionCheckpoint,
 } from './migrationCompletionCheckpoint'
 import {
-  assertLockedPublicResolverSetMembership,
+  assertLockedMigrationResolversUnchanged,
   assertNoLiveSubregistryOverwrite,
   checkDeterministicMigrationResolverReadiness,
   resolverWriterFor,
@@ -1533,10 +1537,11 @@ const buildNextAtomicBatch = async (params: {
 }) => {
   const { ctx, plan, remaining, retryPermissionHeadLag } = params
   const maxOuterGas = maxOuterGasFor(ctx.canBatchAtomically)
-  await assertLockedPublicResolverSetMembership({
+  await assertLockedMigrationResolversUnchanged({
     publicClient: ctx.publicClient,
     names: remaining,
   })
+  await assertLockedResolverReplacementRecordSafety(remaining, ctx.publicClient)
   const directMigrationExpiries = await assertCopyMigrationReadiness({
     publicClient: ctx.publicClient,
     hca: ctx.hcaAddress,

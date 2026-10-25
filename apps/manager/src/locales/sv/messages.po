@@ -18,6 +18,11 @@ msgstr ""
 "X-Crowdin-File: /src/locales/en/messages.po\n"
 "X-Crowdin-File-ID: 18\n"
 
+#. placeholder {0}: wrapperSyncNames.length
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "{0, plural, one {# name needs syncing before it can be upgraded.} other {# names need syncing before they can be upgraded.}}"
+msgstr ""
+
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{0, plural, one {# step in one request} other {# steps in one request}}"
@@ -2981,6 +2986,30 @@ msgstr ""
 msgid "Switch your wallet to {0} to revoke sessions."
 msgstr ""
 
+#: src/features/migration/components/WrapperSyncNotice.tsx
+msgid "Sync names"
+msgstr ""
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "Sync Names"
+msgstr ""
+
+#: src/features/migration/components/WrapperSyncNotice.tsx
+msgid "Sync names before upgrading"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Sync your names before upgrading"
+msgstr ""
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "Sync your names before upgrading to your new ENS profile."
+msgstr ""
+
+#: src/features/migration/components/WrapperSyncNotice.tsx
+msgid "Syncing names…"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Telegram"
 msgstr ""
@@ -3215,10 +3244,6 @@ msgid "This name points to a different wallet. If you continue, we’ll update i
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
-msgid "This name's ENSv1 registration is active, but its wrapped expiry needs to be synced before upgrading."
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStep.tsx
 msgid "This parent has subnames whose protections cannot be preserved by this upgrade yet."
 msgstr ""
 
@@ -3343,6 +3368,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
 msgid "up to"
+msgstr ""
+
+#: src/features/migration/components/WrapperSyncNotice.tsx
+msgid "Update these names' wrapped expiry to make them available for upgrade. A network fee applies."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx

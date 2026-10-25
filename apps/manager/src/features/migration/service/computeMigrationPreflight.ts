@@ -23,7 +23,6 @@ import {
   temporaryMigrationHcaApproval,
 } from '@/features/migration/service/migrationApprovals'
 import {
-  assertLockedPublicResolverSetMembership,
   assertNoLiveSubregistryOverwrite,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
@@ -32,6 +31,7 @@ import {
   getRequiredMigrationContracts,
   type MigrationHcaReadiness,
   type MigrationResolverReadiness,
+  resolveLockedMigrationResolvers,
 } from '@/features/migration/service/migrationInvariants'
 import {
   getV1ProfileKeys,
@@ -217,11 +217,11 @@ export const computeMigrationPreflight = async (params: {
   } = params
   signal?.throwIfAborted()
 
-  const classified = classifyNames(
-    [...domains],
-    eoa,
-    envConfig.chain.id,
-  ).classified
+  const classified = await resolveLockedMigrationResolvers({
+    publicClient,
+    names: classifyNames([...domains], eoa, envConfig.chain.id).classified,
+  })
+  signal?.throwIfAborted()
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )
@@ -258,10 +258,6 @@ export const computeMigrationPreflight = async (params: {
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
     hcaAddress
       ? (async () => {
-          await assertLockedPublicResolverSetMembership({
-            publicClient,
-            names: classified,
-          })
           await assertNoLiveSubregistryOverwrite({
             publicClient,
             names: classified,
