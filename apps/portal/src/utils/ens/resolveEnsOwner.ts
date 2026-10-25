@@ -23,7 +23,6 @@ import {
   zeroAddress,
 } from 'viem'
 import { readContract } from 'viem/actions'
-import { normalize } from 'viem/ens'
 import { getAction } from 'viem/utils'
 import { isContractRevert } from '@/utils/errors/isContractRevert'
 import type { ProtocolVersion } from '@/utils/types'
@@ -136,6 +135,9 @@ export async function resolveEnsOwner(
  * lapses the registrar stops naming a registrant and the read falls back to the
  * registry slot, which is the wrapper contract. Left alone, a name in grace
  * reads as owned by a contract and its holder loses every owner-gated action.
+ *
+ * The name is hashed as given, the same string the reads above already used;
+ * normalising here would throw on an encoded `[labelhash]` label.
  */
 async function unwrapV1Owner(
   client: EnsResolveClient,
@@ -156,7 +158,7 @@ async function unwrapV1Owner(
     address: nameWrapper,
     abi: nameWrapperGetDataSnippet,
     functionName: 'getData',
-    args: [BigInt(namehash(normalize(name)))],
+    args: [BigInt(namehash(name))],
   })
 
   return wrappedOwner && wrappedOwner !== zeroAddress ? wrappedOwner : owner
