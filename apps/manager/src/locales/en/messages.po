@@ -177,6 +177,10 @@ msgstr "{permits, plural, one {Your wallet will be asked to approve this exact a
 msgid "{selectedCount} selected"
 msgstr "{selectedCount} selected"
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
+msgstr "{selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
+
 #: src/features/migration/components/GameStep.tsx
 msgid "{selectedNameCount, plural, one {Upgrading your name...} other {Upgrading your names...}}"
 msgstr "{selectedNameCount, plural, one {Upgrading your name...} other {Upgrading your names...}}"
@@ -1962,10 +1966,6 @@ msgstr "One of your names now has its own subname registry. Upgrading it would d
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "One username everywhere"
 msgstr "One username everywhere"
-
-#: src/features/dashboard/components/PrimaryNameV1Warning.tsx
-msgid "Only ENSv2 Names Supported"
-msgstr "Only ENSv2 Names Supported"
 
 #: src/features/profile/utils/urlInputValidation.ts
 msgid "Only http:// and https:// links are supported"
@@ -3833,10 +3833,6 @@ msgstr "You need to connect a wallet to see your stablecoin balances"
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You need to verify your wallet ownership to manage your notification preferences."
 msgstr "You need to verify your wallet ownership to manage your notification preferences."
-
-#: src/features/dashboard/components/PrimaryNameV1Warning.tsx
-msgid "You own names that need to be upgraded to ENSv2 before they can be set as your Primary Name"
-msgstr "You own names that need to be upgraded to ENSv2 before they can be set as your Primary Name"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
 msgid "You pay now"

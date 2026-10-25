@@ -1,7 +1,6 @@
 import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -48,7 +47,6 @@ import {
   ResolverChangeNotAuthorizedError,
   setupControlledResolver,
 } from '@/features/profile/service/setupControlledResolver'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import {
   type SmartAccountContextValue,
   useSmartAccountContext,
@@ -57,7 +55,6 @@ import { publicClient } from '@/lib/wagmi'
 import { hasOwnerWallet } from '@/lib/wallet'
 import { usePrimaryNameDomains } from '../hooks/usePrimaryNameDomains'
 import type { PrimaryNameDomain } from '../service/queries/getPrimaryNameDomains'
-import { useDashboardMigrationEligibility } from '../useDashboardMigrationEligibility'
 import { resolveDomainLabel } from '../utils'
 import {
   isConfirmationForSelection,
@@ -71,7 +68,6 @@ import {
   PrimaryNameListFooter,
   PrimaryNameSearch,
 } from './PrimaryNameListControls'
-import { PrimaryNameV1Warning } from './PrimaryNameV1Warning'
 
 interface ChoosePrimaryNameDialogProps {
   readonly onUpdated?: () => void
@@ -436,17 +432,6 @@ const useSetupResolverMutation = ({
   })
 }
 
-const useUpgradeWarning = (open: boolean) => {
-  const migrationEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.MIGRATION,
-    false,
-  )
-  const { eligibleKeys, isPending, isError } = useDashboardMigrationEligibility(
-    open && migrationEnabled === true,
-  )
-  return { isError, upgradeableNameCount: isPending ? 0 : eligibleKeys.size }
-}
-
 export const ChoosePrimaryNameDialog = ({
   onUpdated,
   children,
@@ -515,9 +500,13 @@ export const ChoosePrimaryNameDialog = ({
     reverseName,
     selectedName,
   })
-  const { domains, isLoading, hasForwardAddressError, isSelectedNameOffered } =
-    nameList
-  const upgradeWarning = useUpgradeWarning(open)
+  const {
+    domains,
+    isLoading,
+    hasForwardAddressError,
+    isSelectedNameOffered,
+    selectedProtocol,
+  } = nameList
 
   const { isSuccess: recordsSettled, isError: isRecordsError } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
@@ -634,6 +623,19 @@ export const ChoosePrimaryNameDialog = ({
     )
     if (!preparation) {
       setConfirmation(null)
+      return
+    }
+
+    // Setting up a resolver goes through the v2 registry, so an ENSv1 name
+    // with no resolver this wallet can write has no path here. Say so instead
+    // of walking the user into a setup that cannot complete.
+    if (preparation.kind === 'setup-resolver' && selectedProtocol === 'v1') {
+      setConfirmation(null)
+      setPreparationError(
+        new Error(
+          t`${selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app.`,
+        ),
+      )
       return
     }
 
@@ -766,7 +768,6 @@ export const ChoosePrimaryNameDialog = ({
               selectedName={selectedName}
             />
 
-            <PrimaryNameV1Warning {...upgradeWarning} />
             {/* Error Message */}
             <PrimaryNameErrorNotice errorMessage={actionErrorMessage} />
             {/* Action Buttons */}

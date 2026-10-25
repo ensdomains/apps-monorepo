@@ -57,7 +57,11 @@ function App() {
     // Always refetch on mount to ensure fresh data after edits
     refetchOnMount: 'always' as const,
   })
-  const { canEdit, isLoading: isCanEditLoading } = useCanEditRecords({ name })
+  const {
+    canEdit,
+    editLock,
+    isLoading: isCanEditLoading,
+  } = useCanEditRecords({ name })
   const { data: detail } = useQuery(getNameDetailQueryOptions({ name }))
 
   const isLoading =
@@ -105,6 +109,7 @@ function App() {
       name={name}
       records={profileQuery.data.records}
       canEdit={canEdit}
+      editLock={editLock}
       protocolVersion={ownerQuery.data?.protocolVersion}
     />
   )

@@ -1,8 +1,8 @@
 import { Trans } from '@lingui/react/macro'
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import {
+  addDays,
   addMonths,
-  addSeconds,
   differenceInCalendarDays,
   format,
   startOfDay,
@@ -17,12 +17,20 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { getDurationExpiryDateForDisplay } from '@/features/register-v2/utils/time'
-import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import {
+  MIN_REGISTER_DURATION_SECONDS,
+  MIN_RENEW_DURATION_SECONDS,
+  SECONDS_PER_DAY,
+} from '@/features/shared/registration/pricing'
 import { cn } from '@/lib/utils'
 
-const getDurationFromSelectedDate = (date: Date, referenceDate: Date) =>
+const getDurationFromSelectedDate = (
+  date: Date,
+  referenceDate: Date,
+  minDurationSeconds: number,
+) =>
   Math.max(
-    MIN_REGISTER_DURATION_SECONDS,
+    minDurationSeconds,
     differenceInCalendarDays(startOfDay(date), startOfDay(referenceDate)) *
       86_400,
   )
@@ -33,6 +41,7 @@ export const DurationCustomRow = memo(function DurationCustomRow({
   isSelected,
   type,
   referenceDate: referenceDateProp,
+  minDurationSeconds: minDurationSecondsProp,
 }: {
   selectedDuration: number
   onDurationSet: (duration: number) => void
@@ -40,6 +49,8 @@ export const DurationCustomRow = memo(function DurationCustomRow({
   type: 'register' | 'renew'
   /** Registration: defaults to start of today. Renewal: pass current on-chain expiry (same as PricingSummaryCard). */
   referenceDate?: Date
+  /** Overrides the floor for this flow, e.g. carrying an expired name past today. */
+  minDurationSeconds?: number
 }) {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
   const [defaultReferenceDate] = useState(() => {
@@ -53,15 +64,27 @@ export const DurationCustomRow = memo(function DurationCustomRow({
     referenceDate,
   )
 
-  const minSelectableDate = addSeconds(
-    referenceDate,
-    MIN_REGISTER_DURATION_SECONDS,
+  // Only registration has a 28-day floor; renewals are priced down to a day.
+  const minDurationSeconds =
+    minDurationSecondsProp ??
+    (type === 'renew'
+      ? MIN_RENEW_DURATION_SECONDS
+      : MIN_REGISTER_DURATION_SECONDS)
+  // Calendar days, not seconds: a DST shift inside the span would otherwise
+  // push the boundary onto the next day and hide a valid duration.
+  const minSelectableDate = addDays(
+    startOfDay(referenceDate),
+    minDurationSeconds / SECONDS_PER_DAY,
   )
 
   const selectMinimumDuration = () => {
-    const minDate = new Date(minSelectableDate)
-    minDate.setHours(0, 0, 0, 0)
-    onDurationSet(getDurationFromSelectedDate(minDate, referenceDate))
+    onDurationSet(
+      getDurationFromSelectedDate(
+        minSelectableDate,
+        referenceDate,
+        minDurationSeconds,
+      ),
+    )
   }
 
   useHotkeySequence(['M', 'I', 'N'], selectMinimumDuration, {
@@ -120,7 +143,13 @@ export const DurationCustomRow = memo(function DurationCustomRow({
               return
             }
             date.setHours(0, 0, 0, 0)
-            onDurationSet(getDurationFromSelectedDate(date, referenceDate))
+            onDurationSet(
+              getDurationFromSelectedDate(
+                date,
+                referenceDate,
+                minDurationSeconds,
+              ),
+            )
           }}
           selected={expirationDate}
           startMonth={minSelectableDate}
