@@ -10,7 +10,7 @@ import {
 import { primaryNameDomainsQuery } from '../service/queries/getPrimaryNameDomains'
 import { resolveDomainLabel } from '../utils'
 
-/** Search all owned canonical names, resolving only this page and the selection. */
+/** Search owned names and names resolving to the owner, resolving only this page and the selection. */
 export const usePrimaryNameDomains = ({
   address,
   ownerAddress,
@@ -38,15 +38,21 @@ export const usePrimaryNameDomains = ({
     data,
     isLoading,
     isError: hasDomainsError,
-  } = useQuery(primaryNameDomainsQuery(open ? address : undefined))
+  } = useQuery(
+    primaryNameDomainsQuery(
+      open ? address : undefined,
+      ownerAddress ?? undefined,
+    ),
+  )
   const allDomains = useMemo(() => getPrimaryNameCandidates(data ?? []), [data])
   const pagination = useMemo(
     () => getPrimaryNamePage(allDomains, { searchQuery, page, reverseName }),
     [allDomains, searchQuery, page, reverseName],
   )
-  const ownsSelectedName = allDomains.some(
+  const selectedDomain = allDomains.find(
     (domain) => resolveDomainLabel(domain) === selectedName,
   )
+  const ownsSelectedName = Boolean(selectedDomain)
   const lookupNames = [
     ...new Set([
       ...pagination.domains.map(resolveDomainLabel),
@@ -72,6 +78,7 @@ export const usePrimaryNameDomains = ({
     ),
     isSelectedNameOffered:
       ownsSelectedName && checkedNames.has(selectedName ?? ''),
+    selectedProtocol: selectedDomain?.protocol ?? null,
     isLoading: isLoading || isCheckingNames,
     hasForwardAddressError: hasDomainsError || hasForwardAddressError,
     searchQuery,

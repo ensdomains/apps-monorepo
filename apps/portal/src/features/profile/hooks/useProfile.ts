@@ -1,139 +1,133 @@
-import type { GraphqlRequestError } from '@ens-apps/indexer/urql'
+import type { BignameError } from '@ens-apps/indexer/bigname'
+import { parseRecordKey, type RecordInventory } from '@ens-apps/indexer/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
-import type { GetRecordsErrorType } from '@ensdomains/ensjs/public'
-import type { GetSubgraphRecordsErrorType } from '@ensdomains/ensjs/subgraph'
-import { gql } from '@urql/core'
-import { fromPromise, ok } from 'neverthrow'
-import { graphqlIndexerClient } from '@/lib/indexer'
-import { mergeCoinTypes, mergeTextKeys } from '@/utils/records/mergeRecordKeys'
-import type { ProtocolVersion } from '@/utils/types'
+import { errAsync, fromPromise, ok, okAsync } from 'neverthrow'
+import { match } from 'ts-pattern'
+import { zeroAddress } from 'viem'
+import { bigname } from '@/lib/bigname'
+import { safeGetClient } from '@/lib/wagmi/helpers'
+import { getLegacyRegistryResolver } from '@/utils/ens/getLegacyRegistryResolver'
 import { getRecords } from './useRecords'
-import { getSubgraphRecords } from './useSubgraphRecords'
 
-class GetProfileError extends TaggedError('RecordsError')<{
-  cause: GetRecordsErrorType | GetSubgraphRecordsErrorType | GraphqlRequestError
+class GetProfileError extends TaggedError('GetProfileError')<{
+  cause: BignameError
+}> {}
+
+class GetLegacyResolverError extends TaggedError('GetLegacyResolverError')<{
+  readonly cause: unknown
 }> {}
 
 type GetProfileParameters = {
-  name: string
-  protocolVersion?: ProtocolVersion
+  readonly name: string
 }
 
-const getProfile = ResultFn(async function* ({
+const DEFAULT_COINS = [
+  // EVM
+  coinNameToTypeMap.eth,
+  // ENSIP-19 default address, so a fresh write shows before bigname lists it
+  coinNameToTypeMap.default,
+  coinNameToTypeMap.arb1,
+  coinNameToTypeMap.op,
+  coinNameToTypeMap.base,
+  // Non-EVM
+  coinNameToTypeMap.btc,
+  coinNameToTypeMap.doge,
+  coinNameToTypeMap.sol,
+  coinNameToTypeMap.strk,
+]
+
+const DEFAULT_TEXTS = [
+  'name',
+  'description',
+  'com.twitter',
+  'org.telegram',
+  'header',
+  'avatar',
+]
+
+const NO_KEYS: Pick<RecordInventory, 'known_keys' | 'unsupported_keys'> = {
+  known_keys: [],
+  unsupported_keys: [],
+}
+
+/** The text keys and coin types in bigname's `text:`/`addr:` record keys. */
+export const parseRecordKeys = (keys: readonly string[]) => {
+  const parsed = keys.flatMap((key) => parseRecordKey(key) ?? [])
+  return {
+    texts: parsed.flatMap((key) =>
+      match(key)
+        .with({ kind: 'avatar' }, () => ['avatar'])
+        .with({ kind: 'text' }, ({ key }) => [key])
+        .otherwise(() => []),
+    ),
+    coins: parsed.flatMap((key) => (key.kind === 'addr' ? [key.coinType] : [])),
+  }
+}
+
+const unique = <T>(values: readonly T[]): T[] => Array.from(new Set(values))
+
+// bigname lists the keys a resolver has set, across both eras; the values are
+// read on-chain. A key it cannot serve is still read, and a name it has not
+// indexed reads only the defaults.
+const getRecordKeys = (name: string) =>
+  bigname
+    .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
+    .map(({ data }) => data.inventory ?? NO_KEYS)
+    .orElse((error) =>
+      error.code === 'not_found'
+        ? okAsync(NO_KEYS)
+        : errAsync(new GetProfileError({ cause: error })),
+    )
+    .map((inventory) =>
+      parseRecordKeys([...inventory.known_keys, ...inventory.unsupported_keys]),
+    )
+
+export const getProfile = ResultFn(async function* ({
   name,
-  protocolVersion,
 }: GetProfileParameters) {
-  const isV1 = protocolVersion === 'ENSv1'
-  const isV2 = protocolVersion === 'ENSv2'
+  const keys = yield* getRecordKeys(name)
 
-  const subgraphV1Records = !isV2 ? yield* getSubgraphRecords(name) : null
-
-  const subgraphV2Result = !isV1
-    ? yield* fromPromise(
-        graphqlIndexerClient.request<
-          {
-            domains: [
-              {
-                resolver: {
-                  texts: string[] | null
-                  addresses: { coinType: number; address: string }[] | null
-                } | null
-              },
-            ]
-          },
-          { name: string }
-        >(
-          gql`query getRecords($name: String!) {
-            domains(where: {name: $name}) {
-              resolver {
-                texts
-                addresses {
-                  coinType
-                  address
-                }
-              }
-            }
-          }`,
-          { name },
-        ),
-        (e) => new GetProfileError({ cause: e as GraphqlRequestError }),
-      )
-    : null
-
-  const subgraphV2Records = subgraphV2Result?.domains[0]?.resolver ?? null
-
-  // Coin types the V2 resolver actually has, per the indexer. Without these,
-  // migrated (ENSv2) names only surface the hardcoded default coins below,
-  // so any other address record is silently dropped from the records tab.
-  const subgraphV2Coins = subgraphV2Records?.addresses?.map(
-    (address) => address.coinType,
-  )
-
-  const coins = mergeCoinTypes(
-    [...(subgraphV1Records?.coins ?? []), ...(subgraphV2Coins ?? [])],
-    [
-      // default requested coins
-      // EVM
-      coinNameToTypeMap.eth,
-      coinNameToTypeMap.arb1,
-      coinNameToTypeMap.op,
-      coinNameToTypeMap.base,
-
-      // Non-EVM
-      coinNameToTypeMap.btc,
-      coinNameToTypeMap.doge,
-      coinNameToTypeMap.sol,
-      coinNameToTypeMap.strk,
-    ],
-  )
-
-  const texts = mergeTextKeys(
-    subgraphV1Records?.texts,
-    subgraphV2Records?.texts ?? undefined,
-    [
-      // default requested texts
-      'name',
-      'description',
-      'com.twitter',
-      'org.telegram',
-      'header',
-      'avatar',
-    ],
-  )
-
-  const records = yield* getRecords({
+  const request = {
     name,
-    ...(subgraphV1Records ?? {}),
-    coins,
-    texts,
+    coins: unique([...keys.coins, ...DEFAULT_COINS]),
+    texts: unique([...keys.texts, ...DEFAULT_TEXTS]),
     contentHash: true,
     abi: true,
     ignoreInvalidCoinTypes: true,
+  } as const
+
+  const records = yield* getRecords(request)
+  if (records.resolverAddress && records.resolverAddress !== zeroAddress) {
+    return ok({ records })
+  }
+
+  // No resolver answered, which a lapsed ENSv1 name hits for the 28 days
+  // between its v2 reservation expiring and its v1 grace ending. Its records
+  // are still on the resolver the legacy registry names.
+  const client = yield* safeGetClient()
+  const legacyResolver = yield* fromPromise(
+    getLegacyRegistryResolver(client, name),
+    (cause) => new GetLegacyResolverError({ cause }),
+  )
+  if (!legacyResolver) return ok({ records })
+
+  const legacyRecords = yield* getRecords({
+    ...request,
+    resolver: { address: legacyResolver },
   })
 
-  return ok({
-    records,
-    subgraphRecords: { ...(subgraphV1Records ?? {}) },
-  })
+  return ok({ records: legacyRecords })
 })
 
-export const profileQueryKey = createQueryKey<
+export const profileQueryKey = createQueryKey<'profile', GetProfileParameters>(
   'profile',
-  {
-    name: string
-    protocolVersion?: ProtocolVersion
-  }
->('profile')
+)
 
-export const getProfileQueryOptions = ({
-  name,
-  protocolVersion,
-}: GetProfileParameters) =>
+export const getProfileQueryOptions = ({ name }: GetProfileParameters) =>
   resultQueryOptions({
-    queryKey: profileQueryKey({ name, protocolVersion }),
-    queryFn: ({ queryKey: [, { name, protocolVersion }] }) =>
-      getProfile({ name, protocolVersion }),
+    queryKey: profileQueryKey({ name }),
+    queryFn: ({ queryKey: [, params] }) => getProfile(params),
   })

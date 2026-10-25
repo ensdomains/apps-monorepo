@@ -1,11 +1,10 @@
 import type { ColumnDef, Row } from '@tanstack/react-table'
 import { Check, PanelRight } from 'lucide-react'
 import type { Address } from 'viem'
-import { EntityBadge } from '@/components/EntityBadge'
 import { Button } from '@/components/ui/button'
+import { RoleAccountBadge } from '@/features/roles/components/RoleAccountBadge'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { cn } from '@/lib/utils'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 /**
  * Shared building blocks for the flat roles tables (name registry + resolver).
@@ -68,11 +67,9 @@ export const rolesToEntries = (roles: readonly string[]): RoleRowEntry[] => {
 }
 
 /** Fixed-width account badge used as the leading Account column cell. */
-export const UserCell = ({ account }: { account: Address }) => (
+export const UserCell = ({ account }: { readonly account: Address }) => (
   <div className="w-32">
-    <EntityBadge variant="address" address={account}>
-      {truncateAddress(account, 6, 4)}
-    </EntityBadge>
+    <RoleAccountBadge account={account} />
   </div>
 )
 

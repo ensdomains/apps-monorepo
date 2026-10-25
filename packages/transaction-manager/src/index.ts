@@ -1,7 +1,9 @@
+export { getAtomicBatchSupport } from './actors/eoa-batch-transport.actor'
 // Contracts
 // Errors
 export {
   ChainIdMismatchError,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   SignerAddressMismatchError,
   TransactionStoppedError,
@@ -19,10 +21,17 @@ export {
   HCA_STANDALONE_INTENT_GAS_LIMIT,
   HcaFundingDeclinedError,
   type HcaFundingPrompt,
+  type HcaFundingTokenLeg,
   HcaIntentFeeExceedsMaximumError,
   type HcaIntentFunding,
+  type HcaTokenSpend,
+  hcaMaxIntentFeeUsdcFor,
+  type PermitKind,
+  type PermitPurpose,
   type PlanHcaIntentFundingParams,
   planHcaIntentFunding,
+  type QuoteHcaIntentParams,
+  quoteHcaIntentFeeUsdc,
 } from './helpers/hca-intent-funding'
 export { pollTransactionStatus } from './helpers/pollTransactionStatus.actor'
 // Persistence
@@ -30,8 +39,6 @@ export {
   archiveTransaction,
   clearAllTransactions,
   clearTransactionHistory,
-  exportAllData,
-  getActiveCount,
   getAllTransactions,
   getArchivedTransactions,
   getHistoryCount,
@@ -48,8 +55,10 @@ export {
   waitForTransaction,
   waitForTransactionHash,
 } from './helpers/waitForTransaction'
+export { useAtomicBatchSupport } from './hooks/useAtomicBatchSupport'
 export {
   computeDedicatedResolverAddress,
+  encodeCommitCall,
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
   hasDeployedCode,
@@ -63,6 +72,7 @@ export type {
   RegistrationEvent,
   RegistrationInput,
   SessionReauthorization,
+  UnsettledL2Bridge,
 } from './machines/registration/registration.machine'
 export {
   REGISTRATION_TX_IDS,
@@ -122,6 +132,7 @@ export type {
 } from './types/audit.types'
 export type {
   EOASigner,
+  L2FundingSource,
   RhinestoneSessionContext,
   RhinestoneSigner,
   Signer,
@@ -131,6 +142,7 @@ export type {
   Call,
   CustomTransactionIntent,
   ENSRenewalTransactionIntent,
+  EOABatchTransactionRequest,
   EOATransactionRequest,
   ETHTransferTransactionIntent,
   PaymentMethod,

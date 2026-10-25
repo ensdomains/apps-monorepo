@@ -1,4 +1,11 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  waitFor,
+} from '@testing-library/react'
+import { createElement, StrictMode, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { makeClassified, makeDomain, OTHER } from '../service/_fixtures'
 import type { ClassifiedName, IneligibleName } from '../service/classifyNames'
@@ -32,6 +39,190 @@ const makeManagedName = (name: string) =>
   makeName(name, { registryController: CONTROLLER } as Partial<ClassifiedName>)
 
 describe('useNameSelection', () => {
+  it('publishes committed selection to its parent without updating it during render', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const onManagerRestorationChange = vi.fn()
+    const reportedSelections = vi.fn<(names: string[]) => void>()
+    type SelectionProps = {
+      readonly eligible: ClassifiedName[]
+      readonly isPending?: boolean
+    }
+    const SelectionStep = ({
+      eligible,
+      isPending = false,
+      onNamesChange,
+    }: SelectionProps & {
+      readonly onNamesChange: (names: string[]) => void
+    }) => {
+      const selection = useNameSelection({
+        eligible,
+        isPending,
+        onNamesChange,
+        onManagerRestorationChange,
+      })
+      return createElement(
+        'div',
+        null,
+        createElement(
+          'output',
+          { 'data-testid': 'local' },
+          [...selection.selected].join(','),
+        ),
+        ...['one.eth', 'two.eth'].map((name) =>
+          createElement(
+            'button',
+            {
+              key: name,
+              onClick: () => selection.toggleName(name),
+              type: 'button',
+            },
+            name,
+          ),
+        ),
+        createElement(
+          'button',
+          { onClick: selection.toggleAll, type: 'button' },
+          'Toggle all',
+        ),
+      )
+    }
+    const SelectionPage = ({ eligible, isPending }: SelectionProps) => {
+      const [reported, setReported] = useState<string[]>([])
+      return createElement(
+        'div',
+        null,
+        createElement(
+          'output',
+          { 'data-testid': 'reported' },
+          reported.join(','),
+        ),
+        createElement(SelectionStep, {
+          eligible,
+          isPending,
+          // Recreated callbacks must not republish the same selection forever.
+          onNamesChange: (names) => {
+            reportedSelections(names)
+            setReported(names)
+          },
+        }),
+      )
+    }
+    const eligible = [makeName('one.eth'), makeName('two.eth')]
+    try {
+      const view = render(
+        createElement(
+          StrictMode,
+          null,
+          createElement(SelectionPage, { eligible }),
+        ),
+      )
+      expect(view.getByTestId('reported').textContent).toBe('one.eth,two.eth')
+      expect(reportedSelections.mock.calls).toEqual([[['one.eth', 'two.eth']]])
+      act(() => {
+        fireEvent.click(view.getByRole('button', { name: 'one.eth' }))
+        fireEvent.click(view.getByRole('button', { name: 'two.eth' }))
+      })
+      expect(view.getByTestId('local').textContent).toBe('')
+      expect(view.getByTestId('reported').textContent).toBe('')
+      fireEvent.click(view.getByRole('button', { name: 'Toggle all' }))
+      expect(view.getByTestId('reported').textContent).toBe('one.eth,two.eth')
+      const notificationsBeforeRefresh = reportedSelections.mock.calls.length
+      view.rerender(
+        createElement(
+          StrictMode,
+          null,
+          createElement(SelectionPage, { eligible: [], isPending: true }),
+        ),
+      )
+      expect(view.getByTestId('reported').textContent).toBe('one.eth,two.eth')
+      view.rerender(
+        createElement(
+          StrictMode,
+          null,
+          createElement(SelectionPage, { eligible }),
+        ),
+      )
+      expect(view.getByTestId('local').textContent).toBe('one.eth,two.eth')
+      expect(reportedSelections).toHaveBeenCalledTimes(
+        notificationsBeforeRefresh,
+      )
+      view.rerender(
+        createElement(
+          StrictMode,
+          null,
+          createElement(SelectionPage, { eligible: eligible.slice(0, 1) }),
+        ),
+      )
+      expect(view.getByTestId('local').textContent).toBe('one.eth')
+      expect(view.getByTestId('reported').textContent).toBe('one.eth')
+      expect(
+        consoleError.mock.calls.filter(([message]) =>
+          String(message).includes('Cannot update a component'),
+        ),
+      ).toEqual([])
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
+
+  it('leaves an affected migration group unchecked until explicitly selected', () => {
+    const eligible = [
+      makeName('safe.eth'),
+      makeName('affected.eth'),
+      makeName('child.affected.eth', { parentName: 'affected.eth' }),
+    ]
+    const { result } = renderHook(() =>
+      useNameSelection({
+        eligible,
+        defaultExcludedNames: ['child.affected.eth'],
+        isPending: false,
+        onNamesChange: vi.fn(),
+        onManagerRestorationChange: vi.fn(),
+      }),
+    )
+
+    expect(result.current.selected).toEqual(new Set(['safe.eth']))
+    act(() => result.current.toggleName('affected.eth'))
+    expect(result.current.selected).toEqual(
+      new Set(['safe.eth', 'affected.eth', 'child.affected.eth']),
+    )
+  })
+
+  it('preserves manual selection after the default exclusion changes', () => {
+    const eligible = [makeName('safe.eth'), makeName('affected.eth')]
+    const { result, rerender } = renderHook(
+      ({ excluded }: { excluded: string[] }) =>
+        useNameSelection({
+          eligible,
+          defaultExcludedNames: excluded,
+          isPending: false,
+          onNamesChange: vi.fn(),
+          onManagerRestorationChange: vi.fn(),
+        }),
+      { initialProps: { excluded: ['affected.eth'] } },
+    )
+
+    act(() => result.current.toggleName('affected.eth'))
+    rerender({ excluded: ['safe.eth', 'affected.eth'] })
+    expect(result.current.selected).toEqual(
+      new Set(['safe.eth', 'affected.eth']),
+    )
+  })
+
+  it('replays a recovery selection without applying default exclusions', () => {
+    const { result } = renderHook(() =>
+      useNameSelection({
+        eligible: [makeName('affected.eth')],
+        defaultExcludedNames: ['affected.eth'],
+        isPending: false,
+        isRecovery: true,
+        onNamesChange: vi.fn(),
+        onManagerRestorationChange: vi.fn(),
+      }),
+    )
+    expect(result.current.selected).toEqual(new Set(['affected.eth']))
+  })
+
   it('selects eligible and grace-period names by default and allows deselection', async () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()
     const eligible = [makeName('active.eth')]
@@ -498,32 +689,32 @@ describe('useNameSelection manager restoration (WEB-1528)', () => {
       domain: { ownerId: CONTROLLER, isWrapped: true },
       candidate: undefined,
     },
-  ])('offers the manager choice on a grace name with $case', ({
-    domain,
-    candidate,
-  }) => {
-    const { result } = renderHook(() =>
-      useNameSelection({
-        eligible: [],
-        gracePeriodNames: [
-          {
-            domain: makeDomain({
-              id: 'grace.eth',
-              name: 'grace.eth',
-              labelName: 'grace',
-              ...domain,
-            }),
-            reason: 'expired-registration',
-          },
-        ],
-        isPending: false,
-        onNamesChange: vi.fn(),
-        onManagerRestorationChange: vi.fn(),
-      }),
-    )
+  ])(
+    'offers the manager choice on a grace name with $case',
+    ({ domain, candidate }) => {
+      const { result } = renderHook(() =>
+        useNameSelection({
+          eligible: [],
+          gracePeriodNames: [
+            {
+              domain: makeDomain({
+                id: 'grace.eth',
+                name: 'grace.eth',
+                labelName: 'grace',
+                ...domain,
+              }),
+              reason: 'expired-registration',
+            },
+          ],
+          isPending: false,
+          onNamesChange: vi.fn(),
+          onManagerRestorationChange: vi.fn(),
+        }),
+      )
 
-    expect(result.current.managerCandidates.get('grace.eth')).toBe(candidate)
-  })
+      expect(result.current.managerCandidates.get('grace.eth')).toBe(candidate)
+    },
+  )
 
   it('ignores toggles on a resumed run, whose choice is fixed by its snapshot', async () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()

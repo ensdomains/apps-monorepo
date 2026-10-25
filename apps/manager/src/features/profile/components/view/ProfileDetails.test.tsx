@@ -58,6 +58,18 @@ describe('ProfileDetails', () => {
     )
   })
 
+  it('lets a long owner name shrink inside its column instead of overlapping', async () => {
+    await renderProfileDetails('a-very-long-primary-name-for-the-owner.eth')
+
+    const value = (
+      await screen.findByRole('link', {
+        name: 'a-very-long-primary-name-for-the-owner.eth',
+      })
+    ).parentElement
+
+    expect(value).toHaveClass('min-w-0', 'truncate')
+  })
+
   it('displays the truncated address when no reverse name is available', async () => {
     await renderProfileDetails()
 

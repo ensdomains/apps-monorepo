@@ -46,6 +46,14 @@ import {
 } from './encodeMigration'
 import type { Profile } from './fetchV1Profiles'
 import { profileMapKey } from './fetchV1Profiles'
+import { directMigrationExpiry } from './migrationExpiry'
+import type { MigrationResolverWriter } from './migrationInvariants'
+import {
+  computeRetainedManagerResolverAddress,
+  computeRetainedManagerResolverSalt,
+  needsRetainedManagerResolver,
+  RETAINED_MANAGER_RECORD_ROLES,
+} from './retainedManagerResolver'
 import {
   buildRegisterCopiedSubnameCall,
   buildUserRegistrySetupCalls,
@@ -69,6 +77,7 @@ type AtomicMigrationExecutionPhase =
   | 'user-registry-wallet-grant'
   | 'user-registry-parent'
   | 'migrate'
+  | 'subregistry-attachment'
   | 'copy-register'
   | 'manager-role-grant'
   | 'profile-replay'
@@ -80,6 +89,21 @@ export type AtomicMigrationInnerExecution = {
   /** Every name included by this call (multiple for ERC-1155 batches). */
   readonly names: readonly string[]
   readonly call: Call
+  /**
+   * Profile replay only: the resolver setters before `multicall` wrapping, so
+   * the owner wallet can merge every name's records into one call.
+   */
+  readonly innerCalls?: readonly Hex[]
+}
+
+/**
+ * A profile replay the owner wallet sends itself. The unwrapped `innerCalls`
+ * are required here: a wallet execution that carried no calls would silently
+ * never write its records, so it cannot be represented.
+ */
+export type AtomicMigrationWalletExecution = AtomicMigrationInnerExecution & {
+  readonly phase: 'profile-replay'
+  readonly innerCalls: readonly Hex[]
 }
 
 export type AtomicMigrationRegistryPath =
@@ -109,6 +133,7 @@ type ResolverImplementationExpectation = {
 }
 
 type ResolverRootRolesExpectation = {
+  readonly isExact?: boolean
   readonly id: string
   readonly type: 'resolver-root-roles'
   readonly name: string
@@ -119,6 +144,7 @@ type ResolverRootRolesExpectation = {
 }
 
 type WalletNameRolesExpectation = {
+  readonly isExact?: boolean
   readonly id: string
   readonly type: 'wallet-name-roles'
   readonly name: string
@@ -229,6 +255,8 @@ type NameExpiryExpectation = {
   readonly registryPath: AtomicMigrationRegistryPath
   readonly resource: bigint
   readonly expectedExpiry: bigint
+  /** Older recovery snapshots did not retain the actual reservation expiry. */
+  readonly canUseLegacyReservationExpiry?: boolean
 }
 
 type ManagerRoleExpectation = {
@@ -281,6 +309,16 @@ type ProfileAbiExpectation = {
   readonly value: Hex
 }
 
+type ProfileInterfaceExpectation = {
+  readonly id: string
+  readonly type: 'profile-interface'
+  readonly name: string
+  readonly node: Hex
+  readonly resolver: Address
+  readonly interfaceId: Hex
+  readonly implementer: Address
+}
+
 export type AtomicMigrationVerificationExpectation =
   | ResolverImplementationExpectation
   | ResolverRootRolesExpectation
@@ -300,12 +338,18 @@ export type AtomicMigrationVerificationExpectation =
   | ProfileAddressExpectation
   | ProfileContenthashExpectation
   | ProfileAbiExpectation
+  | ProfileInterfaceExpectation
 
 export type AtomicMigrationNameExecution = {
   readonly classified: ClassifiedName
   readonly directRoute: DirectMigrationRoute | null
   readonly migrationData: MigrationData | null
   readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+  /**
+   * Profile replays the owner wallet must send because the HCA lost the
+   * resolver's roles. Empty whenever the HCA is the writer.
+   */
+  readonly walletExecutions: readonly AtomicMigrationWalletExecution[]
   readonly verificationExpectations: readonly AtomicMigrationVerificationExpectation[]
 }
 
@@ -319,7 +363,15 @@ export type AtomicMigrationBatch = {
   readonly nameExecutions: readonly AtomicMigrationNameExecution[]
   readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
   readonly outerCall: Call
+  /**
+   * Records the HCA cannot write, merged into one owner-wallet call. Sent
+   * before `outerCall` so a failed replay never leaves a name migrated with its
+   * records missing.
+   */
+  readonly walletCall: Call | null
   readonly estimatedGas: bigint
+  /** Gas for `walletCall`; `0n` when there is none. */
+  readonly walletEstimatedGas: bigint
   readonly verificationExpectations: readonly AtomicMigrationVerificationExpectation[]
 }
 
@@ -328,15 +380,23 @@ export type AtomicMigrationBatchPlan = {
   readonly batches: readonly AtomicMigrationBatch[]
 }
 
-type AtomicMigrationOuterGasEstimateRequest = {
+type AtomicMigrationGasEstimateRequest = {
   readonly call: Call
   readonly names: readonly string[]
   readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+  /** Set when the owner wallet writes records the HCA cannot. */
+  readonly walletCall: Call | null
+  readonly walletExecutions: readonly AtomicMigrationInnerExecution[]
 }
 
-type EstimateAtomicMigrationOuterGas = (
-  request: AtomicMigrationOuterGasEstimateRequest,
-) => bigint | Promise<bigint>
+type AtomicMigrationGasEstimate = {
+  readonly outerGas: bigint
+  readonly walletGas: bigint
+}
+
+type EstimateAtomicMigrationBatchGas = (
+  request: AtomicMigrationGasEstimateRequest,
+) => AtomicMigrationGasEstimate | Promise<AtomicMigrationGasEstimate>
 
 export class AtomicMigrationNameGasLimitExceededError extends Error {
   readonly ensName: string
@@ -366,12 +426,21 @@ export type BuildAtomicMigrationBatchesParams = {
   /** Full selected tree retained while execution removes completed nodes. */
   readonly registryContext?: readonly ClassifiedName[]
   readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
+  readonly directMigrationExpiries?: ReadonlyMap<string, bigint>
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly defaultResolver?: Address
   readonly resolverDeployed: boolean
   readonly walletCoAdminGranted: boolean
+  readonly deployedManagerResolvers?: ReadonlySet<string>
+  /**
+   * Which account writes the resolver's records (default `'hca'`). `'wallet'`
+   * means the HCA lost its roles: the co-admin grant step is skipped, the HCA
+   * root-roles expectation is dropped, and every profile replay moves to a
+   * separate owner-wallet call sent before the batch.
+   */
+  readonly resolverWriter?: MigrationResolverWriter
   readonly maxOuterGas: bigint
-  readonly estimateOuterGas: EstimateAtomicMigrationOuterGas
+  readonly estimateBatchGas: EstimateAtomicMigrationBatchGas
   /** Execution only: return once the leading executable batch is known. */
   readonly firstBatchOnly?: boolean
   /** Preview-derived leading batch size used to seed live gas discovery. */
@@ -524,12 +593,34 @@ export const lockedWrapperRootRoleBitmap = (fuses: bigint): bigint => {
 const buildResolverDeploymentCall = (params: {
   readonly chainId: number
   readonly hca: Address
+  readonly salt: bigint
+  readonly wallet: Address
+  readonly manager: Address | null
+  readonly managerRoles: bigint
 }): Call => {
   const contracts = getDestinationContracts(params.chainId)
   const initializeData = encodeFunctionData({
     abi: PERMISSIONED_RESOLVER_ABI,
     functionName: 'initialize',
-    args: [[{ account: params.hca, roleBitmap: ROLES_ALL }], []],
+    args: [
+      [
+        { account: params.hca, roleBitmap: ROLES_ALL },
+        ...(params.manager
+          ? [
+              { account: params.wallet, roleBitmap: ROLES_ALL },
+              ...(isAddressEqual(params.manager, params.wallet)
+                ? []
+                : [
+                    {
+                      account: params.manager,
+                      roleBitmap: params.managerRoles,
+                    },
+                  ]),
+            ]
+          : []),
+      ],
+      [],
+    ],
   })
 
   return {
@@ -537,11 +628,7 @@ const buildResolverDeploymentCall = (params: {
     data: encodeFunctionData({
       abi: verifiableFactoryDeployProxySnippet,
       functionName: 'deployProxy',
-      args: [
-        contracts.permissionedResolverImpl,
-        computeResolverSalt(params.hca),
-        initializeData,
-      ],
+      args: [contracts.permissionedResolverImpl, params.salt, initializeData],
     }),
     value: 0n,
   }
@@ -579,11 +666,13 @@ const profileForName = (
     profile.texts.length > 0 ||
     profile.addresses.length > 0 ||
     profile.contentHash !== null ||
-    profile.abis.length > 0
+    profile.abis.length > 0 ||
+    profile.interfaces.length > 0
   return hasRecords ? { node, profile } : null
 }
 
 type BuildNameExecutionParams = {
+  readonly directMigrationExpiries?: ReadonlyMap<string, bigint>
   readonly chainId: number
   readonly hca: Address
   readonly wallet: Address
@@ -591,8 +680,12 @@ type BuildNameExecutionParams = {
   readonly directRoute: DirectMigrationRoute | null
   readonly userRegistries: ReadonlyMap<string, Address>
   readonly resolver: Address
+  readonly resolverSalt: bigint
+  readonly resolverManager: Address | null
+  readonly managerRoles: bigint
   readonly defaultResolver: Address
   readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly resolverWriter: MigrationResolverWriter
   readonly includeResolverVerification: boolean
   readonly includeResolverDeployment: boolean
   readonly includeWalletCoAdminGrant: boolean
@@ -600,11 +693,13 @@ type BuildNameExecutionParams = {
 
 type NameExecutionFragment = {
   readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+  readonly walletExecutions: readonly AtomicMigrationWalletExecution[]
   readonly verificationExpectations: readonly AtomicMigrationVerificationExpectation[]
 }
 
 const EMPTY_NAME_EXECUTION_FRAGMENT: NameExecutionFragment = {
   innerExecutions: [],
+  walletExecutions: [],
   verificationExpectations: [],
 }
 
@@ -614,11 +709,16 @@ const buildResolverSetupFragment = (params: {
   readonly wallet: Address
   readonly name: string
   readonly resolver: Address
+  readonly resolverSalt: bigint
+  readonly resolverManager: Address | null
+  readonly managerRoles: bigint
+  readonly resolverWriter: MigrationResolverWriter
   readonly includeResolverVerification: boolean
   readonly includeResolverDeployment: boolean
   readonly includeWalletCoAdminGrant: boolean
 }): NameExecutionFragment => {
   const contracts = getDestinationContracts(params.chainId)
+  const isHcaWriter = params.resolverWriter === 'hca'
   return {
     innerExecutions: [
       ...(params.includeResolverDeployment
@@ -630,11 +730,15 @@ const buildResolverSetupFragment = (params: {
               call: buildResolverDeploymentCall({
                 chainId: params.chainId,
                 hca: params.hca,
+                salt: params.resolverSalt,
+                wallet: params.wallet,
+                manager: params.resolverManager,
+                managerRoles: params.managerRoles,
               }),
             },
           ]
         : []),
-      ...(params.includeWalletCoAdminGrant
+      ...(params.includeWalletCoAdminGrant && isHcaWriter
         ? [
             {
               phase: 'wallet-co-admin-grant' as const,
@@ -648,6 +752,7 @@ const buildResolverSetupFragment = (params: {
           ]
         : []),
     ],
+    walletExecutions: [],
     verificationExpectations: params.includeResolverVerification
       ? [
           {
@@ -658,17 +763,22 @@ const buildResolverSetupFragment = (params: {
             factory: contracts.verifiableFactory,
             expectedImplementation: contracts.permissionedResolverImpl,
             deployer: params.hca,
-            salt: computeResolverSalt(params.hca),
+            salt: params.resolverSalt,
           },
-          {
-            id: expectationId(params.name, 'resolver-root-roles'),
-            type: 'resolver-root-roles',
-            name: params.name,
-            resolver: params.resolver,
-            account: params.hca,
-            rootName: ROOT_NAME,
-            roleBitmap: ROLES_ALL,
-          },
+          // The HCA's grant is what it lost; the wallet's is what replaces it.
+          ...(isHcaWriter
+            ? [
+                {
+                  id: expectationId(params.name, 'resolver-root-roles'),
+                  type: 'resolver-root-roles' as const,
+                  name: params.name,
+                  resolver: params.resolver,
+                  account: params.hca,
+                  rootName: ROOT_NAME,
+                  roleBitmap: ROLES_ALL,
+                },
+              ]
+            : []),
           {
             id: expectationId(params.name, 'wallet-name-roles'),
             type: 'wallet-name-roles',
@@ -678,6 +788,24 @@ const buildResolverSetupFragment = (params: {
             rootName: ROOT_NAME,
             roleBitmap: ROLES_ALL,
           },
+          ...(params.resolverManager
+            ? [
+                {
+                  id: expectationId(
+                    params.name,
+                    'resolver-root-roles',
+                    'manager',
+                  ),
+                  type: 'resolver-root-roles' as const,
+                  name: params.name,
+                  resolver: params.resolver,
+                  account: params.resolverManager,
+                  rootName: ROOT_NAME,
+                  roleBitmap: params.managerRoles,
+                  isExact: true,
+                },
+              ]
+            : []),
         ]
       : [],
   }
@@ -715,12 +843,15 @@ const buildUserRegistryFragment = (params: {
   ] as const
 
   return {
-    innerExecutions: setupCalls.map((call, index) => ({
-      phase: setupPhases[index] ?? 'user-registry-parent',
-      name,
-      names: [name],
-      call,
-    })),
+    innerExecutions: [
+      ...setupCalls.map((call, index) => ({
+        phase: setupPhases[index] ?? 'user-registry-parent',
+        name,
+        names: [name],
+        call,
+      })),
+    ],
+    walletExecutions: [],
     verificationExpectations: [
       {
         id: expectationId(name, 'user-registry-implementation'),
@@ -785,7 +916,9 @@ const buildCopyRegistrationExecution = (params: {
       call: buildRegisterCopiedSubnameCall({
         registry: parentRegistry,
         label: params.classified.label,
-        owner: params.wallet,
+        owner: params.classified.recreationRoot
+          ? params.classified.tokenHolder
+          : params.wallet,
         childRegistry: params.childRegistry,
         resolver: params.expectedResolver,
         expiry: params.classified.sourceExpiry,
@@ -795,6 +928,7 @@ const buildCopyRegistrationExecution = (params: {
 }
 
 const buildNameStateExpectations = (params: {
+  readonly directMigrationExpiries?: ReadonlyMap<string, bigint>
   readonly classified: ClassifiedName
   readonly directRoute: DirectMigrationRoute | null
   readonly wallet: Address
@@ -805,6 +939,10 @@ const buildNameStateExpectations = (params: {
   const { classified, directRoute, wallet, expectedResolver, childRegistry } =
     params
   const name = classified.domain.name
+  const expectedOwner =
+    classified.action === 'copy' && classified.recreationRoot
+      ? classified.tokenHolder
+      : wallet
   const node = namehash(name) as Hex
   const resource = labelToCanonicalId(classified.label)
   const registryPath = registryPathFor(classified)
@@ -820,7 +958,7 @@ const buildNameStateExpectations = (params: {
         resource,
         tokenType: classified.tokenType,
         registryPath,
-        expectedOwner: wallet,
+        expectedOwner,
       },
       {
         id: expectationId(name, 'name-resolver'),
@@ -831,6 +969,27 @@ const buildNameStateExpectations = (params: {
         resource,
         registryPath,
         expectedResolver,
+      },
+      {
+        id: expectationId(name, 'name-expiry'),
+        type: 'name-expiry',
+        name,
+        registryPath,
+        resource,
+        expectedExpiry:
+          classified.action === 'copy'
+            ? classified.sourceExpiry
+            : directMigrationExpiry(
+                classified,
+                params.directMigrationExpiries?.get(name),
+              ),
+        ...(classified.action === 'migrate' &&
+        ['unwrapped', 'unlocked', 'locked-2ld'].includes(
+          classified.tokenType,
+        ) &&
+        !params.directMigrationExpiries?.has(name)
+          ? { canUseLegacyReservationExpiry: true }
+          : {}),
       },
     ]
   const subregistryExpectations: readonly AtomicMigrationVerificationExpectation[] =
@@ -855,16 +1014,8 @@ const buildNameStateExpectations = (params: {
             name,
             registryPath,
             resource,
-            account: wallet,
+            account: expectedOwner,
             roleBitmap: ROLES_ALL,
-          },
-          {
-            id: expectationId(name, 'name-expiry'),
-            type: 'name-expiry',
-            name,
-            registryPath,
-            resource,
-            expectedExpiry: classified.sourceExpiry,
           },
         ]
       : []
@@ -918,17 +1069,17 @@ const buildNameStateExpectations = (params: {
   ]
 }
 
-/**
- * A manager role is only ever restored for a name the owner opted in for, which
- * is the only thing that sets `managerAddress` — see `classifyNames`.
- */
-const buildManagerRoleFragment = (
-  classified: ClassifiedName,
-): NameExecutionFragment => {
-  if (classified.action !== 'migrate' || !classified.managerAddress) {
+/** Direct .eth managers require the owner's explicit opt-in. */
+const buildManagerRoleFragment = (params: {
+  readonly classified: ClassifiedName
+  readonly userRegistries: ReadonlyMap<string, Address>
+  readonly wallet: Address
+}): NameExecutionFragment => {
+  const { classified } = params
+  const manager =
+    classified.action === 'migrate' ? classified.managerAddress : null
+  if (!manager || isAddressEqual(manager, params.wallet))
     return EMPTY_NAME_EXECUTION_FRAGMENT
-  }
-
   const name = classified.domain.name
   return {
     innerExecutions: [
@@ -936,9 +1087,10 @@ const buildManagerRoleFragment = (
         phase: 'manager-role-grant',
         name,
         names: [name],
-        call: buildRoleGrantCall(classified),
+        call: buildRoleGrantCall(classified as DirectClassifiedName),
       },
     ],
+    walletExecutions: [],
     verificationExpectations: [
       {
         id: expectationId(name, 'manager-role'),
@@ -947,7 +1099,7 @@ const buildManagerRoleFragment = (
         label: classified.label,
         registry: V2_CONTRACTS.ETHRegistry,
         resource: labelToCanonicalId(classified.label),
-        account: classified.managerAddress,
+        account: manager,
         roleBitmap: ROLE_SET_RESOLVER,
       },
     ],
@@ -958,6 +1110,7 @@ const buildProfileReplayFragment = (params: {
   readonly classified: ClassifiedName
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly resolver: Address
+  readonly resolverWriter: MigrationResolverWriter
 }): NameExecutionFragment => {
   const profileEntry = profileForName(params.classified, params.profiles)
   if (!profileEntry) return EMPTY_NAME_EXECUTION_FRAGMENT
@@ -967,15 +1120,16 @@ const buildProfileReplayFragment = (params: {
   const profileCalls = flattenProfileInnerCalls(
     new Map([[name, profileEntry.profile]]),
   )
+  const execution: AtomicMigrationWalletExecution = {
+    phase: 'profile-replay',
+    name,
+    names: [name],
+    call: wrapInnerCallsAsMulticall(params.resolver, profileCalls),
+    innerCalls: profileCalls,
+  }
   return {
-    innerExecutions: [
-      {
-        phase: 'profile-replay',
-        name,
-        names: [name],
-        call: wrapInnerCallsAsMulticall(params.resolver, profileCalls),
-      },
-    ],
+    innerExecutions: params.resolverWriter === 'hca' ? [execution] : [],
+    walletExecutions: params.resolverWriter === 'wallet' ? [execution] : [],
     verificationExpectations: [
       ...profileEntry.profile.texts.map((record, index) => ({
         id: expectationId(name, 'profile-text', `${index}:${record.key}`),
@@ -1024,6 +1178,19 @@ const buildProfileReplayFragment = (params: {
         contentType: record.contentType,
         value: record.value,
       })),
+      ...profileEntry.profile.interfaces.map((record, index) => ({
+        id: expectationId(
+          name,
+          'profile-interface',
+          `${index}:${record.interfaceId}`,
+        ),
+        type: 'profile-interface' as const,
+        name,
+        node: profileEntry.node,
+        resolver: params.resolver,
+        interfaceId: record.interfaceId,
+        implementer: record.implementer,
+      })),
     ],
   }
 }
@@ -1056,18 +1223,21 @@ const buildNameExecution = (
     childRegistry,
   })
   const nameState: NameExecutionFragment = {
-    innerExecutions: buildCopyRegistrationExecution({
-      ...params,
-      childRegistry,
-      expectedResolver,
-    }),
+    innerExecutions: [
+      ...buildCopyRegistrationExecution({
+        ...params,
+        childRegistry,
+        expectedResolver,
+      }),
+    ],
+    walletExecutions: [],
     verificationExpectations: buildNameStateExpectations({
       ...params,
       childRegistry,
       expectedResolver,
     }),
   }
-  const managerRole = buildManagerRoleFragment(params.classified)
+  const managerRole = buildManagerRoleFragment(params)
   const profileReplay = buildProfileReplayFragment(params)
   const fragments = [
     resolverSetup,
@@ -1082,6 +1252,9 @@ const buildNameExecution = (
     directRoute: params.directRoute,
     migrationData,
     innerExecutions: fragments.flatMap((fragment) => fragment.innerExecutions),
+    walletExecutions: fragments.flatMap(
+      (fragment) => fragment.walletExecutions,
+    ),
     verificationExpectations: fragments.flatMap(
       (fragment) => fragment.verificationExpectations,
     ),
@@ -1089,6 +1262,7 @@ const buildNameExecution = (
 }
 
 const buildNameExecutions = (params: {
+  readonly directMigrationExpiries?: ReadonlyMap<string, bigint>
   readonly chainId: number
   readonly hca: Address
   readonly wallet: Address
@@ -1098,8 +1272,10 @@ const buildNameExecutions = (params: {
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly resolver: Address
   readonly defaultResolver: Address
+  readonly resolverWriter: MigrationResolverWriter
   readonly resolverDeployed: boolean
   readonly walletCoAdminGranted: boolean
+  readonly deployedManagerResolvers: ReadonlySet<string>
 }): readonly AtomicMigrationNameExecution[] => {
   const directNames = params.classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
@@ -1113,10 +1289,13 @@ const buildNameExecutions = (params: {
     registryContext: params.registryContext,
   })
   const firstResolverNameIndex = ordered.findIndex(
-    (name) => name.resolverStrategy === 'to-owned-permres',
+    (name) =>
+      name.resolverStrategy === 'to-owned-permres' &&
+      !needsRetainedManagerResolver(name),
   )
 
   return ordered.map((classified, index) => {
+    const dedicatedResolver = needsRetainedManagerResolver(classified)
     const receivesResolverSetup = index === firstResolverNameIndex
     const directRoute =
       classified.action === 'migrate'
@@ -1128,14 +1307,29 @@ const buildNameExecutions = (params: {
       )
     }
     return buildNameExecution({
+      directMigrationExpiries: params.directMigrationExpiries,
       ...params,
+      resolver: dedicatedResolver
+        ? computeRetainedManagerResolverAddress({
+            ...params,
+            name: classified.domain.name,
+          })
+        : params.resolver,
+      resolverSalt: dedicatedResolver
+        ? computeRetainedManagerResolverSalt(classified.domain.name)
+        : computeResolverSalt(params.hca),
+      resolverManager: dedicatedResolver ? classified.managerAddress : null,
+      managerRoles: RETAINED_MANAGER_RECORD_ROLES,
+      resolverWriter: dedicatedResolver ? 'hca' : params.resolverWriter,
       classified,
       directRoute,
       userRegistries,
-      includeResolverVerification: receivesResolverSetup,
-      includeResolverDeployment:
-        receivesResolverSetup && !params.resolverDeployed,
+      includeResolverVerification: dedicatedResolver || receivesResolverSetup,
+      includeResolverDeployment: dedicatedResolver
+        ? !params.deployedManagerResolvers.has(classified.domain.name)
+        : receivesResolverSetup && !params.resolverDeployed,
       includeWalletCoAdminGrant:
+        !dedicatedResolver &&
         receivesResolverSetup &&
         (!params.resolverDeployed || !params.walletCoAdminGranted),
     })
@@ -1191,22 +1385,54 @@ export const buildAtomicMigrationInnerExecutions = (params: {
     ...executionsForPhase('user-registry-wallet-grant'),
     ...executionsForPhase('user-registry-parent'),
     ...helperExecutions,
+    ...executionsForPhase('subregistry-attachment'),
     ...executionsForPhase('copy-register'),
     ...executionsForPhase('manager-role-grant'),
     ...executionsForPhase('profile-replay'),
   ]
 }
 
+/**
+ * Merge every wallet-owned record replay of a batch into one resolver
+ * `multicall`, so the owner gets a single prompt however many names it covers.
+ */
+export const buildAtomicMigrationWalletCall = (params: {
+  readonly resolver: Address
+  readonly executions: readonly AtomicMigrationWalletExecution[]
+}): Call | null => {
+  const innerCalls = params.executions.flatMap(
+    (execution) => execution.innerCalls,
+  )
+  if (innerCalls.length === 0) return null
+  return wrapInnerCallsAsMulticall(params.resolver, innerCalls)
+}
+
+/**
+ * Names whose records the owner wallet writes for this batch. Only names with a
+ * replay appear, so step copy and progress describe what the call actually
+ * carries rather than every name in the batch.
+ */
+export const walletReplayNames = (
+  batch: Pick<AtomicMigrationBatch, 'nameExecutions'>,
+): readonly string[] =>
+  batch.nameExecutions.flatMap((nameExecution) =>
+    nameExecution.walletExecutions.flatMap((execution) => execution.names),
+  )
+
 const estimateBatch = async (params: {
   readonly index: number
   readonly hca: Address
   readonly wallet: Address
+  readonly resolver: Address
   readonly nameExecutions: readonly AtomicMigrationNameExecution[]
-  readonly estimateOuterGas: EstimateAtomicMigrationOuterGas
+  readonly estimateBatchGas: EstimateAtomicMigrationBatchGas
 }): Promise<AtomicMigrationBatch> => {
   const innerExecutions = buildAtomicMigrationInnerExecutions({
     nameExecutions: params.nameExecutions,
   })
+  const walletExecutions = params.nameExecutions.flatMap(
+    (nameExecution) => nameExecution.walletExecutions,
+  )
   const names = params.nameExecutions.map(
     (nameExecution) => nameExecution.classified.domain.name,
   )
@@ -1214,10 +1440,16 @@ const estimateBatch = async (params: {
     hca: params.hca,
     calls: innerExecutions.map((execution) => execution.call),
   })
-  const estimatedGas = await params.estimateOuterGas({
+  const walletCall = buildAtomicMigrationWalletCall({
+    resolver: params.resolver,
+    executions: walletExecutions,
+  })
+  const { outerGas, walletGas } = await params.estimateBatchGas({
     call: outerCall,
     names,
     innerExecutions,
+    walletCall,
+    walletExecutions,
   })
 
   return {
@@ -1230,7 +1462,9 @@ const estimateBatch = async (params: {
     nameExecutions: params.nameExecutions,
     innerExecutions,
     outerCall,
-    estimatedGas,
+    walletCall,
+    estimatedGas: outerGas,
+    walletEstimatedGas: walletGas,
     verificationExpectations: params.nameExecutions.flatMap(
       (nameExecution) => nameExecution.verificationExpectations,
     ),
@@ -1242,8 +1476,9 @@ type EstimateAtomicPrefix = (size: number) => Promise<AtomicMigrationBatch>
 const createAtomicPrefixEstimator = (params: {
   readonly hca: Address
   readonly wallet: Address
+  readonly resolver: Address
   readonly nameExecutions: readonly AtomicMigrationNameExecution[]
-  readonly estimateOuterGas: EstimateAtomicMigrationOuterGas
+  readonly estimateBatchGas: EstimateAtomicMigrationBatchGas
 }): EstimateAtomicPrefix => {
   const attempts = new Map<number, Promise<AtomicMigrationBatch>>()
 
@@ -1255,13 +1490,24 @@ const createAtomicPrefixEstimator = (params: {
       index: 0,
       hca: params.hca,
       wallet: params.wallet,
+      resolver: params.resolver,
       nameExecutions: params.nameExecutions.slice(0, size),
-      estimateOuterGas: params.estimateOuterGas,
+      estimateBatchGas: params.estimateBatchGas,
     })
     attempts.set(size, pending)
     return pending
   }
 }
+
+/**
+ * The gas a batch has to fit, counting the wallet replay that is its own
+ * transaction. Both calls are held to the same cap, so a merged replay cannot
+ * outgrow the limit the HCA call respects.
+ */
+export const maxBatchGas = (batch: AtomicMigrationBatch): bigint =>
+  batch.walletEstimatedGas > batch.estimatedGas
+    ? batch.walletEstimatedGas
+    : batch.estimatedGas
 
 const singleNameGasLimitError = (
   batch: AtomicMigrationBatch,
@@ -1269,7 +1515,7 @@ const singleNameGasLimitError = (
 ): AtomicMigrationNameGasLimitExceededError =>
   new AtomicMigrationNameGasLimitExceededError({
     ensName: batch.names[0] ?? 'unknown',
-    estimatedGas: batch.estimatedGas,
+    estimatedGas: maxBatchGas(batch),
     maxOuterGas,
   })
 
@@ -1281,14 +1527,14 @@ const findLargestAtomicPrefixWithinGasLimit = async (params: {
   let lowerSize = 1
   let upperSize = params.overLimitSize
   let lowerBatch = await params.estimatePrefix(lowerSize)
-  if (lowerBatch.estimatedGas > params.maxOuterGas) {
+  if (maxBatchGas(lowerBatch) > params.maxOuterGas) {
     throw singleNameGasLimitError(lowerBatch, params.maxOuterGas)
   }
 
   while (upperSize - lowerSize > 1) {
     const midpoint = Math.floor((lowerSize + upperSize) / 2)
     const candidate = await params.estimatePrefix(midpoint)
-    if (candidate.estimatedGas <= params.maxOuterGas) {
+    if (maxBatchGas(candidate) <= params.maxOuterGas) {
       lowerSize = midpoint
       lowerBatch = candidate
       continue
@@ -1310,9 +1556,10 @@ const findLargestAtomicPrefixWithinGasLimit = async (params: {
 const buildFirstAtomicMigrationBatch = async (params: {
   readonly hca: Address
   readonly wallet: Address
+  readonly resolver: Address
   readonly nameExecutions: readonly AtomicMigrationNameExecution[]
   readonly maxOuterGas: bigint
-  readonly estimateOuterGas: EstimateAtomicMigrationOuterGas
+  readonly estimateBatchGas: EstimateAtomicMigrationBatchGas
   readonly initialBatchSize?: number
 }): Promise<AtomicMigrationBatch | null> => {
   const total = params.nameExecutions.length
@@ -1325,7 +1572,7 @@ const buildFirstAtomicMigrationBatch = async (params: {
   )
   const estimatePrefix = createAtomicPrefixEstimator(params)
   const hintedBatch = await estimatePrefix(hint)
-  if (hintedBatch.estimatedGas <= params.maxOuterGas) return hintedBatch
+  if (maxBatchGas(hintedBatch) <= params.maxOuterGas) return hintedBatch
 
   return findLargestAtomicPrefixWithinGasLimit({
     overLimitSize: hint,
@@ -1351,19 +1598,55 @@ export const buildAtomicMigrationBatches = async (
     hca: params.hca,
   })
   const nameExecutions = buildNameExecutions({
-    ...params,
+    directMigrationExpiries: params.directMigrationExpiries,
+    chainId: params.chainId,
+    hca: params.hca,
+    wallet: params.wallet,
+    classified: params.classified,
     registryContext: params.registryContext ?? params.classified,
+    directRoutes: params.directRoutes,
+    profiles: params.profiles,
     resolver,
     defaultResolver: params.defaultResolver ?? V2_CONTRACTS.DefaultResolver,
+    resolverWriter: params.resolverWriter ?? 'hca',
+    resolverDeployed: params.resolverDeployed,
+    walletCoAdminGranted: params.walletCoAdminGranted,
+    deployedManagerResolvers: params.deployedManagerResolvers ?? new Set(),
   })
 
-  if (params.firstBatchOnly) {
+  const roots = new Set(
+    params.classified.flatMap((name) =>
+      name.action === 'copy' && name.recreationRoot
+        ? [name.recreationRoot]
+        : [],
+    ),
+  )
+  const grouped = new Map<string, AtomicMigrationNameExecution[]>()
+  for (const execution of nameExecutions) {
+    const name = execution.classified
+    const key =
+      name.action === 'copy' && name.recreationRoot
+        ? name.recreationRoot
+        : name.domain.name
+    grouped.set(key, [...(grouped.get(key) ?? []), execution])
+  }
+  for (const root of roots) {
+    if (
+      !params.classified.some(
+        (name) => name.action === 'migrate' && name.domain.name === root,
+      )
+    ) {
+      throw new Error(`Cannot resume a partial recreation tree for "${root}"`)
+    }
+  }
+  if (params.firstBatchOnly && roots.size === 0) {
     const batch = await buildFirstAtomicMigrationBatch({
       hca: params.hca,
       wallet: params.wallet,
+      resolver,
       nameExecutions,
       maxOuterGas: params.maxOuterGas,
-      estimateOuterGas: params.estimateOuterGas,
+      estimateBatchGas: params.estimateBatchGas,
       initialBatchSize: params.initialBatchSize,
     })
     return { resolver, batches: batch ? [batch] : [] }
@@ -1373,17 +1656,31 @@ export const buildAtomicMigrationBatches = async (
   let currentNameExecutions: readonly AtomicMigrationNameExecution[] = []
   let currentBatch: AtomicMigrationBatch | null = null
 
-  for (const nameExecution of nameExecutions) {
-    const candidateNameExecutions = [...currentNameExecutions, nameExecution]
+  for (const nameGroup of grouped.values()) {
+    const nameExecution = nameGroup[0]
+    if (!nameExecution) continue
+    const requestedHint = Math.trunc(params.initialBatchSize ?? 1)
+    const firstBatchBoundary = Number.isFinite(requestedHint)
+      ? Math.max(1, requestedHint)
+      : 1
+    if (
+      params.firstBatchOnly &&
+      currentBatch &&
+      currentNameExecutions.length + nameGroup.length > firstBatchBoundary
+    ) {
+      return { resolver, batches: [currentBatch] }
+    }
+    const candidateNameExecutions = [...currentNameExecutions, ...nameGroup]
     const candidate = await estimateBatch({
       index: batches.length,
       hca: params.hca,
       wallet: params.wallet,
+      resolver,
       nameExecutions: candidateNameExecutions,
-      estimateOuterGas: params.estimateOuterGas,
+      estimateBatchGas: params.estimateBatchGas,
     })
 
-    if (candidate.estimatedGas <= params.maxOuterGas) {
+    if (maxBatchGas(candidate) <= params.maxOuterGas) {
       currentNameExecutions = candidateNameExecutions
       currentBatch = candidate
       continue
@@ -1392,27 +1689,29 @@ export const buildAtomicMigrationBatches = async (
     if (!currentBatch) {
       throw new AtomicMigrationNameGasLimitExceededError({
         ensName: nameExecution.classified.domain.name,
-        estimatedGas: candidate.estimatedGas,
+        estimatedGas: maxBatchGas(candidate),
         maxOuterGas: params.maxOuterGas,
       })
     }
 
     batches.push(currentBatch)
+    if (params.firstBatchOnly) return { resolver, batches }
     const singleNameBatch = await estimateBatch({
       index: batches.length,
       hca: params.hca,
       wallet: params.wallet,
-      nameExecutions: [nameExecution],
-      estimateOuterGas: params.estimateOuterGas,
+      resolver,
+      nameExecutions: nameGroup,
+      estimateBatchGas: params.estimateBatchGas,
     })
-    if (singleNameBatch.estimatedGas > params.maxOuterGas) {
+    if (maxBatchGas(singleNameBatch) > params.maxOuterGas) {
       throw new AtomicMigrationNameGasLimitExceededError({
         ensName: nameExecution.classified.domain.name,
-        estimatedGas: singleNameBatch.estimatedGas,
+        estimatedGas: maxBatchGas(singleNameBatch),
         maxOuterGas: params.maxOuterGas,
       })
     }
-    currentNameExecutions = [nameExecution]
+    currentNameExecutions = nameGroup
     currentBatch = singleNameBatch
   }
 

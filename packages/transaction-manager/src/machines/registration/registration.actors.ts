@@ -23,7 +23,7 @@ import {
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
-import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
+import { errAsync, fromPromise, okAsync, ResultAsync } from 'neverthrow'
 import type {
   Address,
   Hash,
@@ -55,6 +55,12 @@ const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
 ])
 
+// `renewBatch` is on both renewers (the shared AbstractETHRegistrar) but has no
+// ensjs-abi snippet either.
+const renewBatchAbi = parseAbi([
+  'function renewBatch((string label, uint64 duration, bytes32 referrer)[] rds, address paymentToken)',
+])
+
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import {
   awaitTransactionOutcome,
@@ -80,9 +86,12 @@ const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
  * `price`. Deliberately NOT unlimited: the registrar pulls the live rent price
  * (no max-price arg), which can drift slightly between quote and execution; we
  * add 10% headroom to absorb that while keeping the allowance tightly scoped.
- * (Used only on the pure-EOA `approve` path — the HCA path funds via permit.)
+ *
+ * (Used on the pure-EOA `approve` path — the HCA path funds via permit. Also
+ * used to size the HCA's own `approve`, and therefore the funding that has to
+ * cover it, on the renewal intent route.)
  */
-function authorizedPaymentAmount(price: bigint): bigint {
+export function authorizedPaymentAmount(price: bigint): bigint {
   return price + price / 10n
 }
 
@@ -226,6 +235,31 @@ export type PermitSignature = {
   s: Hex
 }
 
+/**
+ * A signed legacy DAI permit.
+ *
+ * DAI predates EIP-2612 and implements its own `permit`, signing a different
+ * struct (`holder` / `nonce` / `expiry` / `allowed` with no `value`). The
+ * allowance is all-or-nothing: `allowed = true` sets it to `type(uint256).max`.
+ *
+ * Kept separate from {@link PermitSignature} so a signature of one shape can
+ * never be encoded as the other — the two are not interchangeable.
+ */
+export type DaiPermitSignature = {
+  /** DAI's name for the signer; EIP-2612 calls it `owner`. */
+  readonly holder: Address
+  readonly spender: Address
+  /** Read from `nonces(holder)` before signing. */
+  readonly nonce: bigint
+  /** Absolute Unix timestamp. DAI treats `0` as "never expires". */
+  readonly expiry: bigint
+  /** `true` grants an unlimited allowance; DAI has no per-value approval. */
+  readonly allowed: boolean
+  readonly v: number
+  readonly r: Hex
+  readonly s: Hex
+}
+
 /** Shared `ETHRegistrar.register` call for submit + gas estimate. */
 export function encodeRegisterCall({
   name,
@@ -268,7 +302,10 @@ export type TOKEN_SYMBOL = 'USDC' | 'DAI'
 
 export const PAYMENT_TOKEN_CONTRACT = { USDC: 'usdc', DAI: 'dai' } as const
 
+// USDC is the manifest's, the token checkout reads and the HCA route pays in,
+// not ensjs' MockUSDC: the registrar and renewers accept both on Sepolia.
 function getPaymentTokenAddress(token: TOKEN_SYMBOL, chain: Chain): Address {
+  if (token === 'USDC') return getDestinationContracts(chain.id).usdc
   return getChainContractAddress({
     chain,
     contract: PAYMENT_TOKEN_CONTRACT[token],
@@ -487,6 +524,24 @@ export function encodeDeployDedicatedResolverCall(input: {
 }
 
 /**
+ * The registrar `commit` call. Exported so the app's pre-start estimate of a
+ * setup bundle encodes the commit exactly as the machine submits it.
+ */
+export function encodeCommitCall(input: {
+  readonly commitment: Hash
+  readonly chain: Chain
+}): { to: Address; data: Hex; value: bigint } {
+  return {
+    to: getChainContractAddress({
+      chain: input.chain,
+      contract: 'ensEthRegistrar',
+    }),
+    data: encodeCommitmentData(input.commitment),
+    value: 0n,
+  }
+}
+
+/**
  * Wait for resolver deployment transaction and extract deployed proxy address
  */
 export function resolveResolverDeploymentActor(input: {
@@ -648,7 +703,7 @@ export function readPaymentTokenAllowanceActor(input: {
   publicClient: PublicClient
   /** Spender to read the allowance for. Defaults to the legacy registrar. */
   registrarAddress?: Address
-  /** Payment token to read. Defaults to the legacy mock token for the symbol. */
+  /** Payment token to read. Defaults to the symbol's payment token. */
   paymentTokenAddress?: Address
 }): ResultAsync<bigint, Error> {
   const registrarAddress =
@@ -689,7 +744,7 @@ export function readPaymentAuthorizationActor(input: {
   publicClient: PublicClient
   /** Spender/pricer to read. Defaults to the legacy registrar. */
   registrarAddress?: Address
-  /** Payment token to read. Defaults to the legacy mock token for the symbol. */
+  /** Payment token to read. Defaults to the symbol's payment token. */
   paymentTokenAddress?: Address
 }): ResultAsync<{ allowance: bigint; livePrice: bigint }, MulticallErrorType> {
   const registrarAddress =
@@ -754,7 +809,10 @@ export type VerifyPollOptions = {
   isDefinitivelyDead?: () => Promise<boolean>
 }
 
-function sleepUnlessAborted(ms: number, signal?: AbortSignal): Promise<void> {
+export function sleepUnlessAborted(
+  ms: number,
+  signal?: AbortSignal,
+): Promise<void> {
   return new Promise<void>((resolve) => {
     if (signal?.aborted) return resolve()
 
@@ -1111,7 +1169,7 @@ export function submitApprovalActor(input: {
   id?: string
   /** Spender to approve. Defaults to the legacy registrar. */
   registrarAddress?: Address
-  /** Token to approve. Defaults to the legacy mock token for the symbol. */
+  /** Token to approve. Defaults to the symbol's payment token. */
   paymentTokenAddress?: Address
 }): ResultAsync<string, Error> {
   const registrarAddress =
@@ -1173,6 +1231,107 @@ export function submitApprovalActor(input: {
       return txId
     }),
     (error) => new Error(`Failed to submit approval: ${error}`),
+  )
+}
+
+/**
+ * Pure-EOA on a wallet that bundles atomically (EIP-5792): everything before
+ * the commitment cooldown goes out as ONE confirmation — the wallet's resolver
+ * (first registration only), the commit, and the payment approval when the
+ * live price isn't already covered. Returns the approved price (null when no
+ * approve was needed) so the machine tracks what was authorized.
+ */
+export function submitEoaSetupBundleActor(input: {
+  readonly name: string
+  readonly commitment: CommitmentData
+  /** The account the resolver grants its roles to. */
+  readonly resolverOwner: Address
+  readonly shouldDeployResolver: boolean
+  /** The name owner, who pays the registrar. */
+  readonly owner: Address
+  readonly duration: bigint
+  readonly selectedToken: TOKEN_SYMBOL
+  /** Approved when the live price can't be read. */
+  readonly tokenPrice: bigint
+  readonly signer: Signer
+  readonly publicClient: PublicClient
+  readonly id?: string
+}): ResultAsync<
+  { readonly txId: string; readonly approvedPrice: bigint | null },
+  Error
+> {
+  // An unreadable allowance falls back to approving the quote, as the
+  // sequential `checkingAllowance` does.
+  const approvalPrice = readPaymentAuthorizationActor({
+    owner: input.owner,
+    name: input.name,
+    duration: input.duration,
+    selectedToken: input.selectedToken,
+    publicClient: input.publicClient,
+  })
+    .map(({ allowance, livePrice }) =>
+      allowance >= livePrice ? null : livePrice,
+    )
+    .orElse(() => okAsync(input.tokenPrice))
+
+  return approvalPrice.andThen((approvedPrice) =>
+    ResultAsync.fromPromise(
+      Promise.resolve().then(() => {
+        const chain = requireEnsChain(input.publicClient, 'registration')
+        const registrarAddress = getChainContractAddress({
+          chain,
+          contract: 'ensEthRegistrar',
+        })
+        const from = getSignerAddress(input.signer)
+        const calls: Call[] = [
+          ...(input.shouldDeployResolver
+            ? [
+                encodeDeployDedicatedResolverCall({
+                  owner: input.resolverOwner,
+                  chain,
+                }),
+              ]
+            : []),
+          encodeCommitCall({ commitment: input.commitment.commitment, chain }),
+          ...(approvedPrice === null
+            ? []
+            : [
+                {
+                  to: getPaymentTokenAddress(input.selectedToken, chain),
+                  data: encodeTokenApprovalData(
+                    registrarAddress,
+                    authorizedPaymentAmount(approvedPrice),
+                  ),
+                  value: 0n,
+                },
+              ]),
+        ]
+        // A lone commit is a plain transaction: only real bundles go through
+        // `wallet_sendCalls`.
+        const request: TransactionRequest =
+          calls.length > 1
+            ? { type: 'eoa-batch', from, chainId: chain.id, calls }
+            : createTransactionRequest({
+                signer: input.signer,
+                from,
+                chainId: chain.id,
+                calls,
+              })
+
+        const txId = transactionManager.startTransaction(
+          { type: 'custom', request },
+          input.signer,
+          {
+            id: input.id,
+            description: `Set up registration for ${input.name}.eth`,
+            publicClient: input.publicClient,
+            timeout: 120_000,
+          },
+        )
+        return { txId, approvedPrice }
+      }),
+      (error) => new Error(`Failed to submit registration setup: ${error}`),
+    ),
   )
 }
 
@@ -1305,22 +1464,24 @@ export function pollTransactionStatusActor(input: {
 // ============================================================================
 //
 // `ETHRegistrar.renew((label, duration, referrer), paymentToken)` pulls the rent
-// from `_msgSender()` (see AbstractETHRegistrar.renew). Crucially, the registrar
-// uses HCA-aware sender resolution: when an HCA calls `renew`, `_msgSender()`
-// unwraps to the HCA's owner EOA (HCAEquivalence). So the registrar always pulls
-// payment from the EOA — never the HCA, which holds no tokens.
+// from `msg.sender` (see AbstractETHRegistrar.renew) — raw `msg.sender`, with no
+// HCA unwrap. So the payer is whoever executes the call: the connected EOA on
+// the direct-wallet route, or the user's own HCA when the renewal runs as an
+// intent. (This is why a session-signed renewal reverts `ActionNotAllowed`: the
+// session's allowlist covers only `commit`/`register`, and the owner-signed HCA
+// route has to fund the account, since `renew` spends ITS balance.)
 //
-// This is the same payer the `register` flow authorizes, so renewal reuses the
-// exact allowance machinery: read `allowance[EOA][registrar]`, and either skip
-// (already enough), sign a gasless EIP-2612 permit batched with `renew` in one
-// intent (rhinestone/HCA), or do a plain on-chain `approve` (EOA).
+// Both routes authorize the payment the same way: read
+// `allowance[payer][renewer]`, and either skip (already enough), sign a gasless
+// EIP-2612 permit batched with `renew` in one intent (HCA), or do a plain
+// on-chain `approve` (EOA).
 
 /**
  * Encode `renew(RenewData, paymentToken)` calldata, where
  * `RenewData = (label, duration, referrer)`. Both renewers dropped the flat
  * `renew(string,uint64,address,bytes32)`; that selector now reverts empty.
  */
-function encodeRenewData(
+export function encodeRenewData(
   label: string,
   duration: bigint,
   paymentToken: Address,
@@ -1330,6 +1491,40 @@ function encodeRenewData(
     abi: ethRegistrarRenewSnippet,
     functionName: 'renew',
     args: [{ label: cleanLabel, duration, referrer: zeroHash }, paymentToken],
+  })
+}
+
+/**
+ * One `RenewData` entry, as the batch call takes it.
+ */
+export interface RenewDataEntry {
+  readonly label: string
+  /** Duration in SECONDS, as `renew` takes it. */
+  readonly duration: bigint
+}
+
+/**
+ * Encode `renewBatch(RenewData[], paymentToken)` calldata.
+ *
+ * `renewBatch` renews every entry and pulls the SUMMED rent once from
+ * `msg.sender`, which is what makes a whole selection payable in one intent —
+ * one permit, one approval, one fee. `ensjs-abi` has no snippet for it yet.
+ */
+export function encodeRenewBatchData(
+  entries: readonly RenewDataEntry[],
+  paymentToken: Address,
+): Hash {
+  return encodeFunctionData({
+    abi: renewBatchAbi,
+    functionName: 'renewBatch',
+    args: [
+      entries.map((entry) => ({
+        label: entry.label.replace('.eth', ''),
+        duration: entry.duration,
+        referrer: zeroHash,
+      })),
+      paymentToken,
+    ],
   })
 }
 

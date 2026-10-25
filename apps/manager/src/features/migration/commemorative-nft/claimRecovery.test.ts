@@ -88,17 +88,16 @@ describe('commemorative NFT claim submission coordination', () => {
     })
     expect(claimCommemorativeNft).toHaveBeenCalledTimes(1)
   })
-  it.each([
-    undefined,
-    {},
-    { locks: {} },
-  ])('fails closed if cross-tab coordination is unavailable: %j', async (browserNavigator) => {
-    vi.stubGlobal('navigator', browserNavigator)
-    await expect(submitPendingNftClaim(params)).rejects.toMatchObject({
-      reason: 'browser-unsupported',
-    })
-    expect(claimCommemorativeNft).not.toHaveBeenCalled()
-  })
+  it.each([undefined, {}, { locks: {} }])(
+    'fails closed if cross-tab coordination is unavailable: %j',
+    async (browserNavigator) => {
+      vi.stubGlobal('navigator', browserNavigator)
+      await expect(submitPendingNftClaim(params)).rejects.toMatchObject({
+        reason: 'browser-unsupported',
+      })
+      expect(claimCommemorativeNft).not.toHaveBeenCalled()
+    },
+  )
   it('rechecks current migration scope after the final claimed read', async () => {
     const read = deferred<boolean>()
     vi.mocked(readCommemorativeNftClaimed).mockReturnValueOnce(read.promise)

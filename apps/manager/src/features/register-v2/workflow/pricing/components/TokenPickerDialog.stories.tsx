@@ -1,11 +1,16 @@
 import { Trans } from '@lingui/react/macro'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
+import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import type { L2Source } from '@/l2Sources'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
+import type { L2PaymentRow } from '../hooks/useL2Payment'
+import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import {
   PaymentMethodList,
@@ -33,6 +38,34 @@ const INSUFFICIENT_USDC: StablecoinBalance = {
   formattedBalance: '0.00',
 }
 
+const l2Row = (
+  chain: typeof baseSepolia | typeof arbitrumSepolia | typeof optimismSepolia,
+  balanceRaw: bigint | null,
+  status: L2PaymentOption['status'],
+  amountInRaw?: bigint,
+): L2PaymentRow => ({
+  option: {
+    id: l2PaymentOptionId(chain.id),
+    source: {
+      chain,
+      usdc: FUNDED_USDC.address,
+      rpcUrls: [],
+      client: {} as L2Source['client'],
+    },
+    balanceRaw,
+    status,
+  },
+  amountInRaw,
+  isQuoteLoading: false,
+  hasQuoteFailed: false,
+})
+
+const FIXTURE_L2_ROWS: readonly L2PaymentRow[] = [
+  l2Row(baseSepolia, 400_000_000n, 'available', 352_012_573n),
+  l2Row(arbitrumSepolia, 100_000_000n, 'insufficient'),
+  l2Row(optimismSepolia, null, 'unavailable'),
+]
+
 interface TokenPickerDialogShellProps {
   readonly label: string
   readonly defaultOpen?: boolean
@@ -43,11 +76,15 @@ interface TokenPickerDialogShellProps {
   readonly isLoadingBalances?: boolean
   readonly stablecoinBalances?: StablecoinBalance[]
   readonly globalErrorMessage?: string | null
+  readonly infoMessage?: string
+  readonly footer?: ReactNode
   readonly methodErrorMessage?: string | null
   readonly initialSelectedToken?: SUPPORTED_TOKEN
   readonly funding?: RegistrationFundingSummary
   readonly isQuotingFunding?: boolean
   readonly isFeeTooltipOpen?: boolean
+  /** L2 rows the registration can be paid from. */
+  readonly l2Rows?: readonly L2PaymentRow[]
 }
 
 export const TokenPickerDialogShell = ({
@@ -60,16 +97,20 @@ export const TokenPickerDialogShell = ({
   isLoadingBalances = false,
   stablecoinBalances = [FUNDED_USDC],
   globalErrorMessage = null,
+  infoMessage,
+  footer,
   methodErrorMessage = null,
   initialSelectedToken,
   funding,
   isQuotingFunding = false,
   isFeeTooltipOpen,
+  l2Rows,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
   const [selectedToken, setSelectedToken] = useState<
     SUPPORTED_TOKEN | undefined
   >(initialSelectedToken)
+  const [selectedChainId, setSelectedChainId] = useState<number>()
 
   return (
     <PaymentDialogBase
@@ -79,17 +120,29 @@ export const TokenPickerDialogShell = ({
       title="Select payment"
     >
       <TokenPickerContentBase
+        footer={footer}
         funding={funding}
         globalErrorMessage={globalErrorMessage}
+        infoMessage={infoMessage}
         isConnected={isConnected}
         isFeeTooltipOpen={isFeeTooltipOpen}
         isInPriceCooldown={isInPriceCooldown}
         isLoadingBalances={isLoadingBalances}
         isQuotingFunding={isQuotingFunding}
+        l2Payment={
+          l2Rows && {
+            rows: l2Rows,
+            selectedChainId,
+            onSelect: setSelectedChainId,
+          }
+        }
         label={label}
         methodErrorMessage={methodErrorMessage}
         onNext={() => {}}
-        onSelectCoin={setSelectedToken}
+        onSelectCoin={(coin) => {
+          setSelectedChainId(undefined)
+          setSelectedToken(coin)
+        }}
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         selectedToken={selectedToken}
@@ -259,7 +312,7 @@ export const FixtureTokenPickerContent = ({
         amount={method.balance}
         amountLabel="balance"
         error={method.error}
-        fee="Mainnet est. fee: $0.27"
+        fee="Sepolia est. fee: $0.27"
         feeTooltip="An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
         feeTooltipLabel="What is the network fee?"
         icon={
@@ -351,6 +404,7 @@ const meta = {
   },
   argTypes: {
     stablecoinBalances: { control: false },
+    l2Rows: { control: false },
     initialSelectedToken: {
       control: 'inline-radio',
       options: [undefined, 'USDC'],
@@ -391,6 +445,13 @@ export const InsufficientUSDC: Story = {
   },
 }
 
+export const PayFromL2: Story = {
+  args: {
+    ...InsufficientUSDC.args,
+    l2Rows: FIXTURE_L2_ROWS,
+  },
+}
+
 export const WithAccountCredit: Story = {
   args: {
     initialSelectedToken: 'USDC',
@@ -411,6 +472,45 @@ export const FeeTooltipOpen: Story = {
     ...FundedUSDC.args,
     isFeeTooltipOpen: true,
   },
+}
+
+export const LongNameWithApprovalDetails: Story = {
+  args: {
+    initialSelectedToken: 'USDC',
+    pricingData: 160,
+    funding: {
+      registration: 160,
+      networkFee: 0,
+      total: 160,
+      walletDebit: 0,
+      hcaCredit: 160,
+      isLoading: false,
+    },
+    label: 'rh-resume-c-mvfdmryi7p3',
+    infoMessage:
+      "What was left from your last attempt covers the 160.00 USDC this registration needs, so you won't be asked to approve a payment.",
+  },
+  render: (args) => (
+    <TokenPickerDialogShell
+      {...args}
+      footer={
+        <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium text-ens-gray text-sm">
+              Set as primary name
+            </span>
+            <span className="text-ens-gray text-xs">
+              Your wallet address can only have one primary name, which will
+              display instead of your wallet address across apps. You'll be
+              prompted to confirm this additional transaction after
+              registration.
+            </span>
+          </div>
+          <Switch aria-label="Set as primary name" />
+        </div>
+      }
+    />
+  ),
 }
 
 export const FixtureMultipleMethodsCollapsed: Story = {

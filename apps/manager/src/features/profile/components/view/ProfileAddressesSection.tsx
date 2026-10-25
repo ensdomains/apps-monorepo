@@ -1,24 +1,25 @@
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
+import { useId } from 'react'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
-import * as ImageFallback from '@/components/atoms/ImageFallback'
-import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Card } from '@/components/ui/card'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { IconRenderer } from '@/features/profile/components/IconRenderer'
+import { AddressIcon } from '@/features/profile/components/AddressIcon'
 import type { ProfileRecords } from '@/features/profile/types'
-import { cn, truncateAddress } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import {
   ProfileCard,
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
+  profileFieldLabelClassName,
+  profileFieldValueClassName,
+  profileTileClassName,
 } from './ProfileCard'
-import { useProfileThemeColor } from './ProfileThemeColor'
 import {
-  formatChainSpecificAddress,
+  formatProfileAddress,
   getChainSpecificAddresses,
   getMainReceivingAddress,
   getReceivingAddressChains,
@@ -26,79 +27,75 @@ import {
 } from './ProfileView.helpers'
 
 type ProfileAddressesSectionProps = {
-  readonly avatarUrl?: string
-  readonly name: string
   readonly records: ProfileRecords
 }
 
-const addressCardPaddingClassName =
-  'has-[>svg]:px-4 xl:p-[24.25px] xl:has-[>svg]:px-[24.25px]'
-const addressCardSurfaceClassName =
-  'flex-row items-center rounded-[14px] transition hover:bg-ens-quartz-50 xl:rounded-xl'
+const COMPACT_CHAIN_COUNT = 5
 
-const AddressValue = ({
-  className = '',
-  value,
-}: {
-  readonly className?: string
-  readonly value: string
-}) => (
-  <span
-    className={`truncate font-mono text-[12px] tracking-[0.84px] xl:text-[13px] xl:tracking-[0.91px] ${className}`}
-  >
-    {truncateAddress(value)}
+// Smaller padding gives the address and wrapping network group more room.
+const addressCardClassName = cn(
+  profileTileClassName,
+  'h-auto min-h-16 w-full flex-row items-center justify-between gap-3 p-4 transition hover:bg-ens-quartz-50 has-[>svg]:px-4',
+)
+
+const AddressValue = ({ value }: { readonly value: string }) => (
+  <span className={cn('min-w-0 truncate', profileFieldValueClassName)}>
+    {formatProfileAddress(value)}
   </span>
 )
 
-const ChainAddressValue = ({ value }: { readonly value: string }) => (
-  <span
-    className="min-w-0 truncate text-[13px] text-ens-quartz-400 leading-[1.2] tracking-[-0.26px] xl:w-21.25 xl:text-sm xl:leading-[1.1] xl:tracking-[-0.28px]"
-    title={value}
-  >
-    {formatChainSpecificAddress(value)}
-  </span>
-)
-
-const ChainIconTooltip = ({
+const ReceivingChainBadge = ({
   chain,
-  iconClassName,
-  triggerClassName,
+  isCompact,
 }: {
   readonly chain: ProfileAddressItem
-  readonly iconClassName: string
-  readonly triggerClassName?: string
-}) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <span
-        aria-label={chain.label}
-        className={triggerClassName}
-        role="img"
-        title=""
-      >
-        <IconRenderer className={iconClassName} icon={chain.icon} />
-      </span>
-    </TooltipTrigger>
-    <TooltipContent>{chain.label}</TooltipContent>
-  </Tooltip>
-)
-
-const ReceivingChainIcons = ({
-  chains,
-}: {
-  readonly chains: ProfileAddressItem[]
+  readonly isCompact: boolean
 }) => {
-  const withIcon = chains.filter((chain) => chain.icon)
-  if (withIcon.length === 0) return null
+  const badge = (
+    <span
+      className={cn(
+        'inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-ens-quartz-50 text-ens-quartz-600 text-xs',
+        isCompact ? 'p-1' : 'px-2 py-1',
+      )}
+    >
+      <AddressIcon
+        coinType={chain.coinType}
+        shouldShowFallbackLabel={isCompact}
+        size={isCompact ? 'lg' : 'sm'}
+      />
+      <span className={isCompact ? 'sr-only' : 'min-w-0 break-words'}>
+        {chain.label}
+      </span>
+    </span>
+  )
 
+  if (!isCompact) return badge
   return (
-    <div className="flex max-w-full shrink-0 flex-wrap items-center gap-1 xl:min-w-50">
-      {withIcon.map((chain) => (
-        <ChainIconTooltip
+    <Tooltip>
+      <TooltipTrigger asChild>{badge}</TooltipTrigger>
+      <TooltipContent>{chain.label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+const ReceivingChainBadges = ({
+  chains,
+  id,
+}: {
+  readonly chains: readonly ProfileAddressItem[]
+  readonly id: string
+}) => {
+  const isCompact = chains.length >= COMPACT_CHAIN_COUNT
+  return (
+    <div
+      className="flex min-w-0 max-w-full flex-wrap items-center gap-2 whitespace-normal text-left font-sans"
+      id={id}
+    >
+      {chains.map((chain) => (
+        <ReceivingChainBadge
           chain={chain}
-          iconClassName="size-4.5 object-contain xl:size-6.5"
+          isCompact={isCompact}
           key={`${chain.coinType}-${chain.value}`}
-          triggerClassName="inline-flex shrink-0"
         />
       ))}
     </div>
@@ -107,57 +104,27 @@ const ReceivingChainIcons = ({
 
 const MainAddressCard = ({
   address,
-  avatarUrl,
   chains,
-  name,
 }: {
   readonly address: ProfileAddressItem
-  readonly avatarUrl?: string
-  readonly chains: ProfileAddressItem[]
-  readonly name: string
+  readonly chains: readonly ProfileAddressItem[]
 }) => {
-  const themeColor = useProfileThemeColor()
+  const { t } = useLingui()
+  const chainsId = useId()
 
   return (
-    <Card
-      asChild
-      className={`${addressCardSurfaceClassName} ${addressCardPaddingClassName} h-auto min-h-13.75 w-full justify-between gap-2 py-4 xl:max-w-141`}
-    >
+    <Card asChild className={addressCardClassName}>
       <CopyableButton
+        aria-describedby={chainsId}
+        aria-label={t`Copy address ${address.value}`}
         iconClassName={profileCardCopyIconClassName}
         iconStrokeWidth={profileCardTrailingIconStrokeWidth}
         value={address.value}
         variant="ghost"
       >
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <div className="flex min-w-0 items-center gap-2 xl:h-6.5 xl:gap-4">
-            <div className="flex min-w-0 items-center gap-1">
-              <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 xl:size-[25.576px] xl:rounded-sm">
-                <ImageFallback.Root className="contents">
-                  <ImageFallback.Image
-                    alt={`${name} avatar`}
-                    className="size-full object-cover"
-                    src={avatarUrl}
-                  />
-                  <ImageFallback.Fallback>
-                    <PatternAvatar
-                      className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
-                      color={themeColor}
-                      name={name}
-                    />
-                  </ImageFallback.Fallback>
-                </ImageFallback.Root>
-              </div>
-              <span className="truncate font-semi-mono text-[13px] text-ens-quartz-900 xl:text-sm xl:leading-[0.96] xl:tracking-[-0.28px]">
-                {name}
-              </span>
-            </div>
-            <AddressValue
-              className="text-ens-quartz-900"
-              value={address.value}
-            />
-          </div>
-          <ReceivingChainIcons chains={chains} />
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+          <ReceivingChainBadges chains={chains} id={chainsId} />
+          <AddressValue value={address.value} />
         </div>
       </CopyableButton>
     </Card>
@@ -168,36 +135,38 @@ const ChainAddressCard = ({
   address,
 }: {
   readonly address: ProfileAddressItem
-}) => (
-  <Card
-    asChild
-    className={cn(
-      addressCardSurfaceClassName,
-      addressCardPaddingClassName,
-      'h-16.25 w-full justify-between gap-1 px-2 py-0 has-[>svg]:px-2 xl:h-auto xl:min-h-[88.5px] xl:gap-2 xl:px-[24.25px] xl:has-[>svg]:px-[24.25px]',
-    )}
-  >
-    <CopyableButton
-      iconClassName={profileCardCopyIconClassName}
-      iconStrokeWidth={profileCardTrailingIconStrokeWidth}
-      value={address.value}
-      variant="ghost"
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-0.5 xl:gap-0">
-        <ChainIconTooltip
-          chain={address}
-          iconClassName="size-6 object-contain xl:size-7"
-          triggerClassName="flex size-6 shrink-0 items-center justify-center xl:size-10 xl:p-2"
-        />
-        <ChainAddressValue value={address.value} />
-      </div>
-    </CopyableButton>
-  </Card>
-)
+}) => {
+  const { t } = useLingui()
+
+  return (
+    <Card asChild className={addressCardClassName}>
+      <CopyableButton
+        aria-label={t`Copy ${address.label} address ${address.value}`}
+        iconClassName={profileCardCopyIconClassName}
+        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
+        value={address.value}
+        variant="ghost"
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <AddressIcon coinType={address.coinType} size="lg" />
+          <div className="flex min-w-0 flex-1 flex-col text-left">
+            <span
+              className={cn(
+                'whitespace-normal break-words',
+                profileFieldLabelClassName,
+              )}
+            >
+              {address.label}
+            </span>
+            <AddressValue value={address.value} />
+          </div>
+        </div>
+      </CopyableButton>
+    </Card>
+  )
+}
 
 export const ProfileAddressesSection = ({
-  avatarUrl,
-  name,
   records,
 }: ProfileAddressesSectionProps) => {
   const mainAddress = getMainReceivingAddress(records)
@@ -208,33 +177,18 @@ export const ProfileAddressesSection = ({
 
   return (
     <ProfileCard title={<Trans>Addresses</Trans>}>
-      <div className="space-y-6">
+      <div className="flex flex-col gap-3 xl:gap-6">
         {mainAddress ? (
-          <div>
-            <h3 className="mb-3 text-ens-quartz-600 text-sm leading-normal">
-              <Trans>Main receiving address</Trans>
-            </h3>
-            <MainAddressCard
-              address={mainAddress}
-              avatarUrl={avatarUrl}
-              chains={receivingChains}
-              name={name}
-            />
-          </div>
+          <MainAddressCard address={mainAddress} chains={receivingChains} />
         ) : null}
         {chainAddresses.length > 0 ? (
-          <div>
-            <h3 className="mb-3 text-ens-quartz-600 text-sm leading-normal">
-              <Trans>Chain-specific addresses</Trans>
-            </h3>
-            <div className="grid grid-cols-1 gap-3 xl:grid-cols-3 xl:gap-6 min-[375px]:grid-cols-2">
-              {chainAddresses.map((address) => (
-                <ChainAddressCard
-                  address={address}
-                  key={`${address.coinType}-${address.value}`}
-                />
-              ))}
-            </div>
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-3 xl:gap-6">
+            {chainAddresses.map((address) => (
+              <ChainAddressCard
+                address={address}
+                key={`${address.coinType}-${address.value}`}
+              />
+            ))}
           </div>
         ) : null}
       </div>

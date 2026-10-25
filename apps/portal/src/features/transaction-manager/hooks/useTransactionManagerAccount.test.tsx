@@ -31,20 +31,19 @@ describe('useTransactionManagerAccount', () => {
     expect(mocks.setConnectedAccount).toHaveBeenCalledWith(ADDRESS)
   })
 
-  it.each([
-    'connecting',
-    'reconnecting',
-    'disconnected',
-  ] as const)('says nothing while the wallet is %s', (status) => {
-    // A lock, a reload or a pending reconnect all report no address. None of
-    // them means another wallet has taken over, and acting on them would
-    // throw away the actors an open modal is still rendering.
-    mocks.useAccount.mockReturnValue({ address: undefined, status })
+  it.each(['connecting', 'reconnecting', 'disconnected'] as const)(
+    'says nothing while the wallet is %s',
+    (status) => {
+      // A lock, a reload or a pending reconnect all report no address. None of
+      // them means another wallet has taken over, and acting on them would
+      // throw away the actors an open modal is still rendering.
+      mocks.useAccount.mockReturnValue({ address: undefined, status })
 
-    renderHook(() => useTransactionManagerAccount())
+      renderHook(() => useTransactionManagerAccount())
 
-    expect(mocks.setConnectedAccount).not.toHaveBeenCalled()
-  })
+      expect(mocks.setConnectedAccount).not.toHaveBeenCalled()
+    },
+  )
 
   it('says nothing if a status of connected arrives without an address', () => {
     mocks.useAccount.mockReturnValue({

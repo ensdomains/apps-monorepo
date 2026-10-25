@@ -19,8 +19,7 @@ import {
   getEnsContractName,
 } from '@/utils/ens/ensContractNames'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
-import { resolveDecodedName } from '../summarize/decodeRawData'
-import type { TimelineIndexerEvent } from '../timelineEvent'
+import type { TimelineEvent } from '../timelineEvent'
 import { AccountBadge, FullOnDesktop } from './AccountBadge'
 import { ContractBadge } from './ContractBadge'
 import { getDecodedParamEntries, getTimelineFieldType } from './eventFieldTypes'
@@ -30,14 +29,13 @@ const CONTRACT_PARAM_KEYS = new Set([
   'registry',
   'subregistry',
   'implementer',
+  'payment_token',
 ])
 
 const DecodedValue = ({
-  event,
   paramKey,
   value,
 }: {
-  event: TimelineIndexerEvent
   paramKey: string
   value: string
 }) => {
@@ -65,16 +63,6 @@ const DecodedValue = ({
     return <AccountBadge address={address} />
   }
 
-  const name =
-    paramKey === 'name' ? resolveDecodedName(value, event.name) : undefined
-  if (name) {
-    return (
-      <EntityBadge variant="name" name={name} compact format="wrap">
-        {name}
-      </EntityBadge>
-    )
-  }
-
   return (
     <EntityBadge
       variant="default"
@@ -89,7 +77,7 @@ const DecodedValue = ({
 }
 
 /** Tier-3 decoded-parameter table (Parameter / Type / Decoded) — inline, no card. */
-export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
+export const DecodedParams = ({ event }: { event: TimelineEvent }) => {
   const entries = getDecodedParamEntries(event)
 
   if (entries.length === 0) {
@@ -102,14 +90,14 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
   return (
     <div
       className={cn(
-        'w-full min-w-0 [contain:inline-size]',
+        'w-full min-w-0 contain-[inline-size]',
         entityBadgeLeadingPadScope,
       )}
     >
       <table className="w-full table-fixed border-separate border-spacing-y-2 text-p">
         <thead>
           <tr className="text-left text-smallcaps text-muted-foreground">
-            <th className="w-28 py-1.5 pr-3 font-medium @2xl/timeline:w-34">
+            <th className="w-36 py-1.5 pr-3 font-medium @2xl/timeline:w-40">
               Parameter
             </th>
             <th className="w-22 py-1.5 pr-3 font-medium @2xl/timeline:w-30">
@@ -122,13 +110,19 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
           {entries.map(([key, value]) => (
             <tr key={key}>
               <td className="py-1.5 pr-3 align-top">
-                <EntityBadge variant="default">{key}</EntityBadge>
+                <EntityBadge
+                  className="break-all"
+                  format="wrap"
+                  variant="default"
+                >
+                  {key}
+                </EntityBadge>
               </td>
               <td className="break-all py-1.5 pr-3 align-top font-mono text-muted-foreground">
                 {getTimelineFieldType(event.type, key)}
               </td>
               <td className="max-w-0 py-1.5 align-top">
-                <DecodedValue event={event} paramKey={key} value={value} />
+                <DecodedValue paramKey={key} value={value} />
               </td>
             </tr>
           ))}
@@ -163,7 +157,7 @@ export const TransactionMeta = ({
   event,
   txHash,
 }: {
-  event: TimelineIndexerEvent
+  event: TimelineEvent
   txHash: Hash
 }) => {
   const { data: tx, isLoading: isTxLoading } = useTransaction({ hash: txHash })

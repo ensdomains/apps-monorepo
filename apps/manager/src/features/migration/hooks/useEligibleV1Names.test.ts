@@ -36,6 +36,8 @@ const EMPTY_PROFILE = {
   addresses: [],
   contentHash: null,
   abis: [],
+  interfaces: [],
+  pubkey: null,
 } as const
 
 const recoverySnapshot = (params?: {
@@ -93,28 +95,28 @@ afterEach(() => {
 })
 
 describe('useEligibleV1Names grace-period names', () => {
-  it.each([
-    false,
-    true,
-  ])('removes a grace-period row at its exact grace boundary (wrapped: %s)', (isWrapped) => {
-    vi.useFakeTimers()
-    vi.setSystemTime(10_000_000_500)
-    const graceName = makeDomain({
-      isWrapped,
-      registrationExpiry: isWrapped ? null : '2224001',
-      wrappedExpiry: isWrapped ? '10000001' : undefined,
-    })
-    mocks.useV1Names.mockReturnValue({ data: [graceName], isPending: false })
-    const { result, unmount } = renderHook(() => useEligibleV1Names())
+  it.each([false, true])(
+    'removes a grace-period row at its exact grace boundary (wrapped: %s)',
+    (isWrapped) => {
+      vi.useFakeTimers()
+      vi.setSystemTime(10_000_001_500)
+      const graceName = makeDomain({
+        isWrapped,
+        registrationExpiry: isWrapped ? null : '2224001',
+        wrappedExpiry: isWrapped ? '10000001' : undefined,
+      })
+      mocks.useV1Names.mockReturnValue({ data: [graceName], isPending: false })
+      const { result, unmount } = renderHook(() => useEligibleV1Names())
 
-    expect(result.current.gracePeriodNames).toHaveLength(1)
-    act(() => vi.advanceTimersByTime(499))
-    expect(result.current.gracePeriodNames).toHaveLength(1)
-    act(() => vi.advanceTimersByTime(1))
-    expect(result.current.gracePeriodNames).toEqual([])
-    unmount()
-    expect(vi.getTimerCount()).toBe(0)
-  })
+      expect(result.current.gracePeriodNames).toHaveLength(1)
+      act(() => vi.advanceTimersByTime(499))
+      expect(result.current.gracePeriodNames).toHaveLength(1)
+      act(() => vi.advanceTimersByTime(1))
+      expect(result.current.gracePeriodNames).toEqual([])
+      unmount()
+      expect(vi.getTimerCount()).toBe(0)
+    },
+  )
 
   it('moves a newly expired name out of cached eligibility and into grace', () => {
     vi.useFakeTimers()
@@ -136,25 +138,25 @@ describe('useEligibleV1Names grace-period names', () => {
     ])
   })
 
-  it.each([
-    'focus',
-    'visibilitychange',
-  ])('catches up after a suspended tab receives %s', (event) => {
-    vi.useFakeTimers()
-    vi.setSystemTime(10_000_000_000)
-    const graceName = makeDomain({ registrationExpiry: '2224001' })
-    mocks.useV1Names.mockReturnValue({ data: [graceName], isPending: false })
-    const { result } = renderHook(() => useEligibleV1Names())
+  it.each(['focus', 'visibilitychange'])(
+    'catches up after a suspended tab receives %s',
+    (event) => {
+      vi.useFakeTimers()
+      vi.setSystemTime(10_000_000_000)
+      const graceName = makeDomain({ registrationExpiry: '2224001' })
+      mocks.useV1Names.mockReturnValue({ data: [graceName], isPending: false })
+      const { result } = renderHook(() => useEligibleV1Names())
 
-    expect(result.current.gracePeriodNames).toHaveLength(1)
-    vi.setSystemTime(10_000_002_000)
-    act(() => {
-      const target = event === 'focus' ? window : document
-      target.dispatchEvent(new Event(event))
-    })
+      expect(result.current.gracePeriodNames).toHaveLength(1)
+      vi.setSystemTime(10_000_002_000)
+      act(() => {
+        const target = event === 'focus' ? window : document
+        target.dispatchEvent(new Event(event))
+      })
 
-    expect(result.current.gracePeriodNames).toEqual([])
-  })
+      expect(result.current.gracePeriodNames).toEqual([])
+    },
+  )
 
   it('reschedules expiry boundaries when a name is renewed', () => {
     vi.useFakeTimers()
@@ -188,7 +190,7 @@ describe('useEligibleV1Names grace-period names', () => {
     expect(vi.getTimerCount()).toBe(1)
   })
 
-  it('retains wrapped and unwrapped grace names separately from eligible names', () => {
+  it('retains grace names separately and never falls back to selectable names after an eligibility failure', () => {
     vi.spyOn(Date, 'now').mockReturnValue(10_000_000_000)
     const active = makeDomain({
       id: namehash('active.eth'),
@@ -215,7 +217,7 @@ describe('useEligibleV1Names grace-period names', () => {
       isPending: false,
     })
 
-    const { result } = renderHook(() => useEligibleV1Names())
+    const { result, rerender } = renderHook(() => useEligibleV1Names())
 
     expect(result.current.eligible.map(({ domain }) => domain.name)).toEqual([
       'active.eth',
@@ -229,18 +231,38 @@ describe('useEligibleV1Names grace-period names', () => {
       [expect.objectContaining({ domain: active })],
       OWNER,
     )
+    mocks.useMigrationEligibility.mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: true,
+    })
+    rerender()
+    expect(result.current.eligible).toEqual([])
+    expect(result.current.isEligibilityError).toBe(true)
   })
 })
 
 describe('useEligibleV1Names durable recovery', () => {
-  it('surfaces the remaining copy even after the migrated root disappears from V1 results', () => {
+  it('surfaces the remaining copy from durable recovery even while fresh name queries fail', () => {
     mocks.useMigrationRecoverySnapshot.mockReturnValue(recoverySnapshot())
+    mocks.useV1Names.mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: true,
+    })
+    mocks.useMigrationEligibility.mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: true,
+    })
 
     const { result } = renderHook(() => useEligibleV1Names())
 
     expect(result.current.isPending).toBe(false)
     expect(result.current.gracePeriodNames).toEqual([])
     expect(result.current.recoveryState).toEqual({ status: 'recovering' })
+    expect(result.current.isEligibilityError).toBe(false)
+    expect(mocks.useV1Names).toHaveBeenCalledWith({ enabled: false })
     expect(result.current.eligible).toEqual([
       expect.objectContaining({
         action: 'copy',

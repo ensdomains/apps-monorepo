@@ -25,10 +25,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { ADDRESS_HISTORY_EVENT_TYPES } from '@/features/history/addressHistoryEventTypes'
-import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
-import { useIsNameOwner } from '@/features/ownership/hooks/useIsNameOwner'
 import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
+import { AddressRecordHistory } from '@/features/records/components/AddressRecordHistory'
+import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -180,13 +179,15 @@ const mismatchReason = ({
   label,
   isUnverifiedDefault,
   lacksNameAuthority,
+  isNameAuthorityUnknown,
 }: {
   displayName: string
   label: string
   isUnverifiedDefault: boolean
   lacksNameAuthority: boolean
+  isNameAuthorityUnknown: boolean
 }) =>
-  match({ isUnverifiedDefault, lacksNameAuthority })
+  match({ isUnverifiedDefault, lacksNameAuthority, isNameAuthorityUnknown })
     .with(
       { isUnverifiedDefault: true },
       () =>
@@ -195,7 +196,12 @@ const mismatchReason = ({
     .with(
       { lacksNameAuthority: true },
       () =>
-        `The set address does not resolve back to this name on ${label}. Only the owner of ${displayName} can point it back at this address.`,
+        `The set address does not resolve back to this name on ${label}. Only an account that can edit ${displayName}'s address records can point it back at this address.`,
+    )
+    .with(
+      { isNameAuthorityUnknown: true },
+      () =>
+        `The set address does not resolve back to this name on ${label}. We couldn't check whether you can point it back at this address. Refresh and try again.`,
     )
     .otherwise(
       () => `The set address does not resolve back to this name on ${label}`,
@@ -208,33 +214,36 @@ const mismatchReason = ({
  * - *offered* — is this a row with a forward record to write, on this wallet's
  *   own address? `setAddr` must target the signer, so a foreign address gets
  *   nothing at all.
- * - *enabled* — does this wallet have authority over the name? It does not
+ * - *enabled* — can this wallet write the name's address record? It does not
  *   vanish when it doesn't: the mismatch banner right below is this action's
  *   own call to action, so a button that disappears reads as a bug rather than
- *   an explanation. Disabled while the ownership read is in flight, so it never
+ *   an explanation. Disabled while the permission read is in flight, so it never
  *   flashes enabled for a name that turns out to belong to someone else.
  */
 const primaryActionState = ({
   isForwardRecordMissing,
   isDefaultRow,
   isOwnAddress,
-  isNameOwner,
-  isNameOwnerLoading,
+  canSetAddress,
+  isNameAuthorityLoading,
+  isNameAuthorityError,
 }: {
   isForwardRecordMissing: boolean
   isDefaultRow: boolean
   isOwnAddress: boolean
-  isNameOwner: boolean
-  isNameOwnerLoading: boolean
+  canSetAddress: boolean
+  isNameAuthorityLoading: boolean
+  isNameAuthorityError: boolean
 }) => {
   const isOffered = isForwardRecordMissing && !isDefaultRow && isOwnAddress
-  const isDisabledByNameAuthority = !isNameOwner || isNameOwnerLoading
+  const isSettled = !isNameAuthorityLoading && !isNameAuthorityError
 
   return {
     isOffered,
-    isDisabledByNameAuthority,
+    isDisabledByNameAuthority: !canSetAddress || !isSettled,
     /** Offered, settled, and refused — the only case worth explaining. */
-    isBlockedByNameAuthority: isOffered && !isNameOwner && !isNameOwnerLoading,
+    isBlockedByNameAuthority: isOffered && isSettled && !canSetAddress,
+    isNameAuthorityUnknown: isOffered && isNameAuthorityError,
   }
 }
 
@@ -309,31 +318,31 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     reverseRegistrarChainId,
   })
 
-  // "Set primary name" here writes the *forward* record — `setAddr` on the
-  // name's resolver — which needs authority over the name, not over the
-  // address. Pointing your own address at a name you don't own is a legal
-  // `setName` and produces the unverified row this sidebar now labels; closing
-  // that mismatch is the name owner's write, and without this the button
-  // offered a transaction that could only revert.
-  //
-  // `useIsNameOwner` rather than `useCanEditRecords`, matching the forward page
-  // (`AddressResolutionSidebar`): for an unwrapped V1 `.eth` 2LD the latter's
-  // owner is the registry controller, which would hide the action from the
-  // registrant holding the token. Both pages answering "who owns this name?"
-  // the same way matters more than the edge it costs.
-  const { isOwner: isNameOwner, isLoading: isNameOwnerLoading } =
-    useIsNameOwner({ name: displayName ?? '' })
+  // "Set primary name" here writes the *forward* record (`setAddr` /
+  // `setAddress` on the name's own resolver), so it needs the same authority
+  // as editing that address record, not name ownership.
+  const {
+    canEdit: canSetAddress,
+    isLoading: isNameAuthorityLoading,
+    isError: isNameAuthorityError,
+  } = useCanEditRecords({
+    name: displayName ?? '',
+    roles: ['ROLE_SET_ADDRESS'],
+    scope: { kind: 'address', coinType: BigInt(coinType) },
+  })
 
   const {
     isOffered: canSetAsPrimary,
     isBlockedByNameAuthority,
     isDisabledByNameAuthority,
+    isNameAuthorityUnknown,
   } = primaryActionState({
     isForwardRecordMissing,
     isDefaultRow,
     isOwnAddress,
-    isNameOwner,
-    isNameOwnerLoading,
+    canSetAddress,
+    isNameAuthorityLoading,
+    isNameAuthorityError,
   })
 
   const [nameInput, setNameInput] = useState('')
@@ -620,9 +629,9 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     if (!displayName || !connectedAddress) return
     // The button is disabled without name authority, but that is presentational
     // — this stops a `setAddr` that could only revert from being submitted.
-    if (!isNameOwner) {
+    if (!canSetAddress) {
       toast.error(
-        `Only the owner of ${displayName} can point it back at this address.`,
+        `Only an account that can edit ${displayName}'s address records can point it back at this address.`,
       )
       return
     }
@@ -706,6 +715,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     label,
                     isUnverifiedDefault,
                     lacksNameAuthority: isBlockedByNameAuthority,
+                    isNameAuthorityUnknown,
                   })}
                 </span>
               </div>
@@ -765,12 +775,8 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
               {displayName && (
                 <div className="border-t pt-6">
-                  <HistoryTimeline
+                  <AddressRecordHistory
                     name={displayName}
-                    scope={ADDRESS_HISTORY_EVENT_TYPES}
-                    heading={
-                      <h2 className="text-caps text-foreground">History</h2>
-                    }
                     action={
                       <Button
                         variant="ghost"
@@ -787,8 +793,6 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                         </Link>
                       </Button>
                     }
-                    emptyTitle="No resolution history"
-                    emptyDescription="Resolution record changes will appear here as they happen."
                   />
                 </div>
               )}
@@ -831,7 +835,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     prepare:
                       // No gas estimate for a `setAddr` this wallet has no
                       // authority to make — it would only simulate a revert.
-                      isConnected && displayName && isNameOwner
+                      isConnected && displayName && canSetAddress
                         ? ({ walletClient, chainId }) => {
                             // `walletClient.account.address` is the account that
                             // will actually sign — the only correct `setAddr`

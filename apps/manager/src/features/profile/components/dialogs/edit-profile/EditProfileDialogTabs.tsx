@@ -10,6 +10,7 @@ import { AppearanceTab } from './tabs/appearance/AppearanceTab'
 import { ContactTab } from './tabs/contact/ContactTab'
 import { GeneralTab } from './tabs/general/GeneralTab'
 import { LinksTab } from './tabs/links/LinksTab'
+import { OtherRecordsTab } from './tabs/OtherRecordsTab'
 
 export const editProfileTabs = [
   { label: 'General', value: 'general' },
@@ -17,6 +18,7 @@ export const editProfileTabs = [
   { label: 'Addresses', value: 'addresses' },
   { label: 'Links', value: 'links' },
   { label: 'Appearance', value: 'appearance' },
+  { label: 'Other records', value: 'other' },
 ] as const
 
 interface EditProfileDialogTabsProps {
@@ -32,9 +34,13 @@ interface EditProfileDialogTabsProps {
   readonly onMobileNavOpenChange: (isOpen: boolean) => void
   readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
+  readonly onOtherChange: (
+    records: Pick<ProfileRecords, 'unknown' | 'contentHash' | 'abi'>,
+  ) => void
   readonly owner?: Address
   readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
   readonly savedDescription?: string
+  readonly savedAbi?: string
   readonly values: ProfileRecords
 }
 
@@ -99,9 +105,11 @@ export const EditProfileDialogTabs = ({
   onLinksChange,
   onMobileNavOpenChange,
   onSocialChange,
+  onOtherChange,
   owner,
   preparedImageUploads,
   savedDescription,
+  savedAbi,
   values,
 }: EditProfileDialogTabsProps) => {
   const [isScrolling, setIsScrolling] = useState(false)
@@ -183,6 +191,13 @@ export const EditProfileDialogTabs = ({
               name={name}
               onBaseChange={onBaseChange}
               owner={owner}
+              values={values}
+            />
+          </TabsContent>
+          <TabsContent className="min-h-0 flex-1" value="other">
+            <OtherRecordsTab
+              onChange={onOtherChange}
+              savedAbi={savedAbi}
               values={values}
             />
           </TabsContent>

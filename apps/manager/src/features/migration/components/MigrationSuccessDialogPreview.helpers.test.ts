@@ -79,14 +79,17 @@ describe('published NFT preview state', () => {
   it.each([
     { isFetchedAfterMount: false, fetchStatus: 'idle' as const },
     { isFetchedAfterMount: true, fetchStatus: 'fetching' as const },
-  ])('withholds cached artwork until its current read finishes: %j', (query) => {
-    expect(
-      getPublishedPreviewState({
-        ...input,
-        query: { ...publishedQuery, ...query },
-      }),
-    ).toEqual({ status: 'loadingEligibility' })
-  })
+  ])(
+    'withholds cached artwork until its current read finishes: %j',
+    (query) => {
+      expect(
+        getPublishedPreviewState({
+          ...input,
+          query: { ...publishedQuery, ...query },
+        }),
+      ).toEqual({ status: 'loadingEligibility' })
+    },
+  )
 
   it('shows a retryable error after metadata validation fails, even with cached data', () => {
     const state = getPublishedPreviewState({

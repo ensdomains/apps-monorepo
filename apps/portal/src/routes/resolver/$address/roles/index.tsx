@@ -10,11 +10,16 @@ import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
-import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { ResolverAddUserSheet } from '@/features/resolver/components/ResolverAddUserSheet'
+import { ResolverCollectionNotice } from '@/features/resolver/components/ResolverCollectionNotice'
 import { ResolverRolesTable } from '@/features/resolver/components/ResolverRolesTable'
+import { useResolverCallerAdminRoles } from '@/features/resolver/hooks/useResolverCallerAdminRoles'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
+import {
+  resolverAdminRoleOf,
+  resolverPermissions,
+} from '@/lib/roles/resolverRoles'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/roles/')({
@@ -23,7 +28,7 @@ export const Route = createFileRoute('/resolver/$address/roles/')({
   loader: ({ params }) => {
     return queryClient.prefetchQuery(
       getResolverOverviewQueryOptions({
-        address: params.address as Address,
+        address: params.address,
       }),
     )
   },
@@ -36,11 +41,8 @@ function RouteComponent() {
   // registry shares EnhancedAccessControl, so these bits would mean something
   // else there.
   return (
-    <RoleContractGate
-      address={address as Address}
-      expected="permissioned-resolver"
-    >
-      <ResolverRoles address={address as Address} />
+    <RoleContractGate address={address} expected="permissioned-resolver">
+      <ResolverRoles address={address} />
     </RoleContractGate>
   )
 }
@@ -55,16 +57,15 @@ const ResolverRoles = ({ address }: { readonly address: Address }) => {
     error,
   } = useQuery(getResolverOverviewQueryOptions({ address }))
 
-  const { data: hasRootRole } = useQuery({
-    ...getHasRolesQueryOptions({
-      resolverAddress: address,
-      roles: ['ROLE_SET_ADDRESS'],
-      account: accountAddress as Address,
-    }),
-    enabled: !!accountAddress,
+  const rootAdminRoles = useResolverCallerAdminRoles({
+    resolverAddress: address,
+    resource: null,
+    account: accountAddress,
   })
 
-  const canManageRoles = Boolean(hasRootRole)
+  const canManageRoles = resolverPermissions.some((permission) =>
+    rootAdminRoles.has(resolverAdminRoleOf(permission.key)),
+  )
 
   if (isLoading) return <LoadingMessage />
   if (error)
@@ -92,15 +93,22 @@ const ResolverRoles = ({ address }: { readonly address: Address }) => {
           </Button>
         )}
       </div>
+      <ResolverCollectionNotice
+        collection="roles"
+        status={resolver?.rolesStatus}
+      />
       {roles.length === 0 ? (
-        <NoResultsMessage
-          title="No role holders yet"
-          description="Accounts with roles on this resolver will appear here."
-          className="mx-0"
-        />
+        resolver?.rolesStatus && resolver.rolesStatus !== 'full' ? null : (
+          <NoResultsMessage
+            title="No role holders yet"
+            description="Accounts with roles on this resolver will appear here."
+            className="mx-0"
+          />
+        )
       ) : (
         <ResolverRolesTable
           roles={roles}
+          isComplete={resolver?.rolesStatus === 'full'}
           namedResources={resolver?.namedResources ?? []}
           resolverAddress={address}
           canManageRoles={canManageRoles}
@@ -110,6 +118,7 @@ const ResolverRoles = ({ address }: { readonly address: Address }) => {
         open={addUserOpen}
         onOpenChange={setAddUserOpen}
         resolverAddress={address}
+        rootAdminRoles={rootAdminRoles}
       />
     </div>
   )

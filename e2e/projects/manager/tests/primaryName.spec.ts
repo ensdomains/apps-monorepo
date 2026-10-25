@@ -42,7 +42,7 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
 
   test('sets the newly registered name as primary after a successful registration', async ({
     connectedPage: page,
-    mockIndexer,
+    mockBigname,
     accounts,
     wallet,
   }) => {
@@ -63,8 +63,11 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
     // the EnableSessions modal before the token picker. Idempotent no-op in
     // EOA mode. See registration-rhinestone.spec.ts.
     await clickThroughEnableSessions(page)
-    await page.getByRole('button', { name: 'Select USDC' }).click()
-    await page.getByRole('button', { name: /register name/i }).click()
+    await page.getByRole('button', { name: 'Select USDC', exact: true }).click()
+    await page
+      .getByRole('dialog', { name: 'Approve and register name' })
+      .getByRole('button', { name: /^(approve and register|register name)$/i })
+      .click()
 
     // RegisteringStep renders NotificationSettings for as long as the
     // parallel `notifications` region sits in its initial `settings` state —
@@ -103,8 +106,8 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
       page.getByRole('link', { name: /complete your profile/i }),
     ).toBeVisible({ timeout: 60_000 })
 
-    if (mockIndexer.enabled) {
-      mockIndexer.addName({
+    if (mockBigname.enabled) {
+      mockBigname.addName({
         name: domainToRegister,
         owner: accounts.getAddress('user'),
       })

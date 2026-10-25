@@ -136,12 +136,22 @@ function assertChain(params: RevokeSessionsParams): void {
   }
 }
 
+/**
+ * Gas for `revokeSessions()`. Fixed rather than estimated: a wallet in
+ * EIP-7702 smart-account mode (MetaMask) wraps the transaction in its
+ * delegation redemption and forwards the estimate to the inner call, which
+ * then runs out of gas two delegatecalls deep. The call itself needs well
+ * under 100k.
+ */
+export const REVOKE_SESSIONS_GAS_LIMIT = 150_000n
+
 /** Send one owner transaction and require a successful receipt. */
 async function sendAndConfirm(
   params: RevokeSessionsParams,
   account: NonNullable<WalletClient['account']>,
   call: Call,
   failureMessage: string,
+  gas?: bigint,
 ): Promise<TransactionReceipt> {
   const hash = await params.walletClient.sendTransaction({
     account,
@@ -149,6 +159,7 @@ async function sendAndConfirm(
     to: call.to,
     value: call.value,
     data: call.data,
+    ...(gas === undefined ? {} : { gas }),
   })
   const receipt = await params.publicClient.waitForTransactionReceipt({ hash })
   if (receipt.status !== 'success') {
@@ -202,6 +213,26 @@ async function assertOwner(
 }
 
 /**
+ * The account's current session nonce, or `null` while it has no code (an
+ * undeployed account is at nonce 0, and nothing signed for it has been
+ * revoked). Every stored session carries the nonce it was signed against, so
+ * a lower one means `revokeSessions()` ran since, on whatever device.
+ */
+export async function readHcaSessionNonce(
+  publicClient: PublicClient,
+  hca: Address,
+): Promise<bigint | null> {
+  const code = await publicClient.getCode({ address: hca })
+  if (!code || code === '0x') return null
+  const [, sessionNonce] = await publicClient.readContract({
+    address: hca,
+    abi: standaloneHcaRevokeAbi,
+    functionName: 'ownerAndSessionNonce',
+  })
+  return sessionNonce
+}
+
+/**
  * The new nonce from the HCA's own `SessionsRevoked` event.
  *
  * A successful receipt alone is not proof: a call to an address with no code
@@ -245,6 +276,7 @@ export function revokeSessionsOnChain(
         account,
         buildRevokeSessionsCall({ hca: params.hca }),
         'revokeSessions transaction reverted',
+        REVOKE_SESSIONS_GAS_LIMIT,
       )
       const sessionNonce = readRevokedNonce(receipt, params.hca)
       if (sessionNonce === undefined) {

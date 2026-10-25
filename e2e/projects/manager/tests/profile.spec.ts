@@ -157,9 +157,10 @@ test.describe('ENS profile', () => {
 
     // General tab: Custom link is visible by default — fill with an invalid URL.
     // Validation fires immediately on change.
-    await page.getByPlaceholder('https://yourwebsite.com').fill('not-a-url')
+    // Spaces keep it invalid even with the https:// prefilled on focus
+    await page.getByPlaceholder('https://yourwebsite.com').fill('not a url')
     await expect(
-      page.getByText('Enter a valid URL (e.g. https://example.com)'),
+      page.getByText("Links can't contain spaces. Remove them and try again"),
     ).toBeVisible({ timeout: 10_000 })
 
     // Contact tab: enable E-mail then fill with an invalid address.
@@ -182,12 +183,10 @@ test.describe('ENS profile', () => {
 
     // Links tab: fill only the URL field with an invalid URL — the draft stays
     // a draft (title is empty) but validation still runs on non-empty drafts.
-    // Use exact match to distinguish from the General-tab "Enter a valid URL
-    // (e.g. https://example.com)" message which may still be in the DOM.
     await page.getByRole('tab', { name: 'Links' }).click()
-    await page.getByRole('textbox', { name: 'Link 1 URL' }).fill('not-a-url')
+    await page.getByRole('textbox', { name: 'Link 1 URL' }).fill('not a url')
     await expect(
-      page.getByText('Enter a valid URL', { exact: true }),
+      page.getByText("Links can't contain spaces. Remove them and try again"),
     ).toBeVisible({ timeout: 10_000 })
 
     console.log(`[profile] ✅ Validation errors correctly shown for ${name}`)
@@ -204,7 +203,7 @@ test.describe('ENS profile', () => {
     makeV2Name,
   }) => {
     test.skip(
-      process.env.E2E_MOCK_INDEXER === 'true',
+      process.env.E2E_MOCK_BIGNAME === 'true',
       'Requires real indexer (SSR bypasses Playwright mock)',
     )
     // Register with a record so the profile view page renders
@@ -305,7 +304,7 @@ test.describe('ENS profile', () => {
     // bypasses Playwright's route interceptor, causing the server to redirect to /.
     // The owned-name favourite test already covers the full favourite flow.
     test.skip(
-      process.env.E2E_MOCK_INDEXER === 'true',
+      process.env.E2E_MOCK_BIGNAME === 'true',
       'Requires real indexer (SSR bypasses Playwright mock)',
     )
 
@@ -498,12 +497,12 @@ test.describe('ENS profile', () => {
     profileConnectedPage: page,
     makeV2Name,
     wallet,
-    mockIndexer,
+    mockBigname,
     accounts,
   }) => {
     test.setTimeout(600_000)
     test.skip(
-      mockIndexer.enabled,
+      mockBigname.enabled,
       'the mock row offers no "Renew name" (it lacks the role data canRenew reads); the entry points are checked against the real index',
     )
     const owner = accounts.getAddress('user')

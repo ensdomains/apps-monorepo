@@ -46,48 +46,54 @@ describe('nodeForPath', () => {
 })
 
 describe('walkPreset', () => {
-  it.each(
-    ALL_TYPES,
-  )('%s: the root is the 2LD and comes first', (type: PresetType) => {
-    const [root, ...rest] = walkPreset(ROOT, type)
-    expect(root.fullName).toBe(`${ROOT}.eth`)
-    expect(root.depth).toBe(0)
-    expect(root.node).toBe(namehash(`${ROOT}.eth`))
-    // Parent-first: descendants can only be created once their parent exists,
-    // and `hasCompleteCopyRoute` walks up, so a missing link is always earlier.
-    for (const node of rest) expect(node.depth).toBeGreaterThan(0)
-  })
+  it.each(ALL_TYPES)(
+    '%s: the root is the 2LD and comes first',
+    (type: PresetType) => {
+      const [root, ...rest] = walkPreset(ROOT, type)
+      expect(root.fullName).toBe(`${ROOT}.eth`)
+      expect(root.depth).toBe(0)
+      expect(root.node).toBe(namehash(`${ROOT}.eth`))
+      // Parent-first: descendants can only be created once their parent exists,
+      // and `hasCompleteCopyRoute` walks up, so a missing link is always earlier.
+      for (const node of rest) expect(node.depth).toBeGreaterThan(0)
+    },
+  )
 
-  it.each(
-    ALL_TYPES,
-  )('%s: every node namehashes to its own full name', (type: PresetType) => {
-    for (const node of walkPreset(ROOT, type)) {
-      expect(node.node).toBe(namehash(node.fullName))
-      expect(node.parentNode).toBe(
-        node.depth === 0 ? namehash('eth') : namehash(node.parentFullName),
-      )
-      // A label is one label. A dotted one is now ineligible `invalid-label`.
-      expect(node.label).not.toContain('.')
-      expect(node.fullName).toBe(`${node.label}.${node.parentFullName}`)
-    }
-  })
+  it.each(ALL_TYPES)(
+    '%s: every node namehashes to its own full name',
+    (type: PresetType) => {
+      for (const node of walkPreset(ROOT, type)) {
+        expect(node.node).toBe(namehash(node.fullName))
+        expect(node.parentNode).toBe(
+          node.depth === 0 ? namehash('eth') : namehash(node.parentFullName),
+        )
+        // A label is one label. A dotted one is now ineligible `invalid-label`.
+        expect(node.label).not.toContain('.')
+        expect(node.fullName).toBe(`${node.label}.${node.parentFullName}`)
+      }
+    },
+  )
 
-  it.each(
-    ALL_TYPES,
-  )("%s: each node's parent state matches the node that IS its parent", (type: PresetType) => {
-    const nodes = walkPreset(ROOT, type)
-    const byName = new Map(nodes.map((n) => [n.fullName, n]))
-    for (const node of nodes) {
-      if (node.depth === 0) continue
-      const parent = byName.get(node.parentFullName)
-      expect(parent, `${node.fullName} has no parent in the walk`).toBeDefined()
-      // This is the drift guard: the classifier reads
-      // `parent.wrappedDomain.fuses` to split `detached-child` from
-      // `unlocked-child`, so a node's idea of its parent must be the parent.
-      expect(node.parentWrapped).toBe(parent?.wrapped)
-      expect(node.parentFuses).toBe(parent?.fuses)
-    }
-  })
+  it.each(ALL_TYPES)(
+    "%s: each node's parent state matches the node that IS its parent",
+    (type: PresetType) => {
+      const nodes = walkPreset(ROOT, type)
+      const byName = new Map(nodes.map((n) => [n.fullName, n]))
+      for (const node of nodes) {
+        if (node.depth === 0) continue
+        const parent = byName.get(node.parentFullName)
+        expect(
+          parent,
+          `${node.fullName} has no parent in the walk`,
+        ).toBeDefined()
+        // This is the drift guard: the classifier reads
+        // `parent.wrappedDomain.fuses` to split `detached-child` from
+        // `unlocked-child`, so a node's idea of its parent must be the parent.
+        expect(node.parentWrapped).toBe(parent?.wrapped)
+        expect(node.parentFuses).toBe(parent?.fuses)
+      }
+    },
+  )
 
   it('reaches depth 2 for the nested copy preset', () => {
     const nodes = walkPreset(ROOT, 'copy-nested')
@@ -125,41 +131,43 @@ describe('walkPreset', () => {
 })
 
 describe('buildMockDomains', () => {
-  it.each(
-    ALL_TYPES,
-  )("%s: every injected domain's parent is either 'eth' or another injected domain", (type: PresetType) => {
-    const domains = buildMockDomains(activeName(type)) as {
-      name: string
-      parent: { name: string }
-    }[]
-    const names = new Set(domains.map((d) => d.name))
-    for (const domain of domains) {
-      if (domain.parent.name === 'eth') continue
-      // A domain whose parent is absent is exactly the orphan fixture, and
-      // only `copy-orphan` is allowed to be one.
-      expect(
-        names.has(domain.parent.name),
-        `${domain.name} names parent ${domain.parent.name}, which is not injected`,
-      ).toBe(type !== 'copy-orphan')
-    }
-  })
+  it.each(ALL_TYPES)(
+    "%s: every injected domain's parent is either 'eth' or another injected domain",
+    (type: PresetType) => {
+      const domains = buildMockDomains(activeName(type)) as {
+        name: string
+        parent: { name: string }
+      }[]
+      const names = new Set(domains.map((d) => d.name))
+      for (const domain of domains) {
+        if (domain.parent.name === 'eth') continue
+        // A domain whose parent is absent is exactly the orphan fixture, and
+        // only `copy-orphan` is allowed to be one.
+        expect(
+          names.has(domain.parent.name),
+          `${domain.name} names parent ${domain.parent.name}, which is not injected`,
+        ).toBe(type !== 'copy-orphan')
+      }
+    },
+  )
 
-  it.each(
-    ALL_TYPES,
-  )('%s: only 2LDs carry a registration', (type: PresetType) => {
-    const domains = buildMockDomains(activeName(type)) as {
-      name: string
-      registration: unknown
-      registrant: unknown
-    }[]
-    for (const domain of domains) {
-      const is2LD = domain.name.split('.').length === 2
-      // `registration`/`registrant` are 2LD-only. On a child they make
-      // `hasExpiredDotEthRegistration` treat it as a .eth registration.
-      expect(Boolean(domain.registration), domain.name).toBe(is2LD)
-      expect(Boolean(domain.registrant), domain.name).toBe(is2LD)
-    }
-  })
+  it.each(ALL_TYPES)(
+    '%s: only 2LDs carry a registration',
+    (type: PresetType) => {
+      const domains = buildMockDomains(activeName(type)) as {
+        name: string
+        registration: unknown
+        registrant: unknown
+      }[]
+      for (const domain of domains) {
+        const is2LD = domain.name.split('.').length === 2
+        // `registration`/`registrant` are 2LD-only. On a child they make
+        // `hasExpiredDotEthRegistration` treat it as a .eth registration.
+        expect(Boolean(domain.registration), domain.name).toBe(is2LD)
+        expect(Boolean(domain.registrant), domain.name).toBe(is2LD)
+      }
+    },
+  )
 })
 
 describe('preset tables', () => {
@@ -202,12 +210,13 @@ describe('reassign presets (#1144)', () => {
 
   // Not yours to migrate: an injected child would appear in the migration
   // list as if the connected wallet held it.
-  it.each(
-    REASSIGN,
-  )('%s keeps its subnames out of the migration mock', (type) => {
-    const injected = buildMockDomains(activeName(type)) as { name: string }[]
-    expect(injected.map((d) => d.name)).toEqual([`${ROOT}.eth`])
-  })
+  it.each(REASSIGN)(
+    '%s keeps its subnames out of the migration mock',
+    (type) => {
+      const injected = buildMockDomains(activeName(type)) as { name: string }[]
+      expect(injected.map((d) => d.name)).toEqual([`${ROOT}.eth`])
+    },
+  )
 
   it('issues the reassignable child to another account', () => {
     for (const type of [
@@ -227,14 +236,13 @@ describe('reassign presets (#1144)', () => {
   // The child's label is generated, so landing on the parent leaves no way to
   // reach it but guessing how the label is composed. Found in manual QA on
   // "Subname+Rec": Open went to the 2LD and the subname looked unregistered.
-  it.each([
-    'subname',
-    'subname-records',
-    'detached-child',
-  ] as const)('%s opens the subname even though it is not a transfer preset', (type) => {
-    expect(PRESET_FAMILY[type]).not.toBe('transfer')
-    const child = walkPreset(ROOT, type)[1]?.fullName
-    expect(child).toBeTruthy()
-    expect(ownershipTargetFor(activeName(type))).toBe(child)
-  })
+  it.each(['subname', 'subname-records', 'detached-child'] as const)(
+    '%s opens the subname even though it is not a transfer preset',
+    (type) => {
+      expect(PRESET_FAMILY[type]).not.toBe('transfer')
+      const child = walkPreset(ROOT, type)[1]?.fullName
+      expect(child).toBeTruthy()
+      expect(ownershipTargetFor(activeName(type))).toBe(child)
+    },
+  )
 })

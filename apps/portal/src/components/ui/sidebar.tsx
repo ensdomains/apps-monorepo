@@ -4,7 +4,7 @@ import { Slot } from '@radix-ui/react-slot'
 import { useHotkey } from '@tanstack/react-hotkeys'
 import { cva, type VariantProps } from 'class-variance-authority'
 import * as React from 'react'
-import { LeftPanelCloseIcon } from '@/assets/icons'
+import { LeftPanelCloseIcon, LeftPanelOpenIcon } from '@/assets/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
@@ -214,7 +214,7 @@ function Sidebar({
       <div
         data-slot="sidebar-container"
         className={cn(
-          'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex',
+          'fixed top-(--notice-bar-h) bottom-0 z-10 hidden w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex',
           side === 'left'
             ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
             : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
@@ -243,7 +243,9 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, state, isMobile, openMobile } = useSidebar()
+  // On mobile the sheet's own open state applies, not the desktop one.
+  const isCollapsed = isMobile ? !openMobile : state === 'collapsed'
 
   return (
     <Button
@@ -261,7 +263,11 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <LeftPanelCloseIcon className="size-4" />
+      {isCollapsed ? (
+        <LeftPanelOpenIcon className="size-4" />
+      ) : (
+        <LeftPanelCloseIcon className="size-4" />
+      )}
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )

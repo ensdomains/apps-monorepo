@@ -1,7 +1,14 @@
+import { useLingui } from '@lingui/react'
 import { Pencil, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LinkItem, ProfileRecords } from '@/features/profile/types'
 import { MAX_PROFILE_LINKS } from '@/features/profile/utils/linkLimits'
+import {
+  getUrlInputBlurValue,
+  getUrlInputChangeValue,
+  getUrlInputCheckValue,
+  getUrlInputFocusValue,
+} from '@/features/profile/utils/urlInputPrefix'
 import { cn } from '@/lib/utils'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
 import {
@@ -34,7 +41,7 @@ const defaultLink = (): LinkItem => ({
 })
 
 const hasRequiredLinkFields = (link: LinkItem) =>
-  link.name.trim() !== '' && link.url.trim() !== ''
+  link.name.trim() !== '' && getUrlInputCheckValue(link.url).trim() !== ''
 
 const getIssue = (
   issues: readonly LinkValidationIssue[],
@@ -77,6 +84,7 @@ export const LinksTab = ({
   onLinksChange,
   values,
 }: LinksTabProps) => {
+  const { _ } = useLingui()
   const { isSaving } = useEditProfileDialogStatus()
   const nextRowKeyRef = useRef(0)
   const createRowKey = useCallback(() => {
@@ -165,6 +173,11 @@ export const LinksTab = ({
 
   const trimRowValue = (row: LinkRow, field: keyof LinkItem) => {
     updateRow(row, { [field]: row.link[field].trim() })
+  }
+
+  const setRowUrl = (row: LinkRow, getValue: (value: string) => string) => {
+    const url = getValue(row.link.url)
+    if (url !== row.link.url) updateRow(row, { url })
   }
 
   const removeLink = (index: number) => {
@@ -260,10 +273,13 @@ export const LinksTab = ({
                       'border-destructive focus-visible:border-destructive',
                   )}
                   disabled={isSaving}
-                  onBlur={() => trimRowValue(row, 'url')}
+                  onBlur={() => setRowUrl(row, getUrlInputBlurValue)}
                   onChange={(event) =>
-                    updateRow(row, { url: event.target.value })
+                    updateRow(row, {
+                      url: getUrlInputChangeValue(event.target.value),
+                    })
                   }
+                  onFocus={() => setRowUrl(row, getUrlInputFocusValue)}
                   placeholder="https://your-link.com"
                   value={row.link.url}
                 />
@@ -285,8 +301,8 @@ export const LinksTab = ({
 
               {(nameError || urlError) && (
                 <div className="flex flex-col gap-0.5 text-destructive text-xs">
-                  {nameError && <p>{nameError}</p>}
-                  {urlError && <p>{urlError}</p>}
+                  {nameError && <p>{_(nameError)}</p>}
+                  {urlError && <p>{_(urlError)}</p>}
                 </div>
               )}
             </div>

@@ -37,6 +37,11 @@ describe('migration preparation errors', () => {
       'contract-incompatible',
     ],
     [
+      'MigrationContractInvariantError',
+      { invariant: 'resolver-writer-roles' },
+      'resolver-not-writable',
+    ],
+    [
       'LockedResolverRecordSafetyError',
       { reason: 'inventory-missing' },
       'records-unavailable',
@@ -49,6 +54,12 @@ describe('migration preparation errors', () => {
     ['ProfileFetchError', {}, 'records-unavailable'],
     ['MigrationRecoveryPlanError', {}, 'recovery-changed'],
     ['MigrationBatchJournalCorruptError', {}, 'recovery-changed'],
+    [
+      'DirectMigrationRouteError',
+      { reason: 'missing-wrapper' },
+      'parent-not-upgraded',
+    ],
+    ['DirectMigrationRouteError', { reason: 'conflicting-wrapper' }, 'unknown'],
     ['HttpRequestError', {}, 'rpc-unavailable'],
     ['TimeoutError', {}, 'rpc-unavailable'],
     [
@@ -66,23 +77,32 @@ describe('migration preparation errors', () => {
     expect(message(cause)).not.toMatch(/secret|deadbeef|network fee/)
   })
 
-  it.each([
-    'account',
-    'preflight',
-    'plan',
-    'recovery',
-    'fee',
-  ] as const)('retains the %s stage and original diagnostic cause', async (stage) => {
-    const cause = failure('HttpRequestError')
-    const error = await runMigrationPreparationStage(stage, () =>
-      Promise.reject(cause),
-    ).catch((error: unknown) => error)
-    expect(migrationPreparationFailure(error)).toEqual({
-      stage,
-      reason: stage === 'fee' ? 'fee-unavailable' : 'rpc-unavailable',
-      cause,
+  it('names the parent prerequisite when a grace renewal is in the selection', () => {
+    const cause = failure('DirectMigrationRouteError', {
+      reason: 'missing-wrapper',
     })
+    expect(migrationPreparationFailure(cause, 'fee').reason).toBe(
+      'parent-not-upgraded',
+    )
+    expect(
+      migrationPreparationFailure(failure('HttpRequestError'), 'fee').reason,
+    ).toBe('fee-unavailable')
   })
+
+  it.each(['account', 'preflight', 'plan', 'recovery', 'fee'] as const)(
+    'retains the %s stage and original diagnostic cause',
+    async (stage) => {
+      const cause = failure('HttpRequestError')
+      const error = await runMigrationPreparationStage(stage, () =>
+        Promise.reject(cause),
+      ).catch((error: unknown) => error)
+      expect(migrationPreparationFailure(error)).toEqual({
+        stage,
+        reason: stage === 'fee' ? 'fee-unavailable' : 'rpc-unavailable',
+        cause,
+      })
+    },
+  )
 
   it('reserves the fee message for failed fee lookups', () => {
     const cause = failure('HttpRequestError')
@@ -98,6 +118,15 @@ describe('migration preparation errors', () => {
     )
     expect(message(failure('MigrationRecoveryPlanError'), 'recovery')).toBe(
       "Couldn't restore your upgrade progress. Reload to check the latest state.",
+    )
+  })
+
+  it('names the lost resolver permission instead of a contract mismatch', () => {
+    const lostRoles = failure('MigrationContractInvariantError', {
+      invariant: 'resolver-writer-roles',
+    })
+    expect(message(lostRoles)).toBe(
+      "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again.",
     )
   })
 

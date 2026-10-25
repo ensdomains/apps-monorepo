@@ -81,16 +81,18 @@ describe('hasV1Names', () => {
   it.each([
     { label: 'false once its lease has lapsed', lease: PAST, expected: false },
     { label: 'true while its lease is live', lease: FUTURE, expected: true },
-  ])('judges a reserved name by its lease: $label', async ({
-    lease,
-    expected,
-  }) => {
-    mockBigname(
-      page([{ ...row('reserved.eth', FUTURE), ens_v1: { expires_at: lease } }]),
-    )
+  ])(
+    'judges a reserved name by its lease: $label',
+    async ({ lease, expected }) => {
+      mockBigname(
+        page([
+          { ...row('reserved.eth', FUTURE), ens_v1: { expires_at: lease } },
+        ]),
+      )
 
-    await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(expected)
-  })
+      await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(expected)
+    },
+  )
 
   it('looks past an expired first row to a later live name', async () => {
     mockBigname(page([row('alice.eth', PAST), row('sub.alice.eth')]))
@@ -110,15 +112,14 @@ describe('hasV1Names', () => {
     expect(new URL(secondUrl).searchParams.get('cursor')).toBe('next')
   })
 
-  it.each([
-    'expired',
-    'released',
-    'unregistered',
-  ])('does not count a %s name', async (status) => {
-    mockBigname(page([{ ...row('gone.eth', FUTURE), status }]))
+  it.each(['expired', 'released', 'unregistered'])(
+    'does not count a %s name',
+    async (status) => {
+      mockBigname(page([{ ...row('gone.eth', FUTURE), status }]))
 
-    await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(false)
-  })
+      await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(false)
+    },
+  )
 
   it('is true for a wrapped name that never expires', async () => {
     mockBigname(page([row('passkey.eth', '18446744073709551615')]))
@@ -149,15 +150,14 @@ describe('hasV1Names', () => {
     await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(false)
   })
 
-  it.each([
-    'abc.addr.reverse',
-    'abc.default.reverse',
-    'abc.80002105.reverse',
-  ])('does not count the reverse record %s', async (name) => {
-    mockBigname(page([row(name), row('alice.eth', PAST)]))
+  it.each(['abc.addr.reverse', 'abc.default.reverse', 'abc.80002105.reverse'])(
+    'does not count the reverse record %s',
+    async (name) => {
+      mockBigname(page([row(name), row('alice.eth', PAST)]))
 
-    await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(false)
-  })
+      await expect(hasV1Names(ADDRESS, ENV)).resolves.toBe(false)
+    },
+  )
 
   it('throws on a failed response, so the caller stays fail-closed', async () => {
     vi.stubGlobal(

@@ -60,7 +60,7 @@ describe('transformPendingChangesToSetRecords', () => {
     it('transforms edited address records', () => {
       const result = transformPendingChangesToSetRecords(originalRecords, {
         newRecords: [],
-        editedValues: new Map([['address-ETH', '0x456']]),
+        editedValues: new Map([['address-60', '0x456']]),
         deletedIds: new Set(),
       })
 
@@ -93,7 +93,7 @@ describe('transformPendingChangesToSetRecords', () => {
       const result = transformPendingChangesToSetRecords(originalRecords, {
         newRecords: [],
         editedValues: new Map(),
-        deletedIds: new Set(['address-ETH']),
+        deletedIds: new Set(['address-60']),
       })
 
       expect(result.coins).toEqual([{ coin: 60, value: '' }])
@@ -107,6 +107,56 @@ describe('transformPendingChangesToSetRecords', () => {
       })
 
       expect(result.contentHash).toBeNull()
+    })
+  })
+
+  describe('colliding display symbols (WEB-1447)', () => {
+    // Base Sepolia (2147568180) and the alias 6442535476 (+ 2**32) both render
+    // as "Unknown Chain (84532)".
+    const BASE_SEPOLIA = 2147568180
+    const OVERSIZED_ALIAS = 6442535476
+    const collidingRecords: NameRecord[] = [
+      {
+        type: 'address',
+        key: 'Unknown Chain (84532)',
+        value: '0xbase',
+        id: BASE_SEPOLIA,
+      },
+      {
+        type: 'address',
+        key: 'Unknown Chain (84532)',
+        value: '0xalias',
+        id: OVERSIZED_ALIAS,
+      },
+    ]
+
+    it.each([
+      { deleteId: `address-${BASE_SEPOLIA}`, coin: BASE_SEPOLIA },
+      { deleteId: `address-${OVERSIZED_ALIAS}`, coin: OVERSIZED_ALIAS },
+    ])(
+      'clears exactly the selected coin type, never the row that shares its symbol',
+      ({ deleteId, coin }) => {
+        const result = transformPendingChangesToSetRecords(collidingRecords, {
+          newRecords: [],
+          editedValues: new Map(),
+          deletedIds: new Set([deleteId]),
+        })
+
+        expect(result.coins).toEqual([{ coin, value: '' }])
+      },
+    )
+
+    it('clears only the selected slot regardless of the row order', () => {
+      const result = transformPendingChangesToSetRecords(
+        [...collidingRecords].reverse(),
+        {
+          newRecords: [],
+          editedValues: new Map(),
+          deletedIds: new Set([`address-${OVERSIZED_ALIAS}`]),
+        },
+      )
+
+      expect(result.coins).toEqual([{ coin: OVERSIZED_ALIAS, value: '' }])
     })
   })
 
@@ -152,7 +202,7 @@ describe('transformPendingChangesToSetRecords', () => {
         cleared: [{ key: 'url', value: '' }],
       },
       {
-        id: 'address-base',
+        id: 'address-2147492101',
         record: {
           type: 'address',
           key: 'base',
@@ -185,36 +235,31 @@ describe('transformPendingChangesToSetRecords', () => {
       cleared: unknown
     }>
 
-    it.each(
-      replacements,
-    )('coalesces a delete plus an add of $id into one set of the new value', ({
-      id,
-      record,
-      pick,
-      expected,
-    }) => {
-      const result = transformPendingChangesToSetRecords(records, {
-        newRecords: [{ ...record, _uid: 'new' }],
-        editedValues: new Map(),
-        deletedIds: new Set([id]),
-      })
+    it.each(replacements)(
+      'coalesces a delete plus an add of $id into one set of the new value',
+      ({ id, record, pick, expected }) => {
+        const result = transformPendingChangesToSetRecords(records, {
+          newRecords: [{ ...record, _uid: 'new' }],
+          editedValues: new Map(),
+          deletedIds: new Set([id]),
+        })
 
-      expect(pick(result)).toEqual(expected)
-    })
+        expect(pick(result)).toEqual(expected)
+      },
+    )
 
-    it.each(replacements)('serialises a lone delete of $id as one clear', ({
-      id,
-      pick,
-      cleared,
-    }) => {
-      const result = transformPendingChangesToSetRecords(records, {
-        newRecords: [],
-        editedValues: new Map(),
-        deletedIds: new Set([id]),
-      })
+    it.each(replacements)(
+      'serialises a lone delete of $id as one clear',
+      ({ id, pick, cleared }) => {
+        const result = transformPendingChangesToSetRecords(records, {
+          newRecords: [],
+          editedValues: new Map(),
+          deletedIds: new Set([id]),
+        })
 
-      expect(pick(result)).toEqual(cleared)
-    })
+        expect(pick(result)).toEqual(cleared)
+      },
+    )
 
     it('never emits a clear after a set, and orders clears before sets', () => {
       const result = transformPendingChangesToSetRecords(
@@ -231,9 +276,9 @@ describe('transformPendingChangesToSetRecords', () => {
           editedValues: new Map(),
           deletedIds: new Set([
             'text-url',
-            'address-base',
+            'address-2147492101',
             'text-email',
-            'address-eth',
+            'address-60',
           ]),
         },
       )

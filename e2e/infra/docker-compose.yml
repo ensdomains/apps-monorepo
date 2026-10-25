@@ -5,7 +5,7 @@
 # Stop:    docker compose -f e2e/infra/docker-compose.yml down
 #
 # Then set in the app (or .env):
-#   VITE_SEPOLIA_RPC_URL=http://127.0.0.1:8545   (manager; the explorer reads VITE_RPC_URL)
+#   VITE_RPC_URL=http://127.0.0.1:8545   (manager and explorer)
 #   VITE_PIMLICO_BUNDLER_URL=http://localhost:3000/alto  (proxy avoids CORS; see vite.config.ts)
 #
 # Optional: override fork URL (e.g. for CI)
@@ -47,7 +47,7 @@
 # Anvil and the mockestrator are therefore pinned to digests verified green.
 # Alto, the paymaster and Panoptes are deliberately left on moving tags for now:
 # the standalone-HCA path does not route through the bundler or paymaster, and
-# CI mocks the indexer (E2E_MOCK_INDEXER=true). Pin them too if they ever drift.
+# CI mocks bigname (E2E_MOCK_BIGNAME=true). Pin them too if they ever drift.
 #
 # To bump a pin:
 #   1. docker pull <image>:<tag>

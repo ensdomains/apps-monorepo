@@ -13,9 +13,20 @@ const mocks = vi.hoisted(() => ({
   recoveryPlan: vi.fn(),
   estimate: vi.fn(),
   recovery: vi.fn(),
+  isRecreationEnabled: false,
+}))
+vi.mock('@posthog/react', () => ({
+  useFeatureFlagEnabled: () => mocks.isRecreationEnabled,
+}))
+vi.mock('../service/subnameRecreation', () => ({
+  discoverSubnameRecreation: vi.fn(),
+  assertSupportedSubnameMigration: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.query }))
-vi.mock('wagmi', () => ({ usePublicClient: mocks.client }))
+vi.mock('wagmi', () => ({
+  usePublicClient: mocks.client,
+  useCapabilities: () => ({ data: undefined }),
+}))
 vi.mock('./useMigrationPreflight', () => ({
   useMigrationPreflight: () => ({ ensure: mocks.preflight }),
 }))
@@ -54,6 +65,7 @@ const invokeQuery = () => {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.isRecreationEnabled = false
   mocks.client.mockReturnValue({})
   mocks.query.mockReturnValue({ isPending: true })
   mocks.recovery.mockReturnValue(null)
@@ -69,35 +81,55 @@ beforeEach(() => {
 })
 afterEach(() => vi.restoreAllMocks())
 
-describe('useMigrationGasEstimate failure stages', () => {
-  it.each([
-    'preflight',
-    'plan',
-    'fee',
-  ] as const)('preserves a %s failure from the actual estimate pipeline', async (stage) => {
-    const cause = Object.assign(new Error('private RPC payload'), {
-      name: 'HttpRequestError',
-    })
-    if (stage === 'preflight') mocks.preflight.mockRejectedValue(cause)
-    if (stage === 'plan') mocks.plan.mockRejectedValue(cause)
-    if (stage === 'fee')
-      mocks.estimate.mockResolvedValue({ status: 'error', error: cause })
-    const { result, rerender, unmount } = renderHook(() =>
-      useMigrationGasEstimate(params),
-    )
-    const error = await invokeQuery().catch((error: unknown) => error)
-    mocks.query.mockReturnValue({ isError: true, error })
-    rerender()
-    expect(result.current).toEqual({
-      status: 'error',
-      stage,
-      cause,
-      reason: stage === 'fee' ? 'fee-unavailable' : 'rpc-unavailable',
-    })
-    if (stage === 'preflight') expect(mocks.plan).not.toHaveBeenCalled()
-    if (stage !== 'fee') expect(mocks.estimate).not.toHaveBeenCalled()
-    unmount()
+it('marks fresh plans with the rollout state and refreshes it when the flag changes', async () => {
+  mocks.isRecreationEnabled = true
+  const { result, rerender } = renderHook(() => useMigrationGasEstimate(params))
+  const prepared = (await invokeQuery()) as {
+    plan: { isSubnameRecreationEnabled?: boolean }
+  }
+  expect(prepared.plan.isSubnameRecreationEnabled).toBe(true)
+  mocks.isRecreationEnabled = false
+  mocks.query.mockReturnValue({
+    data: {
+      estimate: { feeWei: 2n, gasUnits: 1n, transactionCount: 1 },
+      plan: prepared.plan,
+    },
   })
+  rerender()
+  expect(result.current).toMatchObject({
+    status: 'ready',
+    plan: { isSubnameRecreationEnabled: false },
+  })
+})
+
+describe('useMigrationGasEstimate failure stages', () => {
+  it.each(['preflight', 'plan', 'fee'] as const)(
+    'preserves a %s failure from the actual estimate pipeline',
+    async (stage) => {
+      const cause = Object.assign(new Error('private RPC payload'), {
+        name: 'HttpRequestError',
+      })
+      if (stage === 'preflight') mocks.preflight.mockRejectedValue(cause)
+      if (stage === 'plan') mocks.plan.mockRejectedValue(cause)
+      if (stage === 'fee')
+        mocks.estimate.mockResolvedValue({ status: 'error', error: cause })
+      const { result, rerender, unmount } = renderHook(() =>
+        useMigrationGasEstimate(params),
+      )
+      const error = await invokeQuery().catch((error: unknown) => error)
+      mocks.query.mockReturnValue({ isError: true, error })
+      rerender()
+      expect(result.current).toEqual({
+        status: 'error',
+        stage,
+        cause,
+        reason: stage === 'fee' ? 'fee-unavailable' : 'rpc-unavailable',
+      })
+      if (stage === 'preflight') expect(mocks.plan).not.toHaveBeenCalled()
+      if (stage !== 'fee') expect(mocks.estimate).not.toHaveBeenCalled()
+      unmount()
+    },
+  )
 
   it('identifies recovery failures without rerunning initial preflight', async () => {
     mocks.recovery.mockReturnValue({

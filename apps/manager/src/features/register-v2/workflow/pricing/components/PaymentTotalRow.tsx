@@ -18,9 +18,12 @@ export const PaymentTotalRow = ({
   total,
   isEstimate,
   hasAccountCredit = false,
+  isLoading = false,
 }: {
   readonly total: number | undefined
   readonly isEstimate: boolean
+  /** The figure is still being quoted: hold its place rather than show an interim one. */
+  readonly isLoading?: boolean
   /**
    * A credit line sits above this row, so the figure is the wallet's share of
    * the total rather than the total itself. Named accordingly, or the two rows
@@ -33,16 +36,25 @@ export const PaymentTotalRow = ({
       {hasAccountCredit ? <Trans>You pay now</Trans> : <Trans>Total</Trans>}
     </span>
     <div className="flex items-center gap-2">
-      <p className="tracking-[0.36px]">
-        {isEstimate && (
-          <span className="text-base text-ens-quartz-350">
-            <Trans>up to</Trans>{' '}
+      {isLoading ? (
+        <span
+          aria-busy
+          aria-label="Calculating total"
+          className="inline-block h-6 w-24 animate-pulse rounded bg-ens-quartz-75"
+          role="status"
+        />
+      ) : (
+        <p className="tracking-[0.36px]">
+          {isEstimate && (
+            <span className="text-base text-ens-quartz-350">
+              <Trans>up to</Trans>{' '}
+            </span>
+          )}
+          <span className="text-ens-quartz-900 text-xl tabular-nums">
+            {formatUsd(total ?? 0)}
           </span>
-        )}
-        <span className="text-ens-quartz-900 text-xl tabular-nums">
-          {formatUsd(total ?? 0)}
-        </span>
-      </p>
+        </p>
+      )}
       <span className="text-ens-quartz-350 text-lg leading-ens-none tracking-[-0.36px]">
         USD
       </span>

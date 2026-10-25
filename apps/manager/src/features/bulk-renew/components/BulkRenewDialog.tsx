@@ -10,7 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import { RenewalFundingDialog } from '@/features/renew/components/RenewalFundingDialog'
+import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
 import type { BulkRenewName, Selection, SummaryRow } from '../types'
@@ -47,7 +48,7 @@ export const BulkRenewDialog = ({
     kind: 'preset',
     years: 1,
   })
-  const [selectedToken, setSelectedToken] = useState<SUPPORTED_TOKEN>('USDC')
+  const [selectedToken, setSelectedToken] = useState<RENEWAL_TOKEN>('USDC')
 
   const [receipt, setReceipt] = useState<{
     readonly rows: readonly SummaryRow[]
@@ -106,10 +107,11 @@ export const BulkRenewDialog = ({
 
   const receiptSummary = receipt ?? { rows: summaryRows, total: grandTotal }
 
-  // No smart-account gate: bulk renewal takes the direct-wallet route (the
-  // registrar charges `msg.sender`, and the scoped HCA session does not
-  // allowlist `renew`), so it works wherever a wallet is connected — including
-  // the EOA fork. Each name is its own transaction rather than one atomic batch.
+  // The route depends on the account: a smart account renews as owner-signed
+  // intents paid from the account (chunked, one `renewBatch` per intent), and a plain
+  // EOA keeps the direct-wallet route — one transaction per name. Either way
+  // this is never gated on the scoped HCA session, whose policy allowlists only
+  // `commit`/`register`.
   const renderBody = (): ReactNode => {
     if (submit.phase === 'success') {
       return (
@@ -153,10 +155,11 @@ export const BulkRenewDialog = ({
           <NamesBreakdown rows={summaryRows} total={grandTotal} />
 
           <PaymentMethodSection
+            accountCredit={payment.accountCredit}
             isConnected={payment.isConnected}
             isLoadingBalances={payment.isLoadingBalances}
             onSelectCoin={setSelectedToken}
-            priceUSD={grandTotal}
+            priceUSD={payment.fundedTotal}
             selectedToken={selectedToken}
             stablecoinBalances={payment.stablecoinBalances}
           />
@@ -218,24 +221,31 @@ export const BulkRenewDialog = ({
   }
 
   return (
-    <Dialog onOpenChange={handleOpenChange} open={open}>
-      <DialogContent
-        className="flex max-h-[90vh] flex-col overflow-hidden px-6 py-4 sm:max-w-[588px] sm:px-11 sm:py-8"
-        showCloseButton
-      >
-        <AnimatePresence initial={false} mode="wait">
-          <motion.div
-            animate={{ opacity: 1 }}
-            className="flex min-h-0 flex-col gap-5"
-            exit={{ opacity: 0 }}
-            initial={{ opacity: 0 }}
-            key={view}
-            transition={{ duration: 0.2 }}
-          >
-            {renderBody()}
-          </motion.div>
-        </AnimatePresence>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog onOpenChange={handleOpenChange} open={open}>
+        <DialogContent
+          className="flex max-h-[90vh] flex-col overflow-hidden px-6 py-4 sm:max-w-[588px] sm:px-11 sm:py-8"
+          showCloseButton
+        >
+          <AnimatePresence initial={false} mode="wait">
+            <motion.div
+              animate={{ opacity: 1 }}
+              className="flex min-h-0 flex-col gap-5"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              key={view}
+              transition={{ duration: 0.2 }}
+            >
+              {renderBody()}
+            </motion.div>
+          </AnimatePresence>
+        </DialogContent>
+      </Dialog>
+      <RenewalFundingDialog
+        onApprove={submit.approveFunding}
+        onDecline={submit.declineFunding}
+        prompt={submit.fundingPrompt}
+      />
+    </>
   )
 }

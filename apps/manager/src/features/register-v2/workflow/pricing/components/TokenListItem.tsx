@@ -1,14 +1,18 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
+import { chain } from '@/config'
 import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import type { StablecoinBalance } from '@/lib/smart-account'
-import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import type { TOKEN_SYMBOL } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { hasInsufficientBalance } from '@/utils/payment'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
+
+// The wallet pays on the app's own chain, which isn't always mainnet.
+const chainName = chain.name
 
 const MainnetBadge = () => (
   <span
@@ -23,7 +27,7 @@ const MainnetBadge = () => (
   </span>
 )
 
-export const TokenListItem = ({
+export const TokenListItem = <T extends TOKEN_SYMBOL>({
   stablecoin,
   selectedCoin,
   priceUSD,
@@ -33,16 +37,19 @@ export const TokenListItem = ({
   showNetworkFeeDetails = false,
   errorMessage,
   isFeeTooltipOpen,
+  feeTooltip,
 }: {
   readonly stablecoin: StablecoinBalance
-  readonly selectedCoin: SUPPORTED_TOKEN | undefined
+  readonly selectedCoin: T | undefined
   readonly priceUSD: number
-  readonly onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  readonly onSelectCoin: (coin: T) => void
   readonly networkFee?: number
   readonly isNetworkFeeLoading?: boolean
   readonly showNetworkFeeDetails?: boolean
   readonly errorMessage?: React.ReactNode
   readonly isFeeTooltipOpen?: boolean
+  /** What the fee pays for; defaults to the registration wording. */
+  readonly feeTooltip?: React.ReactNode
 }) => {
   const { t } = useLingui()
   const isSelected = selectedCoin === stablecoin.symbol
@@ -66,7 +73,7 @@ export const TokenListItem = ({
           !isFunded && 'cursor-not-allowed opacity-50',
         )}
         disabled={!isFunded}
-        onClick={() => onSelectCoin(stablecoin.symbol as SUPPORTED_TOKEN)}
+        onClick={() => onSelectCoin(stablecoin.symbol as T)}
         type="button"
       >
         <div className="flex items-center gap-2">
@@ -115,14 +122,18 @@ export const TokenListItem = ({
       amountLabel={<Trans>balance</Trans>}
       error={displayedError}
       fee={
-        <Trans>Mainnet est. fee: {formatUsd(networkFee ?? Number.NaN)}</Trans>
+        <Trans>
+          {chainName} est. fee: {formatUsd(networkFee ?? Number.NaN)}
+        </Trans>
       }
       feeTooltip={
-        <Trans>
-          An estimate of what the two on-chain transactions that register your
-          name will cost. It is collected together with the name price, in the
-          same approval.
-        </Trans>
+        feeTooltip ?? (
+          <Trans>
+            An estimate of what the two on-chain transactions that register your
+            name will cost. It is collected together with the name price, in the
+            same approval.
+          </Trans>
+        )
       }
       feeTooltipLabel={t`What is the network fee?`}
       icon={
@@ -137,7 +148,7 @@ export const TokenListItem = ({
       isFunded={isFunded}
       isSelected={isSelected}
       name={stablecoin.symbol}
-      onSelect={() => onSelectCoin(stablecoin.symbol as SUPPORTED_TOKEN)}
+      onSelect={() => onSelectCoin(stablecoin.symbol as T)}
       selectLabel={t`Select ${stablecoin.symbol}`}
     />
   )

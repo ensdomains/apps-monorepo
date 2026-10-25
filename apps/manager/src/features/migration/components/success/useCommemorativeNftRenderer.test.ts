@@ -145,26 +145,25 @@ describe('commemorative NFT renderer readiness', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
-  it.each([
-    'https://other.example',
-    'null',
-    'https://renderer.example:8443',
-  ])('ignores status messages from an unexpected origin: %s', (origin) => {
-    const { result, rendererWindow, onReady, onError } = mountRenderer()
+  it.each(['https://other.example', 'null', 'https://renderer.example:8443'])(
+    'ignores status messages from an unexpected origin: %s',
+    (origin) => {
+      const { result, rendererWindow, onReady, onError } = mountRenderer()
 
-    sendMessage(rendererWindow, readyMessage, { origin })
-    sendMessage(
-      rendererWindow,
-      { ...readyMessage, status: 'failed' },
-      { origin },
-    )
-    expect(result.current.rendererStatus).toBe('loading')
-    expect(onReady).not.toHaveBeenCalled()
-    expect(onError).not.toHaveBeenCalled()
+      sendMessage(rendererWindow, readyMessage, { origin })
+      sendMessage(
+        rendererWindow,
+        { ...readyMessage, status: 'failed' },
+        { origin },
+      )
+      expect(result.current.rendererStatus).toBe('loading')
+      expect(onReady).not.toHaveBeenCalled()
+      expect(onError).not.toHaveBeenCalled()
 
-    advanceTime(10_000)
-    expect(onError).toHaveBeenCalledOnce()
-  })
+      advanceTime(10_000)
+      expect(onError).toHaveBeenCalledOnce()
+    },
+  )
 
   it('ignores a matching message from another window on the renderer origin', () => {
     const { result, onReady, onError } = mountRenderer()
@@ -244,68 +243,69 @@ describe('commemorative NFT renderer readiness', () => {
     expect(onReady).not.toHaveBeenCalled()
   })
 
-  it.each([
-    undefined,
-    '/relative',
-    'https://renderer.example/',
-  ])('reports a missing or invalid renderer URL as an error: %s', (url) => {
-    const { result, onReady, onError } = mountRenderer({ rendererUrl: url })
+  it.each([undefined, '/relative', 'https://renderer.example/'])(
+    'reports a missing or invalid renderer URL as an error: %s',
+    (url) => {
+      const { result, onReady, onError } = mountRenderer({ rendererUrl: url })
 
-    expect(result.current.failed).toBe(true)
-    expect(result.current.ready).toBe(false)
-    expect(onError).toHaveBeenCalledOnce()
-    expect(onReady).not.toHaveBeenCalled()
-    expect(vi.getTimerCount()).toBe(0)
-  })
+      expect(result.current.failed).toBe(true)
+      expect(result.current.ready).toBe(false)
+      expect(onError).toHaveBeenCalledOnce()
+      expect(onReady).not.toHaveBeenCalled()
+      expect(vi.getTimerCount()).toBe(0)
+    },
+  )
 
-  it.each([
-    'ready',
-    'error',
-  ] as const)('uses the latest %s callback while the iframe is still loading', (outcome) => {
-    const firstReady = vi.fn()
-    const firstError = vi.fn()
-    const nextReady = vi.fn()
-    const nextError = vi.fn()
-    const frame = createRendererFrame()
-    const { result, rerender } = renderHook(
-      (callbacks) => useCommemorativeNftRenderer({ rendererUrl, ...callbacks }),
-      { initialProps: { onReady: firstReady, onError: firstError } },
-    )
-    result.current.rendererRef.current = frame.iframe
+  it.each(['ready', 'error'] as const)(
+    'uses the latest %s callback while the iframe is still loading',
+    (outcome) => {
+      const firstReady = vi.fn()
+      const firstError = vi.fn()
+      const nextReady = vi.fn()
+      const nextError = vi.fn()
+      const frame = createRendererFrame()
+      const { result, rerender } = renderHook(
+        (callbacks) =>
+          useCommemorativeNftRenderer({ rendererUrl, ...callbacks }),
+        { initialProps: { onReady: firstReady, onError: firstError } },
+      )
+      result.current.rendererRef.current = frame.iframe
 
-    rerender({ onReady: nextReady, onError: nextError })
-    if (outcome === 'ready') {
-      sendMessage(frame.rendererWindow)
-      expect(nextReady).toHaveBeenCalledOnce()
-      expect(nextError).not.toHaveBeenCalled()
-    } else {
+      rerender({ onReady: nextReady, onError: nextError })
+      if (outcome === 'ready') {
+        sendMessage(frame.rendererWindow)
+        expect(nextReady).toHaveBeenCalledOnce()
+        expect(nextError).not.toHaveBeenCalled()
+      } else {
+        advanceTime(10_000)
+        expect(nextError).toHaveBeenCalledOnce()
+        expect(nextReady).not.toHaveBeenCalled()
+      }
+      expect(firstReady).not.toHaveBeenCalled()
+      expect(firstError).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([0, 9_999])(
+    'cleans up the timeout and listener when unmounted after %s milliseconds',
+    (elapsed) => {
+      const { rendererWindow, onReady, onError, unmount } = mountRenderer()
+      const removeEventListener = vi.spyOn(window, 'removeEventListener')
+
+      advanceTime(elapsed)
+      unmount()
+      expect(vi.getTimerCount()).toBe(0)
+      expect(removeEventListener).toHaveBeenCalledWith(
+        'message',
+        expect.any(Function),
+      )
       advanceTime(10_000)
-      expect(nextError).toHaveBeenCalledOnce()
-      expect(nextReady).not.toHaveBeenCalled()
-    }
-    expect(firstReady).not.toHaveBeenCalled()
-    expect(firstError).not.toHaveBeenCalled()
-  })
+      sendMessage(rendererWindow)
 
-  it.each([
-    0, 9_999,
-  ])('cleans up the timeout and listener when unmounted after %s milliseconds', (elapsed) => {
-    const { rendererWindow, onReady, onError, unmount } = mountRenderer()
-    const removeEventListener = vi.spyOn(window, 'removeEventListener')
-
-    advanceTime(elapsed)
-    unmount()
-    expect(vi.getTimerCount()).toBe(0)
-    expect(removeEventListener).toHaveBeenCalledWith(
-      'message',
-      expect.any(Function),
-    )
-    advanceTime(10_000)
-    sendMessage(rendererWindow)
-
-    expect(onReady).not.toHaveBeenCalled()
-    expect(onError).not.toHaveBeenCalled()
-  })
+      expect(onReady).not.toHaveBeenCalled()
+      expect(onError).not.toHaveBeenCalled()
+    },
+  )
 
   it('starts a fresh retry and ignores messages from the previous iframe', () => {
     const first = mountRenderer()

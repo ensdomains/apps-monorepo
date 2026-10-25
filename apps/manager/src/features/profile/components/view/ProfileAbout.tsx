@@ -13,11 +13,14 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { NamePill } from '@/features/dashboard/components/NamePill'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
+import { profileTileClassName } from './ProfileCard'
 import { getDisplayHost, getSafeProfileHref } from './ProfileView.helpers'
 
 const getContactRecordValue = (records: ProfileRecords | null, key: string) =>
   records?.contact.find((record) => record.key === key)?.value?.trim()
 
+// Language codes stay uppercase (EN). Place names and timezones keep the
+// saved casing, so they are not restyled as a second label.
 const formatLanguage = (language: string | undefined) =>
   language
     ?.split(',')
@@ -81,7 +84,7 @@ const ProfileDescription = ({
       <DialogContent className="overflow-hidden">
         <DialogHeader>
           <DialogTitle>
-            <Trans>About</Trans>
+            <Trans>Profile Description</Trans>
           </DialogTitle>
         </DialogHeader>
         <DialogDescription className="wrap-anywhere min-h-0 overflow-y-auto whitespace-pre-wrap text-ens-quartz-700 text-sm leading-normal">
@@ -103,10 +106,10 @@ const AboutMetaItem = ({
 
   return (
     <div className="flex min-w-0 items-center gap-1 text-ens-quartz-700">
-      <span className="flex size-5 shrink-0 items-center justify-center text-ens-quartz-700 leading-none xl:size-6">
+      <span className="flex size-5 shrink-0 items-center justify-center text-ens-quartz-500 leading-none">
         {icon}
       </span>
-      <span className="min-w-0 text-[12px] leading-4.5 xl:text-sm xl:leading-normal">
+      <span className="min-w-0 truncate font-sans text-[13px] leading-none tracking-[0.2px]">
         {value}
       </span>
     </div>
@@ -114,10 +117,12 @@ const AboutMetaItem = ({
 }
 
 export const ProfileAbout = ({
+  canEdit = false,
   className,
   records,
   primaryName,
 }: {
+  readonly canEdit?: boolean
   readonly className?: string
   readonly records: ProfileRecords | null
   readonly primaryName?: string
@@ -126,18 +131,26 @@ export const ProfileAbout = ({
     ? getSafeProfileHref(records.base.url)
     : undefined
   const fullName = records?.base.name?.trim()
+  const description = records?.base.description?.trim()
   const timezone = getContactRecordValue(records, 'timezone')
   const language = formatLanguage(records?.base.language)
-  const location = getContactRecordValue(records, 'location')?.toUpperCase()
+  const location = getContactRecordValue(records, 'location')
+
+  const hasContent = Boolean(
+    fullName || description || websiteHref || timezone || language || location,
+  )
+
+  if (!primaryName && !canEdit && !hasContent) return null
 
   return (
     <Card
       asChild
       className={cn(
+        profileTileClassName,
         'wrap-anywhere flex min-h-0 min-w-0 flex-1',
         primaryName
           ? 'min-h-47 p-6 xl:min-h-45 xl:max-w-158.75'
-          : 'rounded-none border-0 bg-transparent p-0 shadow-none xl:min-h-45.5 xl:max-w-158.75 xl:rounded-xl xl:border-[0.5px] xl:bg-white xl:p-6 xl:shadow-temp-card',
+          : 'p-6 xl:min-h-45.5 xl:max-w-158.75',
         className,
       )}
     >
@@ -159,12 +172,17 @@ export const ProfileAbout = ({
             ) : (
               <h2 className="text-base text-ens-quartz-700 leading-normal">
                 <span className="block">
-                  {fullName || <Trans>About</Trans>}
+                  {fullName || <Trans>Profile Description</Trans>}
                 </span>
               </h2>
             )}
-            {records?.base.description ? (
-              <ProfileDescription description={records.base.description} />
+            {description ? (
+              <ProfileDescription description={description} />
+            ) : null}
+            {!description && canEdit ? (
+              <p className="mt-3 text-ens-quartz-400 text-sm leading-normal">
+                <Trans>Share a fun fact about this name</Trans>
+              </p>
             ) : null}
             {websiteHref ? (
               <a
@@ -186,7 +204,7 @@ export const ProfileAbout = ({
               <AboutMetaItem
                 icon={
                   <MSymbol
-                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
+                    className="ms-opsz-20 ms-wght-300"
                     symbol="language"
                   />
                 }
@@ -195,7 +213,7 @@ export const ProfileAbout = ({
               <AboutMetaItem
                 icon={
                   <MSymbol
-                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
+                    className="ms-opsz-20 ms-wght-300"
                     symbol="translate"
                   />
                 }
@@ -204,7 +222,7 @@ export const ProfileAbout = ({
               <AboutMetaItem
                 icon={
                   <MSymbol
-                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
+                    className="ms-opsz-20 ms-wght-300"
                     symbol="distance"
                   />
                 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { getCoinByCoinType, getCoinByName, SUPPORTED_COINS } from './coins'
+import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
+import { getCoinByName, SUPPORTED_COINS } from './coins'
 
 describe('coins', () => {
   describe('SUPPORTED_COINS', () => {
@@ -8,9 +9,26 @@ describe('coins', () => {
       expect(SUPPORTED_COINS[0].coinType).toBe(60)
     })
 
-    it('contains BTC as the second coin (priority)', () => {
-      expect(SUPPORTED_COINS[1].name).toBe('btc')
-      expect(SUPPORTED_COINS[1].coinType).toBe(0)
+    it('offers the ENSIP-19 default address record (WEB-1511)', () => {
+      const coin = getCoinByName('default')
+
+      expect(coin).toMatchObject({
+        name: 'default',
+        coinType: DEFAULT_EVM_COIN_TYPE,
+        icon: null,
+      })
+      // address-encoder calls it "Default", which would render as
+      // "DEFAULT (Default)" in the picker.
+      expect(coin?.longName).toBe('Any EVM chain')
+      // Sits next to ETH, not buried in the alphabetic tail: it is the
+      // fallback every EVM chain without its own record uses.
+      expect(SUPPORTED_COINS[1]).toBe(coin)
+    })
+
+    it('contains BTC as a priority coin', () => {
+      const coin = getCoinByName('btc')
+
+      expect(coin?.coinType).toBe(0)
     })
 
     it('has correct structure for each coin', () => {
@@ -82,33 +100,6 @@ describe('coins', () => {
 
     it('returns undefined for unknown coin', () => {
       const coin = getCoinByName('unknown-coin-xyz')
-      expect(coin).toBeUndefined()
-    })
-  })
-
-  describe('getCoinByCoinType', () => {
-    it('returns ETH coin for coinType 60', () => {
-      const coin = getCoinByCoinType(60)
-      expect(coin).toBeDefined()
-      expect(coin?.name).toBe('eth')
-      expect(coin?.coinType).toBe(60)
-    })
-
-    it('returns BTC coin for coinType 0', () => {
-      const coin = getCoinByCoinType(0)
-      expect(coin).toBeDefined()
-      expect(coin?.name).toBe('btc')
-      expect(coin?.coinType).toBe(0)
-    })
-
-    it('returns SOL coin for coinType 501', () => {
-      const coin = getCoinByCoinType(501)
-      expect(coin).toBeDefined()
-      expect(coin?.name).toBe('sol')
-    })
-
-    it('returns undefined for unknown coinType', () => {
-      const coin = getCoinByCoinType(999999999)
       expect(coin).toBeUndefined()
     })
   })

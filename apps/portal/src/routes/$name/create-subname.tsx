@@ -1,13 +1,19 @@
 import { isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
-import { getResolver } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeftIcon, Loader2 } from 'lucide-react'
-import { ResultAsync } from 'neverthrow'
+import {
+  AlertTriangle,
+  ArrowLeftIcon,
+  Clock,
+  Loader2,
+  Lock,
+  ShieldX,
+} from 'lucide-react'
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
+import { normalize } from 'viem/ens'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -16,22 +22,32 @@ import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { MessageCard } from '@/components/ui/message-card'
 import { AddressNameInput } from '@/features/address/components/AddressNameInput'
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
-import {
-  type GetEnsOwnerReturnType,
-  getEnsOwnerQueryOptions,
-} from '@/features/profile/hooks/useEnsOwner'
-import { getIsSubnameTakenQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getSubnameLabelStatusQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { prepareCreateSubnameSubmit } from '@/features/registry/helpers/prepareCreateSubnameSubmit'
 import { useCreateSubname } from '@/features/registry/hooks/useCreateSubname'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
-import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
+import {
+  type CreateSubnameTarget,
+  type CreateSubnameWrite,
+  getMissingRegistrarRole,
+  getRegistrarAccess,
+  getV1SubnameCreateGate,
+  prepareCreateSubnameTransaction,
+  type RegistrarAccess,
+} from '@/features/registry/utils/create-subname.helpers'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
+import { useDebouncedValue } from '@/hooks/useDebounce'
+import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { getLabelRegistrationError } from '@/utils/token/isNormalized'
-import type { ProtocolVersion } from '@/utils/types'
 
 export const Route = createFileRoute('/$name/create-subname')({
   component: RouteComponent,
@@ -73,10 +89,13 @@ function useSyncOwnerWithConnectedAddress(
 
 interface CreateSubnameFormProps {
   readonly name: string
-  readonly protocolVersion: ProtocolVersion
+  readonly target: CreateSubnameTarget
+  /** V2 with a wallet connected: the subregistry root roles `register` checks. */
+  readonly registrarAccess?: RegistrarAccess
 }
 
 const CREATE_SUBNAME_TRANSACTION_ID = 'tx-create-ens-subname'
+const LABEL_LOOKUP_DEBOUNCE_MS = 300
 
 // One-year (in seconds) default expiry, matching ensjs'
 // `createSubnameWriteParameters` default. When time-travel is active Anvil's
@@ -94,7 +113,8 @@ const computeSubnameExpires = (): bigint => {
 
 const CreateSubnameForm = ({
   name,
-  protocolVersion,
+  target,
+  registrarAccess,
 }: CreateSubnameFormProps) => {
   const navigate = useNavigate()
   const { address: connectedAddress, isConnected } = useConnection()
@@ -102,7 +122,8 @@ const CreateSubnameForm = ({
   const [label, setLabel] = useState('')
   const [ownerInput, setOwnerInput] = useState(connectedAddress ?? '')
   const [prepareError, setPrepareError] = useState<string | null>(null)
-  const [resolverAddress, setResolverAddress] = useState<Address | null>(null)
+  // Settled at submit: V1 after the label recheck, V2 with the parent's resolver.
+  const [write, setWrite] = useState<CreateSubnameWrite | null>(null)
   // A stable expiry for the pre-start gas estimate. Gas is independent of the
   // expiry value, so this need not match the fresh one the submit computes — it
   // just has to be stable across renders so the estimate query doesn't churn.
@@ -139,39 +160,48 @@ const CreateSubnameForm = ({
     isSuccess,
   } = useCreateSubname()
 
-  // Fetch registries (we know it's v2 at this point)
-  const {
-    data: registriesData,
-    isLoading: registriesLoading,
-    error: registriesError,
-  } = useQuery(getNameRegistriesQueryOptions({ name }))
-
-  const subregistryAddress = registriesData?.[0]
-  const hasSubregistry =
-    subregistryAddress && subregistryAddress !== zeroAddress
-
   const trimmedLabel = label.trim()
   const labelError = getLabelRegistrationError(trimmedLabel)
+  // One lookup per pause in typing, not per keystroke.
+  const lookupLabel = useDebouncedValue(trimmedLabel, LABEL_LOOKUP_DEBOUNCE_MS)
+  const isLookupCurrent = lookupLabel === trimmedLabel
 
   // Asked about the one label rather than read off the list: a name can hold
   // thousands of subnames, and the list is only ever loaded a page at a time.
-  const { data: isLabelTaken = false } = useQuery({
-    ...getIsSubnameTakenQueryOptions({ name, label: trimmedLabel }),
-    enabled: Boolean(hasSubregistry) && Boolean(trimmedLabel) && !labelError,
+  const labelStatusQuery = useQuery({
+    ...getSubnameLabelStatusQueryOptions(
+      target.protocol === 'ENSv1'
+        ? { name, label: lookupLabel, protocolVersion: 'ENSv1' }
+        : {
+            name,
+            label: lookupLabel,
+            protocolVersion: 'ENSv2',
+            registryAddress: target.registryAddress,
+          },
+    ),
+    enabled: Boolean(lookupLabel) && !getLabelRegistrationError(lookupLabel),
   })
+  const labelStatus = isLookupCurrent ? labelStatusQuery.data : undefined
+  const isLabelTaken = labelStatus === 'registered'
+  const hasLookupFailed = isLookupCurrent && labelStatusQuery.isError
+  // V1 `setSubnodeRecord` overwrites an existing subname, and V2 `register`
+  // checks a different role for a reserved label, so both wait for the answer.
+  const isAvailabilityUnknown = labelStatus === undefined
+  const missingRole =
+    registrarAccess && labelStatus
+      ? getMissingRegistrarRole(registrarAccess, labelStatus)
+      : null
 
   const handleStartTransaction = () => {
-    if (!hasSubregistry || !ownerAddress || !resolverAddress || labelError) {
+    if (!ownerAddress || !write || labelError) {
       return
     }
 
     createSubname({
-      registryAddress: subregistryAddress,
+      write,
       label: label.trim(),
       owner: ownerAddress,
-      resolverAddress,
       parentName: name,
-      protocolVersion,
       id: createSubnameTxId,
       expires: computeSubnameExpires(),
     })
@@ -184,69 +214,28 @@ const CreateSubnameForm = ({
       return
     }
 
-    if (!hasSubregistry || !ownerAddress) {
+    if (!ownerAddress) {
       return
     }
 
     setPrepareError(null)
 
-    const clientResult = safeGetClient()
-    if (clientResult.isErr()) {
-      setPrepareError('Failed to get client')
+    const writeResult = await prepareCreateSubnameSubmit({
+      name,
+      label: trimmedLabel,
+      target,
+    })
+    if (writeResult.isErr()) {
+      setPrepareError(writeResult.error.message)
       return
     }
 
-    const resolverResult = await ResultAsync.fromPromise(
-      getResolver(clientResult.value, { name }),
-      () => new Error('Failed to get resolver'),
-    )
-
-    if (resolverResult.isErr()) {
-      setPrepareError(resolverResult.error.message)
-      return
-    }
-
-    if (!resolverResult.value) {
-      setPrepareError('No resolver found for parent name')
-      return
-    }
-
-    setResolverAddress(resolverResult.value)
+    setWrite(writeResult.value)
     if (connectedAddress) attempt.start(connectedAddress)
   }
 
-  if (registriesLoading) {
-    return <LoadingMessage />
-  }
-
-  if (registriesError) {
-    return (
-      <ErrorMessage
-        title="Failed to load registry data"
-        description={registriesError.cause?.message || registriesError.message}
-      />
-    )
-  }
-
-  if (!hasSubregistry) {
-    return (
-      <div className="flex flex-col gap-6 w-full max-w-[640px] mx-auto">
-        <PageHeader name={name} />
-        <p className="text-muted-foreground">
-          This name does not have a subregistry. You must deploy one first to
-          create subnames.
-        </p>
-        <Button asChild variant="default" className="w-fit">
-          <Link to="/$name/registry" params={{ name }}>
-            Deploy subregistry
-          </Link>
-        </Button>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-6 w-full max-w-[640px] mx-auto">
+    <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
       <PageHeader name={name} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -271,6 +260,37 @@ const CreateSubnameForm = ({
             </p>
           )}
           {labelError && <p className="text-p text-danger">{labelError}</p>}
+          {match(missingRole)
+            .with('ROLE_REGISTRAR', () => (
+              <p className="text-p text-danger">
+                The connected wallet can only register reserved labels under{' '}
+                {name}.
+              </p>
+            ))
+            .with('ROLE_REGISTER_RESERVED', () => (
+              <p className="text-p text-danger">
+                {trimmedLabel}.{name} is reserved, and the connected wallet
+                can’t register reserved labels.
+              </p>
+            ))
+            .with(null, () => null)
+            .exhaustive()}
+          {hasLookupFailed && (
+            <div className="flex items-center gap-2">
+              <p className="text-p text-danger">
+                Could not check whether {trimmedLabel}.{name} is already
+                registered.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => labelStatusQuery.refetch()}
+              >
+                Retry
+              </Button>
+            </div>
+          )}
         </Field>
 
         <Field data-invalid={ownerInvalid}>
@@ -304,7 +324,12 @@ const CreateSubnameForm = ({
         <Button
           type="submit"
           disabled={
-            !ownerAddress || !isConnected || isLabelTaken || Boolean(labelError)
+            !ownerAddress ||
+            !isConnected ||
+            isLabelTaken ||
+            isAvailabilityUnknown ||
+            missingRole !== null ||
+            Boolean(labelError)
           }
           className="w-full sm:w-fit"
         >
@@ -327,17 +352,17 @@ const CreateSubnameForm = ({
             title: 'Create subname',
             transactionName: `Create ${label.trim()}.${name}`,
             // The prepared createSubname transaction for the pre-start gas
-            // estimate. Undefined until the form is ready (resolver resolved,
+            // estimate. Undefined until the form is ready (write settled,
             // owner set) — the modal shows "Estimating…" until then.
             intent: {
               prepare:
-                hasSubregistry && ownerAddress && resolverAddress
+                ownerAddress && write
                   ? ({ walletClient, chainId }) =>
                       prepareCreateSubnameTransaction({
-                        registryAddress: subregistryAddress,
+                        write,
+                        parentName: name,
                         label: label.trim(),
                         owner: ownerAddress,
-                        resolverAddress,
                         walletClient,
                         chainId,
                         expires: estimateExpires,
@@ -358,34 +383,200 @@ const CreateSubnameForm = ({
   )
 }
 
-// --- Content Component (fetches ownerData, renders form for v2) ---
+// --- V2: the subname goes on the parent's subregistry ---
 
 interface CreateSubnameContentProps {
   readonly name: string
-  readonly ownerData: NonNullable<GetEnsOwnerReturnType>
 }
 
-const CreateSubnameContent = ({
-  name,
-  ownerData,
-}: CreateSubnameContentProps) => {
-  if (ownerData.protocolVersion !== 'ENSv2') {
+const V2CreateSubname = ({ name }: CreateSubnameContentProps) => {
+  const {
+    data: registriesData,
+    isLoading,
+    error,
+  } = useQuery(getNameRegistriesQueryOptions({ name }))
+
+  if (isLoading) {
+    return <LoadingMessage />
+  }
+
+  if (error) {
     return (
-      <div className="flex flex-col gap-6 w-full max-w-[640px] mx-auto">
+      <ErrorMessage
+        title="Failed to load registry data"
+        description={error.cause?.message || error.message}
+      />
+    )
+  }
+
+  const subregistryAddress = registriesData?.[0]
+
+  if (!subregistryAddress || subregistryAddress === zeroAddress) {
+    return (
+      <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
         <PageHeader name={name} />
         <p className="text-muted-foreground">
-          This feature is only available for ENSv2 names.
+          This name does not have a subregistry. You must deploy one first to
+          create subnames.
         </p>
+        <Button asChild variant="default" className="w-fit">
+          <Link to="/$name/registry" params={{ name }}>
+            Deploy subregistry
+          </Link>
+        </Button>
       </div>
     )
   }
 
+  return <V2RegistrarGate name={name} registryAddress={subregistryAddress} />
+}
+
+interface V2RegistrarGateProps {
+  readonly name: string
+  readonly registryAddress: Address
+}
+
+/** `register` checks the subregistry's root roles, so a wallet with neither never sees the form. */
+const V2RegistrarGate = ({ name, registryAddress }: V2RegistrarGateProps) => {
+  const { address: connectedAddress } = useConnection()
+  const rolesQuery = useQuery({
+    ...getNameRolesForAccountQueryOptions({
+      registryAddress,
+      resource: ROOT_RESOURCE_ID,
+      account: connectedAddress ?? zeroAddress,
+    }),
+    select: ({ decoded }) => getRegistrarAccess(decoded),
+    enabled: Boolean(connectedAddress),
+  })
+  const target = { protocol: 'ENSv2', registryAddress } as const
+
+  // The form asks for a wallet before anything can be signed.
+  if (!connectedAddress)
+    return <CreateSubnameForm name={name} target={target} />
+
+  if (rolesQuery.isLoading) return <LoadingMessage />
+
+  if (rolesQuery.error)
+    return (
+      <ErrorMessage
+        title="Couldn’t check your permissions"
+        description={extractErrorMessage(rolesQuery.error, '')}
+      />
+    )
+
+  const access = rolesQuery.data
+  if (!access?.canRegister && !access?.canRegisterReserved)
+    return (
+      <MessageCard
+        icon={<ShieldX className="size-8" />}
+        title="You can’t create subnames here"
+        description={
+          <p>
+            Creating a subname needs the registrar role on this name’s
+            subregistry, which the connected wallet doesn’t hold.
+          </p>
+        }
+      />
+    )
+
   return (
-    <CreateSubnameForm
-      name={name}
-      protocolVersion={ownerData.protocolVersion}
-    />
+    <CreateSubnameForm name={name} target={target} registrarAccess={access} />
   )
+}
+
+// --- V1: setSubnodeRecord on the registry, or the NameWrapper if wrapped ---
+
+const V1CreateSubname = ({ name: rawName }: CreateSubnameContentProps) => {
+  const { address: connectedAddress } = useConnection()
+  // `staleTime: 0`: the ownership pages prime this entry, and a name that has
+  // since lapsed into grace must not pass the gate on a cached read.
+  const stateQuery = useQuery({
+    ...getV1NameStateQueryOptions({ name: rawName }),
+    staleTime: 0,
+  })
+
+  if (stateQuery.isLoading) return <LoadingMessage />
+
+  if (stateQuery.isError)
+    return (
+      <MessageCard
+        icon={<AlertTriangle className="size-8" />}
+        title="Couldn’t check this name"
+        description={
+          <p>
+            We couldn’t read how this name is held, so we can’t tell whether
+            subnames can be created under it. Refresh and try again.
+          </p>
+        }
+      />
+    )
+
+  // Can't throw: the query already normalised the same input, and every V1
+  // hash and write below must use the normalised form.
+  const name = normalize(rawName)
+  const gate = stateQuery.data
+    ? getV1SubnameCreateGate(stateQuery.data, connectedAddress)
+    : ({ reason: 'unowned' } as const)
+
+  return match(gate)
+    .with({ reason: 'ok' }, ({ target }) => (
+      <CreateSubnameForm name={name} target={target} />
+    ))
+    .with({ reason: 'grace' }, () => (
+      <MessageCard
+        icon={<Clock className="size-8" />}
+        title="This name is in its grace period"
+        description={
+          <p>
+            Its registration has lapsed, so no subnames can be created under it
+            until it is renewed.
+          </p>
+        }
+        actionButton={{
+          label: 'Go to ownership',
+          href: `/${name}/ownership`,
+          variant: 'outline',
+        }}
+      />
+    ))
+    .with({ reason: 'unowned' }, () => (
+      <MessageCard
+        icon={<AlertTriangle className="size-8" />}
+        title="Nobody holds this name"
+        description={
+          <p>
+            It has expired, so there is no owner who could create subnames under
+            it.
+          </p>
+        }
+      />
+    ))
+    .with({ reason: 'burned-fuse' }, () => (
+      <MessageCard
+        icon={<Lock className="size-8" />}
+        title="Subnames are locked"
+        description={
+          <p>
+            This name has burned{' '}
+            <span className="font-mono">CANNOT_CREATE_SUBDOMAIN</span>, so no
+            new subnames can be created under it.
+          </p>
+        }
+      />
+    ))
+    .with({ reason: 'not-holder' }, () => (
+      <MessageCard
+        icon={<ShieldX className="size-8" />}
+        title="Only its owner can create subnames"
+        description={
+          <p>
+            The connected wallet doesn’t hold this name. Switch to the wallet
+            that owns it to create subnames under it.
+          </p>
+        }
+      />
+    ))
+    .exhaustive()
 }
 
 // --- Route Component (fetches ownerData) ---
@@ -416,5 +607,9 @@ function RouteComponent() {
     return <NotFoundMessage />
   }
 
-  return <CreateSubnameContent name={name} ownerData={ownerData} />
+  return ownerData.protocolVersion === 'ENSv1' ? (
+    <V1CreateSubname name={name} />
+  ) : (
+    <V2CreateSubname name={name} />
+  )
 }

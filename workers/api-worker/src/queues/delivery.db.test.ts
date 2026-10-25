@@ -378,25 +378,28 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
     it.each([
       ['email', 'bounced', 'SOURCE_CHANNEL_BOUNCED'],
       ['telegram', 'disabled', 'SOURCE_CHANNEL_DISABLED'],
-    ] as const)('does not contact the provider when the %s source channel became %s while queued', async (channel, status, reason) => {
-      const user = await seedUser()
-      const source = await addChannel(user.id, channel, `${user.id}-target`)
-      const [job] = await notify(user.id)
-      if (!job) throw new Error('Missing delivery job')
-      await db
-        .update(TABLE.userChannels)
-        .set({ status })
-        .where(eq(TABLE.userChannels.id, source.id))
+    ] as const)(
+      'does not contact the provider when the %s source channel became %s while queued',
+      async (channel, status, reason) => {
+        const user = await seedUser()
+        const source = await addChannel(user.id, channel, `${user.id}-target`)
+        const [job] = await notify(user.id)
+        if (!job) throw new Error('Missing delivery job')
+        await db
+          .update(TABLE.userChannels)
+          .set({ status })
+          .where(eq(TABLE.userChannels.id, source.id))
 
-      const result = await runQueue(queueName(channel), [job], bindings)
-      expect(result.explicitAcks).toEqual(['message-0'])
-      expect(providers[channel]).not.toHaveBeenCalled()
-      expect(await delivery(job.id)).toMatchObject({
-        channel_id: source.id,
-        status: 'cancelled',
-        error: reason,
-      })
-    })
+        const result = await runQueue(queueName(channel), [job], bindings)
+        expect(result.explicitAcks).toEqual(['message-0'])
+        expect(providers[channel]).not.toHaveBeenCalled()
+        expect(await delivery(job.id)).toMatchObject({
+          channel_id: source.id,
+          status: 'cancelled',
+          error: reason,
+        })
+      },
+    )
 
     it('encrypts for, and on 410 unsubscribes, only the source push subscription of a shared endpoint', async () => {
       const endpoint = `${PUSH_ORIGIN}${crypto.randomUUID()}`

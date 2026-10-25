@@ -14,6 +14,8 @@ export type NamesForAddressQuery = Readonly<{
   address: Address
   /** Defaults to every relation. */
   relations?: readonly NameRelation[]
+  /** Names whose ETH address record is `address`, instead of `relations`. */
+  resolvesTo?: boolean
   protocol?: ProtocolVersion
   /** Only names with a proven move from v1 to v2. */
   migratedOnly?: boolean
@@ -53,6 +55,8 @@ export type NameSummary = Readonly<{
    * reserved ENSv1 name serves its ENSv2 reservation here; `expiresAt` keeps the lease.
    */
   servedExpiry: bigint | null
+  /** When grace ends; null when the name has none. */
+  graceEndsAt: Date | null
   registeredAt: Date | null
   createdAt: Date | null
   /** Only with `includeCounts`. */

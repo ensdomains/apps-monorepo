@@ -33,7 +33,7 @@ prerequisites, repository-wide commands and conventions.
 ## Running locally
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local # optional overrides
 pnpm dev                 # http://localhost:3001
 ```
 
@@ -46,15 +46,20 @@ development the Worker is not run, so meta tags and OG images are served by
 the "Upgrade to v2" banner, and the mock wallet and time-travel switches for
 automated testing, which must never reach a production deploy.
 
+## Environments
+
+`pnpm dev` / `pnpm build` use Sepolia; `pnpm dev:mainnet` / `pnpm build:mainnet`
+select mainnet. See [app environment configuration](../../README.md#app-environments)
+for env-file layering, local overrides and deployment behavior.
+
 ## Notes
 
 - `pnpm cf-typegen` regenerates the Worker bindings after a `wrangler.jsonc` change.
 - Deploys go through wrangler. The `deploy-portal` workflow that mirrors the
   static build to Swarm for ens.eth exists but has never run.
 - Mainnet deploys as the `portal-app-mainnet` Worker (`env.mainnet` in
-  `wrangler.jsonc`): build with `VITE_ENS_NETWORK=mainnet` and
-  `CLOUDFLARE_ENV=mainnet`. Each Worker's `RPC_URL` secret holds the RPC for
-  its own network.
+  `wrangler.jsonc`): build with `pnpm build:mainnet`. Each Worker's `RPC_URL`
+  secret holds the RPC for its own network.
 
 ## Further reading
 

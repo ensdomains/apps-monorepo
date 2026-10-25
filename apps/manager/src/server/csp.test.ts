@@ -1,6 +1,6 @@
 import { originFromEnvUrl } from '@ens-apps/config'
 import { describe, expect, it } from 'vitest'
-import { envConfig } from '@/config'
+import { envConfig, l2Sources } from '@/config'
 import {
   buildCsp,
   CSP_HEADER_NAME,
@@ -123,8 +123,8 @@ describe('csp', () => {
     })
 
     it('keeps a non-default port in the origin', () => {
-      expect(originFromEnvUrl('http://127.0.0.1:5655/graphql')).toBe(
-        'http://127.0.0.1:5655',
+      expect(originFromEnvUrl('http://127.0.0.1:4010/v1/status')).toBe(
+        'http://127.0.0.1:4010',
       )
     })
 
@@ -167,6 +167,14 @@ describe('csp', () => {
 
     it('allowlists every fallback RPC the viem transport can reach', () => {
       for (const url of envConfig.rpcFallbacks) {
+        expect(header['connect-src']).toContain(new URL(url).origin)
+      }
+    })
+
+    it('allowlists every L2 bridge source RPC', () => {
+      const urls = l2Sources.flatMap(({ rpcUrls }) => rpcUrls)
+      expect(urls.length).toBeGreaterThan(0)
+      for (const url of urls) {
         expect(header['connect-src']).toContain(new URL(url).origin)
       }
     })

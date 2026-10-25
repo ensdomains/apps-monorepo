@@ -26,10 +26,10 @@ describe('getNextNameExpiryBoundary', () => {
 
     expect(getNextNameExpiryBoundary(domains, EXPIRY - 1n)).toBe(EXPIRY)
     expect(getNextNameExpiryBoundary(domains, EXPIRY)).toBe(
-      EXPIRY + GRACE_SECONDS,
+      EXPIRY + GRACE_SECONDS + 1n,
     )
     expect(
-      getNextNameExpiryBoundary(domains, EXPIRY + GRACE_SECONDS),
+      getNextNameExpiryBoundary(domains, EXPIRY + GRACE_SECONDS + 1n),
     ).toBeNull()
   })
 
@@ -46,8 +46,11 @@ describe('getNextNameExpiryBoundary', () => {
     expect(getNextNameExpiryBoundary(domains, EXPIRY)).toBe(
       EXPIRY + GRACE_SECONDS,
     )
+    expect(getNextNameExpiryBoundary(domains, EXPIRY + GRACE_SECONDS)).toBe(
+      EXPIRY + GRACE_SECONDS + 1n,
+    )
     expect(
-      getNextNameExpiryBoundary(domains, EXPIRY + GRACE_SECONDS),
+      getNextNameExpiryBoundary(domains, EXPIRY + GRACE_SECONDS + 1n),
     ).toBeNull()
   })
 
@@ -69,20 +72,24 @@ describe('getNextNameExpiryBoundary', () => {
 })
 
 describe('getGracePeriodNames', () => {
-  it.each([
-    false,
-    true,
-  ])('uses the registration expiry for the grace window (wrapped: %s)', (isWrapped) => {
-    const name = expiredName({ isWrapped })
+  it.each([false, true])(
+    'keeps the last renewable second in the grace window (wrapped: %s)',
+    (isWrapped) => {
+      const name = expiredName({ isWrapped })
 
-    expect(getGracePeriodNames([name], EXPIRY - 1n)).toEqual([])
-    expect(getGracePeriodNames([name], EXPIRY)).toEqual([name])
-    expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS - 1n)).toEqual([
-      name,
-    ])
-    expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS)).toEqual([])
-    expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS + 1n)).toEqual([])
-  })
+      expect(getGracePeriodNames([name], EXPIRY - 1n)).toEqual([])
+      expect(getGracePeriodNames([name], EXPIRY)).toEqual([name])
+      expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS - 1n)).toEqual([
+        name,
+      ])
+      expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS)).toEqual([
+        name,
+      ])
+      expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS + 1n)).toEqual(
+        [],
+      )
+    },
+  )
 
   it('falls back to the wrapper grace window when the registration expiry is absent', () => {
     const name = expiredName({
@@ -96,7 +103,7 @@ describe('getGracePeriodNames', () => {
     expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS - 1n)).toEqual([
       name,
     ])
-    expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS)).toEqual([])
+    expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS)).toEqual([name])
     expect(getGracePeriodNames([name], EXPIRY + GRACE_SECONDS + 1n)).toEqual([])
   })
 
@@ -108,7 +115,7 @@ describe('getGracePeriodNames', () => {
     })
     const pastGraceRegistration = expiredName({
       isWrapped: true,
-      registrationExpiry: String(EXPIRY - GRACE_SECONDS),
+      registrationExpiry: String(EXPIRY - GRACE_SECONDS - 1n),
       wrappedExpiry: String(EXPIRY + GRACE_SECONDS),
     })
     const staleWrapper = expiredName({
@@ -188,7 +195,7 @@ describe('getGracePeriodNames', () => {
 })
 
 describe('getUnavailableNames', () => {
-  it('keeps names without a reservation or a lease, sorted, and nothing else', () => {
+  it('keeps names without a reservation, a lease or a parent to copy under, sorted, and nothing else', () => {
     const named = (name: string, reason: IneligibleName['reason']) => ({
       domain: makeDomain({ id: name, name }),
       reason,
@@ -200,7 +207,9 @@ describe('getUnavailableNames', () => {
         named('grace.eth', 'expired-registration'),
         named('bare.eth', 'missing-registration'),
         named('locked.eth', 'not-transferable'),
+        named('left.done.eth', 'parent-upgraded'),
+        named('sub.theirs.eth', 'missing-parent'),
       ]).map(({ domain }) => domain.name),
-    ).toEqual(['bare.eth', 'zed.eth'])
+    ).toEqual(['bare.eth', 'left.done.eth', 'zed.eth'])
   })
 })

@@ -199,14 +199,15 @@ async function enableSessionAndDispatch(params: {
   // rejects one with too little headroom left to outlive the commitment
   // cooldown — the case that would otherwise strand a paid commitment with an
   // unsignable reveal.
-  const enabled = needsSessionBeforeRegistration(account)
+  const outcome = needsSessionBeforeRegistration(account)
     ? await account.enableSession()
     : undefined
-  if (enabled === null) {
-    // Rejected or failed. Leave the record in place and stay un-latched so
+  if (outcome && outcome.status !== 'enabled') {
+    // Declined or failed. Leave the record in place and stay un-latched so
     // a reconnect can still resume.
     return isCancelled() ? null : { status: 'idle' }
   }
+  const enabled = outcome?.session
 
   // A session enabled just now is used as returned: `account` was captured
   // before the prompt, so its signer and payload still describe the session

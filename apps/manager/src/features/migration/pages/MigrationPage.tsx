@@ -1,4 +1,8 @@
-import type { Signer } from '@ens-apps/transaction-manager'
+import { classifyNames } from '@ens-apps/migration'
+import {
+  type Signer,
+  useAtomicBatchSupport,
+} from '@ens-apps/transaction-manager'
 import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
@@ -8,15 +12,17 @@ import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient, WalletClient } from 'viem'
-import { useBalance, useWalletClient } from 'wagmi'
+import { useBalance } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { chain } from '@/config'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
+import { SubnameMigrationDialog } from '@/features/migration/components/SubnameMigrationDialog'
 import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useGraceRenewalGasEstimate } from '@/features/migration/hooks/useGraceRenewalGasEstimate'
@@ -26,6 +32,8 @@ import {
 } from '@/features/migration/hooks/useGraceRenewalQuote'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useMigrationGasFunding } from '@/features/migration/hooks/useMigrationGasFunding'
+import { useSubnameMigrationConfirmation } from '@/features/migration/hooks/useSubnameMigrationConfirmation'
+import { useSubnameMigrationImpact } from '@/features/migration/hooks/useSubnameMigrationImpact'
 import { useSyncRenewedV1Names } from '@/features/migration/hooks/useSyncRenewedV1Names'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import {
@@ -118,6 +126,16 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
           </Trans>
         </div>
       )
+    case 'resolver-not-writable':
+      return (
+        <div>
+          <Trans>
+            Your wallet and your smart account both lost permission to update
+            your names&apos; records. Restore the permission in your profile,
+            then try again. No names were changed.
+          </Trans>
+        </div>
+      )
     case 'cleanup-failed':
       return (
         <div>
@@ -196,6 +214,22 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
   }
 }
 
+const shouldCheckRetryImpact = (
+  step: string,
+  hasRetryContext: boolean,
+  errorType?: MigrationError['type'],
+) => step === 'failure' && hasRetryContext && errorType !== 'cleanup-failed'
+
+const getImpactRenewalNames = (
+  isRetry: boolean,
+  hasRenewed: boolean,
+  pendingNames: readonly string[] | undefined,
+  graceNames: readonly string[],
+) => {
+  if (!isRetry) return graceNames
+  return hasRenewed ? [] : (pendingNames ?? [])
+}
+
 export const MigrationPage = () => {
   const navigate = useNavigate()
   const canGoBack = useCanGoBack()
@@ -205,6 +239,11 @@ export const MigrationPage = () => {
     (snapshot) => snapshot.context.renewalDiscardConfirmation,
   )
   const migrationPlan = useSelector(uiActor, (state) => state.context.plan)
+  const retryRenewal = useSelector(uiActor, (state) => state.context.renewal)
+  const renewedDomains = useSelector(
+    uiActor,
+    (state) => state.context.renewedDomains,
+  )
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
   const managerRestorationNames = useMigrationManagerRestorationNames(uiActor)
@@ -217,8 +256,9 @@ export const MigrationPage = () => {
     client: hcaClient,
     error: hcaError,
     refreshAccount,
+    walletClient: wagmiWalletClient,
   } = useSmartAccountContext()
-  const { data: wagmiWalletClient } = useWalletClient()
+  const canBatchAtomically = useAtomicBatchSupport(chain.id)
   const queryClient = useQueryClient()
   const migrationNftEnabled = useMigrationNftEnabled()
   const isMigrationSuccess = step === 'success'
@@ -286,6 +326,80 @@ export const MigrationPage = () => {
   // resolve until any drip is confirmed on-chain, so we gate the upgrade
   // button on `gasFundingStatus` to stop owners starting before the ETH lands.
   const gasFundingStatus = useMigrationGasFunding(ownerAddress)
+
+  const shouldCheckImpactBeforeRetry = shouldCheckRetryImpact(
+    step,
+    [migrationPlan, retryRenewal, renewedDomains].some(Boolean),
+    lastError?.type,
+  )
+  const retryDomains = useMemo(() => {
+    const refreshed = new Map(
+      (renewedDomains ?? []).map((domain) => [domain.id, domain]),
+    )
+    return (retryRenewal?.domains ?? []).map(
+      (domain) => refreshed.get(domain.id) ?? domain,
+    )
+  }, [retryRenewal, renewedDomains])
+  const impactNames = useMemo(() => {
+    const names = match({
+      shouldCheckImpactBeforeRetry,
+      migrationPlan,
+      gasEstimate,
+      hasGraceDomains: graceDomains.length > 0,
+    })
+      .with(
+        { shouldCheckImpactBeforeRetry: true },
+        ({ migrationPlan }) =>
+          migrationPlan?.classified ??
+          (ownerAddress
+            ? classifyNames(
+                retryDomains,
+                ownerAddress as Address,
+                migrationExecutionClient.chain.id,
+              ).classified
+            : []),
+      )
+      .with(
+        { gasEstimate: { status: 'ready' } },
+        ({ gasEstimate }) => gasEstimate.plan.classified,
+      )
+      .with({ hasGraceDomains: true }, () =>
+        ownerAddress
+          ? classifyNames(
+              v1Names,
+              ownerAddress as Address,
+              migrationExecutionClient.chain.id,
+            ).classified
+          : [],
+      )
+      .otherwise(() => [])
+    const completed = new Set(completedOperations.map(({ name }) => name))
+    return names.filter(({ domain }) => !completed.has(domain.name))
+  }, [
+    shouldCheckImpactBeforeRetry,
+    migrationPlan,
+    retryDomains,
+    gasEstimate,
+    graceDomains.length,
+    ownerAddress,
+    v1Names,
+    completedOperations,
+  ])
+  const subnameImpact = useSubnameMigrationImpact({
+    selectedNames,
+    classified: impactNames,
+    renewingNames: getImpactRenewalNames(
+      shouldCheckImpactBeforeRetry,
+      !!renewedDomains,
+      retryRenewal?.quote.items.map(({ domain }) => domain.name),
+      graceDomains.map(({ name }) => name),
+    ),
+    ownerAddress,
+    managerRestorationNames,
+    isEnabled: step === 'select' || shouldCheckImpactBeforeRetry,
+    isPrepared:
+      shouldCheckImpactBeforeRetry || networkEstimate.status === 'ready',
+  })
 
   useSyncRenewedV1Names()
 
@@ -364,6 +478,7 @@ export const MigrationPage = () => {
             domains: v1Names.filter(({ name }) => selected.has(name)),
             hcaAddress: hcaAddress as Address,
             requestSteps: renewalGasEstimate.stepDescriptors,
+            canBatchAtomically,
           },
           signer,
           hcaClient,
@@ -393,6 +508,7 @@ export const MigrationPage = () => {
     hcaClient,
     refreshAccount,
     wagmiWalletClient,
+    canBatchAtomically,
     gasEstimate,
     gasFundingStatus,
     graceDomains,
@@ -403,6 +519,15 @@ export const MigrationPage = () => {
     v1Names,
     uiActor,
   ])
+
+  const confirmation = useSubnameMigrationConfirmation({
+    impact: subnameImpact,
+    onConfirm: (action) => {
+      if (action === 'start') return handleBeginUpgrade()
+      uiActor.send({ type: 'retry' })
+      return true
+    },
+  })
 
   return (
     <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-clip">
@@ -430,7 +555,8 @@ export const MigrationPage = () => {
             gasFundingStatus={gasFundingStatus}
             onManagerRestorationChange={handleManagerRestorationChange}
             onNamesChange={handleNamesChange}
-            onNext={handleBeginUpgrade}
+            onNext={() => confirmation.request('start')}
+            ownerAddress={ownerAddress}
             renewal={renewal}
             renewalGasEstimate={renewalGasEstimate}
           />
@@ -477,7 +603,14 @@ export const MigrationPage = () => {
                 <Trans>Back</Trans>
               </button>
               <MigrationPrimaryButton
-                onClick={() => uiActor.send({ type: 'retry' })}
+                aria-disabled={confirmation.isChecking}
+                className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                onClick={() => {
+                  if (confirmation.isChecking) return
+                  if (shouldCheckImpactBeforeRetry)
+                    void confirmation.request('retry')
+                  else uiActor.send({ type: 'retry' })
+                }}
                 type="button"
               >
                 {lastError?.type === 'cleanup-failed' ? (
@@ -498,6 +631,18 @@ export const MigrationPage = () => {
           ),
         )
         .exhaustive()}
+
+      <SubnameMigrationDialog
+        hasAcknowledgedImpact={confirmation.hasAcknowledgedImpact}
+        isChecking={confirmation.isChecking}
+        isOpen={confirmation.isOpen}
+        onAcknowledgeImpact={confirmation.acknowledgeImpact}
+        onCancel={confirmation.cancel}
+        onContinue={() => void confirmation.confirm()}
+        onRestoreFocus={confirmation.restoreFocus}
+        selectedNameCount={selectedNames.length}
+        state={subnameImpact}
+      />
 
       <AlertDialog.Root open={!!discardConfirmation}>
         <AlertDialog.Content>

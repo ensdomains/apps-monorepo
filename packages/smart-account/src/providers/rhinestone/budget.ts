@@ -44,11 +44,7 @@
 
 import type { PublicClient } from 'viem'
 import { formatUnits, isAddressEqual, zeroAddress } from 'viem'
-import {
-  BASE_SEPOLIA_CHAIN_ID,
-  getDestinationContracts,
-  SEPOLIA_CHAIN_ID,
-} from './manifest'
+import { getDestinationContracts, SEPOLIA_CHAIN_ID } from './manifest'
 import type { QuotedGasRefund } from './refund-caps'
 import { readRegisterPrice } from './registration-calls'
 
@@ -182,6 +178,15 @@ export function primaryNameGas(name: string): bigint {
   )
 }
 
+/**
+ * Gas for step 6, `ReverseRegistrarAdapter.claimWithHCA(wallet, 0)`. The
+ * owner-signed `claim` it replaces ran at 27_998 on Sepolia
+ * (`0x5f2dc35f…e8bf`); the HCA lookup adds a cold call, so this has headroom.
+ * Budgeted with every primary name: the budget can't see the wallet, and an
+ * unused allowance stays in the HCA as credit.
+ */
+export const HCA_ADDR_REVERSE_CLEAR_GAS = 45_000n
+
 /** What varies in the reveal batch, and therefore in what the leg costs. */
 export interface RegisterLegShape {
   /**
@@ -207,7 +212,9 @@ export function registerLegGasLimit(shape: RegisterLegShape): bigint {
   return (
     HCA_LEG_GAS_LIMITS.register +
     (shape.isResolverDeployed ? 0n : HCA_RESOLVER_DEPLOY_GAS) +
-    (shape.primaryName ? primaryNameGas(shape.primaryName) : 0n)
+    (shape.primaryName
+      ? primaryNameGas(shape.primaryName) + HCA_ADDR_REVERSE_CLEAR_GAS
+      : 0n)
   )
 }
 
@@ -242,7 +249,6 @@ const FALLBACK_LEG_FEE_6DP = 5_000_000n // 5 USDC/leg
  */
 const FLOOR_GAS_PRICE_WEI: Record<number, bigint> = {
   [SEPOLIA_CHAIN_ID]: 2_000_000_000n,
-  [BASE_SEPOLIA_CHAIN_ID]: 2_000_000_000n,
 }
 
 /**
@@ -289,9 +295,9 @@ const FLOOR_LEG_FEE_CAP_6DP = 15_000_000n
  *
  * It remains a sanity bound on a fund-moving figure, not a budget target.
  *
- * REVISIT ON MAINNET. The manifest is testnet-only today (sepolia +
- * baseSepolia). A mainnet deployment prices legs in real gas and must re-derive
- * this from that chain's own fills rather than inherit the testnet number.
+ * REVISIT ON MAINNET. The bound was derived from Sepolia fills; mainnet is in
+ * the manifest now and prices legs in real gas, so re-derive this from that
+ * chain's own fills rather than letting it inherit the testnet number.
  */
 export const HCA_MAX_LEG_FEES_USDC = 45_000_000n
 

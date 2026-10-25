@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
-import { useConfig, usePublicClient, useWalletClient } from 'wagmi'
+import { useConfig, usePublicClient } from 'wagmi'
+import { chain } from '@/config'
 import { getMigrationOperatorApprovalsQueryOptions } from '@/features/migration/service/migrationApprovalQueries'
 import type { MigrationOperatorApproval } from '@/features/migration/service/migrationApprovals'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -21,10 +22,13 @@ const orderActiveApprovals = (
 }
 
 export const useMigrationApprovalSettings = () => {
-  const { ownerAddress, accountAddress: hcaAddress } = useSmartAccountContext()
-  const { data: walletClient } = useWalletClient()
+  const {
+    ownerAddress,
+    accountAddress: hcaAddress,
+    walletClient,
+  } = useSmartAccountContext()
   const wagmiConfig = useConfig()
-  const publicClient = usePublicClient()
+  const publicClient = usePublicClient({ chainId: chain.id })
   const queryClient = useQueryClient()
   const owner = ownerAddress as Address | undefined
   const hca = hcaAddress as Address | undefined

@@ -13,13 +13,14 @@ import {
   fromPromise,
   ok,
   okAsync,
-  type ResultAsync,
+  ResultAsync,
 } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { type Address, getAddress, isAddress, isAddressEqual } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getResolvedAddressQueryOptions } from '@/features/address/queries/getResolvedAddress'
+import { getV1NameManagerQueryOptions } from '@/features/ownership/queries/getV1NameManager'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { getSubnamesQueryKey } from '@/features/profile/hooks/useSubnames'
@@ -47,6 +48,7 @@ import {
   type GetEthAddressError,
   getEthAddressQueryOptions,
 } from '../queries/getEthAddress'
+import { getIsRegistryEmancipated } from '../queries/getIsRegistryEmancipated'
 import {
   type GetOwnResolverError,
   getOwnResolverQueryOptions,
@@ -101,6 +103,11 @@ type NameReads = StartTransferParams & {
   readonly tokenId: bigint | null
   /** The name's own resolver, or null if it has none. */
   readonly resolverAddress: Address | null
+  /**
+   * `hasRemainingRoleHolders`, or the name's registry isn't emancipated: either
+   * way `safeTransferFrom` reverts. Always false for V1 subjects.
+   */
+  readonly isSafeTransferRefused: boolean
 }
 
 type SavedParams = NameReads & {
@@ -420,6 +427,7 @@ export const useTransferName = ({
         ...params,
         tokenId: null,
         resolverAddress: state.resolverAddress,
+        isSafeTransferRefused: false,
       })
     })
 
@@ -466,8 +474,17 @@ export const useTransferName = ({
       ),
       (e) => e as GetOwnResolverError,
     ).andThen((resolverAddress) =>
-      getEnsTokenId({ label: getLabel(name), registryAddress }).map(
-        (tokenId): NameReads => ({ ...params, tokenId, resolverAddress }),
+      ResultAsync.combine([
+        getEnsTokenId({ label: getLabel(name), registryAddress }),
+        getIsRegistryEmancipated({ registryAddress }),
+      ]).map(
+        ([tokenId, isEmancipated]): NameReads => ({
+          ...params,
+          tokenId,
+          resolverAddress,
+          isSafeTransferRefused:
+            params.hasRemainingRoleHolders || !isEmancipated,
+        }),
       ),
     )
 
@@ -484,7 +501,7 @@ export const useTransferName = ({
       subject.kind,
       actor,
       reads.roleGrants,
-      reads.hasRemainingRoleHolders,
+      reads.isSafeTransferRefused,
     ).some((step) => step.kind === 'set-eth-addr')
     if (!resolverAddress || !writesResolver)
       return okAsync({
@@ -530,7 +547,7 @@ export const useTransferName = ({
           subject.kind,
           actor,
           params.roleGrants,
-          params.hasRemainingRoleHolders,
+          params.isSafeTransferRefused,
         )
         const move = plan.at(-1)
         if (!move) throw new Error('Transfer plan has no move step')
@@ -660,7 +677,20 @@ export const useTransferName = ({
       queryClient.invalidateQueries({
         queryKey: getV1NameStateQueryOptions({ name }).queryKey,
       }),
+      queryClient.invalidateQueries({
+        queryKey: getV1NameManagerQueryOptions({ name }).queryKey,
+      }),
     ])
+  }
+
+  // A confirmed `reclaim` has moved the manager even if the move after it is
+  // rejected, so the Manager row is refreshed now, not when the flow finishes.
+  const markConfirmed = (step: TransferStepKind) => {
+    setConfirmedSteps((prev) => new Set(prev).add(step))
+    if (step === 'reclaim')
+      void queryClient.invalidateQueries({
+        queryKey: getV1NameManagerQueryOptions({ name }).queryKey,
+      })
   }
 
   // Built fresh each render (like useRenewalTransactions): the modal holds the
@@ -674,7 +704,7 @@ export const useTransferName = ({
           subject.kind,
           actor,
           savedParams.roleGrants,
-          savedParams.hasRemainingRoleHolders,
+          savedParams.isSafeTransferRefused,
         )
     const stepContext = { ...savedParams, name, subject }
 
@@ -713,7 +743,7 @@ export const useTransferName = ({
           },
         )
         await waitForTransaction(txId)
-        setConfirmedSteps((prev) => new Set(prev).add(step.kind))
+        markConfirmed(step.kind)
       } catch (err) {
         // Tx reverts surface via the modal's machine state; non-tx failures
         // (e.g. a wallet with no connected account, or the step's actor being
@@ -758,7 +788,7 @@ export const useTransferName = ({
         subject.kind,
         actor,
         savedParams.roleGrants,
-        savedParams.hasRemainingRoleHolders,
+        savedParams.isSafeTransferRefused,
       )
     : []
   const move = plan.at(-1)

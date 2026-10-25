@@ -1,4 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@/utils/test-utils'
 import type { DashboardName } from '../dashboardNames'
@@ -12,6 +13,10 @@ const eligibilityMock = vi.hoisted(() => ({
   useDashboardMigrationEligibility: vi.fn(),
 }))
 
+vi.mock('./ChoosePrimaryNameDialog', () => ({
+  ChoosePrimaryNameDialog: ({ open }: { readonly open?: boolean }) =>
+    open ? <div aria-label="Choose Primary Name" role="dialog" /> : null,
+}))
 vi.mock('../useDashboardNames', () => ({
   ...dashboardNamesMock,
   DASHBOARD_PAGE_SIZE: 5,
@@ -39,6 +44,7 @@ vi.mock('./NameRow', () => ({
     label,
     nameRole,
     nameRoles,
+    primaryNameAction,
     selectable,
     status,
   }: {
@@ -47,6 +53,7 @@ vi.mock('./NameRow', () => ({
     readonly label: string
     readonly nameRole?: string | null
     readonly nameRoles?: readonly string[] | null
+    readonly primaryNameAction?: ReactNode
     readonly selectable?: boolean
     readonly status?: string | null
   }) => (
@@ -60,6 +67,7 @@ vi.mock('./NameRow', () => ({
       data-testid="name-row"
     >
       {label}
+      {primaryNameAction}
     </div>
   ),
 }))
@@ -70,6 +78,7 @@ const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
   protocol: 'v2',
   expiryDate: 1811808000n,
   servedExpiry: null,
+  graceEndsAt: null,
   createdAt: 0n,
   nameRoles: ['owner'],
   isLapsed: false,
@@ -213,6 +222,42 @@ describe('MyNamesList', () => {
     expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
       expect.objectContaining({ page: 1 }),
     )
+  })
+
+  it('offers only the primary row action and keeps its chooser open when the primary row changes', () => {
+    mockNames([
+      makeName({ key: '0x01', name: 'alpha.eth' }),
+      makeName({ key: '0x02', name: 'beta.eth' }),
+    ])
+    const surface = (primaryName: string) => (
+      <MyNamesList
+        favoriteLabels={new Set()}
+        isAuthenticated
+        migrationEnabled={false}
+        onToggleFavorite={() => undefined}
+        primaryLabel={primaryName}
+        sort="name-asc"
+      />
+    )
+    const { rerender } = render(surface('alpha.eth'))
+    const action = screen.getByRole('button', { name: 'Primary Name' })
+    expect(action).toHaveClass('h-5', 'py-0')
+    expect(action.closest('[data-testid="name-row"]')).toHaveTextContent(
+      'alpha.eth',
+    )
+    fireEvent.click(action)
+    expect(
+      screen.getByRole('dialog', { name: 'Choose Primary Name' }),
+    ).toBeInTheDocument()
+    rerender(surface('beta.eth'))
+    expect(
+      screen.getByRole('dialog', { name: 'Choose Primary Name' }),
+    ).toBeInTheDocument()
+    expect(
+      screen
+        .getByRole('button', { name: 'Primary Name' })
+        .closest('[data-testid="name-row"]'),
+    ).toHaveTextContent('beta.eth')
   })
 
   it('shows skeletons while the page is still being read', () => {

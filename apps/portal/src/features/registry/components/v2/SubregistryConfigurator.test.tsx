@@ -59,6 +59,14 @@ vi.mock('@/features/registry/hooks/useSetSubregistry', () => ({
   },
 }))
 
+vi.mock('@/features/registry/hooks/useRegistryParentMutation', () => ({
+  useRegistryParentMutation: ({ next }: { readonly next: () => void }) => ({
+    start: next,
+    steps: [],
+    isPending: false,
+  }),
+}))
+
 vi.mock('@/utils/blockExplorer/verifyProxyContract', () => ({
   verifyProxyContract: vi.fn().mockResolvedValue(undefined),
 }))

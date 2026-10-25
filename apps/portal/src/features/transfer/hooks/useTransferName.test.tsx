@@ -1,10 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { ok } from 'neverthrow'
+import { ok, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getV1NameManagerQueryOptions } from '@/features/ownership/queries/getV1NameManager'
 import type { TransferSubject } from '../types'
 import type { TransferOptions, TransferStep } from '../utils/buildTransferPlan'
+import type { V1NameState } from '../v1/getV1NameState'
 import { NonCanonicalNameError, useTransferName } from './useTransferName'
 
 const ACCOUNT = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
@@ -89,6 +91,23 @@ vi.mock('@/features/profile/hooks/useTokenId', () => ({
   getEnsTokenId: () => getEnsTokenId(),
 }))
 
+const getIsRegistryEmancipated = vi.fn(() => okAsync(true))
+vi.mock('../queries/getIsRegistryEmancipated', () => ({
+  getIsRegistryEmancipated: () => getIsRegistryEmancipated(),
+}))
+
+vi.mock('@/utils/query/pollForIndexerSync', () => ({
+  pollForIndexerSync: vi.fn(),
+}))
+
+const getV1NameState = vi.fn((): V1NameState | null => null)
+vi.mock('../v1/getV1NameState', () => ({
+  getV1NameStateQueryOptions: () => ({
+    queryKey: ['transfer-v1-name-state'],
+    queryFn: () => getV1NameState(),
+  }),
+}))
+
 const subject: TransferSubject = { kind: 'v2', registryAddress: REGISTRY }
 
 // Move-only: the pre-move options are off, so the plan is the single step the
@@ -100,12 +119,23 @@ const options: TransferOptions = {
   revokeRoles: false,
 }
 
-const renderTransfer = (name: string) => {
-  const queryClient = new QueryClient({
+const makeQueryClient = () =>
+  new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
-  return renderHook(
-    () => useTransferName({ name, account: ACCOUNT, subject }),
+
+const renderTransfer = (
+  name: string,
+  {
+    transferSubject = subject,
+    queryClient = makeQueryClient(),
+  }: {
+    readonly transferSubject?: TransferSubject
+    readonly queryClient?: QueryClient
+  } = {},
+) =>
+  renderHook(
+    () => useTransferName({ name, account: ACCOUNT, subject: transferSubject }),
     {
       wrapper: ({ children }) => (
         <QueryClientProvider client={queryClient}>
@@ -114,7 +144,6 @@ const renderTransfer = (name: string) => {
       ),
     },
   )
-}
 
 // The route refuses non-canonical names before the form is offered, but the
 // route gate can only speak for its own page. This is the same gate inside the
@@ -131,29 +160,32 @@ describe('useTransferName — non-canonical name gate', () => {
     ['a fullwidth homoglyph label', 'ａlice.eth'],
     ['a non-canonical subname label', 'SUB.alice.eth'],
     ['an encoded labelhash label', `[${'a'.repeat(64)}].eth`],
-  ])('refuses %s without reading or preparing anything', async (_case, name) => {
-    const { result } = renderTransfer(name)
+  ])(
+    'refuses %s without reading or preparing anything',
+    async (_case, name) => {
+      const { result } = renderTransfer(name)
 
-    act(() => {
-      result.current.startTransfer({
-        recipient: RECIPIENT,
-        recipientInput: RECIPIENT,
-        roleGrants: [],
-        hasRemainingRoleHolders: false,
-        options,
+      act(() => {
+        result.current.startTransfer({
+          recipient: RECIPIENT,
+          recipientInput: RECIPIENT,
+          roleGrants: [],
+          hasRemainingRoleHolders: false,
+          options,
+        })
       })
-    })
 
-    await waitFor(() => {
-      expect(result.current.prepError).toBeInstanceOf(NonCanonicalNameError)
-    })
-    expect(result.current.prepError?.message).toMatch(/normalized form/)
-    // Nothing was read, estimated or opened: the refusal is the first thing.
-    expect(getOwnResolver).not.toHaveBeenCalled()
-    expect(getEnsTokenId).not.toHaveBeenCalled()
-    expect(openModal).not.toHaveBeenCalled()
-    expect(result.current.transactions).toEqual([])
-  })
+      await waitFor(() => {
+        expect(result.current.prepError).toBeInstanceOf(NonCanonicalNameError)
+      })
+      expect(result.current.prepError?.message).toMatch(/normalized form/)
+      // Nothing was read, estimated or opened: the refusal is the first thing.
+      expect(getOwnResolver).not.toHaveBeenCalled()
+      expect(getEnsTokenId).not.toHaveBeenCalled()
+      expect(openModal).not.toHaveBeenCalled()
+      expect(result.current.transactions).toEqual([])
+    },
+  )
 
   it('prepares the canonical spelling', async () => {
     const { result } = renderTransfer('alice.eth')
@@ -225,6 +257,40 @@ describe('useTransferName — move preflight', () => {
       expect.anything(),
     )
   })
+
+  // A subregistry whose parent owner kept its root roles isn't emancipated, so
+  // `safeTransferFrom` reverts with `TransferUnsafeUntilRegistryIsEmancipated`
+  // for every name in it, even with nobody else on the name itself.
+  it('moves a name in an unemancipated registry with unsafeTransfer', async () => {
+    getIsRegistryEmancipated.mockReturnValueOnce(okAsync(false))
+    const { result } = renderTransfer('sub.alice.eth')
+
+    act(() => {
+      result.current.startTransfer({
+        recipient: RECIPIENT,
+        recipientInput: RECIPIENT,
+        roleGrants: [],
+        hasRemainingRoleHolders: false,
+        options,
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.transactions).toHaveLength(1)
+    })
+    // The preflight simulated it, and the submit sends it.
+    expect(buildTransferStepIntent).toHaveBeenCalledWith(
+      { kind: 'transfer-token-unsafe' },
+      expect.anything(),
+    )
+    await act(async () => {
+      await result.current.transactions[0].onStart?.()
+    })
+    expect(buildTransferStepIntent).toHaveBeenLastCalledWith(
+      { kind: 'transfer-token-unsafe' },
+      expect.anything(),
+    )
+  })
 })
 
 // `revokeRoles` re-mints the token under a bumped version, so the id read when
@@ -260,5 +326,59 @@ describe('useTransferName — token id at the move step', () => {
       { kind: 'transfer-token' },
       expect.objectContaining({ tokenId: 2n }),
     )
+  })
+})
+
+// The registrant's `reclaim` hands the manager role to the recipient. The
+// Manager row caches it for the portal's hour, so a refresh that waits for the
+// move shows the old manager whenever the move is rejected (WEB-1866).
+describe('useTransferName — V1 manager handover', () => {
+  const MANAGER = '0xcccccccccccccccccccccccccccccccccccccccc' as Address
+  const registrar: TransferSubject = {
+    kind: 'v1-registrar',
+    registrant: ACCOUNT,
+    controller: MANAGER,
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('refreshes the manager once the reclaim lands, before the move', async () => {
+    getV1NameState.mockReturnValue({
+      subject: registrar,
+      registration: 'active',
+      resolverAddress: RESOLVER,
+      parent: null,
+      ancestorRegistration: null,
+    })
+    const queryClient = makeQueryClient()
+    const managerKey = getV1NameManagerQueryOptions({
+      name: 'alice.eth',
+    }).queryKey
+    queryClient.setQueryData(managerKey, MANAGER)
+    const { result } = renderTransfer('alice.eth', {
+      transferSubject: registrar,
+      queryClient,
+    })
+
+    act(() => {
+      result.current.startTransfer({
+        recipient: RECIPIENT,
+        recipientInput: RECIPIENT,
+        roleGrants: [],
+        hasRemainingRoleHolders: false,
+        options,
+      })
+    })
+    await waitFor(() => {
+      expect(result.current.transactions).toHaveLength(2)
+    })
+
+    await act(async () => {
+      await result.current.transactions[0].onStart?.()
+    })
+
+    expect(queryClient.getQueryState(managerKey)?.isInvalidated).toBe(true)
   })
 })

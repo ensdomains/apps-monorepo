@@ -1,4 +1,5 @@
 import type { GetNameRolesAccountsReturnType } from '@ensdomains/ensjs/public/v2'
+import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 import { useState } from 'react'
 import type { Address } from 'viem'
@@ -18,6 +19,7 @@ import {
 type RolesTableProps = {
   readonly name: string
   readonly canManageRoles: boolean
+  readonly callerAdminRoles: ReadonlySet<Role>
   readonly roles: GetNameRolesAccountsReturnType
   readonly registryAddress: Address
 }
@@ -42,6 +44,7 @@ export const RolesTable = ({
   roles,
   name,
   canManageRoles,
+  callerAdminRoles,
   registryAddress,
 }: RolesTableProps) => {
   const [editingRow, setEditingRow] = useState<Row<AccountGroup> | null>(null)
@@ -77,6 +80,7 @@ export const RolesTable = ({
       setOpen={setOpen}
       name={name}
       canManageRoles={canManageRoles}
+      callerAdminRoles={callerAdminRoles}
       registryAddress={registryAddress}
       roleHolders={roles}
     >

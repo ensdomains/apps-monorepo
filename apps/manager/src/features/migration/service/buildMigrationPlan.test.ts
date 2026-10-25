@@ -1,7 +1,13 @@
 import { computeResolverAddress } from '@ens-apps/smart-account'
 import { Storage } from 'happy-dom'
 import { err, ok } from 'neverthrow'
-import { type Address, type Hex, namehash, type PublicClient } from 'viem'
+import {
+  type Address,
+  type Hex,
+  namehash,
+  type PublicClient,
+  zeroHash,
+} from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeClassified, makeDomain, OWNER } from './_fixtures'
 import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
@@ -9,10 +15,12 @@ import {
   assertLockedResolverReplacementRecordSafety,
   buildMigrationPlan,
   buildMigrationRecoveryPlan,
+  namesWithDroppedPubkey,
 } from './buildMigrationPlan'
-import { FUSES } from './classifyNames'
+import { type ClassifiedName, FUSES } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
+import type { Profile } from './fetchV1Profiles'
 import {
   type MigrationRecoverySnapshot,
   persistPendingAtomicMigrationIntent,
@@ -32,10 +40,20 @@ vi.mock('./buildAtomicMigrationBatches', async (importActual) => ({
 vi.mock('./copyMigrationReadiness', () => ({
   assertCopyMigrationReadiness: vi.fn(() => Promise.resolve()),
 }))
+const applySubnameRecreationMock = vi.hoisted(() => vi.fn())
+
+vi.mock('./subnameRecreation', async (importActual) => {
+  const actual = await importActual<typeof import('./subnameRecreation')>()
+  applySubnameRecreationMock.mockImplementation(actual.applySubnameRecreation)
+  return { ...actual, applySubnameRecreation: applySubnameRecreationMock }
+})
+
 vi.mock('./migrationInvariants', async (importActual) => ({
   ...(await importActual<typeof import('./migrationInvariants')>()),
   assertRequiredMigrationContractCode: vi.fn(() => Promise.resolve()),
-  assertLockedPublicResolverSetMembership: vi.fn(() => Promise.resolve()),
+  resolveLockedMigrationResolvers: vi.fn(({ names }) =>
+    Promise.resolve([...names]),
+  ),
   checkMigrationHcaReadiness: vi.fn(({ hca }) =>
     Promise.resolve({ status: 'verified', hca, implementation: HCA }),
   ),
@@ -47,6 +65,7 @@ vi.mock('./migrationInvariants', async (importActual) => ({
         hca,
       }),
       implementation: HCA,
+      writer: 'hca',
       hcaHasRootRoles: true,
       walletHasWildcardRoles: true,
     }),
@@ -61,6 +80,11 @@ const KNOWN_PUBLIC_RESOLVER: Address =
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
 const CUSTOM_RESOLVER: Address = '0x00000000000000000000000000000000000000cc'
 
+const UNSET_PUBKEY = {
+  status: 'success',
+  result: [zeroHash, zeroHash],
+} as const
+
 const publicClientWithProfileResults = (
   results: readonly {
     readonly status: 'success'
@@ -71,6 +95,7 @@ const publicClientWithProfileResults = (
     // The recovery plan resolves its chain from the client and refuses a
     // client without one.
     chain: { id: 11155111 },
+    getCode: vi.fn().mockResolvedValue('0x'),
     multicall: vi.fn(() => Promise.resolve(results)),
     readContract: vi.fn().mockResolvedValue(false),
   }) as unknown as PublicClient
@@ -110,7 +135,14 @@ const makeRecoveryTree = () => {
     profiles: new Map([
       [
         namehash(root.name),
-        { texts: [], addresses: [], contentHash: null, abis: [] },
+        {
+          texts: [],
+          addresses: [],
+          contentHash: null,
+          abis: [],
+          interfaces: [],
+          pubkey: null,
+        },
       ],
       [
         namehash(copy.name),
@@ -119,6 +151,8 @@ const makeRecoveryTree = () => {
           addresses: [],
           contentHash: null,
           abis: [],
+          interfaces: [],
+          pubkey: null,
         },
       ],
     ]),
@@ -141,7 +175,7 @@ beforeEach(() => {
     batches: [],
   })
   assertCopyMigrationReadinessMock.mockReset()
-  assertCopyMigrationReadinessMock.mockResolvedValue(undefined)
+  assertCopyMigrationReadinessMock.mockResolvedValue(new Map())
 })
 
 describe('assertLockedResolverReplacementRecordSafety', () => {
@@ -155,6 +189,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
           coinTypes: [],
           hasContentHash: false,
           abiContentTypes: [],
+          interfaceIds: [],
         },
       ]) as never,
     )
@@ -162,7 +197,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
     await expect(
       assertLockedResolverReplacementRecordSafety(
         [name],
-        publicClientWithProfileResults(),
+        publicClientWithProfileResults([UNSET_PUBKEY]),
       ),
     ).resolves.toBeUndefined()
   })
@@ -177,6 +212,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
           coinTypes: ['60'],
           hasContentHash: false,
           abiContentTypes: [],
+          interfaceIds: [],
         },
       ]) as never,
     )
@@ -187,6 +223,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
         publicClientWithProfileResults([
           { status: 'success', result: 'a@b.c' },
           { status: 'success', result: '0x1234' as Hex },
+          UNSET_PUBKEY,
         ]),
       ),
     ).rejects.toMatchObject({
@@ -208,6 +245,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
           coinTypes: [],
           hasContentHash: true,
           abiContentTypes: [1n],
+          interfaceIds: [],
         },
       ]) as never,
     )
@@ -218,6 +256,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
         publicClientWithProfileResults([
           { status: 'success', result: '0xe301' as Hex },
           { status: 'success', result: [1n, '0x5b5d' as Hex] },
+          UNSET_PUBKEY,
         ]),
       ),
     ).rejects.toMatchObject({
@@ -225,6 +264,40 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
       reason: 'records-not-replayable',
       contentHashRecordCount: 1,
       abiRecordCount: 1,
+    })
+  })
+
+  it('blocks replacement when only interface and pubkey records exist', async () => {
+    const name = lockedKnownResolver()
+    getV1ProfileKeysMock.mockReturnValueOnce(
+      ok([
+        {
+          id: name.domain.id,
+          texts: [],
+          coinTypes: [],
+          contentHash: null,
+          abiContentTypes: [],
+          interfaceIds: ['0x01ffc9a7'],
+        },
+      ]) as never,
+    )
+
+    await expect(
+      assertLockedResolverReplacementRecordSafety(
+        [name],
+        publicClientWithProfileResults([
+          {
+            status: 'success',
+            result: '0x000000000000000000000000000000000000beef' as Address,
+          },
+          { status: 'success', result: [`0x${'aa'.repeat(32)}`, zeroHash] },
+        ]),
+      ),
+    ).rejects.toMatchObject({
+      name: 'LockedResolverRecordSafetyError',
+      reason: 'records-not-replayable',
+      interfaceRecordCount: 1,
+      pubkeyRecordCount: 1,
     })
   })
 
@@ -272,6 +345,39 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
   })
 })
 
+describe('namesWithDroppedPubkey', () => {
+  it('lists only names moving to the owned resolver that have a pubkey', () => {
+    const profile = (pubkey: Profile['pubkey']) =>
+      ({ pubkey }) as unknown as Profile
+    const pubkey = { x: zeroHash, y: `0x${'aa'.repeat(32)}` } as const
+
+    expect(
+      namesWithDroppedPubkey({
+        classified: [
+          makeClassified({
+            name: 'a.eth',
+            resolverStrategy: 'to-owned-permres',
+          }),
+          makeClassified({
+            name: 'b.eth',
+            resolverStrategy: 'to-owned-permres',
+          }),
+          makeClassified({
+            name: 'c.eth',
+            resolverStrategy: 'keep-v1',
+            v1ResolverAddress: CUSTOM_RESOLVER,
+          }),
+        ],
+        profiles: new Map([
+          [namehash('a.eth'), profile(pubkey)],
+          [namehash('b.eth'), profile(null)],
+          [namehash('c.eth'), profile(pubkey)],
+        ]),
+      }),
+    ).toEqual(['a.eth'])
+  })
+})
+
 describe('buildMigrationPlan resolver preservation', () => {
   it('never routes a custom resolver to the HCA resolver from a partial inventory', async () => {
     const domain = makeDomain({ resolverAddress: CUSTOM_RESOLVER })
@@ -284,7 +390,10 @@ describe('buildMigrationPlan resolver preservation', () => {
       domains: [domain],
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
       preflight,
     })
 
@@ -301,6 +410,53 @@ describe('buildMigrationPlan resolver preservation', () => {
         maxOuterGas: 15_000_000n,
       }),
     )
+  })
+})
+
+describe('buildMigrationPlan gas preview', () => {
+  it('prices the wallet replay from the wallet executions only', async () => {
+    await buildMigrationPlan({
+      domains: [makeDomain()],
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
+      preflight: {
+        skipFetchProfilesPhase: true,
+        hcaReadiness: { status: 'deployment-required', hca: HCA },
+      },
+    })
+    const estimate =
+      buildAtomicMigrationBatchesMock.mock.calls[0]?.[0].estimateBatchGas
+    if (!estimate) throw new Error('preview estimator was not passed')
+    const execution = {
+      phase: 'wallet-co-admin-grant',
+      name: 'alice.eth',
+      names: ['alice.eth'],
+      call: { to: HCA, data: '0x', value: 0n },
+    } as const
+    const request = {
+      call: execution.call,
+      walletCall: null,
+      names: [],
+    }
+
+    expect(
+      await estimate({
+        ...request,
+        innerExecutions: [execution],
+        walletExecutions: [],
+      }),
+    ).toEqual({ outerGas: 150_000n, walletGas: 0n })
+    expect(
+      await estimate({
+        ...request,
+        innerExecutions: [],
+        walletExecutions: [execution],
+      }),
+    ).toEqual({ outerGas: 80_000n, walletGas: 70_000n })
   })
 })
 
@@ -332,6 +488,58 @@ describe('buildMigrationRecoveryPlan', () => {
     ])
   })
 
+  it('resumes a recreation tree without an ETHRegistry approval it never planned', async () => {
+    const { root, copy, snapshot } = makeRecoveryTree()
+    // Only the tree's shape matters here, not its saved source identity.
+    applySubnameRecreationMock.mockImplementationOnce(
+      ({ classified }: { readonly classified: readonly ClassifiedName[] }) => [
+        ...classified,
+        {
+          ...makeClassified({
+            action: 'copy',
+            tokenType: 'registry-child',
+            name: copy.name,
+            label: 'sub',
+            parentName: root.name,
+          }),
+          domain: copy,
+          recreationRoot: root.name,
+        },
+      ],
+    )
+
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: {
+        ...snapshot,
+        remainingOperations: [
+          { name: root.name, action: 'migrate' },
+          { name: copy.name, action: 'copy' },
+        ],
+        completedOperations: [],
+        plannedApprovals: [],
+        subnameRecreation: {
+          version: 5,
+          roots: [root.name],
+          names: [root.name, copy.name],
+          blockNumber: '100',
+          timestamp: '1000',
+          blockHash: `0x${'11'.repeat(32)}`,
+          chainId: 11155111,
+          inventoryDigest: `0x${'22'.repeat(32)}`,
+        },
+      },
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: publicClientWithProfileResults(),
+    })
+
+    expect(plan.registryContext).toContainEqual(
+      expect.objectContaining({ recreationRoot: root.name }),
+    )
+    expect(plan.preflight.migrationApprovals).toEqual([])
+    expect(plan.preflight.migrationCleanupApprovals).toEqual([])
+  })
+
   it('rebuilds unsent copies with their completed root retained only as registry context', async () => {
     const { root, copy, snapshot } = makeRecoveryTree()
 
@@ -339,7 +547,10 @@ describe('buildMigrationRecoveryPlan', () => {
       snapshot,
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
     })
 
     const checkedContracts = vi.mocked(assertRequiredMigrationContractCode).mock
@@ -403,7 +614,10 @@ describe('buildMigrationRecoveryPlan', () => {
         snapshot,
         hcaAddress: HCA,
         migrationOwner: OWNER,
-        publicClient: { chain: { id: 11155111 } } as PublicClient,
+        publicClient: {
+          chain: { id: 11155111 },
+          getCode: vi.fn().mockResolvedValue('0x'),
+        } as unknown as PublicClient,
       }),
     ).resolves.toBeDefined()
 
@@ -430,7 +644,10 @@ describe('buildMigrationRecoveryPlan', () => {
         snapshot,
         hcaAddress: HCA,
         migrationOwner: OWNER,
-        publicClient: { chain: { id: 11155111 } } as PublicClient,
+        publicClient: {
+          chain: { id: 11155111 },
+          getCode: vi.fn().mockResolvedValue('0x'),
+        } as unknown as PublicClient,
       }),
     ).rejects.toMatchObject({
       name: 'MigrationRecoveryPlanError',
@@ -459,7 +676,14 @@ describe('buildMigrationRecoveryPlan manager restoration (WEB-1528)', () => {
       profiles: new Map([
         [
           namehash(root.name),
-          { texts: [], addresses: [], contentHash: null, abis: [] },
+          {
+            texts: [],
+            addresses: [],
+            contentHash: null,
+            abis: [],
+            interfaces: [],
+            pubkey: null,
+          },
         ],
       ]),
       ownedPermRes: computeResolverAddress({ chainId: 11155111, hca: HCA }),
@@ -474,7 +698,10 @@ describe('buildMigrationRecoveryPlan manager restoration (WEB-1528)', () => {
       snapshot,
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
     })
 
   it('replays the opt-in recorded on the durable snapshot', async () => {

@@ -1,6 +1,12 @@
 import { Trans } from '@lingui/react/macro'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
+import { useState } from 'react'
 import { useConnection } from 'wagmi'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
@@ -10,16 +16,20 @@ import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { TOKENS } from '@/lib/tokens'
-import { useConnectModal } from '@/lib/wallet'
+import { useConnectModal, useWalletDisconnect } from '@/lib/wallet'
+import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
+import { warmRegistrationCheckout } from '../../../service/checkoutWarmup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { useCheckoutWarmup } from '../useCheckoutWarmup'
 import { AnimatedPrice } from './AnimatedPrice'
 import {
   PaymentCardBaseLine,
   PaymentCardPremiumLine,
 } from './PaymentCardLineItems'
+import { SafeWalletDialog } from './SafeWalletDialog'
 
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
@@ -54,7 +64,43 @@ export const PaymentCard = () => {
     BigInt(duration),
   )
 
-  const openTokenPicker = () => uiActor.send({ type: 'pricing.step.next' })
+  // The chooser opens once its figures are cached, so it does not open on the
+  // rent alone and then reflow when the funding budget lands.
+  const queryClient = useQueryClient()
+  const account = useSmartAccountContext()
+  const checkout = {
+    label,
+    durationInSeconds: BigInt(duration),
+    token: TOKENS.USDC.symbol,
+    account,
+  }
+  useCheckoutWarmup(checkout)
+  const openTokenPicker = useMutation({
+    mutationFn: () => warmRegistrationCheckout(queryClient, checkout),
+    onSettled: () => uiActor.send({ type: 'pricing.step.next' }),
+  })
+
+  // A Safe can't enable the session, so send it to the Explorer instead.
+  const { connector, address } = useConnection()
+  const isSafeWalletOptions = getIsSafeWalletQueryOptions({
+    connector,
+    address,
+  })
+  useQuery({ ...isSafeWalletOptions, enabled: !!connector })
+  const [isSafeDialogOpen, setIsSafeDialogOpen] = useState(false)
+  const { disconnect } = useWalletDisconnect()
+  const { openConnectModal } = useConnectModal()
+
+  const onNext = async () => {
+    const isSafeWallet = await queryClient
+      .ensureQueryData(isSafeWalletOptions)
+      .catch(() => false)
+    if (isSafeWallet) {
+      setIsSafeDialogOpen(true)
+      return
+    }
+    gate(() => openTokenPicker.mutate())
+  }
 
   return (
     <>
@@ -64,11 +110,22 @@ export const PaymentCard = () => {
         canNext={canNext}
         discountAmount={discountAmount}
         isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
-        onNext={() => gate(openTokenPicker)}
+        isPreparing={openTokenPicker.isPending}
+        onNext={() => void onNext()}
         premiumAmount={pricingQuery.data?.premiumPrice}
         type="register"
       />
       {sessionModal}
+      <SafeWalletDialog
+        isOpen={isSafeDialogOpen}
+        label={label}
+        onDismiss={() => setIsSafeDialogOpen(false)}
+        onUseDifferentWallet={async () => {
+          setIsSafeDialogOpen(false)
+          await disconnect()
+          openConnectModal?.()
+        }}
+      />
     </>
   )
 }
@@ -83,9 +140,12 @@ export const PaymentCardBase = ({
   basePrice,
   type,
   connectionSource = 'smart-account',
+  isPreparing = false,
 }: {
   canNext: boolean
   onNext: () => void
+  /** The chooser's figures are being fetched; the button shows it and waits. */
+  readonly isPreparing?: boolean
   amount: number | undefined
   discountAmount?: number
   premiumAmount?: number
@@ -166,11 +226,16 @@ export const PaymentCardBase = ({
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"
             color="blue"
-            disabled={!canNext}
+            disabled={!canNext || isPreparing}
+            loading={isPreparing}
             onClick={onNext}
             size="lg"
           >
-            <Trans>Pay with stablecoins</Trans>
+            {isPreparing ? (
+              <Trans>Preparing checkout...</Trans>
+            ) : (
+              <Trans>Pay with stablecoins</Trans>
+            )}
           </Button>
         ) : (
           <Button

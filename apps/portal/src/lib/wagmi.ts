@@ -1,9 +1,11 @@
 import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/config'
 import { walletConnect } from '@wagmi/connectors'
-import { createClient, fallback, http } from 'viem'
+import { match, P } from 'ts-pattern'
+import { createClient, fallback, http, webSocket } from 'viem'
 import { createConfig } from 'wagmi'
 import { envConfig } from '@/config'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
+import { getCustomRpcUrl, WEBSOCKET_URL } from '@/lib/customRpc'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
 /**
@@ -18,7 +20,7 @@ export { WALLETCONNECT_PROJECT_ID }
 
 // Failover across the app's attributed primary and the network's shared
 // public endpoints.
-export const fallbackTransport = fallback(
+const defaultTransport = fallback(
   envConfig.rpcUrls.map((url) =>
     http(url, {
       retryCount: 2,
@@ -32,41 +34,16 @@ export const fallbackTransport = fallback(
   { rank: false, retryCount: 2 },
 )
 
-/**
- * The build's network, mainnet or Sepolia, with its ENS contracts — and its
- * V1 subgraph endpoint overridable for local work.
- *
- * The override has to happen *after* `envConfig.chain` is built (which calls
- * ensjs's `extendChainWithEns` internally), not by passing a URL further
- * upstream: that function spreads ensjs's own `ensL1Subgraphs` last, so
- * anything supplied earlier is silently discarded.
- *
- * Why it is here at all: every name the e2e suite creates lives on an Anvil fork
- * that diverged from Sepolia minutes ago, so the public subgraph cannot see any
- * of them and never will. Locally that makes the Subnames tab always empty,
- * custom text-record keys undiscoverable and history a confident "no activity"
- * for names with real events — none of which are product bugs.
- * `packages/v1-subgraph-shim` answers the same schema from the fork's own logs.
- *
- * Unset in production, where this is exactly the public endpoint `envConfig`
- * already resolved for the build's network.
- */
-export const ensChain = {
-  ...envConfig.chain,
-  subgraphs: {
-    ...envConfig.chain.subgraphs,
-    ens: {
-      ...envConfig.chain.subgraphs.ens,
-      // Cast because ensjs types this as the string LITERAL it hardcoded, so
-      // any other value is a type error by construction. The literal is an
-      // artefact of the value being hardcoded, not a real constraint — the
-      // field is a URL, and the whole point here is that it is configurable.
-      url: (import.meta.env?.VITE_V1_SUBGRAPH_URL ||
-        envConfig.chain.subgraphs.ens
-          .url) as typeof envConfig.chain.subgraphs.ens.url,
-    },
-  },
-}
+// A user-chosen RPC replaces the defaults entirely: no fallback, so requests
+// never leak to the default providers.
+export const fallbackTransport = match(getCustomRpcUrl())
+  .with(null, () => defaultTransport)
+  .with(P.string.regex(WEBSOCKET_URL), (url) => webSocket(url))
+  .with(P.string, (url) => http(url, { retryCount: 2, batch: { wait: 10 } }))
+  .exhaustive()
+
+// The build's network, mainnet or Sepolia, with its ENS contracts.
+export const ensChain = envConfig.chain
 
 // Injected wallets (MetaMask, Coinbase extension, Rabby, …) are discovered via
 // EIP-6963, so WalletConnect is the only explicit connector. We skip the

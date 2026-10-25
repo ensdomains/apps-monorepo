@@ -91,17 +91,29 @@ export const readV1NamesForAddress = ResultFn(async function* (
 ) {
   const names = yield* listV1Names(client, address, options)
   const records = yield* lookupRecords(client, names, options)
+  const held = new Set(records.map(({ name }) => name))
   const parentNames = Array.from(
     new Set(
-      records
-        .filter(needsParentFuses)
-        .flatMap((record) => parentNameOf(record.name) ?? []),
+      records.flatMap((record) => {
+        const parentName = parentNameOf(record.name)
+        if (!parentName || parentName === 'eth') return []
+        return needsParentFuses(record) || !held.has(parentName)
+          ? [parentName]
+          : []
+      }),
     ),
   )
   const parents = yield* lookupRecords(client, parentNames, options)
   const parentFuses = toParentFuses(parents)
+  const upgradedParents = new Set(
+    parents.flatMap(({ authority, name }) =>
+      authority === 'ens_v2' ? [name] : [],
+    ),
+  )
   return ok(
-    records.map((record) => toV1Domain(record, parentFuses, NAME_WRAPPER)),
+    records.map((record) =>
+      toV1Domain(record, parentFuses, NAME_WRAPPER, upgradedParents),
+    ),
   )
 })
 

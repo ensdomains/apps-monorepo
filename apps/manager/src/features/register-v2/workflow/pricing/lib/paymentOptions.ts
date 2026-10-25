@@ -1,0 +1,62 @@
+import { match, P } from 'ts-pattern'
+import type { L2Source } from '@/l2Sources'
+
+/** The payment row for the registration paid with USDC on an L2. */
+type L2PaymentOptionId = `l2:${number}:usdc`
+
+export const l2PaymentOptionId = (chainId: number): L2PaymentOptionId =>
+  `l2:${chainId}:usdc`
+
+type L2PaymentOptionStatus =
+  | 'loading'
+  | 'unavailable'
+  | 'insufficient'
+  | 'available'
+
+export type L2PaymentOption = Readonly<{
+  id: L2PaymentOptionId
+  source: L2Source
+  balanceRaw: bigint | null
+  status: L2PaymentOptionStatus
+}>
+
+// A balance must exceed what the HCA is sent: the route's fee comes on top.
+const getStatus = (
+  amountRaw: bigint | null,
+  isLoaded: boolean,
+  balanceRaw: bigint | null,
+): L2PaymentOptionStatus =>
+  match({ amountRaw, isLoaded, balanceRaw })
+    .returnType<L2PaymentOptionStatus>()
+    .with({ amountRaw: null }, { isLoaded: false }, () => 'loading')
+    .with({ balanceRaw: null }, () => 'unavailable')
+    // Nothing to bridge: the account's credit already covers the registration.
+    .with({ amountRaw: 0n }, () => 'available')
+    .with({ amountRaw: P.bigint, balanceRaw: P.bigint }, (option) =>
+      option.balanceRaw > option.amountRaw ? 'available' : 'insufficient',
+    )
+    .exhaustive()
+
+/**
+ * One row per L2 source. `amountRaw`, what paying from an L2 sends the HCA, is
+ * `null` until the registration's cost is quoted; a `null` balance is a failed
+ * read.
+ */
+export const getL2PaymentOptions = ({
+  sources,
+  balances,
+  amountRaw,
+}: {
+  readonly sources: readonly L2Source[]
+  readonly balances: Readonly<Record<number, bigint | null>> | undefined
+  readonly amountRaw: bigint | null
+}): readonly L2PaymentOption[] =>
+  sources.map((source) => {
+    const balanceRaw = balances?.[source.chain.id] ?? null
+    return {
+      id: l2PaymentOptionId(source.chain.id),
+      source,
+      balanceRaw,
+      status: getStatus(amountRaw, balances !== undefined, balanceRaw),
+    }
+  })

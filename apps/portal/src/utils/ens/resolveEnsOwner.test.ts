@@ -1,4 +1,4 @@
-import { zeroAddress } from 'viem'
+import { ContractFunctionRevertedError, zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockGetOwnerV1 = vi.fn()
@@ -6,11 +6,21 @@ const mockGetOwnerV2 = vi.fn()
 const mockGetNameRegistries = vi.fn()
 
 const V1_ETH_REGISTRY = '0x00000000000000000000000000000000000e1000'
+const NAME_WRAPPER = '0x00000000000000000000000000000000000f1aa5'
+
+const mockReadContract = vi.fn()
 
 vi.mock('@ensdomains/ensjs/chain', () => ({
-  // resolveEnsOwner only resolves a chain contract for the V1 fallback now;
-  // the V2 path reads everything by name via the UniversalHelper.
-  getChainContractAddress: () => V1_ETH_REGISTRY,
+  // The V2 path reads everything by name via the UniversalHelper; the V1
+  // fallback needs the legacy registry and, for wrapped names, the wrapper.
+  getChainContractAddress: ({ contract }: { contract: string }) =>
+    contract === 'ensNameWrapper' ? NAME_WRAPPER : V1_ETH_REGISTRY,
+}))
+
+vi.mock('viem/actions', () => ({ readContract: vi.fn() }))
+vi.mock('viem/utils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('viem/utils')>()),
+  getAction: () => mockReadContract,
 }))
 
 vi.mock('@ensdomains/ensjs/public/v1', () => ({
@@ -39,6 +49,7 @@ describe('resolveEnsOwner', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetOwnerV1.mockResolvedValue(null)
+    mockReadContract.mockReset()
     mockGetOwnerV2.mockResolvedValue(zeroAddress)
     mockGetNameRegistries.mockResolvedValue([zeroAddress, zeroAddress])
   })
@@ -182,5 +193,69 @@ describe('resolveEnsOwner', () => {
       registryAddress: V1_ETH_REGISTRY,
       protocolVersion: 'ENSv1',
     })
+  })
+
+  // WEB-1885: a parent whose subregistry has no registry behind it makes the
+  // UniversalHelper walk revert; the subname is unreachable in V2, not an error.
+  it('falls back to V1 when the V2 walk reverts on a registry along the path', async () => {
+    const revert = new ContractFunctionRevertedError({
+      abi: [],
+      functionName: 'findExactOwner',
+    })
+    mockGetOwnerV2.mockRejectedValueOnce(revert)
+    mockGetNameRegistries.mockRejectedValueOnce(revert)
+    mockGetOwnerV1.mockResolvedValueOnce({ owner: OWNER })
+
+    const result = await resolveEnsOwner(client, 'etest.sephy.eth')
+
+    expect(result).toEqual({
+      owner: OWNER,
+      registryAddress: V1_ETH_REGISTRY,
+      protocolVersion: 'ENSv1',
+    })
+  })
+
+  it('rethrows a V2 read that never reached the contract', async () => {
+    const transport = new Error('fetch failed')
+    mockGetOwnerV2.mockRejectedValueOnce(transport)
+
+    await expect(resolveEnsOwner(client, 'etest.sephy.eth')).rejects.toBe(
+      transport,
+    )
+    expect(mockGetOwnerV1).not.toHaveBeenCalled()
+  })
+
+  // Once a wrapped name's registration lapses the registrar names no
+  // registrant, so the read falls back to the registry slot, which holds the
+  // NameWrapper. Reporting that would hand the holder's own name to a contract.
+  it('reports the holder behind a wrapped name the registry attributes to the wrapper', async () => {
+    mockGetOwnerV1.mockResolvedValue({ owner: NAME_WRAPPER })
+    mockReadContract.mockResolvedValue([OWNER, 196608, 1794082860n])
+
+    const result = await resolveEnsOwner(client, 'lapsed.eth')
+
+    expect(result).toEqual({
+      owner: OWNER,
+      registryAddress: V1_ETH_REGISTRY,
+      protocolVersion: 'ENSv1',
+    })
+  })
+
+  it('keeps the registry owner when the wrapper has no holder to report', async () => {
+    mockGetOwnerV1.mockResolvedValue({ owner: NAME_WRAPPER })
+    mockReadContract.mockResolvedValue([zeroAddress, 0, 0n])
+
+    const result = await resolveEnsOwner(client, 'lapsed.eth')
+
+    expect(result?.owner).toBe(NAME_WRAPPER)
+  })
+
+  it('does not read the wrapper for an unwrapped name', async () => {
+    mockGetOwnerV1.mockResolvedValue({ owner: OWNER })
+
+    const result = await resolveEnsOwner(client, 'plain.eth')
+
+    expect(result?.owner).toBe(OWNER)
+    expect(mockReadContract).not.toHaveBeenCalled()
   })
 })

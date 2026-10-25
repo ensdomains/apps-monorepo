@@ -94,6 +94,7 @@ if [[ -n "$FUND_ADDRESS" ]]; then
   echo ""
   echo "=== Funding account: $FUND_ADDRESS ==="
   bash "$SCRIPT_DIR/fund-account.sh" "$FUND_ADDRESS"
+  bash "$SCRIPT_DIR/fund-rhinestone-account.sh" "$FUND_ADDRESS"
 fi
 
 echo ""
@@ -203,8 +204,7 @@ echo ""
 echo "=== Environment variables for the app ==="
 echo ""
 echo "  # Local bundler/paymaster (used by ERC-4337 fallback path)"
-echo "  VITE_SEPOLIA_RPC_URL=http://127.0.0.1:8545   (manager)"
-echo "  VITE_RPC_URL=http://127.0.0.1:8545           (explorer)"
+echo "  VITE_RPC_URL=http://127.0.0.1:8545   (manager and explorer)"
 echo "  VITE_PIMLICO_BUNDLER_URL=/bundler   (Vite proxy → 127.0.0.1:4337)"
 echo ""
 echo "  # Rhinestone path (default smart-account provider)"

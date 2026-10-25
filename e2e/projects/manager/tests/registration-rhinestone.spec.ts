@@ -62,7 +62,7 @@ import {
   assertV2Registered,
   V2Status,
 } from '../../../helpers/migration-assertions.js'
-import { createIndexerMock } from '../../../helpers/mock-indexer.js'
+import { createBignameMock } from '../../../helpers/mock-bigname.js'
 import type { PortalAccounts } from '../../../helpers/portal-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
@@ -71,7 +71,7 @@ const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
 test.describe('ENS name registration (Rhinestone HCA)', () => {
   test('registers a name via Rhinestone HCA headless wallet', {
     tag: ['@scenario:A2'],
-  }, async ({ connectedPage: page, mockIndexer, accounts, wallet }) => {
+  }, async ({ connectedPage: page, mockBigname, accounts, wallet }) => {
     const nameOnly = DOMAIN_TO_REGISTER.replace(/\.eth$/i, '')
     const searchInput = await findSearchInput(page)
     await searchInput.click()
@@ -88,7 +88,7 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     // picker. Click through it (the single ENABLE intent is auto-authorized via
     // PERMITTED_SIGN_KINDS); idempotent no-op in EOA mode.
     await clickThroughEnableSessions(page)
-    await page.getByRole('button', { name: 'Select USDC' }).click()
+    await page.getByRole('button', { name: 'Select USDC', exact: true }).click()
 
     createConsoleMonitor(page, {
       onStateChange: (state, allStates) => {
@@ -96,7 +96,10 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       },
     })
 
-    await page.getByRole('button', { name: /register name/i }).click()
+    await page
+      .getByRole('dialog', { name: 'Approve and register name' })
+      .getByRole('button', { name: /^(approve and register|register name)$/i })
+      .click()
 
     // RegistrationDetails (including the completion banner) stays hidden while
     // the parallel notification-settings region is waiting for a choice.
@@ -129,8 +132,8 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     // the registration on chain, not just that the UI believes it did.
     await assertV2Registered(nameOnly)
 
-    if (mockIndexer.enabled) {
-      mockIndexer.addName({
+    if (mockBigname.enabled) {
+      mockBigname.addName({
         name: DOMAIN_TO_REGISTER,
         owner: accounts.getAddress('user'),
       })
@@ -801,7 +804,7 @@ async function openSecondTab(
   options: { duplicate: boolean },
 ) {
   const page = await original.context().newPage()
-  await createIndexerMock().installIfEnabled(page)
+  await createBignameMock().installIfEnabled(page)
   const wallet = await injectHeadlessWeb3Provider({
     page,
     privateKeys: accounts.getAllPrivateKeys(),

@@ -1,5 +1,5 @@
 export const AVATAR_UPLOAD_BASE_URL =
-  'https://avatar-upload-staging.ens-cf.workers.dev'
+  'https://avatar-upload-staging.ens-cf.workers.dev/'
 
 /**
  * Hardcoded reverse map from a known agent-registry contract (chain + address)
@@ -117,15 +117,4 @@ export type ProfileTheme = (typeof PROFILE_THEMES)[number]
 export type ProfileThemePreview = ProfileTheme['preview']
 export type ThemeColorValue = ProfileTheme['value']
 
-export const THEME_COLORS: readonly {
-  readonly label: ProfileTheme['label']
-  readonly value: ThemeColorValue
-}[] = PROFILE_THEMES.map(({ label, value }) => ({ value, label }))
-
 export const DEFAULT_THEME_COLOR: ThemeColorValue = '#0082BB'
-
-export const THEME_COLOR_ALIASES = Object.fromEntries(
-  PROFILE_THEMES.flatMap((theme) =>
-    theme.aliases.map((alias) => [alias, theme.value]),
-  ),
-) as Record<string, ThemeColorValue>

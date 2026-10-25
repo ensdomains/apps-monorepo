@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   isSafeHttpUrl,
-  isSafeImageSrc,
   isSafeRecordHref,
   safeHttpHref,
   safeImageSrc,
@@ -41,8 +40,6 @@ describe('safeUrl helpers', () => {
   })
 
   it('uses http-only URLs for image sources', () => {
-    expect(isSafeImageSrc('https://example.com/a.png')).toBe(true)
-    expect(isSafeImageSrc('data:image/png;base64,abc')).toBe(false)
     expect(safeImageSrc('javascript:alert(1)')).toBeUndefined()
   })
 

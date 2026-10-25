@@ -1,4 +1,8 @@
-import type { Signer } from '@ens-apps/transaction-manager'
+import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
+import {
+  HcaFundingDeclinedError,
+  type HcaFundingPrompt,
+} from '@ens-apps/transaction-manager/helpers/hca-intent-funding'
 import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
@@ -7,25 +11,32 @@ import {
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import type { Address } from 'viem'
-import { assign, setup } from 'xstate'
+import type { Address, WalletClient } from 'viem'
+import { assign, fromPromise, setup } from 'xstate'
+import { envConfig } from '@/config'
+import { getExpiry } from '@/features/profile/service/profileExpiry'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import { getV1RenewableQueryOptions } from '@/features/renew/data/queries/v1Renewable.query'
+import { submitHcaRenewal } from '@/features/renew/service/hcaRenewal'
 import {
   getRenewerAddress,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
-import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 
-// Renewal is not an HCA flow: allowance check, approve and renew all run as
-// plain wallet transactions against the selected canonical renewer.
+// Two routes pay for a renewal. A smart-account signer renews as an
+// owner-signed HCA intent: no plain transactions, no gas token, and the rent
+// (in the chosen stable) and fee (in USDC) come out of the account, funded in
+// the same intent when short. An EOA signer keeps the direct-wallet route:
+// allowance check, approve and renew as plain wagmi transactions. `renew`
+// charges `msg.sender`, so each route pays as itself.
 
 type SubmissionData = {
   label: string
   duration: bigint
-  token: SUPPORTED_TOKEN
+  token: RENEWAL_TOKEN
   /** Price in token units */
   priceRaw: bigint
 
@@ -33,18 +44,23 @@ type SubmissionData = {
   priceNumber: number
 
   /**
-   * Renewal uses the DIRECT WALLET route: the connected EOA approves + renews
-   * with plain wagmi transactions (the scoped HCA session does not permit
-   * renewal). This is always an EOA signer.
+   * The account context's signer. `rhinestone` selects the intent route (the
+   * HCA pays, the owner key signs); `eoa` keeps the direct-wallet route.
    */
   signer: Signer
 
   /**
-   * EOA that pays the rent. `ETHRegistrar.renew` charges `_msgSender()` — the
-   * connected wallet on the direct route — so the allowance is read for and
-   * authorized by this EOA.
+   * EOA that funds the renewal from its wallet: it pays the rent on the direct
+   * route (`renew` charges `msg.sender`), and signs the intent plus any funding
+   * permit on the HCA route.
    */
   ownerAddress: Address
+
+  /**
+   * Owner wallet client. Signs the HCA intent and the EIP-2612 funding permit;
+   * unused on the direct route, where the signer is this wallet itself.
+   */
+  walletClient: WalletClient
 }
 
 const requireSubmissionData = (
@@ -54,6 +70,13 @@ const requireSubmissionData = (
   return submissionData
 }
 
+const requireRhinestoneSigner = (signer: Signer): RhinestoneSigner => {
+  if (signer.type !== 'rhinestone') {
+    throw new Error('The HCA renewal route needs a smart-account signer')
+  }
+  return signer
+}
+
 export const renewalUiMachine = setup({
   types: {
     context: {} as {
@@ -61,35 +84,43 @@ export const renewalUiMachine = setup({
       protocol: RenewalProtocol
       renewerAddress: Address
       duration: bigint
-      selectedToken: SUPPORTED_TOKEN | undefined
+      selectedToken: RENEWAL_TOKEN | undefined
       lastErrorMessage?: string
       submissionData?: SubmissionData
       approvalTxId?: string
       renewalTxId?: string
+      /**
+       * Parks the HCA funding on the user's answer. Lives in context so the
+       * invoked intent submit can reach the component that renders the prompt.
+       */
+      confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
     },
     input: {} as {
       currentExpiry: bigint
       protocol: RenewalProtocol
+      confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
     },
     events: {} as
       | { type: 'pricing.step.next' }
       | { type: 'pricing.step.previous' }
       | { type: 'pricing.dialog.dismiss' }
       | { type: 'pricing.duration.set'; duration: bigint }
-      | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+      | { type: 'pricing.token.select'; token: RENEWAL_TOKEN | undefined }
       | {
           type: 'renewal.start'
           label: string
           duration: bigint
-          token: SUPPORTED_TOKEN
+          token: RENEWAL_TOKEN
           /** Price in token units */
           priceRaw: bigint
           signer: Signer
           ownerAddress: Address
+          walletClient: WalletClient
 
           /** Formatted base price */
           priceNumber: number
         }
+      | { type: 'renewal.submitted'; txId: string }
       | { type: 'retry' }
       | { type: 'cancel' }
       | { type: 'label.changed' },
@@ -111,6 +142,16 @@ export const renewalUiMachine = setup({
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
       return pollTransactionStatusActor(input)
     }),
+    // The intent route submits and WAITS for the fill here, so there is nothing
+    // left to poll afterwards.
+    submitHcaRenewalIntent: fromPromise(
+      async ({ input }: { input: Parameters<typeof submitHcaRenewal>[0] }) =>
+        (await submitHcaRenewal(input)).txId,
+    ),
+    readExpiry: fromResultAsync(
+      (input: { name: string; protocol: RenewalProtocol }) =>
+        getExpiry(input.name, input.protocol),
+    ),
   },
   guards: {
     // The registrar already has enough allowance from the paying EOA, so no
@@ -118,6 +159,15 @@ export const renewalUiMachine = setup({
     hasSufficientAllowance: ({ context }, params: { allowance: bigint }) =>
       !!context.submissionData &&
       params.allowance >= context.submissionData.priceRaw,
+    // Read off the EVENT, not context: guards are evaluated before the
+    // transition's `startRenewal` assignment lands.
+    startsHcaRenewal: ({ event }) =>
+      event.type === 'renewal.start' && event.signer.type === 'rhinestone',
+    // Same question for a retry, whose event carries no signer.
+    isHcaRenewal: ({ context }) =>
+      context.submissionData?.signer.type === 'rhinestone',
+    alreadyRenewed: ({ context }, params: { expiry: bigint | null }) =>
+      params.expiry !== null && params.expiry > context.currentExpiry,
   },
   actions: {
     setDuration: assign({
@@ -155,6 +205,7 @@ export const renewalUiMachine = setup({
               priceRaw: event.priceRaw,
               priceNumber: event.priceNumber,
               ownerAddress: event.ownerAddress,
+              walletClient: event.walletClient,
             }
           : undefined,
     }),
@@ -195,6 +246,7 @@ export const renewalUiMachine = setup({
     ),
     selectedToken: undefined,
     lastErrorMessage: undefined,
+    confirmFunding: input.confirmFunding,
   }),
   initial: 'pricing',
   states: {
@@ -211,6 +263,7 @@ export const renewalUiMachine = setup({
             },
           },
         },
+        // One confirmation: picking the coin and starting the renewal happen here.
         tokens: {
           on: {
             'pricing.step.previous': {
@@ -219,33 +272,92 @@ export const renewalUiMachine = setup({
             'pricing.token.select': {
               actions: 'setToken',
             },
-            'pricing.step.next': {
-              guard: ({ context }) => context.selectedToken !== undefined,
-              target: 'confirm',
-            },
             'pricing.dialog.dismiss': {
               target: 'duration',
             },
-          },
-        },
-        confirm: {
-          on: {
-            'pricing.step.previous': {
-              target: 'tokens',
-            },
-            'pricing.dialog.dismiss': {
-              target: 'duration',
-            },
-            'renewal.start': {
-              target: '#renewalUi.checkingAllowance',
-              actions: 'startRenewal',
-            },
+            'renewal.start': [
+              {
+                // Smart-account signer: one owner-signed intent, paid out of
+                // the account itself.
+                guard: 'startsHcaRenewal',
+                target: '#renewalUi.submittingHcaRenewal',
+                actions: 'startRenewal',
+              },
+              {
+                target: '#renewalUi.checkingAllowance',
+                actions: 'startRenewal',
+              },
+            ],
           },
         },
       },
     },
-    // Read the connected EOA's current allowance to the registrar. Renewal is
-    // the DIRECT WALLET route: the EOA is `_msgSender()` and pays the rent.
+    // Smart-account route: ONE owner-signed intent renews the name and moves
+    // the USDC to pay for it (rent plus fee), so there is no approve
+    // transaction and no gas token. `submitHcaRenewal` resolves only once the
+    // intent has filled, so success needs no polling step of its own.
+    submittingHcaRenewal: {
+      tags: 'renewing',
+      // Until the intent is submitted the owner is still approving (the
+      // funding prompt, then the signature), so the payment dialog stays up
+      // as it does for registration; `renewalTxId` marks the hand-over.
+      on: {
+        'renewal.submitted': {
+          actions: assign({ renewalTxId: ({ event }) => event.txId }),
+        },
+      },
+      invoke: {
+        id: 'submitHcaRenewal',
+        src: 'submitHcaRenewalIntent',
+        input: ({ context, self }) => {
+          const submission = requireSubmissionData(context.submissionData)
+          return {
+            onSubmitted: (txId: string) =>
+              self.send({ type: 'renewal.submitted', txId }),
+            items: [{ label: submission.label, duration: submission.duration }],
+            renewerAddress: context.renewerAddress,
+            protocol: context.protocol,
+            token: submission.token,
+            signer: requireRhinestoneSigner(submission.signer),
+            ownerAddress: submission.ownerAddress,
+            walletClient: submission.walletClient,
+            publicClient,
+            chainId: envConfig.chain.id,
+            ...(context.confirmFunding
+              ? { confirmFunding: context.confirmFunding }
+              : {}),
+          }
+        },
+        onDone: {
+          target: 'success',
+          actions: [
+            assign({ renewalTxId: ({ event }) => event.output }),
+            'invalidateNameQueries',
+          ],
+        },
+        onError: [
+          {
+            // Declining the funding prompt is a cancel, not a failure: nothing
+            // was signed and nothing was spent, so hand the user back to the
+            // payment step instead of a failure screen (as the bulk route does).
+            guard: ({ event }) =>
+              event.error instanceof HcaFundingDeclinedError,
+            target: '#renewalUi.pricing.tokens',
+          },
+          {
+            target: 'failure',
+            actions: assign({
+              lastErrorMessage: ({ event }) =>
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Renewal failed',
+            }),
+          },
+        ],
+      },
+    },
+    // Read the connected EOA's current allowance to the registrar. This is the
+    // EOA fallback route: the EOA is `msg.sender` and pays the rent itself.
     checkingAllowance: {
       tags: 'renewing',
       invoke: {
@@ -396,13 +508,45 @@ export const renewalUiMachine = setup({
         },
       },
     },
+    // A failed attempt can still have renewed the name (it landed, but its wait
+    // errored), so a retry re-reads the expiry before paying again.
+    checkingRenewed: {
+      tags: 'renewing',
+      invoke: {
+        src: 'readExpiry',
+        input: ({ context }) => ({
+          name: `${requireSubmissionData(context.submissionData).label}.eth`,
+          protocol: context.protocol,
+        }),
+        onDone: [
+          {
+            guard: {
+              type: 'alreadyRenewed',
+              params: ({ event }) => ({ expiry: event.output.expiry }),
+            },
+            target: 'success',
+            actions: 'invalidateNameQueries',
+          },
+          // Intent route: the funding is quoted again inside the retry.
+          { guard: 'isHcaRenewal', target: 'submittingHcaRenewal' },
+          // EOA route: a prior approval may have landed, so start from the
+          // allowance check.
+          { target: 'checkingAllowance' },
+        ],
+        onError: {
+          target: 'failure',
+          actions: assign({
+            lastErrorMessage: () =>
+              "Couldn't confirm whether the last attempt renewed this name, so it wasn't retried. Please try again.",
+          }),
+        },
+      },
+    },
     success: {},
     failure: {
       on: {
-        // Retry from the allowance check: a prior attempt may have landed (skip
-        // to renew) and a fresh permit signature is needed otherwise.
         retry: {
-          target: 'checkingAllowance',
+          target: 'checkingRenewed',
           actions: [
             'clearFailure',
             assign({

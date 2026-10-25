@@ -4,7 +4,8 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { type GetOwnerErrorType, getOwner } from '@ensdomains/ensjs/public/v1'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, isAddressEqual, zeroAddress } from 'viem'
+import { isAddressEqual, zeroAddress } from 'viem'
+import { isSepoliaBuild } from '@/config'
 import { ensChain } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -23,7 +24,18 @@ export class GetDnsTldStatusError extends TaggedError('GetDnsTldStatusError')<{
  */
 export type DnsTldStatus =
   | { readonly type: 'standard' }
-  | { readonly type: 'custom'; readonly registrar: Address }
+  | { readonly type: 'custom' }
+
+/** TLDs the docs list as custom integrations; Sepolia's registry doesn't reflect these yet. */
+const CUSTOM_DNS_TLDS: ReadonlySet<string> = new Set([
+  'art',
+  'box',
+  'hiphop',
+  'club',
+  'kred',
+  'locker',
+  'luxe',
+])
 
 type GetDnsTldStatusParameters = {
   tld: string
@@ -32,6 +44,10 @@ type GetDnsTldStatusParameters = {
 export const getDnsTldStatus = ResultFn(async function* ({
   tld,
 }: GetDnsTldStatusParameters) {
+  if (isSepoliaBuild && CUSTOM_DNS_TLDS.has(tld.toLowerCase())) {
+    return ok<DnsTldStatus>({ type: 'custom' })
+  }
+
   const client = yield* safeGetClient()
 
   const ownerData = yield* fromPromise(
@@ -55,7 +71,7 @@ export const getDnsTldStatus = ResultFn(async function* ({
     return ok<DnsTldStatus>({ type: 'standard' })
   }
 
-  return ok<DnsTldStatus>({ type: 'custom', registrar: owner })
+  return ok<DnsTldStatus>({ type: 'custom' })
 })
 
 const getDnsTldStatusQueryKey = createQueryKey<

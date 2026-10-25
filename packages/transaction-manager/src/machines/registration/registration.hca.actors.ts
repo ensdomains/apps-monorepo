@@ -15,10 +15,13 @@
  *     validator keeps no session state. `sponsored: { gas:false,
  *     bridging:false, swaps:false }`, `feeAsset: 'USDC'` — execution costs are
  *     refunded from the HCA's USDC.
+ *     Paid from an L2, the permit pair is replaced by an L2 bridge before the
+ *     commit (`submitL2BridgeActor`): the wallet signs an intent there that
+ *     delivers the same amount to the HCA and runs nothing on Sepolia.
  *   - Reveal leg (after cooldown, session-signed, no wallet prompt):
  *       price re-read immediately before; exact-ordered reveal batch from
  *       `buildRevealBatch` (deployProxy? → approve(price) → register(wallet) →
- *       setters → setNameWithHCA?).
+ *       setters → setNameWithHCA? → claimWithHCA?).
  */
 
 import { requireChainId } from '@ens-apps/config'
@@ -32,6 +35,8 @@ import {
   type HcaBudgetBreakdown,
   type Call as HcaCall,
   type HcaLeg,
+  hasAddrReverseResolver,
+  L2_BRIDGE_MAX_PERMIT_LIFETIME_S,
   type QuoteLegResult,
   readCommitment,
   readQuotedGasRefunds,
@@ -39,6 +44,7 @@ import {
   registerLegGasLimit,
   withBudgetDrift,
 } from '@ens-apps/smart-account'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { ethRegistrarCommitmentsSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import {
   permissionedRegistryGetResolverSnippet,
@@ -50,9 +56,18 @@ import {
   errAsync,
   fromPromise,
   fromThrowable,
+  ok,
+  type Result,
   type ResultAsync,
 } from 'neverthrow'
-import type { Address, Chain, Hash, Hex, PublicClient } from 'viem'
+import type {
+  Address,
+  Chain,
+  Hash,
+  Hex,
+  PublicClient,
+  WalletClient,
+} from 'viem'
 import {
   bytesToHex,
   encodeFunctionData,
@@ -67,15 +82,21 @@ import {
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
 import { normalize } from 'viem/ens'
 import { transactionManager } from '../../providers/transactionManager'
-import type { RhinestoneSigner, Signer } from '../../types/signer.types'
+import type {
+  L2FundingSource,
+  RhinestoneSigner,
+  Signer,
+} from '../../types/signer.types'
 import type {
   Call,
   RhinestoneTransactionRequest,
   SessionEnableData,
 } from '../../types/transaction.types'
 import {
+  type DaiPermitSignature,
   type PermitSignature,
   pollUntilVerified,
+  sleepUnlessAborted,
   type VerifyPollOptions,
 } from './registration.actors'
 
@@ -480,7 +501,9 @@ export function estimateHcaBudgetActor(input: {
             // → 3277666 both times). The rail prices `/intents/route` purely
             // on `destinationGasUnits`, so what actually funds these calls is
             // `registerLegGasLimit` below, built from the same inputs.
-            ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
+            ...(input.primaryName
+              ? { setPrimaryName: input.primaryName, clearAddrReverse: true }
+              : {}),
           })
           return quoteIntentSpendUsdc(
             rhinestone.account,
@@ -612,6 +635,8 @@ function buildUserPaidRequest(params: {
    * needs telling.
    */
   incomingUsdc?: bigint
+  /** USDC (6dp) an L2 payment delivers to the HCA. */
+  deliveredUsdc?: bigint
 }): RhinestoneTransactionRequest {
   const contracts = getDestinationContracts(params.chainId)
   return {
@@ -623,6 +648,13 @@ function buildUserPaidRequest(params: {
       feeAsset: 'USDC',
       ...(params.sessionEnableData
         ? { sessionEnableData: params.sessionEnableData }
+        : {}),
+      ...(params.deliveredUsdc !== undefined
+        ? {
+            tokenRequests: [
+              { address: contracts.usdc, amount: params.deliveredUsdc },
+            ],
+          }
         : {}),
       ...(params.incomingUsdc !== undefined && params.incomingUsdc > 0n
         ? {
@@ -656,6 +688,41 @@ export function readHcaUsdcBalanceActor(input: {
   )
 }
 
+const HCA_CREDIT_POLL_MS = 4_000
+const HCA_CREDIT_WAIT_MS = 2 * 60_000
+
+/**
+ * The HCA's balance once a read shows at least `atLeast`, which a bridge that
+ * landed guarantees: a lagging node still reads the balance from before it.
+ * Gives the last read after `timeoutMs`, as a balance spent since never gets there.
+ */
+export const readHcaUsdcBalanceAtLeastActor = ResultFn(async function* (input: {
+  readonly hca: Address
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly atLeast: bigint
+  readonly signal?: AbortSignal
+  readonly pollIntervalMs?: number
+  readonly timeoutMs?: number
+}) {
+  const deadline = Date.now() + (input.timeoutMs ?? HCA_CREDIT_WAIT_MS)
+  let balance: bigint | undefined
+  let read: Result<bigint, Error>
+  do {
+    read = await readHcaUsdcBalanceActor(input)
+    if (read.isOk()) {
+      balance = read.value
+      if (balance >= input.atLeast) return ok(balance)
+    }
+    await sleepUnlessAborted(
+      input.pollIntervalMs ?? HCA_CREDIT_POLL_MS,
+      input.signal,
+    )
+  } while (!input.signal?.aborted && Date.now() < deadline)
+  // No read succeeded, so the last one's error is the result.
+  return ok(balance ?? (yield* read))
+})
+
 /**
  * Bounds a funding permit's value must satisfy before the wallet is asked to
  * sign it. Both are optional and independent — each rules out a different way
@@ -663,37 +730,84 @@ export function readHcaUsdcBalanceActor(input: {
  */
 export interface PermitValueBounds {
   /**
-   * Ceiling (USDC 6dp) derived WITHOUT the orchestrator's figures — the
-   * on-chain registration price plus a fixed execution-cost margin
-   * (`hcaBudgetMaximum`). Catches a quote that is simply too large, whatever
-   * the user was or was not shown.
+   * Ceiling (in the permitted token's units) derived WITHOUT the
+   * orchestrator's figures — the on-chain registration price plus a fixed
+   * execution-cost margin (`hcaBudgetMaximum`). Catches a quote that is simply
+   * too large, whatever the user was or was not shown.
    */
   readonly expectedMaximum?: bigint
   /**
-   * The USDC (6dp) figure the user was shown for THIS debit before the prompt.
-   * Catches a value that is plausible on its own but is not the one consented
-   * to. Only an upward divergence beyond `withBudgetDrift` refuses: being asked
-   * to approve less than was displayed has not misled anyone, and the two
-   * figures come from separate quotes that legitimately drift with gas.
+   * The figure (same units) the user was shown for THIS debit before the
+   * prompt. Catches a value that is plausible on its own but is not the one
+   * consented to. Only an upward divergence beyond `withBudgetDrift` refuses:
+   * being asked to approve less than was displayed has not misled anyone, and
+   * the two figures come from separate quotes that legitimately drift with gas.
    */
   readonly displayedValue?: bigint
 }
+
+/** Which permit a token implements. */
+export type PermitKind = 'eip2612' | 'dai-legacy'
+
+/** The token a funding permit is signed over. */
+export interface PermitToken {
+  readonly address: Address
+  readonly symbol: string
+  readonly decimals: number
+  /**
+   * Which permit shape the token implements. Defaults to EIP-2612.
+   *
+   * Mainnet DAI predates the EIP and only has its own `permit`, so it must be
+   * declared as `'dai-legacy'`. Testnet DAI mocks do implement EIP-2612.
+   */
+  readonly permitKind?: PermitKind
+}
+
+/**
+ * What a funding permit pays for, in the words its errors use. Registration is
+ * the default; standalone intents (renewal, primary name, records) pass theirs.
+ */
+export interface PermitPurpose {
+  /** What the permit funds, e.g. "the registration". */
+  readonly subject: string
+  /** Where the user saw the amount, e.g. "at checkout". */
+  readonly shownAt: string
+  /** Why the amount can exceed the price the user saw. */
+  readonly costNote: string
+}
+
+export const REGISTRATION_PERMIT_PURPOSE: PermitPurpose = {
+  subject: 'the registration',
+  shownAt: 'at checkout',
+  costNote:
+    'The funding amount covers the registration price plus the execution ' +
+    'costs of both the commit and register legs, so it is larger than the ' +
+    'price shown at checkout.',
+}
+
+const USDC_PERMIT_UNITS = { symbol: 'USDC', decimals: 6 } as const
 
 /**
  * Why this permit value must not be signed, or `null` when it is in bounds.
  *
  * Pure and exported so the refusal is testable without a wallet: the whole
  * point of the check is that it happens BEFORE any signature is requested.
+ * Amounts are in `token`'s units, USDC by default.
  */
 export function rejectPermitValue(
   value: bigint,
   bounds: PermitValueBounds,
+  token: Pick<PermitToken, 'symbol' | 'decimals'> = USDC_PERMIT_UNITS,
+  purpose: PermitPurpose = REGISTRATION_PERMIT_PURPOSE,
 ): string | null {
+  const amount = (units: bigint) =>
+    `${formatUnits(units, token.decimals)} ${token.symbol}`
+
   if (bounds.expectedMaximum !== undefined && value > bounds.expectedMaximum) {
     return (
       `Refusing to request a signature: the funding permit would authorize ` +
-      `${formatUnits(value, 6)} USDC, above the expected maximum of ` +
-      `${formatUnits(bounds.expectedMaximum, 6)} USDC for this registration. ` +
+      `${amount(value)}, above the expected maximum of ` +
+      `${amount(bounds.expectedMaximum)} for ${purpose.subject}. ` +
       `The amount is quoted by the payment relayer and this bound is computed ` +
       `independently from the on-chain price, so a value above it means the ` +
       `quote cannot be trusted.`
@@ -705,10 +819,9 @@ export function rejectPermitValue(
     if (value > allowed) {
       return (
         `Refusing to request a signature: the funding permit would authorize ` +
-        `${formatUnits(value, 6)} USDC, but ` +
-        `${formatUnits(bounds.displayedValue, 6)} USDC was shown at checkout. ` +
-        `Please start the registration again so the amount you approve is the ` +
-        `amount you were quoted.`
+        `${amount(value)}, but ${amount(bounds.displayedValue)} was shown ` +
+        `${purpose.shownAt}. Please start ${purpose.subject} again so the ` +
+        `amount you approve is the amount you were quoted.`
       )
     }
   }
@@ -717,18 +830,29 @@ export function rejectPermitValue(
 }
 
 /**
- * Sign the HCA funding permit — the SECOND (and last) wallet prompt:
- * EIP-2612 permit with `owner = wallet`, `spender = HCA`, `value = budget`.
- *
- * NOT a registrar allowance: the registrar is paid by the HCA itself inside
- * the reveal batch (`approve(price)` from the HCA's own balance).
- *
- * `value` ultimately traces back to figures the orchestrator returned over
- * HTTP, so callers pass {@link PermitValueBounds} and this refuses outright
- * rather than prompting. Both are optional because one caller (a `hcaBudget`
- * override supplied by the app itself) has no orchestrator figure to bound.
+ * A resolved permit request: everything the wallet prompt must not happen
+ * without.
  */
-export function signFundingPermitActor(input: {
+interface FundingPermitContext {
+  readonly walletClient: WalletClient
+  readonly account: NonNullable<WalletClient['account']>
+  /** Current permit nonce for the wallet, read from the token. */
+  readonly nonce: bigint
+  /**
+   * Absolute Unix timestamp the permit expires at. DAI calls it `expiry`;
+   * EIP-2612 calls it `deadline`. They mean the same thing.
+   */
+  readonly expiry: bigint
+  readonly domain: {
+    readonly name: string
+    readonly version: string
+    readonly chainId: number
+    readonly verifyingContract: Address
+  }
+}
+
+/** The inputs both funding-permit shapes accept. */
+export interface SignFundingPermitInput {
   wallet: Address
   hca: Address
   value: bigint
@@ -736,14 +860,97 @@ export function signFundingPermitActor(input: {
   publicClient: PublicClient
   chainId: number
   bounds?: PermitValueBounds
-}): ResultAsync<PermitSignature, Error> {
-  // Before anything else, including the RPC reads: a refusal must never reach
-  // the wallet, and must not depend on a network round-trip succeeding first.
-  const refusal = input.bounds
-    ? rejectPermitValue(input.value, input.bounds)
-    : null
-  if (refusal) return errAsync(new Error(refusal))
+  /** The token permitted. Defaults to the deployment's USDC. */
+  token?: PermitToken
+  /** What the permit funds, for its errors. Defaults to a registration. */
+  purpose?: PermitPurpose
+}
 
+/** The token and purpose a permit is signed over, with the kind defaulted. */
+const fundingPermitTerms = (
+  input: SignFundingPermitInput,
+): {
+  token: PermitToken & { permitKind: PermitKind }
+  purpose: PermitPurpose
+} => {
+  const token = input.token ?? {
+    address: getDestinationContracts(input.chainId).usdc,
+    symbol: 'USDC',
+    decimals: 6,
+  }
+  return {
+    token: { ...token, permitKind: token.permitKind ?? 'eip2612' },
+    purpose: input.purpose ?? REGISTRATION_PERMIT_PURPOSE,
+  }
+}
+
+/**
+ * Observability contract — do not remove. The resume e2e counts wallet
+ * prompts by matching this exact line, because the whole cost of a resumed
+ * registration is meant to be ONE permit re-signature: the permit is
+ * deliberately not persisted (1h deadline, untracked nonce), so
+ * `checkingAllowance → signingPermit` re-signs it. A second prompt means the
+ * flow restarted rather than resumed. Values are interpolated into the string,
+ * not passed as an object arg — Playwright's `msg.text()` renders object args
+ * as `JSHandle@object`, which is unmatchable.
+ */
+const logFundingPermit = (input: SignFundingPermitInput): void => {
+  console.log(
+    `📊 [TRANSACTION MANAGER] Funding permit signing: wallet=${input.wallet} value=${input.value.toString()}`,
+  )
+}
+
+/** The permit's EIP-712 domain, preferring ERC-5267 and falling back to getters. */
+async function resolvePermitDomain(
+  publicClient: PublicClient,
+  token: PermitToken,
+  chainId: number,
+): Promise<FundingPermitContext['domain']> {
+  // Prefer ERC-5267 `eip712Domain()`; fall back to `name()` + `version()`.
+  // Circle's Sepolia USDC (FiatTokenV2_2) does NOT implement ERC-5267 (it
+  // reverts), and its EIP-712 domain version is "2" — so the fallback MUST
+  // read the token's `version()` getter, not assume "1", or the permit
+  // signature is computed over the wrong domain and reverts with
+  // `EIP2612: invalid signature`.
+  try {
+    const resolved = await getEip712Domain(publicClient, {
+      address: token.address,
+    })
+    return {
+      name: resolved.domain.name ?? '',
+      version: resolved.domain.version ?? '1',
+      chainId: Number(resolved.domain.chainId ?? chainId),
+      verifyingContract:
+        (resolved.domain.verifyingContract as Address) ?? token.address,
+    }
+  } catch {
+    const [name, version] = await Promise.all([
+      readContract(publicClient, {
+        address: token.address,
+        abi: erc2612Abi,
+        functionName: 'name',
+      }),
+      // `version()` is optional on ERC-2612 tokens; default to "1" only when
+      // the token doesn't expose it. DAI exposes it as the constant "1".
+      readContract(publicClient, {
+        address: token.address,
+        abi: erc2612Abi,
+        functionName: 'version',
+      }).catch(() => '1'),
+    ])
+    return { name, version, chainId, verifyingContract: token.address }
+  }
+}
+
+/**
+ * Check the signer, the wallet's balance and the token's domain, in that
+ * order, before either permit shape can reach the wallet.
+ */
+function prepareFundingPermit(
+  input: SignFundingPermitInput,
+  token: PermitToken & { permitKind: PermitKind },
+  purpose: PermitPurpose,
+): ResultAsync<FundingPermitContext, Error> {
   if (input.approvalSigner.type !== 'eoa') {
     return errAsync(
       new Error('Funding permit requires an EOA signer (the wallet).'),
@@ -762,19 +969,17 @@ export function signFundingPermitActor(input: {
     )
   }
 
-  const contracts = getDestinationContracts(input.chainId)
-
   return fromPromise(
     (async () => {
       const [nonce, walletBalance] = await Promise.all([
         readContract(input.publicClient, {
-          address: contracts.usdc,
+          address: token.address,
           abi: erc2612Abi,
           functionName: 'nonces',
           args: [input.wallet],
         }),
         readContract(input.publicClient, {
-          address: contracts.usdc,
+          address: token.address,
           abi: erc2612Abi,
           functionName: 'balanceOf',
           args: [input.wallet],
@@ -800,116 +1005,334 @@ export function signFundingPermitActor(input: {
       // A wallet holding between the two passes the UI and then fails
       // simulation, which is exactly the window this check closes.
       if (walletBalance < input.value) {
+        const amount = (value: bigint) =>
+          `${formatUnits(value, token.decimals)} ${token.symbol}`
         throw new Error(
-          `Insufficient USDC to fund the registration. Need ` +
-            `${formatUnits(input.value, 6)} USDC in ${input.wallet}, ` +
-            `but it holds ${formatUnits(walletBalance, 6)} USDC ` +
-            `(short by ${formatUnits(input.value - walletBalance, 6)} USDC). ` +
-            `The funding amount covers the registration price plus the ` +
-            `execution costs of both the commit and register legs, so it is ` +
-            `larger than the price shown at checkout.`,
+          `Insufficient ${token.symbol} to fund ${purpose.subject}. Need ` +
+            `${amount(input.value)} in ${input.wallet}, ` +
+            `but it holds ${amount(walletBalance)} ` +
+            `(short by ${amount(input.value - walletBalance)}). ` +
+            purpose.costNote,
         )
       }
 
-      // Prefer ERC-5267 `eip712Domain()`; fall back to `name()` + `version()`.
-      // Circle's Sepolia USDC (FiatTokenV2_2) does NOT implement ERC-5267 (it
-      // reverts), and its EIP-712 domain version is "2" — so the fallback MUST
-      // read the token's `version()` getter, not assume "1", or the permit
-      // signature is computed over the wrong domain and reverts with
-      // `EIP2612: invalid signature`.
-      let domain: {
-        name: string
-        version: string
-        chainId: number
-        verifyingContract: Address
-      }
-      try {
-        const resolved = await getEip712Domain(input.publicClient, {
-          address: contracts.usdc,
-        })
-        domain = {
-          name: resolved.domain.name ?? '',
-          version: resolved.domain.version ?? '1',
-          chainId: Number(resolved.domain.chainId ?? input.chainId),
-          verifyingContract:
-            (resolved.domain.verifyingContract as Address) ?? contracts.usdc,
-        }
-      } catch {
-        const [name, version] = await Promise.all([
-          readContract(input.publicClient, {
-            address: contracts.usdc,
-            abi: erc2612Abi,
-            functionName: 'name',
-          }),
-          // `version()` is optional on ERC-2612 tokens; default to "1" only
-          // when the token doesn't expose it.
-          readContract(input.publicClient, {
-            address: contracts.usdc,
-            abi: erc2612Abi,
-            functionName: 'version',
-          }).catch(() => '1'),
-        ])
-        domain = {
-          name,
-          version,
-          chainId: input.chainId,
-          verifyingContract: contracts.usdc,
-        }
-      }
-
-      const deadline = BigInt(
+      const expiry = BigInt(
         Math.floor(Date.now() / 1000) + PERMIT_DEADLINE_SECONDS,
       )
-
-      // Observability contract — do not remove. The resume e2e counts wallet
-      // prompts by matching this exact line, because the whole cost of a
-      // resumed registration is meant to be ONE permit re-signature: the
-      // permit is deliberately not persisted (1h deadline, untracked nonce),
-      // so `checkingAllowance → signingPermit` re-signs it. A second prompt
-      // means the flow restarted rather than resumed. Values are interpolated
-      // into the string, not passed as an object arg — Playwright's
-      // `msg.text()` renders object args as `JSHandle@object`, which is
-      // unmatchable.
-      console.log(
-        `📊 [TRANSACTION MANAGER] Funding permit signing: wallet=${input.wallet} value=${input.value.toString()}`,
+      const domain = await resolvePermitDomain(
+        input.publicClient,
+        token,
+        input.chainId,
       )
 
-      const signature = await signTypedData(walletClient, {
-        account,
-        domain,
-        types: {
-          Permit: [
-            { name: 'owner', type: 'address' },
-            { name: 'spender', type: 'address' },
-            { name: 'value', type: 'uint256' },
-            { name: 'nonce', type: 'uint256' },
-            { name: 'deadline', type: 'uint256' },
-          ],
-        },
-        primaryType: 'Permit',
-        message: {
-          owner: input.wallet,
-          spender: input.hca,
-          value: input.value,
-          nonce,
-          deadline,
-        },
-      })
-
-      const { r, s, v, yParity } = parseSignature(signature)
-
-      return {
-        owner: input.wallet,
-        spender: input.hca,
-        value: input.value,
-        deadline,
-        v: Number(v ?? BigInt(yParity + 27)),
-        r,
-        s,
-      } satisfies PermitSignature
+      return { walletClient, account, nonce, expiry, domain }
     })(),
     (error) => (error instanceof Error ? error : new Error(String(error))),
   )
+}
+
+/** Funding the HCA from an L2: `amount` is what the permit would have carried. */
+export interface L2BridgePayment {
+  readonly source: L2FundingSource
+  readonly amount: bigint
+  readonly bounds?: PermitValueBounds
+  /** What checkout showed the L2 being charged, fee included. */
+  readonly displayedCharge?: bigint
+}
+
+/**
+ * Bridge the funding into the HCA from an L2: an intent the wallet signs
+ * there, delivering `payment.amount` and running nothing on Sepolia. Across
+ * runs an intent's Sepolia calls from its own handler, not the HCA, so the
+ * legs stay session-signed from the HCA once it is funded.
+ */
+export function submitL2BridgeActor(input: {
+  readonly hca: Address
+  readonly payment: L2BridgePayment
+  readonly signer: Signer
+  readonly publicClient: PublicClient
+  readonly id?: string
+  /** Receives the bridge intent's id once the orchestrator accepts it. */
+  readonly onIntentSubmitted?: (intentId: bigint) => void
+}): ResultAsync<string, Error> {
+  const { payment, signer } = input
+  // Like the permit: a refusal must never reach the wallet.
+  const refusal =
+    payment.bounds && rejectPermitValue(payment.amount, payment.bounds)
+  if (refusal) return errAsync(new Error(refusal))
+  if (signer.type !== 'rhinestone') {
+    return errAsync(new Error('Paying from an L2 needs the HCA signer.'))
+  }
+  return fromPromise(
+    (async () => {
+      const chainId = requireChainId(input.publicClient, 'HCA registration')
+      const request = buildUserPaidRequest({
+        from: input.hca,
+        chainId,
+        calls: [],
+        deliveredUsdc: payment.amount,
+      })
+      return transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request: {
+            ...request,
+            rhinestoneParams: {
+              ...request.rhinestoneParams,
+              onIntentSubmitted: input.onIntentSubmitted,
+            },
+          },
+        },
+        // The wallet signs this one itself, so no session goes with it.
+        {
+          type: 'rhinestone',
+          account: signer.account,
+          config: signer.config,
+          l2Funding: payment.source,
+          l2DisplayedCharge: payment.displayedCharge,
+        },
+        {
+          id: input.id,
+          description: `Pay from ${payment.source.chain.name}`,
+          publicClient: input.publicClient,
+          timeout: 120_000,
+          // A resend would ask the wallet to sign a second payment.
+          retryCount: 0,
+        },
+      )
+    })(),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
+}
+
+const L2_BRIDGE_POLL_MS = 4_000
+const L2_BRIDGE_WAIT_MS = 10 * 60_000
+
+/**
+ * How long after its id reaches the machine a bridge can still be claimed: its
+ * permit's deadline is at most this far past signing, which came first.
+ */
+export const L2_BRIDGE_CLAIMABLE_MS =
+  Number(L2_BRIDGE_MAX_PERMIT_LIFETIME_S) * 1_000
+
+/** What a bridge's status settles it as, or undefined to keep waiting. */
+const l2BridgeVerdict = (
+  status: string | null,
+  claimableUntil: number,
+): 'landed' | 'dead' | undefined => {
+  if (status === 'FILLED' || status === 'COMPLETED') return 'landed'
+  if (status === 'FAILED' || status === 'EXPIRED') return 'dead'
+  // A submission whose answer was lost may still arrive until then.
+  if (status === 'NOT_FOUND' && Date.now() >= claimableUntil) return 'dead'
+  return undefined
+}
+
+/**
+ * Settle a bridge an earlier attempt (or tab) already sent before paying
+ * again: `'landed'` once it filled, `'dead'` once the orchestrator gives up on
+ * it, or once it is still unknown to the orchestrator after `claimableUntil`.
+ * Anything else keeps waiting, and running out of time is an error, so an
+ * unconfirmed payment is never followed by a second one.
+ */
+export function awaitL2BridgeActor(input: {
+  readonly intentId: bigint
+  /** Epoch ms past which the bridge's permit can no longer be claimed. */
+  readonly claimableUntil: number
+  readonly fetchIntentStatus?: (
+    intentId: bigint,
+    signal?: AbortSignal,
+  ) => Promise<string | null>
+  readonly signal?: AbortSignal
+  readonly pollIntervalMs?: number
+  readonly timeoutMs?: number
+}): ResultAsync<'landed' | 'dead', Error> {
+  const { fetchIntentStatus, signal } = input
+  if (!fetchIntentStatus) {
+    return errAsync(
+      new Error('Cannot check the earlier L2 payment, so not paying again.'),
+    )
+  }
+  const deadline = Date.now() + (input.timeoutMs ?? L2_BRIDGE_WAIT_MS)
+  return fromPromise(
+    (async () => {
+      while (!signal?.aborted && Date.now() < deadline) {
+        const verdict = l2BridgeVerdict(
+          await fetchIntentStatus(input.intentId, signal),
+          input.claimableUntil,
+        )
+        if (verdict) return verdict
+        await sleepUnlessAborted(
+          input.pollIntervalMs ?? L2_BRIDGE_POLL_MS,
+          signal,
+        )
+      }
+      throw new Error(
+        'The earlier L2 payment has not settled yet, so not paying again. ' +
+          'Try again in a few minutes.',
+      )
+    })(),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
+}
+
+/**
+ * Sign the HCA funding permit — the SECOND (and last) wallet prompt:
+ * EIP-2612 permit with `owner = wallet`, `spender = HCA`, `value = budget`.
+ *
+ * NOT a registrar allowance: the registrar is paid by the HCA itself inside
+ * the reveal batch (`approve(price)` from the HCA's own balance).
+ *
+ * `value` ultimately traces back to figures the orchestrator returned over
+ * HTTP, so callers pass {@link PermitValueBounds} and this refuses outright
+ * rather than prompting. Both are optional because one caller (a `hcaBudget`
+ * override supplied by the app itself) has no orchestrator figure to bound.
+ */
+export function signFundingPermitActor(
+  input: SignFundingPermitInput,
+): ResultAsync<PermitSignature, Error> {
+  const { token, purpose } = fundingPermitTerms(input)
+
+  // Before anything else, including the RPC reads: a refusal must never reach
+  // the wallet, and must not depend on a network round-trip succeeding first.
+  const refusal = input.bounds
+    ? rejectPermitValue(input.value, input.bounds, token, purpose)
+    : null
+  if (refusal) return errAsync(new Error(refusal))
+
+  return prepareFundingPermit(input, token, purpose).andThen((context) =>
+    fromPromise(
+      (async () => {
+        logFundingPermit(input)
+
+        const signature = await signTypedData(context.walletClient, {
+          account: context.account,
+          domain: context.domain,
+          types: {
+            Permit: [
+              { name: 'owner', type: 'address' },
+              { name: 'spender', type: 'address' },
+              { name: 'value', type: 'uint256' },
+              { name: 'nonce', type: 'uint256' },
+              { name: 'deadline', type: 'uint256' },
+            ],
+          },
+          primaryType: 'Permit',
+          message: {
+            owner: input.wallet,
+            spender: input.hca,
+            value: input.value,
+            nonce: context.nonce,
+            deadline: context.expiry,
+          },
+        })
+
+        const { r, s, v, yParity } = parseSignature(signature)
+
+        return {
+          owner: input.wallet,
+          spender: input.hca,
+          value: input.value,
+          deadline: context.expiry,
+          v: Number(v ?? BigInt(yParity + 27)),
+          r,
+          s,
+        } satisfies PermitSignature
+      })(),
+      (error) => (error instanceof Error ? error : new Error(String(error))),
+    ),
+  )
+}
+
+/**
+ * Sign DAI's legacy funding permit.
+ *
+ * Mainnet DAI predates EIP-2612 and signs a different struct: `holder`,
+ * `spender`, `nonce`, `expiry`, `allowed`, with no per-value amount. The
+ * on-chain `permit` can only set the allowance to `type(uint256).max` (or
+ * zero), so `allowed` is always `true` and the caller must disclose the
+ * unlimited allowance to the user before this is called.
+ *
+ * `expiry` is absolute, like EIP-2612's `deadline`, so the same one-hour
+ * deadline applies. The nonce is the same `nonces(address)` getter.
+ */
+export function signDaiFundingPermitActor(
+  input: SignFundingPermitInput,
+): ResultAsync<DaiPermitSignature, Error> {
+  const { token, purpose } = fundingPermitTerms(input)
+
+  // Same order as the EIP-2612 signer: refuse a bad value before any RPC.
+  const refusal = input.bounds
+    ? rejectPermitValue(input.value, input.bounds, token, purpose)
+    : null
+  if (refusal) return errAsync(new Error(refusal))
+
+  return prepareFundingPermit(input, token, purpose).andThen((context) =>
+    fromPromise(
+      (async () => {
+        logFundingPermit(input)
+
+        const signature = await signTypedData(context.walletClient, {
+          account: context.account,
+          domain: context.domain,
+          types: {
+            Permit: [
+              { name: 'holder', type: 'address' },
+              { name: 'spender', type: 'address' },
+              { name: 'nonce', type: 'uint256' },
+              { name: 'expiry', type: 'uint256' },
+              { name: 'allowed', type: 'bool' },
+            ],
+          },
+          primaryType: 'Permit',
+          message: {
+            holder: input.wallet,
+            spender: input.hca,
+            nonce: context.nonce,
+            expiry: context.expiry,
+            allowed: true,
+          },
+        })
+
+        const { r, s, v, yParity } = parseSignature(signature)
+
+        return {
+          holder: input.wallet,
+          spender: input.hca,
+          nonce: context.nonce,
+          expiry: context.expiry,
+          allowed: true,
+          v: Number(v ?? BigInt(yParity + 27)),
+          r,
+          s,
+        } satisfies DaiPermitSignature
+      })(),
+      (error) => (error instanceof Error ? error : new Error(String(error))),
+    ),
+  )
+}
+
+/**
+ * A signed funding permit in whichever shape the token implements.
+ *
+ * Carries `kind` alongside the signature so the caller encodes the matching
+ * `permit(...)` overload instead of inferring it from the address.
+ */
+export type FundingPermit =
+  | ({ readonly kind: 'eip2612' } & PermitSignature)
+  | ({ readonly kind: 'dai-legacy' } & DaiPermitSignature)
+
+/** Sign the permit `input.token` actually implements, defaulting to EIP-2612. */
+export function signFundingPermitForTokenActor(
+  input: SignFundingPermitInput,
+): ResultAsync<FundingPermit, Error> {
+  const kind = input.token?.permitKind ?? 'eip2612'
+  if (kind === 'dai-legacy') {
+    return signDaiFundingPermitActor(input).map((permit) => ({
+      kind,
+      ...permit,
+    }))
+  }
+  return signFundingPermitActor(input).map((permit) => ({ kind, ...permit }))
 }
 
 /**
@@ -1237,6 +1660,14 @@ export function submitRevealBatchActor(input: {
         hca: input.hca,
       })
 
+      const clearAddrReverse = input.primaryName
+        ? await hasAddrReverseResolver({
+            publicClient: input.publicClient,
+            chainId,
+            wallet: input.wallet,
+          })
+        : false
+
       const revealCalls = buildRevealBatch({
         chainId,
         hca: input.hca,
@@ -1247,7 +1678,9 @@ export function submitRevealBatchActor(input: {
         secret: input.secret,
         price,
         duration: input.duration,
-        ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
+        ...(input.primaryName
+          ? { setPrimaryName: input.primaryName, clearAddrReverse }
+          : {}),
       })
 
       const request = buildUserPaidRequest({

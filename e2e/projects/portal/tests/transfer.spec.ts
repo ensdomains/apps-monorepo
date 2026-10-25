@@ -792,7 +792,7 @@ test.describe('Portal name transfer', () => {
    * toggle — they don't care about real subname counts. Mock
    * `getRegistryOccupants` instead of waiting on Panoptes to discover the
    * freshly-deployed subregistry (see the `mockIndexer` fixture and
-   * `mock-indexer.ts` — Panoptes' CREATE2-discovery for new subregistries is
+   * `mock-bigname.ts` — Panoptes' CREATE2-discovery for new subregistries is
    * currently stuck, so the real query hangs indefinitely on a fresh one).
    */
   test.describe('registry-detach toggle rows (mocked occupant count)', () => {

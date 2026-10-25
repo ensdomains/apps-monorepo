@@ -29,6 +29,14 @@ export const isConfirmationForSelection = (
   confirmation.name === name &&
   confirmation.ownerAddress.toLowerCase() === ownerAddress.toLowerCase()
 
+/** Resolver setup replaces something unless the name has neither a resolver nor an address. */
+export const isResolverSetupReplacing = (
+  confirmation: PrimaryNameConfirmation | null,
+): boolean =>
+  confirmation?.kind !== 'setup-resolver' ||
+  confirmation.hasResolver ||
+  confirmation.existingEthAddress !== null
+
 export const needsPrimaryNameConfirmation = (
   preparation: PrimaryNamePreparation,
   confirmed?: PrimaryNameConfirmation,
@@ -37,7 +45,10 @@ export const needsPrimaryNameConfirmation = (
   (!confirmed ||
     confirmed.kind !== preparation.kind ||
     confirmed.existingEthAddress?.toLowerCase() !==
-      preparation.existingEthAddress?.toLowerCase())
+      preparation.existingEthAddress?.toLowerCase() ||
+    (preparation.kind === 'setup-resolver' &&
+      confirmed.kind === 'setup-resolver' &&
+      confirmed.hasResolver !== preparation.hasResolver))
 
 export function getPrimaryNamePage<
   TDomain extends Parameters<typeof resolveDomainLabel>[0],

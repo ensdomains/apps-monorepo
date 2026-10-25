@@ -568,12 +568,15 @@ describe('resolveAvatarDataUri (worker)', () => {
         'https://portal.example/og/victim.eth.png',
         'portal.example.',
       ],
-    ])('rejects the worker’s own host, preventing /og self-recursion: %s', async (_label, record, selfHost) => {
-      const result = await resolveAvatarDataUri(client, record, selfHost)
+    ])(
+      'rejects the worker’s own host, preventing /og self-recursion: %s',
+      async (_label, record, selfHost) => {
+        const result = await resolveAvatarDataUri(client, record, selfHost)
 
-      expect(result).toBeNull()
-      expect(fetchSpy).not.toHaveBeenCalled()
-    })
+        expect(result).toBeNull()
+        expect(fetchSpy).not.toHaveBeenCalled()
+      },
+    )
 
     it('blocks a redirect into a trailing-dot spelling of the worker’s host', async () => {
       // Re-validation must apply the same normalisation on every hop.

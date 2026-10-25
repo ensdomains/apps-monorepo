@@ -10,7 +10,7 @@
  */
 
 import { originFromEnvUrl } from '@ens-apps/config'
-import { envConfig } from '@/config'
+import { envConfig, l2Sources } from '@/config'
 
 import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
 
@@ -30,7 +30,7 @@ const COMMEMORATIVE_ASSET_ORIGIN = getCommemorativeNftConfig().assetOrigin
 // covered below rather than read from env a second time.
 const OVERRIDE_CONNECT_ORIGINS = [
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
-  originFromEnvUrl(import.meta.env?.VITE_API_URL),
+  originFromEnvUrl(import.meta.env?.VITE_API_URL || envConfig.appApiUrl),
   originFromEnvUrl(import.meta.env?.VITE_RHINESTONE_ENDPOINT_URL),
   COMMEMORATIVE_ASSET_ORIGIN,
   DQA_ORIGIN,
@@ -45,6 +45,11 @@ const DEFAULT_CONNECT_HOSTS = [
   // the transports read, so an endpoint change can never be silently blocked.
   // Relative primaries (`/rpc` in e2e) yield null and are covered by 'self'.
   ...envConfig.rpcUrls
+    .map(originFromEnvUrl)
+    .filter((origin): origin is string => origin !== null),
+  // The L2 bridge sources' RPCs (USDC balances, approval receipts).
+  ...l2Sources
+    .flatMap(({ rpcUrls }) => rpcUrls)
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
   // The indexer, resolved in `@/config`.

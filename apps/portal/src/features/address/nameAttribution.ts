@@ -47,14 +47,17 @@ const isRegistrarIssued = (name: string) => getNameType(name) === 'eth-2ld'
 
 /**
  * The registrar-issued names, out of those the registry says the address owns, that
- * it actually holds — the roots of every subtree the address controls.
+ * it actually holds — the roots of every subtree the address controls. `heldNames`
+ * is every name whose token the address holds, so a parent missing from the loaded
+ * history still counts.
  */
 const heldRegistrarNames = (
   names: readonly Pick<AttributableName, 'name' | 'registrarHolder'>[],
   address: Address,
+  heldNames: ReadonlySet<string>,
 ) =>
-  new Set(
-    names
+  new Set([
+    ...names
       .filter(
         ({ name, registrarHolder }) =>
           name &&
@@ -62,7 +65,8 @@ const heldRegistrarNames = (
           isSameAddress(registrarHolder, address),
       )
       .map(({ name }) => name as string),
-  )
+    ...[...heldNames].filter(isRegistrarIssued),
+  ])
 
 const isSameAddress = (
   a: string | null | undefined,
@@ -71,11 +75,17 @@ const isSameAddress = (
 
 type OwnableName = {
   readonly name: string | null
-  readonly v1Roles?: { readonly owner?: boolean } | null
+  readonly relations: readonly string[]
 }
 
-const holdsRegistrarName = ({ name, v1Roles }: OwnableName) =>
-  Boolean(name && isRegistrarIssued(name) && (!v1Roles || v1Roles.owner))
+// A registrar-issued name the address owns, or owned until a grace it can
+// still renew in.
+const holdsRegistrarName = ({ name, relations }: OwnableName) =>
+  Boolean(
+    name &&
+      isRegistrarIssued(name) &&
+      (relations.includes('owner') || relations.includes('former_owner')),
+  )
 
 /**
  * Decides whether a name's history may be presented as the address's own.
@@ -146,11 +156,10 @@ export const selectAcquiredNames = (
   groups: readonly NameHistoryGroup[],
   address: Address,
   senders: ReadonlyMap<string, Address> | undefined,
+  heldNames: ReadonlySet<string> = new Set(),
 ) => {
-  const heldNames = heldRegistrarNames(groups, address)
-  return groups.filter((group) =>
-    isAcquired(group, address, senders, heldNames),
-  )
+  const held = heldRegistrarNames(groups, address, heldNames)
+  return groups.filter((group) => isAcquired(group, address, senders, held))
 }
 
 /**
@@ -168,14 +177,15 @@ export const partitionAddressHistory = (
   groups: readonly NameHistoryGroup[],
   address: Address,
   senders: ReadonlyMap<string, Address> | undefined,
+  heldNames: ReadonlySet<string> = new Set(),
 ) => {
   const acquired: NameHistoryGroup['events'][number][] = []
   const assigned: NameHistoryGroup['events'][number][] = []
-  const heldNames = heldRegistrarNames(groups, address)
+  const held = heldRegistrarNames(groups, address, heldNames)
   let assignedNameCount = 0
 
   for (const group of groups) {
-    if (isAcquired(group, address, senders, heldNames)) {
+    if (isAcquired(group, address, senders, held)) {
       acquired.push(...group.events)
     } else {
       assigned.push(...group.events)

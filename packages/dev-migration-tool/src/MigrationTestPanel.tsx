@@ -8,7 +8,6 @@
  * Rendered only when `isMigrationToolEnabled()` — mounted by each app's root.
  */
 
-import { ensL1Subgraphs, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   type CSSProperties,
@@ -17,17 +16,18 @@ import {
   useEffect,
   useState,
 } from 'react'
-import { MIGRATION_TOOL_RPC } from './config'
+import { answerBignameRequest } from './bignameMock'
+import {
+  BIGNAME_API_URL,
+  isMigrationToolEnabled,
+  MIGRATION_TOOL_RPC,
+} from './config'
 import {
   type ActiveName,
-  buildMockDomains,
-  buildMockProfileRows,
   type CopyTargetState,
   createV1NameOnAnvil,
-  DEFAULT_ACCOUNT,
   ensureNamesOnAnvil,
   fullNamesFor,
-  getOnchainExpiries,
   ownershipTargetFor,
   PRESET_FAMILY,
   PRESETS,
@@ -43,50 +43,19 @@ import {
 } from './MigrationTestPanel.hooks'
 
 /**
- * The V1 subgraph endpoint the apps actually talk to, read from the same ensjs
- * chain config their clients are built from. Hardcoding the host is what
- * silently broke injection once before: ensjs moved Sepolia's V1 subgraph off
- * `ensnode.io`, the pattern stopped matching, and every panel-created name
- * looked non-existent (and therefore non-migratable) to the apps while real
- * subgraph-indexed names kept working.
+ * The request's route under bigname's base (a bigname.sh host, or the app's
+ * override, which may sit under a path or be root-relative), or null.
  */
-const V1_SUBGRAPH_URL = ensL1Subgraphs[supportedL1Chains.sepolia].ens.url
-
-/**
- * Whether a request is the V1 subgraph. Matches the configured endpoint first,
- * then falls back to any `/subgraph` path so a proxied or relocated endpoint
- * still gets injected — the V2 indexer serves `/graphql`, so there's no overlap.
- */
-function isV1SubgraphRequest(url: string): boolean {
-  if (url.startsWith(V1_SUBGRAPH_URL)) return true
-  try {
-    return new URL(url, window.location.origin).pathname.endsWith('/subgraph')
-  } catch {
-    return false
+function bignamePath(url: URL): string | null {
+  if (BIGNAME_API_URL !== undefined) {
+    const base = new URL(BIGNAME_API_URL, window.location.origin)
+    const prefix = base.pathname.replace(/\/+$/, '')
+    if (url.origin === base.origin && url.pathname.startsWith(`${prefix}/v1/`))
+      return url.pathname.slice(prefix.length)
   }
-}
-
-/** Extract the `name` GraphQL variable from a subgraph request body. */
-function migrationLookupName(body: string): string | undefined {
-  try {
-    const parsed = JSON.parse(body) as { variables?: { name?: string } }
-    return parsed.variables?.name
-  } catch {
-    return undefined
-  }
-}
-
-/**
- * All panel-created names are owned by DEFAULT_ACCOUNT (see buildMockDomain).
- * getNamesForAddress is address-scoped (owner/registrant/wrappedOwner filter),
- * so only inject the mocks when the query actually targets DEFAULT_ACCOUNT —
- * otherwise every address's profile would leak the connected wallet's names.
- * The address is embedded verbatim (lowercased) in the where filter, so a
- * substring check against the serialized body is sufficient and robust to the
- * exact filter shape.
- */
-function nameListTargetsMockOwner(body: string): boolean {
-  return body.toLowerCase().includes(DEFAULT_ACCOUNT.toLowerCase())
+  const isBigname =
+    url.hostname === 'bigname.sh' || url.hostname.endsWith('.bigname.sh')
+  return isBigname && url.pathname.startsWith('/v1/') ? url.pathname : null
 }
 
 // ---------------------------------------------------------------------------
@@ -102,101 +71,8 @@ export function setInjectedNames(names: ActiveName[]): void {
   _injectedNames = names
 }
 
-const jsonDomains = (domains: unknown[]): Response =>
-  new Response(JSON.stringify({ data: { domains } }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
-
-const realDomainsOf = async (
-  response: Promise<Response>,
-): Promise<unknown[]> => {
-  try {
-    const json = (await (await response).json()) as {
-      data?: { domains?: unknown[] }
-    }
-    return json?.data?.domains ?? []
-  } catch {
-    return [] /* subgraph unreachable */
-  }
-}
-
-/**
- * `getProfilesForDomains` answers "which text/addr keys does this name have".
- * The values are then read on-chain, so only the KEYS need injecting — but
- * without them the hosted subgraph is asked about Anvil-only names, returns
- * nothing, and record replay silently has nothing to replay.
- */
-const respondWithProfileRows = async (
-  body: string,
-  real: Promise<Response>,
-): Promise<Response> => {
-  let requestedIds: string[] | null = null
-  try {
-    const parsed = JSON.parse(body) as {
-      variables?: { whereFilter?: { id_in?: string[] } }
-    }
-    const ids = parsed.variables?.whereFilter?.id_in
-    if (Array.isArray(ids)) requestedIds = ids.map((id) => id.toLowerCase())
-  } catch {
-    /* inject everything we know about */
-  }
-  const mockRows = _injectedNames
-    .flatMap((name) => buildMockProfileRows(name))
-    .filter(
-      (row) => !requestedIds || requestedIds.includes(row.id.toLowerCase()),
-    )
-  return jsonDomains([...(await realDomainsOf(real)), ...mockRows])
-}
-
-/**
- * `getNamesForAddress` (the whole list) and `getV1DomainForMigration` (one name).
- *
- * The single-name lookup may ask about a CHILD of a `subname*` preset, so match
- * against every name a preset contributes, then narrow the emitted domains back
- * down to the one requested.
- */
-const respondWithNameDomains = async (
-  body: string,
-  isNameList: boolean,
-  real: Promise<Response>,
-): Promise<Response> => {
-  const lookupName = isNameList ? null : migrationLookupName(body)
-  const listInjected = nameListTargetsMockOwner(body) ? _injectedNames : []
-  const injected = isNameList
-    ? listInjected
-    : _injectedNames.filter((n) =>
-        lookupName ? fullNamesFor(n).includes(lookupName) : false,
-      )
-
-  const realDomains = await realDomainsOf(real)
-
-  // Reflect the live on-chain expiry (renewals/time-travel move it) rather than
-  // the value captured at creation — otherwise a renewed grace name still reads
-  // as expired and migration eligibility keeps hiding the upgrade banner.
-  const liveExpiries = await getOnchainExpiries(
-    MIGRATION_TOOL_RPC,
-    injected.map((name) => name.label),
-  )
-  // flatMap: a `subname*` preset contributes its 2LD *and* its child, so the
-  // migration list can show a hierarchy rather than the parent alone.
-  const mockDomains = injected
-    .flatMap((name, index) => {
-      const liveExpiry = liveExpiries[index]
-      return buildMockDomains(
-        liveExpiry != null ? { ...name, expiryDate: liveExpiry } : name,
-      )
-    })
-    .filter(
-      (domain) =>
-        !lookupName || (domain as { name?: string }).name === lookupName,
-    )
-
-  return jsonDomains([...realDomains, ...mockDomains])
-}
-
-;(function installSubgraphInterceptor() {
-  if (typeof window === 'undefined') return
+;(function installBignameInterceptor() {
+  if (typeof window === 'undefined' || !isMigrationToolEnabled()) return
   // HMR guard: store the true original fetch under a well-known key so that
   // re-executing this module (hot reload) doesn't double-wrap window.fetch.
   type W = typeof window & { __migToolOrigFetch?: typeof fetch }
@@ -208,36 +84,19 @@ const respondWithNameDomains = async (
     input: RequestInfo | URL,
     init?: RequestInit,
   ): Promise<Response> => {
-    const url =
+    const href =
       typeof input === 'string'
         ? input
         : input instanceof URL
           ? input.href
           : (input as Request).url
-
-    if (!isV1SubgraphRequest(url)) return origFetch(input, init)
-
-    // Two v1-subgraph queries need panel-created names injected:
-    //  - getNamesForAddress: the dashboard name list (returns all names).
-    //  - getV1DomainForMigration: the migration-status lookup, which filters
-    //    domains(where: { name: $name }) and must therefore be narrowed to just
-    //    the requested name — otherwise the upgrade banner never resolves for
-    //    Anvil-only names, since the real hosted subgraph can't see them.
-    const body = typeof init?.body === 'string' ? init.body : ''
-    const isNameList = body.includes('getNamesForAddress')
-    const isMigrationLookup = body.includes('getV1DomainForMigration')
-    //  - getProfilesForDomains: which text/addr keys a name has. The values are
-    //    then read on-chain, so only the KEYS need injecting — but without them
-    //    record replay has nothing to replay for Anvil-only names.
-    const isProfileLookup = body.includes('getProfilesForDomains')
-    if (!isNameList && !isMigrationLookup && !isProfileLookup)
+    const url = new URL(href, window.location.origin)
+    const path = bignamePath(url)
+    if (path === null || _injectedNames.length === 0)
       return origFetch(input, init)
-
-    if (isProfileLookup) {
-      return respondWithProfileRows(body, origFetch(input, init))
-    }
-
-    return respondWithNameDomains(body, isNameList, origFetch(input, init))
+    return answerBignameRequest(url, path, init, _injectedNames, () =>
+      origFetch(input, init),
+    )
   }
 })()
 

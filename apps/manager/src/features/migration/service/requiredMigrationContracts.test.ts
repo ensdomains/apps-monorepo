@@ -25,6 +25,7 @@ const select = (
       implementation: RESOLVER,
       hcaHasRootRoles: true,
       walletHasWildcardRoles: true,
+      writer: 'hca',
     },
     ownedResolver: RESOLVER,
     ...options,
@@ -48,22 +49,22 @@ const route = (
   ])
 
 describe('getRequiredMigrationContracts', () => {
-  it.each([
-    'unwrapped',
-    'unlocked',
-  ] as const)('requires only the %s route and owned resolver', (tokenType) => {
-    const name = makeClassified({ tokenType })
-    expect([...select([name], { directRoutes: route(name) })].sort()).toEqual(
-      [
-        'ETHRegistry',
-        'StandaloneHCAFactory',
-        'VerifiableFactory',
-        'MigrationHelper',
-        'UnlockedMigrationController',
-        'PermissionedResolverImpl',
-      ].sort(),
-    )
-  })
+  it.each(['unwrapped', 'unlocked'] as const)(
+    'requires only the %s route and owned resolver',
+    (tokenType) => {
+      const name = makeClassified({ tokenType })
+      expect([...select([name], { directRoutes: route(name) })].sort()).toEqual(
+        [
+          'ETHRegistry',
+          'StandaloneHCAFactory',
+          'VerifiableFactory',
+          'MigrationHelper',
+          'UnlockedMigrationController',
+          'PermissionedResolverImpl',
+        ].sort(),
+      )
+    },
+  )
 
   it('adds only the locked route, wrapper deployment and applicable public resolver set', () => {
     const name = makeClassified({
@@ -94,36 +95,37 @@ describe('getRequiredMigrationContracts', () => {
     expect(contracts).not.toContain('RootRegistry')
   })
 
-  it.each([
-    'locked-child',
-    'detached-child',
-  ] as const)('checks the parent wrapper for %s without requiring a root controller', (tokenType) => {
-    const name = makeClassified({
-      tokenType,
-      name: 'sub.alice.eth',
-      parentName: 'alice.eth',
-    })
-    const contracts = select([name], {
-      directRoutes: route(name, {
-        receiver: WRAPPER,
-        receiverReadiness: 'existing-verified-wrapper',
-        expectedWrapperRegistry: tokenType === 'locked-child' ? RESOLVER : null,
-      }),
-    })
-    expect(contracts).toEqual(
-      expect.arrayContaining([
-        'MigrationHelper',
-        'RootRegistry',
-        'ETHRegistry',
-        'WrapperRegistryImpl',
-      ]),
-    )
-    expect(contracts).not.toContain('LockedMigrationController')
-    expect(contracts).not.toContain('UnlockedMigrationController')
-    expect(contracts.includes('VerifiableFactoryProxyLogic')).toBe(
-      tokenType === 'locked-child',
-    )
-  })
+  it.each(['locked-child', 'detached-child'] as const)(
+    'checks the parent wrapper for %s without requiring a root controller',
+    (tokenType) => {
+      const name = makeClassified({
+        tokenType,
+        name: 'sub.alice.eth',
+        parentName: 'alice.eth',
+      })
+      const contracts = select([name], {
+        directRoutes: route(name, {
+          receiver: WRAPPER,
+          receiverReadiness: 'existing-verified-wrapper',
+          expectedWrapperRegistry:
+            tokenType === 'locked-child' ? RESOLVER : null,
+        }),
+      })
+      expect(contracts).toEqual(
+        expect.arrayContaining([
+          'MigrationHelper',
+          'RootRegistry',
+          'ETHRegistry',
+          'WrapperRegistryImpl',
+        ]),
+      )
+      expect(contracts).not.toContain('LockedMigrationController')
+      expect(contracts).not.toContain('UnlockedMigrationController')
+      expect(contracts.includes('VerifiableFactoryProxyLogic')).toBe(
+        tokenType === 'locked-child',
+      )
+    },
+  )
 
   it('retains a completed copy parent without requiring its migration or redeployment', () => {
     const parent = makeClassified()

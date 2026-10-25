@@ -15,16 +15,45 @@ const walletClient = {
   account: { address: OWNER },
 } as WalletClient
 
-const startActor = (records = defaultProfileRecords) => {
-  const actor = createActor(editProfileDialogMachine, { input: { records } })
+const startActor = (
+  records = defaultProfileRecords,
+  name = 'transferred.eth',
+) => {
+  const actor = createActor(editProfileDialogMachine, {
+    input: { name, records },
+  })
   actor.start()
-  actor.send({ type: 'OPEN', records })
+  actor.send({ type: 'OPEN', name, records })
   return actor
 }
 
 describe('editProfileDialogMachine', () => {
+  it('refuses to save an old snapshot under a new route name', () => {
+    const actor = startActor({
+      ...defaultProfileRecords,
+      resolverAddress: RESOLVER,
+      addresses: [{ coinType: 60, value: OTHER_ACCOUNT }],
+    })
+
+    actor.send({
+      type: 'SAVE_REQUESTED',
+      values: { ...defaultProfileRecords, base: { description: 'updated' } },
+      deps: {
+        chainId: 1,
+        name: 'different.eth',
+        owner: OWNER,
+        ownerAddress: OWNER,
+        publicClient: {} as PublicClient,
+        walletClient,
+      },
+    })
+
+    expect(actor.getSnapshot().matches({ editing: 'idle' })).toBe(true)
+    expect(actor.getSnapshot().context.pendingSave).toBeUndefined()
+  })
+
   it('stays in idle editing when save prerequisites are missing', () => {
-    const actor = startActor()
+    const actor = startActor(defaultProfileRecords, 'test.eth')
 
     actor.send({
       type: 'SAVE_REQUESTED',
@@ -151,8 +180,10 @@ describe('editProfileDialogMachine', () => {
       },
     })
     if (pendingSave?.kind === 'setup') {
-      expect(pendingSave.currentRecords.addresses).toEqual([])
-      expect(pendingSave.currentRecords.base).toEqual({})
+      expect(pendingSave.currentRecords.addresses).toEqual(records.addresses)
+      expect(pendingSave.currentRecords.base).toEqual({
+        description: 'edited bio',
+      })
     }
   })
 
@@ -196,7 +227,7 @@ describe('editProfileDialogMachine', () => {
   }
 
   const startWritableUpdate = (deps: Partial<SaveDeps>) => {
-    const actor = startActor(writableRecords)
+    const actor = startActor(writableRecords, 'owned.eth')
 
     actor.send({
       type: 'SAVE_REQUESTED',

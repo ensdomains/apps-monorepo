@@ -12,18 +12,8 @@ vi.mock('../wagmi', () => ({
   ensChain: { ...sepolia, id: 11155111 },
 }))
 
-// Mock getConnectorClient from @wagmi/core
-const mockGetConnectorClient = vi.fn()
-vi.mock('@wagmi/core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@wagmi/core')>()
-  return {
-    ...actual,
-    getConnectorClient: mockGetConnectorClient,
-  }
-})
-
 // Dynamic import after mocking
-const { safeGetClient, safeGetConnectorClient } = await import('./helpers')
+const { safeGetClient } = await import('./helpers')
 
 describe('wagmi/helpers', () => {
   describe('safeGetClient', () => {
@@ -52,47 +42,6 @@ describe('wagmi/helpers', () => {
       expect(result.isErr()).toBe(true)
       if (result.isErr()) {
         expect(result.error._tag).toBe('Wagmi/ClientError')
-        expect(result.error.cause).toBeDefined()
-      }
-    })
-  })
-
-  describe('safeGetConnectorClient', () => {
-    it('should return Ok with connector client on success', async () => {
-      const mockConnectorClient = {
-        account: { address: '0x1234' },
-        chain: { id: 1 },
-      }
-      mockGetConnectorClient.mockResolvedValue(mockConnectorClient)
-
-      const result = await safeGetConnectorClient(
-        mockConfig as unknown as Parameters<typeof safeGetConnectorClient>[0],
-        {
-          chainId: 1,
-        },
-      )
-
-      expect(result.isOk()).toBe(true)
-      if (result.isOk()) {
-        expect(result.value).toEqual(mockConnectorClient)
-      }
-    })
-
-    it('should return Err when connector client retrieval fails', async () => {
-      mockGetConnectorClient.mockRejectedValue(
-        new Error('No connector available'),
-      )
-
-      const result = await safeGetConnectorClient(
-        mockConfig as unknown as Parameters<typeof safeGetConnectorClient>[0],
-        {
-          chainId: 1,
-        },
-      )
-
-      expect(result.isErr()).toBe(true)
-      if (result.isErr()) {
-        expect(result.error._tag).toBe('Wagmi/ConnectorClientError')
         expect(result.error.cause).toBeDefined()
       }
     })

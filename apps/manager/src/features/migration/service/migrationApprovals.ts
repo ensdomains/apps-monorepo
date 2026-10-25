@@ -19,6 +19,7 @@ export type MigrationApprovalNeeds = {
   readonly unwrappedTokenIds: readonly bigint[]
   readonly hasWrapped: boolean
   readonly requiresManagerRestoration: boolean
+  readonly requiresRegistryConfiguration?: boolean
 }
 
 type MigrationTokenApprovalStatus = {
@@ -61,7 +62,7 @@ type MigrationTokenApproval = {
  * A missing permission required by an HCA-batched helper migration.
  *
  * The historical approval IDs remain stable for persisted UI step keys. NFT
- * approvals target MigrationHelper; only manager restoration targets the HCA.
+ * approvals target MigrationHelper; registry configuration targets the HCA.
  */
 export type MigrationApproval =
   | MigrationOperatorApproval
@@ -367,7 +368,10 @@ export const planMigrationApprovals = (params: {
       migrationApprovalForId({ id: 'name-wrapper:hca', hcaAddress }),
     )
   }
-  if (needs.requiresManagerRestoration && !status.ethRegistryHcaApproved) {
+  if (
+    (needs.requiresManagerRestoration || needs.requiresRegistryConfiguration) &&
+    !status.ethRegistryHcaApproved
+  ) {
     approvals.push(
       migrationApprovalForId({ id: 'eth-registry:hca', hcaAddress }),
     )

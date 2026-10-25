@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_THEME_COLOR,
   PROFILE_THEMES,
-  THEME_COLOR_ALIASES,
-  THEME_COLORS,
 } from '@/features/profile/constants'
 import { getProfileTheme, getThemeVars, resolveThemeColor } from './themeColor'
 
@@ -59,31 +57,22 @@ const expectedButtonThemes = {
 } as const
 
 describe('getThemeVars', () => {
-  it.each([
-    '#FFFFFF',
-    '#ffffff',
-    '#112233',
-    '#FF0000',
-    ' #FFFFFF ',
-  ])('uses the unthemed default for unsupported custom color %s', (hex) => {
-    expect(resolveThemeColor(hex)).toBe(DEFAULT_THEME_COLOR)
-    expect(getThemeVars(hex)).toEqual(getThemeVars())
-    expect(getProfileTheme(hex)).toBe(getProfileTheme())
-  })
+  it.each(['#FFFFFF', '#ffffff', '#112233', '#FF0000', ' #FFFFFF '])(
+    'uses the unthemed default for unsupported custom color %s',
+    (hex) => {
+      expect(resolveThemeColor(hex)).toBe(DEFAULT_THEME_COLOR)
+      expect(getThemeVars(hex)).toEqual(getThemeVars())
+      expect(getProfileTheme(hex)).toBe(getProfileTheme())
+    },
+  )
 
-  it.each([
-    undefined,
-    null,
-    '',
-    'red',
-    '#FF',
-    '#FFF',
-    '#FFFFFFFF',
-    '#GGGGGG',
-  ])('uses the unthemed default for missing or malformed color %s', (hex) => {
-    expect(resolveThemeColor(hex)).toBe(DEFAULT_THEME_COLOR)
-    expect(getThemeVars(hex)).toEqual(getThemeVars())
-  })
+  it.each([undefined, null, '', 'red', '#FF', '#FFF', '#FFFFFFFF', '#GGGGGG'])(
+    'uses the unthemed default for missing or malformed color %s',
+    (hex) => {
+      expect(resolveThemeColor(hex)).toBe(DEFAULT_THEME_COLOR)
+      expect(getThemeVars(hex)).toEqual(getThemeVars())
+    },
+  )
 
   it('normalizes supported presets and saved aliases before applying them', () => {
     for (const theme of PROFILE_THEMES) {
@@ -96,12 +85,6 @@ describe('getThemeVars', () => {
     }
   })
 
-  it('derives exported theme colors from the profile theme registry', () => {
-    expect(THEME_COLORS).toEqual(
-      PROFILE_THEMES.map(({ label, value }) => ({ label, value })),
-    )
-  })
-
   it('resolves profile themes from canonical values and aliases', () => {
     for (const theme of PROFILE_THEMES) {
       expect(getProfileTheme(theme.value)).toBe(theme)
@@ -109,16 +92,6 @@ describe('getThemeVars', () => {
         expect(getProfileTheme(alias)).toBe(theme)
       }
     }
-  })
-
-  it('keeps the legacy alias export in sync with the registry', () => {
-    expect(THEME_COLOR_ALIASES).toEqual({
-      '#000000': '#02293B',
-      '#191919': '#02293B',
-      '#ED2496': '#E72A96',
-      '#0080BC': '#0082BB',
-      '#007C23': '#007C20',
-    })
   })
 
   it('resolves legacy saved theme aliases to canonical values', () => {
@@ -130,7 +103,7 @@ describe('getThemeVars', () => {
   })
 
   it('returns accessible profile action button colors for every theme', () => {
-    for (const theme of THEME_COLORS) {
+    for (const theme of PROFILE_THEMES) {
       const vars = getThemeVars(theme.value)
       const expected = expectedButtonThemes[theme.value]
 

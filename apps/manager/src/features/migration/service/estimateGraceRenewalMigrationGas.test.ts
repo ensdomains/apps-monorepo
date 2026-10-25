@@ -14,7 +14,10 @@ import { estimateGraceRenewalMigrationGas } from './estimateGraceRenewalMigratio
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type { GraceRenewalItem, GraceRenewalQuote } from './graceRenewal'
 
-vi.mock('./buildMigrationPlan', () => ({ buildMigrationPlan: vi.fn() }))
+vi.mock('./buildMigrationPlan', () => ({
+  buildMigrationPlan: vi.fn(),
+  namesWithDroppedPubkey: vi.fn(() => ['pubkey.eth']),
+}))
 vi.mock('./computeMigrationPreflight', () => ({
   computeMigrationPreflight: vi.fn(),
 }))
@@ -125,35 +128,35 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('estimateGraceRenewalMigrationGas', () => {
-  it.each([
-    false,
-    true,
-  ])('estimates migration after restoring a late-grace reservation (wrapped: %s)', async (isWrapped) => {
-    const lateGrace = {
-      ...makeName('late.eth', isWrapped),
-      registration: { expiryDate: (NOW - 70n * DAY).toString() },
-      isUnreserved: true as const,
-    }
-    const input = params()
-    input.domains = [lateGrace]
-    input.quote = {
-      ...input.quote,
-      items: [
-        {
-          ...makeItem(lateGrace),
-          registrationExpiry: NOW - 70n * DAY,
-          duration: 77n * DAY,
-        },
-      ],
-    }
+  it.each([false, true])(
+    'estimates migration after restoring a late-grace reservation (wrapped: %s)',
+    async (isWrapped) => {
+      const lateGrace = {
+        ...makeName('late.eth', isWrapped),
+        registration: { expiryDate: (NOW - 70n * DAY).toString() },
+        isUnreserved: true as const,
+      }
+      const input = params()
+      input.domains = [lateGrace]
+      input.quote = {
+        ...input.quote,
+        items: [
+          {
+            ...makeItem(lateGrace),
+            registrationExpiry: NOW - 70n * DAY,
+            duration: 77n * DAY,
+          },
+        ],
+      }
 
-    await expect(
-      estimateGraceRenewalMigrationGas(input),
-    ).resolves.toMatchObject({
-      gasUnits: 1_200n,
-    })
-    expect(lateGrace.isUnreserved).toBe(true)
-  })
+      await expect(
+        estimateGraceRenewalMigrationGas(input),
+      ).resolves.toMatchObject({
+        gasUnits: 1_200n,
+      })
+      expect(lateGrace.isUnreserved).toBe(true)
+    },
+  )
 
   it('does not clear an unreserved name when the quote will not renew it', async () => {
     const unreserved = { ...active, isUnreserved: true as const }
@@ -180,22 +183,22 @@ describe('estimateGraceRenewalMigrationGas', () => {
   it.each([
     { optedIn: ['grace.eth'], requiresManagerRestoration: true },
     { optedIn: [], requiresManagerRestoration: false },
-  ])("estimates with the owner's manager restoration choice: $optedIn", async ({
-    optedIn,
-    requiresManagerRestoration,
-  }) => {
-    await estimateGraceRenewalMigrationGas({
-      ...params(),
-      managerRestorationNames: optedIn,
-    })
+  ])(
+    "estimates with the owner's manager restoration choice: $optedIn",
+    async ({ optedIn, requiresManagerRestoration }) => {
+      await estimateGraceRenewalMigrationGas({
+        ...params(),
+        managerRestorationNames: optedIn,
+      })
 
-    expect(computeMigrationPreflight).toHaveBeenCalledWith(
-      expect.objectContaining({ requiresManagerRestoration }),
-    )
-    expect(buildMigrationPlan).toHaveBeenCalledWith(
-      expect.objectContaining({ managerRestorationNames: optedIn }),
-    )
-  })
+      expect(computeMigrationPreflight).toHaveBeenCalledWith(
+        expect.objectContaining({ requiresManagerRestoration }),
+      )
+      expect(buildMigrationPlan).toHaveBeenCalledWith(
+        expect.objectContaining({ managerRestorationNames: optedIn }),
+      )
+    },
+  )
 
   it('includes the entire selection and renewal with one fee rate, without exposing a plan', async () => {
     const input = params()
@@ -210,6 +213,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
         { type: 'renew-grace', count: 2 },
         ...migrationSteps,
       ],
+      droppedPubkeyNames: ['pubkey.eth'],
     })
     expect(estimateGraceRenewalGas).toHaveBeenCalledWith({
       quote: input.quote,
@@ -232,6 +236,10 @@ describe('estimateGraceRenewalMigrationGas', () => {
     expect(computeMigrationPreflight).toHaveBeenCalledWith(
       expect.objectContaining({ domains: projected, eoa: OWNER }),
     )
+    // Only renewed names carry a projected expiry the chain doesn't show yet.
+    expect(
+      vi.mocked(buildMigrationPlan).mock.calls[0]?.[0].projectedExpiryNames,
+    ).toEqual(new Set([unwrapped.name, wrapped.name]))
     expect(unwrapped.registration?.expiryDate).toBe(EXPIRY.toString())
     expect(wrapped.wrappedDomain?.expiryDate).toBe(
       (EXPIRY + 90n * DAY).toString(),
@@ -253,6 +261,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
       feeWei: 3_450n,
       transactionCount: 5,
       stepDescriptors: [{ type: 'renew-grace', count: 2 }, ...migrationSteps],
+      droppedPubkeyNames: ['pubkey.eth'],
     })
     expect(result.stepDescriptors).toHaveLength(result.transactionCount)
   })
@@ -339,6 +348,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
       feeWei: 3_000n,
       transactionCount: 4,
       stepDescriptors: migrationSteps,
+      droppedPubkeyNames: ['pubkey.eth'],
     })
     expect(vi.mocked(buildMigrationPlan).mock.calls[0]?.[0].domains[0]).toBe(
       renewed,

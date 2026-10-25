@@ -184,31 +184,32 @@ describe('shared commemorative NFT offers', () => {
     ).toBe(true)
   })
 
-  it.each([
-    undefined,
-    {},
-    { locks: {} },
-  ])('hides fresh mint offers when browser coordination is unavailable: %j', async (browserNavigator) => {
-    vi.stubGlobal('navigator', browserNavigator)
-    const { wrapper } = createContext()
-    const { result } = renderHook(
-      () => useCommemorativeNftOffer({ ownerAddress, enabled: true }),
-      { wrapper },
-    )
-    await waitFor(() =>
-      expect(result.current.availability.hasFreshEligibilityResult).toBe(true),
-    )
-    await waitFor(() =>
-      expect(result.current.availability.isConfirmedUnclaimed).toBe(true),
-    )
+  it.each([undefined, {}, { locks: {} }])(
+    'hides fresh mint offers when browser coordination is unavailable: %j',
+    async (browserNavigator) => {
+      vi.stubGlobal('navigator', browserNavigator)
+      const { wrapper } = createContext()
+      const { result } = renderHook(
+        () => useCommemorativeNftOffer({ ownerAddress, enabled: true }),
+        { wrapper },
+      )
+      await waitFor(() =>
+        expect(result.current.availability.hasFreshEligibilityResult).toBe(
+          true,
+        ),
+      )
+      await waitFor(() =>
+        expect(result.current.availability.isConfirmedUnclaimed).toBe(true),
+      )
 
-    expect(result.current.visibleEligibility).toBeUndefined()
-    expect(result.current.canOpenMint).toBe(false)
-    expect(result.current.canSubmitMint).toBe(false)
-    expect(
-      mocks.completion.mock.calls.every(([params]) => !params.enabled),
-    ).toBe(true)
-  })
+      expect(result.current.visibleEligibility).toBeUndefined()
+      expect(result.current.canOpenMint).toBe(false)
+      expect(result.current.canSubmitMint).toBe(false)
+      expect(
+        mocks.completion.mock.calls.every(([params]) => !params.enabled),
+      ).toBe(true)
+    },
+  )
 
   it('keeps minted NFTs visible without browser coordination', async () => {
     vi.stubGlobal('navigator', {})
@@ -262,24 +263,24 @@ describe('shared commemorative NFT offers', () => {
     ).toBe(true)
   })
 
-  it.each([
-    'ineligible',
-    'unavailable',
-  ] as const)('does not enable completion scans for %s metadata', async (status) => {
-    mocks.metadata.mockResolvedValue({ status })
-    const { wrapper } = createContext()
-    const { result } = renderHook(
-      () => useCommemorativeNftOffer({ ownerAddress, enabled: true }),
-      { wrapper },
-    )
-    await waitFor(() =>
-      expect(result.current.availability.eligibility.isSuccess).toBe(true),
-    )
-    expect(
-      mocks.completion.mock.calls.every(([params]) => !params.enabled),
-    ).toBe(true)
-    expect(result.current.canOpenMint).toBe(false)
-  })
+  it.each(['ineligible', 'unavailable'] as const)(
+    'does not enable completion scans for %s metadata',
+    async (status) => {
+      mocks.metadata.mockResolvedValue({ status })
+      const { wrapper } = createContext()
+      const { result } = renderHook(
+        () => useCommemorativeNftOffer({ ownerAddress, enabled: true }),
+        { wrapper },
+      )
+      await waitFor(() =>
+        expect(result.current.availability.eligibility.isSuccess).toBe(true),
+      )
+      expect(
+        mocks.completion.mock.calls.every(([params]) => !params.enabled),
+      ).toBe(true)
+      expect(result.current.canOpenMint).toBe(false)
+    },
+  )
 
   it('does not scan completed claims', async () => {
     mocks.claimed.mockResolvedValue(true)
@@ -331,31 +332,33 @@ describe('shared commemorative NFT offers', () => {
     ).toBe(true)
   })
 
-  it.each([
-    'reconciling',
-    'error',
-  ] as const)('keeps %s completion actionable for retry, never for minting', async (status) => {
-    mocks.completion.mockReturnValue({
-      status,
-      isComplete: false,
-      isFreshComplete: false,
-    })
-    const { wrapper } = createContext()
-    render(
-      createElement(CommemorativeNftProfileSection, {
-        isOwner: true,
-        name: 'yoginth.eth',
-      }),
-      { wrapper },
-    )
-    const trigger = await screen.findByRole('button', { name: 'Check status' })
-    expect((trigger as HTMLButtonElement).disabled).toBe(false)
-    expect(
-      screen.queryByRole('button', { name: 'Preview and mint' }),
-    ).toBeNull()
-    fireEvent.click(trigger)
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-  })
+  it.each(['reconciling', 'error'] as const)(
+    'keeps %s completion actionable for retry, never for minting',
+    async (status) => {
+      mocks.completion.mockReturnValue({
+        status,
+        isComplete: false,
+        isFreshComplete: false,
+      })
+      const { wrapper } = createContext()
+      render(
+        createElement(CommemorativeNftProfileSection, {
+          isOwner: true,
+          name: 'yoginth.eth',
+        }),
+        { wrapper },
+      )
+      const trigger = await screen.findByRole('button', {
+        name: 'Check status',
+      })
+      expect((trigger as HTMLButtonElement).disabled).toBe(false)
+      expect(
+        screen.queryByRole('button', { name: 'Preview and mint' }),
+      ).toBeNull()
+      fireEvent.click(trigger)
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    },
+  )
 
   it('drops visible eligibility immediately when the owner or network changes', async () => {
     const { wrapper } = createContext()

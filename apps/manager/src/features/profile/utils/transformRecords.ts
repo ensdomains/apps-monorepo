@@ -1,18 +1,13 @@
 import * as v from 'valibot'
 import { primaryContactsRecordKey } from '../components/dialogs/edit-profile/tabs/contact/constants'
-import {
-  allSections,
-  getRecordDef,
-  getRecordDisplayValue,
-  staticTextRecords,
-} from '../data/records'
+import { allSections, getRecordDef, staticTextRecords } from '../data/records'
 import type {
   Section,
   SpecialSection,
   StaticRecordKey,
 } from '../data/records/types'
 import type { ProfileRecordsResult } from '../service/profileRecords'
-import type { LinkItem, ProfileRecords, TextRecordValue } from '../types'
+import type { LinkItem, ProfileRecords } from '../types'
 import {
   isAgentRegistrationKey,
   transformAgentRegistrationRecord,
@@ -20,6 +15,7 @@ import {
 import { MAX_PROFILE_LINKS_RECORD_BYTES } from './linkLimits'
 import { isWithinPrimaryContactsRecordSize } from './primaryContactLimits'
 import { createSafeUrlSchema, isSafeHttpUrl } from './safeUrl'
+import { normalizeUrlInput } from './urlInputPrefix'
 
 const emptyProfileRecords = (): ProfileRecords => ({
   base: {},
@@ -77,20 +73,14 @@ const isEmptyLink = (link: LinkItem) =>
   link.name.trim() === '' && link.url.trim() === ''
 
 export const normalizeProfileLinks = (links: readonly LinkItem[]): LinkItem[] =>
-  links.filter((link) => !isEmptyLink(link) && isSafeHttpUrl(link.url))
+  links
+    .map((link) => ({ ...link, url: normalizeUrlInput(link.url) }))
+    .filter((link) => !isEmptyLink(link) && isSafeHttpUrl(link.url))
 
 const normalizeProfileAddresses = (
   addresses: ProfileRecords['addresses'],
 ): ProfileRecords['addresses'] =>
   addresses.filter(({ value }) => value && value.trim() !== '')
-
-const normalizeProfileTextRecords = (
-  records: readonly TextRecordValue[],
-): TextRecordValue[] =>
-  records.map(({ key, value }) => ({
-    key,
-    value: getRecordDisplayValue(getRecordDef(key), value),
-  }))
 
 export const normalizeProfileRecords = (
   records: ProfileRecords,
@@ -98,7 +88,6 @@ export const normalizeProfileRecords = (
   ...records,
   addresses: normalizeProfileAddresses(records.addresses),
   links: normalizeProfileLinks(records.links),
-  social: normalizeProfileTextRecords(records.social),
 })
 
 interface TextRecordInput {

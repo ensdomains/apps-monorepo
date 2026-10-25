@@ -85,7 +85,6 @@ describe('fetchIntentOperationStatus', () => {
   })
 
   it.each([
-    ['a 404 for an unknown id', respondWith({ errors: [{}] }, 404)],
     ['an unrecognized status value', respondWith({ status: 'BRAND_NEW' })],
     ['a shape without a status', respondWith({ data: [] })],
     [
@@ -106,5 +105,17 @@ describe('fetchIntentOperationStatus', () => {
         auth: { mode: 'apiKey', apiKey: 'rs_test' },
       }),
     ).resolves.toBeNull()
+  })
+
+  // Distinct from null: the orchestrator answered, and holds no such intent.
+  it('reports a 404 as not found', async () => {
+    vi.stubGlobal('fetch', respondWith({ errors: [{}] }, 404))
+
+    await expect(
+      fetchIntentOperationStatus({
+        intentId: 1n,
+        auth: { mode: 'apiKey', apiKey: 'rs_test' },
+      }),
+    ).resolves.toBe('NOT_FOUND')
   })
 })

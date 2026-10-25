@@ -17,6 +17,9 @@ export type RecordType = 'text' | 'address' | 'abi' | 'contentHash'
 /**
  * Gets a unique identifier for a record based on its type, key, and optional _uid.
  *
+ * Address records key on the coin type, not the display symbol: two coin types
+ * can share a symbol, which would make a delete target the wrong slot (WEB-1447).
+ *
  * For new records (with _uid), the _uid is appended to ensure uniqueness
  * when multiple records of the same type/key exist.
  *
@@ -29,7 +32,7 @@ export type RecordType = 'text' | 'address' | 'abi' | 'contentHash'
  *
  * @example
  * getRecordId({ type: 'address', key: 'ETH', value: '0x...', id: 60, _uid: 'abc123' })
- * // 'address-ETH-abc123'
+ * // 'address-60-abc123'
  *
  * @example
  * getRecordId({ type: 'contentHash', value: 'ipfs://...', _uid: 'xyz789' })
@@ -46,7 +49,7 @@ export const getRecordId = (record: NameRecord | EditableRecord): string => {
     return `abi${uid}`
   }
   if (record.type === 'address') {
-    return `address-${record.key}${uid}`
+    return `address-${record.id}${uid}`
   }
   return `text-${record.key}${uid}`
 }
@@ -159,3 +162,70 @@ export function createNewRecord(
     .with('abi', () => ({ type: 'abi' as const, value, _uid }))
     .exhaustive()
 }
+
+/** Every key of a record type, or only these. */
+type EditableKeys<K> = 'all' | ReadonlySet<K>
+
+/** What a wallet may write per record type: text keys, coin types, and the keyless types. */
+export type EditableTypes = {
+  readonly text: EditableKeys<string>
+  readonly address: EditableKeys<bigint>
+  readonly abi: boolean
+  readonly contentHash: boolean
+}
+
+export const NO_EDITABLE_TYPES: EditableTypes = {
+  text: new Set(),
+  address: new Set(),
+  abi: false,
+  contentHash: false,
+}
+
+export const ALL_EDITABLE_TYPES: EditableTypes = {
+  text: 'all',
+  address: 'all',
+  abi: true,
+  contentHash: true,
+}
+
+const hasKey = <K>(keys: EditableKeys<K>, key: K) =>
+  keys === 'all' || keys.has(key)
+
+const hasAnyKey = <K>(keys: EditableKeys<K>) => keys === 'all' || keys.size > 0
+
+/** Whether any record of `type` is writable. */
+export const canEditType = (
+  editableTypes: EditableTypes,
+  type: RecordType,
+): boolean =>
+  match(type)
+    .with('text', () => hasAnyKey(editableTypes.text))
+    .with('address', () => hasAnyKey(editableTypes.address))
+    .with('abi', () => editableTypes.abi)
+    .with('contentHash', () => editableTypes.contentHash)
+    .exhaustive()
+
+/** Whether `record` is writable, down to its text key or coin type. */
+export const canEditRecord = (
+  editableTypes: EditableTypes,
+  record: NameRecord,
+): boolean =>
+  match(record)
+    .with({ type: 'text' }, ({ key }) => hasKey(editableTypes.text, key))
+    .with({ type: 'address' }, ({ id }) =>
+      hasKey(editableTypes.address, BigInt(id)),
+    )
+    .with({ type: 'abi' }, () => editableTypes.abi)
+    .with({ type: 'contentHash' }, () => editableTypes.contentHash)
+    .exhaustive()
+
+/** Whether a pending change touches a record outside `editableTypes`. */
+export const hasDisallowedChanges = (
+  records: readonly EditableRecord[],
+  editableTypes: EditableTypes,
+): boolean =>
+  records.some(
+    (record) =>
+      (record.isNew || record.isEdited || record.isDeleted) &&
+      !canEditRecord(editableTypes, record),
+  )

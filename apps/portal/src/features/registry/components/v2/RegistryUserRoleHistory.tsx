@@ -6,12 +6,10 @@ import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
-import { ListLoader } from '@/components/ListLoader/ListLoader'
-import { useListLoader } from '@/components/ListLoader/useListLoader'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
-import type { RoleHistoryEntry } from '@/lib/roles/roleChangeLogs'
+import type { RoleHistoryEntry } from '@/lib/roles/roleHistory'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { getRegistryRoleHistoryForAccountQueryOptions } from '../../hooks/useRegistryRoleHistoryForAccount'
 
@@ -57,8 +55,6 @@ const columns: ColumnDef<EnrichedEntry>[] = [
   },
 ]
 
-const ROLE_HISTORY_INITIAL_COUNT = 10
-
 /**
  * Per-user role-change history embedded in the Edit User sheet. Lists every
  * `EACRolesChanged` event on this registry's ROOT_RESOURCE for the given
@@ -81,17 +77,10 @@ export const RegistryUserRoleHistory = ({
     enabled: Boolean(account),
   })
 
-  const entries = data ?? []
-  const loader = useListLoader({
-    initialCount: ROLE_HISTORY_INITIAL_COUNT,
-    loaded: entries.length,
-    resetKey: `${registryAddress}:${account}`,
-  })
-
-  const transactionHashes = entries.map((e) => e.transactionHash)
+  const transactionHashes = (data ?? []).map((e) => e.transactionHash)
   const { data: sendersMap } = useTransactionSenders({ transactionHashes })
 
-  const rows: EnrichedEntry[] = entries.slice(0, loader.shown).map((entry) => ({
+  const rows: EnrichedEntry[] = (data ?? []).map((entry) => ({
     ...entry,
     sender: sendersMap?.get(entry.transactionHash) ?? null,
   }))
@@ -121,7 +110,6 @@ export const RegistryUserRoleHistory = ({
         .otherwise(() => (
           <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent">
             <DataTable columns={columns} data={rows} />
-            <ListLoader {...loader} className="pt-3" />
           </div>
         ))}
     </section>

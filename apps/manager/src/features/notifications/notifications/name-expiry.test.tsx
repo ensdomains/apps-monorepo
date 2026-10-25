@@ -14,12 +14,10 @@ const presentation = (
   })
 
 describe('static name expiry presentation', () => {
-  it.each([
-    'expiry-30d',
-    'expiry-7d',
-    'expiry-1d',
-  ] as const)('keeps %s as a renewal notification', (stage) =>
-    expect(presentation(stage).action).toBe('renew'))
+  it.each(['expiry-30d', 'expiry-7d', 'expiry-1d'] as const)(
+    'keeps %s as a renewal notification',
+    (stage) => expect(presentation(stage).action).toBe('renew'),
+  )
 
   it('renders grace-start as renewable grace history', () => {
     expect(presentation('grace-start')).toMatchObject({

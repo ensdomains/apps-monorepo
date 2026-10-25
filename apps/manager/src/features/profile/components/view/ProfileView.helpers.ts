@@ -1,6 +1,6 @@
 import { isEvmCoinType } from '@ensdomains/address-encoder/utils'
 import {
-  getAddressRecordDef,
+  getAddressPresentation,
   getRecordDef,
   getRecordDisplayValue,
   getRecordHref,
@@ -22,36 +22,21 @@ const PROFILE_HEADER_ONLY_RECORD_KEYS: ReadonlySet<string> = new Set([
   'location',
   'timezone',
 ])
-const COMPACT_MONTH_LABELS = [
-  'JAN',
-  'FEB',
-  'MAR',
-  'APR',
-  'MAY',
-  'JUN',
-  'JUL',
-  'AUG',
-  'SEP',
-  'OCT',
-  'NOV',
-  'DEC',
+// Short sentence case, matching the profile metadata frame ("Oct 23, 2026").
+const PROFILE_DETAIL_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ] as const
-const FULL_MONTH_LABELS = [
-  'JANUARY',
-  'FEBRUARY',
-  'MARCH',
-  'APRIL',
-  'MAY',
-  'JUNE',
-  'JULY',
-  'AUGUST',
-  'SEPTEMBER',
-  'OCTOBER',
-  'NOVEMBER',
-  'DECEMBER',
-] as const
-
-type ProfileDetailDateVariant = 'mobile' | 'desktop'
 
 export type ProfileContactItem = {
   readonly key: string
@@ -70,7 +55,7 @@ export type SafeProfileLink = LinkItem & {
 export type ProfileAddressItem = AddressRecordValue & {
   readonly label: string
   readonly notation: string
-  readonly icon?: NonNullable<ReturnType<typeof getAddressRecordDef>>['icon']
+  readonly icon?: ReturnType<typeof getAddressPresentation>['icon']
 }
 
 type IndexedProfileAddressItem = ProfileAddressItem & {
@@ -79,12 +64,14 @@ type IndexedProfileAddressItem = ProfileAddressItem & {
 
 const CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH = 5
 
-export const formatChainSpecificAddress = (value: string): string => {
+export const formatProfileAddress = (value: string): string => {
   const trimmed = value.trim()
+  const prefix = trimmed.startsWith('0x') ? '0x' : ''
+  const body = trimmed.slice(prefix.length)
 
-  if (trimmed.length <= CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH * 2) return trimmed
+  if (body.length <= CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH * 2) return trimmed
 
-  return `${trimmed.slice(0, CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}...${trimmed.slice(-CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}`
+  return `${prefix}${body.slice(0, CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}…${body.slice(-CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}`
 }
 
 /**
@@ -94,10 +81,11 @@ export const formatChainSpecificAddress = (value: string): string => {
  * hydrated. Callers pass `timeZone: 'local'` after `useHydrated()` flips true.
  * Local is the app-wide convention (dashboard, registration, and renewal all use
  * it); UTC here is only the SSR default.
+ *
+ * One format at every width: "Oct 23, 2026".
  */
 export const formatProfileDetailDate = (
   date: Date | null | undefined,
-  variant: ProfileDetailDateVariant = 'mobile',
   timeZone: 'utc' | 'local' = 'utc',
 ) => {
   if (!date || Number.isNaN(date.getTime())) return undefined
@@ -106,16 +94,10 @@ export const formatProfileDetailDate = (
     timeZone === 'local'
       ? [date.getMonth(), date.getDate(), date.getFullYear()]
       : [date.getUTCMonth(), date.getUTCDate(), date.getUTCFullYear()]
-  const compactMonth = COMPACT_MONTH_LABELS[monthIndex]
-  const fullMonth = FULL_MONTH_LABELS[monthIndex]
-  if (!compactMonth || !fullMonth) return undefined
+  const month = PROFILE_DETAIL_MONTHS[monthIndex]
+  if (!month) return undefined
 
-  if (variant === 'desktop') {
-    return `${fullMonth} ${dayOfMonth}, ${fullYear}`
-  }
-
-  const day = String(dayOfMonth).padStart(2, '0')
-  return `${compactMonth}.${day}.${fullYear}`
+  return `${month} ${dayOfMonth}, ${fullYear}`
 }
 
 const toSafeHttpHref = (value: string): string | undefined => {
@@ -213,16 +195,11 @@ const toAddressItem = (
   const value = address.value.trim()
   if (!value) return undefined
 
-  const recordDef = getAddressRecordDef(address.coinType)
-  const notation = (recordDef?.notation ?? `#${address.coinType}`).toUpperCase()
-
   return {
     ...address,
+    ...getAddressPresentation(address.coinType),
     value,
     sourceIndex,
-    label: recordDef?.name ?? notation,
-    notation,
-    icon: recordDef?.icon,
   }
 }
 

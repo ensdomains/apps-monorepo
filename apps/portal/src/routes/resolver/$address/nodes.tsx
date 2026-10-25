@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   type ColumnDef,
@@ -12,15 +12,9 @@ import {
 } from '@tanstack/react-table'
 import { ArrowRightFromLineIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { match } from 'ts-pattern'
-import type { Address } from 'viem'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ListLoader } from '@/components/ListLoader/ListLoader'
-import {
-  infiniteFetchMore,
-  useListLoader,
-} from '@/components/ListLoader/useListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -41,28 +35,24 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
+import { toNodeRolesStatus } from '@/features/resolver/helpers/nodeRolesStatus'
+import { rolesForNode } from '@/features/resolver/helpers/rolesForNode'
 import {
-  NodeDetailSheet,
-  type NodeRolesStatus,
-} from '@/features/resolver/components/NodeDetailSheet'
-import { getResolverNodesQueryOptions } from '@/features/resolver/hooks/useResolverNodes'
+  prefetchResolverPage,
+  useResolverNodesList,
+} from '@/features/resolver/hooks/useResolverNodesList'
 import {
   getResolverOverviewQueryOptions,
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { cn } from '@/lib/utils'
-import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/nodes')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) =>
-    queryClient.prefetchInfiniteQuery(
-      getResolverNodesQueryOptions({ address: params.address as Address }),
-    ),
+  loader: ({ params }) => prefetchResolverPage(params.address),
 })
-
-const NODES_INITIAL_COUNT = 100
 
 const createNodesColumns = (
   resolverAddress: string,
@@ -128,41 +118,24 @@ const createNodesColumns = (
 ]
 
 function RouteComponent() {
-  const { address } = Route.useParams() as { address: Address }
+  const { address } = Route.useParams()
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [selectedNode, setSelectedNode] = useState<ResolverNode | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const nodesQuery = useInfiniteQuery(getResolverNodesQueryOptions({ address }))
-  const overviewQuery = useQuery(getResolverOverviewQueryOptions({ address }))
+  const {
+    query: nodesQuery,
+    loadedNodes,
+    nodes,
+    loader,
+  } = useResolverNodesList(address)
+  // Only the role rows the detail sheet shows come from the overview.
+  const overview = useQuery(getResolverOverviewQueryOptions({ address }))
 
-  const loadedNodes = useMemo(
-    () => nodesQuery.data?.pages.flatMap((page) => page.nodes) ?? [],
-    [nodesQuery.data],
-  )
+  const roles = overview.data?.roles ?? []
 
-  const loader = useListLoader({
-    initialCount: NODES_INITIAL_COUNT,
-    loaded: loadedNodes.length,
-    total: nodesQuery.data?.pages.at(-1)?.totalCount,
-    hasMore: nodesQuery.hasNextPage,
-    fetchMore: infiniteFetchMore(
-      nodesQuery.fetchNextPage,
-      (page) => page.nodes.length,
-    ),
-    resetKey: address,
-  })
-
-  const nodes = useMemo(
-    () => loadedNodes.slice(0, loader.shown),
-    [loadedNodes, loader.shown],
-  )
-  const roles = overviewQuery.data?.roles ?? []
-
-  const rolesForNode = selectedNode
-    ? roles.filter((r) => r.resource === selectedNode.id)
-    : []
+  const nodeRoles = selectedNode ? rolesForNode(roles, selectedNode) : []
 
   const columns = useMemo(() => createNodesColumns(address), [address])
 
@@ -193,10 +166,13 @@ function RouteComponent() {
       />
     )
 
-  if (loadedNodes.length === 0)
+  // An empty first page can still have more behind it.
+  if (loadedNodes.length === 0 && !nodesQuery.hasNextPage)
     return (
       <div className="flex flex-col gap-8">
-        <PageHeading parent={{ type: 'resolver', address }}>Nodes</PageHeading>
+        <PageHeading parent={{ type: 'resolver', address: address }}>
+          Nodes
+        </PageHeading>
         <NoResultsMessage
           title="No nodes yet"
           description="Names that resolve through this resolver will appear here."
@@ -207,7 +183,9 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeading parent={{ type: 'resolver', address }}>Nodes</PageHeading>
+      <PageHeading parent={{ type: 'resolver', address: address }}>
+        Nodes
+      </PageHeading>
 
       <InputGroup className="bg-background rounded-sm">
         <InputGroupAddon>
@@ -221,19 +199,15 @@ function RouteComponent() {
       </InputGroup>
       {loader.canShowMore && globalFilter && (
         <p className="text-p text-muted-foreground">
-          Search covers the {nodes.length} nodes shown so far. Show more to
-          include the rest.
+          Search covers the {nodes.length} nodes shown so far. More or All
+          includes the rest.
         </p>
       )}
 
       <NodeDetailSheet
         node={selectedNode}
-        roles={rolesForNode}
-        rolesStatus={match(overviewQuery)
-          .returnType<NodeRolesStatus>()
-          .with({ isLoading: true }, () => 'loading')
-          .with({ isError: true }, () => 'error')
-          .otherwise(() => 'ready')}
+        roles={nodeRoles}
+        rolesStatus={toNodeRolesStatus(overview, roles)}
         resolverAddress={address}
         open={sheetOpen}
         setOpen={setSheetOpen}
@@ -341,8 +315,8 @@ function RouteComponent() {
             </TableBody>
           </Table>
         </div>
+        <ListLoader {...loader} className="py-4" />
       </NodeDetailSheet>
-      <ListLoader {...loader} />
     </div>
   )
 }

@@ -3,7 +3,7 @@ import type { ProfileRecords } from '@/features/profile/types'
 import { MAX_PROFILE_LINKS } from '@/features/profile/utils/linkLimits'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
 import {
-  formatChainSpecificAddress,
+  formatProfileAddress,
   formatProfileDetailDate,
   getChainSpecificAddresses,
   getContactItems,
@@ -87,36 +87,29 @@ describe('ProfileView helpers', () => {
     ])
   })
 
-  it('formats chain-specific addresses with the first and last five characters', () => {
+  it('formats profile addresses with the first and last five characters', () => {
     expect(
-      formatChainSpecificAddress('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),
-    ).toBe('bc1qx...x0wlh')
-    expect(formatChainSpecificAddress('DE5opa123456789xyz')).toBe(
-      'DE5op...89xyz',
-    )
-    expect(formatChainSpecificAddress('abc123')).toBe('abc123')
+      formatProfileAddress('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),
+    ).toBe('bc1qx…x0wlh')
+    expect(formatProfileAddress('DE5opa123456789xyz')).toBe('DE5op…89xyz')
+    expect(formatProfileAddress('abc123')).toBe('abc123')
   })
 
-  it('formats dates as compact uppercase labels for mobile', () => {
+  it('keeps the 0x prefix in front of the first five hex characters', () => {
+    expect(
+      formatProfileAddress('0xCC6925b3a1d6e7f8091a2b3c4d5e6f708192a3b4'),
+    ).toBe('0xCC692…2a3b4')
+  })
+
+  it('formats dates as short sentence case at every width', () => {
     expect(formatProfileDetailDate(new Date('2022-11-11T12:00:00Z'))).toBe(
-      'NOV.11.2022',
+      'Nov 11, 2022',
     )
-  })
-
-  it('formats dates with the full month and comma for desktop', () => {
-    expect(
-      formatProfileDetailDate(new Date('2022-11-11T12:00:00Z'), 'desktop'),
-    ).toBe('NOVEMBER 11, 2022')
   })
 
   it('uses the local calendar day when timeZone is "local"', () => {
     const localNov11 = new Date(2022, 10, 11, 12, 0)
-    expect(formatProfileDetailDate(localNov11, 'mobile', 'local')).toBe(
-      'NOV.11.2022',
-    )
-    expect(formatProfileDetailDate(localNov11, 'desktop', 'local')).toBe(
-      'NOVEMBER 11, 2022',
-    )
+    expect(formatProfileDetailDate(localNov11, 'local')).toBe('Nov 11, 2022')
   })
 
   it('keeps contact records separate from featured social records', () => {
@@ -374,16 +367,19 @@ describe('ProfileView helpers', () => {
     [291, 501, 'ExampleAddress', 'ExampleAddress'],
     [501, 501, 'ExampleAddress', 'exampleAddress'],
     [999, 1000, 'ExampleAddress', 'ExampleAddress'],
-  ])('keeps independent case-sensitive records separate (%i, %i, %s, %s)', (mainCoinType, otherCoinType, mainValue, otherValue) => {
-    // Synthetic strings test grouping without requiring valid network keys.
-    const mainRecord = { coinType: mainCoinType, value: mainValue }
-    const otherRecord = { coinType: otherCoinType, value: otherValue }
-    const records = makeRecords({ addresses: [mainRecord, otherRecord] })
+  ])(
+    'keeps independent case-sensitive records separate (%i, %i, %s, %s)',
+    (mainCoinType, otherCoinType, mainValue, otherValue) => {
+      // Synthetic strings test grouping without requiring valid network keys.
+      const mainRecord = { coinType: mainCoinType, value: mainValue }
+      const otherRecord = { coinType: otherCoinType, value: otherValue }
+      const records = makeRecords({ addresses: [mainRecord, otherRecord] })
 
-    expect(getMainReceivingAddress(records)).toMatchObject(mainRecord)
-    expect(getReceivingAddressChains(records)).toMatchObject([mainRecord])
-    expect(getChainSpecificAddresses(records)).toMatchObject([otherRecord])
-  })
+      expect(getMainReceivingAddress(records)).toMatchObject(mainRecord)
+      expect(getReceivingAddressChains(records)).toMatchObject([mainRecord])
+      expect(getChainSpecificAddresses(records)).toMatchObject([otherRecord])
+    },
+  )
 
   it('does not group a non-EVM record with a matching EVM value', () => {
     const value = '0x1234567890abcdef1234567890abcdef12345678'

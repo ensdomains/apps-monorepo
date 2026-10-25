@@ -1,26 +1,7 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
-import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
+import { DAI as DAIIcon, USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { chain } from '@/config'
-
-export class NameAvailabilityError extends TaggedError(
-  'NameAvailabilityError',
-)<{
-  cause: unknown
-}> {}
-
-export const isNameAvailabilityError = (
-  error: unknown,
-): error is NameAvailabilityError => {
-  return error instanceof NameAvailabilityError
-}
-
-export const getErrorMessage = (error: unknown): unknown => {
-  if (isNameAvailabilityError(error)) {
-    return error.cause
-  }
-  return error
-}
+import { TOKENS } from '@/lib/tokens'
 
 /** The bare label of a 2LD: strips a trailing `.eth`, passes labels through. */
 export const toLabel = (name: string): string =>
@@ -67,9 +48,9 @@ export const getPremiumLabel = (
   } as const
 }
 
-// Standalone-HCA payment tokens. The HCA validator only accepts the REAL
-// Circle Sepolia USDC (its PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN are both
-// this address), so the picker offers USDC only — no mock USDC/DAI/USDT.
+// Display metadata for the stables a picker can show; which ones a flow offers
+// comes from its balances. Registration lists USDC only (the HCA validator's
+// payment token), while renewals, being owner-signed, also take DAI.
 export const STABLECOINS = {
   USDC: {
     id: 'usdc',
@@ -78,5 +59,13 @@ export const STABLECOINS = {
     decimals: 6,
     address: getDestinationContracts(chain.id).usdc,
     icon: USDCIcon,
+  },
+  DAI: {
+    id: 'dai',
+    name: 'Dai',
+    symbol: 'DAI',
+    decimals: 18,
+    address: TOKENS.DAI.address,
+    icon: DAIIcon,
   },
 } as const

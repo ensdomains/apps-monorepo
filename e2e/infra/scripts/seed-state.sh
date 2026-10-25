@@ -109,24 +109,6 @@ docker stop "$CONTAINER_NAME" > /dev/null
 docker rm "$CONTAINER_NAME" > /dev/null 2>&1 || true
 trap - EXIT
 
-# Update contracts.snapshot.json with the snapshot block so Panoptes starts there.
-SNAPSHOT_BLOCK=$(python3 -c "
-import json, sys
-with open('$STATE_FILE') as f:
-    print(int(json.load(f)['block']['number'], 16))
-")
-CONTRACTS_BOX="$INFRA_DIR/panoptes/contracts.snapshot.json"
-python3 -c "
-import json, sys
-path, block = sys.argv[1], int(sys.argv[2])
-with open(path) as f:
-    c = json.load(f)
-c['l2_deployment_block'] = block
-with open(path, 'w') as f:
-    json.dump(c, f, indent=2)
-print('Updated l2_deployment_block =', block)
-" "$CONTRACTS_BOX" "$SNAPSHOT_BLOCK"
-
 SIZE=$(wc -c < "$STATE_FILE")
 echo "State saved to $STATE_FILE ($SIZE bytes)"
 echo ""

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useState } from 'react'
-import { type Address, zeroAddress } from 'viem'
+import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -15,11 +15,16 @@ import {
   rolesToEntries,
   UserCell,
 } from '@/features/roles/components/roleTableColumns'
+import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
 import {
-  getRegistryRootRoleHoldersQueryOptions,
+  getRegistryRootRolesQueryOptions,
   type RootRoleHolder,
 } from '@/features/roles/hooks/useRegistryRootRoleHolders'
-import { getHasRolesQueryOptions } from '../../hooks/useHasRoles'
+import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
+import {
+  canManageRegistryRootRoles,
+  isRegistryRole,
+} from '@/lib/roles/permissions'
 import { RegistryEditUserSheet } from './RegistryEditUserSheet'
 
 const baseColumns: ColumnDef<RootRoleHolder>[] = [
@@ -45,23 +50,19 @@ export const RegistryRolesTable = ({
     data: roles,
     isLoading,
     error,
-  } = useQuery(
-    getRegistryRootRoleHoldersQueryOptions({ registryAddress: address }),
-  )
+  } = useQuery(getRegistryRootRolesQueryOptions({ registryAddress: address }))
 
   const [editingRow, setEditingRow] = useState<RootRoleHolder | null>(null)
   const { data: walletClient } = useWalletClient()
   const callerAddress = walletClient?.account?.address
-  const { data: isAdmin = false } = useQuery({
-    ...getHasRolesQueryOptions({
-      registryAddress: address,
-      roles: ['ROLE_REGISTRAR_ADMIN'],
-      account: callerAddress ?? zeroAddress,
-    }),
-    enabled: !!callerAddress && !disableEdit,
+  const callerAdminRoles = useCallerAdminRoles({
+    registryAddress: address,
+    resource: ROOT_RESOURCE_ID,
+    account: disableEdit ? undefined : callerAddress,
   })
 
-  const showActions = isAdmin && !disableEdit
+  const showActions =
+    canManageRegistryRootRoles(callerAdminRoles) && !disableEdit
 
   const columns: ColumnDef<RootRoleHolder>[] = showActions
     ? [
@@ -72,7 +73,14 @@ export const RegistryRolesTable = ({
       ]
     : baseColumns
 
-  const rows = roles ?? []
+  const rows = roles?.holders ?? []
+  // Normal for every registry outside the ENS manifest, so a note, not a warning.
+  const operatorNote = roles?.areOperatorRolesUnlisted && (
+    <p className="mt-2 text-muted-foreground text-p">
+      Some roles inherited from a parent registry or granted by this registry's
+      contract may not be listed.
+    </p>
+  )
 
   if (isLoading) return <LoadingSpinner title="Loading roles..." />
 
@@ -87,11 +95,14 @@ export const RegistryRolesTable = ({
 
   if (rows.length === 0)
     return (
-      <NoResultsMessage
-        title="No role holders yet"
-        description="Accounts with roles on this registry will appear here."
-        className="mx-0"
-      />
+      <>
+        <NoResultsMessage
+          title="No role holders yet"
+          description="Accounts with roles on this registry will appear here."
+          className="mx-0"
+        />
+        {operatorNote}
+      </>
     )
 
   return (
@@ -101,6 +112,7 @@ export const RegistryRolesTable = ({
         data={rows}
         getRowId={(row) => row.account.toLowerCase()}
       />
+      {operatorNote}
       {showActions && (
         <RegistryEditUserSheet
           open={!!editingRow}
@@ -109,7 +121,7 @@ export const RegistryRolesTable = ({
           }}
           registryAddress={address}
           account={editingRow?.account ?? null}
-          currentRoles={editingRow?.roles ?? []}
+          currentRoles={editingRow?.roles.filter(isRegistryRole) ?? []}
         />
       )}
     </div>

@@ -44,6 +44,9 @@ describe('filterEventDetailsMetadata', () => {
       blockNumber: 123,
       transactionID: '0xabc',
       type: 'Transfer',
+      // Row-level fields a grouped event carries beside its payload.
+      timestamp: 1_700_000_000n,
+      category: 'domain',
     }
 
     const result = filterEventDetailsMetadata(details)

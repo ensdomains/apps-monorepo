@@ -41,12 +41,10 @@ describe('computeWrapperRegistryAddress', () => {
     )
   })
 
-  it.each([
-    'eth',
-    'parent.example',
-    'parent..eth',
-    '',
-  ])('returns null for %j', (name) => {
-    expect(computeWrapperRegistryAddress({ name, contracts })).toBeNull()
-  })
+  it.each(['eth', 'parent.example', 'parent..eth', ''])(
+    'returns null for %j',
+    (name) => {
+      expect(computeWrapperRegistryAddress({ name, contracts })).toBeNull()
+    },
+  )
 })

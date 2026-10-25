@@ -9,13 +9,17 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
+import { AnalyticsConsentBanner } from '@/components/AnalyticsConsentBanner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { NoticeBanner } from '@/components/NoticeBanner'
 import { isSepoliaBuild } from '@/config'
 import { useTransactionManagerAccount } from '@/features/transaction-manager/hooks/useTransactionManagerAccount'
 import { useTransactionModalRouteReset } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
 import { MockWalletAutoConnect } from '@/features/wallet/MockWalletAutoConnect'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
+import { useCustomRpcCandidateCheck } from '@/hooks/useCustomRpcCandidateCheck'
+import { type CustomRpcCandidate, getCustomRpcCandidate } from '@/lib/customRpc'
 import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { PHProvider } from '@/lib/posthog/provider'
 import { ensChain, wagmiConfig } from '@/lib/wagmi'
@@ -25,6 +29,19 @@ import { queryClient } from '@/utils/queryClient'
 // Tops up test USDC/DAI from the Sepolia faucet; a mainnet bundle leaves it out.
 const AutoFundOnLowBalance = () => {
   useAutoFundOnLowBalance()
+  return null
+}
+
+// A custom RPC saved on the previous load (Settings → RPC), checked now that
+// this page's CSP allows its origin.
+const customRpcCandidate = getCustomRpcCandidate()
+
+const CustomRpcCandidateCheck = ({
+  candidate,
+}: {
+  readonly candidate: CustomRpcCandidate
+}) => {
+  useCustomRpcCandidateCheck(candidate)
   return null
 }
 
@@ -88,7 +105,9 @@ export const Route = createRootRoute({
             <ConnectModalProvider>
               <TransactionManagerSetup>
                 <PHProvider>
+                  <NoticeBanner />
                   <Outlet />
+                  <AnalyticsConsentBanner />
                 </PHProvider>
               </TransactionManagerSetup>
             </ConnectModalProvider>
@@ -101,6 +120,10 @@ export const Route = createRootRoute({
         </WagmiProvider>
 
         <Toaster position="top-right" richColors duration={4000} />
+        {/* After the Toaster, so it is subscribed before the first toast. */}
+        {customRpcCandidate !== null && (
+          <CustomRpcCandidateCheck candidate={customRpcCandidate} />
+        )}
         <TanStackRouterDevtools position="bottom-right" />
       </>
     )

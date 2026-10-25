@@ -27,7 +27,7 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
-import { createIndexerMock } from '../helpers/mock-indexer.js'
+import { createBignameMock } from '../helpers/mock-bigname.js'
 import {
   connectWithHeadlessWallet,
   type PortalAccounts,
@@ -80,13 +80,16 @@ const ERC20_ABI = parseAbi([
   'function balanceOf(address owner) view returns (uint256)',
 ])
 
-// Shared indexer mock. Always constructed, but only installed on a page when
-// `E2E_MOCK_INDEXER=true` globally OR the test opts in via
-// `mockIndexerEnabled` (see the `page` fixture override below).
-const indexerMock = createIndexerMock()
+// Shared bigname mock. Always constructed, but only installed on a page when
+// the test opts in via `mockIndexerEnabled` (see the `page` fixture override
+// below).
+const bignameMock = createBignameMock()
 
 const users = ['user', 'user2', 'user3', 'user4'] as const
 export type User = (typeof users)[number]
+
+const isUser = (value: string): value is User =>
+  (users as readonly string[]).includes(value)
 
 export function createAccounts(): PortalAccounts {
   const mnemonic = DEFAULT_MNEMONIC
@@ -225,8 +228,8 @@ type PortalFixtures = {
    * installed on the page.
    */
   mockIndexer: {
-    setRegistryOccupants: typeof indexerMock.setRegistryOccupants
-    setSubregistryHistory: typeof indexerMock.setSubregistryHistory
+    setRegistryOccupants: typeof bignameMock.setRegistryOccupants
+    setSubregistryHistory: typeof bignameMock.setSubregistryHistory
     enabled: boolean
   }
 }
@@ -234,17 +237,21 @@ type PortalFixtures = {
 export const test = base.extend<PortalFixtures>({
   mockIndexerEnabled: [false, { option: true }],
 
-  // Install the mock indexer only when a test opted in locally via
-  // `mockIndexerEnabled` — deliberately NOT on the global `E2E_MOCK_INDEXER`
+  // Install the bigname mock only when a test opted in locally via
+  // `mockIndexerEnabled` — deliberately NOT on the global `E2E_MOCK_BIGNAME`
   // flag the way playwright.manager.fixture.ts does. `e2e/.env` sets that
-  // flag to `true` for manager's own `useMigratedNamesCount` hook (see
-  // a2c56c6a1); reading it here too would silently mock every portal
-  // indexer query in the whole suite instead of just the handful of tests
-  // that ask for it. The portal suite mixes mocked and real-indexer tests
-  // within the same spec file, so the opt-in has to be per-test.
-  page: async ({ page, mockIndexerEnabled }, use) => {
+  // flag to `true` for the manager's reads; reading it here too would
+  // silently mock every portal index read in the whole suite instead of just
+  // the handful of tests that ask for it. The portal suite mixes mocked and
+  // real-index tests within the same spec file, so the opt-in has to be
+  // per-test.
+  page: async ({ page, baseURL, mockIndexerEnabled }, use) => {
+    // Answer the analytics banner up front so it never covers a control.
+    await page
+      .context()
+      .addCookies([{ name: 'ens_analytics_consent', value: '0', url: baseURL }])
     if (mockIndexerEnabled) {
-      await indexerMock.install(page)
+      await bignameMock.install(page)
     }
     await use(page)
   },
@@ -283,7 +290,23 @@ export const test = base.extend<PortalFixtures>({
   },
 
   makeName: async ({ accounts, time }, use) => {
-    await use(createMakeName({ accounts, time }))
+    const inner = createMakeName({ accounts, time })
+    await use(async (config, options) => {
+      const name = await inner(config, options)
+      // Registered on the fork only, so the bigname mock has to be told.
+      if (bignameMock.enabled)
+        bignameMock.addName({
+          name,
+          owner: accounts.getAddress(
+            config.owner && isUser(config.owner) ? config.owner : 'user2',
+          ),
+          records: config.records,
+          ...(config.duration !== undefined && {
+            expiryDate: Math.floor(Date.now() / 1000) + config.duration,
+          }),
+        })
+      return name
+    })
   },
 
   makeMigratedName: async ({ accounts }, use) => {
@@ -300,8 +323,8 @@ export const test = base.extend<PortalFixtures>({
 
   mockIndexer: async ({ mockIndexerEnabled }, use) => {
     await use({
-      setRegistryOccupants: indexerMock.setRegistryOccupants,
-      setSubregistryHistory: indexerMock.setSubregistryHistory,
+      setRegistryOccupants: bignameMock.setRegistryOccupants,
+      setSubregistryHistory: bignameMock.setSubregistryHistory,
       enabled: mockIndexerEnabled,
     })
   },

@@ -69,18 +69,21 @@ describe('getResumeTarget', () => {
     'submittingRhinestoneBundle',
     'waitingForRhinestoneBundle',
     'verifyingRegistration',
-  ])('routes stage %s to verification even without a registrationTxId', (stage) => {
-    // The tab can close between the submit request going out and the txId
-    // landing in context; the intent still fills server-side.
-    expect(
-      getResumeTarget({
-        stage,
-        context: persisted({
-          commitment: { commitment: COMMITMENT, secret: SECRET },
+  ])(
+    'routes stage %s to verification even without a registrationTxId',
+    (stage) => {
+      // The tab can close between the submit request going out and the txId
+      // landing in context; the intent still fills server-side.
+      expect(
+        getResumeTarget({
+          stage,
+          context: persisted({
+            commitment: { commitment: COMMITMENT, secret: SECRET },
+          }),
         }),
-      }),
-    ).toBe('verifyingRegistration')
-  })
+      ).toBe('verifyingRegistration')
+    },
+  )
 
   it('routes a stored commitment to on-chain validation', () => {
     expect(
@@ -197,6 +200,11 @@ describe('registration record serialization', () => {
       registerReadyTimestamp: 1_800_000_000_000,
       // Real orchestrator ids are ~250-bit uint256s — far past Number range.
       registrationIntentId: 2n ** 250n + 123n,
+      unsettledL2Bridge: {
+        intentId: 2n ** 249n + 7n,
+        claimableUntil: 1_800_000_600_000,
+        fundsHcaTo: 15_000_000n,
+      },
     })
 
     const record = buildRegistrationRecord('commitmentCooldown', context, 42)
@@ -210,6 +218,9 @@ describe('registration record serialization', () => {
     expect(result._unsafeUnwrap().context.commitment?.secret).toBe(SECRET)
     expect(result._unsafeUnwrap().context.registrationIntentId).toBe(
       2n ** 250n + 123n,
+    )
+    expect(result._unsafeUnwrap().context.unsettledL2Bridge?.intentId).toBe(
+      2n ** 249n + 7n,
     )
   })
 
@@ -271,6 +282,22 @@ describe('registration record serialization', () => {
     expect(serialized.signerType).toBe('rhinestone')
   })
 
+  it('keeps only the chain id of the L2 a run pays from', () => {
+    const record = buildRegistrationRecord(
+      'waitingForCommitment',
+      baseContext({
+        signer: rhinestoneSigner,
+        l2Funding: { chain: { id: 84532 } } as never,
+      }),
+      42,
+    )
+
+    const result = parseRegistrationRecord(serializeRegistrationRecord(record))
+
+    expect(result._unsafeUnwrap().context.l2FundingChainId).toBe(84532)
+    expect(result._unsafeUnwrap().context).not.toHaveProperty('l2Funding')
+  })
+
   it('discards corrupt JSON', () => {
     expect(parseRegistrationRecord('{ not json').isErr()).toBe(true)
   })
@@ -279,13 +306,16 @@ describe('registration record serialization', () => {
     // `hcaRegistrarAddress` throws for an unconfigured chain. This runs on
     // every persisted snapshot, so a throw here would kill the registration
     // that persistence exists to protect.
+    //
+    // Mainnet was the "unconfigured" stand-in here until the manifest added
+    // it. Use a chain id no manifest entry can carry.
     const record = buildRegistrationRecord(
       'commitmentCooldown',
-      baseContext({ chainId: 1, signer: rhinestoneSigner }),
+      baseContext({ chainId: 999_999, signer: rhinestoneSigner }),
       0,
     )
 
-    expect(record.fingerprint).toContain('unconfigured-chain-1')
+    expect(record.fingerprint).toContain('unconfigured-chain-999999')
     // Unresumable by construction, and distinct from a configured chain's.
     expect(
       parseRegistrationRecord(serializeRegistrationRecord(record)).isOk(),

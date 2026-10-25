@@ -23,7 +23,7 @@ import {
   PERMITTED_SIGN_KINDS,
   signInBackendAuthModal,
 } from '../helpers/manager-auth.js'
-import { createIndexerMock, type MockDomain } from '../helpers/mock-indexer.js'
+import { createBignameMock, type MockDomain } from '../helpers/mock-bigname.js'
 import type { PortalAccounts } from '../helpers/portal-auth.js'
 import { createMakeName } from './makeName.js'
 import { createMakeV2Name, type V2NameConfig } from './makeV2Name.js'
@@ -158,8 +158,8 @@ export function createAccounts(): PortalAccounts {
   }
 }
 
-// Shared indexer mock — active only when E2E_MOCK_INDEXER=true.
-const indexerMock = createIndexerMock()
+// Shared bigname mock, active only when E2E_MOCK_BIGNAME=true.
+const bignameMock = createBignameMock()
 
 type ManagerFixtures = {
   /** Test accounts derived from the Anvil mnemonic. */
@@ -191,15 +191,15 @@ type ManagerFixtures = {
   /**
    * Register a V2 .eth name on-chain to the connected user's EOA (Anvil
    * account 0), or to account 1 with `owner: 'other'`. When
-   * E2E_MOCK_INDEXER=true the name is fed into the mock so dashboard/profile
+   * E2E_MOCK_BIGNAME=true the name is fed into the mock so dashboard/profile
    * queries return it.
    */
   makeV2Name: (config: V2NameConfig) => Promise<string>
   /**
-   * Mock indexer control. When E2E_MOCK_INDEXER=true, call `addName()` after
+   * bigname mock control. When E2E_MOCK_BIGNAME=true, call `addName()` after
    * on-chain registration so dashboard/profile queries return the name.
    */
-  mockIndexer: {
+  mockBigname: {
     addName: (domain: MockDomain) => void
     readonly removeName: (name: string) => void
     enabled: boolean
@@ -229,10 +229,14 @@ export async function connectHeadless(
 }
 
 export const test = base.extend<ManagerFixtures>({
-  // Install mock indexer on every page when E2E_MOCK_INDEXER=true.
-  // This prevents connection-refused errors in CI where Panoptes isn't running.
-  page: async ({ page }, use) => {
-    await indexerMock.installIfEnabled(page)
+  // Install the bigname mock on every page when E2E_MOCK_BIGNAME=true.
+  // Nothing indexes the local chain, so bigname reads are answered from the mock.
+  page: async ({ page, baseURL }, use) => {
+    // Answer the analytics banner up front so it never covers a control.
+    await page
+      .context()
+      .addCookies([{ name: 'ens_analytics_consent', value: '0', url: baseURL }])
+    await bignameMock.installIfEnabled(page)
     await use(page)
   },
 
@@ -317,12 +321,12 @@ export const test = base.extend<ManagerFixtures>({
       // Unfreeze the browser clock after registration so app timers
       // (receipt polling, dialog transitions) tick at real speed.
       await time.resume()
-      if (indexerMock.enabled) {
+      if (bignameMock.enabled) {
         const ownerAddress =
           config.owner === 'other'
             ? accounts.getAddress('user2')
             : accounts.getAddress('user')
-        indexerMock.addName({
+        bignameMock.addName({
           name,
           owner: ownerAddress,
           records: config.records,
@@ -336,11 +340,11 @@ export const test = base.extend<ManagerFixtures>({
     })
   },
 
-  mockIndexer: async ({}, use) => {
+  mockBigname: async ({}, use) => {
     await use({
-      addName: indexerMock.addName,
-      removeName: indexerMock.removeName,
-      enabled: indexerMock.enabled,
+      addName: bignameMock.addName,
+      removeName: bignameMock.removeName,
+      enabled: bignameMock.enabled,
     })
   },
 })

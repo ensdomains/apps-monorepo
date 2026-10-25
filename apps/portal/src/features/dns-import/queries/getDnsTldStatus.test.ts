@@ -13,6 +13,7 @@ vi.mock('@ensdomains/ensjs/chain', () => ({
     return DNS_REGISTRAR
   },
 }))
+vi.mock('@/config', () => ({ isSepoliaBuild: true }))
 vi.mock('@/lib/wagmi', () => ({
   ensChain: { id: 11155111 },
 }))
@@ -56,18 +57,24 @@ describe('getDnsTldStatus', () => {
     expect(result._unsafeUnwrap()).toEqual({ type: 'standard' })
   })
 
-  it('is custom when the TLD operator claimed the node (.hiphop)', async () => {
+  it('is custom when the TLD operator claimed the node', async () => {
     getOwnerMock.mockResolvedValue({
       owner: CUSTOM_REGISTRAR,
       ownershipLevel: 'registry',
     })
 
+    const result = await getDnsTldStatus({ tld: 'xyz' })
+
+    expect(result._unsafeUnwrap()).toEqual({ type: 'custom' })
+  })
+
+  it('is custom on the Sepolia build for a TLD on the docs list, without reading the node', async () => {
+    getOwnerMock.mockRejectedValue(new Error('rpc down'))
+
     const result = await getDnsTldStatus({ tld: 'hiphop' })
 
-    expect(result._unsafeUnwrap()).toEqual({
-      type: 'custom',
-      registrar: CUSTOM_REGISTRAR,
-    })
+    expect(result._unsafeUnwrap()).toEqual({ type: 'custom' })
+    expect(getOwnerMock).not.toHaveBeenCalled()
   })
 
   it('propagates read failures as GetDnsTldStatusError', async () => {

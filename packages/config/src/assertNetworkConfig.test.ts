@@ -1,6 +1,18 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { assertNetworkConfig } from './assertNetworkConfig'
 import { buildConfig, NetworkConfigError } from './buildConfig'
+
+// Every network has a bigname deployment, so mainnet stands in for one without.
+vi.mock('./networks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./networks')>()
+  return {
+    ...actual,
+    NETWORKS: {
+      ...actual.NETWORKS,
+      mainnet: { ...actual.NETWORKS.mainnet, endpoints: { bignameApi: null } },
+    },
+  }
+})
 
 describe('assertNetworkConfig', () => {
   it('returns the resolved config for a usable env', () => {
@@ -9,38 +21,23 @@ describe('assertNetworkConfig', () => {
     expect(config.network).toBe('sepolia')
   })
 
-  it('applies the rpc and indexer overrides from env', () => {
+  it('applies the rpc and bigname overrides from env', () => {
     const config = assertNetworkConfig({
       VITE_ENS_NETWORK: 'sepolia',
-      VITE_SEPOLIA_RPC_URL: '/rpc',
-      VITE_INDEXER_GRAPHQL_URL: 'http://127.0.0.1:5655/graphql',
+      VITE_RPC_URL: '/rpc',
       VITE_BIGNAME_API_URL: 'http://127.0.0.1:4010',
     })
 
     expect(config.rpcUrls[0]).toBe('/rpc')
-    expect(config.endpoints.indexerGraphql).toBe(
-      'http://127.0.0.1:5655/graphql',
-    )
     expect(config.endpoints.bignameApi).toBe('http://127.0.0.1:4010')
-  })
-
-  it('reads the rpc override from the variable the app names', () => {
-    const config = assertNetworkConfig(
-      { VITE_ENS_NETWORK: 'sepolia', VITE_RPC_URL: '/rpc' },
-      { rpcUrlVar: 'VITE_RPC_URL' },
-    )
-
-    expect(config.rpcUrls[0]).toBe('/rpc')
   })
 
   it('treats an empty string like an unset variable', () => {
     const config = assertNetworkConfig({
       VITE_ENS_NETWORK: 'sepolia',
-      VITE_INDEXER_GRAPHQL_URL: '',
       VITE_BIGNAME_API_URL: '',
     })
 
-    expect(config.endpoints.indexerGraphql).toBeTruthy()
     expect(config.endpoints.bignameApi).toBe('https://sepolia.api.bigname.sh')
   })
 

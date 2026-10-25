@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { useSelector } from '@xstate/react'
 import { useEffect } from 'react'
 import { useGlobalBackButton } from '@/components/GlobalBackButton'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../data/queries/availability.query'
@@ -12,12 +13,15 @@ import { PricingSummaryCard } from './components/PricingSummaryCard'
 import { ResumeConnectWalletBanner } from './components/ResumeConnectWalletBanner'
 import { TokenPickerDialog } from './components/TokenPickerDialog'
 
+const AVAILABILITY_REFETCH_INTERVAL_MS = 60_000
+
 const useAvailabilityGuard = () => {
   const navigate = useNavigate()
   const { label } = useRegistrationV2Context()
   const availabilityQuery = useQuery({
     ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
     refetchOnWindowFocus: true,
+    refetchInterval: AVAILABILITY_REFETCH_INTERVAL_MS,
   })
 
   useEffect(() => {
@@ -34,9 +38,12 @@ const useAvailabilityGuard = () => {
 }
 
 export const PricingStep = () => {
-  const { label } = useRegistrationV2Context()
+  const { label, uiActor } = useRegistrationV2Context()
+  const isApproving = useSelector(uiActor, (state) =>
+    state.matches({ pricing: 'approving' }),
+  )
   useAvailabilityGuard()
-  useGlobalBackButton({ isVisible: true })
+  useGlobalBackButton({ isVisible: !isApproving })
 
   return (
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">

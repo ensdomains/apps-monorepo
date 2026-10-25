@@ -15,12 +15,12 @@ import {
   type MigrationApprovalStatus,
 } from './migrationApprovals'
 import {
-  assertLockedPublicResolverSetMembership,
   assertNoLiveSubregistryOverwrite,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
   getMigrationResolverAddress,
+  resolveLockedMigrationResolvers,
 } from './migrationInvariants'
 import { getV1ProfileKeys } from './v1ProfileKeys'
 
@@ -34,7 +34,7 @@ vi.mock('./migrationApprovals', async (importActual) => ({
 }))
 vi.mock('./migrationInvariants', async (importActual) => ({
   ...(await importActual<typeof import('./migrationInvariants')>()),
-  assertLockedPublicResolverSetMembership: vi.fn(),
+  resolveLockedMigrationResolvers: vi.fn(),
   assertNoLiveSubregistryOverwrite: vi.fn(),
   assertRequiredMigrationContractCode: vi.fn(),
   checkMigrationHcaReadiness: vi.fn(),
@@ -52,8 +52,8 @@ const checkResolverReadinessMock = vi.mocked(
 const assertRequiredMigrationContractCodeMock = vi.mocked(
   assertRequiredMigrationContractCode,
 )
-const assertLockedPublicResolverSetMembershipMock = vi.mocked(
-  assertLockedPublicResolverSetMembership,
+const resolveLockedMigrationResolversMock = vi.mocked(
+  resolveLockedMigrationResolvers,
 )
 const assertNoLiveSubregistryOverwriteMock = vi.mocked(
   assertNoLiveSubregistryOverwrite,
@@ -110,7 +110,10 @@ beforeEach(() => {
   checkMigrationApprovalsMock.mockReset()
   checkResolverReadinessMock.mockReset()
   assertRequiredMigrationContractCodeMock.mockReset()
-  assertLockedPublicResolverSetMembershipMock.mockReset()
+  resolveLockedMigrationResolversMock.mockReset()
+  resolveLockedMigrationResolversMock.mockImplementation(async ({ names }) => [
+    ...names,
+  ])
   checkMigrationHcaReadinessMock.mockReset()
   getMigrationResolverAddressMock.mockClear()
 })
@@ -147,10 +150,6 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       }),
     )
     expect(assertRequiredMigrationContractCodeMock).toHaveBeenCalledOnce()
-    expect(assertLockedPublicResolverSetMembershipMock).toHaveBeenCalledWith({
-      publicClient: expect.anything(),
-      names: expect.any(Array),
-    })
     // Every selected name is checked for a live registry before the wallet is
     // asked to sign, so a migration cannot detach one (WEB-1249).
     expect(assertNoLiveSubregistryOverwriteMock).toHaveBeenCalledWith({
@@ -196,11 +195,10 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     )
   })
 
-  it('checks locked known resolvers against the pinned PublicResolverSet', async () => {
+  it('resolves locked resolvers on-chain before planning', async () => {
     const publicClient = {} as PublicClient
     checkMigrationApprovalsMock.mockResolvedValueOnce(ALL_HCA_APPROVED)
     assertRequiredMigrationContractCodeMock.mockResolvedValueOnce()
-    assertLockedPublicResolverSetMembershipMock.mockResolvedValueOnce()
     checkMigrationHcaReadinessMock.mockResolvedValueOnce({
       status: 'deployment-required',
       hca: HCA,
@@ -220,7 +218,7 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       publicClient,
     })
 
-    expect(assertLockedPublicResolverSetMembershipMock).toHaveBeenCalledWith({
+    expect(resolveLockedMigrationResolversMock).toHaveBeenCalledWith({
       publicClient,
       names: [
         expect.objectContaining({
@@ -262,7 +260,7 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
     expect(getV1ProfileKeysMock).not.toHaveBeenCalled()
   })
 
-  it('is true when all profile keys are empty', async () => {
+  it('is false even with an empty inventory, so pubkeys are still read on-chain', async () => {
     const result = await run({
       domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
       profileKeys: ok([
@@ -272,40 +270,7 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
           coinTypes: [],
           hasContentHash: false,
           abiContentTypes: [],
-        },
-      ]),
-    })
-    expect(result.skipFetchProfilesPhase).toBe(true)
-  })
-
-  it('is false when any profile has at least one text or coin type', async () => {
-    const result = await run({
-      domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-      profileKeys: ok([
-        {
-          id: '0xabc',
-          texts: ['email'],
-          coinTypes: [],
-          hasContentHash: false,
-          abiContentTypes: [],
-        },
-      ]),
-    })
-    expect(result.skipFetchProfilesPhase).toBe(false)
-  })
-
-  it.each([
-    ['contenthash', { hasContentHash: true, abiContentTypes: [] }],
-    ['ABI', { hasContentHash: false, abiContentTypes: [1n] }],
-  ])('is false when the profile only has a %s record', async (_, records) => {
-    const result = await run({
-      domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-      profileKeys: ok([
-        {
-          id: '0xabc',
-          texts: [],
-          coinTypes: [],
-          ...records,
+          interfaceIds: [],
         },
       ]),
     })

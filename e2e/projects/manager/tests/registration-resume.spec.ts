@@ -79,11 +79,14 @@ async function registerUntilCommitConfirmed(page: Page, label: string) {
   // HCA path: the EnableSessions modal gates "Pay with stablecoins", before the
   // token picker. No-op in EOA mode.
   await clickThroughEnableSessions(page)
-  await page.getByRole('button', { name: 'Select USDC' }).click()
+  await page.getByRole('button', { name: 'Select USDC', exact: true }).click()
 
   const monitor = createConsoleMonitor(page, { logConsoleMessages: false })
 
-  await page.getByRole('button', { name: /register name/i }).click()
+  await page
+    .getByRole('dialog', { name: 'Approve and register name' })
+    .getByRole('button', { name: /^(approve and register|register name)$/i })
+    .click()
   await dismissNotificationSettings(page)
 
   // The commitment is only in machine context — and therefore only persisted —

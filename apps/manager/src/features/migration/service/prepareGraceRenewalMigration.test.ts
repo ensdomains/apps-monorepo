@@ -42,26 +42,26 @@ describe('prepareGraceRenewalMigration', () => {
   it.each([
     { optedIn: ['expired.eth'], requiresManagerRestoration: true },
     { optedIn: [], requiresManagerRestoration: false },
-  ])("keeps the owner's manager restoration choice after renewal: $optedIn", async ({
-    optedIn,
-    requiresManagerRestoration,
-  }) => {
-    vi.mocked(buildMigrationPlan).mockResolvedValue({
-      classified: [{ domain: renewed }, { domain: active }],
-    } as unknown as Awaited<ReturnType<typeof buildMigrationPlan>>)
+  ])(
+    "keeps the owner's manager restoration choice after renewal: $optedIn",
+    async ({ optedIn, requiresManagerRestoration }) => {
+      vi.mocked(buildMigrationPlan).mockResolvedValue({
+        classified: [{ domain: renewed }, { domain: active }],
+      } as unknown as Awaited<ReturnType<typeof buildMigrationPlan>>)
 
-    await prepareGraceRenewalMigration({
-      ...params,
-      managerRestorationNames: optedIn,
-    })
+      await prepareGraceRenewalMigration({
+        ...params,
+        managerRestorationNames: optedIn,
+      })
 
-    expect(computeMigrationPreflight).toHaveBeenCalledWith(
-      expect.objectContaining({ requiresManagerRestoration }),
-    )
-    expect(buildMigrationPlan).toHaveBeenCalledWith(
-      expect.objectContaining({ managerRestorationNames: optedIn }),
-    )
-  })
+      expect(computeMigrationPreflight).toHaveBeenCalledWith(
+        expect.objectContaining({ requiresManagerRestoration }),
+      )
+      expect(buildMigrationPlan).toHaveBeenCalledWith(
+        expect.objectContaining({ managerRestorationNames: optedIn }),
+      )
+    },
+  )
 
   it('uses confirmed chain data for renewed names and retains the rest of the selection', async () => {
     const plan = {

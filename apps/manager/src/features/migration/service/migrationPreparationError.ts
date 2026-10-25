@@ -1,6 +1,7 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
+import { SubnameRecreationError } from './subnameRecreationError'
 
 type MigrationPreparationStage =
   | 'account'
@@ -13,9 +14,12 @@ type MigrationPreparationReason =
   | 'account-mismatch'
   | 'contract-unavailable'
   | 'contract-incompatible'
+  | 'resolver-not-writable'
   | 'records-unavailable'
   | 'records-not-replayable'
   | 'recovery-changed'
+  | 'parent-not-upgraded'
+  | 'reservation-not-synced'
   | 'rpc-unavailable'
   | 'fee-unavailable'
   | 'unknown'
@@ -54,8 +58,25 @@ const reasonFor = (
   stage: MigrationPreparationStage,
   cause: unknown,
 ): MigrationPreparationReason => {
-  if (stage === 'fee') return 'fee-unavailable'
   const chain = causeChain(cause)
+  if (
+    chain.some(
+      (error) =>
+        error.name === 'CopyMigrationReadinessError' &&
+        error.reason === 'reservation-expiry-mismatch',
+    )
+  )
+    return 'reservation-not-synced'
+  // Before the fee fallback: the grace renewal estimate checks routes under the fee stage.
+  if (
+    chain.some(
+      (error) =>
+        error.name === 'DirectMigrationRouteError' &&
+        error.reason === 'missing-wrapper',
+    )
+  )
+    return 'parent-not-upgraded'
+  if (stage === 'fee') return 'fee-unavailable'
   if (
     chain.some(
       (error) =>
@@ -74,6 +95,16 @@ const reasonFor = (
     )
   )
     return 'contract-unavailable'
+  // Neither account can write the resolver's records, so the upgrade cannot
+  // preserve them. This is a permissions problem, not a contract mismatch.
+  if (
+    chain.some(
+      (error) =>
+        error.name === 'MigrationContractInvariantError' &&
+        error.invariant === 'resolver-writer-roles',
+    )
+  )
+    return 'resolver-not-writable'
   if (
     chain.some(
       (error) =>
@@ -151,14 +182,24 @@ const messages: Record<MigrationPreparationReason, MessageDescriptor> = {
   'account-mismatch': msg`Your upgrade account doesn't match this wallet. Reconnect the owner wallet.`,
   'contract-unavailable': msg`A required upgrade contract is unavailable. Please try again later.`,
   'contract-incompatible': msg`The upgrade contracts don't match this account. Please contact support.`,
+  'resolver-not-writable': msg`Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again.`,
   'records-unavailable': msg`Couldn't verify your name records. Please try again.`,
   'records-not-replayable': msg`Some locked names have records that this upgrade cannot preserve. Deselect those names to continue.`,
   'recovery-changed': msg`Couldn't restore your upgrade progress. Reload to check the latest state.`,
+  'parent-not-upgraded': msg`Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames.`,
+  'reservation-not-synced': msg`A renewed name's ENSv2 reservation is out of date. Wait for it to sync before upgrading. If this continues, contact support.`,
   'rpc-unavailable': msg`Couldn't reach the network to prepare your upgrade. Please try again.`,
   'fee-unavailable': msg`Couldn't estimate the network fee`,
   unknown: msg`Couldn't prepare your upgrade. Please try again.`,
 }
 
 export const migrationPreparationMessage = (
-  failure: Pick<MigrationPreparationFailure, 'reason'>,
-): MessageDescriptor => messages[failure.reason]
+  failure: Pick<MigrationPreparationFailure, 'reason'> &
+    Partial<Pick<MigrationPreparationFailure, 'cause'>>,
+): MessageDescriptor => {
+  if (failure.cause instanceof SubnameRecreationError) {
+    const details = failure.cause.message
+    return msg`${details}`
+  }
+  return messages[failure.reason]
+}

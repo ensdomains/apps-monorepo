@@ -2,14 +2,18 @@
  * Content-Security-Policy + security headers for the portal worker.
  *
  * The portal is served by this Cloudflare Worker only in production
- * (`vite.config.ts` mounts `cloudflare()` only when `mode !== 'development'`),
+ * (`vite.config.ts` mounts `cloudflare()` for builds and previews),
  * so applying CSP here automatically exempts the Vite dev server / HMR.
  *
  * The policy is delivered two ways (see `worker.ts`):
  *   - as an HTTP `Content-Security-Policy` header on every response, and
  *   - as a `<meta http-equiv>` tag injected into every HTML `<head>`.
  * `frame-ancestors` is invalid inside a `<meta>` tag (browsers ignore it there),
- * so the meta variant omits it — hence the two exported strings.
+ * so the meta variant omits it — hence the two policy builders.
+ *
+ * Both take the requesting browser's custom RPC origins (Settings → RPC, read
+ * from its cookies by `getCustomRpcOrigins`), the only per-browser
+ * connect-src entries.
  *
  * PostHog reporting is temporarily disabled while PostHog is retained only
  * for feature flags.
@@ -17,6 +21,12 @@
 
 import { originFromEnvUrl } from '@ens-apps/config'
 import { envConfig } from '@/config'
+import {
+  CUSTOM_RPC_CANDIDATE_COOKIE,
+  CUSTOM_RPC_COOKIE,
+  readCookie,
+  toCspOrigin,
+} from '@/lib/customRpcOrigin'
 import { L2_CHAINS } from '@/lib/l2Chains'
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and
@@ -31,21 +41,16 @@ const DQA_ORIGIN =
     : null
 
 // Deployment-specific override origins, derived from the same build-time envs
-// the RPC/indexer clients read (lib/wagmi.ts, packages/indexer/urql/client.ts).
+// the RPC client reads (lib/wagmi.ts).
 const OVERRIDE_CONNECT_ORIGINS = [
   originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
-  // The local V1 subgraph stand-in. Same-origin via the Vite proxy in dev, but
-  // a built/preview run reads the env directly and would be blocked without
-  // this — the kind of miss that reads as "the Subnames tab is broken again".
-  originFromEnvUrl(import.meta.env?.VITE_V1_SUBGRAPH_URL),
   DQA_ORIGIN,
   DQA_ORIGIN?.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:'),
 ].filter((origin): origin is string => origin != null)
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
-// Per-deployment overrides via VITE_RPC_URL / VITE_INDEXER_GRAPHQL_URL
-// / VITE_V1_SUBGRAPH_URL
+// Per-deployment overrides via VITE_RPC_URL / VITE_BIGNAME_API_URL
 // are appended automatically (see OVERRIDE_CONNECT_ORIGINS / CONNECT_HOSTS).
 const DEFAULT_CONNECT_HOSTS = [
   // Every RPC endpoint the viem transports may use: the app's attributed
@@ -56,20 +61,14 @@ const DEFAULT_CONNECT_HOSTS = [
   ...envConfig.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
-  // The indexers, resolved in `@/config`.
-  ...[
-    originFromEnvUrl(envConfig.endpoints.indexerGraphql),
-    originFromEnvUrl(envConfig.endpoints.bignameApi),
-  ].filter((origin): origin is string => origin !== null),
-  // ENS-owned hosts: the indexer GraphQL endpoint (resolved in `@/config`)
-  // and the fund/faucet API (sepolia.app-api.ens.domains,
+  // The indexer, resolved in `@/config`.
+  ...[originFromEnvUrl(envConfig.endpoints.bignameApi)].filter(
+    (origin): origin is string => origin !== null,
+  ),
+  // ENS-owned hosts: the fund/faucet API (sepolia.app-api.ens.domains,
   // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env ENS
   // hosts don't silently break a flow.
   'https://*.ens.dev',
-  // The v1 subgraph ensjs resolves for this network. Derived rather than
-  // listed, because mainnet's host is not under *.ens.dev and a stale entry
-  // here fails closed in the browser.
-  new URL(envConfig.chain.subgraphs.ens.url).origin,
   // ENS-owned *.ens.domains hosts: the DNSSEC oracle/gateway (DNS import flow)
   // and the PostHog analytics host (edge.ens.domains — .env
   // VITE_PUBLIC_POSTHOG_HOST). Wildcarded for the same reason as *.ens.dev.
@@ -183,7 +182,7 @@ const INLINE_SCRIPT_HASHES = [
 ] as const
 
 // Directives shared by the header and the meta tag.
-const BASE_DIRECTIVES = [
+const baseDirectives = (customRpcOrigins: readonly string[]) => [
   "default-src 'self'",
   // 'wasm-unsafe-eval' permits WebAssembly compilation (needed by some
   // wallet/crypto dependencies) WITHOUT enabling general 'unsafe-eval'.
@@ -209,7 +208,7 @@ const BASE_DIRECTIVES = [
   // faces (the font license forbids redistributing them in this repo, so they
   // are fetched at runtime instead of vendored).
   "font-src 'self' data: https://js.intercomcdn.com https://fonts.intercomcdn.com https://fonts.ens.dev",
-  `connect-src 'self' ${CONNECT_HOSTS.join(' ')}`,
+  ['connect-src', "'self'", ...CONNECT_HOSTS, ...customRpcOrigins].join(' '),
   // WalletConnect renders its verify/modal in iframes. Intercom sheets/reporting
   // frames are required for the messenger article viewer.
   "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org https://intercom-sheets.com https://www.intercom-reporting.com",
@@ -223,7 +222,7 @@ const BASE_DIRECTIVES = [
   // Valid in both the header and a <meta> tag; upgrades any http subresource
   // request to https.
   'upgrade-insecure-requests',
-] as const
+]
 
 // POSTHOG_LAUNCH_PAUSE: CSP reporting paused while PostHog is used only for flags. Restore endpoint, directives, and Reporting-Endpoints together; enforcement is unchanged.
 // PostHog CSP-violation reporting endpoint, visualized by PostHog's "CSP
@@ -243,21 +242,44 @@ const HEADER_ONLY_DIRECTIVES = [
   // `report-uri ${POSTHOG_CSP_REPORT_ENDPOINT}`,
 ] as const
 
+/**
+ * The active and candidate custom RPC origins from the request's cookies, each
+ * validated down to what a CSP source can express so a crafted cookie can't
+ * inject directives.
+ */
+export const getCustomRpcOrigins = (request: Request): readonly string[] => {
+  const cookies = request.headers.get('Cookie') ?? ''
+  const origins = [CUSTOM_RPC_COOKIE, CUSTOM_RPC_CANDIDATE_COOKIE]
+    .map((name) => readCookie(cookies, name))
+    .map((value) => (value === null ? null : toCspOrigin(value)))
+    .filter((origin): origin is string => origin !== null)
+  return [...new Set(origins)]
+}
+
 /** CSP for the `<meta http-equiv>` tag (omits frame-ancestors). */
-export const cspWithoutFrameAncestors = BASE_DIRECTIVES.join('; ')
+export const cspWithoutFrameAncestors = (customRpcOrigins: readonly string[]) =>
+  baseDirectives(customRpcOrigins).join('; ')
 
 /** Full CSP for the HTTP header. */
-export const cspWithFrameAncestors = `${[...BASE_DIRECTIVES, ...HEADER_ONLY_DIRECTIVES].join('; ')};`
+export const cspWithFrameAncestors = (customRpcOrigins: readonly string[]) =>
+  `${[...baseDirectives(customRpcOrigins), ...HEADER_ONLY_DIRECTIVES].join('; ')};`
 
 /** A `<meta>` tag carrying the CSP, for injection into every HTML `<head>`. */
-export const cspMetaTag = `<meta http-equiv="Content-Security-Policy" content="${cspWithoutFrameAncestors}" />`
+export const cspMetaTag = (customRpcOrigins: readonly string[]) =>
+  `<meta http-equiv="Content-Security-Policy" content="${cspWithoutFrameAncestors(customRpcOrigins)}" />`
 
 /** Apply CSP + standard security headers to any response the worker returns. */
-export function withSecurityHeaders(response: Response): Response {
+export function withSecurityHeaders(
+  response: Response,
+  customRpcOrigins: readonly string[],
+): Response {
   // Responses from `env.ASSETS.fetch()` have immutable headers; re-wrap so the
   // headers are mutable (HTMLRewriter / `new Response` results pass through too).
   const result = new Response(response.body, response)
-  result.headers.set('Content-Security-Policy', cspWithFrameAncestors)
+  result.headers.set(
+    'Content-Security-Policy',
+    cspWithFrameAncestors(customRpcOrigins),
+  )
   // POSTHOG_LAUNCH_PAUSE: reporting header paused; restore with the endpoint and report directives above.
   // result.headers.set(
   //   'Reporting-Endpoints',

@@ -13,6 +13,16 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. placeholder {0}: wrapperSyncNames.length
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "{0, plural, one {# name needs syncing before it can be upgraded.} other {# names need syncing before they can be upgraded.}}"
+msgstr "{0, plural, one {# name needs syncing before it can be upgraded.} other {# names need syncing before they can be upgraded.}}"
+
+#. placeholder {0}: steps.length
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{0, plural, one {# step in one request} other {# steps in one request}}"
+msgstr "{0, plural, one {# step in one request} other {# steps in one request}}"
+
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{0, plural, one {# step} other {# steps}}"
@@ -48,18 +58,40 @@ msgstr "{0} years"
 msgid "{0}% discount"
 msgstr "{0}% discount"
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "{affectedCount, plural, one {# affected subname} other {# affected subnames}}"
+msgstr "{affectedCount, plural, one {# affected subname} other {# affected subnames}}"
+
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "{amount} needed to register name"
 msgstr "{amount} needed to register name"
 
+#. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "{chainName} est. fee: {0}"
+msgstr "{chainName} est. fee: {0}"
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {# request} other {# requests}}"
 msgstr "{count, plural, one {# request} other {# requests}}"
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "{count, plural, one {# subname} other {# subnames}}"
+msgstr "{count, plural, one {# subname} other {# subnames}}"
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Approve # name} other {Approve # names}}"
 msgstr "{count, plural, one {Approve # name} other {Approve # names}}"
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "{count, plural, one {Copy records for # name} other {Copy records for # names}}"
+msgstr "{count, plural, one {Copy records for # name} other {Copy records for # names}}"
+
+#: src/features/migration/components/GameStep.tsx
+msgid "{count, plural, one {Copying records for # name in your wallet...} other {Copying records for # names in your wallet...}}"
+msgstr "{count, plural, one {Copying records for # name in your wallet...} other {Copying records for # names in your wallet...}}"
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "{count, plural, one {Renew # name for} other {Renew # names for}}"
@@ -91,6 +123,10 @@ msgstr "{count, plural, one {Upgrading batch {0} of {total} (# name)...} other {
 msgid "{count, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
 msgstr "{count, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "{details}"
+msgstr "{details}"
+
 #: src/features/migration/components/MigrationModal.tsx
 msgid "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names in just a couple steps to unlock your new ENS profile and claim your personalized NFT.}}"
 msgstr "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names in just a couple steps to unlock your new ENS profile and claim your personalized NFT.}}"
@@ -112,6 +148,10 @@ msgstr "{gracePeriodNameCount, plural, one {Renew your grace-period name before 
 msgid "{label} avatar"
 msgstr "{label} avatar"
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "{label}.eth was registered by someone else just before your registration went through."
+msgstr "{label}.eth was registered by someone else just before your registration went through."
+
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "{migrated} out of {total} names upgraded"
 msgstr "{migrated} out of {total} names upgraded"
@@ -129,9 +169,17 @@ msgstr "{nameCount, plural, one {Upgrade your name to unlock your new ENS profil
 msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
 msgstr "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile.} other {Upgrade your names to unlock your new ENS profile.}}"
 
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "{permits, plural, one {Your wallet will be asked to approve this exact amount — nothing more.} other {Your wallet will be asked to approve these exact amounts — nothing more.}}"
+msgstr "{permits, plural, one {Your wallet will be asked to approve this exact amount — nothing more.} other {Your wallet will be asked to approve these exact amounts — nothing more.}}"
+
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "{selectedCount} selected"
 msgstr "{selectedCount} selected"
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
+msgstr "{selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
 
 #: src/features/migration/components/GameStep.tsx
 msgid "{selectedNameCount, plural, one {Upgrading your name...} other {Upgrading your names...}}"
@@ -140,6 +188,10 @@ msgstr "{selectedNameCount, plural, one {Upgrading your name...} other {Upgradin
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
 msgstr "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
+
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "{unlimitedSymbol} can't be approved for an exact amount, so your wallet will be asked to give your smart account an unlimited {unlimitedSymbol} allowance. It stays in place until you revoke it; only the amounts below move now."
+msgstr "{unlimitedSymbol} can't be approved for an exact amount, so your wallet will be asked to give your smart account an unlimited {unlimitedSymbol} allowance. It stays in place until you revoke it; only the amounts below move now."
 
 #: src/features/register-v2/workflow/pricing/components/DurationLabel.tsx
 msgid "{value, plural, one {# day} other {# days}}"
@@ -195,29 +247,33 @@ msgstr "6-digit code"
 msgid "A mint is already being prepared in another tab. Continue there or try again after it finishes."
 msgstr "A mint is already being prepared in another tab. Continue there or try again after it finishes."
 
+#: src/routes/index.tsx
+msgid "A name you own that goes wherever you do"
+msgstr "A name you own that goes wherever you do"
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "A permission is missing. Try again."
 msgstr "A permission is missing. Try again."
 
 #: src/features/migration/service/migrationPreparationError.ts
+msgid "A renewed name's ENSv2 reservation is out of date. Wait for it to sync before upgrading. If this continues, contact support."
+msgstr "A renewed name's ENSv2 reservation is out of date. Wait for it to sync before upgrading. If this continues, contact support."
+
+#: src/features/migration/service/migrationPreparationError.ts
 msgid "A required upgrade contract is unavailable. Please try again later."
 msgstr "A required upgrade contract is unavailable. Please try again later."
-
-#: src/routes/index.tsx
-msgid "A simple, portable identity that you control"
-msgstr "A simple, portable identity that you control"
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "A simpler way to get paid."
 msgstr "A simpler way to get paid."
 
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "A temporary permission on the ENS registry. No managers are being added in this upgrade."
-msgstr "A temporary permission on the ENS registry. No managers are being added in this upgrade."
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "A subname's complete name could not be verified. Keep this parent on ENSv1 until it can be recovered."
+msgstr "A subname's complete name could not be verified. Keep this parent on ENSv1 until it can be recovered."
 
-#: src/features/profile/components/view/ProfileAbout.tsx
-msgid "About"
-msgstr "About"
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
+msgstr "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
@@ -227,9 +283,17 @@ msgstr "Account address:"
 msgid "Active access"
 msgstr "Active access"
 
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Add a domain extension, like .com"
+msgstr "Add a domain extension, like .com"
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Add an external contact method if you also want reminders by email or Telegram or in your browser."
 msgstr "Add an external contact method if you also want reminders by email or Telegram or in your browser."
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
+msgid "Add custom record"
+msgstr "Add custom record"
 
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/profile/components/view/ProfileFavoriteAction.tsx
@@ -278,8 +342,8 @@ msgid "All Notifications"
 msgstr "All Notifications"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Allow manager changes"
-msgstr "Allow manager changes"
+msgid "Allow registry setup"
+msgstr "Allow registry setup"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Allow the renewal contract to use USDC for your renewals."
@@ -289,25 +353,58 @@ msgstr "Allow the renewal contract to use USDC for your renewals."
 msgid "Allow this temporary account to move this name."
 msgstr "Allow this temporary account to move this name."
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Allow your smart account to configure your upgraded names and their subnames. No managers are being added in this upgrade."
+msgstr "Allow your smart account to configure your upgraded names and their subnames. No managers are being added in this upgrade."
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
+msgstr "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
+msgstr "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
+
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Analytics consent"
+msgstr "Analytics consent"
+
 #: src/features/register-v2/workflow/result/FailureStep.tsx
-msgid "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
-msgstr "Another address registered this name first, so it can no longer be registered here. Go back to pick a different name."
+msgid "Another address registered this name first, so it can no longer be registered here. Look for a different name."
+msgstr "Another address registered this name first, so it can no longer be registered here. Look for a different name."
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Another Registration Is Running"
 msgstr "Another Registration Is Running"
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr "Approve"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve {name}"
 msgstr "Approve {name}"
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Approve and register"
+msgstr "Approve and register"
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.tsx
+msgid "Approve and register name"
+msgstr "Approve and register name"
+
+#: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
+msgid "Approve and renew name"
+msgstr "Approve and renew name"
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Approve in wallet"
+msgstr "Approve in wallet"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approve payment"
@@ -325,9 +422,17 @@ msgstr "Approve renewal payment in your wallet"
 msgid "Approve restoring your managers in your wallet"
 msgstr "Approve restoring your managers in your wallet"
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Approve the network fee?"
 msgstr "Approve the network fee?"
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Approve the payment in your wallet to let ENS use your selected token for registration. Registration starts after approval completes."
+msgstr "Approve the payment in your wallet to let ENS use your selected token for registration. Registration starts after approval completes."
+
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Approve the renewal payment?"
+msgstr "Approve the renewal payment?"
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Approve the signature in your wallet, then wait for on-chain confirmation."
@@ -344,6 +449,10 @@ msgstr "Approve this name"
 #: src/features/migration/components/GameStep.tsx
 msgid "Approve this name in your wallet"
 msgstr "Approve this name in your wallet"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Approve USDC on {l2ChainName} if your wallet asks, then sign the payment"
+msgstr "Approve USDC on {l2ChainName} if your wallet asks, then sign the payment"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve your names"
@@ -398,6 +507,11 @@ msgstr "Back to profile"
 msgid "Back to Quote"
 msgstr "Back to Quote"
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "Back to selection"
+msgstr "Back to selection"
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "balance"
 msgstr "balance"
@@ -422,6 +536,14 @@ msgstr "Blog"
 msgid "Bot access needed"
 msgstr "Bot access needed"
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Brave disables push messaging by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, then reload this page and try again."
+msgstr "Brave disables push messaging by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, then reload this page and try again."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Brave's push service is turned off"
+msgstr "Brave's push service is turned off"
+
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Browser Notifications"
 msgstr "Browser Notifications"
@@ -438,6 +560,10 @@ msgstr "Browser notifications enabled"
 msgid "Bug bounty"
 msgstr "Bug bounty"
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Calculating cost..."
+msgstr "Calculating cost..."
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Can I change my primary name later?"
 msgstr "Can I change my primary name later?"
@@ -450,11 +576,11 @@ msgstr "Can I send crypto to a .eth name (instead of an address)?"
 msgid "Can you share your order number?"
 msgstr "Can you share your order number?"
 
+#: src/components/HcaFundingConfirmDialog.tsx
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/notifications/settings/contact-methods/email.tsx
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
@@ -481,9 +607,11 @@ msgstr "Carried over from your earlier attempt."
 msgid "Carving your name into the blockchain"
 msgstr "Carving your name into the blockchain"
 
-#: src/features/profile/components/view/ProfileAddressesSection.tsx
-msgid "Chain-specific addresses"
-msgstr "Chain-specific addresses"
+#: src/features/migration/components/SelectNamesStep.tsx
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogBody.tsx
+msgid "Check again"
+msgstr "Check again"
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Check mint status"
@@ -523,6 +651,18 @@ msgstr "Checking resolver"
 msgid "Checking status…"
 msgstr "Checking status…"
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "Checking subname impact..."
+msgstr "Checking subname impact..."
+
+#: src/features/renew/workflow/renewing/RenewingStep.tsx
+msgid "Checking the last attempt"
+msgstr "Checking the last attempt"
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "Checking the latest name state before you continue."
+msgstr "Checking the latest name state before you continue."
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking token allowance"
 msgstr "Checking token allowance"
@@ -547,13 +687,21 @@ msgstr "Checking whether your resolver is already deployed"
 msgid "Checking your account…"
 msgstr "Checking your account…"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking your earlier payment"
+msgstr "Checking your earlier payment"
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "Checking your subnames"
+msgstr "Checking your subnames"
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Choose a different name (reserved key)"
+msgstr "Choose a different name (reserved key)"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
-
-#: src/routes/index.tsx
-msgid "Claim your"
-msgstr "Claim your"
 
 #: src/components/molecules/SearchField/SearchField.tsx
 #: src/features/navigation/Header/search/SearchInput.tsx
@@ -604,10 +752,6 @@ msgstr "Complete your profile"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Confirm"
 msgstr "Confirm"
-
-#: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
-msgid "Confirm purchase"
-msgstr "Confirm purchase"
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "Confirm renewal"
@@ -680,6 +824,18 @@ msgstr "Contact"
 msgid "Contact methods"
 msgstr "Contact methods"
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
+msgid "Content hash"
+msgstr "Content hash"
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Continue"
+msgstr "Continue"
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "Continue migration"
+msgstr "Continue migration"
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue without signing in"
 msgstr "Continue without signing in"
@@ -687,6 +843,10 @@ msgstr "Continue without signing in"
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue without signing in?"
 msgstr "Continue without signing in?"
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
+msgid "Contract ABI (JSON)"
+msgstr "Contract ABI (JSON)"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
 msgid "Cooldown fee"
@@ -703,6 +863,21 @@ msgstr "Copied!"
 #: src/features/profile/components/view/AgentRecordCard.tsx
 msgid "Copy"
 msgstr "Copy"
+
+#. placeholder {0}: address.label
+#. placeholder {1}: address.value
+#: src/features/profile/components/view/ProfileAddressesSection.tsx
+msgid "Copy {0} address {1}"
+msgstr "Copy {0} address {1}"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
+msgid "Copy & edit records"
+msgstr "Copy & edit records"
+
+#. placeholder {0}: address.value
+#: src/features/profile/components/view/ProfileAddressesSection.tsx
+msgid "Copy address {0}"
+msgstr "Copy address {0}"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Copy link"
@@ -733,6 +908,14 @@ msgstr "Couldn’t check this name’s resolver. Please try again in a moment."
 msgid "Couldn’t check when this name expires, so editing is paused until it can be read."
 msgstr "Couldn’t check when this name expires, so editing is paused until it can be read."
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Couldn't disable notifications"
+msgstr "Couldn't disable notifications"
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Couldn't enable notifications"
+msgstr "Couldn't enable notifications"
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't estimate the network fee"
 msgstr "Couldn't estimate the network fee"
@@ -757,6 +940,10 @@ msgstr "Couldn't reach the network to prepare your upgrade. Please try again."
 msgid "Couldn’t read the wallet address for {name}"
 msgstr "Couldn’t read the wallet address for {name}"
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Couldn't read your balance on {chainName}"
+msgstr "Couldn't read your balance on {chainName}"
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't restore your upgrade progress. Reload to check the latest state."
 msgstr "Couldn't restore your upgrade progress. Reload to check the latest state."
@@ -769,7 +956,7 @@ msgstr "Couldn't revoke sessions. Please try again."
 msgid "Couldn't verify your name records. Please try again."
 msgstr "Couldn't verify your name records. Please try again."
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "Covered by your account balance"
 msgstr "Covered by your account balance"
 
@@ -809,10 +996,6 @@ msgstr "Deploying smart account…"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying the resolver"
 msgstr "Deploying the resolver"
-
-#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
-msgid "Description"
-msgstr "Description"
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
 msgid "Description must be {DESCRIPTION_MAX_LENGTH} characters or fewer"
@@ -855,6 +1038,10 @@ msgstr "Disconnect"
 msgid "Disconnecting..."
 msgstr "Disconnecting..."
 
+#: src/components/NoticeBanner.tsx
+msgid "Dismiss notice"
+msgstr "Dismiss notice"
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Do I have to upgrade my names? What happens if I don't?"
 msgstr "Do I have to upgrade my names? What happens if I don't?"
@@ -883,9 +1070,9 @@ msgstr "Download WebP"
 msgid "Downloading artwork…"
 msgstr "Downloading artwork…"
 
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
-msgstr "Each batch of your names is upgraded in a single transaction. If any part of a batch fails, no changes from that batch are applied. Earlier completed batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
+#: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.helpers.ts
+msgid "Each text record needs a unique key. Remove the duplicate custom record to edit it in its existing field."
+msgstr "Each text record needs a unique key. Remove the duplicate custom record to edit it in its existing field."
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
@@ -945,6 +1132,10 @@ msgstr "Enable"
 msgid "Enable Sessions"
 msgstr "Enable Sessions"
 
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Enable smart sessions"
+msgstr "Enable smart sessions"
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Enable Smart Sessions"
 msgstr "Enable Smart Sessions"
@@ -953,13 +1144,13 @@ msgstr "Enable Smart Sessions"
 msgid "Enabling sessions…"
 msgstr "Enabling sessions…"
 
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Enabling smart sessions…"
+msgstr "Enabling smart sessions…"
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS"
 msgstr "ENS"
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "ENS app landing page"
-msgstr "ENS app landing page"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS Explorer"
@@ -968,6 +1159,10 @@ msgstr "ENS Explorer"
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS Manager"
+msgstr "ENS Manager"
 
 #: src/features/dashboard/components/DashboardPills.tsx
 #: src/features/renew/workflow/pricing/PricingStep.tsx
@@ -978,9 +1173,25 @@ msgstr "ENSv1 only"
 msgid "ENSv2 commemorative NFT"
 msgstr "ENSv2 commemorative NFT"
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.helpers.ts
+msgid "Enter a key for each custom record or remove the empty row."
+msgstr "Enter a key for each custom record or remove the empty row."
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Enter a link"
+msgstr "Enter a link"
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Enter a price you'd be willing to pay. We'll calculate when the fee will reach that price."
 msgstr "Enter a price you'd be willing to pay. We'll calculate when the fee will reach that price."
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/links/validation.ts
+msgid "Enter a title"
+msgstr "Enter a title"
+
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Enter a valid URL, like https://example.com"
+msgstr "Enter a valid URL, like https://example.com"
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Enter the code from your email in Notification Settings while signed in to the account that requested it."
@@ -1061,7 +1272,6 @@ msgstr "Failed to fund wallet"
 msgid "Failed to fund wallet: {0}"
 msgstr "Failed to fund wallet: {0}"
 
-#: src/features/notifications/dropdown/notification-dropdown.tsx
 #: src/features/notifications/inbox/list.tsx
 msgid "Failed to load notifications"
 msgstr "Failed to load notifications"
@@ -1119,9 +1329,21 @@ msgstr "Featured"
 msgid "Fee at this moment"
 msgstr "Fee at this moment"
 
+#: src/routes/index.tsx
+msgid "Find your"
+msgstr "Find your"
+
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "Finish or cancel the other registration in its tab, then Try Again once this wallet is free."
 msgstr "Finish or cancel the other registration in its tab, then Try Again once this wallet is free."
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Finish upgrade"
+msgstr "Finish upgrade"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Finish your upgrade"
+msgstr "Finish your upgrade"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Finishing setup"
@@ -1131,13 +1353,13 @@ msgstr "Finishing setup"
 msgid "Follow these steps in your wallet. Renewal may need an extra payment approval."
 msgstr "Follow these steps in your wallet. Renewal may need an extra payment approval."
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-msgid "for"
-msgstr "for"
-
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Frequently Asked Questions"
 msgstr "Frequently Asked Questions"
+
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "From your wallet"
+msgstr "From your wallet"
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Funding wallet"
@@ -1209,6 +1431,10 @@ msgstr "Growing your corner of the decentralized web"
 msgid "hasn't been imported to ENS yet"
 msgstr "hasn't been imported to ENS yet"
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Help us improve ENS"
+msgstr "Help us improve ENS"
+
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 msgid "Here's a gift to celebrate your upgrade to the next era of ENS"
@@ -1227,6 +1453,10 @@ msgstr "How do I show my .eth name instead of my address?"
 msgid "How it works"
 msgstr "How it works"
 
+#: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
+msgid "I have reviewed the imported records and understand that missing records will not be copied."
+msgstr "I have reviewed the imported records and understand that missing records will not be copied."
+
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "I Understand"
 msgstr "I Understand"
@@ -1235,13 +1465,17 @@ msgstr "I Understand"
 msgid "Idle"
 msgstr "Idle"
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-msgid "If your connected wallet has fewer than two names and no primary name yet, ENS may set this name as your primary name and link it to your connected wallet automatically."
-msgstr "If your connected wallet has fewer than two names and no primary name yet, ENS may set this name as your primary name and link it to your connected wallet automatically."
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "If you think a smart session has been compromised, reset access to revoke all existing smart sessions for this account on this network, across every browser and device."
+msgstr "If you think a smart session has been compromised, reset access to revoke all existing smart sessions for this account on this network, across every browser and device."
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 msgid "Image not available"
 msgstr "Image not available"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
+msgid "Importing records…"
+msgstr "Importing records…"
 
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "in your wallet"
@@ -1259,17 +1493,25 @@ msgstr "Insufficient USDC"
 msgid "is too short to register"
 msgstr "is too short to register"
 
+#: src/features/migration/components/NameRow.tsx
+msgid "It can change this name's resolver after the upgrade."
+msgstr "It can change this name's resolver after the upgrade."
+
+#: src/features/migration/components/NameRow.tsx
+msgid "It can edit copied profile records and change this name's resolver after the upgrade. Ownership stays with you."
+msgstr "It can edit copied profile records and change this name's resolver after the upgrade. Ownership stays with you."
+
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "it has no ENSv2 reservation."
 msgstr "it has no ENSv2 reservation."
 
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
-msgstr "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
-
 #: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "It takes two transactions from your wallet, one to set up the account and one to revoke, and both cost gas. Your next registration will ask you to sign a new session."
-msgstr "It takes two transactions from your wallet, one to set up the account and one to revoke, and both cost gas. Your next registration will ask you to sign a new session."
+msgid "It takes two transactions from your wallet, one to set up the account and one to reset access. Both require ETH for gas. You will need to enable a new smart session afterwards."
+msgstr "It takes two transactions from your wallet, one to set up the account and one to reset access. Both require ETH for gas. You will need to enable a new smart session afterwards."
+
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "its parent name, or one above it, was upgraded without it."
+msgstr "its parent name, or one above it, was upgraded without it."
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Join the community"
@@ -1277,8 +1519,8 @@ msgstr "Join the community"
 
 #. placeholder {0}: truncateAddress(manager)
 #: src/features/migration/components/NameRow.tsx
-msgid "Keep <0>{0}</0> as a manager. It can change this name's resolver after the upgrade."
-msgstr "Keep <0>{0}</0> as a manager. It can change this name's resolver after the upgrade."
+msgid "Keep <0>{0}</0> as a manager."
+msgstr "Keep <0>{0}</0> as a manager."
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
@@ -1304,11 +1546,17 @@ msgstr "Language"
 msgid "Later"
 msgstr "Later"
 
+#: src/features/migration/components/SelectNamesStep.tsx
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "Learn how subnames affect upgrades"
+msgstr "Learn how subnames affect upgrades"
+
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "Learn More<0> about NFT traits</0>"
 msgstr "Learn More<0> about NFT traits</0>"
 
 #: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
 msgid "Left from your last attempt"
 msgstr "Left from your last attempt"
 
@@ -1325,8 +1573,8 @@ msgid "Lets the upgrade contract move any wrapped name you own."
 msgstr "Lets the upgrade contract move any wrapped name you own."
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
-msgid "Lets your smart account manage every ENSv2 name you own. Used temporarily to restore managers during an upgrade."
-msgstr "Lets your smart account manage every ENSv2 name you own. Used temporarily to restore managers during an upgrade."
+msgid "Lets your smart account manage every ENSv2 name you own. Used temporarily to restore managers and set up subnames during an upgrade."
+msgstr "Lets your smart account manage every ENSv2 name you own. Used temporarily to restore managers and set up subnames during an upgrade."
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Link copied to clipboard"
@@ -1339,6 +1587,10 @@ msgstr "links"
 #: src/features/profile/components/view/ProfileLinksSection.tsx
 msgid "Links"
 msgstr "Links"
+
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Links can't contain spaces. Remove them and try again"
+msgstr "Links can't contain spaces. Remove them and try again"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
 msgid "Load {hiddenCount} more"
@@ -1381,18 +1633,13 @@ msgstr "Loading…"
 msgid "Long-term identity"
 msgstr "Long-term identity"
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Look for a different name"
+msgstr "Look for a different name"
+
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Lowest upfront cost"
 msgstr "Lowest upfront cost"
-
-#: src/features/profile/components/view/ProfileAddressesSection.tsx
-msgid "Main receiving address"
-msgstr "Main receiving address"
-
-#. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "Mainnet est. fee: {0}"
-msgstr "Mainnet est. fee: {0}"
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Make it yours"
@@ -1476,6 +1723,10 @@ msgstr "Multi-year Discount ({discountPercentage}%)"
 msgid "My Names"
 msgstr "My Names"
 
+#: src/routes/index.tsx
+msgid "name"
+msgstr "name"
+
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Name"
@@ -1510,6 +1761,10 @@ msgstr "Names"
 msgid "Names could not be loaded"
 msgstr "Names could not be loaded"
 
+#: src/features/dashboard/components/FaqSection.tsx
+msgid "Names with deeper subnames, wrapped protections we cannot preserve, an incomplete subname list, or too many subnames for one safe upgrade must stay on ENSv1 for now. If subname copying is unavailable, the parent upgrade is blocked. There is no option to acknowledge the loss and continue. Your names keep working on ENSv1 while you wait."
+msgstr "Names with deeper subnames, wrapped protections we cannot preserve, an incomplete subname list, or too many subnames for one safe upgrade must stay on ENSv1 for now. If subname copying is unavailable, the parent upgrade is blocked. There is no option to acknowledge the loss and continue. Your names keep working on ENSv1 while you wait."
+
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
@@ -1523,7 +1778,8 @@ msgstr "Need help?"
 msgid "Need more help? Visit ENS Support Docs"
 msgstr "Need more help? Visit ENS Support Docs"
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Network fee"
 msgstr "Network fee"
 
@@ -1579,6 +1835,10 @@ msgstr "no ENSv1 registration was found for it."
 msgid "No favorites to display"
 msgstr "No favorites to display"
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+msgid "No matches"
+msgstr "No matches"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "No names found"
 msgstr "No names found"
@@ -1596,6 +1856,10 @@ msgstr "No names to display"
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "No push service is available in this browser"
+msgstr "No push service is available in this browser"
+
 #: src/features/navigation/Header/search/SearchSuggestions.tsx
 msgid "No recent searches"
 msgstr "No recent searches"
@@ -1604,6 +1868,10 @@ msgstr "No recent searches"
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No stablecoins available"
 msgstr "No stablecoins available"
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "No thanks"
+msgstr "No thanks"
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "No upgrade access to remove"
@@ -1616,6 +1884,10 @@ msgstr "Not enough ETH for gas. Top up before you start, or some names will be l
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "not enough funds to pay network fees"
 msgstr "not enough funds to pay network fees"
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Not enough USDC on {chainName}"
+msgstr "Not enough USDC on {chainName}"
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
@@ -1630,27 +1902,46 @@ msgstr "Not supported"
 msgid "Nothing has been lost. Contact ENS support before trying again."
 msgstr "Nothing has been lost. Contact ENS support before trying again."
 
-#: src/features/notifications/dropdown/notification-dropdown.tsx
 #: src/features/notifications/inbox/list.tsx
 msgid "Nothing here yet!"
 msgstr "Nothing here yet!"
 
-#: src/components/SepoliaNoticeBanner.tsx
-msgid "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
-msgstr "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
+#: src/features/notifications/settings/preferences.tsx
+msgid "Notification schedule"
+msgstr "Notification schedule"
 
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Notification Settings"
 msgstr "Notification Settings"
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
-#: src/features/notifications/dropdown/notification-dropdown.tsx
 msgid "Notifications"
 msgstr "Notifications"
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Notifications are misconfigured"
+msgstr "Notifications are misconfigured"
+
+#: src/features/notifications/settings/preferences.tsx
+msgid "Notifications are sent 30, 7 and 1 day before expiry, and 7 and 1 day before the end of the grace period, before the name is released."
+msgstr "Notifications are sent 30, 7 and 1 day before expiry, and 7 and 1 day before the end of the grace period, before the name is released."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Notifications aren't supported in this browser"
+msgstr "Notifications aren't supported in this browser"
+
 #: src/features/notifications/settings/contact-methods/push.tsx
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "Notifications blocked"
 msgstr "Notifications blocked"
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Notifications couldn't be set up"
+msgstr "Notifications couldn't be set up"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Notifications worked here before, but the permission ended with your last session. When you re-enable, picking the permanent option keeps them working after you close the browser."
+msgstr "Notifications worked here before, but the permission ended with your last session. When you re-enable, picking the permanent option keeps them working after you close the browser."
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "One approval covers all the .eth names you selected."
@@ -1676,6 +1967,15 @@ msgstr "One of your names now has its own subname registry. Upgrading it would d
 msgid "One username everywhere"
 msgstr "One username everywhere"
 
+#: src/features/profile/utils/urlInputValidation.ts
+msgid "Only http:// and https:// links are supported"
+msgstr "Only http:// and https:// links are supported"
+
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "Open in ENS Explorer"
+msgstr "Open in ENS Explorer"
+
+#: src/features/navigation/Header/navigation/DesktopNavigation.tsx
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"
 msgstr "Open navigation"
@@ -1691,10 +1991,6 @@ msgstr "Open Notification Settings"
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "OpenSea"
 msgstr "OpenSea"
-
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Or remove the saved session from this browser only. That costs nothing, but doesn't stop a copy made elsewhere."
-msgstr "Or remove the saved session from this browser only. That costs nothing, but doesn't stop a copy made elsewhere."
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
@@ -1713,6 +2009,18 @@ msgstr "Page not found"
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Pay with stablecoins"
 msgstr "Pay with stablecoins"
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Paying from {chainName} isn't available right now"
+msgstr "Paying from {chainName} isn't available right now"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Paying from {l2ChainName}"
+msgstr "Paying from {l2ChainName}"
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Payment approval was cancelled. Approve the payment in your wallet to start registration."
+msgstr "Payment approval was cancelled. Approve the payment in your wallet to start registration."
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Pending"
@@ -1763,9 +2071,17 @@ msgstr "Preferences"
 msgid "Preferences updated"
 msgstr "Preferences updated"
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+msgid "Preparing checkout..."
+msgstr "Preparing checkout..."
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Preparing registration..."
+msgstr "Preparing registration..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing the commitment"
@@ -1820,6 +2136,7 @@ msgid "Primary name"
 msgstr "Primary name"
 
 #: src/features/dashboard/components/PrimaryBadge.tsx
+#: src/features/dashboard/components/PrimaryNameButton.tsx
 msgid "Primary Name"
 msgstr "Primary Name"
 
@@ -1831,6 +2148,10 @@ msgstr "Primary Name Profile"
 msgid "Primary name set successfully"
 msgstr "Primary name set successfully"
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Privacy policy"
+msgstr "Privacy policy"
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
@@ -1840,6 +2161,15 @@ msgstr "Privacy Policy"
 msgid "Profile actions"
 msgstr "Profile actions"
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Profile Description"
+msgstr "Profile Description"
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Public key records can't be carried over by this upgrade and will stop resolving for {nameList}."
+msgstr "Public key records can't be carried over by this upgrade and will stop resolving for {nameList}."
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
 msgid "Publish"
 msgstr "Publish"
@@ -1847,6 +2177,10 @@ msgstr "Publish"
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
 msgid "Publish changes"
 msgstr "Publish changes"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogBody.tsx
+msgid "Publishing is paused while wallet and resolver permissions are checked. Your draft is kept here."
+msgstr "Publishing is paused while wallet and resolver permissions are checked. Your draft is kept here."
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
 msgid "Publishing…"
@@ -1896,11 +2230,14 @@ msgstr "Reconnect Wallet"
 msgid "Reconnect your owner wallet to continue."
 msgstr "Reconnect your owner wallet to continue."
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
 msgid "Register name"
 msgstr "Register name"
+
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "Register this name in the ENS Explorer"
+msgstr "Register this name in the ENS Explorer"
 
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx
 msgid "Register to date"
@@ -1914,10 +2251,6 @@ msgstr "Register to date"
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Registered"
 msgstr "Registered"
-
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-msgid "Registering"
-msgstr "Registering"
 
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Registering for"
@@ -2001,9 +2334,9 @@ msgstr "Remove from favorites"
 msgid "Remove notification"
 msgstr "Remove notification"
 
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Remove saved session"
-msgstr "Remove saved session"
+#: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
+msgid "Remove record"
+msgstr "Remove record"
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Remove Telegram Contact Method?"
@@ -2055,12 +2388,11 @@ msgid "Renew before upgrade"
 msgstr "Renew before upgrade"
 
 #: src/features/dashboard/components/NameRow.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renew name"
 msgstr "Renew name"
 
 #: src/features/profile/components/view/ProfileRenewAction.tsx
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renew Name"
 msgstr "Renew Name"
 
@@ -2117,9 +2449,17 @@ msgstr "Renewal Fee"
 msgid "Renewal Period"
 msgstr "Renewal Period"
 
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
-msgid "Renewing"
-msgstr "Renewing"
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Renewal price"
+msgstr "Renewal price"
+
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Renewals are paid in USDC out of your smart account."
+msgstr "Renewals are paid in USDC out of your smart account."
+
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
+msgstr "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
 
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Renewing for"
@@ -2162,9 +2502,30 @@ msgstr "Resending email verification for {0}"
 msgid "Reserving your name"
 msgstr "Reserving your name"
 
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Reset access"
+msgstr "Reset access"
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Reset smart session access"
+msgstr "Reset smart session access"
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Resetting access requires a wallet transaction and ETH for gas. You will need to enable a new smart session afterwards."
+msgstr "Resetting access requires a wallet transaction and ETH for gas. You will need to enable a new smart session afterwards."
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Resetting access…"
+msgstr "Resetting access…"
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 msgid "Resolve errors before previewing changes."
 msgstr "Resolve errors before previewing changes."
+
+#: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
+msgid "Resolver replacement is blocked. These records could not be read or preserved:"
+msgstr "Resolver replacement is blocked. These records could not be read or preserved:"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Restore the managers you chose"
@@ -2177,6 +2538,10 @@ msgstr "Resuming your registration."
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Retry artwork"
 msgstr "Retry artwork"
+
+#: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
+msgid "Retry import"
+msgstr "Retry import"
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Retry upgrade and cleanup"
@@ -2203,22 +2568,17 @@ msgstr "Reverse record for {0}"
 msgid "Review access granted during ENS name upgrades."
 msgstr "Review access granted during ENS name upgrades."
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
+msgid "Review custom records, content hash and contract ABI. Empty values remove a record."
+msgstr "Review custom records, content hash and contract ABI. Empty values remove a record."
+
+#: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
+msgid "Review imported records"
+msgstr "Review imported records"
+
 #: src/features/dashboard/components/TemporaryMigrationAccessNotice.tsx
 msgid "Review permissions"
 msgstr "Review permissions"
-
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Revoke sessions"
-msgstr "Revoke sessions"
-
-#: src/features/navigation/Header/account/WalletSection.tsx
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Revoke smart sessions"
-msgstr "Revoke smart sessions"
-
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Revoking…"
-msgstr "Revoking…"
 
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
 #: src/features/bulk-renew/components/DurationPresets.tsx
@@ -2268,10 +2628,6 @@ msgstr "Search names"
 msgid "Search notifications"
 msgstr "Search notifications"
 
-#: src/features/notifications/dropdown/notification-dropdown.tsx
-msgid "See all"
-msgstr "See all"
-
 #. placeholder {0}: stablecoin.symbol
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
@@ -2294,15 +2650,15 @@ msgstr "Select all"
 msgid "Select all names"
 msgstr "Select all names"
 
-#: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
-msgid "Select coin"
-msgstr "Select coin"
-
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
 msgid "Select payment"
 msgstr "Select payment"
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Select USDC on {chainName}"
+msgstr "Select USDC on {chainName}"
 
 #: src/features/dashboard/components/PrimaryNameListControls.tsx
 msgid "Selected: {selectedName}"
@@ -2341,13 +2697,21 @@ msgstr "Set primary name"
 msgid "Set this as your primary name?"
 msgstr "Set this as your primary name?"
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Set up & Save"
+msgstr "Set up & Save"
+
 #: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Set up and revoke"
-msgstr "Set up and revoke"
+msgid "Set up and reset access"
+msgstr "Set up and reset access"
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Set up later"
 msgstr "Set up later"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
+msgid "Set up resolver"
+msgstr "Set up resolver"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Set up temporary access"
@@ -2358,12 +2722,8 @@ msgid "Set up this name’s resolver?"
 msgstr "Set up this name’s resolver?"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Set which ENS name displays as your identity across apps and wallets."
-msgstr "Set which ENS name displays as your identity across apps and wallets."
-
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
-msgid "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
-msgstr "Setting a primary name is paid in USDC. Your wallet will be asked to approve this exact amount — nothing more."
+msgid "Setting a primary name is paid in USDC."
+msgstr "Setting a primary name is paid in USDC."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting ETH address record"
@@ -2381,6 +2741,10 @@ msgstr "Setting the default wallet address on your name"
 msgid "Setting things up"
 msgstr "Setting things up"
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Setting up notifications timed out"
+msgstr "Setting up notifications timed out"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting up registration"
 msgstr "Setting up registration"
@@ -2389,9 +2753,17 @@ msgstr "Setting up registration"
 msgid "Setting..."
 msgstr "Setting..."
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "Settings"
+msgstr "Settings"
+
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
 msgstr "Share"
+
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "Share a fun fact about this name"
+msgstr "Share a fun fact about this name"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Share on Telegram"
@@ -2408,6 +2780,14 @@ msgstr "Share profile"
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share profile link"
 msgstr "Share profile link"
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "Share usage data"
+msgstr "Share usage data"
+
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Share usage data to help us find problems and make ENS better for everyone. This is optional, and you can change your choice in Settings."
+msgstr "Share usage data to help us find problems and make ENS better for everyone. This is optional, and you can change your choice in Settings."
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Should I register now or wait?"
@@ -2455,21 +2835,17 @@ msgstr "Sign the gasless payment approval in your wallet"
 msgid "Signing in..."
 msgstr "Signing in..."
 
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Smart account"
-msgstr "Smart account"
-
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "Smart Account"
-msgstr "Smart Account"
-
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Smart account access"
 msgstr "Smart account access"
 
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "Smart sessions are required to use this app."
-msgstr "Smart sessions are required to use this app."
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart sessions off"
+msgstr "Smart sessions off"
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart sessions on"
+msgstr "Smart sessions on"
 
 #: src/features/profile/components/view/ProfileSocialSection.tsx
 msgid "Social"
@@ -2491,6 +2867,10 @@ msgstr "Some names are more in-demand than others."
 msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
+msgstr "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
+
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Something about your names changed since you last tried, so we can't safely pick up where you left off."
 msgstr "Something about your names changed since you last tried, so we can't safely pick up where you left off."
@@ -2502,6 +2882,14 @@ msgstr "Something went wrong"
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Something went wrong preparing the save. Please try again."
 msgstr "Something went wrong preparing the save. Please try again."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Something went wrong while setting up browser notifications. Please try again."
+msgstr "Something went wrong while setting up browser notifications. Please try again."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Something went wrong while turning off browser notifications. Please try again."
+msgstr "Something went wrong while turning off browser notifications. Please try again."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Something went wrong. Refresh and try again."
@@ -2572,6 +2960,10 @@ msgstr "Submitting the registration transaction"
 msgid "Submitting token approval"
 msgstr "Submitting token approval"
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
+msgstr "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
+
 #: src/features/bulk-renew/components/NamesBreakdown.tsx
 msgid "Subtotal:"
 msgstr "Subtotal:"
@@ -2580,10 +2972,38 @@ msgstr "Subtotal:"
 msgid "Support"
 msgstr "Support"
 
+#: src/features/dashboard/components/FaqSection.tsx
+msgid "Supported direct subnames, such as alice.example.eth, can be included when you upgrade an unwrapped or unlocked example.eth. Each keeps the owner and resolver shown in your review. Existing subname records stay on that resolver, and you keep control of the parent name."
+msgstr "Supported direct subnames, such as alice.example.eth, can be included when you upgrade an unwrapped or unlocked example.eth. Each keeps the owner and resolver shown in your review. Existing subname records stay on that resolver, and you keep control of the parent name."
+
 #. placeholder {0}: appChain.name
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Switch your wallet to {0} to revoke sessions."
 msgstr "Switch your wallet to {0} to revoke sessions."
+
+#: src/features/migration/components/WrapperSyncNotice.tsx
+msgid "Sync names"
+msgstr "Sync names"
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "Sync Names"
+msgstr "Sync Names"
+
+#: src/features/migration/components/WrapperSyncNotice.tsx
+msgid "Sync names before upgrading"
+msgstr "Sync names before upgrading"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Sync your names before upgrading"
+msgstr "Sync your names before upgrading"
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "Sync your names before upgrading to your new ENS profile."
+msgstr "Sync your names before upgrading to your new ENS profile."
+
+#: src/features/migration/components/WrapperSyncNotice.tsx
+msgid "Syncing names…"
+msgstr "Syncing names…"
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Telegram"
@@ -2657,6 +3077,14 @@ msgstr "The ENS domain has been successfully renewed."
 msgid "The fee hits $0 on"
 msgstr "The fee hits $0 on"
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "The impact is unknown. Try again or contact <0>support</0> before upgrading."
+msgstr "The impact is unknown. Try again or contact <0>support</0> before upgrading."
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "The latest check found no affected subnames. You can continue with the upgrade."
+msgstr "The latest check found no affected subnames. You can continue with the upgrade."
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "The mint request was cancelled."
 msgstr "The mint request was cancelled."
@@ -2672,6 +3100,18 @@ msgstr "The mint transaction was cancelled. You can try minting again."
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "The mint transaction was replaced by another transaction. Check your wallet before trying again."
 msgstr "The mint transaction was replaced by another transaction. Check your wallet before trying again."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "The notification prompt was blocked"
+msgstr "The notification prompt was blocked"
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "The notification prompt was dismissed"
+msgstr "The notification prompt was dismissed"
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "The notification service returned an invalid key. Please try again later."
+msgstr "The notification service returned an invalid key. Please try again later."
 
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "The page you're looking for doesn't exist or may have been moved."
@@ -2701,30 +3141,58 @@ msgstr "The renewal could not be completed."
 msgid "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 msgstr "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 
+#: src/features/renew/components/RenewalFundingDialog.tsx
+msgid "The renewal price includes a 10% buffer: the rent is priced when the renewal executes, slightly after this quote."
+msgstr "The renewal price includes a 10% buffer: the rent is priced when the renewal executes, slightly after this quote."
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "The replacement resolver could not be verified. Please try again."
 msgstr "The replacement resolver could not be verified. Please try again."
 
+#: src/features/dashboard/components/FaqSection.tsx
+msgid "The review uses a saved point in time. We check for changes again before sending, but changes made during wallet approval or while the transaction is pending may not be included. Later ENSv1 transfers and resolver changes do not update the copied names."
+msgstr "The review uses a saved point in time. We check for changes again before sending, but changes made during wallet approval or while the transaction is pending may not be included. Later ENSv1 transfers and resolver changes do not update the copied names."
+
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "The session wasn't enabled."
+msgstr "The session wasn't enabled."
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr "The upgrade contracts don't match this account. Please contact support."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "There was a problem reaching the notification service. Please try again in a moment."
+msgstr "There was a problem reaching the notification service. Please try again in a moment."
 
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "These names can't be upgraded"
 msgstr "These names can't be upgraded"
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "These names need to stay on ENSv1 for now"
+msgstr "These names need to stay on ENSv1 for now"
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "These subnames can't be preserved yet"
+msgstr "These subnames can't be preserved yet"
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."
+msgstr "This app needs its notification service worker to receive push messages. Reload the page and try again."
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This browser cannot safely coordinate your mint. Try an up-to-date browser."
 msgstr "This browser cannot safely coordinate your mint. Try an up-to-date browser."
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "This browser doesn't support push notifications. Try Chrome, Firefox, or Safari, or use email or Telegram notifications instead."
+msgstr "This browser doesn't support push notifications. Try Chrome, Firefox, or Safari, or use email or Telegram notifications instead."
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This commemorative NFT has already been minted."
 msgstr "This commemorative NFT has already been minted."
-
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "This ends every session you have signed for this account, in every browser and on every device."
-msgstr "This ends every session you have signed for this account, in every browser and on every device."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This is taking longer than expected."
@@ -2746,6 +3214,18 @@ msgstr "This name doesn’t have a wallet address yet. If you continue, we’ll 
 msgid "This name has expired, but can be renewed for the previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
 msgstr "This name has expired, but can be renewed for the previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "This name has subnames with further subnames below them. Upgrading the whole tree is not supported yet."
+msgstr "This name has subnames with further subnames below them. Upgrading the whole tree is not supported yet."
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "This name has too many subnames to include in one safe upgrade."
+msgstr "This name has too many subnames to include in one safe upgrade."
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "This name has wrapped subnames whose permissions and protections cannot be preserved yet."
+msgstr "This name has wrapped subnames whose permissions and protections cannot be preserved yet."
+
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name is in grace period"
 msgstr "This name is in grace period"
@@ -2758,9 +3238,21 @@ msgstr "This name is in price cooldown"
 msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 msgstr "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "This parent has subnames whose protections cannot be preserved by this upgrade yet."
+msgstr "This parent has subnames whose protections cannot be preserved by this upgrade yet."
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "This signature is free and doesn't cost any gas."
 msgstr "This signature is free and doesn't cost any gas."
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "This subname must be included through its parent name. It cannot be copied on its own."
+msgstr "This subname must be included through its parent name. It cannot be copied on its own."
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "This upgrade cannot preserve every subname below the selected parents. Keep those parents on ENSv1 for now, where their subnames keep working. Return to your selection and remove the affected parents before continuing."
+msgstr "This upgrade cannot preserve every subname below the selected parents. Keep those parents on ENSv1 for now, where their subnames keep working. Return to your selection and remove the affected parents before continuing."
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "This verification code has expired. Resend verification to get a new code."
@@ -2774,11 +3266,16 @@ msgstr "This wasn't set up with the wallet you're using now. Connect the origina
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr "Times shown in your local time zone ({timezoneLabel})"
 
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Tip: if your browser asks how long to allow notifications, pick the permanent option."
+msgstr "Tip: if your browser asks how long to allow notifications, pick the permanent option."
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "To enable these features later, open your wallet menu and select Verify wallet ownership."
 msgstr "To enable these features later, open your wallet menu and select Verify wallet ownership."
 
 #: src/features/notifications/settings/contact-methods/push.tsx
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
 msgstr "To enable, go to your browser's site settings for this page and allow notifications."
 
@@ -2787,12 +3284,12 @@ msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications
 msgstr "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "To save these changes, we’ll set a resolver your wallet controls and keep only the changes you save."
-msgstr "To save these changes, we’ll set a resolver your wallet controls and keep only the changes you save."
-
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "To use this as your primary name, we’ll set a resolver your wallet controls and keep only your wallet address."
 msgstr "To use this as your primary name, we’ll set a resolver your wallet controls and keep only your wallet address."
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "To use this as your primary name, we’ll set a resolver your wallet controls."
+msgstr "To use this as your primary name, we’ll set a resolver your wallet controls."
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
@@ -2832,9 +3329,17 @@ msgstr "Try again"
 msgid "Try Again"
 msgstr "Try Again"
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Try again and allow notifications when your browser asks."
+msgstr "Try again and allow notifications when your browser asks."
+
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Try it out"
 msgstr "Try it out"
+
+#: src/features/notifications/settings/contact-methods/push.tsx
+msgid "Turn notifications back on"
+msgstr "Turn notifications back on"
 
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Unable to load names for this address. Please try again."
@@ -2848,10 +3353,6 @@ msgstr "Unfinished registration"
 msgid "unique searches in the last 30 days"
 msgstr "unique searches in the last 30 days"
 
-#: src/features/wallet/components/RevokeSessionsModal.tsx
-msgid "Unlike starting a session, this is a transaction from your wallet, so it costs gas. Your next registration will ask you to sign a new session."
-msgstr "Unlike starting a session, this is a transaction from your wallet, so it costs gas. Your next registration will ask you to sign a new session."
-
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Unread only"
 msgstr "Unread only"
@@ -2863,6 +3364,10 @@ msgstr "Unwrapped .eth name access"
 #: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
 msgid "up to"
 msgstr "up to"
+
+#: src/features/migration/components/WrapperSyncNotice.tsx
+msgid "Update these names' wrapped expiry to make them available for upgrade. A network fee applies."
+msgstr "Update these names' wrapped expiry to make them available for upgrade. A network fee applies."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Updating address..."
@@ -2920,6 +3425,10 @@ msgstr "Upgrade permissions"
 msgid "Upgrade progress"
 msgstr "Upgrade progress"
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
+msgid "Upgrade resolver"
+msgstr "Upgrade resolver"
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Upgrade the parent name first, then its subnames."
 msgstr "Upgrade the parent name first, then its subnames."
@@ -2947,6 +3456,14 @@ msgstr "Upgrading names with a different manager requires temporary permission f
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "USD"
 msgstr "USD"
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "USDC on {chainName}"
+msgstr "USDC on {chainName}"
+
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "Use a different wallet"
+msgstr "Use a different wallet"
 
 #: src/features/landing/IntegrationsSection.tsx
 msgid "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
@@ -3087,6 +3604,10 @@ msgid "Waiting for the commitment confirmation"
 msgstr "Waiting for the commitment confirmation"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting for the payment you already signed to arrive"
+msgstr "Waiting for the payment you already signed to arrive"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for the registration confirmation"
 msgstr "Waiting for the registration confirmation"
 
@@ -3122,11 +3643,30 @@ msgstr "Wallet funded successfully"
 msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr "Wallet isn’t ready yet. Try again in a moment."
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "We could not check whether your names and subnames can be safely upgraded. Try again before continuing."
+msgstr "We could not check whether your names and subnames can be safely upgraded. Try again before continuing."
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "We could not verify a complete, current list of this name's subnames. Refresh and try again."
+msgstr "We could not verify a complete, current list of this name's subnames. Refresh and try again."
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "We couldn't approve your payment. Please try again and approve the payment in your wallet."
+msgstr "We couldn't approve your payment. Please try again and approve the payment in your wallet."
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "We couldn't check your names"
+msgstr "We couldn't check your names"
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "We couldn't check your subnames"
+msgstr "We couldn't check your subnames"
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "We couldn't check your upgrade access."
 msgstr "We couldn't check your upgrade access."
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
 msgstr "We couldn't confirm that {domainName} is still available. Please try again."
@@ -3147,6 +3687,10 @@ msgstr "We couldn't remove access. Check your wallet and try again."
 msgid "We couldn't safely retry. Nothing was submitted and nothing changed."
 msgstr "We couldn't safely retry. Nothing was submitted and nothing changed."
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "We couldn't start your registration. Please try again."
+msgstr "We couldn't start your registration. Please try again."
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "We couldn't upgrade one of your names. Try again."
 msgstr "We couldn't upgrade one of your names. Try again."
@@ -3155,9 +3699,17 @@ msgstr "We couldn't upgrade one of your names. Try again."
 msgid "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
 msgstr "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
 
-#: src/routes/index.tsx
-msgid "web3 username"
-msgstr "web3 username"
+#: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
+msgid "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
+msgstr "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "We’ll prepare a resolver your wallet controls with the records you reviewed, verify them, then assign it to this name."
+msgstr "We’ll prepare a resolver your wallet controls with the records you reviewed, verify them, then assign it to this name."
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "We’ll prepare a resolver your wallet controls with the records you reviewed, verify them, then switch this name to it. Missing records will not be copied. Your current resolver stays active until the replacement is ready."
+msgstr "We’ll prepare a resolver your wallet controls with the records you reviewed, verify them, then switch this name to it. Missing records will not be copied. Your current resolver stays active until the replacement is ready."
 
 #: src/features/migration/components/success/CommemorativeNftDashboardSection.tsx
 msgid "Welcome to ENSv2"
@@ -3176,9 +3728,14 @@ msgid "What additional fee are you willing to pay?"
 msgstr "What additional fee are you willing to pay?"
 
 #: src/features/dashboard/components/FaqSection.tsx
+msgid "What happens to subnames when I upgrade?"
+msgstr "What happens to subnames when I upgrade?"
+
+#: src/features/dashboard/components/FaqSection.tsx
 msgid "What is a primary name?"
 msgstr "What is a primary name?"
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "What is the network fee?"
 msgstr "What is the network fee?"
@@ -3213,6 +3770,10 @@ msgstr "Wrapped name access"
 msgid "Wrong wallet connected"
 msgstr "Wrong wallet connected"
 
+#: src/components/AnalyticsConsentBanner.tsx
+msgid "Yes, happy to help"
+msgstr "Yes, happy to help"
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the app looks up the address automatically."
 msgstr "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the app looks up the address automatically."
@@ -3221,13 +3782,17 @@ msgstr "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the 
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 
-#: src/features/profile/components/dialogs/HcaFundingConfirmDialog.tsx
+#: src/components/HcaFundingConfirmDialog.tsx
 msgid "You approve"
 msgstr "You approve"
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "You can buy this name at any point during the {periodDays}-day cooldown."
 msgstr "You can buy this name at any point during the {periodDays}-day cooldown."
+
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "You can keep browsing, but registering or managing names needs a session. Try again when you're ready."
+msgstr "You can keep browsing, but registering or managing names needs a session. Try again when you're ready."
 
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "You can still use the manager, but these features won't be available:"
@@ -3301,6 +3866,18 @@ msgstr "Your account"
 msgid "Your account could not be checked. Please try again."
 msgstr "Your account could not be checked. Please try again."
 
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Your browser blocked the permission prompt, so notifications couldn't be enabled. Allow notifications for this site, then try again."
+msgstr "Your browser blocked the permission prompt, so notifications couldn't be enabled. Allow notifications for this site, then try again."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Your browser can't reach a push delivery service. Check your browser's push settings, then try again."
+msgstr "Your browser can't reach a push delivery service. Check your browser's push settings, then try again."
+
+#: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
+msgid "Your browser took too long to register for push messages. Check your connection, then try again."
+msgstr "Your browser took too long to register for push messages. Check your connection, then try again."
+
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Your card is ready to preview. Minting is optional and you pay the network gas."
 msgstr "Your card is ready to preview. Minting is optional and you pay the network gas."
@@ -3366,9 +3943,17 @@ msgstr "Your name was registered, but we couldn't set it as your primary name. Y
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Your names are upgraded one batch at a time. If an upgrade transaction fails, none of the names in that batch change. Earlier batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
+msgstr "Your names are upgraded one batch at a time. If an upgrade transaction fails, none of the names in that batch change. Earlier batches and permissions stay in place. Nothing is signed automatically, so review every request in your wallet."
+
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names can't be upgraded"
 msgstr "Your names can't be upgraded"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Your names have been upgraded. Confirm the completed transactions and finish any remaining permission cleanup."
+msgstr "Your names have been upgraded. Confirm the completed transactions and finish any remaining permission cleanup."
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "Your names, text records, and addresses will be carried over during the upgrade"
@@ -3422,6 +4007,10 @@ msgstr "Your saved upgrade needs attention"
 msgid "Your smart account isn't set up on-chain yet. Sessions you signed for it still work once anyone sets it up, so revoking needs a setup transaction first."
 msgstr "Your smart account isn't set up on-chain yet. Sessions you signed for it still work once anyone sets it up, so revoking needs a setup transaction first."
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "Your subnames are unaffected"
+msgstr "Your subnames are unaffected"
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
 msgstr "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
@@ -3435,15 +4024,43 @@ msgstr "Your upgrades are still being verified. Check again in a moment."
 msgid "Your upgrades still need to be verified. Check again to continue."
 msgstr "Your upgrades still need to be verified. Check again to continue."
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Your wallet address can only have one primary ENS name, which will display instead of your wallet address across apps and wallets."
+msgstr "Your wallet address can only have one primary ENS name, which will display instead of your wallet address across apps and wallets."
+
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
 msgstr "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again."
+msgstr "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again."
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again. No names were changed."
+msgstr "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again. No names were changed."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
 msgstr "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
 
+#: src/components/HcaFundingConfirmDialog.tsx
+msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
+msgstr "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Your wallet sends this one, because your temporary account no longer has permission to update these records."
+msgstr "Your wallet sends this one, because your temporary account no longer has permission to update these records."
+
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Your wallet shows the final fee before you approve."
 msgstr "Your wallet shows the final fee before you approve."
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your wallet will ask you to sign a payment approval (permit) for the amount shown. This lets ENS use your USDC to pay for registration and network fees. Registration starts after you approve."
+msgstr "Your wallet will ask you to sign a payment approval (permit) for the amount shown. This lets ENS use your USDC to pay for registration and network fees. Registration starts after you approve."
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
+msgstr "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."

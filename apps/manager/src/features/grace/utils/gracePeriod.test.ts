@@ -4,11 +4,11 @@ import {
   getDaysSinceExpiry,
   getDisplayExpiryDate,
   getGraceEndDate,
+  getServedExpiryStatus,
   isInGracePeriod,
   isPastGracePeriod,
   isRenewableV2EthName,
   MS_PER_DAY,
-  shouldShowProminentRenew,
   V2_GRACE_PERIOD_DAYS,
 } from './gracePeriod'
 
@@ -103,30 +103,6 @@ describe('getDaysSinceExpiry', () => {
   })
 })
 
-describe('shouldShowProminentRenew', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('returns true when in grace', () => {
-    vi.setSystemTime(base.getTime() + MS_PER_DAY)
-    expect(shouldShowProminentRenew(base, 'v2')).toBe(true)
-  })
-
-  it('returns true within 30 days before expiry', () => {
-    vi.setSystemTime(base.getTime() - 10 * MS_PER_DAY)
-    expect(shouldShowProminentRenew(base, 'v2')).toBe(true)
-  })
-
-  it('returns false more than 30 days before expiry', () => {
-    vi.setSystemTime(base.getTime() - 31 * MS_PER_DAY)
-    expect(shouldShowProminentRenew(base, 'v2')).toBe(false)
-  })
-})
-
 describe('isRenewableV2EthName', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -176,5 +152,44 @@ describe('getDisplayExpiryDate', () => {
   it('returns raw expiry when not in grace', () => {
     vi.setSystemTime(base.getTime() - MS_PER_DAY)
     expect(getDisplayExpiryDate(base, 'v2')?.getTime()).toBe(base.getTime())
+  })
+})
+
+describe('getServedExpiryStatus', () => {
+  const graceEnd = new Date(base.getTime() + 28 * MS_PER_DAY)
+
+  it('is in grace between expiry and the served grace end', () => {
+    const status = getServedExpiryStatus(
+      base,
+      graceEnd,
+      new Date(base.getTime() + MS_PER_DAY),
+    )
+    expect(status).toMatchObject({
+      isInGrace: true,
+      graceEndDate: graceEnd,
+      displayExpiryDate: graceEnd,
+      daysSinceExpiry: 1,
+      isPastGrace: false,
+    })
+  })
+
+  it('is not in grace at expiry, nor once grace has ended', () => {
+    expect(getServedExpiryStatus(base, graceEnd, base).isInGrace).toBe(false)
+    const after = getServedExpiryStatus(base, graceEnd, graceEnd)
+    expect(after).toMatchObject({ isInGrace: false, isPastGrace: true })
+  })
+
+  it('gives a name with no served grace none, so it lapses at expiry', () => {
+    const status = getServedExpiryStatus(
+      base,
+      null,
+      new Date(base.getTime() + MS_PER_DAY),
+    )
+    expect(status).toMatchObject({
+      isInGrace: false,
+      graceEndDate: null,
+      displayExpiryDate: base,
+      isPastGrace: true,
+    })
   })
 })

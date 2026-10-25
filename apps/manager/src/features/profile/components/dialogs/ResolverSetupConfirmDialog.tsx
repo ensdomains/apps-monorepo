@@ -15,6 +15,8 @@ export type ResolverSetupConfirmIntent = 'primary-name' | 'edit-profile'
 
 interface ResolverSetupConfirmDialogProps {
   readonly intent: ResolverSetupConfirmIntent
+  /** False when the name has nothing to replace, so the action is a plain continue. */
+  readonly isReplacing: boolean
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly onConfirm: () => void
@@ -23,9 +25,10 @@ interface ResolverSetupConfirmDialogProps {
 
 const getCopy = (
   intent: ResolverSetupConfirmIntent,
+  isReplacing: boolean,
 ): { title: ReactNode; description: ReactNode; confirmLabel: ReactNode } =>
-  match(intent)
-    .with('primary-name', () => ({
+  match({ intent, isReplacing })
+    .with({ intent: 'primary-name', isReplacing: true }, () => ({
       title: <Trans>Set this as your primary name?</Trans>,
       description: (
         <Trans>
@@ -35,12 +38,34 @@ const getCopy = (
       ),
       confirmLabel: <Trans>Replace & Continue</Trans>,
     }))
-    .with('edit-profile', () => ({
+    .with({ intent: 'primary-name', isReplacing: false }, () => ({
+      title: <Trans>Set this as your primary name?</Trans>,
+      description: (
+        <Trans>
+          To use this as your primary name, we’ll set a resolver your wallet
+          controls.
+        </Trans>
+      ),
+      confirmLabel: <Trans>Continue</Trans>,
+    }))
+    .with({ intent: 'edit-profile', isReplacing: false }, () => ({
       title: <Trans>Set up this name’s resolver?</Trans>,
       description: (
         <Trans>
-          To save these changes, we’ll set a resolver your wallet controls and
-          keep only the changes you save.
+          We’ll prepare a resolver your wallet controls with the records you
+          reviewed, verify them, then assign it to this name.
+        </Trans>
+      ),
+      confirmLabel: <Trans>Set up & Save</Trans>,
+    }))
+    .with({ intent: 'edit-profile', isReplacing: true }, () => ({
+      title: <Trans>Set up this name’s resolver?</Trans>,
+      description: (
+        <Trans>
+          We’ll prepare a resolver your wallet controls with the records you
+          reviewed, verify them, then switch this name to it. Missing records
+          will not be copied. Your current resolver stays active until the
+          replacement is ready.
         </Trans>
       ),
       confirmLabel: <Trans>Replace & Save</Trans>,
@@ -49,12 +74,13 @@ const getCopy = (
 
 export const ResolverSetupConfirmDialog = ({
   intent,
+  isReplacing,
   open,
   onOpenChange,
   onConfirm,
   children,
 }: ResolverSetupConfirmDialogProps) => {
-  const { title, description, confirmLabel } = getCopy(intent)
+  const { title, description, confirmLabel } = getCopy(intent, isReplacing)
 
   return (
     <AlertDialog onOpenChange={onOpenChange} open={open}>
@@ -82,7 +108,7 @@ export const ResolverSetupConfirmDialog = ({
               onOpenChange(false)
             }}
             size="lg"
-            variant="destructive"
+            variant={isReplacing ? 'destructive' : 'default'}
           >
             {confirmLabel}
           </Button>

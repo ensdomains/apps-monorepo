@@ -11,31 +11,29 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import type { Address, Hex, WalletClient } from 'viem'
-import type { ProtocolVersion } from '@/utils/types'
-import { prepareCreateSubnameTransaction } from '../utils/create-subname.helpers'
+import {
+  type CreateSubnameWrite,
+  prepareCreateSubnameTransaction,
+} from '../utils/create-subname.helpers'
 
 export type CreateSubnameParameters = {
-  /** The subregistry address (parent registry for the subname) */
-  readonly registryAddress: Address
+  /** Where the subname is written, by protocol version */
+  readonly write: CreateSubnameWrite
   /** The label of the subname to create */
   readonly label: string
   /** The owner address of the new subname */
   readonly owner: Address
-  /** The resolver address for the new subname */
-  readonly resolverAddress: Address
   /** The wallet client with account */
   readonly walletClient: WalletClient
   /** Signer for the transaction */
   readonly signer: Signer
   /** Chain ID */
   readonly chainId: number
-  /** ENS protocol version (for query invalidation) */
-  readonly protocolVersion: ProtocolVersion
   /** Parent name (for description) */
   readonly parentName: string
   /** Transaction ID for tracking */
   readonly id: string
-  /** Optional expiry timestamp in seconds (unix). Defaults to 1 year via ensjs. */
+  /** V2 only: expiry timestamp in seconds (unix). Defaults to 1 year via ensjs. */
   readonly expires?: bigint
 }
 
@@ -48,10 +46,9 @@ export async function createSubname(
   params: CreateSubnameParameters,
 ): Promise<CreateSubnameResult> {
   const {
-    registryAddress,
+    write,
     label,
     owner,
-    resolverAddress,
     walletClient,
     signer,
     chainId,
@@ -61,10 +58,10 @@ export async function createSubname(
   } = params
 
   const intent = prepareCreateSubnameTransaction({
-    registryAddress,
+    write,
+    parentName,
     label,
     owner,
-    resolverAddress,
     walletClient,
     chainId,
     expires,

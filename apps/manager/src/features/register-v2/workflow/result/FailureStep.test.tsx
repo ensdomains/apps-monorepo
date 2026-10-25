@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { FailureStepView } from './FailureStep'
 
@@ -16,6 +16,7 @@ const renderView = (
         label="name-two"
         message="Something went wrong."
         onCancel={vi.fn()}
+        onFindAnotherName={vi.fn()}
         onRetry={vi.fn()}
         {...props}
       />
@@ -39,6 +40,35 @@ describe('FailureStepView', () => {
     // Back to Quote leads; Try Again stays for when the other run is done.
     expect(screen.getByRole('button', { name: 'Back to Quote' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Try Again' })).toBeVisible()
+  })
+
+  it('explains a lost race instead of showing the raw error', () => {
+    const onFindAnotherName = vi.fn()
+    renderView({
+      onFindAnotherName,
+      message:
+        'The contract function "getRegisterPrice" reverted with the following signature: 0x477707e8',
+      nameUnavailable: true,
+    })
+
+    expect(screen.getByText('Name No Longer Available')).toBeVisible()
+    expect(
+      screen.getByText(
+        'name-two.eth was registered by someone else just before your registration went through.',
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText(/getRegisterPrice/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Try Again' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Back to Quote' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Look for a different name' }),
+    )
+    expect(onFindAnotherName).toHaveBeenCalledOnce()
   })
 
   it('still reports a real failure as one', () => {

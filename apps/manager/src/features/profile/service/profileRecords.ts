@@ -1,16 +1,27 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getRecords } from '@ensdomains/ensjs/public'
 import {
+  type ResolveNameDataReturnType,
+  resolveNameData,
+} from '@ensdomains/ensjs/public'
+import {
+  decodeAbiResult,
+  decodeContentHashResult,
+  decodeTextResult,
   type GetContentHashReturnType,
+  getAbiParameters,
+  getAddressParameters,
   getCoderFromCoin,
+  getContentHashParameters,
+  getTextParameters,
 } from '@ensdomains/ensjs/utils'
-import { errAsync, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
-import { type Address, zeroAddress } from 'viem'
+import { err, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
+import type { PublicClient } from 'viem'
+import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
+import { publicClient } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { isDebugProfileName } from '@/utils/debug-features'
 import {
   addressRecords,
   alwaysProbeAddressRecords,
@@ -18,8 +29,15 @@ import {
   staticTextRecords,
   textRecords,
 } from '../data/records'
-import { DEBUG_PROFILE } from '../MOCK'
-import { getProfileCoinRecords } from './profileCoinRecords'
+import { getDebugProfileRecords } from '../MOCK'
+import {
+  hasV2NameEntry,
+  NameRegistryNotFoundError,
+  readNameResolver,
+  resolveNameRegistry,
+} from './changeResolver'
+import { decodeCoinResult } from './decodeCoinRecord'
+import { readResolverRecords } from './resolverImport'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
@@ -55,21 +73,20 @@ const safeGetCoderFromCoin = fromThrowable(getCoderFromCoin, () => undefined)
 const isSupportedCoinType = (coinType: number): boolean =>
   safeGetCoderFromCoin(coinType).isOk()
 
+const MAX_RESOLVER_SPLIT_DEPTH = 1
+
 export const getProfileRecords = ResultFn(async function* (name: string) {
-  if (isDebugProfileName(name)) {
-    return ok(DEBUG_PROFILE)
-  }
+  const debugProfile = getDebugProfileRecords(name)
+  if (debugProfile) return ok(debugProfile)
 
   const client = yield* safeGetClient()
   // A name bigname has not indexed has no indexed keys; the static ones still apply.
   const recordKeys = yield* bigname
     .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
     .map(({ data }) => parseKnownKeys(data.inventory?.known_keys ?? []))
-    .orElse((error) =>
-      error.code === 'not_found'
-        ? okAsync(parseKnownKeys([]))
-        : errAsync(new GetProfileRecordsError({ cause: error })),
-    )
+    // Viewing/editing commonly used fields remains possible while the index
+    // is unavailable. Resolver replacement performs a separate warned import.
+    .orElse(() => okAsync(parseKnownKeys([])))
 
   const texts = unique([
     ...staticTextRecords,
@@ -86,35 +103,137 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     ...recordKeys.coins,
   ]).filter(isSupportedCoinType)
 
-  const [records, coinRecords] = yield* fromPromise(
-    Promise.all([
-      getRecords(client, {
+  const v2Source = yield* fromPromise(
+    (async () => {
+      try {
+        const location = await resolveNameRegistry(name)
+        if (!(await hasV2NameEntry(location, publicClient as PublicClient)))
+          return { resolver: undefined, hasV2Entry: false }
+        const resolver = await readNameResolver(
+          location,
+          publicClient as PublicClient,
+        )
+        if (resolver.toLowerCase() !== zeroAddress)
+          return { resolver, hasV2Entry: false }
+        return {
+          resolver: undefined,
+          hasV2Entry: true,
+        }
+      } catch (error) {
+        if (!(error instanceof NameRegistryNotFoundError)) throw error
+      }
+      return { resolver: undefined, hasV2Entry: false }
+    })(),
+    (error) => new GetProfileRecordsError({ cause: error }),
+  )
+  if (v2Source.hasV2Entry)
+    return ok({ texts: [], coins: [] } satisfies ProfileRecordsResult)
+  if (v2Source.resolver) {
+    const { records, readErrors } = yield* fromPromise(
+      readResolverRecords({
         name,
+        resolver: v2Source.resolver,
         texts,
-        contentHash: true,
-        abi: true,
+        coins,
+        publicClient: publicClient as PublicClient,
+        shouldDecodeStrictly: false,
       }),
-      getProfileCoinRecords(client, name, coins),
-    ]),
+      (error) => new GetProfileRecordsError({ cause: error }),
+    )
+    // Unsupported probes are expected; failed reads must reach query retry/error handling.
+    if (readErrors.length)
+      return err(new GetProfileRecordsError({ cause: readErrors[0] }))
+    return ok(records)
+  }
+
+  const data = [
+    ...texts.map((key) => encodeFunctionData(getTextParameters({ name, key }))),
+    ...coins.map((coin) =>
+      encodeFunctionData(getAddressParameters({ name, coin })),
+    ),
+    encodeFunctionData(getContentHashParameters({ name })),
+    encodeFunctionData(getAbiParameters({ name })),
+  ]
+
+  const resolveData = async (
+    calls: Hex[],
+    splitDepth = 0,
+  ): Promise<ResolveNameDataReturnType<Hex[]>> => {
+    try {
+      return await resolveNameData(client, { name, data: calls })
+    } catch (error) {
+      if (calls.length === 1 || splitDepth >= MAX_RESOLVER_SPLIT_DEPTH) {
+        throw error
+      }
+
+      // A large inner multicall can exceed resolver gas or provider body limits.
+      // Try one split, but bound retries when a transport or gateway is down.
+      const midpoint = Math.floor(calls.length / 2)
+      const left = await resolveData(calls.slice(0, midpoint), splitDepth + 1)
+      const right = await resolveData(calls.slice(midpoint), splitDepth + 1)
+      const resolverAddress = left?.resolverAddress ?? right?.resolverAddress
+      if (!resolverAddress) return null
+
+      const failedResults = (length: number) =>
+        Array.from({ length }, () => ({
+          success: false,
+          returnData: '0x' as Hex,
+        }))
+
+      return {
+        resolverAddress,
+        resolvedData: [
+          ...(left?.resolvedData ?? failedResults(midpoint)),
+          ...(right?.resolvedData ?? failedResults(calls.length - midpoint)),
+        ],
+      }
+    }
+  }
+
+  const resolution = yield* fromPromise(
+    resolveData(data),
     (error) => new GetProfileRecordsError({ cause: error }),
   )
 
+  const rawResult = (index: number) => {
+    const item = resolution?.resolvedData[index]
+    return item?.success ? item.returnData : undefined
+  }
   const result: ProfileRecordsResult = {
-    texts: records.texts,
-    coins: coinRecords,
-    resolverAddress: normalizeResolverAddress(records.resolverAddress),
+    texts: texts.flatMap((key, index) => {
+      const data = rawResult(index)
+      const value = data ? decodeTextResult(data, { strict: false }) : null
+      return value ? [{ key, value }] : []
+    }),
+    coins: coins.flatMap((coin, index) => {
+      const data = rawResult(texts.length + index)
+      const record = data ? decodeCoinResult(coin, data) : null
+      return record ? [record] : []
+    }),
+    resolverAddress: normalizeResolverAddress(
+      resolution?.resolverAddress ?? zeroAddress,
+    ),
   }
 
-  const contentHash = normalizeContentHash(records.contentHash)
+  const contentHashData = rawResult(texts.length + coins.length)
+  const contentHash = normalizeContentHash(
+    contentHashData
+      ? decodeContentHashResult(contentHashData, { strict: false })
+      : null,
+  )
   if (contentHash) {
     result.contentHash = contentHash
   }
 
-  if (records.abi) {
-    result.abi =
-      typeof records.abi.abi === 'string'
-        ? records.abi.abi
-        : JSON.stringify(records.abi.abi)
+  const abiData = rawResult(texts.length + coins.length + 1)
+  const abi = abiData
+    ? yield* fromPromise(
+        decodeAbiResult(abiData, { strict: false }),
+        (error) => new GetProfileRecordsError({ cause: error }),
+      )
+    : null
+  if (abi) {
+    result.abi = typeof abi.abi === 'string' ? abi.abi : JSON.stringify(abi.abi)
   }
 
   return ok(result)

@@ -1,6 +1,6 @@
 import type { Address, Hex, PublicClient } from 'viem'
 import { decodeFunctionData, encodeFunctionResult, parseAbi } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { assert, describe, expect, it, vi } from 'vitest'
 
 import type { AtomicMigrationVerificationExpectation } from './buildAtomicMigrationBatches'
 import {
@@ -30,9 +30,58 @@ const NODE = `0x${'ab'.repeat(32)}` as Hex
 const RECORD_VALUE = '0x1234' as Hex
 const CONTENT_HASH = '0xe301' as Hex
 const ABI_VALUE = '0x5b5d' as Hex
+const INTERFACE_IMPLEMENTER: Address =
+  '0x000000000000000000000000000000000000beef'
 const RESOURCE = 123n
 const EXPIRY = 4_294_967_295n
 const ROLES_ALL = (1n << 256n) - 1n
+
+describe('legacy reservation expiry recovery', () => {
+  it.each([true, false])(
+    'accepts the shorter legacy expiry only when the historical reservation proves it (%s)',
+    async (hasMatchingReservation) => {
+      const expected: AtomicMigrationVerificationExpectation = {
+        id: 'alice:name-expiry',
+        type: 'name-expiry',
+        name: 'alice.eth',
+        resource: RESOURCE,
+        registryPath: {
+          type: 'eth-registry-2ld',
+          registry: ROOT_REGISTRY,
+          label: 'alice',
+          resource: RESOURCE,
+        },
+        expectedExpiry: EXPIRY,
+        canUseLegacyReservationExpiry: true,
+      }
+      const client = {
+        readContract: vi.fn(
+          async ({ blockNumber }: { blockNumber?: bigint }) => ({
+            status: blockNumber === 9n ? 1 : 2,
+            expiry:
+              blockNumber === 9n && !hasMatchingReservation
+                ? EXPIRY
+                : EXPIRY - 1n,
+            resource: RESOURCE,
+          }),
+        ),
+      } as unknown as PublicClient
+      const verification = verifyAtomicMigrationBatch({
+        publicClient: client,
+        batch: { index: 0, verificationExpectations: [expected] },
+        blockNumber: 10n,
+      })
+      const outcome = await verification.then(
+        ({ status }) => status,
+        (error) =>
+          error instanceof AtomicMigrationBatchVerificationError
+            ? 'mismatch'
+            : Promise.reject(error),
+      )
+      expect(outcome).toBe(hasMatchingReservation ? 'confirmed' : 'mismatch')
+    },
+  )
+})
 // RegistryRolesLib uses nybble-packed roles: SET_RESOLVER is the seventh
 // nybble, not the seventh contiguous bit.
 const ROLE_SET_RESOLVER = 1n << 24n
@@ -192,6 +241,15 @@ const expectations = [
     contentType: 1n,
     value: ABI_VALUE,
   },
+  {
+    id: 'profile:interface',
+    type: 'profile-interface',
+    name: 'leaf.mid.parent.eth',
+    node: NODE,
+    resolver: RESOLVER,
+    interfaceId: '0x01ffc9a7',
+    implementer: INTERFACE_IMPLEMENTER,
+  },
 ] as const satisfies readonly AtomicMigrationVerificationExpectation[]
 
 const copiedNameRegistryPath = {
@@ -280,6 +338,7 @@ const profileGetterAbi = parseAbi([
   'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
   'function contenthash(bytes32 node) view returns (bytes)',
   'function ABI(bytes32 node, uint256 contentTypes) view returns (uint256, bytes)',
+  'function interfaceImplementer(bytes32 node, bytes4 interfaceID) view returns (address)',
 ])
 
 /**
@@ -298,6 +357,7 @@ const readProfileThroughResolve = (request: ReadRequest): Hex => {
     addr: RECORD_VALUE,
     contenthash: CONTENT_HASH,
     ABI: [1n, ABI_VALUE],
+    interfaceImplementer: INTERFACE_IMPLEMENTER,
   } as const
   return encodeFunctionResult({
     abi: profileGetterAbi,
@@ -398,6 +458,32 @@ describe('verifyAtomicMigrationBatch', () => {
       }),
     )
     expect(requests.every(({ blockNumber }) => blockNumber === 456n)).toBe(true)
+  })
+
+  it('fails an interface record that resolves to a different implementer', async () => {
+    const interfaceExpectation = expectations.find(
+      ({ type }) => type === 'profile-interface',
+    )
+    assert(interfaceExpectation)
+    const publicClient = {
+      getCode: vi.fn(() => Promise.resolve('0x01')),
+      readContract: vi.fn(async () =>
+        encodeFunctionResult({
+          abi: profileGetterAbi,
+          functionName: 'interfaceImplementer',
+          result: WALLET,
+        }),
+      ),
+    } as unknown as PublicClient
+
+    await expect(
+      verifyAtomicMigrationBatch({
+        publicClient,
+        batch: { index: 9, verificationExpectations: [interfaceExpectation] },
+      }),
+    ).rejects.toMatchObject({
+      failures: [{ expectationId: 'profile:interface' }],
+    })
   })
 
   it('attempts every check and fails closed with a complete result set', async () => {
@@ -704,37 +790,40 @@ describe('verifyAtomicMigrationBatch', () => {
   it.each([
     ['expiry', { status: 2, expiry: EXPIRY + 1n, resource: RESOURCE }],
     ['resource', { status: 2, expiry: EXPIRY, resource: RESOURCE + 1n }],
-  ] as const)('rejects a copied name with a mismatched %s in getState', async (_field, state) => {
-    const readContract = vi.fn((request: ReadRequest) => {
-      if (request.functionName === 'getSubregistry') {
-        return Promise.resolve(PARENT_REGISTRY)
-      }
-      if (request.functionName === 'getState') {
-        return Promise.resolve({
-          ...state,
-          latestOwner: WALLET,
-          tokenId: 1n,
-        })
-      }
-      return Promise.reject(
-        new Error(`unexpected read: ${request.functionName}`),
-      )
-    })
-    const publicClient = { readContract } as unknown as PublicClient
+  ] as const)(
+    'rejects a copied name with a mismatched %s in getState',
+    async (_field, state) => {
+      const readContract = vi.fn((request: ReadRequest) => {
+        if (request.functionName === 'getSubregistry') {
+          return Promise.resolve(PARENT_REGISTRY)
+        }
+        if (request.functionName === 'getState') {
+          return Promise.resolve({
+            ...state,
+            latestOwner: WALLET,
+            tokenId: 1n,
+          })
+        }
+        return Promise.reject(
+          new Error(`unexpected read: ${request.functionName}`),
+        )
+      })
+      const publicClient = { readContract } as unknown as PublicClient
 
-    const error = await verifyAtomicMigrationBatch({
-      publicClient,
-      batch: {
-        index: 13,
-        verificationExpectations: [copyExpectations[5]],
-      },
-    }).catch((cause: unknown) => cause)
+      const error = await verifyAtomicMigrationBatch({
+        publicClient,
+        batch: {
+          index: 13,
+          verificationExpectations: [copyExpectations[5]],
+        },
+      }).catch((cause: unknown) => cause)
 
-    expect(error).toBeInstanceOf(AtomicMigrationBatchVerificationError)
-    expect(error).toMatchObject({
-      failures: [{ expectationId: 'copy:name-expiry' }],
-    })
-  })
+      expect(error).toBeInstanceOf(AtomicMigrationBatchVerificationError)
+      expect(error).toMatchObject({
+        failures: [{ expectationId: 'copy:name-expiry' }],
+      })
+    },
+  )
 })
 
 describe('reconcileAtomicMigrationBatch', () => {

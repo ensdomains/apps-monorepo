@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { TimelineIndexerEvent } from '../timelineEvent'
+import type { TimelineEvent } from '../timelineEvent'
 import type { TimelinePage } from '../timelineEventPage'
 import { timelinePageParams } from '../timelineEventPage'
 import {
@@ -10,21 +10,25 @@ import {
 } from './useHistoryTimeline'
 
 /** One event per transaction, so an action is an event and the counts line up. */
-const events = (count: number, from = 0): readonly TimelineIndexerEvent[] =>
+const events = (count: number, from = 0): readonly TimelineEvent[] =>
   Array.from({ length: count }, (_, index) => {
     const n = from + index
     return {
       id: `e-${String(n)}`,
-      type: 'TextChanged',
+      type: 'record',
+      name: 'alice.eth',
+      registrationId: null,
       transactionHash: `0x${String(n).padStart(40, '0')}` as const,
       blockNumber: 1000 - n,
+      logIndex: 0,
       timestamp: 1000 - n,
+      data: { key: 'text:url', value: String(n) },
     }
   })
 
 /** `next` is the cursor of the page after this one; omitted ends the feed. */
 const page = (
-  events: readonly TimelineIndexerEvent[],
+  events: readonly TimelineEvent[],
   next?: string,
 ): TimelinePage => ({
   events,
@@ -68,21 +72,21 @@ const renderFeed = (pages: readonly TimelinePage[]) => {
 
 describe('useTimelinePagesModel', () => {
   it('windows a fully-loaded feed that is still too long to render', async () => {
-    // The case the network cannot page: everything is in hand — as it is for a
-    // name whose tail is unpaged v1 history — and the list is still too long.
+    // The case the network cannot page: everything is in hand and the list is
+    // still too long to render.
     const { result } = renderFeed([page(events(TIMELINE_WINDOW_SIZE * 2))])
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE)
     expect(result.current.hasMore).toBe(true)
 
-    act(() => result.current.loader.onMore())
+    act(() => result.current.loadMore())
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 2)
     expect(result.current.hasMore).toBe(false)
   })
 
   it('reveals loaded rows before asking the network for more', async () => {
-    // Three windows' worth in the first page, so the first doubling is free.
+    // Three windows' worth in the first page, so the first two clicks are free.
     const loaded = TIMELINE_WINDOW_SIZE * 3
     const { result, queryFn } = renderFeed([
       page(events(loaded), '1'),
@@ -94,108 +98,37 @@ describe('useTimelinePagesModel', () => {
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE)
 
     // Loaded rows are still hidden, so this click costs no request.
-    act(() => result.current.loader.onMore())
+    act(() => result.current.loadMore())
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 2)
     expect(queryFn).toHaveBeenCalledOnce()
 
-    act(() => result.current.loader.onMore())
+    // The window has now run past everything loaded — one short of the page,
+    // whose boundary transaction is trimmed rather than split across the two —
+    // so the next page is worth fetching.
+    act(() => result.current.loadMore())
     await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2))
     await waitFor(() =>
-      expect(result.current.actions).toHaveLength(loaded + 10),
+      expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 3),
     )
   })
 
-  it('keeps fetching until the window is filled with visible events', async () => {
-    const { result, queryFn } = renderFeed([
-      page(events(100), '1'),
-      page(events(100, 100), '2'),
-      page(events(100, 200), '3'),
-      page(events(100, 300), '4'),
-      page(events(100, 400), '5'),
-      page(events(100, 500)),
-    ])
-    await waitFor(() => expect(result.current.isLoading).toBe(false))
-
-    act(() => result.current.loader.onMore())
-    await waitFor(() => expect(result.current.loader.shown).toBe(100))
-    act(() => result.current.loader.onMore())
-    await waitFor(() => expect(result.current.loader.shown).toBe(200))
-    act(() => result.current.loader.onMore())
-
-    await waitFor(() => expect(result.current.loader.shown).toBe(400))
-    expect(queryFn).toHaveBeenCalledTimes(5)
-  })
-
-  it('keeps an unknown total unknown once the feed ends', async () => {
-    const { result } = renderFeed([page(events(TIMELINE_WINDOW_SIZE * 2))])
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false))
-
-    expect(result.current.totalCount).toBeUndefined()
-    expect(result.current.loader.total).toBeUndefined()
-    expect(result.current.loader.canShowAll).toBe(false)
-    expect(result.current.loader.canShowMore).toBe(true)
-  })
-
-  it('keeps the loaded rows and reports the failure on the loader when a later page fails', async () => {
-    const { result, queryFn } = renderFeed([
-      page(events(TIMELINE_WINDOW_SIZE), '1'),
-    ])
-    await waitFor(() => expect(result.current.isLoading).toBe(false))
-    const loadedActions = result.current.actions
-    queryFn.mockRejectedValueOnce(new Error('503'))
-
-    act(() => result.current.loader.onMore())
-
-    await waitFor(() => expect(result.current.loader.status).toBe('error'))
-    expect(result.current.error).toBeNull()
-    expect(result.current.actions).toEqual(loadedActions)
-    expect(result.current.loader.canShowMore).toBe(true)
-  })
-
-  it('doubles from the events on screen when a transaction carries the window past its size', async () => {
-    const bulk = events(120).map((event) => ({
+  it('shows more actions on each click when one action fills the window', async () => {
+    const bulk = events(TIMELINE_WINDOW_SIZE * 2).map((event, index) => ({
       ...event,
-      transactionHash: `0x${'b'.repeat(40)}` as const,
+      transactionHash: `0x${'0'.repeat(39)}f` as const,
       blockNumber: 2000,
+      logIndex: index,
       timestamp: 2000,
     }))
-    const { result } = renderFeed([page([...bulk, ...events(200)])])
-    await waitFor(() => expect(result.current.isLoading).toBe(false))
-    expect(result.current.loader.shown).toBe(120)
-    expect(result.current.loader.moreCount).toBe(240)
-
-    act(() => result.current.loader.onMore())
-
-    expect(result.current.loader.shown).toBe(240)
-  })
-
-  it('reads through a batch longer than several pages without calling the feed stalled', async () => {
-    const BATCH_PAGES = 7
-    const batchPage = (index: number) =>
-      page(
-        events(100, 1000 + index * 100).map((event) => ({
-          ...event,
-          transactionHash: `0x${'c'.repeat(40)}` as const,
-          blockNumber: 500,
-          timestamp: 500,
-        })),
-        String(index + 2),
-      )
     const { result } = renderFeed([
-      page(events(TIMELINE_WINDOW_SIZE), '1'),
-      ...Array.from({ length: BATCH_PAGES }, (_, index) => batchPage(index)),
-      page(events(10, 5000).map((event) => ({ ...event, timestamp: 1 }))),
+      page([...bulk, ...events(TIMELINE_WINDOW_SIZE * 2, bulk.length)]),
     ])
+
     await waitFor(() => expect(result.current.isLoading).toBe(false))
-    const shownBefore = result.current.loader.shown
+    expect(result.current.actions).toHaveLength(1)
 
-    act(() => result.current.loader.onMore())
-
-    await waitFor(() =>
-      expect(result.current.loader.shown).toBeGreaterThan(shownBefore),
-    )
-    expect(result.current.loader.status).toBe('idle')
+    act(() => result.current.loadMore())
+    expect(result.current.actions).toHaveLength(1 + TIMELINE_WINDOW_SIZE)
   })
 
   it('closes a widened window when the feed changes subject', async () => {
@@ -206,7 +139,7 @@ describe('useTimelinePagesModel', () => {
     ])
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
-    act(() => result.current.loader.onMore())
+    act(() => result.current.loadMore())
     expect(result.current.actions).toHaveLength(TIMELINE_WINDOW_SIZE * 2)
 
     rerender({ subject: 'b' })

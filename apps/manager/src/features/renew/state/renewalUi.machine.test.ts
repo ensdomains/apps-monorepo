@@ -1,3 +1,4 @@
+import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager/helpers/hca-intent-funding'
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createActor, waitFor } from 'xstate'
@@ -10,6 +11,12 @@ const mocks = vi.hoisted(() => ({
   readPaymentTokenAllowanceActor: vi.fn(),
   submitApprovalActor: vi.fn(),
   submitRenewActor: vi.fn(),
+  submitHcaRenewal: vi.fn(),
+  getExpiry: vi.fn(),
+}))
+
+vi.mock('@/features/profile/service/profileExpiry', () => ({
+  getExpiry: mocks.getExpiry,
 }))
 
 vi.mock(
@@ -22,18 +29,31 @@ vi.mock(
   }),
 )
 
+vi.mock('@/features/renew/service/hcaRenewal', () => ({
+  submitHcaRenewal: mocks.submitHcaRenewal,
+}))
+
 vi.mock('@/utils/router/root-context', () => ({
   getQueryClient: mocks.getQueryClient,
 }))
 
-const startRenewal = (protocol: 'v1' | 'v2' = 'v1') => {
+const OWNER = '0x1111111111111111111111111111111111111111'
+const CURRENT_EXPIRY = 1_800_000_000n
+
+/** What the chain reports for the name's expiry when a retry re-reads it. */
+const expiryOnChain = (expiry: bigint) =>
+  okAsync({ expiry, isNonExpiring: false, protocol: 'v2' })
+
+const startRenewal = (
+  protocol: 'v1' | 'v2' = 'v1',
+  route: 'eoa' | 'smart-account' = 'eoa',
+) => {
   const actor = createActor(renewalUiMachine, {
-    input: { currentExpiry: 1_800_000_000n, protocol },
+    input: { currentExpiry: CURRENT_EXPIRY, protocol },
   }).start()
 
   actor.send({ type: 'pricing.step.next' })
   actor.send({ type: 'pricing.token.select', token: 'USDC' })
-  actor.send({ type: 'pricing.step.next' })
   actor.send({
     type: 'renewal.start',
     label: 'alice',
@@ -41,8 +61,9 @@ const startRenewal = (protocol: 'v1' | 'v2' = 'v1') => {
     token: 'USDC',
     priceRaw: 10n,
     priceNumber: 10,
-    signer: { type: 'eoa' } as never,
-    ownerAddress: '0x1111111111111111111111111111111111111111',
+    signer: { type: route === 'eoa' ? 'eoa' : 'rhinestone' } as never,
+    ownerAddress: OWNER,
+    walletClient: {} as never,
   })
 
   return actor
@@ -62,6 +83,11 @@ beforeEach(() => {
   mocks.submitApprovalActor.mockReturnValue(okAsync('approval-tx'))
   mocks.submitRenewActor.mockReturnValue(okAsync('renewal-tx'))
   mocks.pollTransactionStatusActor.mockReturnValue(okAsync(undefined))
+  mocks.submitHcaRenewal.mockResolvedValue({
+    txId: 'intent-tx',
+    quotedFeeUsdc: 1_000_000n,
+  })
+  mocks.getExpiry.mockReturnValue(expiryOnChain(CURRENT_EXPIRY))
 })
 
 describe('V1 renewal state machine', () => {
@@ -134,6 +160,23 @@ describe('V1 renewal state machine', () => {
     actor.stop()
   })
 
+  it('does not renew again on retry when the failed attempt actually landed', async () => {
+    // The renew transaction was mined, but polling for it failed.
+    mocks.pollTransactionStatusActor.mockReturnValueOnce(
+      errAsync(new Error('Polling timed out')),
+    )
+    const actor = startRenewal()
+    await waitForState(actor, 'failure')
+
+    mocks.getExpiry.mockReturnValue(expiryOnChain(CURRENT_EXPIRY + 31_536_000n))
+    actor.send({ type: 'retry' })
+    await waitForState(actor, 'success')
+
+    expect(mocks.getExpiry).toHaveBeenCalledWith('alice.eth', 'v1')
+    expect(mocks.submitRenewActor).toHaveBeenCalledOnce()
+    actor.stop()
+  })
+
   it('passes the V1 renewer to allowance, approval, and renewal actors', async () => {
     mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(0n))
     const actor = startRenewal('v1')
@@ -164,6 +207,114 @@ describe('V1 renewal state machine', () => {
         [expect.objectContaining({ $action: 'v1_names', $scope: 'migration' })],
       ]),
     )
+    actor.stop()
+  })
+})
+
+describe('smart-account renewal state machine', () => {
+  it('renews as an owner-signed intent and never touches the allowance actors', async () => {
+    const actor = startRenewal('v2', 'smart-account')
+    await waitForState(actor, 'success')
+
+    expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce()
+    expect(mocks.submitHcaRenewal.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        items: [{ label: 'alice', duration: 31_536_000n }],
+        protocol: 'v2',
+        ownerAddress: OWNER,
+      }),
+    )
+    expect(mocks.readPaymentTokenAllowanceActor).not.toHaveBeenCalled()
+    expect(mocks.submitApprovalActor).not.toHaveBeenCalled()
+    expect(mocks.submitRenewActor).not.toHaveBeenCalled()
+    actor.stop()
+  })
+
+  it('surfaces a failed intent and retries it through the intent route', async () => {
+    mocks.submitHcaRenewal
+      .mockRejectedValueOnce(new Error('The intent could not be filled'))
+      .mockResolvedValueOnce({ txId: 'intent-tx', quotedFeeUsdc: 1_000_000n })
+
+    const actor = startRenewal('v2', 'smart-account')
+    const failed = await waitForState(actor, 'failure')
+    expect(failed.context.lastErrorMessage).toBe(
+      'The intent could not be filled',
+    )
+
+    actor.send({ type: 'retry' })
+    await waitForState(actor, 'success')
+
+    expect(mocks.submitHcaRenewal).toHaveBeenCalledTimes(2)
+    expect(mocks.submitRenewActor).not.toHaveBeenCalled()
+    actor.stop()
+  })
+
+  it('does not pay again on retry when the failed intent actually filled', async () => {
+    mocks.submitHcaRenewal.mockRejectedValueOnce(
+      new Error('Timed out waiting for the intent'),
+    )
+    const actor = startRenewal('v2', 'smart-account')
+    await waitForState(actor, 'failure')
+
+    mocks.getExpiry.mockReturnValue(expiryOnChain(CURRENT_EXPIRY + 31_536_000n))
+    actor.send({ type: 'retry' })
+    await waitForState(actor, 'success')
+
+    expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce()
+    actor.stop()
+  })
+
+  it('stays failed when the retry cannot re-read the expiry', async () => {
+    mocks.submitHcaRenewal.mockRejectedValueOnce(
+      new Error('Timed out waiting for the intent'),
+    )
+    const actor = startRenewal('v2', 'smart-account')
+    await waitForState(actor, 'failure')
+
+    mocks.getExpiry.mockReturnValue(errAsync(new Error('rpc down')))
+    actor.send({ type: 'retry' })
+    const snapshot = await waitForState(actor, 'failure')
+
+    expect(snapshot.context.lastErrorMessage).toMatch(/Couldn't confirm/)
+    expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce()
+    actor.stop()
+  })
+
+  it('records the submitted intent before the fill, so the dialog can hand over', async () => {
+    mocks.submitHcaRenewal.mockImplementation(async (input) => {
+      input.onSubmitted?.('0xsubmitted')
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      return { txId: '0xsubmitted', quotedFeeUsdc: 1n }
+    })
+
+    const actor = startRenewal('v2', 'smart-account')
+    const submitted = await waitFor(
+      actor,
+      (state) => state.context.renewalTxId === '0xsubmitted',
+      { timeout: 1_000 },
+    )
+
+    expect(submitted.matches('submittingHcaRenewal')).toBe(true)
+    await waitFor(actor, (state) => state.matches('success'), {
+      timeout: 1_000,
+    })
+    actor.stop()
+  })
+
+  it('returns to the payment step when the funding prompt is declined', async () => {
+    // A decline is a cancel: nothing was signed and nothing was spent, so the
+    // user goes back to the payment step rather than to a failure screen.
+    mocks.submitHcaRenewal.mockRejectedValue(new HcaFundingDeclinedError())
+
+    const actor = startRenewal('v2', 'smart-account')
+    const snapshot = await waitFor(
+      actor,
+      (state) => state.matches({ pricing: 'tokens' }),
+      { timeout: 1_000 },
+    )
+
+    expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce()
+    expect(snapshot.context.lastErrorMessage).toBeUndefined()
     actor.stop()
   })
 })

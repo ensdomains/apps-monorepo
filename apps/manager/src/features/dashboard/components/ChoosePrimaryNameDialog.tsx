@@ -11,6 +11,7 @@ import { getAddress } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
+import { HcaFundingConfirmDialog } from '@/components/HcaFundingConfirmDialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   AlertDialog,
@@ -28,7 +29,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { HcaFundingConfirmDialog } from '@/features/profile/components/dialogs/HcaFundingConfirmDialog'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import {
@@ -59,6 +59,7 @@ import { resolveDomainLabel } from '../utils'
 import {
   isConfirmationForSelection,
   isConfirmBlocked,
+  isResolverSetupReplacing,
   needsPrimaryNameConfirmation,
   PRIMARY_NAME_PAGE_SIZE,
   type PrimaryNameConfirmation,
@@ -71,6 +72,11 @@ import {
 interface ChoosePrimaryNameDialogProps {
   readonly onUpdated?: () => void
   readonly children?: React.ReactNode
+  readonly open?: boolean
+  readonly onOpenChange?: (open: boolean) => void
+  readonly onCloseAutoFocus?: React.ComponentProps<
+    typeof DialogContent
+  >['onCloseAutoFocus']
 }
 
 const getPrimaryNameErrorMessage = (
@@ -429,9 +435,17 @@ const useSetupResolverMutation = ({
 export const ChoosePrimaryNameDialog = ({
   onUpdated,
   children,
+  open: controlledOpen,
+  onOpenChange,
+  onCloseAutoFocus,
 }: ChoosePrimaryNameDialogProps) => {
   const { t } = useLingui()
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = (nextOpen: boolean) => {
+    setInternalOpen(nextOpen)
+    onOpenChange?.(nextOpen)
+  }
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [confirmation, setConfirmation] =
     useState<PrimaryNameConfirmation | null>(null)
@@ -486,8 +500,13 @@ export const ChoosePrimaryNameDialog = ({
     reverseName,
     selectedName,
   })
-  const { domains, isLoading, hasForwardAddressError, isSelectedNameOffered } =
-    nameList
+  const {
+    domains,
+    isLoading,
+    hasForwardAddressError,
+    isSelectedNameOffered,
+    selectedProtocol,
+  } = nameList
 
   const { isSuccess: recordsSettled, isError: isRecordsError } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
@@ -607,6 +626,19 @@ export const ChoosePrimaryNameDialog = ({
       return
     }
 
+    // Setting up a resolver goes through the v2 registry, so an ENSv1 name
+    // with no resolver this wallet can write has no path here. Say so instead
+    // of walking the user into a setup that cannot complete.
+    if (preparation.kind === 'setup-resolver' && selectedProtocol === 'v1') {
+      setConfirmation(null)
+      setPreparationError(
+        new Error(
+          t`${selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app.`,
+        ),
+      )
+      return
+    }
+
     if (needsPrimaryNameConfirmation(preparation, confirmed)) {
       setConfirmation({
         ...preparation,
@@ -680,15 +712,19 @@ export const ChoosePrimaryNameDialog = ({
   return (
     <>
       <Dialog onOpenChange={setOpen} open={open}>
-        <DialogTrigger asChild>{children}</DialogTrigger>
-        <DialogContent className="flex max-h-[90dvh] max-w-125 flex-col overflow-hidden sm:h-[min(90dvh,50rem)]">
+        {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
+        <DialogContent
+          className="flex max-h-[90dvh] max-w-125 flex-col overflow-hidden sm:h-[min(90dvh,50rem)]"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
           <DialogHeader>
             <DialogTitle className="text-[24px] text-foreground">
               <Trans>Choose Primary Name</Trans>
             </DialogTitle>
             <DialogDescription className="font-sans text-muted-foreground text-sm">
               <Trans>
-                Set which ENS name displays as your identity across apps and
+                Your wallet address can only have one primary ENS name, which
+                will display instead of your wallet address across apps and
                 wallets.
               </Trans>
             </DialogDescription>
@@ -770,13 +806,22 @@ export const ChoosePrimaryNameDialog = ({
         }}
       />
       <HcaFundingConfirmDialog
+        description={<Trans>Setting a primary name is paid in USDC.</Trans>}
+        lines={[
+          {
+            label: <Trans>Network fee</Trans>,
+            amount: fundingPrompt?.quotedFeeUsdc ?? 0n,
+          },
+        ]}
         onApprove={approveFunding}
         onDecline={declineFunding}
         prompt={fundingPrompt}
+        title={<Trans>Approve the network fee?</Trans>}
       />
 
       <ResolverSetupConfirmDialog
         intent="primary-name"
+        isReplacing={isResolverSetupReplacing(confirmation)}
         onConfirm={() => {
           if (confirmation) void runConfirm(confirmation)
         }}

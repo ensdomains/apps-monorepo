@@ -19,11 +19,18 @@ export const REGISTRATION_STAGE_PROGRESS = {
   waitingForResolverDeployment: 15,
   preparingCommitment: 23,
   committingTransaction: 31,
+  // Explorer-only (pure-EOA, atomic-batching wallet); manager never enters it.
+  submittingEoaSetupBundle: 31,
   // Standalone-HCA commit leg: size the budget → check funding → (permit) →
   // fund+enable+commit as one session-signed request. Sits alongside
   // `committingTransaction`.
   computingHcaBudget: 25,
   checkingHcaFunding: 27,
+  // Paid from an L2, the shortfall is bridged in instead of permitted.
+  bridgingFromL2: 28,
+  waitingForL2Bridge: 29,
+  awaitingL2Bridge: 29,
+  awaitingPriorL2BridgeTx: 29,
   signingFundingPermit: 29,
   submittingSetupBundle: 31,
   // A leg's quoted fee outgrew the session: one more wallet signature.

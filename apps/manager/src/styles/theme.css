@@ -169,6 +169,7 @@
   --text-temp-32px--line-height: 110%;
 
   --shadow-temp-card: 0 4px 24px 0 rgba(7, 28, 47, 0.07);
+  --shadow-profile-tile: 0 2px 12px 0 rgba(0, 0, 0, 0.06);
 
   --color-navigation-glass-border: #e2e2e28c;
   --blur-navigation-glass: 6px;
@@ -216,6 +217,7 @@
 }
 
 :root {
+  --notice-bar-h: 0px;
   /* WalletConnect (reown) modal reads `z-index: var(--w3m-z-index)`; when we
      use the bare wagmi walletConnect connector nothing defines it, so it
      collapses to auto and the app's own z-indexed elements (landing header,

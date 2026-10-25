@@ -13,7 +13,8 @@ import {
   type ResolverRole,
   type ResolverSetterScope,
 } from '@ensdomains/ensjs/utils/v2'
-import { toHex } from 'viem'
+import { match } from 'ts-pattern'
+import { isHex, size, toHex } from 'viem'
 import {
   type ResourceId,
   ROOT_RESOURCE_ID,
@@ -24,13 +25,16 @@ export {
   computeResolverResource,
   decodeResolverRoleBitmap,
   encodeResolverRoleBitmap,
-  encodeResolverSetterScope,
   resolverSetterScopeRole,
 } from '@ensdomains/ensjs/utils/v2'
 export type { ResolverRole, ResolverSetterScope }
 
 /** A role a user can be granted from the UI, admin variants excluded. */
 export type ResolverPermissionKey = Exclude<ResolverRole, `${string}_ADMIN`>
+
+/** The `_ADMIN` role EAC requires to grant or revoke `role`. */
+export const resolverAdminRoleOf = (role: ResolverRole): ResolverRole =>
+  (role.endsWith('_ADMIN') ? role : `${role}_ADMIN`) as ResolverRole
 
 type ResolverPermission = {
   key: ResolverPermissionKey
@@ -200,6 +204,63 @@ export const buildResourceLabels = (
   return map
 }
 
+const uintCandidates = (entry: ResourceArgumentLabel): bigint[] => [
+  ...(entry.coinType && /^\d+$/.test(entry.coinType)
+    ? [BigInt(entry.coinType)]
+    : []),
+  ...(isHex(entry.recordKey) && size(entry.recordKey) === 32
+    ? [BigInt(entry.recordKey)]
+    : []),
+]
+
+const scopeCandidates = (
+  role: ResolverRole,
+  entry: ResourceArgumentLabel,
+): ResolverSetterScope[] =>
+  match(role)
+    .with('ROLE_SET_TEXT', () =>
+      entry.recordKey === null
+        ? []
+        : [{ kind: 'text' as const, key: entry.recordKey }],
+    )
+    .with('ROLE_SET_ADDRESS', () =>
+      uintCandidates(entry).map((coinType) => ({
+        kind: 'address' as const,
+        coinType,
+      })),
+    )
+    .with('ROLE_SET_ABI', () =>
+      uintCandidates(entry).map((contentType) => ({
+        kind: 'abi' as const,
+        contentType,
+      })),
+    )
+    .otherwise(() => [])
+
+/** Text, address and ABI scopes behind argument grants, kept only when the preimage hashes back to the resource. */
+export const decodeSetterGrants = (
+  grants: readonly { readonly resource: bigint; readonly roleBitmap: bigint }[],
+  named: readonly ResourceArgumentLabel[],
+): ResolverSetterScope[] => {
+  const byResource = new Map<bigint, ResourceArgumentLabel>(
+    named.flatMap((entry) => {
+      const resource = normalizeResource(entry.resource)
+      return resource === null ? [] : [[resource, entry] as const]
+    }),
+  )
+
+  return grants.flatMap(({ resource, roleBitmap }) => {
+    const entry = byResource.get(resource)
+    if (!entry) return []
+    return decodeResolverRoleBitmap(roleBitmap).flatMap((role) => {
+      const scope = scopeCandidates(role, entry).find(
+        (candidate) => computeResolverResource(candidate) === resource,
+      )
+      return scope ? [scope] : []
+    })
+  })
+}
+
 /**
  * Label for an EAC resource: root, a revealed setter argument, a well-known
  * one, or its truncated hash.
@@ -221,7 +282,8 @@ export const describeResolverResource = (
 
 type RoleInput = {
   readonly account: string
-  readonly resource: string
+  /** Null when bigname does not identify the scope. */
+  readonly resource: string | null
   readonly roleBitmap: string
 }
 
@@ -251,8 +313,8 @@ export type AccountRoleGroup<T extends RoleInput = RoleInput> = {
  * `ROOT_RESOURCE` would merge the row into the account's root grant, and
  * revoking from that row would then target root roles.
  */
-const normalizeResource = (resource: string): ResourceId | null =>
-  resourceIdFromChainValue(resource).unwrapOr(null)
+const normalizeResource = (resource: string | null): ResourceId | null =>
+  resource === null ? null : resourceIdFromChainValue(resource).unwrapOr(null)
 
 /**
  * Groups resolver roles by account and resource. One row per grant scope,
@@ -341,7 +403,7 @@ export type AccountRemovalPlan =
       readonly type: 'complete'
       readonly revocations: readonly ResolverRevocation[]
     }
-  | { readonly type: 'unreadable' }
+  | { readonly type: 'unreadable'; readonly reason?: 'incomplete' }
 
 export const planAccountRemoval = <T extends RoleInput>(
   roles: readonly T[],

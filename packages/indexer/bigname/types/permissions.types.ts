@@ -34,6 +34,8 @@ export type RegistryPower =
   | 'admin_set_uri'
   | 'upgrade'
   | 'admin_upgrade'
+  | 'can_name'
+  | 'admin_can_name'
 
 /** The ENSv2 resolver powers the apps fold into ensjs resolver roles. */
 export type ResolverPower =

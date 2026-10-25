@@ -5,10 +5,47 @@
  */
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { createSubnameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import type { Address, WalletClient } from 'viem'
-import { encodeFunctionData, zeroAddress } from 'viem'
-import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { registrySetSubnodeRecordSnippet } from '@ensdomains/ensjs-abi/registry'
+import { nameWrapperSetSubnodeRecordSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
+import { match, P } from 'ts-pattern'
+import {
+  type Address,
+  encodeFunctionData,
+  isAddressEqual,
+  labelhash,
+  namehash,
+  type WalletClient,
+  zeroAddress,
+} from 'viem'
+import type { SubnameLabelStatus } from '@/features/profile/hooks/useSubnames'
+import { toEoaIntent } from '@/features/transaction-manager/helpers/intents'
+import type {
+  V1ParentState,
+  V1TransferSubject,
+} from '@/features/transfer/types'
+import type { V1NameState } from '@/features/transfer/v1/getV1NameState'
+import { canParentReissueV1Subname } from '@/features/transfer/v1/rules'
+import { ensChain } from '@/lib/wagmi'
+
+const LEGACY_REGISTRY = getChainContractAddress({
+  chain: ensChain,
+  contract: 'ensLegacyRegistry',
+})
+const NAME_WRAPPER = getChainContractAddress({
+  chain: ensChain,
+  contract: 'ensNameWrapper',
+})
+/**
+ * The legacy app's default for a new V1 subname: the V1 PublicResolver, which
+ * lets whoever holds the node set its records.
+ */
+const V1_SUBNAME_RESOLVER = getChainContractAddress({
+  chain: ensChain,
+  contract: 'ensPublicResolver',
+})
 
 /**
  * Default role bitmap granted to the subname owner on creation.
@@ -26,73 +63,235 @@ export const DEFAULT_ROLE_BITMAP = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
 )
 
+/** Where a new subname goes: the parent's V2 subregistry, or V1. */
+export type CreateSubnameTarget =
+  | { readonly protocol: 'ENSv2'; readonly registryAddress: Address }
+  | { readonly protocol: 'ENSv1'; readonly isWrapped: boolean }
+
+/** A target ready to write. V2 also needs the parent's resolver, read at submit. */
+export type CreateSubnameWrite =
+  | (Extract<CreateSubnameTarget, { protocol: 'ENSv2' }> & {
+      readonly resolverAddress: Address
+    })
+  | Extract<CreateSubnameTarget, { protocol: 'ENSv1' }>
+
 export interface PrepareCreateSubnameParams {
-  /** The subregistry address (parent registry for the subname) */
-  readonly registryAddress: Address
+  readonly write: CreateSubnameWrite
+  /** The parent name, normalised */
+  readonly parentName: string
   /** The label of the subname to create */
   readonly label: string
   /** The owner address of the new subname */
   readonly owner: Address
-  /** The resolver address for the new subname */
-  readonly resolverAddress: Address
-  /** The wallet client with account */
   readonly walletClient: WalletClient
-  /** Chain ID */
   readonly chainId: number
-  /** Optional: subregistry address for the new subname (defaults to zeroAddress) */
-  readonly subregistryAddress?: Address
-  /** Optional: role bitmap to grant to the owner (defaults to all roles) */
-  readonly roleBitmap?: bigint
-  /** Optional: expiration timestamp in seconds */
+  /** V2 only: expiration timestamp in seconds */
   readonly expires?: bigint
 }
 
 /**
  * The createSubname intent, shared by the gas estimate and {@link createSubname}.
  *
- * NOTE: `createSubnameWriteParameters` defaults a missing `expires` to
+ * V2: `createSubnameWriteParameters` defaults a missing `expires` to
  * `Date.now() + 1 year` at encode time, so a caller that wants the estimate to
  * stay byte-identical to the submitted call MUST pass a concrete, frozen
  * `expires` and reuse that same value in the actual `createSubname` call.
+ *
+ * V1: the `setSubnodeRecord` the legacy app sends, with no fuses and no expiry.
  */
-export function prepareCreateSubnameTransaction({
-  registryAddress,
+export const prepareCreateSubnameTransaction = ({
+  write,
+  parentName,
   label,
   owner,
-  resolverAddress,
   walletClient,
   chainId,
-  subregistryAddress = zeroAddress,
-  roleBitmap = DEFAULT_ROLE_BITMAP,
   expires,
-}: PrepareCreateSubnameParams): CustomTransactionIntent {
-  if (!walletClient.account || !walletClient.chain) {
-    throw new Error('Wallet client must have account and chain configured')
-  }
+}: PrepareCreateSubnameParams): CustomTransactionIntent =>
+  match(write)
+    .with({ protocol: 'ENSv2' }, ({ registryAddress, resolverAddress }) => {
+      const writeParams = createSubnameWriteParameters(
+        walletClient as Parameters<typeof createSubnameWriteParameters>[0],
+        {
+          registryAddress,
+          label,
+          owner,
+          subregistryAddress: zeroAddress,
+          resolverAddress,
+          roleBitmap: DEFAULT_ROLE_BITMAP,
+          expires,
+        },
+      )
+      return toEoaIntent(walletClient, {
+        to: writeParams.address,
+        data: encodeFunctionData({
+          abi: writeParams.abi,
+          functionName: writeParams.functionName,
+          args: writeParams.args,
+        } as Parameters<typeof encodeFunctionData>[0]),
+        chainId,
+      })
+    })
+    .with({ protocol: 'ENSv1', isWrapped: true }, () =>
+      toEoaIntent(walletClient, {
+        to: NAME_WRAPPER,
+        data: encodeFunctionData({
+          abi: nameWrapperSetSubnodeRecordSnippet,
+          functionName: 'setSubnodeRecord',
+          args: [
+            namehash(parentName),
+            label,
+            owner,
+            V1_SUBNAME_RESOLVER,
+            0n,
+            0,
+            0n,
+          ],
+        }),
+        chainId,
+      }),
+    )
+    .with({ protocol: 'ENSv1', isWrapped: false }, () =>
+      toEoaIntent(walletClient, {
+        to: LEGACY_REGISTRY,
+        data: encodeFunctionData({
+          abi: registrySetSubnodeRecordSnippet,
+          functionName: 'setSubnodeRecord',
+          args: [
+            namehash(parentName),
+            labelhash(label),
+            owner,
+            V1_SUBNAME_RESOLVER,
+            0n,
+          ],
+        }),
+        chainId,
+      }),
+    )
+    .exhaustive()
 
-  const writeParams = createSubnameWriteParameters(
-    walletClient as Parameters<typeof createSubnameWriteParameters>[0],
-    {
-      registryAddress,
-      label,
+/** Why a subname can or can't be created under a V1 name. */
+export type V1SubnameCreateGate =
+  | {
+      readonly reason: 'ok'
+      readonly target: Extract<CreateSubnameTarget, { protocol: 'ENSv1' }>
+    }
+  /** `.eth` 2LD in grace: the wrapper refuses edits and the registrar has lapsed it. */
+  | { readonly reason: 'grace' }
+  /** Lapsed past grace, or an emancipated wrapped name the wrapper has cleared. */
+  | { readonly reason: 'unowned' }
+  /** A wrapped parent that burned CANNOT_CREATE_SUBDOMAIN. */
+  | { readonly reason: 'burned-fuse' }
+  | { readonly reason: 'not-holder' }
+
+/** The name's own registry slot, as the parent of the subname it creates. */
+const toV1ParentState = (subject: V1TransferSubject): V1ParentState =>
+  match(subject)
+    .with({ kind: 'v1-wrapped' }, ({ owner, fuses }) => ({
       owner,
-      subregistryAddress,
-      resolverAddress,
-      roleBitmap,
-      expires,
-    },
-  )
+      registrant: null,
+      isWrapped: true,
+      cannotCreateSubdomain: fuses.cannotCreateSubdomain,
+    }))
+    // `setSubnodeRecord` needs the registry owner, not the 721 registrant.
+    .with({ kind: 'v1-registrar' }, ({ registrant, controller }) => ({
+      owner: controller,
+      registrant,
+      isWrapped: false,
+      cannotCreateSubdomain: false,
+    }))
+    .with({ kind: 'v1-registry' }, ({ owner }) => ({
+      owner,
+      registrant: null,
+      isWrapped: false,
+      cannotCreateSubdomain: false,
+    }))
+    .exhaustive()
 
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
+/** A V1 name as the parent of its subnames, or why nobody can act as it. */
+export type V1SubnameParentGate =
+  | { readonly reason: 'ok'; readonly parent: V1ParentState }
+  | Extract<
+      V1SubnameCreateGate,
+      { reason: 'grace' } | { reason: 'unowned' } | { reason: 'not-holder' }
+    >
 
-  return toEoaCustomIntent({
-    from: walletClient.account.address,
-    to: writeParams.address,
-    data,
-    chainId,
-  })
+const toHeldParent = ({
+  subject,
+  registration,
+}: V1NameState): Exclude<V1SubnameParentGate, { reason: 'not-holder' }> =>
+  match({ subject, registration })
+    .with({ registration: 'gracePeriod' }, () => ({ reason: 'grace' }) as const)
+    .with(
+      { registration: 'expired' },
+      { subject: null },
+      () => ({ reason: 'unowned' }) as const,
+    )
+    .with(
+      { subject: P.nonNullable },
+      ({ subject }) =>
+        ({ reason: 'ok', parent: toV1ParentState(subject) }) as const,
+    )
+    .exhaustive()
+
+const isParentHolder = (parent: V1ParentState, account: Address) =>
+  parent.owner !== null && isAddressEqual(parent.owner, account)
+
+/** Whether `account` holds a V1 name the way its subnames' writes need. */
+export const getV1SubnameParentGate = (
+  state: V1NameState,
+  account: Address,
+): V1SubnameParentGate => {
+  const held = toHeldParent(state)
+  if (held.reason !== 'ok' || isParentHolder(held.parent, account)) return held
+  return { reason: 'not-holder' }
 }
+
+/**
+ * Whether `account` can create a subname under a V1 name. With no account the
+ * holder check is left to the form, which asks for a wallet first.
+ */
+export const getV1SubnameCreateGate = (
+  state: V1NameState,
+  account: Address | undefined,
+): V1SubnameCreateGate => {
+  const held = toHeldParent(state)
+  if (held.reason !== 'ok') return held
+  if (!canParentReissueV1Subname(held.parent)) {
+    return { reason: 'burned-fuse' }
+  }
+  if (account && !isParentHolder(held.parent, account)) {
+    return { reason: 'not-holder' }
+  }
+  return {
+    reason: 'ok',
+    target: { protocol: 'ENSv1', isWrapped: held.parent.isWrapped },
+  }
+}
+
+/** The root roles `register` checks on a V2 subregistry, one per label state. */
+export type RegistrarAccess = {
+  readonly canRegister: boolean
+  readonly canRegisterReserved: boolean
+}
+
+export const getRegistrarAccess = (
+  rootRoles: readonly Role[],
+): RegistrarAccess => ({
+  canRegister: rootRoles.includes('ROLE_REGISTRAR'),
+  canRegisterReserved: rootRoles.includes('ROLE_REGISTER_RESERVED'),
+})
+
+/** The root role `register` would demand for a label in `status` that `access` lacks, or null. */
+export const getMissingRegistrarRole = (
+  access: RegistrarAccess,
+  status: SubnameLabelStatus,
+): 'ROLE_REGISTRAR' | 'ROLE_REGISTER_RESERVED' | null =>
+  match(status)
+    .with('available', () => (access.canRegister ? null : 'ROLE_REGISTRAR'))
+    .with('reserved', () =>
+      access.canRegisterReserved ? null : 'ROLE_REGISTER_RESERVED',
+    )
+    // A taken label is refused before any role is asked about.
+    .with('registered', () => null)
+    .exhaustive()

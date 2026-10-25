@@ -33,7 +33,7 @@ const predictedGasUnits = (plan: MigrationPlan): bigint => {
   const deploymentGas = plan.hcaDeploymentRequired ? HCA_DEPLOYMENT_GAS : 0n
   const approvalGas = (approvalCount + cleanupCount) * APPROVAL_GAS
   const atomicBatchGas = plan.atomicBatches.reduce(
-    (total, batch) => total + batch.estimatedGas,
+    (total, batch) => total + batch.estimatedGas + batch.walletEstimatedGas,
     0n,
   )
 
@@ -41,12 +41,21 @@ const predictedGasUnits = (plan: MigrationPlan): bigint => {
 }
 
 const predictedTransactionCount = (plan: MigrationPlan): number => {
+  // Bundled steps share one confirmation; the descriptors already group them.
+  if (plan.canBatchAtomically) return plan.stepDescriptors.length
   const approvals = plan.preflight.migrationApprovals ?? []
   const approvalCount = approvals.length
   const cleanupCount = plan.preflight.migrationCleanupApprovals?.length ?? 0
   const deploymentCount = plan.hcaDeploymentRequired ? 1 : 0
+  const walletReplayCount = plan.atomicBatches.filter(
+    (batch) => batch.walletCall,
+  ).length
   return (
-    deploymentCount + approvalCount + cleanupCount + plan.atomicBatches.length
+    deploymentCount +
+    approvalCount +
+    cleanupCount +
+    plan.atomicBatches.length +
+    walletReplayCount
   )
 }
 

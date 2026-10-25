@@ -1,6 +1,8 @@
 import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useRef } from 'react'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
+import { useHcaFundingPrompt } from '@/lib/smart-account'
+import { RenewalFundingDialog } from '../components/RenewalFundingDialog'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 import { renewalUiMachine } from './renewalUi.machine'
 
@@ -25,8 +27,18 @@ export const RenewalUiProvider = ({
   currentExpiry: bigint
   protocol: RenewalProtocol
 }) => {
+  // The renewal intent is quoted inside the submit call, and only then is the
+  // funding amount known — so the machine parks on this promise and the dialog
+  // below resolves it. Nothing else asks the wallet for a signature first.
+  const {
+    prompt: fundingPrompt,
+    confirmFunding,
+    approve: approveFunding,
+    decline: declineFunding,
+  } = useHcaFundingPrompt()
+
   const uiActor = useActorRef(renewalUiMachine, {
-    input: { currentExpiry, protocol },
+    input: { currentExpiry, protocol, confirmFunding },
   })
   const previousLabel = useRef(label)
 
@@ -54,6 +66,11 @@ export const RenewalUiProvider = ({
       value={{ uiActor, label, currentExpiry, protocol }}
     >
       {children}
+      <RenewalFundingDialog
+        onApprove={approveFunding}
+        onDecline={declineFunding}
+        prompt={fundingPrompt}
+      />
     </RenewalUiContext.Provider>
   )
 }

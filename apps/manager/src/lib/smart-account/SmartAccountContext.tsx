@@ -24,6 +24,7 @@ import type {
   RhinestoneSigner,
   Signer,
 } from '@ens-apps/transaction-manager'
+import { isWalletDeclineError } from '@ens-apps/transaction-manager/helpers/wallet-errors.helpers'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
@@ -47,10 +48,17 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
-import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
+import {
+  useConfig,
+  useConnection,
+  usePublicClient,
+  useWalletClient,
+} from 'wagmi'
 import { type EventFromLogic, waitFor } from 'xstate'
 import { chain as appChain, isTestnet } from '@/config'
 import { SUPPORTED_TOKENS } from '@/lib/tokens'
+import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
+import { followChain } from '@/lib/wallet/followChain'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'
@@ -65,6 +73,7 @@ import type {
   WalletSource as BaseWalletSource,
   RhinestoneAccountState,
 } from './types'
+import { useSessionRevocationWatch } from './useSessionRevocationWatch'
 import { useSmartAccountBalances } from './useSmartAccountBalances'
 
 export interface RevokeSessionOptions {
@@ -81,6 +90,12 @@ export interface EnabledSession {
   readonly signer: Signer
   readonly hcaSessionEnable: HcaSessionEnablePayload
 }
+
+/** `declined` is the owner refusing the ENABLE signature; `failed` is everything else. */
+export type EnableSessionOutcome =
+  | { readonly status: 'enabled'; readonly session: EnabledSession }
+  | { readonly status: 'declined' }
+  | { readonly status: 'failed'; readonly message: string }
 
 export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly hasInitialized: boolean
@@ -109,9 +124,9 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    * checks it against the account's session nonce each time. Resolves with the
    * session-attached signer and its enable payload to use IMMEDIATELY: until
    * the next render, `signer` and `getSessionEnablePayload()` still describe
-   * the session this one replaced. Null on failure / the EOA-only path.
+   * the session this one replaced. `failed` on the EOA-only path.
    */
-  readonly enableSession: () => Promise<EnabledSession | null>
+  readonly enableSession: () => Promise<EnableSessionOutcome>
   /**
    * Replace the active session with one whose gas-overhead cap allows the
    * requested overhead — the registration machine's way out when a quote
@@ -367,7 +382,21 @@ export const SmartAccountContextProvider = ({
   const queryClient = useQueryClient()
   const { t } = useLingui()
   const { isConnecting, isReconnecting } = useConnection()
-  const { data: wagmiWalletClient } = useWalletClient()
+  const wagmiConfig = useConfig()
+  // Pinned to the app chain while the wallet may sit on an L2; chain-bound
+  // requests move the wallet back first.
+  const { data: connectorWalletClient } = useWalletClient({
+    chainId: appChain.id,
+    assertChainId: false,
+  })
+  const wagmiWalletClient = useMemo(
+    () =>
+      connectorWalletClient &&
+      followChain(connectorWalletClient, appChain, (chainId) =>
+        ensureWalletChain(wagmiConfig, chainId),
+      ),
+    [connectorWalletClient, wagmiConfig],
+  )
   const wagmiPublicClient = usePublicClient({ chainId: appChain.id })
 
   // True while the connector is still establishing/restoring a session, so
@@ -479,6 +508,8 @@ export const SmartAccountContextProvider = ({
     anvilSetupDoneRef.current.add(ownerAddress)
     anvilSetupOwner(ownerAddress, appChain, {
       USDC: SUPPORTED_TOKENS.USDC,
+      // Circle's FiatToken keeps balances at slot 9 and has no open `mint`.
+      usdcBalanceSlot: 9n,
     }).catch(() => {
       anvilSetupDoneRef.current.delete(ownerAddress)
     })
@@ -551,8 +582,9 @@ export const SmartAccountContextProvider = ({
   }, [balances.stablecoinBalances])
 
   useEffect(() => {
-    // The faucet mints MockUSDC, which is also the payment token of the
-    // standalone-HCA route, so auto-fund runs on real Sepolia too.
+    // The faucet mints MockUSDC, not the Circle USDC the route pays in, so on
+    // real Sepolia a top-up never clears the low balance and would repeat.
+    if (!isTimeTravelEnabled()) return
 
     // NOTE: deliberately NOT gated on the smart-account machine's `isLoading`.
     // Funding tops up the EOA owner's stablecoins, which is independent of HCA
@@ -657,6 +689,15 @@ export const SmartAccountContextProvider = ({
     setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
   }, [sessionOwnerAddress, accountAddress])
 
+  const isActiveSessionRevoked = useSessionRevocationWatch({
+    activeSession,
+    accountAddress,
+    ownerAddress: sessionOwnerAddress,
+    chainId: appChain.id,
+    publicClient: wagmiPublicClient as PublicClient | undefined,
+    onRevoked: setActiveSession,
+  })
+
   // Authorize (or reuse) a session and return a signer carrying it. With
   // `replaceWithCaps`, always authorizes a new session with those caps.
   // Resolves to an Error, never throws, so each caller decides how to fail.
@@ -754,16 +795,21 @@ export const SmartAccountContextProvider = ({
     ],
   )
 
-  const enableSession =
-    useCallback(async (): Promise<EnabledSession | null> => {
-      const result = await authorizeSession()
-      return result instanceof Error
-        ? null
-        : {
-            signer: result.signer,
-            hcaSessionEnable: buildHcaSessionEnablePayload(result.session),
-          }
-    }, [authorizeSession])
+  const enableSession = useCallback(async (): Promise<EnableSessionOutcome> => {
+    const result = await authorizeSession()
+    if (result instanceof Error) {
+      return isWalletDeclineError(result)
+        ? { status: 'declined' }
+        : { status: 'failed', message: result.message }
+    }
+    return {
+      status: 'enabled',
+      session: {
+        signer: result.signer,
+        hcaSessionEnable: buildHcaSessionEnablePayload(result.session),
+      },
+    }
+  }, [authorizeSession])
 
   const reauthorizeSession = useCallback<ReauthorizeSession>(
     async ({ minGasOverhead }) => {
@@ -1035,7 +1081,7 @@ export const SmartAccountContextProvider = ({
             walletClient:
               (wagmiWalletClient as WalletClient | undefined) ?? null,
             infrastructure,
-            hasActiveSession: !!activeSession,
+            hasActiveSession: !!activeSession && !isActiveSessionRevoked,
             isEnablingSession,
             sessionError,
             enableSession,
@@ -1072,6 +1118,7 @@ export const SmartAccountContextProvider = ({
       snapshot.context.walletSource,
       infrastructure,
       activeSession,
+      isActiveSessionRevoked,
       isEnablingSession,
       sessionError,
       enableSession,

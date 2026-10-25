@@ -1,3 +1,4 @@
+import type { NameRegistrationStatus } from '@ens-apps/indexer/reads'
 import type { RowSelectionState } from '@tanstack/react-table'
 import {
   getNameRowId,
@@ -8,8 +9,6 @@ import { isCanonicalName, isNormalizedLabel } from '@/utils/token/isNormalized'
 
 export const MS_PER_SECOND = 1000
 export const MS_PER_DAY = 24 * 60 * 60 * MS_PER_SECOND
-export const GRACE_PERIOD_DAYS = 90
-export const V2_GRACE_PERIOD_DAYS = 28
 export const PREMIUM_PERIOD_DAYS = 21
 
 export const getSelectedNames = (
@@ -23,23 +22,31 @@ export const getSelectedNames = (
       name: row.name,
       isV2: row.protocolVersion === 'ENSv2',
       expiryDate: row.expiryDate,
+      graceEndDate: row.graceEndDate,
     }))
 
+export type NameStatusInput = {
+  readonly expiryDate?: Date | null
+  readonly parentExpiryDate?: Date | null
+  readonly graceEndDate: Date | null
+  readonly status: NameRegistrationStatus
+}
+
+/**
+ * bigname's `status` decides whether a name lapsed, so a wrapped ENSv1 subname
+ * it still serves as active is not shown past its wrapper expiry.
+ */
 export const getNameStatus = (
-  expiryDate: Date | null | undefined,
-  isV2 = false,
+  { expiryDate, parentExpiryDate, graceEndDate, status }: NameStatusInput,
+  now = new Date(),
 ): string => {
-  if (!expiryDate) return 'no-expiry'
-  const now = new Date()
-  const graceDays = isV2 ? V2_GRACE_PERIOD_DAYS : GRACE_PERIOD_DAYS
-  const gracePeriodEnd = new Date(expiryDate.getTime() + graceDays * MS_PER_DAY)
-  const premiumPeriodEnd = new Date(
-    gracePeriodEnd.getTime() + PREMIUM_PERIOD_DAYS * MS_PER_DAY,
-  )
-  if (now > premiumPeriodEnd) return 'expired'
-  if (now > gracePeriodEnd) return 'premium'
-  if (now > expiryDate) return 'grace'
-  return 'registered'
+  if (!expiryDate)
+    return parentExpiryDate === undefined ? 'no-expiry' : 'expires-with-parent'
+  if (status !== 'expired' && status !== 'released') return 'registered'
+  if (!graceEndDate) return 'expired'
+  if (now < graceEndDate) return 'grace'
+  const premiumEnd = graceEndDate.getTime() + PREMIUM_PERIOD_DAYS * MS_PER_DAY
+  return now.getTime() < premiumEnd ? 'premium' : 'expired'
 }
 
 export const getNameLength = (name: string | null): string => {
@@ -59,8 +66,8 @@ const ETH_2LD_RE = /^[^.]+\.eth$/
 export const isNonCanonicalEthName = (name: string): boolean =>
   ETH_2LD_RE.test(name) && !isNormalizedLabel(name.split('.')[0] ?? '')
 
-// Coarse client-side pre-filter for the Extend flow: a `.eth` 2LD still within
-// its grace window (v2: 28d, v1: 90d after expiry). NOT the authoritative gate —
+// Coarse client-side pre-filter for the Extend flow: a `.eth` 2LD whose grace
+// has not ended. NOT the authoritative gate —
 // v1 renewability is decided by the renewer's on-chain `isRenewable` in
 // useCanExtend; this just avoids pricing an obviously past-grace name.
 //
@@ -70,7 +77,7 @@ export const isNonCanonicalEthName = (name: string): boolean =>
 export const isExtendable2LD = ({
   name,
   isV2,
-  expiryDate,
+  graceEndDate,
 }: SelectedName): boolean => {
   // The renew call takes a *label*, and every step derives it with `getLabel`,
   // which normalises: offering Extend on `ALICE.eth` would renew `alice.eth` —
@@ -79,11 +86,9 @@ export const isExtendable2LD = ({
   // the canonical twin; `buildRenewIntent` repeats the check at signing time.
   if (!isCanonicalName(name)) return false
   if (!ETH_2LD_RE.test(name)) return false
-  // When expiry isn't known yet (indexer loading/error), gate v2 conservatively
+  // When grace isn't known yet (indexer loading/error), gate v2 conservatively
   // so we never price a past-grace name. v1 stays permissive here because
   // useCanExtend additionally gates it on the renewer's on-chain `isRenewable`.
-  if (!expiryDate) return !isV2
-  const graceDays = isV2 ? V2_GRACE_PERIOD_DAYS : GRACE_PERIOD_DAYS
-  const cutoff = expiryDate.getTime() + graceDays * MS_PER_DAY
-  return cutoff > Date.now()
+  if (!graceEndDate) return !isV2
+  return graceEndDate.getTime() > Date.now()
 }

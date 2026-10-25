@@ -3,7 +3,10 @@ import {
   RenewalUiProvider,
   useRenewalUiContext,
 } from '../state/renewalUi.context'
-import { useRenewalStep } from '../state/renewalUi.selectors'
+import {
+  useIsAwaitingRenewalApproval,
+  useRenewalStep,
+} from '../state/renewalUi.selectors'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 import { RenewPricingStep } from './pricing/PricingStep'
 import { RenewingStep } from './renewing/RenewingStep'
@@ -31,6 +34,9 @@ export const RenewalPage = ({
 const RenewalPageContent = () => {
   const { uiActor } = useRenewalUiContext()
   const step = useRenewalStep(uiActor)
+  const isAwaitingApproval = useIsAwaitingRenewalApproval(uiActor)
+
+  if (isAwaitingApproval) return <RenewPricingStep />
 
   return match(step)
     .with('pricing', () => <RenewPricingStep />)
@@ -42,6 +48,8 @@ const RenewalPageContent = () => {
         'submittingRenewal',
         'submittingPlainRenewal',
         'waitingForRenewal',
+        'submittingHcaRenewal',
+        'checkingRenewed',
       ),
       () => <RenewingStep />,
     )

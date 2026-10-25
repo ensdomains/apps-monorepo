@@ -21,6 +21,8 @@ type Params = {
   readonly gracePeriodNames?: readonly IneligibleName[]
   readonly isPending: boolean
   readonly isRecovery?: boolean
+  /** Initial opt-out only; explicit choices and durable recovery are preserved. */
+  readonly defaultExcludedNames?: readonly string[]
   /**
    * A resumed run replays the opt-in from its durable snapshot, so the choice
    * is fixed for the rest of that run and the checkboxes are read-only.
@@ -31,12 +33,14 @@ type Params = {
 }
 
 const EMPTY_GRACE_PERIOD_NAMES: readonly IneligibleName[] = []
+const EMPTY_EXCLUDED_NAMES: readonly string[] = []
 
 export const useNameSelection = ({
   eligible,
   gracePeriodNames = EMPTY_GRACE_PERIOD_NAMES,
   isPending,
   isRecovery = false,
+  defaultExcludedNames = EMPTY_EXCLUDED_NAMES,
   isManagerRestorationLocked = false,
   onNamesChange,
   onManagerRestorationChange,
@@ -89,36 +93,44 @@ export const useNameSelection = ({
         )
         .map(({ domain }) => domain.name),
     ])
+    const excluded = new Set(defaultExcludedNames)
+    // A root checkbox includes its migration subtree. Keep the entire group
+    // opt-in when any operation in that group would delete subnames.
+    for (const subtree of rootSubtrees.values()) {
+      if ([...subtree].some((name) => excluded.has(name))) {
+        for (const name of subtree) excluded.add(name)
+      }
+    }
     return new Set(
       [...allSelectable].filter(
-        (name) => !namesNeedingManagerRestoration.has(name),
+        (name) =>
+          !namesNeedingManagerRestoration.has(name) && !excluded.has(name),
       ),
     )
   }, [
     allSelectable,
+    defaultExcludedNames,
     eligible,
     eligibleSelectable,
     gracePeriodNames,
     isRecovery,
     rootSubtrees,
   ])
-  const didSeed = useRef(false)
+  const [hasSeeded, setHasSeeded] = useState(false)
   useEffect(() => {
-    if (didSeed.current || isPending || allSelectable.size === 0) return
-    didSeed.current = true
+    if (hasSeeded || isPending || allSelectable.size === 0) return
+    setHasSeeded(true)
     setSelected(initiallySelected)
-    onNamesChange([...initiallySelected])
-  }, [isPending, allSelectable.size, initiallySelected, onNamesChange])
+  }, [hasSeeded, isPending, allSelectable.size, initiallySelected])
 
   useEffect(() => {
-    if (!didSeed.current || isPending) return
+    if (!hasSeeded || isPending) return
     setSelected((prev) => {
       const next = new Set([...prev].filter((name) => allSelectable.has(name)))
       if (next.size === prev.size) return prev
-      onNamesChange([...next])
       return next
     })
-  }, [allSelectable, isPending, onNamesChange])
+  }, [allSelectable, hasSeeded, isPending])
 
   const managerCandidates = useMemo(() => {
     const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
@@ -171,13 +183,9 @@ export const useNameSelection = ({
 
   const toggleName = useCallback(
     (name: string) => {
-      setSelected((prev) => {
-        const next = toggleRootSubtree(prev, name, rootSubtrees)
-        onNamesChange([...next])
-        return next
-      })
+      setSelected((prev) => toggleRootSubtree(prev, name, rootSubtrees))
     },
-    [onNamesChange, rootSubtrees],
+    [rootSubtrees],
   )
 
   const toggleAll = useCallback(() => {
@@ -185,11 +193,9 @@ export const useNameSelection = ({
       const isAllSelected =
         allSelectable.size > 0 &&
         [...allSelectable].every((name) => prev.has(name))
-      const next = isAllSelected ? new Set<string>() : allSelectable
-      onNamesChange([...next])
-      return next
+      return isAllSelected ? new Set<string>() : allSelectable
     })
-  }, [allSelectable, onNamesChange])
+  }, [allSelectable])
 
   // No side effect inside the updater: React may run it speculatively or
   // discard the result, which would let the machine's opt-in list drift from
@@ -215,6 +221,21 @@ export const useNameSelection = ({
   const allSelected =
     allSelectable.size > 0 &&
     [...allSelectable].every((name) => currentSelected.has(name))
+
+  const selectedNamesKey = JSON.stringify([...currentSelected])
+  const publishedNamesKey = useRef<string | null>(null)
+  // Notify from committed state only: React can replay or discard updaters.
+  // A stable key also avoids duplicate notifications when callbacks change.
+  useEffect(() => {
+    if (
+      !hasSeeded ||
+      isPending ||
+      publishedNamesKey.current === selectedNamesKey
+    )
+      return
+    publishedNamesKey.current = selectedNamesKey
+    onNamesChange([...currentSelected])
+  }, [currentSelected, hasSeeded, isPending, onNamesChange, selectedNamesKey])
 
   // Purely derived, never written back into state. A render where `eligible`
   // is briefly empty must not destroy the owner's ticks, so the stored set is
@@ -244,11 +265,11 @@ export const useNameSelection = ({
   )
 
   useEffect(() => {
-    if (!didSeed.current || isPending) return
+    if (!hasSeeded || isPending) return
     onManagerRestorationChange(
       restoredManagersKey === '' ? [] : restoredManagersKey.split(','),
     )
-  }, [isPending, onManagerRestorationChange, restoredManagersKey])
+  }, [hasSeeded, isPending, onManagerRestorationChange, restoredManagersKey])
 
   return {
     search,

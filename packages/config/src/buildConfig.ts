@@ -1,15 +1,14 @@
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { zeroAddress } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
-import { NetworkConfigError } from './errors'
+import { NetworkConfigError } from './errors.ts'
 import {
   ENS_NETWORKS,
   type EnsNetwork,
   isEnsNetwork,
   NETWORKS,
   type NetworkEndpoints,
-  type NetworkProfile,
-} from './networks'
+} from './networks.ts'
 
 export { NetworkConfigError }
 
@@ -31,16 +30,12 @@ const buildEnsChain = (network: EnsNetwork, rpcUrls: readonly string[]) => {
     network === 'mainnet'
       ? extendChainWithEns(mainnet)
       : extendChainWithEns(sepolia)
-  const { v1SubgraphUrl }: NetworkProfile = NETWORKS[network]
   return {
     ...chain,
     rpcUrls: {
       default: { http: rpcUrls },
       public: { http: rpcUrls },
     },
-    subgraphs: v1SubgraphUrl
-      ? { ...chain.subgraphs, ens: { url: v1SubgraphUrl } }
-      : chain.subgraphs,
   }
 }
 
@@ -82,6 +77,7 @@ export type EnsAppConfig<
 > = Readonly<{
   network: EnsNetwork
   isTestnet: boolean
+  appApiUrl: string
   chain: EnsChain
   /** Primary first, then the network's public fallbacks, deduped. */
   rpcUrls: readonly string[]
@@ -204,6 +200,7 @@ export const buildConfig = <
   return Object.freeze({
     network,
     isTestnet: profile.isTestnet,
+    appApiUrl: profile.appApiUrl,
     chain: chain as EnsChain,
     rpcUrls: Object.freeze(rpcUrls),
     rpcFallbacks: profile.rpcFallbacks,

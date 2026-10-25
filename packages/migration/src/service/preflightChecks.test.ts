@@ -1,4 +1,11 @@
-import { type Address, namehash, zeroAddress } from 'viem'
+import {
+  type Address,
+  type Chain,
+  encodeFunctionData,
+  getChainContractAddress,
+  namehash,
+  zeroAddress,
+} from 'viem'
 import { multicall } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -89,6 +96,36 @@ describe('checkOwnership', () => {
     const copy = makeClassified({
       id: '0xa1',
       name: 'sub.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'unlocked-child',
+    })
+
+    const ids = await checkOwnership(publicClient, [copy], OWNER)
+
+    expect([...ids]).toEqual(['0xa1'])
+  })
+
+  it('keeps a parent-controlled wrapped copy with an unset zero expiry', async () => {
+    multicallMock.mockResolvedValueOnce([ok([OWNER, 0, 0n] as const)])
+    const copy = makeClassified({
+      id: '0xa1',
+      name: 'wrapped.alice.eth',
+      parentName: 'alice.eth',
+      tokenType: 'unlocked-child',
+    })
+
+    const ids = await checkOwnership(publicClient, [copy], OWNER)
+
+    expect(ids.size).toBe(0)
+  })
+
+  it('marks an emancipated wrapped copy with a zero expiry', async () => {
+    multicallMock.mockResolvedValueOnce([
+      ok([OWNER, Number(FUSES.PARENT_CANNOT_CONTROL), 0n] as const),
+    ])
+    const copy = makeClassified({
+      id: '0xa1',
+      name: 'wrapped.alice.eth',
       parentName: 'alice.eth',
       tokenType: 'unlocked-child',
     })
@@ -280,6 +317,7 @@ describe('runEligibilityChecks', () => {
       alreadyMigrated: [],
       notPremigrated: [],
       failed: [],
+      needsWrapperSync: [],
     })
     expect(multicallMock).not.toHaveBeenCalled()
   })
@@ -313,6 +351,95 @@ describe('runEligibilityChecks', () => {
     expect(result.notPremigrated).toEqual([])
     expect(result.failed).toEqual([])
     expect(multicallMock).toHaveBeenCalledTimes(3)
+  })
+
+  describe('wrapper sync', () => {
+    const now = BigInt(Math.floor(Date.now() / 1000))
+    const DAY = 86_400n
+    const LEASE = now + 365n * DAY
+    const NAME_WRAPPER = getChainContractAddress({
+      chain: publicClient.chain as Chain,
+      contract: 'ensNameWrapper',
+    })
+    const name = makeClassified({
+      id: '0xa1',
+      label: 'a',
+      name: 'a.eth',
+      tokenType: 'unlocked',
+      fuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+    })
+    const live = (expiry: bigint) =>
+      [
+        OWNER,
+        Number(FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH),
+        expiry,
+      ] as const
+    // NameWrapper.getData zeroes owner and fuses once the wrapper expiry passes.
+    const expired = (expiry: bigint) => [zeroAddress, 0, expiry] as const
+
+    it.each([
+      [
+        'a wrapper in its grace window',
+        live(now + 3600n),
+        LEASE,
+        NAME_WRAPPER,
+        'sync',
+      ],
+      [
+        'an expired wrapper with a live lease',
+        expired(now - 3600n),
+        LEASE,
+        NAME_WRAPPER,
+        'sync',
+      ],
+      [
+        'a lease that is really in grace',
+        live(now + 3600n),
+        now + 3600n - 90n * DAY,
+        NAME_WRAPPER,
+        'migrated',
+      ],
+      [
+        'an expired wrapper the registrar no longer holds',
+        expired(now - 3600n),
+        LEASE,
+        OTHER,
+        'migrated',
+      ],
+    ] as const)('classifies %s', async (_, data, lease, registrant, bucket) => {
+      multicallMock.mockImplementation(async (_, { contracts }) => {
+        // Encode like viem does, so a call missing from its ABI fails here.
+        return contracts.map((contract) => {
+          encodeFunctionData(contract as never)
+          switch (
+            (contract as { readonly functionName: string }).functionName
+          ) {
+            case 'getData':
+              return ok(data)
+            case 'nameExpires':
+              return ok(lease)
+            case 'ownerOf':
+              return ok(registrant)
+            case 'owner':
+              return ok(NAME_WRAPPER)
+            default:
+              return ok(1)
+          }
+        }) as never
+      })
+
+      const result = await runEligibilityChecks(publicClient, [name], OWNER)
+
+      expect({
+        sync: result.needsWrapperSync.length,
+        migrated: result.alreadyMigrated.length,
+        eligible: result.eligible.length,
+      }).toEqual({
+        sync: bucket === 'sync' ? 1 : 0,
+        migrated: bucket === 'migrated' ? 1 : 0,
+        eligible: 0,
+      })
+    })
   })
 
   it('reports unreadable ownership checks in `failed` (and keeps them out of eligible)', async () => {
