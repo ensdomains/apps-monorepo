@@ -89,7 +89,7 @@ import { getV1ProfileKeys, type V1ProfileKeys } from './v1ProfileKeys'
 export type MigrationPlan = {
   readonly subnameRecreation?: SubnameRecreationSnapshot
   /** Recovery may reconcile receipts and clean up even while rollout is off. */
-  readonly subnameRecreationEnabled?: boolean
+  readonly isSubnameRecreationEnabled?: boolean
   readonly hcaAddress: Address
   readonly hcaDeploymentRequired: boolean
   readonly migrationOwner: Address

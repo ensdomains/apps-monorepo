@@ -308,7 +308,7 @@ const checkExpectation = async (
     case 'resolver-root-roles': {
       if (expectation.rootName !== '0x00') return false
       if (!(await hasContractCode(context, expectation.resolver))) return false
-      if (expectation.exact)
+      if (expectation.isExact)
         return (
           (await context.publicClient.readContract({
             address: expectation.resolver,

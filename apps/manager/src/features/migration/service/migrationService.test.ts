@@ -1483,7 +1483,7 @@ describe('executeMigration HCA orchestration', () => {
       const plan: MigrationPlan = {
         ...planFor(),
         canBatchAtomically,
-        subnameRecreationEnabled: true,
+        isSubnameRecreationEnabled: true,
         subnameRecreation: {
           version: 5,
           roots: ['alice.eth'],

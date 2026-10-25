@@ -82,10 +82,10 @@ export const EditProfileDialogBody = withForm({
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
     const [hasDraftLinkValidationIssues, setHasDraftLinkValidationIssues] =
       useState(false)
-    const [importConfirmed, setImportConfirmed] = useState(false)
+    const [isImportConfirmed, setIsImportConfirmed] = useState(false)
 
     useEffect(() => {
-      if (importWarnings) setImportConfirmed(false)
+      if (importWarnings) setIsImportConfirmed(false)
     }, [importWarnings])
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: reset draft link validation whenever the dialog open state changes
@@ -93,7 +93,7 @@ export const EditProfileDialogBody = withForm({
       setHasDraftLinkValidationIssues(false)
       setActiveTab('general')
       setIsMobileNavOpen(false)
-      setImportConfirmed(false)
+      setIsImportConfirmed(false)
     }, [open])
 
     return (
@@ -149,7 +149,7 @@ export const EditProfileDialogBody = withForm({
             !hasLinkValidationIssues &&
             !hasContactValidationIssues &&
             !hasOtherValidationIssues &&
-            (!importWarnings || importConfirmed)
+            (!importWarnings || isImportConfirmed)
           const tabsWithErrors: Record<string, boolean> = {
             addresses: hasAddressValidationIssues,
             contact: hasContactValidationIssues,
@@ -222,9 +222,9 @@ export const EditProfileDialogBody = withForm({
               {importWarnings ? (
                 <ResolverImportReview
                   blockedKeys={importBlockedKeys}
-                  confirmed={importConfirmed}
+                  isConfirmed={isImportConfirmed}
                   isPending={isImportPending}
-                  onConfirmedChange={setImportConfirmed}
+                  onConfirmedChange={setIsImportConfirmed}
                   onRetry={onRetryImport}
                   warnings={importWarnings}
                 />

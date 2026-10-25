@@ -182,8 +182,9 @@ describe('setupControlledResolver', () => {
       { texts: [], coins: [], ...supplemental },
       publicClient,
     )
-    const verifiedAt = vi.mocked(verifyResolverRecords).mock
-      .invocationCallOrder[0]!
+    const [verifiedAt] = vi.mocked(verifyResolverRecords).mock
+      .invocationCallOrder
+    if (verifiedAt === undefined) throw new Error('Records were not verified')
     expect(writeRecords.mock.invocationCallOrder[0]).toBeLessThan(verifiedAt)
     expect(startTransaction.mock.invocationCallOrder.at(-1)).toBeGreaterThan(
       verifiedAt,

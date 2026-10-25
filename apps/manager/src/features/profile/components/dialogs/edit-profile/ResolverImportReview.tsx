@@ -3,15 +3,15 @@ import { Button } from '@/components/ui/button'
 
 export const ResolverImportReview = ({
   warnings,
-  confirmed,
+  isConfirmed,
   onConfirmedChange,
   blockedKeys = [],
   isPending = false,
   onRetry,
 }: {
   readonly warnings: readonly string[]
-  readonly confirmed: boolean
-  readonly onConfirmedChange: (confirmed: boolean) => void
+  readonly isConfirmed: boolean
+  readonly onConfirmedChange: (isConfirmed: boolean) => void
   readonly blockedKeys?: readonly string[]
   readonly isPending?: boolean
   readonly onRetry?: () => void
@@ -48,7 +48,7 @@ export const ResolverImportReview = ({
     ) : null}
     <label className="flex min-h-11 cursor-pointer items-center gap-3">
       <input
-        checked={confirmed && blockedKeys.length === 0}
+        checked={isConfirmed && blockedKeys.length === 0}
         className="size-4 shrink-0 accent-ens-lapis-core"
         disabled={blockedKeys.length > 0 || isPending}
         onChange={(event) => onConfirmedChange(event.target.checked)}

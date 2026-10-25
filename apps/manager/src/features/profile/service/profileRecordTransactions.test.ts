@@ -35,9 +35,11 @@ describe('buildRecordsUpdateCalls', () => {
       publicClient,
       resolverAddress: RESOLVER,
     })
+    const [call] = calls
+    if (!call) throw new Error('Missing record write')
     const batch = decodeFunctionData({
       abi: multicallAbi,
-      data: calls[0]!.data,
+      data: call.data,
     }).args[0]
     expect(batch[0]?.slice(0, 10)).toBe(
       toFunctionSelector('linkToRecord(bytes,uint256)'),

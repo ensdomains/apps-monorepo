@@ -133,7 +133,7 @@ type ResolverImplementationExpectation = {
 }
 
 type ResolverRootRolesExpectation = {
-  readonly exact?: boolean
+  readonly isExact?: boolean
   readonly id: string
   readonly type: 'resolver-root-roles'
   readonly name: string
@@ -144,7 +144,7 @@ type ResolverRootRolesExpectation = {
 }
 
 type WalletNameRolesExpectation = {
-  readonly exact?: boolean
+  readonly isExact?: boolean
   readonly id: string
   readonly type: 'wallet-name-roles'
   readonly name: string
@@ -802,7 +802,7 @@ const buildResolverSetupFragment = (params: {
                   account: params.resolverManager,
                   rootName: ROOT_NAME,
                   roleBitmap: params.managerRoles,
-                  exact: true,
+                  isExact: true,
                 },
               ]
             : []),

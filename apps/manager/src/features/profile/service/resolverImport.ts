@@ -467,10 +467,10 @@ export const importResolverRecords = async (
         row.type === 'record' && row.data?.key ? [row.data.key] : [],
       )
     : []
-  if (events.isErr()) {
+  if (!indexedKeys || events.isErr()) {
     blockedKeys.push('record inventory')
     warnings.push(
-      'Interface and data record keys could not be loaded. Retry before replacing the resolver.',
+      'The record inventory could not be loaded. Retry before replacing the resolver.',
     )
   }
   const keys = [...new Set([...(indexedKeys ?? []), ...eventKeys])]
@@ -505,10 +505,6 @@ export const importResolverRecords = async (
       )
     }
   }
-  if (!indexedKeys)
-    warnings.push(
-      'The record index is unavailable or incomplete. Custom records may be missing from this import.',
-    )
   const texts = [
     ...new Set([
       ...staticTextRecords,

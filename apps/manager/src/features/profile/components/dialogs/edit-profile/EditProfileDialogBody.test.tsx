@@ -95,7 +95,9 @@ describe('resolver import review in the profile editor', () => {
     }
     const view = render(<Harness blockedKeys={['text:description']} />)
     expect(view.getByRole('alert')).toHaveTextContent('text:description')
-    expect(view.getByText(warnings[0]!)).toBeVisible()
+    const [warning] = warnings
+    if (warning === undefined) throw new Error('Missing import warning')
+    expect(view.getByText(warning)).toBeVisible()
     expect(view.getByRole('checkbox')).toBeDisabled()
     const preview = view.getByRole('button', { name: 'Preview' })
     expect(preview).toHaveAttribute('aria-disabled', 'true')

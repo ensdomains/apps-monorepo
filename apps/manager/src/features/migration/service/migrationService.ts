@@ -1821,7 +1821,7 @@ const assertSubnameRecreationEnabled = (
 ): void => {
   if (
     plan.subnameRecreation &&
-    (plan.subnameRecreationEnabled === false ||
+    (plan.isSubnameRecreationEnabled === false ||
       canRecreateSubnames?.() === false)
   ) {
     throw new Error(

@@ -49,7 +49,7 @@ const canImportDirectSubnames = (name: ClassifiedName): boolean =>
 
 const checkSubnameCandidates = async (params: {
   readonly candidates: readonly ClassifiedName[]
-  readonly importsEnabled: boolean
+  readonly isSubnameImportEnabled: boolean
   readonly owner: Address
   readonly publicClient: PublicClient
   readonly signal: AbortSignal
@@ -66,7 +66,7 @@ const checkSubnameCandidates = async (params: {
         .map(async (name): Promise<BlockedSubnameMigration | null> => {
           try {
             const canImport = canImportDirectSubnames(name)
-            if (params.importsEnabled && canImport) {
+            if (params.isSubnameImportEnabled && canImport) {
               await discoverSubnameRecreation({
                 domains: [name.domain],
                 owner: params.owner,
@@ -107,7 +107,7 @@ export const useMigrationEligibility = (
   names: readonly ClassifiedName[],
   ownerAddress?: string | null,
 ) => {
-  const importsEnabled =
+  const isSubnameImportEnabled =
     useFeatureFlagEnabled(
       POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
       false,
@@ -115,7 +115,7 @@ export const useMigrationEligibility = (
   return useQuery({
     queryKey: qk('migration', 'eligibility', {
       owner: ownerAddress?.toLowerCase(),
-      importsEnabled,
+      isSubnameImportEnabled,
       names: names.map((name) => ({
         id: name.domain.id,
         action: name.action,
@@ -138,7 +138,7 @@ export const useMigrationEligibility = (
       const blocked = [
         ...(await checkSubnameCandidates({
           candidates: direct,
-          importsEnabled,
+          isSubnameImportEnabled,
           owner,
           publicClient: client,
           signal,

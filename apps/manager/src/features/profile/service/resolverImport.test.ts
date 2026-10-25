@@ -270,20 +270,6 @@ describe('resolver record import', () => {
     },
   )
 
-  it('warns about unavailable inventory while recovering common records', async () => {
-    fixture()
-    mocks.nameRecords.mockReturnValue(
-      errAsync(new BignameError({ code: 'network', message: 'offline' })),
-    )
-    const imported = await importResolverRecords(NAME, source)
-    expect(imported.records.texts).toEqual([
-      { key: 'description', value: 'An existing profile' },
-    ])
-    expect(imported.warnings.join('\n')).toMatch(
-      /index is unavailable or incomplete/,
-    )
-  })
-
   it.each(['rpc', 'unsupported', 'malformed'] as const)(
     'blocks replacement on %s failure while keeping recovered records for review',
     async (failure) => {
@@ -351,14 +337,24 @@ describe('resolver record import', () => {
     },
   )
 
-  it('blocks replacement when the supplemental record inventory cannot be completed', async () => {
-    fixture()
-    mocks.events.mockReturnValue(
-      errAsync(new BignameError({ code: 'network', message: 'offline' })),
-    )
-    const imported = await importResolverRecords(NAME, source)
-    expect(imported.blockedKeys).toContain('record inventory')
-  })
+  it.each([
+    ['indexed inventory', () => mocks.nameRecords],
+    ['record event inventory', () => mocks.events],
+  ])(
+    'blocks replacement until the %s loads, still recovering common records',
+    async (_, read) => {
+      fixture()
+      read().mockReturnValue(
+        errAsync(new BignameError({ code: 'network', message: 'offline' })),
+      )
+      const imported = await importResolverRecords(NAME, source)
+      expect(imported.blockedKeys).toEqual(['record inventory'])
+      expect(imported.records.texts).toContainEqual({
+        key: 'description',
+        value: 'An existing profile',
+      })
+    },
+  )
 
   it.each(['resolver', 'registry'] as const)(
     'rejects an import if its source %s changed while reading',

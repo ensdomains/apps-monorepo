@@ -85,9 +85,9 @@ it('marks fresh plans with the rollout state and refreshes it when the flag chan
   mocks.isRecreationEnabled = true
   const { result, rerender } = renderHook(() => useMigrationGasEstimate(params))
   const prepared = (await invokeQuery()) as {
-    plan: { subnameRecreationEnabled?: boolean }
+    plan: { isSubnameRecreationEnabled?: boolean }
   }
-  expect(prepared.plan.subnameRecreationEnabled).toBe(true)
+  expect(prepared.plan.isSubnameRecreationEnabled).toBe(true)
   mocks.isRecreationEnabled = false
   mocks.query.mockReturnValue({
     data: {
@@ -98,7 +98,7 @@ it('marks fresh plans with the rollout state and refreshes it when the flag chan
   rerender()
   expect(result.current).toMatchObject({
     status: 'ready',
-    plan: { subnameRecreationEnabled: false },
+    plan: { isSubnameRecreationEnabled: false },
   })
 })
 

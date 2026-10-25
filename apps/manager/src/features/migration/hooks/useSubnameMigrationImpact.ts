@@ -77,7 +77,7 @@ export const useSubnameMigrationImpact = ({
   const recoverySnapshot = useMigrationRecoverySnapshot()
   const isCleanupRecovery =
     !!recoverySnapshot && recoverySnapshot.remainingOperations.length === 0
-  const importsEnabled =
+  const isSubnameImportEnabled =
     useFeatureFlagEnabled(
       POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
       false,
@@ -99,7 +99,7 @@ export const useSubnameMigrationImpact = ({
     .filter(
       (name) =>
         name.action === 'copy' &&
-        (!name.recreationRoot || importsEnabled) &&
+        (!name.recreationRoot || isSubnameImportEnabled) &&
         (selected.has(name.domain.name.toLowerCase()) ||
           (!!name.recreationRoot &&
             selected.has(name.recreationRoot.toLowerCase()))),
@@ -110,7 +110,7 @@ export const useSubnameMigrationImpact = ({
     selected: [...selected].sort(),
     migratingNames,
     copiedNames,
-    importsEnabled,
+    isSubnameImportEnabled,
     recovery: recoverySnapshot
       ? {
           source: recoverySnapshot.subnameRecreation,

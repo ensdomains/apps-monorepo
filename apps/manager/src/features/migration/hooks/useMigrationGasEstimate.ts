@@ -94,7 +94,7 @@ const buildEstimate = async (params: {
   readonly recoverySnapshot: MigrationRecoverySnapshot | null
   readonly recoverySelectionMatches: boolean
   readonly domains: readonly V1Domain[]
-  readonly recreateSubnames: boolean
+  readonly shouldRecreateSubnames: boolean
   readonly managerRestorationNames: readonly string[]
   readonly canBatchAtomically: boolean
   readonly signal: AbortSignal
@@ -146,10 +146,13 @@ const buildEstimate = async (params: {
     params.signal.throwIfAborted()
     return {
       estimate,
-      plan: { ...plan, subnameRecreationEnabled: params.recreateSubnames },
+      plan: {
+        ...plan,
+        isSubnameRecreationEnabled: params.shouldRecreateSubnames,
+      },
     }
   }
-  const discovery = params.recreateSubnames
+  const discovery = params.shouldRecreateSubnames
     ? await runMigrationPreparationStage('plan', () =>
         discoverSubnameRecreation({
           domains: params.domains,
@@ -200,7 +203,10 @@ const buildEstimate = async (params: {
   params.signal.throwIfAborted()
   return {
     estimate,
-    plan: { ...plan, subnameRecreationEnabled: params.recreateSubnames },
+    plan: {
+      ...plan,
+      isSubnameRecreationEnabled: params.shouldRecreateSubnames,
+    },
   }
 }
 
@@ -218,7 +224,7 @@ export const useMigrationGasEstimate = ({
     POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
     false,
   )
-  const recreateSubnames = helperFlag === true
+  const shouldRecreateSubnames = helperFlag === true
   const publicClient = usePublicClient({ chainId: chain.id })
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress,
@@ -282,7 +288,7 @@ export const useMigrationGasEstimate = ({
     queryKey: [
       'migration-gas-estimate',
       {
-        recreateSubnames,
+        shouldRecreateSubnames,
         ownerAddress: ownerAddress?.toLowerCase() ?? '',
         hcaAddress: hcaAddress?.toLowerCase() ?? '',
         domainIds,
@@ -305,7 +311,7 @@ export const useMigrationGasEstimate = ({
         publicClient: publicClient as unknown as PublicClient | undefined,
         recoverySnapshot,
         recoverySelectionMatches,
-        recreateSubnames,
+        shouldRecreateSubnames,
         domains,
         managerRestorationNames: managerRestorationKey,
         canBatchAtomically,
@@ -344,6 +350,9 @@ export const useMigrationGasEstimate = ({
     gasUnits: query.data.estimate.gasUnits,
     feeWei: query.data.estimate.feeWei,
     transactionCount: query.data.estimate.transactionCount,
-    plan: { ...query.data.plan, subnameRecreationEnabled: recreateSubnames },
+    plan: {
+      ...query.data.plan,
+      isSubnameRecreationEnabled: shouldRecreateSubnames,
+    },
   }
 }
