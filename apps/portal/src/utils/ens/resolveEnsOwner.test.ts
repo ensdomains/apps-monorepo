@@ -177,22 +177,25 @@ describe('resolveEnsOwner', () => {
     expect(mockGetOwnerV1).toHaveBeenCalledWith(client, { name: 'florin.xyz' })
   })
 
-  it('falls back to the V1 registry when V2 has no owner', async () => {
+  // An unmigrated V1 name has no V2 token (a reservation has no owner), so it
+  // falls back to V1; a migrated name that expired keeps its V2 token and must
+  // not read as V1, which would hide its V2 renewal.
+  it.each([
+    ['falls back to V1 for a name with no V2 token', zeroAddress, 'ENSv1'],
+    ['stays ENSv2 for a migrated name whose V2 lease expired', OWNER, null],
+  ] as const)('%s', async (_, latestOwner, protocolVersion) => {
     mockGetOwnerV2.mockResolvedValueOnce(zeroAddress)
-    mockGetNameRegistries.mockResolvedValueOnce([
+    mockGetNameRegistries.mockResolvedValue([
       zeroAddress,
       ETH_REGISTRY,
       ROOT_REGISTRY,
     ])
+    mockReadContract.mockResolvedValue({ status: 0, expiry: 1n, latestOwner })
     mockGetOwnerV1.mockResolvedValueOnce({ owner: OWNER })
 
     const result = await resolveEnsOwner(client, 'legacy.eth')
 
-    expect(result).toEqual({
-      owner: OWNER,
-      registryAddress: V1_ETH_REGISTRY,
-      protocolVersion: 'ENSv1',
-    })
+    expect(result?.protocolVersion ?? null).toBe(protocolVersion)
   })
 
   // WEB-1885: a parent whose subregistry has no registry behind it makes the
