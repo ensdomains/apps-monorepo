@@ -52,7 +52,7 @@ type EnsResolveClient = Client<Transport, EnsChain>
  * coalesces them into a single request. Returns `null` if the name is unowned
  * or any ancestor registry along the path is missing or reverts (WEB-1885).
  */
-async function resolveV2EthOwner(
+export async function resolveV2EthOwner(
   client: EnsResolveClient,
   name: string,
 ): Promise<{ owner: Address; registryAddress: Address } | null> {

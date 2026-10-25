@@ -59,6 +59,7 @@ const ALL_SLIDES: readonly MigrationValuePropSlide[] = [
     label: msg`Personalized NFT`,
     media: {
       alt: 'Personalized NFT card',
+      isFrameless: true,
       src: personalizedNft,
       type: 'image',
     },

@@ -180,8 +180,10 @@ describe('editProfileDialogMachine', () => {
       },
     })
     if (pendingSave?.kind === 'setup') {
-      expect(pendingSave.currentRecords.addresses).toEqual([])
-      expect(pendingSave.currentRecords.base).toEqual({})
+      expect(pendingSave.currentRecords.addresses).toEqual(records.addresses)
+      expect(pendingSave.currentRecords.base).toEqual({
+        description: 'edited bio',
+      })
     }
   })
 

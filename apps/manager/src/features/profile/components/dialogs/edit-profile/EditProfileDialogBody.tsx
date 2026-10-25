@@ -1,5 +1,7 @@
+import { Trans } from '@lingui/react/macro'
 import { useEffect, useState } from 'react'
 import type { Address } from 'viem'
+import { Button } from '@/components/ui/button'
 import { Tabs } from '@/components/ui/tabs'
 import { getActiveSignedProfileImageUploads } from '@/features/profile/service/profileImageCache'
 import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
@@ -14,6 +16,7 @@ import type { EditProfileSaveHandler } from './EditProfileDialog.types'
 import { EditProfileDialogFooter } from './EditProfileDialogFooter'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs, editProfileTabs } from './EditProfileDialogTabs'
+import { ResolverImportReview } from './ResolverImportReview'
 import { getAddressValidationIssues } from './tabs/addresses/AddressesTab.helpers'
 import { getContactValidationIssues } from './tabs/contact/records'
 import {
@@ -21,6 +24,7 @@ import {
   isDescriptionOverLimit,
 } from './tabs/general/fields'
 import { getLinkValidationIssues } from './tabs/links/validation'
+import { getOtherRecordIssues } from './tabs/OtherRecordsTab.helpers'
 
 interface EditProfileDialogBodyProps {
   readonly isFinalizingImageSave: boolean
@@ -33,6 +37,12 @@ interface EditProfileDialogBodyProps {
   readonly owner?: Address
   readonly savedRecords: ProfileRecords
   readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
+  readonly importWarnings?: readonly string[]
+  readonly importBlockedKeys?: readonly string[]
+  readonly isImportPending?: boolean
+  readonly onRetryImport?: () => void
+  readonly onRecheckPermissions: () => void
+  readonly requiresResolverPreparation?: boolean
 }
 
 export const EditProfileDialogBody = withForm({
@@ -44,6 +54,7 @@ export const EditProfileDialogBody = withForm({
     onCancel: () => {},
     onPreview: () => {},
     onImageUploadPrepared: () => {},
+    onRecheckPermissions: () => {},
     open: false,
     preparedImageUploads: [],
     savedRecords: defaultProfileRecords,
@@ -60,17 +71,29 @@ export const EditProfileDialogBody = withForm({
     owner,
     preparedImageUploads,
     savedRecords,
+    importWarnings,
+    importBlockedKeys,
+    isImportPending,
+    onRetryImport,
+    onRecheckPermissions,
+    requiresResolverPreparation,
   }) => {
     const [activeTab, setActiveTab] = useState('general')
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
     const [hasDraftLinkValidationIssues, setHasDraftLinkValidationIssues] =
       useState(false)
+    const [isImportConfirmed, setIsImportConfirmed] = useState(false)
+
+    useEffect(() => {
+      if (importWarnings) setIsImportConfirmed(false)
+    }, [importWarnings])
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: reset draft link validation whenever the dialog open state changes
     useEffect(() => {
       setHasDraftLinkValidationIssues(false)
       setActiveTab('general')
       setIsMobileNavOpen(false)
+      setIsImportConfirmed(false)
     }, [open])
 
     return (
@@ -84,6 +107,12 @@ export const EditProfileDialogBody = withForm({
           const submittedValues = normalizeProfileRecords(values)
           const diff = createDiff(savedRecords, submittedValues)
           const hasChanges = Object.keys(diff).length > 0
+          const needsReplacement = Boolean(requiresResolverPreparation)
+          const hasOtherValidationIssues =
+            getOtherRecordIssues(
+              values,
+              requiresResolverPreparation ? undefined : savedRecords.abi,
+            ).length > 0
           const activePreparedImageUploads = getActiveSignedProfileImageUploads(
             {
               images: preparedImageUploads,
@@ -109,19 +138,24 @@ export const EditProfileDialogBody = withForm({
               savedRecords.base.description,
             )
           const canPreviewProfile =
-            (hasChanges || hasPreparedImageUpload) &&
+            (hasChanges || hasPreparedImageUpload || needsReplacement) &&
             canSubmit &&
             !isFinalizingImageSave &&
             !isResolverAccessPending &&
+            !isImportPending &&
+            !importBlockedKeys?.length &&
             !hasAddressValidationIssues &&
             !hasGeneralValidationIssues &&
             !hasLinkValidationIssues &&
-            !hasContactValidationIssues
+            !hasContactValidationIssues &&
+            !hasOtherValidationIssues &&
+            (!importWarnings || isImportConfirmed)
           const tabsWithErrors: Record<string, boolean> = {
             addresses: hasAddressValidationIssues,
             contact: hasContactValidationIssues,
             general: hasGeneralValidationIssues,
             links: hasLinkValidationIssues,
+            other: hasOtherValidationIssues,
           }
           const errorTabs = editProfileTabs.filter(
             ({ value }) => tabsWithErrors[value],
@@ -147,7 +181,7 @@ export const EditProfileDialogBody = withForm({
             if (!canPreviewProfile) return
 
             onPreview(submittedValues, {
-              hasRecordChanges: hasChanges,
+              hasRecordChanges: hasChanges || needsReplacement,
               preparedImageUploads: activePreparedImageUploads,
             })
           }
@@ -165,6 +199,36 @@ export const EditProfileDialogBody = withForm({
                 name={name}
                 themeColor={values.base.theme}
               />
+              {isResolverAccessPending ? (
+                <div
+                  className="flex shrink-0 items-center justify-between gap-3 border-ens-quartz-200 border-b px-4 py-3 text-sm"
+                  role="status"
+                >
+                  <p>
+                    <Trans>
+                      Publishing is paused while wallet and resolver permissions
+                      are checked. Your draft is kept here.
+                    </Trans>
+                  </p>
+                  <Button
+                    onClick={onRecheckPermissions}
+                    type="button"
+                    variant="outline"
+                  >
+                    <Trans>Check again</Trans>
+                  </Button>
+                </div>
+              ) : null}
+              {importWarnings ? (
+                <ResolverImportReview
+                  blockedKeys={importBlockedKeys}
+                  isConfirmed={isImportConfirmed}
+                  isPending={isImportPending}
+                  onConfirmedChange={setIsImportConfirmed}
+                  onRetry={onRetryImport}
+                  warnings={importWarnings}
+                />
+              ) : null}
               <EditProfileDialogTabs
                 isMobileNavOpen={isMobileNavOpen}
                 name={name}
@@ -177,16 +241,26 @@ export const EditProfileDialogBody = withForm({
                 onImageUploadPrepared={onImageUploadPrepared}
                 onLinksChange={handleLinksChange}
                 onMobileNavOpenChange={setIsMobileNavOpen}
+                onOtherChange={(records) => {
+                  form.setFieldValue('unknown', records.unknown)
+                  form.setFieldValue('contentHash', records.contentHash)
+                  form.setFieldValue('abi', records.abi)
+                }}
                 onSocialChange={handleSocialChange}
                 owner={owner}
                 preparedImageUploads={activePreparedImageUploads}
+                savedAbi={
+                  requiresResolverPreparation ? undefined : savedRecords.abi
+                }
                 savedDescription={savedRecords.base.description}
                 values={values}
               />
               <EditProfileDialogFooter
                 canPreview={canPreviewProfile}
                 errorTabLabels={errorTabs.map(({ label }) => label)}
-                hasChanges={hasChanges || hasPreparedImageUpload}
+                hasChanges={
+                  hasChanges || hasPreparedImageUpload || needsReplacement
+                }
                 onCancel={onCancel}
                 onPreview={handlePreview}
                 onShowErrors={() => {
