@@ -1,14 +1,17 @@
 # ENS campaign consolidation
 
-Branch: `test/pr1494-e2e-coverage`. This checkout combines PR #1494 at
-`2a5cce392d58c347212cd72985e842a6b455fdf6`, coverage branch commit
-`f50aa8d27a3e2c0d52ba6d9fff8a4f93af95b217`, and all campaign source inventoried
-below. Historical outcomes retain their original candidate and evidence; they
-are not a full-matrix result for this combined branch.
+Branch: `test/pr1494-e2e-coverage`. On 2026-10-26, the combined campaign work was
+rebased onto `e2e-tests-coverage` at
+`409500805fa0ab1bee771e06dbb56b30f242b773`, which includes the landed PR #1494
+and its additional acceptance tests. The original consolidation used PR #1494
+at `2a5cce392d58c347212cd72985e842a6b455fdf6` and coverage commit
+`f50aa8d27a3e2c0d52ba6d9fff8a4f93af95b217`; the inventories and archives below
+retain that provenance. Historical outcomes retain their original candidate
+and evidence; they are not a full-matrix result for this combined branch.
 
 | Campaign | Consolidated source | Completeness check |
 | --- | --- | --- |
-| ENS replacement execution | `e2e/projects/parity`, `e2e/projects/replacement`, Manager record-preservation specs, manual fixtures and shared test adapters | 497 checks collected; all 260 executed legacy IDs mapped; 0 coverage errors |
+| ENS replacement execution | `e2e/projects/parity`, `e2e/projects/replacement`, Manager record-preservation specs, manual fixtures and shared test adapters | 525 checks collected after the rebase; all 260 executed legacy IDs mapped; 0 coverage errors |
 | Ownership, roles and record preservation | Before/after parity specs, 17 record-preservation cases, 21 after-migration scenarios and recovery checks | Included in the replacement manifest and collection audit |
 | Migration retention matrix | `e2e/projects/migration-matrix`, fixtures, oracles, runners and report programs | All 986 configuration definitions retained; no source path missing from the earlier matrix checkout |
 | PR #1494 approval and follow-ups | Approval, grace, cleanup, setter/history, source-race, conflict, permission and unlocked-parent specs | All 36 approval ledger entries retained: 34 point to automated specs; APR-34/35 retain their manual MetaMask evidence |
@@ -80,3 +83,23 @@ fixtures, indexer requirements and evidence limits.
 
 The active test campaign remains in `test/pr1494-approval-36`. No services were
 restarted, and no new app execution results were assigned to this branch.
+
+## Coverage refresh validation — 2026-10-26
+
+- The new coverage commit is an ancestor of this branch. The newer application
+  code is retained; app-level differences are limited to the existing local
+  test-server configurations.
+- All 986 matrix configurations, parity and replacement sources, and archived
+  reports remain unchanged from the previously pushed combined branch.
+- Shared-fixture reconciliation retains the campaign receipt handling and
+  imports the new configurable reservation bonus and premigration probe update.
+- E2E type checking and the repository's Biome gate passed.
+- Replacement collection found 525 tests, including the additional upstream
+  cases, with all 260 executed legacy IDs mapped and zero coverage errors.
+- Nine strict-reporter/record-oracle checks and 36 browser harness checks passed.
+- The added Manager recreation and Explorer recreated-subname specs collect
+  successfully. Collection does not establish that their app scenarios pass.
+
+The full live-chain matrix was not rerun as part of this rebase. DNS, legacy
+stateful suites and 4LD execution remain excluded from the active campaign;
+accepted findings and historical pass/fail results retain their existing status.
