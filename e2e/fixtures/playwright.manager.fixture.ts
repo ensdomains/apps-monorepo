@@ -47,7 +47,6 @@ const localSepolia = {
 } as const
 
 const MIGRATION_FEATURE_FLAGS = { migration: true } as const
-const PROFILE_FEATURE_FLAGS = { 'profile-view-new': true } as const
 const FEATURE_FLAG_OVERRIDE_TIMEOUT = 10_000
 
 async function overrideManagerFeatureFlags(
@@ -169,7 +168,7 @@ type ManagerFixtures = {
    * that don't need backend-gated state.
    */
   connectedPage: Page
-  /** `connectedPage` with the new profile view feature flag applied. */
+  /** Connected page for profile scenarios. */
   profileConnectedPage: Page
   /** `connectedPage` with the migration feature flag applied. */
   migrationConnectedPage: Page
@@ -179,7 +178,7 @@ type ManagerFixtures = {
    * (notification settings, favorites, etc). Hits the deployed worker.
    */
   authenticatedPageWithBackend: Page
-  /** Backend-authenticated page with the new profile view feature flag applied. */
+  /** Backend-authenticated page for profile scenarios. */
   profileAuthenticatedPageWithBackend: Page
   /** Time fixture for syncing anvil block time with the browser clock. */
   time: Time
@@ -271,10 +270,8 @@ export const test = base.extend<ManagerFixtures>({
   },
 
   profileConnectedPage: async ({ page, wallet }, use) => {
-    await overrideManagerFeatureFlags(page, PROFILE_FEATURE_FLAGS)
     await connectHeadless(page, wallet)
     await dismissBackendAuthModal(page)
-    await waitForManagerFeatureFlagOverride(page)
     await use(page)
   },
 
@@ -293,10 +290,8 @@ export const test = base.extend<ManagerFixtures>({
   },
 
   profileAuthenticatedPageWithBackend: async ({ page, wallet }, use) => {
-    await overrideManagerFeatureFlags(page, PROFILE_FEATURE_FLAGS)
     await connectHeadless(page, wallet)
     await signInBackendAuthModal(page)
-    await waitForManagerFeatureFlagOverride(page)
     await use(page)
   },
 
