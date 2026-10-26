@@ -3799,7 +3799,7 @@ msgid "We couldn't remove access. Check your wallet and try again."
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
-msgid "We couldn't safely retry. Nothing was submitted and nothing changed."
+msgid "We couldn't safely retry. A transaction may already be pending or confirmed, so check your wallet activity before trying again."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

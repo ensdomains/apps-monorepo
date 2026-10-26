@@ -41,9 +41,11 @@ export const Route = createFileRoute('/renew-v1/$name')({
       return refuseRenewal('This ENSv1 name is not reserved or registered.')
     }
 
+    // Fetched rather than read through the cache, as on the V2 route: a stale
+    // entry can refuse a renewable name or start from an outdated expiry.
     const [expiryData, isRenewable] = await Promise.all([
-      queryClient.ensureQueryData(profileExpiryQuery(normalizedName, 'v1')),
-      queryClient.ensureQueryData(getV1RenewableQueryOptions(normalizedName)),
+      queryClient.fetchQuery(profileExpiryQuery(normalizedName, 'v1')),
+      queryClient.fetchQuery(getV1RenewableQueryOptions(normalizedName)),
     ])
 
     if (!isRenewable) {
