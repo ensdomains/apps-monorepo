@@ -2086,7 +2086,7 @@ export const executeMigration = async (params: {
     canBatchAtomically: plan.canBatchAtomically === true,
   }
   const txHashes: Hex[] = []
-  let lockedResolverCheckFailed = false
+  let hasLockedResolverCheckFailed = false
 
   try {
     const executionPlan = await prepareExecutionPlan({
@@ -2106,7 +2106,7 @@ export const executeMigration = async (params: {
           names: executionPlan.classified,
         })
       } catch (error) {
-        lockedResolverCheckFailed = true
+        hasLockedResolverCheckFailed = true
         throw error
       }
       // Reconcile mined work before checking capabilities: cleanup-only retries
@@ -2186,7 +2186,10 @@ export const executeMigration = async (params: {
   } catch (error) {
     // A changed preview must return for a new estimate without opening an
     // unplanned revocation prompt. No transaction has been attempted yet.
-    if (lockedResolverCheckFailed || error instanceof MigrationPlanChangedError)
+    if (
+      hasLockedResolverCheckFailed ||
+      error instanceof MigrationPlanChangedError
+    )
       throw error
     // A grant can be confirmed even when a later wallet prompt or batch fails.
     // Keep the original failure if cleanup succeeds; surface cleanup failure
