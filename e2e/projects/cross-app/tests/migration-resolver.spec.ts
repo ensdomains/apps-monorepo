@@ -16,9 +16,10 @@
  *          PublicResolverV2, records still editable in both apps.
  */
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { type Address, namehash, parseAbi } from 'viem'
+import { type Address, namehash, parseAbi, zeroAddress } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import {
+  CERTIFIED_V1_RESOLVER,
   createMakeV1Name,
   V1_NAME_WRAPPER,
   V1_PUBLIC_RESOLVER,
@@ -82,7 +83,7 @@ const implementationOf = (proxy: Address) =>
       functionName: 'verifyContract',
       args: [proxy],
     })
-    .catch(() => '0x0000000000000000000000000000000000000000' as Address)
+    .catch(() => zeroAddress as Address)
 
 async function migrateInManager(
   manager: AppSession,
@@ -185,7 +186,7 @@ test.describe('Migration resolver: never-wrapped names stay editable', () => {
   for (const variant of [
     {
       tag: 'certified',
-      v1Resolver: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as Address,
+      v1Resolver: CERTIFIED_V1_RESOLVER,
     },
     { tag: 'current', v1Resolver: V1_PUBLIC_RESOLVER as Address },
   ]) {

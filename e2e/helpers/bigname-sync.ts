@@ -1,6 +1,6 @@
 /**
- * Wait for the local bigname to catch up — the manager's counterpart of
- * `indexer-sync.ts` (which waits for Panoptes, still the portal's indexer).
+ * Wait for the local bigname to catch up. `indexer-sync.ts` wraps these for
+ * the portal specs.
  *
  * The manager reads every name list, name detail and V1 migration candidate
  * from bigname. Locally that is a bigname following the Anvil fork
@@ -8,7 +8,7 @@
  * (`E2E_MOCK_BIGNAME=true`, `helpers/mock-bigname.ts`), and every function
  * here returns at once.
  *
- * Same failure mode as Panoptes: a page that reads before the index has the
+ * The failure mode: a page that reads before the index has the
  * write gets an empty answer, react-query caches it, and the page stays empty
  * for the rest of the test. Wait first, as for a transaction receipt.
  */
@@ -159,6 +159,14 @@ async function lookupRecordKeys(name: string) {
 
 type SeenKeys = NonNullable<Awaited<ReturnType<typeof lookupRecordKeys>>>
 
+/** The text keys bigname lists for `name`, or null when it cannot answer. */
+export async function bignameTextKeys(
+  name: string,
+): Promise<readonly string[] | null> {
+  const keys = await lookupRecordKeys(name)
+  return keys ? (keys.seen_texts ?? []) : null
+}
+
 /** The keys in `expected` that bigname does not list yet. */
 function missingKeys(
   keys: SeenKeys | null,
@@ -213,4 +221,22 @@ export async function waitForBignameRecordKeys(
   throw new Error(
     `bigname did not list ${name}'s record keys within ${timeoutMs}ms; missing: ${missing.join(', ')}`,
   )
+}
+
+/** One row of bigname's name history, as the explorer's timeline reads it. */
+export type BignameHistoryRow = {
+  readonly type: string
+  readonly block_number: number
+  readonly contract_address: string
+  readonly data?: { readonly key?: string; readonly value?: string }
+}
+
+/** The name's history rows (one page of 200, newest first), or [] if unknown. */
+export async function bignameNameHistory(
+  name: string,
+): Promise<readonly BignameHistoryRow[]> {
+  const body = await getJson<{ data?: BignameHistoryRow[] }>(
+    `/v1/names/${encodeURIComponent(name)}/history?include=data&page_size=200`,
+  )
+  return body?.data ?? []
 }

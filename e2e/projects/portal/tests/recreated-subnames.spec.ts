@@ -107,7 +107,7 @@ const editorControls = (page: Page) =>
 
 test.describe('#1494 explorer on recreated subnames (#1506, #1496, b0480bcc8)', () => {
   test.describe.configure({ timeout: 600_000 })
-  test.use({ mockIndexerEnabled: true })
+  test.use({ mockBignameEnabled: true })
 
   test('the V1 holder edits on the retained resolver, a stranger cannot, and Graveyard.clear turns it into a plain denial (#1506, #1496)', async ({
     page,

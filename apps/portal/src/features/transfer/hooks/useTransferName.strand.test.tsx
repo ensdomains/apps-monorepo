@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { ok } from 'neverthrow'
+import { ok, okAsync } from 'neverthrow'
 import { type Address, getAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Transaction } from '@/features/transaction-manager/types'
@@ -111,6 +111,11 @@ vi.mock('@/features/resolver/hooks/useIsPermissionedResolver', () => ({
 
 vi.mock('@/features/profile/hooks/useTokenId', () => ({
   getEnsTokenId: () => ok(1n),
+}))
+
+// An emancipated registry, so the move stays `transfer-token` (#1391).
+vi.mock('../queries/getIsRegistryEmancipated', () => ({
+  getIsRegistryEmancipated: () => okAsync(true),
 }))
 
 const subject: TransferSubject = { kind: 'v2', registryAddress: REGISTRY }

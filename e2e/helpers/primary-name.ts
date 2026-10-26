@@ -1,7 +1,7 @@
 /**
  * Open the manager's primary-name picker from the dashboard, whichever
  * control the dashboard shows: "Set primary name" when the account has none,
- * or the primary-name card's nameplate (the current name and a chevron) when
+ * or the primary-name card's “Primary Name” button when
  * it has one (`features/dashboard/components/PrimaryNameCard.tsx`). The test
  * accounts are shared across a run, so either state is possible.
  */
@@ -31,10 +31,10 @@ export async function openPrimaryNamePicker(
   await page.goto(`${MANAGER_APP_URL}/dashboard`)
   await page.waitForLoadState('networkidle')
   const current = await readPrimaryName(address)
-  // The header's account menu also shows the primary name (with an avatar
-  // pattern and a chevron), so match the card's nameplate exactly.
+  // The nameplate is display-only; the card's labelled button opens the picker.
+  // Avoid the header account menu, which also displays the primary name.
   const trigger = current
-    ? page.getByRole('button', { name: current, exact: true })
+    ? page.getByRole('button', { name: 'Primary Name', exact: true })
     : page.getByRole('button', { name: /set primary name/i })
   await trigger.first().click({ timeout: 30_000 })
   const dialog = page.getByRole('dialog', { name: 'Choose Primary Name' })

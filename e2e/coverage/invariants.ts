@@ -168,6 +168,18 @@ export const invariants: Invariant[] = [
     sites: [
       site(
         'INV3',
+        'native-4ld-lists',
+        'Native V2 4LD transfer dashboard membership',
+        'Q58: recipient lists the transferred leaf and sender excludes it, cross-checked against registry ownership',
+      ),
+      site(
+        'INV3',
+        '4ld-state',
+        'Mixed copied 4LD dashboard membership',
+        'copied 4LD appears once in its owner dashboard after the Q2 migration',
+      ),
+      site(
+        'INV3',
         'classify-names',
         'classifyNames — 7 token types, 10 reasons',
         'every getNameType state lands in exactly one bucket, and each of the 10 declared reasons is either produced by some input or recorded as unreachable. The subname-migration PR added the `unlocked-child` and `registry-child` copy token types and the `invalid-label` (GS13) and `unsupported-resolver` (GS16) reasons, and made `unlocked-subname` dead alongside `registry-only` — both of those shapes are now eligible copies (GS3, GS4). Still tracked as unreachable: registry-only, unlocked-subname. Produced elsewhere: frozen-approval → GW11, already-migrated → GM5, missing-parent → GS9',
@@ -204,6 +216,12 @@ export const invariants: Invariant[] = [
     rationale:
       'A misconfigured-but-running indexer returns success with zero rows and the UI presents that as a confident answer ("No role holders yet"). This has already happened here.',
     sites: [
+      site(
+        'INV4',
+        '4ld-state',
+        'Copied 4LD ownership and records',
+        'rendered owner and nonempty records agree with V2 registry and Universal Resolver',
+      ),
       site(
         'INV4',
         'roles-table',
@@ -261,6 +279,24 @@ export const invariants: Invariant[] = [
     rationale:
       'Offering an action the wallet cannot perform is how an irreversible plan step gets ordered ahead of an impossible one — INV5 failures become INV1 incidents.',
     sites: [
+      site(
+        'INV5',
+        'native-4ld-writes',
+        'Native V2 4LD creation, deletion, transfer and record save',
+        'Q50/Q51/Q52/Q54: each offered write executes and its intended registry or resolver change is read back; Q53/Q55 cover stranger refusals separately',
+      ),
+      site(
+        'INV5',
+        '4ld-transfer-actions',
+        'Former V1 4LD holder write surfaces',
+        'transfer, records, resolver, fuses and subname creation refuse the former holder with a reason (roles is a depth gate, E2E-042, not a holder gate); chain state and records remain unchanged',
+      ),
+      site(
+        'INV5',
+        '4ld-copy-actions',
+        'Copied mixed 4LD actions',
+        'offered record save and transfer execute; registry owner and resolved records prove both writes',
+      ),
       site(
         'INV5',
         'role-gated-buttons',

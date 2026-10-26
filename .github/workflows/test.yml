@@ -74,11 +74,13 @@ jobs:
           set -f
           pnpm $SCOPE lint
 
+      # The e2e package has no unit tests: its Playwright suites need the local
+      # chain stack and run in e2e.yml. Typecheck and lint above still cover it.
       - name: Run tests with coverage on changed packages
         run: |
           echo "📊 Running coverage tests on changed packages..."
           set -f
-          pnpm $SCOPE test:coverage
+          pnpm $SCOPE --filter=!@ens-apps/e2e test:coverage
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v7

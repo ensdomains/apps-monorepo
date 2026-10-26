@@ -27,6 +27,7 @@ import {
   type Hash,
   keccak256,
   maxUint256,
+  namehash,
   parseAbi,
   parseEther,
   parseEventLogs,
@@ -36,10 +37,18 @@ import {
 } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
-import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
+import {
+  makeGraceV1Name,
+  syncBrowserToChain,
+} from '../../../fixtures/makeGraceV1Name.js'
+import {
+  createMakeV1Name,
+  V1_NAME_WRAPPER,
+} from '../../../fixtures/makeV1Name.js'
 import {
   connectWithHeadlessWallet,
   expect,
+  portalBignameMock,
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import {
@@ -48,14 +57,17 @@ import {
   walletClient,
 } from '../../../helpers/anvil-client.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
-import { waitForIndexedName } from '../../../helpers/indexer-sync.js'
-import { mockV1Subgraph } from '../../../helpers/mock-v1-subgraph.js'
+import {
+  waitForIndexedBlock,
+  waitForIndexedName,
+} from '../../../helpers/indexer-sync.js'
 import {
   authorizeTransaction,
   switchWalletToSepolia,
   switchWalletToUndeclaredChain,
 } from '../../../helpers/portal-auth.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
+import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 const DOMAIN_TO_REGISTER =
@@ -2329,9 +2341,8 @@ const renewerPrice = (
   })
 
 /**
- * Opens the names list with `names` selected and presses Extend. V1 names are
- * listed through the V1 subgraph, which can't see fork-seeded names (and the
- * local shim rejects the list's `wrappedOwner` filter), so they are injected;
+ * Opens the names list with `names` selected and presses Extend. The list reads
+ * bigname, so the V1 names are waited for (local) or served (route mock);
  * pricing, approval and renewal all still run against the fork.
  */
 async function extendFromNamesList(
@@ -2340,9 +2351,11 @@ async function extendFromNamesList(
   names: { readonly v2: readonly string[]; readonly v1: readonly string[] },
   search: string,
 ) {
-  await mockV1Subgraph(
+  await serveV1Names(
     page,
     names.v1.map((name) => ({ name, ownerAddress: owner, type: 'unwrapped' })),
+    // The names list sends no authority filter, so the shared mock lists them.
+    { indexer: portalBignameMock },
   )
   await page.goto(`${PORTAL_APP_URL}/addr/${owner}/names`)
   await content(page).getByPlaceholder('Search names...').fill(search)
@@ -3003,5 +3016,543 @@ test.describe('Portal checkout — a failed price read blocks checkout instead o
     expect(await readTokenAllowance(MOCK_USDC, owner, V1_RENEWER)).toBe(0n)
     // Positive control: charged exactly the two prices.
     expect(usdcBefore - (await readUsdcBalance(owner))).toBe(v1Price + v2Price)
+  })
+})
+
+/**
+ * Bulk Extend from the names list with V1 and V2 names in one selection.
+ *
+ * The explorer plans one approval per renewer (ETHRegistrar for V2,
+ * ETHRenewerV1 for V1) for exactly that renewer's total, then one `renew` per
+ * name, all as plain wallet transactions (`planMultiRenewSteps`). The manager
+ * offers no mixed renewal at all (see its dashboard tests), so this is the only
+ * place a V1 and a V2 lease move in one flow.
+ *
+ * Oracles are on chain: each lease, the NameWrapper expiry of a wrapped V1
+ * name, the approvals mined and the USDC spent, priced by each renewer's own
+ * `getRenewPrice` for the duration that actually moved.
+ */
+test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
+  test.describe.configure({ timeout: 480_000 })
+
+  const DAY_S = 86_400n
+  const WRAPPER_ABI = parseAbi([
+    'function getData(uint256 id) view returns (address owner, uint32 fuses, uint64 expiry)',
+  ])
+  const wrapperExpiry = async (name: string) =>
+    (
+      await publicClient.readContract({
+        address: V1_NAME_WRAPPER,
+        abi: WRAPPER_ABI,
+        functionName: 'getData',
+        args: [BigInt(namehash(name))],
+      })
+    )[2]
+  const v2Expiry = (name: string) =>
+    getExpiry(publicClient as never, { name }) as Promise<bigint>
+  const labelOf = (name: string) => name.replace(/\.eth$/, '')
+
+  type Leg = { name: string; v1: boolean }
+  const leaseOf = (leg: Leg) =>
+    leg.v1 ? readV1Expiry(labelOf(leg.name)) : v2Expiry(leg.name)
+  const leases = (legs: readonly Leg[]) => Promise.all(legs.map(leaseOf))
+  /** What each renewer charges for the duration that moved, by name. */
+  const pricesFor = async (
+    legs: readonly Leg[],
+    before: readonly bigint[],
+    after: readonly bigint[],
+  ) =>
+    Promise.all(
+      legs.map((leg, i) =>
+        renewerPrice(
+          leg.v1 ? V1_RENEWER : V2_RENEWER,
+          labelOf(leg.name),
+          after[i] - before[i],
+          MOCK_USDC,
+        ),
+      ),
+    )
+  const sum = (xs: readonly bigint[]) => xs.reduce((a, b) => a + b, 0n)
+  const usd = (amount: bigint) => `$${formatUnits(amount, 6)}`
+
+  /** The settings step's "Total: $x.xx" as a number of cents. */
+  const displayedTotalCents = async (dialog: Locator) => {
+    const footer = dialog.getByText('Total:', { exact: true }).locator('..')
+    await expect(footer).toContainText(/\$[\d,]+\.\d{2}/, { timeout: 30_000 })
+    const [, dollars] = (await footer.innerText()).match(
+      /\$([\d,]+\.\d{2})/,
+    ) as RegExpMatchArray
+    return Math.round(Number(dollars.replace(/,/g, '')) * 100)
+  }
+
+  /** Allowances to both renewers start at zero, so every run must approve. */
+  const resetAllowances = async (owner: Address) => {
+    await setTokenAllowance(owner, MOCK_USDC, V1_RENEWER, 0n)
+    await setTokenAllowance(owner, MOCK_USDC, V2_RENEWER, 0n)
+  }
+
+  /** Approvals and the renew per name, in the order the flow plans them. */
+  const stepIds = (legs: readonly Leg[]) => [
+    ...[...new Set(legs.map((l) => (l.v1 ? V1_RENEWER : V2_RENEWER)))].map(
+      (r) => `renewal-approve-${r}`,
+    ),
+    ...legs.map((l) => `renewal-renew-${l.name}`),
+  ]
+
+  async function openExtend(
+    page: Page,
+    owner: Address,
+    legs: readonly Leg[],
+    search: string,
+  ) {
+    // The list reads bigname, which indexes the fork's V1 and V2 names alike.
+    await waitForIndexedBlock()
+    return extendFromNamesList(
+      page,
+      owner,
+      {
+        v2: legs.filter((l) => !l.v1).map((l) => l.name),
+        v1: legs.filter((l) => l.v1).map((l) => l.name),
+      },
+      search,
+    )
+  }
+
+  /** Every lease moved, each by the same span, and the charge is the sum. */
+  async function expectRenewedOnce(
+    legs: readonly Leg[],
+    before: readonly bigint[],
+    usdcBefore: bigint,
+    owner: Address,
+  ) {
+    for (const leg of legs)
+      await expect
+        .poll(() => leaseOf(leg), { timeout: 30_000, message: leg.name })
+        .toBeGreaterThan(before[legs.indexOf(leg)])
+    const after = await leases(legs)
+    const prices = await pricesFor(legs, before, after)
+    const spent = usdcBefore - (await readUsdcBalance(owner))
+    expect(spent, `charged ${usd(spent)}, prices ${prices.map(usd)}`).toBe(
+      sum(prices),
+    )
+    expect(await readTokenAllowance(MOCK_USDC, owner, V1_RENEWER)).toBe(0n)
+    expect(await readTokenAllowance(MOCK_USDC, owner, V2_RENEWER)).toBe(0n)
+    return { after, prices }
+  }
+
+  test('a V1 name in grace and an active V2 name renew together, and the V1 name leaves grace', {
+    tag: ['@scenario:B19'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    const owner = accounts.getAddress('user')
+    const run = Date.now().toString(36)
+    // The grace name first: its fixture steps the clock past its expiry.
+    const grace = await makeGraceV1Name({
+      label: `bulkmix-g-${run}`,
+      owner: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const active = await makeName({ label: `bulkmix-a-${run}`, owner: 'user' })
+    const legs: Leg[] = [
+      { name: active, v1: false },
+      { name: grace.name, v1: true },
+    ]
+    expect(
+      await readV1Expiry(grace.label),
+      'precondition: the V1 name is past its expiry, in grace',
+    ).toBeLessThan(
+      (await publicClient.getBlock({ cacheTime: 0 } as never)).timestamp,
+    )
+    await resetAllowances(owner)
+    const before = await leases(legs)
+    const usdcBefore = await readUsdcBalance(owner)
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+    await syncBrowserToChain(page)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const dialog = await openExtend(page, owner, legs, run)
+    await expect(dialog.getByText('Extend names')).toBeVisible()
+    await confirmExtendWith(page, dialog, 'USDC')
+    await driveTransactionsToSuccess(page, wallet, stepIds(legs))
+
+    const { after, prices } = await expectRenewedOnce(
+      legs,
+      before,
+      usdcBefore,
+      owner,
+    )
+    const approvals = await minedApprovals(owner, fromBlock)
+    expect(approvals, 'one approval per renewer').toHaveLength(2)
+    for (const [i, leg] of legs.entries())
+      expect(
+        approvals.find((a) =>
+          sameAddress(a.spender, leg.v1 ? V1_RENEWER : V2_RENEWER),
+        )?.amount,
+        `${leg.name}'s renewer is approved exactly its price`,
+      ).toBe(prices[i])
+    expect(
+      after[1],
+      'the V1 lease now ends in the future: the name is out of grace',
+    ).toBeGreaterThan(
+      (await publicClient.getBlock({ cacheTime: 0 } as never)).timestamp,
+    )
+  })
+
+  test('unwrapped and wrapped V1 names renew with a V2 name, and the wrapped one keeps its NameWrapper expiry in step', {
+    tag: ['@scenario:B20'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    const owner = accounts.getAddress('user')
+    const run = Date.now().toString(36)
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const unwrapped = await makeV1Name({
+      label: `bulkwrap-u-${run}`,
+      type: 'unwrapped',
+    })
+    const wrapped = await makeV1Name({
+      label: `bulkwrap-w-${run}`,
+      type: 'wrapped',
+    })
+    const v2 = await makeName({ label: `bulkwrap-v-${run}`, owner: 'user' })
+    const legs: Leg[] = [
+      { name: v2, v1: false },
+      { name: unwrapped, v1: true },
+      { name: wrapped, v1: true },
+    ]
+    const wrapperGap =
+      (await wrapperExpiry(wrapped)) - (await readV1Expiry(labelOf(wrapped)))
+    await resetAllowances(owner)
+    const before = await leases(legs)
+    const usdcBefore = await readUsdcBalance(owner)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const dialog = await openExtend(page, owner, legs, run)
+    await confirmExtendWith(page, dialog, 'USDC')
+    await driveTransactionsToSuccess(page, wallet, stepIds(legs))
+
+    const { after } = await expectRenewedOnce(legs, before, usdcBefore, owner)
+    expect(
+      await wrapperExpiry(wrapped),
+      'the NameWrapper expiry follows the renewed lease (ETHRenewerV1 renews through the wrapper)',
+    ).toBe(after[2] + wrapperGap)
+  })
+
+  test('two V1 and two V2 names: one approval per renewer, one renew per name, and the total shown is what is charged', {
+    tag: ['@scenario:B21'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    const owner = accounts.getAddress('user')
+    const run = Date.now().toString(36)
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const legs: Leg[] = [
+      {
+        name: await makeName({ label: `bulk4-a-${run}`, owner: 'user' }),
+        v1: false,
+      },
+      {
+        name: await makeName({ label: `bulk4-b-${run}`, owner: 'user' }),
+        v1: false,
+      },
+      {
+        name: await makeV1Name({ label: `bulk4-c-${run}`, type: 'unwrapped' }),
+        v1: true,
+      },
+      {
+        name: await makeV1Name({ label: `bulk4-d-${run}`, type: 'unwrapped' }),
+        v1: true,
+      },
+    ]
+    await resetAllowances(owner)
+    const before = await leases(legs)
+    const usdcBefore = await readUsdcBalance(owner)
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+    await connectWithHeadlessWallet(page, wallet)
+
+    const dialog = await openExtend(page, owner, legs, run)
+    const shownCents = await displayedTotalCents(dialog)
+    await confirmExtendWith(page, dialog, 'USDC')
+    await driveTransactionsToSuccess(page, wallet, stepIds(legs))
+
+    const { prices } = await expectRenewedOnce(legs, before, usdcBefore, owner)
+    const approvals = await minedApprovals(owner, fromBlock)
+    expect(approvals, 'exactly one approval per renewer').toHaveLength(2)
+    expect(
+      approvals.find((a) => sameAddress(a.spender, V2_RENEWER))?.amount,
+    ).toBe(prices[0] + prices[1])
+    expect(
+      approvals.find((a) => sameAddress(a.spender, V1_RENEWER))?.amount,
+    ).toBe(prices[2] + prices[3])
+    const chargedCents = Number(sum(prices) / 10_000n)
+    expect(
+      Math.abs(shownCents - chargedCents),
+      `the dialog showed $${(shownCents / 100).toFixed(2)}; ${usd(sum(prices))} was charged`,
+    ).toBeLessThanOrEqual(1)
+  })
+
+  test('a name past its grace is left out of the selection; the rest renew', {
+    tag: ['@scenario:B22'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    const owner = accounts.getAddress('user')
+    const run = Date.now().toString(36)
+    // Past grace first (its fixture moves the clock forward): 28 days of
+    // grace plus 5 into the 21-day price cooldown, so the list still shows it.
+    const lapsed = await makeName({
+      label: `bulklapse-x-${run}`,
+      owner: 'user',
+      duration: -(28 + 5) * Number(DAY_S),
+    })
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const legs: Leg[] = [
+      {
+        name: await makeName({ label: `bulklapse-a-${run}`, owner: 'user' }),
+        v1: false,
+      },
+      {
+        name: await makeV1Name({
+          label: `bulklapse-b-${run}`,
+          type: 'unwrapped',
+        }),
+        v1: true,
+      },
+    ]
+    const lapsedBefore = await v2Expiry(lapsed)
+    await resetAllowances(owner)
+    const before = await leases(legs)
+    const usdcBefore = await readUsdcBalance(owner)
+    await syncBrowserToChain(page)
+    await connectWithHeadlessWallet(page, wallet)
+
+    await waitForIndexedBlock()
+    await serveV1Names(
+      page,
+      legs
+        .filter((leg) => leg.v1)
+        .map((leg) => ({
+          name: leg.name,
+          ownerAddress: owner,
+          type: 'unwrapped' as const,
+        })),
+      { indexer: portalBignameMock },
+    )
+    await page.goto(`${PORTAL_APP_URL}/addr/${owner}/names`)
+    await content(page).getByPlaceholder('Search names...').fill(run)
+    for (const name of legs.map((l) => l.name)) {
+      const row = page.getByRole('row').filter({ hasText: name })
+      await expect(row, name).toHaveCount(1, { timeout: 30_000 })
+      await row.getByRole('checkbox').first().click()
+    }
+    // Measured 2026-10-20: the list leaves a name in price cooldown out
+    // altogether. If it is ever listed, it must still not reach the flow.
+    const lapsedRow = page.getByRole('row').filter({ hasText: lapsed })
+    const lapsedListed = (await lapsedRow.count()) > 0
+    console.log(`[B22] name past grace listed: ${lapsedListed}`)
+    if (lapsedListed) await lapsedRow.getByRole('checkbox').first().click()
+    await expect(
+      content(page).getByText(`${legs.length + Number(lapsedListed)} selected`),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Extend', exact: true }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog
+      .getByRole('button', { name: 'I Understand' })
+      .click({ timeout: 30_000 })
+    for (const leg of legs)
+      await expect(dialog.getByText(leg.name)).toBeVisible()
+    await expect(
+      dialog.getByText(lapsed),
+      'the name past grace cannot be renewed, so it is not in the flow',
+    ).toHaveCount(0)
+    await confirmExtendWith(page, dialog, 'USDC')
+    await driveTransactionsToSuccess(page, wallet, stepIds(legs))
+
+    await expectRenewedOnce(legs, before, usdcBefore, owner)
+    expect(await v2Expiry(lapsed), 'the lapsed name was not touched').toBe(
+      lapsedBefore,
+    )
+  })
+
+  test('a refused renew mid-flow: the names before it stay renewed, and Try again finishes the rest without paying twice', {
+    tag: ['@scenario:B23'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    const owner = accounts.getAddress('user')
+    const run = Date.now().toString(36)
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const legs: Leg[] = [
+      {
+        name: await makeName({ label: `bulkfail-a-${run}`, owner: 'user' }),
+        v1: false,
+      },
+      {
+        name: await makeV1Name({
+          label: `bulkfail-b-${run}`,
+          type: 'unwrapped',
+        }),
+        v1: true,
+      },
+      {
+        name: await makeName({ label: `bulkfail-c-${run}`, owner: 'user' }),
+        v1: false,
+      },
+    ]
+    await resetAllowances(owner)
+    const before = await leases(legs)
+    const usdcBefore = await readUsdcBalance(owner)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const dialog = await openExtend(page, owner, legs, run)
+    await confirmExtendWith(page, dialog, 'USDC')
+
+    // Approvals (2) and the first renew go through; refuse the second renew.
+    const ids = stepIds(legs)
+    const refuseAt = 4
+    const tx = page.locator('[data-slot="dialog-content"]')
+    const tryAgain = tx.getByRole('button', { name: 'Try again' })
+    const pending = () =>
+      wallet.getPendingRequestCount(Web3RequestKind.SendTransaction)
+    let sent = 0
+    const deadline = Date.now() + 240_000
+    while (Date.now() < deadline && !(await tryAgain.isVisible())) {
+      if (pending() > 0) {
+        if (sent < refuseAt - 1) {
+          await wallet.authorize(Web3RequestKind.SendTransaction)
+          sent++
+        } else {
+          // The headless wallet drops the 4001 code, so the app may retry the
+          // refusal as transient: refuse every attempt until it gives up.
+          await wallet.reject(Web3RequestKind.SendTransaction)
+        }
+        continue
+      }
+      const button = tx.getByRole('button', {
+        name: /^(Start|Open wallet|Next)$/,
+      })
+      if (
+        (await button.isVisible().catch(() => false)) &&
+        (await button.isEnabled().catch(() => false))
+      )
+        await button.click().catch(() => {})
+      await page.waitForTimeout(500)
+    }
+    await expect(tryAgain).toBeVisible()
+    const mid = await leases(legs)
+    expect(
+      legs.map((_, i) => mid[i] > before[i]),
+      'only the renew before the refusal landed',
+    ).toEqual([true, false, false])
+
+    await tryAgain.click()
+    await driveTransactionsToSuccess(page, wallet, ids.slice(refuseAt - 1))
+    await expectRenewedOnce(legs, before, usdcBefore, owner)
+    const after = await leases(legs)
+    for (const [i, leg] of legs.entries())
+      expect(
+        after[i] - before[i],
+        `${leg.name} renewed once, by the same span as the others`,
+      ).toBe(after[0] - before[0])
+  })
+
+  test('with neither USDC nor DAI to cover the total, no token is offered and nothing is sent', {
+    tag: ['@scenario:B24'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    const owner = accounts.getAddress('user')
+    const run = Date.now().toString(36)
+    const makeV1Name = createMakeV1Name({
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    const legs: Leg[] = [
+      {
+        name: await makeName({ label: `bulkbroke-a-${run}`, owner: 'user' }),
+        v1: false,
+      },
+      {
+        name: await makeV1Name({
+          label: `bulkbroke-b-${run}`,
+          type: 'unwrapped',
+        }),
+        v1: true,
+      },
+    ]
+    const before = await leases(legs)
+    // Park the owner's stablecoins with another account for the test.
+    const parking = accounts.getAddress('user3')
+    const balances = {
+      [MOCK_USDC]: await readTokenBalance(MOCK_USDC, owner),
+      [MOCK_DAI]: await readTokenBalance(MOCK_DAI, owner),
+    }
+    const move = async (
+      token: Address,
+      from: Address,
+      to: Address,
+      amount: bigint,
+    ) => {
+      if (amount === 0n) return
+      await testClient.impersonateAccount({ address: from })
+      try {
+        const hash = await walletClient.writeContract({
+          account: from,
+          chain: undefined,
+          address: token,
+          abi: erc20Abi,
+          functionName: 'transfer',
+          args: [to, amount],
+        })
+        await publicClient.waitForTransactionReceipt({ hash })
+      } finally {
+        await testClient.stopImpersonatingAccount({ address: from })
+      }
+    }
+    // The dev build (VITE_TIME_TRAVEL=1) refills a low wallet on connect
+    // (`useAutoFundOnLowBalance`: an ERC-20 mint through /rpc, or the backend's
+    // /wallet/fund). Refuse exactly those, so the page sees the empty wallet.
+    const MINT = '40c10f19' // mint(address,uint256)
+    await page.route('**/rpc', async (route) => {
+      const body = route.request().postData() ?? ''
+      if (!body.includes(MINT)) return route.fallback()
+      const calls = JSON.parse(body)
+      const reply = (c: { id: unknown }) => ({
+        jsonrpc: '2.0',
+        id: c.id,
+        error: { code: -32000, message: 'mint blocked by e2e (B24)' },
+      })
+      return route.fulfill({
+        json: Array.isArray(calls) ? calls.map(reply) : reply(calls),
+      })
+    })
+    await page.route('**/wallet/fund', (route) =>
+      route.fulfill({ json: { txHash: null } }),
+    )
+    for (const token of [MOCK_USDC, MOCK_DAI] as const)
+      await move(token, owner, parking, balances[token])
+    try {
+      await connectWithHeadlessWallet(page, wallet)
+      const dialog = await openExtend(page, owner, legs, run)
+      const next = dialog.getByRole('button', { name: 'Next' })
+      await expect(dialog.getByText(/^\$[\d,.]+$/).first()).toBeVisible({
+        timeout: 30_000,
+      })
+      await next.click()
+      await expect(
+        dialog.getByText(
+          "You'll need to hold USDC or DAI in your connected wallet to complete the renewal.",
+        ),
+      ).toBeVisible({ timeout: 30_000 })
+      await expect(
+        dialog.getByRole('button', { name: /^(USDC|DAI)\b/ }),
+      ).toHaveCount(0)
+      await expect(
+        dialog.getByRole('button', { name: 'Next' }),
+        'nothing can start the renewal',
+      ).toBeDisabled()
+      expect(
+        wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+      ).toBe(0)
+      expect(await leases(legs)).toEqual(before)
+    } finally {
+      for (const token of [MOCK_USDC, MOCK_DAI] as const)
+        await move(token, parking, owner, balances[token])
+    }
   })
 })

@@ -25,6 +25,7 @@ import type { Page } from '@playwright/test'
 import {
   type Address,
   encodeFunctionData,
+  erc20Abi,
   keccak256,
   namehash,
   parseAbi,
@@ -32,6 +33,7 @@ import {
   zeroAddress,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+import { getDestinationContracts } from '../../../../packages/smart-account/src/providers/rhinestone/manifest.ts'
 import {
   type GraceV1Name,
   makeGraceV1Name,
@@ -69,7 +71,6 @@ import {
   readGraveyard,
 } from '../../../helpers/migration-assertions.js'
 import { selectOnlyRoots } from '../../../helpers/migration-flow.js'
-import type { MockV1Name } from '../../../helpers/mock-v1-subgraph.js'
 import { renewFor28Days } from '../../../helpers/profile-helpers.js'
 import {
   dnsEncode,
@@ -77,6 +78,7 @@ import {
   resolveRecords,
   resolverFor,
 } from '../../../helpers/resolve-records.js'
+import type { MockV1Name } from '../../../helpers/v1-name-tree.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -126,6 +128,97 @@ const REGISTRAR_ABI = parseAbi([
 ])
 
 const AVAILABLE = 0
+
+/**
+ * How the manager under test pays for a bulk renewal (`getRenewalPaymentRoute`):
+ * `hca` (the default, VITE_FF_USE_EOA=false) signs owner intents from the smart
+ * account; `eoa` (a manager built with VITE_FF_USE_EOA=true, selected here with
+ * E2E_MANAGER_SIGNER=eoa) sends one approve and one `renew` per name.
+ */
+const managerSigner = process.env.E2E_MANAGER_SIGNER === 'eoa' ? 'eoa' : 'hca'
+
+/**
+ * On the intent route the dialog first asks to fund the smart account with the
+ * quoted price ("Approve the renewal payment?"). Approve it whenever it shows,
+ * until `done` is visible.
+ */
+async function approveRenewalFundingUntil(
+  page: Page,
+  done: ReturnType<Page['getByText']>,
+  timeout = 120_000,
+) {
+  const prompt = page.getByRole('alertdialog', {
+    name: 'Approve the renewal payment?',
+  })
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    if (await done.isVisible().catch(() => false)) return
+    if (await prompt.isVisible().catch(() => false))
+      await prompt
+        .getByRole('button', { name: 'Approve', exact: true })
+        .click()
+        .catch(() => {})
+    await page.waitForTimeout(500)
+  }
+  await expect(done).toBeVisible()
+}
+
+/**
+ * The owner's smart account (HCA) address. The factory has no getter, but
+ * simulating `deploy` returns the address whether or not it is deployed.
+ */
+async function hcaOf(owner: Address): Promise<Address> {
+  const { result } = await publicClient.simulateContract({
+    account: owner,
+    address: ensL1Contracts[supportedL1Chains.sepolia].ensHcaFactory.address,
+    abi: parseAbi([
+      'function deploy(address owner, address hcaImplementation, uint256 userSalt) returns (address hca)',
+    ]),
+    functionName: 'deploy',
+    args: [
+      owner,
+      getDestinationContracts(supportedL1Chains.sepolia)
+        .standaloneHcaImplementation,
+      0n,
+    ],
+  })
+  return result
+}
+
+/**
+ * Move `amount` of `token` (default: all of it) from `holder` to `to`,
+ * impersonating the holder; returns what moved.
+ */
+async function moveToken(
+  token: Address,
+  holder: Address,
+  to: Address,
+  amount?: bigint,
+) {
+  amount ??= await publicClient.readContract({
+    address: token,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [holder],
+  })
+  if (amount === 0n) return 0n
+  await testClient.impersonateAccount({ address: holder })
+  await testClient.setBalance({ address: holder, value: 10n ** 18n })
+  try {
+    const hash = await walletClient.writeContract({
+      account: holder,
+      chain: undefined,
+      address: token,
+      abi: erc20Abi,
+      functionName: 'transfer',
+      args: [to, amount],
+    })
+    await publicClient.waitForTransactionReceipt({ hash })
+  } finally {
+    await testClient.stopImpersonatingAccount({ address: holder })
+  }
+  return amount
+}
 
 const warpDays = async (days: number) => {
   await testClient.increaseTime({ seconds: Math.round(days * DAY) })
@@ -773,9 +866,7 @@ test.describe('Grace on the dashboard (§5.B)', () => {
     let done = false
     const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
     await dialog.getByRole('button', { name: 'Confirm', exact: true }).click()
-    await expect(page.getByText('Renewal Complete')).toBeVisible({
-      timeout: 120_000,
-    })
+    await approveRenewalFundingUntil(page, page.getByText('Renewal Complete'))
     done = true
     await authorizing
 
@@ -870,6 +961,12 @@ test.describe('Grace on the dashboard (§5.B)', () => {
       !isRealBigname,
       'the dashboard has to list the names from the real index',
     )
+    // One `renew` per name exists only on the wallet route; on the intent route
+    // a batch is one atomic intent (see the B9 intent test below).
+    test.skip(
+      managerSigner !== 'eoa',
+      'per-name partial failure needs the wallet route (E2E_MANAGER_SIGNER=eoa against a VITE_FF_USE_EOA=true manager)',
+    )
     test.setTimeout(600_000)
     const tag = `b9${Date.now().toString(36)}`
     const names = [
@@ -963,6 +1060,103 @@ test.describe('Grace on the dashboard (§5.B)', () => {
         `${label} renewed once — one calendar year, not two`,
       ).toBeGreaterThanOrEqual(365n * BigInt(DAY))
       expect(moved).toBeLessThanOrEqual(366n * BigInt(DAY))
+    }
+  })
+
+  test('bulk renew from the smart account: cancelling the payment approval renews and charges nothing, and confirming again renews every name once', {
+    tag: ['@scenario:B9'],
+  }, async ({ migrationConnectedPage: page, makeV2Name, wallet, accounts }) => {
+    test.skip(
+      !isRealBigname,
+      'the dashboard has to list the names from the real index',
+    )
+    test.skip(
+      managerSigner !== 'hca',
+      'the intent route needs the smart account',
+    )
+    test.setTimeout(600_000)
+    const tag = `b9i${Date.now().toString(36)}`
+    const names = [
+      await makeV2Name({ label: `${tag}a` }),
+      await makeV2Name({ label: `${tag}b` }),
+      await makeV2Name({ label: `${tag}c` }),
+    ]
+    const labels = names.map((n) => n.replace(/\.eth$/, ''))
+    const expiries = async () =>
+      Promise.all(labels.map(async (l) => (await v2State(l)).expiry))
+    const before = await expiries()
+    const usdc = ensL1Contracts[supportedL1Chains.sepolia].usdc
+      .address as Address
+    const owner = accounts.getAddress('user') as Address
+    const usdcOf = () =>
+      publicClient.readContract({
+        address: usdc,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [owner],
+      })
+    await syncBrowserToChain(page)
+
+    await waitForBignameBlock()
+    await page.goto(`${MANAGER_APP_URL}/dashboard`)
+    await expect(
+      page.getByRole('button', { name: /^Select all names$/ }),
+    ).toBeVisible({ timeout: 60_000 })
+    const search = page.getByPlaceholder('Search my names')
+    await search.fill(tag)
+    await expect(search).toHaveValue(tag)
+    for (const name of names)
+      await page
+        .getByRole('button', { name: `Select ${name}`, exact: true })
+        .click()
+    await page.getByRole('button', { name: 'Renew', exact: true }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('button', { name: 'Next', exact: true }).click()
+    await dialog.getByRole('button', { name: /USDC/ }).first().click()
+    const confirm = dialog.getByRole('button', { name: 'Confirm', exact: true })
+    // The prompt shows only when the smart account can't cover the batch; on
+    // the shared fork it is usually topped up, so empty it for this test.
+    const hca = await hcaOf(owner)
+    const parking = accounts.getAddress('user3') as Address
+    const parked = await moveToken(usdc, hca, parking)
+    try {
+      const usdcBefore = await usdcOf()
+
+      // ── Cancel the funding approval: nothing is signed, sent or renewed ──
+      await confirm.click()
+      const prompt = page.getByRole('alertdialog', {
+        name: 'Approve the renewal payment?',
+      })
+      await expect(prompt).toBeVisible({ timeout: 60_000 })
+      const quoted = await prompt.innerText()
+      console.log(`[B9i] funding prompt: ${quoted.replace(/\s+/g, ' ')}`)
+      await prompt.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await expect(prompt).toHaveCount(0)
+      await expect(
+        confirm,
+        'declining returns to the confirm step, not an error',
+      ).toBeVisible({ timeout: 15_000 })
+      await expect(dialog.getByText(/Renewal failed/i)).toHaveCount(0)
+      expect(await expiries(), 'nothing renewed').toEqual(before)
+      expect(await usdcOf(), 'nothing charged').toBe(usdcBefore)
+
+      // ── Confirm again: one batch, every name renewed exactly once ──
+      let done = false
+      const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+      await confirm.click()
+      await approveRenewalFundingUntil(page, page.getByText('Renewal Complete'))
+      done = true
+      await authorizing
+      const final = await expiries()
+      for (const [i, label] of labels.entries()) {
+        const moved = final[i] - before[i]
+        expect(moved, `${label} renewed once`).toBeGreaterThanOrEqual(
+          365n * BigInt(DAY),
+        )
+        expect(moved).toBeLessThanOrEqual(366n * BigInt(DAY))
+      }
+    } finally {
+      await moveToken(usdc, parking, hca, parked)
     }
   })
 })

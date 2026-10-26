@@ -80,10 +80,15 @@ const ERC20_ABI = parseAbi([
   'function balanceOf(address owner) view returns (uint256)',
 ])
 
-// Shared bigname mock. Always constructed, but only installed on a page when
-// the test opts in via `mockIndexerEnabled` (see the `page` fixture override
-// below).
+// Shared indexer mock. Always constructed, but only installed on a page when
+// `E2E_MOCK_BIGNAME=true` globally OR the test opts in via
+// `mockBignameEnabled` (see the `page` fixture override below).
 const bignameMock = createBignameMock()
+
+/** The shared mock, for helpers that register names outside a fixture. */
+export const portalBignameMock: {
+  readonly addName: typeof bignameMock.addName
+} = bignameMock
 
 const users = ['user', 'user2', 'user3', 'user4'] as const
 export type User = (typeof users)[number]
@@ -192,7 +197,7 @@ async function ensurePortalStablecoinBalances(address: Address) {
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
-type PortalFixtures = {
+export type PortalFixtures = {
   /** Headless web3 wallet backend — use to authorize transactions. */
   wallet: Web3ProviderBackend
   /** Test accounts derived from the Anvil mnemonic. */
@@ -214,20 +219,19 @@ type PortalFixtures = {
   makeSubname: MakeSubname
   /**
    * Per-test/per-file opt-in for the mock indexer (an "option" fixture — set
-   * with `test.use({ mockIndexerEnabled: true })`, not overridden directly).
-   * Off by default: the portal suite exercises the real local Panoptes
-   * indexer end to end. A test opts in when it needs deterministic control
-   * over an indexer-backed count instead of waiting on real discovery/backfill
-   * — see transfer.spec.ts's registry-detach tests, blocked on a currently
-   * flaky Panoptes CREATE2-discovery path for freshly deployed subregistries.
+   * with `test.use({ mockBignameEnabled: true })`, not overridden directly).
+   * Off by default: the portal suite exercises the real local bigname end to
+   * end. A test opts in when it needs deterministic control over an
+   * indexer-backed count instead of waiting on real indexing — see
+   * transfer.spec.ts's registry-detach tests.
    */
-  mockIndexerEnabled: boolean
+  mockBignameEnabled: boolean
   /**
-   * Mock indexer control, for tests running with `mockIndexerEnabled: true`.
+   * Mock indexer control, for tests running with `mockBignameEnabled: true`.
    * Configuring a response with these has no effect if the mock was never
    * installed on the page.
    */
-  mockIndexer: {
+  mockBigname: {
     setRegistryOccupants: typeof bignameMock.setRegistryOccupants
     setSubregistryHistory: typeof bignameMock.setSubregistryHistory
     enabled: boolean
@@ -235,24 +239,15 @@ type PortalFixtures = {
 }
 
 export const test = base.extend<PortalFixtures>({
-  mockIndexerEnabled: [false, { option: true }],
+  mockBignameEnabled: [false, { option: true }],
 
-  // Install the bigname mock only when a test opted in locally via
-  // `mockIndexerEnabled` — deliberately NOT on the global `E2E_MOCK_BIGNAME`
-  // flag the way playwright.manager.fixture.ts does. `e2e/.env` sets that
-  // flag to `true` for the manager's reads; reading it here too would
-  // silently mock every portal index read in the whole suite instead of just
-  // the handful of tests that ask for it. The portal suite mixes mocked and
-  // real-index tests within the same spec file, so the opt-in has to be
-  // per-test.
-  page: async ({ page, baseURL, mockIndexerEnabled }, use) => {
-    // Answer the analytics banner up front so it never covers a control.
-    await page
-      .context()
-      .addCookies([{ name: 'ens_analytics_consent', value: '0', url: baseURL }])
-    if (mockIndexerEnabled) {
-      await bignameMock.install(page)
-    }
+  // The portal reads bigname like the manager (#1354), so the shared bigname
+  // mock goes in whenever `E2E_MOCK_BIGNAME=true` (CI). A test can still opt
+  // in on its own with `mockBignameEnabled` while the rest of a run uses the
+  // local bigname.
+  page: async ({ page, mockBignameEnabled }, use) => {
+    if (mockBignameEnabled) await bignameMock.install(page)
+    else await bignameMock.installIfEnabled(page)
     await use(page)
   },
 
@@ -321,11 +316,11 @@ export const test = base.extend<PortalFixtures>({
     await use(createMakeSubname({ account: wallets.account('owner') }))
   },
 
-  mockIndexer: async ({ mockIndexerEnabled }, use) => {
+  mockBigname: async ({ mockBignameEnabled }, use) => {
     await use({
       setRegistryOccupants: bignameMock.setRegistryOccupants,
       setSubregistryHistory: bignameMock.setSubregistryHistory,
-      enabled: mockIndexerEnabled,
+      enabled: mockBignameEnabled,
     })
   },
 })

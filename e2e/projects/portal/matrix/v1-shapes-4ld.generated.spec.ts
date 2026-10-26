@@ -31,6 +31,12 @@ test.describe('V1 shape · 4ld-locked+locked-3ld+locked-2ld:owner', () => {
     expect(seeded.name, 'seeding produced no name').toBeTruthy()
   })
 
+  test('overview · names the on-chain holder at depth four', {
+    tag: ['@scenario:VV40', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'overview')
+  })
+
   test('ownership · names the holder of a locked name three levels down', {
     tag: ['@scenario:VO40', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
@@ -49,7 +55,7 @@ test.describe('V1 shape · 4ld-locked+locked-3ld+locked-2ld:owner', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab for a V1 subname', {
+  test('resolver · offers the holder of a V1 subname the resolver edit', {
     tag: ['@scenario:VE40', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -108,6 +114,12 @@ test.describe('V1 shape · 4ld-locked+locked-3ld:parent', () => {
     expect(seeded.name, 'seeding produced no name').toBeTruthy()
   })
 
+  test('overview · names the on-chain holder at depth four', {
+    tag: ['@scenario:VV41', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'overview')
+  })
+
   test('ownership · offers the parent no transfer of an emancipated name at depth four', {
     tag: ['@scenario:VO41', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
@@ -126,7 +138,7 @@ test.describe('V1 shape · 4ld-locked+locked-3ld:parent', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab for a V1 subname', {
+  test('resolver · renders the resolver tab, and offers a V1 subname no resolver edit to this wallet', {
     tag: ['@scenario:VE41', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -185,6 +197,12 @@ test.describe('V1 shape · 4ld-registry+registry-3ld+unwrapped-2ld:owner', () =>
     expect(seeded.name, 'seeding produced no name').toBeTruthy()
   })
 
+  test('overview · names the on-chain holder at depth four', {
+    tag: ['@scenario:VV42', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'overview')
+  })
+
   test('ownership · names the registry owner two levels below the 2LD', {
     tag: ['@scenario:VO42', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
@@ -203,7 +221,7 @@ test.describe('V1 shape · 4ld-registry+registry-3ld+unwrapped-2ld:owner', () =>
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab for a V1 subname', {
+  test('resolver · offers the holder of a V1 subname the resolver edit', {
     tag: ['@scenario:VE42', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -267,6 +285,12 @@ test.describe('V1 shape · 4ld-registry+registry-3ld:parent', () => {
     expect(seeded.name, 'seeding produced no name').toBeTruthy()
   })
 
+  test('overview · names the on-chain holder at depth four', {
+    tag: ['@scenario:VV43', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'overview')
+  })
+
   test('ownership · offers the reassign to a parent two levels below the 2LD', {
     tag: ['@scenario:VO43', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
@@ -285,7 +309,7 @@ test.describe('V1 shape · 4ld-registry+registry-3ld:parent', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab for a V1 subname', {
+  test('resolver · renders the resolver tab, and offers a V1 subname no resolver edit to this wallet', {
     tag: ['@scenario:VE43', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -349,6 +373,12 @@ test.describe('V1 shape · 4ld-registry+wrapped-3ld:parent', () => {
     expect(seeded.name, 'seeding produced no name').toBeTruthy()
   })
 
+  test('overview · names the on-chain holder at depth four', {
+    tag: ['@scenario:VV45', '@v1matrix'],
+  }, async ({ portalPage: page, wallet }) => {
+    await runCell(page, wallet, seeded, 'overview')
+  })
+
   test('ownership · offers no transfer across the wrapper line at depth four', {
     tag: ['@scenario:VO45', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
@@ -367,7 +397,7 @@ test.describe('V1 shape · 4ld-registry+wrapped-3ld:parent', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab for a V1 subname', {
+  test('resolver · renders the resolver tab, and offers a V1 subname no resolver edit to this wallet', {
     tag: ['@scenario:VE45', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')

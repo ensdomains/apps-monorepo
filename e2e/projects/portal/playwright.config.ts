@@ -27,6 +27,7 @@ export default defineConfig({
     {
       name: 'portal-e2e',
       testMatch: /.*\.spec\.ts$/, // all tests in the tests directory
+      testIgnore: /v2-4ld-time/,
       dependencies: ['harness'],
     },
     /**
@@ -59,6 +60,12 @@ export default defineConfig({
       testDir: './matrix',
       testMatch: /v1-shapes-time/,
       dependencies: ['harness'],
+    },
+    {
+      name: 'portal-v2-4ld-time',
+      testMatch: /v2-4ld-time\.spec\.ts$/,
+      // Moves the shared clock forward for good: run after the action suite.
+      dependencies: ['portal-e2e'],
     },
   ],
 })

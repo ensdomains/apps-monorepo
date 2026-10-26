@@ -346,7 +346,7 @@ export function MigrationPanelContent() {
    * nothing to click — append `/transfer` to the URL by hand to read the
    * card. The absence is itself the assertion; see manual-v1-transfer.md.
    *
-   * Does NOT sync to the subgraph mock the way `migrate` does: ownership is
+   * Does NOT sync to the bigname mock the way `migrate` does: ownership is
    * read from chain (BaseRegistrar / ENSRegistry / the V2 registry), not from
    * the indexer, so the injection is irrelevant here.
    */

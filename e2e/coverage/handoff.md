@@ -5,6 +5,369 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 56 — 2026-10-21 · review fixes for the 4LD sets (#1425, #1438)
+
+**Result:** the review findings on both merged PRs are fixed on `e2e-tests-coverage`, re-run in real mode against main at `5283f30d3`. Every 4LD suite passes except Q7's re-run, which is blocked by a new app defect (E2E-044).
+
+**What changed**
+- **Migration (Q3, Q4, Q5, Q8).** Expected failures now accept only the outcomes their scenarios allow.
+  - **Q3:** passes. Main's #1433 adds the `parent-not-upgraded` explanation, so **E2E-040 is verified fixed**. Only the generic "Couldn't prepare your upgrade" would count as the defect.
+  - **Q4:** now asserts E2E-031's own oracle (the 4LD is shown as not upgradable before the upgrade).
+  - **Q8:** accepts "offered" or "listed with a reason".
+  - **Q5, Q8:** absence checks wait for the nested 3LD row first.
+- **Time tests (Q20–Q23).** Moved to `projects/cross-app/tests/v1-4ld-time.spec.ts`, in a new `cross-app-time` project that depends on `cross-app-e2e`. `manager-migration-time` no longer needs the explorer.
+  - **Q20:** simulates the 3LD owner's `setSubnodeOwner` and the holder's `safeTransferFrom` during the 2LD's grace. Both succeed, but the explorer refuses the parent with copy that claims the NameWrapper does (new **E2E-043**, needs a product ruling).
+  - **Q21:** checks the date the dialog showed (28–29 days), not exactly 28.
+  - **Q23:** asserts "This subname has expired" and drops the always-true controller check.
+- **Observers.**
+  - **Q7:** registry path checked by each level's link target, since names are truncated on screen.
+  - **Q17:** scoped to the primary-name card.
+  - **Q24:** waits for bigname before the refusals; the roles depth gate is dropped from the INV5 site; detach-registry is read once the options render; create-subname now checks the V1 holder gate (#1396).
+- **Native V2.**
+  - **Q55:** the stranger's record write reverts on chain, with an owner positive control.
+  - **Q56:** the expected failure is set only once the page or the defect has rendered.
+  - **Q57:** checked on the explorer's reverse-resolution table.
+  - **Q58:** the sender's dashboard is shown listing the leaf first, and there is no load error afterwards.
+  - **Q59:** reads status AVAILABLE and a zero owner on chain first, then the exact no-owner card. The explorer calls an expired V2 leaf "doesn't exist"; that wording issue is unfiled.
+  - `portal-v2-4ld-time` depends on `portal-e2e`.
+- **Harness.** The four 4LD fixture checks moved to `specs/harness-manager-4ld.spec.ts`, which only the migration config runs, so smoke runs no longer seed them. `makeV1FourLD` uses shape number 90, so its labels no longer collide with matrix shape 4. `runMigrationFlow`'s `finally` wait is capped at 10 s.
+- **Matrix.** Since the explorer offers V1 slot holders "Change resolver" (`useCanSetResolver`), the 12 holder shapes expect it. All 26 VE cells pass, at every depth.
+- **CI.** `quality-checks` skips the e2e package's coverage step (#1425); its Playwright suites run in `e2e.yml`.
+
+**Results, real mode, retries 1**
+
+| Suite | Result |
+|---|---|
+| explorer actions | 13 passed |
+| 4LD matrix | 60 passed |
+| 4LD harness | 4 passed |
+| manager migration | 7 passed |
+| cross-app | 9 passed, 1 FAIL (Q7) |
+| portal time | 1 passed |
+| cross-app time | 4 passed |
+
+The Q7 failure was the old locator; the new one was then checked against a live 4LD. Q7's re-run is now blocked by **E2E-044**: on the long-lived shared account the ineligible-names list covers the upgrade page's controls. Reset the local stack before the next full migration run.
+
+**Not covered by CI:** every Q test skips under `E2E_MOCK_BIGNAME=true`, and nightly CI does not run the time projects. The 4LD sets are local real-bigname coverage only, even though the baseline counts them.
+
+**In flight:** nothing.
+
+## Iteration 55 — 2026-10-21 · Native V2 4LD pass
+
+**Status:** implemented and verified in real mode; ready for review.
+**Branch:** `test/v2-4ld-coverage`, based on V1 head `966c30c87`.
+**In flight:** nothing in this bounded native V2 pass.
+**Draft PR:** https://github.com/ensdomains/apps-monorepo/pull/1438 (stacked on #1425).
+
+### Scope
+
+Q50–Q59 cover native V2 fourth-level creation/deletion, transfer with records retained, stranger transfer refusal, record editing and stranger refusal, name roles, Manager primary selection, transferred-name dashboards, and leaf expiry while ancestors stay active. `makeV2FourLD` composes the existing V2 registration and nested UserRegistry seeders, then verifies every owner's identity, nested traversal, indexer visibility and UniversalResolver text/address records. `makeSubname` now accepts an earlier per-level expiry and propagates it as the default for the next level.
+
+Q59 runs in `portal-v2-4ld-time`, excluded from `portal-e2e`, after action suites. It advances the clock only to a fresh leaf's ten-minute expiry and synchronizes the browser. New finite invariant sites cover the four native writes and recipient/sender dashboard membership.
+
+### Findings
+
+- **Q56 → E2E-042:** the native V2 4LD owner has ROLE_SET_RESOLVER_ADMIN in its immediate parent UserRegistry, but the name Roles route explicitly rejects labels deeper than three. The existing navigation offers the dead-end Roles link. Retain the original supported-role-page assertion with a late expected-failure marker. No application fix. The user subsequently confirmed the bug was logged in Linear.
+- Q57 initially waited for an ETH-address confirmation after the primary name had already been set. The native fixture already resolves to the owner, so `ChoosePrimaryNameDialog.handlers.ts::needsPrimaryNameConfirmation` returns false for its `ready` preparation. The test now clicks Set as Primary and verifies reverse and forward resolution directly.
+- An initial Q53 failure was a test selector error: the stranger correctly sees **Not authorized**, not the role-holder refusal **Transfer not available**. The assertion now requires the observed non-owner refusal, no form, no transfer role, and unchanged owner.
+
+### Environment incident and recovery
+
+Initial harness: 14 passed, stale legacy Panoptes history failed. The documented Panoptes-only recovery command's `compose up` recreated its Anvil dependency because it omitted the pinned fork environment, which reset the local chain; the pinned stack was restored with `start-local-env.sh` and all 15 harness checks then passed. **For a service-only restart use `--no-deps`, and preserve the pinned fork environment. Do not copy the old recovery command blindly.** Bigname was reset for the new chain; no application code changed.
+
+Q4 was rechecked by hand after that reset, at depth four and at depth three: both reproduce empty UniversalResolver text with intact stored text and owner. A small headless viewport once let the dev-tools button intercept Upgrade; use a 1440×1000 viewport for manual reproductions.
+
+Q18 replacements also verified: `l1.v1m-4-1792571575.eth` and `l2.l1.v1m-4-1792571575.eth` remain absent from the primary picker despite valid ownership and forward resolution; V2 control `q18-manual-control-1792571576.eth` appears. The manual browser is left on the 3LD search. Evidence and metadata are in `outputs/restored-q4/`; no primary-name write was submitted.
+
+### Verification
+
+Q50–Q59 = **9 PASS + 1 DEFECT**, each verified twice (local JSON reports, not committed): 14 expected outcomes in the portal run, including two Q56 expected failures; 4 cross-app passes; 2 time passes. All 15 harness checks passed. Earlier interrupted or selector-failure reports were diagnostic only.
+
+A follow-up Q52 run transiently refused transfer because permission reads were unavailable before submission. The indexer later returned its permission rows; the exact transient cause was not established. The fixture now waits for bigname to consume the final write block before UI navigation. Both complete final action runs passed with this precondition; no UI retry or weakened refusal assertion was added.
+
+Coverage reconciliation includes both smoke reports: **524/738 terminal**, tiers HW 9, R0 184, R1 33, R2 116, R3 181, R4 1; **6/38 invariant sites** checked. Untouched scenarios retain their existing evidence; this is not a full-suite execution claim.
+
+Smoke remains **portal 17/19**, **manager 7/9**, with the same failures detailed in Iteration 54: F41/F42 mock permissions endpoint, populated-wallet grace-list assumption, and WEB-1483 fee-row selector. Typecheck, matrix generation/documentation checks, full Biome CI and whitespace checks passed. Biome retains 177 warnings and 51 informational diagnostics. The address gate still fails on 20 pre-existing literals and three conflicting bindings in unchanged files; no new fixture literal is implicated.
+
+### Limits
+
+This is a bounded native V2 pass, not exhaustive coverage of all role bitmaps, inherited resolvers, mixed-owner ancestors, ancestor registry replacement or every expiry combination. Q56 blocks name-scoped role UI operations at depth four. Existing V1 Q3/Q4/Q8 defects remain open; this pass does not fix them. V1 manual follow-up confirmed E2E-041 and E2E-031 at 3LD depth too; the user considers Q18's exclusion of valid V1 primary names a bug. The user confirmed on 2026-10-21 that all bugs reported in this session are logged in Linear: E2E-040/Q3, E2E-041/Q8, E2E-031/Q4, Q18, and E2E-042/Q56. Ticket links were not supplied; do not create duplicates. Fixes and verification remain outstanding.
+
+---
+
+## Iteration 54 — 2026-10-20 · V1 4LD implementation and measured risks
+
+**Status:** implemented and verified in real mode; ready for review. Three migration defects remain recorded with expected-failure witnesses. V2 Q50+ is deferred.
+**In flight:** nothing in this V1 implementation pass.
+**Branch:** `test/v1-4ld-coverage`, based on `20647cc00`, in `.claude/worktrees/e2e-run`.
+The main checkout has unrelated local changes and was not edited.
+
+### Built
+
+- Registered Q1–Q24 in the catalogue and scenario ledger; Q50+ remains the later V2 pass.
+- `makeV1FourLD` reuses the matrix walker and reads back every level's owner, wrap class and fuses. It supports per-level owners, records, duration and child expiry/fuses. The walker now also wraps a child below a registry-only parent. Four harness shapes cover registry, mixed, registry-parent/wrapped-child, and locked/fused trees.
+- Filled VV40–45 and the missing slot-44 expectations; regenerated specs and matrix documentation. The new slot-44 resolver expectations reflect current V1 write support. The roles page has an explicit 2LD/3LD cap before its V1 guard — contrary to the prior plan's blanket statement that no app caps depth.
+- Added the migration, explorer, cross-app and time specs. Clock-moving Q20–23 are confined to `manager-migration-time`.
+- Q24 has a finite inventory in `coverage/invariants.ts`: copied mixed-tree membership/ownership/records, executable record save and transfer, and post-transfer refusals for the former holder. The catalogue spells out companion witnesses and limits.
+- Fixed two test helpers encountered by these cases: migration authorization always stops in `finally`; the primary picker uses the card's **Primary Name** button when a primary name already exists (the nameplate is display-only).
+
+### Findings and answers
+
+- **Q3 → E2E-040 (S2):** the independently emancipated 4LD is offered, but selecting it alone leaves **Upgrade 1 name** disabled with the generic preparation error. Reproduced twice before adding the late expected-failure marker. No migration is submitted.
+- **Q4 → E2E-031 (S2), extended to depth four:** an unlocked wrapped 4LD is omitted when its locked ancestors migrate. The original holder and V1 resolver text remain, but UniversalResolver returns empty afterwards. This is loss of resolution through the new registry path, not deletion of the stored V1 data.
+- **Q8 → E2E-041 (S2):** a remaining V1 registry 4LD is stranded after its ancestors upgraded. The measured witness (`l2.l1.v1m-4-1792499878.eth`) was moved back to the owner of both V2 ancestors before reopening upgrade. The fresh `q8-control-1792499890.eth` appeared; the leaf did not within 60 seconds. The owner and stored records were read back, and bigname reflected the holder. The test retains the original expectation that it can upgrade, with a late expected-failure marker.
+- **SUB-F3/Q13:** the explorer names only immediate-parent authority; two actual registry writes prove grandparent → 3LD → 4LD reclamation. Product-ruling row added.
+- **Q18:** the manager excludes the owned V1 leaf despite a valid forward record; an owned V2 positive control is offered. Product-ruling row added beside E2E-035.
+- **Q17/Q19:** setting the V1 4LD primary in the explorer succeeds, is shown in the manager, and both forward and reverse resolution survive migration.
+- The 4LD roles depth cap is explicitly refused. Revisit its V2 implications in Q50+, rather than counting native V2 coverage in this pass.
+
+### Verification and environment
+
+Every new scenario has two verified outcomes: **Q1–Q24 = 21 PASS + 3 DEFECT**, with 25 test cases (Q16 and Q24 each have two witnesses; Q17/Q19 share one). The four fixture witnesses passed twice. The 16 selected matrix cells passed twice, including the 14 newly filled cells and the two existing slot-44 checks. Q20–Q23 passed twice, including a real USDC renewal followed by migration. Q20 checks **parent reassignment** during grace; the wrapped holder's own transfer remains offered, as VT44 independently verifies. Q23 confirms an expired middle wrapper yields no active holder or transfer form despite an active 2LD.
+
+Every result was verified from local JSON reports (not committed). The later Q18 run supersedes its two early selector failures in the cross-app report. Q16 now has literal titles so the textual coverage scanner recognizes both executed variants. The grace matrix resolver cell uses **Set resolver**, because that seed has no resolver.
+
+Coverage reconciliation includes the smoke failures and raises the baseline without lowering any tier: **514/728 terminal**, tiers HW 9, R0 182, R1 33, R2 110, R3 179, R4 1; **4/36 invariant sites** checked. This is evidence for the supplied runs; untouched scenarios retain static evidence, not a claim that the whole suite ran. The initial cross-app fixture needed both profile and migration flags, now set only for these tests. Recipient dashboards require dismissing the first-use welcome dialog. Preserving records during transfer requires explicitly unchecking resolver detach.
+
+The local Anvil had been OOM-killed before work started. The documented startup script restored the pinned fork and reset bigname; Panoptes still held old blocks and was reset using its documented data-volume procedure. Both harnesses then passed. No subsequent chain reset. Tests use Node 24.13.1, real bigname, manager :3012 and explorer :3013, as in iteration 53. Chain-writing suites ran sequentially, with time tests after the action suites. After the time phase, Q16 alone was repeated to verify its declaration-only refactor; it seeds fresh two-year names and does not move the clock.
+
+Smoke checks on this shared real stack: **portal 17/19**, **manager 7/9**.
+The failures are outside the changed tests:
+
+- F41/F42's opt-in indexer mock does not implement `GET /v1/permissions`; transfer correctly stays disabled before submission. No transfer was sent.
+- The manager grace-list smoke assumes an isolated, sole V1 name. In this populated real wallet it never finds the seeded name in the rendered dashboard page; its mock-shaped dataset assumption does not hold.
+- WEB-1483's payment-sheet smoke looks for a `Network fee`/`Network cost` row that is absent from the current layout (the fee is shown in the payment-method row). No 4LD helper is used by that assertion.
+
+Their assertions and mocks were not changed to manufacture a green smoke result. The generated ledger includes the reported F41/F42 failures, so they remain visible alongside the new coverage.
+
+Typecheck, generated-matrix/spec documentation checks, full-repository Biome CI and diff whitespace checks passed. Biome reports 177 existing warnings and 51 informational diagnostics. The address-literal gate has a pre-existing failure in unchanged files (20 unaccounted literals and three conflicting bindings); no new 4LD file adds an address literal. Do not lower the ratchet to hide it or the prior R3 count issue.
+
+---
+
+## Iteration 53 — 2026-10-20 · 4LD coverage, V1 first: plan, not started
+
+**Status:** planned and handed over. Nothing below is built yet.
+
+**Scope, as decided by the user:** a coverage set for 4LD names (`d.c.b.eth`)
+covering migration, transfer, roles and permissions, records, primary name,
+and expiry at depth. The pass is split by version:
+- **V1 4LDs first.** V2 4LDs follow in their own pass, using IDs Q50 and up.
+- **Hybrid approach.** Display and ownership cells go through the generated V1
+  shape matrix. Actions are hand-written specs that reuse the matrix seeder.
+
+### Where the 4LD risk is in the code
+
+No app caps depth: every registry walk is an ensjs or on-chain loop
+(`canonicalRegistry.ts` `MAX_LABELS = 128` is only a safety stop). The risk is
+code that looks one level up, or only at the `.eth` 2LD:
+
+- **Explorer V1 state** (`apps/portal/src/.../getV1NameState.ts:237-272`):
+  - It reads one parent level, plus the `.eth` ancestor via `getEth2LDAncestor` (`tldHelpers.ts:113-118`).
+  - It never reads the 3LD's own wrapper expiry for a 4LD.
+  - Only the immediate parent may reassign (`rules.ts:104-141`).
+  - `packages/v1-name-shapes/src/shapes.ts:17-33` explains why each 4LD shape must name the path it probes.
+- **Explorer authority** (`useParentAuthority.ts:115-185`):
+  - Only the immediate parent is surfaced.
+  - A grandparent who can repoint the 3LD is not shown (open question **SUB-F3**, `docs/transfer-subname-web128-test-plan.md:190-195`).
+- **Manager migration** (`packages/migration/src/service/classifyNames.ts`):
+  - **Copy route.** An unwrapped registry subname is `registry-child` (`:284-310`) and an unlocked wrapped one is `unlocked-child` (`:416-446`). Both need every ancestor up to the 2LD in the selected set as a copy (`hasCompleteCopyRoute` `:563-584`, rechecked in `copyMigrationReadiness.ts:78-100`), or the name gets `missing-parent`.
+  - **Wrapped routes.** Emancipated is `detached-child` (`:390-415`); locked is `locked-child`, and CANNOT_TRANSFER makes it ineligible (`:449-483`).
+  - **Unlocked children of locked parents** are not copied.
+  - **Discovery** lists the names the user holds a role on, with no tree walk (`v1Names.ts:52-82`). A 4LD only appears if the user holds a role on it.
+  - **Registries:** one UserRegistry per copy parent, salt `namehash(parent)` (`userRegistryMigration.ts:35-58`), chained with `setParent` and run parent first (`buildAtomicMigrationBatches.ts:422-492`, `:1187-1197`).
+- **Manager profile:**
+  - V1 names are read-only, "upgrade required" (`profileEditability.ts:5-20`).
+  - Primary-name candidates are V2 only, `owner` relation, any depth (`getPrimaryNameDomains.ts:30-51`). So a V1 4LD can never be picked as primary in the manager.
+
+### Coverage today
+
+- **V1 4LD migration:**
+  - GS6 (locked chain) PASS, GS14 (registry copy chain) PASS, GS10 (unlocked wrapped chain) DEFECT E2E-025.
+  - All in `projects/manager/tests/migration-subname.spec.ts` (`:266`, `:710`, `:896`).
+- **Matrix 4LD shapes 40–45** (`shapes.ts:306-377`, seeded by `matrix/seed.ts`):
+  - VT/VF are mostly PASS; VK42/43/45 are DEFECT (E2E-016).
+  - **VV40–45 and most of slot 44 are not-started** only because `matrix/expectations.ts` has no `overview` entry (or, for slot 44, entries for its other tabs). Filling them is data, not code.
+- **V2:** only D3 (`projects/portal/tests/subnames.spec.ts:110`), which creates a 4LD.
+
+### Fixtures and observers to reuse
+
+| Purpose | What to use |
+|---|---|
+| Seed names | `makeV1Subname` (dotted `parentName`, wrapped parent; `fixtures/makeV1Subname.ts:125`) |
+| | `makeV1RegistrySubname` (registry child; seeds bigname labels; `:76`) |
+| | `createMakeV1Name`, `unwrapChild` (`fixtures/v1-tails.ts:136`) |
+| | `setV1RecordsOn` (`fixtures/v1-records.ts:283`) |
+| | `matrix/seed.ts` `seedChild`/`seedShape`, `matrix/run.ts` `seedForSuite` |
+| Show names to the apps | `serveV1Names` (tree; real mode only: CI mock skips trees, `helpers/v1-names.ts:143`) |
+| Observe | `resolveRegistryPath`, `assertUserRegistryAttached`, `assertCopyRegistered` (`helpers/migration-assertions.ts:274-520`) |
+| | `expectRecordsResolve` (UR, any depth) |
+| | `waitForBignameName` |
+| | `readPrimaryName` |
+| Drive flows | `openMigrationFlow` / `runMigrationFlow`, `driveTransactionsToSuccess` |
+| | the cross-app fixture (`fixtures/playwright.cross-app.fixture.ts`) |
+
+**Missing:**
+- There is no on-chain set-primary helper; tests use the UI.
+- `helpers/v2-transfer.ts` only handles 2LDs. That only matters after migration.
+- Role-assertion messages print `label.eth`, which is cosmetic.
+
+### Step 0 — register the family (do this first)
+
+- `coverage/scenarios.ts`:
+  - add prefix **`Q`** ("4LD names") to `AREA_TIER`, with a default of R2;
+  - give each row a `{ tier }` override: R0 for migrate, transfer, reclaim and fuse writes;
+  - add Q1–Q24 below as not-started.
+- `docs/e2e-test-catalogue.md`: add "### Q — 4LD names (V1 first)" to Part 3.
+
+### Step 1 — fixture `fixtures/makeV1FourLD.ts`
+
+`makeV1FourLD({ twoLd, threeLd, fourLd, owners, records? })`:
+- **levels:**
+  - `twoLd`: `unwrapped | wrapped | locked | emancipated`
+  - `threeLd` and `fourLd`: `registry | unlocked | emancipated | locked`, plus extra fuses
+- **owners:** per level, from `user | user2 | user3`.
+- It composes the fixtures above, following `seedChild`.
+- It returns names and nodes, plus per-level owner, fuses and expiry read back from chain.
+
+### Step 2 — matrix fills (portal, generated)
+
+- `matrix/expectations.ts`:
+  - `overview` for shapes 40–45, giving VV40–45;
+  - the remaining slot-44 tabs, using the existing `readOnlyTabs` and refusal helpers.
+- Add shapes only for a new code path. Candidate: **n=46** `4ld-emancipated+locked-3ld+locked-2ld:owner`, the `detached-child` route.
+- Then run `pnpm --filter @ens-apps/e2e matrix:generate` and `matrix:docs`. CI runs `--check`.
+
+### Step 3 — hand-written actions
+
+**Migration**, `projects/manager/tests/migration-4ld.spec.ts`. Add `4ld` to the `manager-migration` testMatch in `projects/manager/playwright.migration.config.ts`.
+
+| ID | Case | Oracle (chain first) |
+|---|---|---|
+| Q1 | Orphan: the user holds only a registry 4LD under someone else's 3LD | Not offered, or ineligible `missing-parent`; nothing written |
+| Q2 | Registry 4LD → unlocked wrapped 3LD → unwrapped 2LD, all the user's | One UserRegistry per level; `getParent` links; 4LD registered to the source owner; records resolve |
+| Q3 | Emancipated 4LD under a locked 3LD the user doesn't own | `detached-child` route: migrates alone, or the UI says why not |
+| Q4 | Locked 2LD → locked 3LD → unlocked (non-PCC) wrapped 4LD | Not copied. **Does it still resolve after the parents migrate?** (E2E-031-like risk) |
+| Q5 | Locked chain with CANNOT_TRANSFER on the 4LD | 4LD ineligible; 2LD and 3LD still migrate |
+| Q6 | Selection tree | 4LD row at depth 2; can't be toggled alone; toggling the 2LD selects all three |
+| Q7 | After migration (GS14 chain) | Records resolve through UR; editable in the manager profile and the explorer editor; explorer registry tree shows 5 rows |
+| Q8 | Ancestors upgraded in an earlier session, the 4LD later | **Is it still offered?** The ancestor rule wants the ancestors in the set. Pin it, or DEFECT if stranded |
+
+**Explorer actions**, `projects/portal/tests/v1-4ld.spec.ts`:
+
+| ID | Case | Oracle |
+|---|---|---|
+| Q9 | The owner transfers a wrapped 4LD | NameWrapper `ownerOf` = recipient; records still resolve |
+| Q10 | The owner transfers a registry-only 4LD | Registry `owner(node)` = recipient |
+| Q11 | The 3LD owner reclaims an unemancipated wrapped 4LD | Owner changed; the old owner loses control |
+| Q12 | The 3LD owner faces an emancipated 4LD | No reassign offered; a direct `setSubnodeOwner` reverts |
+| Q13 | The 2LD owner (grandparent, unwrapped chain) | Can take back the 3LD, then the 4LD, on chain. The explorer names only the 3LD (SUB-F3): product-ruling row |
+| Q14 | The owner edits the 4LD's records in the explorer | Resolves through UR; the manager shows it read-only, "upgrade required" |
+| Q15 | The owner burns CANNOT_TRANSFER on a locked 4LD | `getData` fuses include it; the transfer form is gone |
+
+**Cross-app and primary**, `projects/cross-app/tests/v1-4ld-observers.spec.ts`:
+
+| ID | Case | Oracle |
+|---|---|---|
+| Q16 | After Q9/Q10 | The recipient's manager dashboard lists the 4LD (and offers it for upgrade if eligible); the sender's no longer does |
+| Q17 | Set a V1 4LD (addr(60) = owner) as primary in the explorer | `readPrimaryName(owner)` = the 4LD; the manager shows it |
+| Q18 | The manager's primary picker | Excludes V1 names: pin, and add a product-gap row next to E2E-035 |
+| Q19 | Migrate the primary 4LD | Primary still resolves both ways |
+
+**Expiry and grace at depth.** These go last, in the time projects.
+
+| ID | Case | Oracle |
+|---|---|---|
+| Q20 | 2LD in grace | Wrapped 4LD expiry clamped; the explorer shows ancestor-expired and refuses transfer |
+| Q21 | Renew the 2LD in grace, then upgrade | The 4LD is copied with its chain |
+| Q22 | 2LD past grace | The 4LD isn't listed and doesn't resolve |
+| Q23 | 3LD wrapper expired, 2LD active | The explorer reads only the 2LD's expiry: check its claim against chain |
+| Q24 | INV3/4/5 sweep on 4LD pages after Q2/Q9 | Every offered action executes or is refused with a reason |
+
+### How to run
+
+- **Stack:** the local e2e stack (anvil fork pinned at 11898021, bigname :5660), from the `.claude/worktrees/e2e-run` worktree (main + #1354).
+- **Servers:**
+
+  | Port | App | Started with |
+  |---|---|---|
+  | 3012 | manager, smart account | `VITE_FF_USE_EOA=false VITE_USE_MOCK_WALLET=false` |
+  | 3013 | explorer | `VITE_USE_MOCK_WALLET=false` |
+
+  - Both also need `VITE_BIGNAME_API_URL=http://127.0.0.1:5660 VITE_PUBLIC_POSTHOG_HOST=https://edge.ens.domains`.
+  - Start manager dev servers one at a time: in parallel they collide on workerd's port 9229 and its SQLite state.
+- **Env:** `E2E_MOCK_INDEXER=false` (real mode; V1 trees don't run in CI mock mode), `E2E_EXPLORER_INDEXER=bigname`, `MANAGER_APP_URL`, `PORTAL_APP_URL`.
+- **Clock:** time-moving tests (grace) go in the `manager-migration-time` project or the matrix `time` group. Seed grace names first in a test, before other names.
+
+### Rules
+
+- Chain reads beat text (`docs/e2e-build-goal.md:94-110`).
+- Observe every state change from each affected actor in both apps (`docs/e2e-gap-analysis.md` §5).
+- Where V1 and V2 differ, mark the row "needs product ruling".
+- Findings go into `docs/e2e-defects.md`: DEFECT plus `test.fail`, or PRODUCT-GAP.
+- Finish with `pnpm coverage`, and raise `coverage/baseline.json` tiers that went up.
+- Known gate issue: R3 baseline 168 vs actual 167 since `620deb52b`. Raised with the user; don't lower it.
+
+**In flight:** nothing (planning only).
+
+## Iteration 52 — 2026-10-20 · bulk renewal in both apps; V1 + V2 together (B8, B9, B19–B26)
+
+**Result:** PASS B19–B26; B8 and B9 brought back to green after #1389. Two
+gaps remain open (below). Runs were real mode on the local stack against
+main + #1354: manager on 3012 (smart account) and 3014 (`VITE_FF_USE_EOA=true`),
+explorer on 3013.
+
+**What changed under the old tests:** #1389 (WEB-1803) moved a smart-account
+bulk renewal onto owner-signed intents: up to 25 names per intent, a
+`renewBatch` (or a lone `renew`), preceded by "Approve the renewal payment?"
+when the HCA can't cover the quote. B8 and B9 had been failing since then:
+B8 waited behind the prompt, and B9 waited for per-name sends that this route
+never makes. B9's per-name refusal now runs only with `E2E_MANAGER_SIGNER=eoa`
+against an EOA-mode manager. A second B9 covers the intent route by emptying
+the HCA, which the fork keeps at about 1M USDC.
+
+**New:**
+- **Explorer** (`registration.spec.ts`): B19–B24, a mixed V1 + V2 Extend.
+  - B22 measured that the names list omits a name in price cooldown entirely.
+  - B24 blocks the dev build's auto-refill of the wallet.
+- **Manager:**
+  - B25 (`bulk-renew.spec.ts`): only the V2 name of a mixed wallet can be bulk-renewed. Logged as a product gap in `e2e-defects.md`.
+  - B26: 26 names go out as a 25-name `renewBatch` plus a `renew`.
+  - The mixed upgrade test now checks that the active V1 name is not renewed.
+
+**Flaky:** B25 failed 2 of 10 runs, both in one batch: "1 selected" never
+appeared after Select all. It hasn't reproduced since. The test now logs the
+selection bar's text when this happens.
+
+**UX notes, not filed:** on the wallet route a failed run shows the raw RPC
+error ("An unknown RPC error occurred. Request Arguments: …"), and the
+failure step doesn't say which names already renewed.
+
+### Open gap 1 — bulk renew to a picked date and in DAI (B27, Y7)
+
+Every bulk test uses the default one-year span in USDC.
+- **Manager:** in the Renew dialog, choose "Renew to date" (`features/bulk-renew/components/RenewToDatePopover.tsx`). The earliest date it allows is the latest selected expiry plus the minimum duration (`useBulkRenew.ts:91-100`).
+- **Explorer:** "Pick by date" in `MultiNameExtendSettings` (`ExtensionDurationOrExpiryPicker`).
+- **Oracle:** every name's new expiry equals the picked date. The charge equals the sum of `getRenewPrice` for each name's own span, so names with different current expiries pay different amounts.
+- **DAI (Y7):**
+  - Manager, intent route: the rent in DAI plus the intent fee in USDC (`hcaRenewal.ts:276-277`). The gas limit is 150k higher when rent isn't in USDC.
+  - Explorer: one DAI approval per renewer, the same oracle as B21.
+- **Reuse:**
+  - the B21 `Leg` helpers and `expectRenewedOnce` (explorer);
+  - `approveRenewalFundingUntil` and `moveToken` in `migration-time.spec.ts` (manager).
+
+### Open gap 2 — renew in the manager, observe in the explorer (X6)
+
+Not started; it needs the cross-app fixture (`projects/cross-app/`, HW7).
+1. Put a V2 name in grace (`makeV2Name({ duration: -2 * DAY })`).
+2. Open it in the explorer: grace badge, expiry in the past.
+3. Bulk-renew it in the manager (smart-account route, approve the funding prompt).
+4. Wait for bigname, then reload the explorer. The grace badge is gone, the new expiry shows on the name page and in `/addr/$addr/names`, and the name is selectable for Extend again.
+5. Reverse: Extend in the explorer, and the manager dashboard drops the grace banner and badge (B6/B7 selectors).
+
+Watch for: the explorer caches; reload only after `waitForBignameBlock`.
+
+**In flight:** nothing.
+
 ## Iteration 51 — 2026-10-11 · two tabs, one label (A22) → E2E-030
 
 **Result:** DEFECT A22 (new **E2E-030**, S3), in both modes.

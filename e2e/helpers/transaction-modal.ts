@@ -45,6 +45,12 @@ export const transferTxId = (
     | 'detach-registry'
     /** V2 move. */
     | 'transfer-token'
+    /**
+     * V2 move via `unsafeTransfer`: other role holders stay (#1251), or the
+     * registry isn't emancipated, which is every user-deployed subregistry
+     * whose deployer kept its root roles (#1391).
+     */
+    | 'transfer-token-unsafe'
     /** V1 unwrapped 2LD: the controller slot, then the registrant. */
     | 'reclaim'
     | 'transfer-erc721'

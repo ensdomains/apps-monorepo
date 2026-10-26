@@ -5,7 +5,7 @@
 
 Every way a V1 name can be held, against every portal surface that renders one.
 
-**33 shapes · 347 cells · 284 asserted.** Each cell is one
+**33 shapes · 347 cells · 298 asserted.** Each cell is one
 Playwright test in `e2e/projects/portal/matrix/*.generated.spec.ts`, tagged with the
 scenario id below, so a cell's state is visible in
 [`e2e-coverage.md`](./e2e-coverage.md) like any other row.
@@ -54,7 +54,7 @@ The only V1 shape whose ownership is split across two contracts: the BaseRegistr
 | `VT1` | R0 | [transfer](/<name>/ownership/transfer) | offers the form to the wallet that holds both halves | asserted |
 | `VF1` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VL1` | R2 | [roles](/<name>/roles) | refuses role management for a V1 name, and says why | asserted |
-| `VE1` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit | asserted |
+| `VE1` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 name the resolver edit | asserted |
 | `VD1` | R3 | [records](/<name>/records) | shows a V1 name's text record with the value the resolver holds | asserted |
 | `VS1` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 name | asserted |
 | `VR1` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 name | asserted |
@@ -81,7 +81,7 @@ The only V1 shape whose ownership is split across two contracts: the BaseRegistr
 | `VO2` | R2 | [ownership](/<name>/ownership) | keeps the registrant and the manager apart | asserted |
 | `VT2` | R0 | [transfer](/<name>/ownership/transfer) | refuses a wallet that manages the name but does not hold it | asserted |
 | `VF2` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
-| `VE2` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit | asserted |
+| `VE2` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 name the resolver edit | asserted |
 | `VD2` | R3 | [records](/<name>/records) | shows a V1 name's text record with the value the resolver holds | asserted |
 | `VS2` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 name | asserted |
 | `VR2` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 name | asserted |
@@ -106,7 +106,7 @@ The only V1 shape whose ownership is split across two contracts: the BaseRegistr
 | `VO3` | R2 | [ownership](/<name>/ownership) | names the holder of the ERC-721 as owner | asserted |
 | `VT3` | R0 | [transfer](/<name>/ownership/transfer) | offers the form to the registrant, who alone can move the token | asserted |
 | `VF3` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
-| `VE3` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit | asserted |
+| `VE3` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit to this wallet | asserted |
 | `VD3` | R3 | [records](/<name>/records) | shows a V1 name's text record with the value the resolver holds | asserted |
 | `VS3` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 name | asserted |
 | `VR3` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 name | asserted |
@@ -130,7 +130,7 @@ The only V1 shape whose ownership is split across two contracts: the BaseRegistr
 | `VO4` | R2 | [ownership](/<name>/ownership) | names the holder, and offers a stranger no transfer | asserted |
 | `VT4` | R0 | [transfer](/<name>/ownership/transfer) | refuses a wallet with no claim on the name | asserted |
 | `VF4` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
-| `VE4` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit | asserted |
+| `VE4` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit to this wallet | asserted |
 | `VD4` | R3 | [records](/<name>/records) | shows a V1 name's text record with the value the resolver holds | asserted |
 | `VS4` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 name | asserted |
 | `VR4` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 name | asserted |
@@ -154,7 +154,7 @@ The only V1 shape whose ownership is split across two contracts: the BaseRegistr
 | `VO5` | R2 | [ownership](/<name>/ownership) | names the wrapper owner, and offers the transfer | asserted |
 | `VT5` | R0 | [transfer](/<name>/ownership/transfer) | offers the form for a wrapped name with no blocking fuse | asserted |
 | `VF5` | R0 | [fuses](/<name>/fuses) | shows Is Dot ETH as burnt, and the fuses it does not burn as unburnt | asserted |
-| `VE5` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit | asserted |
+| `VE5` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 name the resolver edit | asserted |
 | `VD5` | R3 | [records](/<name>/records) | shows a V1 name's text record with the value the resolver holds | asserted |
 | `VS5` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 name | asserted |
 | `VR5` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 name | asserted |
@@ -178,7 +178,7 @@ The only V1 shape whose ownership is split across two contracts: the BaseRegistr
 | `VO6` | R2 | [ownership](/<name>/ownership) | offers a stranger no transfer of a wrapped name | asserted |
 | `VT6` | R0 | [transfer](/<name>/ownership/transfer) | refuses a stranger to a wrapped name | asserted |
 | `VF6` | R0 | [fuses](/<name>/fuses) | shows Is Dot ETH as burnt, and the fuses it does not burn as unburnt | asserted |
-| `VE6` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit | asserted |
+| `VE6` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit to this wallet | asserted |
 | `VD6` | R3 | [records](/<name>/records) | shows a V1 name's text record with the value the resolver holds | asserted |
 | `VS6` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 name | asserted |
 | `VR6` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 name | asserted |
@@ -202,7 +202,7 @@ The only V1 shape whose ownership is split across two contracts: the BaseRegistr
 | `VO7` | R2 | [ownership](/<name>/ownership) | does not present the NameWrapper contract as the manager | **E2E-015** — the Manager row renders the NameWrapper contract address, which is nobody’s account; ens-app-v3 shows no manager row at all for a wrapped name |
 | `VT7` | R0 | [transfer](/<name>/ownership/transfer) | offers the form for a locked name that may still move | asserted |
 | `VF7` | R0 | [fuses](/<name>/fuses) | shows Cannot Unwrap as burnt, and the fuses it does not burn as unburnt | asserted |
-| `VE7` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit | asserted |
+| `VE7` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 name the resolver edit | asserted |
 | `VD7` | R3 | [records](/<name>/records) | shows a V1 name's text record with the value the resolver holds | asserted |
 | `VS7` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 name | asserted |
 | `VR7` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 name | asserted |
@@ -226,7 +226,7 @@ The only V1 shape whose ownership is split across two contracts: the BaseRegistr
 | `VO8` | R2 | [ownership](/<name>/ownership) | names the wrapper owner of a name that can never move | asserted |
 | `VT8` | R0 | [transfer](/<name>/ownership/transfer) | refuses permanently once CANNOT_TRANSFER is burned | asserted |
 | `VF8` | R0 | [fuses](/<name>/fuses) | shows Cannot Transfer as burnt, and the fuses it does not burn as unburnt | asserted |
-| `VE8` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit | asserted |
+| `VE8` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 name the resolver edit | asserted |
 | `VD8` | R3 | [records](/<name>/records) | shows a V1 name's text record with the value the resolver holds | asserted |
 | `VS8` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 name | asserted |
 | `VR8` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 name | asserted |
@@ -250,7 +250,7 @@ The only V1 shape whose ownership is split across two contracts: the BaseRegistr
 | `VO9` | R2 | [ownership](/<name>/ownership) | still offers the transfer when only the resolver fuse is burned | asserted |
 | `VT9` | R0 | [transfer](/<name>/ownership/transfer) | CANNOT_SET_RESOLVER does not block the move itself | asserted |
 | `VF9` | R0 | [fuses](/<name>/fuses) | shows Cannot Set Resolver as burnt, and the fuses it does not burn as unburnt | asserted |
-| `VE9` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit | asserted |
+| `VE9` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 name no resolver edit to this wallet | asserted |
 | `VD9` | R3 | [records](/<name>/records) | shows a V1 name's text record with the value the resolver holds | asserted |
 | `VS9` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 name | asserted |
 | `VR9` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 name | asserted |
@@ -292,7 +292,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VT20` | R0 | [transfer](/<name>/ownership/transfer) | offers the form to a registry subname’s holder | asserted |
 | `VF20` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
 | `VL20` | R2 | [roles](/<name>/roles) | _no expectation written_ | open |
-| `VE20` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE20` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 subname the resolver edit | asserted |
 | `VD20` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS20` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR20` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -318,7 +318,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VO21` | R2 | [ownership](/<name>/ownership) | names the holder, and offers the parent the reassign it can perform | asserted |
 | `VT21` | R0 | [transfer](/<name>/ownership/transfer) | offers the parent the reassign path #1144 added | asserted |
 | `VF21` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
-| `VE21` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE21` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 subname no resolver edit to this wallet | asserted |
 | `VD21` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS21` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR21` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -342,7 +342,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VO22` | R2 | [ownership](/<name>/ownership) | offers a stranger no transfer of a subname | asserted |
 | `VT22` | R0 | [transfer](/<name>/ownership/transfer) | refuses a wallet holding neither the subname nor its parent | asserted |
 | `VF22` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
-| `VE22` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE22` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 subname no resolver edit to this wallet | asserted |
 | `VD22` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS22` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR22` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -366,7 +366,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VO23` | R2 | [ownership](/<name>/ownership) | names the wrapper owner, and offers the holder the transfer | asserted |
 | `VT23` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder of a wrapped subname the form | asserted |
 | `VF23` | R0 | [fuses](/<name>/fuses) | shows a wrapped subname with no fuses burnt | asserted |
-| `VE23` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE23` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 subname the resolver edit | asserted |
 | `VD23` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS23` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR23` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -390,7 +390,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VO24` | R2 | [ownership](/<name>/ownership) | does not present the NameWrapper contract as the manager | **E2E-015** — the Manager row renders the NameWrapper contract address for a wrapped subname, as it does for a wrapped 2LD |
 | `VT24` | R0 | [transfer](/<name>/ownership/transfer) | lets the parent reassign a wrapped subname it does not hold | asserted |
 | `VF24` | R0 | [fuses](/<name>/fuses) | shows a wrapped subname with no fuses burnt | asserted |
-| `VE24` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE24` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 subname no resolver edit to this wallet | asserted |
 | `VD24` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS24` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR24` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -414,7 +414,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VO25` | R2 | [ownership](/<name>/ownership) | names the holder of an emancipated subname | asserted |
 | `VT25` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder of an emancipated subname the form | asserted |
 | `VF25` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control burnt, and the rest unburnt | asserted |
-| `VE25` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE25` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 subname the resolver edit | asserted |
 | `VD25` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS25` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR25` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -438,7 +438,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VO26` | R2 | [ownership](/<name>/ownership) | offers the parent no transfer of an emancipated subname | asserted |
 | `VT26` | R0 | [transfer](/<name>/ownership/transfer) | refuses the parent once the subname has burned PARENT_CANNOT_CONTROL | asserted |
 | `VF26` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control burnt, and the rest unburnt | asserted |
-| `VE26` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE26` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 subname no resolver edit to this wallet | asserted |
 | `VD26` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS26` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR26` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -462,7 +462,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VO27` | R2 | [ownership](/<name>/ownership) | names the holder of a locked subname | asserted |
 | `VT27` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder of a locked subname the form | asserted |
 | `VF27` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control and Cannot Unwrap burnt, and the rest unburnt | asserted |
-| `VE27` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE27` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 subname the resolver edit | asserted |
 | `VD27` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS27` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR27` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -486,7 +486,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VO28` | R2 | [ownership](/<name>/ownership) | offers no transfer across the wrapper line | asserted |
 | `VT28` | R0 | [transfer](/<name>/ownership/transfer) | refuses a wrapped parent over an unwrapped subname | asserted |
 | `VF28` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
-| `VE28` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE28` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 subname no resolver edit to this wallet | asserted |
 | `VD28` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS28` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR28` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -511,7 +511,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VO29` | R2 | [ownership](/<name>/ownership) | names the holder of a wrapped subname under an unwrapped parent | asserted |
 | `VT29` | R0 | [transfer](/<name>/ownership/transfer) | lets the holder move it, whatever the parent is wrapped in | asserted |
 | `VF29` | R0 | [fuses](/<name>/fuses) | shows a wrapped subname with no fuses burnt | asserted |
-| `VE29` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE29` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 subname the resolver edit | asserted |
 | `VD29` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS29` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR29` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -536,7 +536,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VO30` | R2 | [ownership](/<name>/ownership) | offers no transfer across the wrapper line, in the other direction | asserted |
 | `VT30` | R0 | [transfer](/<name>/ownership/transfer) | refuses an unwrapped parent over a wrapped subname | asserted |
 | `VF30` | R0 | [fuses](/<name>/fuses) | shows a wrapped subname with no fuses burnt | asserted |
-| `VE30` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE30` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 subname no resolver edit to this wallet | asserted |
 | `VD30` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS30` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR30` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -561,7 +561,7 @@ A subname has no registrar token and no expiry of its own; it is a registry node
 | `VO31` | R2 | [ownership](/<name>/ownership) | offers no transfer to a parent registrant who cannot write the registry | asserted |
 | `VT31` | R0 | [transfer](/<name>/ownership/transfer) | tells the parent registrant to reclaim the manager role first | asserted |
 | `VF31` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
-| `VE31` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE31` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 subname no resolver edit to this wallet | asserted |
 | `VD31` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS31` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR31` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -598,11 +598,11 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV40` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV40` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO40` | R2 | [ownership](/<name>/ownership) | names the holder of a locked name three levels down | asserted |
 | `VT40` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder the form at depth four | asserted |
 | `VF40` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control and Cannot Unwrap burnt, and the rest unburnt | asserted |
-| `VE40` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE40` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 subname the resolver edit | asserted |
 | `VD40` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS40` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR40` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -622,11 +622,11 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV41` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV41` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO41` | R2 | [ownership](/<name>/ownership) | offers the parent no transfer of an emancipated name at depth four | asserted |
 | `VT41` | R0 | [transfer](/<name>/ownership/transfer) | refuses a parent that is itself a subname, on the same grounds | asserted |
 | `VF41` | R0 | [fuses](/<name>/fuses) | shows Parent Cannot Control and Cannot Unwrap burnt, and the rest unburnt | asserted |
-| `VE41` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE41` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 subname no resolver edit to this wallet | asserted |
 | `VD41` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS41` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR41` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -646,11 +646,11 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV42` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV42` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO42` | R2 | [ownership](/<name>/ownership) | names the registry owner two levels below the 2LD | asserted |
 | `VT42` | R0 | [transfer](/<name>/ownership/transfer) | offers the holder the form two levels below the 2LD | asserted |
 | `VF42` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
-| `VE42` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE42` | R2 | [resolver](/<name>/resolver) | offers the holder of a V1 subname the resolver edit | asserted |
 | `VD42` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS42` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR42` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -670,11 +670,11 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV43` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV43` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO43` | R2 | [ownership](/<name>/ownership) | offers the reassign to a parent two levels below the 2LD | asserted |
 | `VT43` | R0 | [transfer](/<name>/ownership/transfer) | lets a parent reassign a subname two levels below the 2LD | asserted |
 | `VF43` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
-| `VE43` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE43` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 subname no resolver edit to this wallet | asserted |
 | `VD43` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS43` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR43` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -694,11 +694,11 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV45` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV45` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO45` | R2 | [ownership](/<name>/ownership) | offers no transfer across the wrapper line at depth four | asserted |
 | `VT45` | R0 | [transfer](/<name>/ownership/transfer) | refuses the mismatch when neither level is a 2LD | asserted |
 | `VF45` | R0 | [fuses](/<name>/fuses) | explains that an unwrapped V1 name has no fuses, and offers migration | asserted |
-| `VE45` | R2 | [resolver](/<name>/resolver) | renders the resolver tab for a V1 subname | asserted |
+| `VE45` | R2 | [resolver](/<name>/resolver) | renders the resolver tab, and offers a V1 subname no resolver edit to this wallet | asserted |
 | `VD45` | R3 | [records](/<name>/records) | shows a V1 subname's text record with the value the resolver holds | asserted |
 | `VS45` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
 | `VR45` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
@@ -823,17 +823,17 @@ Depth is not a full axis — ens-app-v3 collapses all subnames to one class. The
 
 | Scenario | Tier | Tab | What the matrix claims | Status |
 | --- | --- | --- | --- | --- |
-| `VV44` | R2 | [overview](/<name>) | _no expectation written_ | open |
+| `VV44` | R2 | [overview](/<name>) | names the on-chain holder at depth four | asserted |
 | `VO44` | R2 | [ownership](/<name>/ownership) | still names the holder three levels under a lapsing 2LD | asserted |
 | `VT44` | R0 | [transfer](/<name>/ownership/transfer) | lets the holder move it while the .eth ancestor is in grace | asserted |
-| `VF44` | R0 | [fuses](/<name>/fuses) | _no expectation written_ | open |
-| `VE44` | R2 | [resolver](/<name>/resolver) | _no expectation written_ | open |
-| `VD44` | R3 | [records](/<name>/records) | _no expectation written_ | open |
-| `VS44` | R3 | [subnames](/<name>/subnames) | _no expectation written_ | open |
-| `VR44` | R3 | [registry](/<name>/registry) | _no expectation written_ | open |
-| `VK44` | R3 | [token](/<name>/token) | _no expectation written_ | open |
-| `VH44` | R3 | [history](/<name>/history) | _no expectation written_ | open |
-| `VA44` | R3 | [address](/<name>/address) | _no expectation written_ | open |
+| `VF44` | R0 | [fuses](/<name>/fuses) | shows a wrapped subname with no fuses burnt | asserted |
+| `VE44` | R2 | [resolver](/<name>/resolver) | offers the live wrapped holder a resolver when none is set | asserted |
+| `VD44` | R3 | [records](/<name>/records) | renders the records tab under an ancestor in grace | asserted |
+| `VS44` | R3 | [subnames](/<name>/subnames) | renders the subnames tab for a V1 subname | asserted |
+| `VR44` | R3 | [registry](/<name>/registry) | renders the registry tab for a V1 subname | asserted |
+| `VK44` | R3 | [token](/<name>/token) | names the NameWrapper as the contract holding the token | asserted |
+| `VH44` | R3 | [history](/<name>/history) | renders the history tab for a V1 subname | asserted |
+| `VA44` | R3 | [address](/<name>/address) | renders address resolution under an ancestor in grace | asserted |
 
 ## Not constructible
 

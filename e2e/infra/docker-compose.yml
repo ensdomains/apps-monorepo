@@ -45,9 +45,9 @@
 # it. Which anvil release first regressed this was not bisected.
 #
 # Anvil and the mockestrator are therefore pinned to digests verified green.
-# Alto, the paymaster and Panoptes are deliberately left on moving tags for now:
+# Alto and the paymaster are deliberately left on moving tags for now:
 # the standalone-HCA path does not route through the bundler or paymaster, and
-# CI mocks bigname (E2E_MOCK_BIGNAME=true). Pin them too if they ever drift.
+# CI mocks the indexer (E2E_MOCK_BIGNAME=true). Pin them too if they ever drift.
 #
 # To bump a pin:
 #   1. docker pull <image>:<tag>
@@ -231,114 +231,9 @@ services:
         condition: service_healthy
     restart: on-failure
 
-  # Panoptes ENS Indexer: indexes ENS V2 events from the Anvil fork.
-  # Provides a GraphQL API on port 5655 for domain lookups, dashboard, etc.
-  panoptes-indexer:
-    image: ghcr.io/mdtanrikulu/panoptes:latest
-    networks:
-      e2e:
-        aliases:
-          - panoptes-indexer
-    command: ["/app/ensv2-indexer-v2"]
-    volumes:
-      - panoptes-data:/app/data
-      - ${PANOPTES_CONTRACTS_FILE:-./panoptes/contracts.json}:/app/config/contracts.json:ro
-    environment:
-      - DATABASE_PATH=/app/data/ens_v2.db
-      - RAINBOW_PATH=/app/data/ens_rainbow.db
-      - RPC_URL=http://anvil:8545
-      - NETWORK=sepolia
-      - CONTRACTS_PATH=/app/config/contracts.json
-      - BATCH_SIZE=10000
-      - POLL_INTERVAL=2
-      - RATE_LIMIT_PER_SECOND=100
-      - STATUS_PORT=3001
-      - WEBHOOKS_ENABLED=false
-    depends_on:
-      anvil:
-        condition: service_healthy
-    healthcheck:
-      # The image's own /app/healthcheck.sh probes "localhost", which
-      # resolves to the IPv6 loopback ([::1]) first inside this container;
-      # the status server only binds IPv4, so the baked-in script reports
-      # unhealthy even mid-sync while genuinely serving requests. Bypass it
-      # with an explicit IPv4 address instead (mirrors its own marker-file
-      # check for a still-downloading rainbow table). Panoptes is on a
-      # moving tag (see the file header), so re-check this if the image
-      # changes its status port or path.
-      test: ["CMD-SHELL", "test -f /app/data/.rainbow_downloading || wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: on-failure
-
-  # A local stand-in for the ENS V1 subgraph, indexing the fork's own logs.
-  #
-  # The public v1-graphql.ens.dev cannot see anything this suite creates — every
-  # seeded name lives on a fork that diverged from Sepolia minutes ago — so
-  # without this the Subnames tab, text-record key discovery and name history
-  # all render confident negatives locally. See packages/v1-subgraph-shim.
-  v1-subgraph:
-    build:
-      context: ../../packages/v1-subgraph-shim
-    networks:
-      e2e:
-        aliases:
-          - v1-subgraph
-    ports:
-      - "5656:5656"
-    environment:
-      - PORT=5656
-      # Inside the compose network Anvil is reachable by service name; the apps
-      # reach this service from the host on 127.0.0.1:5656.
-      - RPC_URL=http://anvil:8545
-    depends_on:
-      anvil:
-        condition: service_healthy
-    restart: on-failure
-
-  panoptes-api:
-    image: ghcr.io/mdtanrikulu/panoptes:latest
-    networks:
-      e2e:
-        aliases:
-          - panoptes-api
-    command: ["/app/api-entrypoint.sh"]
-    ports:
-      - "5655:5655"
-    volumes:
-      - panoptes-data:/app/data:ro
-      - ${PANOPTES_CONTRACTS_FILE:-./panoptes/contracts.json}:/app/config/contracts.json:ro
-    environment:
-      - DATABASE_PATH=/app/data/ens_v2.db
-      - RAINBOW_PATH=/app/data/ens_rainbow.db
-      - DOWNLOAD_RAINBOW=false
-      - NETWORK=sepolia
-      - CONTRACTS_PATH=/app/config/contracts.json
-      - RPC_URL=http://anvil:8545
-      - API_PORT=5655
-      - GRAPHQL_MAX_DEPTH=10
-      - GRAPHQL_MAX_COST=1000
-      - WEBHOOKS_ENABLED=false
-      - METRICS_ENABLED=false
-    depends_on:
-      - panoptes-indexer
-    healthcheck:
-      # Same IPv6-vs-IPv4 issue as panoptes-indexer's healthcheck above, plus
-      # this API build has no /health route at all (confirmed: a 404, not a
-      # connection error) — /graphql is the one route guaranteed to be live
-      # whenever the server is actually serving.
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5655/graphql"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    restart: on-failure
-
-  # ── bigname: the indexer the manager reads ────────────────────────────────
-  # The manager reads every name from bigname (#1324); the portal still reads
-  # Panoptes above. bigname is hosted only, so this runs it against the fork:
+  # ── bigname: the indexer both apps read ────────────────────────────────
+  # Both apps read every name from bigname (#1324, #1354). bigname is hosted
+  # only, so this runs it against the fork:
   # Postgres, a one-shot schema + read-only role init, the phase-runner that
   # follows Anvil, and the REST API on 127.0.0.1:5660.
   #
@@ -346,7 +241,7 @@ services:
   # bigname repo carrying a dev-only patch that lets a Sepolia source start
   # after block 0 (see e2e/infra/bigname/README.md). start-local-env.sh turns
   # the profile on when the image exists. CI does not run it and mocks the
-  # manager's bigname reads instead (E2E_MOCK_INDEXER=true).
+  # manager's bigname reads instead (E2E_MOCK_BIGNAME=true).
   bigname-postgres:
     image: postgres:16-alpine
     profiles: ["bigname"]
@@ -504,8 +399,8 @@ services:
   # locally against the anvil forks above — for the "metadata" e2e project
   # (WEB-1191). RPCs point at anvil/anvil-mainnet; the ENSNODE_* indexer URLs
   # deliberately point nowhere reachable — there is no local indexer speaking
-  # the zigens/ENSNode dialect this service expects (panoptes-indexer above is
-  # a different, incompatible schema), so every scenario exercises the
+  # the zigens/ENSNode dialect this service expects (bigname above has a
+  # different API), so every scenario exercises the
   # service's own live-on-chain-fallback classification path instead
   # (src/services/metadata.ts statusFromSource, already covered by that repo's
   # own fallback.test.ts / outage-taxonomy.test.ts — this is intended,
@@ -622,8 +517,7 @@ services:
       - ../../packages/dqa-server/public:/app/public:ro
     restart: on-failure
     healthcheck:
-      # Same IPv6-vs-IPv4 "localhost" issue as the panoptes healthchecks
-      # above — this image's loopback resolves [::1] first and the server
+      # The IPv6-vs-IPv4 "localhost" issue: this image's loopback resolves [::1] first and the server
       # only binds IPv4, so the probe never connects even though the server
       # is up (confirmed: /auth/config answers fine over 127.0.0.1).
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:4000/auth/config"]
@@ -645,8 +539,6 @@ volumes:
   anvil-upstream-cache:
     driver: local
   bigname-rpc-cache:
-    driver: local
-  panoptes-data:
     driver: local
   bigname-data:
     driver: local

@@ -61,7 +61,7 @@ test.describe('V1 shape · 2ld-unwrapped:owner', () => {
     await runCell(page, wallet, seeded, 'roles')
   })
 
-  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+  test('resolver · offers the holder of a V1 name the resolver edit', {
     tag: ['@scenario:VE1', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -156,7 +156,7 @@ test.describe('V1 shape · 2ld-unwrapped:manager', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+  test('resolver · offers the holder of a V1 name the resolver edit', {
     tag: ['@scenario:VE2', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -239,7 +239,7 @@ test.describe('V1 shape · 2ld-unwrapped:registrant', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit to this wallet', {
     tag: ['@scenario:VE3', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -322,7 +322,7 @@ test.describe('V1 shape · 2ld-unwrapped:stranger', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit to this wallet', {
     tag: ['@scenario:VE4', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -405,7 +405,7 @@ test.describe('V1 shape · 2ld-emancipated:owner', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+  test('resolver · offers the holder of a V1 name the resolver edit', {
     tag: ['@scenario:VE5', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -488,7 +488,7 @@ test.describe('V1 shape · 2ld-emancipated:stranger', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit to this wallet', {
     tag: ['@scenario:VE6', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -576,7 +576,7 @@ test.describe('V1 shape · 2ld-locked:owner', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+  test('resolver · offers the holder of a V1 name the resolver edit', {
     tag: ['@scenario:VE7', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -653,7 +653,7 @@ test.describe('V1 shape · 2ld-locked-no-transfer:owner', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+  test('resolver · offers the holder of a V1 name the resolver edit', {
     tag: ['@scenario:VE8', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')
@@ -730,7 +730,7 @@ test.describe('V1 shape · 2ld-locked-no-resolver:owner', () => {
     await runCell(page, wallet, seeded, 'fuses')
   })
 
-  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit', {
+  test('resolver · renders the resolver tab, and offers a V1 name no resolver edit to this wallet', {
     tag: ['@scenario:VE9', '@v1matrix'],
   }, async ({ portalPage: page, wallet }) => {
     await runCell(page, wallet, seeded, 'resolver')

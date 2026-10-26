@@ -110,7 +110,7 @@ const FULL_ROLE_BITMAP = BigInt(
  * dependency. `infra/scripts/fund-rhinestone-account.sh` funds this very
  * address for mockestrator impersonation gas — keep the two in sync.
  */
-const STANDALONE_HCA = '0xF1554d7361E0663896F57A121C83638856f0ED91'
+export const STANDALONE_HCA = '0xF1554d7361E0663896F57A121C83638856f0ED91'
 
 /** Anvil's first default account (has 10 000 ETH — used for minting & funding). */
 const ANVIL_FUNDER = privateKeyToAccount(

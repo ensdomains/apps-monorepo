@@ -28,12 +28,13 @@ export default defineConfig({
     {
       name: 'harness-manager',
       testDir: '../../specs',
-      testMatch: /harness-manager\.spec\.ts$/,
+      // The 4LD fixture gate seeds four trees: only the migration runs need it.
+      testMatch: /harness-manager(-4ld)?\.spec\.ts$/,
     },
     {
       name: 'manager-migration',
       testMatch:
-        /migration(-(subname|grace|fuses|managers|approvals|records|recreation))?\.spec\.ts$/,
+        /migration(-(4ld|subname|grace|fuses|managers|approvals|records|recreation))?\.spec\.ts$/,
       dependencies: ['harness-manager'],
     },
     {

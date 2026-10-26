@@ -64,13 +64,15 @@ jobs:
             exit 1
           fi
 
-  # The curated @smoke suite (~5 min measured) across both apps — see
-  # e2e/docs/smoke-suite.md for what's in it and why. Runs as one job (not
-  # sharded) since the whole point is speed over breadth; the full matrix
-  # this replaced lives in e2e-nightly.yml now.
+  # The curated @smoke suite across both apps — see e2e/docs/smoke-suite.md
+  # for what's in it and why. Runs as one job (not sharded) since the whole
+  # point is speed over breadth; the full matrix this replaced lives in
+  # e2e-nightly.yml now. Measured 2026-10-21: portal ~6 min + manager ~6 min
+  # plus ~5 min of setup, so 15 min left no headroom and runner variance
+  # cancelled a green run.
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     permissions:
       contents: read
       packages: read
