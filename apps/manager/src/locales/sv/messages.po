@@ -58,6 +58,11 @@ msgstr ""
 msgid "{0} more needed in your wallet."
 msgstr ""
 
+#. placeholder {0}: formatUsd(m.shortfall)
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "{0} more needed on {chainName}."
+msgstr ""
+
 #. placeholder {0}: preset.years
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "{0} years"
@@ -477,6 +482,11 @@ msgstr ""
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 #: src/features/migration/components/success/CommemorativeNftRendererSurface.tsx
 msgid "Artwork could not be loaded."
+msgstr ""
+
+#. placeholder {0}: formatUsd(m.shortfall)
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "At least {0} more needed on {chainName}."
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -986,7 +996,7 @@ msgid "Couldn’t read the wallet address for {name}"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Couldn't read your balance on {chainName}"
+msgid "Couldn't read your balance on {chainName}."
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
@@ -1632,10 +1642,6 @@ msgstr ""
 msgid "Links can't contain spaces. Remove them and try again"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
-msgid "Load {hiddenCount} more"
-msgstr ""
-
 #: src/features/notifications/inbox/list.tsx
 msgid "Load more"
 msgstr ""
@@ -1930,7 +1936,7 @@ msgid "Not enough ETH for gas. Top up before you start, or some names will be le
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Not enough USDC on {chainName}"
+msgid "Not enough USDC on {chainName}."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
@@ -2063,7 +2069,7 @@ msgid "Pay with stablecoins"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Paying from {chainName} isn't available right now"
+msgid "Paying from {chainName} isn't available right now."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -2860,6 +2866,14 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Should I register now or wait?"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Show {hiddenCount} more"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Show fewer"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx

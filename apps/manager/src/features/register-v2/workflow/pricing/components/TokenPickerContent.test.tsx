@@ -346,28 +346,27 @@ describe('TokenPickerContent', () => {
     hcaBalance: 0n,
   }
 
-  it('lists the wallet USDC and every L2 USDC, including ones that cannot pay', () => {
+  it('lists the wallet first, then L2s by balance, three at a time', () => {
     containerMocks.renderBudget = fiveUsdcBudget
     containerMocks.l2Balances = {
-      [baseSepolia.id]: 25_000_000n,
-      [arbitrumSepolia.id]: 0n,
+      [baseSepolia.id]: 5_000_000n,
+      [arbitrumSepolia.id]: 25_000_000n,
       [optimismSepolia.id]: null,
     }
     renderContainer()
 
-    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeEnabled()
-    expect(
-      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
-    ).toBeEnabled()
-    expect(
-      screen.getByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
-    ).toBeDisabled()
-    expect(
-      screen.getByText('Not enough USDC on Arbitrum Sepolia'),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('button', { name: 'Select USDC on OP Sepolia' }),
-    ).toBeDisabled()
+    const methodNames = () =>
+      screen
+        .getAllByRole('button', { name: /^Select USDC/ })
+        .map((button) => button.getAttribute('aria-label'))
+    expect(methodNames()).toEqual([
+      'Select USDC',
+      'Select USDC on Arbitrum Sepolia',
+      'Select USDC on Base Sepolia',
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'Show 1 more' }))
+    expect(methodNames().at(-1)).toBe('Select USDC on OP Sepolia')
+    expect(screen.queryByText(/Not enough USDC/)).not.toBeInTheDocument()
   })
 
   it('needs no method when the account credit covers it all, bridging nothing', () => {
@@ -892,7 +891,6 @@ describe('TokenPickerContentBase L2 rows', () => {
       l2Payment: payment,
     })
 
-    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeDisabled()
     fireEvent.click(
       screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
     )
@@ -939,7 +937,7 @@ describe('TokenPickerContentBase L2 rows', () => {
       ),
     })
 
-    expect(screen.getByText('Not enough USDC on Base Sepolia')).toBeVisible()
+    expect(screen.getByText('$0.02 more needed on Base Sepolia.')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 
@@ -955,23 +953,26 @@ describe('TokenPickerContentBase L2 rows', () => {
     })
 
     expect(
-      screen.getByText("Paying from Base Sepolia isn't available right now"),
+      screen.getByText("Paying from Base Sepolia isn't available right now."),
     ).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 
-  it('keeps an L2 without enough USDC listed next to a funded wallet', () => {
+  it('lets an L2 that cannot pay be chosen, and says what it is short by', () => {
+    const row = baseSepoliaRow('insufficient')
     renderPicker({
       funding: underfunded,
       selectedToken: 'USDC',
       stablecoinBalances: [usdc],
-      l2Payment: l2Payment(baseSepoliaRow('insufficient')),
+      l2Payment: l2Payment(
+        { ...row, option: { ...row.option, balanceRaw: 3_000_000n } },
+        baseSepolia.id,
+      ),
     })
 
     expect(
-      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
-    ).toBeDisabled()
-    expect(screen.getByText('Not enough USDC on Base Sepolia')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+      screen.getByText('At least $2.00 more needed on Base Sepolia.'),
+    ).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 })

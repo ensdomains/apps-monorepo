@@ -137,7 +137,6 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
       isAvailable
       isFeeLoading={isNetworkFeeLoading}
       isFeeTooltipOpen={isFeeTooltipOpen}
-      isFunded={isFunded}
       isInsufficient={!isFunded}
       isSelected={isSelected}
       name={stablecoin.symbol}

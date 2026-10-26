@@ -60,7 +60,7 @@ export const PaymentReceipt = ({
   readonly totalLabel: ReactNode
   readonly isEstimate: boolean
   /** Wins over the shortfall line. */
-  readonly errorMessage?: string | null
+  readonly errorMessage?: ReactNode
   readonly shortfall?: number | undefined
 }) => {
   const { t } = useLingui()

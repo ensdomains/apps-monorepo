@@ -53,6 +53,11 @@ msgstr "{0} / {DESCRIPTION_MAX_LENGTH} characters"
 msgid "{0} more needed in your wallet."
 msgstr "{0} more needed in your wallet."
 
+#. placeholder {0}: formatUsd(m.shortfall)
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "{0} more needed on {chainName}."
+msgstr "{0} more needed on {chainName}."
+
 #. placeholder {0}: preset.years
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "{0} years"
@@ -473,6 +478,11 @@ msgstr "Artwork could not be downloaded. Please try again."
 #: src/features/migration/components/success/CommemorativeNftRendererSurface.tsx
 msgid "Artwork could not be loaded."
 msgstr "Artwork could not be loaded."
+
+#. placeholder {0}: formatUsd(m.shortfall)
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "At least {0} more needed on {chainName}."
+msgstr "At least {0} more needed on {chainName}."
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Auth address:"
@@ -981,8 +991,8 @@ msgid "Couldn’t read the wallet address for {name}"
 msgstr "Couldn’t read the wallet address for {name}"
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Couldn't read your balance on {chainName}"
-msgstr "Couldn't read your balance on {chainName}"
+msgid "Couldn't read your balance on {chainName}."
+msgstr "Couldn't read your balance on {chainName}."
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't restore your upgrade progress. Reload to check the latest state."
@@ -1627,10 +1637,6 @@ msgstr "Links"
 msgid "Links can't contain spaces. Remove them and try again"
 msgstr "Links can't contain spaces. Remove them and try again"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
-msgid "Load {hiddenCount} more"
-msgstr "Load {hiddenCount} more"
-
 #: src/features/notifications/inbox/list.tsx
 msgid "Load more"
 msgstr "Load more"
@@ -1925,8 +1931,8 @@ msgid "Not enough ETH for gas. Top up before you start, or some names will be le
 msgstr "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Not enough USDC on {chainName}"
-msgstr "Not enough USDC on {chainName}"
+msgid "Not enough USDC on {chainName}."
+msgstr "Not enough USDC on {chainName}."
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
@@ -2058,8 +2064,8 @@ msgid "Pay with stablecoins"
 msgstr "Pay with stablecoins"
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Paying from {chainName} isn't available right now"
-msgstr "Paying from {chainName} isn't available right now"
+msgid "Paying from {chainName} isn't available right now."
+msgstr "Paying from {chainName} isn't available right now."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Paying from {l2ChainName}"
@@ -2856,6 +2862,14 @@ msgstr "Share usage data to help us find problems and make ENS better for everyo
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Should I register now or wait?"
 msgstr "Should I register now or wait?"
+
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Show {hiddenCount} more"
+msgstr "Show {hiddenCount} more"
+
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Show fewer"
+msgstr "Show fewer"
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx
 msgid "Show less"

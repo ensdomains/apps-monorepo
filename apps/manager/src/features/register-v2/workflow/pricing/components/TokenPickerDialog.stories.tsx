@@ -158,9 +158,6 @@ type FixtureMethod = {
   readonly network: 'Mainnet' | 'Optimism' | 'Base'
   readonly balance: string
   readonly isAvailable: boolean
-  readonly isFunded: boolean
-  readonly isCommon: boolean
-  readonly error?: string
 }
 
 export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
@@ -170,8 +167,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Mainnet',
     balance: '$1,000.00',
     isAvailable: true,
-    isFunded: true,
-    isCommon: true,
   },
   {
     id: 'dai-mainnet',
@@ -179,8 +174,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Mainnet',
     balance: '$500.00',
     isAvailable: true,
-    isFunded: true,
-    isCommon: true,
   },
   {
     id: 'usdt-mainnet',
@@ -188,9 +181,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Mainnet',
     balance: '$410.00',
     isAvailable: true,
-    isFunded: false,
-    isCommon: true,
-    error: 'Not enough ETH for permit approval',
   },
   {
     id: 'eth-mainnet',
@@ -198,8 +188,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Mainnet',
     balance: '$620.00',
     isAvailable: false,
-    isFunded: true,
-    isCommon: false,
   },
   {
     id: 'usdc-optimism',
@@ -207,8 +195,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Optimism',
     balance: '$280.00',
     isAvailable: false,
-    isFunded: false,
-    isCommon: false,
   },
   {
     id: 'dai-optimism',
@@ -216,9 +202,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Optimism',
     balance: '$0.00',
     isAvailable: true,
-    isFunded: false,
-    isCommon: false,
-    error: '$352.00 needed to register name',
   },
   {
     id: 'usdt-optimism',
@@ -226,8 +209,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Optimism',
     balance: '$0.00',
     isAvailable: false,
-    isFunded: false,
-    isCommon: false,
   },
   {
     id: 'eth-optimism',
@@ -235,8 +216,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Optimism',
     balance: '$0.00',
     isAvailable: false,
-    isFunded: false,
-    isCommon: false,
   },
   {
     id: 'usdc-base',
@@ -244,25 +223,11 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Base',
     balance: '$125.00',
     isAvailable: false,
-    isFunded: false,
-    isCommon: false,
   },
 ]
 
 export const FIXTURE_NO_VALID_COMMON_METHODS: readonly FixtureMethod[] =
-  FIXTURE_MULTIPLE_METHODS.map((method) => ({
-    ...method,
-    isAvailable: false,
-    isFunded: false,
-    error:
-      method.name === 'USDC' && method.network === 'Mainnet'
-        ? '$352.00 needed to register name'
-        : method.name === 'USDT' && method.network === 'Mainnet'
-          ? 'Not enough ETH for permit approval'
-          : method.name === 'DAI' && method.network === 'Mainnet'
-            ? '$352.00 needed to register name'
-            : method.error,
-  }))
+  FIXTURE_MULTIPLE_METHODS.map((method) => ({ ...method, isAvailable: false }))
 
 const FixtureTokenIcon = ({ name }: Pick<FixtureMethod, 'name'>) => {
   if (name === 'USDC') return <USDCIcon className="size-full" />
@@ -290,25 +255,20 @@ const FixtureNetworkBadge = ({ network }: Pick<FixtureMethod, 'network'>) => (
 
 export const FixtureTokenPickerContent = ({
   methods,
-  defaultExpanded = false,
   initialSelectedId,
 }: {
   readonly methods: readonly FixtureMethod[]
-  readonly defaultExpanded?: boolean
   readonly initialSelectedId?: string
 }) => {
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const selectedMethod = methods.find(({ id }) => id === selectedId)
   const items: PaymentMethodListItem[] = methods.map((method) => ({
     id: method.id,
-    isAvailable: method.isAvailable,
-    isFunded: method.isFunded,
-    isCommon: method.isCommon,
+    isSelected: selectedId === method.id,
     content: (
       <PaymentMethodRow
         amount={method.balance}
         amountLabel="balance"
-        error={method.error}
         fee="Sepolia est. fee: $0.27"
         feeTooltip="An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
         feeTooltipLabel="What is the network fee?"
@@ -319,7 +279,6 @@ export const FixtureTokenPickerContent = ({
           />
         }
         isAvailable={method.isAvailable}
-        isFunded={method.isFunded}
         isSelected={selectedId === method.id}
         name={method.name}
         onSelect={() => setSelectedId(method.id)}
@@ -327,7 +286,7 @@ export const FixtureTokenPickerContent = ({
       />
     ),
   }))
-  const canRegister = !!(selectedMethod?.isAvailable && selectedMethod.isFunded)
+  const canRegister = !!selectedMethod?.isAvailable
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-6 pt-2 pb-6">
@@ -341,7 +300,7 @@ export const FixtureTokenPickerContent = ({
           <h2 className="text-center font-medium text-[18px] leading-none">
             <Trans>Select payment</Trans>
           </h2>
-          <PaymentMethodList defaultExpanded={defaultExpanded} items={items} />
+          <PaymentMethodList items={items} />
         </div>
       </div>
       <PaymentReceipt
@@ -368,7 +327,6 @@ export const FixtureTokenPickerContent = ({
 
 const FixtureTokenPickerDialogShell = ({
   methods,
-  defaultExpanded,
   initialSelectedId,
 }: Parameters<typeof FixtureTokenPickerContent>[0]) => {
   const [open, setOpen] = useState(true)
@@ -380,7 +338,6 @@ const FixtureTokenPickerDialogShell = ({
       title="Select payment"
     >
       <FixtureTokenPickerContent
-        defaultExpanded={defaultExpanded}
         initialSelectedId={initialSelectedId}
         methods={methods}
       />
@@ -519,17 +476,6 @@ export const FixtureMultipleMethodsCollapsed: Story = {
   name: '[Fixture only] Multiple methods collapsed',
   render: () => (
     <FixtureTokenPickerDialogShell
-      initialSelectedId="usdc-mainnet"
-      methods={FIXTURE_MULTIPLE_METHODS}
-    />
-  ),
-}
-
-export const FixtureMultipleMethodsExpanded: Story = {
-  name: '[Fixture only] Multiple methods expanded',
-  render: () => (
-    <FixtureTokenPickerDialogShell
-      defaultExpanded
       initialSelectedId="usdc-mainnet"
       methods={FIXTURE_MULTIPLE_METHODS}
     />

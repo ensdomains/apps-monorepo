@@ -1,11 +1,12 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { coinIcons } from '@/assets/coins'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import type { L2PaymentRow } from '../hooks/useL2Payment'
+import { getWalletShortfall } from '../lib/paymentReceiptFigures'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
 
@@ -15,6 +16,60 @@ const NETWORK_BADGES: Readonly<Record<number, string | undefined>> = {
   [baseSepolia.id]: coinIcons.base,
   [arbitrumSepolia.id]: coinIcons.arb1,
   [optimismSepolia.id]: coinIcons.op,
+}
+
+// A balance just over what the HCA is sent can still fall short of the fee.
+const isShortOfQuote = ({ option, amountInRaw }: L2PaymentRow) =>
+  amountInRaw !== undefined &&
+  option.balanceRaw !== null &&
+  option.balanceRaw < amountInRaw
+
+const isL2ShortOfFunds = (row: L2PaymentRow) =>
+  row.option.status === 'insufficient' || isShortOfQuote(row)
+
+/** Why the selected L2 cannot pay, shown under the receipt; `required` is the wallet debit, in USD. */
+export const getL2SelectionMessage = (
+  row: L2PaymentRow,
+  required: number | undefined,
+) => {
+  const chainName = row.option.source.chain.name
+  const balance =
+    row.option.balanceRaw === null
+      ? undefined
+      : decimalBigintToNumber(row.option.balanceRaw, USDC_DECIMALS)
+  const quoted =
+    row.amountInRaw === undefined
+      ? undefined
+      : decimalBigintToNumber(row.amountInRaw, USDC_DECIMALS)
+  const shortfall = getWalletShortfall(quoted ?? required, balance)
+
+  return match({
+    status: row.option.status,
+    isShort: isL2ShortOfFunds(row),
+    hasQuoteFailed: row.hasQuoteFailed,
+    shortfall,
+    isQuoted: quoted !== undefined,
+  })
+    .with({ status: 'unavailable' }, () => (
+      <Trans>Couldn't read your balance on {chainName}.</Trans>
+    ))
+    .with({ isShort: true, shortfall: P.number, isQuoted: true }, (m) => (
+      <Trans>
+        {formatUsd(m.shortfall)} more needed on {chainName}.
+      </Trans>
+    ))
+    .with({ isShort: true, shortfall: P.number }, (m) => (
+      <Trans>
+        At least {formatUsd(m.shortfall)} more needed on {chainName}.
+      </Trans>
+    ))
+    .with({ isShort: true }, () => (
+      <Trans>Not enough USDC on {chainName}.</Trans>
+    ))
+    .with({ hasQuoteFailed: true }, () => (
+      <Trans>Paying from {chainName} isn't available right now.</Trans>
+    ))
+    .otherwise(() => undefined)
 }
 
 /** A payment row that pays the registration with the wallet's USDC on an L2. */
@@ -34,27 +89,6 @@ export const L2SourceListItem = ({
   const { option } = row
   const chainName = option.source.chain.name
   const badge = NETWORK_BADGES[option.source.chain.id]
-  // A balance just over what the HCA is sent can still fall short of the fee.
-  const isShortOfQuote =
-    row.amountInRaw !== undefined &&
-    option.balanceRaw !== null &&
-    option.balanceRaw < row.amountInRaw
-
-  const error = match({
-    status: option.status,
-    isShortOfQuote,
-    hasQuoteFailed: row.hasQuoteFailed,
-  })
-    .with({ status: 'insufficient' }, { isShortOfQuote: true }, () => (
-      <Trans>Not enough USDC on {chainName}</Trans>
-    ))
-    .with({ status: 'unavailable' }, () => (
-      <Trans>Couldn't read your balance on {chainName}</Trans>
-    ))
-    .with({ hasQuoteFailed: true }, () => (
-      <Trans>Paying from {chainName} isn't available right now</Trans>
-    ))
-    .otherwise(() => undefined)
 
   return (
     <PaymentMethodRow
@@ -64,7 +98,6 @@ export const L2SourceListItem = ({
           : formatUsd(decimalBigintToNumber(option.balanceRaw, USDC_DECIMALS))
       }
       amountLabel={<Trans>balance</Trans>}
-      error={error}
       fee={
         <Trans>
           {chainName} est. fee: {formatUsd(networkFee ?? Number.NaN)}
@@ -90,8 +123,7 @@ export const L2SourceListItem = ({
       isAvailable
       isFeeLoading={row.isQuoteLoading}
       // Selectable while quoting; the action waits for the quote.
-      isFunded={option.status === 'available' && !isShortOfQuote}
-      isInsufficient={option.status === 'insufficient' || isShortOfQuote}
+      isInsufficient={isL2ShortOfFunds(row)}
       isSelected={isSelected}
       name={t`USDC on ${chainName}`}
       onSelect={onSelect}

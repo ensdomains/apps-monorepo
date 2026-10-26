@@ -17,7 +17,6 @@ const feeRow = (
     feeTooltipLabel="What is the network fee?"
     icon={<span>$</span>}
     isAvailable
-    isFunded
     isSelected
     name="USDC"
     onSelect={() => {}}

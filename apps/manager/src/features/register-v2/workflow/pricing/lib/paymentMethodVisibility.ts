@@ -1,36 +1,21 @@
-export type PaymentMethodVisibilityStatus = {
-  readonly isAvailable: boolean
-  readonly isFunded: boolean
-  readonly isCommon: boolean
-}
+const DEFAULT_VISIBLE_METHODS = 3
 
 export type PaymentMethodVisibilityResult<TMethod> = {
   readonly visibleMethods: readonly TMethod[]
   readonly hiddenCount: number
 }
 
-/**
- * Selects which supplied presentation models are visible in the payment rail.
- * It deliberately knows nothing about tokens, accounts, or queries.
- */
+/** The first few methods, plus the selected one when it sits further down. */
 export const getPaymentMethodVisibility = <
-  TMethod extends PaymentMethodVisibilityStatus,
+  TMethod extends { readonly isSelected: boolean },
 >(
   methods: readonly TMethod[],
   isExpanded: boolean,
 ): PaymentMethodVisibilityResult<TMethod> => {
-  if (isExpanded) {
-    return { visibleMethods: methods, hiddenCount: 0 }
-  }
-
-  const validMethods = methods.filter(
-    (method) => method.isAvailable && method.isFunded,
+  if (isExpanded) return { visibleMethods: methods, hiddenCount: 0 }
+  const visibleMethods = methods.filter(
+    (method, index) => index < DEFAULT_VISIBLE_METHODS || method.isSelected,
   )
-  const visibleMethods =
-    validMethods.length > 0
-      ? validMethods
-      : methods.filter((method) => method.isCommon)
-
   return {
     visibleMethods,
     hiddenCount: methods.length - visibleMethods.length,

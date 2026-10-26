@@ -41,7 +41,7 @@ import {
 } from '../lib/paymentReceiptFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
-import { L2SourceListItem } from './L2SourceListItem'
+import { getL2SelectionMessage, L2SourceListItem } from './L2SourceListItem'
 import { PaymentAction } from './PaymentAction'
 import {
   PaymentMethodList,
@@ -128,7 +128,7 @@ const PaymentMethods = <T extends TOKEN_SYMBOL>({
 }) => {
   // Every source stays listed, the ones that can't pay shown with the reason.
   if (showNetworkFeeDetails) {
-    return <PaymentMethodList defaultExpanded items={paymentMethodItems} />
+    return <PaymentMethodList items={paymentMethodItems} />
   }
 
   return (
@@ -646,17 +646,23 @@ const getShownFunding = (
     ? getL2FundingSummary(funding, selectedL2.amountInRaw)
     : funding
 
+/** Highest L2 balance first; an unread balance goes last. */
+const byBalanceDescending = (a: L2PaymentRow, b: L2PaymentRow) => {
+  const left = a.option.balanceRaw ?? -1n
+  const right = b.option.balanceRaw ?? -1n
+  if (left === right) return 0
+  return right > left ? 1 : -1
+}
+
 const getL2MethodItems = (
   l2Payment: L2PaymentProps | undefined,
   selectedL2: L2PaymentRow | undefined,
   funding: RegistrationFundingSummary | undefined,
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
-  return l2Payment.rows.map((row) => ({
+  return [...l2Payment.rows].sort(byBalanceDescending).map((row) => ({
     id: row.option.id,
-    isAvailable: true,
-    isFunded: row.option.status === 'available',
-    isCommon: false,
+    isSelected: row === selectedL2,
     content: (
       <L2SourceListItem
         isSelected={row === selectedL2}
@@ -879,18 +885,11 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
 
   const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances.map(
     (stablecoin) => {
-      const balance = decimalBigintToNumber(
-        BigInt(stablecoin.balance),
-        stablecoin.decimals,
-      )
       const share = walletShareOf(stablecoin.symbol)
-      const isFunded = share !== undefined && balance >= share
 
       return {
         id: stablecoin.address,
-        isAvailable: true,
-        isFunded,
-        isCommon: stablecoin.symbol === TOKENS.USDC.symbol,
+        isSelected: walletSelection === stablecoin.symbol,
         content: (
           <TokenListItem
             feeTooltip={networkFeeTooltip}
@@ -1016,7 +1015,11 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         </div>
 
         <PaymentReceipt
-          errorMessage={globalErrorMessage}
+          errorMessage={
+            globalErrorMessage ??
+            (selectedL2 &&
+              getL2SelectionMessage(selectedL2, funding?.walletDebit))
+          }
           isEstimate={!!funding || fundedAmount !== undefined}
           shortfall={
             selectedL2

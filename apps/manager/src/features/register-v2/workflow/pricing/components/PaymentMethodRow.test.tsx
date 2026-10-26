@@ -11,7 +11,6 @@ const renderRow = (
     <PaymentMethodRow
       amount="$0.00"
       amountLabel="balance"
-      error="not enough funds to pay network fees"
       fee="Sepolia est. fee: $0.27"
       feeTooltip="An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
       feeTooltipLabel="What is the network fee?"
@@ -22,7 +21,7 @@ const renderRow = (
         />
       }
       isAvailable
-      isFunded={false}
+      isInsufficient
       isSelected
       name="USDC"
       onSelect={() => {}}
@@ -32,7 +31,7 @@ const renderRow = (
   )
 
 describe('PaymentMethodRow', () => {
-  it('renders the exact fee, balance, tooltip, and shared error copy', () => {
+  it('renders the exact fee, balance and tooltip', () => {
     renderRow({ isFeeTooltipOpen: true })
 
     expect(screen.getByText('USDC')).toBeVisible()
@@ -47,57 +46,34 @@ describe('PaymentMethodRow', () => {
         'An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval.',
       )[0],
     ).toBeVisible()
-    expect(
-      screen.getByText('not enough funds to pay network fees'),
-    ).toBeVisible()
     expect(screen.getByTestId('token-icon')).toBeVisible()
     expect(screen.getByTestId('network-badge')).toBeVisible()
   })
 
-  it('disables an unfunded method and links its error description', () => {
-    renderRow()
-
-    const selectButton = screen.getByRole('button', { name: 'Select USDC' })
-    const error = screen.getByText('not enough funds to pay network fees')
-
-    expect(selectButton).toBeDisabled()
-    expect(selectButton).toHaveAttribute('aria-pressed', 'true')
-    expect(selectButton).toHaveAttribute(
-      'aria-describedby',
-      error.parentElement?.id,
-    )
-  })
-
-  it('selects an available funded method', () => {
+  it('selects a method whose balance falls short, and shows that amount in red', () => {
     const onSelect = vi.fn()
-    renderRow({ error: undefined, isFunded: true, onSelect })
+    renderRow({ onSelect })
 
     screen.getByRole('button', { name: 'Select USDC' }).click()
 
     expect(onSelect).toHaveBeenCalledOnce()
+    expect(screen.getByText('$0.00')).toHaveClass('text-ens-error')
+  })
+
+  it('disables an unavailable method', () => {
+    renderRow({ isAvailable: false })
+
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeDisabled()
   })
 
   it('uses the standard keyboard-visible ring on the overlay control', () => {
-    renderRow({ error: undefined, isFunded: true })
+    renderRow()
 
     expect(screen.getByRole('button', { name: 'Select USDC' })).toHaveClass(
       'outline-none',
       'focus-visible:ring-2',
       'focus-visible:ring-ens-blue',
       'focus-visible:ring-offset-2',
-    )
-  })
-
-  it('keeps the error icon before its copy in one shared spanning item', () => {
-    const { container } = renderRow()
-    const error = container.querySelector('[data-slot="payment-method-error"]')
-
-    expect(error).toHaveClass('col-[2/4]')
-    expect(error).toHaveTextContent(
-      'flash_offnot enough funds to pay network fees',
-    )
-    expect(error?.querySelector('.material-symbol')).toHaveTextContent(
-      'flash_off',
     )
   })
 

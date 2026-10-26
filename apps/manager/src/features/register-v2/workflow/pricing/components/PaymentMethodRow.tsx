@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { match } from 'ts-pattern'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
   Tooltip,
@@ -6,7 +6,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { PaymentMethodError } from './PaymentMethodError'
 
 export type PaymentMethodRowProps = {
   readonly name: string
@@ -15,7 +14,6 @@ export type PaymentMethodRowProps = {
   readonly amountLabel: React.ReactNode
   readonly selectLabel: string
   readonly isAvailable: boolean
-  readonly isFunded: boolean
   /** The balance is known to be short, as opposed to loading or unreadable. */
   readonly isInsufficient?: boolean
   readonly isSelected: boolean
@@ -25,7 +23,6 @@ export type PaymentMethodRowProps = {
   readonly feeTooltip?: React.ReactNode
   readonly feeTooltipLabel?: string
   readonly isFeeTooltipOpen?: boolean
-  readonly error?: React.ReactNode
 }
 
 /** A presentation-only payment option with an intrinsic, responsive grid. */
@@ -36,7 +33,6 @@ export const PaymentMethodRow = ({
   amountLabel,
   selectLabel,
   isAvailable,
-  isFunded,
   isInsufficient = false,
   isSelected,
   onSelect,
@@ -45,10 +41,8 @@ export const PaymentMethodRow = ({
   feeTooltip,
   feeTooltipLabel,
   isFeeTooltipOpen,
-  error,
 }: PaymentMethodRowProps) => {
-  const errorId = useId()
-  const isDisabled = !isAvailable || !isFunded
+  const isDisabled = !isAvailable
   const hasFee = fee !== undefined || isFeeLoading
 
   return (
@@ -65,7 +59,6 @@ export const PaymentMethodRow = ({
     >
       {/* The Figma 2.5% hover overlay has no equivalent opacity token. */}
       <button
-        aria-describedby={error ? errorId : undefined}
         aria-label={selectLabel}
         aria-pressed={isSelected}
         className="absolute inset-0 z-0 rounded outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2 enabled:cursor-pointer enabled:hover:bg-black/[0.025] disabled:cursor-not-allowed"
@@ -124,9 +117,10 @@ export const PaymentMethodRow = ({
           className={cn(
             // Figma specifies 15/22px desktop amount type; no exact typography tokens exist.
             'text-right text-sm tabular-nums leading-none sm:text-[15px] sm:leading-[22px]',
-            isInsufficient && 'text-ens-error',
-            !isInsufficient && isDisabled && 'text-ens-quartz-350',
-            !isDisabled && 'text-ens-quartz-900',
+            match({ isInsufficient, isDisabled })
+              .with({ isInsufficient: true }, () => 'text-ens-error')
+              .with({ isDisabled: true }, () => 'text-ens-quartz-350')
+              .otherwise(() => 'text-ens-quartz-900'),
           )}
         >
           {amount}
@@ -136,18 +130,6 @@ export const PaymentMethodRow = ({
           {amountLabel}
         </span>
       </span>
-
-      {error && (
-        <span
-          className={
-            // The error spans the intrinsic details/amount tracks; no named grid-area token exists.
-            'pointer-events-none relative z-10 col-[2/4] min-w-0 self-start'
-          }
-          data-slot="payment-method-error"
-        >
-          <PaymentMethodError id={errorId}>{error}</PaymentMethodError>
-        </span>
-      )}
     </div>
   )
 }
