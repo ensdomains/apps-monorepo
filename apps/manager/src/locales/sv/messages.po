@@ -1877,6 +1877,10 @@ msgstr "Inga namn att visa"
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr ""
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "No profile records will be kept. The replacement resolver will start with empty records."
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "No push service is available in this browser"
 msgstr ""

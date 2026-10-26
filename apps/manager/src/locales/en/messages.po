@@ -1872,6 +1872,10 @@ msgstr "No names to display"
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "No profile records will be kept. The replacement resolver will start with empty records."
+msgstr "No profile records will be kept. The replacement resolver will start with empty records."
+
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "No push service is available in this browser"
 msgstr "No push service is available in this browser"

@@ -107,7 +107,7 @@ export const EditProfileDialogBody = withForm({
             validationValues,
             editedRecordKeys,
             hasChanges,
-            hasReplacementWrites,
+            hasReplacementChanges,
             savedAbi,
           } = prepareProfileRecordSave(savedRecords, values, needsReplacement)
           const hasOtherValidationIssues =
@@ -138,7 +138,7 @@ export const EditProfileDialogBody = withForm({
             )
           const canPreviewProfile =
             (needsReplacement
-              ? hasReplacementWrites
+              ? hasReplacementChanges
               : hasChanges || hasPreparedImageUpload) &&
             canSubmit &&
             !isFinalizingImageSave &&

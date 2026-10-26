@@ -1,6 +1,6 @@
 import { createResolverImportDraft } from '@/features/profile/service/resolverImportDraft'
 import {
-  getResolverRecordWrites,
+  getEditedResolverRecordKeys,
   getResolverReplacementRecords,
 } from '@/features/profile/service/resolverReplacementRecords'
 import type { ProfileRecords } from '@/features/profile/types'
@@ -25,14 +25,15 @@ export const prepareProfileRecordSave = (
       validationValues: values,
       editedRecordKeys: [] as string[],
       hasChanges,
-      hasReplacementWrites: false,
+      hasReplacementChanges: false,
       savedAbi: savedRecords.abi,
     }
 
   const before = transformToServiceFormat(savedRecords)
-  const editedRecordKeys = getResolverRecordWrites(
-    getResolverReplacementRecords(before, transformToServiceFormat(values)),
-  ).map(({ key }) => key)
+  const editedRecordKeys = getEditedResolverRecordKeys(
+    before,
+    transformToServiceFormat(values),
+  )
   const replacementRecords = getResolverReplacementRecords(
     before,
     transformToServiceFormat(submittedValues),
@@ -46,8 +47,7 @@ export const prepareProfileRecordSave = (
     validationValues: previewValues,
     editedRecordKeys,
     hasChanges,
-    hasReplacementWrites:
-      getResolverRecordWrites(replacementRecords).length > 0,
+    hasReplacementChanges: editedRecordKeys.length > 0,
     savedAbi: undefined,
   }
 }

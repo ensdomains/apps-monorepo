@@ -16,6 +16,79 @@ vi.mock('./EditProfileDialogHeader', () => ({
 }))
 
 describe('resolver import review in the profile editor', () => {
+  it.each([
+    {
+      records: {
+        ...newEmptyProfileRecords(),
+        base: { description: 'Old description' },
+      },
+      key: 'text:description',
+    },
+    {
+      records: {
+        ...newEmptyProfileRecords(),
+        unknown: [{ key: 'custom', value: 'Old custom record' }],
+      },
+      key: 'text:custom',
+    },
+    {
+      records: {
+        ...newEmptyProfileRecords(),
+        addresses: [
+          { coinType: 60, value: '0x1111111111111111111111111111111111111111' },
+        ],
+      },
+      key: 'addr:60',
+    },
+  ])('previews a deletion-only replacement for $key', ({ records, key }) => {
+    const onPreview = vi.fn()
+    const Harness = () => {
+      const form = useAppForm({ defaultValues: records })
+      return (
+        <>
+          <button
+            onClick={() => form.reset(newEmptyProfileRecords())}
+            type="button"
+          >
+            Clear records
+          </button>
+          <EditProfileDialogBody
+            form={form}
+            isFinalizingImageSave={false}
+            isResolverAccessPending={false}
+            name="transferred.eth"
+            onCancel={vi.fn()}
+            onImageUploadPrepared={vi.fn()}
+            onPreview={onPreview}
+            onRecheckPermissions={vi.fn()}
+            open
+            preparedImageUploads={[]}
+            requiresResolverPreparation
+            savedRecords={records}
+          />
+        </>
+      )
+    }
+    const view = render(<Harness />)
+    const preview = view.getByRole('button', { name: 'Preview' })
+    expect(preview).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(view.getByRole('button', { name: 'Clear records' }))
+    expect(preview).toHaveAttribute('aria-disabled', 'false')
+    fireEvent.click(preview)
+    expect(onPreview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        base: {},
+        social: [],
+        unknown: [],
+        addresses: [],
+      }),
+      expect.objectContaining({
+        editedRecordKeys: [key],
+        hasRecordChanges: true,
+      }),
+    )
+  })
+
   it('preserves an explicitly edited raw links record in the replacement preview', () => {
     const rawLinks =
       '[{"name":"Website","url":"https://example.com","custom":true}]'

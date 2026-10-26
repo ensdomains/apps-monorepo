@@ -34,7 +34,24 @@ describe('ResolverSetupConfirmDialog', () => {
     expect(onConfirm).toHaveBeenCalledOnce()
   })
 
-  it('cannot confirm a profile replacement without reviewed writes', () => {
+  it('confirms an explicitly reviewed empty replacement and explains that existing records are cleared', () => {
+    const onConfirm = vi.fn()
+    render(
+      <ResolverSetupConfirmDialog
+        intent="edit-profile"
+        isReplacing
+        onConfirm={onConfirm}
+        onOpenChange={vi.fn()}
+        open
+        recordWrites={[]}
+      />,
+    )
+    expect(screen.getByText(/No profile records will be kept/)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Replace & Save' }))
+    expect(onConfirm).toHaveBeenCalledOnce()
+  })
+
+  it('cannot confirm a profile replacement without a record review', () => {
     render(
       <ResolverSetupConfirmDialog
         intent="edit-profile"
@@ -42,7 +59,6 @@ describe('ResolverSetupConfirmDialog', () => {
         onConfirm={vi.fn()}
         onOpenChange={vi.fn()}
         open
-        recordWrites={[]}
       />,
     )
     expect(

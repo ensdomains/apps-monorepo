@@ -59,6 +59,25 @@ export const getResolverRecordWrites = (
   ...(records.abi ? [{ key: 'ABI', value: records.abi }] : []),
 ]
 
+/** Include removals so an owner can explicitly replace a profile with empty records. */
+export const getEditedResolverRecordKeys = (
+  before: ServiceRecordSnapshot,
+  after: ServiceRecordSnapshot,
+): string[] => {
+  const original = new Map(
+    getResolverRecordWrites(before).map(({ key, value }) => [
+      key,
+      value.trim(),
+    ]),
+  )
+  const current = new Map(
+    getResolverRecordWrites(after).map(({ key, value }) => [key, value.trim()]),
+  )
+  return [...new Set([...original.keys(), ...current.keys()])].filter(
+    (key) => (original.get(key) ?? '') !== (current.get(key) ?? ''),
+  )
+}
+
 export const assertResolverRecordReview = (
   records: ServiceRecordSnapshot,
   review: ResolverRecordReview,
@@ -71,7 +90,6 @@ export const assertResolverRecordReview = (
     )
   const reviewed = new Map(review.writes.map(({ key, value }) => [key, value]))
   if (
-    writes.length === 0 ||
     reviewed.size !== review.writes.length ||
     new Set(writes.map(({ key }) => key)).size !== writes.length ||
     writes.length !== reviewed.size ||

@@ -116,12 +116,65 @@ const submittedRequests = () =>
 
 beforeEach(() => {
   vi.clearAllMocks()
+  writeRecords.mockReset()
   findExisting.mockResolvedValue(null)
   checkSetResolverAccess.mockResolvedValue(true)
   locateRegistry.mockResolvedValue(LOCATION)
 })
 
 describe('setupControlledResolver', () => {
+  it('replaces a resolver with an explicitly reviewed empty profile without copying inherited records or target defaults', async () => {
+    const { saveRecords: realSaveRecords } = await vi.importActual<
+      typeof import('./profileRecordTransactions')
+    >('./profileRecordTransactions')
+    writeRecords.mockImplementationOnce(realSaveRecords)
+    await setupControlledResolver({
+      name: 'transferred.eth',
+      signer,
+      ownerAddress: OWNER,
+      chainId: CHAIN_ID,
+      publicClient: {
+        multicall: async () => [{ status: 'success', result: true }],
+      } as unknown as PublicClient,
+      before: {
+        texts: [
+          { key: 'com.twitter', value: 'https://twitter.com/previousowner' },
+        ],
+        coins: [],
+      },
+      after: { texts: [], coins: [] },
+      recordReview: { editedKeys: ['text:com.twitter'], writes: [] },
+    })
+    const request = submittedRequests().find(
+      (request) => 'to' in request && request.to === RESOLVER,
+    )
+    if (!request || !('data' in request) || !request.data)
+      throw new Error('Missing resolver transaction')
+    const batch = decodeFunctionData({
+      abi: parseAbi(['function multicall(bytes[] data)']),
+      data: request.data,
+    }).args[0]
+    const abi = parseAbi([
+      'function linkToRecord(bytes,uint256)',
+      'function setText(bytes,string,string)',
+    ])
+    expect(
+      batch.map((data) => {
+        const call = decodeFunctionData({ abi, data })
+        return { name: call.functionName, args: call.args.slice(1) }
+      }),
+    ).toEqual([
+      { name: 'linkToRecord', args: [0n] },
+      { name: 'setText', args: ['description', ''] },
+    ])
+    expect(verifyResolverRecords).toHaveBeenCalledWith(
+      'transferred.eth',
+      RESOLVER,
+      { texts: [], coins: [] },
+      expect.anything(),
+    )
+  })
+
   it('writes only description when replacing a transferred name with nine inherited URL-shaped socials', async () => {
     const inherited = [
       ['com.twitter', 'https://twitter.com/previousowner'],
