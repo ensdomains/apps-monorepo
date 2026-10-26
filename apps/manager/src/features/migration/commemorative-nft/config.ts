@@ -7,8 +7,7 @@ import type {
 } from './types'
 
 const COMMEMORATIVE_NFT_ADDRESSES: Record<EnsNetwork, Address | null> = {
-  // No mainnet CommemorativeNFT deployment exists yet.
-  mainnet: null,
+  mainnet: getAddress('0x20262e3433306a4FF250a64d20a8E0F09B2C7F68'),
   sepolia: getAddress('0xa55605c6242CbFc27117b63466B423fbc092a2A9'),
 }
 
