@@ -15,7 +15,6 @@ import { useIsAwaitingRenewalApproval } from '@/features/renew/state/renewalUi.s
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
-import { roundUsdToCents } from '@/utils/formatting/formatUsdCeil'
 import { useRenewalIntentFunding } from '../useRenewalIntentFunding'
 
 export const TokenPickerContent = () => {
@@ -75,8 +74,7 @@ export const TokenPickerContent = () => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
-  const isFullyCovered =
-    funding !== undefined && roundUsdToCents(funding.walletDebit) === 0
+  const isFullyCovered = funding?.walletDebit === 0
   const nextMessage = match({
     isAwaitingApproval,
     isIntentRoute,

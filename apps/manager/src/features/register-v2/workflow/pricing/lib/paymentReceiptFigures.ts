@@ -58,11 +58,6 @@ export const getPaymentReceiptState = ({
   return figures ? { status: 'ready', figures } : { status: 'unavailable' }
 }
 
-export const isReceiptFullyCovered = (state: PaymentReceiptState) =>
-  state.status === 'ready' &&
-  state.figures.due === 0 &&
-  state.figures.applied > 0
-
 /** What the wallet is short by, rounded up to the cent so a sub-cent gap never reads as $0.00. */
 export const getWalletShortfall = (
   required: number | undefined,

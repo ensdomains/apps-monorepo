@@ -716,6 +716,26 @@ describe('TokenPickerContentBase', () => {
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
   })
 
+  it('keeps the methods when a sub-cent debit is still owed', () => {
+    renderPicker({
+      funding: {
+        registration: 4.8,
+        networkFee: 0.2,
+        total: 5,
+        walletDebit: 0.001,
+        hcaCredit: 4.999,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+    })
+
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeVisible()
+    expect(
+      screen.queryByText(/No additional payment needed/),
+    ).not.toBeInTheDocument()
+  })
+
   it('holds the receipt and the button while the fee is being quoted', () => {
     renderPicker({ isQuotingFunding: true, selectedToken: 'USDC' })
 

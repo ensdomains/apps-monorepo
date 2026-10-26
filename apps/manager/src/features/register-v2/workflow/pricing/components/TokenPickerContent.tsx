@@ -39,7 +39,6 @@ import {
   getPaymentReceiptFigures,
   getPaymentReceiptState,
   getWalletShortfall,
-  isReceiptFullyCovered,
 } from '../lib/paymentReceiptFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import {
@@ -595,9 +594,11 @@ export const TokenPickerContent = () => {
   const isPaymentApprovalRequired = !funding || funding.walletDebitRaw > 0n
   const isQuoting = isBudgetQuoting(isBudgetRequired, budgetQuery)
   const helpMessage = match({
+    isPaymentApprovalRequired,
     l2Chain: getSelectedL2(l2Payment)?.option.source.chain.name,
     signerType: account.signer?.type,
   })
+    .with({ isPaymentApprovalRequired: false }, () => undefined)
     .with(
       { l2Chain: P.string },
       ({ l2Chain }) =>
@@ -672,7 +673,10 @@ export const TokenPickerContent = () => {
       methodErrorMessage={methodErrorMessage}
       nextMessage={nextMessage}
       onNext={() => availabilityMutation.mutate()}
-      onRetry={() => budgetQuery.refetch()}
+      onRetry={() => {
+        availabilityMutation.reset()
+        budgetQuery.refetch()
+      }}
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
@@ -952,9 +956,9 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     isLoading: isRequoting || pricingLoading,
     figures: receiptFigures,
   })
-  // Without a selection there is no method to hide; with an L2 the list carries it.
+  // Unrounded, so a sub-cent debit keeps the methods; with an L2 the list carries it.
   const isFullyCovered =
-    isReceiptFullyCovered(receiptState) && !!walletSelection
+    receiptState.status === 'ready' && selectedShare === 0 && !!walletSelection
 
   const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances.map(
     (stablecoin) => {
