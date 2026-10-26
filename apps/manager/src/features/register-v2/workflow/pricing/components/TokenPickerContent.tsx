@@ -669,9 +669,13 @@ const getL2MethodItems = (
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
-  // Chains known to be short are hidden, unless already chosen.
+  // Only chains known to cover the payment show, so none appears and then vanishes.
   return [...l2Payment.rows]
-    .filter((row) => row === selectedL2 || !isL2ShortOfFunds(row))
+    .filter(
+      (row) =>
+        row === selectedL2 ||
+        (row.option.status !== 'loading' && !isL2ShortOfFunds(row)),
+    )
     .sort(byBalanceDescending)
     .map((row) => {
       const amountIn = row.amountInRaw ?? estimatedAmountIn

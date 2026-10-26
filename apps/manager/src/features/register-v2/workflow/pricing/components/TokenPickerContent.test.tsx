@@ -371,6 +371,16 @@ describe('TokenPickerContent', () => {
     expect(methodNames().at(-1)).toBe('Select USDC on OP Sepolia')
   })
 
+  it('shows no L2 until the quote says whether it can pay', () => {
+    containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
+    renderContainer()
+
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('hides an L2 known to be short, but keeps the wallet', () => {
     containerMocks.walletBalance = '0'
     containerMocks.renderBudget = fiveUsdcBudget
