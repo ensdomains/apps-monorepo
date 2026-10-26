@@ -211,6 +211,7 @@ export const NamesFilters = ({
             Filters{count > 0 && <Badge>{count}</Badge>}
           </Button>
         </PopoverTrigger>
+        {/* Preserve 1rem gutters when w-80 exceeds the width of a narrow viewport. */}
         <PopoverContent
           align="end"
           aria-label="Name filters"

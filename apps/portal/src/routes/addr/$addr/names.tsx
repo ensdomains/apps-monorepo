@@ -16,6 +16,7 @@ import {
 } from '@tanstack/react-table'
 import { FastForward, Search, XIcon } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ListLoader } from '@/components/ListLoader/ListLoader'
@@ -214,11 +215,16 @@ const NamesList = ({
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row justify-between">
           <PageHeading parent={{ type: 'addr', addr: address }}>
-            {hasActiveFilters
-              ? `Names (${filteredCount} of ${names.length} matching)`
-              : isSearching
-                ? `Names (${filteredCount} matching)`
-                : `Names (${names.length})`}
+            {match({ hasActiveFilters, isSearching })
+              .with(
+                { hasActiveFilters: true },
+                () => `Names (${filteredCount} of ${names.length} matching)`,
+              )
+              .with(
+                { isSearching: true },
+                () => `Names (${filteredCount} matching)`,
+              )
+              .otherwise(() => `Names (${names.length})`)}
           </PageHeading>
         </div>
         {rowCount > 0 ? (
@@ -328,11 +334,14 @@ function RouteComponent() {
 
   const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
   const rolesQuery = useQuery(getAddressRolesQueryOptions({ address }))
-  const v2RolesState = rolesQuery.data
-    ? 'ready'
-    : rolesQuery.isError
-      ? 'unavailable'
-      : 'loading'
+  const v2RolesState = match({
+    hasData: !!rolesQuery.data,
+    isError: rolesQuery.isError,
+  })
+    .returnType<'ready' | 'unavailable' | 'loading'>()
+    .with({ hasData: true }, () => 'ready')
+    .with({ isError: true }, () => 'unavailable')
+    .otherwise(() => 'loading')
   const allNames = useMemo(
     () =>
       withAddressRoles<NameRow>(namesQuery.data ?? NO_NAMES, {
