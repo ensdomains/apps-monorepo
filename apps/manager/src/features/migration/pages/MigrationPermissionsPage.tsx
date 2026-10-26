@@ -13,14 +13,17 @@ export const MigrationPermissionsPage = () => {
     useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MIGRATION, false) === true
   const { isConnected, ownerAddress } = useSmartAccountContext()
   const canCheckNames = isMigrationEnabled && isConnected && !!ownerAddress
-  const { eligible, gracePeriodNames, isPending } = useEligibleV1Names({
-    enabled: canCheckNames,
-    fallbackToClassified: false,
-  })
+  const { eligible, gracePeriodNames, wrapperSyncNames, isPending } =
+    useEligibleV1Names({
+      enabled: canCheckNames,
+      fallbackToClassified: false,
+    })
   const hasNamesToUpgrade =
     canCheckNames &&
     !isPending &&
-    (eligible.length > 0 || gracePeriodNames.length > 0)
+    (eligible.length > 0 ||
+      gracePeriodNames.length > 0 ||
+      wrapperSyncNames.length > 0)
 
   return (
     <div className="mx-auto w-full max-w-5xl px-2 py-8 lg:my-5">

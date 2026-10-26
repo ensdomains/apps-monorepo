@@ -41,8 +41,12 @@ export const sanitizeChannel = <T extends UserChannel>(
       }
       return target
     }
-    case 'telegram':
-      return `@${(data as ChannelData['telegram']).username}`
+    case 'telegram': {
+      const profile = data as ChannelData['telegram'] | null
+      return profile?.username
+        ? `@${profile.username}`
+        : profile?.name || 'Telegram account'
+    }
     case 'push':
       return 'Push Notification'
     default:

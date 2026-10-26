@@ -5,6 +5,7 @@ export const POSTHOG_FEATURE_FLAGS = {
   I18N: 'i18n',
   MIGRATION: 'migration',
   MIGRATION_NFT: 'migration-nft',
+  MIGRATION_SUBNAME_RECREATION: 'migration-subname-recreation',
   NOTICE_BANNER: NOTICE_BANNER_FLAG,
 } as const
 

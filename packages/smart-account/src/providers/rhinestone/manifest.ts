@@ -202,9 +202,6 @@ export const COIN_TYPE_ETH = 60n
  * take it as a parameter and this is only the app-level default.
  */
 export const DEFAULT_REGISTRATION_DURATION = 31536000n
-/** `referrer` is a bytes32 arg on makeCommitment/register (NOT an address). */
-export const REFERER =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const
 
 export const DEFAULT_SESSION_VALIDITY_SECONDS = 24 * 60 * 60
 

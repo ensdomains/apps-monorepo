@@ -17,6 +17,7 @@
  * time) via `readRegisterPrice`, and `approve` must approve exactly that price.
  */
 
+import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import {
   permissionedResolverInitializeSnippet,
   permissionedResolverSetAddressSnippet,
@@ -38,7 +39,6 @@ import {
   COIN_TYPE_ETH,
   computeResolverSalt,
   getDestinationContracts,
-  REFERER,
   ROLES_ALL,
 } from './manifest'
 
@@ -118,6 +118,7 @@ export async function readCommitment(params: {
   readonly resolver: Address
   /** Registration duration (seconds). MUST be identical at commit and reveal. */
   readonly duration: bigint
+  readonly referrer?: Hex
 }): Promise<Hex> {
   const c = getDestinationContracts(params.chainId)
   return params.publicClient.readContract({
@@ -133,7 +134,7 @@ export async function readCommitment(params: {
       zeroAddress,
       params.resolver,
       params.duration,
-      REFERER,
+      normalizeReferrer(params.referrer),
     ],
   })
 }
@@ -224,6 +225,7 @@ export interface RevealBatchParams {
   readonly price: bigint
   /** Registration duration (seconds). MUST equal the commitment's duration. */
   readonly duration: bigint
+  readonly referrer?: Hex
   /** Optional resolver records to write (addr for the wallet is added by default). */
   readonly records?: readonly ResolverRecord[]
   /** When set, adds the primary-name (default.reverse) call. */
@@ -348,7 +350,7 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
         params.resolver,
         params.duration,
         c.usdc,
-        REFERER,
+        normalizeReferrer(params.referrer),
       ],
     }),
   })

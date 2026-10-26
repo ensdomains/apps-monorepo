@@ -26,7 +26,14 @@ import {
   type SaveRecordsParams,
   saveRecords,
 } from '@/features/profile/service/profileRecordTransactions'
-import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
+import type {
+  ResolverCopySource,
+  ResolverImport,
+} from '@/features/profile/service/resolverImport'
+import {
+  assertProfileResolverState,
+  resolverWriteStateQuery,
+} from '@/features/profile/service/resolverWriteAccess'
 import {
   OwnedResolverNotReadyError,
   ResolverChangeNotAuthorizedError,
@@ -72,6 +79,9 @@ interface UseEditProfileDialogSaveParams {
   readonly open: boolean
   readonly owner?: Address
   readonly savedRecords: ProfileRecords
+  readonly resolverCopySource?: ResolverCopySource
+  readonly resolverImport?: ResolverImport
+  readonly canSave: boolean
 }
 
 interface SaveRecordsMutationVariables extends SaveRecordsParams {
@@ -157,6 +167,7 @@ const useCloseProfileDialogOnSuccessfulSave = ({
         records: savedRecords,
         queryClient,
       })
+      if (cancelled) return
       form.reset(savedRecords)
       await onUpdated?.()
       onPreparedImageUploadsSaved()
@@ -171,7 +182,13 @@ const useCloseProfileDialogOnSuccessfulSave = ({
         queryKey: $qk({ $scope: 'profile', $action: 'resolver_write_access' }),
       })
       queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'resolver_write_state' }),
+      })
+      queryClient.invalidateQueries({
         queryKey: $qk({ $scope: 'profile', $action: 'get_records' }),
+      })
+      queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'resolver_copy_source' }),
       })
 
       if (!cancelled) {
@@ -207,6 +224,9 @@ export const useEditProfileDialogSave = ({
   open,
   owner,
   savedRecords,
+  resolverCopySource,
+  resolverImport,
+  canSave,
 }: UseEditProfileDialogSaveParams) => {
   const account = useSmartAccountContext()
   const { address, isConnected } = useAccount()
@@ -221,20 +241,70 @@ export const useEditProfileDialogSave = ({
   const deferredSetupSaveRef = useRef<DeferredEditProfileSave | null>(null)
 
   const ownerAddress = account.ownerAddress as Address | null
+  const identity = `${name}:${ownerAddress}:${address}:${chainId}`
+  const identityRef = useRef<string | null>(identity)
+  identityRef.current = identity
+  useEffect(() => {
+    identityRef.current = identity
+    return () => {
+      identityRef.current = null
+    }
+  }, [identity])
+  const assertCurrentIdentity = useCallback(() => {
+    if (!isConnected || address?.toLowerCase() !== ownerAddress?.toLowerCase())
+      throw new Error(
+        'Please finish connecting your wallet, then reopen the editor.',
+      )
+    if (
+      identityRef.current !== identity ||
+      (publicClient.chain?.id !== undefined &&
+        publicClient.chain.id !== chainId)
+    )
+      throw new Error(
+        'Your wallet or network changed. Reopen the editor before saving.',
+      )
+    if (
+      resolverCopySource &&
+      (resolverCopySource.wallet.toLowerCase() !==
+        ownerAddress?.toLowerCase() ||
+        resolverCopySource.chainId !== chainId)
+    )
+      throw new Error(
+        'Your wallet or network changed. Reopen the editor to import the current records.',
+      )
+  }, [
+    address,
+    chainId,
+    identity,
+    isConnected,
+    ownerAddress,
+    resolverCopySource,
+  ])
   const hasResolver = Boolean(savedRecords.resolverAddress)
 
   // Probe write access whenever a resolver is present.
   const resolverWriteAccess = useQuery({
-    ...resolverWriteAccessQuery(name, ownerAddress ?? undefined),
+    ...resolverWriteStateQuery(name, ownerAddress ?? undefined),
     enabled: open && hasResolver && Boolean(ownerAddress),
   })
 
-  const needsResolverSetup =
-    !hasResolver ||
-    (Boolean(ownerAddress) && resolverWriteAccess.data === false)
+  // Setup is always an explicit reviewed import or explicit initial setup.
+  // A normal draft must never silently become a replacement after a refresh.
+  const needsResolverSetup = Boolean(resolverCopySource)
+
+  const reviewedResolverChanged =
+    resolverWriteAccess.data &&
+    resolverWriteAccess.data.resolverAddress?.toLowerCase() !==
+      savedRecords.resolverAddress?.toLowerCase()
 
   const isResolverAccessPending =
-    hasResolver && Boolean(ownerAddress) && resolverWriteAccess.isLoading
+    !canSave ||
+    (hasResolver &&
+      Boolean(ownerAddress) &&
+      (resolverWriteAccess.isPending ||
+        resolverWriteAccess.isError ||
+        reviewedResolverChanged ||
+        (!resolverCopySource && !resolverWriteAccess.data?.canWrite)))
 
   const saveRecordsMutation = useMutation({
     mutationFn: ({
@@ -267,6 +337,9 @@ export const useEditProfileDialogSave = ({
         before: pendingSave.before,
         after: pendingSave.after,
         description: `Update profile records for ${pendingSave.name}`,
+        sourceResolver: pendingSave.sourceResolver,
+        assertCurrentIdentity: pendingSave.assertCurrentIdentity,
+        resolverImport,
       })
 
       return {
@@ -326,6 +399,7 @@ export const useEditProfileDialogSave = ({
       }
 
       for (const upload of uploads) {
+        assertCurrentIdentity()
         await submitPreparedProfileImageUpload({
           address,
           account:
@@ -342,6 +416,7 @@ export const useEditProfileDialogSave = ({
     },
     [
       address,
+      assertCurrentIdentity,
       isConnected,
       queryClient,
       signTypedDataAsync,
@@ -370,6 +445,12 @@ export const useEditProfileDialogSave = ({
 
   const getPendingRecordSave = useCallback(
     (currentRecords: ProfileRecords) => {
+      try {
+        assertCurrentIdentity()
+      } catch (error) {
+        toastSaveError(error)
+        return null
+      }
       if (isResolverAccessPending) {
         toast.error(t`Cannot save profile`, {
           description: t`Still checking if you can edit this name. Try again in a moment.`,
@@ -389,6 +470,8 @@ export const useEditProfileDialogSave = ({
           publicClient: publicClient as PublicClient,
           retryCount: 0,
           walletClient: account.walletClient,
+          sourceResolver: resolverCopySource?.resolver,
+          assertCurrentIdentity,
         },
       })
 
@@ -416,6 +499,8 @@ export const useEditProfileDialogSave = ({
       needsResolverSetup,
       owner,
       ownerAddress,
+      assertCurrentIdentity,
+      resolverCopySource,
     ],
   )
 
@@ -459,6 +544,13 @@ export const useEditProfileDialogSave = ({
 
   const submitPendingRecordSave = useCallback(
     (pendingRecordSave: PendingSave) => {
+      try {
+        assertCurrentIdentity()
+      } catch (error) {
+        dialogActor.send({ type: 'RESET_SAVE_STATE' })
+        toastSaveError(error)
+        return
+      }
       match(pendingRecordSave)
         .with({ kind: 'setup' }, (pendingSave) => {
           setupResolverMutation.mutate({ pendingSave })
@@ -471,14 +563,46 @@ export const useEditProfileDialogSave = ({
         })
         .exhaustive()
     },
-    [saveRecordsMutation, setupResolverMutation],
+    [
+      assertCurrentIdentity,
+      dialogActor,
+      saveRecordsMutation,
+      setupResolverMutation,
+    ],
   )
 
   const executeSave = useCallback<EditProfileSaveHandler>(
     (currentRecords, options) => {
+      if (isResolverAccessPending) {
+        toastSaveError(
+          new Error(
+            'The resolver or your permissions need to be checked. Close the editor and review the current records before publishing.',
+          ),
+        )
+        return
+      }
+      try {
+        assertCurrentIdentity()
+      } catch (error) {
+        toastSaveError(error)
+        return
+      }
       resetSaveState()
 
       void (async () => {
+        try {
+          if (!ownerAddress)
+            throw new Error('Please connect your wallet before publishing.')
+          await assertProfileResolverState({
+            name,
+            resolverAddress: savedRecords.resolverAddress,
+            ownerAddress,
+            requireWriteAccess: !resolverCopySource,
+          })
+        } catch (error) {
+          toastSaveError(error)
+          return
+        }
         const pendingRecordSave = options.hasRecordChanges
           ? getPendingRecordSave(currentRecords)
           : null
@@ -514,6 +638,12 @@ export const useEditProfileDialogSave = ({
       resetSaveState,
       submitPendingRecordSave,
       submitPreparedImageUploadsForSave,
+      assertCurrentIdentity,
+      isResolverAccessPending,
+      name,
+      ownerAddress,
+      resolverCopySource,
+      savedRecords.resolverAddress,
     ],
   )
 
@@ -564,6 +694,20 @@ export const useEditProfileDialogSave = ({
   })
 
   return {
+    recheckResolverAccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'resolver_write_access' }),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'resolver_write_state' }),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'resolver_copy_source' }),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'expiry' }),
+      })
+    },
     confirmSetupSave,
     handleSave,
     handleImageUploadPrepared,

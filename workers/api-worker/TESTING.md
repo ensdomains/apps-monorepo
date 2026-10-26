@@ -164,6 +164,21 @@ Then:
 
 The second test primarily tests our simulation of Drizzle.
 
+## Test business operations directly
+
+Orchestration tests should call the application operation itself, such as
+`startTelegramLogin()` or `finishTelegramLogin()`. Do not mount a router merely
+to exercise the operation through an HTTP request.
+
+Keep routes thin: read validated request/authentication data, call the operation,
+and translate its result into an HTTP response. If a route contains policy or
+other logic worth unit-testing, extract that logic into a testable function.
+
+Use a small number of route tests for HTTP contracts: authentication middleware,
+request validation, status codes, response shapes, and security headers. Keep
+business failure matrices in the service tests. A focused full-flow test may
+compose the real route and persistence stack when that adds unique confidence.
+
 ---
 
 # Database boundaries
@@ -320,7 +335,7 @@ A useful future improvement is to recreate the dedicated test database and apply
 
 The `*.db.test.ts` naming convention is the preferred convention for real database contract tests.
 
-At the moment, however, the package's `test:db` script explicitly selects the existing event-ingestion DB suite. Until the script is generalized to discover all `*.db.test.ts` files, adding another DB-test file also requires updating the package script so the new suite is actually run.
+At the moment, however, the package's `test:db` script explicitly lists the selected DB suites. Until the script is generalized to discover all `*.db.test.ts` files, adding another DB-test file also requires updating the package script so the new suite is actually run.
 
 
 ---
@@ -562,7 +577,13 @@ If the provider adapter itself contains important serialization or response hand
 
 # Dependency injection
 
-Prefer small explicit dependency objects when orchestration needs controlled boundaries.
+Dependency injection is an option, not a requirement for every operation.
+Choose the simplest way to control the owned boundary being tested. Test-local
+module mocks of owned persistence/provider operations are acceptable; this is
+different from mocking Drizzle query chains or HTTP-client internals.
+
+When explicit dependency injection makes a business operation clearer, prefer a
+small dependency object on that operation.
 
 Example:
 
@@ -584,6 +605,11 @@ Avoid:
 Production code should wire the real dependencies in one obvious place.
 
 Tests should be able to supply controlled implementations directly.
+
+Do not introduce exported dependency registries, route factories, or dependency
+parameters threaded through routes solely to enable unit tests. Keep test setup
+at the business-operation boundary; production routes should call the normal
+service functions.
 
 ---
 

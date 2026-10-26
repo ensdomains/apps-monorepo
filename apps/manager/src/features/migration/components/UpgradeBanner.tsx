@@ -5,7 +5,10 @@ import { match } from 'ts-pattern'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationUpgradeButton } from '@/features/migration/components/MigrationUpgradeButton'
-import { shouldShowUpgradeBanner } from '@/features/migration/components/UpgradeBanner.helpers'
+import {
+  getUpgradeBannerPreparation,
+  shouldShowUpgradeBanner,
+} from '@/features/migration/components/UpgradeBanner.helpers'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
@@ -34,6 +37,7 @@ export const UpgradeBanner = ({
   const {
     eligible: eligibleV1Names,
     gracePeriodNames,
+    wrapperSyncNames,
     isPending: isV1NamesPending,
   } = useEligibleV1Names({
     enabled: migrationEnabled,
@@ -41,7 +45,12 @@ export const UpgradeBanner = ({
   })
   const nameCount = eligibleV1Names.length
   const gracePeriodNameCount = gracePeriodNames.length
-  const shouldRenewNames = !isProfileBanner && nameCount === 0
+  const { shouldSyncNames, shouldRenewNames } = getUpgradeBannerPreparation({
+    eligibleV1Names,
+    gracePeriodNameCount,
+    wrapperSyncNames,
+    profileName,
+  })
   const { data: migratedCount, isPending: isMigratedCountPending } =
     useMigratedNamesCount({ enabled: migrationEnabled && !isProfileBanner })
 
@@ -54,6 +63,7 @@ export const UpgradeBanner = ({
     !shouldShowUpgradeBanner({
       eligibleV1Names,
       gracePeriodNameCount,
+      wrapperSyncNames,
       migratedCount,
       profileName,
     })
@@ -80,7 +90,17 @@ export const UpgradeBanner = ({
           </h2>
           <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
             <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
-              {match({ isProfileBanner, nftCopyEnabled, shouldRenewNames })
+              {match({
+                isProfileBanner,
+                nftCopyEnabled,
+                shouldRenewNames,
+                shouldSyncNames,
+              })
+                .with({ shouldSyncNames: true }, () => (
+                  <Trans>
+                    Sync your names before upgrading to your new ENS profile.
+                  </Trans>
+                ))
                 .with({ shouldRenewNames: true }, () => (
                   <Plural
                     one="Renew your grace-period name before upgrading to your new ENS profile."
@@ -114,6 +134,17 @@ export const UpgradeBanner = ({
                 .exhaustive()}
             </p>
           </div>
+          {!isProfileBanner &&
+            !shouldSyncNames &&
+            wrapperSyncNames.length > 0 && (
+              <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
+                <Plural
+                  one="# name needs syncing before it can be upgraded."
+                  other="# names need syncing before they can be upgraded."
+                  value={wrapperSyncNames.length}
+                />
+              </p>
+            )}
           {!isProfileBanner && !shouldRenewNames && gracePeriodNameCount > 0 ? (
             <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
               <Plural
@@ -128,15 +159,19 @@ export const UpgradeBanner = ({
           className="@3xl:w-75 w-full shrink-0"
           onClick={() => navigate({ to: '/upgrade' })}
           showNftPlaceholder={
-            !shouldRenewNames && nftCopyEnabled && isConfirmedUnclaimed
+            !shouldRenewNames &&
+            !shouldSyncNames &&
+            nftCopyEnabled &&
+            isConfirmedUnclaimed
           }
           type="button"
         >
-          {shouldRenewNames ? (
-            <Trans>Renew Names</Trans>
-          ) : (
-            <Trans>Upgrade Names</Trans>
-          )}
+          {match({ shouldSyncNames, shouldRenewNames })
+            .with({ shouldSyncNames: true }, () => <Trans>Sync Names</Trans>)
+            .with({ shouldRenewNames: true }, () => <Trans>Renew Names</Trans>)
+            .otherwise(() => (
+              <Trans>Upgrade Names</Trans>
+            ))}
         </MigrationUpgradeButton>
       </div>
     </div>

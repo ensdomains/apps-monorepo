@@ -9,6 +9,7 @@ const ACCOUNT: Address = '0x1111111111111111111111111111111111111111'
 
 const search: { name?: string } = {}
 vi.mock('@tanstack/react-router', () => ({
+  useSearch: () => ({ referrer: '0x1234' }),
   createFileRoute: () => (options: Record<string, unknown>) => ({
     ...options,
     useSearch: () => search,
@@ -160,6 +161,9 @@ describe('/register', () => {
     await act(() => flow.transactions[0].onStart?.())
     const expensive = flow.actor
     expect(expensive.getSnapshot().context.name).toBe('expensive.eth')
+    expect(expensive.getSnapshot().context.referrer).toBe(
+      `0x${'0'.repeat(60)}1234`,
+    )
     expect(expensive.getSnapshot().value).toBe('deployingResolver')
 
     search.name = 'cheap.eth'

@@ -134,6 +134,7 @@ describe('submitHcaRenewal', () => {
       'alice',
       31_536_000n,
       USDC,
+      undefined,
     )
     expect(mocks.encodeRenewBatchData).not.toHaveBeenCalled()
   })
@@ -197,6 +198,7 @@ describe('submitHcaRenewal', () => {
       'alice',
       31_536_000n,
       DAI,
+      undefined,
     )
     // …and the rail funds it beside the fee, with room for the second pair.
     expect(fundingParams()).toMatchObject({
@@ -353,4 +355,17 @@ describe('submitHcaRenewal', () => {
       USDC,
     )
   })
+})
+
+it('carries the supplied referrer into the owner-signed HCA renewal', async () => {
+  await submitHcaRenewal({
+    ...params,
+    items: [{ label: 'alice', duration: 31_536_000n, referrer: '0x1234' }],
+  })
+  expect(mocks.encodeRenewData).toHaveBeenCalledWith(
+    'alice',
+    31_536_000n,
+    USDC,
+    '0x1234',
+  )
 })

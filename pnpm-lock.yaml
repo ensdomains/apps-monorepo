@@ -1307,6 +1307,9 @@ importers:
       hono:
         specifier: ^4.13.13
         version: 4.13.13
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.12
       lucide:
         specifier: ^0.542.0
         version: 0.542.0

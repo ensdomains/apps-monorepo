@@ -8,7 +8,6 @@
     ".": "./src/index.ts",
     "./profile-media": "./src/profile-media/index.ts",
     "./notifications": "./src/notifications/index.ts",
-    "./telegram": "./src/telegram/index.ts",
     "./transactions": "./src/transactions/index.ts"
   },
   "scripts": {

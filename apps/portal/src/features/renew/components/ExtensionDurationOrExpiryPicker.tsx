@@ -4,7 +4,6 @@ import { RegistrationDurationPicker } from '@/features/register/components/Regis
 import { RegistrationExpiryDatePicker } from '@/features/register/components/RegistrationExpiryDatePicker'
 import {
   getMaxExpiryDateForPicker,
-  getMinExpiryDateForPicker,
   getStartOfToday,
 } from '@/features/register/utils/registrationDuration'
 import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
@@ -14,6 +13,7 @@ import {
   type ExtensionSpan,
   getExtensionDisplayedYears,
   getExtensionTargetDate,
+  getMinExtensionDateForPicker,
   getToggledExtensionSpan,
 } from '../utils/extensionDurationPicker'
 
@@ -88,7 +88,7 @@ export const ExtensionDurationOrExpiryPicker = ({
                 }),
               })
             }
-            minDate={getMinExpiryDateForPicker(baseDate)}
+            minDate={getMinExtensionDateForPicker(baseDate)}
             maxDate={getMaxExpiryDateForPicker(baseDate)}
             baseDate={baseDate}
             name={name}

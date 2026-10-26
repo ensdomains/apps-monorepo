@@ -8,13 +8,28 @@ import {
   publicResolverTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
 import { errAsync, okAsync } from 'neverthrow'
-import { decodeFunctionData, encodeAbiParameters, type Hex, toHex } from 'viem'
+import {
+  BaseError,
+  decodeFunctionData,
+  ExecutionRevertedError,
+  encodeAbiParameters,
+  type Hex,
+  HttpRequestError,
+  toHex,
+  zeroAddress,
+} from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   client: {},
   resolveNameData: vi.fn(),
   nameRecords: vi.fn(),
+  call: vi.fn(),
+  resolveNameRegistry: vi.fn(),
+  readNameResolver: vi.fn(),
+  hasV2NameEntry: vi.fn(),
+  readContract: vi.fn(),
+  isExtendedResolver: false,
 }))
 
 vi.mock('@/lib/bigname', () => ({
@@ -22,12 +37,29 @@ vi.mock('@/lib/bigname', () => ({
 }))
 vi.mock('@ensdomains/ensjs/public', () => ({
   resolveNameData: mocks.resolveNameData,
+  getSupportedInterfaces: async (
+    _client: unknown,
+    { interfaces }: { interfaces: readonly string[] },
+  ) => [interfaces[0] === '0x9061b923' && mocks.isExtendedResolver],
+}))
+vi.mock('@/lib/wagmi', async () => ({
+  publicClient: { call: mocks.call, readContract: mocks.readContract },
+  sepoliaWithEns: (await import('@/config')).envConfig.chain,
 }))
 vi.mock('@/lib/wagmi/helpers', async () => {
   const { ok } = await import('neverthrow')
   return { safeGetClient: () => ok(mocks.client) }
 })
 vi.mock('@/utils/debug-features', () => ({ isDebugProfileName: () => false }))
+vi.mock('./changeResolver', () => {
+  class NameRegistryNotFoundError extends Error {}
+  return {
+    NameRegistryNotFoundError,
+    resolveNameRegistry: mocks.resolveNameRegistry,
+    readNameResolver: mocks.readNameResolver,
+    hasV2NameEntry: mocks.hasV2NameEntry,
+  }
+})
 vi.mock('../data/records', () => ({
   addressRecords: [{ coinType: 60 }, { coinType: 121 }, { coinType: 501 }],
   alwaysProbeAddressRecords: [],
@@ -36,6 +68,7 @@ vi.mock('../data/records', () => ({
   textRecords: [],
 }))
 
+import { NameRegistryNotFoundError } from './changeResolver'
 import { getProfileRecords } from './profileRecords'
 
 const resolverAddress = '0x2222222222222222222222222222222222222222'
@@ -44,6 +77,41 @@ const knownKeys = (keys: readonly string[]) =>
   okAsync({ data: { inventory: { known_keys: keys } } })
 const bytesResult = (value: Hex) =>
   encodeAbiParameters([{ type: 'bytes' }], [value])
+const recordAbi = [
+  ...publicResolverTextSnippet,
+  ...publicResolverSingleAddrSnippet,
+  ...publicResolverMultiAddrSnippet,
+  ...publicResolverContenthashSnippet,
+  ...publicResolverAbiSnippet,
+] as const
+const directRead = async ({ data }: { data: Hex }) => {
+  const call = decodeFunctionData({ abi: recordAbi, data })
+  switch (call.functionName) {
+    case 'text':
+      return {
+        data: encodeAbiParameters(
+          [{ type: 'string' }],
+          [call.args[1] === 'theme' ? '#123456' : ''],
+        ),
+      }
+    case 'addr':
+      return {
+        data:
+          call.args.length === 1
+            ? encodeAbiParameters([{ type: 'address' }], [zeroAddress])
+            : bytesResult('0x'),
+      }
+    case 'contenthash':
+      return { data: bytesResult('0x') }
+    case 'ABI':
+      return {
+        data: encodeAbiParameters(
+          [{ type: 'uint256' }, { type: 'bytes' }],
+          [0n, '0x'],
+        ),
+      }
+  }
+}
 const contentHash =
   'ipfs://bafybeibj6lixxzqtsb45ysdjnupvqkufgdvzqbnvmhw2kf7cfkesy7r7d4'
 const emptyResult = { success: false, returnData: '0x' as Hex }
@@ -99,7 +167,80 @@ describe('profile records', () => {
     vi.clearAllMocks()
     mocks.nameRecords.mockReturnValue(knownKeys([]))
     mocks.resolveNameData.mockResolvedValue(profileResolution())
+    mocks.resolveNameRegistry.mockRejectedValue(
+      new NameRegistryNotFoundError('missing.eth'),
+    )
+    mocks.readNameResolver.mockResolvedValue(resolverAddress)
+    mocks.call.mockReset().mockImplementation(directRead)
+    mocks.hasV2NameEntry.mockResolvedValue(true)
+    mocks.isExtendedResolver = false
   })
+
+  it.each([resolverAddress, zeroAddress])(
+    'uses universal resolution for a reserved V1 name with resolver %s',
+    async (resolver) => {
+      mocks.resolveNameRegistry.mockResolvedValue({
+        label: 'reserved',
+        registryAddress: ethAddress,
+      })
+      mocks.hasV2NameEntry.mockResolvedValue(false)
+      mocks.readNameResolver.mockResolvedValue(resolver)
+      const profile = (await getProfileRecords('reserved.eth'))._unsafeUnwrap()
+      expect(profile.texts).toEqual([{ key: 'theme', value: '#123456' }])
+      expect(mocks.resolveNameData).toHaveBeenCalledOnce()
+      expect(mocks.call).not.toHaveBeenCalled()
+    },
+  )
+
+  it('uses ENSIP-10 for an extended resolver with node-based setters', async () => {
+    mocks.resolveNameRegistry.mockResolvedValue({
+      label: 'child',
+      registryAddress: ethAddress,
+    })
+    mocks.isExtendedResolver = true
+    mocks.readContract.mockImplementation(async ({ functionName, args }) => {
+      if (functionName !== 'resolve')
+        throw new Error('Unexpected resolver read')
+      return (await directRead({ data: args[1] })).data
+    })
+    mocks.call.mockRejectedValue(new Error('Plain getter is unsupported'))
+    const profile = (
+      await getProfileRecords('child.parent.eth')
+    )._unsafeUnwrap()
+    expect(profile.texts).toEqual([{ key: 'theme', value: '#123456' }])
+    expect(mocks.call).not.toHaveBeenCalled()
+  })
+
+  it.each(['text', 'addr', 'contenthash', 'ABI'] as const)(
+    'keeps the profile readable when a direct %s record is malformed',
+    async (recordType) => {
+      mocks.resolveNameRegistry.mockResolvedValue({
+        label: 'child',
+        registryAddress: ethAddress,
+      })
+      mocks.call.mockImplementation(async ({ data }) => {
+        const call = decodeFunctionData({ abi: recordAbi, data })
+        if (
+          call.functionName === recordType &&
+          (recordType !== 'text' || call.args[1] === 'avatar')
+        ) {
+          if (
+            recordType === 'addr' &&
+            call.args.length === 2 &&
+            call.args[1] === 501n
+          )
+            return { data: bytesResult(`0x${'11'.repeat(31)}`) }
+          if (recordType !== 'addr') return { data: '0x1234' }
+        }
+        return directRead({ data })
+      })
+      const profile = (
+        await getProfileRecords('child.parent.eth')
+      )._unsafeUnwrap()
+      expect(profile.texts).toEqual([{ key: 'theme', value: '#123456' }])
+      expect(profile.coins).toEqual([])
+    },
+  )
 
   it.each([
     { description: 'not indexed yet', indexedKeys: ['text:theme'] },
@@ -262,4 +403,52 @@ describe('profile records', () => {
     expect((await getProfileRecords('failed.eth')).isErr()).toBe(true)
     expect(mocks.resolveNameData).toHaveBeenCalledTimes(2)
   })
+
+  it.each([
+    {
+      kind: 'HTTP',
+      cause: new HttpRequestError({ url: 'https://rpc.invalid', status: 503 }),
+    },
+    { kind: 'gateway', cause: new Error('CCIP gateway unavailable') },
+  ])(
+    'surfaces a failed direct $kind read and allows retry',
+    async ({ cause }) => {
+      mocks.resolveNameRegistry.mockResolvedValue({
+        label: 'child',
+        registryAddress: ethAddress,
+      })
+      mocks.call.mockRejectedValueOnce(cause)
+
+      const failed = await getProfileRecords('child.parent.eth')
+      expect(failed._unsafeUnwrapErr()).toMatchObject({ cause })
+
+      const retried = (
+        await getProfileRecords('child.parent.eth')
+      )._unsafeUnwrap()
+      expect(retried.texts).toEqual([{ key: 'theme', value: '#123456' }])
+      expect(mocks.resolveNameData).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['revert', 'empty'] as const)(
+    'keeps successful direct records when an unsupported probe returns %s',
+    async (response) => {
+      mocks.resolveNameRegistry.mockResolvedValue({
+        label: 'child',
+        registryAddress: ethAddress,
+      })
+      if (response === 'revert')
+        mocks.call.mockRejectedValueOnce(
+          new BaseError('Unsupported record', {
+            cause: new ExecutionRevertedError(),
+          }),
+        )
+      else mocks.call.mockResolvedValueOnce({ data: '0x' })
+
+      const result = (
+        await getProfileRecords('child.parent.eth')
+      )._unsafeUnwrap()
+      expect(result.texts).toEqual([{ key: 'theme', value: '#123456' }])
+    },
+  )
 })

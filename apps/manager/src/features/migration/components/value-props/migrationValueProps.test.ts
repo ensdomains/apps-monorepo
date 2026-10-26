@@ -10,4 +10,11 @@ describe('getMigrationValuePropSlides', () => {
       expect.objectContaining({ id: 'nft' }),
     ])
   })
+
+  it('draws only the NFT slide without the card frame', () => {
+    const framelessIds = getMigrationValuePropSlides(true)
+      .filter((slide) => slide.media.isFrameless)
+      .map((slide) => slide.id)
+    expect(framelessIds).toEqual(['nft'])
+  })
 })

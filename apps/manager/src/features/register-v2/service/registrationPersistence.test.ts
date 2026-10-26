@@ -40,6 +40,7 @@ const createStorage = () => {
 
 const confirmedData: RegistrationConfirmedData = {
   label: 'leon',
+  referrer: `0x${'12'.repeat(32)}`,
   duration: 31_536_000n,
   ownerAddress: OWNER,
   token: 'USDC',
@@ -55,6 +56,7 @@ const record = (stage = 'commitmentCooldown'): PersistedRegistrationRecord =>
       chainId: 11155111,
       name: 'leon.eth',
       duration: 31_536_000n,
+      referrer: `0x${'12'.repeat(32)}`,
       selectedToken: 'USDC',
       tokenPrice: 5_000_000n,
       signer: { type: 'rhinestone' } as never,
@@ -102,6 +104,7 @@ describe('registration persistence adapter', () => {
       secret: SECRET,
     })
     expect(loaded?.record.context.resolverAddress).toBe(RESOLVER)
+    expect(loaded?.confirmedData.referrer).toBe(`0x${'12'.repeat(32)}`)
     expect(loaded?.confirmedData.duration).toBe(31_536_000n)
     expect(loaded?.confirmedData.totalPrice).toBe(5_000_000n)
     expect(loaded?.confirmedData.basePriceNumber).toBe(5)
@@ -268,4 +271,26 @@ describe('registration persistence adapter', () => {
     }).not.toThrow()
     expect(adapter.load()).toBeNull()
   })
+})
+
+it('loads a legacy envelope whose confirmed data and record have no referrer', () => {
+  const storage = createStorage()
+  createRegistrationPersistenceAdapter({
+    label: 'leon',
+    getAppState: () => ({ confirmedData }),
+    storage,
+  }).save(record())
+  const [key, value] = [...storage.raw.entries()][0] ?? []
+  if (!key || !value) throw new Error('Expected persisted registration')
+  const envelope = JSON.parse(value)
+  const persisted = JSON.parse(envelope.record)
+  delete envelope.confirmedData.referrer
+  delete persisted.context.referrer
+  envelope.record = JSON.stringify(persisted)
+  storage.setItem(key, JSON.stringify(envelope))
+  const restored = loadStoredRegistration(storage)
+  expect(restored).not.toBeNull()
+  expect(restored?.record.context.referrer).toBeUndefined()
+  expect(restored?.confirmedData.referrer).toBeUndefined()
+  expect(restored?.record.context.commitment?.secret).toBe(SECRET)
 })
