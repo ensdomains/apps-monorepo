@@ -11,9 +11,14 @@
  *   // ... register a name on-chain ...
  *   bignameMock.addName({ name: 'foo.eth', owner: '0x...' })
  *   // the next names, detail, records and lookup reads include it
+ *
+ * It also sets the two counts behind the portal's registry-detach check, for a
+ * subregistry bigname has not indexed:
+ *   bignameMock.setRegistryOccupants(subregistryAddress, { count: 2, thirdPartyCount: 1 })
+ *   bignameMock.setSubregistryHistory(namehash(name), 1)
  */
 import type { Page, Route } from '@playwright/test'
-import { namehash } from 'viem'
+import { type Address, namehash } from 'viem'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,10 +35,23 @@ export type MockDomain = {
   expiryDate?: number
   createdAt?: number
   records?: { key: string; value: string }[]
+  /** Exact observed key inventory for heterogeneous resolver records. */
+  recordInventory?: { knownKeys: string[]; abiContentTypes: number[] }
   /** Defaults to ENSv2. */
   readonly protocol?: 'v1' | 'v2'
   /** How `owner` relates to the name; defaults to owner and manager. */
   readonly relations?: readonly MockRelation[]
+}
+
+/**
+ * Response shape for `getRegistryOccupants` — mirrors portal's
+ * `RegistryOccupants` (see `useRegistryOccupants.ts`). `count` is the
+ * registry's total subname count; `thirdPartyCount` is however many of those
+ * are NOT owned by whoever is about to detach the registry.
+ */
+export type MockRegistryOccupants = {
+  count: number
+  thirdPartyCount: number
 }
 
 /**
@@ -76,7 +94,7 @@ const CORS_HEADERS = {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createBignameMock() {
+export function createBignameMock(options: { nowSeconds?: () => number } = {}) {
   const domains: MockDomain[] = []
 
   function addName(domain: MockDomain) {
@@ -88,13 +106,62 @@ export function createBignameMock() {
     if (index >= 0) domains.splice(index, 1)
   }
 
+  // -------------------------------------------------------------------------
+  // Registry occupancy and subregistry history control state
+  // -------------------------------------------------------------------------
+  // Keyed case-insensitively (addresses and namehashes both arrive lowercased
+  // from the app — see useRegistryOccupants.ts / useSubregistrySlot.ts — but
+  // callers may pass either case, so normalise on write and read).
+
+  /** `registryAddress.toLowerCase()` -> configured occupants, or `null` for
+   * "bigname has not indexed this registry yet" (the fail-closed default). */
+  const registryOccupants = new Map<string, MockRegistryOccupants | null>()
+
+  /** `namehash.toLowerCase()` -> configured `SubregistryUpdated` count, or
+   * `null` for "the indexer declined to answer" (an error, not a zero). */
+  const subregistryHistory = new Map<string, number | null>()
+
+  /**
+   * Configure the label counts bigname reports for `registryAddress`.
+   *
+   * `null` (or never calling this for the address) reproduces exactly the
+   * real bug this mock exists to route around: a subregistry bigname hasn't
+   * indexed yet answers 404, and
+   * `useRegistryDetachImpact` fails closed — same as the unmocked default. A
+   * test that wants the "empty subregistry" or "N subnames, M third-party"
+   * cases must call this explicitly.
+   */
+  function setRegistryOccupants(
+    registryAddress: Address,
+    occupants: MockRegistryOccupants | null,
+  ) {
+    registryOccupants.set(registryAddress.toLowerCase(), occupants)
+  }
+
+  /**
+   * Configure how many subregistry links the name's history holds for `nameHash` (a
+   * `viem` `namehash()` value).
+   *
+   * Defaults to `0` ("never configured") for any namehash not explicitly set
+   * — the common case for tests that don't care about registry history.
+   * Passing `null` reproduces the indexer's "declined to answer" state
+   * (`useSubregistrySlot` reads that as `error`, not `never-configured`).
+   */
+  function setSubregistryHistory(nameHash: string, totalCount: number | null) {
+    subregistryHistory.set(nameHash.toLowerCase(), totalCount)
+  }
+
+  // -------------------------------------------------------------------------
+  // bigname REST (manager)
+  // -------------------------------------------------------------------------
+
   const findDomain = (name: string) =>
     domains.find((d) => d.name.toLowerCase() === name.toLowerCase())
 
   const resolverOf = (d: MockDomain) =>
     d.resolver ?? ((d.records?.length ?? 0) > 0 ? MOCK_RESOLVER_ADDRESS : null)
 
-  const nowSeconds = () => Math.floor(Date.now() / 1000)
+  const nowSeconds = options.nowSeconds ?? (() => Math.floor(Date.now() / 1000))
   const expiryOf = (d: MockDomain) =>
     d.expiryDate ?? nowSeconds() + 28 * 24 * 3600
   const createdOf = (d: MockDomain) => d.createdAt ?? nowSeconds() - 3600
@@ -127,6 +194,8 @@ export function createBignameMock() {
         : {
             owner,
             manager: owner,
+            // The portal reads a name's role history by its registration.
+            registration_id: `mock-registration-${namehash(d.name)}`,
             // An ENSv1 name in grace keeps its owner but reads expired.
             status: isPastExpiry(d) ? 'expired' : 'active',
           }),
@@ -164,13 +233,13 @@ export function createBignameMock() {
   function recordGroups(d: MockDomain) {
     if (!resolverOf(d)) return undefined
     return {
-      seen_addresses: [],
+      seen_addresses: d.recordInventory?.knownKeys.filter(k => k.startsWith('addr:')).map(k => k.slice(5)) ?? [],
       addresses: {},
       seen_texts: d.records?.map((r) => r.key) ?? [],
       texts: {},
-      seen_abis: [],
+      seen_abis: d.recordInventory?.abiContentTypes.map(String) ?? [],
       abis: {},
-      seen_singletons: [],
+      seen_singletons: d.recordInventory?.knownKeys.filter(k => ['contenthash', 'pubkey', 'name'].includes(k)) ?? [],
     }
   }
 
@@ -239,7 +308,7 @@ export function createBignameMock() {
   }
 
   function nameRecords(d: MockDomain) {
-    const keys = d.records?.map((r) => `text:${r.key}`) ?? []
+    const keys = d.recordInventory?.knownKeys ?? d.records?.map((r) => `text:${r.key}`) ?? []
     return {
       data: {
         namespace: 'ens',
@@ -251,7 +320,7 @@ export function createBignameMock() {
           known_keys: keys,
           unset_keys: [],
           unsupported_keys: [],
-          abi_content_types: [],
+          abi_content_types: d.recordInventory?.abiContentTypes.map(String) ?? [],
         },
       },
       meta: META,
@@ -309,6 +378,49 @@ export function createBignameMock() {
       path: /^\/v1\/addresses\/([^/]+)\/names$/,
       reply: ({ match, params }) => ok(addressNames(match[1] ?? '', params)),
     },
+    {
+      method: 'GET',
+      path: /^\/v1\/registries\/\d+\/([^/]+)\/labels$/,
+      reply: ({ match, params }) => {
+        const occupants = registryOccupants.get(match[1]?.toLowerCase() ?? '')
+        if (!occupants) return notFound
+        // has_more makes the portal ask for the third-party count separately.
+        const count = params.has('exclude_owner')
+          ? occupants.thirdPartyCount
+          : occupants.count
+        return ok({
+          ...EMPTY_PAGE,
+          page: { ...EMPTY_PAGE.page, has_more: true, total_count: count },
+        })
+      },
+    },
+    {
+      method: 'GET',
+      path: /^\/v1\/names\/([^/]+)\/history$/,
+      reply: ({ match, params }) => {
+        if (params.get('type') !== 'subregistry') return ok(EMPTY_PAGE)
+        const links = subregistryHistory.get(
+          namehash(decodeURIComponent(match[1] ?? '')).toLowerCase(),
+        )
+        // null is the indexer declining to answer: no rows, but more to read.
+        if (links === null)
+          return ok({
+            ...EMPTY_PAGE,
+            page: { ...EMPTY_PAGE.page, has_more: true },
+          })
+        return ok({
+          ...EMPTY_PAGE,
+          data: Array.from({ length: links ?? 0 }, (_, index) => ({
+            type: 'subregistry',
+            name: decodeURIComponent(match[1] ?? ''),
+            block_number: index + 1,
+            log_index: 0,
+            contract_address: null,
+            data: { action: 'subregistry_changed' },
+          })),
+        })
+      },
+    },
     // Nothing the tests register has children or indexed events yet.
     {
       method: 'GET',
@@ -345,6 +457,13 @@ export function createBignameMock() {
       method: 'GET',
       path: /^\/v1\/(registries|resolvers)\/[^/]+\/[^/]+$/,
       reply: () => notFound,
+    },
+    // Root role holders: none the mock knows of, and the list is complete.
+    {
+      method: 'GET',
+      path: /^\/v1\/permissions$/,
+      reply: () =>
+        ok({ ...EMPTY_PAGE, meta: { ...META, completeness: 'full' } }),
     },
     {
       method: 'GET',
@@ -404,8 +523,10 @@ export function createBignameMock() {
   }
 
   async function install(page: Page) {
-    // Any bigname deployment, e.g. https://sepolia.api.bigname.sh/v1/...
-    await page.route(/bigname\.sh\/v1\//, routeHandler)
+    // Any bigname deployment, e.g. https://sepolia.api.bigname.sh/v1/..., and
+    // the local one (e2e/infra/bigname) for a CI-mode run against a dev server
+    // that points at it.
+    await page.route(/(?:bigname\.sh|(?:localhost|127\.0\.0\.1):\d+)\/v1\//, routeHandler)
   }
 
   /** Whether the mock should be active (set E2E_MOCK_BIGNAME=true). */
@@ -420,5 +541,14 @@ export function createBignameMock() {
     await install(page)
   }
 
-  return { install, installIfEnabled, addName, removeName, domains, enabled }
+  return {
+    install,
+    installIfEnabled,
+    addName,
+    removeName,
+    domains,
+    enabled,
+    setRegistryOccupants,
+    setSubregistryHistory,
+  }
 }

@@ -12,7 +12,8 @@
     "seed:name": "tsx scripts/seed-name.ts",
     "seed:premium": "tsx scripts/seed-temp-premium.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "biome check"
+    "lint": "biome check",
+    "test:migration-matrix": "node scripts/run-migration-matrix.mjs"
   },
   "postinstall": "playwright install --with-deps chromium",
   "dependencies": {

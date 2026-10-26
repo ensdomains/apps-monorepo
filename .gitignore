@@ -11,6 +11,7 @@ package-lock.json
 .pnpm-store/
 opencode.json
 e2e/test-results/*
+e2e/.migration-matrix-runs/
 .security-audit/
 # E2E infra secrets (Linear OAuth for the dqa service, etc.)
 e2e/infra/.env

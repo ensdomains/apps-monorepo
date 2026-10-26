@@ -15,7 +15,7 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { setRecords } from '@ensdomains/ensjs/wallet/v1'
+import { setRecords } from '@ensdomains/ensjs/wallet/v2'
 
 import {
   permissionedRegistryGetExpirySnippet,
@@ -43,6 +43,7 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import { V1_PUBLIC_RESOLVER } from './makeV1Name.js'
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
@@ -52,8 +53,17 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 const ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
 const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 const MOCK_USDC = ensjsSepolia.usdc.address
-// Shared dedicated resolver for names that don't need custom records
-const DEDICATED_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
+// Shared resolver for names that don't need custom records.
+//
+// This is `V1_PUBLIC_RESOLVER` from makeV1Name.ts — the PublicResolver
+// deployed for this project's own V1 fixture stack, confirmed by its
+// constructor args on Sepolia Etherscan: `_ens` == V1_ENS_REGISTRY, and
+// `_trustedETHController` == the V1 fixture's controller. It answers
+// addr/text/name/pubkey reads (returning zero/empty when unset) but is not
+// writable on behalf of a V2 name's owner, since its authorisation checks
+// ownership against the V1 registry, not the V2 one — which is exactly why
+// `hasRecords` below deploys a dedicated per-name PermissionedResolver proxy
+// instead of writing through this one. See coverage/handoff.md, iteration 15.
 const PERMISSIONED_RESOLVER_IMPL =
   ensjsSepolia.ensPermissionedResolverImpl.address
 const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
@@ -101,6 +111,11 @@ export type NameConfig = {
   /** The label (without `.eth`). A timestamp suffix is appended for uniqueness. */
   label: string
   /**
+   * Register `label` verbatim, without the timestamp suffix. For a rival
+   * registrant that must take the exact label another flow committed to.
+   */
+  exactLabel?: boolean
+  /**
    * Duration in seconds.
    *  - Positive: name will expire this many seconds from now.
    *  - Negative: name will have expired |duration| seconds ago
@@ -111,7 +126,7 @@ export type NameConfig = {
   /**
    * Optional text records to set on the resolver after registration.
    * When provided, a dedicated PermissionedResolver proxy is deployed
-   * (instead of using the shared DEDICATED_RESOLVER) so the owner
+   * (instead of using the shared V1_PUBLIC_RESOLVER) so the owner
    * has permission to call setText.
    */
   records?: { key: string; value: string }[]
@@ -141,6 +156,10 @@ async function waitForTx(hash: Hash) {
   return publicClient.waitForTransactionReceipt({ hash })
 }
 
+function resolveLabel(config: NameConfig, timestamp: number) {
+  return config.exactLabel ? config.label : `${config.label}-${timestamp}`
+}
+
 function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms))
 }
@@ -167,7 +186,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
     const ownerAddress = accounts.getAddress(ownerKey)
     const ownerAccount = privateKeyToAccount(accounts.getPrivateKey(ownerKey))
     const timestamp = Math.floor(Date.now() / 1000)
-    const uniqueLabel = `${config.label}-${timestamp}`
+    const uniqueLabel = resolveLabel(config, timestamp)
 
     // Determine actual on-chain duration and the desired gap past expiry
     const requestedDuration = config.duration ?? MIN_REGISTRATION_DURATION
@@ -215,7 +234,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
     await waitForTx(mintTx)
 
     // ── 1a. Deploy dedicated resolver proxy if records are needed ───
-    let resolverAddress: Address = DEDICATED_RESOLVER
+    let resolverAddress: Address = V1_PUBLIC_RESOLVER
     if (hasRecords) {
       resolverAddress = await deployResolverProxy(uniqueLabel, ownerAddress)
       console.log(`[makeName] resolver proxy: ${resolverAddress}`)
