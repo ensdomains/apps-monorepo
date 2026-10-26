@@ -22,6 +22,11 @@ import {
   saveRecords,
 } from './profileRecordTransactions'
 import { type ResolverImport, verifyResolverRecords } from './resolverImport'
+import {
+  assertResolverRecordReview,
+  getResolverReplacementRecords,
+  type ResolverRecordReview,
+} from './resolverReplacementRecords'
 import { canSetNameResolver } from './setResolverAccess'
 
 export class ResolverChangeNotAuthorizedError extends Error {
@@ -110,6 +115,7 @@ export interface SetupControlledResolverParams {
   readonly sourceResolver?: Address
   readonly assertCurrentIdentity?: () => void
   readonly resolverImport?: ResolverImport
+  readonly recordReview?: ResolverRecordReview
 }
 
 /**
@@ -140,24 +146,23 @@ export async function setupControlledResolver({
   sourceResolver,
   assertCurrentIdentity,
   resolverImport,
+  recordReview,
 }: SetupControlledResolverParams): Promise<Address> {
   if (resolverImport?.blockedKeys.length || resolverImport?.records.pubkey)
     throw new Error(
       'Some source records cannot be preserved. Retry the import before replacing the resolver.',
     )
-  const reviewedRecords: ServiceRecordSnapshot = {
-    ...after,
-    ...(resolverImport
-      ? {
-          interfaces: resolverImport.records.interfaces,
-          data: resolverImport.records.data,
-        }
-      : {}),
-  }
+  const reviewedRecords = getResolverReplacementRecords(before, after)
+  if (recordReview) assertResolverRecordReview(reviewedRecords, recordReview)
   const location = await resolveNameRegistry(qualifyName(name), publicClient)
   const source =
     sourceResolver ?? (await readNameResolver(location, publicClient))
   const assertFresh = async () => {
+    if (recordReview)
+      assertResolverRecordReview(
+        getResolverReplacementRecords(before, after),
+        recordReview,
+      )
     assertCurrentIdentity?.()
     const [walletChain, wallets, currentLocation] = await Promise.all([
       signer.walletClient.getChainId(),
@@ -250,8 +255,7 @@ export async function setupControlledResolver({
     await assertFresh()
     await saveRecords({
       name,
-      // The target is cleared: seed every reviewed value, including unchanged
-      // source records, rather than only the source before/after difference.
+      // Seed only explicit changes; inherited source records are never copied.
       before: { texts: [], coins: [] },
       after: reviewedRecords,
       shouldClearRecords: true,
@@ -261,6 +265,7 @@ export async function setupControlledResolver({
       chainId,
       resolverAddress: resolver,
       assertCurrentIdentity,
+      assertCurrentResolver: assertFresh,
     })
   }
 

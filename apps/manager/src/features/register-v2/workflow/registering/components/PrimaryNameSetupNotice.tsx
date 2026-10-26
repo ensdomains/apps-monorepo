@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro'
-import { AlertCircle } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { RegisterV2Context } from '../../../state/registrationUi.context'
 
 const usePostRegistrationSetupFailed = RegisterV2Context.createSelector(
@@ -17,17 +18,13 @@ export const PrimaryNameSetupNotice = () => {
   if (!setupFailed) return null
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-ens-orange-light bg-ens-yellow-light p-4">
-      <AlertCircle
-        aria-hidden="true"
-        className="h-4 w-4 shrink-0 text-ens-orange"
-      />
-      <p className="text-ens-gray text-sm leading-5">
+    <Alert icon={<CircleAlert className="size-4" />} variant="warning">
+      <AlertDescription>
         <Trans>
           Your name was registered, but we couldn't set it as your primary name.
           You can set it anytime from your profile.
         </Trans>
-      </p>
-    </div>
+      </AlertDescription>
+    </Alert>
   )
 }

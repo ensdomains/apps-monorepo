@@ -1,9 +1,8 @@
 import { Loader2Icon } from 'lucide-react'
-import { TelegramIcon } from '@/components/icons/telegram'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-export type ContactMethodCardVariant = 'default' | 'tg' | 'browser-not'
+export type ContactMethodCardVariant = 'default' | 'browser-not'
 
 export interface ContactMethodCardProps {
   icon: React.ReactNode
@@ -25,39 +24,6 @@ export interface ContactMethodCardProps {
    */
   children?: React.ReactNode
 }
-
-const TelegramActionButton = ({
-  label,
-  onClick,
-  disabled,
-  loading,
-}: {
-  label: React.ReactNode
-  onClick?: () => void
-  disabled?: boolean
-  loading?: boolean
-}) => (
-  <button
-    className={cn(
-      'flex h-[50px] w-full items-center justify-center gap-2 rounded-full bg-[#54a9ec] px-4 py-3',
-      'md:w-auto md:min-w-[179px]',
-      'transition-colors hover:bg-[#3b95d8] active:bg-[#2a82c2]',
-      'disabled:cursor-not-allowed disabled:bg-[#a0c8e6]',
-    )}
-    disabled={disabled || loading}
-    onClick={onClick}
-    type="button"
-  >
-    {loading ? (
-      <Loader2Icon className="size-5 shrink-0 animate-spin text-white" />
-    ) : (
-      <TelegramIcon className="size-5 shrink-0 text-ens-white" />
-    )}
-    <span className="whitespace-nowrap font-normal text-sm text-white leading-ens-normal">
-      {label}
-    </span>
-  </button>
-)
 
 const BrowserActionButton = ({
   label,
@@ -118,8 +84,6 @@ const renderVariantAction = (
   },
 ) => {
   switch (variant) {
-    case 'tg':
-      return <TelegramActionButton {...props} />
     case 'browser-not':
       return <BrowserActionButton {...props} />
     case 'default':

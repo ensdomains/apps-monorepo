@@ -1,8 +1,6 @@
-import type { TelegramAuthData } from '@ens-apps/shared-schema/telegram'
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import type { InferResponseType } from 'hono'
-import { loginWithTelegramPopup } from '@/features/notifications/utils/telegram/auth'
 import { backendClient } from '@/utils/backend-client'
 
 // Types
@@ -67,38 +65,6 @@ export const addEmailChannelMutationOptions = mutationOptions({
       const error = await response.json()
       throw new Error(
         'error' in error ? error.error : 'Failed to add email channel',
-      )
-    }
-
-    return response.json()
-  },
-  meta: {
-    invalidates: [
-      $qk({
-        $scope: 'channels',
-      }),
-    ],
-  },
-})
-
-export const telegramAuthMutationOptions = mutationOptions({
-  mutationFn: async (): Promise<TelegramAuthData> => {
-    return await loginWithTelegramPopup({
-      requestAccess: 'write',
-    })
-  },
-})
-
-export const addTelegramChannelMutationOptions = mutationOptions({
-  mutationFn: async ({ auth_data }: { auth_data: TelegramAuthData }) => {
-    const response = await backendClient.notifications.channels.telegram.$post({
-      json: { auth_data },
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(
-        'error' in error ? error.error : 'Failed to add Telegram channel',
       )
     }
 

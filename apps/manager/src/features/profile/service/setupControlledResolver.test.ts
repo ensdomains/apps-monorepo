@@ -1,4 +1,10 @@
-import type { Address, PublicClient, WalletClient } from 'viem'
+import {
+  type Address,
+  decodeFunctionData,
+  type PublicClient,
+  parseAbi,
+  type WalletClient,
+} from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@ens-apps/transaction-manager', () => ({
@@ -110,12 +116,163 @@ const submittedRequests = () =>
 
 beforeEach(() => {
   vi.clearAllMocks()
+  writeRecords.mockReset()
   findExisting.mockResolvedValue(null)
   checkSetResolverAccess.mockResolvedValue(true)
   locateRegistry.mockResolvedValue(LOCATION)
 })
 
 describe('setupControlledResolver', () => {
+  it('replaces a resolver with an explicitly reviewed empty profile without copying inherited records or target defaults', async () => {
+    const { saveRecords: realSaveRecords } = await vi.importActual<
+      typeof import('./profileRecordTransactions')
+    >('./profileRecordTransactions')
+    writeRecords.mockImplementationOnce(realSaveRecords)
+    await setupControlledResolver({
+      name: 'transferred.eth',
+      signer,
+      ownerAddress: OWNER,
+      chainId: CHAIN_ID,
+      publicClient: {
+        multicall: async () => [{ status: 'success', result: true }],
+      } as unknown as PublicClient,
+      before: {
+        texts: [
+          { key: 'com.twitter', value: 'https://twitter.com/previousowner' },
+        ],
+        coins: [],
+      },
+      after: { texts: [], coins: [] },
+      recordReview: { editedKeys: ['text:com.twitter'], writes: [] },
+    })
+    const request = submittedRequests().find(
+      (request) => 'to' in request && request.to === RESOLVER,
+    )
+    if (!request || !('data' in request) || !request.data)
+      throw new Error('Missing resolver transaction')
+    const batch = decodeFunctionData({
+      abi: parseAbi(['function multicall(bytes[] data)']),
+      data: request.data,
+    }).args[0]
+    const abi = parseAbi([
+      'function linkToRecord(bytes,uint256)',
+      'function setText(bytes,string,string)',
+    ])
+    expect(
+      batch.map((data) => {
+        const call = decodeFunctionData({ abi, data })
+        return { name: call.functionName, args: call.args.slice(1) }
+      }),
+    ).toEqual([
+      { name: 'linkToRecord', args: [0n] },
+      { name: 'setText', args: ['description', ''] },
+    ])
+    expect(verifyResolverRecords).toHaveBeenCalledWith(
+      'transferred.eth',
+      RESOLVER,
+      { texts: [], coins: [] },
+      expect.anything(),
+    )
+  })
+
+  it('writes only description when replacing a transferred name with nine inherited URL-shaped socials', async () => {
+    const inherited = [
+      ['com.twitter', 'https://twitter.com/previousowner'],
+      ['org.telegram', 'https://t.me/previousowner'],
+      ['com.github', 'https://github.com/previousowner'],
+      ['com.instagram', 'https://instagram.com/previousowner'],
+      ['com.linkedin', 'https://linkedin.com/in/previousowner'],
+      ['com.reddit', 'https://reddit.com/u/previousowner'],
+      ['com.twitch', 'https://twitch.tv/previousowner'],
+      ['com.youtube', 'https://youtube.com/@previousowner'],
+      ['com.tiktok', 'https://tiktok.com/@previousowner'],
+    ].map(([key = '', value = '']) => ({ key, value }))
+    const { saveRecords: realSaveRecords } = await vi.importActual<
+      typeof import('./profileRecordTransactions')
+    >('./profileRecordTransactions')
+    writeRecords.mockImplementationOnce(realSaveRecords)
+    const inheritedRecords = {
+      texts: inherited,
+      coins: [{ coinType: 60, value: OWNER }],
+      contentHash:
+        'ipfs://bafybeibj6lixxzqtsb45ysdjnupvqkufgdvzqbnvmhw2kf7cfkesy7r7d4',
+      abi: '[]',
+    }
+    await setupControlledResolver({
+      name: 'transferred.eth',
+      signer,
+      ownerAddress: OWNER,
+      publicClient: {
+        multicall: async () => [{ status: 'success', result: true }],
+      } as unknown as PublicClient,
+      chainId: CHAIN_ID,
+      before: inheritedRecords,
+      after: {
+        ...inheritedRecords,
+        texts: [...inherited, { key: 'description', value: 'My description' }],
+      },
+      recordReview: {
+        editedKeys: ['text:description'],
+        writes: [{ key: 'text:description', value: 'My description' }],
+      },
+    })
+    const recordRequest = submittedRequests().find(
+      (request) => 'to' in request && request.to === RESOLVER,
+    )
+    if (!recordRequest || !('data' in recordRequest) || !recordRequest.data)
+      throw new Error('Missing resolver transaction')
+    const batch = decodeFunctionData({
+      abi: parseAbi(['function multicall(bytes[] data)']),
+      data: recordRequest.data,
+    }).args[0]
+    const abi = parseAbi([
+      'function linkToRecord(bytes,uint256)',
+      'function setText(bytes,string,string)',
+    ])
+    const setters = batch
+      .map((data) => decodeFunctionData({ abi, data }))
+      .filter((call) => call.functionName === 'setText')
+    expect(setters.map((call) => call.args.slice(1))).toEqual([
+      ['description', 'My description'],
+    ])
+    expect(verifyResolverRecords).toHaveBeenCalledWith(
+      'transferred.eth',
+      RESOLVER,
+      { texts: [{ key: 'description', value: 'My description' }], coins: [] },
+      expect.anything(),
+    )
+  })
+
+  it.each([
+    { editedKeys: [], value: 'My description', error: /not edited/ },
+    {
+      editedKeys: ['text:description'],
+      value: 'Changed after review',
+      error: /review/,
+    },
+  ])(
+    'rejects an unedited or unreviewed write before any transaction: $value',
+    async ({ editedKeys, value, error }) => {
+      await expect(
+        setupControlledResolver({
+          name: 'leon.eth',
+          signer,
+          ownerAddress: OWNER,
+          publicClient,
+          chainId: CHAIN_ID,
+          before: { texts: [], coins: [] },
+          after: { texts: [{ key: 'description', value }], coins: [] },
+          recordReview: {
+            editedKeys,
+            writes: [{ key: 'text:description', value: 'My description' }],
+          },
+        }),
+      ).rejects.toThrow(error)
+      expect(startTransaction).not.toHaveBeenCalled()
+      expect(writeRecords).not.toHaveBeenCalled()
+    },
+  )
+
   it('refuses a blocked import before sending any transaction', async () => {
     const resolverImport: ResolverImport = {
       source: {
@@ -144,7 +301,7 @@ describe('setupControlledResolver', () => {
     expect(writeRecords).not.toHaveBeenCalled()
   })
 
-  it('seeds and verifies imported interface and data records before switching the pointer', async () => {
+  it('does not copy unedited imported interface and data records to the replacement', async () => {
     const supplemental = {
       interfaces: [{ interfaceId: '0x12345678' as const, implementer: OWNER }],
       data: [{ key: 'binary', value: '0x00ff' as const }],
@@ -171,21 +328,16 @@ describe('setupControlledResolver', () => {
       after: { texts: [], coins: [] },
       resolverImport,
     })
-    expect(writeRecords).toHaveBeenCalledWith(
-      expect.objectContaining({
-        after: { texts: [], coins: [], ...supplemental },
-      }),
-    )
+    expect(writeRecords).not.toHaveBeenCalled()
     expect(verifyResolverRecords).toHaveBeenCalledWith(
       'leon.eth',
       RESOLVER,
-      { texts: [], coins: [], ...supplemental },
+      { texts: [], coins: [] },
       publicClient,
     )
     const [verifiedAt] = vi.mocked(verifyResolverRecords).mock
       .invocationCallOrder
     if (verifiedAt === undefined) throw new Error('Records were not verified')
-    expect(writeRecords.mock.invocationCallOrder[0]).toBeLessThan(verifiedAt)
     expect(startTransaction.mock.invocationCallOrder.at(-1)).toBeGreaterThan(
       verifiedAt,
     )
@@ -234,7 +386,7 @@ describe('setupControlledResolver', () => {
         resolverAddress: RESOLVER,
         shouldClearRecords: true,
         before: { texts: [], coins: [] },
-        after: snapshots.after,
+        after: { texts: [], coins: [{ coinType: 60, value: OWNER }] },
       }),
     )
     expect(startTransaction.mock.invocationCallOrder[0]).toBeLessThan(

@@ -7,6 +7,7 @@ import {
   useAtomicBatchSupport,
 } from '@ens-apps/transaction-manager'
 import { useQueryClient } from '@tanstack/react-query'
+import { useSearch } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
@@ -79,6 +80,7 @@ type TokenPayment = {
 // a discriminated union (rather than two nullable slots) makes "which flow" a
 // stored fact, so illegal "both set" states are unrepresentable.
 type SingleFlow = TokenPayment & {
+  readonly referrer?: string
   readonly kind: 'single'
   readonly selectedName: SelectedName
   readonly duration: number
@@ -97,6 +99,7 @@ export type RenewerPayment = {
 }
 
 type MultiFlow = {
+  readonly referrer?: string
   readonly kind: 'multi'
   readonly renewals: readonly MultiRenewalEntry[]
   readonly tokenAddress: Address
@@ -234,6 +237,7 @@ function buildSingleRenewalBundle(
     buildRenewIntent({
       name: single.selectedName.name,
       duration: single.duration,
+      referrer: single.referrer,
       tokenAddress: single.tokenAddress,
       from,
       publicClient,
@@ -294,6 +298,7 @@ function buildMultiTransactions({
               })
             : buildRenewBatchIntent({
                 renewals: step.renewals,
+                referrer: multiFlow.referrer,
                 renewer: step.renewer,
                 tokenAddress,
                 from: account,
@@ -373,6 +378,7 @@ function buildMultiTransactions({
             : ({ walletClient }) =>
                 buildRenewBatchIntent({
                   renewals: step.renewals,
+                  referrer: multiFlow.referrer,
                   renewer: step.renewer,
                   tokenAddress,
                   from: walletClient.account.address,
@@ -381,6 +387,7 @@ function buildMultiTransactions({
             transactionManager.startTransaction(
               buildRenewBatchIntent({
                 renewals: step.renewals,
+                referrer: multiFlow.referrer,
                 renewer: step.renewer,
                 tokenAddress,
                 from,
@@ -409,6 +416,7 @@ function buildMultiTransactions({
 export const useRenewalTransactions = ({
   onComplete,
 }: UseRenewalTransactionsOptions = {}) => {
+  const { referrer } = useSearch({ strict: false })
   const config = useConfig()
   const connection = useConnection()
   const publicClient = usePublicClient()
@@ -533,6 +541,7 @@ export const useRenewalTransactions = ({
       {
         name: flow.selectedName.name,
         duration: flow.duration,
+        referrer: flow.referrer,
         tokenAddress: flow.tokenAddress,
         from: runtime.from,
         publicClient: runtime.publicClient,
@@ -592,6 +601,7 @@ export const useRenewalTransactions = ({
                   buildRenewIntent({
                     name: single.selectedName.name,
                     duration: single.duration,
+                    referrer: single.referrer,
                     tokenAddress: single.tokenAddress,
                     from: walletClient.account.address,
                     publicClient,
@@ -658,6 +668,7 @@ export const useRenewalTransactions = ({
     }
     setFlow({
       kind: 'single',
+      referrer,
       selectedName: name,
       duration: flowConfig.duration,
       tokenAddress: flowConfig.tokenAddress,
@@ -679,6 +690,7 @@ export const useRenewalTransactions = ({
     }
     setFlow({
       kind: 'multi',
+      referrer,
       // No v1 filter here anymore: the caller (names table) already excludes v1
       // names that aren't on-chain renewable, and each renew targets its own
       // renewer. v1 + v2 names can share a batch.

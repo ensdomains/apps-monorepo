@@ -1,3 +1,4 @@
+import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
 import { buttonVariants } from '@/components/ui/button'
@@ -64,6 +65,16 @@ export const RegistrationExpiryDatePicker = ({
   const disabled = (date: Date) => {
     return !isDateWithinCalendarRange(dateToPlainDate(date), minDate, maxDate)
   }
+
+  // Hidden testing shortcut: typing MIN while the calendar is open jumps to the
+  // shortest allowed span for both registration and renewal.
+  useHotkeySequence(['M', 'I', 'N'], () => handleSelect(minDateForCalendar), {
+    enabled: isOpen,
+    ignoreInputs: true,
+    preventDefault: false,
+    stopPropagation: false,
+    timeout: 1000,
+  })
 
   return (
     <div className="space-y-5">

@@ -1,7 +1,10 @@
 import { authorizedPaymentAmount } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
+import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
+import { useSearch } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
+import { match } from 'ts-pattern'
 import type { WalletClient } from 'viem'
 import { useConnection } from 'wagmi'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
@@ -10,7 +13,7 @@ import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPr
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { useIsAwaitingRenewalApproval } from '@/features/renew/state/renewalUi.selectors'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
-import { type RENEWAL_TOKEN, RENEWAL_TOKEN_SYMBOLS, TOKENS } from '@/lib/tokens'
+import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { useRenewalIntentFunding } from '../useRenewalIntentFunding'
 
@@ -71,6 +74,25 @@ export const TokenPickerContent = () => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
+  const isFullyCovered = funding?.walletDebit === 0
+  const nextMessage = match({
+    isAwaitingApproval,
+    isIntentRoute,
+    isQuoting,
+    isFullyCovered,
+  })
+    .with({ isAwaitingApproval: true, isIntentRoute: true }, () => (
+      <Trans>Signing renewal…</Trans>
+    ))
+    .with({ isAwaitingApproval: true }, () => <Trans>Approve in wallet</Trans>)
+    .with({ isQuoting: true }, () => <Trans>Calculating total…</Trans>)
+    .with({ isIntentRoute: true, isFullyCovered: true }, () => (
+      <Trans>Sign renewal</Trans>
+    ))
+    .with({ isIntentRoute: true }, () => <Trans>Continue in wallet</Trans>)
+    .otherwise(() => <Trans>Renew name</Trans>)
+
+  const { referrer } = useSearch({ strict: false })
   const startRenewal = () => {
     if (
       !pricingQuery.data ||
@@ -83,6 +105,7 @@ export const TokenPickerContent = () => {
     }
     uiActor.send({
       type: 'renewal.start',
+      referrer: normalizeReferrer(referrer),
       label,
       signer,
       ownerAddress,
@@ -96,14 +119,31 @@ export const TokenPickerContent = () => {
 
   return (
     <TokenPickerContentBase
-      acceptedTokens={RENEWAL_TOKEN_SYMBOLS}
       // With a funding summary the credit is already inside it.
       accountCredit={funding ? undefined : balances.accountCredit}
       canProceed={canStart}
       {...(isIntentRoute && pricingQuery.data
         ? { fundedAmount: pricingQuery.data.funded }
         : {})}
+      fullyCoveredMessage={
+        <Trans>
+          No additional payment needed. You'll still sign the renewal.
+        </Trans>
+      }
       funding={funding}
+      helpMessage={
+        isIntentRoute ? (
+          <Trans>
+            If your wallet needs to pay, it first asks you to sign a payment
+            approval for up to the amount due. You then sign the renewal itself.
+          </Trans>
+        ) : (
+          <Trans>
+            Your wallet asks you to approve the payment if needed, then to
+            confirm the renewal transaction.
+          </Trans>
+        )
+      }
       isBusy={isAwaitingApproval}
       isConnected={isConnected}
       isLoadingBalances={balances.isLoading}
@@ -115,13 +155,7 @@ export const TokenPickerContent = () => {
           It is collected together with the renewal price, in the same approval.
         </Trans>
       }
-      nextMessage={
-        isAwaitingApproval ? (
-          <Trans>Approve in wallet</Trans>
-        ) : (
-          <Trans>Renew name</Trans>
-        )
-      }
+      nextMessage={nextMessage}
       onNext={startRenewal}
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.price}
@@ -129,6 +163,8 @@ export const TokenPickerContent = () => {
       selectedToken={selectedToken}
       showNetworkFeeDetails={isIntentRoute}
       stablecoinBalances={balances.wallet}
+      subtitle={<Trans>Renew name</Trans>}
+      totalLabel={<Trans>Renewal total</Trans>}
       walletDebitFor={walletDebitFor}
     />
   )

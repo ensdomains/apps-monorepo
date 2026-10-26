@@ -18,6 +18,7 @@ const V2_NAME = 'ensv2sg2.eth'
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 vi.mock('@tanstack/react-router', () => ({
+  useSearch: () => ({}),
   Link: ({
     children,
     to,
