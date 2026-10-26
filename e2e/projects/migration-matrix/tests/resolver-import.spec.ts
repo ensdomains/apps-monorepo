@@ -425,14 +425,12 @@ for (const c of configs.filter((c) => selected.includes(c.config_id))) {
               .filter({ hasText: /Resolver replacement is blocked/ }),
           ).toBeVisible()
           await expect(
-            page
-              .getByRole('alert')
-              .filter({
-                hasText:
-                  variant === 'missing-inventory'
-                    ? /record inventory/
-                    : /text:url/,
-              }),
+            page.getByRole('alert').filter({
+              hasText:
+                variant === 'missing-inventory'
+                  ? /record inventory/
+                  : /text:url/,
+            }),
           ).toBeVisible()
           await expect(acknowledge).toBeDisabled()
           expect((await currentResolver()).toLowerCase()).toBe(

@@ -6,6 +6,7 @@ import { afterPermissions, v2State } from '../probes.js'
 import { chainActivity } from '../record-evidence.js'
 import { account, recordBundle } from '../seed.js'
 
+// biome-ignore lint/correctness/noEmptyPattern: Playwright requires destructured fixture dependencies even when only TestInfo is used.
 test('corrected transfer oracle on the exact renewed and migrated split-manager fixture', async ({}, info) => {
   const source = process.env.APPROVAL_GRACE_PERMISSION_SOURCE!
   const prior = JSON.parse(readFileSync(source, 'utf8'))

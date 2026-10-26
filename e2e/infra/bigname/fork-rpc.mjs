@@ -33,7 +33,8 @@ const VERIFY_UNKNOWN_TX = process.env.FORK_RPC_VERIFY_UNKNOWN_TX === '1'
 // transaction, and it must never forward writes to the public network.
 const HISTORY_CACHE = process.env.FORK_RPC_HISTORY_CACHE === '1'
 const FIXED_FORK_BLOCK = process.env.FORK_RPC_FIXED_FORK_BLOCK
-if (HISTORY_CACHE && !FIXED_FORK_BLOCK) throw new Error('History cache requires an explicit verified fork block')
+if (HISTORY_CACHE && !FIXED_FORK_BLOCK)
+  throw new Error('History cache requires an explicit verified fork block')
 if (!UPSTREAM && !OFFLINE)
   throw new Error('UPSTREAM_RPC_URL is required (or FORK_RPC_OFFLINE=1)')
 const CACHE_DIR = process.env.CACHE_DIR
@@ -63,7 +64,13 @@ async function cached(request) {
 async function store(request, reply) {
   // Only a real answer is worth keeping: an error or a null (a hash upstream
   // does not know) may change.
-  if (!CACHE_DIR || process.env.CACHE_READ_ONLY === '1' || reply.error || reply.result == null) return
+  if (
+    !CACHE_DIR ||
+    process.env.CACHE_READ_ONLY === '1' ||
+    reply.error ||
+    reply.result == null
+  )
+    return
   const file = cachePath(request)
   const tmp = `${file}.${process.pid}.tmp`
   await writeFile(tmp, JSON.stringify(reply.result))
@@ -117,18 +124,28 @@ const HISTORICAL_HINT_LIMIT = Number(process.env.HISTORICAL_HINT_LIMIT ?? 50000)
 // upstream must return an actual receipt/transaction at or below the fork.
 // This avoids sending historical hashes back through Anvil, which can fetch
 // every transaction in a remote block and stall local mining.
-const historicalBloom = Buffer.alloc(Number(process.env.HISTORICAL_BLOOM_BYTES ?? 32 * 1024 * 1024))
+const historicalBloom = Buffer.alloc(
+  Number(process.env.HISTORICAL_BLOOM_BYTES ?? 32 * 1024 * 1024),
+)
 function historicalBits(hash) {
   const digest = createHash('sha256').update(hash).digest()
-  return [0, 4, 8, 12].map(offset => digest.readUInt32LE(offset) % (historicalBloom.length * 8))
+  return [0, 4, 8, 12].map(
+    (offset) => digest.readUInt32LE(offset) % (historicalBloom.length * 8),
+  )
 }
 function maybeHistorical(hash) {
-  return typeof hash === 'string' && historicalBits(hash).every(bit => (historicalBloom[bit >>> 3] & (1 << (bit & 7))) !== 0)
+  return (
+    typeof hash === 'string' &&
+    historicalBits(hash).every(
+      (bit) => (historicalBloom[bit >>> 3] & (1 << (bit & 7))) !== 0,
+    )
+  )
 }
 function rememberHistoricalHash(hash) {
   if (!hash) return
   historicalTransactions.add(hash)
-  for (const bit of historicalBits(hash)) historicalBloom[bit >>> 3] |= 1 << (bit & 7)
+  for (const bit of historicalBits(hash))
+    historicalBloom[bit >>> 3] |= 1 << (bit & 7)
   // Routing hints only. Immutable RPC answers remain on disk; evicted hashes
   // still fall back to actual Anvil/upstream lookups and are never fabricated.
   while (historicalTransactions.size > HISTORICAL_HINT_LIMIT)
@@ -181,21 +198,33 @@ async function withUpstreamSlot(fn) {
 async function post(url, body) {
   // Publicnode accepts at most ten addresses in one log filter. Preserve the
   // complete query by partitioning addresses, then merging canonical logs.
-  const oversizedLogs = (request) => request?.method === 'eth_getLogs' && Array.isArray(request.params?.[0]?.address) && request.params[0].address.length > 10
+  const oversizedLogs = (request) =>
+    request?.method === 'eth_getLogs' &&
+    Array.isArray(request.params?.[0]?.address) &&
+    request.params[0].address.length > 10
   if (url === UPSTREAM && Array.isArray(body) && body.some(oversizedLogs))
-    return Promise.all(body.map(request => post(url, request)))
+    return Promise.all(body.map((request) => post(url, request)))
   if (url === UPSTREAM && oversizedLogs(body)) {
     const filter = body.params[0]
     const parts = []
     for (let i = 0; i < filter.address.length; i += 10)
-      parts.push({ ...body, params: [{ ...filter, address: filter.address.slice(i, i + 10) }] })
-    const replies = await Promise.all(parts.map(part => post(url, part)))
-    const failed = replies.find(reply => reply.error)
+      parts.push({
+        ...body,
+        params: [{ ...filter, address: filter.address.slice(i, i + 10) }],
+      })
+    const replies = await Promise.all(parts.map((part) => post(url, part)))
+    const failed = replies.find((reply) => reply.error)
     if (failed) return { ...failed, id: body.id }
-    const unique = new Map(replies.flatMap(reply => reply.result).map(log => [`${log.blockHash}:${log.logIndex}`, log]))
+    const unique = new Map(
+      replies
+        .flatMap((reply) => reply.result)
+        .map((log) => [`${log.blockHash}:${log.logIndex}`, log]),
+    )
     const result = [...unique.values()].sort((a, b) => {
       const block = BigInt(a.blockNumber) - BigInt(b.blockNumber)
-      return block ? Number(block) : Number(BigInt(a.logIndex) - BigInt(b.logIndex))
+      return block
+        ? Number(block)
+        : Number(BigInt(a.logIndex) - BigInt(b.logIndex))
     })
     return { jsonrpc: '2.0', id: body.id, result }
   }
@@ -212,12 +241,20 @@ async function post(url, body) {
       const res = await (url === UPSTREAM ? withUpstreamSlot(send) : send())
       if (!res.ok) {
         const detail = (await res.text()).slice(0, 300)
-        if (attempt === 0) console.warn(`[fork-rpc] ${new URL(url).host}: ${res.status} ${detail}`)
-        throw new Error(`${new URL(url).host} answered ${res.status}: ${detail}`)
+        if (attempt === 0)
+          console.warn(
+            `[fork-rpc] ${new URL(url).host}: ${res.status} ${detail}`,
+          )
+        throw new Error(
+          `${new URL(url).host} answered ${res.status}: ${detail}`,
+        )
       }
       const reply = await res.json()
       if (reply?.error && body?.method === 'eth_getLogs' && CACHE_DIR)
-        await writeFile(path.join(CACHE_DIR, 'last-log-error.json'), JSON.stringify({ request: body, error: reply.error }))
+        await writeFile(
+          path.join(CACHE_DIR, 'last-log-error.json'),
+          JSON.stringify({ request: body, error: reply.error }),
+        )
       if (Array.isArray(body) && !Array.isArray(reply))
         throw new Error(`batch answered ${JSON.stringify(reply).slice(0, 200)}`)
       return reply
@@ -250,35 +287,54 @@ async function postUpstreamBatch(requests) {
   // Share in-flight answers across batches as well as individual requests;
   // request IDs belong to the caller and must not be shared with the answer.
   const fresh = []
-  const pending = missing.map(request => {
+  const pending = missing.map((request) => {
     const key = JSON.stringify([request.method, request.params ?? []])
     if (!inFlightUpstream.has(key)) {
       let fulfill, reject
-      const promise = new Promise((yes, no) => { fulfill = yes; reject = no })
+      const promise = new Promise((yes, no) => {
+        fulfill = yes
+        reject = no
+      })
       inFlightUpstream.set(key, promise)
       fresh.push({ request, key, fulfill, reject })
     }
-    return inFlightUpstream.get(key).then(reply => ({ ...reply, id: request.id }))
+    return inFlightUpstream
+      .get(key)
+      .then((reply) => ({ ...reply, id: request.id }))
   })
   const answers = Promise.all(pending)
   const chunks = []
   for (let i = 0; i < fresh.length; i += UPSTREAM_CHUNK)
     chunks.push(fresh.slice(i, i + UPSTREAM_CHUNK))
-  const work = Promise.all(chunks.map(async chunk => {
-    try {
-      const replies = await post(UPSTREAM, chunk.map(entry => entry.request))
-      const byId = new Map(replies.map(reply => [reply.id, reply]))
-      await Promise.all(chunk.map(async entry => {
-        const reply = byId.get(entry.request.id) ?? { jsonrpc: '2.0', id: entry.request.id, error: { code: -32603, message: 'fork-rpc: upstream omitted a batch reply' } }
-        await store(entry.request, reply)
-        entry.fulfill(reply)
-      }))
-    } catch (error) {
-      for (const entry of chunk) entry.reject(error)
-    } finally {
-      for (const entry of chunk) inFlightUpstream.delete(entry.key)
-    }
-  }))
+  const work = Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const replies = await post(
+          UPSTREAM,
+          chunk.map((entry) => entry.request),
+        )
+        const byId = new Map(replies.map((reply) => [reply.id, reply]))
+        await Promise.all(
+          chunk.map(async (entry) => {
+            const reply = byId.get(entry.request.id) ?? {
+              jsonrpc: '2.0',
+              id: entry.request.id,
+              error: {
+                code: -32603,
+                message: 'fork-rpc: upstream omitted a batch reply',
+              },
+            }
+            await store(entry.request, reply)
+            entry.fulfill(reply)
+          }),
+        )
+      } catch (error) {
+        for (const entry of chunk) entry.reject(error)
+      } finally {
+        for (const entry of chunk) inFlightUpstream.delete(entry.key)
+      }
+    }),
+  )
   const [replies] = await Promise.all([answers, work])
   return [...answered, ...replies]
 }
@@ -292,7 +348,10 @@ async function refreshForkBlock() {
       params: [],
     })
     const nextForkBlock = BigInt(result.forkConfig.forkBlockNumber)
-    if (forkBlock !== nextForkBlock) { historicalTransactions.clear(); historicalBloom.fill(0) }
+    if (forkBlock !== nextForkBlock) {
+      historicalTransactions.clear()
+      historicalBloom.fill(0)
+    }
     forkBlock = nextForkBlock
   } catch (error) {
     console.error(`[fork-rpc] cannot read the fork block: ${error.message}`)
@@ -311,9 +370,19 @@ const hex = (n) => `0x${n.toString(16)}`
 function route(request) {
   const { method, params = [] } = request
   if (HISTORY_CACHE) {
-    if (['eth_getTransactionReceipt', 'eth_getTransactionByHash'].includes(method)) return 'upstream'
-    if (method === 'eth_getBlockByNumber' && atOrBelowFork(params[0])) return 'upstream'
-    if (method === 'eth_getLogs' && !params[0]?.blockHash && atOrBelowFork(params[0]?.fromBlock) && atOrBelowFork(params[0]?.toBlock)) return 'upstream'
+    if (
+      ['eth_getTransactionReceipt', 'eth_getTransactionByHash'].includes(method)
+    )
+      return 'upstream'
+    if (method === 'eth_getBlockByNumber' && atOrBelowFork(params[0]))
+      return 'upstream'
+    if (
+      method === 'eth_getLogs' &&
+      !params[0]?.blockHash &&
+      atOrBelowFork(params[0]?.fromBlock) &&
+      atOrBelowFork(params[0]?.toBlock)
+    )
+      return 'upstream'
     return 'reject-history'
   }
   switch (method) {
@@ -334,7 +403,9 @@ function route(request) {
     case 'eth_getTransactionByHash':
       return historicalTransactions.has(params[0])
         ? 'upstream'
-        : maybeHistorical(params[0]) || VERIFY_UNKNOWN_TX ? 'verify-historical' : 'anvil-then-upstream'
+        : maybeHistorical(params[0]) || VERIFY_UNKNOWN_TX
+          ? 'verify-historical'
+          : 'anvil-then-upstream'
     default:
       return 'anvil'
   }
@@ -342,7 +413,16 @@ function route(request) {
 
 async function call(request) {
   const target = route(request)
-  if (target === 'reject-history') return { jsonrpc: '2.0', id: request.id, error: { code: -32601, message: 'Shared history cache accepts only immutable history reads; use the fixture RPC for local or moving state.' } }
+  if (target === 'reject-history')
+    return {
+      jsonrpc: '2.0',
+      id: request.id,
+      error: {
+        code: -32601,
+        message:
+          'Shared history cache accepts only immutable history reads; use the fixture RPC for local or moving state.',
+      },
+    }
   if (target === 'anvil') return post(ANVIL, request)
   if (target === 'upstream') return upstream(request)
   if (target === 'verify-historical') {
@@ -441,7 +521,9 @@ if (!FIXED_FORK_BLOCK) setInterval(refreshForkBlock, 30_000)
 // One line a minute when the cache did anything: proof of offline readiness.
 setInterval(() => {
   if (stats.hits + stats.misses === 0) return
-  console.log(`[fork-rpc] cache: ${stats.hits} hits, ${stats.misses} misses; ${historicalTransactions.size} bounded routing hints`)
+  console.log(
+    `[fork-rpc] cache: ${stats.hits} hits, ${stats.misses} misses; ${historicalTransactions.size} bounded routing hints`,
+  )
   stats.hits = 0
   stats.misses = 0
 }, 60_000)

@@ -146,7 +146,8 @@ for (const c of configurations.filter(
         }
     }
     try {
-      const f = (fixture = await seedConfiguration(c))
+      fixture = await seedConfiguration(c)
+      const f = fixture
       evidence.names = f.names
       evidence.historySeed = f.historySeed
       evidence.subject = f.leaf

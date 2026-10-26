@@ -27,6 +27,7 @@ export {
  */
 export const test = base.extend<{ _matrixResourceSlot: void }>({
   _matrixResourceSlot: [
+    // biome-ignore lint/correctness/noEmptyPattern: Playwright requires destructured fixture dependencies; resource admission must run before other fixtures.
     async ({}, use, info) => {
       const release = await acquireMatrixResourceSlot(info)
       try {

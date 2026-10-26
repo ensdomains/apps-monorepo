@@ -53,6 +53,7 @@ for (const c of configurations.filter(
     requiresIndependentGraceMigration(c) &&
     (!selected || selected.includes(c.config_id)),
 )) {
+  // biome-ignore lint/correctness/noEmptyPattern: Playwright requires destructured fixture dependencies even when only TestInfo is used.
   test(`live ancestor record checkpoints ${c.config_id}`, async ({}, info) => {
     info.setTimeout(600_000)
     const output = resolve(process.env.REPLACEMENT_RESULTS!, 'supplemental')

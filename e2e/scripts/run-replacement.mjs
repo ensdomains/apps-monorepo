@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 import { execFileSync, spawn } from 'node:child_process'
-import { chmodSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs'
 import { createServer } from 'node:http'
 import { createServer as createSocketServer } from 'node:net'
 import { dirname, resolve } from 'node:path'
@@ -9,7 +15,9 @@ import { fileURLToPath } from 'node:url'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const cwd = resolve(root, 'e2e')
 const rawArgs = process.argv.slice(2)
-const suite = rawArgs.find((arg) => arg.startsWith('--suite='))?.slice(8) ?? 'migration-matrix'
+const suite =
+  rawArgs.find((arg) => arg.startsWith('--suite='))?.slice(8) ??
+  'migration-matrix'
 if (!['replacement', 'migration-matrix'].includes(suite))
   throw Error(`Unknown campaign suite: ${suite}`)
 const args = rawArgs.filter((arg) => !arg.startsWith('--suite='))
@@ -22,10 +30,18 @@ for (const arg of args)
 const projectArg =
   args.find((a) => a.startsWith('--project='))?.slice(10) ??
   (args.includes('--project') ? args[args.indexOf('--project') + 1] : undefined)
-const allowedProjects = suite === 'migration-matrix' ? ['matrix'] : [
-  'legacy', 'after-migration', 'records', 'cross-app-migration',
-  'migration', 'migration-indexed', 'migration-indexed-eoa',
-]
+const allowedProjects =
+  suite === 'migration-matrix'
+    ? ['matrix']
+    : [
+        'legacy',
+        'after-migration',
+        'records',
+        'cross-app-migration',
+        'migration',
+        'migration-indexed',
+        'migration-indexed-eoa',
+      ]
 const selectedProjects = projectArg ? projectArg.split(',') : allowedProjects
 for (const project of selectedProjects)
   if (!allowedProjects.includes(project))
@@ -35,12 +51,19 @@ const workerArg =
   (args.includes('--workers') ? args[args.indexOf('--workers') + 1] : undefined)
 if (workerArg && workerArg !== '1')
   throw Error('Replacement fixtures run serially; use --workers=1')
-const mockProjects = suite === 'replacement'
-  ? ['after-migration', 'records', 'migration']
-  : process.env.MATRIX_REAL_INDEXER === '1' ? [] : ['matrix']
+const mockProjects =
+  suite === 'replacement'
+    ? ['after-migration', 'records', 'migration']
+    : process.env.MATRIX_REAL_INDEXER === '1'
+      ? []
+      : ['matrix']
 const needsIndexer = selectedProjects.some((p) => !mockProjects.includes(p))
 const id = `${suite}-${Date.now()}-${process.pid}`
-const output = resolve(cwd, suite === 'replacement' ? '.replacement-runs' : '.migration-matrix-runs', id)
+const output = resolve(
+  cwd,
+  suite === 'replacement' ? '.replacement-runs' : '.migration-matrix-runs',
+  id,
+)
 mkdirSync(output, { recursive: true })
 const ports = {
   rpc: 18545,
@@ -53,12 +76,15 @@ const ports = {
   orchestrator: 13007,
 }
 const portOffset = Number(process.env.MATRIX_PORT_OFFSET ?? 0)
-if (!Number.isInteger(portOffset) || portOffset < 0 || portOffset > 20000) throw Error('Invalid MATRIX_PORT_OFFSET')
+if (!Number.isInteger(portOffset) || portOffset < 0 || portOffset > 20000)
+  throw Error('Invalid MATRIX_PORT_OFFSET')
 for (const key of Object.keys(ports)) ports[key] += portOffset
 const env = {
   ...process.env,
   MATRIX_LOCAL_RPC_ONLY: '1',
-  SEPOLIA_FORK_URL: process.env.SEPOLIA_FORK_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com',
+  SEPOLIA_FORK_URL:
+    process.env.SEPOLIA_FORK_URL ??
+    'https://ethereum-sepolia-rpc.publicnode.com',
   SEPOLIA_FORK_BLOCK: readFileSync(
     resolve(cwd, 'infra/fork-block'),
     'utf8',
@@ -98,14 +124,7 @@ const env = {
 }
 const exec = (cmd, argv, options = {}) =>
   execFileSync(cmd, argv, { cwd, env, encoding: 'utf8', ...options })
-const playwright = [
-  'exec',
-  'playwright',
-  'test',
-  '-c',
-  configPath,
-  ...args,
-]
+const playwright = ['exec', 'playwright', 'test', '-c', configPath, ...args]
 if (args.includes('--list')) {
   const child = spawn('pnpm', playwright, { cwd, env, stdio: 'inherit' })
   child.on('exit', (code) => (process.exitCode = code ?? 1))
@@ -295,13 +314,21 @@ if (args.includes('--list')) {
     }
     config.services.anvil.mem_limit = process.env.MATRIX_ANVIL_MEMORY ?? '16g'
     config.services.anvil.init = true
-    for (const [flag, value] of [['--timeout', '180000'], ['--retries', '10'], ['--slots-in-an-epoch', '32'], ['--max-persisted-states', '100000'], ['--cache-path', '/state/history']]) {
+    for (const [flag, value] of [
+      ['--timeout', '180000'],
+      ['--retries', '10'],
+      ['--slots-in-an-epoch', '32'],
+      ['--max-persisted-states', '100000'],
+      ['--cache-path', '/state/history'],
+    ]) {
       const existing = config.services.anvil.command.indexOf(flag)
       if (existing >= 0) config.services.anvil.command[existing + 1] = value
       else config.services.anvil.command.push(flag, value)
     }
-    if (playwright.some(arg => arg.includes('migration-matrix'))) {
-      const epochFlag = config.services.anvil.command.indexOf('--slots-in-an-epoch')
+    if (playwright.some((arg) => arg.includes('migration-matrix'))) {
+      const epochFlag = config.services.anvil.command.indexOf(
+        '--slots-in-an-epoch',
+      )
       if (epochFlag >= 0) config.services.anvil.command[epochFlag + 1] = '32'
     }
     const stateDirectory = resolve(output, 'anvil-state')
@@ -309,11 +336,25 @@ if (args.includes('--list')) {
     chmodSync(stateDirectory, 0o777)
     // Full historical snapshots grow with this campaign; frequent overlapping
     // dumps can exhaust memory. Preserve history with a bounded dump interval.
-    config.services.anvil.command.push('--state', '/state/anvil.json', '--state-interval', process.env.MATRIX_SNAPSHOT_INTERVAL ?? '1800', '--preserve-historical-states')
-    config.services.anvil.volumes.push({ type: 'bind', source: stateDirectory, target: '/state' })
+    config.services.anvil.command.push(
+      '--state',
+      '/state/anvil.json',
+      '--state-interval',
+      process.env.MATRIX_SNAPSHOT_INTERVAL ?? '1800',
+      '--preserve-historical-states',
+    )
+    config.services.anvil.volumes.push({
+      type: 'bind',
+      source: stateDirectory,
+      target: '/state',
+    })
     Object.assign(config.services['bigname-rpc'].environment, {
-      UPSTREAM_IN_FLIGHT: '2', UPSTREAM_CHUNK: '5', UPSTREAM_MIN_INTERVAL_MS: '500',
-      ...(process.env.MATRIX_HISTORY_RPC_URL ? { UPSTREAM_RPC_URL: process.env.MATRIX_HISTORY_RPC_URL } : {}),
+      UPSTREAM_IN_FLIGHT: '2',
+      UPSTREAM_CHUNK: '5',
+      UPSTREAM_MIN_INTERVAL_MS: '500',
+      ...(process.env.MATRIX_HISTORY_RPC_URL
+        ? { UPSTREAM_RPC_URL: process.env.MATRIX_HISTORY_RPC_URL }
+        : {}),
     })
     config.services.anvil.healthcheck = {
       ...config.services.anvil.healthcheck,
@@ -330,10 +371,29 @@ if (args.includes('--list')) {
     console.log(`Fresh isolated stack: ${id}. Evidence: ${output}`)
     if (process.env.MATRIX_CACHE_SEED_PREFIX) {
       const sourcePrefix = process.env.MATRIX_CACHE_SEED_PREFIX
-      if (!/^[a-z0-9_-]+$/.test(sourcePrefix)) throw Error('Invalid cache source prefix')
+      if (!/^[a-z0-9_-]+$/.test(sourcePrefix))
+        throw Error('Invalid cache source prefix')
       for (const suffix of ['anvil-upstream-cache', 'bigname-rpc-cache']) {
-        exec('docker', ['volume', 'create', `${id}_${suffix}`], { stdio: 'ignore' })
-        exec('docker', ['run', '--rm', '-v', `${sourcePrefix}_${suffix}:/source:ro`, '-v', `${id}_${suffix}:/dest`, 'alpine', 'cp', '-an', '/source/.', '/dest/'], { stdio: 'ignore' })
+        exec('docker', ['volume', 'create', `${id}_${suffix}`], {
+          stdio: 'ignore',
+        })
+        exec(
+          'docker',
+          [
+            'run',
+            '--rm',
+            '-v',
+            `${sourcePrefix}_${suffix}:/source:ro`,
+            '-v',
+            `${id}_${suffix}:/dest`,
+            'alpine',
+            'cp',
+            '-an',
+            '/source/.',
+            '/dest/',
+          ],
+          { stdio: 'ignore' },
+        )
       }
     }
     await run('docker', [...compose, 'up', '-d', 'anvil'], {
@@ -362,7 +422,12 @@ if (args.includes('--list')) {
     // offset. Pin the next block before any service can submit transactions;
     // never mine an earlier timestamp after a future-dated grace fixture.
     const clockHead = await rpc('eth_getBlockByNumber', ['latest', false])
-    await rpc('evm_setNextBlockTimestamp', [Math.max(parseInt(clockHead.timestamp, 16) + 1, Math.floor(Date.now() / 1000))])
+    await rpc('evm_setNextBlockTimestamp', [
+      Math.max(
+        parseInt(clockHead.timestamp, 16) + 1,
+        Math.floor(Date.now() / 1000),
+      ),
+    ])
     await rpc('anvil_setBlockTimestampInterval', [1])
     await run(
       'docker',
@@ -525,7 +590,11 @@ if (args.includes('--list')) {
       res.setHeader('Content-Type', 'application/json')
       res.end(
         JSON.stringify({
-          featureFlags: { migration: true, 'profile-view-new': true, 'migration-subname-recreation': true },
+          featureFlags: {
+            migration: true,
+            'profile-view-new': true,
+            'migration-subname-recreation': true,
+          },
           featureFlagPayloads: {},
         }),
       )
@@ -561,7 +630,23 @@ if (args.includes('--list')) {
         600,
       )
     if (process.env.MATRIX_PREPARE_ONLY === '1') {
-      writeFileSync(resolve(output, 'ready.json'), JSON.stringify({ ports, env: Object.fromEntries(Object.entries(env).filter(([key]) => /^(ANVIL_RPC_URL|RPC_URL|MANAGER_APP_URL|PORTAL_APP_URL|E2E_|REPLACEMENT_RESULTS)/.test(key))) }, null, 2))
+      writeFileSync(
+        resolve(output, 'ready.json'),
+        JSON.stringify(
+          {
+            ports,
+            env: Object.fromEntries(
+              Object.entries(env).filter(([key]) =>
+                /^(ANVIL_RPC_URL|RPC_URL|MANAGER_APP_URL|PORTAL_APP_URL|E2E_|REPLACEMENT_RESULTS)/.test(
+                  key,
+                ),
+              ),
+            ),
+          },
+          null,
+          2,
+        ),
+      )
       console.log(`Prepared matrix environment: ${output}`)
       await new Promise(() => {})
     }

@@ -65,6 +65,7 @@ for (const directory of directories) {
     )
     const scenario = saved.scenario ?? saved.configuration?.config_id ?? file
     const group = basename(dirname(directory))
+    // biome-ignore lint/correctness/noEmptyPattern: Playwright requires destructured fixture dependencies even when only TestInfo is used.
     test(`approval cleanup ${group} ${scenario}`, async ({}, info) => {
       const blockNumber = BigInt(saved.afterActivity.toBlock)
       const checks: object[] = []

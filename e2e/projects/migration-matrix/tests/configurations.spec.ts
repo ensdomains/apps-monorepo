@@ -64,7 +64,8 @@ for (const c of configurations.filter(
       )
     let fixture: Awaited<ReturnType<typeof seedConfiguration>> | undefined
     try {
-      const f = (fixture = await seedConfiguration(c))
+      fixture = await seedConfiguration(c)
+      const f = fixture
       evidence.names = f.names
       evidence.historySeed = f.historySeed
       evidence.subject = f.leaf

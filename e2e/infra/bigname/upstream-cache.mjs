@@ -96,7 +96,13 @@ async function store(request, reply) {
 
 // Serialize outbound calls and respect a modest request rate. Historical
 // index backfill must not cause a transient 429 to crash Anvil's miner.
-const stateMethods = new Set(['eth_getStorageAt', 'eth_getBalance', 'eth_getTransactionCount', 'eth_getCode', 'eth_call'])
+const stateMethods = new Set([
+  'eth_getStorageAt',
+  'eth_getBalance',
+  'eth_getTransactionCount',
+  'eth_getCode',
+  'eth_call',
+])
 const stateQueue = []
 const historyQueue = []
 let draining = false
@@ -109,12 +115,19 @@ async function drain() {
       // A large historical block must not starve the storage read required
       // to mine the next local block. Still admit one historical request
       // after four state reads, with the same global rate limit and retries.
-      const useState = stateQueue.length && (!historyQueue.length || consecutiveStateReads < 4)
+      const useState =
+        stateQueue.length && (!historyQueue.length || consecutiveStateReads < 4)
       const next = (useState ? stateQueue : historyQueue).shift()
       consecutiveStateReads = useState ? consecutiveStateReads + 1 : 0
-      try { next.resolve(await next.request()) } catch (error) { next.reject(error) }
+      try {
+        next.resolve(await next.request())
+      } catch (error) {
+        next.reject(error)
+      }
     }
-  } finally { draining = false }
+  } finally {
+    draining = false
+  }
 }
 const interval = Number(process.env.UPSTREAM_MIN_INTERVAL_MS ?? 150)
 async function post(body) {
@@ -123,12 +136,17 @@ async function post(body) {
     for (let attempt = 0; attempt < 20; attempt++) {
       try {
         const res = await fetch(UPSTREAM, {
-          method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(body), signal: AbortSignal.timeout(30000),
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(30000),
         })
         if (!res.ok) throw new Error(`upstream answered ${res.status}`)
         const reply = await res.json()
-        if (reply.error && /rate|limit|timeout|temporar/i.test(reply.error.message ?? ''))
+        if (
+          reply.error &&
+          /rate|limit|timeout|temporar/i.test(reply.error.message ?? '')
+        )
           throw new Error(`transient upstream RPC error ${reply.error.code}`)
         await sleep(interval)
         return reply
@@ -190,7 +208,7 @@ async function answer(request) {
     pending = answerUncached(request).finally(() => inFlight.delete(key))
     inFlight.set(key, pending)
   }
-  return { ...await pending, id: request.id }
+  return { ...(await pending), id: request.id }
 }
 
 const server = http.createServer(async (req, res) => {
