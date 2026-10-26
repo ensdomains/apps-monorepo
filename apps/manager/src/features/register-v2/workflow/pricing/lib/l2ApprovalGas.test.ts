@@ -1,34 +1,40 @@
 import { describe, expect, it } from 'vitest'
 import { isShortOfApprovalGas } from './l2ApprovalGas'
 
-const gas = (
-  overrides: Partial<Parameters<typeof isShortOfApprovalGas>[0]>,
-) => ({
-  allowance: 0n,
-  ethBalance: 0n,
-  approvalCost: 100n,
+const wallet = (overrides: { permit2Allowance?: bigint; eth?: bigint }) => ({
+  usdc: 1_000n,
+  permit2Allowance: 0n,
+  eth: 0n,
   ...overrides,
 })
 
 describe('isShortOfApprovalGas', () => {
   it.each([
-    { name: 'no approval and no ETH', input: gas({}), expected: true },
+    {
+      name: 'no approval and no ETH',
+      w: wallet({}),
+      cost: 100n,
+      expected: true,
+    },
     {
       name: 'ETH covers the approval',
-      input: gas({ ethBalance: 100n }),
+      w: wallet({ eth: 100n }),
+      cost: 100n,
       expected: false,
     },
     {
       name: 'already approved',
-      input: gas({ allowance: 10n }),
+      w: wallet({ permit2Allowance: 10n }),
+      cost: 100n,
       expected: false,
     },
-    { name: 'an unread state', input: null, expected: false },
-  ])('$name: $expected', ({ input, expected }) => {
-    expect(isShortOfApprovalGas(input, 10n)).toBe(expected)
+    { name: 'an unread wallet', w: null, cost: 100n, expected: false },
+    { name: 'an unknown cost', w: wallet({}), cost: null, expected: false },
+  ])('$name: $expected', ({ w, cost, expected }) => {
+    expect(isShortOfApprovalGas(w, 10n, cost)).toBe(expected)
   })
 
   it('needs nothing when nothing is bridged', () => {
-    expect(isShortOfApprovalGas(gas({}), 0n)).toBe(false)
+    expect(isShortOfApprovalGas(wallet({}), 0n, 100n)).toBe(false)
   })
 })

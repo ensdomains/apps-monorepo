@@ -381,7 +381,7 @@ msgstr ""
 msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr ""
 
@@ -1930,6 +1930,10 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Not enough USDC in your wallet. Choose another payment method."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
@@ -3834,8 +3838,7 @@ msgstr ""
 msgid "What is a primary name?"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodRow.tsx
 msgid "What is the network fee?"
 msgstr ""
 

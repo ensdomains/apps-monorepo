@@ -2,6 +2,7 @@ import '@testing-library/jest-dom'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { maxUint256 } from 'viem'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { L2Source } from '@/l2Sources'
@@ -136,7 +137,21 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
         }
       }
       if (key.includes('l2-usdc-balances')) {
-        return { data: containerMocks.l2Balances, isLoading: false }
+        const balances = containerMocks.l2Balances
+        return {
+          // Approved and holding ETH, so no approval cost is quoted.
+          data:
+            balances &&
+            Object.fromEntries(
+              Object.entries(balances).map(([chainId, usdc]) => [
+                chainId,
+                usdc === null
+                  ? null
+                  : { usdc, permit2Allowance: maxUint256, eth: 10n ** 18n },
+              ]),
+            ),
+          isLoading: false,
+        }
       }
       return { data: undefined, isLoading: false }
     },
@@ -147,12 +162,12 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     }) =>
       queries.map(({ queryKey, enabled }) => {
         if (enabled) containerMocks.l2QuoteKeys.push(JSON.stringify(queryKey))
-        const { l2AmountIn } = containerMocks
+        const { l2AmountIn, isBudgetStale } = containerMocks
+        // A re-quote keeps the previous quote as placeholder data.
+        const hasData = (enabled || isBudgetStale) && l2AmountIn !== undefined
         return {
-          data:
-            enabled && l2AmountIn !== undefined
-              ? { amountIn: l2AmountIn }
-              : undefined,
+          data: hasData ? { amountIn: l2AmountIn } : undefined,
+          isPlaceholderData: hasData && !enabled,
           isLoading: false,
           isError: false,
         }
@@ -351,13 +366,15 @@ describe('TokenPickerContent', () => {
     hcaBalance: 0n,
   }
 
-  it('lists the wallet first, then L2s by balance, three at a time', () => {
+  it('lists the wallet first, then quoted L2s by balance, three at a time', () => {
+    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
     containerMocks.renderBudget = fiveUsdcBudget
     containerMocks.l2Balances = {
       [baseSepolia.id]: 6_000_000n,
       [arbitrumSepolia.id]: 25_000_000n,
-      [optimismSepolia.id]: null,
+      [optimismSepolia.id]: 10_000_000n,
     }
+    containerMocks.l2AmountIn = 5_012_000n
     renderContainer()
 
     const methodNames = () =>
@@ -367,17 +384,17 @@ describe('TokenPickerContent', () => {
     expect(methodNames()).toEqual([
       'Select USDC',
       'Select USDC on Arbitrum Sepolia',
-      'Select USDC on Base Sepolia',
+      'Select USDC on OP Sepolia',
     ])
     fireEvent.click(screen.getByRole('button', { name: 'Load 1 more' }))
-    expect(methodNames().at(-1)).toBe('Select USDC on OP Sepolia')
+    expect(methodNames().at(-1)).toBe('Select USDC on Base Sepolia')
   })
-
   it('keeps a funded L2 listed while the primary-name toggle re-quotes', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
     containerMocks.renderBudget = fiveUsdcBudget
     containerMocks.isBudgetStale = true
     containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
+    containerMocks.l2AmountIn = 5_012_000n
     renderContainer()
 
     expect(
@@ -398,23 +415,24 @@ describe('TokenPickerContent', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows no L2 until the quote says whether it can pay', () => {
+  it('shows the wallet while an L2 is still unquoted, and not the L2', () => {
     containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
     renderContainer()
 
-    expect(screen.getByText('Loading balances…')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeVisible()
     expect(
       screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
     ).not.toBeInTheDocument()
   })
-
   it('hides every method known to be short, the wallet included', () => {
+    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
     containerMocks.walletBalance = '0'
     containerMocks.renderBudget = fiveUsdcBudget
     containerMocks.l2Balances = {
       [baseSepolia.id]: 25_000_000n,
       [arbitrumSepolia.id]: 1_000_000n,
     }
+    containerMocks.l2AmountIn = 5_012_000n
     renderContainer()
 
     expect(
@@ -907,6 +925,7 @@ describe('TokenPickerContentBase L2 rows', () => {
     },
     amountInRaw: undefined,
     isQuoteLoading: false,
+    isQuoteStale: false,
     hasQuoteFailed: false,
     isShortOfGas: false,
     ...overrides,
@@ -917,7 +936,9 @@ describe('TokenPickerContentBase L2 rows', () => {
   ) => ({ rows: [row], selectedChainId, onSelect: vi.fn() })
 
   it('lists an L2 next to a wallet that cannot pay, and selects it on click', () => {
-    const payment = l2Payment(baseSepoliaRow('available'))
+    const payment = l2Payment(
+      baseSepoliaRow('available', { amountInRaw: 5_012_573n }),
+    )
     renderPicker({
       funding: underfunded,
       selectedToken: 'USDC',

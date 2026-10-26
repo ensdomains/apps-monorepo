@@ -1,13 +1,19 @@
-import type { L2ApprovalGas } from '../../../data/queries/l2ApprovalGas.query'
+import type { L2Wallet } from '../../../data/queries/l2Balances.query'
 
-/** Paying needs the one-off Permit2 approval, and the wallet can't pay its gas. An unread state never blocks. */
-export const isShortOfApprovalGas = (
-  gas: L2ApprovalGas | null | undefined,
+/** The one-off Permit2 approval is still needed for `amountRaw` on this L2. */
+export const needsPermit2Approval = (
+  wallet: L2Wallet | null | undefined,
   amountRaw: bigint | null | undefined,
+): boolean => !!wallet && !!amountRaw && wallet.permit2Allowance < amountRaw
+
+/** Needs the approval and can't pay its gas. An unread state never blocks. */
+export const isShortOfApprovalGas = (
+  wallet: L2Wallet | null | undefined,
+  amountRaw: bigint | null | undefined,
+  approvalCost: bigint | null | undefined,
 ): boolean =>
-  !!gas &&
-  amountRaw !== null &&
-  amountRaw !== undefined &&
-  amountRaw > 0n &&
-  gas.allowance < amountRaw &&
-  gas.ethBalance < gas.approvalCost
+  !!wallet &&
+  needsPermit2Approval(wallet, amountRaw) &&
+  approvalCost !== null &&
+  approvalCost !== undefined &&
+  wallet.eth < approvalCost

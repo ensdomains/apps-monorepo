@@ -5,6 +5,7 @@ import {
 } from '@ens-apps/smart-account'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { keepPreviousData } from '@tanstack/react-query'
 import { errAsync } from 'neverthrow'
 import type { Address, Hex } from 'viem'
 import { toAccount } from 'viem/accounts'
@@ -49,6 +50,8 @@ export const getL2PaymentQuoteQueryOptions = (
         : errAsync(new L2BridgeUnavailableError({ message: 'No route.' })),
     enabled: !!route,
     retry: false,
+    // A re-keyed quote shows the last one meanwhile; callers must not pay on it.
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
     refetchInterval: 30_000,
   })

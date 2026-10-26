@@ -152,7 +152,6 @@ export const L2SourceListItem = ({
         )
       }
       feeTooltip={getL2FeeExplanation(row)}
-      feeTooltipLabel={t`What is the network fee?`}
       icon={
         <PaymentMethodIcon
           icon={<USDCIcon className="size-full" />}

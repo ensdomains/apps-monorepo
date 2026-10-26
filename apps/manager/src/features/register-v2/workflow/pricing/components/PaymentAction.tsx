@@ -46,9 +46,9 @@ export const PaymentAction = ({
         className={cn(
           'h-18 w-full rounded font-medium font-mono text-sm uppercase tracking-[1.12px]',
           isEnabled || isBusy
-            ? 'bg-ens-lapis-500 text-white hover:bg-ens-blue-hover disabled:opacity-100'
-            : 'bg-ens-quartz-100 text-ens-quartz-400 disabled:opacity-100',
-          'disabled:cursor-not-allowed',
+            ? 'bg-ens-lapis-500 text-white hover:bg-ens-blue-hover'
+            : 'bg-ens-quartz-100 text-ens-quartz-400',
+          'disabled:cursor-not-allowed disabled:opacity-100',
         )}
         disabled={!isEnabled}
         onClick={onRetry ?? onNext}
@@ -56,7 +56,6 @@ export const PaymentAction = ({
         {isBusy && <LoaderCircle aria-hidden="true" className="animate-spin" />}
         {onRetry ? <Trans>Try again</Trans> : label}
       </Button>
-      {/* A popover, so opening it never resizes the pinned action area. */}
       {helpMessage && (
         <Popover>
           <PopoverTrigger className="rounded px-2 py-1 text-ens-quartz-500 text-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ens-blue">

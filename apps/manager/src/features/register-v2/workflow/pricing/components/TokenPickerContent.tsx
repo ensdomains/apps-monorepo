@@ -132,7 +132,6 @@ const PaymentMethods = <T extends TOKEN_SYMBOL>({
   /** What the wallet must cover in a coin; `undefined` until it is priced. */
   readonly walletShareOf: (symbol: string) => number | undefined
 }) => {
-  // Every source stays listed, the ones that can't pay shown with the reason.
   if (showNetworkFeeDetails) {
     return <PaymentMethodList items={paymentMethodItems} />
   }
@@ -538,7 +537,6 @@ export const TokenPickerContent = () => {
       <Trans>Signing payment approval…</Trans>
     ))
     .with({ isBusy: true }, () => <Trans>Preparing registration…</Trans>)
-    // While loading the action keeps its plain name, greyed out, as in the design.
     .with(P.union({ isLoadingBalances: true }, { isQuoting: true }), () => (
       <Trans>Register name</Trans>
     ))
@@ -662,6 +660,10 @@ const byBalanceDescending = (a: L2PaymentRow, b: L2PaymentRow) => {
   return right > left ? 1 : -1
 }
 
+const coversShare = (coin: StablecoinBalance, share: number | undefined) =>
+  share !== undefined &&
+  decimalBigintToNumber(BigInt(coin.balance), coin.decimals) >= share
+
 const getL2MethodItems = (
   l2Payment: L2PaymentProps | undefined,
   selectedL2: L2PaymentRow | undefined,
@@ -669,12 +671,12 @@ const getL2MethodItems = (
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
-  // Only chains known to cover the payment show, so none appears and then vanishes.
-  return [...l2Payment.rows]
+  // A chain appears once its full quote covers it; a chosen one stays through refreshes.
+  return l2Payment.rows
     .filter(
       (row) =>
         row === selectedL2 ||
-        (row.option.status !== 'loading' && !isL2ShortOfFunds(row)),
+        (row.amountInRaw !== undefined && !isL2ShortOfFunds(row)),
     )
     .sort(byBalanceDescending)
     .map((row) => {
@@ -756,7 +758,13 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   hasBudgetQuoteFailed = false,
   isBusy = false,
   canProceed = true,
-  networkFeeTooltip,
+  networkFeeTooltip = (
+    <Trans>
+      An estimate of what the two on-chain transactions that register your name
+      will cost. It is collected together with the name price, in the same
+      approval.
+    </Trans>
+  ),
   totalLabel = <Trans>Registration total</Trans>,
   isEstimate = false,
   walletDebitFor,
@@ -808,7 +816,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly isBusy?: boolean
   /** False while the caller is missing something `onNext` needs, such as the signing wallet. */
   readonly canProceed?: boolean
-  /** Replaces the total's fee explanation. */
+  /** What the wallet row's fee info explains. */
   readonly networkFeeTooltip?: ReactNode
   readonly totalLabel?: ReactNode
   /** Prefix amounts with "up to", for a total carrying approval headroom. */
@@ -856,21 +864,12 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
   )
-  const selectedCoinAmount =
-    selectedCoinBalance &&
-    decimalBigintToNumber(
-      BigInt(selectedCoinBalance.balance),
-      selectedCoinBalance.decimals,
-    )
-
   // Tested for presence, never truthiness: a debit of 0 is a legitimate state,
   // not a missing quote.
   const selectedShare =
     selectedCoinBalance && walletShareOf(selectedCoinBalance.symbol)
   const hasSufficientBalanceForSelectedCoin =
-    selectedCoinAmount !== undefined &&
-    selectedShare !== undefined &&
-    selectedCoinAmount >= selectedShare
+    !!selectedCoinBalance && coversShare(selectedCoinBalance, selectedShare)
 
   const canNext =
     isConnected &&
@@ -908,48 +907,53 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   const isFullyCovered =
     receiptState.status === 'ready' && selectedShare === 0 && !!walletSelection
 
-  // A wallet coin shows only once it is known to cover its share.
-  const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances
-    .filter((stablecoin) => {
+  const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances.flatMap(
+    (stablecoin) => {
       const share = walletShareOf(stablecoin.symbol)
-      return (
-        share !== undefined &&
-        decimalBigintToNumber(
-          BigInt(stablecoin.balance),
-          stablecoin.decimals,
-        ) >= share
-      )
-    })
-    .map((stablecoin) => ({
-      id: stablecoin.address,
-      isSelected: walletSelection === stablecoin.symbol,
-      content: (
-        <TokenListItem
-          {...(networkFeeTooltip ? { feeTooltip: networkFeeTooltip } : {})}
-          isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
-          networkFee={displayedNetworkFee}
-          onSelectCoin={onSelectCoin}
-          priceUSD={walletShareOf(stablecoin.symbol) ?? 0}
-          selectedCoin={walletSelection}
-          showNetworkFeeDetails={showNetworkFeeDetails}
-          stablecoin={stablecoin}
-        />
-      ),
-    }))
+      if (share === undefined || !coversShare(stablecoin, share)) return []
+      return [
+        {
+          id: stablecoin.address,
+          isSelected: walletSelection === stablecoin.symbol,
+          content: (
+            <TokenListItem
+              feeTooltip={networkFeeTooltip}
+              isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
+              networkFee={displayedNetworkFee}
+              onSelectCoin={onSelectCoin}
+              priceUSD={share}
+              selectedCoin={walletSelection}
+              showNetworkFeeDetails={showNetworkFeeDetails}
+              stablecoin={stablecoin}
+            />
+          ),
+        },
+      ]
+    },
+  )
   const paymentMethodItems = [...walletMethodItems, ...l2MethodItems]
+  const isL2Pending = !!l2Payment?.rows.some(
+    (row) => row.option.status === 'loading' || row.isQuoteLoading,
+  )
+  // The selected wallet coin went short (say the primary-name re-quote) while another method can pay.
+  const isWalletSelectionHidden =
+    !!walletSelection &&
+    receiptState.status === 'ready' &&
+    paymentMethodItems.length > 0 &&
+    !walletMethodItems.some((item) => item.isSelected)
 
   const warning =
-    globalErrorMessage ??
-    (selectedL2
-      ? getL2SelectionMessage(
-          selectedL2,
-          funding?.walletDebit,
-          l2Payment && getEstimatedL2AmountIn(l2Payment.rows),
-        )
-      : undefined) ??
-    (revalidatedShortfall === undefined
-      ? undefined
-      : t`${formatUsd(revalidatedShortfall)} more needed in your wallet.`)
+    globalErrorMessage ||
+    (selectedL2 &&
+      getL2SelectionMessage(
+        selectedL2,
+        funding?.walletDebit,
+        l2Payment && getEstimatedL2AmountIn(l2Payment.rows),
+      )) ||
+    (revalidatedShortfall !== undefined &&
+      t`${formatUsd(revalidatedShortfall)} more needed in your wallet.`) ||
+    (isWalletSelectionHidden &&
+      t`Not enough USDC in your wallet. Choose another payment method.`)
 
   return (
     // A fieldset's anonymous content box prevents its flex children shrinking
@@ -996,14 +1000,11 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
             </div>
             {match({
               isConnected,
-              // A re-quote keeps the list; only a first quote shows the loading box.
               isLoading:
                 isLoadingBalances ||
                 pricingLoading ||
                 (isQuotingFunding && !shownFunding) ||
-                !!l2Payment?.rows.some(
-                  ({ option }) => option.status === 'loading',
-                ),
+                (paymentMethodItems.length === 0 && isL2Pending),
               isFullyCovered,
               hasNoMethods:
                 showNetworkFeeDetails && paymentMethodItems.length === 0,
@@ -1015,7 +1016,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
                 </p>
               ))
               .with({ isLoading: true }, () => (
-                <div className="flex h-16 items-center justify-center rounded bg-[#f5f5f5] text-ens-quartz-500 text-xs">
+                <div className="flex h-16 items-center justify-center rounded bg-ens-quartz-75 text-ens-quartz-500 text-xs">
                   <Trans>Loading balances…</Trans>
                 </div>
               ))

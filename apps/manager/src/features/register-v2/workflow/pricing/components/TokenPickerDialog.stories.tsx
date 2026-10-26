@@ -57,6 +57,7 @@ const l2Row = (
   },
   amountInRaw,
   isQuoteLoading: false,
+  isQuoteStale: false,
   hasQuoteFailed: false,
   isShortOfGas: false,
 })
@@ -404,6 +405,16 @@ export const WithAccountCredit: Story = {
       hcaCredit: 1.82,
       isLoading: false,
     },
+  },
+}
+
+export const WithAccountCreditAndL2: Story = {
+  args: {
+    ...WithAccountCredit.args,
+    l2Rows: [
+      l2Row(baseSepolia, 400_000_000n, 'available', 162_780_000n),
+      l2Row(optimismSepolia, 250_000_000n, 'available', 162_770_000n),
+    ],
   },
 }
 
