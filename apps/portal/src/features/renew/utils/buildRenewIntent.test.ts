@@ -63,3 +63,11 @@ describe('buildRenewIntent', () => {
     )
   })
 })
+
+it.each([true, false])(
+  'preserves a supplied referrer on the v2=%s renewal path',
+  (isV2) => {
+    const { args } = renewCall({ name: 'alice.eth', isV2, referrer: '0x1234' })
+    expect(args?.[0].referrer).toBe(`0x${'0'.repeat(60)}1234`)
+  },
+)

@@ -10,7 +10,8 @@ export const channelDefinitions = {
     label: 'Telegram',
     requiresVerification: true,
     dataSchema: v.object({
-      username: v.string(),
+      username: v.optional(v.string()),
+      name: v.optional(v.string()),
     }),
   },
   push: {

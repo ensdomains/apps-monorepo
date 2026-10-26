@@ -6,6 +6,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true,
+    // OAuth callback codes/state must not enter request logs or traces.
+    "redact_query_string": true,
     "head_sampling_rate": 1,
     "logs": {
       "enabled": true,
@@ -97,6 +99,8 @@
       "JWT_SECRET",
       "POSTHOG_PERSONAL_API_KEY",
       "TELEGRAM_BOT_TOKEN",
+      "TELEGRAM_OIDC_CLIENT_ID",
+      "TELEGRAM_OIDC_CLIENT_SECRET",
       "TELEGRAM_WEBHOOK_SECRET",
       "SENDGRID_API_KEY",
       "SENDGRID_WEBHOOK_VERIFICATION_KEY",
@@ -138,6 +142,8 @@
           "JWT_SECRET",
           "POSTHOG_PERSONAL_API_KEY",
           "TELEGRAM_BOT_TOKEN",
+          "TELEGRAM_OIDC_CLIENT_ID",
+          "TELEGRAM_OIDC_CLIENT_SECRET",
           "TELEGRAM_WEBHOOK_SECRET",
           "SENDGRID_API_KEY",
           "SENDGRID_WEBHOOK_VERIFICATION_KEY",

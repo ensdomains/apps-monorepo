@@ -35,6 +35,53 @@ const INTERFACE_IMPLEMENTER: Address =
 const RESOURCE = 123n
 const EXPIRY = 4_294_967_295n
 const ROLES_ALL = (1n << 256n) - 1n
+
+describe('legacy reservation expiry recovery', () => {
+  it.each([true, false])(
+    'accepts the shorter legacy expiry only when the historical reservation proves it (%s)',
+    async (hasMatchingReservation) => {
+      const expected: AtomicMigrationVerificationExpectation = {
+        id: 'alice:name-expiry',
+        type: 'name-expiry',
+        name: 'alice.eth',
+        resource: RESOURCE,
+        registryPath: {
+          type: 'eth-registry-2ld',
+          registry: ROOT_REGISTRY,
+          label: 'alice',
+          resource: RESOURCE,
+        },
+        expectedExpiry: EXPIRY,
+        canUseLegacyReservationExpiry: true,
+      }
+      const client = {
+        readContract: vi.fn(
+          async ({ blockNumber }: { blockNumber?: bigint }) => ({
+            status: blockNumber === 9n ? 1 : 2,
+            expiry:
+              blockNumber === 9n && !hasMatchingReservation
+                ? EXPIRY
+                : EXPIRY - 1n,
+            resource: RESOURCE,
+          }),
+        ),
+      } as unknown as PublicClient
+      const verification = verifyAtomicMigrationBatch({
+        publicClient: client,
+        batch: { index: 0, verificationExpectations: [expected] },
+        blockNumber: 10n,
+      })
+      const outcome = await verification.then(
+        ({ status }) => status,
+        (error) =>
+          error instanceof AtomicMigrationBatchVerificationError
+            ? 'mismatch'
+            : Promise.reject(error),
+      )
+      expect(outcome).toBe(hasMatchingReservation ? 'confirmed' : 'mismatch')
+    },
+  )
+})
 // RegistryRolesLib uses nybble-packed roles: SET_RESOLVER is the seventh
 // nybble, not the seventh contiguous bit.
 const ROLE_SET_RESOLVER = 1n << 24n

@@ -1,7 +1,17 @@
 import type { Call } from '@ens-apps/transaction-manager'
 import { getNameRegistries } from '@ensdomains/ensjs/public/v2'
-import { permissionedRegistrySetResolverSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import { type Address, encodeFunctionData, labelhash, zeroAddress } from 'viem'
+import {
+  permissionedRegistryGetResolverSnippet,
+  permissionedRegistryGetStateSnippet,
+  permissionedRegistrySetResolverSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
+import {
+  type Address,
+  encodeFunctionData,
+  labelhash,
+  type PublicClient,
+  zeroAddress,
+} from 'viem'
 import { normalize } from 'viem/ens'
 import { publicClient } from '@/lib/wagmi'
 
@@ -28,15 +38,45 @@ export type NameRegistryLocation = {
  */
 export async function resolveNameRegistry(
   name: string,
+  client: PublicClient = publicClient as PublicClient,
 ): Promise<NameRegistryLocation> {
   const normalized = normalize(name)
   const [label] = normalized.split('.')
-  const registries = await getNameRegistries(publicClient, { name: normalized })
+  const registries = await getNameRegistries(
+    client as unknown as Parameters<typeof getNameRegistries>[0],
+    { name: normalized },
+  )
   const registryAddress = registries[1]
   if (!label || !registryAddress || registryAddress === zeroAddress) {
     throw new NameRegistryNotFoundError(name)
   }
   return { label, registryAddress }
+}
+
+/** Read the V2 entry itself; a cleared V1 registry is never a source fallback. */
+export const readNameResolver = async (
+  location: NameRegistryLocation,
+  client: PublicClient,
+): Promise<Address> =>
+  client.readContract({
+    address: location.registryAddress,
+    abi: permissionedRegistryGetResolverSnippet,
+    functionName: 'getResolver',
+    args: [location.label],
+  })
+
+/** A registered V2 entry with no resolver must not fall back to legacy data. */
+export const hasV2NameEntry = async (
+  location: NameRegistryLocation,
+  client: PublicClient,
+): Promise<boolean> => {
+  const state = await client.readContract({
+    address: location.registryAddress,
+    abi: permissionedRegistryGetStateSnippet,
+    functionName: 'getState',
+    args: [BigInt(labelhash(location.label))],
+  })
+  return state.status === 2
 }
 
 /**

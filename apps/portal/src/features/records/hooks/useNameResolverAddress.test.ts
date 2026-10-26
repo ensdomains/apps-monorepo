@@ -8,6 +8,7 @@ const LEGACY_RESOLVER = '0x2222222222222222222222222222222222222222'
 
 const mockGetResolver = vi.fn()
 const mockReadContract = vi.fn()
+const mockResolveV2EthOwner = vi.fn()
 
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok({ chain: {} }),
@@ -17,6 +18,9 @@ vi.mock('@ensdomains/ensjs/chain', () => ({
 }))
 vi.mock('@ensdomains/ensjs/public', () => ({
   getResolver: (...args: unknown[]) => mockGetResolver(...args),
+}))
+vi.mock('@/utils/ens/resolveEnsOwner', () => ({
+  resolveV2EthOwner: (...args: unknown[]) => mockResolveV2EthOwner(...args),
 }))
 vi.mock('viem/actions', () => ({ readContract: vi.fn() }))
 vi.mock('viem/utils', async (importOriginal) => ({
@@ -32,6 +36,7 @@ describe('getNameResolverAddress', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockReadContract.mockResolvedValue(LEGACY_RESOLVER)
+    mockResolveV2EthOwner.mockResolvedValue(null)
   })
 
   it('reports the resolver the UniversalResolver walk finds', async () => {
@@ -50,6 +55,19 @@ describe('getNameResolverAddress', () => {
     expect(mockReadContract).toHaveBeenCalledWith(
       expect.objectContaining({ address: LEGACY_REGISTRY }),
     )
+  })
+
+  // A recreated child keeps a V1 registry entry; once its V2 resolver is
+  // cleared, that entry is stale and must not be shown as its resolver.
+  it('does not fall back for a name registered in V2', async () => {
+    mockGetResolver.mockResolvedValue(null)
+    mockResolveV2EthOwner.mockResolvedValue({
+      owner: UR_RESOLVER,
+      registryAddress: LEGACY_REGISTRY,
+    })
+
+    expect((await read('child.parent.eth'))._unsafeUnwrap()).toBeNull()
+    expect(mockReadContract).not.toHaveBeenCalled()
   })
 
   it('reports no resolver when neither source names one', async () => {
