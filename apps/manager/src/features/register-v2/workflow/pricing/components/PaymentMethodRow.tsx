@@ -90,7 +90,7 @@ export const PaymentMethodRow = ({
       <span className="pointer-events-none relative z-10 flex min-w-max flex-col items-end self-start">
         <span
           className={cn(
-            'text-right text-sm tabular-nums leading-tight',
+            'text-right text-sm leading-tight',
             match({ isInsufficient, isDisabled })
               .with({ isInsufficient: true }, () => 'text-ens-error')
               .with({ isDisabled: true }, () => 'text-ens-quartz-350')

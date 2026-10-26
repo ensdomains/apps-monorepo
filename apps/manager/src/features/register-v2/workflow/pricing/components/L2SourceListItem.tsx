@@ -24,7 +24,7 @@ const isShortOfQuote = ({ option, amountInRaw }: L2PaymentRow) =>
   option.balanceRaw !== null &&
   option.balanceRaw < amountInRaw
 
-const isL2ShortOfFunds = (row: L2PaymentRow) =>
+export const isL2ShortOfFunds = (row: L2PaymentRow) =>
   row.option.status === 'insufficient' || isShortOfQuote(row)
 
 /** The highest quoted L2 charge, standing in for chains that cannot be quoted. */

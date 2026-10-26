@@ -352,7 +352,7 @@ describe('TokenPickerContent', () => {
   it('lists the wallet first, then L2s by balance, three at a time', () => {
     containerMocks.renderBudget = fiveUsdcBudget
     containerMocks.l2Balances = {
-      [baseSepolia.id]: 5_000_000n,
+      [baseSepolia.id]: 6_000_000n,
       [arbitrumSepolia.id]: 25_000_000n,
       [optimismSepolia.id]: null,
     }
@@ -369,7 +369,21 @@ describe('TokenPickerContent', () => {
     ])
     fireEvent.click(screen.getByRole('button', { name: 'Show 1 more' }))
     expect(methodNames().at(-1)).toBe('Select USDC on OP Sepolia')
-    expect(screen.queryByText(/Not enough USDC/)).not.toBeInTheDocument()
+  })
+
+  it('hides an L2 known to be short, but keeps the wallet', () => {
+    containerMocks.walletBalance = '0'
+    containerMocks.renderBudget = fiveUsdcBudget
+    containerMocks.l2Balances = {
+      [baseSepolia.id]: 25_000_000n,
+      [arbitrumSepolia.id]: 1_000_000n,
+    }
+    renderContainer()
+
+    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
+    ).not.toBeInTheDocument()
   })
 
   it('holds the receipt while the quote waits on a paused retry', () => {

@@ -45,6 +45,7 @@ import {
   getEstimatedL2AmountIn,
   getL2FeeExplanation,
   getL2SelectionMessage,
+  isL2ShortOfFunds,
   L2SourceListItem,
 } from './L2SourceListItem'
 import { PaymentAction } from './PaymentAction'
@@ -668,30 +669,34 @@ const getL2MethodItems = (
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
-  return [...l2Payment.rows].sort(byBalanceDescending).map((row) => {
-    const amountIn = row.amountInRaw ?? estimatedAmountIn
-    return {
-      id: row.option.id,
-      isSelected: row === selectedL2,
-      content: (
-        <L2SourceListItem
-          isFeeEstimated={
-            row.amountInRaw === undefined && estimatedAmountIn !== undefined
-          }
-          isSelected={row === selectedL2}
-          networkFee={
-            funding && amountIn !== undefined
-              ? getPaymentBreakdownFigures(
-                  getL2FundingSummary(funding, amountIn),
-                ).networkFee
-              : undefined
-          }
-          onSelect={() => l2Payment.onSelect(row.option.source.chain.id)}
-          row={row}
-        />
-      ),
-    }
-  })
+  // Chains known to be short are hidden, unless already chosen.
+  return [...l2Payment.rows]
+    .filter((row) => row === selectedL2 || !isL2ShortOfFunds(row))
+    .sort(byBalanceDescending)
+    .map((row) => {
+      const amountIn = row.amountInRaw ?? estimatedAmountIn
+      return {
+        id: row.option.id,
+        isSelected: row === selectedL2,
+        content: (
+          <L2SourceListItem
+            isFeeEstimated={
+              row.amountInRaw === undefined && estimatedAmountIn !== undefined
+            }
+            isSelected={row === selectedL2}
+            networkFee={
+              funding && amountIn !== undefined
+                ? getPaymentBreakdownFigures(
+                    getL2FundingSummary(funding, amountIn),
+                  ).networkFee
+                : undefined
+            }
+            onSelect={() => l2Payment.onSelect(row.option.source.chain.id)}
+            row={row}
+          />
+        ),
+      }
+    })
 }
 
 /** A quote is pending, or a stale one (the toggle re-keyed it) is being replaced. */

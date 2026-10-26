@@ -55,7 +55,7 @@ const Amount = ({
     .with({ status: 'ready' }, ({ figures }) => {
       const value = figures[field]
       return (
-        <span className="tabular-nums">
+        <span>
           {isEstimate && value > 0 && (
             <span className="text-ens-quartz-400 text-sm">
               <Trans>up to</Trans>{' '}
