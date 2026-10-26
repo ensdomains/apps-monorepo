@@ -77,11 +77,17 @@ export const useL2Payment = ({
   readonly fundingSourceChainId: number | undefined
 }): L2PaymentProps | undefined => {
   const amountRaw = getShortfall(budget, isQuoteStale)
+  // Statuses keep the previous quote through a re-quote, so rows don't blink out and back.
+  const statusAmountRaw = getShortfall(budget, false)
   const balances = useQuery(
     getL2BalancesQueryOptions(isEnabled && owner ? owner : undefined),
   ).data
   const options = isEnabled
-    ? getL2PaymentOptions({ sources: l2Sources, balances, amountRaw })
+    ? getL2PaymentOptions({
+        sources: l2Sources,
+        balances,
+        amountRaw: statusAmountRaw,
+      })
     : []
   const routes = options.map((option) =>
     owner && hca && amountRaw && option.status === 'available'

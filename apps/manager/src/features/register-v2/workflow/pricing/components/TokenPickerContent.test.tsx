@@ -20,6 +20,7 @@ import {
 
 const containerMocks = vi.hoisted(() => ({
   isBudgetPending: false,
+  isBudgetStale: false,
   renderBudget: null as {
     total: bigint
     registrationPrice: bigint
@@ -131,7 +132,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
           isLoading: false,
           isFetching: false,
           isPending: containerMocks.isBudgetPending,
-          isPlaceholderData: false,
+          isPlaceholderData: containerMocks.isBudgetStale,
         }
       }
       if (key.includes('l2-usdc-balances')) {
@@ -254,6 +255,7 @@ describe('TokenPickerContent', () => {
   beforeEach(() => {
     containerMocks.renderBudget = null
     containerMocks.isBudgetPending = false
+    containerMocks.isBudgetStale = false
     containerMocks.revalidatedBudget = null
     containerMocks.walletBalance = '100000000'
     containerMocks.availabilityError = null
@@ -369,6 +371,19 @@ describe('TokenPickerContent', () => {
     ])
     fireEvent.click(screen.getByRole('button', { name: 'Show 1 more' }))
     expect(methodNames().at(-1)).toBe('Select USDC on OP Sepolia')
+  })
+
+  it('keeps a funded L2 listed while the primary-name toggle re-quotes', () => {
+    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+    containerMocks.renderBudget = fiveUsdcBudget
+    containerMocks.isBudgetStale = true
+    containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
+    renderContainer()
+
+    expect(
+      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).toBeVisible()
+    expect(containerMocks.l2QuoteKeys).toHaveLength(0)
   })
 
   it('shows no L2 until the quote says whether it can pay', () => {
