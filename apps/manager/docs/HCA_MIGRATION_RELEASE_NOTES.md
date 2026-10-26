@@ -77,7 +77,8 @@ confirmation.
   migrations use per-token approvals, which clear on transfer.
 - Text, address, contenthash, and ABI records are read from the V1 resolver,
   replayed in the HCA batch, and verified on-chain before completion.
-- The rollout remains behind the existing migration feature flag.
+- Migration is available by default; name eligibility and permission checks
+  still apply.
 
 ## QA acceptance scenarios
 

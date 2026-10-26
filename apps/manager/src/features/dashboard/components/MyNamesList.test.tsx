@@ -108,7 +108,6 @@ const renderList = (
     <MyNamesList
       favoriteLabels={new Set()}
       isAuthenticated
-      migrationEnabled={false}
       onToggleFavorite={() => undefined}
       sort="name-asc"
       {...props}
@@ -213,7 +212,6 @@ describe('MyNamesList', () => {
       <MyNamesList
         favoriteLabels={new Set()}
         isAuthenticated
-        migrationEnabled={false}
         onToggleFavorite={() => undefined}
         sort="name-asc"
       />,
@@ -233,7 +231,6 @@ describe('MyNamesList', () => {
       <MyNamesList
         favoriteLabels={new Set()}
         isAuthenticated
-        migrationEnabled={false}
         onToggleFavorite={() => undefined}
         primaryLabel={primaryName}
         sort="name-asc"

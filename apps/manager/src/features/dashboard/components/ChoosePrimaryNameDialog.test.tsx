@@ -40,8 +40,6 @@ const eligibilityMock = vi.hoisted(() => ({
   useDashboardMigrationEligibility: vi.fn(),
 }))
 
-const featureFlags = vi.hoisted(() => ({ migration: false }))
-
 // Keep the real reverse query, QueryClient, chooser, useSetPrimaryName mutation,
 // Dashboard, card, MyNamesList and NavSection. Stub only IO and unrelated panels.
 vi.mock('viem/actions', async (original) => ({
@@ -157,7 +155,6 @@ vi.mock('./NamesTable', () => ({
       <MyNamesList
         favoriteLabels={new Set()}
         isAuthenticated
-        migrationEnabled={false}
         onToggleFavorite={() => undefined}
         primaryLabel={primaryLabel}
         sort="name-asc"
@@ -165,9 +162,14 @@ vi.mock('./NamesTable', () => ({
     </section>
   ),
 }))
-vi.mock('@posthog/react', () => ({
-  useFeatureFlagEnabled: (flag: string) =>
-    flag === 'migration' && featureFlags.migration,
+vi.mock('@/features/migration/components/MigrationModal', () => ({
+  MigrationModal: () => null,
+}))
+vi.mock('@/features/migration/components/MigrationProgressBanner', () => ({
+  MigrationProgressBanner: () => null,
+}))
+vi.mock('@/features/migration/components/UpgradeBanner', () => ({
+  UpgradeBanner: () => null,
 }))
 vi.mock('@/lib/posthog/useMigrationNftEnabled', () => ({
   useMigrationNftEnabled: () => false,

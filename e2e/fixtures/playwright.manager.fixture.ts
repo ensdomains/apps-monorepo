@@ -46,67 +46,6 @@ const localSepolia = {
   rpcUrls: { default: { http: [ANVIL_RPC_URL] } },
 } as const
 
-const MIGRATION_FEATURE_FLAGS = { migration: true } as const
-const FEATURE_FLAG_OVERRIDE_TIMEOUT = 10_000
-
-async function overrideManagerFeatureFlags(
-  page: Page,
-  featureFlags: Record<string, boolean>,
-): Promise<void> {
-  await page.addInitScript((featureFlags) => {
-    type PostHogWindow = Window & {
-      managerFeatureFlagsOverridden?: boolean
-      posthog?: {
-        __loaded?: boolean
-        featureFlags?: {
-          overrideFeatureFlags(options: {
-            flags: Record<string, boolean>
-          }): void
-        }
-      }
-    }
-
-    const applyOverride = () => {
-      const postHogWindow = window as PostHogWindow
-      const posthog = postHogWindow.posthog
-
-      if (!posthog?.__loaded || !posthog.featureFlags) return false
-
-      posthog.featureFlags.overrideFeatureFlags({
-        flags: featureFlags,
-      })
-      postHogWindow.managerFeatureFlagsOverridden = true
-      return true
-    }
-
-    if (applyOverride()) return
-
-    const interval = window.setInterval(() => {
-      if (applyOverride()) window.clearInterval(interval)
-    }, 10)
-  }, featureFlags)
-}
-
-async function waitForManagerFeatureFlagOverride(page: Page): Promise<void> {
-  await page
-    .waitForFunction(
-      () =>
-        (
-          window as Window & {
-            managerFeatureFlagsOverridden?: boolean
-          }
-        ).managerFeatureFlagsOverridden === true,
-      undefined,
-      { timeout: FEATURE_FLAG_OVERRIDE_TIMEOUT },
-    )
-    .catch((cause: unknown) => {
-      throw new Error(
-        `PostHog feature flag override was not applied within ${FEATURE_FLAG_OVERRIDE_TIMEOUT}ms`,
-        { cause },
-      )
-    })
-}
-
 // ---------------------------------------------------------------------------
 // Accounts — derived from the default Anvil mnemonic
 // ---------------------------------------------------------------------------
@@ -170,8 +109,6 @@ type ManagerFixtures = {
   connectedPage: Page
   /** Connected page for profile scenarios. */
   profileConnectedPage: Page
-  /** `connectedPage` with the migration feature flag applied. */
-  migrationConnectedPage: Page
   /**
    * Same as `connectedPage` but completes the BackendAuthModal SIWE prompt
    * instead of dismissing it. Required for backend-gated features
@@ -272,14 +209,6 @@ export const test = base.extend<ManagerFixtures>({
   profileConnectedPage: async ({ page, wallet }, use) => {
     await connectHeadless(page, wallet)
     await dismissBackendAuthModal(page)
-    await use(page)
-  },
-
-  migrationConnectedPage: async ({ page, wallet }, use) => {
-    await overrideManagerFeatureFlags(page, MIGRATION_FEATURE_FLAGS)
-    await connectHeadless(page, wallet)
-    await dismissBackendAuthModal(page)
-    await waitForManagerFeatureFlagOverride(page)
     await use(page)
   },
 

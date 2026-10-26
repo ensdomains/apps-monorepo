@@ -3,7 +3,6 @@ import { NOTICE_BANNER_FLAG } from '@ens-apps/utils/posthog/noticeBanner'
 
 export const POSTHOG_FEATURE_FLAGS = {
   I18N: 'i18n',
-  MIGRATION: 'migration',
   MIGRATION_NFT: 'migration-nft',
   MIGRATION_SUBNAME_RECREATION: 'migration-subname-recreation',
   NOTICE_BANNER: NOTICE_BANNER_FLAG,
@@ -11,9 +10,6 @@ export const POSTHOG_FEATURE_FLAGS = {
 
 export const isMigrationNftEnabled = (params: {
   readonly network: EnsNetwork
-  readonly migrationEnabled: boolean | null | undefined
   readonly migrationNftEnabled: boolean | null | undefined
 }): boolean =>
-  params.network === 'mainnet' &&
-  params.migrationEnabled === true &&
-  params.migrationNftEnabled === true
+  params.network === 'mainnet' && params.migrationNftEnabled === true

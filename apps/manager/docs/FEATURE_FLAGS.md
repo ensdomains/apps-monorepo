@@ -4,7 +4,7 @@
 
 Control features via environment variables or user-specific lists. User identifiers (wallet address, email, phone) are automatically detected.
 
-The language selector and migration-related rollout flags use **PostHog** instead — see `src/lib/posthog/feature-flags.ts`.
+The language selector, migration NFT, and subname recreation rollout flags use **PostHog** instead — see `src/lib/posthog/feature-flags.ts`. Migration itself is available by default.
 
 ## Setup
 

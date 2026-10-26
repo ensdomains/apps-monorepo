@@ -1,18 +1,14 @@
 import { Trans } from '@lingui/react/macro'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { Card } from '@/components/ui/card'
 import { MigrationApprovalSettings } from '@/features/migration/components/MigrationApprovalSettings'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 
 export const MigrationPermissionsPage = () => {
-  const isMigrationEnabled =
-    useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MIGRATION, false) === true
   const { isConnected, ownerAddress } = useSmartAccountContext()
-  const canCheckNames = isMigrationEnabled && isConnected && !!ownerAddress
+  const canCheckNames = isConnected && !!ownerAddress
   const { eligible, gracePeriodNames, wrapperSyncNames, isPending } =
     useEligibleV1Names({
       enabled: canCheckNames,

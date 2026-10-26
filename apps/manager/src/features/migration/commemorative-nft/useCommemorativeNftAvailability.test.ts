@@ -124,7 +124,7 @@ describe('commemorative NFT availability observer', () => {
     vi.restoreAllMocks()
   })
 
-  it('disables Sepolia reads even with both flags enabled and cached NFT data', async () => {
+  it('disables Sepolia reads even with the NFT flag enabled and cached NFT data', async () => {
     mockEnvConfig.network = 'sepolia'
     vi.mocked(useChainId).mockReturnValue(sepolia.id)
     const client = createClient()
@@ -140,18 +140,10 @@ describe('commemorative NFT availability observer', () => {
     expect(readClaimed).not.toHaveBeenCalled()
   })
 
-  it.each([
-    [false, true],
-    [true, false],
-    [false, false],
-    [undefined, true],
-    [true, undefined],
-  ] as const)(
-    'does not fetch NFT metadata or claim status with migration=%s and migration-nft=%s',
-    (migration, migrationNft) => {
-      vi.mocked(useFeatureFlagEnabled).mockImplementation(
-        (flag) => (flag === 'migration' ? migration : migrationNft) ?? false,
-      )
+  it.each([false, undefined] as const)(
+    'does not fetch NFT metadata or claim status with migration-nft=%s',
+    (migrationNft) => {
+      vi.mocked(useFeatureFlagEnabled).mockReturnValue(migrationNft ?? false)
       const { result } = mountAvailability(createClient(), {
         pollClaimed: true,
       })
@@ -166,7 +158,7 @@ describe('commemorative NFT availability observer', () => {
     },
   )
 
-  it('starts reads when both flags become enabled and stops background reads when disabled', async () => {
+  it('starts reads when the NFT flag becomes enabled and stops background reads when disabled', async () => {
     vi.mocked(useFeatureFlagEnabled).mockReturnValue(false)
     const client = createClient()
     const { result, rerender } = mountAvailability(client)

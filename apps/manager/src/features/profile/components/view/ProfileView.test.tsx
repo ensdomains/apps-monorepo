@@ -22,7 +22,6 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
     <a href="/">{children}</a>
   ),
 }))
-vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: () => false }))
 vi.mock('@/lib/posthog/useMigrationNftEnabled', () => ({
   useMigrationNftEnabled: () => false,
 }))
@@ -86,8 +85,10 @@ vi.mock('@/features/profile/service/profileReverseName', () => ({
 }))
 vi.mock('./ProfileCards', () => ({ ProfileCards: () => null }))
 vi.mock('./ProfileStatusBanners', () => ({
-  ProfileMigrationBanner: () => null,
   ProfileGracePeriodBanner: () => null,
+}))
+vi.mock('@/features/migration/components/UpgradeBanner', () => ({
+  UpgradeBanner: () => null,
 }))
 vi.mock('./ProfileActions', () => ({
   // Simulate the editor's successful-save callback without a wallet transaction.

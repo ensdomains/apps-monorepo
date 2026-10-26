@@ -232,18 +232,15 @@ describe('commemorative NFT flow session', () => {
   })
 
   it.each([
-    { migration: true, nft: true, network: 'sepolia' },
-    { migration: false, nft: true, network: 'mainnet' },
-    { migration: true, nft: false, network: 'mainnet' },
-    { migration: undefined, nft: true, network: 'mainnet' },
-    { migration: true, nft: undefined, network: 'mainnet' },
+    { nft: true, network: 'sepolia' },
+    { nft: false, network: 'mainnet' },
+    { nft: undefined, network: 'mainnet' },
   ] as const)(
-    'keeps cached NFTs and callbacks disabled with flags $migration/$nft on $network',
-    async ({ migration, nft, network }) => {
+    'keeps cached NFTs and callbacks disabled with migration-nft=$nft on $network',
+    async ({ nft, network }) => {
       mockEnvConfig.network = network
       featureFlag.mockImplementation(
-        (flag, defaultValue) =>
-          (flag === 'migration' ? migration : nft) ?? defaultValue,
+        (_flag, defaultValue) => nft ?? defaultValue,
       )
       const client = createClient()
       client.setQueryData(

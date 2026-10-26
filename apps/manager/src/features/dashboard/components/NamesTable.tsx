@@ -37,7 +37,6 @@ type FilterKey = 'owned' | 'favorites'
 
 interface NamesTableProps {
   readonly primaryLabel?: string | null
-  readonly migrationEnabled?: boolean
 }
 
 type DirectionalSort<Field extends string> = `${Field}-${SortDir}`
@@ -57,10 +56,7 @@ const toDirectionalSort = <Field extends string>(
 const reverseSortDir = (dir: SortDir): SortDir =>
   dir === 'asc' ? 'desc' : 'asc'
 
-export const NamesTable = ({
-  migrationEnabled = false,
-  primaryLabel,
-}: NamesTableProps) => {
+export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const { t } = useLingui()
   const [filter, setFilter] = useState<FilterKey>('owned')
   const [version, setVersion] = useState<NameVersion | null>(null)
@@ -359,7 +355,6 @@ export const NamesTable = ({
               <MyNamesList
                 favoriteLabels={favoriteLabels}
                 isAuthenticated={isAuthed}
-                migrationEnabled={migrationEnabled}
                 onToggleFavorite={onToggleFavorite}
                 onToggleSelect={onToggleSelect}
                 primaryLabel={primaryLabel}
