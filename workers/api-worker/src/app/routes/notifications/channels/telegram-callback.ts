@@ -114,8 +114,8 @@ export const telegramCallbackPage = ({
         .wire::before, .wire::after { content: ""; position: absolute; top: 50%; height: 2px; margin-top: -1px; transform-origin: left center; animation: draw 520ms var(--ease-out) both; }
         .wire::before { left: 0; right: 50%; }
         .wire::after { left: 50%; right: 0; animation-delay: 140ms; }
-        .node { position: absolute; top: 50%; left: 50%; display: grid; place-items: center; width: 36px; height: 36px; margin: -18px 0 0 -18px; border: 4px solid var(--color-ens-quartz-0); border-radius: 50%; animation: pop 360ms var(--ease-out) 520ms both; }
-        .node svg { width: 16px; height: 16px; }
+        .node { position: absolute; z-index: 1; top: 50%; left: 50%; display: grid; place-items: center; width: 36px; height: 36px; margin: -18px 0 0 -18px; border: 4px solid var(--color-ens-quartz-0); border-radius: 50%; animation: pop 360ms var(--ease-out) 520ms both; }
+        .node svg { width: 18px; height: 18px; }
 
         .is-connected .wire::before, .is-connected .wire::after { background: var(--color-ens-lapis-core); }
         .is-connected .node { background: var(--color-ens-signal-success-100); color: var(--color-ens-signal-success-600); box-shadow: 0 0 0 1px var(--color-ens-signal-success-100); }
