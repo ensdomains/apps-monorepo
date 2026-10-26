@@ -78,6 +78,10 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     environment: swarm
+    # No PostHog on the .eth mirror: eth.limo sends `Clear-Site-Data: "cookies"`,
+    # wiping the consent cookie, so the banner returned on every load.
+    env:
+      VITE_PUBLIC_POSTHOG_KEY: ""
 
     # Anchored (&name) here and reused (*name) by the cloudflare job.
     steps:
