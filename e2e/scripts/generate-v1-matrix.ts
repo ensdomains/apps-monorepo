@@ -63,7 +63,7 @@ const header = (group: string) => `/**
  * an \`evm_revert\` rewinds the chain but not the indexer, which then halts
  * permanently.`
      : ''
-}
+ }
  */
 
 import { expect, test } from '../../../fixtures/playwright.portal.fixture.js'

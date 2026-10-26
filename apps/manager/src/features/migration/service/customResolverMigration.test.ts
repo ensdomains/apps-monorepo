@@ -263,19 +263,22 @@ describe('migrating a V1 name whose resolver is not a known public resolver', ()
       wrapped({ fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_SET_RESOLVER }),
       'locked-2ld',
     ],
-  ] as const)('keeps the custom resolver and skips replay for %s too', async (_label, overrides, tokenType) => {
-    const plan = await planFor(
-      { ...overrides, resolverAddress: CUSTOM_RESOLVER },
-      tokenType,
-    )
+  ] as const)(
+    'keeps the custom resolver and skips replay for %s too',
+    async (_label, overrides, tokenType) => {
+      const plan = await planFor(
+        { ...overrides, resolverAddress: CUSTOM_RESOLVER },
+        tokenType,
+      )
 
-    expect(plan.classified).toEqual([
-      expect.objectContaining({ tokenType, resolverStrategy: 'keep-v1' }),
-    ])
-    expect(migrationResolverOf(plan)).toBe(getAddress(CUSTOM_RESOLVER))
-    expect(plan.profiles.size).toBe(0)
-    expect(phasesOf(plan)).toEqual(['migrate'])
-  })
+      expect(plan.classified).toEqual([
+        expect.objectContaining({ tokenType, resolverStrategy: 'keep-v1' }),
+      ])
+      expect(migrationResolverOf(plan)).toBe(getAddress(CUSTOM_RESOLVER))
+      expect(plan.profiles.size).toBe(0)
+      expect(phasesOf(plan)).toEqual(['migrate'])
+    },
+  )
 
   it('is not blocked by the locked resolver record-safety guard', async () => {
     // A *known* resolver on a locked name is rotated to the V2 DefaultResolver
