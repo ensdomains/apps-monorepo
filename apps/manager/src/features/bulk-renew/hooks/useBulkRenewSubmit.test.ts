@@ -526,3 +526,32 @@ describe('useBulkRenewSubmit (EOA only)', () => {
     expect(result.current.statuses).toEqual({})
   })
 })
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useSearch: () => ({ referrer: '0x1234' }),
+}))
+
+it.each(['eoa', 'hca'] as const)(
+  'passes URL attribution into each %s bulk renewal',
+  async (mode) => {
+    mocks.useSmartAccountContext.mockReturnValue(
+      mode === 'eoa' ? eoaAccount : hcaAccount,
+    )
+    const { result } = renderHook(() => useBulkRenewSubmit())
+    await act(async () => {
+      await result.current.submit(args)
+    })
+    const expected = `0x${'0'.repeat(60)}1234`
+    if (mode === 'eoa') {
+      expect(mocks.submitRenewActor).toHaveBeenCalledTimes(args.items.length)
+      for (const [input] of mocks.submitRenewActor.mock.calls)
+        expect(input.referrer).toBe(expected)
+    } else {
+      expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce()
+      expect(mocks.submitHcaRenewal.mock.calls[0]?.[0].items).toEqual(
+        args.items.map((item) => ({ ...item, referrer: expected })),
+      )
+    }
+  },
+)

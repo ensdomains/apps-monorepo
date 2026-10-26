@@ -110,6 +110,16 @@ describe('classifyDeliveryError', () => {
   })
 
   describe('telegram', () => {
+    it.each([
+      'The operation was aborted due to timeout',
+      'The operation timed out',
+    ])('classifies request timeouts as transient: %s', (message) => {
+      expect(classifyDeliveryError('telegram', message)).toEqual({
+        category: 'transient',
+        delaySeconds: 3600,
+      })
+    })
+
     it('classifies "chat not found" as hard_bounce', () => {
       const result = classifyDeliveryError(
         'telegram',

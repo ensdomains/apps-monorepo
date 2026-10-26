@@ -118,7 +118,7 @@ describe.each(['email', 'push', 'telegram'] as const)(
         expect(providers.email).toHaveBeenCalledWith(
           'test',
           expect.objectContaining({
-            subject: '[Sepolia] Your name’s grace period has ended',
+            subject: '[Sepolia] You no longer own alpha.eth',
             personalizations: [{ to: [{ email: targets.email }] }],
             content: [
               {

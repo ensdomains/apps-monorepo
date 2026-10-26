@@ -313,10 +313,6 @@ msgstr "Add to favorites"
 msgid "Added to your favorites!"
 msgstr "Added to your favorites!"
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Adding telegram..."
-msgstr "Adding telegram..."
-
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx
 msgid "Additional fee"
 msgstr "Additional fee"
@@ -587,6 +583,10 @@ msgstr "Can you share your order number?"
 msgid "Cancel"
 msgstr "Cancel"
 
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
+msgid "Cancel connection"
+msgstr "Cancel connection"
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Cancel Email Verification?"
 msgstr "Cancel Email Verification?"
@@ -782,6 +782,10 @@ msgstr "Connect"
 msgid "Connect a wallet to continue to notification settings and activity."
 msgstr "Connect a wallet to continue to notification settings and activity."
 
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Connect Telegram"
+msgstr "Connect Telegram"
+
 #: src/features/profile/components/common/favoriteAction.helpers.ts
 msgid "Connect to favorite name"
 msgstr "Connect to favorite name"
@@ -815,6 +819,10 @@ msgstr "Connect your wallet to revoke sessions."
 msgid "Connected"
 msgstr "Connected"
 
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Connecting…"
+msgstr "Connecting…"
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 #: src/features/profile/components/view/ProfileContactSection.tsx
 msgid "Contact"
@@ -835,6 +843,14 @@ msgstr "Continue"
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Continue migration"
 msgstr "Continue migration"
+
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
+msgid "Continue to Telegram"
+msgstr "Continue to Telegram"
+
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
+msgid "Continue to Telegram if sign-in did not open automatically. You can keep using ENS Manager, or copy the sign-in link to another browser and return here afterward."
+msgstr "Continue to Telegram if sign-in did not open automatically. You can keep using ENS Manager, or copy the sign-in link to another browser and return here afterward."
 
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue without signing in"
@@ -887,6 +903,14 @@ msgstr "Copy link"
 msgid "Copy Link"
 msgstr "Copy Link"
 
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
+msgid "Copy sign-in link"
+msgstr "Copy sign-in link"
+
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
+msgid "Copy the sign-in link, open your browser and paste it into the address bar. Complete Telegram sign-in, then return here. Keep ENS Manager open in MetaMask."
+msgstr "Copy the sign-in link, open your browser and paste it into the address bar. Complete Telegram sign-in, then return here. Keep ENS Manager open in MetaMask."
+
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
@@ -895,6 +919,14 @@ msgstr "Copy to clipboard"
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Copy wallet address"
 msgstr "Copy wallet address"
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Could not connect Telegram. Please try again and allow the bot to send messages."
+msgstr "Could not connect Telegram. Please try again and allow the bot to send messages."
+
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
+msgid "Could not copy the sign-in link. Please try again."
+msgstr "Could not copy the sign-in link. Please try again."
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Couldn't check this name"
@@ -1251,18 +1283,6 @@ msgstr "Expiry Date"
 msgid "Failed to add email"
 msgstr "Failed to add email"
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Failed to add Telegram channel"
-msgstr "Failed to add Telegram channel"
-
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Failed to add telegram: "
-msgstr "Failed to add telegram: "
-
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Failed to authenticate with Telegram"
-msgstr "Failed to authenticate with Telegram"
-
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Failed to fund wallet"
 msgstr "Failed to fund wallet"
@@ -1373,10 +1393,6 @@ msgstr "Funding wallet {address} with mock USDC & DAI tokens"
 msgid "Get instant push notifications in your browser"
 msgstr "Get instant push notifications in your browser"
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Get instant updates through Telegram for your domains."
-msgstr "Get instant updates through Telegram for your domains."
-
 #: src/features/notifications/settings/preferences.tsx
 msgid "Get notified as favourited names approach expiry and move through their grace period."
 msgstr "Get notified as favourited names approach expiry and move through their grace period."
@@ -1388,6 +1404,10 @@ msgstr "Get notified as owned names approach expiry and move through their grace
 #: src/features/notifications/settings/preferences.tsx
 msgid "Get updated on the latest releases and features."
 msgstr "Get updated on the latest releases and features."
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Get updates about your names in Telegram."
+msgstr "Get updates about your names in Telegram."
 
 #: src/features/migration/components/GameStep.tsx
 msgid "Getting ready..."
@@ -1975,6 +1995,10 @@ msgstr "Only http:// and https:// links are supported"
 msgid "Open in ENS Explorer"
 msgstr "Open in ENS Explorer"
 
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
+msgid "Open in Safari"
+msgstr "Open in Safari"
+
 #: src/features/navigation/Header/navigation/DesktopNavigation.tsx
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx
 msgid "Open navigation"
@@ -1987,6 +2011,10 @@ msgstr "Open NFT in a new tab"
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Open Notification Settings"
 msgstr "Open Notification Settings"
+
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
+msgid "Open Safari to finish connecting Telegram, then return here. Keep ENS Manager open in MetaMask."
+msgstr "Open Safari to finish connecting Telegram, then return here. Keep ENS Manager open in MetaMask."
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "OpenSea"
@@ -2058,10 +2086,6 @@ msgstr "Please connect your wallet first"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Please finish connecting your wallet, then try again"
 msgstr "Please finish connecting your wallet, then try again"
-
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Please sign in to telegram in the popup window."
-msgstr "Please sign in to telegram in the popup window."
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "Preferences"
@@ -2210,6 +2234,14 @@ msgstr "Recently expired names have a temporary fee that decreases to $0 over {p
 msgid "Recommended"
 msgstr "Recommended"
 
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Reconnect and allow the bot to send you messages to receive notifications."
+msgstr "Reconnect and allow the bot to send you messages to receive notifications."
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Reconnect Telegram"
+msgstr "Reconnect Telegram"
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "Reconnect the eligible owner wallet before minting."
 msgstr "Reconnect the eligible owner wallet before minting."
@@ -2337,6 +2369,10 @@ msgstr "Remove notification"
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
 msgid "Remove record"
 msgstr "Remove record"
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Remove Telegram"
+msgstr "Remove Telegram"
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Remove Telegram Contact Method?"
@@ -2830,6 +2866,10 @@ msgstr "Sign once to enable seamless transactions."
 msgid "Sign the gasless payment approval in your wallet"
 msgstr "Sign the gasless payment approval in your wallet"
 
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
+msgid "Sign-in link copied. Open it in your browser, then return here."
+msgstr "Sign-in link copied. Open it in your browser, then return here."
+
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
@@ -3006,20 +3046,16 @@ msgid "Syncing names…"
 msgstr "Syncing names…"
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Telegram"
-msgstr "Telegram"
-
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Telegram channel added"
-msgstr "Telegram channel added"
-
-#: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Telegram channel removed"
 msgstr "Telegram channel removed"
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "Telegram Notifications"
-msgstr "Telegram Notifications"
+msgid "Telegram login expired. Please try again."
+msgstr "Telegram login expired. Please try again."
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx
+msgid "Telegram notifications"
+msgstr "Telegram notifications"
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Temporary"
@@ -3278,10 +3314,6 @@ msgstr "To enable these features later, open your wallet menu and select Verify 
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
 msgstr "To enable, go to your browser's site settings for this page and allow notifications."
-
-#: src/features/notifications/settings/contact-methods/telegram.tsx
-msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
-msgstr "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "To use this as your primary name, we’ll set a resolver your wallet controls and keep only your wallet address."
@@ -3594,6 +3626,10 @@ msgstr "Waiting for resolver deployment"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for resolver submission"
 msgstr "Waiting for resolver submission"
+
+#: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
+msgid "Waiting for Telegram"
+msgstr "Waiting for Telegram"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for the approval confirmation"

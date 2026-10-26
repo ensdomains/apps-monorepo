@@ -6,7 +6,6 @@ interface __BaseEnv_Env {
 	ASSETS: Fetcher;
 	VITE_ALCHEMY_NFT_API_KEY: string;
 	VITE_API_URL: string;
-	VITE_TELEGRAM_BOT_ID: string;
 	VITE_FF_COMMEMORATIVE_NFT_COPY: string;
 	VITE_FF_TEMP_PREMIUM_NAME_STATS: string;
 	VITE_PUBLIC_POSTHOG_KEY: string;
@@ -25,7 +24,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "VITE_ALCHEMY_NFT_API_KEY" | "VITE_API_URL" | "VITE_TELEGRAM_BOT_ID" | "VITE_FF_COMMEMORATIVE_NFT_COPY" | "VITE_FF_TEMP_PREMIUM_NAME_STATS" | "VITE_PUBLIC_POSTHOG_KEY" | "VITE_PUBLIC_POSTHOG_HOST" | "VITE_FF_USE_EOA" | "VITE_ENS_NETWORK" | "CROWDIN_PERSONAL_TOKEN" | "VITE_RHINESTONE_API_KEY" | "VITE_DQA">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "VITE_ALCHEMY_NFT_API_KEY" | "VITE_API_URL" | "VITE_FF_COMMEMORATIVE_NFT_COPY" | "VITE_FF_TEMP_PREMIUM_NAME_STATS" | "VITE_PUBLIC_POSTHOG_KEY" | "VITE_PUBLIC_POSTHOG_HOST" | "VITE_FF_USE_EOA" | "VITE_ENS_NETWORK" | "CROWDIN_PERSONAL_TOKEN" | "VITE_RHINESTONE_API_KEY" | "VITE_DQA">> {}
 }
 declare module "*.txt" {
 	const value: string;

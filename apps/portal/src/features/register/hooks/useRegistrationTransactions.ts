@@ -11,7 +11,9 @@ import {
   transactionManager,
   useAtomicBatchSupport,
 } from '@ens-apps/transaction-manager'
+import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { useSearch } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -228,6 +230,7 @@ export const useRegistrationTransactions = ({
   name,
   duration,
 }: UseRegistrationTransactionsParams) => {
+  const { referrer } = useSearch({ strict: false })
   const chainId = ensChain.id
   const config = useConfig()
   const connection = useConnection()
@@ -287,6 +290,10 @@ export const useRegistrationTransactions = ({
   const resolverAddress = useSelector(
     actor,
     (state) => state.context.resolverAddress,
+  )
+  const registrationReferrer = useSelector(
+    actor,
+    (state) => state.context.referrer,
   )
   const commitment = useSelector(actor, (state) => state.context.commitment)
   const verifiedResolverRef = useRef<Address | null>(null)
@@ -464,6 +471,7 @@ export const useRegistrationTransactions = ({
 
     actor.send({
       type: 'START_REGISTRATION',
+      referrer: normalizeReferrer(referrer),
       name,
       duration: BigInt(duration),
       token: savedParams.tokenSymbol,
@@ -477,6 +485,7 @@ export const useRegistrationTransactions = ({
     actor,
     name,
     duration,
+    referrer,
     publicClient,
     connection,
     config,
@@ -507,6 +516,7 @@ export const useRegistrationTransactions = ({
                   from: walletClient.account.address,
                   ...encodeRegisterCall({
                     name,
+                    referrer: registrationReferrer,
                     owner: connection.address as Address,
                     secret: commitment.secret,
                     duration: BigInt(duration),
@@ -529,6 +539,7 @@ export const useRegistrationTransactions = ({
       connection.address,
       savedParams,
       commitment,
+      registrationReferrer,
       resolverAddress,
       registerWaitUntil,
       handleProceed,

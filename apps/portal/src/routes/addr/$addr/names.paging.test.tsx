@@ -10,6 +10,7 @@ const ADDRESS = '0x55e55c649895940826a852820d9e1a076ec47b09'
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 vi.mock('@tanstack/react-router', () => ({
+  useSearch: () => ({}),
   Link: ({ children, to }: { children: ReactNode; to: string }) => (
     <a href={to}>{children}</a>
   ),
