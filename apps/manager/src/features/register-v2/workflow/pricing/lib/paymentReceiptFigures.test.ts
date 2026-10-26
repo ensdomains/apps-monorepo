@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getPaymentReceiptFigures } from './paymentReceiptFigures'
+import {
+  getPaymentReceiptFigures,
+  getWalletShortfall,
+} from './paymentReceiptFigures'
 
 const funding = (overrides: {
   readonly walletDebit: number
@@ -58,4 +61,18 @@ describe('getPaymentReceiptFigures', () => {
       }),
     ).toBeUndefined()
   })
+})
+
+describe('getWalletShortfall', () => {
+  it.each([
+    { required: 1, balance: 0.7, expected: 0.3 },
+    { required: 5.001, balance: 5, expected: 0.01 },
+    { required: 5, balance: 5, expected: undefined },
+    { required: undefined, balance: 0, expected: undefined },
+  ])(
+    '$required against $balance is $expected',
+    ({ required, balance, expected }) => {
+      expect(getWalletShortfall(required, balance)).toBe(expected)
+    },
+  )
 })

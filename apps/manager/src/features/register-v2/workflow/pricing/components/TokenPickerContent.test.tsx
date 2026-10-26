@@ -736,6 +736,35 @@ describe('TokenPickerContentBase', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('keeps the covered note through a background refetch', () => {
+    renderPicker({
+      funding: {
+        registration: 160,
+        networkFee: 4.32,
+        total: 164.32,
+        walletDebit: 0,
+        hcaCredit: 164.32,
+        isLoading: true,
+      },
+      isQuotingFunding: true,
+      selectedToken: 'USDC',
+    })
+
+    expect(screen.getByText(/No additional payment needed/)).toBeVisible()
+    expect(receiptRow('Due from your wallet')).toHaveTextContent('$0.00')
+  })
+
+  it('totals the funded amount when no fee quote is available', () => {
+    renderPicker({
+      fundedAmount: 5.5,
+      pricingData: 5,
+      selectedToken: 'USDC',
+      showNetworkFeeDetails: false,
+    })
+
+    expect(receiptRow('Due from your wallet')).toHaveTextContent('up to $5.50')
+  })
+
   it('holds the receipt and the button while the fee is being quoted', () => {
     renderPicker({ isQuotingFunding: true, selectedToken: 'USDC' })
 
@@ -808,7 +837,7 @@ describe('TokenPickerContentBase', () => {
   it('shows an error in place of the shortfall', () => {
     renderPicker({
       globalErrorMessage: 'Signature cancelled. You can try again.',
-      methodErrorMessage: '$5.00 more needed in your wallet.',
+      revalidatedShortfall: 5,
       selectedToken: 'USDC',
       stablecoinBalances: [emptyUsdc],
     })

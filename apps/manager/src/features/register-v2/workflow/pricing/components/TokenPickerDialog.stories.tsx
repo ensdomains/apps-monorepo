@@ -78,7 +78,6 @@ interface TokenPickerDialogShellProps {
   readonly globalErrorMessage?: string | null
   readonly helpMessage?: string
   readonly footer?: ReactNode
-  readonly methodErrorMessage?: string | null
   readonly initialSelectedToken?: SUPPORTED_TOKEN
   readonly funding?: RegistrationFundingSummary
   readonly isQuotingFunding?: boolean
@@ -99,7 +98,6 @@ export const TokenPickerDialogShell = ({
   globalErrorMessage = null,
   helpMessage,
   footer,
-  methodErrorMessage = null,
   initialSelectedToken,
   funding,
   isQuotingFunding = false,
@@ -137,7 +135,6 @@ export const TokenPickerDialogShell = ({
           }
         }
         label={label}
-        methodErrorMessage={methodErrorMessage}
         onNext={() => {}}
         onSelectCoin={(coin) => {
           setSelectedChainId(undefined)
@@ -407,7 +404,6 @@ const meta = {
     isLoadingBalances: false,
     stablecoinBalances: [FUNDED_USDC],
     globalErrorMessage: null,
-    methodErrorMessage: null,
   },
   argTypes: {
     stablecoinBalances: { control: false },

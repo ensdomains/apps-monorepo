@@ -91,6 +91,7 @@ export const L2SourceListItem = ({
       isFeeLoading={row.isQuoteLoading}
       // Selectable while quoting; the action waits for the quote.
       isFunded={option.status === 'available' && !isShortOfQuote}
+      isInsufficient={option.status === 'insufficient' || isShortOfQuote}
       isSelected={isSelected}
       name={t`USDC on ${chainName}`}
       onSelect={onSelect}

@@ -16,6 +16,8 @@ export type PaymentMethodRowProps = {
   readonly selectLabel: string
   readonly isAvailable: boolean
   readonly isFunded: boolean
+  /** The balance is known to be short, as opposed to loading or unreadable. */
+  readonly isInsufficient?: boolean
   readonly isSelected: boolean
   readonly onSelect: () => void
   readonly fee?: React.ReactNode
@@ -35,6 +37,7 @@ export const PaymentMethodRow = ({
   selectLabel,
   isAvailable,
   isFunded,
+  isInsufficient = false,
   isSelected,
   onSelect,
   fee,
@@ -121,8 +124,8 @@ export const PaymentMethodRow = ({
           className={cn(
             // Figma specifies 15/22px desktop amount type; no exact typography tokens exist.
             'text-right text-sm tabular-nums leading-none sm:text-[15px] sm:leading-[22px]',
-            !isAvailable && 'text-ens-quartz-350',
-            isAvailable && !isFunded && 'text-ens-error',
+            isInsufficient && 'text-ens-error',
+            !isInsufficient && isDisabled && 'text-ens-quartz-350',
             !isDisabled && 'text-ens-quartz-900',
           )}
         >

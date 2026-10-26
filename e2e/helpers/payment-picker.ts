@@ -12,3 +12,13 @@ export async function selectUsdcIfNeeded(page: Page) {
     .waitFor()
   if (await selectUsdc.isVisible()) await selectUsdc.click()
 }
+
+/** Clicks the registration payment action, whichever label the payment state gives it. */
+export async function clickRegistrationPaymentAction(page: Page) {
+  await page
+    .getByRole('dialog', { name: 'Approve and register name' })
+    .getByRole('button', {
+      name: /^(approve and register|sign payment approval|register name)$/i,
+    })
+    .click()
+}

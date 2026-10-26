@@ -6,7 +6,10 @@ import {
 } from '../../../fixtures/playwright.manager.fixture.js'
 import { expectFlowSuccess } from '../../../helpers/flow-completion.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
-import { selectUsdcIfNeeded } from '../../../helpers/payment-picker.js'
+import {
+  clickRegistrationPaymentAction,
+  selectUsdcIfNeeded,
+} from '../../../helpers/payment-picker.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -65,12 +68,7 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
     // EOA mode. See registration-rhinestone.spec.ts.
     await clickThroughEnableSessions(page)
     await selectUsdcIfNeeded(page)
-    await page
-      .getByRole('dialog', { name: 'Approve and register name' })
-      .getByRole('button', {
-        name: /^(approve and register|sign payment approval|register name)$/i,
-      })
-      .click()
+    await clickRegistrationPaymentAction(page)
 
     // RegisteringStep renders NotificationSettings for as long as the
     // parallel `notifications` region sits in its initial `settings` state —

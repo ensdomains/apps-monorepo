@@ -7,7 +7,10 @@ import {
   clickThroughEnableSessions,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
-import { selectUsdcIfNeeded } from '../../../helpers/payment-picker.js'
+import {
+  clickRegistrationPaymentAction,
+  selectUsdcIfNeeded,
+} from '../../../helpers/payment-picker.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
@@ -65,12 +68,7 @@ test.describe('ENS name registration', () => {
     // idempotent — a no-op in EOA mode where the modal never appears.
     await clickThroughEnableSessions(page)
     await selectUsdcIfNeeded(page)
-    await page
-      .getByRole('dialog', { name: 'Approve and register name' })
-      .getByRole('button', {
-        name: /^(approve and register|sign payment approval|register name)$/i,
-      })
-      .click()
+    await clickRegistrationPaymentAction(page)
 
     // RegistrationDetails (including the completion banner) stays hidden while
     // the parallel notification-settings region is waiting for a choice.

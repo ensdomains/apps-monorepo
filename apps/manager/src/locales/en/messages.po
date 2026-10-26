@@ -48,10 +48,8 @@ msgstr "{0, plural, one {Your name is safe.} other {Your names are safe.}}"
 msgid "{0} / {DESCRIPTION_MAX_LENGTH} characters"
 msgstr "{0} / {DESCRIPTION_MAX_LENGTH} characters"
 
-#. placeholder {0}: formatUsd(revalidatedShortfall)
 #. placeholder {0}: formatUsd(shortfall)
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "{0} more needed in your wallet."
 msgstr "{0} more needed in your wallet."
 
@@ -3825,7 +3823,7 @@ msgstr "What is a primary name?"
 msgid "What is the network fee?"
 msgstr "What is the network fee?"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentHelp.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 msgid "What will I sign?"
 msgstr "What will I sign?"
 

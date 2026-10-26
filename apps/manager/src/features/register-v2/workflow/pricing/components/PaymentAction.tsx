@@ -3,10 +3,14 @@ import { LoaderCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
-import { PaymentHelp } from './PaymentHelp'
 
-/** The payment CTA, which becomes "Try again" when `onRetry` is set, with the help disclosure below. */
+/** The payment CTA, "Try again" when `onRetry` is set, with "What will I sign?" below. */
 export const PaymentAction = ({
   label,
   onNext,
@@ -55,7 +59,16 @@ export const PaymentAction = ({
         )}
         {onRetry ? <Trans>Try again</Trans> : label}
       </Button>
-      {helpMessage && <PaymentHelp>{helpMessage}</PaymentHelp>}
+      {helpMessage && (
+        <Collapsible className="flex w-full flex-col items-center gap-3">
+          <CollapsibleTrigger className="rounded px-2 py-1 text-ens-quartz-500 text-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ens-blue">
+            <Trans>What will I sign?</Trans>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="w-full rounded-xl bg-ens-quartz-50 p-4 text-left text-ens-quartz-500 text-sm">
+            {helpMessage}
+          </CollapsibleContent>
+        </Collapsible>
+      )}
     </div>
   )
 }

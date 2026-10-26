@@ -58,11 +58,15 @@ export const getPaymentReceiptState = ({
   return figures ? { status: 'ready', figures } : { status: 'unavailable' }
 }
 
-/** What the wallet is short by, rounded up to the cent so a sub-cent gap never reads as $0.00. */
+const MICROS_PER_CENT = 10_000
+const toMicros = (usd: number) => Math.round(usd * 1_000_000)
+
+/** What the wallet is short by, in 6dp units rounded up to the cent, so float error never adds a cent. */
 export const getWalletShortfall = (
   required: number | undefined,
   balance: number | undefined,
-) =>
-  required !== undefined && balance !== undefined && balance < required
-    ? Math.ceil((required - balance) * 100) / 100
-    : undefined
+) => {
+  if (required === undefined || balance === undefined) return undefined
+  const micros = toMicros(required) - toMicros(balance)
+  return micros > 0 ? Math.ceil(micros / MICROS_PER_CENT) / 100 : undefined
+}
