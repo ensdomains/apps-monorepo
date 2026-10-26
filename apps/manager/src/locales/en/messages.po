@@ -575,11 +575,6 @@ msgstr "Browser notifications enabled"
 msgid "Bug bounty"
 msgstr "Bug bounty"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Calculating total…"
-msgstr "Calculating total…"
-
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Can I change my primary name later?"
 msgstr "Can I change my primary name later?"
@@ -1656,10 +1651,6 @@ msgstr "Loading balances…"
 #: src/features/migration/components/success/CommemorativeNftRendererSurface.tsx
 msgid "Loading NFT artwork…"
 msgstr "Loading NFT artwork…"
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Loading payment methods…"
-msgstr "Loading payment methods…"
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx

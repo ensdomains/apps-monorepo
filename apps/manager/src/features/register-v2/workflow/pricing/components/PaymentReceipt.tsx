@@ -22,7 +22,8 @@ const Amount = ({
     .with({ status: 'loading' }, () => (
       <span
         aria-hidden="true"
-        className="inline-block h-5 w-28 animate-pulse rounded bg-ens-quartz-100"
+        // Figma's skeleton fill (#f5f5f5) and 113px width have no theme tokens.
+        className="inline-block h-5 w-[113px] rounded bg-[#f5f5f5]"
       />
     ))
     .with({ status: 'unavailable' }, () => (

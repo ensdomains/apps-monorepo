@@ -85,7 +85,7 @@ export const TokenPickerContent = () => {
       <Trans>Signing renewal…</Trans>
     ))
     .with({ isAwaitingApproval: true }, () => <Trans>Approve in wallet</Trans>)
-    .with({ isQuoting: true }, () => <Trans>Calculating total…</Trans>)
+    .with({ isQuoting: true }, () => <Trans>Renew name</Trans>)
     .with({ isIntentRoute: true, isFullyCovered: true }, () => (
       <Trans>Sign renewal</Trans>
     ))

@@ -53,9 +53,7 @@ export const PaymentAction = ({
         disabled={!isEnabled}
         onClick={onRetry ?? onNext}
       >
-        {isSettling && (
-          <LoaderCircle aria-hidden="true" className="animate-spin" />
-        )}
+        {isBusy && <LoaderCircle aria-hidden="true" className="animate-spin" />}
         {onRetry ? <Trans>Try again</Trans> : label}
       </Button>
       {/* A popover, so opening it never resizes the pinned action area. */}

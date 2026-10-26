@@ -433,9 +433,7 @@ describe('TokenPickerContent', () => {
     containerMocks.isBudgetPending = true
     renderContainer()
 
-    expect(
-      screen.getByRole('button', { name: 'Calculating total…' }),
-    ).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
     expect(screen.queryByText(/more needed/)).not.toBeInTheDocument()
   })
 

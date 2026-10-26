@@ -580,11 +580,6 @@ msgstr ""
 msgid "Bug bounty"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Calculating total…"
-msgstr ""
-
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Can I change my primary name later?"
 msgstr "Kan jag byta mitt primära namn senare?"
@@ -1660,10 +1655,6 @@ msgstr ""
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 #: src/features/migration/components/success/CommemorativeNftRendererSurface.tsx
 msgid "Loading NFT artwork…"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Loading payment methods…"
 msgstr ""
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx

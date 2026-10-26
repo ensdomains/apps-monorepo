@@ -538,10 +538,10 @@ export const TokenPickerContent = () => {
       <Trans>Signing payment approval…</Trans>
     ))
     .with({ isBusy: true }, () => <Trans>Preparing registration…</Trans>)
-    .with({ isLoadingBalances: true }, () => (
-      <Trans>Loading payment methods…</Trans>
+    // While loading the action keeps its plain name, greyed out, as in the design.
+    .with(P.union({ isLoadingBalances: true }, { isQuoting: true }), () => (
+      <Trans>Register name</Trans>
     ))
-    .with({ isQuoting: true }, () => <Trans>Calculating total…</Trans>)
     .with({ isPaymentApprovalRequired: true, hasFunding: true }, () => (
       <Trans>Sign payment approval</Trans>
     ))
