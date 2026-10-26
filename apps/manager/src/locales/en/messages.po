@@ -78,6 +78,11 @@ msgstr "{affectedCount, plural, one {# affected subname} other {# affected subna
 msgid "{chainName} · est. fee {0}"
 msgstr "{chainName} · est. fee {0}"
 
+#. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "{chainName} · est. fee ~{0}"
+msgstr "{chainName} · est. fee ~{0}"
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {# request} other {# requests}}"
 msgstr "{count, plural, one {# request} other {# requests}}"
@@ -279,6 +284,11 @@ msgstr "A subname's complete name could not be verified. Keep this parent on ENS
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
 msgstr "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
+
+#. placeholder {0}: formatUsd(m.shortfall)
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "About {0} more needed on {chainName}."
+msgstr "About {0} more needed on {chainName}."
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"

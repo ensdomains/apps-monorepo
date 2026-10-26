@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 
 export type PaymentMethodRowProps = {
   readonly name: string
+  readonly icon: React.ReactNode
   readonly amount: React.ReactNode
   readonly amountLabel: React.ReactNode
   readonly selectLabel: string
@@ -16,9 +17,10 @@ export type PaymentMethodRowProps = {
   readonly isFeeLoading?: boolean
 }
 
-/** A selectable payment card: radio, name and fee, balance. */
+/** A selectable payment card: radio, token icon, name and fee, balance. */
 export const PaymentMethodRow = ({
   name,
+  icon,
   amount,
   amountLabel,
   selectLabel,
@@ -35,7 +37,7 @@ export const PaymentMethodRow = ({
   return (
     <div
       className={cn(
-        'relative grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 rounded-lg border p-3 text-left',
+        'relative grid w-full grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-x-3 rounded-lg border p-3 text-left',
         isSelected
           ? 'border-ens-blue bg-ens-blue-light/30'
           : 'border-ens-quartz-100',
@@ -54,7 +56,7 @@ export const PaymentMethodRow = ({
       <span
         aria-hidden="true"
         className={cn(
-          'pointer-events-none relative z-10 mt-0.5 flex size-4 items-center justify-center rounded-full border',
+          'pointer-events-none relative z-10 flex size-4 items-center justify-center self-center rounded-full border',
           isSelected
             ? 'border-ens-blue bg-ens-blue text-white'
             : 'border-ens-quartz-350',
@@ -63,6 +65,10 @@ export const PaymentMethodRow = ({
         {isSelected && (
           <MSymbol className="ms-opsz-20 ms-wght-600 text-xs" symbol="check" />
         )}
+      </span>
+
+      <span className="pointer-events-none relative z-10 self-start">
+        {icon}
       </span>
 
       <span className="pointer-events-none relative z-10 flex min-w-0 flex-col self-start">

@@ -958,6 +958,35 @@ describe('TokenPickerContentBase L2 rows', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 
+  it('estimates an unquoted L2 from a quoted one, fee and top-up both', () => {
+    const quoted = baseSepoliaRow('available', { amountInRaw: 5_012_573n })
+    const short = baseSepoliaRow('insufficient')
+    const op = {
+      ...short,
+      option: {
+        ...short.option,
+        id: l2PaymentOptionId(optimismSepolia.id),
+        source: { ...short.option.source, chain: optimismSepolia },
+        balanceRaw: 3_000_000n,
+      },
+    }
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      l2Payment: {
+        rows: [quoted, op],
+        selectedChainId: optimismSepolia.id,
+        onSelect: vi.fn(),
+      },
+    })
+
+    expect(screen.getByText('OP Sepolia · est. fee ~$0.21')).toBeVisible()
+    expect(
+      screen.getByText('About $2.01 more needed on OP Sepolia.'),
+    ).toBeVisible()
+  })
+
   it('lets an L2 that cannot pay be chosen, and says what it is short by', () => {
     const row = baseSepoliaRow('insufficient')
     renderPicker({

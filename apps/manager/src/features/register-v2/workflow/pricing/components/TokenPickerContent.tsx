@@ -42,6 +42,7 @@ import {
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
 import {
+  getEstimatedL2AmountIn,
   getL2FeeExplanation,
   getL2SelectionMessage,
   L2SourceListItem,
@@ -664,24 +665,29 @@ const getL2MethodItems = (
   funding: RegistrationFundingSummary | undefined,
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
-  return [...l2Payment.rows].sort(byBalanceDescending).map((row) => ({
-    id: row.option.id,
-    isSelected: row === selectedL2,
-    content: (
-      <L2SourceListItem
-        isSelected={row === selectedL2}
-        networkFee={
-          funding && row.amountInRaw !== undefined
-            ? getPaymentBreakdownFigures(
-                getL2FundingSummary(funding, row.amountInRaw),
-              ).networkFee
-            : undefined
-        }
-        onSelect={() => l2Payment.onSelect(row.option.source.chain.id)}
-        row={row}
-      />
-    ),
-  }))
+  const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
+  return [...l2Payment.rows].sort(byBalanceDescending).map((row) => {
+    const amountIn = row.amountInRaw ?? estimatedAmountIn
+    return {
+      id: row.option.id,
+      isSelected: row === selectedL2,
+      content: (
+        <L2SourceListItem
+          isFeeEstimated={row.amountInRaw === undefined}
+          isSelected={row === selectedL2}
+          networkFee={
+            funding && amountIn !== undefined
+              ? getPaymentBreakdownFigures(
+                  getL2FundingSummary(funding, amountIn),
+                ).networkFee
+              : undefined
+          }
+          onSelect={() => l2Payment.onSelect(row.option.source.chain.id)}
+          row={row}
+        />
+      ),
+    }
+  })
 }
 
 /** A quote is pending, or a stale one (the toggle re-keyed it) is being replaced. */
@@ -1017,7 +1023,11 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           errorMessage={
             globalErrorMessage ??
             (selectedL2 &&
-              getL2SelectionMessage(selectedL2, funding?.walletDebit))
+              getL2SelectionMessage(
+                selectedL2,
+                funding?.walletDebit,
+                l2Payment && getEstimatedL2AmountIn(l2Payment.rows),
+              ))
           }
           isEstimate={!!funding || fundedAmount !== undefined}
           shortfall={

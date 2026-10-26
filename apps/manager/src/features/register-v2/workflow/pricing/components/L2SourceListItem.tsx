@@ -1,12 +1,22 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { match, P } from 'ts-pattern'
+import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
+import { coinIcons } from '@/assets/coins'
+import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import type { L2PaymentRow } from '../hooks/useL2Payment'
 import { getWalletShortfall } from '../lib/paymentReceiptFigures'
+import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
 
 const USDC_DECIMALS = 6
+
+const NETWORK_BADGES: Readonly<Record<number, string | undefined>> = {
+  [baseSepolia.id]: coinIcons.base,
+  [arbitrumSepolia.id]: coinIcons.arb1,
+  [optimismSepolia.id]: coinIcons.op,
+}
 
 // A balance just over what the HCA is sent can still fall short of the fee.
 const isShortOfQuote = ({ option, amountInRaw }: L2PaymentRow) =>
@@ -18,9 +28,20 @@ const isL2ShortOfFunds = (row: L2PaymentRow) =>
   row.option.status === 'insufficient' || isShortOfQuote(row)
 
 /** Why the selected L2 cannot pay, shown under the receipt; `required` is the wallet debit, in USD. */
+/** The highest quoted L2 charge, standing in for chains that cannot be quoted. */
+export const getEstimatedL2AmountIn = (rows: readonly L2PaymentRow[]) =>
+  rows.reduce<bigint | undefined>(
+    (max, { amountInRaw }) =>
+      amountInRaw !== undefined && (max === undefined || amountInRaw > max)
+        ? amountInRaw
+        : max,
+    undefined,
+  )
+
 export const getL2SelectionMessage = (
   row: L2PaymentRow,
   required: number | undefined,
+  estimatedAmountInRaw: bigint | undefined,
 ) => {
   const chainName = row.option.source.chain.name
   const balance =
@@ -31,7 +52,11 @@ export const getL2SelectionMessage = (
     row.amountInRaw === undefined
       ? undefined
       : decimalBigintToNumber(row.amountInRaw, USDC_DECIMALS)
-  const shortfall = getWalletShortfall(quoted ?? required, balance)
+  const estimated =
+    estimatedAmountInRaw === undefined
+      ? undefined
+      : decimalBigintToNumber(estimatedAmountInRaw, USDC_DECIMALS)
+  const shortfall = getWalletShortfall(quoted ?? estimated ?? required, balance)
 
   return match({
     status: row.option.status,
@@ -39,6 +64,7 @@ export const getL2SelectionMessage = (
     hasQuoteFailed: row.hasQuoteFailed,
     shortfall,
     isQuoted: quoted !== undefined,
+    isEstimated: estimated !== undefined,
   })
     .with({ status: 'unavailable' }, () => (
       <Trans>Couldn't read your balance on {chainName}.</Trans>
@@ -46,6 +72,11 @@ export const getL2SelectionMessage = (
     .with({ isShort: true, shortfall: P.number, isQuoted: true }, (m) => (
       <Trans>
         {formatUsd(m.shortfall)} more needed on {chainName}.
+      </Trans>
+    ))
+    .with({ isShort: true, shortfall: P.number, isEstimated: true }, (m) => (
+      <Trans>
+        About {formatUsd(m.shortfall)} more needed on {chainName}.
       </Trans>
     ))
     .with({ isShort: true, shortfall: P.number }, (m) => (
@@ -78,18 +109,22 @@ export const getL2FeeExplanation = (row: L2PaymentRow) => {
 export const L2SourceListItem = ({
   row,
   networkFee,
+  isFeeEstimated,
   isSelected,
   onSelect,
 }: {
   readonly row: L2PaymentRow
   /** What the registration costs on top of the name, paid from here, once quoted. */
   readonly networkFee: number | undefined
+  /** Borrowed from another chain's quote, as this one could not be quoted. */
+  readonly isFeeEstimated: boolean
   readonly isSelected: boolean
   readonly onSelect: () => void
 }) => {
   const { t } = useLingui()
   const { option } = row
   const chainName = option.source.chain.name
+  const badge = NETWORK_BADGES[option.source.chain.id]
 
   return (
     <PaymentMethodRow
@@ -100,9 +135,23 @@ export const L2SourceListItem = ({
       }
       amountLabel={<Trans>balance</Trans>}
       fee={
-        <Trans>
-          {chainName} · est. fee {formatUsd(networkFee ?? Number.NaN)}
-        </Trans>
+        isFeeEstimated ? (
+          <Trans>
+            {chainName} · est. fee ~{formatUsd(networkFee ?? Number.NaN)}
+          </Trans>
+        ) : (
+          <Trans>
+            {chainName} · est. fee {formatUsd(networkFee ?? Number.NaN)}
+          </Trans>
+        )
+      }
+      icon={
+        <PaymentMethodIcon
+          icon={<USDCIcon className="size-full" />}
+          networkBadge={
+            badge ? <img alt="" className="size-full" src={badge} /> : undefined
+          }
+        />
       }
       isAvailable
       isFeeLoading={row.isQuoteLoading}

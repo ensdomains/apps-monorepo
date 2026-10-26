@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { type ReactNode, useState } from 'react'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
+import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import type { L2Source } from '@/l2Sources'
@@ -10,6 +11,7 @@ import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import type { L2PaymentRow } from '../hooks/useL2Payment'
 import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
+import { PaymentMethodIcon } from './PaymentMethodIcon'
 import {
   PaymentMethodList,
   type PaymentMethodListItem,
@@ -241,6 +243,7 @@ export const FixtureTokenPickerContent = ({
         amount={method.balance}
         amountLabel="balance"
         fee="Sepolia · est. fee $0.27"
+        icon={<PaymentMethodIcon icon={<USDCIcon className="size-full" />} />}
         isAvailable={method.isAvailable}
         isSelected={selectedId === method.id}
         name={method.name}

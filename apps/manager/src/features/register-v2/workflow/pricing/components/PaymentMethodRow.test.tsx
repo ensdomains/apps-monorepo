@@ -11,6 +11,7 @@ const renderRow = (
       amount="$0.00"
       amountLabel="balance"
       fee="Sepolia · est. fee $0.27"
+      icon={<span>$</span>}
       isAvailable
       isInsufficient
       isSelected

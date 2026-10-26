@@ -83,6 +83,11 @@ msgstr ""
 msgid "{chainName} · est. fee {0}"
 msgstr ""
 
+#. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "{chainName} · est. fee ~{0}"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {# request} other {# requests}}"
 msgstr ""
@@ -283,6 +288,11 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
+msgstr ""
+
+#. placeholder {0}: formatUsd(m.shortfall)
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "About {0} more needed on {chainName}."
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
