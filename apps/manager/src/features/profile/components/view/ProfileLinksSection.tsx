@@ -43,7 +43,7 @@ const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
             backgroundSize: '80px 80px',
           }}
         />
-        <div className="min-w-0 px-6 pt-5 pb-4">
+        <div className="min-w-0 p-6">
           <div className="truncate text-ens-quartz-900 text-sm leading-normal">
             {link.name}
           </div>
@@ -52,7 +52,7 @@ const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
               {link.displayHost}
             </span>
             <ExternalLink
-              className="size-4 shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              className="size-6 shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
               strokeWidth={profileCardTrailingIconStrokeWidth}
             />
           </div>

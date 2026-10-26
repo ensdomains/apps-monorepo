@@ -1,14 +1,9 @@
 import { cn } from '@/lib/utils'
 
 export const profileCardCopyIconClassName =
-  'ml-0 size-4 shrink-0 text-ens-quartz-400 xl:size-6 xl:text-ens-quartz-700'
+  'ml-0 size-6 shrink-0 text-ens-quartz-400 xl:text-ens-quartz-700'
 
 export const profileCardTrailingIconStrokeWidth = 1.33
-
-export const profileFieldLabelClassName =
-  'font-sans text-ens-quartz-500 text-xs leading-[16.5px] xl:leading-4.5'
-export const profileFieldValueClassName =
-  'font-sans text-ens-quartz-700 text-xs leading-[19.5px] xl:text-sm xl:leading-6'
 
 // Figma "Shadow/Card" chrome shared by every profile tile; the 0.25px hairline is the frame's value.
 export const profileTileClassName =
@@ -40,6 +35,6 @@ export const ProfileCard = ({
     )}
   >
     <h2 className={sectionTitleClassName}>{title}</h2>
-    <div className="mt-6">{children}</div>
+    <div className="mt-3">{children}</div>
   </section>
 )
