@@ -503,10 +503,11 @@ describe('buildAtomicMigrationBatches', () => {
         expectation.name === 'sub.parent.eth',
     )
     assert(childOwnerExpectation?.type === 'name-owner')
+    // Read directly from the certified parent wrapper, so an expired parent
+    // hiding its subregistry pointer can't fail verification.
     expect(childOwnerExpectation.registryPath).toMatchObject({
-      type: 'parent-subregistry',
-      rootRegistry: V2_CONTRACTS.ETHRegistry,
-      parentName: 'parent.eth',
+      type: 'parent-wrapper-registry',
+      registry: computeExpectedWrapperRegistry({ name: 'parent.eth' }),
     })
 
     const childOwnerRolesExpectation = batch.verificationExpectations.find(

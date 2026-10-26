@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { envConfig } from '@/config'
 
 const mockResolveEnsOwner = vi.fn()
+const mockGetExpiredV2Token = vi.fn()
 
 vi.mock('@ensdomains/ensjs/public', () => ({
   getRecords: vi.fn(),
@@ -11,6 +12,7 @@ vi.mock('@ensdomains/ensjs/public', () => ({
 
 vi.mock('@/utils/ens/resolveEnsOwner', () => ({
   resolveEnsOwner: (...args: unknown[]) => mockResolveEnsOwner(...args),
+  getExpiredV2Token: (...args: unknown[]) => mockGetExpiredV2Token(...args),
 }))
 
 const mockGetStorageAt = vi.fn()
@@ -784,6 +786,22 @@ describe('fetchEnsData (worker) — description size', () => {
     const { description } = await fetchEnsData(env, 'alice.eth')
 
     expect(description).toBe('Just a regular ENS profile description.')
+  })
+
+  // An expired V2 name has no owner; only its grace window decides whether
+  // the preview may call it available.
+  it.each([
+    ['inside its grace period', 1n, true],
+    ['past its grace period', 29n, false],
+  ])('flags an unowned V2 name %s', async (_, daysExpired, isInGrace) => {
+    await mockDescription('')
+    mockResolveEnsOwner.mockResolvedValue(null)
+    const now = BigInt(Math.floor(Date.now() / 1000))
+    mockGetExpiredV2Token.mockResolvedValue({
+      expiry: now - daysExpired * 86_400n,
+    })
+
+    expect((await fetchEnsData(env, 'alice.eth')).isInGrace).toBe(isInGrace)
   })
 
   it('drops an emoji the cap would split mid-surrogate', async () => {

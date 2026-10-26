@@ -36,6 +36,7 @@ import {
   hasFuse,
 } from './classifyNames'
 import {
+  computeExpectedWrapperRegistry,
   type DirectMigrationRoute,
   orderDirectMigrationNamesParentFirst,
 } from './directMigrationRoutes'
@@ -109,6 +110,13 @@ export type AtomicMigrationWalletExecution = AtomicMigrationInnerExecution & {
 export type AtomicMigrationRegistryPath =
   | {
       readonly type: 'eth-registry-2ld'
+      readonly registry: Address
+      readonly label: string
+      readonly resource: bigint
+    }
+  | {
+      /** A locked or emancipated child lives in its parent's deterministic WrapperRegistry. */
+      readonly type: 'parent-wrapper-registry'
       readonly registry: Address
       readonly label: string
       readonly resource: bigint
@@ -473,6 +481,20 @@ const registryPathFor = (name: ClassifiedName): AtomicMigrationRegistryPath => {
     throw new Error(
       `Cannot build verification registry path for "${name.domain.name}" without a parent`,
     )
+  }
+
+  // The route certified this registry before signing. Walking subregistry
+  // pointers instead would fail while an expired parent hides its pointer.
+  if (
+    name.tokenType === 'locked-child' ||
+    name.tokenType === 'detached-child'
+  ) {
+    return {
+      type: 'parent-wrapper-registry',
+      registry: computeExpectedWrapperRegistry({ name: name.parentName }),
+      label: name.label,
+      resource,
+    }
   }
 
   return {

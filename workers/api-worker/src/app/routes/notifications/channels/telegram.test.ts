@@ -50,7 +50,7 @@ describe('Telegram HTTP contract', () => {
     )
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     expect(response.headers.get('Referrer-Policy')).toBe('no-referrer')
-    expect(page).toContain('<h1>Connection not completed</h1>')
+    expect(page).toContain('<h1>Telegram not connected</h1>')
     expect(page).not.toContain('private-code')
     expect(page).not.toContain('untrusted.example')
     expect(page).not.toContain('<script')
