@@ -248,7 +248,14 @@ describe('commemorative NFT flow session', () => {
         commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
         eligible,
       )
-      client.setQueryData(claimQueryKey, false)
+      client.setQueryData(
+        commemorativeNftClaimedQueryOptions({
+          ownerAddress,
+          chainId: 11155111,
+          wagmiConfig,
+        }).queryKey,
+        false,
+      )
       const { result } = mountFlow(client)
 
       expect(result.current.admission.status).toBe('fallback')
