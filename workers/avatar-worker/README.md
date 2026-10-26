@@ -47,20 +47,26 @@ Successful authorized replacements update that same key so old URLs continue to
 serve the replacement without changing the old worker.
 
 Each upload retains its original JPEG under `profile-media-v2/<legacy-key>/objects/<revision>`.
-The canonical legacy JPEG contains a standard non-rendering COM revision marker;
-its custom metadata holds the revision and immutable original pointer. The marker
-makes every new-worker publication's ETag distinct even for identical input bytes.
-A conditional R2 write publishes bytes and metadata atomically. The new worker
-serves the immutable original, while the old worker serves identical pixels from
-the canonical JPEG. Definite precondition failures remove only the unpublished
-history object; ambiguous failures retain it. Re-read `/meta` before retrying.
+A conditional write to `profile-media-v2/<legacy-key>/manifest` publishes the
+revision and original pointer. This key is authoritative after the first upload
+through this version of the service. Legacy writes cannot change its bytes,
+revision or stale-signature checks. Before that first upload, reads fall back to
+the registered object, including metadata from earlier staging versions. Reads
+serve `image/jpeg` regardless of the object's stored Content-Type.
 
-Concurrency and stale-revision protection cover new-worker publications. The old
-writer remains independent and can overwrite the canonical object and metadata.
-Its restoration of identical old bytes during an in-flight new upload cannot be
-fully serialized by the new service's ETag precondition. Do not claim coordination
-with the unchanged legacy writer. Old-worker, metadata-service and external caches
-also retain their existing refresh policies.
+After publication, the service mirrors the JPEG to the canonical legacy key with
+a standard non-rendering COM revision marker. The legacy worker serves the same
+pixels after a successful mirror. A delayed upload skips its mirror if a newer
+revision is already published; conditional writes prevent replacing a newer
+mirror. Publication and mirroring are separate writes. A mirror failure can
+return an error after v2 has committed; re-read `/meta` before retrying. Definite
+pointer precondition failures remove only the unpublished original; ambiguous
+failures and committed originals are retained.
+
+The old writer remains independent and can still change old URLs and fallback
+images for names without a protected pointer. WEB-1501 remains open until that
+write path is retired. Old-worker, metadata-service and external caches retain
+their existing refresh policies.
 
 ## Manager opt-in
 
