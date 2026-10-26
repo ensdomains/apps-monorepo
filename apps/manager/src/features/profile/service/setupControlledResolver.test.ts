@@ -108,6 +108,10 @@ const writeRecords = vi.mocked(saveRecords)
 const checkSetResolverAccess = vi.mocked(canSetNameResolver)
 const checkResolverReadiness = vi.mocked(checkMigrationResolverReadiness)
 const locateRegistry = vi.mocked(resolveNameRegistry)
+// Loaded with the file: inside a test, the import alone can exceed the timeout.
+const { saveRecords: realSaveRecords } = await vi.importActual<
+  typeof import('./profileRecordTransactions')
+>('./profileRecordTransactions')
 
 const submittedRequests = () =>
   startTransaction.mock.calls.map(([intent]) =>
@@ -124,9 +128,6 @@ beforeEach(() => {
 
 describe('setupControlledResolver', () => {
   it('replaces a resolver with an explicitly reviewed empty profile without copying inherited records or target defaults', async () => {
-    const { saveRecords: realSaveRecords } = await vi.importActual<
-      typeof import('./profileRecordTransactions')
-    >('./profileRecordTransactions')
     writeRecords.mockImplementationOnce(realSaveRecords)
     await setupControlledResolver({
       name: 'transferred.eth',
@@ -187,9 +188,6 @@ describe('setupControlledResolver', () => {
       ['com.youtube', 'https://youtube.com/@previousowner'],
       ['com.tiktok', 'https://tiktok.com/@previousowner'],
     ].map(([key = '', value = '']) => ({ key, value }))
-    const { saveRecords: realSaveRecords } = await vi.importActual<
-      typeof import('./profileRecordTransactions')
-    >('./profileRecordTransactions')
     writeRecords.mockImplementationOnce(realSaveRecords)
     const inheritedRecords = {
       texts: inherited,
