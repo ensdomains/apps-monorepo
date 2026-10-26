@@ -16,7 +16,8 @@ import { sepolia } from 'viem/chains'
 
 const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
 
-const transport = http(ANVIL_RPC_URL)
+// Cold fork reads during gas estimation can exceed the default HTTP timeout.
+const transport = http(ANVIL_RPC_URL, { timeout: 60_000 })
 
 /**
  * Override Sepolia to use the local Anvil RPC.

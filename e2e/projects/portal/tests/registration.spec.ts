@@ -471,10 +471,6 @@ const REPORTED_CRAFTED_QUERY =
  */
 const content = (page: Page) => page.locator('main')
 
-/** `0x7099…79C8` — how the Owner row renders an address with no primary name. */
-const truncateAddress = (address: string) =>
-  `${address.slice(0, 6)}…${address.slice(-4)}`
-
 /**
  * Waits for the name page to finish rendering its profile — the heading plus
  * the Owner row showing `owner` — so the banner assertions after it can't pass
@@ -488,7 +484,7 @@ async function expectNamePageLoaded(page: Page, name: string, owner: Address) {
     timeout: 60_000,
   })
   await expect(
-    content(page).getByText(truncateAddress(owner)).first(),
+    content(page).locator(`a[href="/addr/${owner}" i]`).first(),
   ).toBeVisible({
     timeout: 60_000,
   })
@@ -3354,9 +3350,13 @@ test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
     ).toBeVisible()
     await page.getByRole('button', { name: 'Extend', exact: true }).click()
     const dialog = page.getByRole('dialog')
-    await dialog
-      .getByRole('button', { name: 'I Understand' })
-      .click({ timeout: 30_000 })
+    // Ownership can resolve while the disclaimer is animating and skip it.
+    // Accept either entry state, then require the actual settings step.
+    const disclaimer = dialog.getByRole('button', { name: 'I Understand' })
+    const next = dialog.getByRole('button', { name: 'Next' })
+    await expect(disclaimer.or(next).first()).toBeVisible({ timeout: 30_000 })
+    await disclaimer.click({ timeout: 5_000 }).catch(() => {})
+    await expect(next).toBeVisible({ timeout: 30_000 })
     for (const leg of legs)
       await expect(dialog.getByText(leg.name)).toBeVisible()
     await expect(

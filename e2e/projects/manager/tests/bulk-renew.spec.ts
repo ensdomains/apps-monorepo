@@ -104,7 +104,18 @@ test.describe('Manager bulk renew — V1 and V2 names', () => {
     const selectAll = main.getByRole('button', { name: /^Select all names$/ })
     await expect(selectAll).toBeVisible({ timeout: 60_000 })
     const search = page.getByPlaceholder('Search my names')
+    // The visible fixtures may already be in the unfiltered list. Wait for
+    // the debounced search request before Select all reads its filter.
+    const filtered = page.waitForResponse((response) => {
+      const url = new URL(response.url())
+      return (
+        url.pathname.endsWith('/names') &&
+        url.searchParams.get('q') === tag &&
+        response.ok()
+      )
+    })
     await search.fill(tag)
+    await filtered
     await expect(search).toHaveValue(tag)
 
     // Both are listed as the wallet's own names…
@@ -151,6 +162,9 @@ test.describe('Manager bulk renew — V1 and V2 names', () => {
       'chunking is the smart-account intent route',
     )
     test.setTimeout(2_400_000)
+    // Keep dev auto-funding from using the same EOA nonce while fixtures seed
+    // a batch. The dashboard is opened again after every name is indexed.
+    await page.goto('about:blank')
     const tag = `b26${Date.now().toString(36)}`
     const labels: string[] = []
     for (let i = 0; i < NAMES_PER_INTENT + 1; i++)
@@ -170,7 +184,18 @@ test.describe('Manager bulk renew — V1 and V2 names', () => {
     const selectAll = main.getByRole('button', { name: /^Select all names$/ })
     await expect(selectAll).toBeVisible({ timeout: 60_000 })
     const search = page.getByPlaceholder('Search my names')
+    // The visible fixtures may already be in the unfiltered list. Wait for
+    // the debounced search request before Select all reads its filter.
+    const filtered = page.waitForResponse((response) => {
+      const url = new URL(response.url())
+      return (
+        url.pathname.endsWith('/names') &&
+        url.searchParams.get('q') === tag &&
+        response.ok()
+      )
+    })
     await search.fill(tag)
+    await filtered
     await expect(search).toHaveValue(tag)
     await expect(main.getByText(`${labels[0]}.eth`).first()).toBeVisible({
       timeout: 60_000,

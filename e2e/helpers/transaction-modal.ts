@@ -12,9 +12,11 @@
  * {@link PORTAL_TRANSACTION_IDS} is the catalogue of ids the portal emits.
  */
 
-import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
+import {
+  type Web3ProviderBackend,
+  Web3RequestKind,
+} from '@ensdomains/headless-web3-provider'
 import { expect, type Page } from '@playwright/test'
-import { authorizeTransaction } from './portal-auth.js'
 
 /**
  * Transaction ids the portal's flows emit, as declared by the app itself.
@@ -106,30 +108,45 @@ export async function driveTransactionsToSuccess(
     // transaction, so nothing else triggers the redirect). Exiting the
     // moment the count matches races ahead of that button ever appearing.
     while (Date.now() < deadline) {
+      if (wallet.getPendingRequestCount(Web3RequestKind.SendTransaction) > 0) {
+        if (process.env.MATRIX_LOCAL_RPC_ONLY === '1') {
+          // The headless provider can leave authorization unresolved after its
+          // internal RPC sender logs a timeout. Keep that test-wallet failure
+          // bounded by this flow's deadline; it is not an app authorization result.
+          let timer: ReturnType<typeof setTimeout> | undefined
+          try {
+            await Promise.race([
+              wallet.authorize(Web3RequestKind.SendTransaction),
+              new Promise<never>((_resolve, reject) => {
+                timer = setTimeout(
+                  () =>
+                    reject(
+                      new Error(
+                        'Local matrix wallet request did not settle before the transaction deadline; fresh fixture required.',
+                      ),
+                    ),
+                  Math.max(1, deadline - Date.now()),
+                )
+              }),
+            ])
+          } finally {
+            if (timer) clearTimeout(timer)
+          }
+        } else await wallet.authorize(Web3RequestKind.SendTransaction)
+        continue
+      }
       const openWalletButton = transactionDialog.getByRole('button', {
         name: /open wallet/i,
       })
       if (await openWalletButton.isVisible().catch(() => false)) {
         await openWalletButton.click()
-        await authorizeTransaction(wallet, 60_000)
         await page.waitForTimeout(500)
         continue
       }
 
-      const waitingButton = transactionDialog.getByRole('button', {
-        name: /^Waiting\.\.\.$/i,
-      })
-      if (await waitingButton.isVisible().catch(() => false)) {
-        const iconWalletButton = waitingButton.locator(
-          'xpath=preceding-sibling::button[1]',
-        )
-        if (await iconWalletButton.isVisible().catch(() => false)) {
-          await iconWalletButton.click()
-          await authorizeTransaction(wallet, 60_000)
-          await page.waitForTimeout(500)
-          continue
-        }
-      }
+      // Waiting means a request is pending or a receipt is being confirmed.
+      // Its preceding icon is Back, not an Open wallet control. Authorize only
+      // a real queued request above; never create a second artificial wait.
 
       const primaryButton = transactionDialog.getByRole('button', {
         name: /^(Start|Next|Done)$/i,
@@ -146,7 +163,11 @@ export async function driveTransactionsToSuccess(
       // Every tracked tx has succeeded and there's nothing left to click
       // (the last "Done" press already fired `finishFlow` and closed the
       // modal) — safe to stop polling.
-      if (succeeded.size === successTxIds.length) break
+      if (
+        succeeded.size === successTxIds.length &&
+        !(await transactionDialog.isVisible().catch(() => false))
+      )
+        break
 
       await page.waitForTimeout(1_000)
     }
@@ -155,4 +176,8 @@ export async function driveTransactionsToSuccess(
   }
 
   expect(succeeded.size).toBe(successTxIds.length)
+  await expect(
+    transactionDialog,
+    'The completed flow must close after Done, even when transaction IDs are discovered dynamically',
+  ).not.toBeVisible({ timeout: 5000 })
 }

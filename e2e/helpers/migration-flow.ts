@@ -22,7 +22,10 @@ import { expect } from '@playwright/test'
 // Imported from `manager-auth.js` rather than from the manager fixture that
 // re-exports it: the fixture imports this directory, so going the other way
 // would make helpers and fixtures mutually dependent.
-import { authorizeTransactionsWhile } from './manager-auth.js'
+import {
+  authorizeTransactionsWhile,
+  dismissBackendAuthModal,
+} from './manager-auth.js'
 import { findSearchInput } from './search-input.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -78,16 +81,45 @@ export function anyRow(page: Page, fullName: string) {
  * times before it counts.
  */
 export async function openMigrationFlow(page: Page): Promise<void> {
-  const heading = page.getByRole('heading', { name: /ready to upgrade/i })
+  const heading = page.getByRole('heading', {
+    name: /ready to upgrade|renew your names before upgrading|your names can.t be upgraded|we couldn.t check your names/i,
+  })
   for (let attempt = 1; ; attempt++) {
-    await page.goto(`${MANAGER_APP_URL}/upgrade`)
-    const landed = await Promise.race([
-      heading.waitFor({ state: 'visible', timeout: 60_000 }).then(() => true),
-      page
-        .waitForURL(/\/dashboard(\?|$)/, { timeout: 60_000 })
-        .then(() => false),
-    ])
+    await page.goto(`${MANAGER_APP_URL}/upgrade`, {
+      waitUntil:
+        process.env.MATRIX_LOCAL_RPC_ONLY === '1' ? 'domcontentloaded' : 'load',
+    })
+    // A losing URL waiter must not reject while an eligibility read is still
+    // completing. Observe the terminal UI or a real redirect in one poll.
+    let landed = false
+    await expect
+      .poll(
+        async () => {
+          // Locator handlers run before actions, not visibility reads. A delayed
+          // optional sign-in overlay otherwise hides an already loaded heading.
+          if (
+            await page
+              .getByRole('alertdialog', { name: 'Verify your wallet' })
+              .isVisible()
+          )
+            await dismissBackendAuthModal(page, { timeout: 1000 })
+          landed = await heading.isVisible()
+          return landed || /\/dashboard(\?|$)/.test(page.url())
+        },
+        { timeout: 120_000 },
+      )
+      .toBe(true)
     if (landed) return
+    if (process.env.MATRIX_LOCAL_RPC_ONLY === '1') {
+      // A fresh document can redirect before the test's local feature override
+      // initializes. Wait for that prerequisite instead of spending all four
+      // retries on partially hydrated dashboard documents.
+      await page.waitForFunction(
+        () => (window as any).managerFeatureFlagsOverridden === true,
+        undefined,
+        { timeout: 30_000 },
+      )
+    }
     if (attempt >= 4)
       throw new Error(
         '/upgrade kept redirecting to /dashboard: the PostHog `migration` flag check did not answer in time',
@@ -120,8 +152,33 @@ async function clearSelection(page: Page, checkboxes: Locator): Promise<void> {
     }
     return
   }
-  await expect(toggleAll).toBeEnabled({ timeout: 120_000 })
-  if (/deselect/i.test(await toggleAll.innerText())) await toggleAll.click()
+  // Eligibility can finish by removing bulk selection when every root needs
+  // an explicit opt-in. Wait for that state as well as an enabled bulk toggle.
+  await expect
+    .poll(
+      async () =>
+        (await toggleAll.isVisible())
+          ? toggleAll.isEnabled()
+          : (await checkboxes.count()) > 0 &&
+            (await checkboxes.first().isEnabled()),
+      { timeout: 120_000 },
+    )
+    .toBe(true)
+  if (!(await toggleAll.isVisible())) {
+    for (const checkbox of await checkboxes.all()) {
+      if (await checkbox.isChecked()) await checkbox.locator('xpath=..').click()
+    }
+    return
+  }
+  // "Select all" also means a partial selection, not necessarily none.
+  // Normalize to all selected before clearing so a previous root cannot leak.
+  if (/^select/i.test(await toggleAll.innerText())) {
+    await toggleAll.click()
+    await expect(
+      page.getByRole('button', { name: /^Deselect all$/i }),
+    ).toBeVisible()
+  }
+  await page.getByRole('button', { name: /^Deselect all$/i }).click()
   await expect(
     page.getByRole('button', { name: /^Select all$/i }),
   ).toBeVisible()
@@ -176,14 +233,18 @@ export async function confirmAndAuthorize(
   const confirmButton = page.getByRole('button', {
     name: /^Upgrade \d+ names?$/,
   })
-  await confirmButton.waitFor({ state: 'visible', timeout: 30_000 })
+  // A clean archive fork may need to fetch migration-estimation contract state.
+  await confirmButton.waitFor({ state: 'visible', timeout: 120_000 })
 
   let migrationComplete = false
+  let authorizationError: unknown
   const authorizeAll = authorizeTransactionsWhile(
     page,
     wallet,
     () => migrationComplete,
-  )
+  ).catch((error: unknown) => {
+    authorizationError = error
+  })
   try {
     await confirmButton.click()
     const successIndicator = page.getByRole('heading', {
@@ -191,16 +252,11 @@ export async function confirmAndAuthorize(
     })
     await successIndicator.waitFor({ state: 'visible', timeout: 120_000 })
   } finally {
-    // A failed migration must also stop the authorization loop; otherwise it
-    // keeps running during teardown and obscures the original failure. Bound
-    // the wait: an in-flight authorize the wallet never answers (a send that
-    // errors) would otherwise turn that failure into a test timeout.
+    // Stop the wallet loop before a failed flow is recovered or the next case starts.
     migrationComplete = true
-    await Promise.race([
-      authorizeAll,
-      new Promise((resolve) => setTimeout(resolve, 10_000)),
-    ])
+    await authorizeAll
   }
+  if (authorizationError) throw authorizationError
 
   const doneButton = page.getByRole('button', { name: 'Go to dashboard' })
   await doneButton.waitFor({ state: 'visible', timeout: 10_000 })
@@ -332,7 +388,11 @@ export async function upgradeAndSettle(
   wallet: Parameters<typeof authorizeTransactionsWhile>[1],
 ): Promise<UpgradeOutcome> {
   const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/ })
-  await expect(upgrade).toBeEnabled({ timeout: 60_000 })
+  const readinessStarted = Date.now()
+  await expect(upgrade).toBeEnabled({ timeout: 180_000 })
+  console.log(
+    `[migration] fee/confirmation readiness: ${Date.now() - readinessStarted}ms`,
+  )
   let settled: UpgradeOutcome | null = null
   const authorizing = authorizeTransactionsWhile(
     page,
@@ -342,6 +402,25 @@ export async function upgradeAndSettle(
   await upgrade.click()
   const deadline = Date.now() + 180_000
   while (!settled && Date.now() < deadline) {
+    // A refreshed subname check may open a second, explicit confirmation.
+    // Continue only when the app itself says the names are unaffected and
+    // enables the normal action. Never bypass a blocked impact review.
+    const safeReview = page
+      .getByRole('dialog')
+      .filter({ hasText: 'Your subnames are unaffected' })
+    const continueMigration = safeReview.getByRole('button', {
+      name: 'Continue migration',
+      exact: true,
+    })
+    if (
+      (await continueMigration.isVisible().catch(() => false)) &&
+      (await continueMigration.isEnabled())
+    ) {
+      console.log(
+        '[migration] Confirmed the app’s refreshed, unaffected-subnames review',
+      )
+      await continueMigration.click()
+    }
     for (const [outcome, pattern] of Object.entries(UPGRADE_OUTCOMES) as [
       UpgradeOutcome,
       RegExp,

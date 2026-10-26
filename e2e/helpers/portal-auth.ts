@@ -41,7 +41,10 @@ export async function connectWithHeadlessWallet(
   const connectButton = page.getByRole('button', {
     name: /^Connect( wallet)?$/,
   })
-  await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
+  await connectButton.waitFor({
+    state: 'visible',
+    timeout: process.env.MATRIX_LOCAL_RPC_ONLY === '1' ? 60_000 : 15_000,
+  })
   await connectButton.click()
 
   // 2. Select "Headless Web3 Provider" from the connect dialog

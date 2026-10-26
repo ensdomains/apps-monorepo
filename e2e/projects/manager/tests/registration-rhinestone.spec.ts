@@ -188,14 +188,7 @@ const readRegistryState = (label: string) =>
 
 /** Drive a fresh HCA registration as far as a confirmed on-chain commitment. */
 async function registerUntilCommitConfirmed(page: Page, label: string) {
-  const searchInput = await findSearchInput(page)
-  await searchInput.click()
-  await searchInput.fill(label)
-  await page
-    .getByText('Available')
-    .first()
-    .waitFor({ state: 'visible', timeout: 15_000 })
-  await page.getByText(`${label}.eth`).click()
+  await page.goto(`${MANAGER_APP_URL}/register/${label}`)
 
   await page.getByRole('button', { name: /pay with stablecoins/i }).click()
   await clickThroughEnableSessions(page)
@@ -243,11 +236,13 @@ test.describe('lost same-name registration race (WEB-1148)', () => {
       main.getByText('Name No Longer Available', { exact: true }),
     ).toBeVisible()
     await expect(
-      main.getByText(`${label}.eth was registered by another address first`),
+      main.getByText(
+        `${label}.eth was registered by someone else just before your registration went through.`,
+      ),
     ).toBeVisible()
     // Positive sign the action row rendered before asserting what's absent.
     await expect(
-      main.getByRole('button', { name: 'Back to Quote' }),
+      main.getByRole('button', { name: 'Look for a different name' }),
     ).toBeVisible()
     await expect(main.getByRole('button', { name: 'Try Again' })).toHaveCount(0)
     await expect(
@@ -275,10 +270,15 @@ test.describe('lost same-name registration race (WEB-1148)', () => {
     const final = await readRegistryState(label)
     expect(isAddressEqual(final.latestOwner, rival)).toBe(true)
 
-    // The only way out still works, and lands on the name's owner profile:
-    // the register route redirects a name that is no longer available.
-    await main.getByRole('button', { name: 'Back to Quote' }).click()
-    await page.waitForURL(new RegExp(`/${label}\\.eth$`), { timeout: 15_000 })
+    // The current recovery action opens search for a different name.
+    await main
+      .getByRole('button', { name: 'Look for a different name' })
+      .click()
+    await page.waitForURL(
+      (url) =>
+        url.pathname === '/' && url.searchParams.get('landing') === 'true',
+      { timeout: 15_000 },
+    )
     await expect(
       main.getByText('Name No Longer Available', { exact: true }),
     ).toHaveCount(0)
@@ -321,7 +321,9 @@ test.describe('lost same-name registration race (WEB-1148)', () => {
     ).toBeVisible()
     // The submission error is kept, not replaced by the registry check's
     // "not registered" reason.
-    await expect(main.getByText(/Status: 503/)).toBeVisible()
+    await expect(
+      main.getByText('HTTP request failed.', { exact: true }),
+    ).toBeVisible()
     await expect(main.getByRole('button', { name: 'Try Again' })).toBeVisible()
     await expect(
       main.getByText('Name No Longer Available', { exact: true }),
@@ -1481,25 +1483,23 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
           picker.getByRole('button', { name: 'Select USDC' }),
         ).toBeDisabled()
 
-        // The bug: this said "…and your account already holds 1.82…".
-        const shortfall = picker.getByText(
-          /^Not enough USDC\. This registration costs ([\d.]+) USDC and ([\d.]+) is left from your last attempt, so you need ([\d.]+) more, but your wallet holds ([\d.]+) USDC\.$/,
-        )
+        // The current picker shows the shortfall on the payment method and
+        // itemizes the leftover separately rather than repeating a paragraph.
+        const shortfall = picker.getByText(/\$[\d.]+ needed to register name/)
         await expect(shortfall).toBeVisible()
-
-        // Every figure in it is checkable against the lines and the chain.
-        const [, costs, left, need, holds] = (
-          await shortfall.innerText()
-        ).match(
-          /costs ([\d.]+) USDC and ([\d.]+) is left.*need ([\d.]+) more.*holds ([\d.]+) USDC/,
-        ) as RegExpMatchArray
         const total =
           toCents(await rowAmount(picker, NAME_PRICE_LABEL).innerText()) +
           (await feeCents(picker))
-        expectCents(toCents(costs as string), total)
-        expect(toCents(left as string)).toBe(rawToCents(leftoverRaw))
-        expectCents(toCents(need as string), total - rawToCents(leftoverRaw))
-        expect(toCents(holds as string)).toBe(rawToCents(walletRaw))
+        expectCents(
+          toCents(await rowAmount(picker, LEFTOVER_LABEL).innerText()),
+          rawToCents(leftoverRaw),
+        )
+        expectCents(
+          toCents(await shortfall.innerText()),
+          total - rawToCents(leftoverRaw),
+        )
+        await expect(picker.getByText('$5.00', { exact: true })).toBeVisible()
+        expect(await readUsdc(wallet)).toBe(walletRaw)
         await expect(
           picker.getByRole('button', { name: /register name/i }),
         ).toBeDisabled()
@@ -1512,7 +1512,7 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
         await expect(
           funded.getByRole('button', { name: /register name/i }),
         ).toBeEnabled()
-        await expect(funded.getByText(/^Not enough USDC/)).toHaveCount(0)
+        await expect(funded.getByText(/needed to register name/)).toHaveCount(0)
       })
     } finally {
       await setUsdc(wallet, walletOriginal)

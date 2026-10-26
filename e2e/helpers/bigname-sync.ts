@@ -65,7 +65,10 @@ export async function waitForBignameBlock(
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<void> {
   if (!isRealBigname) return
-  const target = minBlock ?? (await publicClient.getBlockNumber())
+  // A cached pre-write head lets this gate return before the transaction the
+  // caller just mined is published, leaving the UI with a cached empty result.
+  const target =
+    minBlock ?? (await publicClient.getBlockNumber({ cacheTime: 0 }))
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     const indexed = await indexedBlock()

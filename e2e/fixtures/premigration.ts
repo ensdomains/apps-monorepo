@@ -25,7 +25,13 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { type Address, getAddress, parseAbi, zeroAddress } from 'viem'
+import {
+  type Address,
+  getAddress,
+  labelhash,
+  parseAbi,
+  zeroAddress,
+} from 'viem'
 import { publicClient } from '../helpers/anvil-client.js'
 
 const V2_ETH_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensRegistry
@@ -33,6 +39,7 @@ const V2_ETH_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensRegistry
 
 const REGISTRY_ABI = parseAbi([
   'function getResolver(string label) view returns (address)',
+  'function getStatus(uint256 anyId) view returns (uint8)',
 ])
 
 /**
@@ -74,6 +81,15 @@ export const discoverV1CompatResolver = async (): Promise<Address> => {
 
   const seen = new Map<string, string[]>()
   for (const label of PROBE_LABELS) {
+    // A live probe may have migrated since the last pinned fork. Only RESERVED
+    // entries describe premigration; never treat a registered name as evidence.
+    const status = await publicClient.readContract({
+      address: V2_ETH_REGISTRY,
+      abi: REGISTRY_ABI,
+      functionName: 'getStatus',
+      args: [BigInt(labelhash(label))],
+    })
+    if (status !== 1) continue
     const resolver = await publicClient
       .readContract({
         address: V2_ETH_REGISTRY,
@@ -104,6 +120,11 @@ export const discoverV1CompatResolver = async (): Promise<Address> => {
         'coin toss decide how every seeded V1 name resolves.',
     )
   }
+
+  if ([...seen.values()][0].length < 2)
+    throw new Error(
+      '[premigration] fewer than two independently RESERVED probes agree',
+    )
 
   cached = [...seen.keys()][0] as Address
   console.log(

@@ -4,18 +4,26 @@ import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
 import { expect, type Page } from '@playwright/test'
 import {
   type Address,
+  encodeAbiParameters,
   encodeFunctionData,
   keccak256,
   parseAbi,
   toHex,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import type { V2NameConfig } from '../../../fixtures/makeV2Name.js'
+import {
+  STANDALONE_HCA,
+  type V2NameConfig,
+} from '../../../fixtures/makeV2Name.js'
 import {
   authorizeTransaction,
   test,
 } from '../../../fixtures/playwright.manager.fixture.js'
-import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
+import {
+  publicClient,
+  testClient,
+  walletClient,
+} from '../../../helpers/anvil-client.js'
 import { waitForBignameBlock } from '../../../helpers/bigname-sync.js'
 import {
   authorizeTransactionsWhile,
@@ -470,6 +478,23 @@ test.describe('ENS profile', () => {
     await page.route('**/wallet/fund', (route) =>
       route.fulfill({ json: { txHash: null } }),
     )
+    // A previous renewal can leave spendable USDC in the HCA. The current
+    // picker correctly uses that balance as well as the wallet's balance.
+    const hcaSlot = keccak256(
+      encodeAbiParameters(
+        [{ type: 'address' }, { type: 'uint256' }],
+        [STANDALONE_HCA, 0n],
+      ),
+    )
+    const hcaStorage = await publicClient.getStorageAt({
+      address: USDC,
+      slot: hcaSlot,
+    })
+    await testClient.setStorageAt({
+      address: USDC,
+      index: hcaSlot,
+      value: toHex(0n, { size: 32 }),
+    })
     try {
       await goToProfile(page, name)
       await page.getByRole('link', { name: /renew/i }).click()
@@ -477,6 +502,21 @@ test.describe('ENS profile', () => {
       await clickThroughEnableSessions(page)
       // Measured: the picker shows the empty balance and the shortfall, and
       // will not let USDC be chosen.
+      const fundingAddresses: Address[] = [
+        ...payers.map((payer) => payer.address),
+        STANDALONE_HCA,
+      ]
+      for (const address of fundingAddresses) {
+        expect(
+          await publicClient.readContract({
+            address: USDC,
+            abi: ERC20_ABI,
+            functionName: 'balanceOf',
+            args: [address],
+          }),
+          `empty funding precondition: ${address}`,
+        ).toBe(0n)
+      }
       const usdc = page.getByRole('button', { name: 'Select USDC' })
       await expect(usdc, 'USDC cannot be chosen').toBeDisabled({
         timeout: 30_000,
@@ -486,6 +526,11 @@ test.describe('ENS profile', () => {
       await expect(page.getByText('Renewal Complete!')).toHaveCount(0)
       expect(await readExpiry(label), 'nothing was renewed').toBe(expiryBefore)
     } finally {
+      await testClient.setStorageAt({
+        address: USDC,
+        index: hcaSlot,
+        value: hcaStorage ?? toHex(0n, { size: 32 }),
+      })
       for (const [i, payer] of payers.entries())
         await move(parkingAccount, payer.address, balances[i])
     }
@@ -506,6 +551,9 @@ test.describe('ENS profile', () => {
       'the mock row offers no "Renew name" (it lacks the role data canRenew reads); the entry points are checked against the real index',
     )
     const owner = accounts.getAddress('user')
+    // Stop browser dev-funding transactions while the fixture seeds names
+    // using that same account. Each entry-point check navigates back below.
+    await page.goto('about:blank')
     const tag = `b18${Date.now().toString(36)}`
     const routes = ['profile', 'dashboard', 'address', 'deeplink'] as const
     const names: Record<(typeof routes)[number], string> = {} as never
@@ -716,39 +764,44 @@ test.describe('ENS profile', () => {
     const calendar = page.locator('[data-slot="calendar"]')
     await calendar.waitFor({ state: 'visible' })
 
-    // Try to jump all the way back to today's real month via the caption's
-    // own month/year selects, rather than clicking "previous" repeatedly
-    // (`captionLayout="dropdown"` overlays an invisible <select> on the
-    // caption that, a few clicks in, starts intercepting the nav button's
-    // pointer events). Today is comfortably before any legitimate renewal
-    // target, since the minimum renewal period alone pushes
-    // `minSelectableDate` weeks out.
-    const today = new Date()
-    await calendar
-      .getByLabel('Choose the Month')
-      .selectOption({ label: today.toLocaleString('en-US', { month: 'long' }) })
-    await calendar
-      .getByLabel('Choose the Year')
-      .selectOption(String(today.getFullYear()))
-
-    // `startMonth={minSelectableDate}` means the request above can only ever
-    // land AT OR AFTER minSelectableDate's month — asking for today's month
-    // clamps forward to the earliest reachable one instead of erroring or
-    // no-opping (measured: it clamped to a month over a month later than
-    // today). Within whatever month that is, the first day cell is the
-    // earliest day the calendar can show at all; if the boundary holds, that
-    // day is still disabled (`disabled={(date) => date < minDate}`, which
-    // react-day-picker renders as a real `disabled` attribute, not `aria-
-    // disabled`) — proof the UI cannot be walked back to a date before the
-    // current expiry, however it's driven.
-    const firstDayCell = calendar
-      .getByRole('gridcell')
-      .filter({ hasText: /^\d+$/ })
+    // Earlier tests advance the local chain beyond wall time. Choose the
+    // earliest year/month the control actually offers, then compare every
+    // selectable date with this name's on-chain expiry.
+    const year = calendar.getByLabel('Choose the Year')
+    const firstYear = await year
+      .locator('option:not([disabled])')
       .first()
-    await expect(
-      firstDayCell.getByRole('button'),
-      "the earliest day cell reachable after asking for today's month must still be disabled — the UI must never offer a renewal target before the current expiry",
-    ).toBeDisabled()
+      .getAttribute('value')
+    expect(firstYear).not.toBeNull()
+    await year.selectOption(firstYear as string)
+    const month = calendar.getByLabel('Choose the Month')
+    const firstMonth = await month
+      .locator('option:not([disabled])')
+      .first()
+      .getAttribute('value')
+    expect(firstMonth).not.toBeNull()
+    await month.selectOption(firstMonth as string)
+    const days = await calendar
+      .locator('button[data-day]:enabled')
+      .evaluateAll((buttons) =>
+        buttons.map((button) => button.getAttribute('data-day')),
+      )
+    expect(days.length).toBeGreaterThan(0)
+    const expiry = new Date(
+      Number(await readExpiry(name.replace(/\.eth$/, ''))) * 1000,
+    )
+    const expiryDay = Date.UTC(
+      expiry.getUTCFullYear(),
+      expiry.getUTCMonth(),
+      expiry.getUTCDate(),
+    )
+    for (const day of days) {
+      const date = new Date(day as string)
+      expect(
+        Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+        `selectable date ${day} is not before expiry`,
+      ).toBeGreaterThanOrEqual(expiryDay)
+    }
   })
 
   /**

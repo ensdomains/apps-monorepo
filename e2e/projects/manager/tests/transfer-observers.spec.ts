@@ -173,10 +173,6 @@ test.describe('After a V2 transfer, the previous owner in the manager', () => {
     await expect(page.getByRole('heading', { name })).toBeVisible({
       timeout: 30_000,
     })
-    test.fail(
-      true,
-      'E2E-034: the manager hides Edit Profile from a sender who can still write the records',
-    )
     await expect(
       page.getByRole('button', { name: 'Edit Profile' }),
       'A holds the resolver roles, so A can edit',
@@ -213,10 +209,6 @@ test.describe('After a V2 transfer, the previous owner in the manager', () => {
     ).toBeVisible({ timeout: 30_000 })
 
     await dialog.getByPlaceholder('Search names').fill(labelOf(name))
-    test.fail(
-      true,
-      'E2E-035: the primary-name picker drops a name that still resolves to the sender',
-    )
     await expect(
       dialog.getByRole('button', { name: `Select ${name} as primary name` }),
       `${name} resolves to A, so A can set it as primary`,

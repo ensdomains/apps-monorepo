@@ -1,8 +1,8 @@
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { getAddressRecord } from '@ensdomains/ensjs/public'
+import { getAddressRecord, getTextRecord } from '@ensdomains/ensjs/public'
 import { getOwner, hasRoles } from '@ensdomains/ensjs/public/v2'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
-import { setRecords } from '@ensdomains/ensjs/wallet/v1'
+import { setRecords } from '@ensdomains/ensjs/wallet/v2'
 import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
@@ -357,8 +357,18 @@ test.describe('Portal name transfer', () => {
     const recipientName = await makeName({
       label: 'test3-recipient',
       owner: 'user2',
+      records: [{ key: 'description', value: 'ENS recipient' }],
     })
     const recipientAddress = accounts.getAddress('user2')
+    const [recipientResolver] = await readResolverAndSubregistry(
+      recipientName.replace(/\.eth$/, ''),
+    )
+    await setEthAddressRecord(
+      recipientName,
+      recipientResolver,
+      recipientAddress,
+      accounts.getPrivateKey('user2'),
+    )
 
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
     await expect(
@@ -399,8 +409,21 @@ test.describe('Portal name transfer', () => {
 
     await connectWithHeadlessWallet(page, wallet)
 
-    const name = await makeName({ label: 'test4-self-guard', owner: 'user' })
+    const name = await makeName({
+      label: 'test4-self-guard',
+      owner: 'user',
+      records: [{ key: 'description', value: 'self guard' }],
+    })
     const ownAddress = accounts.getAddress('user')
+    const [ownResolver] = await readResolverAndSubregistry(
+      name.replace(/\.eth$/, ''),
+    )
+    await setEthAddressRecord(
+      name,
+      ownResolver,
+      ownAddress,
+      accounts.getPrivateKey('user'),
+    )
 
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
     await expect(
@@ -524,9 +547,9 @@ test.describe('Portal name transfer', () => {
       'tx-deploy-permissioned-resolver',
       'tx-change-resolver',
     ])
-    await expect(
-      page.getByRole('button', { name: 'Resolver changed!' }),
-    ).toBeVisible({ timeout: 30_000 })
+    await expect(page).toHaveURL(new RegExp(`/${name}/resolver$`), {
+      timeout: 30_000,
+    })
 
     // ── 4. New owner adds and saves a text record ──────────────────────
     await page.goto(`${PORTAL_APP_URL}/${name}/edit-records`)
@@ -540,25 +563,11 @@ test.describe('Portal name transfer', () => {
     await expect(page).toHaveURL(new RegExp(`/${name}/records$`), {
       timeout: 30_000,
     })
-    // Chain read-back, not the rendered value: F11's oracle is that the new
-    // owner can *write*, and a rendered string only proves the form echoed it.
-    // Added by the §6 B4 audit — same fault class as F1's ownership check.
-    //
-    // Read `text()` straight off the resolver the registry reports, rather than
-    // through ensjs's `getTextRecord`: that helper resolves via the Universal
-    // Resolver and throws for the freshly deployed resolver this test creates.
-    // Verified by hand against a name from an earlier run — the direct read
-    // returns the value while the helper throws, so the record does land and
-    // the helper was the wrong instrument. Going direct is also the higher
-    // oracle: it depends on nothing but the two contracts under assertion.
-    const [resolverForRecords] = await readResolverAndSubregistry(
-      name.replace(/\.eth$/, ''),
-    )
-    const written = await publicClient.readContract({
-      address: resolverForRecords,
-      abi: parseAbi(['function text(bytes32,string) view returns (string)']),
-      functionName: 'text',
-      args: [namehash(name), 'description'],
+    // Resolve through UniversalResolver so the read also supports the
+    // DNS-encoded interface of newly deployed permissioned resolvers.
+    const written = await getTextRecord(publicClient as never, {
+      name,
+      key: 'description',
     })
     expect(
       written,
@@ -1327,6 +1336,16 @@ test.describe('Portal name transfer', () => {
 
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
     await page.getByPlaceholder('ENS name or address').fill(recipient)
+    // The current form revokes third-party grants by default. Explicitly
+    // retain them to exercise this scenario's original postcondition.
+    const revokeOthers = page.getByRole('switch', {
+      name: 'Revoke everyone else’s permissions',
+    })
+    await expect(revokeOthers).toBeChecked()
+    await revokeOthers.uncheck()
+    await expect(
+      page.getByText(/keep their permissions on this name after the transfer/),
+    ).toBeVisible()
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
     await expect(transferButton).toBeEnabled({
       timeout: TRANSFER_READY_TIMEOUT,
@@ -1335,7 +1354,7 @@ test.describe('Portal name transfer', () => {
 
     await driveTransactionsToSuccess(page, wallet, [
       transferTxId(name, 'detach-resolver'),
-      transferTxId(name, 'transfer-token'),
+      transferTxId(name, 'transfer-token-unsafe'),
     ])
     await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
       timeout: 30_000,
@@ -1376,7 +1395,9 @@ test.describe('Portal name transfer', () => {
     page.on('console', (msg) => {
       const text = msg.text()
       for (const id of [detachId, transferId]) {
-        if (text.includes(`Transaction ${id} state: success`)) {
+        if (
+          new RegExp(`Transaction ${id}(--\\S+)? state: success`).test(text)
+        ) {
           successCount.set(id, (successCount.get(id) ?? 0) + 1)
         }
       }
@@ -2060,29 +2081,14 @@ test.describe('Portal name transfer — migrated V1 names', () => {
     })
     await transferButton.click()
 
-    // Drive the modal as far as it will go, authorising whatever it asks for.
-    const dialog = page.locator('[data-slot="dialog-content"]')
-    await expect(dialog).toBeVisible({ timeout: 30_000 })
-    const deadline = Date.now() + 90_000
-    while (Date.now() < deadline) {
-      const open = dialog.getByRole('button', { name: /open wallet/i })
-      if (await open.isVisible().catch(() => false)) {
-        await open.click()
-        await authorizeTransaction(wallet, 30_000).catch(() => {})
-        await page.waitForTimeout(500)
-        continue
-      }
-      const primary = dialog.getByRole('button', { name: /^(Start|Next)$/i })
-      if (
-        (await primary.isVisible().catch(() => false)) &&
-        (await primary.isEnabled().catch(() => false))
-      ) {
-        await primary.click()
-        await page.waitForTimeout(500)
-        continue
-      }
-      break
-    }
+    // The current form simulates the final transfer before detaching anything.
+    await expect(
+      page.getByText(/The transfer itself would fail, so nothing was sent/),
+    ).toBeVisible()
+    await expect(page.locator('[data-slot="dialog-content"]')).toHaveCount(0)
+    expect(
+      await wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+    ).toBe(0)
 
     // The token must not have moved…
     expect(
@@ -2099,12 +2105,6 @@ test.describe('Portal name transfer — migrated V1 names', () => {
       resolverAfter,
       'the resolver must not be detached for a transfer that cannot complete',
     ).toBe(resolverBefore)
-
-    // …and the failure must be visible rather than a silent stall.
-    await expect(
-      dialog.getByText(/fail|error|revert|unable/i).first(),
-      'the failed step must be surfaced, not left hanging',
-    ).toBeVisible({ timeout: 30_000 })
   })
 })
 
@@ -2901,16 +2901,6 @@ test.describe('Portal name transfer — subnames, irreversible steps', () => {
     tag: ['@scenario:F20'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(300_000)
-
-    // Expected to fail until E2E-010 is fixed, marked the way records.spec.ts
-    // and subnames.spec.ts mark E2E-008 and E2E-007. This keeps the suite's
-    // failure count meaningful — a red run means something genuinely
-    // unaccounted, not a defect we already know about — and Playwright errors
-    // if this ever PASSES, which is the notification you want the day somebody
-    // fixes the stale-cache read.
-    //
-    // The oracle below is unchanged and unweakened; only its bookkeeping moves.
-    test.fail()
 
     await connectWithHeadlessWallet(page, wallet)
 

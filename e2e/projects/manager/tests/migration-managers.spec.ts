@@ -336,6 +336,7 @@ test.describe('ENS V1 → V2 migration — carrying a V1 manager (§G.GM)', () =
     await openMigrationFlow(page)
     await expect(rootRow(page, wrapped)).toBeVisible({ timeout: 30_000 })
     await expect(rootRow(page, control)).toBeVisible()
+    await selectOnlyRoots(page, [wrapped, control])
     await expect(
       restorationCheckbox(page),
       'only the unwrapped control may carry the opt-in',

@@ -10,16 +10,9 @@
 // Requests that name a moving tag (latest, pending, safe, finalized) are
 // passed through uncached.
 //
-// Offline (UPSTREAM_CACHE_OFFLINE=1) nothing goes upstream. A miss on a read
-// that asks "what is there?" — a storage slot, balance, nonce, code, a
-// transaction or receipt by hash, logs — is answered empty: zero, no code,
-// not found, no logs. That is what a fresh run needs: the suite makes new
-// names every run, so Anvil keeps asking about slots it has never seen, and
-// at the pinned block those are empty. Anything else (a block header) stays
-// an error. Online, every upstream answer to such a read is compared with the
-// empty answer it would have had offline; `nonEmpty` in the stats line counts
-// the reads where the empty rule would have been wrong — after a warm-up it
-// should stay at 0, which is the check that offline answers are safe.
+// Offline mode only serves confirmed cached values. A missing value is an
+// error; no unknown storage, receipt or log is fabricated as empty.
+// Online requests are rate-limited and retried without weakening that rule.
 //
 // Zero dependencies; node:22 runs it as is.
 import { createHash } from 'node:crypto'
@@ -37,6 +30,7 @@ await mkdir(CACHE_DIR, { recursive: true })
 
 const MOVING = new Set(['latest', 'pending', 'safe', 'finalized', 'earliest'])
 const stats = { hits: 0, misses: 0, emptied: 0, nonEmpty: 0 }
+const inFlight = new Map()
 
 const ZERO_WORD = `0x${'0'.repeat(64)}`
 /** The empty answer for a read that asks what is there; undefined otherwise. */
@@ -51,10 +45,9 @@ const EMPTY = {
 }
 const hasEmpty = (method) => Object.hasOwn(EMPTY, method)
 /**
- * Left out of the check: the EIP-2935 block-hash contract. Every new block
- * makes Anvil load the slot it is about to overwrite, which on Sepolia holds
- * an older hash; a run that grows the chain further than any run before reads
- * new slots. Nothing reads those old values back, so zero is harmless.
+ * Omit the frequent EIP-2935 block-hash reads from verbose miss logging.
+ * Their real upstream values are still fetched and cached; no replacement
+ * value is supplied for a missing slot.
  */
 const UNCHECKED = new Set(['0x0000f90827f1c53a10cb7a02335b175320002935'])
 const checked = ({ params = [] }) =>
@@ -101,28 +94,78 @@ async function store(request, reply) {
   await rename(tmp, file)
 }
 
-/** POST upstream with retries: public endpoints throttle bursts. */
-async function post(body) {
-  let lastError
-  for (let attempt = 0; attempt < 6; attempt++) {
-    try {
-      const res = await fetch(UPSTREAM, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) throw new Error(`upstream answered ${res.status}`)
-      return await res.json()
-    } catch (error) {
-      lastError = error
-      await sleep(250 * 2 ** attempt)
+// Serialize outbound calls and respect a modest request rate. Historical
+// index backfill must not cause a transient 429 to crash Anvil's miner.
+const stateMethods = new Set([
+  'eth_getStorageAt',
+  'eth_getBalance',
+  'eth_getTransactionCount',
+  'eth_getCode',
+  'eth_call',
+])
+const stateQueue = []
+const historyQueue = []
+let draining = false
+let consecutiveStateReads = 0
+async function drain() {
+  if (draining) return
+  draining = true
+  try {
+    while (stateQueue.length || historyQueue.length) {
+      // A large historical block must not starve the storage read required
+      // to mine the next local block. Still admit one historical request
+      // after four state reads, with the same global rate limit and retries.
+      const useState =
+        stateQueue.length && (!historyQueue.length || consecutiveStateReads < 4)
+      const next = (useState ? stateQueue : historyQueue).shift()
+      consecutiveStateReads = useState ? consecutiveStateReads + 1 : 0
+      try {
+        next.resolve(await next.request())
+      } catch (error) {
+        next.reject(error)
+      }
     }
+  } finally {
+    draining = false
   }
-  console.error(`[upstream-cache] giving up: ${lastError.message}`)
-  throw lastError
+}
+const interval = Number(process.env.UPSTREAM_MIN_INTERVAL_MS ?? 150)
+async function post(body) {
+  const request = async () => {
+    let lastError
+    for (let attempt = 0; attempt < 20; attempt++) {
+      try {
+        const res = await fetch(UPSTREAM, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(30000),
+        })
+        if (!res.ok) throw new Error(`upstream answered ${res.status}`)
+        const reply = await res.json()
+        if (
+          reply.error &&
+          /rate|limit|timeout|temporar/i.test(reply.error.message ?? '')
+        )
+          throw new Error(`transient upstream RPC error ${reply.error.code}`)
+        await sleep(interval)
+        return reply
+      } catch (error) {
+        lastError = error
+        await sleep(Math.min(15000, 1000 * 2 ** attempt))
+      }
+    }
+    console.error(`[upstream-cache] giving up: ${lastError.message}`)
+    throw lastError
+  }
+  return new Promise((resolve, reject) => {
+    const queue = stateMethods.has(body.method) ? stateQueue : historyQueue
+    queue.push({ request, resolve, reject })
+    void drain()
+  })
 }
 
-async function answer(request) {
+async function answerUncached(request) {
   const hit = await cached(request)
   if (hit !== undefined) {
     stats.hits++
@@ -130,10 +173,6 @@ async function answer(request) {
   }
   stats.misses++
   if (OFFLINE) {
-    if (hasEmpty(request.method)) {
-      stats.emptied++
-      return { jsonrpc: '2.0', id: request.id, result: EMPTY[request.method] }
-    }
     return {
       jsonrpc: '2.0',
       id: request.id,
@@ -157,6 +196,19 @@ async function answer(request) {
     )
   }
   return reply
+}
+
+async function answer(request) {
+  // Only identical immutable reads share work. Preserve each caller's id;
+  // moving tags remain independent and no missing value is invented.
+  if (!cacheable(request)) return answerUncached(request)
+  const key = cachePath(request)
+  let pending = inFlight.get(key)
+  if (!pending) {
+    pending = answerUncached(request).finally(() => inFlight.delete(key))
+    inFlight.set(key, pending)
+  }
+  return { ...(await pending), id: request.id }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -196,6 +248,6 @@ setInterval(() => {
 }, 60_000)
 server.listen(PORT, () =>
   console.log(
-    `[upstream-cache] :${PORT} → ${UPSTREAM ?? '(none)'} cache ${CACHE_DIR}${OFFLINE ? ' OFFLINE' : ''}`,
+    `[upstream-cache] :${PORT} → ${UPSTREAM ? new URL(UPSTREAM).host : '(none)'} cache ${CACHE_DIR}${OFFLINE ? ' OFFLINE' : ''}`,
   ),
 )

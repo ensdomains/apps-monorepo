@@ -10,8 +10,8 @@ import {
   zeroAddress,
 } from 'viem'
 import type { privateKeyToAccount } from 'viem/accounts'
-
 import { publicClient, walletClient } from '../helpers/anvil-client.js'
+import { localReceipt } from '../helpers/local-receipt.js'
 import { V1_ENS_REGISTRY, V1_NAME_WRAPPER } from './makeV1Name.js'
 
 // ---------------------------------------------------------------------------
@@ -112,7 +112,7 @@ export async function readWrapperExpiry(fullName: string): Promise<bigint> {
 // Helper
 // ---------------------------------------------------------------------------
 async function waitForTx(hash: Hash, what: string) {
-  const receipt = await publicClient.waitForTransactionReceipt({ hash })
+  const receipt = await localReceipt(hash)
   if (receipt.status !== 'success') {
     throw new Error(`[makeV1Subname] ${what} reverted (tx ${hash})`)
   }

@@ -25,6 +25,7 @@ import {
 } from '../helpers/manager-auth.js'
 import { createBignameMock, type MockDomain } from '../helpers/mock-bigname.js'
 import type { PortalAccounts } from '../helpers/portal-auth.js'
+import { routeToLocalFork } from '../projects/migration-matrix/local-fork-routing.js'
 import { createMakeName } from './makeName.js'
 import { createMakeV2Name, type V2NameConfig } from './makeV2Name.js'
 import { createTime, type Time } from './time.js'
@@ -120,14 +121,14 @@ const DEFAULT_MNEMONIC =
   'test test test test test test test test test test test junk'
 const ACCOUNT_USERS = ['user', 'user2', 'user3', 'user4'] as const
 
-export function createAccounts(): PortalAccounts {
+export function createAccounts(addressIndexOffset = 0): PortalAccounts {
   const { accountList, privateKeys } = ACCOUNT_USERS.reduce<{
     accountList: { address: Address }[]
     privateKeys: Hash[]
   }>(
     (acc, _, index) => {
       const { getHdKey } = mnemonicToAccount(DEFAULT_MNEMONIC, {
-        addressIndex: index,
+        addressIndex: addressIndexOffset + index,
       })
       const pk = bytesToHex(getHdKey().privateKey!) as Hash
       const account = privateKeyToAccount(pk, { nonceManager })
@@ -219,7 +220,10 @@ export async function connectHeadless(
   wallet: Web3ProviderBackend,
 ): Promise<void> {
   const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
-  await page.goto(baseURL)
+  await page.goto(baseURL, {
+    waitUntil:
+      process.env.MATRIX_LOCAL_RPC_ONLY === '1' ? 'domcontentloaded' : 'load',
+  })
   await Promise.race([
     page.waitForLoadState('networkidle'),
     page.waitForTimeout(5_000),
@@ -231,13 +235,12 @@ export async function connectHeadless(
 export const test = base.extend<ManagerFixtures>({
   // Install the bigname mock on every page when E2E_MOCK_BIGNAME=true.
   // Nothing indexes the local chain, so bigname reads are answered from the mock.
-  page: async ({ page, baseURL }, use) => {
-    // Answer the analytics banner up front so it never covers a control.
-    await page
-      .context()
-      .addCookies([{ name: 'ens_analytics_consent', value: '0', url: baseURL }])
+  page: async ({ page }, use) => {
+    if (process.env.MATRIX_LOCAL_RPC_ONLY === '1') await routeToLocalFork(page)
     await bignameMock.installIfEnabled(page)
     await use(page)
+    if (process.env.MATRIX_LOCAL_RPC_ONLY === '1')
+      await page.unrouteAll({ behavior: 'ignoreErrors' })
   },
 
   accounts: async ({}, use) => {

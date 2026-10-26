@@ -6,8 +6,11 @@
  * on a direct `text(node, key)`, so the UniversalResolver is the only read that
  * works for every record type — and it is what every ENS client sees.
  */
+
+import { appendFileSync, mkdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import {
   type Address,
   decodeFunctionResult,
@@ -118,6 +121,21 @@ export async function expectRecordsResolve(
   records: V1Records,
 ): Promise<void> {
   const readBack = await resolveRecords(name, records)
+  // Optional audit evidence: preserves each value, including mismatches, before assertions.
+  if (process.env.RECORD_PRESERVATION_EVIDENCE) {
+    const directory = process.env.RECORD_PRESERVATION_EVIDENCE
+    mkdirSync(directory, { recursive: true })
+    appendFileSync(
+      join(directory, 'record-readbacks.jsonl'),
+      JSON.stringify({
+        name,
+        test: test.info().title,
+        at: new Date().toISOString(),
+        block: String(await publicClient.getBlockNumber({ cacheTime: 0 })),
+        records: readBack,
+      }) + '\n',
+    )
+  }
   for (const { what, want, got } of readBack)
     expect.soft(got, `${name}: ${what}`).toBe(want)
   expect(
