@@ -1,7 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { LoaderCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { match } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,
@@ -29,27 +28,15 @@ export const PaymentAction = ({
   readonly helpMessage: ReactNode
 }) => {
   const isEnabled = !isBusy && (canNext || !!onRetry)
-  const stateClasses = match({ isBusy, isEnabled })
-    .with(
-      { isBusy: true },
-      () =>
-        'bg-ens-blue text-white hover:bg-ens-blue-hover disabled:opacity-100',
-    )
-    .with(
-      { isEnabled: true },
-      () => 'bg-ens-blue text-white hover:bg-ens-blue-hover',
-    )
-    .otherwise(() => undefined)
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
       <Button
         aria-busy={isSettling}
         className={cn(
-          'h-14 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
-          'hover:bg-ens-gray-two',
+          'h-14 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover',
           'disabled:cursor-not-allowed disabled:opacity-50',
-          stateClasses,
+          isBusy && 'disabled:opacity-100',
         )}
         disabled={!isEnabled}
         onClick={onRetry ?? onNext}

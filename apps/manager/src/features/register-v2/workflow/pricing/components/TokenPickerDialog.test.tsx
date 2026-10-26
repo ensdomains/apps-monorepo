@@ -3,24 +3,17 @@ import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { PaymentMethodRow } from './PaymentMethodRow'
+import { PaymentReceipt } from './PaymentReceipt'
 import { PaymentDialogBase } from './TokenPickerDialog'
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
 
 const feeRow = (
-  <PaymentMethodRow
-    amount="$100.00"
-    amountLabel="balance"
-    fee="Sepolia est. fee: $4.32"
-    feeTooltip="Fee explanation"
-    feeTooltipLabel="What is the network fee?"
-    icon={<span>$</span>}
-    isAvailable
-    isSelected
-    name="USDC"
-    onSelect={() => {}}
-    selectLabel="Select USDC"
+  <PaymentReceipt
+    isEstimate={false}
+    state={{ status: 'ready', figures: { total: 5, applied: 0, due: 5 } }}
+    totalLabel="Registration total"
+    totalTooltip="Fee explanation"
   />
 )
 
@@ -42,7 +35,7 @@ describe('PaymentDialogBase', () => {
     )
 
     const trigger = await screen.findByRole('button', {
-      name: 'What is the network fee?',
+      name: 'What does the total include?',
     })
 
     await waitFor(() =>

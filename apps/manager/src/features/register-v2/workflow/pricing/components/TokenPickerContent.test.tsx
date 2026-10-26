@@ -399,7 +399,7 @@ describe('TokenPickerContent', () => {
     expect(quoted[0]).toContain(`${baseSepolia.id}`)
     expect(quoted[0]).toContain('"5000000"')
     // $5.012 charged there for a $4.80 name.
-    expect(screen.getByText('Base Sepolia est. fee: $0.21')).toBeVisible()
+    expect(screen.getByText('Base Sepolia · est. fee $0.21')).toBeVisible()
   })
 
   it('registers from the chosen L2 whatever the wallet holds', async () => {
@@ -696,9 +696,9 @@ describe('TokenPickerContentBase', () => {
 
     expect(screen.getByText('balance')).toBeVisible()
     expect(screen.queryByText('in your wallet')).not.toBeInTheDocument()
-    expect(screen.getByText('Sepolia est. fee: $4.32')).toBeVisible()
+    expect(screen.getByText('Sepolia · est. fee $4.32')).toBeVisible()
     expect(
-      screen.getByRole('button', { name: 'What is the network fee?' }),
+      screen.getByRole('button', { name: 'What does the total include?' }),
     ).toBeVisible()
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
   })
@@ -709,9 +709,9 @@ describe('TokenPickerContentBase', () => {
       selectedToken: 'USDC',
     })
 
-    const fee = screen.getByText('Sepolia est. fee: —')
+    const fee = screen.getByText('Sepolia · est. fee —')
     expect(fee).toBeVisible()
-    expect(fee.parentElement).toHaveClass('animate-pulse')
+    expect(fee).toHaveClass('animate-pulse')
     expect(screen.queryByText('Network fee')).not.toBeInTheDocument()
   })
 
@@ -777,7 +777,7 @@ describe('TokenPickerContentBase', () => {
   it('leaves the EOA route alone when there is no budget to quote', () => {
     renderPicker({ selectedToken: 'USDC' })
 
-    expect(screen.getByText('Sepolia est. fee: —')).toBeVisible()
+    expect(screen.getByText('Sepolia · est. fee —')).toBeVisible()
     expect(receiptRow('Due from your wallet')).toHaveTextContent(
       /^.*\$330\.00$/,
     )
@@ -818,7 +818,7 @@ describe('TokenPickerContentBase', () => {
     expect(
       screen.getByRole('region', { name: 'Payment summary' }),
     ).toHaveAttribute('aria-busy', 'true')
-    expect(screen.getByText('Sepolia est. fee: $4.32')).toBeVisible()
+    expect(screen.getByText('Sepolia · est. fee $4.32')).toBeVisible()
   })
 
   it('shows the wallet shortfall under the receipt', () => {
@@ -909,7 +909,7 @@ describe('TokenPickerContentBase L2 rows', () => {
       ),
     })
 
-    expect(screen.getByText('Base Sepolia est. fee: $0.21')).toBeVisible()
+    expect(screen.getByText('Base Sepolia · est. fee $0.21')).toBeVisible()
     expect(receiptRow('Due from your wallet')).toHaveTextContent('$5.01')
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
   })

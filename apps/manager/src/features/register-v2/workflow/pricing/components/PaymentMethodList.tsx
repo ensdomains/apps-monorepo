@@ -26,7 +26,7 @@ export const PaymentMethodList = ({
     >
       <ul
         aria-label="Payment methods"
-        className="flex w-full list-none flex-col gap-3 p-0 sm:gap-0"
+        className="flex w-full list-none flex-col gap-2 p-0"
       >
         {visibleMethods.map((item) => (
           <li key={item.id}>{item.content}</li>

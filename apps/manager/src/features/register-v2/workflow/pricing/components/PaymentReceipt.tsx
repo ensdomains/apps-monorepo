@@ -14,6 +14,25 @@ import type {
   PaymentReceiptState,
 } from '../lib/paymentReceiptFigures'
 
+const InfoTooltip = ({
+  label,
+  children,
+}: {
+  readonly label: string
+  readonly children: ReactNode
+}) => (
+  <Tooltip>
+    <TooltipTrigger
+      aria-label={label}
+      className="flex items-center text-ens-quartz-400"
+      type="button"
+    >
+      <MSymbol className="ms-opsz-20 ms-wght-400" symbol="info" />
+    </TooltipTrigger>
+    <TooltipContent className="max-w-64 text-center">{children}</TooltipContent>
+  </Tooltip>
+)
+
 const Amount = ({
   state,
   field,
@@ -52,12 +71,14 @@ const Amount = ({
 export const PaymentReceipt = ({
   state,
   totalLabel,
+  totalTooltip,
   isEstimate,
   errorMessage,
   shortfall,
 }: {
   readonly state: PaymentReceiptState
   readonly totalLabel: ReactNode
+  readonly totalTooltip: ReactNode
   readonly isEstimate: boolean
   /** Wins over the shortfall line. */
   readonly errorMessage?: ReactNode
@@ -78,7 +99,12 @@ export const PaymentReceipt = ({
     >
       <dl className="flex flex-col gap-3 text-base text-ens-quartz-500">
         <div className="flex items-center justify-between gap-2">
-          <dt>{totalLabel}</dt>
+          <dt className="flex items-center gap-1.5">
+            {totalLabel}
+            <InfoTooltip label={t`What does the total include?`}>
+              {totalTooltip}
+            </InfoTooltip>
+          </dt>
           <dd className="text-ens-quartz-900">
             <Amount field="total" isEstimate={isEstimate} state={state} />
           </dd>
@@ -86,21 +112,12 @@ export const PaymentReceipt = ({
         <div className="flex items-center justify-between gap-2">
           <dt className="flex items-center gap-1.5">
             <Trans>Available balance applied</Trans>
-            <Tooltip>
-              <TooltipTrigger
-                aria-label={t`Where does this balance come from?`}
-                className="flex items-center text-ens-quartz-400"
-                type="button"
-              >
-                <MSymbol className="ms-opsz-20 ms-wght-400" symbol="info" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-64 text-center">
-                <Trans>
-                  Funds left over from your earlier registrations. They are used
-                  first, so your wallet only pays the rest.
-                </Trans>
-              </TooltipContent>
-            </Tooltip>
+            <InfoTooltip label={t`Where does this balance come from?`}>
+              <Trans>
+                Funds left over from your earlier registrations. They are used
+                first, so your wallet only pays the rest.
+              </Trans>
+            </InfoTooltip>
           </dt>
           <dd className="text-ens-quartz-900">
             <Amount field="applied" isDeduction state={state} />

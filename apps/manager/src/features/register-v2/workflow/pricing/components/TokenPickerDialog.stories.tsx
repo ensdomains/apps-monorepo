@@ -2,7 +2,6 @@ import { Trans } from '@lingui/react/macro'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { type ReactNode, useState } from 'react'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
-import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import type { L2Source } from '@/l2Sources'
@@ -11,7 +10,6 @@ import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import type { L2PaymentRow } from '../hooks/useL2Payment'
 import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
-import { PaymentMethodIcon } from './PaymentMethodIcon'
 import {
   PaymentMethodList,
   type PaymentMethodListItem,
@@ -81,7 +79,6 @@ interface TokenPickerDialogShellProps {
   readonly initialSelectedToken?: SUPPORTED_TOKEN
   readonly funding?: RegistrationFundingSummary
   readonly isQuotingFunding?: boolean
-  readonly isFeeTooltipOpen?: boolean
   /** L2 rows the registration can be paid from. */
   readonly l2Rows?: readonly L2PaymentRow[]
 }
@@ -101,7 +98,6 @@ export const TokenPickerDialogShell = ({
   initialSelectedToken,
   funding,
   isQuotingFunding = false,
-  isFeeTooltipOpen,
   l2Rows,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
@@ -123,7 +119,6 @@ export const TokenPickerDialogShell = ({
         globalErrorMessage={globalErrorMessage}
         helpMessage={helpMessage}
         isConnected={isConnected}
-        isFeeTooltipOpen={isFeeTooltipOpen}
         isInPriceCooldown={isInPriceCooldown}
         isLoadingBalances={isLoadingBalances}
         isQuotingFunding={isQuotingFunding}
@@ -229,30 +224,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
 export const FIXTURE_NO_VALID_COMMON_METHODS: readonly FixtureMethod[] =
   FIXTURE_MULTIPLE_METHODS.map((method) => ({ ...method, isAvailable: false }))
 
-const FixtureTokenIcon = ({ name }: Pick<FixtureMethod, 'name'>) => {
-  if (name === 'USDC') return <USDCIcon className="size-full" />
-  if (name === 'USDT') return <USDTIcon className="size-full" />
-  if (name === 'DAI') return <DAI className="size-full" />
-  return (
-    <span className="flex size-full items-center justify-center rounded-full bg-[#627eea] font-medium text-white">
-      Ξ
-    </span>
-  )
-}
-
-const FixtureNetworkBadge = ({ network }: Pick<FixtureMethod, 'network'>) => (
-  <span
-    className={cn(
-      'flex size-full items-center justify-center font-medium text-[7px] text-white sm:text-[9px]',
-      network === 'Mainnet' && 'bg-[#6c5ce7]',
-      network === 'Optimism' && 'bg-[#ff0420]',
-      network === 'Base' && 'bg-[#0052ff]',
-    )}
-  >
-    {network === 'Mainnet' ? '◆' : network.at(0)}
-  </span>
-)
-
 export const FixtureTokenPickerContent = ({
   methods,
   initialSelectedId,
@@ -269,15 +240,7 @@ export const FixtureTokenPickerContent = ({
       <PaymentMethodRow
         amount={method.balance}
         amountLabel="balance"
-        fee="Sepolia est. fee: $0.27"
-        feeTooltip="An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
-        feeTooltipLabel="What is the network fee?"
-        icon={
-          <PaymentMethodIcon
-            icon={<FixtureTokenIcon name={method.name} />}
-            networkBadge={<FixtureNetworkBadge network={method.network} />}
-          />
-        }
+        fee="Sepolia · est. fee $0.27"
         isAvailable={method.isAvailable}
         isSelected={selectedId === method.id}
         name={method.name}
@@ -310,6 +273,7 @@ export const FixtureTokenPickerContent = ({
           figures: { total: 352, applied: 0, due: 352 },
         }}
         totalLabel={<Trans>Registration total</Trans>}
+        totalTooltip="Includes an estimate of the network fees."
       />
       <Button
         className={cn(
@@ -423,13 +387,6 @@ export const WithAccountCredit: Story = {
       hcaCredit: 1.82,
       isLoading: false,
     },
-  },
-}
-
-export const FeeTooltipOpen: Story = {
-  args: {
-    ...FundedUSDC.args,
-    isFeeTooltipOpen: true,
   },
 }
 

@@ -41,7 +41,11 @@ import {
 } from '../lib/paymentReceiptFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
-import { getL2SelectionMessage, L2SourceListItem } from './L2SourceListItem'
+import {
+  getL2FeeExplanation,
+  getL2SelectionMessage,
+  L2SourceListItem,
+} from './L2SourceListItem'
 import { PaymentAction } from './PaymentAction'
 import {
   PaymentMethodList,
@@ -726,7 +730,6 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   funding,
   isQuotingFunding = false,
   showNetworkFeeDetails = false,
-  isFeeTooltipOpen,
   isQuoteStale = false,
   hasBudgetQuoteFailed = false,
   isBusy = false,
@@ -776,8 +779,6 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly isQuotingFunding?: boolean
   /** Registration-only disclosure; renewals keep their existing token row. */
   readonly showNetworkFeeDetails?: boolean
-  /** Story-only control used to capture the open tooltip reference state. */
-  readonly isFeeTooltipOpen?: boolean
   /** A placeholder quote belongs to the previous primary-name choice. */
   readonly isQuoteStale?: boolean
   /** A required budget quote failed, so checkout must remain blocked. */
@@ -785,7 +786,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly isBusy?: boolean
   /** False while the caller is missing something `onNext` needs, such as the signing wallet. */
   readonly canProceed?: boolean
-  /** Replaces the fee tooltip's registration wording. */
+  /** Replaces the total's fee explanation. */
   readonly networkFeeTooltip?: ReactNode
   readonly totalLabel?: ReactNode
   /** Per-coin override of what the wallet must cover, for a fee paid in one coin and rent in another. */
@@ -892,8 +893,6 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         isSelected: walletSelection === stablecoin.symbol,
         content: (
           <TokenListItem
-            feeTooltip={networkFeeTooltip}
-            isFeeTooltipOpen={isFeeTooltipOpen}
             isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
             networkFee={displayedNetworkFee}
             onSelectCoin={onSelectCoin}
@@ -1029,6 +1028,17 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           }
           state={receiptState}
           totalLabel={totalLabel}
+          totalTooltip={
+            selectedL2
+              ? getL2FeeExplanation(selectedL2)
+              : (networkFeeTooltip ?? (
+                  <Trans>
+                    Includes an estimate of the network fees for the two
+                    transactions that register your name, collected with the
+                    name price in the same approval.
+                  </Trans>
+                ))
+          }
         />
 
         <PaymentAction

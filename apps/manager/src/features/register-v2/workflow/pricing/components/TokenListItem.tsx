@@ -8,24 +8,10 @@ import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { hasInsufficientBalance } from '@/utils/payment'
-import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
 
 // The wallet pays on the app's own chain, which isn't always mainnet.
 const chainName = chain.name
-
-const MainnetBadge = () => (
-  <span
-    aria-hidden="true"
-    className="flex size-full items-center justify-center bg-[#6c5ce7]"
-  >
-    <svg className="size-[70%]" viewBox="0 0 12 12">
-      <title>Mainnet</title>
-      <path d="M6 1 9.5 6 6 8 2.5 6 6 1Z" fill="white" />
-      <path d="m2.5 6 3.5 5 3.5-5L6 8 2.5 6Z" fill="white" opacity=".75" />
-    </svg>
-  </span>
-)
 
 export const TokenListItem = <T extends TOKEN_SYMBOL>({
   stablecoin,
@@ -35,8 +21,6 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
   networkFee,
   isNetworkFeeLoading = false,
   showNetworkFeeDetails = false,
-  isFeeTooltipOpen,
-  feeTooltip,
 }: {
   readonly stablecoin: StablecoinBalance
   readonly selectedCoin: T | undefined
@@ -45,9 +29,6 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
   readonly networkFee?: number
   readonly isNetworkFeeLoading?: boolean
   readonly showNetworkFeeDetails?: boolean
-  readonly isFeeTooltipOpen?: boolean
-  /** What the fee pays for; defaults to the registration wording. */
-  readonly feeTooltip?: React.ReactNode
 }) => {
   const { t } = useLingui()
   const isSelected = selectedCoin === stablecoin.symbol
@@ -115,28 +96,11 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
       amountLabel={<Trans>balance</Trans>}
       fee={
         <Trans>
-          {chainName} est. fee: {formatUsd(networkFee ?? Number.NaN)}
+          {chainName} · est. fee {formatUsd(networkFee ?? Number.NaN)}
         </Trans>
-      }
-      feeTooltip={
-        feeTooltip ?? (
-          <Trans>
-            An estimate of what the two on-chain transactions that register your
-            name will cost. It is collected together with the name price, in the
-            same approval.
-          </Trans>
-        )
-      }
-      feeTooltipLabel={t`What is the network fee?`}
-      icon={
-        <PaymentMethodIcon
-          icon={<IconComponent className="size-full" />}
-          networkBadge={<MainnetBadge />}
-        />
       }
       isAvailable
       isFeeLoading={isNetworkFeeLoading}
-      isFeeTooltipOpen={isFeeTooltipOpen}
       isInsufficient={!isFunded}
       isSelected={isSelected}
       name={stablecoin.symbol}

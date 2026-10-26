@@ -80,7 +80,7 @@ msgstr ""
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "{chainName} est. fee: {0}"
+msgid "{chainName} · est. fee {0}"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -363,16 +363,8 @@ msgstr ""
 msgid "Allow your smart account to configure your upgraded names and their subnames. No managers are being added in this upgrade."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
-msgstr ""
-
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr ""
 
 #: src/components/AnalyticsConsentBanner.tsx
@@ -1538,6 +1530,14 @@ msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "In-app notifications are always enabled"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Includes an estimate of the network fees for the two transactions that register your name, collected with the name price in the same approval."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Includes an estimate of the network fees, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
@@ -3829,17 +3829,16 @@ msgstr ""
 msgid "What additional fee are you willing to pay?"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "What does the total include?"
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "What happens to subnames when I upgrade?"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "What is a primary name?"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "What is the network fee?"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
