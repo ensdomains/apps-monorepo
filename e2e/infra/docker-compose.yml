@@ -318,6 +318,7 @@ services:
       - bigname-rpc-cache:/cache
     environment:
       - PORT=8547
+      - UPSTREAM_IN_FLIGHT=${BIGNAME_UPSTREAM_IN_FLIGHT:-6}
       - CACHE_DIR=/cache
       # 1 = never contact the upstream; a cache miss is an error.
       - FORK_RPC_OFFLINE=${FORK_RPC_OFFLINE:-0}
@@ -343,6 +344,9 @@ services:
     environment:
       - BIGNAME_DEV_ALLOW_SEPOLIA_START=1
       - BIGNAME_START=${BIGNAME_START:-fork}
+      - BIGNAME_INGEST_BLOCKS_PER_BATCH=${BIGNAME_INGEST_BLOCKS_PER_BATCH:-256}
+      - BIGNAME_INGEST_RPC_BATCH_SIZE=${BIGNAME_INGEST_RPC_BATCH_SIZE:-32}
+      - BIGNAME_INGEST_RPC_MAX_IN_FLIGHT=${BIGNAME_INGEST_RPC_MAX_IN_FLIGHT:-8}
       - ANVIL_SLOTS_IN_AN_EPOCH=1024
       - ANVIL_RPC_URL=http://anvil:8545
       - SOURCE_RPC_URL=http://bigname-rpc:8547

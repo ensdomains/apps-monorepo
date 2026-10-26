@@ -30,7 +30,8 @@
     "matrix:generate": "tsx scripts/generate-v1-matrix.ts",
     "matrix:check": "tsx scripts/generate-v1-matrix.ts --check",
     "matrix:docs": "tsx matrix/render-docs.ts",
-    "matrix:docs:check": "tsx matrix/render-docs.ts --check"
+    "matrix:docs:check": "tsx matrix/render-docs.ts --check",
+    "test:migration-matrix": "node scripts/run-migration-matrix.mjs"
   },
   "postinstall": "playwright install --with-deps chromium",
   "dependencies": {

@@ -25,6 +25,15 @@ const PORT = Number(process.env.PORT ?? 8547)
 const ANVIL = process.env.ANVIL_RPC_URL ?? 'http://anvil:8545'
 const UPSTREAM = process.env.UPSTREAM_RPC_URL
 const OFFLINE = process.env.FORK_RPC_OFFLINE === '1'
+// A resumed indexer may already have persisted headers and therefore request
+// their transactions without replaying the headers that populate our hints.
+const VERIFY_UNKNOWN_TX = process.env.FORK_RPC_VERIFY_UNKNOWN_TX === '1'
+// Shared immutable history must remain usable after its original test chain
+// is parked. It must never consult that unrelated chain for another fork's
+// transaction, and it must never forward writes to the public network.
+const HISTORY_CACHE = process.env.FORK_RPC_HISTORY_CACHE === '1'
+const FIXED_FORK_BLOCK = process.env.FORK_RPC_FIXED_FORK_BLOCK
+if (HISTORY_CACHE && !FIXED_FORK_BLOCK) throw new Error('History cache requires an explicit verified fork block')
 if (!UPSTREAM && !OFFLINE)
   throw new Error('UPSTREAM_RPC_URL is required (or FORK_RPC_OFFLINE=1)')
 const CACHE_DIR = process.env.CACHE_DIR
@@ -54,12 +63,14 @@ async function cached(request) {
 async function store(request, reply) {
   // Only a real answer is worth keeping: an error or a null (a hash upstream
   // does not know) may change.
-  if (!CACHE_DIR || reply.error || reply.result == null) return
+  if (!CACHE_DIR || process.env.CACHE_READ_ONLY === '1' || reply.error || reply.result == null) return
   const file = cachePath(request)
   const tmp = `${file}.${process.pid}.tmp`
   await writeFile(tmp, JSON.stringify(reply.result))
   await rename(tmp, file)
 }
+
+const inFlightUpstream = new Map()
 
 /** An upstream request, answered from the cache when it can be. */
 async function upstream(request) {
@@ -83,14 +94,65 @@ async function upstream(request) {
         message: `fork-rpc offline: no cached answer for ${request.method}`,
       },
     }
-  const reply = await post(UPSTREAM, request)
-  await store(request, reply)
-  return reply
+  const key = JSON.stringify([request.method, request.params ?? []])
+  if (!inFlightUpstream.has(key)) {
+    const pending = (async () => {
+      const reply = await post(UPSTREAM, request)
+      await store(request, reply)
+      return reply
+    })().finally(() => inFlightUpstream.delete(key))
+    inFlightUpstream.set(key, pending)
+  }
+  const reply = await inFlightUpstream.get(key)
+  return { ...reply, id: request.id }
 }
 
-let forkBlock = null
+let forkBlock = FIXED_FORK_BLOCK ? BigInt(FIXED_FORK_BLOCK) : null
+// Remember transactions proven historical by upstream logs or headers. Asking
+// Anvil for these receipts can make it fetch every transaction in that block.
+const historicalTransactions = new Set()
+const HISTORICAL_HINT_LIMIT = Number(process.env.HISTORICAL_HINT_LIMIT ?? 50000)
+// Fixed-size membership hints preserve old header/log identities after the
+// exact LRU set evicts them. A possible match is never itself an RPC answer:
+// upstream must return an actual receipt/transaction at or below the fork.
+// This avoids sending historical hashes back through Anvil, which can fetch
+// every transaction in a remote block and stall local mining.
+const historicalBloom = Buffer.alloc(Number(process.env.HISTORICAL_BLOOM_BYTES ?? 32 * 1024 * 1024))
+function historicalBits(hash) {
+  const digest = createHash('sha256').update(hash).digest()
+  return [0, 4, 8, 12].map(offset => digest.readUInt32LE(offset) % (historicalBloom.length * 8))
+}
+function maybeHistorical(hash) {
+  return typeof hash === 'string' && historicalBits(hash).every(bit => (historicalBloom[bit >>> 3] & (1 << (bit & 7))) !== 0)
+}
+function rememberHistoricalHash(hash) {
+  if (!hash) return
+  historicalTransactions.add(hash)
+  for (const bit of historicalBits(hash)) historicalBloom[bit >>> 3] |= 1 << (bit & 7)
+  // Routing hints only. Immutable RPC answers remain on disk; evicted hashes
+  // still fall back to actual Anvil/upstream lookups and are never fabricated.
+  while (historicalTransactions.size > HISTORICAL_HINT_LIMIT)
+    historicalTransactions.delete(historicalTransactions.values().next().value)
+}
+function rememberHistorical(request, result) {
+  if (request.method === 'eth_getLogs' && Array.isArray(result)) {
+    for (const log of result) {
+      if (atOrBelowFork(log.blockNumber) && log.transactionHash)
+        rememberHistoricalHash(log.transactionHash)
+    }
+  }
+  if (
+    request.method !== 'eth_getBlockByNumber' ||
+    !atOrBelowFork(result?.number)
+  )
+    return
+  for (const transaction of result.transactions ?? [])
+    rememberHistoricalHash(
+      typeof transaction === 'string' ? transaction : transaction.hash,
+    )
+}
 
-const UPSTREAM_CHUNK = 10
+const UPSTREAM_CHUNK = Number(process.env.UPSTREAM_CHUNK ?? 5)
 // The public upstream throttles beyond a handful of requests in flight, and a
 // throttled request costs more (backoff) than a queued one.
 const UPSTREAM_IN_FLIGHT = Number(process.env.UPSTREAM_IN_FLIGHT ?? 6)
@@ -102,7 +164,9 @@ async function withUpstreamSlot(fn) {
   if (inFlight >= UPSTREAM_IN_FLIGHT) await new Promise((r) => waiting.push(r))
   inFlight++
   try {
-    return await fn()
+    const result = await fn()
+    await sleep(Number(process.env.UPSTREAM_MIN_INTERVAL_MS ?? 500))
+    return result
   } finally {
     inFlight--
     waiting.shift()?.()
@@ -115,25 +179,51 @@ async function withUpstreamSlot(fn) {
  * those as a failed window.
  */
 async function post(url, body) {
+  // Publicnode accepts at most ten addresses in one log filter. Preserve the
+  // complete query by partitioning addresses, then merging canonical logs.
+  const oversizedLogs = (request) => request?.method === 'eth_getLogs' && Array.isArray(request.params?.[0]?.address) && request.params[0].address.length > 10
+  if (url === UPSTREAM && Array.isArray(body) && body.some(oversizedLogs))
+    return Promise.all(body.map(request => post(url, request)))
+  if (url === UPSTREAM && oversizedLogs(body)) {
+    const filter = body.params[0]
+    const parts = []
+    for (let i = 0; i < filter.address.length; i += 10)
+      parts.push({ ...body, params: [{ ...filter, address: filter.address.slice(i, i + 10) }] })
+    const replies = await Promise.all(parts.map(part => post(url, part)))
+    const failed = replies.find(reply => reply.error)
+    if (failed) return { ...failed, id: body.id }
+    const unique = new Map(replies.flatMap(reply => reply.result).map(log => [`${log.blockHash}:${log.logIndex}`, log]))
+    const result = [...unique.values()].sort((a, b) => {
+      const block = BigInt(a.blockNumber) - BigInt(b.blockNumber)
+      return block ? Number(block) : Number(BigInt(a.logIndex) - BigInt(b.logIndex))
+    })
+    return { jsonrpc: '2.0', id: body.id, result }
+  }
   let lastError
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 15; attempt++) {
     try {
       const send = () =>
         fetch(url, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(body),
+          signal: AbortSignal.timeout(30000),
         })
       const res = await (url === UPSTREAM ? withUpstreamSlot(send) : send())
-      if (!res.ok)
-        throw new Error(`${new URL(url).host} answered ${res.status}`)
+      if (!res.ok) {
+        const detail = (await res.text()).slice(0, 300)
+        if (attempt === 0) console.warn(`[fork-rpc] ${new URL(url).host}: ${res.status} ${detail}`)
+        throw new Error(`${new URL(url).host} answered ${res.status}: ${detail}`)
+      }
       const reply = await res.json()
+      if (reply?.error && body?.method === 'eth_getLogs' && CACHE_DIR)
+        await writeFile(path.join(CACHE_DIR, 'last-log-error.json'), JSON.stringify({ request: body, error: reply.error }))
       if (Array.isArray(body) && !Array.isArray(reply))
         throw new Error(`batch answered ${JSON.stringify(reply).slice(0, 200)}`)
       return reply
     } catch (error) {
       lastError = error
-      await sleep(250 * 2 ** attempt)
+      await sleep(Math.min(15000, 1000 * 2 ** attempt))
     }
   }
   console.error(`[fork-rpc] giving up: ${lastError.message}`)
@@ -156,19 +246,40 @@ async function postUpstreamBatch(requests) {
   stats.misses += missing.length
   if (OFFLINE)
     return [...answered, ...(await Promise.all(missing.map(upstream)))]
+  // Several isolated indexers backfill the same immutable fork history.
+  // Share in-flight answers across batches as well as individual requests;
+  // request IDs belong to the caller and must not be shared with the answer.
+  const fresh = []
+  const pending = missing.map(request => {
+    const key = JSON.stringify([request.method, request.params ?? []])
+    if (!inFlightUpstream.has(key)) {
+      let fulfill, reject
+      const promise = new Promise((yes, no) => { fulfill = yes; reject = no })
+      inFlightUpstream.set(key, promise)
+      fresh.push({ request, key, fulfill, reject })
+    }
+    return inFlightUpstream.get(key).then(reply => ({ ...reply, id: request.id }))
+  })
+  const answers = Promise.all(pending)
   const chunks = []
-  for (let i = 0; i < missing.length; i += UPSTREAM_CHUNK)
-    chunks.push(missing.slice(i, i + UPSTREAM_CHUNK))
-  const replies = (
-    await Promise.all(chunks.map((c) => post(UPSTREAM, c)))
-  ).flat()
-  const byId = new Map(missing.map((r) => [r.id, r]))
-  await Promise.all(
-    replies.map((reply) => {
-      const request = byId.get(reply.id)
-      return request ? store(request, reply) : undefined
-    }),
-  )
+  for (let i = 0; i < fresh.length; i += UPSTREAM_CHUNK)
+    chunks.push(fresh.slice(i, i + UPSTREAM_CHUNK))
+  const work = Promise.all(chunks.map(async chunk => {
+    try {
+      const replies = await post(UPSTREAM, chunk.map(entry => entry.request))
+      const byId = new Map(replies.map(reply => [reply.id, reply]))
+      await Promise.all(chunk.map(async entry => {
+        const reply = byId.get(entry.request.id) ?? { jsonrpc: '2.0', id: entry.request.id, error: { code: -32603, message: 'fork-rpc: upstream omitted a batch reply' } }
+        await store(entry.request, reply)
+        entry.fulfill(reply)
+      }))
+    } catch (error) {
+      for (const entry of chunk) entry.reject(error)
+    } finally {
+      for (const entry of chunk) inFlightUpstream.delete(entry.key)
+    }
+  }))
+  const [replies] = await Promise.all([answers, work])
   return [...answered, ...replies]
 }
 
@@ -180,7 +291,9 @@ async function refreshForkBlock() {
       method: 'anvil_nodeInfo',
       params: [],
     })
-    forkBlock = BigInt(result.forkConfig.forkBlockNumber)
+    const nextForkBlock = BigInt(result.forkConfig.forkBlockNumber)
+    if (forkBlock !== nextForkBlock) { historicalTransactions.clear(); historicalBloom.fill(0) }
+    forkBlock = nextForkBlock
   } catch (error) {
     console.error(`[fork-rpc] cannot read the fork block: ${error.message}`)
   }
@@ -197,6 +310,12 @@ const hex = (n) => `0x${n.toString(16)}`
  */
 function route(request) {
   const { method, params = [] } = request
+  if (HISTORY_CACHE) {
+    if (['eth_getTransactionReceipt', 'eth_getTransactionByHash'].includes(method)) return 'upstream'
+    if (method === 'eth_getBlockByNumber' && atOrBelowFork(params[0])) return 'upstream'
+    if (method === 'eth_getLogs' && !params[0]?.blockHash && atOrBelowFork(params[0]?.fromBlock) && atOrBelowFork(params[0]?.toBlock)) return 'upstream'
+    return 'reject-history'
+  }
   switch (method) {
     case 'eth_getBlockByNumber':
       return atOrBelowFork(params[0]) ? 'upstream' : 'anvil'
@@ -213,7 +332,9 @@ function route(request) {
     // public request per test transaction and drew 429s that stalled bigname.
     case 'eth_getTransactionReceipt':
     case 'eth_getTransactionByHash':
-      return 'anvil-then-upstream'
+      return historicalTransactions.has(params[0])
+        ? 'upstream'
+        : maybeHistorical(params[0]) || VERIFY_UNKNOWN_TX ? 'verify-historical' : 'anvil-then-upstream'
     default:
       return 'anvil'
   }
@@ -221,9 +342,22 @@ function route(request) {
 
 async function call(request) {
   const target = route(request)
+  if (target === 'reject-history') return { jsonrpc: '2.0', id: request.id, error: { code: -32601, message: 'Shared history cache accepts only immutable history reads; use the fixture RPC for local or moving state.' } }
   if (target === 'anvil') return post(ANVIL, request)
   if (target === 'upstream') return upstream(request)
+  if (target === 'verify-historical') {
+    const reply = await upstream(request)
+    if (reply.result && atOrBelowFork(reply.result.blockNumber)) return reply
+    // False positives and hashes not available upstream still use the actual
+    // local chain. Never turn a membership hint into a missing-local-tx answer.
+    return post(ANVIL, request)
+  }
   if (target === 'anvil-then-upstream') {
+    // A previously verified pre-fork receipt/transaction does not need an
+    // Anvil round trip after its routing hint ages out of the bounded set.
+    const hit = await cached(request)
+    if (hit !== undefined && atOrBelowFork(hit?.blockNumber))
+      return { jsonrpc: '2.0', id: request.id, result: hit }
     const reply = await post(ANVIL, request)
     return reply.result ? reply : upstream(request)
   }
@@ -278,6 +412,15 @@ const server = http.createServer(async (req, res) => {
     const reply = Array.isArray(parsed)
       ? await callBatch(parsed)
       : await call(parsed)
+    if (Array.isArray(parsed)) {
+      const requestsById = new Map(
+        parsed.map((request) => [request.id, request]),
+      )
+      for (const item of reply) {
+        const request = requestsById.get(item.id)
+        if (request) rememberHistorical(request, item.result)
+      }
+    } else rememberHistorical(parsed, reply.result)
     res.writeHead(200, { 'content-type': 'application/json' })
     res.end(JSON.stringify(reply))
   } catch (error) {
@@ -292,19 +435,19 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
-await refreshForkBlock()
+if (!FIXED_FORK_BLOCK) await refreshForkBlock()
 // Anvil may be recreated under us with a new fork block.
-setInterval(refreshForkBlock, 30_000)
+if (!FIXED_FORK_BLOCK) setInterval(refreshForkBlock, 30_000)
 // One line a minute when the cache did anything: proof of offline readiness.
 setInterval(() => {
   if (stats.hits + stats.misses === 0) return
-  console.log(`[fork-rpc] cache: ${stats.hits} hits, ${stats.misses} misses`)
+  console.log(`[fork-rpc] cache: ${stats.hits} hits, ${stats.misses} misses; ${historicalTransactions.size} bounded routing hints`)
   stats.hits = 0
   stats.misses = 0
 }, 60_000)
 server.listen(PORT, () =>
   console.log(
-    `[fork-rpc] :${PORT} fork block ${forkBlock} anvil ${ANVIL}` +
+    `[fork-rpc] :${server.address().port} fork block ${forkBlock} anvil ${ANVIL}` +
       `${CACHE_DIR ? ` cache ${CACHE_DIR}` : ''}${OFFLINE ? ' OFFLINE' : ''}`,
   ),
 )

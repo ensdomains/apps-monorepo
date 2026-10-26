@@ -35,6 +35,8 @@ export type MockDomain = {
   expiryDate?: number
   createdAt?: number
   records?: { key: string; value: string }[]
+  /** Exact observed key inventory for heterogeneous resolver records. */
+  recordInventory?: { knownKeys: string[]; abiContentTypes: number[] }
   /** Defaults to ENSv2. */
   readonly protocol?: 'v1' | 'v2'
   /** How `owner` relates to the name; defaults to owner and manager. */
@@ -92,7 +94,7 @@ const CORS_HEADERS = {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createBignameMock() {
+export function createBignameMock(options: { nowSeconds?: () => number } = {}) {
   const domains: MockDomain[] = []
 
   function addName(domain: MockDomain) {
@@ -159,7 +161,7 @@ export function createBignameMock() {
   const resolverOf = (d: MockDomain) =>
     d.resolver ?? ((d.records?.length ?? 0) > 0 ? MOCK_RESOLVER_ADDRESS : null)
 
-  const nowSeconds = () => Math.floor(Date.now() / 1000)
+  const nowSeconds = options.nowSeconds ?? (() => Math.floor(Date.now() / 1000))
   const expiryOf = (d: MockDomain) =>
     d.expiryDate ?? nowSeconds() + 28 * 24 * 3600
   const createdOf = (d: MockDomain) => d.createdAt ?? nowSeconds() - 3600
@@ -231,13 +233,19 @@ export function createBignameMock() {
   function recordGroups(d: MockDomain) {
     if (!resolverOf(d)) return undefined
     return {
-      seen_addresses: [],
+      seen_addresses:
+        d.recordInventory?.knownKeys
+          .filter((k) => k.startsWith('addr:'))
+          .map((k) => k.slice(5)) ?? [],
       addresses: {},
       seen_texts: d.records?.map((r) => r.key) ?? [],
       texts: {},
-      seen_abis: [],
+      seen_abis: d.recordInventory?.abiContentTypes.map(String) ?? [],
       abis: {},
-      seen_singletons: [],
+      seen_singletons:
+        d.recordInventory?.knownKeys.filter((k) =>
+          ['contenthash', 'pubkey', 'name'].includes(k),
+        ) ?? [],
     }
   }
 
@@ -306,7 +314,10 @@ export function createBignameMock() {
   }
 
   function nameRecords(d: MockDomain) {
-    const keys = d.records?.map((r) => `text:${r.key}`) ?? []
+    const keys =
+      d.recordInventory?.knownKeys ??
+      d.records?.map((r) => `text:${r.key}`) ??
+      []
     return {
       data: {
         namespace: 'ens',
@@ -318,7 +329,8 @@ export function createBignameMock() {
           known_keys: keys,
           unset_keys: [],
           unsupported_keys: [],
-          abi_content_types: [],
+          abi_content_types:
+            d.recordInventory?.abiContentTypes.map(String) ?? [],
         },
       },
       meta: META,
@@ -524,7 +536,10 @@ export function createBignameMock() {
     // Any bigname deployment, e.g. https://sepolia.api.bigname.sh/v1/..., and
     // the local one (e2e/infra/bigname) for a CI-mode run against a dev server
     // that points at it.
-    await page.route(/bigname\.sh\/v1\/|:5660\/v1\//, routeHandler)
+    await page.route(
+      /(?:bigname\.sh|(?:localhost|127\.0\.0\.1):\d+)\/v1\//,
+      routeHandler,
+    )
   }
 
   /** Whether the mock should be active (set E2E_MOCK_BIGNAME=true). */

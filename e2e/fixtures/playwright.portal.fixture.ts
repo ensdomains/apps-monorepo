@@ -245,7 +245,11 @@ export const test = base.extend<PortalFixtures>({
   // mock goes in whenever `E2E_MOCK_BIGNAME=true` (CI). A test can still opt
   // in on its own with `mockBignameEnabled` while the rest of a run uses the
   // local bigname.
-  page: async ({ page, mockBignameEnabled }, use) => {
+  page: async ({ page, baseURL, mockBignameEnabled }, use) => {
+    // Answer the analytics banner up front so it never covers a control.
+    await page
+      .context()
+      .addCookies([{ name: 'ens_analytics_consent', value: '0', url: baseURL }])
     if (mockBignameEnabled) await bignameMock.install(page)
     else await bignameMock.installIfEnabled(page)
     await use(page)

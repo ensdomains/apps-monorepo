@@ -138,3 +138,29 @@ docker compose -f e2e/infra/docker-compose.yml --profile bigname logs -f bigname
 curl -s http://127.0.0.1:5660/v1/status | python3 -m json.tool
 curl -s http://127.0.0.1:5660/v1/names/<name>.eth | python3 -m json.tool
 ```
+
+## Replacement-parity runs
+
+Use `BIGNAME_START=ensv2` for replacement-parity testing. Starting near the fork
+can omit the root `.eth` registry entry: V1 descendant records then resolve on
+chain while the indexer incorrectly reports `ens_v2_path_no_resolver`.
+Before testing, require the published head to catch up **and** verify that
+`project_ens_v2_entry_owner` contains the root registry entry.
+
+The compose file exposes optional capacity settings without changing defaults:
+`BIGNAME_INGEST_BLOCKS_PER_BATCH` (256), `BIGNAME_INGEST_RPC_BATCH_SIZE` (32),
+`BIGNAME_INGEST_RPC_MAX_IN_FLIGHT` (8), and `BIGNAME_UPSTREAM_IN_FLIGHT` (6).
+A batch size of 1 makes the runner send standalone RPC calls. Match these to
+an archive provider that returns old headers, logs **and receipts**; a successful
+chain-ID or header request alone does not establish archival coverage.
+
+Long local runs also need enough Docker VM memory. A replacement-parity run
+was OOM-killed with a 16 GiB VM; the rebuild uses 48 GiB on a 128 GiB host.
+Monitor Anvil memory between batches, keep chain-mutating tests serial, and
+stop on chain failure rather than treating connection errors as app failures.
+
+The fork RPC router remembers transaction hashes returned in historical logs or
+headers and sends their receipt/transaction reads directly upstream. This avoids
+Anvil fetching entire historical transaction blocks during backfill. Unknown
+hashes still go to Anvil first so newly mined test transactions stay local.
+Verify the routing boundary with `node --test e2e/infra/bigname/fork-rpc.test.mjs`.

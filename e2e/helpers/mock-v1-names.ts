@@ -160,13 +160,14 @@ function v1ResolverRecords(n: MockV1Name) {
       records: {},
       inventory: {
         known_keys: [
+          ...(n.records?.contentHash ? ['contenthash'] : []),
           ...(n.records?.texts?.map(({ key }) => `text:${key}`) ?? []),
           ...(n.records?.addresses?.map(({ coinType }) => `addr:${coinType}`) ??
             []),
         ],
         unset_keys: [],
         unsupported_keys: [],
-        abi_content_types: [],
+        abi_content_types: n.records?.abiContentTypes?.map(String) ?? [],
       },
     },
     meta: META,
@@ -239,45 +240,48 @@ export async function mockV1Names(
   // Hosted bigname in CI, and the local one (:5660) when a dev server reads it
   // — the same match as mock-bigname.ts. Missing :5660 sent mock-mode runs to
   // the real local index, which nothing had waited on.
-  await page.route(/bigname\.sh\/v1\/|:5660\/v1\//, async (route) => {
-    const request = route.request()
-    const url = new URL(request.url())
-    if (isMigrated) return route.fallback()
-    if (request.method() === 'OPTIONS') {
-      return route.fulfill({ status: 204, headers: CORS_HEADERS })
-    }
-
-    const listing = v1Listing(url, mockNames, chainNow)
-    if (listing) return fulfill(route, listing)
-
-    const atResolver = nameAtResolver(url, byName)
-    if (atResolver) return fulfill(route, v1ResolverRecords(atResolver))
-
-    if (request.method() === 'POST' && url.pathname === '/v1/lookup') {
-      const inputs: { name?: string }[] = request.postDataJSON()?.inputs ?? []
-      const known = inputs.map((input) =>
-        input.name ? byName.get(input.name.toLowerCase()) : undefined,
-      )
-      if (inputs.length > 0 && known.every((n) => n !== undefined)) {
-        return fulfill(route, {
-          data: inputs.map((input, index) => {
-            const n = known[index]
-            return n
-              ? {
-                  input,
-                  kind: 'name',
-                  status: 'ok',
-                  record: v1Record(n, chainNow),
-                }
-              : { input, kind: 'name', status: 'not_found' }
-          }),
-          meta: META,
-        })
+  await page.route(
+    /(?:bigname\.sh|(?:localhost|127\.0\.0\.1):\d+)\/v1\//,
+    async (route) => {
+      const request = route.request()
+      const url = new URL(request.url())
+      if (isMigrated) return route.fallback()
+      if (request.method() === 'OPTIONS') {
+        return route.fulfill({ status: 204, headers: CORS_HEADERS })
       }
-    }
 
-    return route.fallback()
-  })
+      const listing = v1Listing(url, mockNames, chainNow)
+      if (listing) return fulfill(route, listing)
+
+      const atResolver = nameAtResolver(url, byName)
+      if (atResolver) return fulfill(route, v1ResolverRecords(atResolver))
+
+      if (request.method() === 'POST' && url.pathname === '/v1/lookup') {
+        const inputs: { name?: string }[] = request.postDataJSON()?.inputs ?? []
+        const known = inputs.map((input) =>
+          input.name ? byName.get(input.name.toLowerCase()) : undefined,
+        )
+        if (inputs.length > 0 && known.every((n) => n !== undefined)) {
+          return fulfill(route, {
+            data: inputs.map((input, index) => {
+              const n = known[index]
+              return n
+                ? {
+                    input,
+                    kind: 'name',
+                    status: 'ok',
+                    record: v1Record(n, chainNow),
+                  }
+                : { input, kind: 'name', status: 'not_found' }
+            }),
+            meta: META,
+          })
+        }
+      }
+
+      return route.fallback()
+    },
+  )
 
   return {
     /** After a migration, the names are ENSv2 names served by the shared mock. */

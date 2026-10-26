@@ -1,3 +1,4 @@
+import { localReceipt } from '../helpers/local-receipt.js'
 /**
  * Write V1 records onto any level of a name tree.
  *
@@ -97,7 +98,7 @@ export type V1Records = {
 
 const send = async (account: Signer, to: Address, data: Hash, what: string) => {
   const hash = await walletClient.sendTransaction({ account, to, data })
-  const receipt = await publicClient.waitForTransactionReceipt({ hash })
+  const receipt = await localReceipt(hash)
   if (receipt.status !== 'success') {
     throw new Error(`[v1-records] ${what} reverted (tx ${hash})`)
   }
