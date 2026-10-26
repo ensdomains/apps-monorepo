@@ -69,7 +69,7 @@ import {
   type MigrationJournalOperation,
   type MigrationRecoverySnapshot,
   persistMigrationRecoverySnapshot,
-  persistPendingAtomicMigrationIntent,
+  persistPendingAtomicMigrationAttempt,
   persistSubmittedAtomicMigrationBatch,
   removeMigrationRecoverySnapshot,
   removePendingAtomicMigrationIntent,
@@ -1930,7 +1930,10 @@ const executeRemainingAtomicBatches = async (params: {
         : null
     assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     params.ctx.submissionGate.signal.throwIfAborted()
-    persistPendingAtomicMigrationIntent(journalScope, intent)
+    persistPendingAtomicMigrationAttempt(journalScope, {
+      recovery: recoverySnapshotFor(params.plan, remaining),
+      intent,
+    })
     let submittedHash: Hex | undefined
     const onSubmitted = (nextHash: Hex) => {
       const previousHash = submittedHash
@@ -2174,9 +2177,9 @@ export const executeMigration = async (params: {
       txHashes.push(...setup.hashes)
 
       const journalScope = batchJournalScope(ctx)
-      // Refresh the durable snapshot after setup and immediately before the
-      // first atomic submission.
-      persistRecoveryPlan(journalScope, executionPlan)
+      if (usesDurableCopyRecovery(executionPlan)) {
+        persistRecoveryPlan(journalScope, executionPlan)
+      }
 
       txHashes.push(
         ...(await executeRemainingAtomicBatches({

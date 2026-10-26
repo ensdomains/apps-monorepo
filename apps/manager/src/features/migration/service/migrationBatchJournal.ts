@@ -774,6 +774,43 @@ export const removeMigrationRecoverySnapshot = (
   )
 }
 
+export const persistPendingAtomicMigrationAttempt = (
+  scope: MigrationBatchJournalScope,
+  attempt: {
+    readonly recovery: MigrationRecoverySnapshot
+    readonly intent: PendingAtomicMigrationIntent
+  },
+  storage: StorageLike | null = getBrowserStorage(),
+): void => {
+  const journal = readJournal(storage)
+  const key = scopeKey(scope)
+  const current = journal.entries.find((entry) => entry.scope === key)
+  const intents = [
+    ...new Map(
+      [...(current?.intents ?? []), attempt.intent].map((entry) => [
+        entry.id,
+        entry,
+      ]),
+    ).values(),
+  ]
+  writeJournal(
+    storage,
+    {
+      version: JOURNAL_VERSION,
+      entries: [
+        ...journal.entries.filter((entry) => entry.scope !== key),
+        {
+          scope: key,
+          intents,
+          submissions: current?.submissions ?? [],
+          recovery: storeRecovery(attempt.recovery),
+        },
+      ],
+    },
+    key,
+  )
+}
+
 export const persistPendingAtomicMigrationIntent = (
   scope: MigrationBatchJournalScope,
   intent: PendingAtomicMigrationIntent,
