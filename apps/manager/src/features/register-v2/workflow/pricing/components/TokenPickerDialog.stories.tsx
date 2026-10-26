@@ -58,6 +58,7 @@ const l2Row = (
   amountInRaw,
   isQuoteLoading: false,
   hasQuoteFailed: false,
+  isShortOfGas: false,
 })
 
 const FIXTURE_L2_ROWS: readonly L2PaymentRow[] = [

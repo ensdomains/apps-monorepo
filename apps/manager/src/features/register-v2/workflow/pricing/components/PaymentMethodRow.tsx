@@ -21,6 +21,8 @@ export type PaymentMethodRowProps = {
   readonly isFeeLoading?: boolean
   readonly feeTooltip?: React.ReactNode
   readonly feeTooltipLabel?: string
+  /** A reason this method can't pay yet, under the fee. */
+  readonly warning?: React.ReactNode
 }
 
 /** A selectable payment row: token icon, name and fee, balance. */
@@ -38,6 +40,7 @@ export const PaymentMethodRow = ({
   isFeeLoading = false,
   feeTooltip,
   feeTooltipLabel,
+  warning,
 }: PaymentMethodRowProps) => (
   <div
     className={cn(
@@ -85,6 +88,16 @@ export const PaymentMethodRow = ({
                 </TooltipContent>
               </Tooltip>
             )}
+          </span>
+        )}
+        {warning && (
+          <span className="flex items-center gap-0.5 text-ens-signal-danger-800 text-xs">
+            <MSymbol
+              aria-hidden="true"
+              className="ms-opsz-16 ms-wght-400 text-ens-signal-danger-500"
+              symbol="flash_off"
+            />
+            {warning}
           </span>
         )}
       </span>

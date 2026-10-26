@@ -4,10 +4,12 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { l2Sources } from '@/config'
 import type { HcaBudgetQuote } from '../../../data/queries/hcaBudget.query'
+import { getL2ApprovalGasQueryOptions } from '../../../data/queries/l2ApprovalGas.query'
 import { getL2BalancesQueryOptions } from '../../../data/queries/l2Balances.query'
 import { getL2PaymentQuoteQueryOptions } from '../../../data/queries/l2PaymentQuote.query'
 import { getL2QuoteRoute } from '../../../service/l2FundingSource'
 import type { RegistrationV2UiActor } from '../../../state/registrationUi.context'
+import { isShortOfApprovalGas } from '../lib/l2ApprovalGas'
 import {
   getL2PaymentOptions,
   type L2PaymentOption,
@@ -20,6 +22,8 @@ export type L2PaymentRow = Readonly<{
   amountInRaw: bigint | undefined
   isQuoteLoading: boolean
   hasQuoteFailed: boolean
+  /** Needs the one-off Permit2 approval here, without the ETH to pay for it. */
+  isShortOfGas: boolean
 }>
 
 /** The registration picker's L2 rows, and what choosing one does. */
@@ -36,7 +40,8 @@ export const canPayFromL2 = (row: L2PaymentRow): boolean =>
   !row.hasQuoteFailed &&
   row.amountInRaw !== undefined &&
   row.option.balanceRaw !== null &&
-  row.option.balanceRaw >= row.amountInRaw
+  row.option.balanceRaw >= row.amountInRaw &&
+  !row.isShortOfGas
 
 /** What the permit would carry: the budget less what the account holds. */
 const getShortfall = (
@@ -82,6 +87,9 @@ export const useL2Payment = ({
   const balances = useQuery(
     getL2BalancesQueryOptions(isEnabled && owner ? owner : undefined),
   ).data
+  const approvalGas = useQuery(
+    getL2ApprovalGasQueryOptions(isEnabled && owner ? owner : undefined),
+  ).data
   const options = isEnabled
     ? getL2PaymentOptions({
         sources: l2Sources,
@@ -116,6 +124,10 @@ export const useL2Payment = ({
         .otherwise(() => undefined),
       isQuoteLoading: isQuoted && !!quote?.isLoading,
       hasQuoteFailed: isQuoted && !!quote?.isError,
+      isShortOfGas: isShortOfApprovalGas(
+        approvalGas?.[option.source.chain.id],
+        isQuoted ? (quote?.data?.amountIn ?? statusAmountRaw) : statusAmountRaw,
+      ),
     }
   })
   return {
