@@ -49,14 +49,13 @@ const navigationSections: readonly NavigationSection[] = [
     title: '',
     links: [
       {
-        label: msg`ENS Manager`,
+        label: msg`ENS App`,
         linkOptions: linkOptions({
           to: '/',
           search: {
             landing: true,
           },
         }),
-        shouldOpenInNewTab: true,
       },
       ...(EXPLORER_URL
         ? [

@@ -1213,15 +1213,15 @@ msgid "ENS"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS App"
+msgstr ""
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS Explorer"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
-msgstr ""
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "ENS Manager"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx

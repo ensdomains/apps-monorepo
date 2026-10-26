@@ -1208,16 +1208,16 @@ msgid "ENS"
 msgstr "ENS"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS App"
+msgstr "ENS App"
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS Explorer"
 msgstr "ENS Explorer"
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "ENS Manager"
-msgstr "ENS Manager"
 
 #: src/features/dashboard/components/DashboardPills.tsx
 #: src/features/renew/workflow/pricing/PricingStep.tsx
