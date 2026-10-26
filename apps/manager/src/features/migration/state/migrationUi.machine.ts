@@ -323,8 +323,11 @@ export const migrationUiMachine = setup({
     }),
   },
   guards: {
+    // A recovery plan may have only cleanup or reconciliation left.
     hasSelection: ({ event }) =>
-      event.type === 'migration.start' && event.plan.classified.length > 0,
+      event.type === 'migration.start' &&
+      (event.plan.classified.length > 0 ||
+        event.plan.requiresReconciliation === true),
     isOnlyFailures: ({ event, context }) =>
       event.type === 'migration.complete' &&
       event.result.txHashes.length === 0 &&
