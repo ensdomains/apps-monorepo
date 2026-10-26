@@ -2062,6 +2062,7 @@ test.describe('Portal name roles — missing-privilege warnings (WEB-1469)', () 
       `renewal-approve-${SEPOLIA.ensEthRegistrar.address}`,
       `renewal-renew-${name}`,
     ])
+    await waitForIndexedBlock()
     // Its close animation can leave a dialog in the DOM briefly.
     await page.keyboard.press('Escape')
     await expect(page.locator('[data-slot="dialog-content"]')).toHaveCount(0, {

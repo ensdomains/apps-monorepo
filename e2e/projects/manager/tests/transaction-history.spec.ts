@@ -22,9 +22,10 @@
  * Connect button renders, which is a different failure from the one reported.
  */
 
+import { getExpiry } from '@ensdomains/ensjs/public/v2'
 import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
 import { expect, type Page } from '@playwright/test'
-import { type Address, type Hash, isAddressEqual } from 'viem'
+import { type Address, type Hash, toFunctionSelector, toHex } from 'viem'
 import {
   authorizeTransaction,
   test,
@@ -216,6 +217,7 @@ test.describe('transaction history survives an account switch without IndexedDB 
     // behaves like Firefox private browsing for the transaction manager.
     await refuseTransactionManagerIndexedDB(page)
     const name = await makeV2Name({ label: 'txhistory' })
+    const expiryBefore = await getExpiry(publicClient as never, { name })
     await page.reload()
     expect(await backendAuthedAddress(page)).toBe(user)
     expect(await readHistory(page)).toBeNull()
@@ -237,13 +239,24 @@ test.describe('transaction history survives an account switch without IndexedDB 
     const [entry] = (await readHistory(page)) ?? []
     expect(entry.state).toBe('success')
     expect(entry.hash).toMatch(/^0x[0-9a-f]{64}$/)
-    // Chain oracle: the archived hash is a renewal that really landed, sent
-    // by the account that is about to switch away.
+    // The archived hash must identify the renewal of this name. Smart-account
+    // renewals can be submitted by a relayer, so receipt.from is not the owner.
     const receipt = await publicClient.getTransactionReceipt({
       hash: entry.hash as Hash,
     })
     expect(receipt.status).toBe('success')
-    expect(isAddressEqual(receipt.from, user)).toBe(true)
+    const transaction = await publicClient.getTransaction({
+      hash: entry.hash as Hash,
+    })
+    expect(transaction.input).toContain(
+      toHex(name.replace(/\.eth$/, '')).slice(2),
+    )
+    expect(transaction.input).toContain(
+      toFunctionSelector('renew((string,uint64,bytes32),address)').slice(2),
+    )
+    expect(await getExpiry(publicClient as never, { name })).toBeGreaterThan(
+      expiryBefore,
+    )
 
     await switchToUser2(wallet, accounts)
 

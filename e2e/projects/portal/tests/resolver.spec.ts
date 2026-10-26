@@ -220,7 +220,7 @@ test.describe('Portal resolver', () => {
     ).toContainText(name, { timeout: 30_000 })
   })
 
-  test('refuses alias creation without ROLE_SET_ALIAS', {
+  test('refuses link creation without ROLE_LINK', {
     tag: ['@scenario:E10'],
   }, async ({ portalPage: page, wallet, makeName, wallets }) => {
     await connectWithHeadlessWallet(page, wallet)
@@ -239,14 +239,14 @@ test.describe('Portal resolver', () => {
     await waitForIndexedName(name)
 
     await wallets.switchTo('stranger')
-    await page.goto(`${PORTAL_APP_URL}/resolver/${resolver}/create-alias`)
+    await page.goto(`${PORTAL_APP_URL}/resolver/${resolver}/create-link`)
 
     await expect(
-      page.getByText(/does not have the ROLE_SET_ALIAS permission/i),
-      'a wallet without ROLE_SET_ALIAS must be told so',
+      page.getByText(/does not have the ROLE_LINK permission/i),
+      'a wallet without ROLE_LINK must be told so',
     ).toBeVisible({ timeout: 30_000 })
     await expect(
-      page.getByRole('button', { name: /^Create alias$/ }),
+      page.getByRole('button', { name: /^Link name$/ }),
       'and must not be able to submit',
     ).toBeDisabled()
   })

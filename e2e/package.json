@@ -31,7 +31,14 @@
     "matrix:check": "tsx scripts/generate-v1-matrix.ts --check",
     "matrix:docs": "tsx matrix/render-docs.ts",
     "matrix:docs:check": "tsx matrix/render-docs.ts --check",
-    "test:migration-matrix": "node scripts/run-migration-matrix.mjs"
+    "test:migration-matrix": "node scripts/run-migration-matrix.mjs",
+    "seed:g02-delete": "tsx scripts/seed-g02-delete.ts",
+    "seed:g05-roles": "tsx scripts/seed-g05-roles.ts",
+    "seed:g35-etc": "tsx scripts/seed-g35-etc.ts",
+    "serve:g35-etc": "tsx scripts/serve-g35-inventory.ts",
+    "test:replacement": "node scripts/run-replacement.mjs --suite=replacement",
+    "test:replacement:coverage": "node scripts/check-replacement-coverage.mjs",
+    "test:replacement:harness": "node --test projects/replacement/checks/*.test.mjs"
   },
   "postinstall": "playwright install --with-deps chromium",
   "dependencies": {
@@ -43,6 +50,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.58.2",
+    "@tenkeylabs/dappwright": "2.11.2",
     "@types/node": "^24.19.2",
     "tsx": "^4.23.15",
     "typescript": "catalog:"

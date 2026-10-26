@@ -8,7 +8,12 @@ import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const cwd = resolve(root, 'e2e')
-const args = process.argv.slice(2)
+const rawArgs = process.argv.slice(2)
+const suite = rawArgs.find((arg) => arg.startsWith('--suite='))?.slice(8) ?? 'migration-matrix'
+if (!['replacement', 'migration-matrix'].includes(suite))
+  throw Error(`Unknown campaign suite: ${suite}`)
+const args = rawArgs.filter((arg) => !arg.startsWith('--suite='))
+const configPath = `projects/${suite}/playwright.config.ts`
 for (const arg of args)
   if (/^(--reporter|--config|--grep-invert)(=|$)|^-c$/.test(arg))
     throw Error(
@@ -17,8 +22,11 @@ for (const arg of args)
 const projectArg =
   args.find((a) => a.startsWith('--project='))?.slice(10) ??
   (args.includes('--project') ? args[args.indexOf('--project') + 1] : undefined)
-const selectedProjects = projectArg ? projectArg.split(',') : ['matrix']
-const allowedProjects = ['matrix']
+const allowedProjects = suite === 'migration-matrix' ? ['matrix'] : [
+  'legacy', 'after-migration', 'records', 'cross-app-migration',
+  'migration', 'migration-indexed', 'migration-indexed-eoa',
+]
+const selectedProjects = projectArg ? projectArg.split(',') : allowedProjects
 for (const project of selectedProjects)
   if (!allowedProjects.includes(project))
     throw Error(`Unknown project: ${project}`)
@@ -27,10 +35,12 @@ const workerArg =
   (args.includes('--workers') ? args[args.indexOf('--workers') + 1] : undefined)
 if (workerArg && workerArg !== '1')
   throw Error('Replacement fixtures run serially; use --workers=1')
-const mockProjects = process.env.MATRIX_REAL_INDEXER === '1' ? [] : ['matrix']
+const mockProjects = suite === 'replacement'
+  ? ['after-migration', 'records', 'migration']
+  : process.env.MATRIX_REAL_INDEXER === '1' ? [] : ['matrix']
 const needsIndexer = selectedProjects.some((p) => !mockProjects.includes(p))
-const id = `migration-matrix-${Date.now()}-${process.pid}`
-const output = resolve(cwd, '.migration-matrix-runs', id)
+const id = `${suite}-${Date.now()}-${process.pid}`
+const output = resolve(cwd, suite === 'replacement' ? '.replacement-runs' : '.migration-matrix-runs', id)
 mkdirSync(output, { recursive: true })
 const ports = {
   rpc: 18545,
@@ -93,7 +103,7 @@ const playwright = [
   'playwright',
   'test',
   '-c',
-  'projects/migration-matrix/playwright.config.ts',
+  configPath,
   ...args,
 ]
 if (args.includes('--list')) {
@@ -601,7 +611,7 @@ if (args.includes('--list')) {
           'playwright',
           'test',
           '-c',
-          'projects/migration-matrix/playwright.config.ts',
+          configPath,
           `--project=${project}`,
           ...filtered,
         ],

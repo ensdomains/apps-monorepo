@@ -39,3 +39,6 @@ apps/*/src/assets/fonts/**/*.woff
 apps/*/src/assets/fonts/**/*.woff2
 apps/*/src/assets/fonts/**/*.otf
 apps/*/public/fonts/
+
+# Isolated replacement campaign logs and private generated environment files
+e2e/.replacement-runs/

@@ -38,10 +38,16 @@ import {
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import {
   authorizeTransactionsWhile,
+  test as baseTest,
+  createAccounts,
   expect,
-  test,
 } from '../../../fixtures/playwright.manager.fixture.js'
-import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
+import {
+  publicClient,
+  testClient,
+  walletClient,
+} from '../../../helpers/anvil-client.js'
+import { fundTestUsdc } from '../../../helpers/fund-test-usdc.js'
 import {
   assertLockedMigration,
   assertUnlockedMigration,
@@ -49,6 +55,22 @@ import {
 } from '../../../helpers/migration-assertions.js'
 import type { MockV1Name } from '../../../helpers/v1-name-tree.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
+
+// These scenarios assert the exact set of names and renewal steps for this
+// wallet. Isolate each wallet so earlier suite names cannot change that set.
+const test = baseTest.extend({
+  // biome-ignore lint/correctness/noEmptyPattern: Playwright requires destructured fixture dependencies.
+  accounts: async ({}, use) => {
+    const accounts = createAccounts(20_000_000 + (Date.now() % 10_000_000))
+    for (const user of ['user', 'user2'] as const)
+      await testClient.setBalance({
+        address: accounts.getAddress(user),
+        value: 100n * 10n ** 18n,
+      })
+    await fundTestUsdc(accounts.getAddress('user'))
+    await use(accounts)
+  },
+})
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
