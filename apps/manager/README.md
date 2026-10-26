@@ -54,11 +54,16 @@ On Sepolia every flow pays in Circle's testnet USDC
 ([faucet.circle.com](https://faucet.circle.com)); the auto-fund faucet only runs
 against the local Anvil fork.
 
-Mainnet avatar and header uploads use the same public host as the legacy ENS
-app: `https://euc.li/<name>` for avatars and `https://euc.li/<name>/h` for headers.
-Sepolia keeps the staging worker at
-`https://avatar-upload-staging.ens-cf.workers.dev/sepolia/<name>`, with `/h`
-appended for headers. The build's target network selects the host.
+`VITE_AVATAR_UPLOAD_URL` selects the avatar/header upload service independently
+of `VITE_ENS_NETWORK`. The committed `.env` and `.env.ci` use
+`https://avatar-upload-staging.ens-cf.workers.dev` for local, preview and CI
+builds. The production release workflow supplies `https://euc.li`, matching the
+legacy ENS app. Set the variable in a local env file or the build environment
+to use either service with either chain; changing a deployed Worker variable
+does not change a URL already compiled into the browser bundle.
+
+Avatars use `<upload-base>/<name>` and headers append `/h`. Sepolia adds a
+`/sepolia` prefix to either path, regardless of the chosen upload service.
 
 Mainnet requires a Bigname endpoint in the network profile or
 `VITE_BIGNAME_API_URL`; validation fails until one is supplied. The mainnet

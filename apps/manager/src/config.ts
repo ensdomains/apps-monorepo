@@ -61,5 +61,10 @@ export const envConfig = buildConfig({
 
 export const { chain, isTestnet, rpcUrls } = envConfig
 
+// The upload service is selected by the deployment, independently of the chain.
+const avatarUploadUrl =
+  import.meta.env?.VITE_AVATAR_UPLOAD_URL?.trim() || 'https://euc.li'
+export const avatarUploadBaseUrl = `${avatarUploadUrl.replace(/\/+$/, '')}/`
+
 /** L2s whose USDC can be bridged to pay on `chain`. */
 export const l2Sources = getL2Sources(envConfig.network)

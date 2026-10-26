@@ -107,6 +107,7 @@ jobs:
         run: pnpm build:manager:mainnet
         env:
           VITE_BIGNAME_API_URL: ${{ vars.VITE_BIGNAME_API_URL }}
+          VITE_AVATAR_UPLOAD_URL: https://euc.li
 
       - name: Download the release notes
         uses: actions/download-artifact@v8
