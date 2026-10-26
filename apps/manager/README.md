@@ -56,11 +56,14 @@ against the local Anvil fork.
 
 `VITE_AVATAR_UPLOAD_URL` selects the avatar/header upload service independently
 of `VITE_ENS_NETWORK`. The committed `.env` and `.env.ci` use
-`https://avatar-upload-staging.ens-cf.workers.dev` for local, preview and CI
-builds. The production release workflow supplies `https://euc.li`, matching the
-legacy ENS app. Set the variable in a local env file or the build environment
-to use either service with either chain; changing a deployed Worker variable
-does not change a URL already compiled into the browser bundle.
+`https://avatar-upload-staging.ens-cf.workers.dev`. The `.env.mainnet` file
+defaults to `https://euc.li`, matching the legacy ENS app; the production
+release already selects this file through `build:mainnet`.
+
+Override the variable in `.env.mainnet.local` for mainnet builds, or
+`.env.local` for default Sepolia builds. A build-environment variable can
+override either mode to select either upload service. Changing a deployed
+Worker variable does not change a URL already compiled into the browser bundle.
 
 Avatars use `<upload-base>/<name>` and headers append `/h`. Sepolia adds a
 `/sepolia` prefix to either path, regardless of the chosen upload service.
