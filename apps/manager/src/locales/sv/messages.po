@@ -823,7 +823,6 @@ msgid "Connect to renew"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
-#: src/routes/upgrade.tsx
 msgid "Connect Wallet"
 msgstr ""
 
