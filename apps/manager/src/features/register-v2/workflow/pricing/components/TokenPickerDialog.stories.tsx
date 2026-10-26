@@ -17,7 +17,7 @@ import {
   type PaymentMethodListItem,
 } from './PaymentMethodList'
 import { PaymentMethodRow } from './PaymentMethodRow'
-import { PaymentTotalRow } from './PaymentTotalRow'
+import { PaymentReceipt } from './PaymentReceipt'
 import {
   type RegistrationFundingSummary,
   TokenPickerContentBase,
@@ -76,7 +76,7 @@ interface TokenPickerDialogShellProps {
   readonly isLoadingBalances?: boolean
   readonly stablecoinBalances?: StablecoinBalance[]
   readonly globalErrorMessage?: string | null
-  readonly infoMessage?: string
+  readonly helpMessage?: string
   readonly footer?: ReactNode
   readonly methodErrorMessage?: string | null
   readonly initialSelectedToken?: SUPPORTED_TOKEN
@@ -97,7 +97,7 @@ export const TokenPickerDialogShell = ({
   isLoadingBalances = false,
   stablecoinBalances = [FUNDED_USDC],
   globalErrorMessage = null,
-  infoMessage,
+  helpMessage,
   footer,
   methodErrorMessage = null,
   initialSelectedToken,
@@ -123,7 +123,7 @@ export const TokenPickerDialogShell = ({
         footer={footer}
         funding={funding}
         globalErrorMessage={globalErrorMessage}
-        infoMessage={infoMessage}
+        helpMessage={helpMessage}
         isConnected={isConnected}
         isFeeTooltipOpen={isFeeTooltipOpen}
         isInPriceCooldown={isInPriceCooldown}
@@ -347,7 +347,14 @@ export const FixtureTokenPickerContent = ({
           <PaymentMethodList defaultExpanded={defaultExpanded} items={items} />
         </div>
       </div>
-      <PaymentTotalRow isEstimate={false} total={352} />
+      <PaymentReceipt
+        isEstimate={false}
+        state={{
+          status: 'ready',
+          figures: { total: 352, applied: 0, due: 352 },
+        }}
+        totalLabel={<Trans>Registration total</Trans>}
+      />
       <Button
         className={cn(
           'h-20 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
@@ -433,7 +440,6 @@ export const InsufficientUSDC: Story = {
   args: {
     initialSelectedToken: 'USDC',
     stablecoinBalances: [INSUFFICIENT_USDC],
-    methodErrorMessage: '$352.00 needed to register name',
     funding: {
       registration: 351.73,
       networkFee: 0.27,
@@ -487,8 +493,8 @@ export const LongNameWithApprovalDetails: Story = {
       isLoading: false,
     },
     label: 'rh-resume-c-mvfdmryi7p3',
-    infoMessage:
-      "What was left from your last attempt covers the 160.00 USDC this registration needs, so you won't be asked to approve a payment.",
+    helpMessage:
+      'Your wallet will ask you to sign a payment approval for the amount shown.',
   },
   render: (args) => (
     <TokenPickerDialogShell

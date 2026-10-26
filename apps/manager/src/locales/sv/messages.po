@@ -53,6 +53,13 @@ msgstr ""
 msgid "{0} / {DESCRIPTION_MAX_LENGTH} characters"
 msgstr ""
 
+#. placeholder {0}: formatUsd(revalidatedShortfall)
+#. placeholder {0}: formatUsd(shortfall)
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "{0} more needed in your wallet."
+msgstr ""
+
 #. placeholder {0}: preset.years
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "{0} years"
@@ -65,11 +72,6 @@ msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "{affectedCount, plural, one {# affected subname} other {# affected subnames}}"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "{amount} needed to register name"
 msgstr ""
 
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
@@ -402,7 +404,6 @@ msgstr ""
 msgid "Approve and renew name"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Approve in wallet"
 msgstr ""
@@ -492,6 +493,10 @@ msgstr ""
 msgid "Available"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "Available balance applied"
+msgstr ""
+
 #: src/components/GlobalBackButton.tsx
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/pages/MigrationPage.tsx
@@ -562,7 +567,8 @@ msgid "Bug bounty"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Calculating cost..."
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Calculating total…"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
@@ -845,6 +851,10 @@ msgstr ""
 msgid "Continue"
 msgstr ""
 
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Continue in wallet"
+msgstr ""
+
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Continue migration"
 msgstr ""
@@ -1105,6 +1115,10 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Downloading artwork…"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "Due from your wallet"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.helpers.ts
@@ -1394,6 +1408,10 @@ msgstr ""
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "Funds left over from your earlier registrations. They are used first, so your wallet only pays the rest."
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Get instant push notifications in your browser"
 msgstr ""
@@ -1494,6 +1512,10 @@ msgstr ""
 msgid "If you think a smart session has been compromised, reset access to revoke all existing smart sessions for this account on this network, across every browser and device."
 msgstr ""
 
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "If your wallet needs to pay, it first asks you to sign a payment approval for up to the amount due. You then sign the renewal itself."
+msgstr ""
+
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 msgid "Image not available"
 msgstr ""
@@ -1580,11 +1602,6 @@ msgstr ""
 msgid "Learn More<0> about NFT traits</0>"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
-msgid "Left from your last attempt"
-msgstr ""
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Let this temporary account move your wrapped names."
 msgstr ""
@@ -1632,6 +1649,10 @@ msgstr ""
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 #: src/features/migration/components/success/CommemorativeNftRendererSurface.tsx
 msgid "Loading NFT artwork…"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Loading payment methods…"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -1774,10 +1795,6 @@ msgstr ""
 msgid "Name owner is not available yet. Try again in a moment."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentBreakdown.tsx
-msgid "Name price"
-msgstr ""
-
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Names"
 msgstr ""
@@ -1844,6 +1861,14 @@ msgstr ""
 msgid "NFT traits"
 msgstr ""
 
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "No additional payment needed. You'll still sign the renewal."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "No additional payment needed. Your available balance covers the total."
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStepNameList.tsx
 msgid "No eligible names found for this wallet"
 msgstr ""
@@ -1904,10 +1929,6 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "not enough funds to pay network fees"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
@@ -2051,8 +2072,8 @@ msgstr ""
 msgid "Paying from {l2ChainName}"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Payment approval was cancelled. Approve the payment in your wallet to start registration."
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "Payment summary"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -2109,7 +2130,7 @@ msgid "Preparing commitment"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Preparing registration..."
+msgid "Preparing registration…"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -2333,6 +2354,11 @@ msgstr ""
 msgid "Registration Period"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
+msgid "Registration total"
+msgstr ""
+
 #: src/features/profile/components/view/AgentRecordCard.tsx
 msgid "Registry"
 msgstr ""
@@ -2492,6 +2518,10 @@ msgstr ""
 
 #: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Renewal price"
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Renewal total"
 msgstr ""
 
 #: src/features/renew/components/RenewalFundingDialog.tsx
@@ -2867,6 +2897,14 @@ msgstr ""
 msgid "Sign once to enable seamless transactions."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Sign payment approval"
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Sign renewal"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Sign the gasless payment approval in your wallet"
 msgstr ""
@@ -2875,9 +2913,21 @@ msgstr ""
 msgid "Sign-in link copied. Open it in your browser, then return here."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Signature cancelled. You can try again."
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Signing payment approval…"
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Signing renewal…"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -2945,7 +2995,6 @@ msgid "Sort by"
 msgstr "Sortera efter"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Stables accepted"
 msgstr ""
 
@@ -3329,7 +3378,6 @@ msgid "To use this as your primary name, we’ll set a resolver your wallet cont
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
 msgid "Total"
 msgstr ""
 
@@ -3355,6 +3403,7 @@ msgstr ""
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 #: src/features/migration/pages/MigrationPage.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
 msgid "Try again"
 msgstr ""
@@ -3398,7 +3447,7 @@ msgstr ""
 msgid "Unwrapped .eth name access"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "up to"
 msgstr ""
 
@@ -3696,6 +3745,10 @@ msgstr ""
 msgid "We couldn't approve your payment. Please try again and approve the payment in your wallet."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "We couldn't calculate the total. Please try again."
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "We couldn't check your names"
 msgstr ""
@@ -3734,10 +3787,6 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "We couldn't upgrade one of your names. Try again."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
@@ -3781,9 +3830,8 @@ msgstr ""
 msgid "What is the network fee?"
 msgstr ""
 
-#. placeholder {0}: f.total.toFixed(2)
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "What was left from your last attempt covers the {0} USDC this registration needs, so you won't be asked to approve a payment."
+#: src/features/register-v2/workflow/pricing/components/PaymentHelp.tsx
+msgid "What will I sign?"
 msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
@@ -3799,8 +3847,8 @@ msgstr ""
 msgid "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
-msgid "Where did this come from?"
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "Where does this balance come from?"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -3873,10 +3921,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You need to verify your wallet ownership to manage your notification preferences."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/PaymentTotalRow.tsx
-msgid "You pay now"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -4004,10 +4048,6 @@ msgstr ""
 msgid "Your new profile is ready."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/AccountCreditRow.tsx
-msgid "Your own USDC, moved to your ENS account by a registration you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
-msgstr ""
-
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Your permissions changed. Go back to check the updated estimate."
 msgstr ""
@@ -4081,6 +4121,10 @@ msgstr ""
 msgid "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again. No names were changed."
 msgstr ""
 
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your wallet asks you to approve the payment if needed, then to confirm the renewal transaction."
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
@@ -4099,7 +4143,7 @@ msgid "Your wallet shows the final fee before you approve."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Your wallet will ask you to sign a payment approval (permit) for the amount shown. This lets ENS use your USDC to pay for registration and network fees. Registration starts after you approve."
+msgid "Your wallet will ask you to sign a payment approval for the amount shown. This allows that USDC to pay for registration and network fees. Registration starts after you sign."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

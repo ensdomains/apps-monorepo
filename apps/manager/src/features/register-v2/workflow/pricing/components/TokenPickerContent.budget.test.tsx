@@ -69,7 +69,7 @@ import { TokenPickerContent } from './TokenPickerContent'
 i18n.loadAndActivate({ locale: 'en', messages: {} })
 
 const QUOTE_FAILED_MESSAGE =
-  "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
+  "We couldn't calculate the total. Please try again."
 
 /** 1,000 USDC — comfortably above the 330 rent. */
 const usdc = {
@@ -125,10 +125,11 @@ describe('TokenPickerContent budget quote', () => {
 
     // The wallet covers the rent, so only the failed quote can block here.
     expect(await screen.findByText(QUOTE_FAILED_MESSAGE)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
     expect(
-      screen.getByRole('button', { name: 'Approve and register' }),
-    ).toBeDisabled()
-    expect(screen.getByText('up to')).toBeInTheDocument()
+      screen.queryByRole('button', { name: /approv|register/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('$330.00')).not.toBeInTheDocument()
   })
 
   it('does not gate the EOA route, which never quotes a budget', async () => {

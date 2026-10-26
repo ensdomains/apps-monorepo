@@ -121,7 +121,9 @@ export const PaymentMethodRow = ({
           className={cn(
             // Figma specifies 15/22px desktop amount type; no exact typography tokens exist.
             'text-right text-sm tabular-nums leading-none sm:text-[15px] sm:leading-[22px]',
-            isDisabled ? 'text-ens-quartz-350' : 'text-ens-quartz-900',
+            !isAvailable && 'text-ens-quartz-350',
+            isAvailable && !isFunded && 'text-ens-error',
+            !isDisabled && 'text-ens-quartz-900',
           )}
         >
           {amount}

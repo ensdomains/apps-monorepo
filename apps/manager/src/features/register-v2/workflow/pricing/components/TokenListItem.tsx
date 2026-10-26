@@ -35,7 +35,6 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
   networkFee,
   isNetworkFeeLoading = false,
   showNetworkFeeDetails = false,
-  errorMessage,
   isFeeTooltipOpen,
   feeTooltip,
 }: {
@@ -46,7 +45,6 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
   readonly networkFee?: number
   readonly isNetworkFeeLoading?: boolean
   readonly showNetworkFeeDetails?: boolean
-  readonly errorMessage?: React.ReactNode
   readonly isFeeTooltipOpen?: boolean
   /** What the fee pays for; defaults to the registration wording. */
   readonly feeTooltip?: React.ReactNode
@@ -111,16 +109,10 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
     )
   }
 
-  const amount = formatUsd(priceUSD)
-  const displayedError =
-    errorMessage ??
-    (isFunded ? undefined : <Trans>{amount} needed to register name</Trans>)
-
   return (
     <PaymentMethodRow
       amount={formatUsd(coinBalanceUSD)}
       amountLabel={<Trans>balance</Trans>}
-      error={displayedError}
       fee={
         <Trans>
           {chainName} est. fee: {formatUsd(networkFee ?? Number.NaN)}
