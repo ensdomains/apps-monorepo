@@ -2,7 +2,7 @@ import { Plural, Trans, useLingui } from '@lingui/react/macro'
 import { useEffect, useRef } from 'react'
 import type { Address } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
-import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
+import { envConfig } from '@/config'
 import { cn } from '@/lib/utils'
 import {
   type CommemorativeNftAdmission,
@@ -193,7 +193,7 @@ const OpenCommemorativeNftClaimDialog = ({
 export const CommemorativeNftClaimDialog = (
   props: CommemorativeNftClaimDialogProps,
 ) => {
-  const featureEnabled = useMigrationNftEnabled()
+  const featureEnabled = envConfig.network === 'mainnet'
   const chainId = useChainId()
   const { address: walletAddress } = useConnection()
   if (!props.open) return null

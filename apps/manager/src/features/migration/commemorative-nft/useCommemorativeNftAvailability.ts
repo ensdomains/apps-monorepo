@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
-import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
+import { envConfig } from '@/config'
 import { canCoordinateNftClaim } from './claimSubmissionLock'
 import {
   getCommemorativeNftConfig,
@@ -18,7 +18,7 @@ export const useCommemorativeNftAvailability = (params: {
   readonly enabled: boolean
   readonly pollClaimed?: boolean
 }) => {
-  const featureEnabled = useMigrationNftEnabled()
+  const featureEnabled = envConfig.network === 'mainnet'
   const chainId = useChainId()
   const wagmiConfig = useConfig()
   const supported =

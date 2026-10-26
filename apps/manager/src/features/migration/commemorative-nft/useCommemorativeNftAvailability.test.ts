@@ -1,6 +1,5 @@
 import type { EnsNetwork } from '@ens-apps/config'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import {
   onlineManager,
   QueryClient,
@@ -29,7 +28,6 @@ import type { CommemorativeNftEligibilityResult } from './types'
 import { useCommemorativeNftAvailability } from './useCommemorativeNftAvailability'
 
 vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
-vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
 const mockEnvConfig = vi.hoisted((): { network: EnsNetwork } => ({
   network: 'mainnet',
 }))
@@ -101,7 +99,6 @@ describe('commemorative NFT availability observer', () => {
     vi.mocked(getCommemorativeNftContractAddress).mockReturnValue(
       MAINNET_NFT_TEST_ADDRESS,
     )
-    vi.mocked(useFeatureFlagEnabled).mockReturnValue(true)
     onlineManager.setOnline(true)
     vi.mocked(useChainId).mockReturnValue(mainnet.id)
     vi.mocked(useConfig).mockReturnValue(wagmiConfig)
@@ -124,7 +121,7 @@ describe('commemorative NFT availability observer', () => {
     vi.restoreAllMocks()
   })
 
-  it('disables Sepolia reads even with the NFT flag enabled and cached NFT data', async () => {
+  it('disables Sepolia reads even with cached NFT data', async () => {
     mockEnvConfig.network = 'sepolia'
     vi.mocked(useChainId).mockReturnValue(sepolia.id)
     const client = createClient()
@@ -140,32 +137,12 @@ describe('commemorative NFT availability observer', () => {
     expect(readClaimed).not.toHaveBeenCalled()
   })
 
-  it.each([false, undefined] as const)(
-    'does not fetch NFT metadata or claim status with migration-nft=%s',
-    (migrationNft) => {
-      vi.mocked(useFeatureFlagEnabled).mockReturnValue(migrationNft ?? false)
-      const { result } = mountAvailability(createClient(), {
-        pollClaimed: true,
-      })
-
-      expect(result.current.featureEnabled).toBe(false)
-      expect(result.current.eligibility.fetchStatus).toBe('idle')
-      expect(result.current.claimed.fetchStatus).toBe('idle')
-      expect(result.current.hasFreshEligibilityResult).toBe(false)
-      expect(result.current.isConfirmedUnclaimed).toBe(false)
-      expect(fetchEligibility).not.toHaveBeenCalled()
-      expect(readClaimed).not.toHaveBeenCalled()
-    },
-  )
-
-  it('starts reads when the NFT flag becomes enabled and stops background reads when disabled', async () => {
-    vi.mocked(useFeatureFlagEnabled).mockReturnValue(false)
+  it('starts and stops background reads with the availability observer', async () => {
     const client = createClient()
-    const { result, rerender } = mountAvailability(client)
+    const { result, rerender } = mountAvailability(client, { enabled: false })
     expect(fetchEligibility).not.toHaveBeenCalled()
     expect(readClaimed).not.toHaveBeenCalled()
 
-    vi.mocked(useFeatureFlagEnabled).mockReturnValue(true)
     rerender({ ownerAddress, enabled: true })
     await waitFor(() => expect(result.current.isConfirmedUnclaimed).toBe(true))
     await waitFor(() =>
@@ -174,11 +151,10 @@ describe('commemorative NFT availability observer', () => {
     expect(fetchEligibility).toHaveBeenCalledTimes(1)
     expect(readClaimed).toHaveBeenCalledTimes(1)
 
-    vi.mocked(useFeatureFlagEnabled).mockReturnValue(false)
-    rerender({ ownerAddress, enabled: true })
+    rerender({ ownerAddress, enabled: false })
     await act(async () => client.invalidateQueries())
 
-    expect(result.current.featureEnabled).toBe(false)
+    expect(result.current.featureEnabled).toBe(true)
     expect(result.current.hasFreshEligibilityResult).toBe(false)
     expect(result.current.isConfirmedUnclaimed).toBe(false)
     expect(fetchEligibility).toHaveBeenCalledTimes(1)

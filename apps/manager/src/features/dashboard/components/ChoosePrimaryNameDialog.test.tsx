@@ -171,9 +171,6 @@ vi.mock('@/features/migration/components/MigrationProgressBanner', () => ({
 vi.mock('@/features/migration/components/UpgradeBanner', () => ({
   UpgradeBanner: () => null,
 }))
-vi.mock('@/lib/posthog/useMigrationNftEnabled', () => ({
-  useMigrationNftEnabled: () => false,
-}))
 vi.mock('./DashboardGraceBanner', () => ({ DashboardGraceBanner: () => null }))
 vi.mock('./TemporaryMigrationAccessNotice', () => ({
   TemporaryMigrationAccessNotice: () => null,

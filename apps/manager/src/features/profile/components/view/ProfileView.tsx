@@ -3,6 +3,7 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
+import { envConfig } from '@/config'
 import { CommemorativeNftProfileSection } from '@/features/migration/components/success/CommemorativeNftProfileSection'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { isEligibleProfileName } from '@/features/migration/components/UpgradeBanner.helpers'
@@ -23,7 +24,6 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
-import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { ProfileActions } from './ProfileActions'
 import { ProfileBanner } from './ProfileBanner'
@@ -63,15 +63,13 @@ const getProfileUrl = (name: string) =>
   }/p/${name}`
 
 const ProfileCommemorativeNftSection = ({
-  enabled,
   isOwner,
   name,
 }: {
-  readonly enabled: boolean
   readonly isOwner: boolean | undefined
   readonly name: string
 }) => {
-  if (!enabled || !isOwner) return null
+  if (envConfig.network !== 'mainnet' || !isOwner) return null
   return <CommemorativeNftProfileSection isOwner name={name} />
 }
 
@@ -85,7 +83,6 @@ const getImageUrls = (
 })
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
-  const commemorativeNftEnabled = useMigrationNftEnabled()
   const { isConnected, ownerAddress } = useSmartAccountContext()
   const { address: connectedAddress } = useConnection()
   const chainId = useChainId()
@@ -236,7 +233,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
             <div className="space-y-0">
               <ProfileCards records={displayRecords} />
               <ProfileCommemorativeNftSection
-                enabled={commemorativeNftEnabled}
                 isOwner={resolvedIsOwner}
                 name={name}
               />

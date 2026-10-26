@@ -15,7 +15,7 @@ import type { Address, PublicClient, WalletClient } from 'viem'
 import { useBalance } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { chain } from '@/config'
+import { chain, envConfig } from '@/config'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
@@ -49,7 +49,6 @@ import {
   useMigrationSelectedNames,
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
-import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
 import { invalidateMigrationQueries } from './MigrationPage.helpers'
@@ -260,7 +259,7 @@ export const MigrationPage = () => {
   } = useSmartAccountContext()
   const canBatchAtomically = useAtomicBatchSupport(chain.id)
   const queryClient = useQueryClient()
-  const migrationNftEnabled = useMigrationNftEnabled()
+  const migrationNftEnabled = envConfig.network === 'mainnet'
   const isMigrationSuccess = step === 'success'
   const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)

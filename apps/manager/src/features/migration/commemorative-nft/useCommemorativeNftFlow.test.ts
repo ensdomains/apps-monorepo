@@ -1,6 +1,5 @@
 import type { EnsNetwork } from '@ens-apps/config'
 import { i18n } from '@lingui/core'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { Storage } from 'happy-dom'
@@ -56,7 +55,6 @@ vi.mock('@/config', async () => {
   }
 })
 vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
-vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
 vi.mock('@/lib/smart-account', () => ({ useSmartAccountContext: vi.fn() }))
 vi.mock('../service/userRegistryMigration', () => ({
   computeUserRegistryAddress: vi.fn(),
@@ -141,7 +139,6 @@ const partialMigration = {
   remainingNameCount: 2,
   migratedNameCount: 3,
 }
-const featureFlag = vi.mocked(useFeatureFlagEnabled)
 const clients: QueryClient[] = []
 
 const createClient = () => {
@@ -212,7 +209,6 @@ describe('commemorative NFT flow session', () => {
     })
     vi.mocked(useChainId).mockReturnValue(1)
     vi.mocked(useConfig).mockReturnValue(wagmiConfig)
-    featureFlag.mockReturnValue(true)
     vi.mocked(useSmartAccountContext, { partial: true }).mockReturnValue({
       ownerAddress,
       accountAddress: hcaAddress,
@@ -231,50 +227,32 @@ describe('commemorative NFT flow session', () => {
     vi.unstubAllGlobals()
   })
 
-  it.each([
-    { nft: true, network: 'sepolia' },
-    { nft: false, network: 'mainnet' },
-    { nft: undefined, network: 'mainnet' },
-  ] as const)(
-    'keeps cached NFTs and callbacks disabled with migration-nft=$nft on $network',
-    async ({ nft, network }) => {
-      mockEnvConfig.network = network
-      featureFlag.mockImplementation(
-        (_flag, defaultValue) => nft ?? defaultValue,
-      )
-      const client = createClient()
-      client.setQueryData(
-        commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
-        eligible,
-      )
-      client.setQueryData(claimQueryKey, false)
-      const { result } = mountFlow(client)
-
-      expect(result.current.admission.status).toBe('fallback')
-      expect(result.current.eligibility).toBeUndefined()
-      expect(result.current.state).not.toHaveProperty('card')
-      expect(result.current.canMint).toBe(false)
-      await act(async () => {
-        result.current.mint()
-        result.current.retry()
-      })
-
-      expect(fetchEligibility).not.toHaveBeenCalled()
-      expect(readClaimed).not.toHaveBeenCalled()
-      expect(claim).not.toHaveBeenCalled()
-    },
-  )
-
-  it('admits only after both initially unknown flags become enabled', async () => {
-    featureFlag.mockImplementation((_flag, defaultValue) => defaultValue)
-    const { result, rerender } = mountFlow(createClient())
+  it('keeps cached NFTs and callbacks disabled on Sepolia', async () => {
+    mockEnvConfig.network = 'sepolia'
+    const client = createClient()
+    client.setQueryData(
+      commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
+      eligible,
+    )
+    client.setQueryData(claimQueryKey, false)
+    const { result } = mountFlow(client)
 
     expect(result.current.admission.status).toBe('fallback')
+    expect(result.current.eligibility).toBeUndefined()
+    expect(result.current.state).not.toHaveProperty('card')
+    expect(result.current.canMint).toBe(false)
+    await act(async () => {
+      result.current.mint()
+      result.current.retry()
+    })
+
     expect(fetchEligibility).not.toHaveBeenCalled()
     expect(readClaimed).not.toHaveBeenCalled()
+    expect(claim).not.toHaveBeenCalled()
+  })
 
-    featureFlag.mockReturnValue(true)
-    rerender()
+  it('admits eligible mainnet owners without waiting for feature flags', async () => {
+    const { result } = mountFlow(createClient())
     await waitFor(() => expect(result.current.canMint).toBe(true))
     expect(result.current.admission.status).toBe('admitted')
     expect(fetchEligibility).toHaveBeenCalledTimes(1)
@@ -434,7 +412,7 @@ describe('commemorative NFT flow session', () => {
     expect(result.current.canMint).toBe(false)
   })
 
-  it('blocks submission if the feature is disabled during the final completion check', async () => {
+  it('blocks submission outside mainnet during the final completion check', async () => {
     const pending =
       deferred<
         Awaited<ReturnType<typeof fetchCommemorativeNftMigrationCompletion>>
@@ -447,7 +425,7 @@ describe('commemorative NFT flow session', () => {
     await waitFor(() => expect(result.current.canMint).toBe(true))
     act(() => result.current.mint())
     await waitFor(() => expect(fetchCompletion).toHaveBeenCalledTimes(2))
-    featureFlag.mockReturnValue(false)
+    mockEnvConfig.network = 'sepolia'
     rerender()
 
     await act(async () => pending.resolve(completeMigration))
@@ -507,7 +485,7 @@ describe('commemorative NFT flow session', () => {
     expect(claim).toHaveBeenCalledTimes(1)
   })
 
-  it('revokes an admitted flow and retained callbacks when the flag turns off', async () => {
+  it('revokes an admitted flow and retained callbacks outside mainnet', async () => {
     const { result, rerender } = mountFlow(createClient())
     await waitFor(() => expect(result.current.canMint).toBe(true))
     const retainedMint = result.current.mint
@@ -515,7 +493,7 @@ describe('commemorative NFT flow session', () => {
     const eligibilityReadCount = fetchEligibility.mock.calls.length
     const claimReadCount = readClaimed.mock.calls.length
 
-    featureFlag.mockReturnValue(false)
+    mockEnvConfig.network = 'sepolia'
     rerender()
 
     expect(result.current.admission.status).toBe('fallback')
@@ -534,7 +512,7 @@ describe('commemorative NFT flow session', () => {
     expect(claim).not.toHaveBeenCalled()
   })
 
-  it('finishes an already submitted receipt after the flag is disabled', async () => {
+  it('finishes an already submitted receipt after leaving mainnet', async () => {
     const pendingReceipt = deferred<CommemorativeNftClaimReceiptResult>()
     waitForReceipt.mockReturnValueOnce(pendingReceipt.promise)
     const client = createClient()
@@ -544,7 +522,7 @@ describe('commemorative NFT flow session', () => {
     await waitFor(() => expect(result.current.state.status).toBe('minting'))
     await waitFor(() => expect(waitForReceipt).toHaveBeenCalledTimes(1))
 
-    featureFlag.mockReturnValue(false)
+    mockEnvConfig.network = 'sepolia'
     rerender()
     const claimReadCount = readClaimed.mock.calls.length
     expect(result.current.admission.status).toBe('fallback')
@@ -559,14 +537,14 @@ describe('commemorative NFT flow session', () => {
     expect(result.current.admission.status).toBe('fallback')
   })
 
-  it('blocks a queued mutation if the flag turns off before submission', async () => {
+  it('blocks a queued mutation outside mainnet before submission', async () => {
     const client = createClient()
     const { result, rerender } = mountFlow(client)
     await waitFor(() => expect(result.current.canMint).toBe(true))
 
     act(() => {
       result.current.mint()
-      featureFlag.mockReturnValue(false)
+      mockEnvConfig.network = 'sepolia'
       rerender()
     })
     await waitFor(() => expect(client.isMutating()).toBe(0))

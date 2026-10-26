@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { Card } from '@/components/ui/card'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { envConfig } from '@/config'
 import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
 import { DashboardGraceBanner } from '@/features/dashboard/components/DashboardGraceBanner'
 import { EducationCarousel } from '@/features/dashboard/components/EducationCarousel'
@@ -17,7 +18,6 @@ import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
 import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const stagger = (index: number, shouldReduceMotion: boolean | null) =>
@@ -76,7 +76,7 @@ const PrimaryNameCardWithRecords = ({
 export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
-  const commemorativeNftEnabled = useMigrationNftEnabled()
+  const commemorativeNftEnabled = envConfig.network === 'mainnet'
 
   // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
   // `reverseName ?? null`) instead of throwing into the route and crashing it.

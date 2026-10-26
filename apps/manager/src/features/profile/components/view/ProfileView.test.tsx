@@ -22,9 +22,6 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
     <a href="/">{children}</a>
   ),
 }))
-vi.mock('@/lib/posthog/useMigrationNftEnabled', () => ({
-  useMigrationNftEnabled: () => false,
-}))
 vi.mock('@/lib/smart-account', () => ({
   useSmartAccountContext: () => ({ isConnected: false }),
 }))

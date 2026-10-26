@@ -43,9 +43,6 @@ const mocks = vi.hoisted(() => ({
 }))
 vi.mock('@/config', () => ({ envConfig: mockEnvConfig }))
 vi.mock('wagmi', () => ({ useChainId: mocks.chain, useConfig: () => ({}) }))
-vi.mock('@/lib/posthog/useMigrationNftEnabled', () => ({
-  useMigrationNftEnabled: () => true,
-}))
 vi.mock('./useVerifiedCommemorativeNftOwner', () => ({
   useVerifiedCommemorativeNftOwner: mocks.owner,
 }))
