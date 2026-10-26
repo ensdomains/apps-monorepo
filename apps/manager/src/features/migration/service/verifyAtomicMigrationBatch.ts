@@ -27,6 +27,7 @@ const permissionedRegistryReadAbi = parseAbi([
   'function getSubregistry(string label) view returns (address)',
   'function getOwner(uint256 anyId) view returns (address)',
   'function getResolver(string label) view returns (address)',
+  'function roles(uint256 anyId, address account) view returns (uint256)',
   'function hasRoles(uint256 anyId, uint256 roleBitmap, address account) view returns (bool)',
   'function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)',
   'function getParent() view returns (address parent, string label)',
@@ -510,17 +511,18 @@ const checkExpectation = async (
         expectation.registry,
         expectation.name,
       )
-      return context.publicClient.readContract({
-        address: registry,
-        abi: permissionedRegistryReadAbi,
-        functionName: 'hasRoles',
-        args: [
-          expectation.resource,
-          expectation.roleBitmap,
-          expectation.account,
-        ],
-        ...block,
-      })
+      // Every PermissionedRegistry in the resolved path exposes `roles`.
+      // Manager grants are reviewed as an exact bitmap: `hasRoles` would only
+      // prove the planned subset and could conceal additional authority.
+      return (
+        (await context.publicClient.readContract({
+          address: registry,
+          abi: permissionedRegistryReadAbi,
+          functionName: 'roles',
+          args: [expectation.resource, expectation.account],
+          ...block,
+        })) === expectation.roleBitmap
+      )
     }
     case 'profile-text': {
       if (!(await hasContractCode(context, expectation.resolver))) return false
