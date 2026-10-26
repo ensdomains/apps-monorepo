@@ -13,7 +13,7 @@ import { columns, type NameRow } from './NamesTable/columns'
 
 const NO_ROWS: NameRow[] = []
 
-const Harness = ({ state }: { state: 'loading' | 'unavailable' }) => {
+const Harness = ({ state }: { readonly state: 'loading' | 'unavailable' }) => {
   const table = useReactTable({
     data: NO_ROWS,
     columns,

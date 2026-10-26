@@ -37,14 +37,14 @@ const names = [
 ]
 
 const makeTable = (
-  data: NameRow[],
-  columnFilters: ColumnFiltersState = [],
-  sorting: SortingState = [],
+  data: readonly NameRow[],
+  columnFilters: Readonly<ColumnFiltersState> = [],
+  sorting: Readonly<SortingState> = [],
 ) =>
   createTable({
-    data,
+    data: [...data],
     columns,
-    state: { columnFilters, sorting },
+    state: { columnFilters: [...columnFilters], sorting: [...sorting] },
     onStateChange: () => {},
     renderFallbackValue: null,
     getCoreRowModel: getCoreRowModel(),
@@ -54,7 +54,11 @@ const makeTable = (
     getFacetedUniqueValues: getFacetedUniqueValues(),
   })
 
-const filterNames = (data: NameRow[], levels: string[], roles: string[]) =>
+const filterNames = (
+  data: readonly NameRow[],
+  levels: readonly string[],
+  roles: readonly string[],
+) =>
   makeTable(data, [
     ...(levels.length ? [{ id: 'levels', value: levels }] : []),
     ...(roles.length ? [{ id: 'roles', value: roles }] : []),

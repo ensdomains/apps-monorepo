@@ -1,5 +1,6 @@
 import type { NameRegistrationStatus } from '@ens-apps/indexer/reads'
 import type { ColumnDef, FilterFn } from '@tanstack/react-table'
+import { match } from 'ts-pattern'
 import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -26,7 +27,7 @@ export type NameRow = {
   graceEndDate: Date | null
   status: NameRegistrationStatus
   relations: readonly AddressNameRelation[]
-  registryRoles?: readonly RegistryRole[]
+  readonly registryRoles?: readonly RegistryRole[]
   roleCount?: RoleCount
   protocolVersion: ProtocolVersion
 }
@@ -41,9 +42,12 @@ const roleKeys = (row: NameRow): string[] =>
     ? [...row.relations]
     : (row.registryRoles ?? []).map((role) => `v2:${role}`)
 
-const matchesAny: FilterFn<NameRow> = (row, columnId, selected: string[]) =>
-  selected.includes(row.getValue<string>(columnId))
-matchesAny.autoRemove = (selected: string[]) => !selected?.length
+const matchesAny: FilterFn<NameRow> = (
+  row,
+  columnId,
+  selected: readonly string[],
+) => selected.includes(row.getValue<string>(columnId))
+matchesAny.autoRemove = (selected: readonly string[]) => !selected?.length
 
 const matchesExpiry: FilterFn<NameRow> = (row, _columnId, range: DateRange) =>
   isShownExpiryInRange(row.original, range)
@@ -154,7 +158,13 @@ export const columns: ColumnDef<NameRow>[] = [
     id: 'levels',
     accessorFn: (row) => {
       const depth = row.name?.split('.').length ?? 0
-      return depth === 2 ? '2ld' : depth > 2 ? 'subname' : ''
+      return match(depth)
+        .with(2, () => '2ld')
+        .when(
+          (value) => value > 2,
+          () => 'subname',
+        )
+        .otherwise(() => '')
     },
     filterFn: matchesAny,
     enableSorting: false,
