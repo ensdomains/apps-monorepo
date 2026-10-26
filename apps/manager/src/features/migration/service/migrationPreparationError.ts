@@ -16,6 +16,8 @@ type MigrationPreparationReason =
   | 'contract-incompatible'
   | 'resolver-not-writable'
   | 'locked-resolver-record-control'
+  | 'legacy-resolver-content'
+  | 'unsupported-resolver-records'
   | 'records-unavailable'
   | 'records-not-replayable'
   | 'recovery-changed'
@@ -85,6 +87,10 @@ const reasonFor = (
     )
   )
     return 'locked-resolver-record-control'
+  if (chain.some((error) => error.name === 'LegacyResolverContentError'))
+    return 'legacy-resolver-content'
+  if (chain.some((error) => error.name === 'UnsupportedResolverRecordsError'))
+    return 'unsupported-resolver-records'
   if (stage === 'fee') return 'fee-unavailable'
   if (
     chain.some(
@@ -193,6 +199,8 @@ const messages: Record<MigrationPreparationReason, MessageDescriptor> = {
   'contract-incompatible': msg`The upgrade contracts don't match this account. Please contact support.`,
   'resolver-not-writable': msg`Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again.`,
   'locked-resolver-record-control': msg`A locked name's resolver cannot be safely replaced. Upgrading could make its records permanently uneditable. Deselect the name to continue.`,
+  'legacy-resolver-content': msg`A name has a legacy content record that this upgrade cannot preserve. Update it to a contenthash record before upgrading, or deselect the name.`,
+  'unsupported-resolver-records': msg`A name has primary-name records or DNS history that this upgrade cannot preserve. Deselect the name to keep its records.`,
   'records-unavailable': msg`Couldn't verify your name records. Please try again.`,
   'records-not-replayable': msg`Some locked names have records that this upgrade cannot preserve. Deselect those names to continue.`,
   'recovery-changed': msg`Couldn't restore your upgrade progress. Reload to check the latest state.`,
@@ -220,6 +228,24 @@ export const migrationPreparationMessage = (
     if (typeof error?.ensName === 'string') {
       const ensName = error.ensName
       return msg`Upgrading ${ensName} could make its records permanently uneditable because its resolver cannot be replaced. Deselect this name to continue.`
+    }
+  }
+  if (failure.reason === 'legacy-resolver-content') {
+    const error = causeChain(failure.cause).find(
+      (cause) => cause.name === 'LegacyResolverContentError',
+    )
+    if (typeof error?.ensName === 'string') {
+      const ensName = error.ensName
+      return msg`${ensName} has a legacy content record that this upgrade cannot preserve. Update it to a contenthash record before upgrading, or deselect this name.`
+    }
+  }
+  if (failure.reason === 'unsupported-resolver-records') {
+    const error = causeChain(failure.cause).find(
+      (cause) => cause.name === 'UnsupportedResolverRecordsError',
+    )
+    if (typeof error?.ensName === 'string') {
+      const ensName = error.ensName
+      return msg`${ensName} has primary-name records or DNS history that this upgrade cannot preserve. Deselect this name to keep its records.`
     }
   }
   return messages[failure.reason]

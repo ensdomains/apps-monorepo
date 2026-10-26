@@ -54,7 +54,7 @@ describe('buildProfileMulticallPlan', () => {
     expect(calls[1]).toMatchObject({ kind: 'addr', coinType: 60n })
     expect(calls[2]).toMatchObject({ kind: 'pubkey' })
     expect(contracts[0]).toMatchObject({ functionName: 'text' })
-    expect(contracts[1]).toMatchObject({ functionName: 'addr' })
+    expect(contracts[1]).toMatchObject({ functionName: 'addr', args: [NODE_A] })
     expect(contracts[2]).toMatchObject({ functionName: 'pubkey' })
   })
 

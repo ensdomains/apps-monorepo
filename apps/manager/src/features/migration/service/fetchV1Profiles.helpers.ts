@@ -1,6 +1,16 @@
+import { isLegacyContentPublicResolver } from '@ens-apps/migration'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { type Address, type Hex, zeroAddress, zeroHash } from 'viem'
 import { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
 import type { Profile } from './fetchV1Profiles'
+
+export class LegacyResolverContentError extends TaggedError(
+  'LegacyResolverContentError',
+)<{ readonly ensName: string }> {}
+
+export class UnsupportedResolverRecordsError extends TaggedError(
+  'UnsupportedResolverRecordsError',
+)<{ readonly ensName: string; readonly recordType: 'name' | 'dns' }> {}
 
 export type NameForFetch = {
   readonly name: string
@@ -15,6 +25,7 @@ export type ProfileKeyEntry = {
   readonly hasContentHash: boolean
   readonly abiContentTypes: readonly bigint[]
   readonly interfaceIds: readonly Hex[]
+  readonly hasName?: boolean
 }
 
 export type ResolverCall =
@@ -36,6 +47,8 @@ export type ResolverCall =
       readonly interfaceId: Hex
     }
   | { readonly name: NameForFetch; readonly kind: 'pubkey' }
+  | { readonly name: NameForFetch; readonly kind: 'legacy-content' }
+  | { readonly name: NameForFetch; readonly kind: 'name' }
 
 export type MulticallContract = {
   readonly address: Address
@@ -47,6 +60,8 @@ export type MulticallContract = {
     | 'ABI'
     | 'interfaceImplementer'
     | 'pubkey'
+    | 'content'
+    | 'name'
   readonly args: readonly unknown[]
 }
 
@@ -63,9 +78,40 @@ export const indexNamesByNode = (
 ): Map<Hex, NameForFetch> =>
   new Map(names.map((n) => [profileMapKey(n.nodeHex), n]))
 
+type SupplementalRecordKind = 'name' | 'legacy-content' | 'pubkey'
+
+// The original ETH getter also works on resolvers predating multicoin.
+const addressRecordArgs = (node: Hex, coinType: bigint): readonly unknown[] =>
+  coinType === 60n ? [node] : [node, coinType]
+
+const buildSupplementalReads = (
+  name: NameForFetch,
+  hasName: boolean,
+  chainId?: number,
+): { calls: ResolverCall[]; contracts: MulticallContract[] } => {
+  // Old content is untyped (IPFS or Swarm); pubkeys are not in the inventory.
+  const kinds: SupplementalRecordKind[] = [
+    ...(hasName ? ['name' as const] : []),
+    ...(isLegacyContentPublicResolver(name.v1ResolverAddress, chainId)
+      ? ['legacy-content' as const]
+      : []),
+    'pubkey',
+  ]
+  return {
+    calls: kinds.map((kind) => ({ name, kind })),
+    contracts: kinds.map((kind) => ({
+      address: name.v1ResolverAddress,
+      abi: V1_RESOLVER_PROFILE_ABI,
+      functionName: kind === 'legacy-content' ? 'content' : kind,
+      args: [name.nodeHex],
+    })),
+  }
+}
+
 export const buildProfileMulticallPlan = (
   keyEntries: readonly ProfileKeyEntry[],
   byNode: ReadonlyMap<Hex, NameForFetch>,
+  chainId?: number,
 ): {
   readonly calls: ResolverCall[]
   readonly contracts: MulticallContract[]
@@ -92,7 +138,7 @@ export const buildProfileMulticallPlan = (
         address: name.v1ResolverAddress,
         abi: V1_RESOLVER_PROFILE_ABI,
         functionName: 'addr',
-        args: [name.nodeHex, coinType],
+        args: addressRecordArgs(name.nodeHex, coinType),
       })
     }
     if (entry.hasContentHash) {
@@ -122,14 +168,13 @@ export const buildProfileMulticallPlan = (
         args: [name.nodeHex, interfaceId],
       })
     }
-    // No indexer lists pubkeys, so every name is read for the drop warning.
-    calls.push({ name, kind: 'pubkey' })
-    contracts.push({
-      address: name.v1ResolverAddress,
-      abi: V1_RESOLVER_PROFILE_ABI,
-      functionName: 'pubkey',
-      args: [name.nodeHex],
-    })
+    const supplemental = buildSupplementalReads(
+      name,
+      entry.hasName === true,
+      chainId,
+    )
+    calls.push(...supplemental.calls)
+    contracts.push(...supplemental.contracts)
   }
   return { calls, contracts }
 }
@@ -177,7 +222,11 @@ export const mergeMulticallResultsIntoProfiles = (params: {
       }
       case 'addr': {
         const value = res.result as Hex
-        if (value && value !== '0x') {
+        if (
+          value &&
+          value !== '0x' &&
+          !(call.coinType === 60n && value === zeroAddress)
+        ) {
           buckets.set(nodeKey, {
             ...bucket,
             addresses: [
@@ -214,6 +263,21 @@ export const mergeMulticallResultsIntoProfiles = (params: {
               ...bucket.interfaces,
               { interfaceId: call.interfaceId, implementer },
             ],
+          })
+        }
+        break
+      }
+      case 'legacy-content': {
+        if (res.result !== zeroHash) {
+          throw new LegacyResolverContentError({ ensName: call.name.name })
+        }
+        break
+      }
+      case 'name': {
+        if (res.result !== '') {
+          throw new UnsupportedResolverRecordsError({
+            ensName: call.name.name,
+            recordType: 'name',
           })
         }
         break

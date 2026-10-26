@@ -1,16 +1,17 @@
 import {
-  type BignameError,
+  BignameError,
   isStale,
   type NameRecords,
   readAllCollectionPages,
   retryStale,
 } from '@ens-apps/indexer/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
+import { err, errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address, Hex } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import { checkNotAborted } from './bignameLookup'
+import { UnsupportedResolverRecordsError } from './fetchV1Profiles.helpers'
 
 export type V1ProfileKeys = {
   readonly id: string
@@ -19,6 +20,7 @@ export type V1ProfileKeys = {
   readonly hasContentHash: boolean
   readonly abiContentTypes: readonly bigint[]
   readonly interfaceIds: readonly Hex[]
+  readonly hasName?: boolean
 }
 
 /** A name whose records are read from the ENSv1 resolver it points at. */
@@ -47,6 +49,7 @@ export const toV1ProfileKeys = (
   id: string,
   { inventory, records }: NameRecords,
   interfaceIds: readonly Hex[] = [],
+  hasName = false,
 ): V1ProfileKeys[] => {
   if (!inventory?.abi_content_types) return []
   const keys = [...inventory.known_keys, ...inventory.unset_keys]
@@ -70,43 +73,78 @@ export const toV1ProfileKeys = (
         .filter((contentType) => /^\d+$/.test(contentType))
         .map((contentType) => BigInt(contentType)),
       interfaceIds,
+      ...((hasName || keys.includes('name')) && { hasName: true }),
     },
   ]
 }
 
 // The inventory has no interface keys, so they come from the resolver's
 // `interface:<id>` record events; the chain read drops cleared ones.
-const readInterfaceIds = (
+const readSupplementalKeys = (
   { name, resolver }: V1ProfileSource,
   signal?: AbortSignal,
 ) =>
   readAllCollectionPages(
     (cursor, pageSignal) =>
-      bigname.events(
-        {
-          name,
-          resolver: `${envConfig.chain.id}:${resolver.toLowerCase()}`,
-          type: ['record'],
-          include: ['data'],
-          page_size: EVENTS_PAGE_SIZE,
-          ...(cursor !== undefined && { cursor }),
-        },
-        { signal: pageSignal },
-      ),
+      bigname
+        .events(
+          {
+            name,
+            resolver: `${envConfig.chain.id}:${resolver.toLowerCase()}`,
+            type: ['record'],
+            include: ['data'],
+            page_size: EVENTS_PAGE_SIZE,
+            ...(cursor !== undefined && { cursor }),
+          },
+          { signal: pageSignal },
+        )
+        .andThen((envelope) => {
+          const chainCompleteness =
+            envelope.meta.as_of_completeness?.[String(envConfig.chain.id)]
+              ?.completeness
+          if (
+            (envelope.meta.completeness !== undefined &&
+              envelope.meta.completeness !== 'full') ||
+            (chainCompleteness !== undefined && chainCompleteness !== 'full')
+          ) {
+            return err(
+              new BignameError({
+                code: 'unsupported',
+                message:
+                  'Incomplete resolver record history cannot establish safe migration',
+              }),
+            )
+          }
+          return ok(envelope)
+        }),
     { signal },
-  ).map((rows) => [
-    ...new Set(
-      rows.flatMap((row) =>
-        row.type === 'record' && row.data?.key?.startsWith(INTERFACE_KEY_PREFIX)
-          ? [
-              row.data.key
-                .slice(INTERFACE_KEY_PREFIX.length)
-                .toLowerCase() as Hex,
-            ]
-          : [],
-      ),
-    ),
-  ])
+  ).andThen((rows) => {
+    const keys = rows.flatMap((row) =>
+      row.type === 'record' && row.data?.key ? [row.data.key] : [],
+    )
+    // The inventory API excludes DNS. Even a past deletion cannot establish
+    // that the whole zone is empty, so refuse DNS history rather than drop it.
+    if (keys.some((key) => key.startsWith('dns:'))) {
+      return err(
+        new UnsupportedResolverRecordsError({
+          ensName: name,
+          recordType: 'dns',
+        }),
+      )
+    }
+    return ok({
+      hasName: keys.includes('name'),
+      interfaceIds: [
+        ...new Set(
+          keys.flatMap((key) =>
+            key.startsWith(INTERFACE_KEY_PREFIX)
+              ? [key.slice(INTERFACE_KEY_PREFIX.length).toLowerCase() as Hex]
+              : [],
+          ),
+        ),
+      ],
+    })
+  })
 
 // The resolver route serves the source resolver's inventory even when a name
 // read withholds records; naming the one key keeps it under the 200-key limit.
@@ -128,9 +166,16 @@ const readProfileKeys = (source: V1ProfileSource, signal?: AbortSignal) =>
           ? okAsync<NameRecords | null, BignameError>(null)
           : errAsync(error),
       ),
-    readInterfaceIds(source, signal),
-  ] as const).map(([data, interfaceIds]) =>
-    data ? toV1ProfileKeys(source.id, data, interfaceIds) : [],
+    readSupplementalKeys(source, signal),
+  ] as const).map(([data, supplemental]) =>
+    data
+      ? toV1ProfileKeys(
+          source.id,
+          data,
+          supplemental.interfaceIds,
+          supplemental.hasName,
+        )
+      : [],
   )
 
 export const getV1ProfileKeys = ResultFn(async function* (

@@ -154,7 +154,11 @@ export const fetchV1Profiles = async (params: {
     })
   }
 
-  const { calls, contracts } = buildProfileMulticallPlan(keyEntries, byNode)
+  const { calls, contracts } = buildProfileMulticallPlan(
+    keyEntries,
+    byNode,
+    publicClient.chain?.id,
+  )
   const buckets = initEmptyProfileBuckets(byNode)
   if (contracts.length === 0) return buckets
 

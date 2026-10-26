@@ -150,6 +150,14 @@ msgstr ""
 msgid "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile.} other {Upgrade your names in just a couple steps to unlock your new ENS profile.}}"
 msgstr ""
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "{ensName} has a legacy content record that this upgrade cannot preserve. Update it to a contenthash record before upgrading, or deselect this name."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "{ensName} has primary-name records or DNS history that this upgrade cannot preserve. Deselect this name to keep its records."
+msgstr ""
+
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{gracePeriodNameCount, plural, one {# name needs renewal before it can be upgraded.} other {# names need renewal before they can be upgraded.}}"
 msgstr ""
@@ -264,6 +272,14 @@ msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "A mint is already being prepared in another tab. Continue there or try again after it finishes."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "A name has a legacy content record that this upgrade cannot preserve. Update it to a contenthash record before upgrading, or deselect the name."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "A name has primary-name records or DNS history that this upgrade cannot preserve. Deselect the name to keep its records."
 msgstr ""
 
 #: src/routes/index.tsx

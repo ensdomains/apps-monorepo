@@ -15,7 +15,7 @@ describe('isKnownPublicResolver', () => {
     ],
     [
       'known resolver (checksum)',
-      '0x1da022710dF5002339274AaDEe8D58218e9D6AB5',
+      '0x8948458626811dd0c23EB25Cc74291247077cC51',
       true,
     ],
     [

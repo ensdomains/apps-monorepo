@@ -101,7 +101,10 @@ describe('getV1ProfileKeys', () => {
         recordEvents(['interface:0x01FFC9A7', 'text:url'], 'page-2'),
       )
       .mockReturnValueOnce(
-        recordEvents(['interface:0x01ffc9a7', 'interface:0x12345678'], null),
+        recordEvents(
+          ['interface:0x01ffc9a7', 'interface:0x12345678', 'name'],
+          null,
+        ),
       )
 
     const [keys] = (
@@ -123,6 +126,7 @@ describe('getV1ProfileKeys', () => {
       expect.anything(),
     )
     expect(keys?.interfaceIds).toEqual(['0x01ffc9a7', '0x12345678'])
+    expect(keys?.hasName).toBe(true)
   })
 
   it('counts a contenthash the answer serves even when the inventory omits it', async () => {

@@ -145,6 +145,14 @@ msgstr "{eligibleNameCount, plural, one {Upgrade your name in just a couple step
 msgid "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile.} other {Upgrade your names in just a couple steps to unlock your new ENS profile.}}"
 msgstr "{eligibleNameCount, plural, one {Upgrade your name in just a couple steps to unlock your new ENS profile.} other {Upgrade your names in just a couple steps to unlock your new ENS profile.}}"
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "{ensName} has a legacy content record that this upgrade cannot preserve. Update it to a contenthash record before upgrading, or deselect this name."
+msgstr "{ensName} has a legacy content record that this upgrade cannot preserve. Update it to a contenthash record before upgrading, or deselect this name."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "{ensName} has primary-name records or DNS history that this upgrade cannot preserve. Deselect this name to keep its records."
+msgstr "{ensName} has primary-name records or DNS history that this upgrade cannot preserve. Deselect this name to keep its records."
+
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{gracePeriodNameCount, plural, one {# name needs renewal before it can be upgraded.} other {# names need renewal before they can be upgraded.}}"
 msgstr "{gracePeriodNameCount, plural, one {# name needs renewal before it can be upgraded.} other {# names need renewal before they can be upgraded.}}"
@@ -260,6 +268,14 @@ msgstr "A locked name's resolver cannot be safely replaced. Upgrading could make
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "A mint is already being prepared in another tab. Continue there or try again after it finishes."
 msgstr "A mint is already being prepared in another tab. Continue there or try again after it finishes."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "A name has a legacy content record that this upgrade cannot preserve. Update it to a contenthash record before upgrading, or deselect the name."
+msgstr "A name has a legacy content record that this upgrade cannot preserve. Update it to a contenthash record before upgrading, or deselect the name."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "A name has primary-name records or DNS history that this upgrade cannot preserve. Deselect the name to keep its records."
+msgstr "A name has primary-name records or DNS history that this upgrade cannot preserve. Deselect the name to keep its records."
 
 #: src/routes/index.tsx
 msgid "A name you own that goes wherever you do"
