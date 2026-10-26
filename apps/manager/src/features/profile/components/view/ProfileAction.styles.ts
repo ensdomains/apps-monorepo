@@ -31,4 +31,4 @@ export const profileStickyBarClassName =
   'fixed inset-x-0 bottom-0 z-40 bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] xl:hidden'
 
 export const desktopActionContainerClassName =
-  'absolute top-[422px] left-[calc(50%+452.5px)] z-30 hidden w-33 flex-col gap-6 xl:flex'
+  'absolute top-[377px] left-[calc(50%+29.5rem)] z-30 hidden w-33 flex-col gap-6 xl:flex'
