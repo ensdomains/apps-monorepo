@@ -29,16 +29,15 @@ const LandingPage = () => {
     >
       {/* Hero Section */}
       <div className="mx-auto flex w-full-[2rem] flex-col items-center pt-11">
-        <h1 className="text-center text-temp-64px">
-          <span className="font-normal text-ens-lapis-core">
-            <Trans>Find your</Trans>
+        <h1 className="whitespace-nowrap text-center text-[56px] capitalize leading-none tracking-[-2px]">
+          <span className="font-serif text-ens-lapis-core">
+            <Trans>Find your</Trans>{' '}
           </span>
-          <br />
-          <span className="font-serif text-ens-lapis-dense italic">
+          <span className="font-serif text-ens-quartz-900">
             <Trans>name</Trans>
           </span>
         </h1>
-        <p className="mt-6 text-center font-normal text-ens-lapis-core text-temp-32px">
+        <p className="mt-3.5 w-[305px] text-center font-normal font-sans text-base text-ens-quartz-900 leading-none">
           <Trans>A name you own that goes wherever you do</Trans>
         </p>
         <div className="mt-11 w-full max-w-3xl">
