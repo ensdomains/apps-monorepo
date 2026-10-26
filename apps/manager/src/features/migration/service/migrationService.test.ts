@@ -1883,6 +1883,40 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
+  it('persists a recovery snapshot before submitting a direct-only plan', async () => {
+    let resolveHash!: (hash: Hex) => void
+    mocks.waitForTransactionHash.mockImplementationOnce(
+      () =>
+        new Promise<Hex>((resolve) => {
+          resolveHash = resolve
+        }),
+    )
+
+    const execution = runExecute()
+    await vi.waitFor(() =>
+      expect(mocks.startTransaction).toHaveBeenCalledOnce(),
+    )
+    const recovery = loadMigrationRecoverySnapshot({
+      chainId: 11155111,
+      owner: OWNER,
+      hca: HCA,
+    })
+    resolveHash(hashFor(1))
+    await execution
+
+    expect(recovery).toMatchObject({
+      registryOperations: [{ name: 'alice.eth', action: 'migrate' }],
+      remainingOperations: [{ name: 'alice.eth', action: 'migrate' }],
+    })
+    expect(
+      loadMigrationRecoverySnapshot({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      }),
+    ).toBeNull()
+  })
+
   it('durably records the batch intent before opening the wallet prompt', async () => {
     mocks.startTransaction.mockImplementationOnce(() => {
       expect(
@@ -1920,6 +1954,16 @@ describe('executeMigration HCA orchestration', () => {
         hca: HCA,
       }),
     ).toEqual([expect.objectContaining({ names: ['alice.eth'] })])
+    expect(
+      loadMigrationRecoverySnapshot({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      }),
+    ).toMatchObject({
+      registryOperations: [{ name: 'alice.eth', action: 'migrate' }],
+      remainingOperations: [{ name: 'alice.eth', action: 'migrate' }],
+    })
 
     mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
       status: 'incomplete',

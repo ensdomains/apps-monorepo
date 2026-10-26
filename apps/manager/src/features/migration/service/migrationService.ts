@@ -352,7 +352,6 @@ const persistRecoveryPlan = (
   plan: MigrationPlan,
   remaining: readonly (typeof plan.registryContext)[number][] = plan.classified,
 ): void => {
-  if (!usesDurableCopyRecovery(plan)) return
   persistMigrationRecoverySnapshot(scope, recoverySnapshotFor(plan, remaining))
 }
 
@@ -1659,7 +1658,7 @@ const commitReconciliationJournal = (params: {
   const retainFinalEvidenceForCleanup =
     durableCopyRecovery && params.executionPlan.classified.length === 0
 
-  if (durableCopyRecovery && !retainFinalEvidenceForCleanup) {
+  if (!retainFinalEvidenceForCleanup) {
     // Advance the immutable tree before deleting the evidence that authorized
     // exact-state reconciliation. A crash on either side remains recoverable.
     persistRecoveryPlan(
@@ -2217,9 +2216,7 @@ export const executeMigration = async (params: {
   )
   ctx.tracker.complete('Upgrade complete', txHashes.at(-1))
 
-  if (usesDurableCopyRecovery(plan)) {
-    clearCompletedRecoveryPlanJournal(batchJournalScope(ctx), plan)
-  }
+  clearCompletedRecoveryPlanJournal(batchJournalScope(ctx), plan)
 
   const completedOperations = [
     ...(plan.priorCompletedOperations ?? []),
