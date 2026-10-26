@@ -104,6 +104,10 @@ import {
 export type { MigrationPlan } from './buildMigrationPlan'
 export type { MigrationStepDescriptor } from './buildStepDescriptors'
 
+export type MigrationSubmissionGate = {
+  readonly signal: AbortSignal
+}
+
 class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
   step?: string
@@ -263,6 +267,7 @@ const createTracker = (
 }
 
 type MigrationCtx = {
+  readonly submissionGate: MigrationSubmissionGate
   readonly wagmiConfig: WagmiConfig
   readonly publicClient: PublicClient
   readonly signer: Signer
@@ -2037,6 +2042,7 @@ const assertAtomicBatchingAvailable = async (
 
 export const executeMigration = async (params: {
   readonly plan: MigrationPlan
+  readonly submissionGate: MigrationSubmissionGate
   readonly wagmiConfig: WagmiConfig
   readonly publicClient: PublicClient
   readonly signer: Signer
@@ -2077,6 +2083,7 @@ export const executeMigration = async (params: {
   }
 
   const ctx: MigrationCtx = {
+    submissionGate: params.submissionGate,
     wagmiConfig,
     publicClient,
     signer,

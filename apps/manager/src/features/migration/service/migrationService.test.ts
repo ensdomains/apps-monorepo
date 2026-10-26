@@ -112,6 +112,7 @@ import {
   loadSubmittedAtomicMigrationBatches,
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
+  subscribeMigrationBatchJournal,
 } from './migrationBatchJournal'
 import {
   executeMigration,
@@ -438,12 +439,16 @@ const runExecute = async (
     reconcileBeforeSubmit?: boolean
     onProgress?: (progress: MigrationProgress) => void
     canRecreateSubnames?: () => boolean
+    submissionSignal?: AbortSignal
   } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
   const refreshAccount = overrides.refreshAccount ?? vi.fn()
+  const submissionSignal =
+    overrides.submissionSignal ?? new AbortController().signal
   const result = await executeMigration({
     plan: overrides.plan ?? planFor(),
+    submissionGate: { signal: submissionSignal },
     wagmiConfig: WAGMI,
     publicClient: PUBLIC_CLIENT,
     signer: SIGNER,
@@ -637,6 +642,98 @@ describe('executeMigration HCA orchestration', () => {
       copy.domain.name,
     ])
     expect(recovery?.profiles.size).toBe(2)
+  })
+
+  it('does not submit a second durable copy gas-split batch after the submission gate is aborted', async () => {
+    const parent = classifiedFor('alice')
+    const copy = copyClassifiedFor()
+    const plan = planFromClassified([parent, copy], [parent, copy])
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({
+        hca,
+        classified,
+        estimateBatchGas,
+      }: BuildAtomicMigrationBatchesParams) => {
+        const first = classified.slice(0, 1)
+        const names = first.map(({ domain }) => domain.name)
+        const outerCall = { to: hca, data: OUTER_DATA, value: 0n }
+        const { outerGas } = await estimateBatchGas({
+          call: outerCall,
+          names,
+          innerExecutions: [],
+          walletCall: null,
+          walletExecutions: [],
+        })
+        return {
+          resolver: RESOLVER,
+          batches: [
+            {
+              index: 0,
+              names,
+              operations: first.map(({ domain, action }) => ({
+                name: domain.name,
+                action,
+              })),
+              nameExecutions: [],
+              innerExecutions: [],
+              outerCall,
+              walletCall: null,
+              estimatedGas: outerGas,
+              walletEstimatedGas: 0n,
+              verificationExpectations: [],
+            },
+          ],
+        }
+      },
+    )
+    let resolveFirstTransaction!: (result: { readonly hash: Hex }) => void
+    const firstTransaction = new Promise<{ readonly hash: Hex }>((resolve) => {
+      resolveFirstTransaction = resolve
+    })
+    let resolveFirstTransactionHeld!: () => void
+    const firstTransactionHeld = new Promise<void>((resolve) => {
+      resolveFirstTransactionHeld = resolve
+    })
+    mocks.waitForTransaction.mockImplementationOnce(() => {
+      resolveFirstTransactionHeld()
+      return firstTransaction
+    })
+    const controller = new AbortController()
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    let persistedSecondBatchIntent = false
+    const unsubscribe = subscribeMigrationBatchJournal(() => {
+      if (
+        loadPendingAtomicMigrationIntents(scope).some(({ names }) =>
+          names.includes(copy.domain.name),
+        )
+      ) {
+        persistedSecondBatchIntent = true
+      }
+    })
+
+    const observedExecution = runExecute({
+      plan,
+      submissionSignal: controller.signal,
+    }).then(
+      () => undefined,
+      () => undefined,
+    )
+    await firstTransactionHeld
+    controller.abort()
+    resolveFirstTransaction({ hash: hashFor(1) })
+    await observedExecution
+    unsubscribe()
+
+    const recovery = loadMigrationRecoverySnapshot(scope)
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(persistedSecondBatchIntent).toBe(false)
+    expect(
+      mocks.verifyAtomicMigrationBatch.mock.calls[0]?.[0].batch.names,
+    ).toEqual([parent.domain.name])
+    expect(recovery).toMatchObject({
+      completedOperations: [{ name: parent.domain.name, action: 'migrate' }],
+      remainingOperations: [{ name: copy.domain.name, action: 'copy' }],
+    })
   })
 
   it('retains the final receipt through cleanup and resumes without duplicate registration', async () => {
@@ -2426,6 +2523,7 @@ describe('executeMigration HCA orchestration', () => {
   it('returns immediately when no eligible names remain', async () => {
     const result = await executeMigration({
       plan: planFor([]),
+      submissionGate: { signal: new AbortController().signal },
       wagmiConfig: WAGMI,
       publicClient: PUBLIC_CLIENT,
       signer: SIGNER,

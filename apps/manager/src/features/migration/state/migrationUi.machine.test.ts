@@ -781,6 +781,20 @@ describe('migrationUiMachine', () => {
   })
 
   describe('migrate.running state', () => {
+    it('aborts the migration submission gate when the actor stops', () => {
+      let submissionSignal: AbortSignal | undefined
+      executeMigrationMock.mockImplementation(({ submissionGate }) => {
+        submissionSignal = submissionGate.signal
+        return new Promise(() => {})
+      })
+
+      const actor = start()
+
+      expect(submissionSignal?.aborted).toBe(false)
+      actor.stop()
+      expect(submissionSignal?.aborted).toBe(true)
+    })
+
     it('transitions select → migrate.running on migration.start with classified names', () => {
       executeMigrationMock.mockImplementation(() => new Promise(() => {}))
       const actor = start()

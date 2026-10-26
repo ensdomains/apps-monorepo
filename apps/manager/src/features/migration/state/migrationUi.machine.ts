@@ -265,6 +265,7 @@ export const migrationUiMachine = setup({
         renewalStepCount: number
       }
     >(({ input, sendBack }) => {
+      const controller = new AbortController()
       let cancelled = false
 
       const onProgress = (progress: MigrationProgress) => {
@@ -289,6 +290,7 @@ export const migrationUiMachine = setup({
 
       executeMigration({
         plan: input.plan,
+        submissionGate: { signal: controller.signal },
         canRecreateSubnames: () =>
           posthog.isFeatureEnabled(
             POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
@@ -316,6 +318,7 @@ export const migrationUiMachine = setup({
 
       return () => {
         cancelled = true
+        controller.abort()
       }
     }),
   },
