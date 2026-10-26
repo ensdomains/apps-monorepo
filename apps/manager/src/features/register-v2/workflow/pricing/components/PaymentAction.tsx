@@ -9,9 +9,10 @@ import {
 } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 
-/** The payment CTA, "Try again" when `onRetry` is set, with "What will I sign?" below. */
+/** The modal warning, the payment CTA ("Try again" when `onRetry` is set), and "What will I sign?". */
 export const PaymentAction = ({
   label,
+  warning,
   onNext,
   onRetry,
   canNext,
@@ -20,6 +21,7 @@ export const PaymentAction = ({
   helpMessage,
 }: {
   readonly label: ReactNode
+  readonly warning: ReactNode
   readonly onNext: () => void
   readonly onRetry: (() => void) | undefined
   readonly canNext: boolean
@@ -30,13 +32,23 @@ export const PaymentAction = ({
   const isEnabled = !isBusy && (canNext || !!onRetry)
 
   return (
-    <div className="flex w-full flex-col items-center gap-3">
+    <div className="flex w-full flex-col items-center gap-4">
+      {warning && (
+        <p
+          className="w-full text-center text-ens-signal-danger-800 text-lg"
+          role="alert"
+        >
+          {warning}
+        </p>
+      )}
       <Button
         aria-busy={isSettling}
         className={cn(
-          'h-14 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-          isBusy && 'disabled:opacity-100',
+          'h-18 w-full rounded font-medium font-mono text-sm uppercase tracking-[1.12px]',
+          isEnabled || isBusy
+            ? 'bg-ens-lapis-500 text-white hover:bg-ens-blue-hover disabled:opacity-100'
+            : 'bg-ens-quartz-100 text-ens-quartz-400 disabled:opacity-100',
+          'disabled:cursor-not-allowed',
         )}
         disabled={!isEnabled}
         onClick={onRetry ?? onNext}

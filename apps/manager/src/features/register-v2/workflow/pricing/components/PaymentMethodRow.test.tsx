@@ -10,7 +10,7 @@ const renderRow = (
     <PaymentMethodRow
       amount="$0.00"
       amountLabel="balance"
-      fee="Sepolia · est. fee $0.27"
+      fee="Sepolia est. fee: $0.27"
       icon={<span>$</span>}
       isAvailable
       isInsufficient
@@ -30,7 +30,7 @@ describe('PaymentMethodRow', () => {
     screen.getByRole('button', { name: 'Select USDC' }).click()
 
     expect(onSelect).toHaveBeenCalledOnce()
-    expect(screen.getByText('$0.00')).toHaveClass('text-ens-error')
+    expect(screen.getByText('$0.00')).toHaveClass('text-ens-signal-danger-800')
   })
 
   it('disables an unavailable method', () => {

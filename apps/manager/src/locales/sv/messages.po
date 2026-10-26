@@ -53,8 +53,8 @@ msgstr ""
 msgid "{0} / {DESCRIPTION_MAX_LENGTH} characters"
 msgstr ""
 
-#. placeholder {0}: formatUsd(shortfall)
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+#. placeholder {0}: formatUsd(revalidatedShortfall)
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "{0} more needed in your wallet."
 msgstr ""
 
@@ -80,12 +80,12 @@ msgstr ""
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-msgid "{chainName} · est. fee {0}"
+msgid "{chainName} est. fee: {0}"
 msgstr ""
 
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "{chainName} · est. fee ~{0}"
+msgid "{chainName} est. fee: ~{0}"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -373,8 +373,16 @@ msgstr ""
 msgid "Allow your smart account to configure your upgraded names and their subnames. No managers are being added in this upgrade."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
+msgstr ""
+
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr ""
 
 #: src/components/AnalyticsConsentBanner.tsx
@@ -501,10 +509,6 @@ msgstr ""
 
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Available"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
-msgid "Available balance applied"
 msgstr ""
 
 #: src/components/GlobalBackButton.tsx
@@ -801,6 +805,10 @@ msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Connect a wallet to continue to notification settings and activity."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Connect a wallet to see your balances."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
@@ -1123,10 +1131,6 @@ msgstr ""
 msgid "Downloading artwork…"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
-msgid "Due from your wallet"
-msgstr ""
-
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.helpers.ts
 msgid "Each text record needs a unique key. Remove the duplicate custom record to edit it in its existing field."
 msgstr ""
@@ -1278,6 +1282,10 @@ msgstr ""
 msgid "Estimating..."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "Existing balance"
+msgstr ""
+
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
@@ -1414,10 +1422,6 @@ msgstr ""
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
-msgid "Funds left over from your earlier registrations. They are used first, so your wallet only pays the rest."
-msgstr ""
-
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Get instant push notifications in your browser"
 msgstr ""
@@ -1538,14 +1542,6 @@ msgstr ""
 msgid "In-app notifications are always enabled"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Includes an estimate of the network fees for the two transactions that register your name, collected with the name price in the same approval."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Includes an estimate of the network fees, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
-msgstr ""
-
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Insufficient USDC"
 msgstr ""
@@ -1648,11 +1644,16 @@ msgstr ""
 msgid "Links can't contain spaces. Remove them and try again"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Load {hiddenCount} more"
+msgstr ""
+
 #: src/features/notifications/inbox/list.tsx
 msgid "Load more"
 msgstr ""
 
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Loading balances…"
 msgstr ""
 
@@ -1663,14 +1664,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Loading payment methods…"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Loading pricing..."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Loading your stablecoin balances..."
 msgstr ""
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
@@ -1929,7 +1922,6 @@ msgid "No recent searches"
 msgstr ""
 
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No stablecoins available"
 msgstr ""
 
@@ -2119,7 +2111,6 @@ msgid "Play artwork"
 msgstr ""
 
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Please connect your wallet first"
 msgstr ""
 
@@ -2887,10 +2878,6 @@ msgid "Should I register now or wait?"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
-msgid "Show {hiddenCount} more"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
 msgid "Show fewer"
 msgstr ""
 
@@ -3408,6 +3395,7 @@ msgid "To use this as your primary name, we’ll set a resolver your wallet cont
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Total"
 msgstr ""
 
@@ -3567,10 +3555,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "USD"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "USDC on {chainName}"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
@@ -3843,16 +3827,17 @@ msgstr ""
 msgid "What additional fee are you willing to pay?"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
-msgid "What does the total include?"
-msgstr ""
-
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "What happens to subnames when I upgrade?"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "What is a primary name?"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
+msgid "What is the network fee?"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
@@ -3870,10 +3855,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
-msgid "Where does this balance come from?"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -3916,6 +3897,10 @@ msgstr ""
 msgid "You cancelled the request."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "You do not have enough USDC to complete this transaction."
+msgstr ""
+
 #: src/features/migration/components/MigrationModal.tsx
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
 msgstr ""
@@ -3940,12 +3925,12 @@ msgstr ""
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "You need to connect a wallet to see your stablecoin balances"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You need to verify your wallet ownership to manage your notification preferences."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "You pay"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx

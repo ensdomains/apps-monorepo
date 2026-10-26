@@ -146,6 +146,7 @@ export const TokenPickerContent = () => {
       }
       isBusy={isAwaitingApproval}
       isConnected={isConnected}
+      isEstimate={isIntentRoute}
       isLoadingBalances={balances.isLoading}
       isQuotingFunding={isQuoting}
       label={label}
@@ -163,7 +164,6 @@ export const TokenPickerContent = () => {
       selectedToken={selectedToken}
       showNetworkFeeDetails={isIntentRoute}
       stablecoinBalances={balances.wallet}
-      subtitle={<Trans>Renew name</Trans>}
       totalLabel={<Trans>Renewal total</Trans>}
       walletDebitFor={walletDebitFor}
     />

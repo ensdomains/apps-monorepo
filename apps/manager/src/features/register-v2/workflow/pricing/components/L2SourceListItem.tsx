@@ -92,14 +92,14 @@ export const getL2SelectionMessage = (
     .otherwise(() => undefined)
 }
 
-/** The total's fee explanation when an L2 pays. */
-export const getL2FeeExplanation = (row: L2PaymentRow) => {
+const getL2FeeExplanation = (row: L2PaymentRow) => {
   const chainName = row.option.source.chain.name
   return (
     <Trans>
-      Includes an estimate of the network fees, including moving the USDC from{' '}
-      {chainName}. It is paid there with the name price, in one signature. The
-      first time, you also approve USDC on {chainName}.
+      An estimate of what the on-chain transactions that register your name
+      cost, including moving the USDC from {chainName}. It is paid there with
+      the name price, in one signature. The first time, you also approve USDC on{' '}
+      {chainName}.
     </Trans>
   )
 }
@@ -136,14 +136,16 @@ export const L2SourceListItem = ({
       fee={
         isFeeEstimated ? (
           <Trans>
-            {chainName} · est. fee ~{formatUsd(networkFee ?? Number.NaN)}
+            {chainName} est. fee: ~{formatUsd(networkFee ?? Number.NaN)}
           </Trans>
         ) : (
           <Trans>
-            {chainName} · est. fee {formatUsd(networkFee ?? Number.NaN)}
+            {chainName} est. fee: {formatUsd(networkFee ?? Number.NaN)}
           </Trans>
         )
       }
+      feeTooltip={getL2FeeExplanation(row)}
+      feeTooltipLabel={t`What is the network fee?`}
       icon={
         <PaymentMethodIcon
           icon={<USDCIcon className="size-full" />}
@@ -157,7 +159,7 @@ export const L2SourceListItem = ({
       // Selectable while quoting; the action waits for the quote.
       isInsufficient={isL2ShortOfFunds(row)}
       isSelected={isSelected}
-      name={t`USDC on ${chainName}`}
+      name="USDC"
       onSelect={onSelect}
       selectLabel={t`Select USDC on ${chainName}`}
     />

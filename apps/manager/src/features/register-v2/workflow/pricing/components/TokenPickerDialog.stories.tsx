@@ -276,7 +276,6 @@ export const FixtureTokenPickerContent = ({
           figures: { total: 352, applied: 0, due: 352 },
         }}
         totalLabel={<Trans>Registration total</Trans>}
-        totalTooltip="Includes an estimate of the network fees."
       />
       <Button
         className={cn(

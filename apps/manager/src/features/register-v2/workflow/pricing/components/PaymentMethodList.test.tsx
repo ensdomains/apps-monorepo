@@ -24,7 +24,7 @@ describe('PaymentMethodList', () => {
     )
 
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
-    fireEvent.click(screen.getByRole('button', { name: 'Show 1 more' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Load 1 more' }))
     expect(
       screen.getAllByRole('listitem').map(({ textContent }) => textContent),
     ).toEqual(ids)

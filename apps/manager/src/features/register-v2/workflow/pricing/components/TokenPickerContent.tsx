@@ -17,6 +17,7 @@ import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 import { type SUPPORTED_TOKEN, type TOKEN_SYMBOL, TOKENS } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
 import {
   getHcaBudgetQueryOptions,
@@ -43,7 +44,6 @@ import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
 import {
   getEstimatedL2AmountIn,
-  getL2FeeExplanation,
   getL2SelectionMessage,
   isL2ShortOfFunds,
   L2SourceListItem,
@@ -727,7 +727,6 @@ const isBudgetQuoting = (
 
 export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   label,
-  subtitle = <Trans>Register name</Trans>,
   pricingLoading,
   pricingData,
   isInPriceCooldown = false,
@@ -759,11 +758,11 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   canProceed = true,
   networkFeeTooltip,
   totalLabel = <Trans>Registration total</Trans>,
+  isEstimate = false,
   walletDebitFor,
   l2Payment,
 }: {
   readonly label: string
-  readonly subtitle?: ReactNode
   readonly pricingLoading: boolean
   readonly pricingData: number | undefined
   readonly isInPriceCooldown?: boolean
@@ -812,6 +811,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   /** Replaces the total's fee explanation. */
   readonly networkFeeTooltip?: ReactNode
   readonly totalLabel?: ReactNode
+  /** Prefix amounts with "up to", for a total carrying approval headroom. */
+  readonly isEstimate?: boolean
   /** Per-coin override of what the wallet must cover, for a fee paid in one coin and rent in another. */
   readonly walletDebitFor?: (symbol: TOKEN_SYMBOL) => number
   /** Registration only: rows that pay the registration from an L2. */
@@ -907,28 +908,48 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   const isFullyCovered =
     receiptState.status === 'ready' && selectedShare === 0 && !!walletSelection
 
-  const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances.map(
-    (stablecoin) => {
+  // A wallet coin shows only once it is known to cover its share.
+  const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances
+    .filter((stablecoin) => {
       const share = walletShareOf(stablecoin.symbol)
-
-      return {
-        id: stablecoin.address,
-        isSelected: walletSelection === stablecoin.symbol,
-        content: (
-          <TokenListItem
-            isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
-            networkFee={displayedNetworkFee}
-            onSelectCoin={onSelectCoin}
-            priceUSD={share ?? 0}
-            selectedCoin={walletSelection}
-            showNetworkFeeDetails={showNetworkFeeDetails}
-            stablecoin={stablecoin}
-          />
-        ),
-      }
-    },
-  )
+      return (
+        share !== undefined &&
+        decimalBigintToNumber(
+          BigInt(stablecoin.balance),
+          stablecoin.decimals,
+        ) >= share
+      )
+    })
+    .map((stablecoin) => ({
+      id: stablecoin.address,
+      isSelected: walletSelection === stablecoin.symbol,
+      content: (
+        <TokenListItem
+          {...(networkFeeTooltip ? { feeTooltip: networkFeeTooltip } : {})}
+          isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
+          networkFee={displayedNetworkFee}
+          onSelectCoin={onSelectCoin}
+          priceUSD={walletShareOf(stablecoin.symbol) ?? 0}
+          selectedCoin={walletSelection}
+          showNetworkFeeDetails={showNetworkFeeDetails}
+          stablecoin={stablecoin}
+        />
+      ),
+    }))
   const paymentMethodItems = [...walletMethodItems, ...l2MethodItems]
+
+  const warning =
+    globalErrorMessage ??
+    (selectedL2
+      ? getL2SelectionMessage(
+          selectedL2,
+          funding?.walletDebit,
+          l2Payment && getEstimatedL2AmountIn(l2Payment.rows),
+        )
+      : undefined) ??
+    (revalidatedShortfall === undefined
+      ? undefined
+      : t`${formatUsd(revalidatedShortfall)} more needed in your wallet.`)
 
   return (
     // A fieldset's anonymous content box prevents its flex children shrinking
@@ -940,8 +961,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           showNetworkFeeDetails ? undefined : 'px-4',
         )}
       >
-        <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto">
-          <div className="flex w-full min-w-0 flex-col items-center gap-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
+          <div className="flex w-full min-w-0 flex-col items-center gap-3 px-5 py-3">
             {(premiumLabel || isInPriceCooldown) && (
               <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
                 {premiumLabel && (
@@ -964,108 +985,71 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
             >
               {domainName}
             </span>
-            <span className="text-ens-quartz-400 text-sm">{subtitle}</span>
           </div>
 
-          <div className="flex w-full flex-col gap-4">
-            {isFullyCovered ? (
-              <p className="text-ens-quartz-500 text-sm">
-                {fullyCoveredMessage}
-              </p>
-            ) : (
-              <>
-                <h2 className="flex items-center gap-2 font-medium text-base leading-ens-none">
-                  <Trans>Select payment</Trans>
-                  <USDCIcon aria-hidden="true" className="size-5" />
-                </h2>
-                {match({
-                  isLoadingBalances,
-                  stablecoinsCount: stablecoinBalances?.length ?? 0,
-                  isConnected,
-                  pricingLoading,
-                })
-                  .with({ isConnected: false }, () => (
-                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <div className="mb-2 text-ens-gray text-sm">
-                        <Trans>Please connect your wallet first</Trans>
-                      </div>
-                      <div className="text-ens-gray-three text-xs">
-                        <Trans>
-                          You need to connect a wallet to see your stablecoin
-                          balances
-                        </Trans>
-                      </div>
-                    </div>
-                  ))
-                  .with({ isLoadingBalances: true }, () => (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="text-ens-gray-two text-sm">
-                        <Trans>Loading your stablecoin balances...</Trans>
-                      </div>
-                    </div>
-                  ))
-                  .with({ pricingLoading: true }, () => (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="text-ens-gray-two text-sm">
-                        <Trans>Loading pricing...</Trans>
-                      </div>
-                    </div>
-                  ))
-                  .with({ stablecoinsCount: 0 }, () => (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="text-ens-gray-two text-sm">
-                        <Trans>No stablecoins available</Trans>
-                      </div>
-                    </div>
-                  ))
-                  .with({ stablecoinsCount: P.number.gt(0) }, () => (
-                    <PaymentMethods
-                      onSelectCoin={onSelectCoin}
-                      paymentMethodItems={paymentMethodItems}
-                      selectedToken={selectedToken}
-                      showNetworkFeeDetails={showNetworkFeeDetails}
-                      stablecoinBalances={stablecoinBalances}
-                      walletShareOf={walletShareOf}
-                    />
-                  ))
-                  .otherwise(() => undefined)}
-              </>
-            )}
+          <div className="flex w-full flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-ens-quartz-400 text-lg leading-none">
+                <Trans>Select payment</Trans>
+              </h2>
+              <USDCIcon aria-hidden="true" className="size-[18px]" />
+            </div>
+            {match({
+              isConnected,
+              // A re-quote keeps the list; only a first quote shows the loading box.
+              isLoading:
+                isLoadingBalances ||
+                pricingLoading ||
+                (isQuotingFunding && !shownFunding),
+              isFullyCovered,
+              hasNoMethods:
+                showNetworkFeeDetails && paymentMethodItems.length === 0,
+              stablecoinsCount: stablecoinBalances?.length ?? 0,
+            })
+              .with({ isConnected: false }, () => (
+                <p className="text-ens-quartz-500 text-sm">
+                  <Trans>Connect a wallet to see your balances.</Trans>
+                </p>
+              ))
+              .with({ isLoading: true }, () => (
+                <div className="flex h-16 items-center justify-center rounded bg-[#f5f5f5] text-ens-quartz-500 text-xs">
+                  <Trans>Loading balances…</Trans>
+                </div>
+              ))
+              .with({ isFullyCovered: true }, () => (
+                <p className="text-ens-quartz-500 text-sm">
+                  {fullyCoveredMessage}
+                </p>
+              ))
+              .with(
+                P.union({ hasNoMethods: true }, { stablecoinsCount: 0 }),
+                () => (
+                  <p className="text-ens-signal-danger-800 text-lg">
+                    <Trans>
+                      You do not have enough USDC to complete this transaction.
+                    </Trans>
+                  </p>
+                ),
+              )
+              .otherwise(() => (
+                <PaymentMethods
+                  onSelectCoin={onSelectCoin}
+                  paymentMethodItems={paymentMethodItems}
+                  selectedToken={selectedToken}
+                  showNetworkFeeDetails={showNetworkFeeDetails}
+                  stablecoinBalances={stablecoinBalances}
+                  walletShareOf={walletShareOf}
+                />
+              ))}
 
             {footer}
           </div>
         </div>
 
         <PaymentReceipt
-          errorMessage={
-            globalErrorMessage ??
-            (selectedL2 &&
-              getL2SelectionMessage(
-                selectedL2,
-                funding?.walletDebit,
-                l2Payment && getEstimatedL2AmountIn(l2Payment.rows),
-              ))
-          }
-          isEstimate={!!funding || fundedAmount !== undefined}
-          shortfall={
-            selectedL2 || receiptState.status !== 'ready'
-              ? undefined
-              : (getWalletShortfall(selectedShare, selectedCoinAmount) ??
-                revalidatedShortfall)
-          }
+          isEstimate={isEstimate}
           state={receiptState}
           totalLabel={totalLabel}
-          totalTooltip={
-            selectedL2
-              ? getL2FeeExplanation(selectedL2)
-              : (networkFeeTooltip ?? (
-                  <Trans>
-                    Includes an estimate of the network fees for the two
-                    transactions that register your name, collected with the
-                    name price in the same approval.
-                  </Trans>
-                ))
-          }
         />
 
         <PaymentAction
@@ -1078,6 +1062,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           onRetry={
             hasBudgetQuoteFailed && !isQuotingFunding ? onRetry : undefined
           }
+          warning={warning}
         />
       </div>
     </fieldset>
