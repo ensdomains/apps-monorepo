@@ -20,4 +20,5 @@ jobs:
           cache: true
       - run: pnpm --filter avatar-worker typecheck
       - run: pnpm --filter avatar-worker lint
+      - run: pnpm --filter avatar-worker test
       - run: pnpm --filter avatar-worker build

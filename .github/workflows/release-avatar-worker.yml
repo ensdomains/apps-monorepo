@@ -36,6 +36,7 @@ jobs:
           test -n "$(git branch -r --contains "$GITHUB_SHA" --format='%(refname:short)' --list origin/main 'origin/hf/*')"
       - run: pnpm --filter avatar-worker typecheck
       - run: pnpm --filter avatar-worker lint
+      - run: pnpm --filter avatar-worker test
       - run: pnpm --filter avatar-worker build
       - name: Write production release notes
         if: github.event_name != 'workflow_dispatch'
@@ -49,7 +50,7 @@ jobs:
         working-directory: workers/avatar-worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
           RELEASE_KIND: ${{ github.event_name }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |

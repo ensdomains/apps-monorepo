@@ -22,7 +22,12 @@ image hash, expected revision and five-minute expiry. Read `/meta` before signin
 a 409 requires a fresh signature. Legacy signatures are not accepted.
 
 Only active ENSv2 names can be edited. Owners may upload before resolver setup;
-delegates must simulate the exact corresponding text setter. A signer using a
+delegates require deployed resolver bytecode, valid ERC-165 support for a
+supported text interface, and must simulate the exact
+corresponding text setter. The same setter must reject a call from the zero
+address before a successful delegate simulation is accepted; resolvers with
+permissive no-op fallbacks are not sufficient authorization. Owners can still
+upload when their resolver is absent or unsupported. A signer using a
 distinct Manager HCA must pass the shared implementation/factory/current-owner
 verification. ENSv1, unregistered, expired and grace-period names are rejected.
 Manager retains its existing EOA route for delegated edits; HCA-only delegated
@@ -83,6 +88,9 @@ owner/HCA/delegate authorization, revocation, transfer, signature binding,
 stale/concurrent writes and failure cases. Rehearse rollback only on this new
 staging worker and verify reads again. Manager production opt-in is separate.
 
-The worker is excluded from blanket coverage until a suite is requested. Use
-existing relevant suites and focused runtime probes; do not add new test files
-by default. Local scripted-RPC probes do not establish live-chain authorization.
+`pnpm test:coverage` runs the worker authorization and upload-route checks with
+real EOA signature recovery and controlled chain responses, plus publication,
+concurrency and failure checks against local R2 in the Workers runtime. JPEG
+container tests live in `packages/shared-schema/src/profile-media/image.test.ts`.
+The worker participates in the normal CI coverage job. These local checks do
+not establish a deployed release or replace staging verification.
