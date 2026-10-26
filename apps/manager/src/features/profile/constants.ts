@@ -1,5 +1,10 @@
-// Match the legacy ENS app's public avatar and header upload URLs.
-export const AVATAR_UPLOAD_BASE_URL = 'https://euc.li/'
+import { envConfig } from '@/config'
+
+// Mainnet shares the legacy ENS app's public URLs; Sepolia stays on staging.
+export const AVATAR_UPLOAD_BASE_URL =
+  envConfig.network === 'mainnet'
+    ? 'https://euc.li/'
+    : 'https://avatar-upload-staging.ens-cf.workers.dev/'
 
 /**
  * Hardcoded reverse map from a known agent-registry contract (chain + address)

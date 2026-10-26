@@ -151,7 +151,8 @@ describe('profile image cache helpers', () => {
 
   it('does not add upload versions to external URLs', async () => {
     const queryClient = new QueryClient()
-    const imageUrl = 'https://euc.li.example.com/test.eth'
+    const imageUrl =
+      'https://avatar-upload-staging.ens-cf.workers.dev.example.com/test.eth'
 
     await refreshProfileImageCaches({
       images: [{ kind: 'avatar', imageUrl }],

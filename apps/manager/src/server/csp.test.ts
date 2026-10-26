@@ -72,7 +72,9 @@ describe('csp', () => {
 
       expect(connectSrc).toContain('https://*.ens.domains')
       expect(connectSrc).not.toContain('https://edge.ens.domains')
-      expect(connectSrc).toContain('https://euc.li')
+      expect(connectSrc).toContain(
+        'https://avatar-upload-staging.ens-cf.workers.dev',
+      )
     })
 
     it('allowlists Rhinestone and Intercom hosts', () => {

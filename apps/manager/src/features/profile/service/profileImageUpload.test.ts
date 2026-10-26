@@ -14,11 +14,13 @@ describe('profile image upload helpers', () => {
   it.each([
     {
       type: 'avatar',
-      imageUrl: 'https://euc.li/sepolia/vitalik.eth',
+      imageUrl:
+        'https://avatar-upload-staging.ens-cf.workers.dev/sepolia/vitalik.eth',
     },
     {
       type: 'header',
-      imageUrl: 'https://euc.li/sepolia/vitalik.eth/h',
+      imageUrl:
+        'https://avatar-upload-staging.ens-cf.workers.dev/sepolia/vitalik.eth/h',
     },
   ] as const)(
     'prepares a $type upload draft without signing or sending it',
