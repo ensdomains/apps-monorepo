@@ -59,4 +59,12 @@ describe('isKnownPublicResolver', () => {
     ).toBe(true)
     expect(isKnownPublicResolver(olderMainnetResolver, SEPOLIA)).toBe(false)
   })
+
+  it('recognizes PublicResolverV4 only on mainnet', () => {
+    const resolver = '0xF29100983E058B709F3D539b0c765937B804AC15'
+    expect(isKnownPublicResolver(resolver, supportedL1Chains.mainnet)).toBe(
+      true,
+    )
+    expect(isKnownPublicResolver(resolver, SEPOLIA)).toBe(false)
+  })
 })

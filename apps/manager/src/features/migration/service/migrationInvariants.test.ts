@@ -113,37 +113,62 @@ describe('resolveLockedMigrationResolvers', () => {
     return publicClient
   }
 
-  it('follows PublicResolverSet for a resolver missing from the static list', async () => {
-    const publicClient = chainClient(CUSTOM_RESOLVER, true)
+  it.each([CUSTOM_RESOLVER, V2_CONTRACTS.DefaultResolver])(
+    'follows PublicResolverSet for a certified resolver %s',
+    async (resolver) => {
+      const publicClient = chainClient(resolver, true)
 
+      const [name] = await resolveLockedMigrationResolvers({
+        publicClient,
+        names: [pinned(resolver)],
+      })
+
+      expect(name).toMatchObject({
+        v1ResolverAddress: resolver,
+        lockedResolverAddress: V2_CONTRACTS.DefaultResolver,
+      })
+      expect(
+        name && resolverFor(name, V2_CONTRACTS.DefaultResolver, null),
+      ).toBe(V2_CONTRACTS.DefaultResolver)
+      expect(vi.mocked(publicClient.multicall).mock.calls).toEqual([
+        [expect.objectContaining({ blockNumber: BLOCK })],
+        [expect.objectContaining({ blockNumber: BLOCK })],
+      ])
+    },
+  )
+
+  it.each([
+    ['locked-2ld', KNOWN_PUBLIC_RESOLVER],
+    ['locked-child', KNOWN_PUBLIC_RESOLVER],
+    ['locked-2ld', CUSTOM_RESOLVER],
+    ['locked-child', CUSTOM_RESOLVER],
+  ] as const)(
+    'blocks %s with an uncertified resolver %s',
+    async (tokenType, resolver) => {
+      await expect(
+        resolveLockedMigrationResolvers({
+          publicClient: chainClient(resolver, false),
+          names: [{ ...pinned(), tokenType }],
+        }),
+      ).rejects.toMatchObject({
+        name: 'MigrationContractInvariantError',
+        invariant: 'locked-resolver-record-control',
+        ensName: pinned().domain.name,
+        address: resolver,
+      })
+    },
+  )
+
+  it('preserves an empty resolver without requiring set membership', async () => {
     const [name] = await resolveLockedMigrationResolvers({
-      publicClient,
-      names: [pinned(CUSTOM_RESOLVER)],
-    })
-
-    expect(name).toMatchObject({
-      v1ResolverAddress: CUSTOM_RESOLVER,
-      lockedResolverAddress: V2_CONTRACTS.DefaultResolver,
-    })
-    expect(name && resolverFor(name, V2_CONTRACTS.DefaultResolver, null)).toBe(
-      V2_CONTRACTS.DefaultResolver,
-    )
-    expect(vi.mocked(publicClient.multicall).mock.calls).toEqual([
-      [expect.objectContaining({ blockNumber: BLOCK })],
-      [expect.objectContaining({ blockNumber: BLOCK })],
-    ])
-  })
-
-  it('keeps a resolver the set excludes, read live rather than from the indexer', async () => {
-    const [name] = await resolveLockedMigrationResolvers({
-      publicClient: chainClient(CUSTOM_RESOLVER, false),
+      publicClient: chainClient(ZERO_ADDRESS, false),
       names: [pinned(KNOWN_PUBLIC_RESOLVER)],
     })
 
     expect(name).toMatchObject({
-      v1ResolverAddress: CUSTOM_RESOLVER,
-      domain: { resolver: { address: CUSTOM_RESOLVER } },
-      lockedResolverAddress: CUSTOM_RESOLVER,
+      v1ResolverAddress: null,
+      domain: { resolver: null },
+      lockedResolverAddress: ZERO_ADDRESS,
     })
   })
 
@@ -182,18 +207,18 @@ describe('resolveLockedMigrationResolvers', () => {
   it('refuses a batch whose locked resolver changed since the plan', async () => {
     const planned = {
       ...pinned(CUSTOM_RESOLVER),
-      lockedResolverAddress: CUSTOM_RESOLVER,
+      lockedResolverAddress: V2_CONTRACTS.DefaultResolver,
     }
 
     await expect(
       assertLockedMigrationResolversUnchanged({
-        publicClient: chainClient(CUSTOM_RESOLVER, false),
+        publicClient: chainClient(CUSTOM_RESOLVER, true),
         names: [planned],
       }),
     ).resolves.toBeUndefined()
     await expect(
       assertLockedMigrationResolversUnchanged({
-        publicClient: chainClient(CUSTOM_RESOLVER, true),
+        publicClient: chainClient(ZERO_ADDRESS, false),
         names: [planned],
       }),
     ).rejects.toMatchObject({ invariant: 'public-resolver-set-membership' })

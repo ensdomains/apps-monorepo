@@ -19,6 +19,8 @@ const KNOWN_PUBLIC_RESOLVERS: Record<SupportedL1ChainId, readonly Address[]> = {
     // An earlier mainnet PublicResolver. Verified by code: this address has
     // bytecode on mainnet and none on Sepolia.
     '0x4976fb03C32e5B8cfe2b6cCB31c09Ba78EBaBa41',
+    // Mainnet PublicResolverV4.
+    '0xF29100983E058B709F3D539b0c765937B804AC15',
   ],
   [supportedL1Chains.sepolia]: [
     ensL1Contracts[supportedL1Chains.sepolia].ensPublicResolver.address,
@@ -29,7 +31,6 @@ const KNOWN_PUBLIC_RESOLVERS: Record<SupportedL1ChainId, readonly Address[]> = {
     '0xc30ba2bd21583605d815826c3807e8224e398e10',
     '0x1da022710dF5002339274AaDEe8D58218e9D6AB5',
     '0xDaaF96c344f63131acadD0Ea35170E7892d3dfBA',
-    '0xF29100983E058B709F3D539b0c765937B804AC15',
   ],
 }
 

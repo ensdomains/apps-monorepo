@@ -258,6 +258,10 @@ msgstr ""
 msgid "6-digit code"
 msgstr ""
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "A locked name's resolver cannot be safely replaced. Upgrading could make its records permanently uneditable. Deselect the name to continue."
+msgstr ""
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "A mint is already being prepared in another tab. Continue there or try again after it finishes."
 msgstr ""
@@ -3546,6 +3550,10 @@ msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Upgrade your names and bring their records across."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Upgrading {ensName} could make its records permanently uneditable because its resolver cannot be replaced. Deselect this name to continue."
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx

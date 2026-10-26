@@ -4,6 +4,7 @@ import {
   useAtomicBatchSupport,
 } from '@ens-apps/transaction-manager'
 import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
+import { useLingui } from '@lingui/react'
 import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
@@ -40,6 +41,7 @@ import {
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
+import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
 import { recordRecentlyMigratedNames } from '@/features/migration/service/recentlyMigratedNames'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
@@ -93,10 +95,26 @@ const PlainMigrationSuccessDialog = ({
   />
 )
 
+const LockedResolverFailureMessage = ({
+  cause,
+}: {
+  readonly cause: unknown
+}) => {
+  const { _ } = useLingui()
+  return _(
+    migrationPreparationMessage({
+      reason: 'locked-resolver-record-control',
+      cause,
+    }),
+  )
+}
+
 const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
       return <Trans>Upgrade details: {error.message}</Trans>
+    case 'locked-resolver-record-control':
+      return <LockedResolverFailureMessage cause={error.cause} />
     case 'parent-not-upgraded':
       return <Trans>Upgrade the parent name first, then its subnames.</Trans>
     case 'plan-changed':

@@ -253,6 +253,10 @@ msgstr "4 character premium name"
 msgid "6-digit code"
 msgstr "6-digit code"
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "A locked name's resolver cannot be safely replaced. Upgrading could make its records permanently uneditable. Deselect the name to continue."
+msgstr "A locked name's resolver cannot be safely replaced. Upgrading could make its records permanently uneditable. Deselect the name to continue."
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "A mint is already being prepared in another tab. Continue there or try again after it finishes."
 msgstr "A mint is already being prepared in another tab. Continue there or try again after it finishes."
@@ -3542,6 +3546,10 @@ msgstr "Upgrade your name to edit your new ENS profile."
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Upgrade your names and bring their records across."
 msgstr "Upgrade your names and bring their records across."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Upgrading {ensName} could make its records permanently uneditable because its resolver cannot be replaced. Deselect this name to continue."
+msgstr "Upgrading {ensName} could make its records permanently uneditable because its resolver cannot be replaced. Deselect this name to continue."
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Upgrading is optional. Your existing names keep working as they do today. Upgrading unlocks the latest features and lower fees, and you can do it whenever you're ready."

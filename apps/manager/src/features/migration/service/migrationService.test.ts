@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => ({
   reconcileAtomicMigrationBatch: vi.fn(),
   verifyAtomicMigrationBatch: vi.fn(),
   assertNoLiveSubregistryOverwrite: vi.fn(),
+  assertLockedMigrationResolversUnchanged: vi.fn(),
   assertLockedResolverReplacementRecordSafety: vi.fn(),
 }))
 
@@ -73,6 +74,8 @@ vi.mock('./migrationInvariants', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./migrationInvariants')>()),
   checkDeterministicMigrationResolverReadiness: mocks.checkResolverReadiness,
   assertNoLiveSubregistryOverwrite: mocks.assertNoLiveSubregistryOverwrite,
+  assertLockedMigrationResolversUnchanged:
+    mocks.assertLockedMigrationResolversUnchanged,
 }))
 
 vi.mock('./copyMigrationReadiness', () => ({
@@ -492,6 +495,7 @@ beforeEach(() => {
     }),
   )
   mocks.assertNoLiveSubregistryOverwrite.mockResolvedValue(undefined)
+  mocks.assertLockedMigrationResolversUnchanged.mockResolvedValue(undefined)
   mocks.assertLockedResolverReplacementRecordSafety.mockResolvedValue(undefined)
   mocks.checkResolverReadiness.mockResolvedValue({
     status: 'verified',
@@ -1542,6 +1546,38 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
+
+  it.each([false, true])(
+    'refuses unsafe locked resolvers before setup or cleanup prompts (existing approval: %s)',
+    async (existingApproval) => {
+      getCodeMock.mockResolvedValue('0x')
+      if (existingApproval) setHcaApprovalActive()
+      const basePlan = planFor()
+      const plan = {
+        ...basePlan,
+        hcaDeploymentRequired: true,
+        preflight: {
+          ...basePlan.preflight,
+          migrationCleanupApprovals: existingApproval ? [CLEANUP_APPROVAL] : [],
+        },
+      }
+      mocks.assertLockedMigrationResolversUnchanged.mockRejectedValueOnce(
+        Object.assign(new Error('unsafe resolver'), {
+          name: 'MigrationContractInvariantError',
+          invariant: 'locked-resolver-record-control',
+          ensName: 'alice.eth',
+        }),
+      )
+
+      await expect(runExecute({ plan })).rejects.toMatchObject({
+        invariant: 'locked-resolver-record-control',
+        ensName: 'alice.eth',
+      })
+      expect(mocks.startTransaction).not.toHaveBeenCalled()
+      expect(mocks.buildHcaDeploymentCall).not.toHaveBeenCalled()
+      expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    },
+  )
 
   it('re-checks locked resolver records before each batch, including resumed ones', async () => {
     mocks.assertLockedResolverReplacementRecordSafety.mockRejectedValueOnce(

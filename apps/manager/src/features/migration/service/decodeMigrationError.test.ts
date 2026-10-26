@@ -133,6 +133,19 @@ describe('decodeMigrationError — direct mappings', () => {
     })
   })
 
+  it('preserves the locked resolver refusal for the execution error message', () => {
+    const invariant = Object.assign(new Error(''), {
+      name: 'MigrationContractInvariantError',
+      invariant: 'locked-resolver-record-control',
+      ensName: 'locked.eth',
+    })
+    const outer = new Error('migration failed', { cause: invariant })
+    expect(decodeMigrationError(outer)).toEqual({
+      type: 'locked-resolver-record-control',
+      cause: invariant,
+    })
+  })
+
   it('maps cleanup failure to its dedicated recovery state', () => {
     const cleanup = Object.assign(new Error('cleanup rejected'), {
       name: 'MigrationCleanupError',

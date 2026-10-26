@@ -130,6 +130,24 @@ describe('migration preparation errors', () => {
     )
   })
 
+  it.each(['preflight', 'plan', 'recovery', 'fee'] as const)(
+    'explains the locked resolver risk for the affected name during %s',
+    (stage) => {
+      const cause = failure('MigrationContractInvariantError', {
+        invariant: 'locked-resolver-record-control',
+        ensName: 'locked.eth',
+      })
+      const wrapped = failure('OuterError', { cause })
+      expect(migrationPreparationFailure(wrapped, stage).reason).toBe(
+        'locked-resolver-record-control',
+      )
+      expect(message(wrapped, stage)).toBe(
+        'Upgrading locked.eth could make its records permanently uneditable because its resolver cannot be replaced. Deselect this name to continue.',
+      )
+      expect(message(wrapped, stage)).not.toMatch(/secret|deadbeef/)
+    },
+  )
+
   it('does not leak raw account errors or unknown RPC payloads', () => {
     expect(message('raw account RPC data', 'account')).toBe(
       "Couldn't prepare your account. Reconnect your wallet and try again.",

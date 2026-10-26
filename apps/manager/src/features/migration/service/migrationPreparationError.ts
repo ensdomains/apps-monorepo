@@ -15,6 +15,7 @@ type MigrationPreparationReason =
   | 'contract-unavailable'
   | 'contract-incompatible'
   | 'resolver-not-writable'
+  | 'locked-resolver-record-control'
   | 'records-unavailable'
   | 'records-not-replayable'
   | 'recovery-changed'
@@ -76,6 +77,14 @@ const reasonFor = (
     )
   )
     return 'parent-not-upgraded'
+  if (
+    chain.some(
+      (error) =>
+        error.name === 'MigrationContractInvariantError' &&
+        error.invariant === 'locked-resolver-record-control',
+    )
+  )
+    return 'locked-resolver-record-control'
   if (stage === 'fee') return 'fee-unavailable'
   if (
     chain.some(
@@ -183,6 +192,7 @@ const messages: Record<MigrationPreparationReason, MessageDescriptor> = {
   'contract-unavailable': msg`A required upgrade contract is unavailable. Please try again later.`,
   'contract-incompatible': msg`The upgrade contracts don't match this account. Please contact support.`,
   'resolver-not-writable': msg`Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again.`,
+  'locked-resolver-record-control': msg`A locked name's resolver cannot be safely replaced. Upgrading could make its records permanently uneditable. Deselect the name to continue.`,
   'records-unavailable': msg`Couldn't verify your name records. Please try again.`,
   'records-not-replayable': msg`Some locked names have records that this upgrade cannot preserve. Deselect those names to continue.`,
   'recovery-changed': msg`Couldn't restore your upgrade progress. Reload to check the latest state.`,
@@ -200,6 +210,17 @@ export const migrationPreparationMessage = (
   if (failure.cause instanceof SubnameRecreationError) {
     const details = failure.cause.message
     return msg`${details}`
+  }
+  if (failure.reason === 'locked-resolver-record-control') {
+    const error = causeChain(failure.cause).find(
+      (cause) =>
+        cause.name === 'MigrationContractInvariantError' &&
+        cause.invariant === 'locked-resolver-record-control',
+    )
+    if (typeof error?.ensName === 'string') {
+      const ensName = error.ensName
+      return msg`Upgrading ${ensName} could make its records permanently uneditable because its resolver cannot be replaced. Deselect this name to continue.`
+    }
   }
   return messages[failure.reason]
 }
