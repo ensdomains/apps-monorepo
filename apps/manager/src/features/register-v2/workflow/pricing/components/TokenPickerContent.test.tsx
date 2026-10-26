@@ -19,6 +19,7 @@ import {
 } from './TokenPickerContent'
 
 const containerMocks = vi.hoisted(() => ({
+  isBudgetPending: false,
   renderBudget: null as {
     total: bigint
     registrationPrice: bigint
@@ -129,6 +130,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
           isError: false,
           isLoading: false,
           isFetching: false,
+          isPending: containerMocks.isBudgetPending,
           isPlaceholderData: false,
         }
       }
@@ -251,6 +253,7 @@ const receiptRow = (label: string) => {
 describe('TokenPickerContent', () => {
   beforeEach(() => {
     containerMocks.renderBudget = null
+    containerMocks.isBudgetPending = false
     containerMocks.revalidatedBudget = null
     containerMocks.walletBalance = '100000000'
     containerMocks.availabilityError = null
@@ -367,6 +370,18 @@ describe('TokenPickerContent', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show 1 more' }))
     expect(methodNames().at(-1)).toBe('Select USDC on OP Sepolia')
     expect(screen.queryByText(/Not enough USDC/)).not.toBeInTheDocument()
+  })
+
+  it('holds the receipt while the quote waits on a paused retry', () => {
+    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+    containerMocks.walletBalance = '0'
+    containerMocks.isBudgetPending = true
+    renderContainer()
+
+    expect(
+      screen.getByRole('button', { name: 'Calculating total…' }),
+    ).toBeDisabled()
+    expect(screen.queryByText(/more needed/)).not.toBeInTheDocument()
   })
 
   it('needs no method when the account credit covers it all, bridging nothing', () => {

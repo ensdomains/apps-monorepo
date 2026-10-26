@@ -593,7 +593,9 @@ export const TokenPickerContent = () => {
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
       isQuoteStale={budgetQuery.isPlaceholderData}
-      isQuotingFunding={isBudgetRequired && budgetQuery.isFetching}
+      isQuotingFunding={
+        isBudgetRequired && (budgetQuery.isFetching || budgetQuery.isPending)
+      }
       l2Payment={l2Payment}
       label={label}
       nextMessage={nextMessage}
@@ -673,7 +675,9 @@ const getL2MethodItems = (
       isSelected: row === selectedL2,
       content: (
         <L2SourceListItem
-          isFeeEstimated={row.amountInRaw === undefined}
+          isFeeEstimated={
+            row.amountInRaw === undefined && estimatedAmountIn !== undefined
+          }
           isSelected={row === selectedL2}
           networkFee={
             funding && amountIn !== undefined
@@ -698,15 +702,19 @@ const isRequotingFunding = (isQuotingFunding: boolean, isQuoteStale: boolean) =>
 const isCheckoutSettling = (isBusy: boolean, isRequoting: boolean) =>
   isBusy || isRequoting
 
-/** Whether the dialog is waiting on the budget: the first quote, a refresh, or a re-key after the toggle. */
+/** Waiting on the budget: the first quote (fetching or paused), a refresh, or a re-key after the toggle. */
 const isBudgetQuoting = (
   isBudgetRequired: boolean,
   budgetQuery: {
     readonly isFetching: boolean
+    readonly isPending: boolean
     readonly isPlaceholderData: boolean
   },
 ) =>
-  isBudgetRequired && (budgetQuery.isFetching || budgetQuery.isPlaceholderData)
+  isBudgetRequired &&
+  (budgetQuery.isFetching ||
+    budgetQuery.isPending ||
+    budgetQuery.isPlaceholderData)
 
 export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   label,
@@ -1031,7 +1039,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           }
           isEstimate={!!funding || fundedAmount !== undefined}
           shortfall={
-            selectedL2
+            selectedL2 || receiptState.status !== 'ready'
               ? undefined
               : (getWalletShortfall(selectedShare, selectedCoinAmount) ??
                 revalidatedShortfall)
