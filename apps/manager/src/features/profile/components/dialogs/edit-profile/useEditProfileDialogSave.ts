@@ -30,6 +30,12 @@ import type {
   ResolverImport,
 } from '@/features/profile/service/resolverImport'
 import {
+  assertResolverRecordReview,
+  getResolverRecordWrites,
+  getResolverReplacementRecords,
+  type ResolverRecordReview,
+} from '@/features/profile/service/resolverReplacementRecords'
+import {
   assertProfileResolverState,
   resolverWriteStateQuery,
 } from '@/features/profile/service/resolverWriteAccess'
@@ -39,6 +45,7 @@ import {
   setupControlledResolver,
 } from '@/features/profile/service/setupControlledResolver'
 import type { ProfileRecords } from '@/features/profile/types'
+import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { hasOwnerWallet } from '@/lib/wallet'
@@ -52,6 +59,7 @@ import type {
 } from './EditProfileDialog.types'
 
 type DeferredEditProfileSave = {
+  readonly recordReview: ResolverRecordReview
   readonly currentRecords: ProfileRecords
   readonly options: Parameters<EditProfileSaveHandler>[1]
 }
@@ -237,6 +245,8 @@ export const useEditProfileDialogSave = ({
   >([])
   const [isFinalizingImageSave, setIsFinalizingImageSave] = useState(false)
   const [setupConfirmOpen, setSetupConfirmOpen] = useState(false)
+  const [setupRecordReview, setSetupRecordReview] =
+    useState<ResolverRecordReview | null>(null)
   const deferredSetupSaveRef = useRef<DeferredEditProfileSave | null>(null)
 
   const ownerAddress = account.ownerAddress as Address | null
@@ -327,6 +337,10 @@ export const useEditProfileDialogSave = ({
 
   const setupResolverMutation = useMutation({
     mutationFn: async ({ pendingSave }: SetupResolverMutationVariables) => {
+      if (!pendingSave.recordReview)
+        throw new Error(
+          'Review the exact records before replacing the resolver.',
+        )
       const resolver = await setupControlledResolver({
         name: pendingSave.name,
         signer: pendingSave.signer,
@@ -339,6 +353,7 @@ export const useEditProfileDialogSave = ({
         sourceResolver: pendingSave.sourceResolver,
         assertCurrentIdentity: pendingSave.assertCurrentIdentity,
         resolverImport,
+        recordReview: pendingSave.recordReview,
       })
 
       return {
@@ -437,9 +452,22 @@ export const useEditProfileDialogSave = ({
   )
 
   const getPendingRecordSave = useCallback(
-    (currentRecords: ProfileRecords) => {
+    (currentRecords: ProfileRecords, recordReview?: ResolverRecordReview) => {
       try {
         assertCurrentIdentity()
+        if (needsResolverSetup) {
+          if (!recordReview)
+            throw new Error(
+              'Review the exact records before replacing the resolver.',
+            )
+          assertResolverRecordReview(
+            getResolverReplacementRecords(
+              transformToServiceFormat(savedRecords),
+              transformToServiceFormat(currentRecords),
+            ),
+            recordReview,
+          )
+        }
       } catch (error) {
         toastSaveError(error)
         return null
@@ -465,6 +493,7 @@ export const useEditProfileDialogSave = ({
           walletClient: account.walletClient,
           sourceResolver: resolverCopySource?.resolver,
           assertCurrentIdentity,
+          recordReview,
         },
       })
 
@@ -494,6 +523,7 @@ export const useEditProfileDialogSave = ({
       ownerAddress,
       assertCurrentIdentity,
       resolverCopySource,
+      savedRecords,
     ],
   )
 
@@ -563,8 +593,12 @@ export const useEditProfileDialogSave = ({
     ],
   )
 
-  const executeSave = useCallback<EditProfileSaveHandler>(
-    (currentRecords, options) => {
+  const executeSave = useCallback(
+    (
+      currentRecords: ProfileRecords,
+      options: Parameters<EditProfileSaveHandler>[1],
+      recordReview?: ResolverRecordReview,
+    ) => {
       if (isResolverAccessPending) {
         toastSaveError(
           new Error(
@@ -596,7 +630,7 @@ export const useEditProfileDialogSave = ({
           return
         }
         const pendingRecordSave = options.hasRecordChanges
-          ? getPendingRecordSave(currentRecords)
+          ? getPendingRecordSave(currentRecords, recordReview)
           : null
 
         if (options.hasRecordChanges && !pendingRecordSave) {
@@ -649,26 +683,46 @@ export const useEditProfileDialogSave = ({
           return
         }
 
-        deferredSetupSaveRef.current = { currentRecords, options }
+        const replacementRecords = getResolverReplacementRecords(
+          transformToServiceFormat(savedRecords),
+          transformToServiceFormat(currentRecords),
+        )
+        const recordReview = {
+          editedKeys: [...options.editedRecordKeys],
+          writes: getResolverRecordWrites(replacementRecords),
+        }
+        try {
+          assertResolverRecordReview(replacementRecords, recordReview)
+        } catch (error) {
+          toastSaveError(error)
+          return
+        }
+        deferredSetupSaveRef.current = { currentRecords, options, recordReview }
+        setSetupRecordReview(recordReview)
         setSetupConfirmOpen(true)
         return
       }
 
       executeSave(currentRecords, options)
     },
-    [executeSave, isResolverAccessPending, needsResolverSetup],
+    [executeSave, isResolverAccessPending, needsResolverSetup, savedRecords],
   )
 
   const confirmSetupSave = useCallback(() => {
     const deferred = deferredSetupSaveRef.current
     deferredSetupSaveRef.current = null
     if (!deferred) return
-    executeSave(deferred.currentRecords, deferred.options)
+    executeSave(
+      deferred.currentRecords,
+      deferred.options,
+      deferred.recordReview,
+    )
   }, [executeSave])
 
   const handleSetupConfirmOpenChange = useCallback((nextOpen: boolean) => {
     setSetupConfirmOpen(nextOpen)
     if (!nextOpen) {
+      setSetupRecordReview(null)
       deferredSetupSaveRef.current = null
     }
   }, [])
@@ -709,5 +763,6 @@ export const useEditProfileDialogSave = ({
     resetPreparedImageSaveState,
     preparedImageUploads,
     setupConfirmOpen,
+    setupRecordWrites: setupRecordReview?.writes,
   }
 }

@@ -886,10 +886,6 @@ msgstr "Copy"
 msgid "Copy {0} address {1}"
 msgstr "Copy {0} address {1}"
 
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
-msgid "Copy & edit records"
-msgstr "Copy & edit records"
-
 #. placeholder {0}: address.value
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Copy address {0}"
@@ -1473,13 +1469,13 @@ msgstr "How do I show my .eth name instead of my address?"
 msgid "How it works"
 msgstr "How it works"
 
-#: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
-msgid "I have reviewed the imported records and understand that missing records will not be copied."
-msgstr "I have reviewed the imported records and understand that missing records will not be copied."
-
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "I Understand"
 msgstr "I Understand"
+
+#: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
+msgid "I understand that only records I edit will be saved. Existing records I do not edit will not be copied to the replacement resolver."
+msgstr "I understand that only records I edit will be saved. Existing records I do not edit will not be copied to the replacement resolver."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Idle"
@@ -2513,9 +2509,17 @@ msgstr "Renewing this name will add time to the <0>current owner's</0> registrat
 msgid "Replace & Continue"
 msgstr "Replace & Continue"
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
+msgid "Replace & edit records"
+msgstr "Replace & edit records"
+
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "Replace & Save"
 msgstr "Replace & Save"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
+msgid "Replace resolver"
+msgstr "Replace resolver"
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Resend in {resendWait}s"
@@ -2608,13 +2612,13 @@ msgstr "Review access granted during ENS name upgrades."
 msgid "Review custom records, content hash and contract ABI. Empty values remove a record."
 msgstr "Review custom records, content hash and contract ABI. Empty values remove a record."
 
-#: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
-msgid "Review imported records"
-msgstr "Review imported records"
-
 #: src/features/dashboard/components/TemporaryMigrationAccessNotice.tsx
 msgid "Review permissions"
 msgstr "Review permissions"
+
+#: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
+msgid "Review resolver replacement"
+msgstr "Review resolver replacement"
 
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
 #: src/features/bulk-renew/components/DurationPresets.tsx
@@ -3457,10 +3461,6 @@ msgstr "Upgrade permissions"
 msgid "Upgrade progress"
 msgstr "Upgrade progress"
 
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
-msgid "Upgrade resolver"
-msgstr "Upgrade resolver"
-
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Upgrade the parent name first, then its subnames."
 msgstr "Upgrade the parent name first, then its subnames."
@@ -3740,12 +3740,12 @@ msgid "We saw you're using Safe. Registering here needs a signature from a singl
 msgstr "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "We’ll prepare a resolver your wallet controls with the records you reviewed, verify them, then assign it to this name."
-msgstr "We’ll prepare a resolver your wallet controls with the records you reviewed, verify them, then assign it to this name."
+msgid "We’ll prepare a resolver your wallet controls with only the changes listed below. Existing records you did not edit will not be copied. Your current resolver stays active until the replacement is ready."
+msgstr "We’ll prepare a resolver your wallet controls with only the changes listed below. Existing records you did not edit will not be copied. Your current resolver stays active until the replacement is ready."
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "We’ll prepare a resolver your wallet controls with the records you reviewed, verify them, then switch this name to it. Missing records will not be copied. Your current resolver stays active until the replacement is ready."
-msgstr "We’ll prepare a resolver your wallet controls with the records you reviewed, verify them, then switch this name to it. Missing records will not be copied. Your current resolver stays active until the replacement is ready."
+msgid "We’ll prepare a resolver your wallet controls with the records listed below, verify them, then assign it to this name."
+msgstr "We’ll prepare a resolver your wallet controls with the records listed below, verify them, then assign it to this name."
 
 #: src/features/migration/components/success/CommemorativeNftDashboardSection.tsx
 msgid "Welcome to ENSv2"

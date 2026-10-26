@@ -5,6 +5,7 @@ import type {
   SaveRecordsParams,
   ServiceRecordSnapshot,
 } from '@/features/profile/service/profileRecordTransactions'
+import type { ResolverRecordReview } from '@/features/profile/service/resolverReplacementRecords'
 import { assertProfileResolverState } from '@/features/profile/service/resolverWriteAccess'
 import type { ProfileRecords } from '@/features/profile/types'
 import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
@@ -32,6 +33,7 @@ export interface SaveDeps {
   readonly needsResolverSetup?: boolean
   readonly sourceResolver?: Address
   readonly assertCurrentIdentity?: () => void
+  readonly recordReview?: ResolverRecordReview
 }
 
 interface PendingUpdateSave {
@@ -41,6 +43,7 @@ interface PendingUpdateSave {
 }
 
 interface PendingSetupSave {
+  readonly recordReview?: ResolverRecordReview
   readonly kind: 'setup'
   readonly currentRecords: ProfileRecords
   readonly before: ServiceRecordSnapshot
@@ -117,6 +120,7 @@ const getPendingSave = (
       publicClient: deps.publicClient,
       sourceResolver: deps.sourceResolver,
       assertCurrentIdentity: deps.assertCurrentIdentity,
+      recordReview: deps.recordReview,
     }
   }
 

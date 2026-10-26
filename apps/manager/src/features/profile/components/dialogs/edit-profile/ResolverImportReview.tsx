@@ -18,7 +18,7 @@ export const ResolverImportReview = ({
 }) => (
   <div className="shrink-0 space-y-2 border-ens-quartz-200 border-b bg-ens-quartz-50 px-4 py-3 text-sm md:px-6">
     <p className="font-medium">
-      <Trans>Review imported records</Trans>
+      <Trans>Review resolver replacement</Trans>
     </p>
     <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
       {warnings.map((warning) => (
@@ -56,8 +56,8 @@ export const ResolverImportReview = ({
       />
       <span>
         <Trans>
-          I have reviewed the imported records and understand that missing
-          records will not be copied.
+          I understand that only records I edit will be saved. Existing records
+          I do not edit will not be copied to the replacement resolver.
         </Trans>
       </span>
     </label>

@@ -432,7 +432,7 @@ export const importResolverRecords = async (
   if (source.kind !== 'copy')
     throw new Error('Initial resolver setup has no source records to import.')
   const warnings = [
-    'Only discovered and commonly used records can be imported. Review the recovered records and add any missing records before replacing the resolver.',
+    'Source records are shown for reference. Only records you edit will be saved to the replacement resolver.',
   ]
   const blockedKeys: string[] = []
   const inventory = await bigname.nameRecords(name, {

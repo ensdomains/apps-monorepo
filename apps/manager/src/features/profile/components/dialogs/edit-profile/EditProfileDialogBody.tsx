@@ -6,16 +6,13 @@ import { Tabs } from '@/components/ui/tabs'
 import { getActiveSignedProfileImageUploads } from '@/features/profile/service/profileImageCache'
 import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords } from '@/features/profile/types'
-import { createDiff } from '@/features/profile/utils/createDiff'
-import {
-  defaultProfileRecords,
-  normalizeProfileRecords,
-} from '@/features/profile/utils/transformRecords'
+import { defaultProfileRecords } from '@/features/profile/utils/transformRecords'
 import { sharedOptions, withForm } from '../../form'
 import type { EditProfileSaveHandler } from './EditProfileDialog.types'
 import { EditProfileDialogFooter } from './EditProfileDialogFooter'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs, editProfileTabs } from './EditProfileDialogTabs'
+import { prepareProfileRecordSave } from './prepareProfileRecordSave'
 import { ResolverImportReview } from './ResolverImportReview'
 import { getAddressValidationIssues } from './tabs/addresses/AddressesTab.helpers'
 import { getContactValidationIssues } from './tabs/contact/records'
@@ -104,19 +101,21 @@ export const EditProfileDialogBody = withForm({
         })}
       >
         {({ canSubmit, values }) => {
-          const submittedValues = normalizeProfileRecords(values)
-          const diff = createDiff(savedRecords, submittedValues)
-          const hasChanges = Object.keys(diff).length > 0
           const needsReplacement = Boolean(requiresResolverPreparation)
+          const {
+            previewValues,
+            validationValues,
+            editedRecordKeys,
+            hasChanges,
+            hasReplacementWrites,
+            savedAbi,
+          } = prepareProfileRecordSave(savedRecords, values, needsReplacement)
           const hasOtherValidationIssues =
-            getOtherRecordIssues(
-              values,
-              requiresResolverPreparation ? undefined : savedRecords.abi,
-            ).length > 0
+            getOtherRecordIssues(validationValues, savedAbi).length > 0
           const activePreparedImageUploads = getActiveSignedProfileImageUploads(
             {
               images: preparedImageUploads,
-              records: submittedValues,
+              records: previewValues,
             },
           )
           const activePreparedAvatarPreviewUrl =
@@ -125,20 +124,22 @@ export const EditProfileDialogBody = withForm({
             )?.dataURL
           const hasPreparedImageUpload = activePreparedImageUploads.length > 0
           const hasAddressValidationIssues =
-            getAddressValidationIssues(values.addresses).length > 0
+            getAddressValidationIssues(validationValues.addresses).length > 0
           const hasLinkValidationIssues =
             getLinkValidationIssues(values.links).length > 0 ||
             hasDraftLinkValidationIssues
           const hasContactValidationIssues =
-            getContactValidationIssues(values).length > 0
+            getContactValidationIssues(validationValues).length > 0
           const hasGeneralValidationIssues =
-            getGeneralValidationIssues(values).length > 0 ||
+            getGeneralValidationIssues(validationValues).length > 0 ||
             isDescriptionOverLimit(
-              values.base.description,
+              validationValues.base.description,
               savedRecords.base.description,
             )
           const canPreviewProfile =
-            (hasChanges || hasPreparedImageUpload || needsReplacement) &&
+            (needsReplacement
+              ? hasReplacementWrites
+              : hasChanges || hasPreparedImageUpload) &&
             canSubmit &&
             !isFinalizingImageSave &&
             !isResolverAccessPending &&
@@ -180,7 +181,8 @@ export const EditProfileDialogBody = withForm({
           const handlePreview = () => {
             if (!canPreviewProfile) return
 
-            onPreview(submittedValues, {
+            onPreview(previewValues, {
+              editedRecordKeys,
               hasRecordChanges: hasChanges || needsReplacement,
               preparedImageUploads: activePreparedImageUploads,
             })
@@ -249,9 +251,7 @@ export const EditProfileDialogBody = withForm({
                 onSocialChange={handleSocialChange}
                 owner={owner}
                 preparedImageUploads={activePreparedImageUploads}
-                savedAbi={
-                  requiresResolverPreparation ? undefined : savedRecords.abi
-                }
+                savedAbi={savedAbi}
                 savedDescription={savedRecords.base.description}
                 values={values}
               />
