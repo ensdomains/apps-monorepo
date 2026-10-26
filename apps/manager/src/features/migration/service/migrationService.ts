@@ -465,6 +465,7 @@ const submitRequest = async (
   description: string,
   onSubmitted?: (hash: Hex) => void,
 ): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> => {
+  ctx.submissionGate.signal.throwIfAborted()
   const txId = transactionManager.startTransaction(
     { type: 'custom', request },
     ctx.signer,
@@ -1929,6 +1930,7 @@ const executeRemainingAtomicBatches = async (params: {
           })
         : null
     assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
+    params.ctx.submissionGate.signal.throwIfAborted()
     persistPendingAtomicMigrationIntent(journalScope, intent)
     let submittedHash: Hex | undefined
     const onSubmitted = (nextHash: Hex) => {
