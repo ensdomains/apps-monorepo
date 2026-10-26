@@ -67,6 +67,8 @@ describe('getWalletShortfall', () => {
   it.each([
     { required: 1, balance: 0.7, expected: 0.3 },
     { required: 5.001, balance: 5, expected: 0.01 },
+    { required: 0.0412, balance: 0, expected: 0.04 },
+    { required: 5.8104, balance: 5.81, expected: 0.01 },
     { required: 5, balance: 5, expected: undefined },
     { required: undefined, balance: 0, expected: undefined },
   ])(

@@ -937,7 +937,7 @@ describe('TokenPickerContentBase L2 rows', () => {
       ),
     })
 
-    expect(screen.getByText('$0.02 more needed on Base Sepolia.')).toBeVisible()
+    expect(screen.getByText('$0.01 more needed on Base Sepolia.')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 

@@ -61,12 +61,16 @@ export const getPaymentReceiptState = ({
 const MICROS_PER_CENT = 10_000
 const toMicros = (usd: number) => Math.round(usd * 1_000_000)
 
-/** What the wallet is short by, in 6dp units rounded up to the cent, so float error never adds a cent. */
+/**
+ * What the wallet is short by, from the due amount as displayed, so the two agree.
+ * A gap hidden by that rounding still reads as one cent rather than nothing.
+ */
 export const getWalletShortfall = (
   required: number | undefined,
   balance: number | undefined,
 ) => {
   if (required === undefined || balance === undefined) return undefined
-  const micros = toMicros(required) - toMicros(balance)
-  return micros > 0 ? Math.ceil(micros / MICROS_PER_CENT) / 100 : undefined
+  const shownGap = toMicros(roundUsdToCents(required)) - toMicros(balance)
+  if (shownGap > 0) return Math.ceil(shownGap / MICROS_PER_CENT) / 100
+  return toMicros(required) > toMicros(balance) ? 0.01 : undefined
 }
