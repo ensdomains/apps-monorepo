@@ -13,6 +13,7 @@ import { originFromEnvUrl } from '@ens-apps/config'
 import { envConfig, l2Sources } from '@/config'
 
 import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
+import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and
 // connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.
@@ -69,6 +70,8 @@ const DEFAULT_CONNECT_HOSTS = [
   'https://api.etherscan.io',
   // ENS Cloudflare Workers (avatar upload, metadata, preview APIs).
   'https://*.ens-cf.workers.dev',
+  // The public avatar/header upload host shared with the legacy ENS app.
+  new URL(AVATAR_UPLOAD_BASE_URL).origin,
   // IPFS gateways for NFT-metadata JSON — profileNfts / profileImageRecord.
   // Images themselves are covered by `img-src https:`.
   'https://ipfs.io',

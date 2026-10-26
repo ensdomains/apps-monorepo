@@ -65,7 +65,7 @@ describe('profile createDiff utils', () => {
     })
 
     describe.each(['avatar', 'header'] as const)('%s uploads', (key) => {
-      const base = 'https://avatar-upload-staging.ens-cf.workers.dev/'
+      const base = 'https://euc.li/'
       const suffix = key === 'header' ? '/h' : ''
 
       it.each([

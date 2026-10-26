@@ -1,5 +1,5 @@
-export const AVATAR_UPLOAD_BASE_URL =
-  'https://avatar-upload-staging.ens-cf.workers.dev/'
+// Match the legacy ENS app's public avatar and header upload URLs.
+export const AVATAR_UPLOAD_BASE_URL = 'https://euc.li/'
 
 /**
  * Hardcoded reverse map from a known agent-registry contract (chain + address)
