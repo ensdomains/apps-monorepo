@@ -73,7 +73,9 @@ test.describe('ENS name registration', () => {
     // the parallel notification-settings region is waiting for a choice.
     await page.getByRole('button', { name: 'Set up later' }).click()
 
-    const successBanner = page.locator('p.text-ens-peridot-text-dark')
+    const successBanner = page
+      .getByRole('status')
+      .filter({ hasText: 'Registration Complete' })
     // Authorize the EOA registration transactions (deploy-resolver? → commit →
     // approve USDC → register) as they arrive while waiting for completion.
     // The completion banner is gated on the whole flow finishing, so once it
@@ -85,7 +87,7 @@ test.describe('ENS name registration', () => {
       () => registrationComplete,
     )
     await expectFlowSuccess(page, {
-      success: successBanner.filter({ hasText: 'Registration Complete' }),
+      success: successBanner,
       failureTitle: 'Registration Failed',
       timeout: 180_000,
     })

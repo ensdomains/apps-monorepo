@@ -122,7 +122,9 @@ async function reloadAndWatch(page: Page, monitor: ConsoleMonitor) {
 }
 
 async function expectRegistrationCompletes(page: Page, wallet: unknown) {
-  const successBanner = page.locator('p.text-ens-peridot-text-dark')
+  const successBanner = page
+    .getByRole('status')
+    .filter({ hasText: 'Registration Complete' })
 
   // The resumed run re-enters the parallel registering region from scratch.
   await dismissNotificationSettings(page)
@@ -134,7 +136,7 @@ async function expectRegistrationCompletes(page: Page, wallet: unknown) {
     () => registrationComplete,
   )
   await expectFlowSuccess(page, {
-    success: successBanner.filter({ hasText: 'Registration Complete' }),
+    success: successBanner,
     failureTitle: 'Registration Failed',
     timeout: 240_000,
   })

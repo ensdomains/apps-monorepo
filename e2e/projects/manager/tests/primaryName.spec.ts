@@ -93,9 +93,11 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
       () => registrationComplete,
     )
 
-    const successBanner = page.locator('p.text-ens-peridot-text-dark')
+    const successBanner = page
+      .getByRole('status')
+      .filter({ hasText: 'Registration Complete' })
     await expectFlowSuccess(page, {
-      success: successBanner.filter({ hasText: 'Registration Complete' }),
+      success: successBanner,
       failureTitle: 'Registration Failed',
       timeout: 240_000,
     })

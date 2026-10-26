@@ -40,7 +40,7 @@ describe('Telegram callback page', () => {
     const page = String(
       await telegramCallbackPage({ isSuccess: false, nonce: 'nonce', error }),
     )
-    expect(page).toContain('<h1>Connection not completed</h1>')
+    expect(page).toContain('<h1>Telegram not connected</h1>')
     expect(page).not.toContain('sign-in timed out')
     expect(page).not.toContain('private')
   })

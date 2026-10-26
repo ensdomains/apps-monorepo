@@ -229,7 +229,10 @@ const resolveRegistryPath = (
   context: ReadContext,
   path: AtomicMigrationRegistryPath,
 ): Promise<Address> => {
-  if (path.type === 'eth-registry-2ld') {
+  if (
+    path.type === 'eth-registry-2ld' ||
+    path.type === 'parent-wrapper-registry'
+  ) {
     return Promise.resolve(path.registry)
   }
   return resolveSubregistry(
