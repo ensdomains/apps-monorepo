@@ -13,6 +13,7 @@ import {
   type GraceRenewalMigrationGasEstimate,
 } from '../service/estimateGraceRenewalMigrationGas'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
+import type { MigrationResolverReview } from '../service/migrationResolverReview'
 import type { GraceRenewalQuoteState } from './useGraceRenewalQuote'
 import type { MigrationGasEstimateState } from './useMigrationGasEstimate'
 
@@ -24,6 +25,7 @@ export type GraceRenewalGasEstimateState =
     > & {
       readonly stepDescriptors: readonly MigrationWalletRequestDescriptor[]
       readonly droppedPubkeyNames: readonly string[]
+      readonly resolverReview: MigrationResolverReview
     })
 
 const graceRenewalGasEstimateQueryKey = createQueryKey<

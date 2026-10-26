@@ -522,6 +522,10 @@ msgstr "Auth address:"
 msgid "Authorizing payment and registering your name"
 msgstr "Authorizing payment and registering your name"
 
+#: src/features/migration/components/ResolverMigrationReview.tsx
+msgid "Automatic record copying is unavailable"
+msgstr "Automatic record copying is unavailable"
+
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Available"
 msgstr "Available"
@@ -2895,6 +2899,10 @@ msgstr "Share usage data to help us find problems and make ENS better for everyo
 msgid "Should I register now or wait?"
 msgstr "Should I register now or wait?"
 
+#: src/features/migration/components/ResolverMigrationReview.tsx
+msgid "Show affected names and resolvers"
+msgstr "Show affected names and resolvers"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
 msgid "Show fewer"
 msgstr "Show fewer"
@@ -2997,6 +3005,10 @@ msgstr "Some names are more in-demand than others."
 msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
 
+#: src/features/migration/components/ResolverMigrationReview.tsx
+msgid "Some records will stay on their current resolvers"
+msgstr "Some records will stay on their current resolvers"
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
 msgstr "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
@@ -3092,6 +3104,10 @@ msgstr "Submitting token approval"
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
 msgstr "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
+
+#: src/features/migration/components/ResolverMigrationReview.tsx
+msgid "Subnames keep this resolver"
+msgstr "Subnames keep this resolver"
 
 #: src/features/bulk-renew/components/NamesBreakdown.tsx
 msgid "Subtotal:"
@@ -3302,6 +3318,10 @@ msgstr "These names need to stay on ENSv1 for now"
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "These subnames can't be preserved yet"
 msgstr "These subnames can't be preserved yet"
+
+#: src/features/migration/components/ResolverMigrationReview.tsx
+msgid "These subnames will keep their existing resolvers. Their records will not be copied to a new resolver by this upgrade."
+msgstr "These subnames will keep their existing resolvers. Their records will not be copied to a new resolver by this upgrade."
 
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."
@@ -3764,6 +3784,10 @@ msgstr "Wallet funded successfully"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr "Wallet isn’t ready yet. Try again in a moment."
+
+#: src/features/migration/components/ResolverMigrationReview.tsx
+msgid "We can't automatically copy records from some of these resolvers. We can't verify that they will keep working or let you edit records after the upgrade. Review the affected names before continuing."
+msgstr "We can't automatically copy records from some of these resolvers. We can't verify that they will keep working or let you edit records after the upgrade. Review the affected names before continuing."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "We could not check whether your names and subnames can be safely upgraded. Try again before continuing."
