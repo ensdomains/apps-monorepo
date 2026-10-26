@@ -27,7 +27,6 @@ const isShortOfQuote = ({ option, amountInRaw }: L2PaymentRow) =>
 const isL2ShortOfFunds = (row: L2PaymentRow) =>
   row.option.status === 'insufficient' || isShortOfQuote(row)
 
-/** Why the selected L2 cannot pay, shown under the receipt; `required` is the wallet debit, in USD. */
 /** The highest quoted L2 charge, standing in for chains that cannot be quoted. */
 export const getEstimatedL2AmountIn = (rows: readonly L2PaymentRow[]) =>
   rows.reduce<bigint | undefined>(
