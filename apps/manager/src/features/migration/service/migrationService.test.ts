@@ -439,7 +439,7 @@ const runExecute = async (
     reconcileBeforeSubmit?: boolean
     onProgress?: (progress: MigrationProgress) => void
     canRecreateSubnames?: () => boolean
-    submissionSignal?: AbortSignal
+    readonly submissionSignal?: AbortSignal
   } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
@@ -700,14 +700,14 @@ describe('executeMigration HCA orchestration', () => {
     })
     const controller = new AbortController()
     const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
-    let persistedSecondBatchIntent = false
+    let hasPersistedSecondBatchIntent = false
     const unsubscribe = subscribeMigrationBatchJournal(() => {
       if (
         loadPendingAtomicMigrationIntents(scope).some(({ names }) =>
           names.includes(copy.domain.name),
         )
       ) {
-        persistedSecondBatchIntent = true
+        hasPersistedSecondBatchIntent = true
       }
     })
 
@@ -726,7 +726,7 @@ describe('executeMigration HCA orchestration', () => {
 
     const recovery = loadMigrationRecoverySnapshot(scope)
     expect(mocks.startTransaction).toHaveBeenCalledOnce()
-    expect(persistedSecondBatchIntent).toBe(false)
+    expect(hasPersistedSecondBatchIntent).toBe(false)
     expect(
       mocks.verifyAtomicMigrationBatch.mock.calls[0]?.[0].batch.names,
     ).toEqual([parent.domain.name])
@@ -734,6 +734,94 @@ describe('executeMigration HCA orchestration', () => {
       completedOperations: [{ name: parent.domain.name, action: 'migrate' }],
       remainingOperations: [{ name: copy.domain.name, action: 'copy' }],
     })
+  })
+
+  // Leaves the page once the final batch is in the wallet, so the batch lands
+  // but cleanup reaches a closed gate.
+  const leaveDuringFinalBatch = (): AbortController => {
+    const controller = new AbortController()
+    let nextTransaction = mocks.startTransaction.mock.calls.length
+    mocks.startTransaction.mockImplementation(
+      ({ request }: { readonly request: { readonly data: Hex } }) => {
+        if (request.data === OUTER_DATA) controller.abort()
+        return `tx-${nextTransaction++}`
+      },
+    )
+    return controller
+  }
+
+  const submittedKinds = () =>
+    mocks.startTransaction.mock.calls.map((call) => {
+      const [{ request }] = call as [
+        { readonly request: { readonly to: Address; readonly data: Hex } },
+      ]
+      if (request.data === OUTER_DATA) return 'batch'
+      if (request.to === V2_CONTRACTS.ETHRegistry) return 'cleanup'
+      return 'other'
+    })
+
+  it('finishes only cleanup on return after leaving during the final copy batch', async () => {
+    setHcaApprovalActive()
+    const parent = classifiedFor('alice')
+    const copy = copyClassifiedFor()
+    const basePlan = planFromClassified([parent, copy], [parent, copy])
+    const plan = {
+      ...basePlan,
+      preflight: {
+        ...basePlan.preflight,
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
+      },
+    }
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    const controller = leaveDuringFinalBatch()
+
+    await expect(
+      runExecute({ plan, submissionSignal: controller.signal }),
+    ).rejects.toBeDefined()
+    expect(submittedKinds()).toEqual(['batch'])
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([
+      expect.objectContaining({
+        operations: [
+          { name: parent.domain.name, action: 'migrate' },
+          { name: copy.domain.name, action: 'copy' },
+        ],
+      }),
+    ])
+
+    mocks.buildAtomicMigrationBatches.mockClear()
+    const { result } = await runExecute({ plan, reconcileBeforeSubmit: true })
+
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(submittedKinds()).toEqual(['batch', 'cleanup'])
+    expect(result).toMatchObject({ completed: 2, migrated: 1, copied: 1 })
+    expect(loadMigrationRecoverySnapshot(scope)).toBeNull()
+  })
+
+  it('leaves nothing to resubmit after leaving during a direct-only final batch', async () => {
+    setHcaApprovalActive()
+    const plan = {
+      ...planFor(),
+      preflight: {
+        ...planFor().preflight,
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
+      },
+    }
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    const controller = leaveDuringFinalBatch()
+
+    await expect(
+      runExecute({ plan, submissionSignal: controller.signal }),
+    ).rejects.toBeDefined()
+
+    // The temporary access stays for the permissions page to revoke; the
+    // journal holds no operation that /upgrade could submit again.
+    expect(submittedKinds()).toEqual(['batch'])
+    expect(mocks.verifyAtomicMigrationBatch).toHaveBeenCalledOnce()
+    expect(
+      loadMigrationRecoverySnapshot(scope)?.remainingOperations ?? [],
+    ).toEqual([])
+    expect(loadPendingAtomicMigrationIntents(scope)).toEqual([])
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([])
   })
 
   it('retains the final receipt through cleanup and resumes without duplicate registration', async () => {
