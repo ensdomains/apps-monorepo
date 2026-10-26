@@ -271,6 +271,7 @@ export const FixtureTokenPickerContent = ({
         </div>
       </div>
       <PaymentReceipt
+        hasExistingBalance={false}
         isEstimate={false}
         state={{
           status: 'ready',
@@ -375,6 +376,19 @@ export const PayFromL2: Story = {
   args: {
     ...InsufficientUSDC.args,
     l2Rows: FIXTURE_L2_ROWS,
+  },
+}
+
+export const PayFromL2NeedsEth: Story = {
+  args: {
+    ...InsufficientUSDC.args,
+    l2Rows: [
+      {
+        ...l2Row(baseSepolia, 400_000_000n, 'available', 352_012_573n),
+        isShortOfGas: true,
+      },
+      l2Row(optimismSepolia, 500_000_000n, 'available', 352_015_000n),
+    ],
   },
 }
 

@@ -386,11 +386,23 @@ describe('TokenPickerContent', () => {
     expect(containerMocks.l2QuoteKeys).toHaveLength(0)
   })
 
+  it('keeps loading, not claiming no funds, while L2 balances load', () => {
+    containerMocks.walletBalance = '0'
+    containerMocks.renderBudget = fiveUsdcBudget
+    containerMocks.l2Balances = undefined
+    renderContainer()
+
+    expect(screen.getByText('Loading balances…')).toBeVisible()
+    expect(
+      screen.queryByText(/do not have enough USDC/),
+    ).not.toBeInTheDocument()
+  })
+
   it('shows no L2 until the quote says whether it can pay', () => {
     containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
     renderContainer()
 
-    expect(screen.getByRole('button', { name: 'Select USDC' })).toBeVisible()
+    expect(screen.getByText('Loading balances…')).toBeVisible()
     expect(
       screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
     ).not.toBeInTheDocument()

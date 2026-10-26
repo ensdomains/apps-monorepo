@@ -1000,7 +1000,10 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
               isLoading:
                 isLoadingBalances ||
                 pricingLoading ||
-                (isQuotingFunding && !shownFunding),
+                (isQuotingFunding && !shownFunding) ||
+                !!l2Payment?.rows.some(
+                  ({ option }) => option.status === 'loading',
+                ),
               isFullyCovered,
               hasNoMethods:
                 showNetworkFeeDetails && paymentMethodItems.length === 0,
@@ -1047,6 +1050,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         </div>
 
         <PaymentReceipt
+          hasExistingBalance={(receiptFigures?.applied ?? 0) > 0}
           isEstimate={isEstimate}
           state={receiptState}
           totalLabel={totalLabel}

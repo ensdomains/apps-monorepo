@@ -66,15 +66,16 @@ export const PaymentReceipt = ({
   state,
   totalLabel,
   isEstimate,
+  hasExistingBalance,
 }: {
   readonly state: PaymentReceiptState
   /** The total's label when an existing balance is applied, e.g. "Registration total". */
   readonly totalLabel: ReactNode
   readonly isEstimate: boolean
+  /** From the latest figures, so a re-quote keeps the three-row layout. */
+  readonly hasExistingBalance: boolean
 }) => {
   const { t } = useLingui()
-  const hasExistingBalance =
-    state.status === 'ready' && state.figures.applied > 0
 
   return (
     <section
