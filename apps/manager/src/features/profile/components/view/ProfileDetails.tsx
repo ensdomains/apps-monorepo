@@ -10,8 +10,10 @@ import { formatProfileDetailDate } from './ProfileView.helpers'
 /**
  * Owner, registration, and expiry under the profile name.
  *
- * Each item stacks an 11px quartz-500 label over a 13px quartz-700 value.
+ * Each item stacks a 13px quartz-500 label over a 13px quartz-700 value.
  * Dates stay short sentence case ("Oct 23, 2026") at every width.
+ * The owner copy icon stays visible on touch and below xl; on desktop
+ * fine pointers it appears on hover or focus-within.
  */
 
 type ProfileDetailsProps = {
@@ -22,7 +24,7 @@ type ProfileDetailsProps = {
 }
 
 const detailLabelClassName =
-  'flex items-center gap-0.5 text-[11px] text-ens-quartz-500 leading-none'
+  'flex items-center gap-0.5 font-sans text-[13px] text-ens-quartz-500 leading-none'
 const detailValueClassName =
   'font-sans text-[13px] text-ens-quartz-700 leading-none tracking-[0.2px]'
 const detailIconClassName = 'ms-opsz-11 ms-wght-300 shrink-0'
@@ -42,7 +44,7 @@ const ProfileDetailCopyButton = ({ value }: { readonly value: string }) => {
   return (
     <button
       aria-label={t`Copy to clipboard`}
-      className="inline-flex size-[13px] shrink-0 items-center justify-center text-ens-quartz-500"
+      className="inline-flex size-[13px] shrink-0 items-center justify-center text-ens-quartz-500 xl:pointer-fine:opacity-0 xl:pointer-fine:group-hover:opacity-100 xl:pointer-fine:group-focus-within:opacity-100"
       onClick={() => copy(value)}
       title={t`Copy to clipboard`}
       type="button"
@@ -67,17 +69,12 @@ const ProfileDetail = ({
   readonly value: React.ReactNode
   readonly copyValue?: string
 }) => (
-  <div className="flex min-w-0 flex-col items-start gap-0.5">
+  <div className="group flex min-w-0 flex-col items-start gap-0.5">
     <div className={detailLabelClassName}>
       {icon}
       <span>{label}</span>
     </div>
-    <div
-      className={cn(
-        'flex min-w-0 max-w-full items-center gap-0.5 py-1',
-        copyValue && 'px-1',
-      )}
-    >
+    <div className={cn('flex min-w-0 max-w-full items-center gap-0.5 py-1')}>
       <span className={cn(detailValueClassName, 'min-w-0 truncate')}>
         {value}
       </span>
@@ -106,7 +103,7 @@ export const ProfileDetails = ({
   )
 
   return (
-    <div className="grid w-full grid-cols-1 gap-3 xl:flex xl:max-w-full xl:flex-wrap xl:items-start xl:gap-7 min-[375px]:grid-cols-3">
+    <div className="grid w-full grid-cols-1 gap-3 xl:max-w-full xl:flex-wrap xl:justify-start xl:gap-7 min-[375px]:flex min-[375px]:items-start min-[375px]:justify-between min-[375px]:gap-4">
       {owner ? (
         <ProfileDetail
           copyValue={owner}

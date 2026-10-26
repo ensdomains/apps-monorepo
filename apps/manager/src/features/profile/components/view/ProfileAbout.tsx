@@ -160,22 +160,40 @@ export const ProfileAbout = ({
             'grid w-full min-w-0',
             primaryName
               ? 'gap-3'
-              : 'gap-8 xl:grid-cols-[minmax(0,346.5px)_228px] xl:gap-3',
+              : 'gap-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:justify-between xl:gap-8',
           )}
         >
           <div className="min-w-0">
-            {primaryName ? (
-              <NamePill
-                className="bg-[var(--theme-color,var(--color-ens-lapis-500))] text-white"
-                label={primaryName}
-              />
-            ) : (
-              <h2 className="text-base text-ens-quartz-700 leading-normal">
-                <span className="block">
-                  {fullName || <Trans>Profile Description</Trans>}
-                </span>
-              </h2>
-            )}
+            <div className="flex items-start justify-between gap-3">
+              {primaryName ? (
+                <NamePill
+                  className="bg-[var(--theme-color,var(--color-ens-lapis-500))] text-white"
+                  label={primaryName}
+                />
+              ) : (
+                <h2 className="min-w-0 text-base text-ens-quartz-700 leading-normal">
+                  <span className="block">
+                    {fullName || <Trans>Profile Description</Trans>}
+                  </span>
+                </h2>
+              )}
+              {websiteHref ? (
+                <a
+                  className="mt-1 inline-flex max-w-[50%] shrink-0 items-center gap-1 font-sans text-(--theme-color) text-sm leading-normal hover:opacity-80 xl:hidden"
+                  href={websiteHref}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  <span className="min-w-0 truncate">
+                    {getDisplayHost(websiteHref)}
+                  </span>
+                  <MSymbol
+                    className="ms-opsz-20 ms-wght-300 shrink-0"
+                    symbol="arrow_outward"
+                  />
+                </a>
+              ) : null}
+            </div>
             {description ? (
               <ProfileDescription description={description} />
             ) : null}
@@ -186,7 +204,7 @@ export const ProfileAbout = ({
             ) : null}
             {websiteHref ? (
               <a
-                className="mt-1 inline-flex max-w-full items-center gap-1 font-mono text-(--theme-color) text-sm leading-normal hover:opacity-80"
+                className="mt-3 hidden max-w-full items-center gap-1 font-sans text-(--theme-color) text-sm leading-normal hover:opacity-80 xl:inline-flex"
                 href={websiteHref}
                 rel="noopener noreferrer"
                 target="_blank"
@@ -200,25 +218,36 @@ export const ProfileAbout = ({
             ) : null}
           </div>
           {primaryName ? null : (
-            <div className="grid min-w-0 grid-cols-3 gap-4 xl:flex xl:flex-col xl:justify-start xl:gap-1.5">
-              <AboutMetaItem
-                icon={
-                  <MSymbol
-                    className="ms-opsz-20 ms-wght-300"
-                    symbol="language"
+            <div
+              className={cn(
+                'flex min-w-0 items-start gap-4 xl:flex-col xl:items-start xl:gap-1.5 xl:justify-self-end',
+                location &&
+                  (timezone || language) &&
+                  'max-xl:flex-row-reverse max-xl:justify-between',
+              )}
+            >
+              {timezone || language ? (
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <AboutMetaItem
+                    icon={
+                      <MSymbol
+                        className="ms-opsz-20 ms-wght-300"
+                        symbol="language"
+                      />
+                    }
+                    value={timezone}
                   />
-                }
-                value={timezone}
-              />
-              <AboutMetaItem
-                icon={
-                  <MSymbol
-                    className="ms-opsz-20 ms-wght-300"
-                    symbol="translate"
+                  <AboutMetaItem
+                    icon={
+                      <MSymbol
+                        className="ms-opsz-20 ms-wght-300"
+                        symbol="translate"
+                      />
+                    }
+                    value={language}
                   />
-                }
-                value={language}
-              />
+                </div>
+              ) : null}
               <AboutMetaItem
                 icon={
                   <MSymbol
