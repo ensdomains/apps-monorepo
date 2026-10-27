@@ -3467,6 +3467,251 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
     ).toBe(zeroAddress.toLowerCase())
   })
 
+  /**
+   * Optional manager handover — #1559.
+   *
+   * Before #1559 an unwrapped `.eth` 2LD always moved with `reclaim` then
+   * `safeTransferFrom`: the sender had no way to hand over the token alone.
+   * The fix adds a "Transfer the manager role too" switch, on by default
+   * (F23/F28 above keep covering that default). Off, the plan is the single
+   * `safeTransferFrom` and the registry controller stays where it was until
+   * the new registrant reclaims it from the Ownership page.
+   *
+   * What these reach that the unit tests don't: the switch rendered for a real
+   * V1 subject resolved from chain, the one-transaction plan actually landing,
+   * the controller slot really staying put (a registry read, not a plan
+   * array), and the recovery the off-state warning promises — the recipient
+   * pressing "Reclaim manager" and taking the slot on chain.
+   */
+  test.describe('optional manager handover (#1559)', () => {
+    const managerSwitch = (page: Page) =>
+      page.locator('#transfer-option-transferManager')
+    const OFF_WARNING =
+      /The current manager keeps control of this name’s records/
+
+    /** Opens the transfer form for `name` with `recipient` filled in. */
+    const openForm = async (page: Page, name: string, recipient: Address) => {
+      await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+      await page.getByPlaceholder('ENS name or address').fill(recipient)
+      const transferButton = page.getByRole('button', { name: 'Transfer name' })
+      await expect(transferButton).toBeEnabled({ timeout: 60_000 })
+      return transferButton
+    }
+
+    test('offers the handover on by default for an unwrapped 2LD, warning when it is switched off', {
+      tag: ['@smoke'],
+    }, async ({ portalPage: page, wallet, accounts }) => {
+      test.setTimeout(180_000)
+      await connectWithHeadlessWallet(page, wallet)
+
+      const makeV1Name = createMakeV1Name({
+        userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+      })
+      const name = await makeV1Name({ label: 'v1-mgr-opt', type: 'unwrapped' })
+      await openForm(page, name, accounts.getAddress('user2'))
+
+      await expect(
+        managerSwitch(page),
+        'the manager handover must be offered as a choice for an unwrapped .eth 2LD',
+      ).toBeVisible({ timeout: 30_000 })
+      // On by default: the plan a sender gets without touching anything is
+      // the full handover it always was.
+      await expect(managerSwitch(page)).toHaveAttribute('aria-checked', 'true')
+      await expect(page.getByText(OFF_WARNING)).toHaveCount(0)
+
+      await managerSwitch(page).click()
+      await expect(managerSwitch(page)).toHaveAttribute('aria-checked', 'false')
+      await expect(
+        page.getByText(OFF_WARNING),
+        'switching it off must say who keeps control of the records',
+      ).toBeVisible()
+    })
+
+    test('with the handover off, moves only the registrant; the recipient then reclaims the manager', async ({
+      portalPage: page,
+      wallet,
+      accounts,
+      wallets,
+    }) => {
+      test.setTimeout(300_000)
+      await connectWithHeadlessWallet(page, wallet)
+
+      const owner = accounts.getAddress('user')
+      const recipient = accounts.getAddress('user2')
+      const makeV1Name = createMakeV1Name({
+        userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+      })
+      const name = await makeV1Name({ label: 'v1-mgr-off', type: 'unwrapped' })
+      const label = name.replace(/\.eth$/, '')
+
+      const transferButton = await openForm(page, name, recipient)
+      await expect(
+        managerSwitch(page),
+        'the manager handover must be optional',
+      ).toBeVisible({ timeout: 30_000 })
+      await managerSwitch(page).click()
+      await expect(managerSwitch(page)).toHaveAttribute('aria-checked', 'false')
+
+      // Watch for the step that must not run: driveTransactionsToSuccess only
+      // waits for the ids it is given, so a stray `reclaim` would go unseen.
+      const reclaimLine = new RegExp(
+        `Transaction ${transferTxId(name, 'reclaim').replace(/\./g, '\\.')}(--\\S+)? state:`,
+      )
+      let reclaimSeen = false
+      page.on('console', (msg) => {
+        if (reclaimLine.test(msg.text())) reclaimSeen = true
+      })
+
+      await transferButton.click()
+      await driveTransactionsToSuccess(page, wallet, [
+        transferTxId(name, 'transfer-erc721'),
+      ])
+
+      await expect
+        .poll(async () => (await readRegistrant(label)).toLowerCase(), {
+          message: 'the ERC-721 registrant must move to the recipient',
+          timeout: 90_000,
+        })
+        .toBe(recipient.toLowerCase())
+      expect(
+        (await readController(name)).toLowerCase(),
+        'with the handover off the registry controller must stay with the sender — a `reclaim` ran anyway',
+      ).toBe(owner.toLowerCase())
+      expect(reclaimSeen, 'no reclaim step may be planned').toBe(false)
+
+      // The recovery the off-state warning promises, end to end: the new
+      // registrant takes the manager role from the Ownership page.
+      await wallets.switchTo('user2')
+      await page.goto(`${PORTAL_APP_URL}/${name}/ownership`)
+      const reclaim = page.getByRole('button', { name: /Reclaim manager$/ })
+      await expect(
+        reclaim,
+        'the recipient must be offered the reclaim the warning sends them to',
+      ).toBeVisible({ timeout: 60_000 })
+      await reclaim.click()
+      await driveTransactionsToSuccess(page, wallet, [
+        `reclaim-manager-${name}`,
+      ])
+
+      await expect
+        .poll(async () => (await readController(name)).toLowerCase(), {
+          message: 'the recipient must end up holding the manager role',
+          timeout: 90_000,
+        })
+        .toBe(recipient.toLowerCase())
+    })
+
+    test('a registrant who does not manage the name can leave the third-party manager in place', async ({
+      portalPage: page,
+      wallet,
+      accounts,
+    }) => {
+      test.setTimeout(300_000)
+      await connectWithHeadlessWallet(page, wallet)
+
+      const otherManager = accounts.getAddress('user3')
+      const recipient = accounts.getAddress('user2')
+      const ownerKey = accounts.getPrivateKey('user')
+      const makeV1Name = createMakeV1Name({
+        userAccount: privateKeyToAccount(ownerKey),
+      })
+      const name = await makeV1Name({ label: 'v1-mgr-3p', type: 'unwrapped' })
+      const label = name.replace(/\.eth$/, '')
+
+      // F28's shape: the registrant kept, the controller handed to user3.
+      const hash = await getOwnerClient(ownerKey).sendTransaction({
+        to: V1_ENS_REGISTRY,
+        data: encodeFunctionData({
+          abi: parseAbi(['function setOwner(bytes32 node, address owner)']),
+          functionName: 'setOwner',
+          args: [namehash(name), otherManager],
+        }),
+      })
+      await publicClient.waitForTransactionReceipt({ hash })
+
+      const transferButton = await openForm(page, name, recipient)
+      const notice = page.getByText(/Another wallet \(.+\) manages this name/)
+      await expect(notice).toBeVisible({ timeout: 30_000 })
+      // The old notice promised the transfer always hands over both roles,
+      // which the switch below makes false.
+      await expect(
+        notice,
+        'the notice must not claim the transfer always moves the manager role',
+      ).not.toContainText(
+        'hands the recipient both the owner and manager roles',
+      )
+
+      // Record options are hidden from a non-controller, but the handover is
+      // the registrant's to make, so it must still be offered.
+      await expect(page.locator('#transfer-option-setEthAddress')).toHaveCount(
+        0,
+      )
+      await expect(
+        managerSwitch(page),
+        'a registrant who is not the manager must still be offered the handover',
+      ).toBeVisible({ timeout: 30_000 })
+      await managerSwitch(page).click()
+
+      await transferButton.click()
+      await driveTransactionsToSuccess(page, wallet, [
+        transferTxId(name, 'transfer-erc721'),
+      ])
+
+      await expect
+        .poll(async () => (await readRegistrant(label)).toLowerCase(), {
+          message: 'the registrant must move to the recipient',
+          timeout: 90_000,
+        })
+        .toBe(recipient.toLowerCase())
+      expect(
+        (await readController(name)).toLowerCase(),
+        'the third-party manager must be left exactly where it was',
+      ).toBe(otherManager.toLowerCase())
+    })
+
+    // The negatives are guards — the pre-fix build had no switch anywhere —
+    // pinning that it is scoped to `v1-registrar`: the other V1 shapes have no
+    // separate manager slot to hand over. The closing control is what fails
+    // pre-fix.
+    test('never offers the handover for a wrapped name or a registry subname', async ({
+      portalPage: page,
+      wallet,
+      accounts,
+    }) => {
+      test.setTimeout(240_000)
+      await connectWithHeadlessWallet(page, wallet)
+
+      const owner = accounts.getAddress('user')
+      const recipient = accounts.getAddress('user2')
+      const ownerAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+      const makeV1Name = createMakeV1Name({ userAccount: ownerAccount })
+
+      const wrapped = await makeV1Name({ label: 'v1-mgr-wr', type: 'wrapped' })
+      const parent = await makeV1Name({
+        label: 'v1-mgr-par',
+        type: 'unwrapped',
+      })
+      const subname = await makeV1RegistrySubname({
+        parentName: parent.replace(/\.eth$/, ''),
+        childLabel: 'sub',
+        ownerAddress: owner,
+        parentOwnerAccount: ownerAccount,
+      })
+
+      for (const name of [wrapped, subname]) {
+        await openForm(page, name, recipient)
+        await expect(
+          managerSwitch(page),
+          `${name} has no separate manager slot, so the handover must not be offered`,
+        ).toHaveCount(0)
+      }
+
+      // Control: the same wallet's unwrapped 2LD is offered it.
+      await openForm(page, parent, recipient)
+      await expect(managerSwitch(page)).toBeVisible({ timeout: 30_000 })
+    })
+  })
+
   test('lets the parent owner reassign an unwrapped V1 subname it does not hold', {
     tag: ['@scenario:F30'],
   }, async ({ portalPage: page, wallet, accounts }) => {

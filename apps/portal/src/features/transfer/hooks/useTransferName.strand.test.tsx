@@ -126,6 +126,7 @@ const options: TransferOptions = {
   detachResolver: false,
   detachRegistry: false,
   revokeRoles: false,
+  transferManager: false,
 }
 
 const renderTransfer = () => {
