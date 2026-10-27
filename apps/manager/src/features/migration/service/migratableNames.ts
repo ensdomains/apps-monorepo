@@ -28,10 +28,19 @@ export const isTransientSubnameBlock = (
 ): boolean =>
   reason === 'incomplete-inventory' || reason === 'unverified-source'
 
+// Classify the fixed reason only: the message embeds the name, so a name such
+// as label.eth would otherwise match /label/. Anything else is a failed read.
 const discoveryFailureReason = (
   error: unknown,
 ): SubnameMigrationBlockReason => {
-  const message = error instanceof Error ? error.message.toLowerCase() : ''
+  const message =
+    error instanceof Error &&
+    '_tag' in error &&
+    error._tag === 'SubnameRecreationError' &&
+    'detail' in error &&
+    typeof error.detail === 'string'
+      ? error.detail.toLowerCase()
+      : ''
   if (/fourth-level|deeper/.test(message)) return 'deeper-subnames'
   if (/too large|too many/.test(message)) return 'too-large'
   if (/label/.test(message)) return 'unknown-label'
