@@ -22,6 +22,7 @@ export const useDefaultMigrationSelection = ({
     ...eligible.map(({ domain }) => domain.name),
     ...gracePeriodNames.map(({ domain }) => domain.name),
   ]
+  const eligibleNames = new Set(eligible.map(({ domain }) => domain.name))
   const impact = useSubnameMigrationImpact({
     selectedNames: candidates,
     classified: eligible,
@@ -44,11 +45,14 @@ export const useDefaultMigrationSelection = ({
       (!shouldSkip &&
         impact.status === 'loading' &&
         checkedSelectionKey !== impact.selectionKey),
-    // A failed check can never opt a group in. The owner can still select it
-    // explicitly and use the existing impact review and final reread.
+    // Eligible parents already passed subname-preservation checks. Keep only
+    // affected grace names opt-in until renewal eligibility is checked.
+    // A failed impact check still cannot select any group automatically.
     excludedNames:
       impact.status === 'ready'
-        ? (impact.impact?.parents.map(({ name }) => name) ?? [])
+        ? (impact.impact?.parents
+            .filter(({ name }) => !eligibleNames.has(name))
+            .map(({ name }) => name) ?? [])
         : candidates,
   }
 }

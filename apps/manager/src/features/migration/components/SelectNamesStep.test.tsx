@@ -263,6 +263,9 @@ describe('SelectNamesStep', () => {
 
   it('enables upgrade for prepared subnames without an extra acknowledgement', async () => {
     const parent = makeName('sub1234.eth', 'unwrapped')
+    impactState.impact.parents = [
+      { name: parent.domain.name, affectedCount: 1 },
+    ]
     const child = {
       ...makeName('gm.sub1234.eth', 'registry-child', 'copy'),
       recreationRoot: parent.domain.name,
@@ -290,6 +293,7 @@ describe('SelectNamesStep', () => {
       onNext,
     })
     const button = getByRole('button', { name: 'Upgrade 10 names' })
+    expect(getByRole('checkbox', { name: parent.domain.name })).toBeChecked()
     expect(
       queryByRole('checkbox', {
         name: 'I have reviewed these owners, resolvers and snapshot timing.',
