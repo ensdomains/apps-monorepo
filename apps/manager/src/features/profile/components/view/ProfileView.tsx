@@ -219,13 +219,15 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               avatarUrl={avatarUrl}
               canEdit={canEditProfile}
               desktopActions={
-                <ProfileDesktopActions
-                  avatarUrl={avatarUrl}
-                  isOwner={resolvedIsOwner}
-                  name={name}
-                  renewalProtocol={ownerData?.protocol}
-                  url={getProfileUrl(name)}
-                />
+                canEditProfile || resolverCopySource ? undefined : (
+                  <ProfileDesktopActions
+                    avatarUrl={avatarUrl}
+                    isOwner={resolvedIsOwner}
+                    name={name}
+                    renewalProtocol={ownerData?.protocol}
+                    url={getProfileUrl(name)}
+                  />
+                )
               }
               displayExpiryDate={expiry.displayExpiryDate}
               name={name}

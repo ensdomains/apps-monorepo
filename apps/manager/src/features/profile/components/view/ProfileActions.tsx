@@ -104,11 +104,8 @@ export const ProfileActions = ({
         isInGrace={isInGrace}
         isUpgradeRequired={isUpgradeRequired}
         keepMounted
-        leftActions={
-          <div className={cn(profileBarActionsClassName, 'xl:hidden')}>
-            {barActions}
-          </div>
-        }
+        // Owned profiles keep favorite, share, and renew in this bar at every width.
+        leftActions={barActions}
         name={name}
         onUpdated={onUpdated}
         owner={owner}
@@ -150,7 +147,7 @@ export const ProfileActions = ({
           className={profileStickyBarClassName}
           ref={setBar}
         >
-          <div className={cn(editBottomBarContentClassName, 'justify-start')}>
+          <div className={cn(editBottomBarContentClassName, 'justify-center')}>
             <div className={profileBarActionsClassName}>{barActions}</div>
           </div>
         </nav>
