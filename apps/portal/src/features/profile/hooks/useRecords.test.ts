@@ -228,6 +228,35 @@ describe('inherited resolver batching', () => {
     expect(result._unsafeUnwrapErr()).toMatchObject({ cause: { status: 500 } })
   })
 
+  it('still fails when the only other record is an unset ABI', async () => {
+    const error = encodeErrorResult({
+      abi,
+      errorName: 'HttpError',
+      args: [500, 'Internal error'],
+    })
+    // ABI() answers (contentType, data); an unset one is (0, 0x).
+    const unsetAbi = encodeAbiParameters(
+      [{ type: 'uint256' }, { type: 'bytes' }],
+      [0n, '0x'],
+    )
+    mocks.readContract.mockResolvedValue(
+      encodeAbiParameters([{ type: 'bytes[]' }], [[error, unsetAbi]]),
+    )
+    mocks.resolveNameData.mockResolvedValue({
+      resolverAddress,
+      resolvedData: [
+        { success: false, returnData: error },
+        { success: true, returnData: unsetAbi },
+      ],
+    })
+    const result = await getRecords({
+      name: 'jesse.base.eth',
+      texts: ['description'],
+      abi: true,
+    })
+    expect(result._unsafeUnwrapErr()).toMatchObject({ cause: { status: 500 } })
+  })
+
   it('uses universal resolution when the resolver cannot handle multicall', async () => {
     mocks.readContract.mockRejectedValue(
       new BaseError('Unsupported multicall', {

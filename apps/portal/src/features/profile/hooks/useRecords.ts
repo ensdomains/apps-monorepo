@@ -15,12 +15,15 @@ import {
 import { fromPromise, fromThrowable, ok } from 'neverthrow'
 import {
   type Client,
+  decodeAbiParameters,
   decodeErrorResult,
   type Hex,
   HttpRequestError,
   parseAbi,
+  slice,
   type Transport,
   toFunctionSelector,
+  zeroAddress,
 } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isContractRevert } from '@/utils/errors/isContractRevert'
@@ -60,24 +63,52 @@ const checkGatewayError = (data: Hex) => {
 
 type RecordResult = { readonly success: boolean; readonly returnData: Hex }
 
-// An unset key answers with zeros (an empty string is its offset word then a
-// zero length), so it does not show that the name has any records.
-const hasValue = ({ success, returnData }: RecordResult) =>
-  success && !/^0x(0{62}20)?0*$/.test(returnData)
+const isEmptyBytes = (data: Hex) =>
+  decodeAbiParameters([{ type: 'bytes' }], data)[0] === '0x'
+
+// What an unset record decodes to, by the record call's selector.
+const isUnsetRecord: Readonly<Record<Hex, (data: Hex) => boolean>> = {
+  [toFunctionSelector('text(bytes32,string)')]: (data) =>
+    decodeAbiParameters([{ type: 'string' }], data)[0] === '',
+  [toFunctionSelector('addr(bytes32)')]: (data) =>
+    decodeAbiParameters([{ type: 'address' }], data)[0] === zeroAddress,
+  [toFunctionSelector('addr(bytes32,uint256)')]: isEmptyBytes,
+  [toFunctionSelector('contenthash(bytes32)')]: isEmptyBytes,
+  [toFunctionSelector('ABI(bytes32,uint256)')]: (data) =>
+    decodeAbiParameters([{ type: 'uint256' }, { type: 'bytes' }], data)[0] ===
+    0n,
+}
+
+const decodesAsUnset = fromThrowable(
+  (call: Hex, returnData: Hex) =>
+    isUnsetRecord[slice(call, 0, 4)]?.(returnData) ?? false,
+)
+
+// An unset record does not show that the name has any records.
+const hasValue = (
+  call: Hex | undefined,
+  { success, returnData }: RecordResult,
+) => success && !!call && !decodesAsUnset(call, returnData).unwrapOr(true)
 
 // A gateway error that left no records must not read as an empty profile, but
 // one that failed only some keys still leaves a viewable profile.
-const checkGatewayErrors = (items: readonly RecordResult[]) => {
-  if (items.some(hasValue)) return
+const checkGatewayErrors = (
+  calls: readonly Hex[],
+  items: readonly RecordResult[],
+) => {
+  if (items.some((item, index) => hasValue(calls[index], item))) return
   for (const item of items) checkGatewayError(item.returnData)
 }
 
-const toRecordResults = (values: readonly Hex[]): RecordResult[] => {
+const toRecordResults = (
+  calls: readonly Hex[],
+  values: readonly Hex[],
+): RecordResult[] => {
   const results = values.map((returnData) => ({
     success: returnData !== '0x' && (returnData.length - 2) % 64 === 0,
     returnData,
   }))
-  checkGatewayErrors(results)
+  checkGatewayErrors(calls, results)
   return results
 }
 
@@ -143,7 +174,7 @@ const resolveRecordData = async (
       })
       return {
         resolverAddress: resolver,
-        resolvedData: toRecordResults(values),
+        resolvedData: toRecordResults(parameters.data, values),
       }
     } catch (error) {
       // Unsupported calls and rejected batches use the UniversalResolver
@@ -152,8 +183,12 @@ const resolveRecordData = async (
     }
   }
   const result = await resolveNameData(client, parameters)
-  if (result && typeof result.resolvedData !== 'string')
-    checkGatewayErrors(result.resolvedData)
+  if (
+    result &&
+    typeof result.resolvedData !== 'string' &&
+    typeof parameters.data !== 'string'
+  )
+    checkGatewayErrors(parameters.data, result.resolvedData)
   return result
 }
 
