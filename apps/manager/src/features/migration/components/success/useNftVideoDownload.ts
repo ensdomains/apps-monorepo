@@ -64,5 +64,5 @@ export const useNftVideoDownload = (
     }
   }, [rendererUrl, t])
 
-  return { state, download, cancel, available: !!rendererUrl }
+  return { state, download, cancel, isAvailable: !!rendererUrl }
 }

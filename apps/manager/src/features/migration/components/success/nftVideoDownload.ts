@@ -1,3 +1,5 @@
+import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { match } from 'ts-pattern'
 import * as v from 'valibot'
 import { saveBlobToFile } from '../../commemorative-nft/assets'
 import { getRendererSandbox } from './rendererSandbox'
@@ -33,12 +35,13 @@ const videoMessageSchema = v.variant('status', [
   }),
 ])
 
-export class NftVideoDownloadError extends Error {
-  constructor(readonly reason: 'unsupported' | 'unavailable' | 'failed') {
-    super(`NFT video export ${reason}`)
-    this.name = 'NftVideoDownloadError'
-  }
-}
+type VideoDownloadErrorReason = 'unsupported' | 'unavailable' | 'failed'
+
+export class NftVideoDownloadError extends TaggedError(
+  'NftVideoDownloadError',
+)<{
+  reason: VideoDownloadErrorReason
+}> {}
 
 export const downloadNftVideo = (params: {
   readonly rendererUrl: string
@@ -66,7 +69,7 @@ export const downloadNftVideo = (params: {
     })
     frame.style.cssText =
       'position:fixed;left:-10000px;top:0;width:1080px;height:1440px;border:0;pointer-events:none'
-    let requested = false
+    let hasRequested = false
     let timeout: ReturnType<typeof setTimeout>
 
     const send = (status: string) => {
@@ -89,7 +92,7 @@ export const downloadNftVideo = (params: {
     const resetTimeout = () => {
       clearTimeout(timeout)
       timeout = setTimeout(
-        () => fail(new NftVideoDownloadError('unavailable')),
+        () => fail(new NftVideoDownloadError({ reason: 'unavailable' })),
         EXPORT_TIMEOUT_MS,
       )
     }
@@ -100,33 +103,33 @@ export const downloadNftVideo = (params: {
         { requestId: string }
       >,
     ) => {
-      if (!requested || message.requestId !== requestId) return
-      switch (message.status) {
-        case 'video-progress':
+      if (!hasRequested || message.requestId !== requestId) return
+      match(message)
+        .with({ status: 'video-progress' }, ({ progress }) => {
           resetTimeout()
-          params.onProgress(Math.round(message.progress * 100))
-          break
-        case 'video-complete':
+          params.onProgress(Math.round(progress * 100))
+        })
+        .with({ status: 'video-complete' }, ({ blob }) => {
           try {
-            saveBlobToFile(message.blob, 'ensv2-commemorative-nft.mp4')
+            saveBlobToFile(blob, 'ensv2-commemorative-nft.mp4')
             cleanup()
             resolve()
           } catch (error) {
             fail(error)
           }
-          break
-        case 'video-error':
-          fail(new NftVideoDownloadError(message.reason))
-          break
-      }
+        })
+        .with({ status: 'video-error' }, ({ reason }) => {
+          fail(new NftVideoDownloadError({ reason }))
+        })
+        .exhaustive()
     }
-    const requestExport = (supported: boolean) => {
-      if (requested) return
-      if (!supported) {
-        fail(new NftVideoDownloadError('unavailable'))
+    const requestExport = (isSupported: boolean) => {
+      if (hasRequested) return
+      if (!isSupported) {
+        fail(new NftVideoDownloadError({ reason: 'unavailable' }))
         return
       }
-      requested = true
+      hasRequested = true
       resetTimeout()
       send('export-video')
     }
@@ -141,7 +144,7 @@ export const downloadNftVideo = (params: {
         return
       }
       if (message.status === 'failed') {
-        fail(new NftVideoDownloadError('failed'))
+        fail(new NftVideoDownloadError({ reason: 'failed' }))
         return
       }
       requestExport(message.videoExport === true)
@@ -150,7 +153,8 @@ export const downloadNftVideo = (params: {
     window.addEventListener('message', onMessage)
     params.signal.addEventListener('abort', onAbort, { once: true })
     frame.onload = () => send('request')
-    frame.onerror = () => fail(new NftVideoDownloadError('unavailable'))
+    frame.onerror = () =>
+      fail(new NftVideoDownloadError({ reason: 'unavailable' }))
     resetTimeout()
     frame.src = url.toString()
     document.body.appendChild(frame)
