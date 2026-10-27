@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   readNameResolver: vi.fn(),
   hasV2NameEntry: vi.fn(),
   readContract: vi.fn(),
+  isOffchainName: vi.fn(),
   isExtendedResolver: false,
 }))
 
@@ -60,10 +61,15 @@ vi.mock('./changeResolver', () => {
     hasV2NameEntry: mocks.hasV2NameEntry,
   }
 })
+vi.mock('./resolverRecordCalls', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./resolverRecordCalls')>()),
+  isOffchainName: mocks.isOffchainName,
+}))
 vi.mock('../data/records', () => ({
   addressRecords: [{ coinType: 60 }, { coinType: 121 }, { coinType: 501 }],
   alwaysProbeAddressRecords: [],
   forceFetchRecords: { always: [], whenNotIndexed: [] },
+  offchainProfileRecords: { texts: ['description'], coins: [60] },
   staticTextRecords: ['avatar', 'theme'],
   textRecords: [],
 }))
@@ -173,6 +179,7 @@ describe('profile records', () => {
     mocks.readNameResolver.mockResolvedValue(resolverAddress)
     mocks.call.mockReset().mockImplementation(directRead)
     mocks.hasV2NameEntry.mockResolvedValue(true)
+    mocks.isOffchainName.mockResolvedValue(false)
     mocks.isExtendedResolver = false
   })
 
@@ -373,22 +380,42 @@ describe('profile records', () => {
     ).toHaveLength(4)
   })
 
-  it('reads the static keys for a name bigname has not indexed', async () => {
-    mocks.nameRecords.mockReturnValue(
-      errAsync(
-        new BignameError({
-          code: 'not_found',
-          status: 404,
-          message: 'missing',
-        }),
-      ),
-    )
-    mocks.resolveNameData.mockResolvedValue(null)
+  it.each([
+    { isOffchain: false, texts: ['avatar', 'theme', 'links'], coins: 3 },
+    // A CCIP-Read gateway rate-limits per read, so only the profile keys.
+    { isOffchain: true, texts: ['description'], coins: 1 },
+  ])(
+    'reads the default keys for a name bigname has not indexed (offchain: $isOffchain)',
+    async ({ isOffchain, texts, coins }) => {
+      mocks.nameRecords.mockReturnValue(
+        errAsync(
+          new BignameError({
+            code: 'not_found',
+            status: 404,
+            message: 'missing',
+          }),
+        ),
+      )
+      mocks.isOffchainName.mockResolvedValue(isOffchain)
+      mocks.resolveNameData.mockResolvedValue(null)
 
-    const result = await getProfileRecords('unregistered.eth')
+      const result = await getProfileRecords('unindexed.eth')
 
-    expect(result.isOk()).toBe(true)
-    expect(requestedTextKeys()).toEqual(['avatar', 'theme', 'links'])
+      expect(result.isOk()).toBe(true)
+      expect(requestedTextKeys()).toEqual(texts)
+      expect(
+        requestedCalls().filter((call) => call.functionName === 'addr'),
+      ).toHaveLength(coins)
+    },
+  )
+
+  it('fails rather than reporting an empty profile when every read fails', async () => {
+    // A rate-limited gateway answers each read with HttpError(429).
+    mocks.resolveNameData.mockResolvedValue({
+      resolverAddress,
+      resolvedData: profileResolution().resolvedData.map(() => emptyResult),
+    })
+    expect((await getProfileRecords('limited.base.eth')).isErr()).toBe(true)
   })
 
   it('returns no coins when the universal resolver has no result', async () => {

@@ -32,6 +32,8 @@ const DEFAULT_COINS = [
   coinNameToTypeMap.arb1,
   coinNameToTypeMap.op,
   coinNameToTypeMap.base,
+  coinNameToTypeMap.scr,
+  coinNameToTypeMap.linea,
   // Non-EVM
   coinNameToTypeMap.btc,
   coinNameToTypeMap.doge,
@@ -39,11 +41,20 @@ const DEFAULT_COINS = [
   coinNameToTypeMap.strk,
 ]
 
+// Includes every key NameProfileCard shows, so a page reads its records once:
+// a CCIP-Read gateway is asked per record and rate-limits per visitor.
 const DEFAULT_TEXTS = [
   'name',
   'description',
   'com.twitter',
   'org.telegram',
+  'com.discord',
+  'com.github',
+  'com.instagram',
+  'com.linkedin',
+  'xyz.farcaster',
+  'com.reddit',
+  'com.youtube',
   'header',
   'avatar',
 ]

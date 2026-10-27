@@ -1,3 +1,4 @@
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import type { GetEnsResolverErrorType } from '@wagmi/core'
@@ -25,6 +26,7 @@ import {
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
@@ -40,7 +42,7 @@ import {
   universalResolverAddress,
 } from '@/lib/constants/universalResolver'
 import { wagmiConfig } from '@/lib/wagmi'
-import { isRegistrable } from '@/utils/ens/tldHelpers'
+import { is2LD, isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/$name/resolver')({
@@ -369,6 +371,11 @@ function RouteComponent() {
   // A gasless DNS name has no registry entry by design, yet the
   // UniversalResolver still finds a resolver for it (by wildcard).
   const offchain = useDnsOffchainName({ name, owner: ownerQuery.data })
+  // So does an offchain (CCIP-Read) subname; its records show it exists.
+  const profileQuery = useQuery({
+    ...getProfileQueryOptions({ name }),
+    enabled: !is2LD(name),
+  })
 
   if (ownerQuery.error) {
     return (
@@ -394,6 +401,7 @@ function RouteComponent() {
     ownerQuery.isLoading ||
     resolverQuery.isLoading ||
     offchain.isLoading ||
+    profileQuery.isLoading ||
     (availabilityQuery.isLoading && isRegistrable(name))
   )
     return <LoadingMessage />
@@ -412,7 +420,9 @@ function RouteComponent() {
 
   if (
     availabilityQuery.data?.isAvailable ||
-    (!ownerQuery.data && !offchain.resolvedAddress)
+    (!ownerQuery.data &&
+      !offchain.resolvedAddress &&
+      !hasResolvedRecords(profileQuery.data?.records))
   )
     return (
       <NameNotRegisteredMessage

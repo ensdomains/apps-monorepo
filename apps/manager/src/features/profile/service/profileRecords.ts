@@ -17,15 +17,16 @@ import {
   getTextParameters,
 } from '@ensdomains/ensjs/utils'
 import { err, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
-import type { PublicClient } from 'viem'
+import type { Client, PublicClient, Transport } from 'viem'
 import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
-import { publicClient } from '@/lib/wagmi'
+import { publicClient, type sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import {
   addressRecords,
   alwaysProbeAddressRecords,
   forceFetchRecords,
+  offchainProfileRecords,
   staticTextRecords,
   textRecords,
 } from '../data/records'
@@ -38,6 +39,7 @@ import {
 } from './changeResolver'
 import { decodeCoinResult } from './decodeCoinRecord'
 import { readResolverRecords } from './resolverImport'
+import { isOffchainName } from './resolverRecordCalls'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
@@ -75,33 +77,53 @@ const isSupportedCoinType = (coinType: number): boolean =>
 
 const MAX_RESOLVER_SPLIT_DEPTH = 1
 
+const getRecordKeys = ResultFn(async function* (
+  client: Client<Transport, typeof sepoliaWithEns>,
+  name: string,
+) {
+  // A name bigname has not indexed has no indexed keys; the static ones still apply.
+  const inventory = yield* bigname
+    .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
+    .map(({ data }) => data.inventory)
+    // Viewing/editing commonly used fields remains possible while the index
+    // is unavailable. Resolver replacement performs a separate warned import.
+    .orElse(() => okAsync(undefined))
+  // The indexer never sees an offchain name's records, and probing every
+  // editable key would exhaust its gateway's rate limit.
+  if (
+    !inventory &&
+    (yield* fromPromise(
+      isOffchainName(client, name),
+      (error) => new GetProfileRecordsError({ cause: error }),
+    ))
+  )
+    return ok(offchainProfileRecords)
+
+  const recordKeys = parseKnownKeys(inventory?.known_keys ?? [])
+  return ok({
+    texts: unique([
+      ...staticTextRecords,
+      ...textRecords.map((record) => record.key),
+      ...forceFetchRecords.always,
+      ...forceFetchRecords.whenNotIndexed,
+      // Newly saved links must be readable before the indexer discovers the key.
+      'links',
+      ...recordKeys.texts,
+    ]),
+    coins: unique([
+      ...alwaysProbeAddressRecords.map(Number),
+      ...addressRecords.map((record) => record.coinType),
+      ...recordKeys.coins,
+    ]).filter(isSupportedCoinType),
+  })
+})
+
 export const getProfileRecords = ResultFn(async function* (name: string) {
   const debugProfile = getDebugProfileRecords(name)
   if (debugProfile) return ok(debugProfile)
 
   const client = yield* safeGetClient()
-  // A name bigname has not indexed has no indexed keys; the static ones still apply.
-  const recordKeys = yield* bigname
-    .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
-    .map(({ data }) => parseKnownKeys(data.inventory?.known_keys ?? []))
-    // Viewing/editing commonly used fields remains possible while the index
-    // is unavailable. Resolver replacement performs a separate warned import.
-    .orElse(() => okAsync(parseKnownKeys([])))
-
-  const texts = unique([
-    ...staticTextRecords,
-    ...textRecords.map((record) => record.key),
-    ...forceFetchRecords.always,
-    ...forceFetchRecords.whenNotIndexed,
-    // Newly saved links must be readable before the indexer discovers the key.
-    'links',
-    ...recordKeys.texts,
-  ])
-  const coins = unique([
-    ...alwaysProbeAddressRecords.map(Number),
-    ...addressRecords.map((record) => record.coinType),
-    ...recordKeys.coins,
-  ]).filter(isSupportedCoinType)
+  const { texts, coins } = yield* getRecordKeys(client, name)
 
   const v2Source = yield* fromPromise(
     (async () => {
@@ -194,6 +216,10 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     resolveData(data),
     (error) => new GetProfileRecordsError({ cause: error }),
   )
+  // A rate-limited gateway fails every read; that is not an empty profile.
+  const failedRead = resolution?.resolvedData.find((item) => !item.success)
+  if (failedRead && resolution?.resolvedData.every((item) => !item.success))
+    return err(new GetProfileRecordsError({ cause: failedRead.returnData }))
 
   const rawResult = (index: number) => {
     const item = resolution?.resolvedData[index]
@@ -250,5 +276,8 @@ export type ProfileRecordsResult = {
 export const profileRecordsQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'get_records', { name }),
+    // Shared by the loader and the mounted view; refetching straight away
+    // would spend a CCIP-Read gateway's rate limit twice per visit.
+    staleTime: 60_000,
     queryFn: ({ queryKey: [{ name }] }) => getProfileRecords(name),
   })
