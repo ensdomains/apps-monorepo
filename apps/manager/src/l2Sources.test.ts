@@ -12,7 +12,11 @@ import { getL2Sources } from './l2Sources'
  * or a `base-sepolia` slug in the mainnet table reads as a zero balance
  * forever.
  */
-const EXPECTED = {
+type ExpectedSource = Readonly<{ usdc: string; drpc: DrpcNetwork }>
+
+const EXPECTED: Readonly<
+  Record<'mainnet' | 'sepolia', Readonly<Record<string, ExpectedSource>>>
+> = {
   mainnet: {
     '8453': {
       usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
@@ -41,10 +45,7 @@ const EXPECTED = {
       drpc: 'optimism-sepolia',
     },
   },
-} as const satisfies Record<
-  'mainnet' | 'sepolia',
-  Record<string, { usdc: string; drpc: DrpcNetwork }>
->
+}
 
 describe('getL2Sources', () => {
   for (const network of ['mainnet', 'sepolia'] as const) {
