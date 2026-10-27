@@ -1,4 +1,7 @@
-import { isLegacyContentPublicResolver } from '@ens-apps/migration'
+import {
+  isAddressOnlyResolver,
+  isLegacyContentPublicResolver,
+} from '@ens-apps/migration'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { type Address, type Hex, zeroAddress, zeroHash } from 'viem'
 import { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
@@ -90,12 +93,13 @@ const buildSupplementalReads = (
   chainId?: number,
 ): { calls: ResolverCall[]; contracts: MulticallContract[] } => {
   // Old content is untyped (IPFS or Swarm); pubkeys are not in the inventory.
+  const addressOnly = isAddressOnlyResolver(name.v1ResolverAddress, chainId)
   const kinds: SupplementalRecordKind[] = [
-    ...(hasName ? ['name' as const] : []),
+    ...(hasName || addressOnly ? ['name' as const] : []),
     ...(isLegacyContentPublicResolver(name.v1ResolverAddress, chainId)
       ? ['legacy-content' as const]
       : []),
-    'pubkey',
+    ...(addressOnly ? [] : ['pubkey' as const]),
   ]
   return {
     calls: kinds.map((kind) => ({ name, kind })),

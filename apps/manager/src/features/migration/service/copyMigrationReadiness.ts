@@ -1,4 +1,7 @@
-import { BASE_REGISTRAR_ABI, isKnownPublicResolver } from '@ens-apps/migration'
+import {
+  BASE_REGISTRAR_ABI,
+  isSupportedRecordResolver,
+} from '@ens-apps/migration'
 import { ROLES_ALL } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
@@ -244,7 +247,7 @@ const assertSourceResolverFresh = async (params: {
   if (
     params.requireSupportedResolver &&
     !isAddressEqual(resolver, zeroAddress) &&
-    !isKnownPublicResolver(resolver, envConfig.chain.id)
+    !isSupportedRecordResolver(resolver, envConfig.chain.id)
   ) {
     throw sourceError(
       name,

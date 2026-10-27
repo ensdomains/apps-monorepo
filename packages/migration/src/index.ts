@@ -1,7 +1,9 @@
 export { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from './contracts/abis'
 export {
+  isAddressOnlyResolver,
   isKnownPublicResolver,
   isLegacyContentPublicResolver,
+  isSupportedRecordResolver,
 } from './contracts/knownResolvers'
 export {
   type ClassifiedName,

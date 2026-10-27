@@ -9,6 +9,23 @@ const LEGACY_CONTENT_RESOLVERS = [
   '0x1da022710dF5002339274AaDEe8D58218e9D6AB5',
 ] as const
 
+// Verified, immutable resolvers whose entire profile is addr(node) and
+// name(node). Read both directly; they need no indexed key inventory.
+const ADDRESS_ONLY_RESOLVERS = [
+  '0xda1756bb923af5d1a05e277cb1e54f1d0a127890', // Argent ENSResolver
+  '0xf58d55f06bb92f083e78bb5063a2dd3544f9b6a3', // Loopring BaseENSResolver
+] as const
+
+export const isAddressOnlyResolver = (
+  address: string | null,
+  chainId: number | undefined,
+): boolean =>
+  !!address &&
+  chainId === supportedL1Chains.mainnet &&
+  ADDRESS_ONLY_RESOLVERS.some((known) =>
+    isAddressEqual(known, address as Address),
+  )
+
 /**
  * ENS public resolver deployments, including the historical generations in
  * ens-app-v3/src/constants/resolverAddressData.ts and our Sepolia fixtures.
@@ -56,3 +73,11 @@ export const isKnownPublicResolver = (
     isAddressEqual(known, address as Address),
   )
 }
+
+/** Copy support does not certify a resolver for locked-name migration. */
+export const isSupportedRecordResolver = (
+  address: string | null,
+  chainId: SupportedL1ChainId,
+): boolean =>
+  isKnownPublicResolver(address, chainId) ||
+  isAddressOnlyResolver(address, chainId)

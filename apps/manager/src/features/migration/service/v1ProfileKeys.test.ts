@@ -5,11 +5,13 @@ import type { PublicClient } from 'viem'
 import { namehash, zeroHash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { resolverRecords, events } = vi.hoisted(() => ({
+const { resolverRecords, events, chain } = vi.hoisted(() => ({
   resolverRecords: vi.fn(),
   events: vi.fn(),
+  chain: { id: 11155111 },
 }))
 vi.mock('@/lib/bigname', () => ({ bigname: { resolverRecords, events } }))
+vi.mock('@/config', () => ({ envConfig: { chain } }))
 
 import { fetchV1Profiles, ProfileFetchError } from './fetchV1Profiles'
 import { getV1ProfileKeys } from './v1ProfileKeys'
@@ -45,19 +47,74 @@ const answer = (data: Partial<NameRecords> = {}) =>
     meta: { as_of: {} },
   })
 
-const recordEvents = (keys: readonly string[], nextCursor: string | null) =>
+const recordEvents = (
+  keys: readonly string[],
+  nextCursor: string | null,
+  meta: Record<string, unknown> = {},
+) =>
   okAsync({
     data: keys.map((key) => ({ type: 'record', data: { key } })),
     page: { next_cursor: nextCursor },
-    meta: {},
+    meta,
   })
 
 describe('getV1ProfileKeys', () => {
   beforeEach(() => {
+    chain.id = 11155111
     resolverRecords.mockReset()
     events.mockReset()
     events.mockReturnValue(recordEvents([], null))
   })
+
+  it.each([
+    '0xda1756bb923af5d1a05e277cb1e54f1d0a127890',
+    '0xf58d55f06bb92f083e78bb5063a2dd3544f9b6a3',
+  ] as const)(
+    'copies ETH but refuses a stored name on address-only resolver %s without an indexer',
+    async (resolver) => {
+      chain.id = 1
+      resolverRecords.mockReturnValue(
+        errAsync(new BignameError({ code: 'overloaded', message: 'offline' })),
+      )
+      events.mockReturnValue(
+        errAsync(new BignameError({ code: 'overloaded', message: 'offline' })),
+      )
+      let storedName = ''
+      const publicClient = {
+        chain,
+        multicall: vi.fn(async () => [
+          {
+            status: 'success',
+            result: '0x0000000000000000000000000000000000001234',
+          },
+          { status: 'success', result: storedName },
+        ]),
+      } as unknown as PublicClient
+      const names = [
+        {
+          name: 'alice.eth',
+          nodeHex: namehash('alice.eth'),
+          v1ResolverAddress: resolver,
+        },
+      ]
+
+      const profiles = await fetchV1Profiles({ names, publicClient })
+
+      expect(profiles.get(namehash('alice.eth'))?.addresses).toEqual([
+        { coinType: 60n, value: '0x0000000000000000000000000000000000001234' },
+      ])
+      expect(resolverRecords).not.toHaveBeenCalled()
+      expect(events).not.toHaveBeenCalled()
+      storedName = 'keep-me.eth'
+      await expect(
+        fetchV1Profiles({ names, publicClient }),
+      ).rejects.toMatchObject({
+        name: 'UnsupportedResolverRecordsError',
+        ensName: 'alice.eth',
+        recordType: 'name',
+      })
+    },
+  )
 
   it('reads known and unset keys from the source resolver', async () => {
     resolverRecords.mockReturnValue(
@@ -127,6 +184,48 @@ describe('getV1ProfileKeys', () => {
     )
     expect(keys?.interfaceIds).toEqual(['0x01ffc9a7', '0x12345678'])
     expect(keys?.hasName).toBe(true)
+  })
+
+  // Bigname's ENSv1 decoder emits dns:<resource>:<wire-name> for both
+  // DNSRecordChanged and DNSRecordDeleted; DNSZonehashChanged uses dns:zonehash.
+  it.each(['dns:1:0x03666f6f00', 'dns:zonehash'])(
+    'refuses a later history page containing %s and identifies the name',
+    async (key) => {
+      resolverRecords.mockReturnValue(answer())
+      events
+        .mockReturnValueOnce(recordEvents(['text:url'], 'page-2'))
+        .mockReturnValueOnce(recordEvents([key], null))
+
+      const result = await getV1ProfileKeys([source('dns-owner.eth')])
+
+      expect(result._unsafeUnwrapErr().cause).toMatchObject({
+        name: 'UnsupportedResolverRecordsError',
+        ensName: 'dns-owner.eth',
+        recordType: 'dns',
+      })
+      expect(events).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ cursor: 'page-2' }),
+        expect.anything(),
+      )
+    },
+  )
+
+  it.each([
+    { completeness: 'partial' },
+    { as_of_completeness: { '11155111': { completeness: 'partial' } } },
+  ])('refuses explicitly incomplete history: %j', async (meta) => {
+    resolverRecords.mockReturnValue(answer())
+    events.mockReturnValue(recordEvents([], null, meta))
+
+    const result = await getV1ProfileKeys([source('alice.eth')])
+
+    expect(result._unsafeUnwrapErr().cause).toMatchObject({
+      code: 'unsupported',
+      message:
+        'Incomplete resolver record history cannot establish safe migration',
+      details: { ensName: 'alice.eth' },
+    })
   })
 
   it('counts a contenthash the answer serves even when the inventory omits it', async () => {

@@ -74,6 +74,17 @@ const estimate: GraceRenewalMigrationGasEstimate = {
     },
   ],
   droppedPubkeyNames: [],
+  resolverReview: {
+    selectionNames: [graceDomain.name, activeDomain.name],
+    groups: [
+      {
+        resolver: '0x0000000000000000000000000000000000001234',
+        kind: 'unsupported',
+        isKnown: false,
+        names: [graceDomain.name],
+      },
+    ],
+  },
 }
 type Params = Parameters<typeof useGraceRenewalGasEstimate>[0]
 const params: Params = {
@@ -210,10 +221,18 @@ describe('useGraceRenewalGasEstimate', () => {
 
   it('retains the estimate and wallet requests during background refetching', () => {
     mocks.query.mockReturnValue({ isFetching: true, data: estimate })
-    const { result, unmount } = renderHook(() =>
+    const { result, rerender, unmount } = renderHook(() =>
       useGraceRenewalGasEstimate(params),
     )
 
+    expect(result.current).toEqual({
+      status: 'ready',
+      ...estimate,
+      resolverReview: null,
+      formattedEth: '0.000321',
+    })
+    mocks.query.mockReturnValue({ isFetching: false, data: estimate })
+    rerender()
     expect(result.current).toEqual({
       status: 'ready',
       ...estimate,
@@ -257,6 +276,7 @@ describe('useGraceRenewalGasEstimate', () => {
     expect(result.current).toEqual({
       status: 'ready',
       ...estimate,
+      resolverReview: null,
       formattedEth: '0.000321',
     })
     unmount()
@@ -375,6 +395,7 @@ describe('useGraceRenewalGasEstimate', () => {
       transactionCount: estimate.transactionCount,
       stepDescriptors: estimate.stepDescriptors,
       droppedPubkeyNames: estimate.droppedPubkeyNames,
+      resolverReview: estimate.resolverReview,
       feeWei: 123_400_000n,
       formattedEth: '0.0000000001234',
     })

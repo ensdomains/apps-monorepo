@@ -5,6 +5,7 @@ import {
   readAllCollectionPages,
   retryStale,
 } from '@ens-apps/indexer/bigname'
+import { isAddressOnlyResolver } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address, Hex } from 'viem'
@@ -112,6 +113,7 @@ const readSupplementalKeys = (
                 code: 'unsupported',
                 message:
                   'Incomplete resolver record history cannot establish safe migration',
+                details: { ensName: name },
               }),
             )
           }
@@ -148,8 +150,22 @@ const readSupplementalKeys = (
 
 // The resolver route serves the source resolver's inventory even when a name
 // read withholds records; naming the one key keeps it under the 200-key limit.
-const readProfileKeys = (source: V1ProfileSource, signal?: AbortSignal) =>
-  ResultAsync.combine([
+const readProfileKeys = (source: V1ProfileSource, signal?: AbortSignal) => {
+  if (isAddressOnlyResolver(source.resolver, envConfig.chain.id)) {
+    return okAsync<V1ProfileKeys[], BignameError>([
+      {
+        id: source.id.toLowerCase(),
+        texts: [],
+        coinTypes: [60],
+        hasContentHash: false,
+        abiContentTypes: [],
+        interfaceIds: [],
+        // V2 cannot replay name records. Probe even without indexed history.
+        hasName: true,
+      },
+    ])
+  }
+  return ResultAsync.combine([
     retryStale(
       () =>
         bigname.resolverRecords(
@@ -177,6 +193,7 @@ const readProfileKeys = (source: V1ProfileSource, signal?: AbortSignal) =>
         )
       : [],
   )
+}
 
 export const getV1ProfileKeys = ResultFn(async function* (
   sources: readonly V1ProfileSource[],
