@@ -104,7 +104,8 @@ export const ProfileActions = ({
         isInGrace={isInGrace}
         isUpgradeRequired={isUpgradeRequired}
         keepMounted
-        leftActions={<div className="xl:hidden">{barActions}</div>}
+        // Owned profiles keep favorite, share, and renew in this bar at every width.
+        leftActions={barActions}
         name={name}
         onUpdated={onUpdated}
         owner={owner}
