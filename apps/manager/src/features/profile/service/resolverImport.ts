@@ -1,5 +1,6 @@
 import { readAllCollectionPages } from '@ens-apps/indexer/bigname'
 import { isKnownPublicResolver } from '@ens-apps/migration'
+import { splitResolverCalls } from '@ens-apps/utils/readResolverMulticall'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getSupportedInterfaces } from '@ensdomains/ensjs/public'
 import {
@@ -111,10 +112,6 @@ const viewableReadErrors = (
     ? readErrors
     : readErrors.filter((error) => !isOffchainLookupFailure(error))
 }
-
-// Calldata doubles in size when hex-encoded in a provider's GET URL, with
-// further overhead for resolve(name, data). Stay comfortably below URL limits.
-const MAX_RESOLVER_BATCH_BYTES = 2048
 
 const MAX_SINGLE_READS = 8
 
@@ -390,22 +387,7 @@ export const readResolverRecords = async ({
         ]
       : []),
   ]
-  // A provider can embed the calldata in a GET URL. One large multicall
-  // exceeds URL limits and used to fall back to one request per record.
-  // Keep batches small enough for those gateways and submit them in order.
-  const batchReads: RecordRead[][] = []
-  for (const request of reads) {
-    const current = batchReads.at(-1)
-    const candidate = [...(current ?? []), request]
-    const data = encodeFunctionData({
-      abi: multicallAbi,
-      functionName: 'multicall',
-      args: [candidate.map(({ data }) => data)],
-    })
-    if (current && (data.length - 2) / 2 <= MAX_RESOLVER_BATCH_BYTES)
-      current.push(request)
-    else batchReads.push([request])
-  }
+  const batchReads = splitResolverCalls(reads, ({ data }) => data)
   const readBatch = async (chunk: readonly RecordRead[]) =>
     decodeFunctionResult({
       abi: multicallAbi,

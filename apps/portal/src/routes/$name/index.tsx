@@ -91,6 +91,7 @@ const Profile = ({
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
   const profileQuery = useQuery(getProfileQueryOptions({ name }))
+  const hasRecords = hasResolvedRecords(profileQuery.data?.records)
 
   // Check DNSSEC for non-.eth TLDs to verify they're valid
   const dnsSecQuery = useQuery(
@@ -158,7 +159,10 @@ const Profile = ({
   if (ownerQuery.isLoading) {
     return <LoadingSpinner title="Loading owner..." />
   }
-  if (profileQuery.isLoading) {
+  if (
+    profileQuery.isLoading ||
+    (!ownerQuery.data && !hasRecords && profileQuery.isFetching)
+  ) {
     return <LoadingSpinner title="Loading profile..." />
   }
 
@@ -196,7 +200,6 @@ const Profile = ({
     )
   }
 
-  const hasRecords = hasResolvedRecords(profileQuery.data?.records)
   if (!ownerQuery.data && profileQuery.error) {
     return (
       <ErrorMessage
@@ -505,19 +508,8 @@ function App() {
   }
 
   if (error) {
-    if (!is2LD(name) && !isTLD(name)) {
-      return (
-        <NotFoundMessage
-          title="Name not found"
-          description={
-            <>
-              <strong>{name}</strong> does not exist.
-            </>
-          }
-        />
-      )
-    }
-
+    // Resolver/RPC failures do not establish that a subname is missing.
+    // The profile's completed owner/record queries decide that below.
     const message =
       (error?.cause as Error | undefined)?.message ||
       (error as Error | undefined)?.message ||

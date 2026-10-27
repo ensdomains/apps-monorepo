@@ -1,8 +1,13 @@
 import { BignameError } from '@ens-apps/indexer/bigname'
+import { QueryClient } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
-import { getProfile, parseRecordKeys } from './useProfile'
+import {
+  getProfile,
+  getProfileQueryOptions,
+  parseRecordKeys,
+} from './useProfile'
 import { getRecords } from './useRecords'
 
 vi.mock('@/lib/bigname', () => ({ bigname: { nameRecords: vi.fn() } }))
@@ -57,6 +62,47 @@ describe('getProfile', () => {
         resolverAddress: '0x2222222222222222222222222222222222222222',
       }) as never,
     )
+  })
+
+  it('revalidates a cached empty profile instead of keeping an offchain name missing for an hour', async () => {
+    inventory([])
+    vi.mocked(getRecords).mockReturnValue(
+      okAsync({
+        resolverAddress: '0x2222222222222222222222222222222222222222',
+        coins: [
+          {
+            coinType: 60,
+            value: '0x2211d1D0020DAEA8039E46Cf1367962070d77DA9',
+            symbol: 'eth',
+          },
+        ],
+      }) as never,
+    )
+    const client = new QueryClient({
+      defaultOptions: { queries: { staleTime: 3_600_000 } },
+    })
+    const options = getProfileQueryOptions({ name: 'jesse.base.eth' })
+    client.setQueryData(
+      options.queryKey,
+      {
+        records: {
+          resolverAddress: '0x2222222222222222222222222222222222222222',
+          texts: [],
+          coins: [],
+          contentHash: null,
+          abi: null,
+        },
+      },
+      { updatedAt: Date.now() - 10_000 },
+    )
+    try {
+      await client.fetchQuery(options)
+      expect(getRecords).toHaveBeenCalledTimes(1)
+      await client.fetchQuery(options)
+      expect(getRecords).toHaveBeenCalledTimes(1)
+    } finally {
+      client.clear()
+    }
   })
 
   it('reads on-chain every key bigname lists, with the defaults', async () => {

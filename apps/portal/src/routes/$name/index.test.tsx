@@ -14,7 +14,9 @@ let profileRecords:
       coins?: { coinType: number; value: string }[]
     }
   | undefined
+let profileFetching = false
 let profileError: Error | null = null
+let resolverError: Error | null = null
 
 let protocolVersion: 'ENSv1' | 'ENSv2' = 'ENSv1'
 let isInGrace = false
@@ -64,7 +66,7 @@ vi.mock('wagmi', async (importOriginal) => {
     useEnsResolver: () => ({
       data: RESOLVER,
       isLoading: false,
-      error: null,
+      error: resolverError,
     }),
   }
 })
@@ -160,6 +162,7 @@ vi.mock('@tanstack/react-query', async () => {
             data: { records: profileRecords },
             error: profileError,
             isLoading: false,
+            isFetching: profileFetching,
           }
         case 'dnsSecEnabled':
           return { data: true, error: null, isLoading: false }
@@ -344,6 +347,7 @@ describe('ownerless offchain profiles', () => {
     routeName = 'alice.eth'
     profileRecords = undefined
     profileError = null
+    profileFetching = false
   })
 
   it.each(['jesse.base.eth', 'test.playkombat.eth', 'validator.world.id'])(
@@ -360,6 +364,19 @@ describe('ownerless offchain profiles', () => {
     },
   )
 
+  it('waits for a cached empty profile to refresh before declaring the name missing', () => {
+    routeName = 'jesse.base.eth'
+    profileRecords = { texts: [], coins: [] }
+    profileFetching = true
+    const { rerender } = renderRoute()
+    expect(screen.queryByText('Name not found')).not.toBeInTheDocument()
+    expect(screen.getByText('Loading profile...')).toBeInTheDocument()
+    profileFetching = false
+    profileRecords = { coins: [{ coinType: 60, value: CONTROLLER }] }
+    rerender(<NameRoute />)
+    expect(screen.getByRole('heading', { name: routeName })).toBeInTheDocument()
+  })
+
   it('does not treat an inherited resolver with no records as an existing name', () => {
     routeName = 'missing.base.eth'
     profileRecords = { texts: [], coins: [] }
@@ -374,4 +391,22 @@ describe('ownerless offchain profiles', () => {
     expect(screen.getByText('Error loading records')).toBeInTheDocument()
     expect(screen.queryByText('Name not found')).not.toBeInTheDocument()
   })
+})
+
+describe('profile resolver lookup failures', () => {
+  afterEach(() => {
+    resolverError = null
+    routeName = 'alice.eth'
+  })
+  it.each(['RPC request failed', 'CCIP gateway returned 429'])(
+    'reports %s without declaring the Basename missing',
+    (message) => {
+      routeName = 'jesse.base.eth'
+      resolverError = new Error(message)
+      renderRoute()
+      expect(screen.getByText('Error loading data')).toBeInTheDocument()
+      expect(screen.getByText(message)).toBeInTheDocument()
+      expect(screen.queryByText('Name not found')).not.toBeInTheDocument()
+    },
+  )
 })

@@ -1,4 +1,5 @@
 import { parseRecordKey, type RecordInventory } from '@ens-apps/indexer/bigname'
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -27,6 +28,8 @@ const DEFAULT_COINS = [
   coinNameToTypeMap.arb1,
   coinNameToTypeMap.op,
   coinNameToTypeMap.base,
+  coinNameToTypeMap.scr,
+  coinNameToTypeMap.linea,
   // Non-EVM
   coinNameToTypeMap.btc,
   coinNameToTypeMap.doge,
@@ -39,6 +42,13 @@ const DEFAULT_TEXTS = [
   'description',
   'com.twitter',
   'org.telegram',
+  'com.discord',
+  'com.github',
+  'com.instagram',
+  'com.linkedin',
+  'xyz.farcaster',
+  'com.reddit',
+  'com.youtube',
   'header',
   'avatar',
 ]
@@ -123,4 +133,9 @@ export const getProfileQueryOptions = ({ name }: GetProfileParameters) =>
   resultQueryOptions({
     queryKey: profileQueryKey({ name }),
     queryFn: ({ queryKey: [, params] }) => getProfile(params),
+    // A failed CCIP batch can have left an empty success in the cache.
+    // Recheck empty profiles promptly instead of retaining a false 404,
+    // while sharing a loader read with the immediately mounted page.
+    staleTime: (query) =>
+      hasResolvedRecords(query.state.data?.records) ? 60_000 : 5_000,
   })

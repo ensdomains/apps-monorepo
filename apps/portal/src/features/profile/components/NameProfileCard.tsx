@@ -1,5 +1,4 @@
 import {
-  coinNameToTypeMap,
   evmCoinNameToTypeMap,
   nonEvmCoinNameToTypeMap,
 } from '@ensdomains/address-encoder'
@@ -7,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { parseLabelsAndParent } from '@/utils/ens/parseLabelsAndParent'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import {
   filterEvmChains,
   filterNonEvmChains,
@@ -14,7 +14,7 @@ import {
   recordTextsToObject,
 } from '@/utils/records/transformRecordsForDisplay'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
-import { getRecordsQueryOptions } from '../hooks/useRecords'
+import { getProfileQueryOptions } from '../hooks/useProfile'
 import { CoinRecord, type CoinTypeWithIcon } from './CoinRecord'
 import { NameAvatar } from './NameAvatar'
 import { SocialRecord } from './SocialRecord'
@@ -36,43 +36,14 @@ export const NameProfileCard = ({
   const hasUnknownLabel = name.split('.').some(isEncodedLabelhash)
 
   const {
-    data: records,
+    data: profile,
     isLoading,
     error,
   } = useQuery({
     enabled: !hasUnknownLabel,
-    ...getRecordsQueryOptions({
-      name,
-      texts: [
-        'name',
-        'description',
-        'com.twitter',
-        'org.telegram',
-        'com.discord',
-        'com.github',
-        'com.instagram',
-        'com.linkedin',
-        'xyz.farcaster',
-        'com.reddit',
-        'com.youtube',
-      ],
-      coins: [
-        // EVM
-        coinNameToTypeMap.eth,
-        coinNameToTypeMap.arb1,
-        coinNameToTypeMap.op,
-        coinNameToTypeMap.base,
-        coinNameToTypeMap.scr,
-        coinNameToTypeMap.linea,
-
-        // Non-EVM
-        coinNameToTypeMap.btc,
-        coinNameToTypeMap.doge,
-        coinNameToTypeMap.sol,
-        coinNameToTypeMap.strk,
-      ],
-    }),
+    ...getProfileQueryOptions({ name }),
   })
+  const records = profile?.records
 
   const texts = recordTextsToObject(records?.texts)
 
@@ -89,7 +60,8 @@ export const NameProfileCard = ({
       </div>
     )
 
-  if (error) return <div>Failed to fetch records: {error.cause?.message}</div>
+  if (error)
+    return <div>Failed to fetch records: {extractErrorMessage(error)}</div>
 
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
