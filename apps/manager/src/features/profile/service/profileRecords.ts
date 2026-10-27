@@ -87,20 +87,18 @@ const MAX_RESOLVER_SPLIT_DEPTH = 1
 const GATEWAY_ERROR_ABI = parseAbi([
   'error HttpError(uint16 status, string message)',
 ])
-const TRANSIENT_HTTP_STATUSES: ReadonlySet<number> = new Set([408, 429])
+// Statuses a gateway answers for a name it does not know (World answers 400).
+const UNKNOWN_NAME_STATUSES: ReadonlySet<number> = new Set([400, 404])
 
-// A resolver that reverts with no reason, or a gateway that answers 4xx, has
-// rejected the name. viem encodes a gateway that could not answer (5xx, 429,
-// network) as an HttpError or Error(string).
+// A resolver that reverts with no reason, or a gateway that answers 400 or 404,
+// does not know the name. viem encodes every other gateway failure as an
+// HttpError or Error(string).
 const isNameRejection = (returnData: Hex): boolean =>
   returnData === '0x' ||
   fromThrowable(() =>
     decodeErrorResult({ abi: GATEWAY_ERROR_ABI, data: returnData }),
   )()
-    .map(
-      ({ args: [status] }) =>
-        status >= 400 && status < 500 && !TRANSIENT_HTTP_STATUSES.has(status),
-    )
+    .map(({ args: [status] }) => UNKNOWN_NAME_STATUSES.has(status))
     .unwrapOr(false)
 
 const getRecordKeys = ResultFn(async function* (

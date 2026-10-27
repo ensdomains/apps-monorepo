@@ -435,6 +435,7 @@ describe('profile records', () => {
     },
     { gateway: 'is down', item: gatewayError(503), isOk: false },
     { gateway: 'rate-limits', item: gatewayError(429), isOk: false },
+    { gateway: 'denies access', item: gatewayError(403), isOk: false },
     { gateway: 'does not know the name', item: gatewayError(400), isOk: true },
     { gateway: 'reverts with no reason', item: emptyResult, isOk: true },
   ])(
