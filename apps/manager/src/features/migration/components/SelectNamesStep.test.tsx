@@ -204,13 +204,28 @@ describe('SelectNamesStep', () => {
       const parent = eligibleFixture[0]
       if (!parent) throw new Error('Missing parent fixture')
       eligibilityState.blockedSubnames = [{ name: parent, reason }]
-      const { onNamesChange, getByRole, getByText } = renderStep()
+      const { onNamesChange, getByRole, getByText, rerenderGasEstimate } =
+        renderStep()
       const selected = onNamesChange.mock.calls.at(-1)?.[0] ?? []
       expect(selected).not.toContain('sub1234.eth')
       expect(selected).not.toContain('gm.sub1234.eth')
       expect(selected).toContain('one.eth')
       expect(getByRole('checkbox', { name: 'sub1234.eth' })).toBeDisabled()
       expect(getByText(message)).toBeInTheDocument()
+      eligibilityState.blockedSubnames = [
+        {
+          name: parent,
+          reason: 'parent-not-upgraded',
+          parentName: 'external.eth',
+        },
+      ]
+      rerenderGasEstimate(readyGasEstimate)
+      expect(getByRole('checkbox', { name: 'sub1234.eth' })).toBeDisabled()
+      expect(
+        getByText(
+          'The parent name external.eth must be upgraded before this subname.',
+        ),
+      ).toBeInTheDocument()
     },
   )
 

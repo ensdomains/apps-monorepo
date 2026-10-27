@@ -3246,6 +3246,10 @@ msgstr ""
 msgid "The page you're looking for doesn't exist or may have been moved."
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "The parent name {parentName} must be upgraded before this subname."
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "The pending code will stop working."
 msgstr ""

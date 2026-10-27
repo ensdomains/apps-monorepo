@@ -3241,6 +3241,10 @@ msgstr "The notification service returned an invalid key. Please try again later
 msgid "The page you're looking for doesn't exist or may have been moved."
 msgstr "The page you're looking for doesn't exist or may have been moved."
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "The parent name {parentName} must be upgraded before this subname."
+msgstr "The parent name {parentName} must be upgraded before this subname."
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "The pending code will stop working."
 msgstr "The pending code will stop working."

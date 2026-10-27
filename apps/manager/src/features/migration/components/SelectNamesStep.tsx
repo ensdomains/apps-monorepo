@@ -12,7 +12,7 @@ import { useWrapperSync } from '@/features/migration/hooks/useWrapperSync'
 import { cn } from '@/lib/utils'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
-import type { SubnameMigrationBlockReason } from '../hooks/useMigrationEligibility'
+import type { BlockedSubnameMigration } from '../hooks/useMigrationEligibility'
 import { NameRow } from './NameRow'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
@@ -27,11 +27,19 @@ import { UnavailableMigrationNames } from './UnavailableMigrationNames'
 import { WrapperSyncNotice } from './WrapperSyncNotice'
 
 const SubnameBlockReason = ({
-  reason,
+  block,
 }: {
-  readonly reason: SubnameMigrationBlockReason
+  readonly block: BlockedSubnameMigration
 }) => {
-  switch (reason) {
+  switch (block.reason) {
+    case 'parent-not-upgraded': {
+      const parentName = block.parentName
+      return (
+        <Trans>
+          The parent name {parentName} must be upgraded before this subname.
+        </Trans>
+      )
+    }
     case 'imports-disabled':
       return (
         <Trans>
@@ -422,13 +430,13 @@ export const SelectNamesStep = ({
                 <Trans>These names need to stay on ENSv1 for now</Trans>
               </h2>
               <ul className="mt-3 space-y-4">
-                {blockedSubnames.map(({ name, reason }) => (
-                  <li key={name.domain.id}>
+                {blockedSubnames.map((block) => (
+                  <li key={block.name.domain.id}>
                     <NameRow
                       depth={0}
-                      disabledReason={<SubnameBlockReason reason={reason} />}
+                      disabledReason={<SubnameBlockReason block={block} />}
                       isSelected={false}
-                      item={name}
+                      item={block.name}
                     />
                   </li>
                 ))}
