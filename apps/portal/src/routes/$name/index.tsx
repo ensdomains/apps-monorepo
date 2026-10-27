@@ -399,12 +399,14 @@ const Profile = ({
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
         <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
-        {ownerQuery.data && resolvedProtocolVersion !== 'ENSv1' && (
-          <ExtendNameButton
-            name={name}
-            protocolVersion={resolvedProtocolVersion}
-          />
-        )}
+        {/* A v2 name in grace has no owner but can still resolve records. */}
+        {(ownerQuery.data || grace.isInGrace) &&
+          resolvedProtocolVersion !== 'ENSv1' && (
+            <ExtendNameButton
+              name={name}
+              protocolVersion={resolvedProtocolVersion}
+            />
+          )}
       </div>
 
       {/* Profile | metadata | counters at xl; counters wrap to their own row below that */}

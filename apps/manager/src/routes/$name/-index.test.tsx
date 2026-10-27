@@ -85,10 +85,16 @@ const runLoader = async (
     ownerless = false,
     records = { coins: [], texts: [] },
   }: {
-    ownerless?: boolean
-    records?: {
-      coins: { coinType: number; value: string }[]
-      texts: { key: string; value: string }[]
+    readonly ownerless?: boolean
+    readonly records?: {
+      readonly coins: readonly {
+        readonly coinType: number
+        readonly value: string
+      }[]
+      readonly texts: readonly {
+        readonly key: string
+        readonly value: string
+      }[]
     } | null
   } = {},
 ) => {

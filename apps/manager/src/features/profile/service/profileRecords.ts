@@ -85,11 +85,11 @@ const getInheritedExtendedResolver = async (
 ): Promise<Address | null> => {
   const resolver = await getResolver(client, { name })
   if (!resolver) return null
-  const [extended] = await getSupportedInterfaces(client, {
+  const [hasExtendedResolution] = await getSupportedInterfaces(client, {
     address: resolver,
     interfaces: ['0x9061b923'],
   })
-  return extended ? resolver : null
+  return hasExtendedResolution ? resolver : null
 }
 
 export const getProfileRecords = ResultFn(async function* (name: string) {

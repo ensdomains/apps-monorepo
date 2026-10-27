@@ -23,7 +23,6 @@ import {
   toFunctionSelector,
 } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { isContractRevert } from '@/utils/errors/isContractRevert'
 
 class RecordsError extends TaggedError('RecordsError')<{
   cause: GetRecordsErrorType
@@ -58,12 +57,37 @@ const checkGatewayError = (data: Hex) => {
   }
 }
 
-const toRecordResults = (values: readonly Hex[]) =>
-  values.map((returnData) => {
-    const success = returnData !== '0x' && (returnData.length - 2) % 64 === 0
-    if (!success) checkGatewayError(returnData)
-    return { success, returnData }
-  })
+type RecordResult = { readonly success: boolean; readonly returnData: Hex }
+
+// A gateway error that left no records must not read as an empty profile, but
+// one that failed only some keys still leaves a viewable profile.
+const checkGatewayErrors = (items: readonly RecordResult[]) => {
+  if (items.some((item) => item.success)) return
+  for (const item of items) checkGatewayError(item.returnData)
+}
+
+const toRecordResults = (values: readonly Hex[]): RecordResult[] => {
+  const results = values.map((returnData) => ({
+    success: returnData !== '0x' && (returnData.length - 2) % 64 === 0,
+    returnData,
+  }))
+  checkGatewayErrors(results)
+  return results
+}
+
+// A rejected batch (Namespace answers an oversized GET with a 500) can still
+// resolve record by record; an overloaded or unreachable gateway cannot.
+const isGatewayUnavailable = (error: unknown): boolean => {
+  for (let cause = error; cause; cause = (cause as { cause?: unknown }).cause) {
+    const failure = cause as { name?: string; status?: number }
+    if (
+      failure.name === 'HttpRequestError' &&
+      (!failure.status || failure.status === 429 || failure.status === 503)
+    )
+      return true
+  }
+  return false
+}
 
 type RecordReadClient = Client<Transport, EnsChain>
 
@@ -77,15 +101,18 @@ const getBatchResolver = async (
     blockNumber: parameters.blockNumber,
   })
   if (!resolver) return null
-  const [extended, nameSetters] = await getSupportedInterfaces(client, {
-    address: resolver,
-    interfaces: [
-      '0x9061b923',
-      toFunctionSelector('setAddress(bytes,uint256,bytes)'),
-    ],
-    blockNumber: parameters.blockNumber,
-  })
-  return extended && !nameSetters ? resolver : null
+  const [hasExtendedResolution, hasNameSetters] = await getSupportedInterfaces(
+    client,
+    {
+      address: resolver,
+      interfaces: [
+        '0x9061b923',
+        toFunctionSelector('setAddress(bytes,uint256,bytes)'),
+      ],
+      blockNumber: parameters.blockNumber,
+    },
+  )
+  return hasExtendedResolution && !hasNameSetters ? resolver : null
 }
 
 const resolveRecordData = async (
@@ -106,16 +133,14 @@ const resolveRecordData = async (
         resolvedData: toRecordResults(values),
       }
     } catch (error) {
-      // Unsupported resolver calls may use the UniversalResolver fallback.
-      // Transport failures must not turn a batch into per-record requests.
-      if (!isContractRevert(error)) throw error
+      // Unsupported calls and rejected batches use the UniversalResolver
+      // fallback; per-record requests would only deepen an overload.
+      if (isGatewayUnavailable(error)) throw error
     }
   }
   const result = await resolveNameData(client, parameters)
-  if (result && typeof result.resolvedData !== 'string') {
-    for (const item of result.resolvedData)
-      if (!item.success) checkGatewayError(item.returnData)
-  }
+  if (result && typeof result.resolvedData !== 'string')
+    checkGatewayErrors(result.resolvedData)
   return result
 }
 

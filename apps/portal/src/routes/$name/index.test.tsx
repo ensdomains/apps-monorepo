@@ -126,7 +126,7 @@ vi.mock('@/features/history/components/RecentHistoryTimeline', () => ({
   RecentHistoryTimeline: () => null,
 }))
 vi.mock('@/features/renew/components/ExtendNameButton', () => ({
-  ExtendNameButton: () => null,
+  ExtendNameButton: () => <button type="button">Extend</button>,
 }))
 
 // The row's own V1-vs-V2 behaviour is covered in NameOwnerRow.test.tsx.
@@ -376,6 +376,23 @@ describe('ownerless offchain profiles', () => {
     rerender(<NameRoute />)
     expect(screen.getByRole('heading', { name: routeName })).toBeInTheDocument()
   })
+
+  it.each([
+    [true, 1],
+    [false, 0],
+  ])(
+    'offers renewal for an ownerless name with records when in grace is %s',
+    (grace, count) => {
+      routeName = 'lapsed.eth'
+      isInGrace = grace
+      profileRecords = { coins: [{ coinType: 60, value: CONTROLLER }] }
+      renderRoute()
+      expect(screen.queryAllByRole('button', { name: 'Extend' })).toHaveLength(
+        count,
+      )
+      isInGrace = false
+    },
+  )
 
   it('does not treat an inherited resolver with no records as an existing name', () => {
     routeName = 'missing.base.eth'

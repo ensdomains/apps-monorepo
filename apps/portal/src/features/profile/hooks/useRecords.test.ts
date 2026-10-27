@@ -155,6 +155,36 @@ describe('inherited resolver batching', () => {
     expect(mocks.resolveNameData).not.toHaveBeenCalled()
   })
 
+  it('uses universal resolution when the gateway rejects a batch', async () => {
+    // Namespace answers an oversized batch URL with a 500.
+    mocks.readContract.mockRejectedValue(
+      new HttpRequestError({ url: 'https://gateway.invalid', status: 500 }),
+    )
+    mocks.resolveNameData.mockResolvedValue(null)
+    expect((await run()).isOk()).toBe(true)
+    expect(mocks.resolveNameData).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the records a gateway returned when it fails others', async () => {
+    const error = encodeErrorResult({
+      abi,
+      errorName: 'HttpError',
+      args: [500, 'Internal error'],
+    })
+    const description = encodeAbiParameters([{ type: 'string' }], ['hi'])
+    mocks.readContract.mockResolvedValue(
+      encodeAbiParameters([{ type: 'bytes[]' }], [[description, error]]),
+    )
+    const records = (
+      await getRecords({
+        name: 'jesse.base.eth',
+        texts: ['description'],
+        coins: [60],
+      })
+    )._unsafeUnwrap()
+    expect(records.texts).toEqual([{ key: 'description', value: 'hi' }])
+  })
+
   it('uses universal resolution when the resolver cannot handle multicall', async () => {
     mocks.readContract.mockRejectedValue(
       new BaseError('Unsupported multicall', {

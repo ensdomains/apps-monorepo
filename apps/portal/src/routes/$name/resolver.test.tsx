@@ -132,6 +132,24 @@ describe('resolver route', () => {
     expect(screen.queryByText('Name not registered')).not.toBeInTheDocument()
   })
 
+  it('does not wait on or fail with the records once a DNS address proves the name', () => {
+    offchain = {
+      isLoading: false,
+      resolvedAddress: '0x55e55C649895940826a852820d9e1A076Ec47b09',
+    }
+    profileResult = {
+      data: undefined,
+      error: new Error('gateway unavailable'),
+      isLoading: true,
+      isSuccess: false,
+    }
+
+    render(<ResolverRoute />)
+
+    expect(screen.getByText(ENS_V1_RESOLVER)).toBeInTheDocument()
+    expect(screen.queryByText('Error loading records')).not.toBeInTheDocument()
+  })
+
   it('shows a Basename resolver read-only after successful record resolution', () => {
     routeName = 'jesse.base.eth'
     profileResult = settled({

@@ -371,9 +371,12 @@ function RouteComponent() {
   // A gasless DNS name has no registry entry by design, yet the
   // UniversalResolver still finds a resolver for it (by wildcard).
   const offchain = useDnsOffchainName({ name, owner: ownerQuery.data })
+  // Only an ownerless name with no DNS address needs its records to exist.
+  const needsRecords =
+    ownerQuery.data === null && !offchain.isLoading && !offchain.resolvedAddress
   const profileQuery = useQuery({
     ...getProfileQueryOptions({ name }),
-    enabled: ownerQuery.data === null,
+    enabled: needsRecords,
   })
 
   if (ownerQuery.error) {
@@ -400,12 +403,12 @@ function RouteComponent() {
     ownerQuery.isLoading ||
     resolverQuery.isLoading ||
     offchain.isLoading ||
-    profileQuery.isLoading ||
+    (needsRecords && profileQuery.isLoading) ||
     (availabilityQuery.isLoading && isRegistrable(name))
   )
     return <LoadingMessage />
 
-  if (!ownerQuery.data && profileQuery.error) {
+  if (needsRecords && profileQuery.error) {
     return (
       <ErrorMessage
         title="Error loading records"
