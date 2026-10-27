@@ -206,6 +206,54 @@ describe('getRoleChangeLogs via bigname', () => {
         ),
     ],
     [
+      'bigname rejects the read (400)',
+      () =>
+        mockName.mockReturnValue(
+          errAsync(
+            new BignameError({
+              status: 400,
+              code: 'invalid_input',
+              message: 'bad filter',
+            }),
+          ),
+        ),
+    ],
+    [
+      'bigname answers stale (409)',
+      () =>
+        mockName.mockReturnValue(
+          errAsync(
+            new BignameError({ status: 409, code: 'stale', message: 'stale' }),
+          ),
+        ),
+    ],
+    [
+      'bigname is rate limited (429)',
+      () =>
+        mockName.mockReturnValue(
+          errAsync(
+            new BignameError({
+              status: 429,
+              code: 'rate_limited',
+              message: 'slow down',
+            }),
+          ),
+        ),
+    ],
+    [
+      'bigname fails internally (500)',
+      () =>
+        mockName.mockReturnValue(
+          errAsync(
+            new BignameError({
+              status: 500,
+              code: 'internal_error',
+              message: 'boom',
+            }),
+          ),
+        ),
+    ],
+    [
       'bigname has not indexed the name',
       () =>
         mockName.mockReturnValue(

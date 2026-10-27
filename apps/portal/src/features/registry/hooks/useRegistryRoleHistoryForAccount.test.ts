@@ -1,18 +1,30 @@
 import { BignameError, type EventRow } from '@ens-apps/indexer/bigname'
-import { ResultAsync } from 'neverthrow'
+import { registryRoles } from '@ensdomains/ensjs/utils/v2'
+import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import { ok, ResultAsync } from 'neverthrow'
 import { type Address, getAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
 import { mockEventRootPermissionChanged } from '@/test-utils/bigname/bigname.mock'
 
 const REGISTRY: Address = '0x1111111111111111111111111111111111111111'
 const ACCOUNT: Address = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 const ROOT_RESOURCE_HEX = `0x${'0'.repeat(64)}`
 const listEvents = vi.fn()
+const mockGetLogs = vi.fn()
+const mockGetBlockTimestamps = vi.fn()
 vi.mock('@/lib/bigname', () => ({
   bigname: {
     events: (...args: unknown[]) =>
       ResultAsync.fromPromise(listEvents(...args), (e) => e),
   },
+}))
+vi.mock('@/lib/wagmi/helpers', () => ({
+  safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
+}))
+vi.mock('@/features/profile/hooks/useBlockTimestamps', () => ({
+  getBlockTimestamps: (params: { blocks: readonly bigint[] }) =>
+    mockGetBlockTimestamps(params),
 }))
 const { getRegistryRoleHistoryForAccount } = await import(
   './useRegistryRoleHistoryForAccount'
@@ -43,7 +55,9 @@ const runRoot = () =>
 
 describe('getRegistryRoleHistoryForAccount where bigname serves root role changes', () => {
   beforeEach(() => {
-    listEvents.mockReset()
+    vi.clearAllMocks()
+    mockGetLogs.mockResolvedValue([])
+    mockGetBlockTimestamps.mockReturnValue(ok(new Map()))
     listEvents.mockResolvedValue(page([mockEventRootPermissionChanged]))
   })
 
@@ -67,6 +81,7 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
   it('reads the before and after sets and the date from the row, with no node read', async () => {
     const entries = (await runRoot())._unsafeUnwrap()
 
+    expect(mockGetLogs).not.toHaveBeenCalled()
     expect(entries).toEqual([
       {
         account: ROOT_ACCOUNT,
@@ -121,17 +136,82 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
     expect((await runRoot())._unsafeUnwrap()).toEqual([])
   })
 
-  it('errors rather than falling back when the history read fails', async () => {
+  it.each([
+    [400, 'invalid_input'],
+    [409, 'stale'],
+    [429, 'rate_limited'],
+    [500, 'internal_error'],
+    [503, 'overloaded'],
+  ] as const)(
+    'falls back to the node when bigname answers %i',
+    async (status, code) => {
+      listEvents.mockRejectedValue(
+        new BignameError({ status, code, message: code }),
+      )
+
+      const result = await runRoot()
+
+      expect(result.isOk()).toBe(true)
+      expect(mockGetLogs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          address: ROOT_REGISTRY,
+          event: eacRolesChangedEventSnippet[0],
+          args: { resource: 0n, account: ROOT_ACCOUNT },
+          fromBlock: ROLES_FROM_BLOCK,
+          strict: true,
+        }),
+      )
+    },
+  )
+
+  it('converts the node logs into dated history entries', async () => {
     listEvents.mockRejectedValue(
-      new BignameError({
-        status: 400,
-        code: 'invalid_input',
-        message: 'kind is invalid',
-      }),
+      new BignameError({ status: 503, code: 'overloaded', message: 'down' }),
+    )
+    const transactionHash = `0x${'b'.repeat(64)}`
+    mockGetLogs.mockResolvedValue([
+      {
+        args: {
+          resource: 0n,
+          account: ROOT_ACCOUNT,
+          oldRoleBitmap:
+            registryRoles.ROLE_REGISTRAR | registryRoles.ROLE_REGISTRAR_ADMIN,
+          newRoleBitmap: registryRoles.ROLE_REGISTRAR,
+        },
+        blockNumber: 11_820_431n,
+        transactionHash,
+      },
+    ])
+    mockGetBlockTimestamps.mockReturnValue(
+      ok(new Map([[11_820_431n, 1_790_840_952n]])),
     )
 
-    const result = await runRoot()
+    expect((await runRoot())._unsafeUnwrap()).toEqual([
+      {
+        account: ROOT_ACCOUNT,
+        resource: ROOT_RESOURCE_HEX,
+        oldRoles: ['ROLE_REGISTRAR', 'ROLE_REGISTRAR_ADMIN'],
+        newRoles: ['ROLE_REGISTRAR'],
+        transactionHash,
+        timestamp: 1_790_840_952n,
+        blockNumber: 11_820_431n,
+      },
+    ])
+  })
+
+  it('does not start a node read for a cancelled query', async () => {
+    listEvents.mockRejectedValue(
+      new BignameError({ status: 409, code: 'stale', message: 'stale' }),
+    )
+    const controller = new AbortController()
+    controller.abort()
+
+    const result = await getRegistryRoleHistoryForAccount(
+      { registryAddress: ROOT_REGISTRY, account: ROOT_ACCOUNT },
+      controller.signal,
+    )
 
     expect(result.isErr()).toBe(true)
+    expect(mockGetLogs).not.toHaveBeenCalled()
   })
 })

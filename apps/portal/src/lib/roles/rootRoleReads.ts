@@ -8,7 +8,9 @@ import {
   readAllEnvelopes,
   toExactSeconds,
 } from '@ens-apps/indexer/bigname'
-import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { logger } from '@ens-apps/utils/logger'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { err, ok } from 'neverthrow'
 import { type Address, getAddress, isAddressEqual, zeroAddress } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
@@ -18,6 +20,10 @@ import {
   type RegistryRole,
   registryPowersToRoles,
 } from '@/lib/roles/registryPowerRoles'
+import {
+  getNodeRoleChangeLogs,
+  toRoleHistoryEntries,
+} from '@/lib/roles/roleChangeLogs'
 import { ROOT_RESOURCE, type RoleHistoryEntry } from '@/lib/roles/roleHistory'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 
@@ -168,7 +174,7 @@ const toRoleHistoryEntry = (row: RootRoleChangeRow): RoleHistoryEntry[] => {
  * the old bitmap, `added_powers` and `removed_powers`, so the set before a
  * change needs neither a block lookup nor the earlier rows.
  */
-export const getBignameRootRoleChanges = (
+const getBignameRootRoleChanges = (
   params: RegistryParameters & { readonly account: Address },
   signal?: AbortSignal,
 ) =>
@@ -192,3 +198,36 @@ export const getBignameRootRoleChanges = (
     .map((rows) =>
       rows.filter(isRootRoleChangeOf(params)).flatMap(toRoleHistoryEntry),
     )
+
+/**
+ * One account's root role changes on one registry, newest first.
+ *
+ * Read from bigname first, with the node scan answering whenever it cannot:
+ * an outage, a refusal (4xx), a server error (5xx), or a registry bigname has
+ * not indexed. The node path is one `getLogs` on the root resource, the same
+ * `EACRolesChanged` read the contract emits for every root grant and revoke.
+ */
+export const getRootRoleChanges = ResultFn(async function* (
+  params: RegistryParameters & { readonly account: Address },
+  signal?: AbortSignal,
+) {
+  const indexed = await getBignameRootRoleChanges(params, signal)
+  if (indexed.isOk()) return ok(indexed.value)
+  // A cancelled query is not an indexer failure: do not start a node read for
+  // a surface nobody is waiting on.
+  if (signal?.aborted) return err(indexed.error)
+
+  logger.warn('Root role change read fell back to the node', {
+    registryAddress: params.registryAddress,
+    account: params.account,
+    cause: indexed.error.cause,
+  })
+
+  const logs = yield* getNodeRoleChangeLogs({
+    registryAddress: params.registryAddress,
+    resource: ROOT_RESOURCE,
+    account: params.account,
+  })
+
+  return toRoleHistoryEntries({ logs, resource: ROOT_RESOURCE })
+})
