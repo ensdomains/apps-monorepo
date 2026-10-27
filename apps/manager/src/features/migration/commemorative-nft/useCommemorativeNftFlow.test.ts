@@ -61,6 +61,10 @@ vi.mock('@/lib/smart-account', () => ({ useSmartAccountContext: vi.fn() }))
 vi.mock('../service/userRegistryMigration', () => ({
   computeUserRegistryAddress: vi.fn(),
 }))
+vi.mock('../service/migratableNames', () => ({
+  isTransientSubnameBlock: vi.fn(),
+  resolveMigratableNames: vi.fn(),
+}))
 vi.mock('./migrationCompletion', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./migrationCompletion')>()
   const fetchCompletion = vi.fn()

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getV1NamesForAddress: vi.fn(),
   getMigratedNamesCount: vi.fn(),
   runEligibilityChecks: vi.fn(),
+  resolveMigratableNames: vi.fn(),
   restoreCheckpoint: vi.fn(),
 }))
 
@@ -32,6 +33,10 @@ vi.mock('../service/getMigratedNamesCount', () => ({
 }))
 vi.mock('../service/preflightChecks', () => ({
   runEligibilityChecks: mocks.runEligibilityChecks,
+}))
+vi.mock('../service/migratableNames', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../service/migratableNames')>()),
+  resolveMigratableNames: mocks.resolveMigratableNames,
 }))
 
 import { makeDomain } from '../service/_fixtures'
@@ -102,6 +107,12 @@ beforeEach(() => {
   mocks.getV1NamesForAddress.mockResolvedValue(ok([]))
   mocks.getMigratedNamesCount.mockResolvedValue(ok(1))
   mocks.runEligibilityChecks.mockResolvedValue(emptyEligibility())
+  mocks.resolveMigratableNames.mockImplementation(
+    async ({ eligible }: { eligible: readonly ClassifiedName[] }) => ({
+      eligible,
+      blockedSubnames: [],
+    }),
+  )
 })
 
 afterEach(() => {
@@ -168,6 +179,34 @@ describe('commemorative NFT migration completion', () => {
       migratedNameCount: 3,
     })
     expect(mocks.getMigratedNamesCount).toHaveBeenCalledWith(ownerAddress)
+  })
+
+  // An owner can migrate some names while the upgrade screen refuses others,
+  // such as a parent whose subname label is unknown.
+  it.each([
+    [
+      'unlocks past a name the upgrade screen refuses',
+      'unknown-label',
+      'complete',
+    ],
+    [
+      'keeps a name locked while its subnames cannot be read',
+      'incomplete-inventory',
+      'incomplete',
+    ],
+  ] as const)('%s', async (_title, reason, status) => {
+    mocks.runEligibilityChecks.mockResolvedValue({
+      ...emptyEligibility(),
+      eligible: classified,
+    })
+    mocks.resolveMigratableNames.mockResolvedValue({
+      eligible: [],
+      blockedSubnames: classified.map((name) => ({ name, reason })),
+    })
+
+    await expect(
+      fetchCommemorativeNftMigrationCompletion(params),
+    ).resolves.toMatchObject({ status })
   })
 
   it('does not treat an empty wallet as evidence of migration', async () => {
