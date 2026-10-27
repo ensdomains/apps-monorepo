@@ -4,7 +4,7 @@
  *
  * This path is deliberately separate from the L1 `useSetReverseResolution`
  * flow because L2 writes must go through the **local** `l2WagmiConfig`
- * (`@/lib/wagmiL2`) rather than the global Sepolia-bound wagmi config. The
+ * (`@/lib/wagmiL2`) rather than the global L1-only wagmi config. The
  * global config is left completely untouched.
  *
  * Mechanism:
