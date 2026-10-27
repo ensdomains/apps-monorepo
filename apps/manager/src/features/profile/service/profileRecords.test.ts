@@ -421,10 +421,22 @@ describe('profile records', () => {
   })
 
   it.each([
-    { gateway: 'answers nothing', item: emptyResult, isOk: false },
+    {
+      gateway: 'cannot be reached',
+      item: {
+        success: false,
+        returnData: encodeErrorResult({
+          abi: parseAbi(['error Error(string)']),
+          errorName: 'Error',
+          args: ['fetch failed'],
+        }),
+      },
+      isOk: false,
+    },
     { gateway: 'is down', item: gatewayError(503), isOk: false },
     { gateway: 'rate-limits', item: gatewayError(429), isOk: false },
     { gateway: 'does not know the name', item: gatewayError(400), isOk: true },
+    { gateway: 'reverts with no reason', item: emptyResult, isOk: true },
   ])(
     'when a gateway $gateway on every read, reads ok: $isOk',
     async ({ item, isOk }) => {

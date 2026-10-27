@@ -89,9 +89,11 @@ const GATEWAY_ERROR_ABI = parseAbi([
 ])
 const TRANSIENT_HTTP_STATUSES: ReadonlySet<number> = new Set([408, 429])
 
-// A gateway that answers 4xx has rejected the name; 5xx, 429 or any other
-// failure means it could not answer.
-const isGatewayRejection = (returnData: Hex): boolean =>
+// A resolver that reverts with no reason, or a gateway that answers 4xx, has
+// rejected the name. viem encodes a gateway that could not answer (5xx, 429,
+// network) as an HttpError or Error(string).
+const isNameRejection = (returnData: Hex): boolean =>
+  returnData === '0x' ||
   fromThrowable(() =>
     decodeErrorResult({ abi: GATEWAY_ERROR_ABI, data: returnData }),
   )()
@@ -243,7 +245,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   // A gateway that is down fails every read; that is not an empty profile. One
   // that rejects every read does not know the name, which is.
   const failedRead = resolution?.resolvedData.find(
-    (item) => !(item.success || isGatewayRejection(item.returnData)),
+    (item) => !(item.success || isNameRejection(item.returnData)),
   )
   if (failedRead && resolution?.resolvedData.every((item) => !item.success))
     return err(new GetProfileRecordsError({ cause: failedRead.returnData }))
