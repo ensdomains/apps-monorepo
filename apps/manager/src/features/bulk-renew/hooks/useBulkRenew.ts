@@ -89,7 +89,7 @@ export const useBulkRenew = ({
     wallet: stablecoinBalances,
     accountCredit,
     isLoading: isLoadingBalances,
-  } = useRenewalBalances()
+  } = useRenewalBalances({ enabled: open })
 
   const minSelectableDate = useMemo(() => {
     const latestExpiry = names.reduce(

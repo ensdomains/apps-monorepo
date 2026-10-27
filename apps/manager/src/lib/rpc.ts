@@ -10,9 +10,9 @@ export const failover = (urls: readonly string[]) =>
   fallback(
     urls.map((url) =>
       http(url, {
-        retryCount: 2,
         batch: { batchSize: 20, wait: 16 },
       }),
     ),
-    { rank: false, retryCount: 2 },
+    // One more pass over the endpoints; viem gives each endpoint no retries of its own.
+    { rank: false, retryCount: 1 },
   )
