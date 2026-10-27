@@ -2998,6 +2998,10 @@ msgid "Some names could not be loaded"
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
+msgid "Some subnames can't upgrade because {parentName} hasn't been upgraded yet. Upgrade this parent first, or deselect those subnames."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
 msgid "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
 msgstr ""
 
