@@ -27,10 +27,10 @@ type SelectNamesStepNameListProps = Pick<
   | 'toggleName'
 > & {
   readonly isPending: boolean
-  readonly preparedNames?: readonly ClassifiedName[]
+  readonly includedNames?: readonly ClassifiedName[]
 }
 
-const EMPTY_PREPARED_NAMES: readonly ClassifiedName[] = []
+const EMPTY_INCLUDED_NAMES: readonly ClassifiedName[] = []
 
 const SelectNamesStepNameListComponent = ({
   filteredGroups,
@@ -39,7 +39,7 @@ const SelectNamesStepNameListComponent = ({
   isManagerRestorationLocked,
   isPending,
   managerCandidates,
-  preparedNames = EMPTY_PREPARED_NAMES,
+  includedNames = EMPTY_INCLUDED_NAMES,
   restoredManagers,
   search,
   selected,
@@ -49,14 +49,14 @@ const SelectNamesStepNameListComponent = ({
   const { data: primaryName } = useConnectedReverseName()
   const includedSubnames = useMemo(() => {
     const groups = new Map<string, CopyClassifiedName[]>()
-    for (const name of preparedNames) {
+    for (const name of includedNames) {
       if (name.action !== 'copy' || !name.recreationRoot) continue
       const children = groups.get(name.recreationRoot) ?? []
       children.push(name)
       groups.set(name.recreationRoot, children)
     }
     return groups
-  }, [preparedNames])
+  }, [includedNames])
 
   return match({
     isPending,

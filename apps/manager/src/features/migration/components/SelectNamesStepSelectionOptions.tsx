@@ -54,7 +54,7 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   readonly isCompactLayout: boolean
   readonly isContentHeightCard: boolean
   readonly isPending: boolean
-  readonly preparedNames?: readonly ClassifiedName[]
+  readonly includedNames?: readonly ClassifiedName[]
   readonly showBulkSelection: boolean
   readonly showNameSearch: boolean
 }
@@ -69,7 +69,7 @@ export const SelectNamesStepSelectionOptions = ({
   isManagerRestorationLocked,
   isPending,
   managerCandidates,
-  preparedNames,
+  includedNames,
   restoredManagers,
   search,
   selected,
@@ -175,10 +175,10 @@ export const SelectNamesStepSelectionOptions = ({
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
+              includedNames={includedNames}
               isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}
               managerCandidates={managerCandidates}
-              preparedNames={preparedNames}
               restoredManagers={restoredManagers}
               search={search}
               selected={selected}

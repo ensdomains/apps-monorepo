@@ -156,6 +156,7 @@ export const SelectNamesStep = ({
     gracePeriodNames,
     unavailableNames,
     blockedSubnames = [],
+    verifiedSubnames,
     isEligibilityError = false,
     retryEligibility,
     wrapperSyncNames,
@@ -383,12 +384,12 @@ export const SelectNamesStep = ({
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
+              includedNames={preparedNames ?? verifiedSubnames}
               isCompactLayout={isCompactLayout}
               isContentHeightCard={isContentHeightCard}
               isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}
               managerCandidates={managerCandidates}
-              preparedNames={preparedNames}
               restoredManagers={restoredManagers}
               search={search}
               selected={selected}

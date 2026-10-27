@@ -1,8 +1,11 @@
 import { getSubnameMigrationImpact } from '@ens-apps/migration'
 import type { Address, PublicClient } from 'viem'
 import { bigname } from '@/lib/bigname'
-import type { ClassifiedName } from './classifyNames'
-import { discoverSubnameRecreation } from './subnameRecreation'
+import type { ClassifiedName, CopyClassifiedName } from './classifyNames'
+import {
+  applySubnameRecreation,
+  discoverSubnameRecreation,
+} from './subnameRecreation'
 
 const DISCOVERY_CONCURRENCY = 4
 
@@ -55,33 +58,50 @@ const canImportDirectSubnames = (name: ClassifiedName): boolean =>
   name.parentName === 'eth' &&
   (name.tokenType === 'unwrapped' || name.tokenType === 'unlocked')
 
+type SubnameCandidateResult =
+  | {
+      readonly status: 'verified'
+      readonly subnames: readonly CopyClassifiedName[]
+    }
+  | { readonly status: 'blocked'; readonly block: BlockedSubnameMigration }
+
 const checkSubnameCandidates = async (params: {
   readonly candidates: readonly ClassifiedName[]
   readonly isSubnameImportEnabled: boolean
   readonly owner: Address
   readonly publicClient: PublicClient
   readonly signal?: AbortSignal
-}): Promise<readonly BlockedSubnameMigration[]> => {
-  const blocked: BlockedSubnameMigration[] = []
+}): Promise<readonly SubnameCandidateResult[]> => {
+  const results: SubnameCandidateResult[] = []
   for (
     let offset = 0;
     offset < params.candidates.length;
     offset += DISCOVERY_CONCURRENCY
   ) {
-    const failures = await Promise.all(
+    const batch = await Promise.all(
       params.candidates
         .slice(offset, offset + DISCOVERY_CONCURRENCY)
-        .map(async (name): Promise<BlockedSubnameMigration | null> => {
+        .map(async (name): Promise<SubnameCandidateResult> => {
           try {
             const canImport = canImportDirectSubnames(name)
             if (params.isSubnameImportEnabled && canImport) {
-              await discoverSubnameRecreation({
+              const discovery = await discoverSubnameRecreation({
                 domains: [name.domain],
                 owner: params.owner,
                 publicClient: params.publicClient,
                 signal: params.signal,
               })
-              return null
+              const verified = applySubnameRecreation({
+                ...discovery,
+                classified: [name],
+                owner: params.owner,
+              })
+              return {
+                status: 'verified',
+                subnames: verified.filter(
+                  (item): item is CopyClassifiedName => item.action === 'copy',
+                ),
+              }
             }
             const impact = await getSubnameMigrationImpact({
               indexer: bigname,
@@ -92,23 +112,27 @@ const checkSubnameCandidates = async (params: {
             if (impact.isErr()) throw impact.error
             return impact.value.affectedCount > 0
               ? {
-                  name,
-                  reason: canImport ? 'imports-disabled' : 'unsupported-parent',
+                  status: 'blocked',
+                  block: {
+                    name,
+                    reason: canImport
+                      ? 'imports-disabled'
+                      : 'unsupported-parent',
+                  },
                 }
-              : null
+              : { status: 'verified', subnames: [] }
           } catch (error) {
             params.signal?.throwIfAborted()
-            return { name, reason: discoveryFailureReason(error) }
+            return {
+              status: 'blocked',
+              block: { name, reason: discoveryFailureReason(error) },
+            }
           }
         }),
     )
-    blocked.push(
-      ...failures.filter(
-        (failure): failure is BlockedSubnameMigration => failure !== null,
-      ),
-    )
+    results.push(...batch)
   }
-  return blocked
+  return results
 }
 
 /**
@@ -125,19 +149,21 @@ export const resolveMigratableNames = async (params: {
 }): Promise<{
   readonly eligible: readonly ClassifiedName[]
   readonly blockedSubnames: readonly BlockedSubnameMigration[]
+  readonly verifiedSubnames: readonly CopyClassifiedName[]
 }> => {
   const direct = params.eligible.filter((name) => name.action === 'migrate')
   // Include children controlled by other wallets: the owner's name list
   // alone cannot establish that the complete tree can be preserved.
-  const blocked = [
-    ...(await checkSubnameCandidates({
-      candidates: direct,
-      isSubnameImportEnabled: params.isSubnameImportEnabled,
-      owner: params.owner,
-      publicClient: params.publicClient,
-      signal: params.signal,
-    })),
-  ]
+  const checked = await checkSubnameCandidates({
+    candidates: direct,
+    isSubnameImportEnabled: params.isSubnameImportEnabled,
+    owner: params.owner,
+    publicClient: params.publicClient,
+    signal: params.signal,
+  })
+  const blocked = checked.flatMap((result) =>
+    result.status === 'blocked' ? [result.block] : [],
+  )
   const directNames = new Set(
     direct.map(({ domain }) => domain.name.toLowerCase()),
   )
@@ -152,9 +178,12 @@ export const resolveMigratableNames = async (params: {
   )
   const blockedIds = new Set(blocked.map(({ name }) => name.domain.id))
   return {
-    // Direct children are discovered from their parent and reviewed in the
-    // prepared plan; they are never selected as standalone copy actions.
+    // Direct children are shown under their parent, never selected as
+    // standalone copy actions. Plan preparation revalidates this inventory.
     eligible: direct.filter(({ domain }) => !blockedIds.has(domain.id)),
     blockedSubnames: blocked,
+    verifiedSubnames: checked.flatMap((result) =>
+      result.status === 'verified' ? result.subnames : [],
+    ),
   }
 }
