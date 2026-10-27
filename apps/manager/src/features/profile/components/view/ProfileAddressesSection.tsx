@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils'
 import {
   ProfileCard,
   profileCardCopyIconClassName,
-  profileCardTrailingIconStrokeWidth,
   profileFieldLabelClassName,
   profileFieldValueClassName,
   profileTileClassName,
@@ -32,8 +31,7 @@ type ProfileAddressesSectionProps = {
 
 const COMPACT_CHAIN_COUNT = 5
 
-// 24px padding, matching the about and contact cards. The svg override
-// keeps Button's has-[>svg] padding from shrinking the horizontal inset.
+// 24px padding, matching the about and contact cards.
 const addressCardClassName = cn(
   profileTileClassName,
   'h-auto min-h-16 w-full flex-row items-center justify-between gap-3 p-6 transition hover:bg-ens-quartz-50 has-[>svg]:px-6',
@@ -119,7 +117,6 @@ const MainAddressCard = ({
         aria-describedby={chainsId}
         aria-label={t`Copy address ${address.value}`}
         iconClassName={profileCardCopyIconClassName}
-        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
         value={address.value}
         variant="ghost"
       >
@@ -144,7 +141,6 @@ const ChainAddressCard = ({
       <CopyableButton
         aria-label={t`Copy ${address.label} address ${address.value}`}
         iconClassName={profileCardCopyIconClassName}
-        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
         value={address.value}
         variant="ghost"
       >

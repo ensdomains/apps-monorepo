@@ -9,7 +9,6 @@ import {
   ProfileCard,
   profileCardArrowClassName,
   profileCardCopyIconClassName,
-  profileCardTrailingIconStrokeWidth,
   profileRecordGridClassName,
   profileRecordGridItemClassName,
   profileTileClassName,
@@ -112,7 +111,6 @@ export const ProfileContactCard = ({
     <Card asChild className={`${className} h-auto items-start`}>
       <CopyableButton
         iconClassName={contactCopyIconClassName(wide)}
-        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
         value={item.displayValue}
         variant="ghost"
       >

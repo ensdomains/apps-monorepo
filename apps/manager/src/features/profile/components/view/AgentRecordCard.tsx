@@ -50,7 +50,7 @@ export const AgentRecordCard = ({ record }: AgentRecordCardProps) => (
         aria-label="Copy agent record"
         className="shrink-0"
         data-testid={`agent-record-copy-${record.agentId}`}
-        iconClassName="size-4"
+        iconClassName="ms-opsz-20 text-[16px] leading-none"
         value={record.key}
       >
         <Trans>Copy</Trans>

@@ -13,7 +13,6 @@ import {
   ProfileCard,
   profileCardArrowClassName,
   profileCardCopyIconClassName,
-  profileCardTrailingIconStrokeWidth,
   profileFieldLabelClassName,
   profileFieldValueClassName,
   profileTileClassName,
@@ -63,7 +62,6 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
     <Card asChild className={`${className} h-auto justify-start`}>
       <CopyableButton
         iconClassName={profileCardCopyIconClassName}
-        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
         value={displayValue}
         variant="ghost"
       >
