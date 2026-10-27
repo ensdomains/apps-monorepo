@@ -184,6 +184,14 @@ msgstr ""
 msgid "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{name} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name."
+msgstr ""
+
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
 msgstr ""
@@ -198,10 +206,6 @@ msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "{selectedCount} selected"
-msgstr ""
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "{selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
 msgstr ""
 
 #: src/features/migration/components/GameStep.tsx

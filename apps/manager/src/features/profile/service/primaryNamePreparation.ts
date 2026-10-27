@@ -1,9 +1,12 @@
+import { registryResolverSnippet } from '@ensdomains/ensjs-abi/registry'
 import {
   type Address,
   isAddressEqual,
+  namehash,
   type PublicClient,
   zeroAddress,
 } from 'viem'
+import { envConfig } from '@/config'
 import {
   getPrimaryNameForwardAddress,
   hasPrimaryNameForwardAddress,
@@ -23,6 +26,20 @@ export type PrimaryNamePreparation =
       readonly existingEthAddress: Address | null
       readonly hasResolver: boolean
     }
+
+/** An ENSv1 resolver that resolution no longer reaches, e.g. under an expired parent. */
+export const hasV1RegistryResolver = async (
+  publicClient: PublicClient,
+  name: string,
+): Promise<boolean> => {
+  const resolver = await publicClient.readContract({
+    address: envConfig.chain.contracts.ensLegacyRegistry.address,
+    abi: registryResolverSnippet,
+    functionName: 'resolver',
+    args: [namehash(name)],
+  })
+  return !isAddressEqual(resolver, zeroAddress)
+}
 
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
 export async function getPrimaryNamePreparation(

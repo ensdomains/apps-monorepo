@@ -34,6 +34,8 @@ const chain = vi.hoisted(() => ({
   primaryName: 'alpha.eth' as string | null,
   owner: '0x0000000000000000000000000000000000000001',
   preparation: { kind: 'ready' } as PrimaryNamePreparation,
+  protocol: 'v2' as 'v1' | 'v2',
+  hasV1RegistryResolver: false,
   read: vi.fn(),
   submit: vi.fn(),
   saveRecords: vi.fn(),
@@ -74,6 +76,7 @@ vi.mock('@/features/profile/service/setPrimaryName', () => ({
 }))
 vi.mock('@/features/profile/service/primaryNamePreparation', () => ({
   getPrimaryNamePreparation: async () => chain.preparation,
+  hasV1RegistryResolver: async () => chain.hasV1RegistryResolver,
 }))
 vi.mock(
   '@/features/profile/service/profileRecordTransactions',
@@ -131,6 +134,7 @@ vi.mock('../hooks/usePrimaryNameDomains', () => ({
     })),
     isLoading: false,
     isSelectedNameOffered: true,
+    selectedProtocol: chain.protocol,
     hasForwardAddressError: false,
     searchQuery: '',
     onSearchChange: vi.fn(),
@@ -242,6 +246,8 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
   beforeEach(() => {
     chain.primaryName = 'alpha.eth'
     chain.preparation = { kind: 'ready' }
+    chain.protocol = 'v2'
+    chain.hasV1RegistryResolver = false
     chain.saveRecords.mockReset().mockResolvedValue({})
     chain.read.mockReset().mockImplementation(async () => chain.primaryName)
     chain.submit
@@ -399,6 +405,51 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
       }),
     )
   })
+
+  it.each([
+    {
+      hasV1RegistryResolver: true,
+      message:
+        /no longer resolves, usually because its parent name has expired/,
+    },
+    {
+      hasV1RegistryResolver: false,
+      message: /set its resolver in the ENSv1 app/,
+    },
+  ])(
+    'explains why an ENSv1 name without a writable resolver cannot be primary (registry resolver: $hasV1RegistryResolver)',
+    async ({ hasV1RegistryResolver, message }) => {
+      chain.protocol = 'v1'
+      chain.hasV1RegistryResolver = hasV1RegistryResolver
+      chain.preparation = {
+        kind: 'setup-resolver',
+        existingEthAddress: null,
+        hasResolver: false,
+      }
+      await renderDashboard()
+      await expectPrimary('alpha.eth')
+      const list = screen.getByRole('region', { name: 'My Names' })
+      fireEvent.click(
+        within(list).getByRole('button', { name: 'Primary Name' }),
+      )
+      const dialog = await screen.findByRole('dialog', {
+        name: 'Choose Primary Name',
+      })
+      fireEvent.click(
+        within(dialog).getByRole('button', {
+          name: 'Select beta.eth as primary name',
+        }),
+      )
+      const confirm = within(dialog).getByRole('button', {
+        name: 'Set as Primary',
+      })
+      await waitFor(() => expect(confirm).toBeEnabled())
+      fireEvent.click(confirm)
+
+      expect(await within(dialog).findByText(message)).toBeInTheDocument()
+      expect(chain.submit).not.toHaveBeenCalled()
+    },
+  )
 
   it('keeps current surfaces and chooser on transaction failure', async () => {
     chain.submit.mockRejectedValue(new Error('Wallet rejected'))
