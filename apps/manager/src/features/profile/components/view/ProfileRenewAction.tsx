@@ -34,6 +34,7 @@ export const ProfileRenewAction = ({
 }: ProfileRenewActionProps) => {
   const { data: expiryData } = useQuery({
     ...profileExpiryQuery(name, protocol),
+    enabled: protocol != null,
   })
   const expiryDate = profileExpiryDateFromSeconds(expiryData?.expiry)
   const resolvedProtocol = protocol ?? expiryData?.protocol ?? 'v2'

@@ -493,6 +493,81 @@ describe('offchain resolver records', () => {
     expect(resolveCalls()).toHaveLength(1)
   })
 
+  it('keeps large profiles in bounded multicalls instead of falling back to individual records', async () => {
+    offchain()
+    const batched = mocks.readContract.getMockImplementation()
+    mocks.readContract.mockImplementation((request) => {
+      if (
+        request.functionName === 'resolve' &&
+        (request.args[1].length - 2) / 2 > 2048
+      ) {
+        throw new HttpRequestError({
+          url: 'https://gateway.invalid',
+          status: 414,
+        })
+      }
+      return batched?.(request)
+    })
+    const texts = [
+      'description',
+      ...Array.from({ length: 30 }, (_, i) => `custom.record.${i}`),
+    ]
+    const { readErrors } = await readResolverRecords({
+      name: NAME,
+      resolver: RESOLVER,
+      texts,
+      coins: [60],
+      publicClient: publicClient as PublicClient,
+    })
+    expect(readErrors).toEqual([])
+    const calls = resolveCalls()
+    expect(calls.length).toBeLessThan(10)
+    const requestedTexts = calls.flatMap(([request]) => {
+      // A per-record fallback fails this decode: every call must be a multicall.
+      const {
+        args: [calls],
+      } = decodeFunctionData({ abi: multicallAbi, data: request.args[1] })
+      return calls.flatMap((data) => {
+        const call = decodeFunctionData({ abi: recordAbi, data })
+        return call.functionName === 'text' ? [call.args[1]] : []
+      })
+    })
+    expect(requestedTexts).toEqual(texts)
+  })
+
+  it('stops later batches immediately when a gateway rate limits', async () => {
+    offchain()
+    const batched = mocks.readContract.getMockImplementation()
+    let batches = 0
+    mocks.readContract.mockImplementation((request) => {
+      if (request.functionName === 'resolve' && ++batches === 2) {
+        throw new HttpRequestError({
+          url: 'https://gateway.invalid',
+          status: 429,
+        })
+      }
+      return batched?.(request)
+    })
+    await expect(
+      readResolverRecords({
+        name: NAME,
+        resolver: RESOLVER,
+        texts: Array.from({ length: 30 }, (_, i) => `key.${i}`),
+        coins: [60],
+        publicClient: publicClient as PublicClient,
+      }),
+    ).rejects.toMatchObject({ status: 429 })
+    expect(resolveCalls()).toHaveLength(2)
+  })
+
+  it('does not multiply requests when a batch gateway is unavailable', async () => {
+    offchain(
+      new HttpRequestError({ url: 'https://gateway.invalid', status: 503 }),
+    )
+    await expect(read()).rejects.toMatchObject({ status: 503 })
+    expect(resolveCalls()).toHaveLength(1)
+  })
+
   it('does not fall back to one request per record when the gateway rate limits', async () => {
     offchain(
       new BaseError('Gateway failed', {

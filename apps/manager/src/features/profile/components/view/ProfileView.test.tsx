@@ -12,6 +12,7 @@ import { ProfileView } from './ProfileView'
 const mocks = vi.hoisted(() => ({
   getProfileRecords: vi.fn<() => Promise<ProfileRecordsResult>>(),
   expiryFails: false,
+  metadataPending: false,
   includeEditor: false,
 }))
 
@@ -66,21 +67,21 @@ vi.mock('@/features/profile/service/profileExpiry', async (importOriginal) => ({
       : {
           queryKey: ['profile-expiry', name],
           queryFn: skipToken,
-          initialData: null,
+          initialData: mocks.metadataPending ? undefined : null,
         },
 }))
 vi.mock('@/features/profile/service/profileRegistration', () => ({
   profileRegistrationQuery: (name: string) => ({
     queryKey: ['profile-registration', name],
     queryFn: skipToken,
-    initialData: null,
+    initialData: mocks.metadataPending ? undefined : null,
   }),
 }))
 vi.mock('@/features/profile/service/profileReverseName', () => ({
   profileReverseNameQuery: () => ({
     queryKey: ['profile-reverse-name'],
     queryFn: skipToken,
-    initialData: null,
+    initialData: mocks.metadataPending ? undefined : null,
   }),
 }))
 vi.mock('./ProfileCards', () => ({ ProfileCards: () => null }))
@@ -334,5 +335,22 @@ describe('ProfileView records read failure', () => {
       ).not.toBeInTheDocument(),
     )
     expect(mocks.getProfileRecords).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('ProfileView offchain registration metadata', () => {
+  afterEach(() => {
+    mocks.metadataPending = false
+  })
+  it('renders resolved records when ownerless registration queries remain pending', async () => {
+    mocks.metadataPending = true
+    mocks.getProfileRecords.mockResolvedValue(
+      imageRecords(savedAvatar, savedHeader),
+    )
+    renderProfile()
+    await profileLoaded()
+    expect(
+      screen.queryByText('Failed to load registration data for this name.'),
+    ).not.toBeInTheDocument()
   })
 })

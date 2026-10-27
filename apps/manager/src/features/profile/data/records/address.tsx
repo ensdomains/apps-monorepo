@@ -100,6 +100,21 @@ const rawAddressRecords = canonicalAddressRecords.map(
     ) ?? record,
 )
 
+// Probe common records when the indexer has no inventory (as for CCIP names).
+// The full picker includes hundreds of coin types; reading all of them can
+// exhaust a gateway's rate limit or the UniversalResolver's multicall budget.
+export const profileCoinTypes = [
+  coinNameToTypeMap.eth,
+  coinNameToTypeMap.default,
+  coinNameToTypeMap.btc,
+  coinNameToTypeMap.doge,
+  coinNameToTypeMap.sol,
+  coinNameToTypeMap.strk,
+  ...L2_REVERSE_REGISTRAR_CHAIN_IDS.map((chainId) =>
+    getCoinTypeForReverseRegistrarChainId(chainId, envConfig.network),
+  ),
+]
+
 // Optional custom sort preference for addresses (by coinType or notation)
 // Put most important chains first; remaining follow encoder order
 const PREFERRED_ADDRESS_ORDER: Array<number | { notation: string }> = [

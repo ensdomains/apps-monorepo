@@ -69,11 +69,27 @@ const isContractRevert = (error: unknown) =>
   error instanceof BaseError &&
   Boolean(error.walk((cause) => cause instanceof ExecutionRevertedError))
 
-const isRateLimited = (error: unknown): boolean => {
+export const isRateLimited = (error: unknown): boolean => {
   for (let cause = error; cause; cause = (cause as { cause?: unknown }).cause)
     if ((cause as { status?: unknown }).status === 429) return true
   return false
 }
+
+const isGatewayUnavailable = (error: unknown): boolean => {
+  for (let cause = error; cause; cause = (cause as { cause?: unknown }).cause) {
+    const failure = cause as { name?: string; status?: number }
+    if (
+      failure.name === 'HttpRequestError' &&
+      (!failure.status || failure.status >= 500)
+    )
+      return true
+  }
+  return false
+}
+
+// Calldata doubles in size when hex-encoded in a provider's GET URL, with
+// further overhead for resolve(name, data). Stay comfortably below URL limits.
+const MAX_RESOLVER_BATCH_BYTES = 2048
 
 const isRecognizedV2Resolver = async (
   resolver: Address,
@@ -347,35 +363,54 @@ export const readResolverRecords = async ({
         ]
       : []),
   ]
-  // A CCIP-Read gateway answers every record call separately, so ask once.
+  // A provider can embed the calldata in a GET URL. One large multicall
+  // exceeds URL limits and used to fall back to one request per record.
+  // Keep batches small enough for those gateways and submit them in order.
+  const batchReads: RecordRead[][] = []
+  for (const request of reads) {
+    const current = batchReads.at(-1)
+    const candidate = [...(current ?? []), request]
+    const data = encodeFunctionData({
+      abi: multicallAbi,
+      functionName: 'multicall',
+      args: [candidate.map(({ data }) => data)],
+    })
+    if (current && (data.length - 2) / 2 <= MAX_RESOLVER_BATCH_BYTES)
+      current.push(request)
+    else batchReads.push([request])
+  }
   const batch =
     hasExtendedResolution && kind === 'node'
-      ? await client
-          .readContract({
-            address: resolver,
-            abi: permissionedResolverResolveSnippet,
-            functionName: 'resolve',
-            args: [
-              dnsEncodeName(name),
-              encodeFunctionData({
+      ? await (async () => {
+          const results: Hex[] = []
+          for (const chunk of batchReads) {
+            const data = await client.readContract({
+              address: resolver,
+              abi: permissionedResolverResolveSnippet,
+              functionName: 'resolve',
+              args: [
+                dnsEncodeName(name),
+                encodeFunctionData({
+                  abi: multicallAbi,
+                  functionName: 'multicall',
+                  args: [chunk.map(({ data }) => data)],
+                }),
+              ],
+            })
+            results.push(
+              ...decodeFunctionResult({
                 abi: multicallAbi,
                 functionName: 'multicall',
-                args: [reads.map(({ data }) => data)],
+                data,
               }),
-            ],
-          })
-          .then((data) =>
-            decodeFunctionResult({
-              abi: multicallAbi,
-              functionName: 'multicall',
-              data,
-            }),
-          )
-          .catch((error: unknown) => {
-            // Falling back to one call per record would only deepen a rate limit.
-            if (isRateLimited(error)) throw error
-            return null
-          })
+            )
+          }
+          return results
+        })().catch((error: unknown) => {
+          // Falling back to one call per record would only deepen a rate limit.
+          if (isRateLimited(error) || isGatewayUnavailable(error)) throw error
+          return null
+        })
       : null
   const readOne = async (data: Hex) =>
     kind === 'name' || hasExtendedResolution

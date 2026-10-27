@@ -140,9 +140,11 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     error: expiryError,
   } = useQuery({
     ...profileExpiryQuery(name, ownerData?.protocol),
+    enabled: ownerData != null,
   })
   const registration = useQuery({
     ...profileRegistrationQuery(name, ownerData?.protocol),
+    enabled: ownerData != null,
   })
 
   const expiry = getProfileExpiryResultStatus(expiryData)
@@ -168,11 +170,14 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
-  if (isRecordsPending || (ownerMissing && isExpiryPending)) {
+  if (
+    isRecordsPending ||
+    (ownerData != null && ownerMissing && isExpiryPending)
+  ) {
     return <ProfileLoading name={name} />
   }
 
-  if (ownerMissing && isExpiryError) {
+  if (ownerData != null && ownerMissing && isExpiryError) {
     return (
       <div className="mx-auto max-w-md space-y-4 px-4 py-8">
         <p className="text-foreground text-sm">

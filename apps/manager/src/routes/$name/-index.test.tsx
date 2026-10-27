@@ -24,6 +24,10 @@ vi.mock('@tanstack/react-router', () => ({
   redirect: (options: unknown) => ({ options }),
 }))
 
+vi.mock('@/features/profile/service/dnsSecEnabled', () => ({
+  dnsSecEnabledQuery: () => ({ kind: 'dnssec' }),
+}))
+
 vi.mock('@/features/profile/service/profileExpiry', () => ({
   profileExpiryQuery: vi.fn(),
 }))
@@ -75,7 +79,19 @@ const renderRouteOption = (option: 'component' | 'pendingComponent') => {
 
 const PROFILE_OWNER = '0x0000000000000000000000000000000000000001'
 
-const runLoader = async (name: string) => {
+const runLoader = async (
+  name: string,
+  {
+    ownerless = false,
+    records = { coins: [], texts: [] },
+  }: {
+    ownerless?: boolean
+    records?: {
+      coins: { coinType: number; value: string }[]
+      texts: { key: string; value: string }[]
+    } | null
+  } = {},
+) => {
   vi.mocked(profileRecordsQuery).mockImplementation(
     (queryName) => ({ kind: 'records', name: queryName }) as never,
   )
@@ -96,14 +112,22 @@ const runLoader = async (name: string) => {
 
   const ensureQueryData = vi.fn(
     async (query: { readonly kind: string; readonly name: string }) => {
-      if (query.kind === 'records') return { coins: [], texts: [] }
+      if (query.kind === 'records') {
+        if (records === null) throw new Error('gateway unavailable')
+        return records
+      }
+      if (query.kind === 'dnssec') return true
       return { expiry: null }
     },
   )
-  const fetchQuery = vi.fn().mockResolvedValue({
-    owner: PROFILE_OWNER,
-    protocol: 'v2',
-  })
+  const fetchQuery = vi.fn().mockResolvedValue(
+    ownerless
+      ? null
+      : {
+          owner: PROFILE_OWNER,
+          protocol: 'v2',
+        },
+  )
   const prefetchQuery = vi.fn().mockResolvedValue(undefined)
   const loader = Route.options.loader as (args: {
     params: { name: string }
@@ -187,6 +211,45 @@ describe('/$name client-rendered profile route', () => {
     expect(ensureQueryData).not.toHaveBeenCalled()
     expect(fetchQuery).not.toHaveBeenCalled()
     expect(prefetchQuery).not.toHaveBeenCalled()
+  })
+
+  it.each(['jesse.base.eth', 'test.playkombat.eth', 'validator.world.id'])(
+    'shows the resolved profile for %s without an L1 owner or registration metadata',
+    async (name) => {
+      const { outcome } = await runLoader(name, {
+        ownerless: true,
+        records: {
+          texts: [{ key: 'description', value: 'Offchain profile' }],
+          coins: [],
+        },
+      })
+      expect(outcome).toEqual({
+        name,
+        fallback: undefined,
+        description: 'Offchain profile',
+      })
+      expect(profileExpiryQuery).not.toHaveBeenCalled()
+      expect(profileRegistrationQuery).not.toHaveBeenCalled()
+    },
+  )
+
+  it('does not mistake a wildcard resolver with empty records for an existing name', async () => {
+    const { outcome } = await runLoader('missing.base.eth', { ownerless: true })
+    expect(outcome).toEqual({
+      name: 'missing.base.eth',
+      fallback: 'not-found',
+      description: undefined,
+    })
+  })
+
+  it('reports gateway failure instead of declaring an ownerless name missing', async () => {
+    const { outcome } = await runLoader('jesse.base.eth', {
+      ownerless: true,
+      records: null,
+    })
+    expect(outcome).toEqual(
+      new Error('Could not resolve records for this name. Please try again.'),
+    )
   })
 
   it('uses one canonical name for every profile query', async () => {

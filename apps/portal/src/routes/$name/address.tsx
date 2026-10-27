@@ -1,3 +1,4 @@
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -178,7 +179,11 @@ function RouteComponent() {
     )
   }
 
-  if (!ownerQuery.data && !offchain.resolvedAddress) {
+  if (
+    !ownerQuery.data &&
+    !offchain.resolvedAddress &&
+    !hasResolvedRecords(profileQuery.data?.records)
+  ) {
     return (
       <NameNotRegisteredMessage
         name={name}

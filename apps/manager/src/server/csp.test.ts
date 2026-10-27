@@ -160,12 +160,13 @@ describe('csp', () => {
       expect(header['connect-src']).toContain('https://1.1.1.1')
     })
 
-    it('allowlists the CCIP-read batch and verifier gateways', () => {
-      // viem fans OffchainLookup batches out to these from the browser; a miss
-      // surfaces as ResolverError("HTTP request failed."), not a CSP error.
-      expect(header['connect-src']).toContain('https://*.ens.xyz')
-      expect(header['connect-src']).toContain('https://*.3668.io')
-      expect(header['connect-src']).toContain('https://lb.drpc.org')
+    it('allows arbitrary HTTPS CCIP gateways while keeping WebSockets explicit', () => {
+      expect(header['connect-src']).toContain('https:')
+      expect(header['connect-src']).not.toContain('http:')
+      expect(header['connect-src']).not.toContain('wss:')
+      expect(header['connect-src']).not.toContain('*')
+      expect(header['connect-src']).toContain('wss://*.walletconnect.com')
+      expect(header['connect-src']).toContain('wss://*.walletconnect.org')
     })
 
     it('allowlists every fallback RPC the viem transport can reach', () => {

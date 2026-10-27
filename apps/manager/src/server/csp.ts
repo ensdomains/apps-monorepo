@@ -39,7 +39,8 @@ const OVERRIDE_CONNECT_ORIGINS = [
 ].filter((origin): origin is string => origin != null)
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
-// Keep this list tight and annotated; a missing host silently breaks a flow.
+// HTTPS is open for resolver-selected CCIP gateways. Explicit origins below
+// also cover configured HTTP endpoints and the permitted WebSocket services.
 const DEFAULT_CONNECT_HOSTS = [
   // Every RPC endpoint the viem transports may use: the app's attributed
   // primary plus the network's shared fallbacks. Derived from the same config
@@ -95,13 +96,11 @@ const DEFAULT_CONNECT_HOSTS = [
   // cloudflare-dns.com. Both hosts: CSP matches on host, not on service.
   'https://cloudflare-dns.com',
   'https://1.1.1.1',
-  // CCIP-Read (ERC-3668) gateways — viem follows OffchainLookup reverts from
-  // the browser, so a miss surfaces as ResolverError("HTTP request failed").
-  // The UR's batch gateway (*.ens.xyz) fans out to Unruggable's *.3668.io and
-  // its mirror lb.drpc.org (distinct from the lb.drpc.live RPC above).
-  'https://*.ens.xyz',
-  'https://*.3668.io',
-  'https://lb.drpc.org',
+  // CCIP-Read gateways are chosen by each resolver, so they cannot be
+  // enumerated in a host allowlist. Allow HTTPS connections to any provider.
+  // This applies to all fetch/XHR requests; CSP cannot scope it to CCIP-Read.
+  // WebSockets still require the explicit sources listed here.
+  'https:',
 ] as const
 
 const CONNECT_HOSTS = [

@@ -118,6 +118,13 @@ describe('address route', () => {
     })
   })
 
+  it('shows Basename addresses without an L1 owner or ENS1 DNS record', () => {
+    routeName = 'jesse.base.eth'
+    render(<AddressRoute />)
+    expect(screen.getByTestId('address-table')).toHaveTextContent(RESOLVED)
+    expect(screen.queryByText('Name not registered')).not.toBeInTheDocument()
+  })
+
   it('waits for the off-chain check before deciding', () => {
     offchain = { isLoading: true, resolvedAddress: null }
 

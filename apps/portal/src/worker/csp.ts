@@ -49,7 +49,8 @@ const OVERRIDE_CONNECT_ORIGINS = [
 ].filter((origin): origin is string => origin != null)
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
-// Keep this list tight and annotated; a missing host silently breaks a flow.
+// HTTPS is open for resolver-selected CCIP gateways. Explicit origins below
+// also cover configured HTTP endpoints and the permitted WebSocket services.
 // Per-deployment overrides via VITE_RPC_URL / VITE_BIGNAME_API_URL
 // are appended automatically (see OVERRIDE_CONNECT_ORIGINS / CONNECT_HOSTS).
 const DEFAULT_CONNECT_HOSTS = [
@@ -111,21 +112,11 @@ const DEFAULT_CONNECT_HOSTS = [
   ...L2_CHAINS.flatMap((chain) => chain.rpcUrls.default.http)
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
-  // CCIP-Read (ERC-3668) gateways — viem follows the UniversalResolver's
-  // OffchainLookup reverts from the browser, so every gateway origin must be
-  // allowlisted or resolution fails with a generic "HTTP request failed."
-  // buried in a ResolverError. The UR hands out the ENS batch gateway
-  // (ccip-v3.ens.xyz — wildcarded like the other ENS-owned domains) tagged
-  // `x-batch-gateway:true`, which makes viem fan the batch out to the
-  // per-chain verifier gateways directly from the browser: Unruggable's
-  // *.3668.io (arbitrum-sepolia.3668.io, linea-sepolia.3668.io, …) and its
-  // drpc-load-balanced mirror lb.drpc.org (the gateway host — distinct from
-  // the lb.drpc.live RPC above). Blocking any of these breaks L2
-  // primary-name verification (forward-resolution useReverseMatch) and every
-  // name resolving through a CCIP-read resolver.
-  'https://*.ens.xyz',
-  'https://*.3668.io',
-  'https://lb.drpc.org',
+  // CCIP-Read gateways are chosen by each resolver, so they cannot be
+  // enumerated in a host allowlist. Allow HTTPS connections to any provider.
+  // This applies to all fetch/XHR requests; CSP cannot scope it to CCIP-Read.
+  // WebSockets still require the explicit sources listed here.
+  'https:',
   // Intercom Messenger — API, realtime websockets, and CDN uploads. Wildcards
   // cover regional one-level hosts (api-iam.intercom.io, nexus-websocket-a.
   // intercom.io) without listing every entry from Intercom's CSP guide:

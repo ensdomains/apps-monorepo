@@ -35,6 +35,7 @@ const settled = (data: unknown): QueryResult => ({
 let ownerResult: QueryResult
 let resolverResult: QueryResult
 let v1StateResult: QueryResult
+let profileResult: QueryResult = settled(undefined)
 
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
@@ -50,6 +51,7 @@ vi.mock('@tanstack/react-query', async () => {
     useQuery: (options: { queryKey: readonly unknown[] }) => {
       const key = options.queryKey[0]
       if (key === 'hasRoles') return settled(true)
+      if (key === 'profile') return profileResult
       if (key === 'get-ens-owner') return ownerResult
       if (key === 'transfer-v1-name-state') return v1StateResult
       return settled(undefined)
@@ -106,6 +108,7 @@ const ResolverRoute = (
 const ENS_V1_RESOLVER = '0xae66c62AcAE72098BdAc57d8E8AED53EF000b2Ba'
 
 beforeEach(() => {
+  profileResult = settled(undefined)
   routeName = 'jobintime.xyz'
   ownerResult = settled(null)
   resolverResult = settled(ENS_V1_RESOLVER)
@@ -124,6 +127,21 @@ describe('resolver route', () => {
 
     render(<ResolverRoute />)
 
+    expect(screen.getByText(ENS_V1_RESOLVER)).toBeInTheDocument()
+    expect(screen.queryByText('Change resolver')).not.toBeInTheDocument()
+    expect(screen.queryByText('Name not registered')).not.toBeInTheDocument()
+  })
+
+  it('shows a Basename resolver read-only after successful record resolution', () => {
+    routeName = 'jesse.base.eth'
+    profileResult = settled({
+      records: {
+        coins: [
+          { coinType: 60, value: '0x55e55C649895940826a852820d9e1A076Ec47b09' },
+        ],
+      },
+    })
+    render(<ResolverRoute />)
     expect(screen.getByText(ENS_V1_RESOLVER)).toBeInTheDocument()
     expect(screen.queryByText('Change resolver')).not.toBeInTheDocument()
     expect(screen.queryByText('Name not registered')).not.toBeInTheDocument()

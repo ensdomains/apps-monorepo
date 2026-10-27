@@ -7,6 +7,7 @@ import {
   publicResolverSingleAddrSnippet,
   publicResolverTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
 import {
   BaseError,
@@ -23,6 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   client: {},
   resolveNameData: vi.fn(),
+  getResolver: vi.fn(),
   nameRecords: vi.fn(),
   call: vi.fn(),
   resolveNameRegistry: vi.fn(),
@@ -37,6 +39,7 @@ vi.mock('@/lib/bigname', () => ({
 }))
 vi.mock('@ensdomains/ensjs/public', () => ({
   resolveNameData: mocks.resolveNameData,
+  getResolver: mocks.getResolver,
   getSupportedInterfaces: async (
     _client: unknown,
     { interfaces }: { interfaces: readonly string[] },
@@ -61,6 +64,7 @@ vi.mock('./changeResolver', () => {
   }
 })
 vi.mock('../data/records', () => ({
+  profileCoinTypes: [60],
   addressRecords: [{ coinType: 60 }, { coinType: 121 }, { coinType: 501 }],
   alwaysProbeAddressRecords: [],
   forceFetchRecords: { always: [], whenNotIndexed: [] },
@@ -69,7 +73,7 @@ vi.mock('../data/records', () => ({
 }))
 
 import { NameRegistryNotFoundError } from './changeResolver'
-import { getProfileRecords } from './profileRecords'
+import { getProfileRecords, profileRecordsQuery } from './profileRecords'
 
 const resolverAddress = '0x2222222222222222222222222222222222222222'
 const ethAddress = '0x1111111111111111111111111111111111111111'
@@ -173,7 +177,19 @@ describe('profile records', () => {
     mocks.readNameResolver.mockResolvedValue(resolverAddress)
     mocks.call.mockReset().mockImplementation(directRead)
     mocks.hasV2NameEntry.mockResolvedValue(true)
+    mocks.getResolver.mockResolvedValue(null)
     mocks.isExtendedResolver = false
+  })
+
+  it('retains indexed custom coins alongside the supported catalog', async () => {
+    mocks.nameRecords.mockReturnValue(knownKeys(['addr:9004']))
+    await getProfileRecords('jesse.base.eth')
+    const coins = requestedCalls().flatMap((call) =>
+      call.functionName === 'addr'
+        ? [call.args.length === 1 ? 60n : call.args[1]]
+        : [],
+    )
+    expect(coins).toEqual([60n, 121n, 501n, 9004n])
   })
 
   it.each([resolverAddress, zeroAddress])(
@@ -268,7 +284,10 @@ describe('profile records', () => {
       expect(result.texts).toEqual([linksRecord])
       expect(mocks.resolveNameData).toHaveBeenCalledExactlyOnceWith(
         mocks.client,
-        { name: 'links.eth', data: expect.any(Array) },
+        {
+          name: 'links.eth',
+          data: expect.any(Array),
+        },
       )
       expect(requestedTextKeys()).toEqual(['avatar', 'theme', 'links'])
     },
@@ -389,6 +408,9 @@ describe('profile records', () => {
 
     expect(result.isOk()).toBe(true)
     expect(requestedTextKeys()).toEqual(['avatar', 'theme', 'links'])
+    expect(
+      requestedCalls().filter((call) => call.functionName === 'addr'),
+    ).toHaveLength(1)
   })
 
   it('returns no coins when the universal resolver has no result', async () => {
@@ -396,6 +418,68 @@ describe('profile records', () => {
     expect(
       (await getProfileRecords('empty.eth'))._unsafeUnwrap().coins,
     ).toEqual([])
+  })
+
+  it('batches an inherited offchain resolver directly instead of resolving each record through the legacy adapter', async () => {
+    mocks.getResolver.mockResolvedValue(resolverAddress)
+    mocks.isExtendedResolver = true
+    const multicallAbi = [
+      {
+        name: 'multicall',
+        type: 'function',
+        inputs: [{ type: 'bytes[]' }],
+        outputs: [{ type: 'bytes[]' }],
+        stateMutability: 'view',
+      },
+    ] as const
+    mocks.readContract.mockImplementation(async ({ args }) => {
+      const {
+        args: [calls],
+      } = decodeFunctionData({ abi: multicallAbi, data: args[1] })
+      const results = await Promise.all(
+        calls.map(async (data) => (await directRead({ data }))?.data ?? '0x'),
+      )
+      return encodeAbiParameters([{ type: 'bytes[]' }], [results])
+    })
+    const result = (await getProfileRecords('jesse.base.eth'))._unsafeUnwrap()
+    expect(result.texts).toEqual([{ key: 'theme', value: '#123456' }])
+    expect(mocks.readContract).toHaveBeenCalledTimes(1)
+    expect(mocks.resolveNameData).not.toHaveBeenCalled()
+  })
+
+  it('reuses the loader result on mount and refreshes it after invalidation', async () => {
+    const client = new QueryClient()
+    const options = profileRecordsQuery('jesse.base.eth')
+    try {
+      await client.ensureQueryData(options)
+      const observer = new QueryObserver(client, options)
+      const unsubscribe = observer.subscribe(() => {})
+      expect(mocks.resolveNameData).toHaveBeenCalledTimes(1)
+      unsubscribe()
+      await client.invalidateQueries({
+        queryKey: options.queryKey,
+        refetchType: 'none',
+      })
+      await client.fetchQuery(options)
+      expect(mocks.resolveNameData).toHaveBeenCalledTimes(2)
+    } finally {
+      client.clear()
+    }
+  })
+
+  it('does not split or automatically retry a rate-limited gateway request', async () => {
+    const client = new QueryClient()
+    mocks.resolveNameData.mockRejectedValue(
+      new HttpRequestError({ url: 'https://ccip-v3.ens.xyz', status: 429 }),
+    )
+    try {
+      await expect(
+        client.fetchQuery(profileRecordsQuery('jesse.base.eth')),
+      ).rejects.toMatchObject({ _tag: 'GetProfileRecordsError' })
+      expect(mocks.resolveNameData).toHaveBeenCalledTimes(1)
+    } finally {
+      client.clear()
+    }
   })
 
   it('retains the profile error path when resolution fails', async () => {

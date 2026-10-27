@@ -1,10 +1,20 @@
 import { render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestWrapper } from '@/test-utils'
 
 const CONTROLLER = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
 const REGISTRY = '0x1111111111111111111111111111111111111111'
 const RESOLVER = '0x2222222222222222222222222222222222222222'
+
+let routeName = 'alice.eth'
+let ownerless = false
+let profileRecords:
+  | {
+      texts?: { key: string; value: string }[]
+      coins?: { coinType: number; value: string }[]
+    }
+  | undefined
+let profileError: Error | null = null
 
 let protocolVersion: 'ENSv1' | 'ENSv2' = 'ENSv1'
 let isInGrace = false
@@ -26,7 +36,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
     Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
       <a href={to}>{children}</a>
     ),
-    useParams: () => ({ name: 'alice.eth' }),
+    useParams: () => ({ name: routeName }),
     useRouterState: ({
       select,
     }: {
@@ -135,14 +145,24 @@ vi.mock('@tanstack/react-query', async () => {
         case 'get-ens-owner':
           return {
             // `resolveEnsOwner` reports the controller for an unwrapped 2LD.
-            data: {
-              owner: CONTROLLER,
-              registryAddress: REGISTRY,
-              protocolVersion,
-            },
+            data: ownerless
+              ? null
+              : {
+                  owner: CONTROLLER,
+                  registryAddress: REGISTRY,
+                  protocolVersion,
+                },
             isLoading: false,
             error: null,
           }
+        case 'profile':
+          return {
+            data: { records: profileRecords },
+            error: profileError,
+            isLoading: false,
+          }
+        case 'dnsSecEnabled':
+          return { data: true, error: null, isLoading: false }
         case 'check-name-availability':
           return {
             data: { isAvailable: false },
@@ -312,5 +332,46 @@ describe('name route — registration success banner', () => {
       screen.getByText('You are the owner of alice.eth'),
     ).toBeInTheDocument()
     expect(screen.getByText('$5.00')).toBeInTheDocument()
+  })
+})
+
+describe('ownerless offchain profiles', () => {
+  beforeEach(() => {
+    ownerless = true
+  })
+  afterEach(() => {
+    ownerless = false
+    routeName = 'alice.eth'
+    profileRecords = undefined
+    profileError = null
+  })
+
+  it.each(['jesse.base.eth', 'test.playkombat.eth', 'validator.world.id'])(
+    'shows %s without inventing L1 ownership or a registration protocol',
+    (name) => {
+      routeName = name
+      profileRecords = { coins: [{ coinType: 60, value: CONTROLLER }] }
+      renderRoute()
+      expect(screen.getByRole('heading', { name })).toBeInTheDocument()
+      expect(screen.queryByText('Name not found')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('owner-row')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('protocol-row')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('v1-protocol-row')).not.toBeInTheDocument()
+    },
+  )
+
+  it('does not treat an inherited resolver with no records as an existing name', () => {
+    routeName = 'missing.base.eth'
+    profileRecords = { texts: [], coins: [] }
+    renderRoute()
+    expect(screen.getByText('Name not found')).toBeInTheDocument()
+  })
+
+  it('shows a resolution failure instead of claiming the name is missing', () => {
+    routeName = 'jesse.base.eth'
+    profileError = new Error('gateway unavailable')
+    renderRoute()
+    expect(screen.getByText('Error loading records')).toBeInTheDocument()
+    expect(screen.queryByText('Name not found')).not.toBeInTheDocument()
   })
 })

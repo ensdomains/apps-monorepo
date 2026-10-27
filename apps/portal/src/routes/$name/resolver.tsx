@@ -1,3 +1,4 @@
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import type { GetEnsResolverErrorType } from '@wagmi/core'
@@ -25,6 +26,7 @@ import {
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
@@ -369,6 +371,10 @@ function RouteComponent() {
   // A gasless DNS name has no registry entry by design, yet the
   // UniversalResolver still finds a resolver for it (by wildcard).
   const offchain = useDnsOffchainName({ name, owner: ownerQuery.data })
+  const profileQuery = useQuery({
+    ...getProfileQueryOptions({ name }),
+    enabled: ownerQuery.data === null,
+  })
 
   if (ownerQuery.error) {
     return (
@@ -394,9 +400,19 @@ function RouteComponent() {
     ownerQuery.isLoading ||
     resolverQuery.isLoading ||
     offchain.isLoading ||
+    profileQuery.isLoading ||
     (availabilityQuery.isLoading && isRegistrable(name))
   )
     return <LoadingMessage />
+
+  if (!ownerQuery.data && profileQuery.error) {
+    return (
+      <ErrorMessage
+        title="Error loading records"
+        description={extractErrorMessage(profileQuery.error)}
+      />
+    )
+  }
 
   if (availabilityQuery.error) {
     return (
@@ -412,7 +428,9 @@ function RouteComponent() {
 
   if (
     availabilityQuery.data?.isAvailable ||
-    (!ownerQuery.data && !offchain.resolvedAddress)
+    (!ownerQuery.data &&
+      !offchain.resolvedAddress &&
+      !hasResolvedRecords(profileQuery.data?.records))
   )
     return (
       <NameNotRegisteredMessage

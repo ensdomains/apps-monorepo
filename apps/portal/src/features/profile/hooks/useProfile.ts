@@ -1,20 +1,15 @@
-import type { BignameError } from '@ens-apps/indexer/bigname'
 import { parseRecordKey, type RecordInventory } from '@ens-apps/indexer/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
-import { errAsync, fromPromise, ok, okAsync } from 'neverthrow'
+import { fromPromise, ok, okAsync } from 'neverthrow'
 import { match } from 'ts-pattern'
 import { zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLegacyRegistryResolver } from '@/utils/ens/getLegacyRegistryResolver'
 import { getRecords } from './useRecords'
-
-class GetProfileError extends TaggedError('GetProfileError')<{
-  cause: BignameError
-}> {}
 
 class GetLegacyResolverError extends TaggedError('GetLegacyResolverError')<{
   readonly cause: unknown
@@ -76,11 +71,9 @@ const getRecordKeys = (name: string) =>
   bigname
     .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
     .map(({ data }) => data.inventory ?? NO_KEYS)
-    .orElse((error) =>
-      error.code === 'not_found'
-        ? okAsync(NO_KEYS)
-        : errAsync(new GetProfileError({ cause: error })),
-    )
+    // The inventory is optional discovery data. Resolve default keys even
+    // when the indexer cannot serve an offchain name or is unavailable.
+    .orElse(() => okAsync(NO_KEYS))
     .map((inventory) =>
       parseRecordKeys([...inventory.known_keys, ...inventory.unsupported_keys]),
     )

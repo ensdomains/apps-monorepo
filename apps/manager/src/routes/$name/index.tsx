@@ -1,3 +1,4 @@
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createFileRoute,
@@ -121,8 +122,24 @@ export const Route = createFileRoute('/$name/')({
       }
     }
 
-    // Name doesn't exist in v2 or v1
+    // Offchain subnames have no L1 registry owner. Successful record
+    // resolution establishes a viewable profile, never permission to edit.
+    if (!ownerData && hasResolvedRecords(profileRecords)) {
+      return {
+        fallback: undefined,
+        description: profileRecords?.texts.find((r) => r.key === 'description')
+          ?.value,
+        name: normalizedName,
+      }
+    }
+
     if (!ownerData) {
+      // A failed gateway request is not evidence that the name is missing.
+      if (profileRecords === null) {
+        throw new Error(
+          'Could not resolve records for this name. Please try again.',
+        )
+      }
       const missing = classifyMissingName(normalizedName)
 
       if (missing === 'registrable') {

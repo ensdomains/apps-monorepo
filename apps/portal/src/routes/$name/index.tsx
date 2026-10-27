@@ -1,3 +1,4 @@
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
 import { useQuery } from '@tanstack/react-query'
 import {
   createFileRoute,
@@ -126,7 +127,8 @@ const Profile = ({
   const grace = useGraceStatus({
     name,
     protocolVersion: isEthTld
-      ? (ownerQuery.data?.protocolVersion ?? 'ENSv2')
+      ? (ownerQuery.data?.protocolVersion ??
+        (isRegistrable(name) ? 'ENSv2' : undefined))
       : undefined,
   })
 
@@ -185,8 +187,27 @@ const Profile = ({
     return <InvalidNameMessage title="Invalid TLD" />
   }
 
-  // If owner is null (not found), handle different cases
-  if (!ownerQuery.data) {
+  if (ownerQuery.error) {
+    return (
+      <ErrorMessage
+        title="Error loading name"
+        description={extractErrorMessage(ownerQuery.error)}
+      />
+    )
+  }
+
+  const hasRecords = hasResolvedRecords(profileQuery.data?.records)
+  if (!ownerQuery.data && profileQuery.error) {
+    return (
+      <ErrorMessage
+        title="Error loading records"
+        description={extractErrorMessage(profileQuery.error)}
+      />
+    )
+  }
+
+  // An ownerless name can still resolve through its parent's CCIP resolver.
+  if (!ownerQuery.data && !hasRecords) {
     // Case 1: It's a TLD that doesn't exist (but is valid)
     if (isTLD(name)) {
       return (
@@ -277,16 +298,6 @@ const Profile = ({
       )
     }
 
-    // Handle errors
-    if (ownerQuery.error) {
-      return (
-        <ErrorMessage
-          title="Error loading name"
-          description={ownerQuery.error.cause?.message}
-        />
-      )
-    }
-
     if (availabilityQuery.error) {
       return (
         <ErrorMessage
@@ -345,7 +356,7 @@ const Profile = ({
 
   // Match the grace/canExtend default above: a missing protocolVersion means the
   // owner query hasn't resolved, and 'ENSv2' is the safe conservative choice.
-  const resolvedProtocolVersion = ownerQuery.data.protocolVersion ?? 'ENSv2'
+  const resolvedProtocolVersion = ownerQuery.data?.protocolVersion ?? 'ENSv2'
 
   const { isMigratableByConnectedOwner, isWrapped } = migrationQuery
 
@@ -385,7 +396,7 @@ const Profile = ({
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
         <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
-        {resolvedProtocolVersion !== 'ENSv1' && (
+        {ownerQuery.data && resolvedProtocolVersion !== 'ENSv1' && (
           <ExtendNameButton
             name={name}
             protocolVersion={resolvedProtocolVersion}
@@ -400,45 +411,60 @@ const Profile = ({
 
         {/* Middle: metadata rows */}
         <div className="flex flex-col flex-1">
-          <ExpiryWithRegistrationData
-            name={name}
-            protocolVersion={resolvedProtocolVersion}
-          />
-          <NameOwnerRow
-            name={name}
-            owner={ownerQuery.data.owner}
-            protocolVersion={resolvedProtocolVersion}
-            label={grace.isInGrace ? 'Previous owner' : 'Owner'}
-          />
-          <DnsManagerRow
-            name={name}
-            manager={ownerQuery.data.owner}
-            protocolVersion={resolvedProtocolVersion}
-          />
+          {ownerQuery.data && (
+            <>
+              <ExpiryWithRegistrationData
+                name={name}
+                protocolVersion={resolvedProtocolVersion}
+              />
+              <NameOwnerRow
+                name={name}
+                owner={ownerQuery.data?.owner}
+                protocolVersion={resolvedProtocolVersion}
+                label={grace.isInGrace ? 'Previous owner' : 'Owner'}
+              />
+              <DnsManagerRow
+                name={name}
+                manager={ownerQuery.data?.owner}
+                protocolVersion={resolvedProtocolVersion}
+              />
+            </>
+          )}
           <ParentName name={name} asRow />
           {resolverAddress && (
             <ResolverCard name={name} resolverAddress={resolverAddress} asRow />
           )}
-          <RegistryCard
-            name={name}
-            registryAddress={ownerQuery.data.registryAddress}
-            asRow
-            protocolVersion={resolvedProtocolVersion}
-          />
-          {resolvedProtocolVersion === 'ENSv1' ? (
-            <V1ProtocolRow name={name} />
-          ) : (
-            <ProtocolRow protocolVersion={resolvedProtocolVersion} />
+          {ownerQuery.data && (
+            <>
+              <RegistryCard
+                name={name}
+                registryAddress={ownerQuery.data?.registryAddress}
+                asRow
+                protocolVersion={resolvedProtocolVersion}
+              />
+              {resolvedProtocolVersion === 'ENSv1' ? (
+                <V1ProtocolRow name={name} />
+              ) : (
+                <ProtocolRow protocolVersion={resolvedProtocolVersion} />
+              )}
+            </>
           )}
         </div>
 
         {/* Counter cards */}
         <div className="grid grid-cols-1 gap-3 content-start sm:grid-cols-3 lg:col-span-2 xl:col-span-1 xl:grid-cols-1">
-          <SubnameCount name={name} protocolVersion={resolvedProtocolVersion} />
-          <ProtocolVersionWithCounter
-            name={name}
-            protocolVersion={resolvedProtocolVersion}
-          />
+          {ownerQuery.data && (
+            <>
+              <SubnameCount
+                name={name}
+                protocolVersion={resolvedProtocolVersion}
+              />
+              <ProtocolVersionWithCounter
+                name={name}
+                protocolVersion={resolvedProtocolVersion}
+              />
+            </>
+          )}
           {resolverAddress && (
             <RecordCount
               name={name}

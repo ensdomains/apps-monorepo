@@ -1,7 +1,10 @@
+import type { EnsChain } from '@ens-apps/config'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
+  getResolver,
+  getSupportedInterfaces,
   type ResolveNameDataReturnType,
   resolveNameData,
 } from '@ensdomains/ensjs/public'
@@ -17,7 +20,7 @@ import {
   getTextParameters,
 } from '@ensdomains/ensjs/utils'
 import { err, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
-import type { PublicClient } from 'viem'
+import type { Client, PublicClient, Transport } from 'viem'
 import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { publicClient } from '@/lib/wagmi'
@@ -26,6 +29,7 @@ import {
   addressRecords,
   alwaysProbeAddressRecords,
   forceFetchRecords,
+  profileCoinTypes,
   staticTextRecords,
   textRecords,
 } from '../data/records'
@@ -37,7 +41,7 @@ import {
   resolveNameRegistry,
 } from './changeResolver'
 import { decodeCoinResult } from './decodeCoinRecord'
-import { readResolverRecords } from './resolverImport'
+import { isRateLimited, readResolverRecords } from './resolverImport'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
@@ -75,6 +79,19 @@ const isSupportedCoinType = (coinType: number): boolean =>
 
 const MAX_RESOLVER_SPLIT_DEPTH = 1
 
+const getInheritedExtendedResolver = async (
+  client: Client<Transport, EnsChain>,
+  name: string,
+): Promise<Address | null> => {
+  const resolver = await getResolver(client, { name })
+  if (!resolver) return null
+  const [extended] = await getSupportedInterfaces(client, {
+    address: resolver,
+    interfaces: ['0x9061b923'],
+  })
+  return extended ? resolver : null
+}
+
 export const getProfileRecords = ResultFn(async function* (name: string) {
   const debugProfile = getDebugProfileRecords(name)
   if (debugProfile) return ok(debugProfile)
@@ -83,10 +100,13 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   // A name bigname has not indexed has no indexed keys; the static ones still apply.
   const recordKeys = yield* bigname
     .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
-    .map(({ data }) => parseKnownKeys(data.inventory?.known_keys ?? []))
+    .map(({ data }) => ({
+      ...parseKnownKeys(data.inventory?.known_keys ?? []),
+      hasInventory: data.inventory != null,
+    }))
     // Viewing/editing commonly used fields remains possible while the index
     // is unavailable. Resolver replacement performs a separate warned import.
-    .orElse(() => okAsync(parseKnownKeys([])))
+    .orElse(() => okAsync({ ...parseKnownKeys([]), hasInventory: false }))
 
   const texts = unique([
     ...staticTextRecords,
@@ -99,7 +119,9 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   ])
   const coins = unique([
     ...alwaysProbeAddressRecords.map(Number),
-    ...addressRecords.map((record) => record.coinType),
+    ...(recordKeys.hasInventory
+      ? addressRecords.map((record) => record.coinType)
+      : profileCoinTypes),
     ...recordKeys.coins,
   ]).filter(isSupportedCoinType)
 
@@ -128,11 +150,21 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   )
   if (v2Source.hasV2Entry)
     return ok({ texts: [], coins: [] } satisfies ProfileRecordsResult)
-  if (v2Source.resolver) {
+  // The v2 registry slot is not the source of an offchain subname's
+  // resolver. Follow the UniversalResolver's inheritance walk, then batch
+  // directly against an ENSIP-10 resolver. Resolving the record multicall
+  // through the v2 legacy adapter otherwise becomes one CCIP request per key.
+  const resolver =
+    v2Source.resolver ??
+    (yield* fromPromise(
+      getInheritedExtendedResolver(client, name),
+      (cause) => new GetProfileRecordsError({ cause }),
+    ))
+  if (resolver) {
     const { records, readErrors } = yield* fromPromise(
       readResolverRecords({
         name,
-        resolver: v2Source.resolver,
+        resolver,
         texts,
         coins,
         publicClient: publicClient as PublicClient,
@@ -162,7 +194,11 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     try {
       return await resolveNameData(client, { name, data: calls })
     } catch (error) {
-      if (calls.length === 1 || splitDepth >= MAX_RESOLVER_SPLIT_DEPTH) {
+      if (
+        isRateLimited(error) ||
+        calls.length === 1 ||
+        splitDepth >= MAX_RESOLVER_SPLIT_DEPTH
+      ) {
         throw error
       }
 
@@ -250,5 +286,9 @@ export type ProfileRecordsResult = {
 export const profileRecordsQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'get_records', { name }),
+    // The loader and mounted view share this read, including on refocus.
+    // Explicit refetch/invalidation after edits still refreshes immediately.
+    staleTime: 60_000,
+    retry: (failureCount, error) => !isRateLimited(error) && failureCount < 2,
     queryFn: ({ queryKey: [{ name }] }) => getProfileRecords(name),
   })

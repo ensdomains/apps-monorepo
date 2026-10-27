@@ -52,7 +52,11 @@ describe('parseRecordKeys', () => {
 describe('getProfile', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(getRecords).mockReturnValue(okAsync({}) as never)
+    vi.mocked(getRecords).mockReturnValue(
+      okAsync({
+        resolverAddress: '0x2222222222222222222222222222222222222222',
+      }) as never,
+    )
   })
 
   it('reads on-chain every key bigname lists, with the defaults', async () => {
@@ -80,18 +84,15 @@ describe('getProfile', () => {
     expect(requested()?.texts).toContain('org.custom')
   })
 
-  it('reads the defaults for a name bigname has not indexed, and fails on other errors', async () => {
-    vi.mocked(bigname.nameRecords).mockReturnValue(
-      errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
-    )
-    expect((await getProfile({ name: 'nope.eth' })).isOk()).toBe(true)
-    expect(requested()?.texts).toContain('description')
-
-    vi.mocked(bigname.nameRecords).mockReturnValue(
-      errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
-    )
-    expect(
-      (await getProfile({ name: 'busy.eth' }))._unsafeUnwrapErr()._tag,
-    ).toBe('GetProfileError')
-  })
+  it.each(['not_found', 'conflict', 'overloaded'] as const)(
+    'resolves default records when the indexer returns %s',
+    async (code) => {
+      vi.mocked(bigname.nameRecords).mockReturnValue(
+        errAsync(new BignameError({ code, message: 'unavailable' })),
+      )
+      await getProfile({ name: 'jesse.base.eth' })
+      expect(requested()?.texts).toContain('description')
+      expect(requested()?.coins).toContain(60)
+    },
+  )
 })
