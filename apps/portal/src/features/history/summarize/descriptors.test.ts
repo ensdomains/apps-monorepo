@@ -357,7 +357,7 @@ describe('row actions and newer types', () => {
       label: 'reserved',
       slots: [
         { kind: 'name', value: 'collector.eth' },
-        { kind: 'text', value: 'for ENSv2' },
+        { kind: 'label', value: 'for ENSv2' },
       ],
     })
     expect(

@@ -101,6 +101,11 @@ const Slot = ({
         {value}
       </EntityBadge>
     ))
+    .with({ kind: 'label' }, ({ value }) => (
+      <span className={cn('text-neutral-7 text-p', !isFirst && '-ml-2')}>
+        {value}
+      </span>
+    ))
     .with({ kind: 'glyph' }, ({ value }) => (
       <span className="text-muted-foreground">{value}</span>
     ))

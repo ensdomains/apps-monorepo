@@ -523,7 +523,7 @@ const DESCRIPTORS: Descriptors = {
       slots: [
         nameSlot(primary.name),
         ...(primary.data?.action === 'registration_reserved'
-          ? [{ kind: 'text' as const, value: 'for ENSv2' }]
+          ? [{ kind: 'label' as const, value: 'for ENSv2' }]
           : []),
       ],
     }),

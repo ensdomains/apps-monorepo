@@ -306,7 +306,7 @@ describe('summarizeEvents — newer rows', () => {
     expect(action.label).toBe('reserved')
     expect(action.slots).toEqual([
       { kind: 'name', value: 'alice.eth' },
-      { kind: 'text', value: 'for ENSv2' },
+      { kind: 'label', value: 'for ENSv2' },
     ])
   })
 
