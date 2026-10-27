@@ -6,13 +6,17 @@ import { chain } from '@/config'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { makeDomain } from './_fixtures'
 import { buildMigrationPlan } from './buildMigrationPlan'
-import type { MigrationStepDescriptor } from './buildStepDescriptors'
+import {
+  buildStepDescriptors,
+  type MigrationStepDescriptor,
+} from './buildStepDescriptors'
 import { classifyNames } from './classifyNames'
 import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { estimateGraceRenewalGas } from './estimateGraceRenewalGas'
 import { estimateGraceRenewalMigrationGas } from './estimateGraceRenewalMigrationGas'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type { GraceRenewalItem, GraceRenewalQuote } from './graceRenewal'
+import { discoverSubnameRecreation } from './subnameRecreation'
 
 vi.mock('./buildMigrationPlan', () => ({
   buildMigrationPlan: vi.fn(),
@@ -26,6 +30,9 @@ vi.mock('./estimateGraceRenewalGas', () => ({
 }))
 vi.mock('./estimateMigrationGasCost', () => ({
   estimateMigrationGasCost: vi.fn(),
+}))
+vi.mock('./subnameRecreation', () => ({
+  discoverSubnameRecreation: vi.fn(),
 }))
 
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
@@ -98,6 +105,7 @@ const params = () => ({
 
 beforeEach(() => {
   vi.spyOn(Date, 'now').mockReturnValue(Number(NOW) * 1000)
+  vi.mocked(discoverSubnameRecreation).mockReset()
   vi.mocked(computeMigrationPreflight)
     .mockReset()
     .mockResolvedValue({ skipFetchProfilesPhase: true })
@@ -128,6 +136,137 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('estimateGraceRenewalMigrationGas', () => {
+  it.each([
+    {
+      scenario: 'a mixed active/grace selection',
+      selected: [active, unwrapped],
+      parent: active,
+      grace: unwrapped,
+    },
+    {
+      scenario: 'a wrapped grace parent',
+      selected: [wrapped],
+      parent: wrapped,
+      grace: wrapped,
+    },
+  ])(
+    'includes discovered children in the classification and requests for $scenario',
+    async ({ selected, parent, grace }) => {
+      const input = {
+        ...params(),
+        domains: selected,
+        quote: { ...makeQuote(), items: [makeItem(grace)], totalAmount: 10n },
+        isSubnameRecreationEnabled: true,
+      }
+      const projected = selected.map((domain) =>
+        domain === grace
+          ? {
+              ...domain,
+              registration: { expiryDate: TARGET.toString() },
+              wrappedDomain: domain.wrappedDomain
+                ? {
+                    ...domain.wrappedDomain,
+                    expiryDate: (TARGET + 90n * DAY).toString(),
+                  }
+                : null,
+            }
+          : domain,
+      )
+      const child = makeDomain({
+        name: `sub.${parent.name}`,
+        id: namehash(`sub.${parent.name}`),
+        labelName: 'sub',
+        labelhash: labelhash('sub'),
+        parentName: parent.name,
+        registrantId: null,
+        resolverAddress: null,
+      })
+      const discovery = {
+        domains: [...projected, child],
+        snapshot: {
+          version: 5,
+          roots: [parent.name],
+          names: [...selected, child].map(({ name }) => name),
+          blockNumber: '100',
+          blockHash: namehash('preview'),
+          timestamp: NOW.toString(),
+          chainId: chain.id,
+          inventoryDigest: namehash('preview-inventory'),
+        },
+      } satisfies Awaited<ReturnType<typeof discoverSubnameRecreation>>
+      vi.mocked(discoverSubnameRecreation).mockResolvedValue(discovery)
+      vi.mocked(buildMigrationPlan).mockImplementation(async ({ domains }) => {
+        const { classified, ineligible } = classifyNames(
+          [...domains],
+          OWNER,
+          chain.id,
+        )
+        return {
+          classified,
+          ineligible,
+          stepDescriptors: buildStepDescriptors({
+            hcaDeploymentRequired: false,
+            approvals: [],
+            registrationApprovalTargets: [],
+            atomicBatches: [
+              {
+                index: 0,
+                names: classified.map(({ domain }) => domain.name),
+                operations: classified.map(({ domain, action }) => ({
+                  name: domain.name,
+                  action,
+                })),
+                nameExecutions: [],
+                innerExecutions: [],
+                outerCall: { to: HCA, data: '0x', value: 0n },
+                walletCall: null,
+                estimatedGas: 1_000n,
+                walletEstimatedGas: 0n,
+                verificationExpectations: [],
+              },
+            ],
+          }),
+        } as unknown as Awaited<ReturnType<typeof buildMigrationPlan>>
+      })
+      vi.mocked(estimateMigrationGasCost).mockResolvedValue({
+        status: 'ready',
+        gasUnits: 1_000n,
+        feePerGasWei: 3n,
+        feeWei: 3_000n,
+        transactionCount: 1,
+      })
+
+      const preview = await estimateGraceRenewalMigrationGas(input)
+
+      expect(discoverSubnameRecreation).toHaveBeenCalledExactlyOnceWith({
+        domains: projected,
+        owner: OWNER,
+        publicClient: input.publicClient,
+        signal: undefined,
+      })
+      expect(buildMigrationPlan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          domains: [...projected, child],
+          subnameRecreation: { snapshot: discovery.snapshot },
+          projectedExpiryNames: new Set([grace.name]),
+        }),
+      )
+      expect(preview.classified).toContainEqual(
+        expect.objectContaining({ action: 'copy', domain: child }),
+      )
+      expect(preview.stepDescriptors).toEqual([
+        { type: 'renewal-approval' },
+        { type: 'renew-grace', count: 1 },
+        expect.objectContaining({
+          type: 'atomic-batch',
+          migrateCount: selected.length,
+          copyCount: 1,
+        }),
+      ])
+      expect(preview.transactionCount).toBe(3)
+    },
+  )
+
   it.each([false, true])(
     'estimates migration after restoring a late-grace reservation (wrapped: %s)',
     async (isWrapped) => {
