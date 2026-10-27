@@ -315,7 +315,6 @@ describe('SelectNamesStep', () => {
       queryByText,
       rerenderRenewal,
     } = renderStep({
-      renewal,
       renewalGasEstimate: {
         status: 'error',
         stage: 'fee',
@@ -346,14 +345,21 @@ describe('SelectNamesStep', () => {
       queryByText('Upgrade all names to receive NFT'),
     ).not.toBeInTheDocument()
     fireEvent.click(renewalCheckbox)
+    rerenderRenewal(renewal)
     expect(
       queryByText('Upgrade all names to receive NFT'),
     ).not.toBeInTheDocument()
     expect(renewalCheckbox).toHaveAccessibleDescription(/Not enough USDC/)
     expect(
-      getByRole('alert').compareDocumentPosition(renewalCheckbox) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      getByText(/This name is in its grace period/).compareDocumentPosition(
+        renewalCheckbox,
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0)
+    expect(getByText('Not enough USDC to renew')).toHaveAttribute(
+      'role',
+      'alert',
+    )
+    expect(getByText('1 USDC')).toBeInTheDocument()
     expect(
       queryByText("Couldn't estimate the network fee"),
     ).not.toBeInTheDocument()
@@ -363,10 +369,24 @@ describe('SelectNamesStep', () => {
     })
     expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
     expect(getAllByRole('checkbox')[0]).toBe(renewalCheckbox)
+    rerenderRenewal({
+      status: 'ready',
+      quote: {
+        ...renewal.quote,
+        items: renewal.quote.items.map((item) => ({
+          ...item,
+          duration: 0n,
+          amount: 0n,
+        })),
+        totalAmount: 0n,
+      },
+    })
+    expect(queryByText(/Renewing/)).not.toBeInTheDocument()
     rerenderRenewal({ status: 'loading' })
     expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
     rerenderRenewal(renewal)
     fireEvent.click(renewalCheckbox)
+    rerenderRenewal({ status: 'idle' })
     expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
   })
 

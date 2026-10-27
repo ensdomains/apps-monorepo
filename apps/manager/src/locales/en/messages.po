@@ -1955,6 +1955,10 @@ msgstr "Not enough USDC in your wallet. Choose another payment method."
 msgid "Not enough USDC on {chainName}."
 msgstr "Not enough USDC on {chainName}."
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Not enough USDC to renew"
+msgstr "Not enough USDC to renew"
+
 #: src/features/migration/components/SelectNamesStepNameList.tsx
 msgid "Not enough USDC to renew the selected names. Add USDC or deselect this name."
 msgstr "Not enough USDC to renew the selected names. Add USDC or deselect this name."
@@ -2549,6 +2553,10 @@ msgstr "Renewals are paid in USDC out of your smart account."
 #: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
 msgstr "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Renewing <0>{count, plural, one {# name} other {# names}}</0> for <1>{amount} USDC</1>"
+msgstr "Renewing <0>{count, plural, one {# name} other {# names}}</0> for <1>{amount} USDC</1>"
 
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Renewing for"

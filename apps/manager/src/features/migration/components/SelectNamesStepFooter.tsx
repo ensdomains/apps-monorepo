@@ -182,6 +182,24 @@ const GraceRenewalStatus = ({
       </p>
     )
   if (state.status === 'error') return <p role="alert">{state.message}</p>
+  if (state.status === 'ready') {
+    const count = state.quote.items.filter(
+      ({ duration }) => duration > 0n,
+    ).length
+    if (count === 0) return null
+    const amount = formatUnits(state.quote.totalAmount, TOKENS.USDC.decimals)
+    return (
+      <p>
+        <Trans>
+          Renewing{' '}
+          <strong>
+            <Plural one="# name" other="# names" value={count} />
+          </strong>{' '}
+          for <strong>{amount} USDC</strong>
+        </Trans>
+      </p>
+    )
+  }
   return null
 }
 
@@ -222,7 +240,8 @@ export const SelectNamesStepFooter = ({
         ) : (
           <>
             <GraceRenewalStatus state={renewal} />
-            {!hasInsufficientUsdc && (
+            {(!hasInsufficientUsdc ||
+              renewalGasEstimate.status === 'ready') && (
               <GasEstimateMessage
                 gasAffordability={gasAffordability}
                 gasEstimate={renewalGasEstimate}
@@ -230,6 +249,11 @@ export const SelectNamesStepFooter = ({
                 renewal={renewal}
                 totalSelected={totalSelected}
               />
+            )}
+            {hasInsufficientUsdc && (
+              <p className="font-semibold text-destructive" role="alert">
+                <Trans>Not enough USDC to renew</Trans>
+              </p>
             )}
           </>
         )}
