@@ -75,16 +75,41 @@ export const isRateLimited = (error: unknown): boolean => {
   return false
 }
 
+// A rejected request (400, 414, a 500 for an oversized URL) can still succeed
+// in smaller reads; an overloaded or unreachable gateway cannot.
 const isGatewayUnavailable = (error: unknown): boolean => {
   for (let cause = error; cause; cause = (cause as { cause?: unknown }).cause) {
     const failure = cause as { name?: string; status?: number }
     if (
       failure.name === 'HttpRequestError' &&
-      (!failure.status || failure.status >= 500)
+      (!failure.status || failure.status === 429 || failure.status === 503)
     )
       return true
   }
   return false
+}
+
+// viem wraps a failed CCIP-Read gateway call in this; an RPC failure is not.
+const isOffchainLookupFailure = (error: unknown): boolean => {
+  for (let cause = error; cause; cause = (cause as { cause?: unknown }).cause)
+    if ((cause as { name?: string }).name === 'OffchainLookupError') return true
+  return false
+}
+
+// Viewing keeps the records a struggling CCIP gateway did return, and fails
+// only when none came back. Imports and RPC failures stay strict.
+const viewableReadErrors = (
+  results: readonly {
+    readonly failedKeys: readonly string[]
+    readonly readErrors: readonly unknown[]
+  }[],
+  shouldDecodeStrictly: boolean,
+): unknown[] => {
+  const readErrors = results.flatMap((record) => record.readErrors)
+  const hasReadRecord = results.some((record) => !record.failedKeys.length)
+  return shouldDecodeStrictly || !hasReadRecord
+    ? readErrors
+    : readErrors.filter((error) => !isOffchainLookupFailure(error))
 }
 
 // Calldata doubles in size when hex-encoded in a provider's GET URL, with
@@ -379,39 +404,24 @@ export const readResolverRecords = async ({
       current.push(request)
     else batchReads.push([request])
   }
-  const batch =
-    hasExtendedResolution && kind === 'node'
-      ? await (async () => {
-          const results: Hex[] = []
-          for (const chunk of batchReads) {
-            const data = await client.readContract({
-              address: resolver,
-              abi: permissionedResolverResolveSnippet,
-              functionName: 'resolve',
-              args: [
-                dnsEncodeName(name),
-                encodeFunctionData({
-                  abi: multicallAbi,
-                  functionName: 'multicall',
-                  args: [chunk.map(({ data }) => data)],
-                }),
-              ],
-            })
-            results.push(
-              ...decodeFunctionResult({
-                abi: multicallAbi,
-                functionName: 'multicall',
-                data,
-              }),
-            )
-          }
-          return results
-        })().catch((error: unknown) => {
-          // Falling back to one call per record would only deepen a rate limit.
-          if (isRateLimited(error) || isGatewayUnavailable(error)) throw error
-          return null
-        })
-      : null
+  const readBatch = async (chunk: readonly RecordRead[]) =>
+    decodeFunctionResult({
+      abi: multicallAbi,
+      functionName: 'multicall',
+      data: await client.readContract({
+        address: resolver,
+        abi: permissionedResolverResolveSnippet,
+        functionName: 'resolve',
+        args: [
+          dnsEncodeName(name),
+          encodeFunctionData({
+            abi: multicallAbi,
+            functionName: 'multicall',
+            args: [chunk.map(({ data }) => data)],
+          }),
+        ],
+      }),
+    })
   const readOne = async (data: Hex) =>
     kind === 'name' || hasExtendedResolution
       ? await client.readContract({
@@ -459,23 +469,29 @@ export const readResolverRecords = async ({
       }
     }
   }
-  // Bound RPC concurrency without losing successful reads to a failed batch.
-  const readChunks = Array.from(
-    { length: Math.ceil(reads.length / 8) },
-    (_, index) => reads.slice(index * 8, (index + 1) * 8),
-  )
-  const results =
-    batch?.length === reads.length
-      ? await Promise.all(
-          reads.map((request, index) => read(request, batch[index])),
-        )
-      : await readChunks.reduce(
-          async (pending, chunk) => [
-            ...(await pending),
-            ...(await Promise.all(chunk.map((request) => read(request)))),
-          ],
-          Promise.resolve([] as Awaited<ReturnType<typeof read>>[]),
-        )
+  // Batches run in order; a rejected batch falls back to single reads for its
+  // own records only, so one oversized request does not discard the rest.
+  const canBatch = hasExtendedResolution && kind === 'node'
+  const results: Awaited<ReturnType<typeof read>>[] = []
+  for (const chunk of batchReads) {
+    const batched = canBatch
+      ? await readBatch(chunk).catch((error: unknown) => {
+          // Single reads would only deepen an overload or outage.
+          if (isGatewayUnavailable(error)) throw error
+          return null
+        })
+      : null
+    results.push(
+      ...(await Promise.all(
+        chunk.map((request, index) =>
+          read(
+            request,
+            batched?.length === chunk.length ? batched[index] : undefined,
+          ),
+        ),
+      )),
+    )
+  }
   return {
     records: {
       texts: results.flatMap((record) => record.texts ?? []),
@@ -495,7 +511,7 @@ export const readResolverRecords = async ({
     },
     failedKeys: results.flatMap((record) => record.failedKeys),
     unsupportedKeys: results.flatMap((record) => record.unsupportedKeys),
-    readErrors: results.flatMap((record) => record.readErrors),
+    readErrors: viewableReadErrors(results, shouldDecodeStrictly),
   }
 }
 

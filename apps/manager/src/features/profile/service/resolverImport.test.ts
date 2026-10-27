@@ -568,6 +568,59 @@ describe('offchain resolver records', () => {
     expect(resolveCalls()).toHaveLength(1)
   })
 
+  it('reads each record on its own when the gateway rejects a batch', async () => {
+    // Namespace answers an oversized batch URL with a 500.
+    offchain(
+      new HttpRequestError({ url: 'https://gateway.invalid', status: 500 }),
+    )
+
+    const { records, readErrors } = await read()
+
+    expect(readErrors).toEqual([])
+    expect(records.texts).toEqual(expected.texts)
+    expect(resolveCalls().length).toBeGreaterThan(1)
+  })
+
+  it.each([
+    [false, 'keeps the other records', 0],
+    [true, 'reports the failure', 1],
+  ])(
+    'when a CCIP gateway fails one record and strict decoding is %s, it %s',
+    async (shouldDecodeStrictly, _, errorCount) => {
+      offchain(
+        new HttpRequestError({ url: 'https://gateway.invalid', status: 500 }),
+      )
+      const single = mocks.readContract.getMockImplementation()
+      mocks.readContract.mockImplementation((request) => {
+        const call =
+          request.functionName === 'resolve'
+            ? decodeFunctionData({ abi: recordAbi, data: request.args[1] })
+            : undefined
+        if (call?.functionName === 'text' && call.args[1] === CUSTOM_KEY)
+          throw new BaseError('Gateway failed', {
+            cause: new HttpRequestError({
+              url: 'https://gateway.invalid',
+              status: 500,
+            }),
+            name: 'OffchainLookupError',
+          })
+        return single?.(request)
+      })
+
+      const { records, readErrors } = await readResolverRecords({
+        name: NAME,
+        resolver: RESOLVER,
+        texts: ['description', CUSTOM_KEY],
+        coins: [60],
+        shouldDecodeStrictly,
+        publicClient: publicClient as PublicClient,
+      })
+
+      expect(records.texts).toEqual([expected.texts[0]])
+      expect(readErrors).toHaveLength(errorCount)
+    },
+  )
+
   it('does not fall back to one request per record when the gateway rate limits', async () => {
     offchain(
       new BaseError('Gateway failed', {
