@@ -44,7 +44,11 @@ export const usePrimaryNameDomains = ({
     isError: hasDomainsError,
   } = useQuery(ownedPrimaryNamesQuery(open ? address : undefined))
   // Owned names don't wait for this read, and a failure only adds a notice.
-  const { data: resolving, isError: hasResolvingNamesError } = useQuery(
+  const {
+    data: resolving,
+    isLoading: isLoadingResolvingNames,
+    isError: hasResolvingNamesError,
+  } = useQuery(
     resolvingPrimaryNamesQuery(open ? (ownerAddress ?? undefined) : undefined),
   )
   const allDomains = useMemo(
@@ -79,16 +83,20 @@ export const usePrimaryNameDomains = ({
   )
   const isCheckingNames = forwardAddresses.some((query) => query.isLoading)
   const hasForwardAddressError = forwardAddresses.some((query) => query.isError)
+  const domains = pagination.domains.filter((domain) =>
+    checkedNames.has(resolveDomainLabel(domain)),
+  )
 
   return {
     ...pagination,
-    domains: pagination.domains.filter((domain) =>
-      checkedNames.has(resolveDomainLabel(domain)),
-    ),
+    domains,
     isSelectedNameOffered:
       ownsSelectedName && checkedNames.has(selectedName ?? ''),
     selectedProtocol: selectedDomain?.protocol ?? null,
-    isLoading: isLoading || isCheckingNames,
+    // Rows that are ready stay visible while late names are still checked.
+    isLoading:
+      isLoading ||
+      ((isCheckingNames || isLoadingResolvingNames) && domains.length === 0),
     hasForwardAddressError: hasDomainsError || hasForwardAddressError,
     hasResolvingNamesError,
     searchQuery,
