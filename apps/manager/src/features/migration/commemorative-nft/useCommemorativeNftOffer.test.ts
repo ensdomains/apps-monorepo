@@ -332,33 +332,30 @@ describe('shared commemorative NFT offers', () => {
     ).toBe(true)
   })
 
-  it.each(['reconciling', 'error'] as const)(
-    'keeps %s completion actionable for retry, never for minting',
-    async (status) => {
-      mocks.completion.mockReturnValue({
-        status,
-        isComplete: false,
-        isFreshComplete: false,
-      })
-      const { wrapper } = createContext()
-      render(
-        createElement(CommemorativeNftProfileSection, {
-          isOwner: true,
-          name: 'yoginth.eth',
-        }),
-        { wrapper },
-      )
-      const trigger = await screen.findByRole('button', {
-        name: 'Check status',
-      })
-      expect((trigger as HTMLButtonElement).disabled).toBe(false)
-      expect(
-        screen.queryByRole('button', { name: 'Preview and mint' }),
-      ).toBeNull()
-      fireEvent.click(trigger)
-      expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    },
-  )
+  it('keeps failed completion actionable for retry, never for minting', async () => {
+    mocks.completion.mockReturnValue({
+      status: 'error',
+      isComplete: false,
+      isFreshComplete: false,
+    })
+    const { wrapper } = createContext()
+    render(
+      createElement(CommemorativeNftProfileSection, {
+        isOwner: true,
+        name: 'yoginth.eth',
+      }),
+      { wrapper },
+    )
+    const trigger = await screen.findByRole('button', {
+      name: 'Check status',
+    })
+    expect((trigger as HTMLButtonElement).disabled).toBe(false)
+    expect(
+      screen.queryByRole('button', { name: 'Preview and mint' }),
+    ).toBeNull()
+    fireEvent.click(trigger)
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  })
 
   it('drops visible eligibility immediately when the owner or network changes', async () => {
     const { wrapper } = createContext()

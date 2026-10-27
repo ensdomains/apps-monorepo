@@ -14,7 +14,7 @@ import { verifiedNftMigrationQueryOptions } from './verifiedMigration'
 
 const getCompletionStatus = (
   isError: boolean,
-  status?: 'complete' | 'incomplete' | 'reconciling',
+  status?: 'complete' | 'incomplete',
 ) => (isError ? ('error' as const) : (status ?? ('pending' as const)))
 
 export const useCommemorativeNftMigrationCompletion = (params: {

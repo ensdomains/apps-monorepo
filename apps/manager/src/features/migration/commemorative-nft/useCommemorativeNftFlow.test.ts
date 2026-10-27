@@ -333,7 +333,7 @@ describe('commemorative NFT flow session', () => {
   it('admits a verified final migration despite a cached zero indexed count and keeps the evidence for mint later', async () => {
     const client = createClient()
     const zeroIndexedMigration = {
-      status: 'reconciling' as const,
+      status: 'incomplete' as const,
       isComplete: false,
       remainingNameCount: 0,
       migratedNameCount: 0,
@@ -345,7 +345,7 @@ describe('commemorative NFT flow session', () => {
     )
     const firstOpening = mountFlow(client)
     await waitFor(() =>
-      expect(firstOpening.result.current.state.status).toBe('error'),
+      expect(firstOpening.result.current.state.status).toBe('ineligible'),
     )
 
     act(() =>

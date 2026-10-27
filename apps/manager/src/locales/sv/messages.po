@@ -4185,10 +4185,6 @@ msgstr ""
 msgid "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
 msgstr ""
 
-#: src/features/migration/commemorative-nft/claimMessages.ts
-msgid "Your upgrades are still being verified. Check again in a moment."
-msgstr ""
-
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Your upgrades still need to be verified. Check again to continue."
