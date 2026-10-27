@@ -351,13 +351,12 @@ const assertCanonicalPublications = async (
   }
 }
 
-const readChildSource = async (
+const assertNoNewDescendants = async (
   publicClient: PublicClient,
-  root: V1Domain,
   row: Subname,
   oldestPublication: bigint,
   block: { number: bigint },
-): Promise<V1Domain> => {
+): Promise<void> => {
   const descendants = await publicClient.getLogs({
     address: V1_CONTRACTS.LegacyRegistry,
     event: newOwnerEvent,
@@ -370,6 +369,16 @@ const readChildSource = async (
       row.name,
       'its descendants changed after indexing. Refresh the complete tree before continuing.',
     )
+}
+
+const readChildSource = async (
+  publicClient: PublicClient,
+  root: V1Domain,
+  row: Subname,
+  oldestPublication: bigint,
+  block: { number: bigint },
+): Promise<V1Domain> => {
+  await assertNoNewDescendants(publicClient, row, oldestPublication, block)
   const [registryOwner, resolver] = await Promise.all([
     publicClient.readContract({
       address: V1_CONTRACTS.LegacyRegistry,
@@ -467,7 +476,7 @@ export const discoverSubnameRecreation = async (params: {
     signal?.throwIfAborted()
     const name = root.domain.name
     const rows = await readDirectInventory(indexer, name, publications, signal)
-    if (rows.some((row) => !unknownLabelhashOf(row.name))) {
+    if (rows.length > 0) {
       roots.push(root)
       rowsByRoot.set(name, rows)
     }
@@ -507,9 +516,18 @@ export const discoverSubnameRecreation = async (params: {
         name,
         'the parent changed after indexing. Refresh the full inventory before continuing.',
       )
-    // Unknown labels cannot be recreated in ENSv2; the upgrade drops them.
-    for (const row of rows.filter((row) => !unknownLabelhashOf(row.name))) {
+    for (const row of rows) {
       signal?.throwIfAborted()
+      // Unknown labels cannot be recreated in ENSv2; the upgrade drops them.
+      if (unknownLabelhashOf(row.name)) {
+        await assertNoNewDescendants(
+          publicClient,
+          row,
+          oldestPublication,
+          block,
+        )
+        continue
+      }
       domains.set(
         row.name,
         await readChildSource(

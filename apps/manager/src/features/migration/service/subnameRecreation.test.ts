@@ -77,6 +77,7 @@ const fixture = (
     wrapped: [OTHER, 0, maxUint64] as [Address, number, bigint],
     head: 100n,
     parentEvents: [] as { args: { label: Hex } }[],
+    descendantEvents: [] as { args: { label: Hex } }[],
   }
   const indexer = createBignameClient('https://indexer.invalid', {
     fetch: async (input) => {
@@ -144,7 +145,9 @@ const fixture = (
       hash: BLOCK_HASH,
     }),
     getLogs: async ({ args }: { args: { node: Hex } }) =>
-      args.node === namehash(ROOT) ? state.parentEvents : [],
+      args.node === namehash(ROOT)
+        ? state.parentEvents
+        : state.descendantEvents,
     readContract,
   } as unknown as PublicClient
   const discover = () =>
@@ -248,9 +251,9 @@ describe('direct subname source checks', () => {
 
   it.each([
     { case: 'beside a known child', rows: [row, unknownRow], roots: [ROOT] },
-    { case: 'as the only child', rows: [unknownRow], roots: [] },
+    { case: 'as the only child', rows: [unknownRow], roots: [ROOT] },
   ])(
-    'leaves an unknown-label child out of the import $case',
+    'keeps checking the parent but leaves an unknown-label child out of the import $case',
     async ({ rows, roots }) => {
       const discovered = await fixture({
         count: rows.length,
@@ -260,6 +263,12 @@ describe('direct subname source checks', () => {
       expect(discovered.domains.map(({ name }) => name)).not.toContain(UNKNOWN)
     },
   )
+
+  it('rejects an unknown-label child that gained a subname after indexing', async () => {
+    const context = fixture({ count: 1, rows: [unknownRow] })
+    context.state.descendantEvents = [{ args: { label: labelhash('new') } }]
+    await expect(context.discover()).rejects.toThrow(/descendants changed/)
+  })
 
   it('rejects an unknown-label row whose hash does not prove its node', async () => {
     await expect(
