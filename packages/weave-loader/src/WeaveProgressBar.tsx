@@ -7,12 +7,12 @@ export const WEAVE_PROGRESS_BAR_HEIGHT = 19
 export const WEAVE_PROGRESS_BAR_RADIUS = 2
 
 export interface WeaveProgressBarProps {
-  progress: number
-  options?: WeaveShaderOptions
-  height?: number
-  /** Animate the fill width (weave pattern is static). */
-  animate?: boolean
-  className?: string
+  readonly progress: number
+  readonly options?: WeaveShaderOptions
+  readonly height?: number
+  /** Animate the fill as progress changes (weave pattern is static). */
+  readonly animate?: boolean
+  readonly className?: string
 }
 
 export function WeaveProgressBar({
@@ -36,16 +36,13 @@ export function WeaveProgressBar({
       }}
     >
       <div
-        className="absolute inset-y-0 left-0 overflow-hidden"
+        className="absolute inset-0"
         style={{
-          width: `${p * 100}%`,
-          transition: animate ? 'width 0.5s ease-out' : 'none',
+          clipPath: `inset(0 ${(1 - p) * 100}% 0 0)`,
+          transition: animate ? 'clip-path 0.5s ease-out' : 'none',
         }}
       >
-        {/* Keep weave at full track width so pattern scale stays constant. */}
-        <div className="h-full" style={{ width: `${p > 0 ? 100 / p : 100}%` }}>
-          <WeaveCanvas className="h-full w-full" options={options} />
-        </div>
+        <WeaveCanvas className="h-full w-full" options={options} />
       </div>
     </div>
   )
