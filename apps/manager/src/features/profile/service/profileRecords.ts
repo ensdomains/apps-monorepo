@@ -88,8 +88,8 @@ const getRecordKeys = ResultFn(async function* (
     // Viewing/editing commonly used fields remains possible while the index
     // is unavailable. Resolver replacement performs a separate warned import.
     .orElse(() => okAsync(undefined))
-  // The indexer never sees an offchain name's records, and probing every
-  // editable key would exhaust its gateway's rate limit.
+  // The indexer never sees an offchain name's records. ensjs asks its gateway
+  // for them in one request, which a URL-length limit caps well below every key.
   if (
     !inventory &&
     (yield* fromPromise(
@@ -216,7 +216,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     resolveData(data),
     (error) => new GetProfileRecordsError({ cause: error }),
   )
-  // A rate-limited gateway fails every read; that is not an empty profile.
+  // A gateway that is down fails every read; that is not an empty profile.
   const failedRead = resolution?.resolvedData.find((item) => !item.success)
   if (failedRead && resolution?.resolvedData.every((item) => !item.success))
     return err(new GetProfileRecordsError({ cause: failedRead.returnData }))
@@ -276,8 +276,5 @@ export type ProfileRecordsResult = {
 export const profileRecordsQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'get_records', { name }),
-    // Shared by the loader and the mounted view; refetching straight away
-    // would spend a CCIP-Read gateway's rate limit twice per visit.
-    staleTime: 60_000,
     queryFn: ({ queryKey: [{ name }] }) => getProfileRecords(name),
   })

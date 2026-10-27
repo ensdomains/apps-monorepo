@@ -42,9 +42,9 @@ export const forceFetchRecords = {
 
 export const alwaysProbeAddressRecords = ['60']
 
-// A CCIP-Read gateway is asked once per record and rate-limits per visitor
-// (Coinbase's 429s past ~30 reads a minute), so an offchain name the indexer
-// has no keys for reads the records ens-app-v3 shows.
+// ensjs batches a CCIP-Read name's records into one gateway GET, which Coinbase
+// rejects (414) at 60 records, so an offchain name the indexer has no keys for
+// reads the records ens-app-v3 shows.
 export const offchainProfileRecords = {
   texts: [
     'name',

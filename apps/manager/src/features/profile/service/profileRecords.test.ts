@@ -382,7 +382,7 @@ describe('profile records', () => {
 
   it.each([
     { isOffchain: false, texts: ['avatar', 'theme', 'links'], coins: 3 },
-    // A CCIP-Read gateway rate-limits per read, so only the profile keys.
+    // Every key would not fit one gateway request, so only the profile keys.
     { isOffchain: true, texts: ['description'], coins: 1 },
   ])(
     'reads the default keys for a name bigname has not indexed (offchain: $isOffchain)',
@@ -410,7 +410,7 @@ describe('profile records', () => {
   )
 
   it('fails rather than reporting an empty profile when every read fails', async () => {
-    // A rate-limited gateway answers each read with HttpError(429).
+    // A gateway that is down answers each read with an HttpError.
     mocks.resolveNameData.mockResolvedValue({
       resolverAddress,
       resolvedData: profileResolution().resolvedData.map(() => emptyResult),

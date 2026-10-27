@@ -1,4 +1,6 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   getRecords as ensjs_getRecords,
   type GetRecordsErrorType,
@@ -26,3 +28,15 @@ export const getRecords = ResultFn(async function* (
 
   return ok(records)
 })
+
+// Query key factory
+const recordsQueryKey = createQueryKey<'records', GetRecordsParameters>(
+  'records',
+)
+
+// React Query options for fetching records
+export const getRecordsQueryOptions = (params: GetRecordsParameters) =>
+  resultQueryOptions({
+    queryKey: recordsQueryKey(params),
+    queryFn: ({ queryKey: [, params] }) => getRecords(params),
+  })

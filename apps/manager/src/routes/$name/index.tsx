@@ -97,7 +97,7 @@ const loadOwnerlessName = async (
     }
   }
 
-  // A failed record read (a rate-limited gateway) says nothing about the
+  // A failed record read (a gateway that is down) says nothing about the
   // name; let the error boundary offer a retry instead of a false 404.
   if (profileRecords === null) {
     throw new Error('Could not load records for this name.')
