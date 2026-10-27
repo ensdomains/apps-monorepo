@@ -199,6 +199,33 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
     ])
   })
 
+  it('keeps the can_name bits ensjs does not decode', async () => {
+    listEvents.mockRejectedValue(
+      new BignameError({ status: 503, code: 'overloaded', message: 'down' }),
+    )
+    mockGetLogs.mockResolvedValue([
+      {
+        args: {
+          resource: 0n,
+          account: ROOT_ACCOUNT,
+          oldRoleBitmap: 0n,
+          // `ROLE_CAN_NAME` and its admin bit, which ensjs's decoder drops.
+          newRoleBitmap: (1n << 120n) | (1n << 248n),
+        },
+        blockNumber: 11_820_431n,
+        transactionHash: `0x${'c'.repeat(64)}`,
+      },
+    ])
+    mockGetBlockTimestamps.mockReturnValue(
+      ok(new Map([[11_820_431n, 1_790_840_952n]])),
+    )
+
+    const [entry] = (await runRoot())._unsafeUnwrap()
+
+    expect(entry?.oldRoles).toEqual([])
+    expect(entry?.newRoles).toEqual(['ROLE_CAN_NAME', 'ROLE_CAN_NAME_ADMIN'])
+  })
+
   it('does not start a node read for a cancelled query', async () => {
     listEvents.mockRejectedValue(
       new BignameError({ status: 409, code: 'stale', message: 'stale' }),

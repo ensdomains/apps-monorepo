@@ -16,6 +16,7 @@ import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import { previousPowers } from '@/lib/roles/permissionPowers'
 import {
+  decodeRegistryRoleBitmap,
   REGISTRY_ROLE_ORDER,
   type RegistryRole,
   registryPowersToRoles,
@@ -229,5 +230,11 @@ export const getRootRoleChanges = ResultFn(async function* (
     account: params.account,
   })
 
-  return toRoleHistoryEntries({ logs, resource: ROOT_RESOURCE })
+  return toRoleHistoryEntries({
+    logs,
+    resource: ROOT_RESOURCE,
+    // Root history speaks the full registry vocabulary, as `toRoles` does for
+    // the indexed rows; ensjs's decoder would drop `can_name`.
+    decodeRoles: decodeRegistryRoleBitmap,
+  })
 })
