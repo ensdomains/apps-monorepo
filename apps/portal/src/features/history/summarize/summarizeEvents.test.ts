@@ -304,6 +304,10 @@ describe('summarizeEvents — newer rows', () => {
       event('reservation', '2', { action: 'registration_reserved' }),
     ])
     expect(action.label).toBe('reserved')
+    expect(action.slots).toEqual([
+      { kind: 'name', value: 'alice.eth' },
+      { kind: 'text', value: 'for ENSv2' },
+    ])
   })
 
   it('ranks a record link under a resolver change', () => {

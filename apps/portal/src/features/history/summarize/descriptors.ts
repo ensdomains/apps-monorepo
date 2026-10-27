@@ -520,7 +520,12 @@ const DESCRIPTORS: Descriptors = {
         primary.data?.action === 'reservation_became_reachable'
           ? 'reservation became reachable'
           : 'reserved',
-      slots: [nameSlot(primary.name)],
+      slots: [
+        nameSlot(primary.name),
+        ...(primary.data?.action === 'registration_reserved'
+          ? [{ kind: 'text' as const, value: 'for ENSv2' }]
+          : []),
+      ],
     }),
   },
   token: {
