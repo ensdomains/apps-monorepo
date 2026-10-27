@@ -168,11 +168,11 @@ catalogs:
       specifier: ^1.64.0
       version: 1.64.0
     '@ensdomains/ensjs':
-      specifier: ^5.2.7
-      version: 5.2.7
+      specifier: ^5.2.8
+      version: 5.2.8
     '@ensdomains/ensjs-abi':
-      specifier: ^5.0.4
-      version: 5.0.4
+      specifier: ^5.0.5
+      version: 5.0.5
     '@posthog/react':
       specifier: ^1.11.3
       version: 1.11.3
@@ -327,10 +327,10 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.4
+        version: 5.0.5
       '@ensdomains/etherloom':
         specifier: 0.1.0-alpha.4
         version: 0.1.0-alpha.4
@@ -640,10 +640,10 @@ importers:
         version: 1.0.1
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.4
+        version: 5.0.5
       '@ensdomains/locales':
         specifier: workspace:^
         version: link:../../packages/locales
@@ -866,10 +866,10 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.4
+        version: 5.0.5
       '@ensdomains/headless-web3-provider':
         specifier: ^1.0.8
         version: 1.0.8(supports-color@10.2.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
@@ -894,7 +894,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       viem:
         specifier: 'catalog:'
         version: 2.57.7(typescript@7.0.2)(zod@4.6.7)
@@ -931,10 +931,10 @@ importers:
         version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.4
+        version: 5.0.5
       viem:
         specifier: 'catalog:'
         version: 2.57.7(typescript@7.0.2)(zod@4.6.7)
@@ -1050,7 +1050,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       viem:
         specifier: 'catalog:'
         version: 2.57.7(typescript@7.0.2)(zod@4.6.7)
@@ -1074,10 +1074,10 @@ importers:
         version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.4
+        version: 5.0.5
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
@@ -1128,10 +1128,10 @@ importers:
         version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.4
+        version: 5.0.5
       '@rhinestone/sdk':
         specifier: 'catalog:'
         version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
@@ -1168,10 +1168,10 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: 5.0.4
+        version: 5.0.5
       '@rhinestone/sdk':
         specifier: 'catalog:'
         version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
@@ -1211,7 +1211,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@tanstack/react-query':
         specifier: ^5.104.4
         version: 5.104.4(@types/react@19.3.0)(react@19.3.1)
@@ -1288,7 +1288,7 @@ importers:
         version: link:../../packages/utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@hono/valibot-validator':
         specifier: ^0.5.3
         version: 0.5.3(hono@4.13.13)(valibot@1.5.0(typescript@7.0.2))
@@ -1697,12 +1697,12 @@ packages:
     resolution: {integrity: sha512-Nnre2OaYLJD9vxjg8QWWjpwuzah4ORIpZkEYm7nxBaGtmtgJgXpPENprIVlzAGCSZgeG5TnM6LwyXEE1lDv4Cg==}
     engines: {node: '>=20.19.0'}
 
-  '@ensdomains/ensjs-abi@5.0.4':
-    resolution: {integrity: sha512-aRcbHPQeUBaoLrnc5lK5fPTaERGyE/hKlmQaRUPzsrrganP9Eb9m/TUR13N7yoJShECxRR1jPfcNm7vDmXw3sg==}
+  '@ensdomains/ensjs-abi@5.0.5':
+    resolution: {integrity: sha512-vGRrWLVsrbA1Gi8aZejzZ2uz2KIdKva0bsICXjgklPg1NCSs7s3nD80hEc7TRux/qBqTSYhhS0vtrPu6eTQBvA==}
     engines: {node: '>=22'}
 
-  '@ensdomains/ensjs@5.2.7':
-    resolution: {integrity: sha512-xWX0nUzJJay09dYzvHgXserY2U8r2aYmcHm9npFOOmmtgdLrshHpGBzqTrgyzV3bXNiGpnF1Dq2TA8rxODe+OA==}
+  '@ensdomains/ensjs@5.2.8':
+    resolution: {integrity: sha512-vbTolXAcz2tY2L31kMABUdnDW1qTSUwi1U8flHTzAOuJYoyCI/KJfI7Xs1piFD3+cjCPg0acvyjFV8XzDcV75w==}
     engines: {node: '>=22'}
     peerDependencies:
       '@ensdomains/dnsprovejs': ^0.5.4 || ^1.0.0
@@ -8587,14 +8587,14 @@ snapshots:
       dns-packet: 5.6.1
       typescript-logging: 1.0.1
 
-  '@ensdomains/ensjs-abi@5.0.4': {}
+  '@ensdomains/ensjs-abi@5.0.5': {}
 
-  '@ensdomains/ensjs@5.2.7(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
+  '@ensdomains/ensjs@5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 2.0.1
       '@ensdomains/content-hash': 3.1.0-rc.1
-      '@ensdomains/ensjs-abi': 5.0.4
+      '@ensdomains/ensjs-abi': 5.0.5
       cborg: 6.1.4
       dns-packet: 5.6.1
       ts-pattern: 5.9.2
