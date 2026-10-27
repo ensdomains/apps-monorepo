@@ -431,7 +431,7 @@ describe('offchain resolver records', () => {
   ])
   // A CCIP-Read resolver: extended resolution without name-based setters.
   const offchain = (multicallFailure?: Error) => {
-    fixture()
+    const state = fixture()
     const single = mocks.readContract.getMockImplementation()
     mocks.multicall.mockImplementation(
       async ({ contracts }: { contracts: { args: readonly [Hex] }[] }) =>
@@ -466,6 +466,7 @@ describe('offchain resolver records', () => {
         })
       },
     )
+    return state
   }
   const resolveCalls = () =>
     mocks.readContract.mock.calls.filter(
@@ -651,6 +652,41 @@ describe('offchain resolver records', () => {
       expect(readErrors).toHaveLength(errorCount)
     },
   )
+
+  it('reports a failing CCIP record when the rest only came back empty', async () => {
+    const state = offchain(
+      new HttpRequestError({ url: 'https://gateway.invalid', status: 500 }),
+    )
+    state.contentHash = '0x'
+    state.abi = ''
+    const single = mocks.readContract.getMockImplementation()
+    mocks.readContract.mockImplementation((request) => {
+      const call =
+        request.functionName === 'resolve'
+          ? decodeFunctionData({ abi: recordAbi, data: request.args[1] })
+          : undefined
+      if (call?.functionName === 'text' && call.args[1] === CUSTOM_KEY)
+        throw new BaseError('Gateway failed', {
+          cause: new HttpRequestError({
+            url: 'https://gateway.invalid',
+            status: 500,
+          }),
+          name: 'OffchainLookupError',
+        })
+      return single?.(request)
+    })
+
+    const { readErrors } = await readResolverRecords({
+      name: NAME,
+      resolver: RESOLVER,
+      texts: ['unset.key', CUSTOM_KEY],
+      coins: [],
+      shouldDecodeStrictly: false,
+      publicClient: publicClient as PublicClient,
+    })
+
+    expect(readErrors).toHaveLength(1)
+  })
 
   it('does not fall back to one request per record when the gateway rate limits', async () => {
     offchain(

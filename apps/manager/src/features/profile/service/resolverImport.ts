@@ -100,15 +100,21 @@ const isOffchainLookupFailure = (error: unknown): boolean => {
 // Viewing keeps the records a struggling CCIP gateway did return, and fails
 // only when none came back. Imports and RPC failures stay strict.
 const viewableReadErrors = (
-  results: readonly {
-    readonly failedKeys: readonly string[]
+  results: readonly (Partial<ImportedResolverRecords> & {
     readonly readErrors: readonly unknown[]
-  }[],
+  })[],
   shouldDecodeStrictly: boolean,
 ): unknown[] => {
   const readErrors = results.flatMap((record) => record.readErrors)
-  const hasReadRecord = results.some((record) => !record.failedKeys.length)
-  return shouldDecodeStrictly || !hasReadRecord
+  // An unset key decodes to nothing, so only a real value shows the name exists.
+  const hasRecordValue = results.some(
+    (record) =>
+      !!record.texts?.length ||
+      !!record.coins?.length ||
+      !!record.contentHash ||
+      !!record.abi,
+  )
+  return shouldDecodeStrictly || !hasRecordValue
     ? readErrors
     : readErrors.filter((error) => !isOffchainLookupFailure(error))
 }

@@ -93,6 +93,22 @@ describe('record resolution failures', () => {
   })
 })
 
+it('reads an unimported DNS name through universal resolution when its resolver lookup reverts', async () => {
+  mocks.getResolver.mockRejectedValue(
+    new BaseError('getResolver reverted', {
+      cause: new ExecutionRevertedError(),
+    }),
+  )
+  mocks.resolveNameData.mockResolvedValue(null)
+  const result = await getRecords({
+    name: 'unowned.xyz',
+    texts: ['description'],
+    coins: [60],
+  })
+  expect(result.isOk()).toBe(true)
+  expect(mocks.resolveNameData).toHaveBeenCalledTimes(1)
+})
+
 describe('inherited resolver batching', () => {
   const multicallAbi = parseAbi([
     'function multicall(bytes[] data) returns (bytes[] results)',
@@ -183,6 +199,33 @@ describe('inherited resolver batching', () => {
       })
     )._unsafeUnwrap()
     expect(records.texts).toEqual([{ key: 'description', value: 'hi' }])
+  })
+
+  it('still fails when the only records that came back are empty', async () => {
+    const error = encodeErrorResult({
+      abi,
+      errorName: 'HttpError',
+      args: [500, 'Internal error'],
+    })
+    const unset = encodeAbiParameters([{ type: 'string' }], [''])
+    mocks.readContract.mockResolvedValue(
+      encodeAbiParameters([{ type: 'bytes[]' }], [[unset, error]]),
+    )
+    // The batch's gateway error sends the read to the UniversalResolver, which
+    // meets the same failure.
+    mocks.resolveNameData.mockResolvedValue({
+      resolverAddress,
+      resolvedData: [
+        { success: true, returnData: unset },
+        { success: false, returnData: error },
+      ],
+    })
+    const result = await getRecords({
+      name: 'jesse.base.eth',
+      texts: ['description'],
+      coins: [60],
+    })
+    expect(result._unsafeUnwrapErr()).toMatchObject({ cause: { status: 500 } })
   })
 
   it('uses universal resolution when the resolver cannot handle multicall', async () => {

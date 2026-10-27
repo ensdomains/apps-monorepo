@@ -23,6 +23,7 @@ import {
   toFunctionSelector,
 } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { isContractRevert } from '@/utils/errors/isContractRevert'
 
 class RecordsError extends TaggedError('RecordsError')<{
   cause: GetRecordsErrorType
@@ -59,10 +60,15 @@ const checkGatewayError = (data: Hex) => {
 
 type RecordResult = { readonly success: boolean; readonly returnData: Hex }
 
+// An unset key answers with zeros (an empty string is its offset word then a
+// zero length), so it does not show that the name has any records.
+const hasValue = ({ success, returnData }: RecordResult) =>
+  success && !/^0x(0{62}20)?0*$/.test(returnData)
+
 // A gateway error that left no records must not read as an empty profile, but
 // one that failed only some keys still leaves a viewable profile.
 const checkGatewayErrors = (items: readonly RecordResult[]) => {
-  if (items.some((item) => item.success)) return
+  if (items.some(hasValue)) return
   for (const item of items) checkGatewayError(item.returnData)
 }
 
@@ -78,13 +84,15 @@ const toRecordResults = (values: readonly Hex[]): RecordResult[] => {
 // A rejected batch (Namespace answers an oversized GET with a 500) can still
 // resolve record by record; an overloaded or unreachable gateway cannot.
 const isGatewayUnavailable = (error: unknown): boolean => {
-  for (let cause = error; cause; cause = (cause as { cause?: unknown }).cause) {
+  let cause = error
+  for (let depth = 0; depth < 10 && cause; depth += 1) {
     const failure = cause as { name?: string; status?: number }
     if (
       failure.name === 'HttpRequestError' &&
       (!failure.status || failure.status === 429 || failure.status === 503)
     )
       return true
+    cause = (cause as { cause?: unknown }).cause
   }
   return false
 }
@@ -96,9 +104,14 @@ const getBatchResolver = async (
   parameters: ResolveNameDataParameters<Hex | Hex[]>,
 ) => {
   if (typeof parameters.data === 'string' || parameters.gatewayUrls) return null
+  // A name with no resolver (an unimported DNS name) reverts here; the
+  // UniversalResolver path below already reports it as unresolved.
   const resolver = await getResolver(client, {
     name: parameters.name,
     blockNumber: parameters.blockNumber,
+  }).catch((error: unknown) => {
+    if (isContractRevert(error)) return null
+    throw error
   })
   if (!resolver) return null
   const [hasExtendedResolution, hasNameSetters] = await getSupportedInterfaces(
