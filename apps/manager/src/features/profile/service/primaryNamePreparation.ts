@@ -1,17 +1,17 @@
-import { registryResolverSnippet } from '@ensdomains/ensjs-abi/registry'
 import {
   type Address,
   isAddressEqual,
-  namehash,
   type PublicClient,
   zeroAddress,
 } from 'viem'
-import { envConfig } from '@/config'
 import {
   getPrimaryNameForwardAddress,
   hasPrimaryNameForwardAddress,
 } from './primaryNameForwardAddress'
-import { getResolverWriteState } from './resolverWriteAccess'
+import {
+  getResolverWriteState,
+  readV1RegistryResolver,
+} from './resolverWriteAccess'
 
 export type PrimaryNamePreparation =
   | { readonly kind: 'ready' }
@@ -31,15 +31,8 @@ export type PrimaryNamePreparation =
 export const hasV1RegistryResolver = async (
   publicClient: PublicClient,
   name: string,
-): Promise<boolean> => {
-  const resolver = await publicClient.readContract({
-    address: envConfig.chain.contracts.ensLegacyRegistry.address,
-    abi: registryResolverSnippet,
-    functionName: 'resolver',
-    args: [namehash(name)],
-  })
-  return !isAddressEqual(resolver, zeroAddress)
-}
+): Promise<boolean> =>
+  (await readV1RegistryResolver(publicClient, name)) !== undefined
 
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
 export async function getPrimaryNamePreparation(

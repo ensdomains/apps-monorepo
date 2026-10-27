@@ -1,15 +1,18 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { registryResolverSnippet } from '@ensdomains/ensjs-abi/registry'
 import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
   BaseError,
   ExecutionRevertedError,
   isAddressEqual,
+  namehash,
   type PublicClient,
   zeroAddress,
 } from 'viem'
+import { envConfig } from '@/config'
 import { publicClient } from '@/lib/wagmi'
 import {
   hasV2NameEntry,
@@ -67,6 +70,20 @@ export const canWriteEthAddressRecord = async (
   }
 }
 
+/** The resolver set for `name` in the ENSv1 registry, if any. */
+export const readV1RegistryResolver = async (
+  client: PublicClient,
+  name: string,
+): Promise<Address | undefined> => {
+  const resolver = await client.readContract({
+    address: envConfig.chain.contracts.ensLegacyRegistry.address,
+    abi: registryResolverSnippet,
+    functionName: 'resolver',
+    args: [namehash(name)],
+  })
+  return isAddressEqual(resolver, zeroAddress) ? undefined : resolver
+}
+
 /** The name's resolver (undefined when none is set) and whether the owner wallet can write it. */
 export const getResolverWriteState = ResultFn(async function* (
   name?: string,
@@ -80,19 +97,16 @@ export const getResolverWriteState = ResultFn(async function* (
     (async () => {
       try {
         const location = await resolveNameRegistry(name)
+        // An unregistered label reports the ENSv1 fallback resolver, not its own.
+        if (!(await hasV2NameEntry(location, publicClient as PublicClient)))
+          return { resolver: undefined, hasV2Entry: false }
         const resolver = await readNameResolver(
           location,
           publicClient as PublicClient,
         )
         if (resolver.toLowerCase() !== zeroAddress)
           return { resolver, hasV2Entry: false }
-        return {
-          resolver: undefined,
-          hasV2Entry: await hasV2NameEntry(
-            location,
-            publicClient as PublicClient,
-          ),
-        }
+        return { resolver: undefined, hasV2Entry: true }
       } catch (error) {
         if (error instanceof NameRegistryNotFoundError)
           return { resolver: undefined, hasV2Entry: false }
@@ -103,10 +117,20 @@ export const getResolverWriteState = ResultFn(async function* (
   )
   if (v2Resolver.hasV2Entry)
     return ok({ resolverAddress: undefined, canWrite: false })
-  const { resolverAddress } = v2Resolver.resolver
+  const { resolverAddress: reachedResolver } = v2Resolver.resolver
     ? { resolverAddress: v2Resolver.resolver }
     : yield* getProfileEthAddressSnapshot(name)
-  if (!resolverAddress) return ok({ resolverAddress, canWrite: false })
+  if (!reachedResolver)
+    return ok({ resolverAddress: undefined, canWrite: false })
+
+  // Resolution reaches an ENSv1 name through a read-only forwarding resolver;
+  // its records live on the resolver in the ENSv1 registry.
+  const resolverAddress = v2Resolver.resolver
+    ? reachedResolver
+    : ((yield* fromPromise(
+        readV1RegistryResolver(publicClient as PublicClient, name),
+        (cause) => new ResolverWriteAccessError({ cause }),
+      )) ?? reachedResolver)
 
   const canWrite = yield* fromPromise(
     canWriteEthAddressRecord(resolverAddress, name, ownerAddress),
