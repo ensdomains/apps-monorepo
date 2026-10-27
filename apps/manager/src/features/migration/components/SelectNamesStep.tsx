@@ -203,6 +203,8 @@ export const SelectNamesStep = ({
     totalSelected,
     visibleCount,
     displayedCount,
+    eligibleCount,
+    selectedEligibleCount,
     allSelected,
     hasUnselectedEligibleNames,
     filteredGroups,
@@ -398,6 +400,7 @@ export const SelectNamesStep = ({
           ) : showSelectionOptions ? (
             <SelectNamesStepSelectionOptions
               allSelected={allSelected}
+              eligibleCount={eligibleCount}
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
@@ -411,14 +414,13 @@ export const SelectNamesStep = ({
               restoredManagers={restoredManagers}
               search={search}
               selected={selected}
+              selectedEligibleCount={selectedEligibleCount}
               setSearch={setSearch}
               showBulkSelection={showBulkSelection}
               showNameSearch={showNameSearch}
               toggleAll={toggleAll}
               toggleManagerRestoration={toggleManagerRestoration}
               toggleName={toggleName}
-              totalSelected={totalSelected}
-              visibleCount={visibleCount}
             />
           ) : null}
 

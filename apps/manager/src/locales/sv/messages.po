@@ -18,6 +18,11 @@ msgstr ""
 "X-Crowdin-File: /src/locales/en/messages.po\n"
 "X-Crowdin-File-ID: 18\n"
 
+#. placeholder {0}: filteredGracePeriodNames.length
+#: src/features/migration/components/SelectNamesStepNameList.tsx
+msgid "{0, plural, one {# name in grace} other {# names in grace}}"
+msgstr ""
+
 #. placeholder {0}: wrapperSyncNames.length
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{0, plural, one {# name needs syncing before it can be upgraded.} other {# names need syncing before they can be upgraded.}}"
@@ -242,11 +247,11 @@ msgid "<0>{0}</0> will be able to change the resolver for <1>{name}</1>"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> names selected</3>"
+msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-msgid "<0>All </0><1>{visibleCount}</1><2> names selected</2>"
+msgid "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 msgstr ""
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
@@ -1817,6 +1822,10 @@ msgstr ""
 msgid "Names could not be loaded"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStepNameList.tsx
+msgid "Names in grace will be renewed before being migrated"
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Names with deeper subnames, wrapped protections we cannot preserve, an incomplete subname list, or too many subnames for one safe upgrade must stay on ENSv1 for now. If subname copying is unavailable, the parent upgrade is blocked. There is no option to acknowledge the loss and continue. Your names keep working on ENSv1 while you wait."
 msgstr ""
@@ -3369,10 +3378,6 @@ msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name is in grace period"
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStepNameList.tsx
-msgid "This name is in its grace period. Renew it before upgrading."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx

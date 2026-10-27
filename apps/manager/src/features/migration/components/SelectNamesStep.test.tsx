@@ -332,7 +332,19 @@ describe('SelectNamesStep', () => {
     const renewalCheckbox = getByRole('checkbox', { name: 'renew.eth' })
     expect(getAllByRole('checkbox')[0]).toBe(renewalCheckbox)
     expect(renewalCheckbox).not.toBeChecked()
-    expect(renewalCheckbox).toHaveAccessibleDescription(/in its grace period/)
+    expect(renewalCheckbox).toHaveAccessibleDescription(/In grace period/)
+    const graceHeading = getByRole('heading', { name: '1 name in grace' })
+    const eligibleHeading = getByRole('heading', {
+      name: 'All 10 eligible names selected',
+    })
+    expect(
+      graceHeading.compareDocumentPosition(renewalCheckbox) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0)
+    expect(
+      renewalCheckbox.compareDocumentPosition(eligibleHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0)
     expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
     expect(
       queryByText('Upgrade all names to receive NFT'),
@@ -351,9 +363,10 @@ describe('SelectNamesStep', () => {
     ).not.toBeInTheDocument()
     expect(renewalCheckbox).toHaveAccessibleDescription(/Not enough USDC/)
     expect(
-      getByText(/This name is in its grace period/).compareDocumentPosition(
-        renewalCheckbox,
-      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      getByText(
+        /Not enough USDC to renew the selected names/,
+      ).compareDocumentPosition(renewalCheckbox) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0)
     expect(getByText('Not enough USDC to renew')).toHaveAttribute(
       'role',
@@ -388,6 +401,30 @@ describe('SelectNamesStep', () => {
     fireEvent.click(renewalCheckbox)
     rerenderRenewal({ status: 'idle' })
     expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
+
+    eligibilityState.gracePeriodNames = Array.from(
+      { length: 15 },
+      (_, index) => ({
+        ...graceName,
+        domain: makeDomain({
+          name: `grace${index}.eth`,
+          id: namehash(`grace${index}.eth`),
+          labelName: `grace${index}`,
+        }),
+      }),
+    )
+    rerenderRenewal({ status: 'idle' })
+    fireEvent.change(getByRole('textbox', { name: 'Search names' }), {
+      target: { value: 'grace' },
+    })
+    expect(
+      queryByText('All 10 eligible names selected'),
+    ).not.toBeInTheDocument()
+    fireEvent.click(getByRole('button', { name: 'Select all' }))
+    expect(getAllByRole('checkbox')).toHaveLength(15)
+    for (const checkbox of getAllByRole('checkbox'))
+      expect(checkbox).toBeChecked()
+    expect(getByRole('button', { name: 'Deselect all' })).toBeInTheDocument()
   })
 
   it('unselecting a parent unselects all its subnames', () => {
