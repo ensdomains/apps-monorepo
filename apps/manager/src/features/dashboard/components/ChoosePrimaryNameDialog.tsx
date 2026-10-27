@@ -231,13 +231,13 @@ const PrimaryNameErrorNotice = ({
 }
 
 const MissingResolvingNamesNotice = ({
-  failed,
-  loading,
+  hasFailed,
+  isLoading,
 }: {
-  readonly failed: boolean
-  readonly loading: boolean
+  readonly hasFailed: boolean
+  readonly isLoading: boolean
 }) =>
-  failed && !loading ? (
+  hasFailed && !isLoading ? (
     <p className="font-sans text-muted-foreground text-sm">
       <Trans>
         Names that point to your wallet couldn’t be loaded, so some may be
@@ -767,8 +767,8 @@ export const ChoosePrimaryNameDialog = ({
             </div>
 
             <MissingResolvingNamesNotice
-              failed={hasResolvingNamesError}
-              loading={isLoading}
+              hasFailed={hasResolvingNamesError}
+              isLoading={isLoading}
             />
 
             <PrimaryNameListFooter
