@@ -246,11 +246,7 @@ const NameRowComponent = ({
   )
 
   if (isNested) {
-    return (
-      <div className={rowClass} title={item.domain.name}>
-        {content}
-      </div>
-    )
+    return <div className={rowClass}>{content}</div>
   }
 
   // A locked row with nothing recorded has no choice left to show.
@@ -273,7 +269,7 @@ const NameRowComponent = ({
           {warning}
         </p>
       )}
-      <Row className={rowClass} title={item.domain.name}>
+      <Row className={rowClass}>
         {!disabledReason && (
           <input
             aria-describedby={descriptions}
