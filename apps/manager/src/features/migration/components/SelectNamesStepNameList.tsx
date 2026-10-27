@@ -97,7 +97,6 @@ const SelectNamesStepNameListComponent = ({
                 <li className="min-w-0" key={item.domain.id}>
                   <NameRow
                     depth={0}
-                    isInGrace
                     isManagerRestorationLocked={isManagerRestorationLocked}
                     isManagerRestored={restoredManagers.has(item.domain.name)}
                     isPrimary={item.domain.name === primaryName}

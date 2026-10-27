@@ -1550,10 +1550,6 @@ msgstr ""
 msgid "Importing records…"
 msgstr ""
 
-#: src/features/migration/components/NameRow.tsx
-msgid "In grace period"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "in your wallet"
 msgstr ""

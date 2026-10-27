@@ -1545,10 +1545,6 @@ msgstr "Image not available"
 msgid "Importing records…"
 msgstr "Importing records…"
 
-#: src/features/migration/components/NameRow.tsx
-msgid "In grace period"
-msgstr "In grace period"
-
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "in your wallet"
 msgstr "in your wallet"

@@ -56,7 +56,7 @@ const SelectionStates = () => {
 export const AllStates: Story = { render: () => <SelectionStates /> }
 
 export const GracePeriod: Story = {
-  args: { isInGrace: true, isSelected: false },
+  args: { isSelected: false },
   render: (args) => <SelectableGraceName {...args} />,
 }
 
@@ -78,7 +78,6 @@ export const MixedNames: Story = {
       {gracePeriodRowFixtures.map((item) => (
         <NameRow
           depth={0}
-          isInGrace
           isSelected={false}
           item={item}
           key={item.domain.id}
@@ -90,7 +89,6 @@ export const MixedNames: Story = {
 
 export const GracePeriodNarrow: Story = {
   args: {
-    isInGrace: true,
     isPrimary: true,
     isSelected: false,
     item: longGracePeriodRowFixture,
