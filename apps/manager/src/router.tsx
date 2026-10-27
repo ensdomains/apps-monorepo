@@ -34,8 +34,6 @@ export async function getRouter() {
     defaultOptions: {
       queries: {
         staleTime: 0,
-        // A tab switch would refetch every query on the page; mounts still refetch.
-        refetchOnWindowFocus: false,
       },
       // Round-trip bigints through the SSR boundary. Without this, the
       // server's `JSON.stringify` on the dehydrated cache either throws
