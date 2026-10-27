@@ -136,7 +136,7 @@ const NameRowComponent = ({
 
   const content = (
     <>
-      {!isNested && (
+      {!isNested && !disabledReason && (
         <div
           aria-hidden
           className={cn(
@@ -256,21 +256,23 @@ const NameRowComponent = ({
     !!managerCandidate &&
     !!onToggleManagerRestoration &&
     (!isManagerRestorationLocked || isManagerRestored)
+  const Row = disabledReason ? 'div' : 'label'
 
   return (
     <div className="flex min-w-0 flex-col">
-      <label className={rowClass} title={item.domain.name}>
-        <input
-          aria-describedby={descriptions}
-          aria-label={item.domain.name}
-          checked={isSelected}
-          className="peer sr-only"
-          disabled={!!disabledReason}
-          onChange={() => !disabledReason && onToggle?.(item.domain.name)}
-          type="checkbox"
-        />
+      <Row className={rowClass} title={item.domain.name}>
+        {!disabledReason && (
+          <input
+            aria-describedby={descriptions}
+            aria-label={item.domain.name}
+            checked={isSelected}
+            className="peer sr-only"
+            onChange={() => onToggle?.(item.domain.name)}
+            type="checkbox"
+          />
+        )}
         {content}
-      </label>
+      </Row>
       {disabledReason && (
         <p
           className="mt-2 max-w-full text-ens-garnet-900/75 text-sm leading-5"
