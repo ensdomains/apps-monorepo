@@ -778,9 +778,53 @@ describe('migrationUiMachine', () => {
       })
       expect(actor.getSnapshot().value).toBe('select')
     })
+
+    it('starts cleanup-only reconciliation after every name completed', () => {
+      executeMigrationMock.mockImplementation(() => new Promise(() => {}))
+      const completed = makePlan([domain('alice')]).classified[0]
+      const plan = makePlan([], {
+        classified: [],
+        registryContext: completed ? [completed] : [],
+        priorCompletedOperations: [{ name: 'alice.eth', action: 'migrate' }],
+        requiresReconciliation: true,
+        stepDescriptors: [{ type: 'cleanup', approvalId: 'eth-registry:hca' }],
+      })
+      const actor = createActor(migrationUiMachine, {
+        input: { wagmiConfig: WAGMI },
+      })
+      actor.start()
+
+      actor.send({
+        type: 'migration.start',
+        plan,
+        signer: SIGNER,
+        hcaClient: HCA_CLIENT,
+        refreshAccount: REFRESH_ACCOUNT,
+      })
+
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'running' })
+      expect(executeMigrationMock).toHaveBeenCalledWith(
+        expect.objectContaining({ plan, reconcileBeforeSubmit: true }),
+      )
+      actor.stop()
+    })
   })
 
   describe('migrate.running state', () => {
+    it('aborts the migration submission gate when the actor stops', () => {
+      let submissionSignal: AbortSignal | undefined
+      executeMigrationMock.mockImplementation(({ submissionGate }) => {
+        submissionSignal = submissionGate.signal
+        return new Promise(() => {})
+      })
+
+      const actor = start()
+
+      expect(submissionSignal?.aborted).toBe(false)
+      actor.stop()
+      expect(submissionSignal?.aborted).toBe(true)
+    })
+
     it('transitions select → migrate.running on migration.start with classified names', () => {
       executeMigrationMock.mockImplementation(() => new Promise(() => {}))
       const actor = start()

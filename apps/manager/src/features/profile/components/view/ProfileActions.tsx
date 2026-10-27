@@ -7,7 +7,7 @@ import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import { useIntercomClearance } from '@/hooks/useIntercomClearance'
 import { cn } from '@/lib/utils'
 import {
-  desktopActionContainerClassName,
+  desktopActionClusterClassName,
   editActionClassName,
   editBottomBarContentClassName,
   editBottomNavClassName,
@@ -16,27 +16,48 @@ import {
   profileButtonClassName,
   profileStickyBarClassName,
   renewActionClassName,
-  renewBarActionClassName,
 } from './ProfileAction.styles'
 import { ProfileEditAction } from './ProfileEditAction'
 import { ProfileFavoriteAction } from './ProfileFavoriteAction'
 import { ProfileRenewAction } from './ProfileRenewAction'
 import { ProfileShareAction } from './ProfileShareAction'
 
-type ProfileActionsProps = {
+type ProfileDesktopActionsProps = {
   readonly avatarUrl?: string
+  readonly isOwner?: boolean
+  readonly name: string
+  readonly renewalProtocol?: RenewalProtocol
+  readonly url: string
+}
+
+type ProfileActionsProps = ProfileDesktopActionsProps & {
   readonly canEdit: boolean
   readonly isInGrace: boolean
-  readonly isOwner?: boolean
   readonly isUpgradeRequired: boolean
-  readonly name: string
   readonly onUpdated: () => undefined | Promise<unknown>
   readonly owner?: Address
   readonly records: ProfileRecords
-  readonly renewalProtocol?: RenewalProtocol
-  readonly url: string
   readonly resolverCopySource?: ResolverCopySource
 }
+
+export const ProfileDesktopActions = ({
+  avatarUrl,
+  isOwner,
+  name,
+  renewalProtocol,
+  url,
+}: ProfileDesktopActionsProps) => (
+  <div className={desktopActionClusterClassName}>
+    <ProfileFavoriteAction name={name} />
+    <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+    <ProfileRenewAction
+      className={renewActionClassName}
+      isOwner={isOwner}
+      name={name}
+      protocol={renewalProtocol}
+    />
+  </div>
+)
 
 export const ProfileActions = ({
   avatarUrl,
@@ -67,8 +88,7 @@ export const ProfileActions = ({
       <ProfileFavoriteAction name={name} />
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
       <ProfileRenewAction
-        className={renewBarActionClassName}
-        isBarAction
+        className={renewActionClassName}
         isOwner={isOwner}
         name={name}
         protocol={renewalProtocol}
@@ -84,7 +104,7 @@ export const ProfileActions = ({
         isInGrace={isInGrace}
         isUpgradeRequired={isUpgradeRequired}
         keepMounted
-        leftActions={barActions}
+        leftActions={<div className="xl:hidden">{barActions}</div>}
         name={name}
         onUpdated={onUpdated}
         owner={owner}
@@ -97,19 +117,6 @@ export const ProfileActions = ({
 
   return (
     <>
-      <div className={desktopActionContainerClassName}>
-        <div className="flex items-center gap-6">
-          <ProfileFavoriteAction name={name} />
-          <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
-        </div>
-        <ProfileRenewAction
-          className={renewActionClassName}
-          isOwner={isOwner}
-          name={name}
-          protocol={renewalProtocol}
-        />
-      </div>
-
       {hasBottomNav ? (
         <nav
           aria-label={t`Profile actions`}

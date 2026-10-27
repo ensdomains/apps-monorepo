@@ -1,13 +1,7 @@
 import { SiOpensea, SiTelegram, SiX } from '@icons-pack/react-simple-icons'
 import { Trans } from '@lingui/react/macro'
 import { useReducedMotion } from 'motion/react'
-import {
-  type ReactNode,
-  type Ref,
-  useEffect,
-  useReducer,
-  useState,
-} from 'react'
+import { type ReactNode, type Ref, useEffect, useState } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,13 +16,17 @@ import {
   getCommemorativeNftConfig,
 } from '../../commemorative-nft/config'
 import { trackNftEvent } from '../../commemorative-nft/diagnostics'
-import { CommemorativeNftRendererSurface } from './CommemorativeNftRendererSurface'
+import {
+  CommemorativeNftRendererSurface,
+  nftRendererFrameClassName,
+} from './CommemorativeNftRendererSurface'
 import { CommemorativeNftSurpriseCard } from './CommemorativeNftSurpriseCard'
 import { CommemorativeNftTraitsTooltip } from './CommemorativeNftTraitsTooltip'
 import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
 } from './MigrationSuccessDialog.types'
+import type { NftRevealFrame } from './useCommemorativeNftRenderer'
 import { useNftArtworkLoading } from './useNftArtworkLoading'
 import { useNftArtworkVisibility } from './useNftArtworkVisibility'
 import { useNftAssetDownload } from './useNftAssetDownload'
@@ -321,6 +319,61 @@ const ArtworkLoading = () => (
   </div>
 )
 
+const RevealCover = ({
+  frame,
+  host,
+  showArtwork,
+  failed,
+}: {
+  readonly frame: NftRevealFrame | undefined
+  readonly host: Ref<HTMLDivElement>
+  readonly showArtwork: boolean
+  readonly failed: boolean
+}) => (
+  <div
+    className={cn(
+      'pointer-events-none z-10',
+      frame ? nftRendererFrameClassName : 'absolute inset-0',
+    )}
+  >
+    <div
+      className="absolute"
+      style={
+        frame
+          ? {
+              left: `${frame.x * 100}%`,
+              top: `${frame.y * 100}%`,
+              width: `${frame.width * 100}%`,
+              height: `${frame.height * 100}%`,
+            }
+          : { inset: 0 }
+      }
+    >
+      <div
+        aria-hidden={showArtwork || failed}
+        className={cn(
+          'absolute inset-0',
+          showArtwork ? 'opacity-0' : 'opacity-100',
+        )}
+      >
+        <ArtworkLoading />
+      </div>
+      <div
+        aria-hidden
+        className="absolute inset-0 overflow-hidden rounded-lg"
+        ref={host}
+      />
+    </div>
+  </div>
+)
+
+// Older renderers lack a held pose, so expose their live card after the reveal.
+const canShowLiveArtwork = (
+  showArtwork: boolean,
+  frame: NftRevealFrame | undefined,
+  ready: boolean,
+) => showArtwork && (!!frame || ready)
+
 const shouldAnimateReveal = (
   variant: CardVariant,
   status: MigrationSuccessDialogState['status'],
@@ -333,14 +386,9 @@ const useRevealedArtwork = (
     readonly visible: boolean
   },
 ) => {
-  const [revealFinished, finishReveal] = useReducer(() => true, false)
-  const artwork = useNftArtworkLoading({
-    ...params,
-    deferAnimation: params.revealEnabled && !revealFinished,
-  })
+  const artwork = useNftArtworkLoading(params)
   const reveal = useNftReveal({
     enabled: params.revealEnabled && !artwork.imageFailed,
-    onComplete: finishReveal,
     status: artwork.status,
     visible: params.visible,
   })
@@ -367,6 +415,7 @@ const ArtworkCard = ({
   const visibility = useNftArtworkVisibility(active)
   const shouldReduceMotion = useReducedMotion()
   const [playArtwork, setPlayArtwork] = useState(false)
+  const [revealFrame, setRevealFrame] = useState<NftRevealFrame>()
   const reducedMotionStill = !!shouldReduceMotion && !playArtwork
   const imageUrl = state.card.assets.imageUrl
   const revealEnabled = shouldAnimateReveal(
@@ -389,6 +438,11 @@ const ArtworkCard = ({
     showArtwork,
     status: presentationStatus,
   } = reveal
+  const showLiveArtwork = canShowLiveArtwork(
+    showArtwork,
+    revealFrame,
+    presentationReady,
+  )
 
   useEffect(() => {
     onStatusChange?.(presentationStatus)
@@ -413,22 +467,18 @@ const ArtworkCard = ({
       frameRef={visibility.ref}
       variant={variant}
     >
-      <div
-        aria-hidden={showArtwork || artworkFailed}
-        className={cn(
-          'pointer-events-none absolute inset-0 z-10 transition-opacity duration-600 ease-out motion-reduce:transition-none',
-          showArtwork ? 'opacity-0' : 'opacity-100',
-        )}
-      >
-        <ArtworkLoading />
-      </div>
+      <RevealCover
+        failed={artworkFailed}
+        frame={revealFrame}
+        host={reveal.host}
+        showArtwork={showArtwork}
+      />
       {/* Let outside taps dismiss traits before interacting with the iframe. */}
       <div
         className={cn(
-          'absolute inset-0 transition-opacity duration-600 ease-out group-has-[[data-nft-traits-trigger][data-state=open]]/nft-card:pointer-events-none data-[revealing=true]:overflow-hidden data-[revealing=true]:rounded-lg motion-reduce:transition-none',
-          showArtwork ? 'opacity-100' : 'opacity-0',
+          'absolute inset-0 group-has-[[data-nft-traits-trigger][data-state=open]]/nft-card:pointer-events-none',
+          showLiveArtwork ? 'opacity-100' : 'opacity-0',
         )}
-        data-revealing={reveal.running}
       >
         {artwork.imageReady ? (
           <img
@@ -448,19 +498,16 @@ const ArtworkCard = ({
         {artwork.renderAnimation ? (
           <CommemorativeNftRendererSurface
             eligibility={state.card.eligibility}
-            interactive={interactive}
+            holdForReveal={revealEnabled && !presentationReady}
+            interactive={interactive && presentationReady}
             onError={artwork.onRendererError}
             onReady={artwork.onRendererReady}
+            onRevealFrame={setRevealFrame}
             placeholder={false}
             rendererUrl={rendererUrl}
           />
         ) : null}
       </div>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-lg"
-        ref={reveal.host}
-      />
       {reducedMotionStill && artworkReady ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <button

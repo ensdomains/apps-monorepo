@@ -716,6 +716,60 @@ describe('buildAtomicMigrationBatches', () => {
     )
   })
 
+  describe('recreation trees stay in one transaction', () => {
+    const root = makeName('example.eth', {
+      action: 'migrate',
+      tokenType: 'unwrapped',
+      parentName: 'eth',
+      label: 'example',
+    })
+    const childOf = (label: string) =>
+      ({
+        ...makeName(`${label}.example.eth`, {
+          action: 'copy',
+          tokenType: 'registry-child',
+          parentName: 'example.eth',
+          label,
+          sourceExpiry: (1n << 64n) - 1n,
+        }),
+        recreationRoot: 'example.eth',
+      }) as ClassifiedName
+    const other = makeName('other.eth', { label: 'other' })
+    const perName = ({ names }: { readonly names: readonly string[] }) => ({
+      outerGas: BigInt(names.length) * 100n,
+      walletGas: 0n,
+    })
+
+    it('keeps the parent and its children in the same batch', async () => {
+      const plan = await buildPlan({
+        classified: [other, childOf('a'), root, childOf('b')],
+        resolverDeployed: true,
+        walletCoAdminGranted: true,
+        maxOuterGas: 300n,
+        estimateBatchGas: perName,
+      })
+
+      expect(plan.batches.map(({ names }) => [...names].sort())).toEqual([
+        ['other.eth'],
+        ['a.example.eth', 'b.example.eth', 'example.eth'],
+      ])
+    })
+
+    it('refuses a tree that does not fit rather than splitting it', async () => {
+      await expect(
+        buildPlan({
+          classified: [root, childOf('a'), childOf('b')],
+          resolverDeployed: true,
+          walletCoAdminGranted: true,
+          maxOuterGas: 200n,
+          estimateBatchGas: perName,
+        }),
+      ).rejects.toMatchObject({
+        name: 'AtomicMigrationNameGasLimitExceededError',
+      })
+    })
+  })
+
   it('builds an arbitrary-depth copy tree in dependency-safe calldata order', async () => {
     const root = makeName('example.eth', {
       action: 'migrate',

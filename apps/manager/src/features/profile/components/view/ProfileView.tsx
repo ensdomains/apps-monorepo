@@ -25,7 +25,7 @@ import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { ProfileActions } from './ProfileActions'
+import { ProfileActions, ProfileDesktopActions } from './ProfileActions'
 import { ProfileBanner } from './ProfileBanner'
 import { ProfileCards } from './ProfileCards'
 import { type ProfileDraft, ProfileDraftProvider } from './ProfileDraft.context'
@@ -218,6 +218,15 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               avatarLoading={avatar.isLoading}
               avatarUrl={avatarUrl}
               canEdit={canEditProfile}
+              desktopActions={
+                <ProfileDesktopActions
+                  avatarUrl={avatarUrl}
+                  isOwner={resolvedIsOwner}
+                  name={name}
+                  renewalProtocol={ownerData?.protocol}
+                  url={getProfileUrl(name)}
+                />
+              }
               displayExpiryDate={expiry.displayExpiryDate}
               name={name}
               owner={owner}

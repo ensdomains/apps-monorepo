@@ -142,6 +142,11 @@ const partialMigration = {
   migratedNameCount: 3,
 }
 const featureFlag = vi.mocked(useFeatureFlagEnabled)
+// Mainnet ignores the flag, so flag transitions are exercised on Sepolia.
+const onSepolia = () => {
+  mockEnvConfig.network = 'sepolia'
+  vi.mocked(useChainId).mockReturnValue(11155111)
+}
 const clients: QueryClient[] = []
 
 const createClient = () => {
@@ -231,14 +236,10 @@ describe('commemorative NFT flow session', () => {
     vi.unstubAllGlobals()
   })
 
-  it.each([
-    { nft: true, network: 'sepolia' },
-    { nft: false, network: 'mainnet' },
-    { nft: undefined, network: 'mainnet' },
-  ] as const)(
-    'keeps cached NFTs and callbacks disabled with migration-nft=$nft on $network',
-    async ({ nft, network }) => {
-      mockEnvConfig.network = network
+  it.each([false, undefined] as const)(
+    'keeps cached NFTs and callbacks disabled on Sepolia with migration-nft=%s',
+    async (nft) => {
+      onSepolia()
       featureFlag.mockImplementation(
         (_flag, defaultValue) => nft ?? defaultValue,
       )
@@ -247,7 +248,14 @@ describe('commemorative NFT flow session', () => {
         commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
         eligible,
       )
-      client.setQueryData(claimQueryKey, false)
+      client.setQueryData(
+        commemorativeNftClaimedQueryOptions({
+          ownerAddress,
+          chainId: 11155111,
+          wagmiConfig,
+        }).queryKey,
+        false,
+      )
       const { result } = mountFlow(client)
 
       expect(result.current.admission.status).toBe('fallback')
@@ -265,7 +273,8 @@ describe('commemorative NFT flow session', () => {
     },
   )
 
-  it('admits only after both initially unknown flags become enabled', async () => {
+  it('admits on Sepolia only after the initially unknown flag becomes enabled', async () => {
+    onSepolia()
     featureFlag.mockImplementation((_flag, defaultValue) => defaultValue)
     const { result, rerender } = mountFlow(createClient())
 
@@ -435,6 +444,7 @@ describe('commemorative NFT flow session', () => {
   })
 
   it('blocks submission if the feature is disabled during the final completion check', async () => {
+    onSepolia()
     const pending =
       deferred<
         Awaited<ReturnType<typeof fetchCommemorativeNftMigrationCompletion>>
@@ -508,6 +518,7 @@ describe('commemorative NFT flow session', () => {
   })
 
   it('revokes an admitted flow and retained callbacks when the flag turns off', async () => {
+    onSepolia()
     const { result, rerender } = mountFlow(createClient())
     await waitFor(() => expect(result.current.canMint).toBe(true))
     const retainedMint = result.current.mint
@@ -535,6 +546,7 @@ describe('commemorative NFT flow session', () => {
   })
 
   it('finishes an already submitted receipt after the flag is disabled', async () => {
+    onSepolia()
     const pendingReceipt = deferred<CommemorativeNftClaimReceiptResult>()
     waitForReceipt.mockReturnValueOnce(pendingReceipt.promise)
     const client = createClient()
@@ -560,6 +572,7 @@ describe('commemorative NFT flow session', () => {
   })
 
   it('blocks a queued mutation if the flag turns off before submission', async () => {
+    onSepolia()
     const client = createClient()
     const { result, rerender } = mountFlow(client)
     await waitFor(() => expect(result.current.canMint).toBe(true))

@@ -110,11 +110,13 @@ import {
   temporaryMigrationHcaApproval,
 } from './migrationApprovals'
 import {
+  loadMigrationBatchJournal,
   loadMigrationRecoverySnapshot,
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
+  subscribeMigrationBatchJournal,
 } from './migrationBatchJournal'
 import {
   executeMigration,
@@ -441,12 +443,16 @@ const runExecute = async (
     reconcileBeforeSubmit?: boolean
     onProgress?: (progress: MigrationProgress) => void
     canRecreateSubnames?: () => boolean
+    readonly submissionSignal?: AbortSignal
   } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
   const refreshAccount = overrides.refreshAccount ?? vi.fn()
+  const submissionSignal =
+    overrides.submissionSignal ?? new AbortController().signal
   const result = await executeMigration({
     plan: overrides.plan ?? planFor(),
+    submissionGate: { signal: submissionSignal },
     wagmiConfig: WAGMI,
     publicClient: PUBLIC_CLIENT,
     signer: SIGNER,
@@ -641,6 +647,186 @@ describe('executeMigration HCA orchestration', () => {
       copy.domain.name,
     ])
     expect(recovery?.profiles.size).toBe(2)
+  })
+
+  it('does not submit a second durable copy gas-split batch after the submission gate is aborted', async () => {
+    const parent = classifiedFor('alice')
+    const copy = copyClassifiedFor()
+    const plan = planFromClassified([parent, copy], [parent, copy])
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({
+        hca,
+        classified,
+        estimateBatchGas,
+      }: BuildAtomicMigrationBatchesParams) => {
+        const first = classified.slice(0, 1)
+        const names = first.map(({ domain }) => domain.name)
+        const outerCall = { to: hca, data: OUTER_DATA, value: 0n }
+        const { outerGas } = await estimateBatchGas({
+          call: outerCall,
+          names,
+          innerExecutions: [],
+          walletCall: null,
+          walletExecutions: [],
+        })
+        return {
+          resolver: RESOLVER,
+          batches: [
+            {
+              index: 0,
+              names,
+              operations: first.map(({ domain, action }) => ({
+                name: domain.name,
+                action,
+              })),
+              nameExecutions: [],
+              innerExecutions: [],
+              outerCall,
+              walletCall: null,
+              estimatedGas: outerGas,
+              walletEstimatedGas: 0n,
+              verificationExpectations: [],
+            },
+          ],
+        }
+      },
+    )
+    let resolveFirstTransaction!: (result: { readonly hash: Hex }) => void
+    const firstTransaction = new Promise<{ readonly hash: Hex }>((resolve) => {
+      resolveFirstTransaction = resolve
+    })
+    let resolveFirstTransactionHeld!: () => void
+    const firstTransactionHeld = new Promise<void>((resolve) => {
+      resolveFirstTransactionHeld = resolve
+    })
+    mocks.waitForTransaction.mockImplementationOnce(() => {
+      resolveFirstTransactionHeld()
+      return firstTransaction
+    })
+    const controller = new AbortController()
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    let hasPersistedSecondBatchIntent = false
+    const unsubscribe = subscribeMigrationBatchJournal(() => {
+      if (
+        loadPendingAtomicMigrationIntents(scope).some(({ names }) =>
+          names.includes(copy.domain.name),
+        )
+      ) {
+        hasPersistedSecondBatchIntent = true
+      }
+    })
+
+    const observedExecution = runExecute({
+      plan,
+      submissionSignal: controller.signal,
+    }).then(
+      () => undefined,
+      () => undefined,
+    )
+    await firstTransactionHeld
+    controller.abort()
+    resolveFirstTransaction({ hash: hashFor(1) })
+    await observedExecution
+    unsubscribe()
+
+    const recovery = loadMigrationRecoverySnapshot(scope)
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(hasPersistedSecondBatchIntent).toBe(false)
+    expect(
+      mocks.verifyAtomicMigrationBatch.mock.calls[0]?.[0].batch.names,
+    ).toEqual([parent.domain.name])
+    expect(recovery).toMatchObject({
+      completedOperations: [{ name: parent.domain.name, action: 'migrate' }],
+      remainingOperations: [{ name: copy.domain.name, action: 'copy' }],
+    })
+  })
+
+  // Leaves the page once the final batch is in the wallet, so the batch lands
+  // but cleanup reaches a closed gate.
+  const leaveDuringFinalBatch = (): AbortController => {
+    const controller = new AbortController()
+    let nextTransaction = mocks.startTransaction.mock.calls.length
+    mocks.startTransaction.mockImplementation(
+      ({ request }: { readonly request: { readonly data: Hex } }) => {
+        if (request.data === OUTER_DATA) controller.abort()
+        return `tx-${nextTransaction++}`
+      },
+    )
+    return controller
+  }
+
+  const submittedKinds = () =>
+    mocks.startTransaction.mock.calls.map((call) => {
+      const [{ request }] = call as [
+        { readonly request: { readonly to: Address; readonly data: Hex } },
+      ]
+      if (request.data === OUTER_DATA) return 'batch'
+      if (request.to === V2_CONTRACTS.ETHRegistry) return 'cleanup'
+      return 'other'
+    })
+
+  it('finishes only cleanup on return after leaving during the final copy batch', async () => {
+    setHcaApprovalActive()
+    const parent = classifiedFor('alice')
+    const copy = copyClassifiedFor()
+    const basePlan = planFromClassified([parent, copy], [parent, copy])
+    const plan = {
+      ...basePlan,
+      preflight: {
+        ...basePlan.preflight,
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
+      },
+    }
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    const controller = leaveDuringFinalBatch()
+
+    await expect(
+      runExecute({ plan, submissionSignal: controller.signal }),
+    ).rejects.toBeDefined()
+    expect(submittedKinds()).toEqual(['batch'])
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([
+      expect.objectContaining({
+        operations: [
+          { name: parent.domain.name, action: 'migrate' },
+          { name: copy.domain.name, action: 'copy' },
+        ],
+      }),
+    ])
+
+    mocks.buildAtomicMigrationBatches.mockClear()
+    const { result } = await runExecute({ plan, reconcileBeforeSubmit: true })
+
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(submittedKinds()).toEqual(['batch', 'cleanup'])
+    expect(result).toMatchObject({ completed: 2, migrated: 1, copied: 1 })
+    expect(loadMigrationRecoverySnapshot(scope)).toBeNull()
+  })
+
+  it('leaves nothing to resubmit after leaving during a direct-only final batch', async () => {
+    setHcaApprovalActive()
+    const plan = {
+      ...planFor(),
+      preflight: {
+        ...planFor().preflight,
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
+      },
+    }
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    const controller = leaveDuringFinalBatch()
+
+    await expect(
+      runExecute({ plan, submissionSignal: controller.signal }),
+    ).rejects.toBeDefined()
+
+    // The temporary access stays for the permissions page to revoke; the
+    // journal holds no operation that /upgrade could submit again.
+    expect(submittedKinds()).toEqual(['batch'])
+    expect(mocks.verifyAtomicMigrationBatch).toHaveBeenCalledOnce()
+    expect(
+      loadMigrationRecoverySnapshot(scope)?.remainingOperations ?? [],
+    ).toEqual([])
+    expect(loadPendingAtomicMigrationIntents(scope)).toEqual([])
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([])
   })
 
   it('retains the final receipt through cleanup and resumes without duplicate registration', async () => {
@@ -1698,6 +1884,51 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
+  it('publishes recovery and attempt evidence together for a direct-only plan', async () => {
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    const observations: ReturnType<typeof loadMigrationBatchJournal>[] = []
+    const unsubscribe = subscribeMigrationBatchJournal(() => {
+      observations.push(loadMigrationBatchJournal(scope))
+    })
+    let resolveHash!: (hash: Hex) => void
+    mocks.waitForTransactionHash.mockImplementationOnce(
+      () =>
+        new Promise<Hex>((resolve) => {
+          resolveHash = resolve
+        }),
+    )
+
+    const execution = runExecute()
+    await vi.waitFor(() =>
+      expect(mocks.startTransaction).toHaveBeenCalledOnce(),
+    )
+    const recovery = loadMigrationRecoverySnapshot(scope)
+    resolveHash(hashFor(1))
+    await execution
+    unsubscribe()
+
+    expect(recovery).toMatchObject({
+      registryOperations: [{ name: 'alice.eth', action: 'migrate' }],
+      remainingOperations: [{ name: 'alice.eth', action: 'migrate' }],
+    })
+    expect(
+      observations.some(
+        ({ recovery: snapshot, pending, submitted }) =>
+          snapshot !== null &&
+          snapshot.completedOperations.length === 0 &&
+          pending.length === 0 &&
+          submitted.length === 0,
+      ),
+    ).toBe(false)
+    expect(
+      observations.some(
+        ({ recovery: snapshot, pending }) =>
+          snapshot?.remainingOperations.length === 1 && pending.length === 1,
+      ),
+    ).toBe(true)
+    expect(loadMigrationRecoverySnapshot(scope)).toBeNull()
+  })
+
   it('durably records the batch intent before opening the wallet prompt', async () => {
     mocks.startTransaction.mockImplementationOnce(() => {
       expect(
@@ -1735,6 +1966,16 @@ describe('executeMigration HCA orchestration', () => {
         hca: HCA,
       }),
     ).toEqual([expect.objectContaining({ names: ['alice.eth'] })])
+    expect(
+      loadMigrationRecoverySnapshot({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      }),
+    ).toMatchObject({
+      registryOperations: [{ name: 'alice.eth', action: 'migrate' }],
+      remainingOperations: [{ name: 'alice.eth', action: 'migrate' }],
+    })
 
     mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
       status: 'incomplete',
@@ -2462,6 +2703,7 @@ describe('executeMigration HCA orchestration', () => {
   it('returns immediately when no eligible names remain', async () => {
     const result = await executeMigration({
       plan: planFor([]),
+      submissionGate: { signal: new AbortController().signal },
       wagmiConfig: WAGMI,
       publicClient: PUBLIC_CLIENT,
       signer: SIGNER,

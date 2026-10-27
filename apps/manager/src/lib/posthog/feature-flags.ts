@@ -8,8 +8,9 @@ export const POSTHOG_FEATURE_FLAGS = {
   NOTICE_BANNER: NOTICE_BANNER_FLAG,
 } as const
 
+/** On for every mainnet owner; elsewhere only for wallets the flag targets (QA). */
 export const isMigrationNftEnabled = (params: {
   readonly network: EnsNetwork
   readonly migrationNftEnabled: boolean | null | undefined
 }): boolean =>
-  params.network === 'mainnet' && params.migrationNftEnabled === true
+  params.network === 'mainnet' || params.migrationNftEnabled === true

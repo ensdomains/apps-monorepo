@@ -129,8 +129,8 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
       return (
         <div>
           <Trans>
-            We couldn&apos;t safely retry. Nothing was submitted and nothing
-            changed.
+            We couldn&apos;t safely retry. A transaction may already be pending
+            or confirmed, so check your wallet activity before trying again.
           </Trans>
         </div>
       )

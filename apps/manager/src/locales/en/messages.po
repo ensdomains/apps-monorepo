@@ -1224,16 +1224,16 @@ msgid "ENS"
 msgstr "ENS"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS App"
+msgstr "ENS App"
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS Explorer"
 msgstr "ENS Explorer"
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "ENS Manager"
-msgstr "ENS Manager"
 
 #: src/features/dashboard/components/DashboardPills.tsx
 #: src/features/renew/workflow/pricing/PricingStep.tsx
@@ -1871,8 +1871,8 @@ msgid "NFT traits"
 msgstr "NFT traits"
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "No additional payment needed. You'll still sign the renewal."
-msgstr "No additional payment needed. You'll still sign the renewal."
+msgid "No additional payment needed. You'll still need to sign the renewal."
+msgstr "No additional payment needed. You'll still need to sign the renewal."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No additional payment needed. Your available balance covers the total."
@@ -2469,7 +2469,6 @@ msgstr "Removing..."
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
-#: src/features/profile/components/view/ProfileRenewAction.tsx
 msgid "Renew"
 msgstr "Renew"
 
@@ -3810,8 +3809,8 @@ msgid "We couldn't remove access. Check your wallet and try again."
 msgstr "We couldn't remove access. Check your wallet and try again."
 
 #: src/features/migration/pages/MigrationPage.tsx
-msgid "We couldn't safely retry. Nothing was submitted and nothing changed."
-msgstr "We couldn't safely retry. Nothing was submitted and nothing changed."
+msgid "We couldn't safely retry. A transaction may already be pending or confirmed, so check your wallet activity before trying again."
+msgstr "We couldn't safely retry. A transaction may already be pending or confirmed, so check your wallet activity before trying again."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't start your registration. Please try again."

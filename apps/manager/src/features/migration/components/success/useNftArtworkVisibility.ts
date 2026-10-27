@@ -1,25 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 
-/** Mount the expensive iframe only while its card can actually be seen. */
+/** Keep viewport cards mounted across tab switches; the browser throttles their frames. */
 export const useNftArtworkVisibility = (active: boolean) => {
   const ref = useRef<HTMLDivElement>(null)
   const [intersecting, setIntersecting] = useState<boolean | undefined>(
     undefined,
   )
-  const [documentVisible, setDocumentVisible] = useState(
-    () =>
-      typeof document !== 'undefined' && document.visibilityState !== 'hidden',
-  )
-
-  useEffect(() => {
-    const onVisibilityChange = () =>
-      setDocumentVisible(document.visibilityState !== 'hidden')
-    onVisibilityChange()
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    return () =>
-      document.removeEventListener('visibilitychange', onVisibilityChange)
-  }, [])
-
   useEffect(() => {
     const element = ref.current
     if (!element) return
@@ -37,6 +23,6 @@ export const useNftArtworkVisibility = (active: boolean) => {
   return {
     ref,
     resolved: intersecting !== undefined,
-    visible: active && intersecting === true && documentVisible,
+    visible: active && intersecting === true,
   }
 }

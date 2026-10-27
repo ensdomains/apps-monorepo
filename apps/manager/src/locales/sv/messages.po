@@ -1229,15 +1229,15 @@ msgid "ENS"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS App"
+msgstr ""
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS Explorer"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
-msgstr ""
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "ENS Manager"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
@@ -1876,7 +1876,7 @@ msgid "NFT traits"
 msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "No additional payment needed. You'll still sign the renewal."
+msgid "No additional payment needed. You'll still need to sign the renewal."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -2474,7 +2474,6 @@ msgstr ""
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
-#: src/features/profile/components/view/ProfileRenewAction.tsx
 msgid "Renew"
 msgstr ""
 
@@ -3815,7 +3814,7 @@ msgid "We couldn't remove access. Check your wallet and try again."
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
-msgid "We couldn't safely retry. Nothing was submitted and nothing changed."
+msgid "We couldn't safely retry. A transaction may already be pending or confirmed, so check your wallet activity before trying again."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
