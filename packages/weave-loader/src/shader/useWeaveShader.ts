@@ -323,11 +323,11 @@ export function useWeaveShader(
       const rect = container.getBoundingClientRect()
       const w = Math.round(rect.width * DPR)
       const h = Math.round(rect.height * DPR)
+      canvas.style.width = `${rect.width}px`
+      canvas.style.height = `${rect.height}px`
       if (canvas.width === w && canvas.height === h) return
       canvas.width = w
       canvas.height = h
-      canvas.style.width = `${rect.width}px`
-      canvas.style.height = `${rect.height}px`
       gl.viewport(0, 0, w, h)
       render(false)
     }

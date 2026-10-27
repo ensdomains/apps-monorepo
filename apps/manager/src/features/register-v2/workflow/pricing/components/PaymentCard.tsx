@@ -226,9 +226,9 @@ export const PaymentCardBase = ({
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"
             color="blue"
-            disabled={!canNext || isPreparing}
+            disabled={!canNext && !isPreparing}
             loading={isPreparing}
-            onClick={onNext}
+            onClick={isPreparing ? undefined : onNext}
             size="lg"
           >
             {isPreparing ? (
