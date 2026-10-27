@@ -21,6 +21,7 @@ type NameRowProps = {
   readonly depth: number
   readonly onToggle?: (name: string) => void
   readonly disabledReason?: ReactNode
+  readonly warning?: ReactNode
   /** The v1 registry controller, when it differs from the registrant. */
   readonly managerCandidate?: Address
   readonly isManagerRestored?: boolean
@@ -107,6 +108,7 @@ const NameRowComponent = ({
   depth,
   onToggle,
   disabledReason,
+  warning,
   managerCandidate,
   isManagerRestored = false,
   isManagerRestorationLocked = false,
@@ -119,11 +121,13 @@ const NameRowComponent = ({
   const primaryNameId = useId()
   const renewalId = useId()
   const disabledReasonId = useId()
+  const warningId = useId()
   const descriptions =
     [
       isPrimary && primaryNameId,
       isInGrace && renewalId,
       disabledReason && disabledReasonId,
+      warning && warningId,
     ]
       .filter(Boolean)
       .join(' ') || undefined
@@ -260,6 +264,15 @@ const NameRowComponent = ({
 
   return (
     <div className="flex min-w-0 flex-col">
+      {warning && (
+        <p
+          className="mb-2 text-destructive text-sm leading-5"
+          id={warningId}
+          role="alert"
+        >
+          {warning}
+        </p>
+      )}
       <Row className={rowClass} title={item.domain.name}>
         {!disabledReason && (
           <input

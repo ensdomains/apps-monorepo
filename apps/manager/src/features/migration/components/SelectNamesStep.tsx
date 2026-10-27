@@ -184,6 +184,9 @@ export const SelectNamesStep = ({
     shouldSkip: recoveryState.status !== 'none',
   })
   const needsRenewal = renewal.status !== 'idle'
+  const hasInsufficientRenewalFunds =
+    renewal.status === 'ready' &&
+    renewal.quote.balance < renewal.quote.totalAmount
   const preparedPlan = gasEstimate.status === 'ready' ? gasEstimate.plan : null
   const preparedNames = match({ needsRenewal, renewalGasEstimate })
     .with(
@@ -397,6 +400,7 @@ export const SelectNamesStep = ({
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
+              hasInsufficientRenewalFunds={hasInsufficientRenewalFunds}
               includedSubnames={includedSubnames}
               isCompactLayout={isCompactLayout}
               isContentHeightCard={isContentHeightCard}

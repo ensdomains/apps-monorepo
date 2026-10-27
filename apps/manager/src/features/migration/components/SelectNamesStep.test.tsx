@@ -8,9 +8,13 @@ import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMi
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { render } from '@/utils/test-utils'
+import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
+import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
+import { makeDomain, OWNER } from '../service/_fixtures'
 import type {
   ClassifiedName,
   CopyClassifiedName,
+  IneligibleName,
 } from '../service/classifyNames'
 
 const CONTROLLER = '0x00000000000000000000000000000000000000c1'
@@ -68,6 +72,7 @@ const eligibilityState = vi.hoisted(() => ({
   wrapperSyncNames: [] as ClassifiedName[],
   verifiedSubnames: [] as CopyClassifiedName[],
   recoveryStatus: 'none' as 'none' | 'recovering',
+  gracePeriodNames: [] as IneligibleName[],
 }))
 
 vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
@@ -82,7 +87,7 @@ vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
         ),
     ),
     blockedSubnames: eligibilityState.blockedSubnames,
-    gracePeriodNames: [],
+    gracePeriodNames: eligibilityState.gracePeriodNames,
     unavailableNames: [],
     wrapperSyncNames: eligibilityState.wrapperSyncNames,
     verifiedSubnames: eligibilityState.verifiedSubnames,
@@ -123,6 +128,7 @@ beforeEach(() => {
   impactState.impact.parents = []
   eligibilityState.blockedSubnames = []
   eligibilityState.recoveryStatus = 'none'
+  eligibilityState.gracePeriodNames = []
 })
 
 // eslint-disable-next-line import/first
@@ -145,16 +151,23 @@ const renderStep = ({
   gasEstimate = { status: 'idle' } as MigrationGasEstimateState,
   gasAffordability = { status: 'unknown' } as GasAffordability,
   gasFundingStatus = 'settled',
+  renewal = { status: 'idle' },
+  renewalGasEstimate = { status: 'idle' },
   onNext = vi.fn(),
 }: {
   gasEstimate?: MigrationGasEstimateState
   gasAffordability?: GasAffordability
   gasFundingStatus?: MigrationGasFundingStatus
+  renewal?: GraceRenewalQuoteState
+  renewalGasEstimate?: GraceRenewalGasEstimateState
   onNext?: () => boolean | Promise<boolean>
 } = {}) => {
   const onNamesChange = vi.fn<(names: string[]) => void>()
   const onManagerRestorationChange = vi.fn<(names: string[]) => void>()
-  const step = (estimate: MigrationGasEstimateState) => (
+  const step = (
+    estimate: MigrationGasEstimateState,
+    renewalState = renewal,
+  ) => (
     <SmartAccountContextProvider>
       <SelectNamesStep
         gasAffordability={gasAffordability}
@@ -163,6 +176,8 @@ const renderStep = ({
         onManagerRestorationChange={onManagerRestorationChange}
         onNamesChange={onNamesChange}
         onNext={onNext}
+        renewal={renewalState}
+        renewalGasEstimate={renewalGasEstimate}
       />
     </SmartAccountContextProvider>
   )
@@ -174,6 +189,8 @@ const renderStep = ({
     ...utils,
     rerenderGasEstimate: (estimate: MigrationGasEstimateState) =>
       utils.rerender(step(estimate)),
+    rerenderRenewal: (renewalState: GraceRenewalQuoteState) =>
+      utils.rerender(step(gasEstimate, renewalState)),
   }
 }
 
@@ -241,14 +258,83 @@ describe('SelectNamesStep', () => {
   })
 
   it('seeds all visible names (parent + subnames + orphans) as selected', () => {
-    const { onNamesChange, getByText } = renderStep()
+    const graceName: IneligibleName = {
+      domain: makeDomain({
+        name: 'renew.eth',
+        id: namehash('renew.eth'),
+        labelName: 'renew',
+      }),
+      reason: 'expired-registration',
+    }
+    eligibilityState.gracePeriodNames = [graceName]
+    const renewal: Extract<GraceRenewalQuoteState, { status: 'ready' }> = {
+      status: 'ready',
+      quote: {
+        ownerAddress: OWNER,
+        chainId: 1,
+        paymentToken: OWNER,
+        renewerAddress: OWNER,
+        items: [
+          {
+            domain: graceName.domain,
+            label: 'renew',
+            registrationExpiry: 0n,
+            duration: 604800n,
+            targetExpiry: 604800n,
+            amount: 1_000_000n,
+          },
+        ],
+        totalAmount: 1_000_000n,
+        balance: 0n,
+        expiresAt: 4_102_444_800n,
+        quotedAtMs: Date.now(),
+      },
+    }
+    const {
+      onNamesChange,
+      getByText,
+      getByRole,
+      getAllByRole,
+      queryByRole,
+      queryByText,
+      rerenderRenewal,
+    } = renderStep({
+      renewal,
+      renewalGasEstimate: {
+        status: 'error',
+        stage: 'fee',
+        reason: 'fee-unavailable',
+        cause: new Error('insufficient balance'),
+      },
+    })
     expect(getByText('sub1234.eth')).toBeInTheDocument()
     expect(getByText('gm.sub1234.eth')).toBeInTheDocument()
     expect(getByText('sub123.eth')).toBeInTheDocument()
     const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
     expect([...lastCall].sort()).toEqual(
-      eligibleFixture.map((item) => item.domain.name).sort(),
+      [...eligibleFixture.map((item) => item.domain.name), 'renew.eth'].sort(),
     )
+    const renewalCheckbox = getByRole('checkbox', { name: 'renew.eth' })
+    expect(getAllByRole('checkbox')[0]).toBe(renewalCheckbox)
+    expect(renewalCheckbox).toHaveAccessibleDescription(/Not enough USDC/)
+    expect(
+      getByRole('alert').compareDocumentPosition(renewalCheckbox) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0)
+    expect(
+      queryByText("Couldn't estimate the network fee"),
+    ).not.toBeInTheDocument()
+    rerenderRenewal({
+      status: 'ready',
+      quote: { ...renewal.quote, balance: renewal.quote.totalAmount },
+    })
+    expect(queryByRole('alert')).not.toBeInTheDocument()
+    expect(getAllByRole('checkbox')[0]).toBe(renewalCheckbox)
+    rerenderRenewal({ status: 'loading' })
+    expect(queryByRole('alert')).not.toBeInTheDocument()
+    rerenderRenewal(renewal)
+    fireEvent.click(renewalCheckbox)
+    expect(queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('unselecting a parent unselects all its subnames', () => {

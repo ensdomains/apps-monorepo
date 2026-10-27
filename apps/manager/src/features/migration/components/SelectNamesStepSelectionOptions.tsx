@@ -51,6 +51,7 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   | 'totalSelected'
   | 'visibleCount'
 > & {
+  readonly hasInsufficientRenewalFunds: boolean
   readonly isCompactLayout: boolean
   readonly isContentHeightCard: boolean
   readonly isPending: boolean
@@ -63,6 +64,7 @@ export const SelectNamesStepSelectionOptions = ({
   filteredGroups,
   filteredOrphans,
   filteredGracePeriodNames,
+  hasInsufficientRenewalFunds,
   isCompactLayout,
   isContentHeightCard,
   isManagerRestorationLocked,
@@ -174,6 +176,7 @@ export const SelectNamesStepSelectionOptions = ({
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
+              hasInsufficientRenewalFunds={hasInsufficientRenewalFunds}
               includedSubnames={includedSubnames}
               isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}

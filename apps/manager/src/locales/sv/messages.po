@@ -1956,8 +1956,8 @@ msgstr ""
 msgid "Not enough USDC on {chainName}."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
+#: src/features/migration/components/SelectNamesStepNameList.tsx
+msgid "Not enough USDC to renew the selected names. Add USDC or deselect this name."
 msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx

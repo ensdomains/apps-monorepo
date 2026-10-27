@@ -1951,9 +1951,9 @@ msgstr "Not enough USDC in your wallet. Choose another payment method."
 msgid "Not enough USDC on {chainName}."
 msgstr "Not enough USDC on {chainName}."
 
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
-msgstr "Not enough USDC to renew these names. Add USDC to your wallet to continue."
+#: src/features/migration/components/SelectNamesStepNameList.tsx
+msgid "Not enough USDC to renew the selected names. Add USDC or deselect this name."
+msgstr "Not enough USDC to renew the selected names. Add USDC or deselect this name."
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx

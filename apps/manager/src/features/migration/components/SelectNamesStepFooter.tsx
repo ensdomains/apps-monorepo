@@ -181,15 +181,6 @@ const GraceRenewalStatus = ({
       </p>
     )
   if (state.status === 'error') return <p role="alert">{state.message}</p>
-  if (state.status === 'ready' && state.quote.balance < state.quote.totalAmount)
-    return (
-      <p className="text-destructive" role="alert">
-        <Trans>
-          Not enough USDC to renew these names. Add USDC to your wallet to
-          continue.
-        </Trans>
-      </p>
-    )
   return null
 }
 
@@ -229,13 +220,15 @@ export const SelectNamesStepFooter = ({
         ) : (
           <>
             <GraceRenewalStatus state={renewal} />
-            <GasEstimateMessage
-              gasAffordability={gasAffordability}
-              gasEstimate={renewalGasEstimate}
-              isWaitingForGasFunding={isWaitingForGasFunding}
-              renewal={renewal}
-              totalSelected={totalSelected}
-            />
+            {!hasInsufficientUsdc && (
+              <GasEstimateMessage
+                gasAffordability={gasAffordability}
+                gasEstimate={renewalGasEstimate}
+                isWaitingForGasFunding={isWaitingForGasFunding}
+                renewal={renewal}
+                totalSelected={totalSelected}
+              />
+            )}
           </>
         )}
       </div>

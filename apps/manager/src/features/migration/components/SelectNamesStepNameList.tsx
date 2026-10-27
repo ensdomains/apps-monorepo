@@ -23,6 +23,7 @@ type SelectNamesStepNameListProps = Pick<
   | 'toggleManagerRestoration'
   | 'toggleName'
 > & {
+  readonly hasInsufficientRenewalFunds: boolean
   readonly isPending: boolean
 }
 
@@ -30,6 +31,7 @@ const SelectNamesStepNameListComponent = ({
   filteredGroups,
   filteredOrphans,
   filteredGracePeriodNames,
+  hasInsufficientRenewalFunds,
   isManagerRestorationLocked,
   isPending,
   managerCandidates,
@@ -65,17 +67,6 @@ const SelectNamesStepNameListComponent = ({
     ))
     .otherwise(() => (
       <>
-        <NameTreeRows
-          depth={0}
-          isManagerRestorationLocked={isManagerRestorationLocked}
-          managerCandidates={managerCandidates}
-          nodes={[...filteredGroups, ...filteredOrphans]}
-          primaryName={primaryName}
-          restoredManagers={restoredManagers}
-          selected={selected}
-          toggleManagerRestoration={toggleManagerRestoration}
-          toggleName={toggleName}
-        />
         {filteredGracePeriodNames.length > 0 && (
           <ul className="flex min-w-0 flex-col gap-4">
             {filteredGracePeriodNames.map((item) => (
@@ -91,6 +82,15 @@ const SelectNamesStepNameListComponent = ({
                   managerCandidate={managerCandidates.get(item.domain.name)}
                   onToggle={toggleName}
                   onToggleManagerRestoration={toggleManagerRestoration}
+                  warning={
+                    hasInsufficientRenewalFunds &&
+                    selected.has(item.domain.name) ? (
+                      <Trans>
+                        Not enough USDC to renew the selected names. Add USDC or
+                        deselect this name.
+                      </Trans>
+                    ) : undefined
+                  }
                 />
                 {selected.has(item.domain.name) &&
                   includedSubnames.has(item.domain.name) && (
@@ -112,6 +112,17 @@ const SelectNamesStepNameListComponent = ({
             ))}
           </ul>
         )}
+        <NameTreeRows
+          depth={0}
+          isManagerRestorationLocked={isManagerRestorationLocked}
+          managerCandidates={managerCandidates}
+          nodes={[...filteredGroups, ...filteredOrphans]}
+          primaryName={primaryName}
+          restoredManagers={restoredManagers}
+          selected={selected}
+          toggleManagerRestoration={toggleManagerRestoration}
+          toggleName={toggleName}
+        />
       </>
     ))
 }
