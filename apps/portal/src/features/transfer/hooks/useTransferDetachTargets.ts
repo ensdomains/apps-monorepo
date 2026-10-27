@@ -123,6 +123,8 @@ export const useTransferDetachTargets = ({
         hasSubregistry &&
         rolesQuery.isSuccess &&
         heldRoles.includes('ROLE_SET_SUBREGISTRY'),
+      // V2 has no separate manager role to hand over.
+      transferManager: false,
     },
     isSettled:
       ownResolverQuery.isSuccess &&
