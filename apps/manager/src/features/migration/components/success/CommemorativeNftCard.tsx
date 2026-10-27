@@ -26,12 +26,14 @@ import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
 } from './MigrationSuccessDialog.types'
+import { NftVideoDownloadAction } from './NftVideoDownloadAction'
 import type { NftRevealFrame } from './useCommemorativeNftRenderer'
 import { useNftArtworkLoading } from './useNftArtworkLoading'
 import { useNftArtworkVisibility } from './useNftArtworkVisibility'
 import { useNftAssetDownload } from './useNftAssetDownload'
 import { useNftReveal } from './useNftReveal'
 import { useNftShareEntrance } from './useNftShareEntrance'
+import { useNftVideoDownload } from './useNftVideoDownload'
 
 type SocialControlProps = {
   readonly isDisabled: boolean
@@ -98,6 +100,7 @@ const SharingRail = ({
   const externalUrl = state.card.shareUrls.external
   const hasDownload = !!state.card.assets.imageUrl
   const { download, pending } = useNftAssetDownload(state.card.assets.imageUrl)
+  const video = useNftVideoDownload(state.card.eligibility)
   const stackedActionClassName =
     variant === 'dialog'
       ? 'relative z-10 flex basis-full justify-center md:basis-auto md:justify-start'
@@ -185,6 +188,7 @@ const SharingRail = ({
                   <Trans>Download WebP</Trans>
                 )}
               </DropdownMenuItem>
+              <NftVideoDownloadAction video={video} />
               {externalUrl ? (
                 <>
                   <DropdownMenuItem asChild>

@@ -635,6 +635,15 @@ msgstr "Cancel Email Verification?"
 msgid "Cancel Verification"
 msgstr "Cancel Verification"
 
+#: src/features/migration/components/success/NftVideoDownloadAction.tsx
+msgid "Cancel video export"
+msgstr "Cancel video export"
+
+#. placeholder {0}: state.progress
+#: src/features/migration/components/success/NftVideoDownloadAction.tsx
+msgid "Cancel video export ({0}%)"
+msgstr "Cancel video export ({0}%)"
+
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Cannot save profile"
 msgstr "Cannot save profile"
@@ -1133,6 +1142,10 @@ msgstr "Domain transfer and expiry notifications"
 #: src/features/bulk-renew/components/SuccessStep.tsx
 msgid "Done"
 msgstr "Done"
+
+#: src/features/migration/components/success/NftVideoDownloadAction.tsx
+msgid "Download video"
+msgstr "Download video"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Download WebP"
@@ -1874,6 +1887,10 @@ msgstr "NFT artwork downloaded"
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "NFT traits"
 msgstr "NFT traits"
+
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "NFT video downloaded"
+msgstr "NFT video downloaded"
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No additional payment needed. You'll still need to sign the renewal."
@@ -3663,6 +3680,18 @@ msgstr "Verify your wallet"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Verifying registration on-chain"
 msgstr "Verifying registration on-chain"
+
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "Video could not be downloaded. Please try again."
+msgstr "Video could not be downloaded. Please try again."
+
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "Video export is not supported in this browser."
+msgstr "Video export is not supported in this browser."
+
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "Video export is unavailable. Please try again later."
+msgstr "Video export is unavailable. Please try again later."
 
 #: src/features/profile/components/view/ReverseNameView.tsx
 msgid "View address"
