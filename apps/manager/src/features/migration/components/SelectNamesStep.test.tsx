@@ -622,42 +622,41 @@ describe('SelectNamesStep manager restoration (WEB-1528)', () => {
     expect(getByTitle(CONTROLLER)).toBeInTheDocument()
   })
 
-  it('reports nothing to restore until the owner opts in', () => {
+  it('keeps the manager checked by default', () => {
     const { onManagerRestorationChange } = renderStep()
     const lastCall = onManagerRestorationChange.mock.calls.at(-1)?.[0]
-    expect(lastCall ?? []).toEqual([])
+    expect(lastCall).toEqual(['managed.eth'])
   })
 
-  it('reports the opted-in name once the checkbox is ticked', () => {
+  it('allows the manager to be unchecked', () => {
     const utils = renderStep()
     const checkbox = managerCheckbox(utils)
     if (!checkbox) throw new Error('manager opt-in not found')
 
     fireEvent.click(checkbox)
 
-    expect(utils.onManagerRestorationChange.mock.calls.at(-1)?.[0]).toEqual([
-      'managed.eth',
-    ])
+    expect(checkbox).not.toBeChecked()
+    expect(utils.onManagerRestorationChange.mock.calls.at(-1)?.[0]).toEqual([])
   })
 
-  it('explains the temporary permission only once a name is opted in', async () => {
+  it('explains the default manager permission and clears it when unchecked', async () => {
     const utils = renderStep()
     const notice = /requires temporary\s+permission/
-    expect(utils.queryByText(notice)).not.toBeInTheDocument()
+    expect(utils.getByText(notice)).toBeInTheDocument()
 
     const checkbox = managerCheckbox(utils)
     if (!checkbox) throw new Error('manager opt-in not found')
     fireEvent.click(checkbox)
 
-    await waitFor(() => expect(utils.getByText(notice)).toBeInTheDocument())
+    await waitFor(() =>
+      expect(utils.queryByText(notice)).not.toBeInTheDocument(),
+    )
   })
 
   it('withdraws the opt-in when the name is deselected', async () => {
     const utils = renderStep()
     const checkbox = managerCheckbox(utils)
     if (!checkbox) throw new Error('manager opt-in not found')
-    fireEvent.click(checkbox)
-
     const row = rowCheckbox(utils, 'managed.eth')
     if (!row) throw new Error('name row not found')
     fireEvent.click(row)

@@ -52,12 +52,8 @@ export const useNameSelection = ({
 }: Params) => {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  // Opt-in, never seeded from a v1 controller: a controller that differs from
-  // the registrant may be a manager the owner appointed or a seller a
-  // marketplace transfer left behind, so nothing is re-granted until it is
-  // asked for by name. A resumed run is the one exception — there the choice
-  // was already made and is replayed from the snapshot below.
-  const [restoredManagers, setRestoredManagers] = useState<ReadonlySet<string>>(
+  // Keep existing managers by default; retain explicit opt-outs across refetches.
+  const [excludedManagers, setExcludedManagers] = useState<ReadonlySet<string>>(
     new Set(),
   )
 
@@ -229,7 +225,7 @@ export const useNameSelection = ({
   const toggleManagerRestoration = useCallback(
     (name: string) => {
       if (isManagerRestorationLocked) return
-      setRestoredManagers((prev) => {
+      setExcludedManagers((prev) => {
         const next = new Set(prev)
         if (next.has(name)) next.delete(name)
         else next.add(name)
@@ -274,10 +270,13 @@ export const useNameSelection = ({
   const currentRestoredManagers = useMemo(() => {
     const source = isManagerRestorationLocked
       ? lockedRestoredManagers
-      : restoredManagers
+      : managerCandidates.keys()
     return new Set(
       [...source].filter(
-        (name) => managerCandidates.has(name) && currentSelected.has(name),
+        (name) =>
+          managerCandidates.has(name) &&
+          currentSelected.has(name) &&
+          (isManagerRestorationLocked || !excludedManagers.has(name)),
       ),
     )
   }, [
@@ -285,7 +284,7 @@ export const useNameSelection = ({
     isManagerRestorationLocked,
     lockedRestoredManagers,
     managerCandidates,
-    restoredManagers,
+    excludedManagers,
   ])
 
   // Stable identity for the effect below: a fresh Set every render would loop.

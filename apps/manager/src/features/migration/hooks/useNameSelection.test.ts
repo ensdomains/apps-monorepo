@@ -617,17 +617,22 @@ describe('useNameSelection manager restoration (WEB-1528)', () => {
     return { ...utils, onManagerRestorationChange }
   }
 
-  it('reports nothing until a name is opted in', async () => {
+  it('keeps existing managers by default and allows opting out', async () => {
     const { result, onManagerRestorationChange } = renderSelection([
       makeManagedName('one.eth'),
     ])
 
     await waitFor(() => expect(result.current.totalSelected).toBe(1))
+    expect([...result.current.restoredManagers]).toEqual(['one.eth'])
+    expect(onManagerRestorationChange.mock.calls.at(-1)?.[0]).toEqual([
+      'one.eth',
+    ])
+    act(() => result.current.toggleManagerRestoration('one.eth'))
     expect(result.current.restoredManagers.size).toBe(0)
-    expect(onManagerRestorationChange.mock.calls.at(-1)?.[0] ?? []).toEqual([])
+    expect(onManagerRestorationChange.mock.calls.at(-1)?.[0]).toEqual([])
   })
 
-  it('keeps ticked opt-ins across a render where eligibility is briefly empty', async () => {
+  it('keeps manager opt-outs across a render where eligibility is briefly empty', async () => {
     const names = [makeManagedName('one.eth'), makeManagedName('two.eth')]
     const { result, rerender, onManagerRestorationChange } =
       renderSelection(names)
@@ -635,11 +640,9 @@ describe('useNameSelection manager restoration (WEB-1528)', () => {
     await waitFor(() => expect(result.current.totalSelected).toBe(2))
     act(() => {
       result.current.toggleManagerRestoration('one.eth')
-      result.current.toggleManagerRestoration('two.eth')
     })
     await waitFor(() =>
       expect(onManagerRestorationChange.mock.calls.at(-1)?.[0]).toEqual([
-        'one.eth',
         'two.eth',
       ]),
     )
@@ -651,10 +654,7 @@ describe('useNameSelection manager restoration (WEB-1528)', () => {
     rerender({ eligible: names, isPending: false })
 
     await waitFor(() =>
-      expect([...result.current.restoredManagers].sort()).toEqual([
-        'one.eth',
-        'two.eth',
-      ]),
+      expect([...result.current.restoredManagers].sort()).toEqual(['two.eth']),
     )
   })
 
@@ -663,7 +663,6 @@ describe('useNameSelection manager restoration (WEB-1528)', () => {
     const { result } = renderSelection(names)
 
     await waitFor(() => expect(result.current.totalSelected).toBe(1))
-    act(() => result.current.toggleManagerRestoration('one.eth'))
     await waitFor(() => expect(result.current.restoredManagers.size).toBe(1))
 
     act(() => result.current.toggleName('one.eth'))
