@@ -2,7 +2,6 @@ import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { envConfig } from '@/config'
 import { useDefaultMigrationSelection } from '@/features/migration/hooks/useDefaultMigrationSelection'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -13,12 +12,7 @@ import { cn } from '@/lib/utils'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import type { SubnameMigrationBlockReason } from '../hooks/useMigrationEligibility'
-import {
-  getMigrationResolverReview,
-  matchesResolverReviewSelection,
-} from '../service/migrationResolverReview'
 import { NameRow } from './NameRow'
-import { ResolverMigrationReview } from './ResolverMigrationReview'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
@@ -229,23 +223,6 @@ export const SelectNamesStep = ({
   const isWaitingForGasFunding =
     totalSelected > 0 && gasFundingStatus === 'funding'
   const preparedPlan = gasEstimate.status === 'ready' ? gasEstimate.plan : null
-  const resolverReview = needsRenewal
-    ? renewalGasEstimate.status === 'ready'
-      ? renewalGasEstimate.resolverReview
-      : null
-    : preparedPlan
-      ? getMigrationResolverReview(
-          preparedPlan.classified,
-          envConfig.chain.id,
-          {
-            includeImportedNames: isRecovery,
-          },
-        )
-      : null
-  const currentResolverReview =
-    resolverReview && matchesResolverReviewSelection(resolverReview, selected)
-      ? resolverReview
-      : null
   const isFinishingRecovery =
     isRecovery && preparedPlan !== null && preparedPlan.classified.length === 0
   const recreation = preparedPlan?.subnameRecreation
@@ -277,8 +254,7 @@ export const SelectNamesStep = ({
   const hasAdditionalDetails =
     blockedSubnames.length > 0 ||
     unavailableNames.length > 0 ||
-    isEligibilityError ||
-    (currentResolverReview?.groups.length ?? 0) > 0
+    isEligibilityError
   const showSelectionOptions =
     !isFinishingRecovery &&
     (blockedSubnames.length === 0 ||
@@ -421,9 +397,6 @@ export const SelectNamesStep = ({
             />
           ) : null}
 
-          {currentResolverReview && (
-            <ResolverMigrationReview review={currentResolverReview} />
-          )}
           <WrapperSyncNotice
             error={wrapperSync.error}
             isPending={wrapperSync.isPending}

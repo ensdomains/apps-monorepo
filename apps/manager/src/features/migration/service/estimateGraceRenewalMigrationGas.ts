@@ -20,10 +20,6 @@ import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { estimateGraceRenewalGas } from './estimateGraceRenewalGas'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type { GraceRenewalQuote } from './graceRenewal'
-import {
-  getMigrationResolverReview,
-  type MigrationResolverReview,
-} from './migrationResolverReview'
 
 const GRACE_PERIOD = BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 
@@ -46,7 +42,6 @@ export type GraceRenewalMigrationGasEstimate = {
   readonly transactionCount: number
   readonly stepDescriptors: readonly MigrationWalletRequestDescriptor[]
   readonly droppedPubkeyNames: readonly string[]
-  readonly resolverReview: MigrationResolverReview
 }
 
 const assertQuoteFresh = (quote: GraceRenewalQuote): void => {
@@ -170,7 +165,6 @@ const estimateProjectedMigration = async (
     ...estimate,
     stepDescriptors: plan.stepDescriptors,
     droppedPubkeyNames: namesWithDroppedPubkey(plan),
-    resolverReview: getMigrationResolverReview(plan.classified, chain.id),
   }
 }
 
@@ -208,6 +202,5 @@ export const estimateGraceRenewalMigrationGas = async (
     transactionCount: migration.transactionCount + renewal.transactionCount,
     stepDescriptors,
     droppedPubkeyNames: migration.droppedPubkeyNames,
-    resolverReview: migration.resolverReview,
   }
 }

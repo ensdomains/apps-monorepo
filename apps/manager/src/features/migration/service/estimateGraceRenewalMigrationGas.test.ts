@@ -214,10 +214,6 @@ describe('estimateGraceRenewalMigrationGas', () => {
         ...migrationSteps,
       ],
       droppedPubkeyNames: ['pubkey.eth'],
-      resolverReview: {
-        selectionNames: ['active.eth', 'grace.eth', 'wrapped.eth'],
-        groups: [],
-      },
     })
     expect(estimateGraceRenewalGas).toHaveBeenCalledWith({
       quote: input.quote,
@@ -266,10 +262,6 @@ describe('estimateGraceRenewalMigrationGas', () => {
       transactionCount: 5,
       stepDescriptors: [{ type: 'renew-grace', count: 2 }, ...migrationSteps],
       droppedPubkeyNames: ['pubkey.eth'],
-      resolverReview: {
-        selectionNames: ['active.eth', 'grace.eth', 'wrapped.eth'],
-        groups: [],
-      },
     })
     expect(result.stepDescriptors).toHaveLength(result.transactionCount)
   })
@@ -357,10 +349,6 @@ describe('estimateGraceRenewalMigrationGas', () => {
       transactionCount: 4,
       stepDescriptors: migrationSteps,
       droppedPubkeyNames: ['pubkey.eth'],
-      resolverReview: {
-        selectionNames: ['active.eth', 'grace.eth'],
-        groups: [],
-      },
     })
     expect(vi.mocked(buildMigrationPlan).mock.calls[0]?.[0].domains[0]).toBe(
       renewed,

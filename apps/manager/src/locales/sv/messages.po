@@ -527,10 +527,6 @@ msgstr ""
 msgid "Authorizing payment and registering your name"
 msgstr ""
 
-#: src/features/migration/components/ResolverMigrationReview.tsx
-msgid "Automatic record copying is unavailable"
-msgstr ""
-
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Available"
 msgstr ""
@@ -2903,10 +2899,6 @@ msgstr ""
 msgid "Should I register now or wait?"
 msgstr ""
 
-#: src/features/migration/components/ResolverMigrationReview.tsx
-msgid "Show affected names and resolvers"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
 msgid "Show fewer"
 msgstr ""
@@ -3009,10 +3001,6 @@ msgstr ""
 msgid "Some names could not be loaded"
 msgstr ""
 
-#: src/features/migration/components/ResolverMigrationReview.tsx
-msgid "Some records will stay on their current resolvers"
-msgstr ""
-
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
 msgstr ""
@@ -3107,10 +3095,6 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
-msgstr ""
-
-#: src/features/migration/components/ResolverMigrationReview.tsx
-msgid "Subnames keep this resolver"
 msgstr ""
 
 #: src/features/bulk-renew/components/NamesBreakdown.tsx
@@ -3321,10 +3305,6 @@ msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "These subnames can't be preserved yet"
-msgstr ""
-
-#: src/features/migration/components/ResolverMigrationReview.tsx
-msgid "These subnames will keep their existing resolvers. Their records will not be copied to a new resolver by this upgrade."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
@@ -3787,10 +3767,6 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Wallet isn’t ready yet. Try again in a moment."
-msgstr ""
-
-#: src/features/migration/components/ResolverMigrationReview.tsx
-msgid "We can't automatically copy records from some of these resolvers. We can't verify that they will keep working or let you edit records after the upgrade. Review the affected names before continuing."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx

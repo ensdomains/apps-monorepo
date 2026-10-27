@@ -13,7 +13,6 @@ import {
   type GraceRenewalMigrationGasEstimate,
 } from '../service/estimateGraceRenewalMigrationGas'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
-import type { MigrationResolverReview } from '../service/migrationResolverReview'
 import type { GraceRenewalQuoteState } from './useGraceRenewalQuote'
 import type { MigrationGasEstimateState } from './useMigrationGasEstimate'
 
@@ -25,7 +24,6 @@ export type GraceRenewalGasEstimateState =
     > & {
       readonly stepDescriptors: readonly MigrationWalletRequestDescriptor[]
       readonly droppedPubkeyNames: readonly string[]
-      readonly resolverReview: MigrationResolverReview | null
     })
 
 const graceRenewalGasEstimateQueryKey = createQueryKey<
@@ -180,12 +178,6 @@ export const useGraceRenewalGasEstimate = ({
   return {
     status: 'ready',
     ...query.data,
-    // Fees and wallet requests can stay visible during a quote refresh, but
-    // the old resolver review must not describe a plan still being prepared.
-    resolverReview:
-      query.isFetching || query.isPlaceholderData
-        ? null
-        : query.data.resolverReview,
     formattedEth: formatGasEth(query.data.feeWei),
   }
 }
