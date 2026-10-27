@@ -47,49 +47,9 @@ describe('NFT artwork loading', () => {
     expect(result.current.status).toBe('ready')
   })
 
-  it('keeps the renderer unmounted during the reveal and keeps the still visible while 3D starts', async () => {
-    const { result, rerender } = renderHook(
-      ({ deferAnimation }) =>
-        useNftArtworkLoading({ imageUrl, animate: true, deferAnimation }),
-      { initialProps: { deferAnimation: true } },
-    )
-    expect(result.current.renderAnimation).toBe(false)
-    await decodeImage()
-    expect(result.current.status).toBe('ready')
-    expect(result.current.imageReady).toBe(true)
-    expect(result.current.animationReady).toBe(false)
-    expect(result.current.animationPending).toBe(true)
-    expect(result.current.renderAnimation).toBe(false)
-
-    rerender({ deferAnimation: false })
-    expect(result.current.renderAnimation).toBe(true)
-    expect(result.current.status).toBe('ready')
-    expect(result.current.animationReady).toBe(false)
-    expect(result.current.animationPending).toBe(true)
-    act(() => result.current.onRendererReady())
-    expect(result.current.animationReady).toBe(true)
-    expect(result.current.animationPending).toBe(false)
-    expect(result.current.status).toBe('ready')
-  })
-
-  it('retains the revealed still if the subsequently started renderer fails', async () => {
-    const { result, rerender } = renderHook(
-      ({ deferAnimation }) =>
-        useNftArtworkLoading({ imageUrl, animate: true, deferAnimation }),
-      { initialProps: { deferAnimation: true } },
-    )
-    await decodeImage()
-    rerender({ deferAnimation: false })
-    act(() => result.current.onRendererError())
-    expect(result.current.animationPending).toBe(false)
-    expect(result.current.status).toBe('ready')
-    expect(result.current.imageReady).toBe(true)
-    expect(result.current.renderAnimation).toBe(false)
-  })
-
   it('allows renderer recovery when there is no usable still to reveal', () => {
     const { result } = renderHook(() =>
-      useNftArtworkLoading({ imageUrl, animate: true, deferAnimation: true }),
+      useNftArtworkLoading({ imageUrl, animate: true }),
     )
     act(() => images[0]?.dispatchEvent(new Event('error')))
     expect(result.current.imageFailed).toBe(true)

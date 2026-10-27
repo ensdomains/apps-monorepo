@@ -66,13 +66,9 @@ export const useNftArtworkLoading = (params: {
   readonly imageUrl?: string
   readonly animate: boolean
   readonly waitingForVisibility?: boolean
-  readonly deferAnimation?: boolean
 }) => {
   const image = useDecodedNftImage(params.imageUrl)
-  // Reveal the decoded, motionless card first. If that image fails, preserve
-  // the renderer recovery path instead of leaving the modal unable to load.
-  const animate =
-    params.animate && (!params.deferAnimation || image === 'failed')
+  const { animate } = params
   const [renderer, setRenderer] = useState<RendererStatus>('loading')
   const [revealed, setRevealed] = useState(false)
   const initialStatus = params.waitingForVisibility
@@ -103,7 +99,6 @@ export const useNftArtworkLoading = (params: {
   return {
     imageFailed: image === 'failed',
     imageReady: image === 'ready',
-    // Include the deferred renderer while the still image is being revealed.
     animationPending: params.animate && renderer === 'loading',
     animationReady: animate && renderer === 'ready',
     renderAnimation: animate && renderer !== 'failed',

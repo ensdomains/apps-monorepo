@@ -1,13 +1,7 @@
 import { SiOpensea, SiTelegram, SiX } from '@icons-pack/react-simple-icons'
 import { Trans } from '@lingui/react/macro'
 import { useReducedMotion } from 'motion/react'
-import {
-  type ReactNode,
-  type Ref,
-  useEffect,
-  useReducer,
-  useState,
-} from 'react'
+import { type ReactNode, type Ref, useEffect, useState } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -333,14 +327,9 @@ const useRevealedArtwork = (
     readonly visible: boolean
   },
 ) => {
-  const [revealFinished, finishReveal] = useReducer(() => true, false)
-  const artwork = useNftArtworkLoading({
-    ...params,
-    deferAnimation: params.revealEnabled && !revealFinished,
-  })
+  const artwork = useNftArtworkLoading(params)
   const reveal = useNftReveal({
     enabled: params.revealEnabled && !artwork.imageFailed,
-    onComplete: finishReveal,
     status: artwork.status,
     visible: params.visible,
   })
@@ -425,10 +414,9 @@ const ArtworkCard = ({
       {/* Let outside taps dismiss traits before interacting with the iframe. */}
       <div
         className={cn(
-          'absolute inset-0 transition-opacity duration-600 ease-out group-has-[[data-nft-traits-trigger][data-state=open]]/nft-card:pointer-events-none data-[revealing=true]:overflow-hidden data-[revealing=true]:rounded-lg motion-reduce:transition-none',
+          'absolute inset-0 transition-opacity duration-600 ease-out group-has-[[data-nft-traits-trigger][data-state=open]]/nft-card:pointer-events-none motion-reduce:transition-none',
           showArtwork ? 'opacity-100' : 'opacity-0',
         )}
-        data-revealing={reveal.running}
       >
         {artwork.imageReady ? (
           <img
