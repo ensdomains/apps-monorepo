@@ -6,7 +6,6 @@ import type {
   ClassifiedName,
   CopyClassifiedName,
 } from '../service/classifyNames'
-import { IncludedSubnameDetails } from './IncludedSubnameDetails'
 import { NameRow } from './NameRow'
 
 type NameSelectionState = ReturnType<typeof useNameSelection>
@@ -130,7 +129,6 @@ export const NameTreeRows = ({
               depth === 0 ? toggleManagerRestoration : undefined
             }
           />
-          {copy && <IncludedSubnameDetails subname={copy} />}
           {children.length > 0 && (
             <NameTreeRows
               depth={depth + 1}
