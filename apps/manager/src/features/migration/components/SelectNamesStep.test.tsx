@@ -8,7 +8,10 @@ import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMi
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { render } from '@/utils/test-utils'
-import type { ClassifiedName } from '../service/classifyNames'
+import type {
+  ClassifiedName,
+  CopyClassifiedName,
+} from '../service/classifyNames'
 
 const CONTROLLER = '0x00000000000000000000000000000000000000c1'
 
@@ -63,6 +66,7 @@ const eligibleFixture: readonly ClassifiedName[] = [
 const eligibilityState = vi.hoisted(() => ({
   blockedSubnames: [] as BlockedSubnameMigration[],
   wrapperSyncNames: [] as ClassifiedName[],
+  verifiedSubnames: [] as CopyClassifiedName[],
   recoveryStatus: 'none' as 'none' | 'recovering',
 }))
 
@@ -81,6 +85,7 @@ vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
     gracePeriodNames: [],
     unavailableNames: [],
     wrapperSyncNames: eligibilityState.wrapperSyncNames,
+    verifiedSubnames: eligibilityState.verifiedSubnames,
     isPending: false,
     recoveryState: { status: eligibilityState.recoveryStatus },
   }),
@@ -113,6 +118,7 @@ vi.mock('@/features/migration/hooks/useWrapperSync', () => ({
 beforeEach(() => {
   wrapperSync.mutate.mockReset()
   eligibilityState.wrapperSyncNames = []
+  eligibilityState.verifiedSubnames = []
   impactState.status = 'ready'
   impactState.impact.parents = []
   eligibilityState.blockedSubnames = []
@@ -148,19 +154,27 @@ const renderStep = ({
 } = {}) => {
   const onNamesChange = vi.fn<(names: string[]) => void>()
   const onManagerRestorationChange = vi.fn<(names: string[]) => void>()
-  const utils = render(
+  const step = (estimate: MigrationGasEstimateState) => (
     <SmartAccountContextProvider>
       <SelectNamesStep
         gasAffordability={gasAffordability}
-        gasEstimate={gasEstimate}
+        gasEstimate={estimate}
         gasFundingStatus={gasFundingStatus}
         onManagerRestorationChange={onManagerRestorationChange}
         onNamesChange={onNamesChange}
         onNext={onNext}
       />
-    </SmartAccountContextProvider>,
+    </SmartAccountContextProvider>
   )
-  return { onManagerRestorationChange, onNamesChange, onNext, ...utils }
+  const utils = render(step(gasEstimate))
+  return {
+    onManagerRestorationChange,
+    onNamesChange,
+    onNext,
+    ...utils,
+    rerenderGasEstimate: (estimate: MigrationGasEstimateState) =>
+      utils.rerender(step(estimate)),
+  }
 }
 
 describe('SelectNamesStep', () => {
@@ -261,35 +275,46 @@ describe('SelectNamesStep', () => {
     expect(onNext).not.toHaveBeenCalled()
   })
 
-  it('enables upgrade for prepared subnames without an extra acknowledgement', async () => {
+  it('shows verified subnames before fees are ready and enables upgrade after preparation', async () => {
     const parent = makeName('sub1234.eth', 'unwrapped')
+    impactState.impact.parents = [
+      { name: parent.domain.name, affectedCount: 1 },
+    ]
     const child = {
-      ...makeName('gm.sub1234.eth', 'registry-child', 'copy'),
+      ...makeName('verified.sub1234.eth', 'registry-child', 'copy'),
       recreationRoot: parent.domain.name,
       tokenHolder: CONTROLLER,
       v1ResolverAddress: '0x00000000000000000000000000000000000000a1',
-    } as ClassifiedName
+    } as CopyClassifiedName
+    eligibilityState.verifiedSubnames = [child]
     const onNext = vi.fn(async () => true)
-    const { getByRole, queryByRole } = renderStep({
-      gasEstimate: {
-        ...readyGasEstimate,
-        plan: {
-          ...readyGasEstimate.plan,
-          classified: [parent, child],
-          subnameRecreation: {
-            version: 5,
-            roots: [parent.domain.name],
-            names: [parent.domain.name, child.domain.name],
-            blockNumber: '123',
-            blockHash: zeroHash,
-            timestamp: '1792886400',
-          },
+    const { getByRole, getByText, queryByRole, rerenderGasEstimate } =
+      renderStep({
+        gasEstimate: { status: 'loading' },
+        gasFundingStatus: 'settled',
+        onNext,
+      })
+    expect(getByText(child.domain.name)).toBeInTheDocument()
+    expect(getByRole('checkbox', { name: parent.domain.name })).toBeChecked()
+    expect(getByRole('button', { name: 'Estimating...' })).toBeDisabled()
+
+    rerenderGasEstimate({
+      ...readyGasEstimate,
+      plan: {
+        ...readyGasEstimate.plan,
+        classified: [parent, child],
+        subnameRecreation: {
+          version: 5,
+          roots: [parent.domain.name],
+          names: [parent.domain.name, child.domain.name],
+          blockNumber: '123',
+          blockHash: zeroHash,
+          timestamp: '1792886400',
         },
       },
-      gasFundingStatus: 'settled',
-      onNext,
     })
     const button = getByRole('button', { name: 'Upgrade 10 names' })
+    expect(getByRole('checkbox', { name: parent.domain.name })).toBeChecked()
     expect(
       queryByRole('checkbox', {
         name: 'I have reviewed these owners, resolvers and snapshot timing.',

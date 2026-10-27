@@ -5,10 +5,12 @@ import {
   collectAllSelectable,
   filterGroupsBySearch,
   filterOrphansBySearch,
+  includeSubnamesInTree,
   toggleRootSubtree,
 } from '../components/selectNames.helpers'
 import {
   type ClassifiedName,
+  type CopyClassifiedName,
   type IneligibleName,
   managerRestorationCandidates,
   registryControllerOf,
@@ -19,6 +21,7 @@ import { hasManagerRestorationAfterRenewal } from './useNameSelection.helpers'
 type Params = {
   readonly eligible: readonly ClassifiedName[]
   readonly gracePeriodNames?: readonly IneligibleName[]
+  readonly includedNames?: readonly ClassifiedName[]
   readonly isPending: boolean
   readonly isRecovery?: boolean
   /** Initial opt-out only; explicit choices and durable recovery are preserved. */
@@ -34,10 +37,12 @@ type Params = {
 
 const EMPTY_GRACE_PERIOD_NAMES: readonly IneligibleName[] = []
 const EMPTY_EXCLUDED_NAMES: readonly string[] = []
+const EMPTY_INCLUDED_NAMES: readonly ClassifiedName[] = []
 
 export const useNameSelection = ({
   eligible,
   gracePeriodNames = EMPTY_GRACE_PERIOD_NAMES,
+  includedNames = EMPTY_INCLUDED_NAMES,
   isPending,
   isRecovery = false,
   defaultExcludedNames = EMPTY_EXCLUDED_NAMES,
@@ -165,20 +170,50 @@ export const useNameSelection = ({
   )
 
   const searchLower = search.toLowerCase()
+  const includedSubnames = useMemo(() => {
+    const subnames = new Map<string, CopyClassifiedName[]>()
+    for (const name of includedNames) {
+      if (
+        name.action !== 'copy' ||
+        !name.recreationRoot ||
+        !selected.has(name.recreationRoot)
+      )
+        continue
+      if (
+        !name.recreationRoot.toLowerCase().includes(searchLower) &&
+        !name.domain.name.toLowerCase().includes(searchLower)
+      )
+        continue
+      const children = subnames.get(name.recreationRoot) ?? []
+      children.push(name)
+      subnames.set(name.recreationRoot, children)
+    }
+    return subnames
+  }, [includedNames, searchLower, selected])
   const filteredGroups = useMemo(
-    () => filterGroupsBySearch(groups, searchLower),
-    [groups, searchLower],
+    () =>
+      filterGroupsBySearch(
+        includeSubnamesInTree(groups, includedSubnames),
+        searchLower,
+      ),
+    [groups, includedSubnames, searchLower],
   )
   const filteredOrphans = useMemo(
-    () => filterOrphansBySearch(orphans, searchLower),
-    [orphans, searchLower],
+    () =>
+      filterOrphansBySearch(
+        includeSubnamesInTree(orphans, includedSubnames),
+        searchLower,
+      ),
+    [includedSubnames, orphans, searchLower],
   )
   const filteredGracePeriodNames = useMemo(
     () =>
-      gracePeriodNames.filter(({ domain }) =>
-        domain.name.toLowerCase().includes(searchLower),
+      gracePeriodNames.filter(
+        ({ domain }) =>
+          domain.name.toLowerCase().includes(searchLower) ||
+          includedSubnames.has(domain.name),
       ),
-    [gracePeriodNames, searchLower],
+    [gracePeriodNames, includedSubnames, searchLower],
   )
 
   const toggleName = useCallback(
@@ -286,6 +321,7 @@ export const useNameSelection = ({
     filteredGroups,
     filteredOrphans,
     filteredGracePeriodNames,
+    includedSubnames,
     toggleName,
     toggleAll,
   }

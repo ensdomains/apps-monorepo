@@ -76,7 +76,7 @@ describe('ShareProfileDialog', () => {
     expect(await screen.findByText('Share profile link')).toBeInTheDocument()
   })
 
-  it('uses content width for a mobile nameplate without a QR code', async () => {
+  it('shows the QR code in the mobile drawer', async () => {
     mockMatchMedia(false)
 
     render(
@@ -92,14 +92,13 @@ describe('ShareProfileDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Share' }))
 
-    const nameplate = (await screen.findByText('alia.eth')).parentElement
+    await screen.findByText('alia.eth')
     const drawer = screen
       .getByText('Share profile link')
       .closest('[data-slot="drawer-content"]')
     const scrollContainer = drawer?.lastElementChild
 
-    expect(nameplate).toHaveClass('w-fit')
-    expect(nameplate).not.toHaveClass('w-full')
+    expect(drawer?.querySelector('svg[height="204"]')).not.toBeNull()
     expect(drawer).toHaveClass(
       'data-[vaul-drawer-direction=bottom]:max-h-[calc(100dvh-20px)]',
     )

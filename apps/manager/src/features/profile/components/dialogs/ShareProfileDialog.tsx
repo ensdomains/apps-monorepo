@@ -107,7 +107,6 @@ const ShareAvatar = ({
 
 type ShareNameplateProps = {
   readonly avatarUrl?: string
-  readonly hasQrCode: boolean
   readonly isLongName: boolean
   readonly name: string
   readonly profileTheme: ProfileTheme
@@ -116,7 +115,6 @@ type ShareNameplateProps = {
 
 const ShareNameplate = ({
   avatarUrl,
-  hasQrCode,
   isLongName,
   name,
   profileTheme,
@@ -159,7 +157,7 @@ const ShareNameplate = ({
       className={cn(
         'flex h-11.25 items-center justify-center gap-1.25 rounded p-1.5',
         'md:h-8.75 md:gap-2',
-        hasQrCode ? 'w-full max-w-65.75 md:max-w-55.5' : 'w-fit max-w-65.75',
+        'w-full max-w-65.75 md:max-w-55.5',
         badgeClassName,
       )}
     >
@@ -334,20 +332,17 @@ export const ShareProfileDialog = ({
           'mx-auto flex w-full flex-col items-center gap-0.5',
           isDesktop
             ? cn('max-w-55.5', isLongName ? 'h-98.75' : 'h-64.75')
-            : 'h-55.75 max-w-85 justify-center',
+            : 'max-w-55.5 justify-center pt-4',
         )}
       >
         <ShareNameplate
           avatarUrl={avatarUrl}
-          hasQrCode={isDesktop}
           isLongName={isLongName}
           name={name}
           profileTheme={profileTheme}
           themeColor={profileTheme.value}
         />
-        {isDesktop ? (
-          <ShareQrCode isDefaultTheme={isDefaultTheme} safeUrl={safeUrl} />
-        ) : null}
+        <ShareQrCode isDefaultTheme={isDefaultTheme} safeUrl={safeUrl} />
       </div>
       <div className="mx-5 mt-7 grid h-12.5 grid-cols-2 gap-2">
         {/* text-[#f6fbfd] / bg-[#1A1919] / text-[#EEEDED]: design-specified exact values, no token equivalent */}

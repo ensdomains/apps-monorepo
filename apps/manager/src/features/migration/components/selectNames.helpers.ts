@@ -1,3 +1,4 @@
+import type { CopyClassifiedName } from '../service/classifyNames'
 import type { NameTreeNode } from '../service/groupByParent'
 
 const BULK_SELECTION_THRESHOLD = 15
@@ -76,6 +77,31 @@ export const toggleRootSubtree = (
 
 const matchesQuery = (name: string, q: string): boolean =>
   name.toLowerCase().includes(q)
+
+export const includeSubnamesInTree = (
+  nodes: readonly NameTreeNode[],
+  includedSubnames: ReadonlyMap<string, readonly CopyClassifiedName[]>,
+): readonly NameTreeNode[] =>
+  nodes.map((node) => {
+    const children = new Map(
+      node.children.map((child) => [child.item.domain.name, child]),
+    )
+    for (const item of includedSubnames.get(node.item.domain.name) ?? []) {
+      children.set(item.domain.name, {
+        item,
+        children: children.get(item.domain.name)?.children ?? [],
+      })
+    }
+    return {
+      ...node,
+      children: includeSubnamesInTree(
+        [...children.values()].sort((a, b) =>
+          a.item.domain.name.localeCompare(b.item.domain.name),
+        ),
+        includedSubnames,
+      ),
+    }
+  })
 
 const filterNodeBySearch = (
   node: NameTreeNode,

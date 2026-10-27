@@ -21,11 +21,18 @@ export const LAUNCHER_SIZE = 60
 export const LAUNCHER_RIGHT_PADDING = 20
 const LAUNCHER_GAP = 16
 
+const LAUNCHER_BOTTOM_VAR = '--intercom-launcher-bottom'
+
 /** Lifts the launcher above whatever ends `clearance` px from the viewport bottom; 0 restores the default. */
-export const setIntercomLauncherClearance = (clearance: number) =>
-  update({
-    vertical_padding: Math.max(
-      DEFAULT_LAUNCHER_PADDING,
-      Math.round(clearance) + LAUNCHER_GAP,
-    ),
-  })
+export const setIntercomLauncherClearance = (clearance: number) => {
+  const padding = Math.max(
+    DEFAULT_LAUNCHER_PADDING,
+    Math.round(clearance) + LAUNCHER_GAP,
+  )
+  // Intercom ignores vertical_padding below 450px wide; index.css applies this instead.
+  document.documentElement.style.setProperty(
+    LAUNCHER_BOTTOM_VAR,
+    `${padding}px`,
+  )
+  update({ vertical_padding: padding })
+}
