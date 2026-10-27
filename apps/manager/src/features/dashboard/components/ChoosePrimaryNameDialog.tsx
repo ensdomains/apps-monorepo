@@ -36,7 +36,6 @@ import {
   type PrimaryNamePreparation,
 } from '@/features/profile/service/primaryNamePreparation'
 import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
-import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
 import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
@@ -192,19 +191,6 @@ const PrimaryNameOption = ({
   )
 }
 
-/**
- * The connected wallet can't write to the name's resolver — either it has no
- * resolver (reset during transfer) or the resolver belongs to a previous owner.
- * Surfaced from the write path as a fallback; the pre-flight normally catches
- * this first and routes the flow through the resolver-setup path instead.
- */
-class ResolverNotControlledError extends Error {
-  constructor(options?: { cause?: unknown }) {
-    super('Wallet cannot write to this name’s resolver', options)
-    this.name = 'ResolverNotControlledError'
-  }
-}
-
 /** Label for the confirm button, reflecting the current step of the flow. */
 const ConfirmButtonLabel = ({
   settingUpResolver,
@@ -328,11 +314,12 @@ const useUpdateEthAddressMutation = ({
   readonly account: SmartAccountContextValue
   readonly chainId: number
   readonly selectedName: string | null
-}) => {
-  const { t } = useLingui()
-
-  return useMutation({
-    mutationFn: async () => {
+}) =>
+  useMutation({
+    mutationFn: async ({
+      resolverAddress,
+      existingEthAddress,
+    }: Extract<PrimaryNamePreparation, { kind: 'update-eth-address' }>) => {
       if (!selectedName || !account.ownerAddress) return
 
       const walletAddress = account.ownerAddress as Address
@@ -347,28 +334,14 @@ const useUpdateEthAddressMutation = ({
         return
       }
 
-      // Resolve the live pointer. An indexer resolver hint can refer to a
-      // resolver that is no longer attached to the name after a transfer.
-      const snapshot = await getProfileEthAddressSnapshot(selectedName)
-
-      if (snapshot.isErr()) {
-        const name = selectedName
-        throw new Error(t`Couldn’t read the wallet address for ${name}`)
-      }
-
-      const { resolverAddress, ethAddress } = snapshot.value
-
-      if (!resolverAddress) {
-        throw new ResolverNotControlledError()
-      }
-
-      if (ethAddress?.toLowerCase() === walletAddress.toLowerCase()) return
-
+      // The probed resolver, not the one resolution passed through (a URv1 reports the read-only ENSV2Resolver).
       await saveRecords({
         name: selectedName,
         before: {
           texts: [],
-          coins: ethAddress ? [{ coinType: 60, value: ethAddress }] : [],
+          coins: existingEthAddress
+            ? [{ coinType: 60, value: existingEthAddress }]
+            : [],
         },
         after: {
           texts: [],
@@ -385,7 +358,6 @@ const useUpdateEthAddressMutation = ({
       console.error('Failed to set ETH address record:', error)
     },
   })
-}
 
 /**
  * Set up a resolver this wallet can write to, then seed the ETH address.
@@ -573,7 +545,7 @@ export const ChoosePrimaryNameDialog = ({
     if (preparation.kind === 'setup-resolver') {
       await setupResolverMutation.mutateAsync()
     } else if (preparation.kind === 'update-eth-address') {
-      await updateEthAddressMutation.mutateAsync()
+      await updateEthAddressMutation.mutateAsync(preparation)
     }
   }
 

@@ -1007,10 +1007,6 @@ msgstr "Couldn't prepare your upgrade. Please try again."
 msgid "Couldn't reach the network to prepare your upgrade. Please try again."
 msgstr "Couldn't reach the network to prepare your upgrade. Please try again."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Couldn’t read the wallet address for {name}"
-msgstr "Couldn’t read the wallet address for {name}"
-
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 msgid "Couldn't read your balance on {chainName}."
 msgstr "Couldn't read your balance on {chainName}."

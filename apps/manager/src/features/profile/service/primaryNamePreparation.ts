@@ -15,6 +15,8 @@ export type PrimaryNamePreparation =
   | {
       readonly kind: 'update-eth-address'
       readonly existingEthAddress: Address | null
+      /** The resolver the write probe passed on, which the write must target. */
+      readonly resolverAddress: Address
     }
   | {
       readonly kind: 'setup-resolver'
@@ -41,14 +43,15 @@ export async function getPrimaryNamePreparation(
       ? forwardAddress
       : null
 
-  if (writeState.value.canWrite) {
-    return { kind: 'update-eth-address', existingEthAddress }
+  const { resolverAddress, canWrite } = writeState.value
+  if (canWrite && resolverAddress) {
+    return { kind: 'update-eth-address', existingEthAddress, resolverAddress }
   }
 
   return {
     kind: 'setup-resolver',
     existingEthAddress,
     // A subname inheriting a wildcard parent's resolver counts as having one: ours would shadow it.
-    hasResolver: writeState.value.resolverAddress !== undefined,
+    hasResolver: resolverAddress !== undefined,
   }
 }
