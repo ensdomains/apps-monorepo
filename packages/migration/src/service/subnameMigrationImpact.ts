@@ -214,7 +214,11 @@ export const readSubnameMigrationImpact = async ({
   }> => {
     const result = await retryStale(
       (requestSignal) =>
-        indexer.name(name, { include: ['counts'] }, { signal: requestSignal }),
+        indexer.name(
+          name,
+          { namespace: 'ens', include: ['counts'] },
+          { signal: requestSignal },
+        ),
       isStale,
       { signal },
     )

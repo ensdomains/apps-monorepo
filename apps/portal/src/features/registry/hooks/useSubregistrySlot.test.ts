@@ -41,6 +41,7 @@ describe('getSubregistryHistory', () => {
 
     expect(result._unsafeUnwrap()).toBe(0)
     expect(getNameHistory).toHaveBeenCalledWith('test.eth', {
+      namespace: 'ens',
       type: ['subregistry'],
       include: ['data'],
       page_size: 50,

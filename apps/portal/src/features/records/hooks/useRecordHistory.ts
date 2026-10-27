@@ -115,6 +115,7 @@ const getRecordHistory = (
       bigname.nameHistory(
         normalizeOrLower(name),
         {
+          namespace: 'ens',
           type: ['record'],
           ...(!isFamily(key) && { record_key: key }),
           include: ['data', 'raw'],

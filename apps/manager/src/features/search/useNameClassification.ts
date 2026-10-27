@@ -1,7 +1,9 @@
 import type { NameDetail } from '@ens-apps/indexer/reads'
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
 import { useQuery } from '@tanstack/react-query'
 import { dnsSecEnabledQuery } from '@/features/profile/service/dnsSecEnabled'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getSearchNameQueryOptions } from '@/features/shared/service/checkNameAvailabilityService'
 import { getNameDetailQueryOptions } from '@/features/shared/service/nameDetail'
 import { classifyNameSearch } from './classifyNameSearch'
@@ -63,6 +65,25 @@ export const toExistenceSignal = ({
   return { status: 'unowned' }
 }
 
+/**
+ * An offchain (CCIP-Read) name has no owner or index entry, so a name both
+ * call unowned exists when its records resolve.
+ */
+export const withResolvedRecords = (
+  existence: ExistenceSignal,
+  records: {
+    readonly isPending: boolean
+    readonly isError: boolean
+    readonly hasRecords: boolean
+  },
+): ExistenceSignal => {
+  if (existence.status !== 'unowned') return existence
+  if (records.hasRecords) return { status: 'owned' }
+  if (records.isPending) return { status: 'pending' }
+  if (records.isError) return { status: 'unknown' }
+  return existence
+}
+
 export const toTldSupportSignal = ({
   isEnabled,
   isError,
@@ -107,7 +128,7 @@ export const useNameClassification = (name: string): NameClassification => {
     enabled: isProfileName,
   })
 
-  const existence = toExistenceSignal({
+  const registryExistence = toExistenceSignal({
     isProfileName,
     ownerPending: ownerQuery.data === undefined && !ownerQuery.isError,
     ownerError: ownerQuery.isError,
@@ -115,6 +136,17 @@ export const useNameClassification = (name: string): NameClassification => {
     indexerPending: indexerQuery.data === undefined && !indexerQuery.isError,
     indexerError: indexerQuery.isError,
     indexerHit: isHeldInIndex(indexerQuery.data),
+  })
+
+  const recordsQuery = useQuery({
+    ...profileRecordsQuery(name),
+    enabled: registryExistence.status === 'unowned',
+  })
+
+  const existence = withResolvedRecords(registryExistence, {
+    isPending: recordsQuery.isPending,
+    isError: recordsQuery.isError,
+    hasRecords: hasResolvedRecords(recordsQuery.data),
   })
 
   // TLD support only decides between not-imported and not-found, so skip the
