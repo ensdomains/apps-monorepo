@@ -15,6 +15,7 @@ import {
   zeroAddress,
 } from 'viem'
 import { getBlock, readContract } from 'viem/actions'
+import { normalize } from 'viem/ens'
 import { getAction } from 'viem/utils'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -57,11 +58,12 @@ export const isUnreachableV1Name = async (
   client: Client<Transport, EnsChain>,
   name: string,
 ): Promise<boolean> => {
-  const labels = name.split('.')
+  const normalized = normalize(name)
+  const labels = normalized.split('.')
   const label = labels.at(-2)
   if (labels.at(-1) !== 'eth' || !label) return false
   if (!(await isPastV1RenewalWindow(client, label))) return false
-  const resolver = await getResolver(client, { name })
+  const resolver = await getResolver(client, { name: normalized })
   return !resolver || resolver === zeroAddress
 }
 
@@ -88,4 +90,5 @@ export const getIsUnreachableV1NameQueryOptions = (
     queryKey: getIsUnreachableV1NameQueryKey(params),
     queryFn: ({ queryKey: [, queryParams] }) =>
       getIsUnreachableV1Name(queryParams),
+    staleTime: 60_000,
   })

@@ -39,6 +39,7 @@ describe('isUnreachableV1Name', () => {
   it.each([
     { case: 'subname under a released 2LD', name: '1.qa-ens.eth', want: true },
     { case: 'released 2LD itself', name: 'qa-ens.eth', want: true },
+    { case: 'uppercase spelling', name: '1.QA-ENS.ETH', want: true },
     {
       case: 'last renewable second of grace',
       name: '1.qa-ens.eth',
