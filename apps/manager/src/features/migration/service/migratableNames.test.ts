@@ -72,13 +72,43 @@ describe('resolveMigratableNames', () => {
       tokenType: 'locked-child',
       parentName: parent.domain.name,
     })
+    const invalidChild = makeClassified({
+      name: 'sub.parent.xyz',
+      id: namehash('sub.parent.xyz'),
+      tokenType: 'locked-child',
+      parentName: 'parent.xyz',
+    })
+    const unsupportedParent = makeClassified({
+      name: 'unsupported.eth',
+      id: namehash('unsupported.eth'),
+      label: 'unsupported',
+    })
+    const unsupportedChild = makeClassified({
+      name: 'sub.unsupported.eth',
+      id: namehash('sub.unsupported.eth'),
+      tokenType: 'locked-child',
+      parentName: unsupportedParent.domain.name,
+    })
+    const unreadableChild = makeClassified({
+      name: 'sub.rpc-failure.eth',
+      id: namehash('sub.rpc-failure.eth'),
+      tokenType: 'locked-child',
+      parentName: 'rpc-failure.eth',
+    })
     mocks.getSubnameMigrationImpact.mockResolvedValue(ok({ affectedCount: 0 }))
     let parentReads = 0
     const publicClient = {
       getCode: vi.fn(async () => '0x01'),
       readContract: vi.fn(
-        async ({ functionName }: { functionName: string }) => {
+        async ({
+          functionName,
+          args,
+        }: {
+          functionName: string
+          args?: readonly unknown[]
+        }) => {
           if (functionName === 'getSubregistry') {
+            if (args?.[0] === 'rpc-failure') throw new Error('RPC unavailable')
             return parentReads++ === 0
               ? zeroAddress
               : computeExpectedWrapperRegistry({ name: 'external.eth' })
@@ -99,25 +129,35 @@ describe('resolveMigratableNames', () => {
         externalDescendant,
         parent,
         child,
+        invalidChild,
+        unsupportedParent,
+        unsupportedChild,
+        unreadableChild,
       ],
       isSubnameImportEnabled: true,
       owner: OWNER,
       publicClient,
     })
 
-    expect(eligible).toEqual([unrelated, parent, child])
-    expect(blockedSubnames).toEqual([
-      { name, reason },
-      {
-        name: externalChild,
-        reason: 'parent-not-upgraded',
-        parentName: 'external.eth',
-      },
-      {
-        name: externalDescendant,
-        reason: 'parent-not-upgraded',
-        parentName: 'external.eth',
-      },
-    ])
+    expect(eligible).toEqual([unrelated, parent, child, unsupportedParent])
+    expect(blockedSubnames).toHaveLength(6)
+    expect(blockedSubnames).toEqual(
+      expect.arrayContaining([
+        { name, reason },
+        {
+          name: externalChild,
+          reason: 'parent-not-upgraded',
+          parentName: 'external.eth',
+        },
+        {
+          name: externalDescendant,
+          reason: 'parent-not-upgraded',
+          parentName: 'external.eth',
+        },
+        { name: invalidChild, reason: 'unsupported-route' },
+        { name: unsupportedChild, reason: 'unsupported-route' },
+        { name: unreadableChild, reason: 'unverified-source' },
+      ]),
+    )
   })
 })

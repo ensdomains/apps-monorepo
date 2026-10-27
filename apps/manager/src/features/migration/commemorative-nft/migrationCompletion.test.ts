@@ -197,7 +197,7 @@ describe('commemorative NFT migration completion', () => {
   it.each([
     [
       'unlocks past a name the upgrade screen refuses',
-      'unknown-label',
+      'unsupported-route',
       'complete',
     ],
     [

@@ -3391,6 +3391,10 @@ msgstr "This signature is free and doesn't cost any gas."
 msgid "This subname must be included through its parent name. It cannot be copied on its own."
 msgstr "This subname must be included through its parent name. It cannot be copied on its own."
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "This subname's parent or registry is not supported for upgrading yet."
+msgstr "This subname's parent or registry is not supported for upgrading yet."
+
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "This upgrade cannot preserve every subname below the selected parents. Keep those parents on ENSv1 for now, where their subnames keep working. Return to your selection and remove the affected parents before continuing."
 msgstr "This upgrade cannot preserve every subname below the selected parents. Keep those parents on ENSv1 for now, where their subnames keep working. Return to your selection and remove the affected parents before continuing."

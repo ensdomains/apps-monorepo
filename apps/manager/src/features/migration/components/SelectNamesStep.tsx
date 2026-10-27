@@ -54,6 +54,12 @@ const SubnameBlockReason = ({
           upgrade yet.
         </Trans>
       )
+    case 'unsupported-route':
+      return (
+        <Trans>
+          This subname's parent or registry is not supported for upgrading yet.
+        </Trans>
+      )
     case 'deeper-subnames':
       return (
         <Trans>

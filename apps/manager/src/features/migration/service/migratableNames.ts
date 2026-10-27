@@ -28,6 +28,7 @@ export type SubnameMigrationBlockReason =
   | 'unverified-source'
   | 'requires-parent'
   | 'parent-not-upgraded'
+  | 'unsupported-route'
 
 export type BlockedSubnameMigration = {
   readonly name: ClassifiedName
@@ -199,6 +200,14 @@ const checkDirectParentRoutes = async (params: {
                   name,
                   reason: 'parent-not-upgraded',
                   parentName: error.ensName,
+                } satisfies BlockedSubnameMigration,
+              ]
+            }
+            if (error instanceof DirectMigrationRouteError) {
+              return [
+                {
+                  name,
+                  reason: 'unsupported-route',
                 } satisfies BlockedSubnameMigration,
               ]
             }
