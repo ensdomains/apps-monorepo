@@ -140,7 +140,7 @@ export const useNameClassification = (name: string): NameClassification => {
 
   const recordsQuery = useQuery({
     ...profileRecordsQuery(name),
-    enabled: registryExistence.status === 'unowned',
+    enabled: isProfileName && registryExistence.status === 'unowned',
   })
 
   const existence = withResolvedRecords(registryExistence, {
