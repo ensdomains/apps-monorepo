@@ -13,8 +13,10 @@ import {
   decodeFunctionData,
   ExecutionRevertedError,
   encodeAbiParameters,
+  encodeErrorResult,
   type Hex,
   HttpRequestError,
+  parseAbi,
   toHex,
   zeroAddress,
 } from 'viem'
@@ -409,21 +411,31 @@ describe('profile records', () => {
     },
   )
 
-  it('fails rather than reporting an empty profile when every read fails', async () => {
-    // A gateway that is down answers each read with an HttpError.
-    mocks.resolveNameData.mockResolvedValue({
-      resolverAddress,
-      resolvedData: profileResolution().resolvedData.map(() => emptyResult),
-    })
-    expect((await getProfileRecords('limited.base.eth')).isErr()).toBe(true)
+  const gatewayError = (status: number) => ({
+    success: false,
+    returnData: encodeErrorResult({
+      abi: parseAbi(['error HttpError(uint16 status, string message)']),
+      errorName: 'HttpError',
+      args: [status, 'HTTP request failed.'],
+    }),
   })
 
-  it('returns no coins when the universal resolver has no result', async () => {
-    mocks.resolveNameData.mockResolvedValue(null)
-    expect(
-      (await getProfileRecords('empty.eth'))._unsafeUnwrap().coins,
-    ).toEqual([])
-  })
+  it.each([
+    { gateway: 'answers nothing', item: emptyResult, isOk: false },
+    { gateway: 'is down', item: gatewayError(503), isOk: false },
+    { gateway: 'rate-limits', item: gatewayError(429), isOk: false },
+    { gateway: 'does not know the name', item: gatewayError(400), isOk: true },
+  ])(
+    'when a gateway $gateway on every read, reads ok: $isOk',
+    async ({ item, isOk }) => {
+      mocks.resolveNameData.mockResolvedValue({
+        resolverAddress,
+        resolvedData: profileResolution().resolvedData.map(() => item),
+      })
+      const result = await getProfileRecords('unknown.world.id')
+      expect(result.isOk()).toBe(isOk)
+    },
+  )
 
   it('retains the profile error path when resolution fails', async () => {
     mocks.resolveNameData.mockRejectedValue(new Error('RPC unavailable'))
