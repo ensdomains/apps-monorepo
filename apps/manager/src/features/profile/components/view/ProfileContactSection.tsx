@@ -23,7 +23,7 @@ const contactMaterialIcon: Partial<Record<string, MaterialSymbol>> = {
 }
 
 const contactMaterialIconClassName =
-  'ms-opsz-32 ms-wght-300 text-[32px] text-ens-quartz-900 leading-none [text-box-edge:cap_alphabetic] [text-box-trim:trim-both]'
+  'ms-opsz-32 ms-wght-280 text-[32px] text-ens-quartz-900 leading-none tracking-[0.4px] [text-box-edge:cap_alphabetic] [text-box-trim:trim-both]'
 
 const contactCardSurfaceClassName = cn(
   profileTileClassName,
@@ -74,7 +74,7 @@ export const ProfileContactCard = ({
         )}
       >
         {icon}
-        <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex min-w-0 flex-col">
           <p className={contactLabelClassName}>{item.label}</p>
           {wide ? <div className="xl:hidden">{value}</div> : null}
         </div>
@@ -88,7 +88,7 @@ export const ProfileContactCard = ({
   const className = cn(
     contactCardSurfaceClassName,
     contactCardPaddingClassName,
-    'relative flex w-full flex-col items-start gap-2 text-left font-sans',
+    'relative flex w-full flex-col items-start gap-0 text-left font-sans xl:gap-2',
     'min-h-28 xl:min-h-33.5',
     wide &&
       'max-xl:h-auto max-xl:min-h-0 max-xl:flex-row max-xl:items-center max-xl:justify-between',

@@ -5,7 +5,7 @@ export const profileCardCopyIconClassName =
 
 // Material arrow_outward from the profile frame: 24px, light weight, quartz-900.
 export const profileCardArrowClassName =
-  'ms-opsz-24 ms-wght-300 shrink-0 text-[24px] leading-5 text-ens-quartz-900'
+  'ms-opsz-24 ms-wght-280 shrink-0 text-[24px] leading-5 tracking-[0.2px] text-ens-quartz-900'
 
 export const profileRecordGridClassName =
   'grid grid-cols-2 gap-3 xl:grid-cols-3 xl:gap-6'
