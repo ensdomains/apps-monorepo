@@ -35,6 +35,7 @@ export {
   readSubnameMigrationImpact,
   type SubnameMigrationImpact,
   SubnameMigrationImpactError,
+  unknownLabelhashOf,
 } from './service/subnameMigrationImpact'
 export type { V1Domain } from './service/v1Domain'
 export {

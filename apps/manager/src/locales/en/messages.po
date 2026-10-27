@@ -33,6 +33,11 @@ msgstr "{0, plural, one {# step in one request} other {# steps in one request}}"
 msgid "{0, plural, one {# step} other {# steps}}"
 msgstr "{0, plural, one {# step} other {# steps}}"
 
+#. placeholder {0}: unrecoverable.length
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "{0, plural, one {# subname left on ENSv1} other {# subnames left on ENSv1}}"
+msgstr "{0, plural, one {# subname left on ENSv1} other {# subnames left on ENSv1}}"
+
 #. placeholder {0}: data.years
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
 msgid "{0, plural, one {# year} other {# years}}"
@@ -1554,6 +1559,10 @@ msgstr "I Understand"
 msgid "I understand that only records I edit will be saved. Existing records I do not edit will not be copied to the replacement resolver."
 msgstr "I understand that only records I edit will be saved. Existing records I do not edit will not be copied to the replacement resolver."
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "I understand these subnames will stop working after the upgrade."
+msgstr "I understand these subnames will stop working after the upgrade."
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Idle"
 msgstr "Idle"
@@ -3046,6 +3055,10 @@ msgstr "Some subnames can't upgrade because {parentName} hasn't been upgraded ye
 msgid "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
 msgstr "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "Some subnames will be left behind"
+msgstr "Some subnames will be left behind"
+
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Something about your names changed since you last tried, so we can't safely pick up where you left off."
 msgstr "Something about your names changed since you last tried, so we can't safely pick up where you left off."
@@ -3351,6 +3364,10 @@ msgstr "These names need to stay on ENSv1 for now"
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "These subnames can't be preserved yet"
 msgstr "These subnames can't be preserved yet"
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "These subnames were created without publishing their names onchain, so they can't be recreated on ENSv2. They stop working once their parent is upgraded. Every other subname is upgraded with it."
+msgstr "These subnames were created without publishing their names onchain, so they can't be recreated on ENSv2. They stop working once their parent is upgraded. Every other subname is upgraded with it."
 
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."

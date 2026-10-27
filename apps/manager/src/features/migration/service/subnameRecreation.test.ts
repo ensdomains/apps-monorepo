@@ -45,6 +45,13 @@ const row: Subname = {
   owner: OWNER, // Deliberately stale: RPC, not this indexed owner, is authoritative.
   subname_count: 0,
 }
+const UNKNOWN = `[${'ab'.repeat(32)}].${ROOT}`
+const unknownRow: Subname = {
+  ...row,
+  name: UNKNOWN,
+  display_name: UNKNOWN,
+  namehash: namehash(UNKNOWN),
+}
 const meta: Meta = {
   completeness: 'full',
   as_of: {
@@ -238,6 +245,30 @@ describe('direct subname source checks', () => {
       await expect(fixture(options).discover()).rejects.toThrow(reason)
     },
   )
+
+  it.each([
+    { case: 'beside a known child', rows: [row, unknownRow], roots: [ROOT] },
+    { case: 'as the only child', rows: [unknownRow], roots: [] },
+  ])(
+    'leaves an unknown-label child out of the import $case',
+    async ({ rows, roots }) => {
+      const discovered = await fixture({
+        count: rows.length,
+        rows,
+      }).discover()
+      expect(discovered.snapshot.roots).toEqual(roots)
+      expect(discovered.domains.map(({ name }) => name)).not.toContain(UNKNOWN)
+    },
+  )
+
+  it('rejects an unknown-label row whose hash does not prove its node', async () => {
+    await expect(
+      fixture({
+        count: 1,
+        rows: [{ ...unknownRow, namehash: namehash(CHILD) }],
+      }).discover(),
+    ).rejects.toThrow(/exact, valid subname label/)
+  })
 
   it('rejects an unindexed child created after the published checkpoint', async () => {
     const context = fixture()

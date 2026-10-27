@@ -15,6 +15,7 @@ import { fromPromise, ok } from 'neverthrow'
 import { match } from 'ts-pattern'
 import {
   getChainContractAddress,
+  type Hex,
   isAddress,
   keccak256,
   type PublicClient,
@@ -31,6 +32,8 @@ export type SubnameMigrationImpact = {
     readonly affectedCount: number
   }[]
   readonly affectedCount: number
+  /** Leaf subnames whose label was never published; they cannot be recreated and are dropped. */
+  readonly unrecoverable: readonly string[]
   /** Changes when the affected identities or selected migration tree change. */
   readonly fingerprint: string
   readonly checkedAt: number
@@ -66,6 +69,7 @@ export class SubnameMigrationImpactError extends TaggedError(
 }> {}
 
 const MAX_INDEX_AGE_SECONDS = 300n
+const UNKNOWN_LEADING_LABEL = /^\[([0-9a-f]{64})\]\./i
 const MAX_SCANNED_NAMES = 100_000
 const READ_CONCURRENCY = 4
 
@@ -74,6 +78,19 @@ const fail: (message: string) => never = (message) => {
     message: `Could not determine subname migration impact: ${message}`,
   })
 }
+
+/** The labelhash of a name whose first label was never published on-chain, else null. */
+export const unknownLabelhashOf = (name: string): Hex | null => {
+  const hash = UNKNOWN_LEADING_LABEL.exec(name)?.[1]
+  return hash ? `0x${hash.toLowerCase()}` : null
+}
+
+/** A lost leaf with an unpublished label cannot be recreated, so it is dropped rather than blocking. */
+const isUnrecoverableLeaf = (row: Subname, context: Branch): boolean =>
+  !context.isPreserved &&
+  context.affectedParent !== null &&
+  row.subname_count === 0 &&
+  unknownLabelhashOf(row.name) !== null
 
 const isDotEthRoot = (name: string) =>
   name.endsWith('.eth') && name.split('.').length === 2
@@ -144,6 +161,7 @@ export const readSubnameMigrationImpact = async ({
   const copied = new Set(copiedNames.map((name) => name.toLowerCase()))
   const renewing = new Set(renewingNames.map((name) => name.toLowerCase()))
   const affected = new Map<string, Set<string>>()
+  const unrecoverable = new Set<string>()
   const visited = new Set<string>()
   const selectedAncestors = new Set([...migrating].flatMap(ancestorsOf))
   signal?.throwIfAborted()
@@ -330,6 +348,10 @@ export const readSubnameMigrationImpact = async ({
     if (visited.size > MAX_SCANNED_NAMES) fail('the subtree is too large')
     if (!facts.isLive) return undefined
     const context = childContext(name, facts, branch)
+    if (isUnrecoverableLeaf(row, context)) {
+      unrecoverable.add(name)
+      return undefined
+    }
     recordAffected(context, row.namehash)
     if (context.affectedParent === null && !selectedAncestors.has(name))
       return undefined
@@ -386,6 +408,7 @@ export const readSubnameMigrationImpact = async ({
       (sum, parent) => sum + parent.affectedCount,
       0,
     ),
+    unrecoverable: [...unrecoverable].sort(),
     fingerprint: keccak256(
       toHex(
         JSON.stringify({
@@ -393,6 +416,7 @@ export const readSubnameMigrationImpact = async ({
           copied: [...copied].sort(),
           renewing: [...renewing].sort(),
           evidence,
+          unrecoverable: [...unrecoverable].sort(),
         }),
       ),
     ),

@@ -105,7 +105,9 @@ const fixture = (
   )
   const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
     const url = new URL(String(input))
-    const [name, resource] = url.pathname.replace('/v1/names/', '').split('/')
+    const [name = '', resource] = decodeURIComponent(url.pathname)
+      .replace('/v1/names/', '')
+      .split('/')
     const response =
       resource === 'subnames'
         ? pages.get(name)?.[Number(url.searchParams.get('cursor') ?? 0)]
@@ -243,6 +245,27 @@ describe('readSubnameMigrationImpact', () => {
       affectedCount: 2,
       parents: [{ name: 'parent.eth', affectedCount: 2 }],
     })
+  })
+
+  it('drops an unknown-label leaf instead of blocking its parent', async () => {
+    const unknown = `[${'ab'.repeat(32)}].parent.eth`
+    const { read } = fixture({
+      'parent.eth': [subname(unknown), subname('lost.parent.eth')],
+    })
+    expect(await read()).toMatchObject({
+      affectedCount: 1,
+      parents: [{ name: 'parent.eth', affectedCount: 1 }],
+      unrecoverable: [unknown],
+    })
+  })
+
+  it('still blocks on an unknown-label subname that has its own subnames', async () => {
+    const unknown = `[${'ab'.repeat(32)}].parent.eth`
+    const { read } = fixture({
+      'parent.eth': [subname(unknown, { subname_count: 1 })],
+      [unknown]: [subname(`child.${unknown}`)],
+    })
+    expect(await read()).toMatchObject({ affectedCount: 2, unrecoverable: [] })
   })
 
   it('preserves only selected copies through a preserved ancestor path', async () => {

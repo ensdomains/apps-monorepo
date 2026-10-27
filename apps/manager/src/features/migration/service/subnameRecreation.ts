@@ -7,6 +7,7 @@ import {
 import {
   readSubnameMigrationImpact,
   type SubnameMigrationImpact,
+  unknownLabelhashOf,
   type V1Domain,
 } from '@ens-apps/migration'
 import {
@@ -16,6 +17,7 @@ import {
 import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import {
   type Address,
+  concat,
   type Hex,
   isAddress,
   isAddressEqual,
@@ -83,6 +85,16 @@ const countOf = (name: string, count: number | null | undefined): number => {
   return count
 }
 const assertIdentity = (name: string, node: string): void => {
+  const unknownLabelhash = unknownLabelhashOf(name)
+  if (unknownLabelhash) {
+    // The label was never published, so prove the node from its hash instead.
+    if (
+      keccak256(concat([namehash(parentOf(name)), unknownLabelhash])) !==
+      node.toLowerCase()
+    )
+      fail(name, 'an exact, valid subname label is required before migration.')
+    return
+  }
   if (
     name.includes('[') ||
     normalize(name) !== name ||
@@ -455,7 +467,7 @@ export const discoverSubnameRecreation = async (params: {
     signal?.throwIfAborted()
     const name = root.domain.name
     const rows = await readDirectInventory(indexer, name, publications, signal)
-    if (rows.length > 0) {
+    if (rows.some((row) => !unknownLabelhashOf(row.name))) {
       roots.push(root)
       rowsByRoot.set(name, rows)
     }
@@ -472,7 +484,11 @@ export const discoverSubnameRecreation = async (params: {
     const name = root.domain.name
     const rows = rowsByRoot.get(name) ?? []
     const labels = new Set(
-      rows.map((row) => labelhash(row.name.split('.')[0] ?? '').toLowerCase()),
+      rows.map(
+        (row) =>
+          unknownLabelhashOf(row.name) ??
+          labelhash(row.name.split('.')[0] ?? '').toLowerCase(),
+      ),
     )
     const events = await publicClient.getLogs({
       address: V1_CONTRACTS.LegacyRegistry,
@@ -491,7 +507,8 @@ export const discoverSubnameRecreation = async (params: {
         name,
         'the parent changed after indexing. Refresh the full inventory before continuing.',
       )
-    for (const row of rows) {
+    // Unknown labels cannot be recreated in ENSv2; the upgrade drops them.
+    for (const row of rows.filter((row) => !unknownLabelhashOf(row.name))) {
       signal?.throwIfAborted()
       domains.set(
         row.name,

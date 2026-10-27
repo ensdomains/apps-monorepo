@@ -109,6 +109,7 @@ export const useSubnameMigrationImpact = ({
     ? {
         parents: [],
         affectedCount: 0,
+        unrecoverable: [],
         fingerprint: selectionKey,
         checkedAt: 0,
       }
