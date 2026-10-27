@@ -1,6 +1,13 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { match, P } from 'ts-pattern'
-import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
+import {
+  arbitrum,
+  arbitrumSepolia,
+  base,
+  baseSepolia,
+  optimism,
+  optimismSepolia,
+} from 'viem/chains'
 import { coinIcons } from '@/assets/coins'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -13,6 +20,9 @@ import { PaymentMethodRow } from './PaymentMethodRow'
 const USDC_DECIMALS = 6
 
 const NETWORK_BADGES: Readonly<Record<number, string | undefined>> = {
+  [base.id]: coinIcons.base,
+  [arbitrum.id]: coinIcons.arb1,
+  [optimism.id]: coinIcons.op,
   [baseSepolia.id]: coinIcons.base,
   [arbitrumSepolia.id]: coinIcons.arb1,
   [optimismSepolia.id]: coinIcons.op,

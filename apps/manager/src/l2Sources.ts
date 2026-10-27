@@ -5,7 +5,14 @@ import {
   createPublicClient,
   type PublicClient,
 } from 'viem'
-import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
+import {
+  arbitrum,
+  arbitrumSepolia,
+  base,
+  baseSepolia,
+  optimism,
+  optimismSepolia,
+} from 'viem/chains'
 import { failover } from '@/lib/rpc'
 
 /** An L2 the user can bridge USDC from to pay on the app chain. */
@@ -52,7 +59,29 @@ const L2_SOURCES: Readonly<Record<EnsNetwork, readonly L2SourceRpcs[]>> = {
       ],
     },
   ],
-  mainnet: [],
+  mainnet: [
+    {
+      chain: base,
+      usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      rpcUrls: ['https://base-rpc.publicnode.com', 'https://mainnet.base.org'],
+    },
+    {
+      chain: arbitrum,
+      usdc: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      rpcUrls: [
+        'https://arbitrum-one-rpc.publicnode.com',
+        'https://arb1.arbitrum.io/rpc',
+      ],
+    },
+    {
+      chain: optimism,
+      usdc: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+      rpcUrls: [
+        'https://optimism-rpc.publicnode.com',
+        'https://mainnet.optimism.io',
+      ],
+    },
+  ],
 }
 
 export const getL2Sources = (network: EnsNetwork): readonly L2Source[] =>
