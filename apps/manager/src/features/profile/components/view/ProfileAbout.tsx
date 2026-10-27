@@ -188,7 +188,7 @@ export const ProfileAbout = ({
                     {getDisplayHost(websiteHref)}
                   </span>
                   <MSymbol
-                    className="ms-opsz-20 ms-wght-300 shrink-0"
+                    className="ms-opsz-20 ms-wght-300 shrink-0 text-[20px] leading-none xl:ms-opsz-14 xl:text-[14px]"
                     symbol="arrow_outward"
                   />
                 </a>
@@ -211,7 +211,7 @@ export const ProfileAbout = ({
               >
                 <span className="min-w-0">{getDisplayHost(websiteHref)}</span>
                 <MSymbol
-                  className="ms-opsz-20 ms-wght-300 shrink-0"
+                  className="ms-opsz-20 ms-wght-300 shrink-0 text-[20px] leading-none xl:ms-opsz-14 xl:text-[14px]"
                   symbol="arrow_outward"
                 />
               </a>
