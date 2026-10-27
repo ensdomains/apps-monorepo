@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { CopyClassifiedName } from '../service/classifyNames'
 import { includedSubnameFixtures, subnameParentFixture } from './NameRow.mock'
 import { NameTreeRows } from './NameTreeRows'
+import { includeSubnamesInTree } from './selectNames.helpers'
 
 const TreePreview = ({
   subnames,
@@ -16,10 +17,12 @@ const TreePreview = ({
   return (
     <NameTreeRows
       depth={0}
-      includedSubnames={new Map(isPrepared ? [[name, subnames]] : [])}
       isManagerRestorationLocked={false}
       managerCandidates={new Map()}
-      nodes={[{ item: subnameParentFixture, children: [] }]}
+      nodes={includeSubnamesInTree(
+        [{ item: subnameParentFixture, children: [] }],
+        new Map(isPrepared && isSelected ? [[name, subnames]] : []),
+      )}
       primaryName={null}
       restoredManagers={new Set()}
       selected={new Set(isSelected ? [name] : [])}

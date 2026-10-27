@@ -2,7 +2,6 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { Check, Info, Search } from 'lucide-react'
 import type { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
-import type { ClassifiedName } from '../service/classifyNames'
 import { SelectNamesStepNameList } from './SelectNamesStepNameList'
 
 type NameSelectionState = ReturnType<typeof useNameSelection>
@@ -39,6 +38,7 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   | 'filteredGroups'
   | 'filteredOrphans'
   | 'filteredGracePeriodNames'
+  | 'includedSubnames'
   | 'isManagerRestorationLocked'
   | 'managerCandidates'
   | 'restoredManagers'
@@ -54,7 +54,6 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   readonly isCompactLayout: boolean
   readonly isContentHeightCard: boolean
   readonly isPending: boolean
-  readonly includedNames?: readonly ClassifiedName[]
   readonly showBulkSelection: boolean
   readonly showNameSearch: boolean
 }
@@ -69,7 +68,7 @@ export const SelectNamesStepSelectionOptions = ({
   isManagerRestorationLocked,
   isPending,
   managerCandidates,
-  includedNames,
+  includedSubnames,
   restoredManagers,
   search,
   selected,
@@ -175,7 +174,7 @@ export const SelectNamesStepSelectionOptions = ({
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
-              includedNames={includedNames}
+              includedSubnames={includedSubnames}
               isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}
               managerCandidates={managerCandidates}

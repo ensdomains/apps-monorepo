@@ -1,12 +1,8 @@
 import { Trans } from '@lingui/react/macro'
-import { memo, useMemo } from 'react'
+import { memo } from 'react'
 import { match } from 'ts-pattern'
 import type { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
-import type {
-  ClassifiedName,
-  CopyClassifiedName,
-} from '../service/classifyNames'
 import { NameListSkeleton } from './NameListSkeleton'
 import { NameRow } from './NameRow'
 import { NameTreeRows } from './NameTreeRows'
@@ -18,6 +14,7 @@ type SelectNamesStepNameListProps = Pick<
   | 'filteredGroups'
   | 'filteredOrphans'
   | 'filteredGracePeriodNames'
+  | 'includedSubnames'
   | 'isManagerRestorationLocked'
   | 'managerCandidates'
   | 'restoredManagers'
@@ -27,10 +24,7 @@ type SelectNamesStepNameListProps = Pick<
   | 'toggleName'
 > & {
   readonly isPending: boolean
-  readonly includedNames?: readonly ClassifiedName[]
 }
-
-const EMPTY_INCLUDED_NAMES: readonly ClassifiedName[] = []
 
 const SelectNamesStepNameListComponent = ({
   filteredGroups,
@@ -39,7 +33,7 @@ const SelectNamesStepNameListComponent = ({
   isManagerRestorationLocked,
   isPending,
   managerCandidates,
-  includedNames = EMPTY_INCLUDED_NAMES,
+  includedSubnames,
   restoredManagers,
   search,
   selected,
@@ -47,17 +41,6 @@ const SelectNamesStepNameListComponent = ({
   toggleName,
 }: SelectNamesStepNameListProps) => {
   const { data: primaryName } = useConnectedReverseName()
-  const includedSubnames = useMemo(() => {
-    const groups = new Map<string, CopyClassifiedName[]>()
-    for (const name of includedNames) {
-      if (name.action !== 'copy' || !name.recreationRoot) continue
-      const children = groups.get(name.recreationRoot) ?? []
-      children.push(name)
-      groups.set(name.recreationRoot, children)
-    }
-    return groups
-  }, [includedNames])
-
   return match({
     isPending,
     hasResults:
@@ -84,7 +67,6 @@ const SelectNamesStepNameListComponent = ({
       <>
         <NameTreeRows
           depth={0}
-          includedSubnames={includedSubnames}
           isManagerRestorationLocked={isManagerRestorationLocked}
           managerCandidates={managerCandidates}
           nodes={[...filteredGroups, ...filteredOrphans]}
@@ -114,7 +96,6 @@ const SelectNamesStepNameListComponent = ({
                   includedSubnames.has(item.domain.name) && (
                     <NameTreeRows
                       depth={1}
-                      includedSubnames={includedSubnames}
                       isManagerRestorationLocked={isManagerRestorationLocked}
                       managerCandidates={managerCandidates}
                       nodes={(includedSubnames.get(item.domain.name) ?? []).map(

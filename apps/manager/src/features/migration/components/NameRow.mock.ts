@@ -24,12 +24,12 @@ export const longGracePeriodRowFixture = makeClassified({
   name: 'a-very-long-name-in-grace-period.eth',
 })
 
-const subnameOwner = '0xc1e1d3bc99fb4b6529ba7be62e628fcd74cd8d8f'
-const subnameResolver = '0xf29100983e058b709f3d539b0c765937b804ac15'
+const SUBNAME_OWNER = '0xc1e1d3bc99fb4b6529ba7be62e628fcd74cd8d8f'
+const SUBNAME_RESOLVER = '0xf29100983e058b709f3d539b0c765937b804ac15'
 
 export const subnameParentFixture = makeClassified({
   name: 'echidnas.eth',
-  tokenHolder: subnameOwner,
+  tokenHolder: SUBNAME_OWNER,
 })
 
 export const includedSubnameFixtures: readonly CopyClassifiedName[] = [
@@ -38,8 +38,8 @@ export const includedSubnameFixtures: readonly CopyClassifiedName[] = [
       action: 'copy',
       name: 'two.echidnas.eth',
       id: 'two.echidnas.eth',
-      tokenHolder: subnameOwner,
-      v1ResolverAddress: subnameResolver,
+      tokenHolder: SUBNAME_OWNER,
+      v1ResolverAddress: SUBNAME_RESOLVER,
     }),
     recreationRoot: 'echidnas.eth',
     resolverStrategy: 'keep-v1',
@@ -50,7 +50,7 @@ export const includedSubnameFixtures: readonly CopyClassifiedName[] = [
       name: 'another-wallet.echidnas.eth',
       id: 'another-wallet.echidnas.eth',
       tokenHolder: '0x0000000000000000000000000000000000000002',
-      v1ResolverAddress: subnameResolver,
+      v1ResolverAddress: SUBNAME_RESOLVER,
     }),
     recreationRoot: 'echidnas.eth',
     resolverStrategy: 'keep-v1',
@@ -60,7 +60,7 @@ export const includedSubnameFixtures: readonly CopyClassifiedName[] = [
       action: 'copy',
       name: 'a-very-long-subname-without-a-resolver.echidnas.eth',
       id: 'a-very-long-subname-without-a-resolver.echidnas.eth',
-      tokenHolder: subnameOwner,
+      tokenHolder: SUBNAME_OWNER,
       v1ResolverAddress: null,
     }),
     recreationRoot: 'echidnas.eth',

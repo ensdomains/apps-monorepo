@@ -15,7 +15,6 @@ type NameTreeRowsProps = {
   readonly isManagerRestorationLocked: boolean
   readonly managerCandidates: NameSelectionState['managerCandidates']
   readonly nodes: readonly NameTreeNode[]
-  readonly includedSubnames: ReadonlyMap<string, readonly CopyClassifiedName[]>
   readonly primaryName: string | null | undefined
   readonly restoredManagers: ReadonlySet<string>
   readonly selected: ReadonlySet<string>
@@ -36,24 +35,6 @@ const OFFSCREEN_ROW_STYLE = {
 
 const importedSubname = (item: ClassifiedName): CopyClassifiedName | null =>
   item.action === 'copy' && item.recreationRoot ? item : null
-
-const childrenWithCopies = (
-  node: NameTreeNode,
-  copies: readonly CopyClassifiedName[],
-): readonly NameTreeNode[] => {
-  const children = new Map(
-    node.children.map((child) => [child.item.domain.name, child]),
-  )
-  for (const item of copies) {
-    children.set(item.domain.name, {
-      item,
-      children: children.get(item.domain.name)?.children ?? [],
-    })
-  }
-  return [...children.values()].sort((a, b) =>
-    a.item.domain.name.localeCompare(b.item.domain.name),
-  )
-}
 
 const NameTreeConnector = ({ isFirst, isLast }: NameTreeConnectorProps) => (
   <span
@@ -79,7 +60,6 @@ export const NameTreeRows = ({
   isManagerRestorationLocked,
   managerCandidates,
   nodes,
-  includedSubnames,
   primaryName,
   restoredManagers,
   selected,
@@ -99,8 +79,7 @@ export const NameTreeRows = ({
       const name = node.item.domain.name
       const copy = importedSubname(node.item)
       const isSelected = selected.has(copy?.recreationRoot ?? name)
-      const copies = isSelected ? (includedSubnames.get(name) ?? []) : []
-      const children = childrenWithCopies(node, copies)
+      const children = node.children
       const isFirst = index === 0
       const isLast = index === nodes.length - 1
       // Paint containment would clip the primary badge above the row.
@@ -132,7 +111,6 @@ export const NameTreeRows = ({
           {children.length > 0 && (
             <NameTreeRows
               depth={depth + 1}
-              includedSubnames={includedSubnames}
               isManagerRestorationLocked={isManagerRestorationLocked}
               managerCandidates={managerCandidates}
               nodes={children}

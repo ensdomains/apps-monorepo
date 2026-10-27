@@ -2,6 +2,7 @@ import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { match } from 'ts-pattern'
 import { useDefaultMigrationSelection } from '@/features/migration/hooks/useDefaultMigrationSelection'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -174,6 +175,15 @@ export const SelectNamesStep = ({
     isPending: isEligibilityPending,
     shouldSkip: recoveryState.status !== 'none',
   })
+  const needsRenewal = renewal.status !== 'idle'
+  const preparedPlan = gasEstimate.status === 'ready' ? gasEstimate.plan : null
+  const preparedNames = match({ needsRenewal, renewalGasEstimate })
+    .with(
+      { needsRenewal: true, renewalGasEstimate: { status: 'ready' } },
+      ({ renewalGasEstimate }) => renewalGasEstimate.classified,
+    )
+    .with({ needsRenewal: true }, () => undefined)
+    .otherwise(() => preparedPlan?.classified)
 
   const {
     search,
@@ -186,6 +196,7 @@ export const SelectNamesStep = ({
     filteredGroups,
     filteredOrphans,
     filteredGracePeriodNames,
+    includedSubnames,
     isManagerRestorationLocked,
     managerCandidates,
     restoredManagers,
@@ -195,6 +206,7 @@ export const SelectNamesStep = ({
   } = useNameSelection({
     eligible,
     gracePeriodNames,
+    includedNames: preparedNames ?? verifiedSubnames,
     defaultExcludedNames: excludedNames,
     isPending,
     isRecovery,
@@ -207,7 +219,6 @@ export const SelectNamesStep = ({
   // The temporary approval is needed only for names the owner opted in.
   const hasNamesNeedingManagerRestoration = restoredManagers.size > 0
 
-  const needsRenewal = renewal.status !== 'idle'
   const isEstimatingGas = needsRenewal
     ? renewalGasEstimate.status === 'loading'
     : gasEstimate.status === 'loading'
@@ -223,12 +234,6 @@ export const SelectNamesStep = ({
   // migration that fails for lack of gas before the ETH has landed.
   const isWaitingForGasFunding =
     totalSelected > 0 && gasFundingStatus === 'funding'
-  const preparedPlan = gasEstimate.status === 'ready' ? gasEstimate.plan : null
-  const preparedNames = needsRenewal
-    ? renewalGasEstimate.status === 'ready'
-      ? renewalGasEstimate.classified
-      : undefined
-    : preparedPlan?.classified
   const isFinishingRecovery =
     isRecovery && preparedPlan !== null && preparedPlan.classified.length === 0
   const recreation = preparedPlan?.subnameRecreation
@@ -384,7 +389,7 @@ export const SelectNamesStep = ({
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
-              includedNames={preparedNames ?? verifiedSubnames}
+              includedSubnames={includedSubnames}
               isCompactLayout={isCompactLayout}
               isContentHeightCard={isContentHeightCard}
               isManagerRestorationLocked={isManagerRestorationLocked}
