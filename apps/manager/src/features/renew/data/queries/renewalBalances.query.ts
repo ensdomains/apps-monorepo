@@ -78,7 +78,7 @@ const readRenewalBalances = async (
  * Balances of every renewal token: the wallet's, which the pickers list, and on
  * the smart-account route the account's own, which pays first.
  */
-export const useRenewalBalances = () => {
+export const useRenewalBalances = ({ enabled = true } = {}) => {
   const account = useSmartAccountContext()
   const owner = account.ownerAddress
   // Only the intent route spends from the account; an EOA pays for itself.
@@ -93,7 +93,7 @@ export const useRenewalBalances = () => {
       hca,
     }),
     queryFn: () => (owner ? readRenewalBalances(owner, hca) : NO_BALANCES),
-    enabled: !!owner,
+    enabled: enabled && !!owner,
     refetchInterval: 30_000,
   })
 
