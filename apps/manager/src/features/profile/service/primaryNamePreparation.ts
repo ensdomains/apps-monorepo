@@ -68,6 +68,6 @@ export async function getPrimaryNamePreparation(
     hasResolver: resolverAddress !== undefined,
     hasOffchainResolver:
       resolverAddress !== undefined &&
-      (await isOffchainResolver(publicClient, resolverAddress)),
+      (await isOffchainResolver(publicClient, resolverAddress, name)),
   }
 }

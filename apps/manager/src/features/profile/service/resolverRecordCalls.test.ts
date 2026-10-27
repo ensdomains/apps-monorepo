@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   encodeResolverRecordsCall,
   getResolverSetterKind,
+  isOffchainResolver,
 } from './resolverRecordCalls'
 
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
@@ -71,6 +72,48 @@ describe('getResolverSetterKind', () => {
     await expect(getResolverSetterKind(client, RESOLVER)).rejects.toThrow(
       'rpc down',
     )
+  })
+})
+
+describe('isOffchainResolver', () => {
+  const revert = (data?: Hex) =>
+    Object.assign(new Error('execution reverted'), { code: 3, data })
+  // `resolve` without CCIP: an offchain resolver reverts with OffchainLookup.
+  const client = (isExtended: boolean, failure: Error) =>
+    ({
+      multicall: vi.fn(async () => [{ status: 'success', result: isExtended }]),
+      request: vi.fn(async () => {
+        throw failure
+      }),
+    }) as unknown as PublicClient
+
+  it.each([
+    {
+      label: 'asks for an offchain lookup',
+      isExtended: true,
+      data: '0x556f1830ab',
+      expected: true,
+    },
+    { label: 'reverts onchain', isExtended: true, data: '0x', expected: false },
+    {
+      label: 'has no extended resolution',
+      isExtended: false,
+      data: '0x556f1830ab',
+      expected: false,
+    },
+  ] as const)(
+    'is $expected for a resolver that $label',
+    async ({ isExtended, data, expected }) => {
+      await expect(
+        isOffchainResolver(client(isExtended, revert(data)), RESOLVER, NAME),
+      ).resolves.toBe(expected)
+    },
+  )
+
+  it('fails instead of guessing when the probe itself fails', async () => {
+    await expect(
+      isOffchainResolver(client(true, revert()), RESOLVER, NAME),
+    ).rejects.toThrow()
   })
 })
 

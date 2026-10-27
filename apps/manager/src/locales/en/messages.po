@@ -1013,6 +1013,10 @@ msgstr "Couldn't enable notifications"
 msgid "Couldn't estimate the network fee"
 msgstr "Couldn't estimate the network fee"
 
+#: src/features/profile/components/view/ProfileView.tsx
+msgid "Couldn’t load this name’s records, so they’re hidden and editing is paused."
+msgstr "Couldn’t load this name’s records, so they’re hidden and editing is paused."
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t load this name’s records. Please try again in a moment."
 msgstr "Couldn’t load this name’s records. Please try again in a moment."
@@ -3484,6 +3488,7 @@ msgstr "Trademark Guidelines"
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 #: src/features/migration/pages/MigrationPage.tsx
+#: src/features/profile/components/view/ProfileView.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
 msgid "Try again"

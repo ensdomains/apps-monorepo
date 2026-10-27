@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
@@ -75,6 +75,25 @@ const ProfileCommemorativeNftSection = ({
   return <CommemorativeNftProfileSection isOwner name={name} />
 }
 
+const RecordsUnavailableNotice = ({
+  hasRecords,
+  onRetry,
+}: {
+  readonly hasRecords: boolean
+  readonly onRetry: () => void
+}) =>
+  hasRecords ? null : (
+    <p className="px-4 pt-2 text-muted-foreground text-xs">
+      <Trans>
+        Couldn’t load this name’s records, so they’re hidden and editing is
+        paused.
+      </Trans>{' '}
+      <button className="underline" onClick={onRetry} type="button">
+        <Trans>Try again</Trans>
+      </button>
+    </p>
+  )
+
 const getImageUrls = (
   draft: ProfileDraft | null,
   avatarData: string | null | undefined,
@@ -99,7 +118,11 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     isConnected &&
     !isV1NamesPending &&
     isEligibleProfileName(eligibleV1Names, name)
-  const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
+  const {
+    data: profileRecords,
+    isPending: isRecordsPending,
+    refetch: refetchRecords,
+  } = useQuery({
     ...profileRecordsQuery(name),
   })
   const records = transformProfileRecords(profileRecords)
@@ -145,7 +168,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
-  if (ownerMissing && isExpiryPending) {
+  if (isRecordsPending || (ownerMissing && isExpiryPending)) {
     return <ProfileLoading name={name} />
   }
 
@@ -173,6 +196,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   const canEditProfile = canEditProfileHere({
     isInGrace: expiry.isInGrace || isExpiryError,
     canEditRecords,
+    hasRecords: profileRecords !== undefined,
     isUpgradeRequired,
     name,
     protocol: ownerData?.protocol,
@@ -242,6 +266,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
                 </Trans>
               </p>
             ) : null}
+            <RecordsUnavailableNotice
+              hasRecords={profileRecords !== undefined}
+              onRetry={() => void refetchRecords()}
+            />
             <div className="space-y-0">
               <ProfileCards records={displayRecords} />
               <ProfileCommemorativeNftSection

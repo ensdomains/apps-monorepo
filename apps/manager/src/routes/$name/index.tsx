@@ -90,7 +90,11 @@ export const Route = createFileRoute('/$name/')({
     }
 
     const [profileRecords, ownerData] = await Promise.all([
-      queryClient.ensureQueryData(profileRecordsQuery(normalizedName)),
+      // Unreadable records leave the rest of the profile usable; the view
+      // reports them and keeps editing paused.
+      queryClient
+        .ensureQueryData(profileRecordsQuery(normalizedName))
+        .catch(() => null),
       // Fetch, not ensure: `ensureQueryData` serves invalidated data, so a name
       // cached as ownerless pre-registration would redirect its owner away.
       queryClient.fetchQuery(profileOwnerQuery(normalizedName)),
@@ -171,7 +175,7 @@ export const Route = createFileRoute('/$name/')({
       })
     }
 
-    const description = profileRecords.texts.find(
+    const description = profileRecords?.texts.find(
       (r) => r.key === 'description',
     )?.value
 
