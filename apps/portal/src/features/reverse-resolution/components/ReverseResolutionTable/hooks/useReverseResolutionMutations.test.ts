@@ -18,6 +18,7 @@ type QueryStub = { readonly data: unknown; readonly isPending: boolean }
 const settled = (data: unknown): QueryStub => ({ data, isPending: false })
 
 let connectedAddress: Address | undefined = CONNECTED
+let isUnreachableV1Name = false
 
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
@@ -38,6 +39,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
       .with('get-name-resolver-address', () => settled(RESOLVER))
       // A legacy resolver, so the request is the `setAddr(node, …)` shape.
       .with('is-permissioned-resolver', () => settled(false))
+      .with('is-unreachable-v1-name', () => settled(isUnreachableV1Name))
       .otherwise(() => settled(undefined)),
 }))
 
@@ -57,6 +59,7 @@ const renderMutations = () =>
 describe('useReverseResolutionMutations', () => {
   beforeEach(() => {
     connectedAddress = CONNECTED
+    isUnreachableV1Name = false
   })
 
   // WEB-1429: `setAddr` writes the record deciding which address a name
@@ -91,6 +94,16 @@ describe('useReverseResolutionMutations', () => {
       // `setAddr(bytes32 node, uint256 coinType, bytes value)` — the address
       // actually written is the last argument, hex-encoded and lower-cased.
       expect(request.args.at(-1)).toBe(CONNECTED.toLowerCase())
+    })
+
+    it('refuses a name resolution no longer reaches', () => {
+      isUnreachableV1Name = true
+
+      const { getForwardResolutionRequest } = renderMutations()
+
+      expect(() => getForwardResolutionRequest(CONNECTED)).toThrow(
+        'alice.eth no longer resolves',
+      )
     })
 
     it('accepts a differently-cased spelling of the connected account', () => {

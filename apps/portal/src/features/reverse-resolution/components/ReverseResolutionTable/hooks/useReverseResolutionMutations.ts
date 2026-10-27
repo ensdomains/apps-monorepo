@@ -18,6 +18,7 @@ import { envConfig } from '@/config'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
+import { getIsUnreachableV1NameQueryOptions } from '@/features/reverse-resolution/helpers/isUnreachableV1Name'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 
 type UseReverseResolutionMutationsParams = {
@@ -93,6 +94,13 @@ export function useReverseResolutionMutations({
   /** True until we know which setter shape this resolver takes. */
   const isResolverKindLoading =
     Boolean(resolverAddress) && isResolverKindPending
+
+  // A failed check does not block: the write it guards is only wasted gas.
+  const { data: isUnreachableV1Name, isPending: isUnreachablePending } =
+    useQuery({
+      ...getIsUnreachableV1NameQueryOptions({ name: displayName ?? '' }),
+      enabled: Boolean(displayName),
+    })
 
   const invalidateReverseResolutionQuery = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['get-reverse-resolution'] })
@@ -171,6 +179,14 @@ export function useReverseResolutionMutations({
       if (isResolverKindLoading) {
         throw new Error('Still checking the resolver type. Try again shortly.')
       }
+      if (displayName && isUnreachablePending) {
+        throw new Error('Still checking this name. Try again shortly.')
+      }
+      if (isUnreachableV1Name) {
+        throw new Error(
+          `${displayName} no longer resolves because the .eth name it belongs to has expired, so it can't be a primary name.`,
+        )
+      }
 
       return createSetForwardResolutionRequest({
         name: displayName,
@@ -188,6 +204,8 @@ export function useReverseResolutionMutations({
       isPermissionedResolver,
       isResolverKindLoading,
       isResolverKindError,
+      isUnreachablePending,
+      isUnreachableV1Name,
     ],
   )
 
