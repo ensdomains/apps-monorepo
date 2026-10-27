@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
-import { ArrowUpRight } from 'lucide-react'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Card } from '@/components/ui/card'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
 import {
   getRecordDef,
@@ -11,6 +11,7 @@ import {
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import {
   ProfileCard,
+  profileCardArrowClassName,
   profileCardCopyIconClassName,
   profileCardTrailingIconStrokeWidth,
   profileFieldLabelClassName,
@@ -21,8 +22,7 @@ import { getSecondarySocialRecords } from './ProfileView.helpers'
 
 const socialLabelClassName = `truncate ${profileFieldLabelClassName}`
 const socialValueClassName = `truncate ${profileFieldValueClassName}`
-const socialTrailingIconClassName =
-  'size-6 shrink-0 text-ens-quartz-400 xl:text-ens-quartz-700'
+const socialTrailingIconClassName = profileCardArrowClassName
 const socialCardPaddingClassName = 'p-6 has-[>svg]:px-6'
 
 const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
@@ -50,9 +50,9 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
       <Card asChild className={className}>
         <a href={href} rel="noopener noreferrer" target="_blank">
           {content}
-          <ArrowUpRight
+          <MSymbol
             className={socialTrailingIconClassName}
-            strokeWidth={1.33}
+            symbol="arrow_outward"
           />
         </a>
       </Card>

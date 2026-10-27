@@ -3,10 +3,23 @@ import { cn } from '@/lib/utils'
 export const profileCardCopyIconClassName =
   'ml-0 size-6 shrink-0 text-ens-quartz-400 xl:text-ens-quartz-700'
 
+// Material arrow_outward from the profile frame: 24px, light weight, quartz-900.
+export const profileCardArrowClassName =
+  'ms-opsz-24 ms-wght-300 shrink-0 text-[24px] leading-5 text-ens-quartz-900'
+
+export const profileRecordGridClassName =
+  'grid grid-cols-2 gap-3 xl:grid-cols-3 xl:gap-6'
+
+// A leftover card in the two-column mobile grid spans the row and sits beside its icon.
+export const profileRecordGridItemClassName = (index: number, count: number) =>
+  index === count - 1 && count % 2 === 1
+    ? 'col-span-2 xl:col-span-1'
+    : undefined
+
 export const profileFieldLabelClassName =
-  'font-sans text-ens-quartz-500 text-xs leading-[16.5px] xl:leading-4.5'
+  'font-sans text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] xl:text-xs xl:leading-4.5 xl:tracking-[-0.132px]'
 export const profileFieldValueClassName =
-  'font-sans text-ens-quartz-700 text-xs leading-[19.5px] xl:text-sm xl:leading-6'
+  'font-sans text-ens-quartz-500 text-[13px] leading-[19.5px] tracking-[-0.143px] xl:text-sm xl:text-ens-quartz-700 xl:leading-6 xl:tracking-[-0.154px]'
 
 export const profileCardTrailingIconStrokeWidth = 1.33
 

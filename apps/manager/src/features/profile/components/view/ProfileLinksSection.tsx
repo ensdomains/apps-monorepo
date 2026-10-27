@@ -1,10 +1,9 @@
 import { Trans } from '@lingui/react/macro'
-import { ExternalLink } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { MSymbol } from '@/components/ui/material-symbol'
 import type { ProfileRecords } from '@/features/profile/types'
 import {
   ProfileCard,
-  profileCardTrailingIconStrokeWidth,
   profileTileClassName,
   valueClassName,
 } from './ProfileCard'
@@ -43,17 +42,17 @@ const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
             backgroundSize: '80px 80px',
           }}
         />
-        <div className="min-w-0 p-6">
-          <div className="truncate text-ens-quartz-900 text-sm leading-normal">
+        <div className="min-w-0 px-6 pt-4 pb-6">
+          <div className="truncate text-ens-quartz-900 text-sm leading-[21px]">
             {link.name}
           </div>
           <div className="mt-1 flex min-w-0 items-center gap-1 text-ens-quartz-500">
             <span className={`${valueClassName} truncate`}>
               {link.displayHost}
             </span>
-            <ExternalLink
-              className="size-6 shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-              strokeWidth={profileCardTrailingIconStrokeWidth}
+            <MSymbol
+              className="ms-opsz-16 ms-wght-300 shrink-0 text-[16px] text-ens-quartz-500 leading-none"
+              symbol="arrow_outward"
             />
           </div>
         </div>
