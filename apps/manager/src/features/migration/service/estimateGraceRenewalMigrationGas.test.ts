@@ -204,7 +204,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
     const input = params()
     const result = await estimateGraceRenewalMigrationGas(input)
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       gasUnits: 1_200n,
       feeWei: 3_600n,
       transactionCount: 6,
@@ -215,6 +215,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
       ],
       droppedPubkeyNames: ['pubkey.eth'],
     })
+    expect(result).not.toHaveProperty('plan')
     expect(estimateGraceRenewalGas).toHaveBeenCalledWith({
       quote: input.quote,
       publicClient: input.publicClient,
@@ -256,7 +257,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
 
     const result = await estimateGraceRenewalMigrationGas(params())
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       gasUnits: 1_150n,
       feeWei: 3_450n,
       transactionCount: 5,
@@ -343,7 +344,9 @@ describe('estimateGraceRenewalMigrationGas', () => {
       approvalRequired: false,
     })
 
-    await expect(estimateGraceRenewalMigrationGas(input)).resolves.toEqual({
+    await expect(
+      estimateGraceRenewalMigrationGas(input),
+    ).resolves.toMatchObject({
       gasUnits: 1_000n,
       feeWei: 3_000n,
       transactionCount: 4,

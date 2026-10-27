@@ -369,6 +369,7 @@ export const MigrationPage = () => {
         { shouldCheckImpactBeforeRetry: true },
         ({ migrationPlan }) =>
           migrationPlan?.classified ??
+          retryRenewal?.classified ??
           (ownerAddress
             ? classifyNames(
                 retryDomains,
@@ -382,12 +383,8 @@ export const MigrationPage = () => {
         ({ gasEstimate }) => gasEstimate.plan.classified,
       )
       .with({ hasGraceDomains: true }, () =>
-        ownerAddress
-          ? classifyNames(
-              v1Names,
-              ownerAddress as Address,
-              migrationExecutionClient.chain.id,
-            ).classified
+        renewalGasEstimate.status === 'ready'
+          ? renewalGasEstimate.classified
           : [],
       )
       .otherwise(() => [])
@@ -396,11 +393,12 @@ export const MigrationPage = () => {
   }, [
     shouldCheckImpactBeforeRetry,
     migrationPlan,
+    retryRenewal,
+    renewalGasEstimate,
     retryDomains,
     gasEstimate,
     graceDomains.length,
     ownerAddress,
-    v1Names,
     completedOperations,
   ])
   const subnameImpact = useSubnameMigrationImpact({
@@ -496,6 +494,7 @@ export const MigrationPage = () => {
             domains: v1Names.filter(({ name }) => selected.has(name)),
             hcaAddress: hcaAddress as Address,
             requestSteps: renewalGasEstimate.stepDescriptors,
+            classified: renewalGasEstimate.classified,
             canBatchAtomically,
           },
           signer,

@@ -48,6 +48,8 @@ type RenewalPreparation = {
   readonly domains: readonly V1Domain[]
   readonly hcaAddress: Address
   readonly requestSteps?: readonly MigrationWalletRequestDescriptor[]
+  /** Prepared copy operations for the impact check before a renewal retry. */
+  readonly classified?: MigrationPlan['classified']
   /** The plan rebuilt after renewal must keep the previewed bundling. */
   readonly canBatchAtomically?: boolean
 }
@@ -250,6 +252,10 @@ export const migrationUiMachine = setup({
         wagmiConfig: input.wagmiConfig,
         managerRestorationNames: input.managerRestorationNames,
         canBatchAtomically: input.renewal.canBatchAtomically,
+        isSubnameRecreationEnabled:
+          posthog.isFeatureEnabled(
+            POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
+          ) === true,
         signal,
       }),
     ),
