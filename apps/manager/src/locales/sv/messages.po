@@ -1860,7 +1860,7 @@ msgid "NFT traits"
 msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "No additional payment needed. You'll still sign the renewal."
+msgid "No additional payment needed. You'll still need to sign the renewal."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

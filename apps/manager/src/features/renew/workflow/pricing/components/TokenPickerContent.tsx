@@ -127,7 +127,7 @@ export const TokenPickerContent = () => {
         : {})}
       fullyCoveredMessage={
         <Trans>
-          No additional payment needed. You'll still sign the renewal.
+          No additional payment needed. You'll still need to sign the renewal.
         </Trans>
       }
       funding={funding}
