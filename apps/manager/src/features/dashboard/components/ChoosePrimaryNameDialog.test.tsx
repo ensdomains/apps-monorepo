@@ -35,7 +35,7 @@ const chain = vi.hoisted(() => ({
   owner: '0x0000000000000000000000000000000000000001',
   preparation: { kind: 'ready' } as PrimaryNamePreparation,
   protocol: 'v2' as 'v1' | 'v2',
-  hasV1RegistryResolver: false,
+  registryRead: vi.fn(async () => false),
   read: vi.fn(),
   submit: vi.fn(),
   saveRecords: vi.fn(),
@@ -76,7 +76,7 @@ vi.mock('@/features/profile/service/setPrimaryName', () => ({
 }))
 vi.mock('@/features/profile/service/primaryNamePreparation', () => ({
   getPrimaryNamePreparation: async () => chain.preparation,
-  hasV1RegistryResolver: async () => chain.hasV1RegistryResolver,
+  hasV1RegistryResolver: () => chain.registryRead(),
 }))
 vi.mock(
   '@/features/profile/service/profileRecordTransactions',
@@ -247,7 +247,7 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
     chain.primaryName = 'alpha.eth'
     chain.preparation = { kind: 'ready' }
     chain.protocol = 'v2'
-    chain.hasV1RegistryResolver = false
+    chain.registryRead.mockReset().mockResolvedValue(false)
     chain.saveRecords.mockReset().mockResolvedValue({})
     chain.read.mockReset().mockImplementation(async () => chain.primaryName)
     chain.submit
@@ -420,7 +420,12 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
     'explains why an ENSv1 name without a writable resolver cannot be primary (registry resolver: $hasV1RegistryResolver)',
     async ({ hasV1RegistryResolver, message }) => {
       chain.protocol = 'v1'
-      chain.hasV1RegistryResolver = hasV1RegistryResolver
+      let resolveRegistry = (_hasResolver: boolean) => {}
+      chain.registryRead.mockReturnValue(
+        new Promise<boolean>((resolve) => {
+          resolveRegistry = resolve
+        }),
+      )
       chain.preparation = {
         kind: 'setup-resolver',
         existingEthAddress: null,
@@ -445,8 +450,15 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
       })
       await waitFor(() => expect(confirm).toBeEnabled())
       fireEvent.click(confirm)
+      const other = within(dialog).getByRole('button', {
+        name: 'Select alpha.eth as primary name',
+      })
+      await waitFor(() => expect(chain.registryRead).toHaveBeenCalledOnce())
+      expect(other).toBeDisabled()
+      resolveRegistry(hasV1RegistryResolver)
 
       expect(await within(dialog).findByText(message)).toBeInTheDocument()
+      expect(other).toBeEnabled()
       expect(chain.submit).not.toHaveBeenCalled()
     },
   )

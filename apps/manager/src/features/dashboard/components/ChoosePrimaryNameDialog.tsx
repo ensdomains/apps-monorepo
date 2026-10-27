@@ -546,11 +546,13 @@ export const ChoosePrimaryNameDialog = ({
     name: string,
     hasResolver: boolean,
   ): Promise<Error> => {
+    setIsCheckingPreparation(true)
     const isUnreachable =
       !hasResolver &&
       (await hasV1RegistryResolver(publicClient as PublicClient, name).catch(
         () => false,
       ))
+    setIsCheckingPreparation(false)
     return new Error(
       isUnreachable
         ? t`${name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name.`
