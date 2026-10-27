@@ -104,7 +104,11 @@ export const ProfileActions = ({
         isInGrace={isInGrace}
         isUpgradeRequired={isUpgradeRequired}
         keepMounted
-        leftActions={<div className="xl:hidden">{barActions}</div>}
+        leftActions={
+          <div className={cn(profileBarActionsClassName, 'xl:hidden')}>
+            {barActions}
+          </div>
+        }
         name={name}
         onUpdated={onUpdated}
         owner={owner}

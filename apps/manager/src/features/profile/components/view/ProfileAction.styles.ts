@@ -3,7 +3,7 @@ export const iconActionClassName =
   'inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-[#e2e8f0] p-0.5 text-ens-lapis-500 transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50'
 
 export const iconActionInnerClassName =
-  'flex h-full items-center justify-center gap-2.5 rounded-[10px] px-4'
+  'flex h-full items-center justify-center gap-2.5 rounded-[10px] px-2 xs:px-4'
 
 export const iconActionIconInnerClassName =
   'flex size-full items-center justify-center rounded-[10px]'
@@ -17,7 +17,7 @@ export const renewActionClassName =
   'inline-flex h-11 min-h-11 w-auto max-h-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-[#e2e8f0] p-0.5 font-medium font-mono text-[13px] text-ens-lapis-500 uppercase leading-none tracking-[1.56px] transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60'
 
 export const renewActionSymbolClassName =
-  'ms-opsz-12 ms-wght-500 text-[12px] leading-none'
+  'ms-opsz-12 ms-wght-500 hidden text-[12px] leading-none xs:inline-block'
 
 export const editActionClassName =
   'h-15.25 w-full max-w-87 rounded border-none bg-(--theme-button-bg) px-6 py-0 font-semi-mono text-sm text-(--theme-button-text) uppercase tracking-[1.12px] shadow-none hover:bg-(--theme-button-hover-bg) xl:h-12.5 xl:w-42.75'
