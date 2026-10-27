@@ -475,6 +475,7 @@ export const ChoosePrimaryNameDialog = ({
     domains,
     isLoading,
     hasForwardAddressError,
+    hasResolvingNamesError,
     isSelectedNameOffered,
     selectedProtocol,
   } = nameList
@@ -748,6 +749,15 @@ export const ChoosePrimaryNameDialog = ({
                   )),
                 )}
             </div>
+
+            {hasResolvingNamesError && !isLoading ? (
+              <p className="font-sans text-muted-foreground text-sm">
+                <Trans>
+                  Names that point to your wallet couldn’t be loaded, so some
+                  may be missing.
+                </Trans>
+              </p>
+            ) : null}
 
             <PrimaryNameListFooter
               disabled={isBusy}

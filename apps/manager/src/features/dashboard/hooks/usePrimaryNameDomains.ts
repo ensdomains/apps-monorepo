@@ -7,7 +7,11 @@ import {
   getPrimaryNameCandidates,
   getPrimaryNamePage,
 } from '../components/ChoosePrimaryNameDialog.handlers'
-import { primaryNameDomainsQuery } from '../service/queries/getPrimaryNameDomains'
+import {
+  mergePrimaryNameDomains,
+  ownedPrimaryNamesQuery,
+  resolvingPrimaryNamesQuery,
+} from '../service/queries/getPrimaryNameDomains'
 import { resolveDomainLabel } from '../utils'
 
 /** Search owned names and names resolving to the owner, resolving only this page and the selection. */
@@ -35,16 +39,21 @@ export const usePrimaryNameDomains = ({
   }
 
   const {
-    data,
+    data: owned,
     isLoading,
     isError: hasDomainsError,
-  } = useQuery(
-    primaryNameDomainsQuery(
-      open ? address : undefined,
-      ownerAddress ?? undefined,
-    ),
+  } = useQuery(ownedPrimaryNamesQuery(open ? address : undefined))
+  // Owned names don't wait for this read, and a failure only adds a notice.
+  const { data: resolving, isError: hasResolvingNamesError } = useQuery(
+    resolvingPrimaryNamesQuery(open ? (ownerAddress ?? undefined) : undefined),
   )
-  const allDomains = useMemo(() => getPrimaryNameCandidates(data ?? []), [data])
+  const allDomains = useMemo(
+    () =>
+      getPrimaryNameCandidates(
+        mergePrimaryNameDomains(owned ?? [], resolving ?? []),
+      ),
+    [owned, resolving],
+  )
   const pagination = useMemo(
     () => getPrimaryNamePage(allDomains, { searchQuery, page, reverseName }),
     [allDomains, searchQuery, page, reverseName],
@@ -81,6 +90,7 @@ export const usePrimaryNameDomains = ({
     selectedProtocol: selectedDomain?.protocol ?? null,
     isLoading: isLoading || isCheckingNames,
     hasForwardAddressError: hasDomainsError || hasForwardAddressError,
+    hasResolvingNamesError,
     searchQuery,
     onSearchChange: (query: string) => {
       setSearchQuery(query)
