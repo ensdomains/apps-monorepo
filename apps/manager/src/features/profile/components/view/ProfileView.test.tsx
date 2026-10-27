@@ -91,6 +91,7 @@ vi.mock('@/features/migration/components/UpgradeBanner', () => ({
   UpgradeBanner: () => null,
 }))
 vi.mock('./ProfileActions', () => ({
+  ProfileDesktopActions: () => null,
   // Simulate the editor's successful-save callback without a wallet transaction.
   ProfileActions: ({
     onUpdated,

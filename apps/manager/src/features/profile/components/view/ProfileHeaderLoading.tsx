@@ -8,6 +8,7 @@ import {
 import { getLoadingHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { cn } from '@/lib/utils'
 import { tw } from '@/utils/tailwind'
+import { ProfileDesktopActionsLoading } from './ProfileActionsLoading'
 import { getMotionProps, SkeletonBlock } from './ProfileLoadingPrimitives'
 
 const neutralAvatarCellIds = Array.from({ length: 36 }, (_, index) => index)
@@ -152,8 +153,8 @@ export const ProfileHeaderLoading = ({
         name={name}
         shouldReduceMotion={shouldReduceMotion}
       />
-      <div className="mt-10 w-full px-5 xl:mt-0 xl:px-0">
-        <div className="grid w-full grid-cols-1 gap-3 xl:max-w-full xl:flex-wrap xl:justify-start xl:gap-7 min-[375px]:flex min-[375px]:items-start min-[375px]:justify-between min-[375px]:gap-4">
+      <div className="mt-10 flex w-full items-start justify-between gap-4 px-5 xl:mt-0 xl:px-0">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 min-[375px]:flex-row min-[375px]:items-start min-[375px]:gap-5">
           <ProfileDetailLoading
             hasCopy
             iconGapClassName="gap-0.5"
@@ -175,6 +176,7 @@ export const ProfileHeaderLoading = ({
             valueWidth="w-14 xl:w-28"
           />
         </div>
+        <ProfileDesktopActionsLoading shouldReduceMotion={shouldReduceMotion} />
       </div>
       <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t xl:hidden" />
     </div>

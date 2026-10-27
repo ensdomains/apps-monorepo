@@ -9,6 +9,7 @@ type ProfileHeaderProps = {
   readonly avatarLoading: boolean
   readonly displayExpiryDate?: Date | null
   readonly canEdit?: boolean
+  readonly desktopActions?: React.ReactNode
   readonly mobileActions?: React.ReactNode
   readonly name: string
   readonly owner?: Address
@@ -22,6 +23,7 @@ export const ProfileHeader = ({
   avatarUrl,
   displayExpiryDate,
   canEdit,
+  desktopActions,
   mobileActions,
   name,
   owner,
@@ -39,13 +41,14 @@ export const ProfileHeader = ({
     <div className="flex flex-col items-center xl:block xl:space-y-3.25">
       <ProfileNameBadge name={name} />
       <div className="mt-6 w-full px-5 xl:hidden">{mobileActions}</div>
-      <div className="mt-6 w-full px-5 xl:mt-0 xl:px-0">
+      <div className="mt-6 flex w-full items-start justify-between gap-4 px-5 xl:mt-0 xl:px-0">
         <ProfileDetails
           displayExpiryDate={displayExpiryDate}
           owner={owner}
           ownerReverseName={ownerReverseName}
           registrationDate={registrationDate}
         />
+        {desktopActions}
       </div>
       <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t xl:hidden" />
     </div>
