@@ -1955,6 +1955,10 @@ msgstr "Not enough USDC on {chainName}."
 msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
 msgstr "Not enough USDC to renew these names. Add USDC to your wallet to continue."
 
+#: src/features/migration/components/IncludedSubnameDetails.tsx
+msgid "Not set"
+msgstr "Not set"
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Not supported"
@@ -2068,6 +2072,7 @@ msgid "Owned"
 msgstr "Owned"
 
 #: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/migration/components/IncludedSubnameDetails.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Owner"
 msgstr "Owner"
@@ -2619,6 +2624,10 @@ msgstr "Resetting access…"
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 msgid "Resolve errors before previewing changes."
 msgstr "Resolve errors before previewing changes."
+
+#: src/features/migration/components/IncludedSubnameDetails.tsx
+msgid "Resolver"
+msgstr "Resolver"
 
 #: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
 msgid "Resolver replacement is blocked. These records could not be read or preserved:"

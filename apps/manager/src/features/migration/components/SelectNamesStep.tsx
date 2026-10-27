@@ -223,6 +223,11 @@ export const SelectNamesStep = ({
   const isWaitingForGasFunding =
     totalSelected > 0 && gasFundingStatus === 'funding'
   const preparedPlan = gasEstimate.status === 'ready' ? gasEstimate.plan : null
+  const preparedNames = needsRenewal
+    ? renewalGasEstimate.status === 'ready'
+      ? renewalGasEstimate.classified
+      : undefined
+    : preparedPlan?.classified
   const isFinishingRecovery =
     isRecovery && preparedPlan !== null && preparedPlan.classified.length === 0
   const recreation = preparedPlan?.subnameRecreation
@@ -383,6 +388,7 @@ export const SelectNamesStep = ({
               isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}
               managerCandidates={managerCandidates}
+              preparedNames={preparedNames}
               restoredManagers={restoredManagers}
               search={search}
               selected={selected}

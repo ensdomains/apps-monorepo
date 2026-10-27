@@ -1960,6 +1960,10 @@ msgstr ""
 msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
 msgstr ""
 
+#: src/features/migration/components/IncludedSubnameDetails.tsx
+msgid "Not set"
+msgstr ""
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Not supported"
@@ -2073,6 +2077,7 @@ msgid "Owned"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/migration/components/IncludedSubnameDetails.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Owner"
 msgstr ""
@@ -2623,6 +2628,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 msgid "Resolve errors before previewing changes."
+msgstr ""
+
+#: src/features/migration/components/IncludedSubnameDetails.tsx
+msgid "Resolver"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
