@@ -30,9 +30,9 @@ const contactCardSurfaceClassName = cn(
   'transition hover:bg-ens-quartz-50',
 )
 const contactLabelClassName =
-  'h-[16.5px] w-full truncate font-sans text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] xl:h-auto xl:text-xs xl:leading-4.5 xl:tracking-[-0.132px]'
+  'h-[16.5px] w-full truncate font-sans font-normal text-[11px] text-ens-quartz-500 leading-[16.5px] tracking-[-0.121px] xl:h-[18px] xl:text-xs xl:leading-[18px] xl:tracking-[-0.132px]'
 const contactValueClassName =
-  'h-[19.5px] w-full truncate font-sans text-ens-quartz-500 text-[13px] leading-[19.5px] tracking-[-0.143px] xl:h-auto xl:text-sm xl:text-ens-quartz-700 xl:leading-normal xl:tracking-[-0.154px]'
+  'h-[19.5px] w-full truncate font-sans font-normal text-[13px] text-ens-quartz-500 leading-[19.5px] tracking-[-0.143px] xl:h-[21px] xl:text-sm xl:text-ens-quartz-700 xl:leading-[21px] xl:tracking-[-0.154px]'
 const contactTrailingIconClassName = cn(
   profileCardArrowClassName,
   'absolute top-6 right-6',
