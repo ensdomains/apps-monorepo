@@ -114,3 +114,5 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - '@ensdomains/ensjs@5.2.7'
   - '@ensdomains/ensjs-abi@5.0.4'
+  # Published by v1rtl.eth; new releases ship fixes the portal release depends on.
+  - omnipin
