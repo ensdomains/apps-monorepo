@@ -246,6 +246,9 @@ export const useNameSelection = ({
   const allSelected =
     allSelectable.size > 0 &&
     [...allSelectable].every((name) => currentSelected.has(name))
+  const hasUnselectedEligibleNames = [...eligibleSelectable].some(
+    (name) => !currentSelected.has(name),
+  )
 
   const selectedNamesKey = JSON.stringify([...currentSelected])
   const publishedNamesKey = useRef<string | null>(null)
@@ -308,6 +311,7 @@ export const useNameSelection = ({
     visibleCount: allSelectable.size,
     displayedCount: allSelectable.size,
     allSelected,
+    hasUnselectedEligibleNames,
     filteredGroups,
     filteredOrphans,
     filteredGracePeriodNames,

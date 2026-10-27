@@ -243,6 +243,7 @@ describe('useNameSelection', () => {
     expect(result.current.displayedCount).toBe(2)
     expect(result.current.selected).toEqual(new Set(['active.eth']))
     expect(result.current.allSelected).toBe(false)
+    expect(result.current.hasUnselectedEligibleNames).toBe(false)
     expect(onNamesChange).toHaveBeenLastCalledWith(['active.eth'])
 
     act(() => result.current.toggleName('grace.eth'))
@@ -250,6 +251,10 @@ describe('useNameSelection', () => {
       new Set(['active.eth', 'grace.eth']),
     )
     expect(result.current.allSelected).toBe(true)
+    act(() => result.current.toggleName('active.eth'))
+    expect(result.current.hasUnselectedEligibleNames).toBe(true)
+    act(() => result.current.toggleName('active.eth'))
+    expect(result.current.hasUnselectedEligibleNames).toBe(false)
     act(() => result.current.toggleName('grace.eth'))
     expect(result.current.selected).toEqual(new Set(['active.eth']))
     expect(result.current.allSelected).toBe(false)

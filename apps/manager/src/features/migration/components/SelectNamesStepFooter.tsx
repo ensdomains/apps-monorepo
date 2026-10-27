@@ -157,6 +157,7 @@ const UpgradeButtonLabel = ({
 type SelectNamesStepFooterProps = {
   readonly gasEstimate: MigrationGasEstimateState
   readonly gasAffordability: GasAffordability
+  readonly hasUnselectedEligibleNames: boolean
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isFinishingRecovery?: boolean
@@ -187,6 +188,7 @@ const GraceRenewalStatus = ({
 export const SelectNamesStepFooter = ({
   gasEstimate,
   gasAffordability,
+  hasUnselectedEligibleNames,
   isEstimatingGas,
   isStarting,
   isFinishingRecovery = false,
@@ -251,14 +253,12 @@ export const SelectNamesStepFooter = ({
             totalSelected={totalSelected}
           />
         </MigrationUpgradeButton>
-        {nftCopyEnabled &&
-          totalSelected > 0 &&
-          totalSelected < visibleCount && (
-            <p className="flex items-center gap-1 text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.14px]">
-              <CircleAlert className="size-4 shrink-0" strokeWidth={1.8} />
-              <Trans>Upgrade all names to receive NFT</Trans>
-            </p>
-          )}
+        {nftCopyEnabled && totalSelected > 0 && hasUnselectedEligibleNames && (
+          <p className="flex items-center gap-1 text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.14px]">
+            <CircleAlert className="size-4 shrink-0" strokeWidth={1.8} />
+            <Trans>Upgrade all names to receive NFT</Trans>
+          </p>
+        )}
       </div>
     </div>
   )

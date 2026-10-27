@@ -162,8 +162,14 @@ describe('commemorative NFT migration completion', () => {
     })
   })
 
-  it('unlocks only with no eligible names and positive migrated evidence', async () => {
-    mocks.getV1NamesForAddress.mockResolvedValue(ok([domain]))
+  it('unlocks with grace-period names remaining and positive migrated evidence', async () => {
+    const graceDomain = makeDomain({
+      id: namehash('grace.eth'),
+      name: 'grace.eth',
+      labelName: 'grace',
+      registrationExpiry: String(Math.floor(Date.now() / 1000) - 60),
+    })
+    mocks.getV1NamesForAddress.mockResolvedValue(ok([domain, graceDomain]))
     mocks.runEligibilityChecks.mockResolvedValue({
       ...emptyEligibility(),
       alreadyMigrated: classified,
@@ -179,6 +185,11 @@ describe('commemorative NFT migration completion', () => {
       migratedNameCount: 3,
     })
     expect(mocks.getMigratedNamesCount).toHaveBeenCalledWith(ownerAddress)
+    expect(mocks.runEligibilityChecks).toHaveBeenCalledWith(
+      publicClient,
+      classified,
+      ownerAddress,
+    )
   })
 
   // An owner can migrate some names while the upgrade screen refuses others,

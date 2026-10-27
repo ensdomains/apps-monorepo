@@ -100,6 +100,23 @@ vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
   useConnectedReverseName: () => ({ data: 'sub1234.eth' }),
 }))
 
+vi.mock(
+  '../commemorative-nft/useVisibleCommemorativeNftEligibility',
+  async () => {
+    const { createCommemorativeNftPreviewEligibility } = await import(
+      '../commemorative-nft/eligibility.fixture'
+    )
+    return {
+      useVisibleCommemorativeNftStatus: () => ({
+        eligibility: createCommemorativeNftPreviewEligibility({
+          ownerAddress: OWNER,
+        }),
+        isConfirmedUnclaimed: true,
+      }),
+    }
+  },
+)
+
 const impactState = vi.hoisted(() => ({
   selectionKey: 'fixture-selection',
   status: 'ready',
@@ -318,7 +335,20 @@ describe('SelectNamesStep', () => {
     expect(renewalCheckbox).not.toBeChecked()
     expect(renewalCheckbox).toHaveAccessibleDescription(/in its grace period/)
     expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
+    expect(
+      queryByText('Upgrade all names to receive NFT'),
+    ).not.toBeInTheDocument()
+    const activeCheckbox = getByRole('checkbox', { name: 'sub1234.eth' })
+    fireEvent.click(activeCheckbox)
+    expect(getByText('Upgrade all names to receive NFT')).toBeInTheDocument()
+    fireEvent.click(activeCheckbox)
+    expect(
+      queryByText('Upgrade all names to receive NFT'),
+    ).not.toBeInTheDocument()
     fireEvent.click(renewalCheckbox)
+    expect(
+      queryByText('Upgrade all names to receive NFT'),
+    ).not.toBeInTheDocument()
     expect(renewalCheckbox).toHaveAccessibleDescription(/Not enough USDC/)
     expect(
       getByRole('alert').compareDocumentPosition(renewalCheckbox) &

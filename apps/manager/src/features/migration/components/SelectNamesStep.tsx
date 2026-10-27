@@ -204,6 +204,7 @@ export const SelectNamesStep = ({
     visibleCount,
     displayedCount,
     allSelected,
+    hasUnselectedEligibleNames,
     filteredGroups,
     filteredOrphans,
     filteredGracePeriodNames,
@@ -459,6 +460,7 @@ export const SelectNamesStep = ({
       <SelectNamesStepFooter
         gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
+        hasUnselectedEligibleNames={hasUnselectedEligibleNames}
         isEstimatingGas={isEstimatingGas}
         isFinishingRecovery={isFinishingRecovery}
         isStarting={isStarting}
