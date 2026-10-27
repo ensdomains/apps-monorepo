@@ -75,14 +75,20 @@ const renderRouteOption = (option: 'component' | 'pendingComponent') => {
 
 const PROFILE_OWNER = '0x0000000000000000000000000000000000000001'
 
-type Records = { texts: { key: string; value: string }[]; coins: never[] }
+type Records = {
+  readonly texts: readonly { readonly key: string; readonly value: string }[]
+  readonly coins: readonly never[]
+}
 
 const runLoader = async (
   name: string,
   {
     owner = { owner: PROFILE_OWNER, protocol: 'v2' },
     records = { coins: [], texts: [] },
-  }: { owner?: object | null; records?: Records | Error } = {},
+  }: {
+    readonly owner?: object | null
+    readonly records?: Records | Error
+  } = {},
 ) => {
   vi.mocked(profileRecordsQuery).mockImplementation(
     (queryName) => ({ kind: 'records', name: queryName }) as never,
