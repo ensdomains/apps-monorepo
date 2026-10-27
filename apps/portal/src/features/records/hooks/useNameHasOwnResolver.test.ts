@@ -2,15 +2,16 @@ import { ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const UNIVERSAL_RESOLVER =
-  '0xeeeeeeee14d718c2b47d9923deab1335e144eeee' as Address
 const V1_REGISTRY = '0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e' as Address
+/** The registry holding the leaf label of `ens.eth`. */
+const ETH_REGISTRY = '0x1111111111111111111111111111111111111111' as Address
+const ROOT_REGISTRY = '0x2222222222222222222222222222222222222222' as Address
 const OWN_RESOLVER = '0x8fade66b79cc9f707ab26799354482eb93a5b7dd' as Address
-/** The read-only ExtendedDNSResolver a detached DNS name resolves through. */
-const INHERITED_RESOLVER =
-  '0x0ef1af80c24b681991d675176d9c07d8c9236b9a' as Address
 
-const readContract = vi.fn()
+const { readContract, getRegistries } = vi.hoisted(() => ({
+  readContract: vi.fn(),
+  getRegistries: vi.fn(),
+}))
 
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () =>
@@ -21,10 +22,11 @@ vi.mock('@/lib/wagmi/helpers', () => ({
       },
     }),
 }))
-vi.mock('@/lib/constants/universalResolver', () => ({
-  universalResolverAddress: UNIVERSAL_RESOLVER,
+vi.mock('@ensdomains/ensjs/public/v2', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@ensdomains/ensjs/public/v2')>()),
+  getNameRegistries: getRegistries,
 }))
-vi.mock('viem/actions', () => ({ readContract: vi.fn() }))
+vi.mock('viem/actions', () => ({ readContract }))
 vi.mock('viem/utils', async (importOriginal) => ({
   ...(await importOriginal<typeof import('viem/utils')>()),
   getAction: () => readContract,
@@ -32,14 +34,27 @@ vi.mock('viem/utils', async (importOriginal) => ({
 
 const { getNameHasOwnResolver } = await import('./useNameHasOwnResolver')
 
+/** The registries `findRegistries` reports leaf-first, and the label's slot. */
+const stubV2Reads = ({
+  registries = [zeroAddress, ETH_REGISTRY, ROOT_REGISTRY],
+  resolver = OWN_RESOLVER,
+}: {
+  registries?: readonly Address[]
+  resolver?: Address
+} = {}) => {
+  getRegistries.mockResolvedValue(registries)
+  readContract.mockResolvedValue(resolver)
+}
+
 describe('getNameHasOwnResolver', () => {
   beforeEach(() => {
     readContract.mockReset()
+    getRegistries.mockReset()
   })
 
-  describe('ENSv2 — the UniversalResolver walk', () => {
-    it('is true when findResolver stops on the name itself', async () => {
-      readContract.mockResolvedValue([OWN_RESOLVER, '0xnode', 0n])
+  describe('ENSv2 — the registry slot', () => {
+    it('is true when the registry holding the label names a resolver', async () => {
+      stubV2Reads()
 
       const result = await getNameHasOwnResolver({
         name: 'ens.eth',
@@ -49,8 +64,8 @@ describe('getNameHasOwnResolver', () => {
       expect(result._unsafeUnwrap()).toBe(true)
     })
 
-    it('queries the UniversalResolver with the DNS-encoded name', async () => {
-      readContract.mockResolvedValue([OWN_RESOLVER, '0xnode', 0n])
+    it("asks the name's own registry slot, not the resolver it resolves through", async () => {
+      stubV2Reads()
 
       await getNameHasOwnResolver({
         name: 'ens.eth',
@@ -59,15 +74,17 @@ describe('getNameHasOwnResolver', () => {
 
       expect(readContract).toHaveBeenCalledWith(
         expect.objectContaining({
-          address: UNIVERSAL_RESOLVER,
-          functionName: 'findResolver',
-          args: ['0x03656e730365746800'],
+          address: ETH_REGISTRY,
+          functionName: 'getResolver',
+          args: ['ens'],
         }),
       )
     })
 
     it('is false when the resolver is inherited from an ancestor', async () => {
-      readContract.mockResolvedValue([INHERITED_RESOLVER, '0xnode', 4n])
+      // A subname with no resolver of its own still resolves through its
+      // parent's, which takes no writes.
+      stubV2Reads({ resolver: zeroAddress })
 
       const result = await getNameHasOwnResolver({
         name: 'sub.ens.eth',
@@ -77,10 +94,8 @@ describe('getNameHasOwnResolver', () => {
       expect(result._unsafeUnwrap()).toBe(false)
     })
 
-    it('is false when no resolver is found at all', async () => {
-      // The walk runs off the root without finding one, which also reports
-      // offset 0 — so the offset alone would wrongly read as "owns it".
-      readContract.mockResolvedValue([zeroAddress, '0xnode', 0n])
+    it('is false when no registry holds the name', async () => {
+      stubV2Reads({ registries: [zeroAddress, zeroAddress, ROOT_REGISTRY] })
 
       const result = await getNameHasOwnResolver({
         name: 'nope.eth',
@@ -88,6 +103,7 @@ describe('getNameHasOwnResolver', () => {
       })
 
       expect(result._unsafeUnwrap()).toBe(false)
+      expect(readContract).not.toHaveBeenCalled()
     })
   })
 
@@ -148,7 +164,7 @@ describe('getNameHasOwnResolver', () => {
   })
 
   it('errs rather than guessing when the read fails', async () => {
-    readContract.mockRejectedValue(new Error('rpc down'))
+    getRegistries.mockRejectedValue(new Error('rpc down'))
 
     const result = await getNameHasOwnResolver({
       name: 'ens.eth',

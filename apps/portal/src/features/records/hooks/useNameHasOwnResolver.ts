@@ -26,34 +26,31 @@
  *   instead. For a DNS 2LD that mirror sits at the TLD, so every imported DNS
  *   name looked like it inherited its resolver and no record edit was ever
  *   offered — including to the manager, whom the resolver does authorise.
- * - **ENSv2** — the UniversalResolver walk, whose stopping offset says whether
- *   the resolver belongs to the name or to an ancestor.
+ * - **ENSv2** — the registry that holds the name's leaf label, whose
+ *   `getResolver(label)` slot is the pointer a write has to target. Not the
+ *   UniversalResolver walk: `findResolver` reports the resolver a name
+ *   effectively resolves through, and for a v2 name that is commonly the
+ *   `.eth` TLD's `ENSV2Resolver` mirror, which delegates to the name's own
+ *   resolver. Its offset then reads as "inherited" and hid record editing
+ *   from the name's owner.
  */
 
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getNameRegistries } from '@ensdomains/ensjs/public/v2'
 import { registryResolverSnippet } from '@ensdomains/ensjs-abi/registry'
+import { permissionedRegistryGetResolverSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
-import { namehash, parseAbi, zeroAddress } from 'viem'
+import { namehash, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
 import { normalize } from 'viem/ens'
 import { getAction } from 'viem/utils'
-import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { dnsEncodeName } from '@/utils/token/dnsEncodeName'
+import { getLabel } from '@/utils/token/getLabel'
 import type { ProtocolVersion } from '@/utils/types'
-
-/**
- * `findResolver` walks the registry leaf-first and returns the resolver it
- * stopped at, that label's node, and the offset into the DNS-encoded name where
- * it stopped. Offset 0 is the queried name itself.
- */
-const findResolverAbi = parseAbi([
-  'function findResolver(bytes name) view returns (address resolver, bytes32 node, uint256 offset)',
-])
 
 class GetNameHasOwnResolverError extends TaggedError(
   'GetNameHasOwnResolverError',
@@ -100,24 +97,37 @@ export const getNameHasOwnResolver = ResultFn(async function* ({
     return ok(resolver !== zeroAddress)
   }
 
-  const [resolver, , offset] = yield* fromPromise(
+  // The registries arrive leaf-first: index 0 is the name's own (empty for a
+  // leaf), index 1 holds the name's label, and the root comes last. The write
+  // path targets the resolver named on that label's own slot, so read the same
+  // slot rather than what the name resolves through.
+  const registries = yield* fromPromise(
+    getNameRegistries(client, { name }),
+    (e) => new GetNameHasOwnResolverError({ cause: e }),
+  )
+  const registryAddress = registries[1]
+  if (!registryAddress || registryAddress === zeroAddress) return ok(false)
+
+  // Route-supplied, so normalise before asking for the label — the registry
+  // hashes it, and an unnormalised spelling names a different label.
+  const label = yield* fromSync(
+    () => getLabel(name),
+    (e) => new GetNameHasOwnResolverError({ cause: e }),
+  )
+
+  const resolver = yield* fromPromise(
     call({
-      address: universalResolverAddress,
-      abi: findResolverAbi,
-      functionName: 'findResolver',
-      args: [dnsEncodeName(name)],
+      address: registryAddress,
+      abi: permissionedRegistryGetResolverSnippet,
+      functionName: 'getResolver',
+      args: [label],
     }),
     (e) => new GetNameHasOwnResolverError({ cause: e }),
   )
 
-  // Going through the UniversalResolver rather than reading a registry directly
-  // needs no list of known resolver deployments — a custom or per-name resolver
-  // answers here exactly as the public one does.
-  //
-  // The null check carries its weight: a name with no resolver anywhere also
-  // reports offset 0, because the walk runs off the root without ever finding
-  // one.
-  return ok(resolver !== zeroAddress && offset === 0n)
+  // A v2 registry has no wildcards: the slot either names a resolver or the
+  // name inherits whatever answers for it, which takes no writes.
+  return ok(resolver !== zeroAddress)
 })
 
 const nameHasOwnResolverQueryKey = createQueryKey<
