@@ -65,7 +65,7 @@ const ProfileDescription = ({
     <Dialog>
       <div className="mt-3">
         <p
-          className="wrap-anywhere line-clamp-2 text-ens-quartz-500 text-sm leading-normal"
+          className="wrap-anywhere line-clamp-2 max-w-[50ch] text-ens-quartz-500 text-sm leading-normal"
           ref={descriptionRef}
         >
           {description}

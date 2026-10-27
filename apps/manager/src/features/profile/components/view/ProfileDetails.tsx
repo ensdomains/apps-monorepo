@@ -69,16 +69,20 @@ const ProfileDetail = ({
   readonly value: React.ReactNode
   readonly copyValue?: string
 }) => (
-  <div className="group flex min-w-0 flex-col items-start gap-0.5">
+  <div className="group flex min-w-0 flex-col items-start gap-0.5 overflow-visible">
     <div className={detailLabelClassName}>
       {icon}
       <span>{label}</span>
     </div>
-    <div className={cn('flex min-w-0 max-w-full items-center gap-0.5 py-1')}>
+    <div className="relative flex min-w-0 max-w-full items-center py-1">
       <span className={cn(detailValueClassName, 'min-w-0 truncate')}>
         {value}
       </span>
-      {copyValue ? <ProfileDetailCopyButton value={copyValue} /> : null}
+      {copyValue ? (
+        <span className="absolute top-1/2 left-full ml-0.5 -translate-y-1/2">
+          <ProfileDetailCopyButton value={copyValue} />
+        </span>
+      ) : null}
     </div>
   </div>
 )
@@ -103,7 +107,7 @@ export const ProfileDetails = ({
   )
 
   return (
-    <div className="grid w-full grid-cols-1 gap-3 xl:max-w-full xl:flex-wrap xl:justify-start xl:gap-7 min-[375px]:flex min-[375px]:items-start min-[375px]:justify-between min-[375px]:gap-4">
+    <div className="flex min-w-0 flex-1 flex-col gap-3 min-[375px]:flex-row min-[375px]:items-start min-[375px]:gap-5">
       {owner ? (
         <ProfileDetail
           copyValue={owner}
