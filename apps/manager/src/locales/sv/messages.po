@@ -2458,7 +2458,6 @@ msgstr ""
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
-#: src/features/profile/components/view/ProfileRenewAction.tsx
 msgid "Renew"
 msgstr ""
 

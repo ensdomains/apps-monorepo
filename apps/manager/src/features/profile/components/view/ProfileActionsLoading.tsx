@@ -6,8 +6,8 @@ const ActionIconButtonLoading = ({
 }: {
   readonly shouldReduceMotion: boolean
 }) => (
-  <div className="inline-flex shrink-0 items-center justify-center rounded-[4px] bg-[#e2e8f0] p-0.5">
-    <div className="flex items-center justify-center rounded-[10px] px-4 py-3.5">
+  <div className="inline-flex size-11 shrink-0 items-center justify-center rounded-[4px] bg-[#e2e8f0] p-0.5">
+    <div className="flex size-full items-center justify-center rounded-[10px]">
       <SkeletonBlock
         className="size-3 rounded"
         shouldReduceMotion={shouldReduceMotion}
@@ -24,9 +24,9 @@ const ActionTextButtonLoading = ({
   readonly shouldReduceMotion: boolean
 }) => (
   <div
-    className={`inline-flex shrink-0 items-center justify-center rounded-[4px] bg-[#e2e8f0] p-0.5 ${className}`}
+    className={`inline-flex h-11 shrink-0 items-center justify-center rounded-[4px] bg-[#e2e8f0] p-0.5 ${className}`}
   >
-    <div className="flex items-center justify-center rounded-[10px] px-4 py-3.5">
+    <div className="flex h-full items-center justify-center rounded-[10px] px-4">
       <SkeletonBlock
         className="h-3 w-21 rounded-sm"
         shouldReduceMotion={shouldReduceMotion}

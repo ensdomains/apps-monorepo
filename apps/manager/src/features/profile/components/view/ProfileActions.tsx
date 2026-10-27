@@ -16,7 +16,6 @@ import {
   profileButtonClassName,
   profileStickyBarClassName,
   renewActionClassName,
-  renewBarActionClassName,
 } from './ProfileAction.styles'
 import { ProfileEditAction } from './ProfileEditAction'
 import { ProfileFavoriteAction } from './ProfileFavoriteAction'
@@ -89,8 +88,7 @@ export const ProfileActions = ({
       <ProfileFavoriteAction name={name} />
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
       <ProfileRenewAction
-        className={renewBarActionClassName}
-        isBarAction
+        className={renewActionClassName}
         isOwner={isOwner}
         name={name}
         protocol={renewalProtocol}

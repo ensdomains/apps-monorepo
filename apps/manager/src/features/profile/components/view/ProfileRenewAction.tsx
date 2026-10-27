@@ -21,7 +21,6 @@ import {
 
 type ProfileRenewActionProps = {
   readonly className: string
-  readonly isBarAction?: boolean
   readonly isOwner?: boolean
   readonly name: string
   readonly protocol?: RenewalProtocol
@@ -29,7 +28,6 @@ type ProfileRenewActionProps = {
 
 export const ProfileRenewAction = ({
   className,
-  isBarAction = false,
   isOwner,
   name,
   protocol,
@@ -52,25 +50,12 @@ export const ProfileRenewAction = ({
 
   const buttonContent = (
     <span className={iconActionInnerClassName}>
-      {isBarAction ? (
-        <>
-          <span className="xl:hidden">
-            <Trans>Renew</Trans>
-          </span>
-          <span className="hidden xl:inline">
-            <Trans>Renew Name</Trans>
-          </span>
-        </>
-      ) : (
-        <>
-          <Trans>Renew Name</Trans>
-          <MSymbol
-            aria-hidden="true"
-            className={renewActionSymbolClassName}
-            symbol="double_arrow"
-          />
-        </>
-      )}
+      <Trans>Renew Name</Trans>
+      <MSymbol
+        aria-hidden="true"
+        className={renewActionSymbolClassName}
+        symbol="double_arrow"
+      />
     </span>
   )
 
