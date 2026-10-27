@@ -7,7 +7,7 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": ^5.2.6
+  "@ensdomains/ensjs": ^5.2.7
   "@ensdomains/ensjs-abi": ^5.0.4
   xstate: ^5.33.3
   typescript: ^7.0.2
@@ -112,5 +112,5 @@ allowBuilds:
   workerd: false
 
 minimumReleaseAgeExclude:
-  - '@ensdomains/ensjs@5.2.6'
+  - '@ensdomains/ensjs@5.2.7'
   - '@ensdomains/ensjs-abi@5.0.4'
