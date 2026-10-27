@@ -13,7 +13,7 @@ export const profileRecordGridClassName =
 // A leftover card in the two-column mobile grid spans the row and sits beside its icon.
 export const profileRecordGridItemClassName = (index: number, count: number) =>
   index === count - 1 && count % 2 === 1
-    ? 'col-span-2 xl:col-span-1'
+    ? 'col-span-2 self-start xl:col-span-1 xl:self-stretch'
     : undefined
 
 export const profileFieldLabelClassName =

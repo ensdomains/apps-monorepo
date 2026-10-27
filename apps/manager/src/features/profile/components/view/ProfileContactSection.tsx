@@ -23,24 +23,26 @@ const contactMaterialIcon: Partial<Record<string, MaterialSymbol>> = {
 }
 
 const contactMaterialIconClassName =
-  'ms-opsz-32 ms-wght-300 text-[32px] leading-none text-ens-quartz-900'
+  'ms-opsz-32 ms-wght-300 text-[32px] text-ens-quartz-900 leading-none [text-box-edge:cap_alphabetic] [text-box-trim:trim-both]'
 
 const contactCardSurfaceClassName = cn(
   profileTileClassName,
   'transition hover:bg-ens-quartz-50',
 )
 const contactLabelClassName =
-  'w-full truncate font-sans text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] xl:text-xs xl:leading-4.5 xl:tracking-[-0.132px]'
+  'h-[16.5px] w-full truncate font-sans text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] xl:h-auto xl:text-xs xl:leading-4.5 xl:tracking-[-0.132px]'
 const contactValueClassName =
-  'w-full truncate font-sans text-ens-quartz-500 text-[13px] leading-[19.5px] tracking-[-0.143px] xl:text-sm xl:text-ens-quartz-700 xl:leading-normal xl:tracking-[-0.154px]'
+  'h-[19.5px] w-full truncate font-sans text-ens-quartz-500 text-[13px] leading-[19.5px] tracking-[-0.143px] xl:h-auto xl:text-sm xl:text-ens-quartz-700 xl:leading-normal xl:tracking-[-0.154px]'
 const contactTrailingIconClassName = cn(
   profileCardArrowClassName,
   'absolute top-6 right-6',
 )
-const contactCopyIconClassName = cn(
-  profileCardCopyIconClassName,
-  'absolute top-6 right-6',
-)
+const contactCopyIconClassName = (wide: boolean) =>
+  cn(
+    profileCardCopyIconClassName,
+    'absolute top-6 right-6',
+    wide && 'max-xl:static max-xl:top-auto max-xl:right-auto',
+  )
 const contactCardPaddingClassName = 'p-6 has-[>svg]:px-6'
 
 export const ProfileContactCard = ({
@@ -81,7 +83,16 @@ export const ProfileContactCard = ({
     </>
   )
 
-  const className = `${contactCardSurfaceClassName} ${contactCardPaddingClassName} relative flex min-h-28 w-full flex-col items-start gap-2 font-sans text-left xl:min-h-33.5`
+  // Stacked cards keep a 112px floor and stretch with the row. The full-width
+  // mobile card hugs its icon and two text lines instead of that floor.
+  const className = cn(
+    contactCardSurfaceClassName,
+    contactCardPaddingClassName,
+    'relative flex w-full flex-col items-start gap-2 text-left font-sans',
+    'min-h-28 xl:min-h-33.5',
+    wide &&
+      'max-xl:h-auto max-xl:min-h-0 max-xl:flex-row max-xl:items-center max-xl:justify-between',
+  )
 
   if (item.href) {
     return (
@@ -100,7 +111,7 @@ export const ProfileContactCard = ({
   return (
     <Card asChild className={`${className} h-auto items-start`}>
       <CopyableButton
-        iconClassName={contactCopyIconClassName}
+        iconClassName={contactCopyIconClassName(wide)}
         iconStrokeWidth={profileCardTrailingIconStrokeWidth}
         value={item.displayValue}
         variant="ghost"
