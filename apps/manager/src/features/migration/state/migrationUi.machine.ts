@@ -48,6 +48,8 @@ type RenewalPreparation = {
   readonly domains: readonly V1Domain[]
   readonly hcaAddress: Address
   readonly requestSteps?: readonly MigrationWalletRequestDescriptor[]
+  /** Prepared copy operations for the impact check before a renewal retry. */
+  readonly classified?: MigrationPlan['classified']
   /** The plan rebuilt after renewal must keep the previewed bundling. */
   readonly canBatchAtomically?: boolean
 }
@@ -250,6 +252,10 @@ export const migrationUiMachine = setup({
         wagmiConfig: input.wagmiConfig,
         managerRestorationNames: input.managerRestorationNames,
         canBatchAtomically: input.renewal.canBatchAtomically,
+        isSubnameRecreationEnabled:
+          posthog.isFeatureEnabled(
+            POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
+          ) === true,
         signal,
       }),
     ),
@@ -265,6 +271,7 @@ export const migrationUiMachine = setup({
         renewalStepCount: number
       }
     >(({ input, sendBack }) => {
+      const controller = new AbortController()
       let cancelled = false
 
       const onProgress = (progress: MigrationProgress) => {
@@ -289,6 +296,7 @@ export const migrationUiMachine = setup({
 
       executeMigration({
         plan: input.plan,
+        submissionGate: { signal: controller.signal },
         canRecreateSubnames: () =>
           posthog.isFeatureEnabled(
             POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
@@ -316,12 +324,16 @@ export const migrationUiMachine = setup({
 
       return () => {
         cancelled = true
+        controller.abort()
       }
     }),
   },
   guards: {
+    // A recovery plan may have only cleanup or reconciliation left.
     hasSelection: ({ event }) =>
-      event.type === 'migration.start' && event.plan.classified.length > 0,
+      event.type === 'migration.start' &&
+      (event.plan.classified.length > 0 ||
+        event.plan.requiresReconciliation === true),
     isOnlyFailures: ({ event, context }) =>
       event.type === 'migration.complete' &&
       event.result.txHashes.length === 0 &&

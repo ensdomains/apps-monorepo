@@ -251,7 +251,10 @@ export const SelectNamesStep = ({
   const isCompactLayout = shouldUseCompactSelectionLayout(displayedCount)
   const isSmallSelectionCard =
     !isPending && shouldUseSmallSelectionCard(displayedCount)
-  const hasAdditionalDetails = blockedSubnames.length > 0 || isEligibilityError
+  const hasAdditionalDetails =
+    blockedSubnames.length > 0 ||
+    unavailableNames.length > 0 ||
+    isEligibilityError
   const showSelectionOptions =
     !isFinishingRecovery &&
     (blockedSubnames.length === 0 ||

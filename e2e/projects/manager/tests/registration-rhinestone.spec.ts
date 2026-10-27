@@ -63,6 +63,10 @@ import {
   V2Status,
 } from '../../../helpers/migration-assertions.js'
 import { createBignameMock } from '../../../helpers/mock-bigname.js'
+import {
+  clickRegistrationPaymentAction,
+  selectUsdcIfNeeded,
+} from '../../../helpers/payment-picker.js'
 import type { PortalAccounts } from '../../../helpers/portal-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
@@ -88,7 +92,7 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     // picker. Click through it (the single ENABLE intent is auto-authorized via
     // PERMITTED_SIGN_KINDS); idempotent no-op in EOA mode.
     await clickThroughEnableSessions(page)
-    await page.getByRole('button', { name: 'Select USDC', exact: true }).click()
+    await selectUsdcIfNeeded(page)
 
     createConsoleMonitor(page, {
       onStateChange: (state, allStates) => {
@@ -96,16 +100,13 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       },
     })
 
-    await page
-      .getByRole('dialog', { name: 'Approve and register name' })
-      .getByRole('button', { name: /^(approve and register|register name)$/i })
-      .click()
+    await clickRegistrationPaymentAction(page)
 
     // RegistrationDetails (including the completion banner) stays hidden while
     // the parallel notification-settings region is waiting for a choice.
     await page.getByRole('button', { name: 'Set up later' }).click()
 
-    const successBanner = page.locator('p.text-ens-peridot-text-dark')
+    const successBanner = page.getByRole('status')
 
     // The registration itself needs no eth_sendTransaction on the HCA path
     // (payment is an auto-authorized EIP-2612 permit carried into the
@@ -192,7 +193,7 @@ async function registerUntilCommitConfirmed(page: Page, label: string) {
 
   await page.getByRole('button', { name: /pay with stablecoins/i }).click()
   await clickThroughEnableSessions(page)
-  await page.getByRole('button', { name: 'Select USDC' }).click()
+  await selectUsdcIfNeeded(page)
 
   const monitor = createConsoleMonitor(page, { logConsoleMessages: false })
   await page.getByRole('button', { name: /register name/i }).click()
@@ -342,7 +343,7 @@ test.describe('lost same-name registration race (WEB-1148)', () => {
     )
     await expectFlowSuccess(page, {
       success: page
-        .locator('p.text-ens-peridot-text-dark')
+        .getByRole('status')
         .filter({ hasText: 'Registration Complete' }),
       failureTitle: 'Registration Failed',
       timeout: 180_000,
@@ -506,7 +507,7 @@ test.describe('HCA registration budget (WEB-1506)', () => {
     await page.goto(`/register/${label}`)
     await page.getByRole('button', { name: /pay with stablecoins/i }).click()
     await clickThroughEnableSessions(page)
-    await page.getByRole('button', { name: 'Select USDC' }).click()
+    await selectUsdcIfNeeded(page)
     return page.getByRole('dialog')
   }
 
@@ -932,7 +933,7 @@ async function openRegisterPageAndConnect(
 async function pressRegister(page: Page) {
   await page.getByRole('button', { name: /pay with stablecoins/i }).click()
   await clickThroughEnableSessions(page)
-  await page.getByRole('button', { name: 'Select USDC' }).click()
+  await selectUsdcIfNeeded(page)
   await page.getByRole('button', { name: /register name/i }).click()
 }
 
@@ -1025,7 +1026,7 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
     )
     await expectFlowSuccess(page, {
       success: page
-        .locator('p.text-ens-peridot-text-dark')
+        .getByRole('status')
         .filter({ hasText: 'Registration Complete' }),
       failureTitle: 'Registration Failed',
       timeout: 240_000,
@@ -1313,8 +1314,7 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
     // USDC is the only option, so it is selected for us; a click is only the
     // user's own path, and a wallet short of the debit cannot make it (the row
     // is disabled).
-    if (selectUsdc)
-      await page.getByRole('button', { name: 'Select USDC' }).click()
+    if (selectUsdc) await selectUsdcIfNeeded(page)
     const picker = page.getByRole('dialog')
     // Positive sign the quote landed: the fee shows a figure, not the
     // pending em dash.

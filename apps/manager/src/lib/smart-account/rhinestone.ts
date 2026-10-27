@@ -141,6 +141,12 @@ export function buildIntentStatusFetcher():
 /**
  * An SDK account for the wallet itself, to pay with its USDC on an L2. Reads the
  * source L2 and the app chain over the app's own RPCs.
+ *
+ * The SDK's custom provider takes one URL per chain, so neither chain gets the
+ * failover the read clients have: it is handed the primary, which is drpc. Both
+ * chains must therefore be enabled for the drpc key, or every quote and submit
+ * for an L2 payment fails there while the balance still reads through the
+ * public fallback.
  */
 export function createBridgeAccount(params: {
   readonly eoa: Account

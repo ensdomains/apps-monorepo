@@ -14,10 +14,13 @@ import {
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
 import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/thirdPartyRenewalWarning'
+import {
+  iconActionInnerClassName,
+  renewActionSymbolClassName,
+} from './ProfileAction.styles'
 
 type ProfileRenewActionProps = {
   readonly className: string
-  readonly isBarAction?: boolean
   readonly isOwner?: boolean
   readonly name: string
   readonly protocol?: RenewalProtocol
@@ -25,7 +28,6 @@ type ProfileRenewActionProps = {
 
 export const ProfileRenewAction = ({
   className,
-  isBarAction = false,
   isOwner,
   name,
   protocol,
@@ -46,24 +48,15 @@ export const ProfileRenewAction = ({
 
   if (!canRenew) return null
 
-  const buttonContent = isBarAction ? (
-    <>
-      <span className="xl:hidden">
-        <Trans>Renew</Trans>
-      </span>
-      <span className="hidden xl:inline">
-        <Trans>Renew Name</Trans>
-      </span>
-    </>
-  ) : (
-    <>
+  const buttonContent = (
+    <span className={iconActionInnerClassName}>
       <Trans>Renew Name</Trans>
       <MSymbol
         aria-hidden="true"
-        className="ms-opsz-20 ms-wght-600 text-base leading-none"
+        className={renewActionSymbolClassName}
         symbol="double_arrow"
       />
-    </>
+    </span>
   )
 
   if (isOwner === undefined) {

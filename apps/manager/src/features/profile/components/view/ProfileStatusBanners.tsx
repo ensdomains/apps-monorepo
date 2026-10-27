@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { match, P } from 'ts-pattern'
 import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
-import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import type { getProfileNameExpiryStatus } from '@/features/profile/service/profileExpiry'
 import { getV1RenewableQueryOptions } from '@/features/renew/data/queries/v1Renewable.query'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
@@ -47,18 +46,3 @@ export const ProfileGracePeriodBanner = ({
     )
     .otherwise(() => null)
 }
-
-type ProfileMigrationBannerProps = {
-  readonly className?: string
-  readonly isMigrationEnabled: boolean
-  readonly name: string
-}
-
-export const ProfileMigrationBanner = ({
-  className,
-  isMigrationEnabled,
-  name,
-}: ProfileMigrationBannerProps) =>
-  isMigrationEnabled ? (
-    <UpgradeBanner className={className} profileName={name} />
-  ) : null

@@ -21,6 +21,7 @@ import { type ClassifiedName, FUSES } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
 import type { Profile } from './fetchV1Profiles'
+import { temporaryMigrationHcaApproval } from './migrationApprovals'
 import {
   type MigrationRecoverySnapshot,
   persistPendingAtomicMigrationIntent,
@@ -627,6 +628,35 @@ describe('buildMigrationRecoveryPlan', () => {
       }),
     )
   })
+
+  it.each([
+    ['already revoked', false, []],
+    ['still active', true, [temporaryMigrationHcaApproval(HCA)]],
+  ])(
+    'plans cleanup-only recovery from live access when it is %s',
+    async (_state, isApproved, expectedCleanup) => {
+      const { snapshot } = makeRecoveryTree()
+      const publicClient = publicClientWithProfileResults()
+      vi.mocked(publicClient.readContract).mockImplementation(
+        ({ functionName }) =>
+          Promise.resolve(functionName === 'isApprovedForAll' && isApproved),
+      )
+
+      const plan = await buildMigrationRecoveryPlan({
+        snapshot: {
+          ...snapshot,
+          remainingOperations: [],
+          completedOperations: snapshot.registryOperations,
+        },
+        hcaAddress: HCA,
+        migrationOwner: OWNER,
+        publicClient,
+      })
+
+      expect(plan.classified).toEqual([])
+      expect(plan.preflight.migrationCleanupApprovals).toEqual(expectedCleanup)
+    },
+  )
 
   it('fails closed when a durable-tree name has a different journaled action', async () => {
     const { copy, snapshot } = makeRecoveryTree()

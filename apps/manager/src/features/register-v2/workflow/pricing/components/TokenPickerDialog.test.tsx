@@ -14,10 +14,8 @@ const feeRow = (
     amountLabel="balance"
     fee="Sepolia est. fee: $4.32"
     feeTooltip="Fee explanation"
-    feeTooltipLabel="What is the network fee?"
     icon={<span>$</span>}
     isAvailable
-    isFunded
     isSelected
     name="USDC"
     onSelect={() => {}}

@@ -1,5 +1,4 @@
-export const AVATAR_UPLOAD_BASE_URL =
-  'https://avatar-upload-staging.ens-cf.workers.dev/'
+export { avatarUploadBaseUrl as AVATAR_UPLOAD_BASE_URL } from '@/config'
 
 /**
  * Hardcoded reverse map from a known agent-registry contract (chain + address)

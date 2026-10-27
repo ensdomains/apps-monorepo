@@ -33,8 +33,7 @@ type ConnectedWallet = {
 }
 
 // With consent the wallet becomes the analytics identity. Without it nothing
-// is sent, so wallet-targeted flags (migration testers) match only after
-// Accept.
+// is sent, so wallet-targeted flags match only after Accept.
 const identifyWallet = (wallet: ConnectedWallet) => {
   if (!hasAnalyticsConsent(posthog)) return
   posthog.identify(

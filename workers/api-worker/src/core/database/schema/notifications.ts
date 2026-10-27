@@ -85,6 +85,32 @@ export const userChannelRelations = relations(userChannels, ({ one }) => ({
 
 // ===============================
 
+// One current attempt per wallet user. Replacing it invalidates older links.
+export const telegramLoginAttempts = pgTable(
+  'telegram_login_attempts',
+  {
+    id: uuid('id').primaryKey(),
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' })
+      .unique(),
+    state_digest: text('state_digest').notNull().unique(),
+    code_verifier: text('code_verifier'),
+    nonce: text('nonce'),
+    redirect_uri: text('redirect_uri').notNull(),
+    status: text('status')
+      .$type<'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'>()
+      .notNull(),
+    created_at: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('telegram_login_attempts_expiry_index').on(table.expires_at),
+  ],
+)
+
 export const emailVerifications = pgTable('email_verifications', {
   id: uuid('id').primaryKey().default(randomUUIDv7),
   user_id: uuid('user_id')

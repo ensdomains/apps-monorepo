@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import mysterySrc from '../assets/surprise-card-upright@2x.webp'
 
-/** The artwork remains covered until the placeholder texture and the still artwork are ready. */
+/** Keep the artwork covered until the placeholder texture and artwork are ready. */
 export const useNftReveal = (params: {
   readonly enabled: boolean
   readonly status: 'loading' | 'ready' | 'error'
   readonly visible: boolean
-  readonly onComplete?: () => void
 }) => {
   const host = useRef<HTMLDivElement>(null)
   const started = useRef(false)
@@ -15,10 +14,6 @@ export const useNftReveal = (params: {
   )
   const complete = phase === 'complete'
   const ready = params.status === 'ready'
-
-  useEffect(() => {
-    if (complete) params.onComplete?.()
-  }, [complete, params.onComplete])
 
   useEffect(() => {
     if (!params.enabled || !params.visible) {

@@ -12,8 +12,8 @@ describe('cleanupExpiredAuthAttempts', () => {
     const result = await cleanupExpiredAuthAttempts(db)
 
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(2)
-    expect(db.delete).toHaveBeenCalledTimes(1)
-    expect(where).toHaveBeenCalledTimes(1)
+    expect(result._unsafeUnwrap()).toBe(4)
+    expect(db.delete).toHaveBeenCalledTimes(2)
+    expect(where).toHaveBeenCalledTimes(2)
   })
 })

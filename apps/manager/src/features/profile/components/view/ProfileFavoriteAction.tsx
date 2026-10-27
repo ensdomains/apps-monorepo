@@ -20,7 +20,12 @@ import {
 } from '@/features/profile/components/common/favoriteAction.helpers'
 import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
-import { iconActionClassName } from './ProfileAction.styles'
+import {
+  favoriteActionClassName,
+  iconActionClassName,
+  iconActionIconInnerClassName,
+  iconActionSymbolClassName,
+} from './ProfileAction.styles'
 
 export const ProfileFavoriteAction = ({ name }: { readonly name: string }) => {
   const { _ } = useLingui()
@@ -68,18 +73,20 @@ export const ProfileFavoriteAction = ({ name }: { readonly name: string }) => {
     <button
       aria-disabled={isDisabled}
       aria-label={isFavorite ? _(msg`Remove favorite`) : _(msg`Add favorite`)}
-      className={iconActionClassName}
+      className={cn(iconActionClassName, favoriteActionClassName)}
       disabled={isDisabled}
       onClick={toggleFavorite}
       type="button"
     >
-      <MSymbol
-        className={cn(
-          'ms-opsz-32 text-[32px] text-ens-magenta',
-          isFavorite ? 'ms-fill ms-wght-300' : 'ms-wght-200',
-        )}
-        symbol="favorite"
-      />
+      <span className={iconActionIconInnerClassName}>
+        <MSymbol
+          className={cn(
+            iconActionSymbolClassName,
+            isFavorite ? 'ms-fill' : undefined,
+          )}
+          symbol="favorite"
+        />
+      </span>
     </button>
   )
 

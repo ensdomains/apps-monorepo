@@ -2,7 +2,7 @@ import { createExecutionContext } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
 import { eq, inArray } from 'drizzle-orm'
 import { sign } from 'hono/jwt'
-import { err, errAsync, ok, okAsync } from 'neverthrow'
+import { err, ok, okAsync } from 'neverthrow'
 import {
   afterEach,
   beforeAll,
@@ -19,14 +19,12 @@ import { makeMockEnv } from '#test-utils/env.js'
 import { requireLocalTestDatabase } from '#test-utils/real-db-config.js'
 
 const sendVerificationEmail = vi.hoisted(() => vi.fn())
-const verifyTelegramAuth = vi.hoisted(() => vi.fn())
 const makeTelegramRequest = vi.hoisted(() => vi.fn())
 const contacts = vi.hoisted(() => ({
   search: vi.fn(),
   delete: vi.fn(),
 }))
 vi.mock('#services/email/verification.js', () => ({ sendVerificationEmail }))
-vi.mock('#services/telegram/auth.js', () => ({ verifyTelegramAuth }))
 vi.mock('#services/telegram/utils.js', () => ({
   makeTelegramRequest,
   createInlineKeyboard: vi.fn(() => ({ inline_keyboard: [] })),
@@ -88,9 +86,6 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       sendVerificationEmail
         .mockReset()
         .mockImplementation(async () => ok({ statusCode: 202 }))
-      verifyTelegramAuth
-        .mockReset()
-        .mockReturnValue(Promise.resolve(ok(undefined)))
       makeTelegramRequest.mockReset().mockReturnValue(okAsync({}))
       contacts.search.mockReset().mockReturnValue(okAsync(null))
       contacts.delete.mockReset().mockReturnValue(okAsync(undefined))
@@ -860,29 +855,20 @@ describe.skipIf(testEnv.RUN_REAL_DB_TESTS !== '1')(
       await vi.waitFor(() => expect(contacts.delete).toHaveBeenCalledOnce())
     })
 
-    it('keeps Telegram associated but unavailable after 403 and restores it on /start', async () => {
+    it('restores an existing disabled Telegram channel on /start', async () => {
       const telegramId = Math.floor(Math.random() * 1_000_000_000)
-      makeTelegramRequest.mockReturnValueOnce(
-        errAsync({ code: 'TELEGRAM_API_REQUEST_ERROR', errorCode: 403 }),
-      )
-      const connected = await request(0, '/channels/telegram', 'POST', {
-        auth_data: {
-          id: telegramId,
-          username: `test_${telegramId}`,
-          auth_date: Math.floor(Date.now() / 1000),
-          hash: 'validated-by-test',
-        },
-      })
-      expect(connected.status).toBe(200)
-      const channel = await db.query.userChannels.findFirst({
-        where: eq(TABLE.userChannels.user_id, firstUserId()),
-      })
-      expect(channel).toMatchObject({
-        channel: 'telegram',
-        status: 'disabled',
-        status_reason: 'FORBIDDEN_BY_TELEGRAM',
-      })
-      expect(channel?.verified_at).toBeInstanceOf(Date)
+      const [channel] = await db
+        .insert(TABLE.userChannels)
+        .values({
+          user_id: firstUserId(),
+          channel: 'telegram',
+          target: telegramId.toString(),
+          data: { username: `test_${telegramId}` },
+          status: 'disabled',
+          status_reason: 'FORBIDDEN_BY_TELEGRAM',
+          verified_at: new Date(),
+        })
+        .returning()
       if (!channel) throw new Error('Telegram channel was not created')
 
       const started = await app.request(

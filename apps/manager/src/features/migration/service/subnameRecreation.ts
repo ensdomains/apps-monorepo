@@ -58,6 +58,7 @@ const newOwnerEvent = parseAbi([
 const fail: (ensName: string, reason: string) => never = (ensName, reason) => {
   throw new SubnameRecreationError({
     ensName,
+    detail: reason,
     message: `Cannot import subnames of "${ensName}": ${reason}`,
   })
 }

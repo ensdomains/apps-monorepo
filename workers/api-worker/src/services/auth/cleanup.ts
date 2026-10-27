@@ -6,4 +6,13 @@ export const cleanupExpiredAuthAttempts = (db: Database) =>
     db
       .delete(TABLE.authAttempts)
       .where(lte(TABLE.authAttempts.expires_at, new Date())),
-  ).map((result) => result.rowCount)
+  ).andThen((authResult) =>
+    intoDbResult(
+      db
+        .delete(TABLE.telegramLoginAttempts)
+        .where(lte(TABLE.telegramLoginAttempts.expires_at, new Date())),
+    ).map(
+      (telegramResult) =>
+        (authResult.rowCount ?? 0) + (telegramResult.rowCount ?? 0),
+    ),
+  )

@@ -10,6 +10,7 @@ import {
   computeVerifiableProxyAddress,
   getDestinationContracts,
 } from '@ens-apps/smart-account'
+import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
@@ -42,7 +43,6 @@ import {
   isAddressEqual,
   parseAbi,
   zeroAddress,
-  zeroHash,
 } from 'viem'
 import { getBlock, multicall, readContract } from 'viem/actions'
 import type { Signer } from '../..'
@@ -147,6 +147,7 @@ function generateCommitment(
   duration: bigint,
   resolverAddress: Address,
   registrarAddress?: Address,
+  referrer?: Hex,
 ): ResultAsync<CommitmentData, Error> {
   const registrar =
     registrarAddress ??
@@ -177,7 +178,7 @@ function generateCommitment(
           zeroAddress,
           resolverAddress,
           duration,
-          zeroHash,
+          normalizeReferrer(referrer),
         ],
       })
       return { commitment, secret }
@@ -269,11 +270,13 @@ export function encodeRegisterCall({
   paymentToken,
   resolverAddress,
   registrarAddress,
+  referrer,
 }: {
   name: string
   owner: Address
   secret: Hash
   duration: bigint
+  readonly referrer?: Hex
   paymentToken: Address
   resolverAddress: Address
   registrarAddress: Address
@@ -291,7 +294,7 @@ export function encodeRegisterCall({
         resolverAddress,
         duration,
         paymentToken,
-        zeroHash,
+        normalizeReferrer(referrer),
       ],
     }),
     value: 0n,
@@ -571,6 +574,7 @@ export function generateCommitmentActor(input: {
   name: string
   owner: Address
   duration: bigint
+  readonly referrer?: Hex
   publicClient: PublicClient
   selectedToken: TOKEN_SYMBOL
   resolverAddress: Address
@@ -587,6 +591,7 @@ export function generateCommitmentActor(input: {
     input.duration,
     input.resolverAddress,
     registrarAddress,
+    input.referrer,
   )
 }
 
@@ -1344,6 +1349,7 @@ export function submitRegistrationActor(input: {
   commitment: CommitmentData
   signer: import('../..').Signer
   duration: bigint
+  readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
   owner: Address
   publicClient: PublicClient
@@ -1383,6 +1389,7 @@ export function submitRegistrationActor(input: {
         owner: input.owner,
         secret: input.commitment.secret,
         duration: input.duration,
+        referrer: input.referrer,
         registrarAddress,
         paymentToken: normalizedPaymentToken,
         resolverAddress: input.resolverAddress,
@@ -1485,12 +1492,16 @@ export function encodeRenewData(
   label: string,
   duration: bigint,
   paymentToken: Address,
+  referrer?: Hex,
 ): Hash {
   const cleanLabel = label.replace('.eth', '')
   return encodeFunctionData({
     abi: ethRegistrarRenewSnippet,
     functionName: 'renew',
-    args: [{ label: cleanLabel, duration, referrer: zeroHash }, paymentToken],
+    args: [
+      { label: cleanLabel, duration, referrer: normalizeReferrer(referrer) },
+      paymentToken,
+    ],
   })
 }
 
@@ -1501,6 +1512,7 @@ export interface RenewDataEntry {
   readonly label: string
   /** Duration in SECONDS, as `renew` takes it. */
   readonly duration: bigint
+  readonly referrer?: Hex
 }
 
 /**
@@ -1521,7 +1533,7 @@ export function encodeRenewBatchData(
       entries.map((entry) => ({
         label: entry.label.replace('.eth', ''),
         duration: entry.duration,
-        referrer: zeroHash,
+        referrer: normalizeReferrer(entry.referrer),
       })),
       paymentToken,
     ],
@@ -1537,6 +1549,7 @@ export function encodeRenewBatchData(
 export function submitRenewActor(input: {
   label: string
   duration: bigint
+  readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
   signer: import('../..').Signer
   publicClient: PublicClient
@@ -1577,6 +1590,7 @@ export function submitRenewActor(input: {
         input.label,
         input.duration,
         normalizedPaymentToken,
+        input.referrer,
       )
 
       const request = createTransactionRequest({

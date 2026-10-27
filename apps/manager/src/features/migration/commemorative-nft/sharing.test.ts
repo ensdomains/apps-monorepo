@@ -121,20 +121,20 @@ describe('commemorative NFT sharing', () => {
   })
 
   it('builds the Ethereum OpenSea link for the configured contract', () => {
-    vi.spyOn(config, 'getCommemorativeNftContractAddress').mockReturnValue(
-      '0x0000000000000000000000000000000000000001',
-    )
-
     expect(
       buildCommemorativeNftMarketplaceUrl({
         ownerAddress,
       }),
     ).toBe(
-      'https://opensea.io/assets/ethereum/0x0000000000000000000000000000000000000001/46455108410614081663945406319915307572171076188378075311311703967581922008221',
+      'https://opensea.io/assets/ethereum/0x20262e3433306a4FF250a64d20a8E0F09B2C7F68/46455108410614081663945406319915307572171076188378075311311703967581922008221',
     )
   })
 
-  it('does not expose OpenSea for undeployed mainnet', () => {
+  it('does not expose OpenSea without a configured contract', () => {
+    vi.spyOn(config, 'getCommemorativeNftContractAddress').mockReturnValue(
+      undefined,
+    )
+
     expect(
       buildCommemorativeNftMarketplaceUrl({
         ownerAddress,

@@ -12,8 +12,11 @@ vi.mock('wagmi', () => wagmiMock)
 
 import { makeDomain } from '../service/_fixtures'
 import {
+  loadMigrationRecoverySnapshot,
   type MigrationRecoverySnapshot,
   persistMigrationRecoverySnapshot,
+  persistPendingAtomicMigrationAttempt,
+  removePendingAtomicMigrationIntent,
 } from '../service/migrationBatchJournal'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
@@ -103,6 +106,32 @@ describe('useMigrationRecoverySnapshot', () => {
     expect(result.current?.plannedApprovals).toEqual([
       { id: 'eth-registry:hca' },
     ])
+  })
+
+  it('discards a fresh recovery snapshot after its pending attempt is rejected', () => {
+    const recovery = makeRecoverySnapshot()
+    const freshRecovery = {
+      ...recovery,
+      remainingOperations: recovery.registryOperations,
+      completedOperations: [],
+    }
+    const intent = {
+      id: 'intent-1',
+      names: freshRecovery.remainingOperations.map(({ name }) => name),
+      operations: freshRecovery.remainingOperations,
+    }
+    persistPendingAtomicMigrationAttempt(scope, {
+      recovery: freshRecovery,
+      intent,
+    })
+
+    const { result } = renderHook(() => useMigrationRecoverySnapshot())
+    expect(result.current).toMatchObject({ completedOperations: [] })
+
+    act(() => removePendingAtomicMigrationIntent(scope, intent.id))
+
+    expect(result.current).toBeNull()
+    expect(loadMigrationRecoverySnapshot(scope)).toBeNull()
   })
 
   it('does not load another HCA scope', () => {

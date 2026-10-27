@@ -10,6 +10,10 @@ import { publicClient, testClient } from '../../../helpers/anvil-client.js'
 import { expectFlowSuccess } from '../../../helpers/flow-completion.js'
 import { fundTestUsdc } from '../../../helpers/fund-test-usdc.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
+import {
+  clickRegistrationPaymentAction,
+  selectUsdcIfNeeded,
+} from '../../../helpers/payment-picker.js'
 import { readPrimaryName } from '../../../helpers/primary-name.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -79,7 +83,7 @@ firstRegistrationTest.describe(
         // the EnableSessions modal before the token picker. Idempotent no-op in
         // EOA mode. See registration-rhinestone.spec.ts.
         await clickThroughEnableSessions(page)
-        await page.getByRole('button', { name: 'Select USDC' }).click()
+        await selectUsdcIfNeeded(page)
         await page.getByRole('button', { name: /register name/i }).click()
 
         // RegisteringStep renders NotificationSettings for as long as the
@@ -106,7 +110,7 @@ firstRegistrationTest.describe(
           () => registrationComplete,
         )
 
-        const successBanner = page.locator('p.text-ens-peridot-text-dark')
+        const successBanner = page.getByRole('status')
         await expectFlowSuccess(page, {
           success: successBanner.filter({ hasText: 'Registration Complete' }),
           failureTitle: 'Registration Failed',

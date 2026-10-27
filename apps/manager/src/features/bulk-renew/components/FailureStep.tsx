@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { XCircle } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
@@ -23,20 +23,14 @@ export const FailureStep = ({
       </DialogTitle>
     </DialogHeader>
 
-    <div className="flex items-start gap-3 rounded-lg border border-ens-garnet-dust bg-ens-garnet-dust/15 p-4">
-      <XCircle
-        aria-hidden
-        className="mt-0.5 size-4 shrink-0 text-ens-garnet-dense"
-      />
-      <div className="flex min-w-0 flex-col gap-1">
-        <p className="font-medium font-sans text-ens-garnet-dense text-sm">
-          <Trans>Something went wrong</Trans>
-        </p>
-        <p className="wrap-anywhere max-h-32 overflow-y-auto font-sans text-ens-garnet-dense/70 text-sm">
-          {errorMessage ?? <Trans>The renewal could not be completed.</Trans>}
-        </p>
-      </div>
-    </div>
+    <Alert className="font-sans" variant="destructive">
+      <AlertTitle>
+        <Trans>Something went wrong</Trans>
+      </AlertTitle>
+      <AlertDescription className="max-h-32 overflow-y-auto">
+        {errorMessage ?? <Trans>The renewal could not be completed.</Trans>}
+      </AlertDescription>
+    </Alert>
 
     <div className="flex gap-3">
       <Button

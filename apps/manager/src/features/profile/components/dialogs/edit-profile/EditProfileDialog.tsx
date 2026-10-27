@@ -88,6 +88,7 @@ export const EditProfileDialog = ({
     resetPreparedImageSaveState,
     preparedImageUploads,
     setupConfirmOpen,
+    setupRecordWrites,
     recheckResolverAccess,
   } = useEditProfileDialogSave({
     dialogActor,
@@ -203,7 +204,7 @@ export const EditProfileDialog = ({
                   {resolverCopySource.kind === 'setup' ? (
                     <Trans>Set up resolver</Trans>
                   ) : (
-                    <Trans>Upgrade resolver</Trans>
+                    <Trans>Replace resolver</Trans>
                   )}
                 </Button>
               ) : null}
@@ -228,7 +229,7 @@ export const EditProfileDialog = ({
                 ) : resolverCopySource?.kind === 'setup' ? (
                   <Trans>Set up resolver</Trans>
                 ) : (
-                  <Trans>Copy & edit records</Trans>
+                  <Trans>Replace & edit records</Trans>
                 )}
               </Button>
             </div>
@@ -268,6 +269,7 @@ export const EditProfileDialog = ({
         onConfirm={confirmSetupSave}
         onOpenChange={handleSetupConfirmOpenChange}
         open={setupConfirmOpen}
+        recordWrites={setupRecordWrites}
       />
     </>
   )

@@ -96,9 +96,13 @@ const pillClass = (variant: EntityVariant, className?: string) =>
 const chipClass = entityActionVariants()
 
 interface EntityBadgeProps {
-  readonly children: ReactNode
+  readonly children?: ReactNode
   readonly variant: EntityVariant
   readonly className?: string
+  /** Layout constraints for the outer badge, e.g. `max-w-72` in a table. */
+  readonly containerClassName?: string
+  /** Shorten encoded labelhashes in name text; links and copy keep the full value. */
+  readonly shortenLabelhashes?: boolean
   /** Optional leading label rendered inside the pill */
   readonly label?: string
   /** ENS name — enables Name chip (→ /$name) + Copy chip */
@@ -143,6 +147,32 @@ interface EntityBadgeProps {
   readonly compact?: boolean
 }
 
+const getEntityDisplay = ({
+  children,
+  variant,
+  name,
+  format,
+  shortenLabelhashes,
+}: Pick<
+  EntityBadgeProps,
+  'children' | 'variant' | 'name' | 'format' | 'shortenLabelhashes'
+>) => {
+  const displayValue = children ?? (variant === 'name' ? name : undefined)
+  const displayText =
+    variant === 'name' && shortenLabelhashes && typeof displayValue === 'string'
+      ? displayValue.replace(
+          /\[([a-fA-F0-9]{64})\]/g,
+          (_, hash: string) => `[${hash.slice(0, 4)}…${hash.slice(-4)}]`,
+        )
+      : displayValue
+  const fullText =
+    typeof displayValue === 'string' &&
+    (format === 'truncate' || displayText !== displayValue)
+      ? displayValue
+      : undefined
+  return { text: displayText, title: fullText }
+}
+
 /**
  * Parent-scope classes that restore EntityBadge's hover-chip horizontal padding
  * (`-ml-2` + inner `px-2`) for leading / left-column slots. Right-aligned badges
@@ -155,6 +185,8 @@ export const EntityBadge = ({
   children,
   variant,
   className,
+  containerClassName,
+  shortenLabelhashes = true,
   label,
   name,
   ownerName,
@@ -219,13 +251,20 @@ export const EntityBadge = ({
     derivedCopyValue
   )
 
+  const { text: displayText, title: fullText } = getEntityDisplay({
+    children,
+    variant,
+    name,
+    format,
+    shortenLabelhashes,
+  })
   const content =
     format === 'truncate' ? (
-      <span className="truncate">{children}</span>
+      <span className="truncate">{displayText}</span>
     ) : format === 'wrap' ? (
-      <span className="break-all">{children}</span>
+      <span className="break-all">{displayText}</span>
     ) : (
-      children
+      displayText
     )
 
   if (!hasChips) {
@@ -237,7 +276,9 @@ export const EntityBadge = ({
           formatPillClass[format],
           stacksLabel && labeledWrapPillClass,
           type === 'content' && 'bg-transparent dark:bg-transparent',
+          containerClassName,
         )}
+        title={fullText}
       >
         {labelContent}
         {content}
@@ -406,10 +447,12 @@ export const EntityBadge = ({
   return (
     <div
       data-entity-badge
+      title={fullText}
       className={cn(
         'relative group/entity inline-flex',
         (format === 'truncate' || format === 'wrap') && 'max-w-full min-w-0',
         stacksLabel && 'w-fit',
+        containerClassName,
       )}
     >
       {/*

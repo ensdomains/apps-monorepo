@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils'
 
 export type MigrationValuePropMedia = {
   readonly alt: string
+  /** A transparent image that carries its own shape, drawn without the card frame. */
+  readonly isFrameless?: boolean
   readonly mimeType?: string
   readonly poster?: string
   readonly src: string
@@ -64,6 +66,21 @@ export const MigrationValuePropMediaCard = ({
           </div>
         )}
       </div>
+    )
+  }
+
+  if (media.isFrameless) {
+    return (
+      <img
+        alt={media.alt}
+        // Same aspect ratio as the framed cards so the carousel keeps its height.
+        className={cn(
+          'pointer-events-none aspect-[228/320] w-full select-none object-contain drop-shadow-lg',
+          className,
+        )}
+        draggable={false}
+        src={media.src}
+      />
     )
   }
 

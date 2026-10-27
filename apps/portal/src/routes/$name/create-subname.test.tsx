@@ -6,6 +6,7 @@ import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestQueryClient } from '@/test-utils/providers'
 
+const navigate = vi.fn()
 const NAME = 'parent.eth'
 const CONNECTED: Address = '0x0000000000000000000000000000000000000011'
 const OTHER: Address = '0x0000000000000000000000000000000000000022'
@@ -15,7 +16,7 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
     <a href={to}>{children}</a>
   ),
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigate,
   createFileRoute: () => (options: Record<string, unknown>) => ({
     ...options,
     useParams: () => ({ name: NAME }),
@@ -98,7 +99,15 @@ vi.mock('@/features/registry/hooks/useCreateSubname', () => ({
   }),
 }))
 vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
-  TransactionModal: () => null,
+  TransactionModal: ({
+    transactions,
+  }: {
+    transactions: { onDone: () => void }[]
+  }) => (
+    <button type="button" onClick={() => transactions[0].onDone()}>
+      Complete creation
+    </button>
+  ),
 }))
 vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
   useTransactionModal: () => ({
@@ -303,5 +312,20 @@ describe('create subname under a V2 parent', () => {
       await screen.findByText('sub.parent.eth is already registered.'),
     ).toBeInTheDocument()
     expect(submit()).toBeDisabled()
+  })
+})
+
+it('opens the newly created child profile after completion', async () => {
+  protocolVersion = 'ENSv2'
+  rootRoles = ['ROLE_REGISTRAR']
+  labelLookup = 'available'
+  renderRoute()
+  await userEvent.type(await screen.findByLabelText('Subname'), 'child')
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Complete creation' }),
+  )
+  expect(navigate).toHaveBeenCalledWith({
+    to: '/$name',
+    params: { name: 'child.parent.eth' },
   })
 })

@@ -4,6 +4,8 @@
 
 Notifications are organized by product surface and kind-local rendering.
 
+Telegram contact setup uses the same OIDC flow in settings and registration. See [Telegram login and deployment](../../../../../workers/api-worker/src/services/telegram/OIDC.md).
+
 - `@ens-apps/shared-schema/notifications` owns runtime notification definitions:
   - kind identity
   - payload schemas

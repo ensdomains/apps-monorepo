@@ -1,8 +1,9 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
-import { Clock, XCircle } from 'lucide-react'
+import { Clock } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 
@@ -77,49 +78,36 @@ export const FailureStepView = ({
 
   return (
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
-      <div className="flex items-start gap-3 rounded-lg border border-ens-lapis-dust bg-ens-lapis-tint p-4">
-        {isWalletBusy ? (
-          <Clock
-            aria-hidden="true"
-            className="mt-0.5 size-4 shrink-0 text-ens-lapis-dense"
-          />
-        ) : (
-          <XCircle
-            aria-hidden="true"
-            className="mt-0.5 size-4 shrink-0 text-ens-lapis-dense"
-          />
-        )}
-        <div className="flex min-w-0 flex-col gap-1">
-          <p className="font-medium text-ens-lapis-dense text-sm leading-5">
-            {match({ nameUnavailable, isWalletBusy })
-              .with({ nameUnavailable: true }, () => (
-                <Trans>Name No Longer Available</Trans>
-              ))
-              .with({ isWalletBusy: true }, () => (
-                <Trans>Another Registration Is Running</Trans>
-              ))
-              .otherwise(() => (
-                <Trans>Registration Failed</Trans>
-              ))}
-          </p>
-          <p className="wrap-anywhere max-h-32 overflow-y-auto text-ens-lapis-dense/70 text-sm leading-5">
-            {match({ nameUnavailable, message })
-              .with(
-                { nameUnavailable: true },
-                () =>
-                  t`${label}.eth was registered by someone else just before your registration went through.`,
-              )
-              .with(
-                { message: P.string.minLength(1) },
-                ({ message }) => message,
-              )
-              .otherwise(
-                () =>
-                  t`The registration for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`,
-              )}
-          </p>
-        </div>
-      </div>
+      <Alert
+        icon={isWalletBusy ? <Clock className="size-4" /> : undefined}
+        variant="destructive"
+      >
+        <AlertTitle>
+          {match({ nameUnavailable, isWalletBusy })
+            .with({ nameUnavailable: true }, () => (
+              <Trans>Name No Longer Available</Trans>
+            ))
+            .with({ isWalletBusy: true }, () => (
+              <Trans>Another Registration Is Running</Trans>
+            ))
+            .otherwise(() => (
+              <Trans>Registration Failed</Trans>
+            ))}
+        </AlertTitle>
+        <AlertDescription className="max-h-32 overflow-y-auto">
+          {match({ nameUnavailable, message })
+            .with(
+              { nameUnavailable: true },
+              () =>
+                t`${label}.eth was registered by someone else just before your registration went through.`,
+            )
+            .with({ message: P.string.minLength(1) }, ({ message }) => message)
+            .otherwise(
+              () =>
+                t`The registration for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`,
+            )}
+        </AlertDescription>
+      </Alert>
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-16">
         <div className="w-full lg:w-1/2">

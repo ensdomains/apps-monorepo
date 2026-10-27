@@ -25,7 +25,7 @@ type UseNetworkSwitchingParams = {
  *
  * The L2 branch uses the local-only `l2WagmiConfig` so wagmi pulls chain
  * metadata (RPCs, explorers) for any EIP-3085 `wallet_addEthereumChain` call
- * from the L2 config rather than the global Sepolia-only config — keeping
+ * from the L2 config rather than the global L1-only config — keeping
  * the global config completely untouched.
  *
  * Important: wagmi's `switchChain` only prompts the wallet when the target
@@ -38,8 +38,8 @@ export function useSwitchToRequiredNetwork({
   network = envConfig.network,
 }: UseNetworkSwitchingParams) {
   // Read `chainId` (connector-reported) rather than `chain` (config-resolved).
-  // The global config only knows about Sepolia, so `chain` is `undefined`
-  // whenever the wallet is on an L2.
+  // The global config only knows about the build's L1 chain, so `chain` is
+  // `undefined` whenever the wallet is on an L2.
   const { chainId: connectedChainId } = useAccount()
 
   const isL1Target = isL1ReverseRegistrarChainId(reverseRegistrarChainId)

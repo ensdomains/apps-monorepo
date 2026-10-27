@@ -4,24 +4,18 @@ import { getPaymentMethodVisibility } from '../lib/paymentMethodVisibility'
 
 export type PaymentMethodListItem = {
   readonly id: string
-  readonly isAvailable: boolean
-  readonly isFunded: boolean
-  readonly isCommon: boolean
+  readonly isSelected: boolean
   readonly content: React.ReactNode
 }
 
 export const PaymentMethodList = ({
   items,
-  defaultExpanded = false,
 }: {
   readonly items: readonly PaymentMethodListItem[]
-  readonly defaultExpanded?: boolean
 }) => {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
-  const { visibleMethods, hiddenCount } = getPaymentMethodVisibility(
-    items,
-    isExpanded,
-  )
+  const [isExpanded, setIsExpanded] = useState(false)
+  const { visibleMethods } = getPaymentMethodVisibility(items, isExpanded)
+  const { hiddenCount } = getPaymentMethodVisibility(items, false)
 
   return (
     <div
@@ -32,7 +26,7 @@ export const PaymentMethodList = ({
     >
       <ul
         aria-label="Payment methods"
-        className="flex w-full list-none flex-col gap-3 p-0 sm:gap-0"
+        className="flex w-full list-none flex-col p-0"
       >
         {visibleMethods.map((item) => (
           <li key={item.id}>{item.content}</li>
@@ -41,11 +35,15 @@ export const PaymentMethodList = ({
       {hiddenCount > 0 && (
         <button
           aria-expanded={isExpanded}
-          className="mt-3 self-center rounded px-3 py-2 font-medium text-ens-quartz-900 text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
-          onClick={() => setIsExpanded(true)}
+          className="mt-6 self-center rounded-lg border-[0.5px] border-ens-quartz-300 px-5 py-4 font-medium font-mono text-[10px] text-ens-quartz-900 uppercase tracking-[1.2px] outline-none hover:bg-black/[0.025] focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
+          onClick={() => setIsExpanded(!isExpanded)}
           type="button"
         >
-          <Trans>Load {hiddenCount} more</Trans>
+          {isExpanded ? (
+            <Trans>Show fewer</Trans>
+          ) : (
+            <Trans>Load {hiddenCount} more</Trans>
+          )}
         </button>
       )}
     </div>

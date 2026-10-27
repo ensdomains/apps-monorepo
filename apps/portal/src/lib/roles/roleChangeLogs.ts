@@ -314,9 +314,15 @@ class MissingBlockTimestampError extends TaggedError(
 export const toRoleHistoryEntries = ResultFn(async function* ({
   logs,
   resource,
+  decodeRoles = decodeRoleBitmap,
 }: {
   readonly logs: readonly RoleChangeLog[]
   readonly resource: bigint
+  /**
+   * Decoder for the surface's role vocabulary. Root history keeps the
+   * `can_name` bits ensjs does not list; a name's history uses ensjs's set.
+   */
+  readonly decodeRoles?: (bitmap: bigint) => readonly string[]
 }) {
   // Indexed rows already carry their time; only node logs need the lookup.
   const undated = logs.filter((log) => log.timestamp === undefined)
@@ -341,8 +347,8 @@ export const toRoleHistoryEntries = ResultFn(async function* ({
     entries.push({
       account: log.args.account,
       resource: resourceHex,
-      oldRoles: decodeRoleBitmap(log.args.oldRoleBitmap),
-      newRoles: decodeRoleBitmap(log.args.newRoleBitmap),
+      oldRoles: decodeRoles(log.args.oldRoleBitmap),
+      newRoles: decodeRoles(log.args.newRoleBitmap),
       transactionHash: log.transactionHash,
       timestamp,
       blockNumber: log.blockNumber,

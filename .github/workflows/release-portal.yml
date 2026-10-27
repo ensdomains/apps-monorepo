@@ -78,6 +78,13 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     environment: swarm
+    # No PostHog, Intercom or WalletConnect on the .eth mirror. eth.limo sends
+    # `Clear-Site-Data: "cookies"`, so their cookies never survive a reload,
+    # and the WalletConnect project doesn't allow the domain.
+    env:
+      VITE_PUBLIC_POSTHOG_KEY: ""
+      VITE_INTERCOM_APP_ID: ""
+      VITE_WALLETCONNECT_PROJECT_ID: ""
 
     # Anchored (&name) here and reused (*name) by the cloudflare job.
     steps:

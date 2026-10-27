@@ -31,10 +31,12 @@ describe('commemorative NFT config', () => {
     )
   })
 
-  it('keeps undeployed mainnet unavailable without a Sepolia fallback', () => {
+  it('uses the resolved ENS network for the deployed mainnet contract', () => {
     config.network = 'mainnet'
     vi.stubEnv('VITE_ENS_NETWORK', 'sepolia')
-    expect(getCommemorativeNftContractAddress()).toBeUndefined()
+    expect(getCommemorativeNftContractAddress()).toBe(
+      '0x20262e3433306a4FF250a64d20a8E0F09B2C7F68',
+    )
   })
 
   it('uses the configured renderer origin', () => {

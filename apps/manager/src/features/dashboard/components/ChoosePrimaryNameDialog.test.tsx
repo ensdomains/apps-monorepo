@@ -9,6 +9,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { ok } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NavSection } from '@/features/navigation/Header/account/NavSection'
+import type { PrimaryNamePreparation } from '@/features/profile/service/primaryNamePreparation'
 import { render } from '@/utils/test-utils'
 import { DashboardPage } from '../pages/DashboardPage'
 import { MyNamesList } from './MyNamesList'
@@ -25,11 +26,17 @@ const rowRecordsQueryKey = createQueryKey<'row-records', NameQueryParams>(
   'row-records',
 )
 
+const PROBED_RESOLVER = '0x00000000000000000000000000000000000000a1'
+/** What a URv1 reports resolving a v2 name through: the read-only `.eth` ENSV2Resolver. */
+const BRIDGE_RESOLVER = '0x00000000000000000000000000000000000000b2'
+
 const chain = vi.hoisted(() => ({
   primaryName: 'alpha.eth' as string | null,
   owner: '0x0000000000000000000000000000000000000001',
+  preparation: { kind: 'ready' } as PrimaryNamePreparation,
   read: vi.fn(),
   submit: vi.fn(),
+  saveRecords: vi.fn(),
 }))
 
 const dashboardNamesMock = vi.hoisted(() => ({
@@ -39,8 +46,6 @@ const dashboardNamesMock = vi.hoisted(() => ({
 const eligibilityMock = vi.hoisted(() => ({
   useDashboardMigrationEligibility: vi.fn(),
 }))
-
-const featureFlags = vi.hoisted(() => ({ migration: false }))
 
 // Keep the real reverse query, QueryClient, chooser, useSetPrimaryName mutation,
 // Dashboard, card, MyNamesList and NavSection. Stub only IO and unrelated panels.
@@ -68,7 +73,20 @@ vi.mock('@/features/profile/service/setPrimaryName', () => ({
   setPrimaryNameWithHca: vi.fn(),
 }))
 vi.mock('@/features/profile/service/primaryNamePreparation', () => ({
-  getPrimaryNamePreparation: async () => ({ kind: 'ready' }),
+  getPrimaryNamePreparation: async () => chain.preparation,
+}))
+vi.mock(
+  '@/features/profile/service/profileRecordTransactions',
+  async (original) => ({
+    ...(await original<
+      typeof import('@/features/profile/service/profileRecordTransactions')
+    >()),
+    saveRecords: (args: unknown) => chain.saveRecords(args),
+  }),
+)
+vi.mock('@/features/profile/service/profileEthAddress', () => ({
+  getProfileEthAddressSnapshot: async () =>
+    ok({ resolverAddress: BRIDGE_RESOLVER, ethAddress: undefined }),
 }))
 vi.mock('@/features/profile/service/profileRecords', () => ({
   profileRecordsQuery: (name: string) => ({
@@ -157,7 +175,6 @@ vi.mock('./NamesTable', () => ({
       <MyNamesList
         favoriteLabels={new Set()}
         isAuthenticated
-        migrationEnabled={false}
         onToggleFavorite={() => undefined}
         primaryLabel={primaryLabel}
         sort="name-asc"
@@ -165,9 +182,14 @@ vi.mock('./NamesTable', () => ({
     </section>
   ),
 }))
-vi.mock('@posthog/react', () => ({
-  useFeatureFlagEnabled: (flag: string) =>
-    flag === 'migration' && featureFlags.migration,
+vi.mock('@/features/migration/components/MigrationModal', () => ({
+  MigrationModal: () => null,
+}))
+vi.mock('@/features/migration/components/MigrationProgressBanner', () => ({
+  MigrationProgressBanner: () => null,
+}))
+vi.mock('@/features/migration/components/UpgradeBanner', () => ({
+  UpgradeBanner: () => null,
 }))
 vi.mock('@/lib/posthog/useMigrationNftEnabled', () => ({
   useMigrationNftEnabled: () => false,
@@ -219,6 +241,8 @@ const expectPrimary = async (name: string) => {
 describe('chooser completion refreshes the wallet-scoped surfaces', () => {
   beforeEach(() => {
     chain.primaryName = 'alpha.eth'
+    chain.preparation = { kind: 'ready' }
+    chain.saveRecords.mockReset().mockResolvedValue({})
     chain.read.mockReset().mockImplementation(async () => chain.primaryName)
     chain.submit
       .mockReset()
@@ -336,6 +360,44 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
     finishReverseRead('beta.eth')
     await expectPrimary('beta.eth')
     expect(list.contains(document.activeElement)).toBe(true)
+  })
+
+  it('writes the ETH address to the probed resolver, not the one resolution went through', async () => {
+    chain.preparation = {
+      kind: 'update-eth-address',
+      existingEthAddress: null,
+      resolverAddress: PROBED_RESOLVER,
+    }
+    await renderDashboard()
+    await expectPrimary('alpha.eth')
+    const list = screen.getByRole('region', { name: 'My Names' })
+    fireEvent.click(within(list).getByRole('button', { name: 'Primary Name' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Choose Primary Name',
+    })
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'Select beta.eth as primary name',
+      }),
+    )
+    const confirm = within(dialog).getByRole('button', {
+      name: 'Set as Primary',
+    })
+    await waitFor(() => expect(confirm).toBeEnabled())
+    fireEvent.click(confirm)
+    const warning = await screen.findByRole('alertdialog', {
+      name: 'Set this as your primary name?',
+    })
+    fireEvent.click(within(warning).getByRole('button', { name: 'Confirm' }))
+
+    await waitFor(() => expect(chain.submit).toHaveBeenCalledOnce())
+    expect(chain.saveRecords).toHaveBeenCalledOnce()
+    expect(chain.saveRecords).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'beta.eth',
+        resolverAddress: PROBED_RESOLVER,
+      }),
+    )
   })
 
   it('keeps current surfaces and chooser on transaction failure', async () => {

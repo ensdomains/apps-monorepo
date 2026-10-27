@@ -37,7 +37,7 @@ describe('ProfileHeader', () => {
       .getByRole('heading', { name: 'Profile Description' })
       .closest('section')?.parentElement
 
-    expect(aboutContainer).toHaveClass('mt-29', 'xl:mt-0')
+    expect(aboutContainer).toHaveClass('mt-6', 'xl:mt-0')
   })
 
   it('shows the full description when the two-line preview overflows', () => {
