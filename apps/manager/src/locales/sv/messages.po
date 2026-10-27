@@ -1545,6 +1545,10 @@ msgstr ""
 msgid "Importing records…"
 msgstr ""
 
+#: src/features/migration/components/NameRow.tsx
+msgid "In grace period"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "in your wallet"
 msgstr ""
@@ -2473,10 +2477,6 @@ msgstr ""
 msgid "Renew"
 msgstr ""
 
-#: src/features/migration/components/NameRow.tsx
-msgid "Renew before upgrade"
-msgstr ""
-
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renew name"
@@ -3361,6 +3361,10 @@ msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name is in grace period"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStepNameList.tsx
+msgid "This name is in its grace period. Renew it before upgrading."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx

@@ -223,7 +223,7 @@ describe('useNameSelection', () => {
     expect(result.current.selected).toEqual(new Set(['affected.eth']))
   })
 
-  it('selects eligible and grace-period names by default and allows deselection', async () => {
+  it('selects eligible names by default and keeps grace-period names opt-in', async () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()
     const eligible = [makeName('active.eth')]
     const gracePeriodNames = [makeGracePeriodName('grace.eth')]
@@ -237,16 +237,19 @@ describe('useNameSelection', () => {
       }),
     )
 
-    await waitFor(() => expect(result.current.totalSelected).toBe(2))
+    await waitFor(() => expect(result.current.totalSelected).toBe(1))
     expect(result.current.filteredGracePeriodNames).toEqual(gracePeriodNames)
     expect(result.current.visibleCount).toBe(2)
     expect(result.current.displayedCount).toBe(2)
+    expect(result.current.selected).toEqual(new Set(['active.eth']))
+    expect(result.current.allSelected).toBe(false)
+    expect(onNamesChange).toHaveBeenLastCalledWith(['active.eth'])
+
+    act(() => result.current.toggleName('grace.eth'))
     expect(result.current.selected).toEqual(
       new Set(['active.eth', 'grace.eth']),
     )
     expect(result.current.allSelected).toBe(true)
-    expect(onNamesChange).toHaveBeenLastCalledWith(['active.eth', 'grace.eth'])
-
     act(() => result.current.toggleName('grace.eth'))
     expect(result.current.selected).toEqual(new Set(['active.eth']))
     expect(result.current.allSelected).toBe(false)
@@ -261,7 +264,7 @@ describe('useNameSelection', () => {
     expect(result.current.totalSelected).toBe(0)
   })
 
-  it('waits for names to finish loading before selecting eligible and grace-period names', () => {
+  it('waits for names to finish loading before selecting eligible names', () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()
     const { result, rerender } = renderHook(
       (names: {
@@ -292,11 +295,9 @@ describe('useNameSelection', () => {
       isPending: false,
     })
 
-    expect(result.current.selected).toEqual(
-      new Set(['active.eth', 'grace.eth']),
-    )
-    expect(result.current.allSelected).toBe(true)
-    expect(onNamesChange).toHaveBeenLastCalledWith(['active.eth', 'grace.eth'])
+    expect(result.current.selected).toEqual(new Set(['active.eth']))
+    expect(result.current.allSelected).toBe(false)
+    expect(onNamesChange).toHaveBeenLastCalledWith(['active.eth'])
   })
 
   it('includes grace-period names in case-insensitive search results', () => {
@@ -326,7 +327,7 @@ describe('useNameSelection', () => {
     expect(result.current.visibleCount).toBe(3)
   })
 
-  it('selects every name by default for grace-only wallets', () => {
+  it('leaves grace-only wallets unselected until the user opts in', () => {
     const onNamesChange = vi.fn<(names: string[]) => void>()
     const gracePeriodNames = [
       makeGracePeriodName('grace.eth'),
@@ -345,11 +346,14 @@ describe('useNameSelection', () => {
     expect(result.current.filteredGracePeriodNames).toEqual(gracePeriodNames)
     expect(result.current.displayedCount).toBe(2)
     expect(result.current.visibleCount).toBe(2)
-    expect(result.current.totalSelected).toBe(2)
-    expect(result.current.allSelected).toBe(true)
-    expect(result.current.selected).toEqual(new Set(['grace.eth', 'other.eth']))
-    expect(onNamesChange).toHaveBeenLastCalledWith(['grace.eth', 'other.eth'])
+    expect(result.current.totalSelected).toBe(0)
+    expect(result.current.allSelected).toBe(false)
+    expect(result.current.selected).toEqual(new Set())
+    expect(onNamesChange).toHaveBeenLastCalledWith([])
 
+    act(() => result.current.toggleAll())
+    expect(result.current.selected).toEqual(new Set(['grace.eth', 'other.eth']))
+    expect(result.current.allSelected).toBe(true)
     act(() => result.current.toggleAll())
     expect(result.current.totalSelected).toBe(0)
     expect(result.current.selected).toEqual(new Set())
@@ -381,7 +385,7 @@ describe('useNameSelection', () => {
       },
     )
 
-    act(() => result.current.toggleName('unselected.eth'))
+    act(() => result.current.toggleName('selected.eth'))
     rerender({
       eligible: [makeName('selected.eth'), makeName('unselected.eth')],
       gracePeriodNames: [],
@@ -411,6 +415,7 @@ describe('useNameSelection', () => {
       },
     )
 
+    act(() => result.current.toggleName('grace.eth'))
     expect(result.current.selected).toEqual(
       new Set(['active.eth', 'grace.eth']),
     )
@@ -472,31 +477,29 @@ describe('useNameSelection', () => {
       }),
     )
 
-    expect(result.current.selected).toEqual(new Set(['owned.eth', 'grace.eth']))
+    expect(result.current.selected).toEqual(new Set(['owned.eth']))
     expect(result.current.allSelected).toBe(false)
-    expect(onNamesChange).toHaveBeenLastCalledWith(['owned.eth', 'grace.eth'])
+    expect(onNamesChange).toHaveBeenLastCalledWith(['owned.eth'])
 
     act(() => result.current.toggleName('gifted.eth'))
     expect(result.current.selected).toEqual(
       new Set([
         'owned.eth',
-        'grace.eth',
         'gifted.eth',
         'child.gifted.eth',
         'deep.child.gifted.eth',
       ]),
     )
-    expect(result.current.allSelected).toBe(true)
+    expect(result.current.allSelected).toBe(false)
     expect(onNamesChange).toHaveBeenLastCalledWith([
       'owned.eth',
-      'grace.eth',
       'gifted.eth',
       'child.gifted.eth',
       'deep.child.gifted.eth',
     ])
 
     act(() => result.current.toggleName('gifted.eth'))
-    expect(result.current.selected).toEqual(new Set(['owned.eth', 'grace.eth']))
+    expect(result.current.selected).toEqual(new Set(['owned.eth']))
   })
 
   it('preserves saved recovery selections that need manager restoration', () => {
@@ -568,11 +571,12 @@ describe('useNameSelection', () => {
       }),
     )
 
-    expect(result.current.selected).toEqual(
-      new Set(['wrapped.eth', 'grace.eth']),
-    )
+    expect(result.current.selected).toEqual(new Set())
     expect(result.current.allSelected).toBe(false)
-    expect(onNamesChange).toHaveBeenLastCalledWith(['wrapped.eth', 'grace.eth'])
+    expect(onNamesChange).toHaveBeenLastCalledWith([])
+
+    act(() => result.current.toggleName('wrapped.eth'))
+    act(() => result.current.toggleName('grace.eth'))
 
     act(() => result.current.toggleName('gifted.eth'))
     expect(result.current.allSelected).toBe(false)

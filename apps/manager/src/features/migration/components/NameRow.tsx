@@ -212,12 +212,12 @@ const NameRowComponent = ({
                       symbol="cached"
                     />
                     <span className="sr-only" id={renewalId}>
-                      <Trans>Renew before upgrade</Trans>
+                      <Trans>In grace period</Trans>
                     </span>
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <Trans>Renew before upgrade</Trans>
+                  <Trans>In grace period</Trans>
                 </TooltipContent>
               </Tooltip>
             )}

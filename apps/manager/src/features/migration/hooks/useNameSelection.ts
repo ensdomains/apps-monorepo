@@ -83,21 +83,13 @@ export const useNameSelection = ({
   )
   const initiallySelected = useMemo(() => {
     if (isRecovery) return eligibleSelectable
-    const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
-    const namesNeedingManagerRestoration = new Set([
-      ...eligible
+    const namesNeedingManagerRestoration = new Set(
+      eligible
         .filter(({ managerAddress }) => managerAddress !== null)
         .flatMap(({ domain }) => [
           ...(rootSubtrees.get(domain.name) ?? [domain.name]),
         ]),
-      // Grace names have no classification yet, so check the unwrapped
-      // ownership that will require manager restoration after renewal.
-      ...gracePeriodNames
-        .filter(({ domain }) =>
-          hasManagerRestorationAfterRenewal(domain, nowSeconds),
-        )
-        .map(({ domain }) => domain.name),
-    ])
+    )
     const excluded = new Set(defaultExcludedNames)
     // A root checkbox includes its migration subtree. Keep the entire group
     // opt-in when any operation in that group would delete subnames.
@@ -107,17 +99,15 @@ export const useNameSelection = ({
       }
     }
     return new Set(
-      [...allSelectable].filter(
+      [...eligibleSelectable].filter(
         (name) =>
           !namesNeedingManagerRestoration.has(name) && !excluded.has(name),
       ),
     )
   }, [
-    allSelectable,
     defaultExcludedNames,
     eligible,
     eligibleSelectable,
-    gracePeriodNames,
     isRecovery,
     rootSubtrees,
   ])

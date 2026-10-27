@@ -1540,6 +1540,10 @@ msgstr "Image not available"
 msgid "Importing records…"
 msgstr "Importing records…"
 
+#: src/features/migration/components/NameRow.tsx
+msgid "In grace period"
+msgstr "In grace period"
+
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "in your wallet"
 msgstr "in your wallet"
@@ -2468,10 +2472,6 @@ msgstr "Removing..."
 msgid "Renew"
 msgstr "Renew"
 
-#: src/features/migration/components/NameRow.tsx
-msgid "Renew before upgrade"
-msgstr "Renew before upgrade"
-
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renew name"
@@ -3357,6 +3357,10 @@ msgstr "This name has wrapped subnames whose permissions and protections cannot 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name is in grace period"
 msgstr "This name is in grace period"
+
+#: src/features/migration/components/SelectNamesStepNameList.tsx
+msgid "This name is in its grace period. Renew it before upgrading."
+msgstr "This name is in its grace period. Renew it before upgrading."
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx
 msgid "This name is in price cooldown"

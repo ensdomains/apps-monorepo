@@ -83,13 +83,22 @@ const SelectNamesStepNameListComponent = ({
                   onToggle={toggleName}
                   onToggleManagerRestoration={toggleManagerRestoration}
                   warning={
-                    hasInsufficientRenewalFunds &&
-                    selected.has(item.domain.name) ? (
+                    <>
                       <Trans>
-                        Not enough USDC to renew the selected names. Add USDC or
-                        deselect this name.
+                        This name is in its grace period. Renew it before
+                        upgrading.
                       </Trans>
-                    ) : undefined
+                      {hasInsufficientRenewalFunds &&
+                        selected.has(item.domain.name) && (
+                          <>
+                            {' '}
+                            <Trans>
+                              Not enough USDC to renew the selected names. Add
+                              USDC or deselect this name.
+                            </Trans>
+                          </>
+                        )}
+                    </>
                   }
                 />
                 {selected.has(item.domain.name) &&

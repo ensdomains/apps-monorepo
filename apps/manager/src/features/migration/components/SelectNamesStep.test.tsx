@@ -257,7 +257,7 @@ describe('SelectNamesStep', () => {
     expect(onNamesChange).toHaveBeenLastCalledWith([])
   })
 
-  it('seeds all visible names (parent + subnames + orphans) as selected', () => {
+  it('selects eligible names while leaving grace names opt-in at the top', () => {
     const graceName: IneligibleName = {
       domain: makeDomain({
         name: 'renew.eth',
@@ -295,7 +295,6 @@ describe('SelectNamesStep', () => {
       getByText,
       getByRole,
       getAllByRole,
-      queryByRole,
       queryByText,
       rerenderRenewal,
     } = renderStep({
@@ -312,10 +311,14 @@ describe('SelectNamesStep', () => {
     expect(getByText('sub123.eth')).toBeInTheDocument()
     const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
     expect([...lastCall].sort()).toEqual(
-      [...eligibleFixture.map((item) => item.domain.name), 'renew.eth'].sort(),
+      eligibleFixture.map((item) => item.domain.name).sort(),
     )
     const renewalCheckbox = getByRole('checkbox', { name: 'renew.eth' })
     expect(getAllByRole('checkbox')[0]).toBe(renewalCheckbox)
+    expect(renewalCheckbox).not.toBeChecked()
+    expect(renewalCheckbox).toHaveAccessibleDescription(/in its grace period/)
+    expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
+    fireEvent.click(renewalCheckbox)
     expect(renewalCheckbox).toHaveAccessibleDescription(/Not enough USDC/)
     expect(
       getByRole('alert').compareDocumentPosition(renewalCheckbox) &
@@ -328,13 +331,13 @@ describe('SelectNamesStep', () => {
       status: 'ready',
       quote: { ...renewal.quote, balance: renewal.quote.totalAmount },
     })
-    expect(queryByRole('alert')).not.toBeInTheDocument()
+    expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
     expect(getAllByRole('checkbox')[0]).toBe(renewalCheckbox)
     rerenderRenewal({ status: 'loading' })
-    expect(queryByRole('alert')).not.toBeInTheDocument()
+    expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
     rerenderRenewal(renewal)
     fireEvent.click(renewalCheckbox)
-    expect(queryByRole('alert')).not.toBeInTheDocument()
+    expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
   })
 
   it('unselecting a parent unselects all its subnames', () => {
