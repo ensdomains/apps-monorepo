@@ -70,19 +70,9 @@ export const useNftArtworkLoading = (params: {
   const image = useDecodedNftImage(params.imageUrl)
   const { animate } = params
   const [renderer, setRenderer] = useState<RendererStatus>('loading')
-  const [revealed, setRevealed] = useState(false)
-  const initialStatus = params.waitingForVisibility
+  const status = params.waitingForVisibility
     ? 'loading'
     : resolveNftArtworkStatus({ animate, renderer, image })
-  const status =
-    initialStatus === 'loading' && revealed && image === 'ready'
-      ? 'ready'
-      : initialStatus
-
-  useEffect(() => {
-    if (status === 'ready') setRevealed(true)
-  }, [status])
-
   useEffect(() => {
     // A suspended iframe is recreated on return. A failure stays latched until
     // the user explicitly retries; scrolling must not start another attempt.

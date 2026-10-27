@@ -23,6 +23,10 @@ import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
 } from './MigrationSuccessDialog.types'
+import {
+  NFT_REVEAL_FADE_IN_MS,
+  NFT_REVEAL_FADE_OUT_MS,
+} from './reveal/revealTiming'
 import { useNftArtworkLoading } from './useNftArtworkLoading'
 import { useNftArtworkVisibility } from './useNftArtworkVisibility'
 import { useNftAssetDownload } from './useNftAssetDownload'
@@ -376,6 +380,7 @@ const ArtworkCard = ({
   const {
     ready: presentationReady,
     showArtwork,
+    showPlaceholder,
     status: presentationStatus,
   } = reveal
 
@@ -403,20 +408,22 @@ const ArtworkCard = ({
       variant={variant}
     >
       <div
-        aria-hidden={showArtwork || artworkFailed}
+        aria-hidden={!showPlaceholder || artworkFailed}
         className={cn(
-          'pointer-events-none absolute inset-0 z-10 transition-opacity duration-600 ease-out motion-reduce:transition-none',
-          showArtwork ? 'opacity-0' : 'opacity-100',
+          'pointer-events-none absolute inset-0 z-10 transition-opacity ease-out motion-reduce:transition-none',
+          showPlaceholder ? 'opacity-100' : 'opacity-0',
         )}
+        style={{ transitionDuration: `${NFT_REVEAL_FADE_OUT_MS}ms` }}
       >
         <ArtworkLoading />
       </div>
       {/* Let outside taps dismiss traits before interacting with the iframe. */}
       <div
         className={cn(
-          'absolute inset-0 transition-opacity duration-600 ease-out group-has-[[data-nft-traits-trigger][data-state=open]]/nft-card:pointer-events-none motion-reduce:transition-none',
+          'absolute inset-0 transition-opacity ease-out group-has-[[data-nft-traits-trigger][data-state=open]]/nft-card:pointer-events-none motion-reduce:transition-none',
           showArtwork ? 'opacity-100' : 'opacity-0',
         )}
+        style={{ transitionDuration: `${NFT_REVEAL_FADE_IN_MS}ms` }}
       >
         {artwork.imageReady ? (
           <img
@@ -444,11 +451,6 @@ const ArtworkCard = ({
           />
         ) : null}
       </div>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-lg"
-        ref={reveal.host}
-      />
       {reducedMotionStill && artworkReady ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <button

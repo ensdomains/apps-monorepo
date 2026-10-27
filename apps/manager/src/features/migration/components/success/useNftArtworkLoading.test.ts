@@ -75,7 +75,7 @@ describe('NFT artwork loading', () => {
     expect(result.current.status).toBe('ready')
   })
 
-  it('keeps the decoded still ready while suspending and restarting animation', async () => {
+  it('waits for the renderer again instead of flashing the still after returning onscreen', async () => {
     const { result, rerender } = renderHook(
       ({ animate }) => useNftArtworkLoading({ imageUrl, animate }),
       { initialProps: { animate: true } },
@@ -87,6 +87,8 @@ describe('NFT artwork loading', () => {
     expect(result.current.status).toBe('ready')
     rerender({ animate: true })
     expect(result.current.renderAnimation).toBe(true)
+    expect(result.current.status).toBe('loading')
+    act(() => result.current.onRendererReady())
     expect(result.current.status).toBe('ready')
   })
 
@@ -100,7 +102,7 @@ describe('NFT artwork loading', () => {
     expect(result.current.renderAnimation).toBe(false)
     expect(result.current.animationPending).toBe(false)
     rerender({ animate: true })
-    expect(result.current.status).toBe('ready')
+    expect(result.current.status).toBe('loading')
     expect(result.current.animationPending).toBe(true)
   })
 

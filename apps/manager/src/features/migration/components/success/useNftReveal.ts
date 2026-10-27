@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import mysterySrc from '../assets/surprise-card-upright@2x.webp'
+import {
+  NFT_REVEAL_FADE_IN_MS,
+  NFT_REVEAL_FADE_OUT_MS,
+} from './reveal/revealTiming'
 
-/** Keep the artwork covered until the placeholder texture and artwork are ready. */
+type RevealPhase = 'waiting' | 'hiding-cover' | 'showing-artwork' | 'complete'
+
+/** Fade out the flat cover before showing the independently moving 3D card. */
 export const useNftReveal = (params: {
   readonly enabled: boolean
   readonly status: 'loading' | 'ready' | 'error'
   readonly visible: boolean
 }) => {
-  const host = useRef<HTMLDivElement>(null)
   const started = useRef(false)
-  const [phase, setPhase] = useState<'waiting' | 'running' | 'complete'>(
-    'waiting',
-  )
+  const [phase, setPhase] = useState<RevealPhase>('waiting')
   const complete = phase === 'complete'
   const ready = params.status === 'ready'
 
@@ -22,55 +24,29 @@ export const useNftReveal = (params: {
       return
     }
     if (!ready || complete) return
-    const element = host.current
-    if (!element) return
-    let cancelled = false
-    let settled = false
-    let dispose: (() => void) | undefined
-    const images: HTMLImageElement[] = []
-    const finish = () => {
-      if (cancelled || settled) return
-      settled = true
-      clearTimeout(timeout)
-      dispose?.()
-      setPhase('complete')
-    }
-    const timeout = setTimeout(finish, 10_000)
-    const decode = (url: string) => {
-      const image = new Image()
-      image.crossOrigin = 'anonymous'
-      image.src = url
-      images.push(image)
-      return image.decode().then(() => image)
-    }
-    void Promise.all([import('./reveal/startNftReveal'), decode(mysterySrc)])
-      .then(([{ startNftReveal }, mystery]) => {
-        if (cancelled || settled) return
-        clearTimeout(timeout)
-        dispose = startNftReveal({
-          host: element,
-          mystery,
-          onComplete: finish,
-        })
-        started.current = true
-        setPhase('running')
-      })
-      .catch(finish)
+
+    started.current = true
+    setPhase('hiding-cover')
+    const revealTimer = window.setTimeout(
+      () => setPhase('showing-artwork'),
+      NFT_REVEAL_FADE_OUT_MS,
+    )
+    const completeTimer = window.setTimeout(
+      () => setPhase('complete'),
+      NFT_REVEAL_FADE_OUT_MS + NFT_REVEAL_FADE_IN_MS,
+    )
 
     return () => {
-      cancelled = true
-      clearTimeout(timeout)
-      dispose?.()
-      for (const image of images) image.removeAttribute('src')
+      window.clearTimeout(revealTimer)
+      window.clearTimeout(completeTimer)
     }
   }, [complete, params.enabled, ready, params.visible])
 
   const revealed = !params.enabled || complete
   return {
-    host,
     ready: ready && revealed,
-    showArtwork: ready && (phase === 'running' || revealed),
-    running: params.enabled && phase === 'running',
+    showPlaceholder: !ready || (params.enabled && phase === 'waiting'),
+    showArtwork: ready && (phase === 'showing-artwork' || revealed),
     status: ready && !revealed ? ('loading' as const) : params.status,
   }
 }
