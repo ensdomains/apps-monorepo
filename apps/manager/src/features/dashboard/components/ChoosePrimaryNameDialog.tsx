@@ -230,6 +230,16 @@ const PrimaryNameErrorNotice = ({
   )
 }
 
+const MissingResolvingNamesNotice = ({ show }: { readonly show: boolean }) =>
+  show ? (
+    <p className="font-sans text-muted-foreground text-sm">
+      <Trans>
+        Names that point to your wallet couldn’t be loaded, so some may be
+        missing.
+      </Trans>
+    </p>
+  ) : null
+
 const EthAddressUpdateNotice = ({
   id,
   ownerAddress,
@@ -750,14 +760,9 @@ export const ChoosePrimaryNameDialog = ({
                 )}
             </div>
 
-            {hasResolvingNamesError && !isLoading ? (
-              <p className="font-sans text-muted-foreground text-sm">
-                <Trans>
-                  Names that point to your wallet couldn’t be loaded, so some
-                  may be missing.
-                </Trans>
-              </p>
-            ) : null}
+            <MissingResolvingNamesNotice
+              show={hasResolvingNamesError && !isLoading}
+            />
 
             <PrimaryNameListFooter
               disabled={isBusy}
