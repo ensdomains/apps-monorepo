@@ -57,6 +57,7 @@ export const useMigrationEligibility = (
     },
     enabled: !!ownerAddress && names.length > 0,
     staleTime: ELIGIBILITY_STALE_MS,
+    refetchOnWindowFocus: false,
     retry: false,
   })
 }

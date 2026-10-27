@@ -80,9 +80,21 @@ describe('migration preparation errors', () => {
   it('names the parent prerequisite when a grace renewal is in the selection', () => {
     const cause = failure('DirectMigrationRouteError', {
       reason: 'missing-wrapper',
+      ensName: 'woiaf.eth',
     })
-    expect(migrationPreparationFailure(cause, 'fee').reason).toBe(
+    const wrapped = failure('OuterError', { cause })
+    expect(migrationPreparationFailure(wrapped, 'fee').reason).toBe(
       'parent-not-upgraded',
+    )
+    expect(message(wrapped, 'fee')).toBe(
+      "Some subnames can't upgrade because woiaf.eth hasn't been upgraded yet. Upgrade this parent first, or deselect those subnames.",
+    )
+    expect(
+      message(
+        failure('DirectMigrationRouteError', { reason: 'missing-wrapper' }),
+      ),
+    ).toBe(
+      "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames.",
     )
     expect(
       migrationPreparationFailure(failure('HttpRequestError'), 'fee').reason,

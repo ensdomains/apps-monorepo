@@ -33,6 +33,7 @@ import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialog
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import {
   getPrimaryNamePreparation,
+  hasV1RegistryResolver,
   type PrimaryNamePreparation,
 } from '@/features/profile/service/primaryNamePreparation'
 import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
@@ -541,6 +542,24 @@ export const ChoosePrimaryNameDialog = ({
     }
   }
 
+  const readV1SetupError = async (
+    name: string,
+    hasResolver: boolean,
+  ): Promise<Error> => {
+    setIsCheckingPreparation(true)
+    const isUnreachable =
+      !hasResolver &&
+      (await hasV1RegistryResolver(publicClient as PublicClient, name).catch(
+        () => false,
+      ))
+    setIsCheckingPreparation(false)
+    return new Error(
+      isUnreachable
+        ? t`${name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name.`
+        : t`${name} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app.`,
+    )
+  }
+
   const applyPreparation = async (preparation: PrimaryNamePreparation) => {
     if (preparation.kind === 'setup-resolver') {
       await setupResolverMutation.mutateAsync()
@@ -602,9 +621,7 @@ export const ChoosePrimaryNameDialog = ({
     if (preparation.kind === 'setup-resolver' && selectedProtocol === 'v1') {
       setConfirmation(null)
       setPreparationError(
-        new Error(
-          t`${selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app.`,
-        ),
+        await readV1SetupError(selectedName, preparation.hasResolver),
       )
       return
     }

@@ -12,7 +12,7 @@ import { useWrapperSync } from '@/features/migration/hooks/useWrapperSync'
 import { cn } from '@/lib/utils'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
-import type { SubnameMigrationBlockReason } from '../hooks/useMigrationEligibility'
+import type { BlockedSubnameMigration } from '../hooks/useMigrationEligibility'
 import { NameRow } from './NameRow'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
@@ -27,11 +27,19 @@ import { UnavailableMigrationNames } from './UnavailableMigrationNames'
 import { WrapperSyncNotice } from './WrapperSyncNotice'
 
 const SubnameBlockReason = ({
-  reason,
+  block,
 }: {
-  readonly reason: SubnameMigrationBlockReason
+  readonly block: BlockedSubnameMigration
 }) => {
-  switch (reason) {
+  switch (block.reason) {
+    case 'parent-not-upgraded': {
+      const parentName = block.parentName
+      return (
+        <Trans>
+          The parent name {parentName} must be upgraded before this subname.
+        </Trans>
+      )
+    }
     case 'imports-disabled':
       return (
         <Trans>
@@ -44,6 +52,12 @@ const SubnameBlockReason = ({
         <Trans>
           This parent has subnames whose protections cannot be preserved by this
           upgrade yet.
+        </Trans>
+      )
+    case 'unsupported-route':
+      return (
+        <Trans>
+          This subname's parent or registry is not supported for upgrading yet.
         </Trans>
       )
     case 'deeper-subnames':
@@ -176,6 +190,9 @@ export const SelectNamesStep = ({
     shouldSkip: recoveryState.status !== 'none',
   })
   const needsRenewal = renewal.status !== 'idle'
+  const hasInsufficientRenewalFunds =
+    renewal.status === 'ready' &&
+    renewal.quote.balance < renewal.quote.totalAmount
   const preparedPlan = gasEstimate.status === 'ready' ? gasEstimate.plan : null
   const preparedNames = match({ needsRenewal, renewalGasEstimate })
     .with(
@@ -192,7 +209,10 @@ export const SelectNamesStep = ({
     totalSelected,
     visibleCount,
     displayedCount,
+    eligibleCount,
+    selectedEligibleCount,
     allSelected,
+    hasUnselectedEligibleNames,
     filteredGroups,
     filteredOrphans,
     filteredGracePeriodNames,
@@ -386,9 +406,11 @@ export const SelectNamesStep = ({
           ) : showSelectionOptions ? (
             <SelectNamesStepSelectionOptions
               allSelected={allSelected}
+              eligibleCount={eligibleCount}
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
+              hasInsufficientRenewalFunds={hasInsufficientRenewalFunds}
               includedSubnames={includedSubnames}
               isCompactLayout={isCompactLayout}
               isContentHeightCard={isContentHeightCard}
@@ -398,14 +420,13 @@ export const SelectNamesStep = ({
               restoredManagers={restoredManagers}
               search={search}
               selected={selected}
+              selectedEligibleCount={selectedEligibleCount}
               setSearch={setSearch}
               showBulkSelection={showBulkSelection}
               showNameSearch={showNameSearch}
               toggleAll={toggleAll}
               toggleManagerRestoration={toggleManagerRestoration}
               toggleName={toggleName}
-              totalSelected={totalSelected}
-              visibleCount={visibleCount}
             />
           ) : null}
 
@@ -422,13 +443,13 @@ export const SelectNamesStep = ({
                 <Trans>These names need to stay on ENSv1 for now</Trans>
               </h2>
               <ul className="mt-3 space-y-4">
-                {blockedSubnames.map(({ name, reason }) => (
-                  <li key={name.domain.id}>
+                {blockedSubnames.map((block) => (
+                  <li key={block.name.domain.id}>
                     <NameRow
                       depth={0}
-                      disabledReason={<SubnameBlockReason reason={reason} />}
+                      disabledReason={<SubnameBlockReason block={block} />}
                       isSelected={false}
-                      item={name}
+                      item={block.name}
                     />
                   </li>
                 ))}
@@ -447,6 +468,7 @@ export const SelectNamesStep = ({
       <SelectNamesStepFooter
         gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
+        hasUnselectedEligibleNames={hasUnselectedEligibleNames}
         isEstimatingGas={isEstimatingGas}
         isFinishingRecovery={isFinishingRecovery}
         isStarting={isStarting}

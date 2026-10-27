@@ -8,9 +8,13 @@ import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMi
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { render } from '@/utils/test-utils'
+import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
+import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
+import { makeDomain, OWNER } from '../service/_fixtures'
 import type {
   ClassifiedName,
   CopyClassifiedName,
+  IneligibleName,
 } from '../service/classifyNames'
 
 const CONTROLLER = '0x00000000000000000000000000000000000000c1'
@@ -68,6 +72,7 @@ const eligibilityState = vi.hoisted(() => ({
   wrapperSyncNames: [] as ClassifiedName[],
   verifiedSubnames: [] as CopyClassifiedName[],
   recoveryStatus: 'none' as 'none' | 'recovering',
+  gracePeriodNames: [] as IneligibleName[],
 }))
 
 vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
@@ -82,7 +87,7 @@ vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
         ),
     ),
     blockedSubnames: eligibilityState.blockedSubnames,
-    gracePeriodNames: [],
+    gracePeriodNames: eligibilityState.gracePeriodNames,
     unavailableNames: [],
     wrapperSyncNames: eligibilityState.wrapperSyncNames,
     verifiedSubnames: eligibilityState.verifiedSubnames,
@@ -94,6 +99,23 @@ vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
 vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
   useConnectedReverseName: () => ({ data: 'sub1234.eth' }),
 }))
+
+vi.mock(
+  '../commemorative-nft/useVisibleCommemorativeNftEligibility',
+  async () => {
+    const { createCommemorativeNftPreviewEligibility } = await import(
+      '../commemorative-nft/eligibility.fixture'
+    )
+    return {
+      useVisibleCommemorativeNftStatus: () => ({
+        eligibility: createCommemorativeNftPreviewEligibility({
+          ownerAddress: OWNER,
+        }),
+        isConfirmedUnclaimed: true,
+      }),
+    }
+  },
+)
 
 const impactState = vi.hoisted(() => ({
   selectionKey: 'fixture-selection',
@@ -123,6 +145,7 @@ beforeEach(() => {
   impactState.impact.parents = []
   eligibilityState.blockedSubnames = []
   eligibilityState.recoveryStatus = 'none'
+  eligibilityState.gracePeriodNames = []
 })
 
 // eslint-disable-next-line import/first
@@ -145,16 +168,23 @@ const renderStep = ({
   gasEstimate = { status: 'idle' } as MigrationGasEstimateState,
   gasAffordability = { status: 'unknown' } as GasAffordability,
   gasFundingStatus = 'settled',
+  renewal = { status: 'idle' },
+  renewalGasEstimate = { status: 'idle' },
   onNext = vi.fn(),
 }: {
   gasEstimate?: MigrationGasEstimateState
   gasAffordability?: GasAffordability
   gasFundingStatus?: MigrationGasFundingStatus
+  renewal?: GraceRenewalQuoteState
+  renewalGasEstimate?: GraceRenewalGasEstimateState
   onNext?: () => boolean | Promise<boolean>
 } = {}) => {
   const onNamesChange = vi.fn<(names: string[]) => void>()
   const onManagerRestorationChange = vi.fn<(names: string[]) => void>()
-  const step = (estimate: MigrationGasEstimateState) => (
+  const step = (
+    estimate: MigrationGasEstimateState,
+    renewalState = renewal,
+  ) => (
     <SmartAccountContextProvider>
       <SelectNamesStep
         gasAffordability={gasAffordability}
@@ -163,6 +193,8 @@ const renderStep = ({
         onManagerRestorationChange={onManagerRestorationChange}
         onNamesChange={onNamesChange}
         onNext={onNext}
+        renewal={renewalState}
+        renewalGasEstimate={renewalGasEstimate}
       />
     </SmartAccountContextProvider>
   )
@@ -174,6 +206,8 @@ const renderStep = ({
     ...utils,
     rerenderGasEstimate: (estimate: MigrationGasEstimateState) =>
       utils.rerender(step(estimate)),
+    rerenderRenewal: (renewalState: GraceRenewalQuoteState) =>
+      utils.rerender(step(gasEstimate, renewalState)),
   }
 }
 
@@ -204,13 +238,33 @@ describe('SelectNamesStep', () => {
       const parent = eligibleFixture[0]
       if (!parent) throw new Error('Missing parent fixture')
       eligibilityState.blockedSubnames = [{ name: parent, reason }]
-      const { onNamesChange, getByRole, getByText } = renderStep()
+      const { onNamesChange, queryByRole, getByText, rerenderGasEstimate } =
+        renderStep()
       const selected = onNamesChange.mock.calls.at(-1)?.[0] ?? []
       expect(selected).not.toContain('sub1234.eth')
       expect(selected).not.toContain('gm.sub1234.eth')
       expect(selected).toContain('one.eth')
-      expect(getByRole('checkbox', { name: 'sub1234.eth' })).toBeDisabled()
+      expect(
+        queryByRole('checkbox', { name: 'sub1234.eth' }),
+      ).not.toBeInTheDocument()
+      expect(getByText('sub1234.eth')).toBeInTheDocument()
       expect(getByText(message)).toBeInTheDocument()
+      eligibilityState.blockedSubnames = [
+        {
+          name: parent,
+          reason: 'parent-not-upgraded',
+          parentName: 'external.eth',
+        },
+      ]
+      rerenderGasEstimate(readyGasEstimate)
+      expect(
+        queryByRole('checkbox', { name: 'sub1234.eth' }),
+      ).not.toBeInTheDocument()
+      expect(
+        getByText(
+          'The parent name external.eth must be upgraded before this subname.',
+        ),
+      ).toBeInTheDocument()
     },
   )
 
@@ -220,8 +274,54 @@ describe('SelectNamesStep', () => {
     expect(onNamesChange).toHaveBeenLastCalledWith([])
   })
 
-  it('seeds all visible names (parent + subnames + orphans) as selected', () => {
-    const { onNamesChange, getByText } = renderStep()
+  it('selects eligible names while leaving grace names opt-in at the top', () => {
+    const graceName: IneligibleName = {
+      domain: makeDomain({
+        name: 'renew.eth',
+        id: namehash('renew.eth'),
+        labelName: 'renew',
+      }),
+      reason: 'expired-registration',
+    }
+    eligibilityState.gracePeriodNames = [graceName]
+    const renewal: Extract<GraceRenewalQuoteState, { status: 'ready' }> = {
+      status: 'ready',
+      quote: {
+        ownerAddress: OWNER,
+        chainId: 1,
+        paymentToken: OWNER,
+        renewerAddress: OWNER,
+        items: [
+          {
+            domain: graceName.domain,
+            label: 'renew',
+            registrationExpiry: 0n,
+            duration: 604800n,
+            targetExpiry: 604800n,
+            amount: 1_000_000n,
+          },
+        ],
+        totalAmount: 1_000_000n,
+        balance: 0n,
+        expiresAt: 4_102_444_800n,
+        quotedAtMs: Date.now(),
+      },
+    }
+    const {
+      onNamesChange,
+      getByText,
+      getByRole,
+      getAllByRole,
+      queryByText,
+      rerenderRenewal,
+    } = renderStep({
+      renewalGasEstimate: {
+        status: 'error',
+        stage: 'fee',
+        reason: 'fee-unavailable',
+        cause: new Error('insufficient balance'),
+      },
+    })
     expect(getByText('sub1234.eth')).toBeInTheDocument()
     expect(getByText('gm.sub1234.eth')).toBeInTheDocument()
     expect(getByText('sub123.eth')).toBeInTheDocument()
@@ -229,6 +329,102 @@ describe('SelectNamesStep', () => {
     expect([...lastCall].sort()).toEqual(
       eligibleFixture.map((item) => item.domain.name).sort(),
     )
+    const renewalCheckbox = getByRole('checkbox', { name: 'renew.eth' })
+    expect(getAllByRole('checkbox')[0]).toBe(renewalCheckbox)
+    expect(renewalCheckbox).not.toBeChecked()
+    expect(renewalCheckbox).not.toHaveAccessibleDescription()
+    const graceHeading = getByRole('heading', { name: '1 name in grace' })
+    const eligibleHeading = getByRole('heading', {
+      name: 'All 10 eligible names selected',
+    })
+    expect(
+      graceHeading.compareDocumentPosition(renewalCheckbox) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0)
+    expect(
+      renewalCheckbox.compareDocumentPosition(eligibleHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0)
+    expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
+    expect(
+      queryByText('Upgrade all names to receive NFT'),
+    ).not.toBeInTheDocument()
+    const activeCheckbox = getByRole('checkbox', { name: 'sub1234.eth' })
+    fireEvent.click(activeCheckbox)
+    expect(getByText('Upgrade all names to receive NFT')).toBeInTheDocument()
+    fireEvent.click(activeCheckbox)
+    expect(
+      queryByText('Upgrade all names to receive NFT'),
+    ).not.toBeInTheDocument()
+    fireEvent.click(renewalCheckbox)
+    rerenderRenewal(renewal)
+    expect(
+      queryByText('Upgrade all names to receive NFT'),
+    ).not.toBeInTheDocument()
+    expect(renewalCheckbox).toHaveAccessibleDescription(/Not enough USDC/)
+    expect(
+      getByText(
+        /Not enough USDC to renew the selected names/,
+      ).compareDocumentPosition(renewalCheckbox) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0)
+    expect(getByText('Not enough USDC to renew')).toHaveAttribute(
+      'role',
+      'alert',
+    )
+    expect(getByText('1 USDC')).toBeInTheDocument()
+    expect(
+      queryByText("Couldn't estimate the network fee"),
+    ).not.toBeInTheDocument()
+    rerenderRenewal({
+      status: 'ready',
+      quote: { ...renewal.quote, balance: renewal.quote.totalAmount },
+    })
+    expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
+    expect(getAllByRole('checkbox')[0]).toBe(renewalCheckbox)
+    rerenderRenewal({
+      status: 'ready',
+      quote: {
+        ...renewal.quote,
+        items: renewal.quote.items.map((item) => ({
+          ...item,
+          duration: 0n,
+          amount: 0n,
+        })),
+        totalAmount: 0n,
+      },
+    })
+    expect(queryByText(/Renewing/)).not.toBeInTheDocument()
+    rerenderRenewal({ status: 'loading' })
+    expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
+    rerenderRenewal(renewal)
+    fireEvent.click(renewalCheckbox)
+    rerenderRenewal({ status: 'idle' })
+    expect(queryByText(/Not enough USDC/)).not.toBeInTheDocument()
+
+    eligibilityState.gracePeriodNames = Array.from(
+      { length: 15 },
+      (_, index) => ({
+        ...graceName,
+        domain: makeDomain({
+          name: `grace${index}.eth`,
+          id: namehash(`grace${index}.eth`),
+          labelName: `grace${index}`,
+        }),
+      }),
+    )
+    rerenderRenewal({ status: 'idle' })
+    fireEvent.change(getByRole('textbox', { name: 'Search names' }), {
+      target: { value: 'grace' },
+    })
+    expect(
+      queryByText('All 10 eligible names selected'),
+    ).not.toBeInTheDocument()
+    fireEvent.click(getByRole('button', { name: 'Select all' }))
+    expect(getAllByRole('checkbox')).toHaveLength(15)
+    for (const checkbox of getAllByRole('checkbox'))
+      expect(checkbox).toBeChecked()
+    expect(getByRole('button', { name: 'Deselect all' })).toBeInTheDocument()
   })
 
   it('unselecting a parent unselects all its subnames', () => {
@@ -426,42 +622,41 @@ describe('SelectNamesStep manager restoration (WEB-1528)', () => {
     expect(getByTitle(CONTROLLER)).toBeInTheDocument()
   })
 
-  it('reports nothing to restore until the owner opts in', () => {
+  it('keeps the manager checked by default', () => {
     const { onManagerRestorationChange } = renderStep()
     const lastCall = onManagerRestorationChange.mock.calls.at(-1)?.[0]
-    expect(lastCall ?? []).toEqual([])
+    expect(lastCall).toEqual(['managed.eth'])
   })
 
-  it('reports the opted-in name once the checkbox is ticked', () => {
+  it('allows the manager to be unchecked', () => {
     const utils = renderStep()
     const checkbox = managerCheckbox(utils)
     if (!checkbox) throw new Error('manager opt-in not found')
 
     fireEvent.click(checkbox)
 
-    expect(utils.onManagerRestorationChange.mock.calls.at(-1)?.[0]).toEqual([
-      'managed.eth',
-    ])
+    expect(checkbox).not.toBeChecked()
+    expect(utils.onManagerRestorationChange.mock.calls.at(-1)?.[0]).toEqual([])
   })
 
-  it('explains the temporary permission only once a name is opted in', async () => {
+  it('explains the default manager permission and clears it when unchecked', async () => {
     const utils = renderStep()
     const notice = /requires temporary\s+permission/
-    expect(utils.queryByText(notice)).not.toBeInTheDocument()
+    expect(utils.getByText(notice)).toBeInTheDocument()
 
     const checkbox = managerCheckbox(utils)
     if (!checkbox) throw new Error('manager opt-in not found')
     fireEvent.click(checkbox)
 
-    await waitFor(() => expect(utils.getByText(notice)).toBeInTheDocument())
+    await waitFor(() =>
+      expect(utils.queryByText(notice)).not.toBeInTheDocument(),
+    )
   })
 
   it('withdraws the opt-in when the name is deselected', async () => {
     const utils = renderStep()
     const checkbox = managerCheckbox(utils)
     if (!checkbox) throw new Error('manager opt-in not found')
-    fireEvent.click(checkbox)
-
     const row = rowCheckbox(utils, 'managed.eth')
     if (!row) throw new Error('name row not found')
     fireEvent.click(row)

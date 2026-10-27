@@ -52,12 +52,8 @@ export const useNameSelection = ({
 }: Params) => {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  // Opt-in, never seeded from a v1 controller: a controller that differs from
-  // the registrant may be a manager the owner appointed or a seller a
-  // marketplace transfer left behind, so nothing is re-granted until it is
-  // asked for by name. A resumed run is the one exception — there the choice
-  // was already made and is replayed from the snapshot below.
-  const [restoredManagers, setRestoredManagers] = useState<ReadonlySet<string>>(
+  // Keep existing managers by default; retain explicit opt-outs across refetches.
+  const [excludedManagers, setExcludedManagers] = useState<ReadonlySet<string>>(
     new Set(),
   )
 
@@ -83,21 +79,13 @@ export const useNameSelection = ({
   )
   const initiallySelected = useMemo(() => {
     if (isRecovery) return eligibleSelectable
-    const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
-    const namesNeedingManagerRestoration = new Set([
-      ...eligible
+    const namesNeedingManagerRestoration = new Set(
+      eligible
         .filter(({ managerAddress }) => managerAddress !== null)
         .flatMap(({ domain }) => [
           ...(rootSubtrees.get(domain.name) ?? [domain.name]),
         ]),
-      // Grace names have no classification yet, so check the unwrapped
-      // ownership that will require manager restoration after renewal.
-      ...gracePeriodNames
-        .filter(({ domain }) =>
-          hasManagerRestorationAfterRenewal(domain, nowSeconds),
-        )
-        .map(({ domain }) => domain.name),
-    ])
+    )
     const excluded = new Set(defaultExcludedNames)
     // A root checkbox includes its migration subtree. Keep the entire group
     // opt-in when any operation in that group would delete subnames.
@@ -107,17 +95,15 @@ export const useNameSelection = ({
       }
     }
     return new Set(
-      [...allSelectable].filter(
+      [...eligibleSelectable].filter(
         (name) =>
           !namesNeedingManagerRestoration.has(name) && !excluded.has(name),
       ),
     )
   }, [
-    allSelectable,
     defaultExcludedNames,
     eligible,
     eligibleSelectable,
-    gracePeriodNames,
     isRecovery,
     rootSubtrees,
   ])
@@ -239,7 +225,7 @@ export const useNameSelection = ({
   const toggleManagerRestoration = useCallback(
     (name: string) => {
       if (isManagerRestorationLocked) return
-      setRestoredManagers((prev) => {
+      setExcludedManagers((prev) => {
         const next = new Set(prev)
         if (next.has(name)) next.delete(name)
         else next.add(name)
@@ -256,6 +242,11 @@ export const useNameSelection = ({
   const allSelected =
     allSelectable.size > 0 &&
     [...allSelectable].every((name) => currentSelected.has(name))
+  const selectedEligibleCount = [...eligibleSelectable].filter((name) =>
+    currentSelected.has(name),
+  ).length
+  const hasUnselectedEligibleNames =
+    selectedEligibleCount < eligibleSelectable.size
 
   const selectedNamesKey = JSON.stringify([...currentSelected])
   const publishedNamesKey = useRef<string | null>(null)
@@ -279,10 +270,13 @@ export const useNameSelection = ({
   const currentRestoredManagers = useMemo(() => {
     const source = isManagerRestorationLocked
       ? lockedRestoredManagers
-      : restoredManagers
+      : managerCandidates.keys()
     return new Set(
       [...source].filter(
-        (name) => managerCandidates.has(name) && currentSelected.has(name),
+        (name) =>
+          managerCandidates.has(name) &&
+          currentSelected.has(name) &&
+          (isManagerRestorationLocked || !excludedManagers.has(name)),
       ),
     )
   }, [
@@ -290,7 +284,7 @@ export const useNameSelection = ({
     isManagerRestorationLocked,
     lockedRestoredManagers,
     managerCandidates,
-    restoredManagers,
+    excludedManagers,
   ])
 
   // Stable identity for the effect below: a fresh Set every render would loop.
@@ -317,7 +311,10 @@ export const useNameSelection = ({
     totalSelected: currentSelected.size,
     visibleCount: allSelectable.size,
     displayedCount: allSelectable.size,
+    eligibleCount: eligibleSelectable.size,
+    selectedEligibleCount,
     allSelected,
+    hasUnselectedEligibleNames,
     filteredGroups,
     filteredOrphans,
     filteredGracePeriodNames,

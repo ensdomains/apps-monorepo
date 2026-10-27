@@ -157,6 +157,7 @@ const UpgradeButtonLabel = ({
 type SelectNamesStepFooterProps = {
   readonly gasEstimate: MigrationGasEstimateState
   readonly gasAffordability: GasAffordability
+  readonly hasUnselectedEligibleNames: boolean
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isFinishingRecovery?: boolean
@@ -181,21 +182,31 @@ const GraceRenewalStatus = ({
       </p>
     )
   if (state.status === 'error') return <p role="alert">{state.message}</p>
-  if (state.status === 'ready' && state.quote.balance < state.quote.totalAmount)
+  if (state.status === 'ready') {
+    const count = state.quote.items.filter(
+      ({ duration }) => duration > 0n,
+    ).length
+    if (count === 0) return null
+    const amount = formatUnits(state.quote.totalAmount, TOKENS.USDC.decimals)
     return (
-      <p className="text-destructive" role="alert">
+      <p>
         <Trans>
-          Not enough USDC to renew these names. Add USDC to your wallet to
-          continue.
+          Renewing{' '}
+          <strong>
+            <Plural one="# name" other="# names" value={count} />
+          </strong>{' '}
+          for <strong>{amount} USDC</strong>
         </Trans>
       </p>
     )
+  }
   return null
 }
 
 export const SelectNamesStepFooter = ({
   gasEstimate,
   gasAffordability,
+  hasUnselectedEligibleNames,
   isEstimatingGas,
   isStarting,
   isFinishingRecovery = false,
@@ -229,13 +240,21 @@ export const SelectNamesStepFooter = ({
         ) : (
           <>
             <GraceRenewalStatus state={renewal} />
-            <GasEstimateMessage
-              gasAffordability={gasAffordability}
-              gasEstimate={renewalGasEstimate}
-              isWaitingForGasFunding={isWaitingForGasFunding}
-              renewal={renewal}
-              totalSelected={totalSelected}
-            />
+            {(!hasInsufficientUsdc ||
+              renewalGasEstimate.status === 'ready') && (
+              <GasEstimateMessage
+                gasAffordability={gasAffordability}
+                gasEstimate={renewalGasEstimate}
+                isWaitingForGasFunding={isWaitingForGasFunding}
+                renewal={renewal}
+                totalSelected={totalSelected}
+              />
+            )}
+            {hasInsufficientUsdc && (
+              <p className="font-semibold text-destructive" role="alert">
+                <Trans>Not enough USDC to renew</Trans>
+              </p>
+            )}
           </>
         )}
       </div>
@@ -258,14 +277,12 @@ export const SelectNamesStepFooter = ({
             totalSelected={totalSelected}
           />
         </MigrationUpgradeButton>
-        {nftCopyEnabled &&
-          totalSelected > 0 &&
-          totalSelected < visibleCount && (
-            <p className="flex items-center gap-1 text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.14px]">
-              <CircleAlert className="size-4 shrink-0" strokeWidth={1.8} />
-              <Trans>Upgrade all names to receive NFT</Trans>
-            </p>
-          )}
+        {nftCopyEnabled && totalSelected > 0 && hasUnselectedEligibleNames && (
+          <p className="flex items-center gap-1 text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.14px]">
+            <CircleAlert className="size-4 shrink-0" strokeWidth={1.8} />
+            <Trans>Upgrade all names to receive NFT</Trans>
+          </p>
+        )}
       </div>
     </div>
   )

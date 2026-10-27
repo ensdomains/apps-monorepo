@@ -3,11 +3,6 @@ import { memo, type ReactNode, useId, useState } from 'react'
 import type { Address } from 'viem'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { cn, truncateAddress } from '@/lib/utils'
 import type { ClassifiedName } from '../service/classifyNames'
 import { getMigrationAvatarUrl } from './nameAvatar.helpers'
@@ -17,10 +12,10 @@ type NameRowProps = {
     Partial<Pick<ClassifiedName, 'resolverStrategy'>>
   readonly isSelected: boolean
   readonly isPrimary?: boolean
-  readonly isInGrace?: boolean
   readonly depth: number
   readonly onToggle?: (name: string) => void
   readonly disabledReason?: ReactNode
+  readonly warning?: ReactNode
   /** The v1 registry controller, when it differs from the registrant. */
   readonly managerCandidate?: Address
   readonly isManagerRestored?: boolean
@@ -103,10 +98,10 @@ const NameRowComponent = ({
   item,
   isSelected,
   isPrimary = false,
-  isInGrace = false,
   depth,
   onToggle,
   disabledReason,
+  warning,
   managerCandidate,
   isManagerRestored = false,
   isManagerRestorationLocked = false,
@@ -117,13 +112,13 @@ const NameRowComponent = ({
   const isNested = depth > 0
   const showAvatar = failedAvatarUrl !== avatarUrl
   const primaryNameId = useId()
-  const renewalId = useId()
   const disabledReasonId = useId()
+  const warningId = useId()
   const descriptions =
     [
       isPrimary && primaryNameId,
-      isInGrace && renewalId,
       disabledReason && disabledReasonId,
+      warning && warningId,
     ]
       .filter(Boolean)
       .join(' ') || undefined
@@ -136,7 +131,7 @@ const NameRowComponent = ({
 
   const content = (
     <>
-      {!isNested && (
+      {!isNested && !disabledReason && (
         <div
           aria-hidden
           className={cn(
@@ -186,49 +181,18 @@ const NameRowComponent = ({
         )}
       >
         <span className="truncate">{item.domain.name}</span>
-        {(isPrimary || isInGrace) && (
+        {isPrimary && (
           <span className="absolute -top-3.5 -right-3 flex gap-1">
-            {isInGrace && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    aria-labelledby={renewalId}
-                    className={cn(
-                      badgeClass,
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2',
-                    )}
-                    role="img"
-                    // biome-ignore lint/a11y/noNoninteractiveTabindex: Allow keyboard access to the tooltip without adding a button inside the checkbox label.
-                    tabIndex={0}
-                    title=""
-                  >
-                    <MSymbol
-                      aria-hidden
-                      className="ms-wght-300 size-4 text-base leading-none"
-                      symbol="cached"
-                    />
-                    <span className="sr-only" id={renewalId}>
-                      <Trans>Renew before upgrade</Trans>
-                    </span>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <Trans>Renew before upgrade</Trans>
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {isPrimary && (
-              <span className={badgeClass}>
-                <MSymbol
-                  aria-hidden
-                  className="ms-wght-300 size-4 text-base leading-none"
-                  symbol="person_check"
-                />
-                <span className="sr-only" id={primaryNameId}>
-                  <Trans>Primary name</Trans>
-                </span>
+            <span className={badgeClass}>
+              <MSymbol
+                aria-hidden
+                className="ms-wght-300 size-4 text-base leading-none"
+                symbol="person_check"
+              />
+              <span className="sr-only" id={primaryNameId}>
+                <Trans>Primary name</Trans>
               </span>
-            )}
+            </span>
           </span>
         )}
       </div>
@@ -242,11 +206,7 @@ const NameRowComponent = ({
   )
 
   if (isNested) {
-    return (
-      <div className={rowClass} title={item.domain.name}>
-        {content}
-      </div>
-    )
+    return <div className={rowClass}>{content}</div>
   }
 
   // A locked row with nothing recorded has no choice left to show.
@@ -256,21 +216,32 @@ const NameRowComponent = ({
     !!managerCandidate &&
     !!onToggleManagerRestoration &&
     (!isManagerRestorationLocked || isManagerRestored)
+  const Row = disabledReason ? 'div' : 'label'
 
   return (
     <div className="flex min-w-0 flex-col">
-      <label className={rowClass} title={item.domain.name}>
-        <input
-          aria-describedby={descriptions}
-          aria-label={item.domain.name}
-          checked={isSelected}
-          className="peer sr-only"
-          disabled={!!disabledReason}
-          onChange={() => !disabledReason && onToggle?.(item.domain.name)}
-          type="checkbox"
-        />
+      {warning && (
+        <p
+          className="mb-2 text-destructive text-sm leading-5"
+          id={warningId}
+          role="alert"
+        >
+          {warning}
+        </p>
+      )}
+      <Row className={rowClass}>
+        {!disabledReason && (
+          <input
+            aria-describedby={descriptions}
+            aria-label={item.domain.name}
+            checked={isSelected}
+            className="peer sr-only"
+            onChange={() => onToggle?.(item.domain.name)}
+            type="checkbox"
+          />
+        )}
         {content}
-      </label>
+      </Row>
       {disabledReason && (
         <p
           className="mt-2 max-w-full text-ens-garnet-900/75 text-sm leading-5"

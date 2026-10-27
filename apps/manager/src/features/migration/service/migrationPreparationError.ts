@@ -219,6 +219,17 @@ export const migrationPreparationMessage = (
     const details = failure.cause.message
     return msg`${details}`
   }
+  if (failure.reason === 'parent-not-upgraded') {
+    const error = causeChain(failure.cause).find(
+      (cause) =>
+        cause.name === 'DirectMigrationRouteError' &&
+        cause.reason === 'missing-wrapper',
+    )
+    if (typeof error?.ensName === 'string') {
+      const parentName = error.ensName
+      return msg`Some subnames can't upgrade because ${parentName} hasn't been upgraded yet. Upgrade this parent first, or deselect those subnames.`
+    }
+  }
   if (failure.reason === 'locked-resolver-record-control') {
     const error = causeChain(failure.cause).find(
       (cause) =>

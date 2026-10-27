@@ -13,6 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. placeholder {0}: filteredGracePeriodNames.length
+#: src/features/migration/components/SelectNamesStepNameList.tsx
+msgid "{0, plural, one {# name in grace} other {# names in grace}}"
+msgstr "{0, plural, one {# name in grace} other {# names in grace}}"
+
 #. placeholder {0}: wrapperSyncNames.length
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{0, plural, one {# name needs syncing before it can be upgraded.} other {# names need syncing before they can be upgraded.}}"
@@ -179,6 +184,14 @@ msgstr "{migrated} out of {total} names upgraded"
 msgid "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
 msgstr "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{name} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
+msgstr "{name} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name."
+msgstr "{name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name."
+
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
 msgstr "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
@@ -194,10 +207,6 @@ msgstr "{permits, plural, one {Your wallet will be asked to approve this exact a
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "{selectedCount} selected"
 msgstr "{selectedCount} selected"
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "{selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
-msgstr "{selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
 
 #: src/features/migration/components/GameStep.tsx
 msgid "{selectedNameCount, plural, one {Upgrading your name...} other {Upgrading your names...}}"
@@ -237,12 +246,12 @@ msgid "<0>{0}</0> will be able to change the resolver for <1>{name}</1>"
 msgstr "<0>{0}</0> will be able to change the resolver for <1>{name}</1>"
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> names selected</3>"
-msgstr "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> names selected</3>"
+msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
+msgstr "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
-msgid "<0>All </0><1>{visibleCount}</1><2> names selected</2>"
-msgstr "<0>All </0><1>{visibleCount}</1><2> names selected</2>"
+msgid "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
+msgstr "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 #: src/features/bulk-renew/components/DurationPresets.tsx
@@ -629,6 +638,15 @@ msgstr "Cancel Email Verification?"
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Cancel Verification"
 msgstr "Cancel Verification"
+
+#: src/features/migration/components/success/NftVideoDownloadAction.tsx
+msgid "Cancel video export"
+msgstr "Cancel video export"
+
+#. placeholder {0}: state.progress
+#: src/features/migration/components/success/NftVideoDownloadAction.tsx
+msgid "Cancel video export ({0}%)"
+msgstr "Cancel video export ({0}%)"
 
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Cannot save profile"
@@ -1128,6 +1146,10 @@ msgstr "Domain transfer and expiry notifications"
 #: src/features/bulk-renew/components/SuccessStep.tsx
 msgid "Done"
 msgstr "Done"
+
+#: src/features/migration/components/success/NftVideoDownloadAction.tsx
+msgid "Download video"
+msgstr "Download video"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Download WebP"
@@ -1808,6 +1830,10 @@ msgstr "Names"
 msgid "Names could not be loaded"
 msgstr "Names could not be loaded"
 
+#: src/features/migration/components/SelectNamesStepNameList.tsx
+msgid "Names in grace will be renewed before being migrated"
+msgstr "Names in grace will be renewed before being migrated"
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Names with deeper subnames, wrapped protections we cannot preserve, an incomplete subname list, or too many subnames for one safe upgrade must stay on ENSv1 for now. If subname copying is unavailable, the parent upgrade is blocked. There is no option to acknowledge the loss and continue. Your names keep working on ENSv1 while you wait."
 msgstr "Names with deeper subnames, wrapped protections we cannot preserve, an incomplete subname list, or too many subnames for one safe upgrade must stay on ENSv1 for now. If subname copying is unavailable, the parent upgrade is blocked. There is no option to acknowledge the loss and continue. Your names keep working on ENSv1 while you wait."
@@ -1865,6 +1891,10 @@ msgstr "NFT artwork downloaded"
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "NFT traits"
 msgstr "NFT traits"
+
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "NFT video downloaded"
+msgstr "NFT video downloaded"
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No additional payment needed. You'll still need to sign the renewal."
@@ -1952,8 +1982,12 @@ msgid "Not enough USDC on {chainName}."
 msgstr "Not enough USDC on {chainName}."
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Not enough USDC to renew these names. Add USDC to your wallet to continue."
-msgstr "Not enough USDC to renew these names. Add USDC to your wallet to continue."
+msgid "Not enough USDC to renew"
+msgstr "Not enough USDC to renew"
+
+#: src/features/migration/components/SelectNamesStepNameList.tsx
+msgid "Not enough USDC to renew the selected names. Add USDC or deselect this name."
+msgstr "Not enough USDC to renew the selected names. Add USDC or deselect this name."
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
@@ -2468,10 +2502,6 @@ msgstr "Removing..."
 msgid "Renew"
 msgstr "Renew"
 
-#: src/features/migration/components/NameRow.tsx
-msgid "Renew before upgrade"
-msgstr "Renew before upgrade"
-
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renew name"
@@ -2549,6 +2579,10 @@ msgstr "Renewals are paid in USDC out of your smart account."
 #: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
 msgstr "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Renewing <0>{count, plural, one {# name} other {# names}}</0> for <1>{amount} USDC</1>"
+msgstr "Renewing <0>{count, plural, one {# name} other {# names}}</0> for <1>{amount} USDC</1>"
 
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Renewing for"
@@ -2993,6 +3027,10 @@ msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
 
 #: src/features/migration/service/migrationPreparationError.ts
+msgid "Some subnames can't upgrade because {parentName} hasn't been upgraded yet. Upgrade this parent first, or deselect those subnames."
+msgstr "Some subnames can't upgrade because {parentName} hasn't been upgraded yet. Upgrade this parent first, or deselect those subnames."
+
+#: src/features/migration/service/migrationPreparationError.ts
 msgid "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
 msgstr "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
 
@@ -3237,6 +3275,10 @@ msgstr "The notification service returned an invalid key. Please try again later
 msgid "The page you're looking for doesn't exist or may have been moved."
 msgstr "The page you're looking for doesn't exist or may have been moved."
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "The parent name {parentName} must be upgraded before this subname."
+msgstr "The parent name {parentName} must be upgraded before this subname."
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "The pending code will stop working."
 msgstr "The pending code will stop working."
@@ -3369,6 +3411,10 @@ msgstr "This signature is free and doesn't cost any gas."
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "This subname must be included through its parent name. It cannot be copied on its own."
 msgstr "This subname must be included through its parent name. It cannot be copied on its own."
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "This subname's parent or registry is not supported for upgrading yet."
+msgstr "This subname's parent or registry is not supported for upgrading yet."
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "This upgrade cannot preserve every subname below the selected parents. Keep those parents on ENSv1 for now, where their subnames keep working. Return to your selection and remove the affected parents before continuing."
@@ -3638,6 +3684,18 @@ msgstr "Verify your wallet"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Verifying registration on-chain"
 msgstr "Verifying registration on-chain"
+
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "Video could not be downloaded. Please try again."
+msgstr "Video could not be downloaded. Please try again."
+
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "Video export is not supported in this browser."
+msgstr "Video export is not supported in this browser."
+
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "Video export is unavailable. Please try again later."
+msgstr "Video export is unavailable. Please try again later."
 
 #: src/features/profile/components/view/ReverseNameView.tsx
 msgid "View address"
@@ -4121,10 +4179,6 @@ msgstr "Your subnames are unaffected"
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
 msgstr "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
-
-#: src/features/migration/commemorative-nft/claimMessages.ts
-msgid "Your upgrades are still being verified. Check again in a moment."
-msgstr "Your upgrades are still being verified. Check again in a moment."
 
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx

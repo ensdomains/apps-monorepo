@@ -122,6 +122,7 @@ describe('useTransferDetachTargets', () => {
       setEthAddress: true,
       detachResolver: true,
       detachRegistry: true,
+      transferManager: false,
     })
     expect(isSettled).toBe(true)
     expect(hasFailed).toBe(false)
