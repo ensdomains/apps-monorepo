@@ -77,6 +77,23 @@ export async function getResolverSetterKind(
   return supportsNameSetters ? 'name' : 'node'
 }
 
+const EXTENDED_RESOLVER_INTERFACE_ID = '0x9061b923'
+
+/** Resolves through CCIP-Read and has no setters this app can call. */
+export async function isOffchainResolver(
+  publicClient: PublicClient,
+  resolverAddress: Address,
+): Promise<boolean> {
+  const [isExtended, supportsNameSetters] = await getSupportedInterfaces(
+    publicClient as unknown as Parameters<typeof getSupportedInterfaces>[0],
+    {
+      address: resolverAddress,
+      interfaces: [EXTENDED_RESOLVER_INTERFACE_ID, NAME_SETTER_INTERFACE_ID],
+    },
+  )
+  return isExtended && !supportsNameSetters
+}
+
 const encodeCalls = (calls: readonly unknown[]): Hex[] =>
   calls.map((call) =>
     encodeFunctionData(call as Parameters<typeof encodeFunctionData>[0]),

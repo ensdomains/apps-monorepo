@@ -8,6 +8,7 @@ import {
   getPrimaryNameForwardAddress,
   hasPrimaryNameForwardAddress,
 } from './primaryNameForwardAddress'
+import { isOffchainResolver } from './resolverRecordCalls'
 import {
   getResolverWriteState,
   readV1RegistryResolver,
@@ -25,6 +26,8 @@ export type PrimaryNamePreparation =
       readonly kind: 'setup-resolver'
       readonly existingEthAddress: Address | null
       readonly hasResolver: boolean
+      /** Its records come from an outside gateway, so only that provider can set them. */
+      readonly hasOffchainResolver: boolean
     }
 
 /** An ENSv1 resolver that resolution no longer reaches, e.g. under an expired parent. */
@@ -63,5 +66,8 @@ export async function getPrimaryNamePreparation(
     existingEthAddress,
     // A subname inheriting a wildcard parent's resolver counts as having one: ours would shadow it.
     hasResolver: resolverAddress !== undefined,
+    hasOffchainResolver:
+      resolverAddress !== undefined &&
+      (await isOffchainResolver(publicClient, resolverAddress)),
   }
 }

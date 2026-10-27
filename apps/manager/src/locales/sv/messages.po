@@ -197,6 +197,10 @@ msgstr ""
 msgid "{name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name."
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{name} uses an offchain resolver, so its ETH address is set with that resolver’s provider. Point it at this wallet there, then try again."
+msgstr ""
+
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
 msgstr ""

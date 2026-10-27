@@ -560,6 +560,23 @@ export const ChoosePrimaryNameDialog = ({
     )
   }
 
+  // Say why a resolver setup can't complete here instead of walking into it.
+  const readSetupBlocker = async (
+    preparation: PrimaryNamePreparation,
+    name: string,
+  ): Promise<Error | null> => {
+    if (preparation.kind !== 'setup-resolver') return null
+    if (preparation.hasOffchainResolver)
+      return new Error(
+        t`${name} uses an offchain resolver, so its ETH address is set with that resolver’s provider. Point it at this wallet there, then try again.`,
+      )
+    // Setting up a resolver goes through the v2 registry, so an ENSv1 name
+    // with no resolver this wallet can write has no path here.
+    if (selectedProtocol === 'v1')
+      return readV1SetupError(name, preparation.hasResolver)
+    return null
+  }
+
   const applyPreparation = async (preparation: PrimaryNamePreparation) => {
     if (preparation.kind === 'setup-resolver') {
       await setupResolverMutation.mutateAsync()
@@ -615,14 +632,10 @@ export const ChoosePrimaryNameDialog = ({
       return
     }
 
-    // Setting up a resolver goes through the v2 registry, so an ENSv1 name
-    // with no resolver this wallet can write has no path here. Say so instead
-    // of walking the user into a setup that cannot complete.
-    if (preparation.kind === 'setup-resolver' && selectedProtocol === 'v1') {
+    const setupBlocker = await readSetupBlocker(preparation, selectedName)
+    if (setupBlocker) {
       setConfirmation(null)
-      setPreparationError(
-        await readV1SetupError(selectedName, preparation.hasResolver),
-      )
+      setPreparationError(setupBlocker)
       return
     }
 

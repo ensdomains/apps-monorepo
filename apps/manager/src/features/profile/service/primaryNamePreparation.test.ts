@@ -15,6 +15,9 @@ vi.mock('./primaryNameForwardAddress', () => ({
 vi.mock('./resolverWriteAccess', () => ({
   getResolverWriteState: vi.fn(),
 }))
+vi.mock('./resolverRecordCalls', () => ({
+  isOffchainResolver: vi.fn(async () => false),
+}))
 
 const client = {} as PublicClient
 const owner = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const
@@ -49,6 +52,7 @@ describe('getPrimaryNamePreparation', () => {
       kind: 'setup-resolver',
       existingEthAddress: null,
       hasResolver: false,
+      hasOffchainResolver: false,
     })
     expect(getResolverWriteState).toHaveBeenCalledWith(name, owner)
   })
@@ -99,6 +103,7 @@ describe('getPrimaryNamePreparation', () => {
       kind: 'setup-resolver',
       existingEthAddress: null,
       hasResolver: false,
+      hasOffchainResolver: false,
     })
   })
 
@@ -128,6 +133,7 @@ describe('getPrimaryNamePreparation', () => {
       kind: 'setup-resolver',
       existingEthAddress: null,
       hasResolver: true,
+      hasOffchainResolver: false,
     })
   })
 })
