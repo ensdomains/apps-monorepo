@@ -69,7 +69,7 @@ export default createApp()
     const nonce = crypto.randomUUID()
     c.header(
       'Content-Security-Policy',
-      `default-src 'none'; style-src 'nonce-${nonce}'; font-src https://fonts.ens.dev; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`,
+      `default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; font-src https://fonts.ens.dev; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`,
     )
     c.header('X-Content-Type-Options', 'nosniff')
     const result = await finishTelegramLogin(
@@ -83,7 +83,6 @@ export default createApp()
         isSuccess: result.isOk(),
         error: result.isErr() ? result.error : undefined,
         nonce,
-        managerUrl: c.env.MANAGER_APP_URL,
       }),
     )
   })

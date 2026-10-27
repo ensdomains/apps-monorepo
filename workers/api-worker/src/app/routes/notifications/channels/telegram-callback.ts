@@ -27,12 +27,10 @@ const retryGlyph = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 export const telegramCallbackPage = ({
   isSuccess,
   nonce,
-  managerUrl,
   error,
 }: {
   readonly isSuccess: boolean
   readonly nonce: string
-  readonly managerUrl?: string
   readonly error?: unknown
 }) => {
   const hasTimedOut = !isSuccess && isTokenExchangeTimeout(error)
@@ -45,7 +43,7 @@ export const telegramCallbackPage = ({
       <title>${isSuccess ? 'Telegram connected' : 'Telegram not connected'} · ENS App</title>
       <style nonce="${nonce}">
         /* Mirror Manager's styles/theme.css and fonts.css for this standalone page.
-           It needs no application bundle, scripts, cookies, or wallet session. */
+           It needs no application bundle, cookies, or wallet session. */
         :root {
           --font-sans: "ABCMonumentGrotesk", Arial, sans-serif;
           --font-mono: "ABCMonumentGroteskMono", ui-monospace, monospace;
@@ -138,7 +136,7 @@ export const telegramCallbackPage = ({
         .steps strong { font-weight: 500; }
         .steps span { display: block; margin-top: 2px; color: var(--color-ens-quartz-550); font-size: 14px; }
 
-        .button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 28px; padding: 16px; border-radius: 6px; background: var(--color-ens-lapis-core); color: var(--color-ens-quartz-0); font-family: var(--font-mono); font-size: 14px; text-decoration: none; transition: background-color 150ms ease; }
+        .button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 28px; padding: 16px; border: 0; border-radius: 6px; background: var(--color-ens-lapis-core); color: var(--color-ens-quartz-0); font-family: var(--font-mono); font-size: 14px; cursor: pointer; transition: background-color 150ms ease; }
         .button:hover { background: var(--color-ens-lapis-hover); }
         .button:active { background: var(--color-ens-lapis-active); }
         .button:focus-visible { outline: 3px solid var(--color-ens-lapis-dust); outline-offset: 2px; }
@@ -200,10 +198,13 @@ export const telegramCallbackPage = ({
             <li><strong>Allow messages when Telegram asks</strong><span>You need to allow the notification bot to send you messages, or ENS notifications can’t reach you.</span></li>
           </ol>`
           }
-          ${managerUrl ? html`<a class="button" href="${managerUrl}" rel="noreferrer">Open ENS App <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a>` : ''}
+          <button class="button" id="close-window" type="button">Close Window</button>
         </main>
-        ${isSuccess ? html`<p class="footnote">Registering a name? Go back to your original tab to keep your progress.</p>` : ''}
+        <p class="footnote">If this window doesn’t close, you can close it manually.${isSuccess ? ' Registering a name? Go back to your original tab to keep your progress.' : ''}</p>
       </div>
+      <script nonce="${nonce}">
+        document.getElementById('close-window').addEventListener('click', () => window.close());
+      </script>
     </body>
   </html>`
 }
