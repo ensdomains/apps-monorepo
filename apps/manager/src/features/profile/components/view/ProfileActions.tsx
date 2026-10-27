@@ -12,6 +12,7 @@ import {
   editBottomBarContentClassName,
   editBottomNavClassName,
   editBottomNavContentClassName,
+  mobileRenewActionClassName,
   profileBarActionsClassName,
   profileButtonClassName,
   profileStickyBarClassName,
@@ -88,7 +89,8 @@ export const ProfileActions = ({
       <ProfileFavoriteAction name={name} />
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
       <ProfileRenewAction
-        className={renewActionClassName}
+        className={cn(renewActionClassName, mobileRenewActionClassName)}
+        compact
         isOwner={isOwner}
         name={name}
         protocol={renewalProtocol}
@@ -100,12 +102,17 @@ export const ProfileActions = ({
     return (
       <ProfileEditAction
         canEdit={canEdit}
-        className={profileButtonClassName}
+        className={cn(profileButtonClassName, 'max-xl:min-w-16 max-xl:px-3')}
         isInGrace={isInGrace}
         isUpgradeRequired={isUpgradeRequired}
         keepMounted
         leftActions={
-          <div className={cn(profileBarActionsClassName, 'xl:hidden')}>
+          <div
+            className={cn(
+              profileBarActionsClassName,
+              'min-w-0 flex-1 xl:hidden',
+            )}
+          >
             {barActions}
           </div>
         }

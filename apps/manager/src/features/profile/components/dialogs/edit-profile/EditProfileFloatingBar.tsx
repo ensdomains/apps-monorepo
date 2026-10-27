@@ -15,6 +15,7 @@ import {
   profileBarActionsClassName,
 } from '@/features/profile/components/view/ProfileAction.styles'
 import { useIntercomClearance } from '@/hooks/useIntercomClearance'
+import { cn } from '@/lib/utils'
 
 const OPEN_HEIGHT_RATIO = 0.7
 
@@ -97,12 +98,12 @@ const useMeasuredHeight = (ref: RefObject<HTMLElement | null>) => {
 // Figma-spec card: the 12px radius, 0.25px border and layered shadows have no
 // matching tokens. The open shadow is the elevated state while the editor is up.
 const containerClassName =
-  'pointer-events-auto relative mx-auto w-full max-w-97.5 overflow-hidden border-ens-quartz-200 border-t bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] transition-shadow duration-300 xs:rounded-xl xs:border-[0.25px] xs:border-ens-quartz-300 xs:border-solid xs:shadow-[0_2px_12px_rgba(0,0,0,0.06)] xs:data-[open=true]:shadow-[0_24px_64px_rgba(7,28,47,0.16)] xl:max-w-226.25'
+  'pointer-events-auto relative mx-auto w-full max-w-97.5 overflow-hidden rounded-xl border-[0.25px] border-ens-quartz-300 border-solid bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-shadow duration-300 data-[open=true]:shadow-[0_24px_64px_rgba(7,28,47,0.16)] xl:max-w-226.25'
 
-// Figma-spec offset: the bar floats 30px above the bottom (plus the device
-// safe area), which has no matching spacing token.
+// Keep a compact phone inset and the 30px Figma offset on larger viewports,
+// adding the device safe area in both cases.
 const sectionClassName =
-  'pointer-events-none fixed inset-x-0 bottom-0 z-40 xs:bottom-[calc(30px+env(safe-area-inset-bottom,0px))] xs:px-4'
+  'pointer-events-none fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom,0px))] z-40 px-3 xs:bottom-[calc(30px+env(safe-area-inset-bottom,0px))] xs:px-4'
 
 interface EditProfileFloatingBarProps {
   readonly children: ReactNode
@@ -174,9 +175,22 @@ export const EditProfileFloatingBar = ({
               key={leftActions ? 'bar' : 'preview'}
             >
               {leftActions ? (
-                <div className={profileBarActionsClassName}>{leftActions}</div>
+                <div
+                  className={cn(
+                    profileBarActionsClassName,
+                    'max-xl:min-w-0 max-xl:flex-1 max-xl:basis-44',
+                  )}
+                >
+                  {leftActions}
+                </div>
               ) : null}
-              <div className="flex min-w-0 flex-1 items-center justify-end gap-3 xl:ml-auto xl:flex-none">
+              <div
+                className={cn(
+                  'flex min-w-0 flex-1 items-center justify-end gap-3 xl:ml-auto xl:flex-none',
+                  leftActions && 'max-xl:flex-none',
+                  'max-xl:gap-2',
+                )}
+              >
                 {rightActions}
               </div>
             </motion.div>

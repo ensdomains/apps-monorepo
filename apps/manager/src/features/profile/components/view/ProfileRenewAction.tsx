@@ -21,6 +21,7 @@ import {
 
 type ProfileRenewActionProps = {
   readonly className: string
+  readonly compact?: boolean
   readonly isOwner?: boolean
   readonly name: string
   readonly protocol?: RenewalProtocol
@@ -28,6 +29,7 @@ type ProfileRenewActionProps = {
 
 export const ProfileRenewAction = ({
   className,
+  compact = false,
   isOwner,
   name,
   protocol,
@@ -50,7 +52,18 @@ export const ProfileRenewAction = ({
 
   const buttonContent = (
     <span className={iconActionInnerClassName}>
-      <Trans>Renew Name</Trans>
+      {compact ? (
+        <>
+          <span className="xs:hidden">
+            <Trans>Renew</Trans>
+          </span>
+          <span className="xs:inline hidden">
+            <Trans>Renew Name</Trans>
+          </span>
+        </>
+      ) : (
+        <Trans>Renew Name</Trans>
+      )}
       <MSymbol
         aria-hidden="true"
         className={renewActionSymbolClassName}

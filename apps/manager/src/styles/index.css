@@ -61,6 +61,14 @@
     position: relative;
     z-index: 40;
   }
+
+  /* Intercom ignores its launcher padding setting on mobile. */
+  @variant max-xl {
+    .intercom-lightweight-app-launcher {
+      /* biome-ignore lint/complexity/noImportantStyles: override Intercom's unlayered launcher positioning. */
+      bottom: var(--intercom-launcher-padding, 20px) !important;
+    }
+  }
 }
 
 [data-sonner-toast].ens-sonner-toast[data-styled="true"] {
