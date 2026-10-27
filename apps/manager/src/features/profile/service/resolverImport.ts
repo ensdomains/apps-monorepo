@@ -116,6 +116,8 @@ const viewableReadErrors = (
 // further overhead for resolve(name, data). Stay comfortably below URL limits.
 const MAX_RESOLVER_BATCH_BYTES = 2048
 
+const MAX_SINGLE_READS = 8
+
 const isRecognizedV2Resolver = async (
   resolver: Address,
   client: PublicClient,
@@ -481,16 +483,24 @@ export const readResolverRecords = async ({
           return null
         })
       : null
-    results.push(
-      ...(await Promise.all(
-        chunk.map((request, index) =>
-          read(
-            request,
-            batched?.length === chunk.length ? batched[index] : undefined,
-          ),
-        ),
-      )),
-    )
+    if (batched?.length === chunk.length) {
+      results.push(
+        ...(await Promise.all(
+          chunk.map((request, index) => read(request, batched[index])),
+        )),
+      )
+      continue
+    }
+    // A byte-sized batch can hold more reads than a gateway takes at once.
+    for (let start = 0; start < chunk.length; start += MAX_SINGLE_READS) {
+      results.push(
+        ...(await Promise.all(
+          chunk
+            .slice(start, start + MAX_SINGLE_READS)
+            .map((request) => read(request)),
+        )),
+      )
+    }
   }
   return {
     records: {

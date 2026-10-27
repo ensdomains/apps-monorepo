@@ -581,6 +581,37 @@ describe('offchain resolver records', () => {
     expect(resolveCalls().length).toBeGreaterThan(1)
   })
 
+  it('keeps at most eight single reads in flight after a rejected batch', async () => {
+    offchain(
+      new HttpRequestError({ url: 'https://gateway.invalid', status: 500 }),
+    )
+    const single = mocks.readContract.getMockImplementation()
+    let inFlight = 0
+    let maxInFlight = 0
+    mocks.readContract.mockImplementation(async (request) => {
+      if (
+        request.functionName !== 'resolve' ||
+        request.args[1].startsWith('0xac9650d8')
+      )
+        return single?.(request)
+      inFlight += 1
+      maxInFlight = Math.max(maxInFlight, inFlight)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      inFlight -= 1
+      return single?.(request)
+    })
+
+    await readResolverRecords({
+      name: NAME,
+      resolver: RESOLVER,
+      texts: [],
+      coins: Array.from({ length: 12 }, (_, i) => 2147483658 + i),
+      publicClient: publicClient as PublicClient,
+    })
+
+    expect(maxInFlight).toBe(8)
+  })
+
   it.each([
     [false, 'keeps the other records', 0],
     [true, 'reports the failure', 1],
