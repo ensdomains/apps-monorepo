@@ -4,31 +4,31 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Now
 
-- **Batch**: B0, step 3 in progress. One commit (`92ea70576`) on `e2e-land/b0-infra`, in worktree `/Users/sg/ens/worktrees/e2e-land-b0`, rebased on `origin/main` at `ae8849020` and **pushed to origin (2026-10-28)**. No PR is open yet. After the rebase: frozen install, typecheck, reconcile and the address gate re-passed.
+- **Batch**: B0, step 3 in progress. One commit (`6b77b0af3`) on `e2e-land/b0-infra`, in worktree `/Users/sg/ens/worktrees/e2e-land-b0`, on `origin/main` at `ae8849020`. **Pushed (force-pushed 2026-10-28 after trimming).** No PR is open yet. 95 files, ~13.7k lines.
+- **Trimmed on the user's request (2026-10-28)**: the coverage ledger and the planning docs were taken out of B0 and the commit rewritten, so main's history never carries them. They stay on this branch as **B10**: `e2e/coverage/**` (reconciler, scenarios, invariants, baseline, handoff), `e2e/matrix/{ids,scenarios}.ts`, and `e2e/docs/` `e2e-{build-goal,coverage,defects,gap-analysis,master-test-plan,spec-audit,test-catalogue}.md` plus `{bigname-harness,portal-bigname}-handoff.md`. `e2e/matrix/{run,assert,expectations,render-docs}.ts` moved to B7. B0 also drops the `coverage` / `e2e:coverage` scripts, the README's Coverage Ledger section and one handoff link in `local-e2e-stack.md`.
 - **Local results (2026-10-28)**:
 
   | Check | Result |
   |---|---|
-  | typecheck | clean |
-  | Biome | warnings only |
-  | `check-address-literals` | pass |
-  | `coverage/reconcile.ts` | pass |
-  | `v1-name-shapes` unit tests | 11/11 |
-  | Harness, portal config | 12/12 |
-  | Harness, manager config | 6/6 |
-  | Main's portal suite | 23 passed, 9 skipped |
-  | Main's manager suite | 24 passed, 3 skipped |
+  | typecheck | clean (re-run after the trim) |
+  | Biome | warnings only (re-run after the trim) |
+  | `check-address-literals` | pass (re-run after the trim) |
+  | `v1-name-shapes` unit tests | 11/11 (re-run after the trim) |
+  | Harness, portal config | 12/12 (before the trim; still lists 12 after) |
+  | Harness, manager config | 6/6 (before the trim; still lists 6 after) |
+  | Main's portal suite | 23 passed, 9 skipped (before the trim) |
+  | Main's manager suite | 24 passed, 3 skipped (before the trim) |
 
-  All run in CI's mode: `E2E_MOCK_BIGNAME=true`, with the `.env.ci` templates.
+  All run in CI's mode: `E2E_MOCK_BIGNAME=true`, with the `.env.ci` templates. The trim only removed files nothing in B0 imports, so the Playwright runs were not repeated.
+- **Known dangling links in B0**: code comments still cite `e2e-build-goal.md`, `e2e-defects.md`, `e2e-gap-analysis.md` and `coverage/handoff.md`, and the README links `docs/smoke-suite.md` (B1a). They resolve once B10 / B1a land.
 
 ## Next action
 
-1. The user decides: open B0 as one PR (115 files, ~28.7k lines), or split it into B0a (stack, harness, libraries, ~18k) and B0b (reconciler, ledger docs, ~10k, stacked). The branch is pushed as one commit.
-2. On the user's go: open the PR from `e2e-land/b0-infra` (step 3). The body summarises the batch and has the results table above, with no attribution. Then record `pr:` for B0 in `landing/batches.ts`.
+1. On the user's go: open the PR from `e2e-land/b0-infra` (step 3). The body summarises the batch and has the results table above, with no attribution. Then record `pr:` for B0 in `landing/batches.ts`.
 
 ## Waiting on
 
-- The user's go-ahead to open the B0 PR, and the split decision. The branch is already pushed.
+- The user's go-ahead to open the B0 PR. The branch is already pushed; the split question is moot after the trim.
 
 - **Security, for the user**: rotate the Mailinator API key, and update the `MAILINATOR_API_KEY` GitHub secret. The raw key is in `e2e/.env` on this branch, which has been pushed to a **public** repo, so dropping the file from main doesn't un-leak it.
 - **Local checkout**: the user's local `e2e-tests-coverage` is behind origin by the sync merge. A fast-forward is blocked by uncommitted WIP in `e2e/package.json`, `pnpm-lock.yaml`, `e2e-coverage.md` and `e2e-defects.md`, and the user decides how to bring it forward.
@@ -37,6 +37,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 1. **B9 exploratory suites** (`migration-matrix`, `parity`, `replacement`, ~151 files): land, or drop? This can wait until B9.
 2. **Worktrees**: which ones to fold in or abandon (see Worktree triage).
+3. **B10 coverage ledger and planning docs**: when (or whether) they go to main. Until then, batches don't run the reconciler on main.
 
 ## Standing rules
 
@@ -52,7 +53,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 | # | Step | Who |
 |---|---|---|
 | 1 | Branch `e2e-land/<batch>` from `origin/main`, check out the batch's paths (`landing --batch <id> --paths`), and set the `@smoke` tags to match the ledger's smoke checklist | agent |
-| 2 | Run Biome on the batch files, `pnpm typecheck` in `e2e/` and in any touched app, `pnpm e2e:coverage`, and the batch's own Playwright configs on the local stack. Report the pass/fail table | agent |
+| 2 | Run Biome on the batch files, `pnpm typecheck` in `e2e/` and in any touched app, `pnpm --filter @ens-apps/e2e check:addresses`, and the batch's own Playwright configs on the local stack. Report the pass/fail table | agent |
 | 3 | Push and open a PR to main. The body summarises the batch and includes the local run table, with no attribution. Record `pr:` in `landing/batches.ts` | agent, after the user says go |
 | 4 | Watch CI and fix failures on the batch branch. Once nightly is on main, run `e2e-nightly.yml` manually on the branch for that batch's project | agent |
 | 5 | Request peer review and merge | user |
@@ -61,13 +62,8 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 **Step 1 details** (learned on B0):
 - **Imports must close.** After the checkout, look for relative imports that point at files missing from the tree. If a batch file imports a later batch's file, move that file into the earlier batch in `batches.ts`, rather than shipping a broken import.
 - **`package.json` files**: start from main's version and add only the scripts and deps this batch's files need. Never copy the branch's version wholesale. Then run `pnpm install` to update `pnpm-lock.yaml` from main's lockfile.
-- **`e2e-defects.md`**: restore the branch's copy, then delete every row the reconciler reports as "filed with no test proving it", until it passes:
-  ```bash
-  cd e2e && for id in $(pnpm exec tsx coverage/reconcile.ts 2>&1 | grep -oE "defect (E2E-[0-9]+(, )?)+ filed" | grep -oE "E2E-[0-9]+" | sort -u); do grep -v "^| $id |" docs/e2e-defects.md > docs/.d && mv docs/.d docs/e2e-defects.md; done
-  ```
-  The deleted rows come back in the batch that lands their tests.
-- **Ratchet**: run `pnpm exec tsx coverage/reconcile.ts --update` so `coverage/baseline.json` rises to this batch's level. B0 reset it to B0's own counts, because the branch's baseline assumes every test.
-- **A spec that no config runs** fails the reconciler. It goes in the batch that lands its config (e.g. `harness-manager-4ld.spec.ts` is in B1b).
+- **Coverage ledger (B10)**: main has no reconciler, `baseline.json` or `e2e-defects.md` until B10 lands, so batches before it skip the defect-row filter and the ratchet. When B10 is prepared: restore the branch's `e2e-defects.md`, delete every row the reconciler reports as "filed with no test proving it" (`for id in $(pnpm exec tsx coverage/reconcile.ts 2>&1 | grep -oE "defect (E2E-[0-9]+(, )?)+ filed" | grep -oE "E2E-[0-9]+" | sort -u); do grep -v "^| $id |" docs/e2e-defects.md > docs/.d && mv docs/.d docs/e2e-defects.md; done`), reset `baseline.json` to what is on main, and run `reconcile.ts --update`.
+- **A spec that no config runs** fails the reconciler (once B10 lands). It goes in the batch that lands its config (e.g. `harness-manager-4ld.spec.ts` is in B1b).
 
 **Step 2 details** (local run):
 - Mirror CI's env in the batch worktree: `cp apps/{manager,portal}/.env.ci apps/{manager,portal}/.env`, then `set -a; . e2e/.env.ci; set +a`. The apps' `.env` files are tracked, so restore them (`git checkout -- apps/*/.env`) before committing.
@@ -81,7 +77,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 | Batch | Scope | Status |
 |---|---|---|
-| B0 | Infra: stack, helpers, fixtures, harness, matrix libs, coverage ledger (115 files, ~28.7k lines) | local-green. Pushed as `e2e-land/b0-infra`, no PR yet |
+| B0 | Infra: stack, helpers, fixtures, harness, matrix seeding libs, address gate (95 files, ~13.7k lines) | local-green. Pushed as `e2e-land/b0-infra`, no PR yet |
 | B1a | Smoke: Explorer specs + CI (sharded `@smoke` gate, nightly) | not started |
 | B1b | Smoke: Manager specs | not started |
 | B1c | Smoke gaps, written on main (see below) | not started |
@@ -90,9 +86,10 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 | B4 | Transfer, fuses, 4LD rest | not started |
 | B5 | Registration, renewal, roles rest (includes the 5 `@smoke` tests in `roles.spec.ts`) | not started |
 | B6 | Display, history, metadata service | not started |
-| B7 | V1 shape matrix | not started |
+| B7 | V1 shape matrix. Needs B10 first (`render-docs.ts` imports `matrix/ids.ts`) | not started |
 | B8 | Unit tests in apps/ and packages/ | not started |
 | B9 | Exploratory suites: land or drop | not started |
+| B10 | Coverage ledger and planning docs, held back from B0 by the user. Stays on this branch for now | held |
 
 **Smoke gaps (B1c)**, to be written as new tests on main after B0:
 - Manager: add a banner (header) record.
@@ -113,7 +110,7 @@ When one is written, replace its `gap` entry in `landing/batches.ts` with `spec`
 - **2026-10-28**: Freeze after B0 merges.
 - **2026-10-28**: The CI switch (per-PR smoke plus nightly full suite) lands with B1a, not B0.
 - **2026-10-28**: Smoke is defined by the user's flow list (`smoke` in `landing/batches.ts`), plus the existing `@smoke` security regressions in portal registration and transfer. The `roles.spec.ts` smoke tests move to B5.
-- **2026-10-28**: DROP covers only files nothing kept refers to: `qa2-*.mjs`, `docs/testing-campaigns/**`, `e2e/docs/archive/**`, 4 unreferenced `probe-*` scripts, and `readNamePages.ts` (dead code). Process notes that specs or configs cite (`e2e-build-goal.md`, `coverage/handoff.md`, …) land with B0 to avoid dead links.
+- **2026-10-28**: DROP covers only files nothing kept refers to: `qa2-*.mjs`, `docs/testing-campaigns/**`, `e2e/docs/archive/**`, 4 unreferenced `probe-*` scripts, and `readNamePages.ts` (dead code). Process notes that specs or configs cite (`e2e-build-goal.md`, `coverage/handoff.md`, …) are kept (now in B10).
 - **2026-10-28**: Explorer can create V1 subnames (the user confirmed). It's a smoke gap, not N/A.
 - **2026-10-28**: The Mailinator key stays a secret. `e2e/.env` never lands, and CI already reads `secrets.MAILINATOR_API_KEY`. The key still needs rotating (see Waiting on).
 - **2026-10-28**: The user OK'd the push. The tracker was pushed after merging `origin/e2e-tests-coverage` (CCIP work and a main merge) in a scratch worktree, to keep the user's WIP untouched.
@@ -121,6 +118,7 @@ When one is written, replace its `gap` entry in `landing/batches.ts` with `spec`
 - **2026-10-28**: B0 pulls `e2e/matrix/**`, `packages/v1-name-shapes` and `migration-matrix/local-fork-routing.ts` forward, because B0's fixtures, harness and `coverage/scenarios.ts` import them. `harness-manager-4ld.spec.ts` moves to B1b.
 - **2026-10-28**: Allowlisted Anvil account #2 in `check-address-literals.ts`. The CCIP fixture uses it as a record value, and the gate had been failing on this branch since the offchain commits. The fix is on both B0 and this branch.
 - **2026-10-28**: Main (#1585) now has Greptile block merges on `high` rules, and several of them cover `e2e/**`: `no-any`, `no-non-null-assertion`, `no-new-suppressions`, `no-weakened-tests`, `removed-guard`. B0's added lines had 5 `any`, 2 `!` and 1 unexplained cast. All are fixed without changing behaviour (a typed Playwright report in `reconcile.ts`, `Reflect.get`, a single map lookup, and a reason on the cast), on both B0 and this branch. **For every batch**: grep the added lines for these before opening the PR.
+- **2026-10-28**: The user took the coverage ledger (`e2e/coverage/**`) and the planning and handoff docs out of B0, to stay on this branch for now. They became batch B10. B0's commit was amended and force-pushed so main's history never carries them. `matrix/{ids,scenarios}.ts` went with them (they only feed the ledger), and the matrix runner files moved to B7. This also settled the one-PR-vs-split question.
 
 ## Worktree triage (2026-10-28)
 
@@ -140,7 +138,7 @@ Run `pnpm --filter @ens-apps/e2e landing --worktrees` for the live table.
 ## Gotchas
 
 - `--paths` and the ledger compare `origin/*` refs, so run `git fetch origin` first. A local-only commit on this branch doesn't count until it's pushed.
-- `e2e/package.json`, `package.json`, `pnpm-lock.yaml`, `e2e-defects.md`, `e2e-coverage.md` and `coverage/baseline.json` are `incremental` B0 rows: every batch edits them. After B0 merges they read `partial`, and `landed` only after the last batch.
+- `e2e/package.json`, `package.json`, `pnpm-lock.yaml`, `e2e/README.md` and `local-e2e-stack.md` are `incremental` B0 rows: every batch edits them. After B0 merges they read `partial`, and `landed` only after the last batch.
 - When diffing a batch branch, compare it with its own base (`HEAD`), not `origin/main`: main moves while the batch is in progress.
 - Biome ignores `.claude/worktrees/`, so batch worktrees live under `/Users/sg/ens/worktrees/`.
 - Local stack quirks are in [local-e2e-stack.md](./local-e2e-stack.md). Don't duplicate them here.

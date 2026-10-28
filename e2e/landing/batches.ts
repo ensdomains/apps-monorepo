@@ -26,6 +26,7 @@ export type BatchId =
   | 'B7'
   | 'B8'
   | 'B9'
+  | 'B10'
 
 export interface Batch {
   id: BatchId
@@ -43,7 +44,7 @@ export interface Batch {
 export const batches: Batch[] = [
   {
     id: 'B0',
-    title: 'Infra: stack, helpers, fixtures, harness, coverage ledger',
+    title: 'Infra: stack, helpers, fixtures, harness, address gate',
   },
   { id: 'B1a', title: 'Smoke: Explorer specs + CI gate (smoke, nightly)' },
   { id: 'B1b', title: 'Smoke: Manager specs' },
@@ -58,6 +59,11 @@ export const batches: Batch[] = [
     id: 'B9',
     title:
       'Exploratory suites (migration-matrix, parity, replacement): land or drop',
+  },
+  {
+    id: 'B10',
+    title:
+      'Coverage ledger and planning docs (held back from B0; stay on the branch for now)',
   },
 ]
 
@@ -100,8 +106,8 @@ export const rules: Rule[] = [
     globs: ['docs/testing-campaigns/**'],
   },
   // Only what nothing kept refers to. The other process notes (build goal, gap
-  // analysis, spec audit, handoffs) are cited by specs, fixtures and
-  // `coverage/scenarios.ts`, so they land with B0 rather than leave dead links.
+  // analysis, spec audit, handoffs) are cited by specs and fixtures, so they
+  // are held in B10 rather than dropped.
   {
     target: drop('superseded branch-process notes, unreferenced'),
     globs: ['e2e/docs/archive/**'],
@@ -123,8 +129,28 @@ export const rules: Rule[] = [
     globs: ['e2e/.env'],
   },
 
+  // ── B10 coverage ledger and planning docs ────────────────────────────────
+  // The user held these back from B0 on 2026-10-28; they stay on the branch
+  // until a later decision. `matrix/{ids,scenarios}.ts` only feed the ledger.
+  {
+    target: 'B10',
+    globs: [
+      'e2e/coverage/**',
+      'e2e/matrix/{ids,scenarios}.ts',
+      'e2e/docs/{e2e-test-catalogue,e2e-master-test-plan,e2e-coverage,e2e-defects}.md',
+      'e2e/docs/{e2e-build-goal,e2e-gap-analysis,e2e-spec-audit}.md',
+      'e2e/docs/{bigname-harness,portal-bigname}-handoff.md',
+    ],
+  },
+  // The matrix runner and doc renderer serve the generated specs, not B0.
+  // `render-docs.ts` imports `ids.ts`, so B7 needs B10 first.
+  {
+    target: 'B7',
+    globs: ['e2e/matrix/{run,assert,expectations,render-docs}.ts'],
+  },
+
   // ── B0, pulled forward from later batches ────────────────────────────────
-  // Fixtures, harness specs and `coverage/scenarios.ts` import these, so B0
+  // Fixtures and harness specs import these (seed, chain, records), so B0
   // does not compile without them (found preparing B0, 2026-10-28).
   {
     target: 'B0',
@@ -269,9 +295,9 @@ export const rules: Rule[] = [
       'e2e/package.json',
       'package.json',
       'pnpm-lock.yaml',
-      'e2e/coverage/baseline.json',
-      'e2e/docs/e2e-defects.md',
-      'e2e/docs/e2e-coverage.md',
+      // B0 carries these without the coverage-ledger passages (see B10).
+      'e2e/README.md',
+      'e2e/docs/local-e2e-stack.md',
     ],
   },
   {
@@ -282,15 +308,10 @@ export const rules: Rule[] = [
       'e2e/fixtures/**',
       'e2e/contracts/**',
       'e2e/specs/**',
-      'e2e/coverage/**',
       'e2e/cache/**',
       'e2e/playwright.config.base.ts',
       'e2e/projects/{manager,portal,cross-app}/playwright.config.ts',
       'e2e/scripts/{check-address-literals,check-name-resolves,seed-name}.ts',
-      'e2e/README.md',
-      'e2e/docs/{local-e2e-stack,e2e-test-catalogue,e2e-master-test-plan}.md',
-      'e2e/docs/{e2e-build-goal,e2e-gap-analysis,e2e-spec-audit}.md',
-      'e2e/docs/{bigname-harness,portal-bigname}-handoff.md',
       '.gitignore',
       'apps/*/.env.example',
       'apps/*/vite.config.ts',
