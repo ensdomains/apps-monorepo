@@ -9,7 +9,7 @@
     },
     {
       "id": "shared-change-blast-radius",
-      "rule": "A change to an exported function, hook, type, default value, query key, or error shape in a shared package affects every consumer. Search the repo for its callers in `apps/*` and `workers/*` and flag any caller whose behaviour changes without being updated or mentioned in the PR body. Flag a changed default where a new explicit option would leave existing callers alone.",
+      "rule": "A change to an exported function, hook, type, default value, query key, or error shape in a shared package affects every consumer. Search the whole repo for its callers, including `apps/*`, `workers/*`, and other `packages/*`, and flag any caller whose behaviour changes without being updated or mentioned in the PR body. Flag a changed default where a new explicit option would leave existing callers alone.",
       "scope": ["packages/**/*.ts", "packages/**/*.tsx"],
       "severity": "high"
     },

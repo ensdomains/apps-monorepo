@@ -38,9 +38,10 @@ Before the style rules, review every PR for that:
 4. **Check the scope.** Changes the PR title does not explain are
    unreviewed behaviour (`unrelated-changes`).
 
-A test change is intended when the PR body lists that test under its
-behaviour changes with a reason. Anything else is a finding. Put
-regression findings above style findings in the summary.
+Flag changes that weaken existing tests unless the PR body names the
+test under its behaviour changes with a reason, or the code it covers
+is deleted in the same PR. Adding or strengthening tests is not a
+finding. Put regression findings above style findings in the summary.
 
 ## What to skip entirely
 
