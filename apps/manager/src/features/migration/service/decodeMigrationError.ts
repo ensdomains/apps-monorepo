@@ -19,6 +19,7 @@ export type MigrationError =
       message: string
     }
   | { type: 'user-rejected' }
+  | { type: 'wallet-upgrade-declined' }
   | { type: 'preflight-timeout'; message: string; timeoutMs?: number }
   | { type: 'permission-missing'; tokenId?: bigint }
   | { type: 'token-owner-changed'; tokenId?: bigint }
@@ -301,17 +302,6 @@ const matchMigrationRevert = (data: Hex, depth = 0): MigrationError | null => {
 }
 
 export const decodeMigrationError = (err: unknown): MigrationError => {
-  if (isUserRejection(err)) return { type: 'user-rejected' }
-
-  if (
-    hasNamedError(err, 'MigrationPlanChangedError') ||
-    hasNamedError(err, 'CopyMigrationReadinessError')
-  ) {
-    return { type: 'plan-changed' }
-  }
-  if (hasNamedError(err, 'MigrationCleanupError')) {
-    return { type: 'cleanup-failed' }
-  }
   if (
     [
       'SubmittedAtomicMigrationIndeterminateError',
@@ -323,6 +313,26 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
     ].some((name) => hasNamedError(err, name))
   ) {
     return { type: 'retry-blocked' }
+  }
+  if (
+    walkCauseChain(err).some(
+      (error) =>
+        error.name === 'AtomicReadyWalletRejectedUpgradeError' ||
+        ('code' in error && error.code === 5750),
+    )
+  ) {
+    return { type: 'wallet-upgrade-declined' }
+  }
+  if (isUserRejection(err)) return { type: 'user-rejected' }
+
+  if (
+    hasNamedError(err, 'MigrationPlanChangedError') ||
+    hasNamedError(err, 'CopyMigrationReadinessError')
+  ) {
+    return { type: 'plan-changed' }
+  }
+  if (hasNamedError(err, 'MigrationCleanupError')) {
+    return { type: 'cleanup-failed' }
   }
 
   // Refused rather than failed: a selected name already points at a live child

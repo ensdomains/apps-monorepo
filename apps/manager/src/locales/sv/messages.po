@@ -2724,6 +2724,10 @@ msgstr ""
 msgid "Review resolver replacement"
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Review separate confirmations"
+msgstr ""
+
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Save {0}"
@@ -3983,6 +3987,10 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "You cancelled the request."
+msgstr ""
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "You declined the smart account upgrade. Review separate confirmations to continue without it."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

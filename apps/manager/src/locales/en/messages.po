@@ -2719,6 +2719,10 @@ msgstr "Review permissions"
 msgid "Review resolver replacement"
 msgstr "Review resolver replacement"
 
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Review separate confirmations"
+msgstr "Review separate confirmations"
+
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Save {0}"
@@ -3979,6 +3983,10 @@ msgstr "You can still use the manager, but these features won't be available:"
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "You cancelled the request."
 msgstr "You cancelled the request."
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "You declined the smart account upgrade. Review separate confirmations to continue without it."
+msgstr "You declined the smart account upgrade. Review separate confirmations to continue without it."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "You do not have enough USDC to complete this transaction."

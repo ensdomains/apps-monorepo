@@ -52,6 +52,7 @@ type UseMigrationGasEstimateParams = {
   readonly managerRestorationNames?: readonly string[]
   readonly v1Names: readonly V1Domain[]
   readonly enabled?: boolean
+  readonly forceSequential?: boolean
 }
 
 const GAS_ESTIMATE_QUIET_PERIOD_MS = 200
@@ -218,6 +219,7 @@ export const useMigrationGasEstimate = ({
   managerRestorationNames,
   v1Names,
   enabled: estimateEnabled = true,
+  forceSequential = false,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
   // Roll out the reviewed-snapshot import independently of ordinary migration.
   const helperFlag = useFeatureFlagEnabled(
@@ -231,7 +233,7 @@ export const useMigrationGasEstimate = ({
     hcaAddress,
   })
   const recoverySnapshot = useMigrationRecoverySnapshot()
-  const { canBatchAtomically } = useMigrationAtomicBatchSupport()
+  const { canBatchAtomically } = useMigrationAtomicBatchSupport(forceSequential)
 
   const selectedNameSet = useMemo(() => new Set(selectedNames), [selectedNames])
   const selectedNamesKey = useMemo(

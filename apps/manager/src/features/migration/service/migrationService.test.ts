@@ -2002,15 +2002,18 @@ describe('executeMigration HCA orchestration', () => {
     ).toEqual([])
   })
 
-  it('clears an unsubmitted intent after an explicit wallet rejection', async () => {
-    const rejection = Object.assign(new Error('User rejected the request'), {
-      name: 'UserRejectedRequestError',
-    })
+  it.each([
+    'UserRejectedRequestError',
+    'AtomicReadyWalletRejectedUpgradeError',
+  ])('clears an unsubmitted intent after %s', async (name) => {
+    const rejection = Object.assign(new Error('Request declined'), { name })
     mocks.waitForTransactionHash.mockRejectedValueOnce(rejection)
 
     await expect(runExecute()).rejects.toSatisfy(
       (error) =>
-        error instanceof Error && error.name === 'MigrationUserRejectedError',
+        error instanceof Error &&
+        error.name === 'MigrationUserRejectedError' &&
+        error.cause === rejection,
     )
 
     expect(

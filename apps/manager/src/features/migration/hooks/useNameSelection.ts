@@ -18,7 +18,13 @@ import {
 import { groupByParent } from '../service/groupByParent'
 import { hasManagerRestorationAfterRenewal } from './useNameSelection.helpers'
 
+export type NameSelectionSnapshot = {
+  readonly names: readonly string[]
+  readonly managerRestorationNames: readonly string[]
+}
+
 type Params = {
+  readonly initialSelection?: NameSelectionSnapshot
   readonly eligible: readonly ClassifiedName[]
   readonly gracePeriodNames?: readonly IneligibleName[]
   readonly includedNames?: readonly ClassifiedName[]
@@ -45,6 +51,7 @@ export const useNameSelection = ({
   includedNames = EMPTY_INCLUDED_NAMES,
   isPending,
   isRecovery = false,
+  initialSelection,
   defaultExcludedNames = EMPTY_EXCLUDED_NAMES,
   isManagerRestorationLocked = false,
   onNamesChange,
@@ -79,6 +86,10 @@ export const useNameSelection = ({
   )
   const initiallySelected = useMemo(() => {
     if (isRecovery) return eligibleSelectable
+    if (initialSelection)
+      return new Set(
+        initialSelection.names.filter((name) => allSelectable.has(name)),
+      )
     const namesNeedingManagerRestoration = new Set(
       eligible
         .filter(({ managerAddress }) => managerAddress !== null)
@@ -101,6 +112,8 @@ export const useNameSelection = ({
       ),
     )
   }, [
+    initialSelection,
+    allSelectable,
     defaultExcludedNames,
     eligible,
     eligibleSelectable,
@@ -108,11 +121,6 @@ export const useNameSelection = ({
     rootSubtrees,
   ])
   const [hasSeeded, setHasSeeded] = useState(false)
-  useEffect(() => {
-    if (hasSeeded || isPending || allSelectable.size === 0) return
-    setHasSeeded(true)
-    setSelected(initiallySelected)
-  }, [hasSeeded, isPending, allSelectable.size, initiallySelected])
 
   useEffect(() => {
     if (!hasSeeded || isPending) return
@@ -141,6 +149,30 @@ export const useNameSelection = ({
       }),
     ])
   }, [eligible, gracePeriodNames])
+
+  useEffect(() => {
+    if (hasSeeded || isPending || allSelectable.size === 0) return
+    setSelected(initiallySelected)
+    if (initialSelection) {
+      const selected = new Set(initialSelection.names)
+      const restored = new Set(initialSelection.managerRestorationNames)
+      setExcludedManagers(
+        new Set(
+          [...managerCandidates.keys()].filter(
+            (name) => selected.has(name) && !restored.has(name),
+          ),
+        ),
+      )
+    }
+    setHasSeeded(true)
+  }, [
+    hasSeeded,
+    isPending,
+    allSelectable.size,
+    initiallySelected,
+    initialSelection,
+    managerCandidates,
+  ])
 
   // On a resumed run the classified names already carry the opt-in replayed
   // from the durable snapshot, so the checkboxes show what will actually be

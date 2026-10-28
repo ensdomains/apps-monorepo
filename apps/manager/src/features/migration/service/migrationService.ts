@@ -117,6 +117,7 @@ class MigrationUserRejectedError extends TaggedError(
   'MigrationUserRejectedError',
 )<{
   step: string
+  readonly cause: unknown
 }> {}
 
 class MigrationPlanChangedError extends TaggedError(
@@ -178,7 +179,11 @@ class MigrationCleanupError extends TaggedError('MigrationCleanupError')<{
 const isUserRejection = (error: unknown): boolean => {
   let current: unknown = error
   while (current instanceof Error) {
-    if (current.name === 'UserRejectedRequestError') return true
+    if (
+      current.name === 'UserRejectedRequestError' ||
+      current.name === 'AtomicReadyWalletRejectedUpgradeError'
+    )
+      return true
     if (/user rejected/i.test(current.message)) return true
     current = (current as { cause?: unknown }).cause
   }
@@ -419,7 +424,7 @@ const wrapMigrationError = (
   step: string,
 ): MigrationUserRejectedError | MigrationError =>
   isUserRejection(error)
-    ? new MigrationUserRejectedError({ step })
+    ? new MigrationUserRejectedError({ step, cause: error })
     : new MigrationError({ cause: error, step })
 
 const submitCall = (

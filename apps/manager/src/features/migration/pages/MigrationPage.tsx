@@ -7,7 +7,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { useBalance } from 'wagmi'
@@ -166,6 +172,13 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
           <Trans>We couldn&apos;t read your current records.</Trans>
         </div>
       )
+    case 'wallet-upgrade-declined':
+      return (
+        <Trans>
+          You declined the smart account upgrade. Review separate confirmations
+          to continue without it.
+        </Trans>
+      )
     case 'user-rejected':
       return (
         <div>
@@ -233,7 +246,11 @@ const shouldCheckRetryImpact = (
   step: string,
   hasRetryContext: boolean,
   errorType?: MigrationError['type'],
-) => step === 'failure' && hasRetryContext && errorType !== 'cleanup-failed'
+) =>
+  step === 'failure' &&
+  hasRetryContext &&
+  errorType !== 'cleanup-failed' &&
+  errorType !== 'wallet-upgrade-declined'
 
 const getImpactRenewalNames = (
   isRetry: boolean,
@@ -273,8 +290,13 @@ export const MigrationPage = () => {
     refreshAccount,
     walletClient: wagmiWalletClient,
   } = useSmartAccountContext()
+  const [sequentialScope, setSequentialScope] = useState<string>()
+  const upgradeScope = ownerAddress
+    ? `${migrationExecutionClient.chain.id}:${ownerAddress.toLowerCase()}`
+    : undefined
+  const forceSequential = !!upgradeScope && sequentialScope === upgradeScope
   const { canBatchAtomically, requiresUpgrade } =
-    useMigrationAtomicBatchSupport()
+    useMigrationAtomicBatchSupport(forceSequential)
   const queryClient = useQueryClient()
   const migrationNftEnabled = useMigrationNftEnabled()
   const isMigrationSuccess = step === 'success'
@@ -300,6 +322,7 @@ export const MigrationPage = () => {
     hcaError,
   )
   const gasEstimate = useMigrationGasEstimate({
+    forceSequential,
     ownerAddress: ownerAddress as Address | undefined,
     hcaAddress: hcaAddress as Address | undefined,
     accountError: hcaError,
@@ -309,6 +332,7 @@ export const MigrationPage = () => {
     enabled: step === 'select' && graceDomains.length === 0,
   })
   const renewalGasEstimate = useGraceRenewalGasEstimate({
+    forceSequential,
     renewal,
     selectedNames,
     managerRestorationNames,
@@ -568,6 +592,11 @@ export const MigrationPage = () => {
             gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
             gasFundingStatus={gasFundingStatus}
+            initialSelection={
+              forceSequential
+                ? { names: selectedNames, managerRestorationNames }
+                : undefined
+            }
             onManagerRestorationChange={handleManagerRestorationChange}
             onNamesChange={handleNamesChange}
             onNext={() => confirmation.request('start')}
@@ -619,9 +648,22 @@ export const MigrationPage = () => {
                 <Trans>Back</Trans>
               </button>
               <MigrationPrimaryButton
-                aria-disabled={confirmation.isChecking}
+                aria-disabled={
+                  lastError?.type !== 'wallet-upgrade-declined' &&
+                  confirmation.isChecking
+                }
                 className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                 onClick={() => {
+                  if (
+                    lastError?.type === 'wallet-upgrade-declined' &&
+                    migrationPlan
+                  ) {
+                    setSequentialScope(
+                      `${migrationExecutionClient.chain.id}:${migrationPlan.migrationOwner.toLowerCase()}`,
+                    )
+                    uiActor.send({ type: 'review-selection' })
+                    return
+                  }
                   if (confirmation.isChecking) return
                   if (shouldCheckImpactBeforeRetry)
                     void confirmation.request('retry')
@@ -629,7 +671,9 @@ export const MigrationPage = () => {
                 }}
                 type="button"
               >
-                {lastError?.type === 'cleanup-failed' ? (
+                {lastError?.type === 'wallet-upgrade-declined' ? (
+                  <Trans>Review separate confirmations</Trans>
+                ) : lastError?.type === 'cleanup-failed' ? (
                   <Trans>Retry upgrade and cleanup</Trans>
                 ) : (
                   <Trans>Try again</Trans>

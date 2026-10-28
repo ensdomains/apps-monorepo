@@ -999,6 +999,38 @@ describe('migrationUiMachine', () => {
   })
 
   describe('failure.retry → resetForRetry', () => {
+    it('returns declined upgrades to selection for review without resubmitting', async () => {
+      const actor = createActor(migrationUiMachine, {
+        input: { wagmiConfig: WAGMI },
+      })
+      actor.start()
+      actor.send({ type: 'selection.set', names: ['alice.eth', 'bob.eth'] })
+      actor.send({ type: 'managerRestoration.set', names: ['bob.eth'] })
+      executeMigrationMock.mockImplementation(async (params) => {
+        params.onBatchComplete?.([{ name: 'alice.eth', action: 'migrate' }])
+        throw Object.assign(new Error('Upgrade declined'), {
+          name: 'AtomicReadyWalletRejectedUpgradeError',
+        })
+      })
+      actor.send({
+        type: 'migration.start',
+        plan: makePlan([domain('alice'), domain('bob')]),
+        signer: SIGNER,
+        hcaClient: HCA_CLIENT,
+        refreshAccount: REFRESH_ACCOUNT,
+      })
+      await vi.advanceTimersByTimeAsync(1500)
+      actor.send({ type: 'review-selection' })
+      expect(actor.getSnapshot().value).toBe('select')
+      expect(actor.getSnapshot().context.selectedNames).toEqual(['bob.eth'])
+      expect(actor.getSnapshot().context.managerRestorationNames).toEqual([
+        'bob.eth',
+      ])
+      expect(actor.getSnapshot().context.plan).toBeUndefined()
+      expect(executeMigrationMock).toHaveBeenCalledOnce()
+      actor.stop()
+    })
+
     it('resetForRetry: filters migrated names from plan and clears error/progress', async () => {
       const actor = createActor(migrationUiMachine, {
         input: { wagmiConfig: WAGMI },

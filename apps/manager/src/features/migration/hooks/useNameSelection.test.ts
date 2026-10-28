@@ -39,6 +39,46 @@ const makeManagedName = (name: string) =>
   makeName(name, { registryController: CONTROLLER } as Partial<ClassifiedName>)
 
 describe('useNameSelection', () => {
+  it.each([true, false])(
+    'restores a reviewed selection and manager choice %s on remount',
+    async (keepManager) => {
+      const chosen = makeClassified({
+        name: 'chosen.eth',
+        managerAddress: CONTROLLER,
+        registryController: CONTROLLER,
+      })
+      const eligible = [chosen, makeName('other.eth')]
+      const onNamesChange = vi.fn()
+      const onManagerRestorationChange = vi.fn()
+      const { result, rerender } = renderHook(
+        ({ names }) =>
+          useNameSelection({
+            eligible: names,
+            isPending: false,
+            initialSelection: {
+              names: ['chosen.eth'],
+              managerRestorationNames: keepManager ? ['chosen.eth'] : [],
+            },
+            onNamesChange,
+            onManagerRestorationChange,
+          }),
+        { initialProps: { names: eligible } },
+      )
+      await waitFor(() =>
+        expect([...result.current.selected]).toEqual(['chosen.eth']),
+      )
+      expect([...result.current.restoredManagers]).toEqual(
+        keepManager ? ['chosen.eth'] : [],
+      )
+      expect(onNamesChange).toHaveBeenLastCalledWith(['chosen.eth'])
+      expect(onManagerRestorationChange).toHaveBeenLastCalledWith(
+        keepManager ? ['chosen.eth'] : [],
+      )
+      rerender({ names: [...eligible, makeName('new.eth')] })
+      expect([...result.current.selected]).toEqual(['chosen.eth'])
+    },
+  )
+
   it('publishes committed selection to its parent without updating it during render', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     const onManagerRestorationChange = vi.fn()

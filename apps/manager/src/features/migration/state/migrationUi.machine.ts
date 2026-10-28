@@ -148,6 +148,7 @@ type Events =
     }
   | { type: 'migration.failed'; error: MigrationError }
   | { type: 'retry' }
+  | { type: 'review-selection' }
   | { type: 'done' }
   | { type: 'cancel' }
 
@@ -732,6 +733,25 @@ export const migrationUiMachine = setup({
     failure: {
       tags: 'result',
       on: {
+        'review-selection': {
+          guard: ({ context }) =>
+            context.lastError?.type === 'wallet-upgrade-declined',
+          target: 'select',
+          actions: assign(({ context }) => {
+            const completed = new Set(
+              context.completedOperations.map(({ name }) => name),
+            )
+            return {
+              ...initialContext(context.wagmiConfig),
+              selectedNames: context.selectedNames.filter(
+                (name) => !completed.has(name),
+              ),
+              managerRestorationNames: context.managerRestorationNames.filter(
+                (name) => !completed.has(name),
+              ),
+            }
+          }),
+        },
         retry: [
           {
             guard: ({ context }) => !!context.plan,

@@ -7,7 +7,10 @@ import { useDefaultMigrationSelection } from '@/features/migration/hooks/useDefa
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
-import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
+import {
+  type NameSelectionSnapshot,
+  useNameSelection,
+} from '@/features/migration/hooks/useNameSelection'
 import { useWrapperSync } from '@/features/migration/hooks/useWrapperSync'
 import { cn } from '@/lib/utils'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
@@ -112,6 +115,7 @@ const SubnameBlockReason = ({
 }
 
 type SelectNamesStepProps = {
+  readonly initialSelection?: NameSelectionSnapshot
   readonly ownerAddress?: string | null
   readonly gasEstimate: MigrationGasEstimateState
   readonly requiresWalletUpgrade?: boolean
@@ -157,6 +161,7 @@ const SelectionTitle = ({
 }
 
 export const SelectNamesStep = ({
+  initialSelection,
   ownerAddress,
   gasEstimate,
   requiresWalletUpgrade = false,
@@ -226,6 +231,7 @@ export const SelectNamesStep = ({
     toggleName,
     toggleAll,
   } = useNameSelection({
+    initialSelection,
     eligible,
     gracePeriodNames,
     includedNames: preparedNames ?? verifiedSubnames,

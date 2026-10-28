@@ -72,6 +72,7 @@ export const useGraceRenewalGasEstimate = ({
   hcaAddress,
   publicClient,
   isEnabled,
+  forceSequential = false,
 }: {
   readonly renewal: GraceRenewalQuoteState
   readonly selectedNames: readonly string[]
@@ -80,9 +81,10 @@ export const useGraceRenewalGasEstimate = ({
   readonly hcaAddress: Address | undefined
   readonly publicClient: PublicClient
   readonly isEnabled: boolean
+  readonly forceSequential?: boolean
 }): GraceRenewalGasEstimateState => {
   const wagmiConfig = useConfig()
-  const { canBatchAtomically } = useMigrationAtomicBatchSupport()
+  const { canBatchAtomically } = useMigrationAtomicBatchSupport(forceSequential)
   const isSubnameRecreationEnabled =
     useFeatureFlagEnabled(
       POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,

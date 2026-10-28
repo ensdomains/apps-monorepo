@@ -106,18 +106,23 @@ describe('getAtomicBatchSupport', () => {
     }).walletClient
 
   it.each([
-    ['supported', true],
-    // `ready` would make our send prompt an EIP-7702 upgrade of the EOA.
-    ['ready', false],
-    ['unsupported', false],
-  ])('reads atomic status %s as %s', async (status, expected) => {
-    await expect(
-      getAtomicBatchSupport({
-        walletClient: capabilitiesWith({ status }),
-        chainId: sepolia.id,
-      }),
-    ).resolves.toBe(expected)
-  })
+    ['supported', undefined, true],
+    ['ready', undefined, false],
+    ['ready', false, false],
+    ['ready', true, true],
+    ['unsupported', true, false],
+  ] as const)(
+    'reads atomic %s with upgrade permission %s as %s',
+    async (status, allowUpgrade, expected) => {
+      await expect(
+        getAtomicBatchSupport({
+          walletClient: capabilitiesWith({ status }),
+          chainId: sepolia.id,
+          allowUpgrade,
+        }),
+      ).resolves.toBe(expected)
+    },
+  )
 
   it('is false when the wallet reports no atomic capability', async () => {
     await expect(
@@ -139,32 +144,35 @@ describe('getAtomicBatchSupport', () => {
 })
 
 describe('submitEOABatch', () => {
-  it('sends every call as one atomic bundle and returns its id', async () => {
-    const handler = vi.fn((method: string) => {
-      if (method === 'wallet_getCapabilities') return capabilities()
-      if (method === 'wallet_sendCalls') return { id: CALLS_ID }
-      throw new Error(`unexpected RPC call: ${method}`)
-    })
+  it.each(['supported', 'ready'])(
+    'sends atomic %s calls with upgrade permission',
+    async (status) => {
+      const handler = vi.fn((method: string) => {
+        if (method === 'wallet_getCapabilities') return capabilities(status)
+        if (method === 'wallet_sendCalls') return { id: CALLS_ID }
+        throw new Error(`unexpected RPC call: ${method}`)
+      })
 
-    const result = await submitEOABatch({
-      request: batchRequest(),
-      signer: signerWith(handler),
-    })
+      const result = await submitEOABatch({
+        request: { ...batchRequest(), allowUpgrade: true },
+        signer: signerWith(handler),
+      })
 
-    expect(result._unsafeUnwrap()).toBe(CALLS_ID)
-    const [, params] = handler.mock.calls.find(
-      ([method]) => method === 'wallet_sendCalls',
-    ) as unknown as [string, unknown[]]
-    expect(params[0]).toMatchObject({
-      atomicRequired: true,
-      from: ACCOUNT,
-      chainId: toHex(sepolia.id),
-      calls: [
-        { to: TO, data: '0x01' },
-        { to: TO, data: '0x02' },
-      ],
-    })
-  })
+      expect(result._unsafeUnwrap()).toBe(CALLS_ID)
+      const [, params] = handler.mock.calls.find(
+        ([method]) => method === 'wallet_sendCalls',
+      ) as unknown as [string, unknown[]]
+      expect(params[0]).toMatchObject({
+        atomicRequired: true,
+        from: ACCOUNT,
+        chainId: toHex(sepolia.id),
+        calls: [
+          { to: TO, data: '0x01' },
+          { to: TO, data: '0x02' },
+        ],
+      })
+    },
+  )
 
   it('refuses a bundle whose from is not the wallet account', async () => {
     const handler = vi.fn()
@@ -211,22 +219,30 @@ describe('submitEOABatch', () => {
     expect(result._unsafeUnwrapErr()).toBeInstanceOf(TransactionSubmissionError)
   })
 
-  it('maps a declined prompt to a user rejection', async () => {
-    const rejection = Object.assign(new Error('User rejected the request.'), {
-      code: 4001,
-    })
-    const result = await submitEOABatch({
-      request: batchRequest(),
-      signer: signerWith((method) => {
-        if (method === 'wallet_getCapabilities') return capabilities()
+  it.each([4001, 5750])(
+    'maps rejection %s to cancellation without retrying',
+    async (code) => {
+      const rejection = Object.assign(new Error('User rejected the request.'), {
+        code,
+      })
+      const submitted = vi.fn(() => {
         throw rejection
-      }),
-    })
+      })
+      const result = await submitEOABatch({
+        request: { ...batchRequest(), allowUpgrade: true },
+        signer: signerWith((method) => {
+          if (method === 'wallet_getCapabilities') return capabilities('ready')
+          if (method === 'wallet_sendCalls') return submitted()
+          throw new Error(`unexpected RPC call: ${method}`)
+        }),
+      })
+      expect(submitted).toHaveBeenCalledOnce()
 
-    expect(result._unsafeUnwrapErr()).toBeInstanceOf(
-      TransactionUserRejectedError,
-    )
-  })
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(
+        TransactionUserRejectedError,
+      )
+    },
+  )
 })
 
 describe('eoa-batch through the transaction machine', () => {

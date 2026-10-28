@@ -210,6 +210,31 @@ describe('decodeMigrationError — direct mappings', () => {
 })
 
 describe('decodeMigrationError — user rejection', () => {
+  it('preserves an upgrade decline through migration and transport wrappers', () => {
+    const rejected = Object.assign(new Error('Upgrade declined'), {
+      name: 'AtomicReadyWalletRejectedUpgradeError',
+      code: 5750,
+    })
+    const migration = Object.assign(new Error('User rejected'), {
+      name: 'MigrationUserRejectedError',
+      cause: new Error('transaction rejected', { cause: rejected }),
+    })
+    expect(decodeMigrationError(migration)).toEqual({
+      type: 'wallet-upgrade-declined',
+    })
+  })
+
+  it('keeps an uncertain submitted bundle blocked even if its cause mentions an upgrade decline', () => {
+    const rejected = Object.assign(new Error('Upgrade declined'), {
+      code: 5750,
+    })
+    const uncertain = Object.assign(
+      new Error('Receipt unavailable', { cause: rejected }),
+      { name: 'SubmittedAtomicMigrationIndeterminateError' },
+    )
+    expect(decodeMigrationError(uncertain)).toEqual({ type: 'retry-blocked' })
+  })
+
   it('maps UserRejectedRequestError by .name', () => {
     const err = Object.assign(new Error('denied'), {
       name: 'UserRejectedRequestError',
