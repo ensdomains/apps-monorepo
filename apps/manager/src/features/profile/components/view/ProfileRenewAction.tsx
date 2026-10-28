@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { LinkButton } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import {
   profileExpiryDateFromSeconds,
   profileExpiryQuery,
@@ -34,6 +35,7 @@ export const ProfileRenewAction = ({
 }: ProfileRenewActionProps) => {
   const { data: expiryData } = useQuery({
     ...profileExpiryQuery(name, protocol),
+    ...profileDisplayQueryOptions,
   })
   const expiryDate = profileExpiryDateFromSeconds(expiryData?.expiry)
   const resolvedProtocol = protocol ?? expiryData?.protocol ?? 'v2'
