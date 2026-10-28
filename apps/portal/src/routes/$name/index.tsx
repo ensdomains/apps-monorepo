@@ -13,6 +13,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NonNormalizedNameWarning } from '@/components/NonNormalizedNameWarning'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { nameHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { DnsClaimableMessage } from '@/features/dns-import/components/DnsClaimableMessage'
@@ -523,9 +524,10 @@ function App() {
     },
   })
 
-  // Show 404 for invalid/malformed names
+  // The `$name` layout already shows this for an invalid name; kept so this
+  // page never resolves one as its normalised twin on its own.
   if (!isValidName) {
-    return <InvalidNameMessage title="Invalid name" />
+    return <NonNormalizedNameWarning name={name} />
   }
 
   if (error) {
