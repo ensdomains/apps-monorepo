@@ -71,7 +71,6 @@ export const getL2SelectionMessage = (
     status: row.option.status,
     isShort: isL2ShortOfFunds(row),
     hasQuoteFailed: row.hasQuoteFailed,
-    isShortOfGas: row.isShortOfGas,
     shortfall,
     isQuoted: quoted !== undefined,
     isEstimated: estimated !== undefined,
@@ -97,12 +96,6 @@ export const getL2SelectionMessage = (
     .with({ isShort: true }, () => (
       <Trans>Not enough USDC on {chainName}.</Trans>
     ))
-    .with({ isShortOfGas: true }, () => (
-      <Trans>
-        Paying from {chainName} the first time needs a little ETH there to
-        approve USDC.
-      </Trans>
-    ))
     .with({ hasQuoteFailed: true }, () => (
       <Trans>Paying from {chainName} isn't available right now.</Trans>
     ))
@@ -115,8 +108,7 @@ const getL2FeeExplanation = (row: L2PaymentRow) => {
     <Trans>
       An estimate of what the on-chain transactions that register your name
       cost, including moving the USDC from {chainName}. It is paid there with
-      the name price, in one signature. The first time, you also approve USDC on{' '}
-      {chainName}.
+      the name price, in one signature.
     </Trans>
   )
 }
@@ -178,11 +170,6 @@ export const L2SourceListItem = ({
       name="USDC"
       onSelect={onSelect}
       selectLabel={t`Select USDC on ${chainName}`}
-      warning={
-        row.isShortOfGas ? (
-          <Trans>Not enough ETH for approval</Trans>
-        ) : undefined
-      }
     />
   )
 }

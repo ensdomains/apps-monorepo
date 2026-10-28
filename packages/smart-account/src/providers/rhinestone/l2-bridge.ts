@@ -29,6 +29,7 @@ import {
   isAddress,
   isAddressEqual,
   isHex,
+  type TypedDataDefinition,
 } from 'viem'
 import type { RhinestoneAuth } from './auth'
 import type { Call } from './registration-calls'
@@ -206,13 +207,29 @@ const sameAddress = (value: unknown, expected: Address): boolean =>
   isAddress(value, { strict: false }) &&
   isAddressEqual(value, expected)
 
-// Ops come from the orchestrator's JSON, so a value may be a decimal string.
-const sameValue = (value: unknown, expected: bigint): boolean => {
-  try {
-    return BigInt(value as bigint | string) === expected
-  } catch {
-    return false
+// Ops and permits come from the orchestrator's JSON, so a number may be a
+// decimal string; anything else is unreadable rather than zero.
+const toBigInt = (value: unknown): bigint | undefined => {
+  if (
+    typeof value !== 'bigint' &&
+    typeof value !== 'string' &&
+    typeof value !== 'number'
+  ) {
+    return undefined
   }
+  try {
+    return BigInt(value)
+  } catch {
+    return undefined
+  }
+}
+
+const sameValue = (value: unknown, expected: bigint): boolean =>
+  toBigInt(value) === expected
+
+const atLeast = (value: unknown, minimum: bigint): boolean => {
+  const amount = toBigInt(value)
+  return amount !== undefined && amount >= minimum
 }
 
 const sameOp = (op: SignedOp | undefined, call: Call): boolean =>
@@ -237,7 +254,10 @@ const sameOp = (op: SignedOp | undefined, call: Call): boolean =>
  * 7. it delivers only the target token, at least `amountOut`;
  * 8. it runs nothing on the source chain, and only `calls`, in order, on the
  *    target;
- * 9. the only setup it asks for is a Permit2 allowance on the source token.
+ * 9. the only setup it asks for is a Permit2 allowance on the source token,
+ *    signed by the owner as an EIP-2612 permit covering the transfer and open
+ *    when we submit. An approval without such a permit is refused: every L2
+ *    source is USDC, so it is never approved with a transaction of our own.
  */
 export function validateL2BridgeQuote(params: {
   readonly route: L2BridgeRoute
@@ -250,6 +270,14 @@ export function validateL2BridgeQuote(params: {
   const terms: Result<PermitTerms, string> =
     rejection === undefined ? readPermit(route, messages, now) : err(rejection)
   return terms
+    .andThen((accepted) =>
+      readApproval(
+        route,
+        prepared.intentRoute.tokenRequirements,
+        accepted.amountIn,
+        now,
+      ).map(() => accepted),
+    )
     .map((accepted) => ({ route, prepared, ...accepted }))
     .mapErr((message) => new L2BridgeRejectedError({ message }))
 }
@@ -259,10 +287,10 @@ type PermitTerms = Pick<
   'amountIn' | 'amountReceived' | 'deadline'
 >
 
-/** Rules 1, 2 and 9, on the intent itself. */
+/** Rules 1 and 2, on the intent itself. */
 function rejectIntent(
   route: L2BridgeRoute,
-  { intentOp, tokenRequirements }: IntentRoute,
+  { intentOp }: IntentRoute,
 ): string | undefined {
   if (!sameAddress(intentOp.sponsor, route.owner)) {
     return 'The route pays from another wallet.'
@@ -279,23 +307,7 @@ function rejectIntent(
   ) {
     return 'The route does not pay from the chosen chain.'
   }
-
-  const requirements = Object.entries(tokenRequirements ?? {}).flatMap(
-    ([chainId, tokens]) =>
-      Object.entries(tokens).map(([token, requirement]) => ({
-        chainId: Number(chainId),
-        token,
-        requirement,
-      })),
-  )
-  const unexpected = requirements.some(
-    ({ chainId, token, requirement }) =>
-      chainId !== route.sourceChain.id ||
-      !sameAddress(token, route.sourceToken) ||
-      requirement.type !== 'approval' ||
-      !sameAddress(requirement.spender, PERMIT2_ADDRESS),
-  )
-  return unexpected ? 'The route asks for an unexpected approval.' : undefined
+  return undefined
 }
 
 /** Rules 3 to 8, on the permit the wallet would sign. */
@@ -368,6 +380,82 @@ function readPermit(
     amountReceived: received.amount,
     deadline: permit.deadline,
   })
+}
+
+/**
+ * Rule 9, on the allowance the wallet has to sign. Every setup step must be a
+ * Permit2 allowance on the source token, and every one of those must carry an
+ * EIP-2612 permit: an approval without one would need a transaction of our own,
+ * which we refuse rather than fall back to.
+ */
+function readApproval(
+  route: L2BridgeRoute,
+  tokenRequirements: IntentRoute['tokenRequirements'],
+  pulled: bigint,
+  now: bigint,
+): Result<undefined, string> {
+  const requirements = Object.entries(tokenRequirements ?? {}).flatMap(
+    ([chainId, tokens]) =>
+      Object.entries(tokens).map(([token, requirement]) => ({
+        chainId: Number(chainId),
+        token,
+        requirement,
+      })),
+  )
+  for (const { chainId, token, requirement } of requirements) {
+    if (
+      chainId !== route.sourceChain.id ||
+      !sameAddress(token, route.sourceToken) ||
+      requirement.type !== 'approval' ||
+      !sameAddress(requirement.spender, PERMIT2_ADDRESS)
+    ) {
+      return err('The route asks for an unexpected approval.')
+    }
+    const rejection = rejectApprovalPermit(
+      requirement.permit,
+      route,
+      pulled,
+      now,
+    )
+    if (rejection !== undefined) return err(rejection)
+  }
+  return ok(undefined)
+}
+
+/**
+ * The EIP-2612 permit the wallet signs so Permit2 can pull the source token: a
+ * `Permit` in the token's own domain, from the owner to Permit2, for at least
+ * the amount the transfer pulls, and open when we submit.
+ */
+function rejectApprovalPermit(
+  signed: TypedDataDefinition | undefined,
+  route: L2BridgeRoute,
+  pulled: bigint,
+  now: bigint,
+): string | undefined {
+  if (!signed) return 'The route asks for an onchain approval.'
+  const domain = signed.domain
+  const message = signed.message ?? {}
+  if (
+    signed.primaryType !== 'Permit' ||
+    Number(domain?.chainId) !== route.sourceChain.id ||
+    !sameAddress(domain?.verifyingContract, route.sourceToken) ||
+    !sameAddress(message.owner, route.owner) ||
+    !sameAddress(message.spender, PERMIT2_ADDRESS)
+  ) {
+    return 'The route asks for an unexpected approval.'
+  }
+  if (!atLeast(message.value, pulled)) {
+    return 'The approval covers less than the payment.'
+  }
+  const deadline = toBigInt(message.deadline)
+  if (deadline === undefined || deadline <= now) {
+    return 'The approval has expired.'
+  }
+  if (deadline > now + L2_BRIDGE_MAX_PERMIT_LIFETIME_S) {
+    return 'The approval lasts too long.'
+  }
+  return undefined
 }
 
 /**

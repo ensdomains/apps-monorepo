@@ -1,4 +1,4 @@
-import { type L2BridgeRoute, PERMIT2_ADDRESS } from '@ens-apps/smart-account'
+import type { L2BridgeRoute } from '@ens-apps/smart-account'
 import type { L2FundingSource } from '@ens-apps/transaction-manager'
 import {
   type RhinestoneAccountConfig,
@@ -6,7 +6,7 @@ import {
 } from '@rhinestone/sdk'
 import { getConnectorClient } from '@wagmi/core'
 import { ResultAsync } from 'neverthrow'
-import { type Address, erc20Abi, maxUint256 } from 'viem'
+import type { Address } from 'viem'
 import { chain, l2Sources } from '@/config'
 import type { L2Source } from '@/l2Sources'
 import { createBridgeAccount } from '@/lib/smart-account/rhinestone'
@@ -52,33 +52,6 @@ export const getL2FundingSource = (
           sourceChainId: source.chain.id,
         }),
       ),
-    // Unlimited, once per L2: Permit2 only moves tokens against a signed permit.
-    ensureAllowance: async (amount) => {
-      const client = source.client
-      const allowance = await client.readContract({
-        address: source.usdc,
-        abi: erc20Abi,
-        functionName: 'allowance',
-        args: [owner, PERMIT2_ADDRESS],
-      })
-      if (allowance >= amount) return
-      const wallet = await sourceWalletClient(owner, source)
-      // Left to price it, a wallet caps the fee at the current base fee, which
-      // Arbitrum Sepolia's next block often tops. Only the base fee is charged.
-      const fees = await client.estimateFeesPerGas()
-      const hash = await wallet.writeContract({
-        address: source.usdc,
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [PERMIT2_ADDRESS, maxUint256],
-        maxFeePerGas: fees.maxFeePerGas,
-        maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
-      })
-      const receipt = await client.waitForTransactionReceipt({ hash })
-      if (receipt.status !== 'success') {
-        throw new Error('The Permit2 approval reverted.')
-      }
-    },
   }
 }
 

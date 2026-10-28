@@ -4,7 +4,7 @@ import type {
   RhinestoneAccountConfig,
 } from '@rhinestone/sdk'
 import { BadRequestError } from '@rhinestone/sdk/errors'
-import type { Address, Hex } from 'viem'
+import { type Address, type Hex, maxUint256 } from 'viem'
 import { baseSepolia, sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -69,10 +69,44 @@ const baseQuote = () => {
   }
   const permitted = { token: SOURCE_USDC.toLowerCase(), amount: 5_012_573n }
   const received = { token: TARGET_USDC.toLowerCase(), amount: 5_000_000n }
+  // The EIP-2612 permit the SDK asks the wallet to sign so Permit2 can pull;
+  // shared by reference with `tokenRequirements`, like `permitted` and the
+  // signed message below, so a case can edit either copy.
+  const approval = {
+    type: 'approval',
+    amount: '5012573',
+    spender: PERMIT2_ADDRESS.toLowerCase(),
+    permit: {
+      domain: {
+        name: 'USDC',
+        version: '2',
+        chainId: 84532,
+        verifyingContract: SOURCE_USDC,
+      },
+      types: {
+        Permit: [
+          { name: 'owner', type: 'address' },
+          { name: 'spender', type: 'address' },
+          { name: 'value', type: 'uint256' },
+          { name: 'nonce', type: 'uint256' },
+          { name: 'deadline', type: 'uint256' },
+        ],
+      },
+      primaryType: 'Permit',
+      message: {
+        owner: OWNER.toLowerCase(),
+        spender: PERMIT2_ADDRESS.toLowerCase(),
+        value: maxUint256,
+        nonce: 0n,
+        deadline: NOW + 120n,
+      },
+    },
+  }
   return {
     element,
     permitted,
     received,
+    approval,
     prepared: {
       intentRoute: {
         intentOp: {
@@ -82,11 +116,7 @@ const baseQuote = () => {
         },
         tokenRequirements: {
           84532: {
-            [SOURCE_USDC.toLowerCase()]: {
-              type: 'approval',
-              amount: '5012573',
-              spender: PERMIT2_ADDRESS.toLowerCase(),
-            },
+            [SOURCE_USDC.toLowerCase()]: approval,
           },
         } as Record<number, Record<string, unknown>>,
       },
@@ -364,6 +394,60 @@ describe('validateL2BridgeQuote', () => {
             },
           },
         }
+      },
+    ],
+    [
+      'an approval without a permit',
+      (q) => {
+        delete (q.approval as { permit?: unknown }).permit
+      },
+    ],
+    [
+      'an approval with another primary type',
+      (q) => {
+        q.approval.permit.primaryType = 'PermitWitnessTransferFrom'
+      },
+    ],
+    [
+      'an approval domain on another chain',
+      (q) => {
+        q.approval.permit.domain.chainId = 11155111
+      },
+    ],
+    [
+      'an approval for another token',
+      (q) => {
+        q.approval.permit.domain.verifyingContract = ATTACKER
+      },
+    ],
+    [
+      'an approval from another wallet',
+      (q) => {
+        q.approval.permit.message.owner = ATTACKER
+      },
+    ],
+    [
+      'a permit to another spender',
+      (q) => {
+        q.approval.permit.message.spender = ATTACKER
+      },
+    ],
+    [
+      'an approval for less than the payment',
+      (q) => {
+        q.approval.permit.message.value = 5_012_572n
+      },
+    ],
+    [
+      'an expired approval',
+      (q) => {
+        q.approval.permit.message.deadline = NOW
+      },
+    ],
+    [
+      'a long-lived approval',
+      (q) => {
+        q.approval.permit.message.deadline = NOW + 601n
       },
     ],
   ])('rejects %s', (_, edit) => {
