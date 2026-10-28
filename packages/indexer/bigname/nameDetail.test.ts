@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { apiError, clientWith, envelope } from './fetch.mock'
+import { apiError, clientWith, envelope, requestOf } from './fetch.mock'
 import { readNameDetail } from './nameDetail'
 import type { NameRecord } from './types'
 
@@ -49,6 +49,17 @@ describe('readNameDetail', () => {
       migratedAt: null,
       unresolvableReason: null,
     })
+  })
+
+  // Unscoped, a Basenames name such as jesse.base.eth answers 409.
+  it('reads the name in the ENS namespace', async () => {
+    const { client, fetch } = clientWith(envelope(record))
+
+    await readNameDetail(client)({ name: 'jesse.base.eth' })
+
+    expect(requestOf(fetch).url).toBe(
+      'https://bigname.example/v1/names/jesse.base.eth?namespace=ens',
+    )
   })
 
   it('says why an ENSv1 name provably resolves to nothing', async () => {

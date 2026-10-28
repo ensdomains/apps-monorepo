@@ -86,7 +86,6 @@ const getEligibilityStatus = (
     case 'incomplete':
       return 'ineligible'
     case 'error':
-    case 'reconciling':
       return 'error'
     default:
       return 'pending'
@@ -167,14 +166,13 @@ const getDialogState = (params: {
   readonly card?: CommemorativeNftCardData
   readonly txHash?: Hex
   readonly error: unknown
-  readonly isReconciling: boolean
 }): MigrationSuccessDialogState => {
   const { flowStatus, card, txHash } = params
   if (flowStatus === 'eligibilityError')
     return {
       status: 'error',
       stage: 'eligibility',
-      message: getCommemorativeNftEligibilityMessage(params.isReconciling),
+      message: getCommemorativeNftEligibilityMessage(),
     }
   if (flowStatus === 'configurationError')
     return {
@@ -448,7 +446,6 @@ export const useCommemorativeNftFlow = ({
         card,
         txHash,
         error: claimMutation.error ?? availability.claimed.error,
-        isReconciling: migrationCompletion.status === 'reconciling',
       }))
     : { status: 'loadingEligibility' as const }
 

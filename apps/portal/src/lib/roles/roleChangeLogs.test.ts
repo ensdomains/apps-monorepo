@@ -121,9 +121,13 @@ describe('getRoleChangeLogs via bigname', () => {
   it('reads the current registration’s permission rows, oldest first', async () => {
     await read()
 
-    expect(mockName).toHaveBeenCalledWith(NAME, undefined, {
-      signal: expect.any(AbortSignal),
-    })
+    expect(mockName).toHaveBeenCalledWith(
+      NAME,
+      { namespace: 'ens' },
+      {
+        signal: expect.any(AbortSignal),
+      },
+    )
     expect(mockEvents).toHaveBeenCalledWith(
       expect.objectContaining({
         registration_id: REGISTRATION,

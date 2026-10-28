@@ -36,6 +36,7 @@ const chain = vi.hoisted(() => ({
   preparation: { kind: 'ready' } as PrimaryNamePreparation,
   protocol: 'v2' as 'v1' | 'v2',
   registryRead: vi.fn(async () => false),
+  unreachableNames: new Set<string>(),
   read: vi.fn(),
   submit: vi.fn(),
   saveRecords: vi.fn(),
@@ -134,6 +135,7 @@ vi.mock('../hooks/usePrimaryNameDomains', () => ({
     })),
     isLoading: false,
     isSelectedNameOffered: true,
+    unreachableNames: chain.unreachableNames,
     selectedProtocol: chain.protocol,
     hasForwardAddressError: false,
     searchQuery: '',
@@ -247,6 +249,7 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
     chain.primaryName = 'alpha.eth'
     chain.preparation = { kind: 'ready' }
     chain.protocol = 'v2'
+    chain.unreachableNames = new Set()
     chain.registryRead.mockReset().mockResolvedValue(false)
     chain.saveRecords.mockReset().mockResolvedValue({})
     chain.read.mockReset().mockImplementation(async () => chain.primaryName)
@@ -430,6 +433,7 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
         kind: 'setup-resolver',
         existingEthAddress: null,
         hasResolver: false,
+        hasOffchainResolver: false,
       }
       await renderDashboard()
       await expectPrimary('alpha.eth')
@@ -462,6 +466,55 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
       expect(chain.submit).not.toHaveBeenCalled()
     },
   )
+
+  it('greys out a name resolution no longer reaches instead of offering it', async () => {
+    chain.unreachableNames = new Set(['beta.eth'])
+    await renderDashboard()
+    await expectPrimary('alpha.eth')
+    const list = screen.getByRole('region', { name: 'My Names' })
+    fireEvent.click(within(list).getByRole('button', { name: 'Primary Name' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Choose Primary Name',
+    })
+
+    const option = within(dialog).getByRole('button', {
+      name: /Select beta\.eth as primary name/,
+    })
+    expect(option).toBeDisabled()
+    expect(option).toHaveTextContent(/no longer resolves/i)
+  })
+
+  it('tells the owner to set the address with their provider instead of replacing an offchain resolver', async () => {
+    chain.preparation = {
+      kind: 'setup-resolver',
+      existingEthAddress: null,
+      hasResolver: true,
+      hasOffchainResolver: true,
+    }
+    await renderDashboard()
+    await expectPrimary('alpha.eth')
+    const list = screen.getByRole('region', { name: 'My Names' })
+    fireEvent.click(within(list).getByRole('button', { name: 'Primary Name' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Choose Primary Name',
+    })
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'Select beta.eth as primary name',
+      }),
+    )
+    const confirm = within(dialog).getByRole('button', {
+      name: 'Set as Primary',
+    })
+    await waitFor(() => expect(confirm).toBeEnabled())
+    fireEvent.click(confirm)
+
+    expect(
+      await within(dialog).findByText(/beta\.eth uses an offchain resolver/),
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(chain.submit).not.toHaveBeenCalled()
+  })
 
   it('keeps current surfaces and chooser on transaction failure', async () => {
     chain.submit.mockRejectedValue(new Error('Wallet rejected'))

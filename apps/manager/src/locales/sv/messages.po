@@ -197,6 +197,10 @@ msgstr ""
 msgid "{name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name."
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{name} uses an offchain resolver, so its ETH address is set with that resolver’s provider. Point it at this wallet there, then try again."
+msgstr ""
+
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
 msgstr ""
@@ -1012,6 +1016,10 @@ msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't estimate the network fee"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileView.tsx
+msgid "Couldn’t load this name’s records, so they’re hidden and editing is paused."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -1927,6 +1935,10 @@ msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx
 msgid "No favorites to display"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "No longer resolves, usually because its parent name has expired"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
@@ -3313,7 +3325,7 @@ msgid "The renewal for {label}.eth could not be completed. You can retry or go b
 msgstr ""
 
 #: src/features/renew/components/RenewalFundingDialog.tsx
-msgid "The renewal price includes a 10% buffer: the rent is priced when the renewal executes, slightly after this quote."
+msgid "The renewal price includes a 10% buffer: the final price is set when the renewal executes, slightly after this quote."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -3489,6 +3501,7 @@ msgstr ""
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 #: src/features/migration/pages/MigrationPage.tsx
+#: src/features/profile/components/view/ProfileView.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
 msgid "Try again"
@@ -4187,10 +4200,6 @@ msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
-msgstr ""
-
-#: src/features/migration/commemorative-nft/claimMessages.ts
-msgid "Your upgrades are still being verified. Check again in a moment."
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx

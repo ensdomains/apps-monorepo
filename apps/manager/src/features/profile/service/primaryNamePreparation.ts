@@ -1,13 +1,19 @@
+import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { fromPromise } from 'neverthrow'
 import {
   type Address,
   isAddressEqual,
   type PublicClient,
   zeroAddress,
 } from 'viem'
+import { getEnsResolver } from 'viem/actions'
 import {
   getPrimaryNameForwardAddress,
   hasPrimaryNameForwardAddress,
 } from './primaryNameForwardAddress'
+import { isOffchainResolver } from './resolverRecordCalls'
 import {
   getResolverWriteState,
   readV1RegistryResolver,
@@ -25,6 +31,8 @@ export type PrimaryNamePreparation =
       readonly kind: 'setup-resolver'
       readonly existingEthAddress: Address | null
       readonly hasResolver: boolean
+      /** Its records come from an outside gateway, so only that provider can set them. */
+      readonly hasOffchainResolver: boolean
     }
 
 /** An ENSv1 resolver that resolution no longer reaches, e.g. under an expired parent. */
@@ -33,6 +41,36 @@ export const hasV1RegistryResolver = async (
   name: string,
 ): Promise<boolean> =>
   (await readV1RegistryResolver(publicClient, name)) !== undefined
+
+/** An ENSv1 name with a resolver that resolution cannot reach, so it can't be a primary name. */
+export const isUnreachableV1Name = async (
+  publicClient: PublicClient,
+  name: string,
+): Promise<boolean> =>
+  isAddressEqual(await getEnsResolver(publicClient, { name }), zeroAddress) &&
+  (await hasV1RegistryResolver(publicClient, name))
+
+export class UnreachableV1NameError extends TaggedError(
+  'UnreachableV1NameError',
+)<{
+  cause: unknown
+}> {}
+
+export const getUnreachableV1NameQueryOptions = (
+  publicClient: PublicClient,
+  name: string,
+) =>
+  resultQueryOptions({
+    queryKey: qk('profile', 'unreachable_v1_name', {
+      name,
+      chainId: publicClient.chain?.id,
+    }),
+    queryFn: () =>
+      fromPromise(
+        isUnreachableV1Name(publicClient, name),
+        (cause) => new UnreachableV1NameError({ cause }),
+      ),
+  })
 
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
 export async function getPrimaryNamePreparation(
@@ -63,5 +101,8 @@ export async function getPrimaryNamePreparation(
     existingEthAddress,
     // A subname inheriting a wildcard parent's resolver counts as having one: ours would shadow it.
     hasResolver: resolverAddress !== undefined,
+    hasOffchainResolver:
+      resolverAddress !== undefined &&
+      (await isOffchainResolver(publicClient, resolverAddress, name)),
   }
 }

@@ -225,7 +225,7 @@ describe('commemorative NFT migration completion', () => {
     await expect(
       fetchCommemorativeNftMigrationCompletion(params),
     ).resolves.toEqual({
-      status: 'reconciling',
+      status: 'incomplete',
       isComplete: false,
       remainingNameCount: 0,
       migratedNameCount: 0,
@@ -615,7 +615,7 @@ describe('completion restoration and bounded reconciliation', () => {
     )
   })
 
-  it('stops automatic reconciliation after six passes while remaining explicitly reconciling', async () => {
+  it('stops automatic reconciliation after six passes without unlocking an empty wallet', async () => {
     vi.useFakeTimers()
     mocks.getMigratedNamesCount.mockResolvedValue(ok(0))
     const client = new QueryClient()
@@ -627,7 +627,7 @@ describe('completion restoration and bounded reconciliation', () => {
     try {
       await vi.advanceTimersByTimeAsync(20_000)
       expect(mocks.getV1NamesForAddress).toHaveBeenCalledTimes(6)
-      expect(observer.getCurrentResult().data?.status).toBe('reconciling')
+      expect(observer.getCurrentResult().data?.status).toBe('incomplete')
       expect(observer.getCurrentResult().fetchStatus).toBe('idle')
       await observer.refetch()
       expect(mocks.getV1NamesForAddress).toHaveBeenCalledTimes(7)
