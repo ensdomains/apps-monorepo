@@ -23,7 +23,7 @@ import {
   V1_PUBLIC_RESOLVER,
 } from '../../../fixtures/makeV1Name.js'
 import {
-  authorizeTransaction,
+  authorizeTransactionsWhile,
   test,
 } from '../../../fixtures/playwright.manager.fixture.js'
 import {
@@ -61,15 +61,20 @@ async function runMigrationFlow(
     name: /^Upgrade \d+ names?$/,
   })
   await confirmButton.waitFor({ state: 'visible', timeout: 10_000 })
-  await Promise.all([
-    confirmButton.click(),
-    authorizeTransaction(wallet, 90_000),
-  ])
-
   const successIndicator = page.getByRole('dialog', {
     name: /Your names? (?:has|have) been upgraded!/,
   })
-  await successIndicator.waitFor({ state: 'visible', timeout: 60_000 })
+  let migrationFinished = false
+  const waitForSuccess = successIndicator
+    .waitFor({ state: 'visible', timeout: 60_000 })
+    .then(() => {
+      migrationFinished = true
+    })
+  await Promise.all([
+    confirmButton.click(),
+    authorizeTransactionsWhile(page, wallet, () => migrationFinished),
+    waitForSuccess,
+  ])
 
   const doneButton = page.getByRole('button', { name: 'Go to dashboard' })
   await doneButton.waitFor({ state: 'visible', timeout: 10_000 })
