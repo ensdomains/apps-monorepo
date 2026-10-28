@@ -127,6 +127,9 @@ Agent definitions are in `.claude/agents/`. Invoke them via Claude Code or VS Co
 # Manager tests
 pnpm e2e:manager
 
+# Migration tests (manager and local migration stack must be running)
+pnpm e2e:manager-migration
+
 # Portal tests
 pnpm e2e:portal
 
@@ -140,6 +143,14 @@ pnpm e2e:infra:down  # Stop the stack
 # Against a specific app URL
 MANAGER_APP_URL=https://staging.example.com pnpm e2e:manager
 ```
+
+The migration-only command uses
+[`projects/manager/playwright.migration.config.ts`](projects/manager/playwright.migration.config.ts)
+for suite selection. Run it against the local Anvil stack with V1 and V2
+contracts and the manager configured for Rhinestone (see below). Its concurrency
+scenario uses two tabs in one browser context and holds the migration batch's
+wallet request pending after setup, proving the second tab cannot prompt or
+rewrite the active migration journal before the first tab completes.
 
 ---
 

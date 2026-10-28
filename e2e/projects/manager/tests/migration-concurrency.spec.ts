@@ -86,7 +86,7 @@ test.describe('migration cross-tab exclusion', () => {
     connectedPage: firstPage,
     wallet: firstWallet,
     accounts,
-  }) => {
+  }, testInfo) => {
     const makeV1Name = createMakeV1Name({
       userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
     })
@@ -117,7 +117,9 @@ test.describe('migration cross-tab exclusion', () => {
         await expect
           .poll(
             () =>
-              firstWallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+              firstWallet.getPendingRequestCount(
+                Web3RequestKind.SendTransaction,
+              ),
             { timeout: 90_000 },
           )
           .toBe(1)
@@ -155,6 +157,37 @@ test.describe('migration cross-tab exclusion', () => {
         secondWallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
       ).toBe(0)
       expect(await readMigrationJournal(secondPage)).toBe(journalBefore)
+      // Let the failure screen's entrance animation settle for readable evidence.
+      await secondPage.waitForTimeout(600)
+      await secondPage.screenshot({
+        path: testInfo.outputPath('blocked-tab-desktop.png'),
+        fullPage: true,
+      })
+      await secondPage.setViewportSize({ width: 390, height: 844 })
+      await secondPage.screenshot({
+        path: testInfo.outputPath('blocked-tab-mobile.png'),
+        fullPage: true,
+      })
+      await testInfo.attach('migration-journal-exclusion', {
+        body: JSON.stringify(
+          {
+            name: v1Name,
+            activeTabPendingTransactions: firstWallet.getPendingRequestCount(
+              Web3RequestKind.SendTransaction,
+            ),
+            blockedTabPendingTransactions: secondWallet.getPendingRequestCount(
+              Web3RequestKind.SendTransaction,
+            ),
+            journalBefore: JSON.parse(journalBefore),
+            journalAfter: JSON.parse(
+              (await readMigrationJournal(secondPage)) ?? 'null',
+            ),
+          },
+          null,
+          2,
+        ),
+        contentType: 'application/json',
+      })
     } finally {
       if (
         firstWallet.getPendingRequestCount(Web3RequestKind.SendTransaction) > 0
@@ -167,6 +200,10 @@ test.describe('migration cross-tab exclusion', () => {
       firstPage.getByText('Your name has been upgraded!'),
     ).toBeVisible({
       timeout: 90_000,
+    })
+    await firstPage.screenshot({
+      path: testInfo.outputPath('active-tab-completed.png'),
+      fullPage: true,
     })
   })
 })

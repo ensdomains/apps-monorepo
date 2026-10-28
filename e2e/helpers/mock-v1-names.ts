@@ -54,7 +54,7 @@ export type MockV1Name = {
    * does for .eth 2LDs. When omitted, the fuses follow `type`.
    */
   readonly fuses?: number
-  /** Registration expiry timestamp (Unix seconds). Defaults to now + 1 year. */
+  /** Registration expiry timestamp (Unix seconds). Read from Anvil when omitted. */
   readonly expiryDate?: number
   /** V1 records set on this name; only their keys are served. */
   readonly records?: {

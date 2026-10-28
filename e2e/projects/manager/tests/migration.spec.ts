@@ -9,7 +9,7 @@
  *
  * Each test:
  * 1. Registers one or more V1 names on the Anvil fork
- * 2. Authenticates with Para wallet
+ * 2. Connects the headless wallet
  * 3. Mocks bigname's V1 view to serve the test names
  * 4. Triggers the migration flow through the UI
  * 5. Verifies the migration completes successfully
@@ -47,7 +47,7 @@ const HEADLESS_USER_ADDRESS = privateKeyToAccount(
 
 /**
  * Shared migration flow: navigate to dashboard → click Upgrade → confirm →
- * authorize the migration transaction → wait for success.
+ * authorize setup and migration transactions until success.
  */
 async function runMigrationFlow(
   page: import('@playwright/test').Page,

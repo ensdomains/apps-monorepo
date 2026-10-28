@@ -78,6 +78,10 @@ The mainnet token rate limiter uses a separate namespace.
 
 ## Notes
 
+- Name upgrades require a browser with Web Locks available. If another app tab is
+  upgrading names for the same wallet, network and smart account, return to that
+  tab to finish. If the browser cannot safely run the upgrade, open the page in
+  an up-to-date browser and try again.
 - `pnpm typecheck` builds the api-worker's exported types first.
 - `pnpm dev:inspect` runs the dev server with the XState inspector.
 - `pnpm cf-typegen` regenerates the Worker bindings after a `wrangler.jsonc` change.

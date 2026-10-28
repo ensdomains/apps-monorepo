@@ -216,7 +216,7 @@ export async function reserveInV2(
           zeroAddress, // no subregistry yet
           V1_PUBLIC_RESOLVER, // fallback resolver for resolution during unmigrated state
           0n, // roleBitmap must be 0 when owner is zero
-          v1Expiry, // sync V1 expiry into V2
+          v1Expiry,
         ],
       }),
     })
@@ -431,9 +431,7 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
 
     // ── 8. Advance time for negative-duration scenario ─────────────
     // Done LAST so wrapping and records use an active timestamp.
-    // Note: names with a past V2 reservation expiry are AVAILABLE in V2
-    // (not RESERVED), so migration controllers cannot claim them — these
-    // scenarios are for testing expired-name UI and renewal flows, not migration.
+    // V2 reservation expiry still follows the bonus window above.
     if (isNegativeDuration) {
       const overageSeconds = absDuration + 1
       console.log(
