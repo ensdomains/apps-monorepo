@@ -12,7 +12,7 @@ const LONG_NAME =
     3,
   )
 
-const recordsWith = (base: Record<string, string>) => ({
+const recordsWith = (base: Readonly<Record<string, string>>) => ({
   ...newEmptyProfileRecords(),
   base,
 })
