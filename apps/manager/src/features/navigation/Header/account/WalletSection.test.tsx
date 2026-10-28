@@ -37,7 +37,34 @@ vi.mock('@/lib/wallet', () => ({
     isDisconnecting: false,
   }),
 }))
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
+
+const leftover = vi.hoisted(() => ({
+  leftover: undefined as
+    | { isDeployed: boolean; funds: readonly unknown[] }
+    | undefined,
+  isLoading: false,
+  isError: false,
+  isWithdrawing: false,
+  withdrawError: null as string | null,
+  withdraw: vi.fn(),
+}))
+
+vi.mock('@/features/wallet/hooks/useLeftoverFunds', () => ({
+  useLeftoverFunds: () => leftover,
+}))
+
+const USDC_LEFTOVER = {
+  isDeployed: true,
+  funds: [
+    {
+      token: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+      symbol: 'USDC',
+      decimals: 6,
+      amount: 2_713_400n,
+    },
+  ],
+}
 
 describe('WalletSection smart session safety controls', () => {
   beforeEach(() => {
@@ -51,6 +78,8 @@ describe('WalletSection smart session safety controls', () => {
     session.useEoa = false
     session.enableSession.mockResolvedValue({ status: 'enabled' })
     session.revokeSession.mockResolvedValue(true)
+    leftover.leftover = undefined
+    leftover.withdraw.mockResolvedValue({ status: 'withdrawn' })
   })
 
   it('opens the safety confirmation without deleting the local session', async () => {
@@ -226,6 +255,120 @@ describe('WalletSection smart session safety controls', () => {
       }
     },
   )
+
+  const resetAccess = () => {
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Reset smart session access' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Reset access' }))
+  }
+
+  it('returns leftover funds to the wallet once the reset confirms', async () => {
+    leftover.leftover = USDC_LEFTOVER
+    const onAction = vi.fn()
+    render(<WalletSection onAction={onAction} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Reset smart session access' }),
+    )
+    expect(screen.getByRole('dialog')).toHaveTextContent('2.7134 USDC')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset access' }))
+    await waitFor(() => expect(onAction).toHaveBeenCalledOnce())
+    expect(leftover.withdraw).toHaveBeenCalledOnce()
+    expect(session.revokeSession.mock.invocationCallOrder[0]).toBeLessThan(
+      leftover.withdraw.mock.invocationCallOrder[0] ?? 0,
+    )
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('leaves the funds alone when the reset fails', async () => {
+    leftover.leftover = USDC_LEFTOVER
+    session.revokeSession.mockResolvedValue(false)
+    render(<WalletSection onAction={vi.fn()} />)
+    resetAccess()
+
+    await waitFor(() => expect(session.revokeSession).toHaveBeenCalledOnce())
+    expect(leftover.withdraw).not.toHaveBeenCalled()
+  })
+
+  it('completes the reset and points to the menu item when the refund does not go through', async () => {
+    leftover.leftover = USDC_LEFTOVER
+    leftover.withdraw.mockResolvedValue({ status: 'declined' })
+    const onAction = vi.fn()
+    render(<WalletSection onAction={onAction} />)
+    resetAccess()
+
+    await waitFor(() => expect(onAction).toHaveBeenCalledOnce())
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining('Withdraw leftover funds'),
+    )
+  })
+
+  it('skips the refund when the account holds nothing', async () => {
+    leftover.leftover = { isDeployed: true, funds: [] }
+    const onAction = vi.fn()
+    render(<WalletSection onAction={onAction} />)
+    resetAccess()
+
+    await waitFor(() => expect(onAction).toHaveBeenCalledOnce())
+    expect(leftover.withdraw).not.toHaveBeenCalled()
+  })
+
+  it('withdraws leftover funds from the menu', async () => {
+    leftover.leftover = USDC_LEFTOVER
+    const onAction = vi.fn()
+    render(<WalletSection onAction={onAction} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Withdraw leftover funds' }),
+    )
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('2.7134')
+    expect(dialog).toHaveTextContent('ETH for gas')
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Withdraw to wallet' }),
+    )
+    await waitFor(() => expect(onAction).toHaveBeenCalledOnce())
+    expect(leftover.withdraw).toHaveBeenCalledOnce()
+    expect(session.revokeSession).not.toHaveBeenCalled()
+  })
+
+  it('keeps the withdraw dialog open when the withdrawal fails', async () => {
+    leftover.leftover = USDC_LEFTOVER
+    leftover.withdraw.mockResolvedValue({ status: 'failed' })
+    const onAction = vi.fn()
+    render(<WalletSection onAction={onAction} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Withdraw leftover funds' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw to wallet' }))
+
+    await waitFor(() => expect(leftover.withdraw).toHaveBeenCalledOnce())
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(onAction).not.toHaveBeenCalled()
+  })
+
+  it('offers nothing to withdraw from an empty account', () => {
+    leftover.leftover = { isDeployed: true, funds: [] }
+    render(<WalletSection onAction={vi.fn()} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Withdraw leftover funds' }),
+    )
+
+    expect(screen.getByRole('dialog')).toHaveTextContent('no leftover funds')
+    expect(
+      screen.getByRole('button', { name: 'Withdraw to wallet' }),
+    ).toBeDisabled()
+  })
+
+  it('offers no withdrawal in EOA mode, where there is no smart account', () => {
+    session.useEoa = true
+    render(<WalletSection onAction={vi.fn()} />)
+
+    expect(
+      screen.queryByText('Withdraw leftover funds'),
+    ).not.toBeInTheDocument()
+  })
 
   it('hides smart-session controls in EOA mode', () => {
     session.useEoa = true
