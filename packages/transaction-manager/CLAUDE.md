@@ -1,6 +1,6 @@
 # Transaction Manager - AI Agent Guidelines
 
-This file contains instructions for AI coding agents (Claude Code, Codex, Cursor, Copilot, Gemini) for working with the transaction manager package.
+This file contains instructions for AI coding agents (Claude Code, Codex, Cursor, Copilot) for working with the transaction manager package.
 
 ## Architecture Overview
 
