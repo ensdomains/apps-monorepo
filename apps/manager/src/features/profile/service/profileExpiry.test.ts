@@ -223,6 +223,14 @@ describe('subnames', () => {
     expect(result._unsafeUnwrap().expiry).toBe(1_821_700_419n)
   })
 
+  it('reports no expiry for a subname the holding registry has no entry for', async () => {
+    mocks.getV2Expiry.mockResolvedValue(0n)
+
+    const result = await getExpiry('alice.shiba.eth')
+
+    expect(result._unsafeUnwrap().expiry).toBeNull()
+  })
+
   it('fails rather than reporting no expiry when the registry cannot be read', async () => {
     mocks.getV2Expiry.mockRejectedValueOnce(new Error('RPC down'))
     mocks.getNameDetail.mockReturnValue(errAsync(new Error('bigname down')))

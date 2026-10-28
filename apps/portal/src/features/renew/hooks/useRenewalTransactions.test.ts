@@ -25,12 +25,16 @@ import { useRenewalTransactions } from './useRenewalTransactions'
 
 const from: Address = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 const walletClient = { account: { address: from } }
-const wallet = vi.hoisted(() => ({ canBatchAtomically: false }))
+const wallet = vi.hoisted(() => ({
+  canBatchAtomically: false,
+  hasDeclinedUpgrade: false,
+}))
 
 vi.mock('@ens-apps/transaction-manager', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ens-apps/transaction-manager')>()),
   transactionManager: { clear: vi.fn(), startTransaction: vi.fn() },
   useAtomicBatchSupport: () => wallet.canBatchAtomically,
+  useHasDeclinedAtomicUpgrade: () => wallet.hasDeclinedUpgrade,
 }))
 
 vi.mock('wagmi', async (importOriginal) => ({
@@ -214,6 +218,31 @@ describe('useRenewalTransactions with an atomic-batching wallet', () => {
   })
   afterEach(() => {
     wallet.canBatchAtomically = false
+    wallet.hasDeclinedUpgrade = false
+  })
+
+  it('splits the bundle into separate steps once the user declines the account upgrade', () => {
+    const { result, rerender } = renderHook(() => useRenewalTransactions())
+    act(() =>
+      result.current.startFlow(
+        { name: 'example.eth', isV2: true },
+        {
+          duration: 31_536_000,
+          tokenAddress: SUPPORTED_TOKENS.USDC,
+          tokenPrice,
+        },
+      ),
+    )
+    expect(result.current.transactions).toHaveLength(1)
+
+    wallet.canBatchAtomically = false
+    wallet.hasDeclinedUpgrade = true
+    rerender()
+
+    expect(result.current.transactions.map(({ title }) => title)).toEqual([
+      'Approve payment',
+      'Extend example.eth',
+    ])
   })
 
   const submittedBundle = () => {

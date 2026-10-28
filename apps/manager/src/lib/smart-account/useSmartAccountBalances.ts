@@ -5,10 +5,10 @@ import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { type Address, erc20Abi, formatUnits } from 'viem'
-import { getBalance, readContract } from 'viem/actions'
+import { readContract } from 'viem/actions'
 import { chain } from '@/config'
 import { publicClient } from '@/lib/wagmi'
-import type { EthBalance, StablecoinBalance } from './types'
+import type { StablecoinBalance } from './types'
 
 /**
  * The token the standalone-HCA route is paid in — the manifest's funding token,
@@ -35,13 +35,10 @@ const HCA_BALANCE_TOKENS: Record<string, Address> = {
 }
 
 interface UseSmartAccountBalancesParams {
-  readonly accountAddress: Address | null
   readonly ownerAddress: Address | null
 }
 
 interface UseSmartAccountBalancesResult {
-  readonly smartAccountEthBalance: EthBalance | null
-  readonly isLoadingSmartAccountEth: boolean
   readonly stablecoinBalances: StablecoinBalance[]
   readonly isLoadingBalances: boolean
   /**
@@ -55,35 +52,10 @@ interface UseSmartAccountBalancesResult {
 export function useSmartAccountBalances(
   params: UseSmartAccountBalancesParams,
 ): UseSmartAccountBalancesResult {
-  const { accountAddress, ownerAddress } = params
-
-  // Read balances against the exact tokens the faucet mints (see useFaucetTokens).
-  const { data: smartAccountEthBalance, isLoading: isLoadingSmartAccountEth } =
-    useQuery({
-      queryKey: $qk({
-        $scope: 'wallet',
-        $action: 'smartAccountEthBalance',
-        address: accountAddress,
-      }),
-      queryFn: async () => {
-        if (!accountAddress) return null
-
-        const balance = await getBalance(publicClient, {
-          address: accountAddress,
-        })
-
-        return {
-          balance: balance.toString(),
-          formattedBalance: `${parseFloat(formatUnits(balance, 18)).toFixed(4)} ETH`,
-        }
-      },
-      enabled: !!accountAddress,
-      refetchInterval: 30000,
-    })
+  const { ownerAddress } = params
 
   // HCA-only: stablecoin/ERC-20 balances belong to the EOA owner, not the
-  // smart account. ETH balance above is fetched against the SCA so the
-  // gas-funding flow sees it.
+  // smart account.
   const balanceAddress = ownerAddress
 
   const {
@@ -141,8 +113,6 @@ export function useSmartAccountBalances(
   })
 
   return {
-    smartAccountEthBalance: smartAccountEthBalance ?? null,
-    isLoadingSmartAccountEth,
     stablecoinBalances,
     isLoadingBalances,
     balancesUpdatedAt,

@@ -2,6 +2,48 @@
   "ignorePatterns": "**/*.gen.ts\n**/*.gen.d.ts\n**/worker-configuration.d.ts\n**/routeTree.gen.ts\n**/*.po\n**/translations/**\n**/locales/**\n**/dist/**\n**/.wrangler/**",
   "rules": [
     {
+      "id": "no-weakened-tests",
+      "rule": "Existing tests guard against regressions. Flag any change to an existing test that makes it easier to pass: a deleted or `.skip`/`.todo` test, a changed expected value, a loosened matcher (`toEqual` to `toMatchObject`, a literal to `expect.any`/`expect.anything()`), a removed assertion, a raised timeout, added retries, or a newly mocked module that the test used to exercise. Do not flag it when the code it covers is deleted in the same PR, or when the PR body names that test under its behaviour changes with a reason. Ask whether the old assertion was catching a regression this PR introduces.",
+      "scope": ["**/*.test.ts", "**/*.test.tsx", "**/__snapshots__/**", "**/*.fixture.ts", "**/test-fixtures/**", "e2e/**"],
+      "severity": "high"
+    },
+    {
+      "id": "shared-change-blast-radius",
+      "rule": "A change to an exported function, hook, type, default value, query key, or error shape in a shared package affects every consumer. Search the whole repo for its callers, including `apps/*`, `workers/*`, and other `packages/*`, and flag any caller whose behaviour changes without being updated or mentioned in the PR body. Flag a changed default where a new explicit option would leave existing callers alone.",
+      "scope": ["packages/**/*.ts", "packages/**/*.tsx"],
+      "severity": "high"
+    },
+    {
+      "id": "removed-guard",
+      "rule": "Flag removed or weakened safety code: a validation, early return, `throw`, error branch, fallback, abort/timeout, address or chain check, or a comment stating an invariant (\"never\", \"must\", \"only\"). Ask why it is no longer needed unless the PR body explains it or an equivalent check replaces it. Treat a rewrite that drops a case the old code handled the same way.",
+      "scope": ["**/*.ts", "**/*.tsx", "**/*.css"],
+      "severity": "high"
+    },
+    {
+      "id": "no-new-suppressions",
+      "rule": "Flag a new `biome-ignore`, `@ts-expect-error`, `@ts-ignore`, `as unknown as`, or `eslint-disable` added in this PR unless it carries a reason specific to that line. Silencing a check the change broke hides the regression the check found.",
+      "scope": ["**/*.ts", "**/*.tsx", "**/*.css"],
+      "severity": "high"
+    },
+    {
+      "id": "bugfix-needs-regression-test",
+      "rule": "A PR titled `fix` should add or extend a test that fails without the fix. Flag a fix PR that changes runtime code but adds no test exercising the fixed case, unless the fix is copy, styling, or config that a unit test cannot reach.",
+      "scope": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "workers/**/*.ts"],
+      "severity": "medium"
+    },
+    {
+      "id": "complexity-growth",
+      "rule": "When a PR adds to a module that shows signs of outgrowing its structure, suggest the pattern that fits instead of restating size: a decision copied from another file (one pure classifier with a discriminated union), a new optional field or boolean encoding a state (a union variant), a second record of the same status (derive it from one source), another special-case branch in an already branchy function, a new `Date.now()`/storage/client read inside logic (inject it), a new thrown error class steering control flow (typed outcome), or retry/resume handled outside the existing lifecycle (state machine). Don't ask for the restructure in this PR; ask that the PR not deepen it and that the PR body name the design debt. See STYLEGUIDE.md 'Managing Growing Complexity'.",
+      "scope": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "workers/**/*.ts"],
+      "severity": "medium"
+    },
+    {
+      "id": "unrelated-changes",
+      "rule": "Flag changes unrelated to the PR title and body: refactors, renames, file moves, reformatting, or behaviour changes in code the task did not need to touch. They ship unreviewed behaviour; suggest a separate PR.",
+      "scope": ["**/*.ts", "**/*.tsx", "**/*.css"],
+      "severity": "medium"
+    },
+    {
       "id": "no-any",
       "rule": "Never use `any`. Use `unknown` for unknown shapes (narrow with type guards) or `Record<string, unknown>` for objects with unknown structure. `Record<string, any>` only with a justifying comment.",
       "scope": ["**/*.ts", "**/*.tsx"],
@@ -65,7 +107,13 @@
     {
       "id": "no-business-logic-in-hooks",
       "rule": "Custom hooks wrap framework/browser APIs (DOM, localStorage, wagmi, TanStack hooks, XState). Business logic belongs in pure functions called from event handlers. Flag hooks with 30+ lines of validation/encoding logic.",
-      "scope": ["apps/**/hooks/**", "apps/**/*.tsx"],
+      "scope": ["apps/**/hooks/**", "apps/**/*.tsx", "packages/**/hooks/**"],
+      "severity": "medium"
+    },
+    {
+      "id": "pure-decision-logic",
+      "rule": "New or changed decision logic (validation, calculations, eligibility, formatting, branching on domain data) belongs in a pure function: plain inputs, a value or `Result` out, no IO, React, globals, storage or clock reads. Flag such logic added inline in a hook, component, XState action, or a service function that also does RPC, fetch, storage or wallet calls; suggest extracting it and testing it directly. Also flag a test that needs `vi.mock` of an IO module to reach a decision that could be a pure function. Only the code the PR changes, not untouched legacy. See STYLEGUIDE.md 'Business Logic Extraction'.",
+      "scope": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "workers/**/*.ts"],
       "severity": "medium"
     },
     {

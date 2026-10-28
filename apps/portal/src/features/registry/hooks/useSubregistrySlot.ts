@@ -58,6 +58,7 @@ export const getSubregistryHistory = ({
 
   return bigname
     .nameHistory(normalized.value, {
+      namespace: 'ens',
       type: ['subregistry'],
       include: ['data'],
       page_size: SUBREGISTRY_HISTORY_WINDOW,

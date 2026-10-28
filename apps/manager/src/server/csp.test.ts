@@ -43,9 +43,12 @@ describe('csp', () => {
       expect(header['script-src']).not.toContain("'unsafe-eval'")
     })
 
-    it('forbids framing via both frame-ancestors and X-Frame-Options', () => {
-      expect(header['frame-ancestors']).toEqual(["'none'"])
-      expect(SECURITY_HEADER_VALUES['X-Frame-Options']).toBe('DENY')
+    it('allows framing only from Safe and omits X-Frame-Options', () => {
+      expect(header['frame-ancestors']).toEqual(['https://app.safe.global'])
+      expect(SECURITY_HEADER_VALUES).not.toHaveProperty('X-Frame-Options')
+      expect(SECURITY_HEADER_VALUES['Content-Security-Policy']).toBe(
+        'frame-ancestors https://app.safe.global;',
+      )
     })
   })
 
@@ -143,7 +146,7 @@ describe('csp', () => {
   describe('security headers', () => {
     it('sets the standard baselines', () => {
       expect(SECURITY_HEADER_VALUES).toEqual({
-        'X-Frame-Options': 'DENY',
+        'Content-Security-Policy': 'frame-ancestors https://app.safe.global;',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
         'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
@@ -160,12 +163,10 @@ describe('csp', () => {
       expect(header['connect-src']).toContain('https://1.1.1.1')
     })
 
-    it('allowlists the CCIP-read batch and verifier gateways', () => {
-      // viem fans OffchainLookup batches out to these from the browser; a miss
-      // surfaces as ResolverError("HTTP request failed."), not a CSP error.
-      expect(header['connect-src']).toContain('https://*.ens.xyz')
-      expect(header['connect-src']).toContain('https://*.3668.io')
-      expect(header['connect-src']).toContain('https://lb.drpc.org')
+    it('opens HTTPS to the CCIP-Read gateway each resolver picks', () => {
+      // viem fetches them from the browser; a miss surfaces as
+      // ResolverError("HTTP request failed."), not a CSP error.
+      expect(header['connect-src']).toContain('https:')
     })
 
     it('allowlists every fallback RPC the viem transport can reach', () => {
@@ -192,7 +193,7 @@ describe('csp', () => {
     it('disables the PostHog reporting destination without changing the policy', () => {
       expect(header['report-to']).toBeUndefined()
       expect(header['report-uri']).toBeUndefined()
-      expect(header['frame-ancestors']).toEqual(["'none'"])
+      expect(header['frame-ancestors']).toEqual(['https://app.safe.global'])
     })
   })
 })

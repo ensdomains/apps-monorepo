@@ -1,6 +1,10 @@
 import type { Address, Hex, PublicClient } from 'viem'
 import {
+  createClient,
+  custom,
   decodeFunctionData,
+  encodeAbiParameters,
+  encodeErrorResult,
   getAddress,
   namehash,
   parseAbi,
@@ -9,9 +13,11 @@ import {
 } from 'viem'
 import { packetToBytes } from 'viem/ens'
 import { describe, expect, it, vi } from 'vitest'
+import { envConfig } from '@/config'
 import {
   encodeResolverRecordsCall,
   getResolverSetterKind,
+  isOffchainName,
   isOffchainResolver,
 } from './resolverRecordCalls'
 
@@ -113,6 +119,58 @@ describe('isOffchainResolver', () => {
   it('fails instead of guessing when the probe itself fails', async () => {
     await expect(
       isOffchainResolver(client(true, revert()), RESOLVER, NAME),
+    ).rejects.toThrow()
+  })
+})
+
+describe('isOffchainName', () => {
+  // `eth_call` of UniversalResolver.resolve with CCIP-Read off.
+  const clientAnswering = (answer: () => Promise<unknown>) =>
+    createClient({
+      chain: envConfig.chain,
+      transport: custom({ request: answer }),
+    })
+  const revert = (data: Hex) => async () => {
+    throw Object.assign(new Error('execution reverted'), { code: 3, data })
+  }
+
+  it.each([
+    {
+      label: 'resolves through an offchain lookup',
+      answer: revert('0x556f1830ab'),
+      expected: true,
+    },
+    {
+      label: 'resolves onchain',
+      answer: async () =>
+        encodeAbiParameters(
+          [{ type: 'bytes' }, { type: 'address' }],
+          [encodeAbiParameters([{ type: 'address' }], [OWNER]), RESOLVER],
+        ),
+      expected: false,
+    },
+    {
+      label: 'has no resolver',
+      answer: revert(
+        encodeErrorResult({
+          abi: parseAbi(['error ResolverNotFound(bytes name)']),
+          args: [toHex(packetToBytes(NAME))],
+        }),
+      ),
+      expected: false,
+    },
+  ])('is $expected for a name that $label', async ({ answer, expected }) => {
+    await expect(isOffchainName(clientAnswering(answer), NAME)).resolves.toBe(
+      expected,
+    )
+  })
+
+  it('fails instead of guessing when the probe itself fails', async () => {
+    const unreachable = async () => {
+      throw new Error('fetch failed')
+    }
+    await expect(
+      isOffchainName(clientAnswering(unreachable), NAME),
     ).rejects.toThrow()
   })
 })

@@ -27,6 +27,7 @@ export const SearchModalContent = ({
   const {
     suggestions,
     ownerBySuggestionId,
+    offchainNameIds,
     availableNames,
     pendingAvailabilityIds,
     ownedNamesFiltered,
@@ -78,6 +79,7 @@ export const SearchModalContent = ({
       <SearchResultsList
         suggestions={suggestions}
         ownerBySuggestionId={ownerBySuggestionId}
+        offchainNameIds={offchainNameIds}
         availableNames={availableNames}
         pendingAvailabilityIds={pendingAvailabilityIds}
         ownedNamesFiltered={ownedNamesFiltered}

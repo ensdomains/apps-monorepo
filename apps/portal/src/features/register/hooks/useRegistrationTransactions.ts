@@ -262,11 +262,18 @@ export const useRegistrationTransactions = ({
   // the run starts or resumes so a late capabilities answer can't reshape it.
   const canBatchAtomically = useAtomicBatchSupport(chainId)
   const [isSetupBundled, setIsSetupBundled] = useState<boolean | null>(null)
-  const shouldBundleSetup = isSetupBundled ?? canBatchAtomically
 
   const actor: RegistrationMachineActor = useActorRef(registrationMachine, {
     input: { chainId },
   })
+  // The machine stops bundling once the user declines the account upgrade; the
+  // steps follow it.
+  const isMachineBundling = useSelector(
+    actor,
+    (state) => state.context.canBatchAtomically !== false,
+  )
+  const shouldBundleSetup =
+    (isSetupBundled ?? canBatchAtomically) && isMachineBundling
 
   // Mirror progress into localStorage so a reload can pick it back up.
   useEffect(
@@ -467,7 +474,7 @@ export const useRegistrationTransactions = ({
 
     transactionManager.clear()
 
-    const signer = createEOASigner(walletClient)
+    const signer = createEOASigner(walletClient, connection.connector?.id)
 
     actor.send({
       type: 'START_REGISTRATION',

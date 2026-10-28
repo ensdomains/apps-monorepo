@@ -95,7 +95,7 @@ describe('mainnet destination manifest', () => {
       unlockedMigrationController: '0xaB821Ca676CF2e0790Fa273526a165CFa86aEB64',
       lockedMigrationController: '0x3ceA18620883a69ED349B23328A3B6302598e51A',
       publicResolverSet: '0xfFCedA021CBDF20f1a66ebbef32E49d208cAbf62',
-      userRegistryImpl: '0xFAA23592ACA10A6d8875b18eA86954e8EB6d8d72',
+      userRegistryImpl: '0xC927bCaA77cd7bE283518760896Be0CF3Cfbe08d',
       wrapperRegistryImpl: '0xe86A4ef4d7A210aAA1d6A9594fC7Add7cD2Cf888',
       publicResolverV2: '0x66f9F566fF2f26309C1Bd9134388478A801dA3e1',
       defaultReverseRegistrarHcaAdapter:

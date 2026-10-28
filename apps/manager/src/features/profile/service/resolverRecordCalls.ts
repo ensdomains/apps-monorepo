@@ -12,7 +12,10 @@
  * same encoding as the write it gates.
  */
 
-import { getSupportedInterfaces } from '@ensdomains/ensjs/public'
+import {
+  getSupportedInterfaces,
+  resolveNameData,
+} from '@ensdomains/ensjs/public'
 import {
   getAddressParameters,
   resolverMulticallParameters as nodeSetterCalls,
@@ -29,13 +32,18 @@ import {
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import {
   type Address,
+  BaseError,
+  type Client,
+  ContractFunctionRevertedError,
   encodeFunctionData,
   type Hex,
   type PublicClient,
   parseAbi,
+  type Transport,
   toFunctionSelector,
 } from 'viem'
 import { call } from 'viem/actions'
+import type { sepoliaWithEns } from '@/lib/wagmi'
 
 export type ResolverSetterKind = 'name' | 'node'
 
@@ -127,6 +135,30 @@ export async function isOffchainResolver(
     const data = findRevertData(error)
     if (data === undefined) throw error
     return data.startsWith(OFFCHAIN_LOOKUP_SELECTOR)
+  }
+}
+
+/** Whether the UniversalResolver resolves `name` through CCIP-Read; the gateway is not called. */
+export async function isOffchainName(
+  client: Client<Transport, typeof sepoliaWithEns>,
+  name: string,
+): Promise<boolean> {
+  try {
+    await resolveNameData(
+      { ...client, ccipRead: false },
+      {
+        name,
+        data: encodeFunctionData(getAddressParameters({ name, coin: 60 })),
+      },
+    )
+    return false
+  } catch (error) {
+    const revert =
+      error instanceof BaseError
+        ? error.walk((cause) => cause instanceof ContractFunctionRevertedError)
+        : null
+    if (!(revert instanceof ContractFunctionRevertedError)) throw error
+    return revert.signature === OFFCHAIN_LOOKUP_SELECTOR
   }
 }
 

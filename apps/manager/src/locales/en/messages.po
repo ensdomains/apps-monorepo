@@ -1928,6 +1928,10 @@ msgstr "no ENSv1 registration was found for it."
 msgid "No favorites to display"
 msgstr "No favorites to display"
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "No longer resolves, usually because its parent name has expired"
+msgstr "No longer resolves, usually because its parent name has expired"
+
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
 msgid "No matches"
 msgstr "No matches"
@@ -3312,8 +3316,8 @@ msgid "The renewal for {label}.eth could not be completed. You can retry or go b
 msgstr "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 
 #: src/features/renew/components/RenewalFundingDialog.tsx
-msgid "The renewal price includes a 10% buffer: the rent is priced when the renewal executes, slightly after this quote."
-msgstr "The renewal price includes a 10% buffer: the rent is priced when the renewal executes, slightly after this quote."
+msgid "The renewal price includes a 10% buffer: the final price is set when the renewal executes, slightly after this quote."
+msgstr "The renewal price includes a 10% buffer: the final price is set when the renewal executes, slightly after this quote."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts

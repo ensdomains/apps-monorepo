@@ -13,7 +13,7 @@ import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient, WalletClient } from 'viem'
-import { useBalance } from 'wagmi'
+import { useBalance, useConnection } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { chain } from '@/config'
@@ -276,6 +276,7 @@ export const MigrationPage = () => {
     refreshAccount,
     walletClient: wagmiWalletClient,
   } = useSmartAccountContext()
+  const { connector } = useConnection()
   const canBatchAtomically = useAtomicBatchSupport(chain.id)
   const queryClient = useQueryClient()
   const migrationNftEnabled = useMigrationNftEnabled()
@@ -480,6 +481,7 @@ export const MigrationPage = () => {
     const signer: Signer = {
       type: 'eoa',
       walletClient: wagmiWalletClient as WalletClient,
+      walletId: connector?.id,
     }
 
     try {
@@ -525,6 +527,7 @@ export const MigrationPage = () => {
     hcaClient,
     refreshAccount,
     wagmiWalletClient,
+    connector,
     canBatchAtomically,
     gasEstimate,
     gasFundingStatus,

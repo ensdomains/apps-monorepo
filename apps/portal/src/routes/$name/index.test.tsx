@@ -7,6 +7,9 @@ const REGISTRY = '0x1111111111111111111111111111111111111111'
 const RESOLVER = '0x2222222222222222222222222222222222222222'
 
 let protocolVersion: 'ENSv1' | 'ENSv2' = 'ENSv1'
+let routeName = 'alice.eth'
+let hasOwner = true
+let profile: { records: unknown } | undefined
 let isInGrace = false
 let migrationStatus: {
   isMigratableByConnectedOwner: boolean
@@ -26,7 +29,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
     Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
       <a href={to}>{children}</a>
     ),
-    useParams: () => ({ name: 'alice.eth' }),
+    useParams: () => ({ name: routeName }),
     useRouterState: ({
       select,
     }: {
@@ -135,14 +138,18 @@ vi.mock('@tanstack/react-query', async () => {
         case 'get-ens-owner':
           return {
             // `resolveEnsOwner` reports the controller for an unwrapped 2LD.
-            data: {
-              owner: CONTROLLER,
-              registryAddress: REGISTRY,
-              protocolVersion,
-            },
+            data: hasOwner
+              ? {
+                  owner: CONTROLLER,
+                  registryAddress: REGISTRY,
+                  protocolVersion,
+                }
+              : null,
             isLoading: false,
             error: null,
           }
+        case 'profile':
+          return { data: profile, isLoading: false, error: null }
         case 'check-name-availability':
           return {
             data: { isAvailable: false },
@@ -211,6 +218,39 @@ describe('name route — Owner row', () => {
     )
 
     isInGrace = false
+  })
+})
+
+describe('name route — ownerless subname', () => {
+  afterEach(() => {
+    routeName = 'alice.eth'
+    hasOwner = true
+    profile = undefined
+  })
+
+  // An offchain (CCIP-Read) subname has no registry owner.
+  it.each([
+    {
+      label: 'shows one whose records resolve',
+      records: { texts: [{ key: 'description', value: 'gm' }], coins: [] },
+      isFound: true,
+    },
+    {
+      label: 'reports one that resolves nothing as not found',
+      records: { texts: [], coins: [] },
+      isFound: false,
+    },
+  ])('$label', ({ records, isFound }) => {
+    routeName = 'jesse.base.eth'
+    hasOwner = false
+    profile = { records }
+
+    renderRoute()
+
+    expect(screen.queryByText('Name not found') === null).toBe(isFound)
+    expect(
+      screen.queryByRole('heading', { name: 'jesse.base.eth' }) !== null,
+    ).toBe(isFound)
   })
 })
 
