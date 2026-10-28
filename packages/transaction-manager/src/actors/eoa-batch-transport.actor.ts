@@ -7,7 +7,13 @@ import {
   okAsync,
   ResultAsync,
 } from 'neverthrow'
-import type { GetCallsStatusReturnType, Hash, WalletClient } from 'viem'
+import type {
+  Address,
+  GetCallsStatusReturnType,
+  Hash,
+  PublicClient,
+  WalletClient,
+} from 'viem'
 import { getCapabilities, sendCalls, waitForCallsStatus } from 'viem/actions'
 import {
   AtomicBatchUnsupportedError,
@@ -86,6 +92,23 @@ export async function getAtomicBatchSupport(params: {
     })
   } catch (error) {
     logger.debug('wallet_getCapabilities unavailable', error)
+    return false
+  }
+}
+
+/** Whether `address` has code that isn't an EIP-7702 delegation (a Safe); any failure means "no". */
+export async function isContractAccount({
+  publicClient,
+  address,
+}: {
+  readonly publicClient: PublicClient
+  readonly address: Address
+}): Promise<boolean> {
+  try {
+    const code = await publicClient.getCode({ address })
+    return code !== undefined && code !== '0x' && !code.startsWith('0xef0100')
+  } catch (error) {
+    logger.debug('eth_getCode unavailable', error)
     return false
   }
 }

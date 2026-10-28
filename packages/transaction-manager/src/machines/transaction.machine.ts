@@ -5,6 +5,7 @@ import type { Hash, PublicClient, TransactionReceipt } from 'viem'
 import { TransactionReceiptNotFoundError } from 'viem'
 import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
 import {
+  isContractAccount,
   submitEOABatch,
   waitForEOABatchHash,
 } from '../actors/eoa-batch-transport.actor'
@@ -12,7 +13,7 @@ import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import {
-  type AtomicBatchUnsupportedError,
+  AtomicBatchUnsupportedError,
   type CallsBundleTimeoutError,
   type ChainIdMismatchError,
   EthCallFallbackError,
@@ -23,7 +24,7 @@ import {
   TransactionTimeoutError,
   type TransactionUserRejectedError,
 } from '../errors/transaction.errors'
-import type { Signer } from '../types/signer.types'
+import type { EOASigner, Signer } from '../types/signer.types'
 import type {
   EOATransactionRequest,
   TransactionIntent,
@@ -40,6 +41,50 @@ import { isRetryableSubmissionError } from './retry-policy'
 type SubmittedTransaction =
   | { readonly hash: Hash }
   | { readonly callsId: string }
+
+/** Safe answers `eth_sendTransaction` with a safeTxHash no node has, so a contract account's call goes out as a one-call bundle. */
+function submitEOACall({
+  request,
+  signer,
+  publicClient,
+}: {
+  readonly request: EOATransactionRequest
+  readonly signer: EOASigner
+  readonly publicClient: PublicClient
+}) {
+  const sendTransaction = () =>
+    submitEOATransaction({ request, signer }).map(
+      (hash): SubmittedTransaction => ({ hash }),
+    )
+
+  return ResultAsync.fromSafePromise(
+    isContractAccount({ publicClient, address: request.from }),
+  ).andThen((isContract) =>
+    isContract
+      ? submitEOABatch({
+          request: {
+            type: 'eoa-batch',
+            from: request.from,
+            chainId: request.chainId,
+            calls: [
+              {
+                to: request.to,
+                data: request.data ?? '0x',
+                value: request.value ?? 0n,
+              },
+            ],
+          },
+          signer,
+        })
+          .map((callsId): SubmittedTransaction => ({ callsId }))
+          .orElse((error) =>
+            error instanceof AtomicBatchUnsupportedError
+              ? sendTransaction()
+              : errAsync(error),
+          )
+      : sendTransaction(),
+  )
+}
 
 /**
  * Base Transaction Machine
@@ -65,7 +110,7 @@ export const transactionMachine = setup({
       useSmartAccount: boolean
       estimatedCost?: bigint
       hash?: Hash
-      /** EIP-5792 bundle id of an `eoa-batch` submission. */
+      /** EIP-5792 bundle id of an `eoa-batch` submission, or of a contract account's single call. */
       callsId?: string
       receipt?: TransactionReceipt
       error?: Error
@@ -127,7 +172,7 @@ export const transactionMachine = setup({
      * Submit Transaction Actor
      *
      * Routes to the appropriate transport actor based on signer type:
-     * - eoa → submitEOATransaction
+     * - eoa → submitEOABatch for a batch, submitEOACall for a single call
      * - rhinestone → submitWarpTransaction (Warp orchestrator, the only
      *   supported smart-account infrastructure)
      */
@@ -135,6 +180,7 @@ export const transactionMachine = setup({
       ({
         request,
         signer,
+        publicClient,
       }: {
         request?: TransactionRequest
         signer?: Signer
@@ -170,13 +216,17 @@ export const transactionMachine = setup({
         // Route to transport actor based on signer type + infrastructure
         switch (signer.type) {
           case 'eoa':
-            return request.type === 'eoa-batch'
-              ? submitEOABatch({ request, signer }).map((callsId) => ({
-                  callsId,
-                }))
-              : submitEOATransaction({ request, signer }).map((hash) => ({
-                  hash,
-                }))
+            if (request.type === 'eoa-batch') {
+              return submitEOABatch({ request, signer }).map((callsId) => ({
+                callsId,
+              }))
+            }
+            if (request.type === 'eoa') {
+              return submitEOACall({ request, signer, publicClient })
+            }
+            return submitEOATransaction({ request, signer }).map((hash) => ({
+              hash,
+            }))
 
           case 'rhinestone':
             // Rhinestone HCA operations always route through the Warp
@@ -263,10 +313,12 @@ export const transactionMachine = setup({
     checkWithEthCall: fromResultAsync(
       ({
         hash,
+        callsId,
         request,
         publicClient,
       }: {
         hash?: Hash
+        callsId?: string
         request?: TransactionRequest
         publicClient: PublicClient
       }): ResultAsync<
@@ -317,7 +369,7 @@ export const transactionMachine = setup({
           )
         }
 
-        if (request.type === 'eoa-batch') {
+        if (request.type === 'eoa-batch' || callsId !== undefined) {
           // A bundle's later calls depend on its earlier ones, so a lone
           // eth_call proves nothing. Keep waiting on the bundle status.
           return ResultAsync.fromSafePromise(
@@ -593,6 +645,7 @@ export const transactionMachine = setup({
         src: 'checkWithEthCall',
         input: ({ context }) => ({
           hash: context.hash,
+          callsId: context.callsId,
           request: context.request,
           publicClient: context.publicClient,
         }),

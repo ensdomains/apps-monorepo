@@ -11,6 +11,7 @@ import { sepolia } from 'viem/chains'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   AtomicBatchUnsupportedError,
+  CallsBundleTimeoutError,
   SignerAddressMismatchError,
   TransactionSubmissionError,
   TransactionUserRejectedError,
@@ -18,7 +19,10 @@ import {
 import { waitForTransaction } from '../helpers/waitForTransaction'
 import { transactionManager } from '../providers/transactionManager'
 import type { EOASigner } from '../types/signer.types'
-import type { EOABatchTransactionRequest } from '../types/transaction.types'
+import type {
+  EOABatchTransactionRequest,
+  EOATransactionRequest,
+} from '../types/transaction.types'
 import {
   getAtomicBatchSupport,
   submitEOABatch,
@@ -421,5 +425,101 @@ describe('eoa-batch through the transaction machine', () => {
     expect(sendCalls).toHaveBeenCalledOnce()
     // The resumed run reports under a fresh telemetry run.
     expect(phases).toContain('success')
+  })
+})
+
+describe('a single call through the transaction machine', () => {
+  const CONTRACT_CODE: Hex = '0x6080604052'
+  const DELEGATED_CODE: Hex = `0xef0100${'12'.repeat(20)}`
+  // Safe answers `eth_sendTransaction` with its safeTxHash, which no node has.
+  const SAFE_TX_HASH = `0x${'5a'.repeat(32)}` as Hash
+
+  const callRequest = (): EOATransactionRequest => ({
+    type: 'eoa',
+    from: ACCOUNT,
+    chainId: sepolia.id,
+    to: TO,
+    data: '0x01',
+    value: 0n,
+  })
+
+  const publicClientWith = (code: Hex | undefined) =>
+    ({
+      getCode: async () => code,
+      waitForTransactionReceipt: async ({ hash }: { hash: Hash }) => {
+        if (hash !== TX_HASH) throw new Error(`no receipt for ${hash}`)
+        return { status: 'success', transactionHash: hash, blockNumber: 1n }
+      },
+      // A dry run of the call succeeds, as it would before the call lands.
+      call: async () => ({ data: '0x' }),
+      // Only the three reads the machine makes on this path; the rest of PublicClient is unused.
+    }) as unknown as PublicClient
+
+  const walletWith = (
+    atomicStatus: string,
+    bundleStatus = 200,
+    sendTransactionHash = TX_HASH,
+  ) => {
+    const methods = vi.fn<(method: string) => void>()
+    const signer = signerWith((method) => {
+      methods(method)
+      if (method === 'wallet_getCapabilities') return capabilities(atomicStatus)
+      if (method === 'eth_sendTransaction') return sendTransactionHash
+      if (method === 'wallet_sendCalls') return { id: CALLS_ID }
+      if (method === 'wallet_getCallsStatus') return callsStatus(bundleStatus)
+      throw new Error(`unexpected RPC call: ${method}`)
+    })
+    return { signer, methods }
+  }
+
+  it.each([
+    ['an EOA', '0x', 'supported'],
+    ['an EIP-7702-delegated EOA', DELEGATED_CODE, 'supported'],
+    [
+      'a contract account whose wallet cannot batch',
+      CONTRACT_CODE,
+      'unsupported',
+    ],
+  ] as const)('sends %s a plain transaction', async (_, code, atomicStatus) => {
+    const { signer, methods } = walletWith(atomicStatus)
+    const txId = transactionManager.startTransaction(callRequest(), signer, {
+      id: 'tx-call-plain',
+      publicClient: publicClientWith(code),
+    })
+
+    await expect(waitForTransaction(txId)).resolves.toMatchObject({
+      hash: TX_HASH,
+    })
+    expect(methods).toHaveBeenCalledWith('eth_sendTransaction')
+    expect(methods).not.toHaveBeenCalledWith('wallet_sendCalls')
+  })
+
+  it('sends a contract account a one-call bundle and settles on the transaction that carried it', async () => {
+    const { signer, methods } = walletWith('supported', 200, SAFE_TX_HASH)
+    const txId = transactionManager.startTransaction(callRequest(), signer, {
+      id: 'tx-call-safe',
+      publicClient: publicClientWith(CONTRACT_CODE),
+      timeout: 200,
+    })
+
+    await expect(waitForTransaction(txId)).resolves.toMatchObject({
+      hash: TX_HASH,
+      receipt: { status: 'success' },
+    })
+    expect(methods).not.toHaveBeenCalledWith('eth_sendTransaction')
+  })
+
+  it('times out a pending one-call bundle instead of settling it on a dry run', async () => {
+    const { signer } = walletWith('supported', 100)
+    const txId = transactionManager.startTransaction(callRequest(), signer, {
+      id: 'tx-call-safe-pending',
+      publicClient: publicClientWith(CONTRACT_CODE),
+      timeout: 30,
+    })
+
+    await expect(waitForTransaction(txId)).rejects.toBeInstanceOf(
+      CallsBundleTimeoutError,
+    )
+    expect(transactionManager.hasTimedOutBundle(txId)).toBe(true)
   })
 })
