@@ -4,15 +4,10 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { l2Sources } from '@/config'
 import type { HcaBudgetQuote } from '../../../data/queries/hcaBudget.query'
-import { getL2ApprovalCostQueryOptions } from '../../../data/queries/l2ApprovalCost.query'
 import { getL2BalancesQueryOptions } from '../../../data/queries/l2Balances.query'
 import { getL2PaymentQuoteQueryOptions } from '../../../data/queries/l2PaymentQuote.query'
 import { getL2QuoteRoute } from '../../../service/l2FundingSource'
 import type { RegistrationV2UiActor } from '../../../state/registrationUi.context'
-import {
-  isShortOfApprovalGas,
-  needsPermit2Approval,
-} from '../lib/l2ApprovalGas'
 import {
   getL2PaymentOptions,
   type L2PaymentOption,
@@ -27,8 +22,6 @@ export type L2PaymentRow = Readonly<{
   /** `amountInRaw` is the previous quote, shown while a new one loads; never pay on it. */
   isQuoteStale: boolean
   hasQuoteFailed: boolean
-  /** Needs the one-off Permit2 approval here, without the ETH to pay for it. */
-  isShortOfGas: boolean
 }>
 
 /** The registration picker's L2 rows, and what choosing one does. */
@@ -46,8 +39,7 @@ export const canPayFromL2 = (row: L2PaymentRow): boolean =>
   row.amountInRaw !== undefined &&
   row.option.balanceRaw !== null &&
   row.option.balanceRaw >= row.amountInRaw &&
-  !row.isQuoteStale &&
-  !row.isShortOfGas
+  !row.isQuoteStale
 
 /** What the permit would carry: the budget less what the account holds. */
 const getShortfall = (
@@ -107,16 +99,6 @@ export const useL2Payment = ({
         amountRaw: statusAmountRaw,
       })
     : []
-  const approvalCosts = useQueries({
-    queries: options.map(({ source }) =>
-      getL2ApprovalCostQueryOptions(
-        owner ?? undefined,
-        needsPermit2Approval(wallets?.[source.chain.id], statusAmountRaw)
-          ? source
-          : undefined,
-      ),
-    ),
-  })
   const routes = options.map((option) =>
     owner && hca && amountRaw && option.status === 'available'
       ? getL2QuoteRoute({
@@ -146,11 +128,6 @@ export const useL2Payment = ({
       isQuoteStale:
         amountRaw !== 0n && (!isQuoted || !!quote?.isPlaceholderData),
       hasQuoteFailed: isQuoted && !!quote?.isError,
-      isShortOfGas: isShortOfApprovalGas(
-        wallets?.[option.source.chain.id],
-        amountInRaw ?? statusAmountRaw,
-        approvalCosts[index]?.data,
-      ),
     }
   })
   return {

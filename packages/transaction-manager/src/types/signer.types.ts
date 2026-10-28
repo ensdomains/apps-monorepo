@@ -94,7 +94,9 @@ export interface RhinestoneSigner {
 /**
  * The wallet's USDC on an L2, paying for an HCA intent on the app chain: the
  * wallet signs one Permit2 transfer on `chain`, Across delivers the intent's
- * token request to the HCA, and the HCA then runs the intent's calls.
+ * token request to the HCA, and the HCA then runs the intent's calls. The
+ * Permit2 allowance it needs is the EIP-2612 permit the SDK has the wallet
+ * sign, so there is no approval transaction to send first.
  */
 export interface L2FundingSource {
   readonly chain: Chain
@@ -102,8 +104,6 @@ export interface L2FundingSource {
   readonly token: Address
   /** The wallet's SDK account on `chain`, which signs the transfer. */
   readonly getAccount: () => ResultAsync<RhinestoneAccount, unknown>
-  /** Have Permit2 allowed to move `amount` of `token`, asking the wallet if not. */
-  readonly ensureAllowance: (amount: bigint) => Promise<void>
 }
 
 /**
