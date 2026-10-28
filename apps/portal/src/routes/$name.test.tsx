@@ -8,9 +8,15 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-router')>()
   return {
     ...actual,
-    Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
-      <a href={to}>{children}</a>
-    ),
+    Link: ({
+      children,
+      to,
+      params,
+    }: {
+      children: React.ReactNode
+      to: string
+      params?: { name?: string }
+    }) => <a href={to.replace('$name', params?.name ?? '')}>{children}</a>,
     Outlet: () => <div data-testid="outlet" />,
     useParams: () => ({ name: routeName }),
   }
@@ -57,7 +63,10 @@ describe('name layout — invalid names', () => {
 
     renderLayout()
 
-    expect(screen.getByRole('link', { name: 'swan.eth' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'swan.eth' })).toHaveAttribute(
+      'href',
+      '/swan.eth',
+    )
   })
 
   it('offers no suggestion when the name cannot be normalized at all', () => {

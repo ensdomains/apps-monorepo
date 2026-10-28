@@ -151,20 +151,20 @@ interface ProfileSidebarProps {
    * The URL spelling is not an ENS name, so its pages are disabled — see
    * {@link NonNormalizedNameWarning}.
    */
-  disabled?: boolean
+  readonly isDisabled?: boolean
 }
 
 export const ProfileSidebar = ({
   name,
-  disabled = false,
+  isDisabled = false,
 }: ProfileSidebarProps) => {
   const { data: ownerData } = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
-    enabled: !disabled,
+    enabled: !isDisabled,
   })
   const { data: availability } = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
-    enabled: !disabled && isRegistrable(name),
+    enabled: !isDisabled && isRegistrable(name),
   })
   const protocolVersion = ownerData?.protocolVersion
   const items = getItems(name, protocolVersion)
@@ -200,13 +200,13 @@ export const ProfileSidebar = ({
           </Link>
         </div>
 
-        {(disabled || !availability?.isAvailable) && (
+        {(isDisabled || !availability?.isAvailable) && (
           <SidebarGroup className="px-6 py-0 group-data-[collapsible=icon]:px-2">
             <SidebarGroupContent>
               <SidebarMenu className="gap-3">
                 {items.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    {disabled || item.disabled || item.upcoming ? (
+                    {isDisabled || item.disabled || item.upcoming ? (
                       <SidebarMenuButton
                         disabled
                         className="opacity-50 cursor-not-allowed"

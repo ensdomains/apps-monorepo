@@ -27,11 +27,7 @@ export const NonNormalizedNameWarning = ({
       <div className="flex flex-col gap-3">
         <h1
           id="non-normalized-name-title"
-          className="font-[350] leading-none tracking-[-0.6px]"
-          style={{
-            color: 'var(--message-danger-text, #9a1b10)',
-            fontSize: 'var(--3xl, 30px)',
-          }}
+          className="text-h1 text-message-danger-text"
         >
           This name is not valid in ENS
         </h1>
