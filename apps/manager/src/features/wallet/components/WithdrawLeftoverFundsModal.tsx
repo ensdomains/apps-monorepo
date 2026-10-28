@@ -15,17 +15,17 @@ import type { LeftoverFunds } from '@/features/wallet/service/leftoverFunds'
 import { cn } from '@/lib/utils'
 
 type WithdrawLeftoverFundsModalProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
   /** Resolves true once the withdrawal confirms. */
-  onWithdraw: () => Promise<boolean>
+  readonly onWithdraw: () => Promise<boolean>
   /** Undefined until the balance has been read. */
-  leftover?: LeftoverFunds
-  isLoading?: boolean
-  isError?: boolean
-  isWithdrawing?: boolean
+  readonly leftover?: LeftoverFunds
+  readonly isLoading?: boolean
+  readonly isError?: boolean
+  readonly isWithdrawing?: boolean
   /** Localized withdrawal error, if the last attempt failed. */
-  errorMessage?: string | null
+  readonly errorMessage?: string | null
 }
 
 /**

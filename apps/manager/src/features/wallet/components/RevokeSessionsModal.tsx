@@ -27,9 +27,9 @@ type RevokeSessionsModalProps = {
   /** True when the last attempt failed because the account is undeployed. */
   isUndeployed?: boolean
   /** Formatted balance sent back to the wallet after the reset, if any. */
-  leftoverFunds?: string | null
+  readonly leftoverFunds?: string | null
   /** True while that follow-up withdrawal is in flight. */
-  isWithdrawing?: boolean
+  readonly isWithdrawing?: boolean
 }
 
 /**

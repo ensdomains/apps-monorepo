@@ -304,14 +304,14 @@ describe('WalletSection smart session safety controls', () => {
     )
   })
 
-  it('skips the refund when the account holds nothing', async () => {
-    leftover.leftover = { isDeployed: true, funds: [] }
+  it('still returns the funds when reset is confirmed before the balance loads', async () => {
+    leftover.leftover = undefined
     const onAction = vi.fn()
     render(<WalletSection onAction={onAction} />)
     resetAccess()
 
     await waitFor(() => expect(onAction).toHaveBeenCalledOnce())
-    expect(leftover.withdraw).not.toHaveBeenCalled()
+    expect(leftover.withdraw).toHaveBeenCalledOnce()
   })
 
   it('withdraws leftover funds from the menu', async () => {

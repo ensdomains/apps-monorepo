@@ -2,16 +2,20 @@ import { verifyStandaloneHca } from '@ens-apps/smart-account'
 import { sendTransaction, waitForTransactionReceipt } from '@wagmi/core'
 import {
   type Address,
+  createPublicClient,
+  custom,
   decodeFunctionData,
+  encodeAbiParameters,
   erc20Abi,
+  getAddress,
   type Hex,
-  type PublicClient,
   parseAbi,
 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Config as WagmiConfig } from 'wagmi'
 import { TOKENS } from '@/lib/tokens'
 import {
+  LeftoverFundsWithdrawalError,
   WITHDRAW_LEFTOVER_FUNDS_GAS_LIMIT,
   withdrawLeftoverFunds,
 } from './leftoverFunds'
@@ -47,19 +51,39 @@ const executeByOwnerAbi = parseAbi([
 const sendMock = vi.mocked(sendTransaction)
 const receiptMock = vi.mocked(waitForTransactionReceipt)
 
-const run = (account: {
+type FakeAccount = {
   readonly code?: Hex
   readonly balances: Partial<Record<Address, bigint>>
-}) =>
+}
+
+/** A real client over a node that only answers the account's code and balances. */
+const fakePublicClient = (account: FakeAccount) =>
+  createPublicClient({
+    transport: custom({
+      request: async ({ method, params }) => {
+        if (method === 'eth_getCode') return account.code ?? '0x6001'
+        if (method === 'eth_call') {
+          const [{ to }] = params as [{ to: Address }]
+          return encodeAbiParameters(
+            [{ type: 'uint256' }],
+            [account.balances[getAddress(to)] ?? 0n],
+          )
+        }
+        throw new Error(`Unexpected RPC ${method}`)
+      },
+    }),
+  })
+
+const run = (account: FakeAccount) =>
   withdrawLeftoverFunds({
     hca,
     owner,
-    hcaClient: {} as never,
-    publicClient: {
-      getCode: async () => account.code ?? '0x6001',
-      readContract: async ({ address }: { address: Address }) =>
-        account.balances[address] ?? 0n,
-    } as unknown as PublicClient,
+    // `buildHcaDeploymentCall` is mocked, so the client is never read.
+    hcaClient: {
+      getAddress: () => hca,
+      getInitData: () => ({ factory: DEPLOYMENT.to, factoryData: '0x' }),
+    },
+    publicClient: fakePublicClient(account),
     wagmiConfig: {} as WagmiConfig,
   })
 
@@ -115,7 +139,7 @@ describe('withdrawLeftoverFunds', () => {
           amount: 2_713_400n,
         },
       ],
-      deployed: false,
+      hasDeployedAccount: false,
     })
   })
 
@@ -130,13 +154,13 @@ describe('withdrawLeftoverFunds', () => {
       hca,
     ])
     expect(sentTransfers()?.map(({ call }) => call.args)).toEqual([[owner, 5n]])
-    expect(result.deployed).toBe(true)
+    expect(result.hasDeployedAccount).toBe(true)
   })
 
   it('sends nothing when the account holds nothing', async () => {
     await expect(run({ balances: {} })).resolves.toEqual({
       withdrawn: [],
-      deployed: false,
+      hasDeployedAccount: false,
     })
     expect(sendMock).not.toHaveBeenCalled()
   })
@@ -157,6 +181,6 @@ describe('withdrawLeftoverFunds', () => {
 
     await expect(
       run({ balances: { [TOKENS.USDC.address]: 1n } }),
-    ).rejects.toThrow('reverted')
+    ).rejects.toBeInstanceOf(LeftoverFundsWithdrawalError)
   })
 })

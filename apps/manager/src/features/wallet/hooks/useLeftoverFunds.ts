@@ -5,9 +5,9 @@ import { useLingui } from '@lingui/react/macro'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { useAccount, useConfig } from 'wagmi'
+import { getLeftoverFundsQueryOptions } from '@/features/wallet/data/queries/leftoverFunds.query'
 import {
   type LeftoverFunds,
-  readLeftoverFunds,
   withdrawLeftoverFunds,
 } from '@/features/wallet/service/leftoverFunds'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -44,11 +44,7 @@ export const useLeftoverFunds = (): UseLeftoverFundsResult => {
   // In EOA-only mode `accountAddress` is the wallet itself.
   const hca = isFeatureEnabled('USE_EOA') ? null : accountAddress
 
-  const query = useQuery({
-    queryKey: $qk({ $scope: 'wallet', $action: 'leftoverFunds', hca }),
-    queryFn: () => (hca ? readLeftoverFunds(publicClient, hca) : null),
-    enabled: !!hca,
-  })
+  const query = useQuery(getLeftoverFundsQueryOptions({ hca }))
 
   const withdraw =
     useCallback(async (): Promise<WithdrawLeftoverFundsOutcome> => {
@@ -59,7 +55,7 @@ export const useLeftoverFunds = (): UseLeftoverFundsResult => {
       setIsWithdrawing(true)
       setWithdrawError(null)
       try {
-        const { deployed } = await withdrawLeftoverFunds({
+        const { hasDeployedAccount } = await withdrawLeftoverFunds({
           hca,
           owner,
           hcaClient: client,
@@ -67,7 +63,7 @@ export const useLeftoverFunds = (): UseLeftoverFundsResult => {
           wagmiConfig,
         })
         // The account machine still believes the HCA is counterfactual.
-        if (deployed) await refreshAccount()
+        if (hasDeployedAccount) await refreshAccount()
         return { status: 'withdrawn' }
       } catch (error) {
         if (isWalletDeclineError(error)) return { status: 'declined' }

@@ -5,6 +5,7 @@ import {
   type Call,
   verifyStandaloneHca,
 } from '@ens-apps/smart-account'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { sendTransaction, waitForTransactionReceipt } from '@wagmi/core'
 import {
   type Address,
@@ -20,6 +21,13 @@ import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 
 /** The account only ever holds USDC: every intent is funded and paid in it. */
 const LEFTOVER_TOKENS = [TOKENS.USDC]
+
+/** The withdrawal could not be sent, or a transaction it sent reverted. */
+export class LeftoverFundsWithdrawalError extends TaggedError(
+  'LeftoverFundsWithdrawalError',
+)<{
+  readonly cause?: unknown
+}> {}
 
 export type LeftoverFund = {
   readonly token: Address
@@ -101,14 +109,17 @@ const send = async (
     chainId: chain.id,
   })
   if (receipt.status !== 'success') {
-    throw new Error(`Transaction ${hash} reverted`)
+    throw new LeftoverFundsWithdrawalError({
+      message: `Transaction ${hash} reverted`,
+      cause: receipt,
+    })
   }
 }
 
 export type WithdrawLeftoverFundsResult = {
   readonly withdrawn: readonly LeftoverFund[]
-  /** True when the account had to be deployed first. */
-  readonly deployed: boolean
+  /** True when this call had to deploy the account first. */
+  readonly hasDeployedAccount: boolean
 }
 
 /**
@@ -131,10 +142,14 @@ export const withdrawLeftoverFunds = async (params: {
   // Read now, not from the cached query: transferring more than the balance
   // reverts, and less leaves dust behind.
   const { isDeployed, funds } = await readLeftoverFunds(publicClient, hca)
-  if (funds.length === 0) return { withdrawn: [], deployed: false }
+  if (funds.length === 0) return { withdrawn: [], hasDeployedAccount: false }
 
   if (!isDeployed) {
-    if (!hcaClient) throw new Error('Smart account client is not ready')
+    if (!hcaClient) {
+      throw new LeftoverFundsWithdrawalError({
+        message: 'Smart account client is not ready',
+      })
+    }
     await send(
       wagmiConfig,
       owner,
@@ -171,5 +186,5 @@ export const withdrawLeftoverFunds = async (params: {
     }),
     WITHDRAW_LEFTOVER_FUNDS_GAS_LIMIT,
   )
-  return { withdrawn: funds, deployed: !isDeployed }
+  return { withdrawn: funds, hasDeployedAccount: !isDeployed }
 }

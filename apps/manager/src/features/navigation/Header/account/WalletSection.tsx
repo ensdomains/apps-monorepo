@@ -65,16 +65,16 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
 
   // Revoke first: it is the urgent step, and funds left behind can still be
   // withdrawn from the menu. Only a failed reset keeps the dialog open.
+  // Withdraw unconditionally: the label may still be loading, and the
+  // withdrawal re-reads the balance and sends nothing for an empty account.
   const handleRevokeSessions = async (options?: { deployFirst?: boolean }) => {
     const revoked = await revokeSession(options)
     if (!revoked) return false
-    if (leftoverFundsLabel) {
-      const outcome = await leftoverFunds.withdraw()
-      if (outcome.status !== 'withdrawn') {
-        toast.error(
-          t`Smart session access was reset, but your leftover funds are still in your smart account. Use "Withdraw leftover funds" to get them back.`,
-        )
-      }
+    const outcome = await leftoverFunds.withdraw()
+    if (outcome.status !== 'withdrawn') {
+      toast.error(
+        t`Smart session access was reset, but your leftover funds are still in your smart account. Use "Withdraw leftover funds" to get them back.`,
+      )
     }
     onAction()
     return true
