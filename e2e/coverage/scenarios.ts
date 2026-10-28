@@ -1488,6 +1488,16 @@ const migrationGR: Scenario[] = suite('G.GR', 'migration', 'manager', 'P3', [
     'Index has not listed the record keys yet (stale key inventory)',
     'records on chain survive migration, or the app refuses to migrate until the index is current — an empty key list is not proof of no records',
   ],
+  [
+    'GR14',
+    'Unwrapped, wrapped and locked 2LD on a CCIP-Read (offchain) resolver',
+    '`keep-v1`: V2 points at the same resolver, the upgrade makes no gateway request, and the name and its wildcard subname still resolve in both apps',
+  ],
+  [
+    'GR15',
+    'Registered subname on a CCIP-Read resolver: registry-only, unlocked, emancipated and locked children',
+    'the child lands in the parent’s V2 subregistry on its own CCIP-Read resolver, nothing is read through the gateway, and it still resolves in both apps (copy routes need `migration-subname-recreation`)',
+  ],
 ])
 
 const migrationGM: Scenario[] = suite('G.GM', 'migration', 'manager', 'P3', [
@@ -1954,6 +1964,11 @@ const surfacesH: Scenario[] = suite('H', 'profile', 'shared', 'P5', [
     'H19',
     'Explorer: rate-limited ownerless name',
     '"Error loading records", not a false "Name not found"',
+  ],
+  [
+    'H20',
+    'Manager: an ENSv2 name its owner points at a CCIP-Read resolver',
+    'the profile editor goes away (the resolver has no setters) and the offchain records still show',
   ],
 ])
 

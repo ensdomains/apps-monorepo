@@ -358,6 +358,8 @@ expected to appear.
 | GR10 | ~50 records | all replayed across multicall chunks |
 | GR11 | resolver set, zero records | no-op, no failure |
 | GR12 | resolver **not** in the hardcoded 9-address known list | silently degrades to `keep-v1` — assert the UI says so |
+| GR14 | unwrapped / wrapped / locked 2LD on a CCIP-Read resolver | `keep-v1`; no gateway read during the upgrade; name and wildcard subname still resolve in both apps |
+| GR15 | registered subname (registry-only, unlocked, emancipated, locked) on a CCIP-Read resolver | child keeps its resolver in the parent's V2 subregistry and still resolves; copy routes need `migration-subname-recreation` |
 
 #### GM — managers & roles
 
@@ -423,6 +425,7 @@ expected to appear.
 | H17 | Explorer: offchain name + ownerless wildcard subname | both render, batched; no false "Name not found" |
 | H18 | Explorer: gateway 500s a long batch URL | UniversalResolver fallback; records render |
 | H19 | Explorer: rate-limited ownerless name | "Error loading records", not "Name not found" |
+| H20 | Manager: ENSv2 name switched to a CCIP-Read resolver | no profile editor; offchain records still show |
 
 ### I — Fuses (V1 and migrated) · R0
 

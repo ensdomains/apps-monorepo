@@ -25,7 +25,12 @@ import {
 } from '../helpers/anvil-client.js'
 import { waitForBignameName } from '../helpers/bigname-sync.js'
 import type { CcipGateway, OffchainRecords } from '../helpers/ccip-gateway.js'
-import { createMakeV1Name, V1_ENS_REGISTRY } from './makeV1Name.js'
+import {
+  createMakeV1Name,
+  V1_ENS_REGISTRY,
+  V1_NAME_WRAPPER,
+  type V1NameType,
+} from './makeV1Name.js'
 
 const REGISTRY_ABI = parseAbi([
   'function setResolver(bytes32 node, address resolver)',
@@ -64,6 +69,8 @@ export type OffchainName = {
 
 export type OffchainNameConfig = {
   label?: string
+  /** V1 shape of the 2LD (default `unwrapped`); see `makeV1Name`. */
+  type?: V1NameType
   records?: OffchainRecords
   subnameRecords?: OffchainRecords
 }
@@ -100,11 +107,17 @@ export function createMakeOffchainName({
     // sender with code is rejected (EIP-3607).
     await testClient.setCode({ address: userAccount.address, bytecode: '0x' })
     // Sequential: both send from userAccount, and parallel sends race the nonce.
-    const name = await makeV1Name({ label: config.label ?? 'offchain' })
+    const name = await makeV1Name({
+      label: config.label ?? 'offchain',
+      type: config.type,
+    })
     const resolver = await deployOffchainResolver(gateway.url, userAccount)
+    // A wrapped name's registry owner is the NameWrapper, which sets the
+    // resolver on the owner's behalf (same signature as the registry's).
+    const wrapped = config.type === 'wrapped' || config.type === 'locked'
     const hash = await walletClient.sendTransaction({
       account: userAccount,
-      to: V1_ENS_REGISTRY,
+      to: wrapped ? V1_NAME_WRAPPER : V1_ENS_REGISTRY,
       data: encodeFunctionData({
         abi: REGISTRY_ABI,
         functionName: 'setResolver',
