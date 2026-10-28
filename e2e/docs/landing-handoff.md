@@ -4,31 +4,27 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Now
 
-- **Batch**: none started. The tracker has just been set up.
-- **Branch**: `e2e-tests-coverage` (local). Tracker files are committed locally and not pushed.
-- **Step**: setup done. Waiting for the user to review the B0 path list and the open questions below.
+- **Batch**: none started. The tracker is set up and pushed to `origin/e2e-tests-coverage`.
+- **Step**: setup done. B0 is next.
 
 ## Next action
 
-1. The user answers the open questions below.
-2. Prepare B0 (procedure step 1): branch `e2e-land/b0-infra` from `origin/main`, then:
+1. Prepare B0 (procedure step 1): branch `e2e-land/b0-infra` from `origin/main`, then:
    ```bash
    git checkout origin/e2e-tests-coverage -- $(pnpm --silent --filter @ens-apps/e2e landing --batch B0 --paths)
    ```
    Then trim `e2e/package.json` and `package.json` to the scripts whose targets exist in B0. For example, drop `test:smoke*`, `matrix:*` and `test:replacement*`. Also check why `apps/*/vite.config.ts` changed.
-3. Run step 2 (local green) and report the results to the user.
+2. Run step 2 (local green) and report the results to the user.
 
 ## Waiting on
 
-- User decisions (see Open questions).
-- Pushing the 4 local commits on `e2e-tests-coverage` (two merges of main and the #1559 retrofit), plus the tracker commit. That's the user's call.
+- **Security, for the user**: rotate the Mailinator API key, and update the `MAILINATOR_API_KEY` GitHub secret. The raw key is in `e2e/.env` on this branch, which has been pushed to a **public** repo, so dropping the file from main doesn't un-leak it.
+- **Local checkout**: the user's local `e2e-tests-coverage` is behind origin by the sync merge. A fast-forward is blocked by uncommitted WIP in `e2e/package.json`, `pnpm-lock.yaml`, `e2e-coverage.md` and `e2e-defects.md`, and the user decides how to bring it forward.
 
 ## Open questions for the user
 
-1. **V1 subnames in Explorer**: marked N/A, because the portal links V1 subname work out to ENS Manager (`apps/portal/src/features/transfer/v1/V1Transfer.tsx`). Confirm.
-2. **`e2e/.env`**: it commits a `MAILINATOR_API_KEY`. It's currently DROP. Should it land, or should main's CI env cover it?
-3. **B9 exploratory suites** (`migration-matrix`, `parity`, `replacement`, 151 files): land, or drop? This can wait until B9.
-4. **Worktrees**: which ones to fold in or abandon (see Worktree triage).
+1. **B9 exploratory suites** (`migration-matrix`, `parity`, `replacement`, ~151 files): land, or drop? This can wait until B9.
+2. **Worktrees**: which ones to fold in or abandon (see Worktree triage).
 
 ## Standing rules
 
@@ -60,7 +56,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 | B1a | Smoke: Explorer specs + CI (sharded `@smoke` gate, nightly) | not started |
 | B1b | Smoke: Manager specs | not started |
 | B1c | Smoke gaps, written on main (see below) | not started |
-| B2 | CCIP rest. Fold in the `e2e/offchain-ccip` (12) and `e2e/offchain-1577` (7) worktree commits first | not started |
+| B2 | CCIP rest. `e2e/offchain-main` is merged into this branch. Fold in what's left on `e2e/offchain-ccip` (8 orphaned) and `e2e/offchain-1577` (3 orphaned) first | not started |
 | B3 | Migration rest. Fold in `test/migration-scenario-seeder` (23) if the user keeps it | not started |
 | B4 | Transfer, fuses, 4LD rest | not started |
 | B5 | Registration, renewal, roles rest (includes the 5 `@smoke` tests in `roles.spec.ts`) | not started |
@@ -71,6 +67,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 **Smoke gaps (B1c)**, to be written as new tests on main after B0:
 - Manager: add a banner (header) record.
+- Explorer: create a V1 3LD and 4LD. Port an allowed case from `parity/v1-subname.spec.ts` into `portal/subnames`.
 - Explorer: set a primary name, for a V2 name and a V2 subname.
 - Explorer: a direct My Names test.
 - Explorer: change a name's registry.
@@ -88,19 +85,23 @@ When one is written, replace its `gap` entry in `landing/batches.ts` with `spec`
 - **2026-10-28**: The CI switch (per-PR smoke plus nightly full suite) lands with B1a, not B0.
 - **2026-10-28**: Smoke is defined by the user's flow list (`smoke` in `landing/batches.ts`), plus the existing `@smoke` security regressions in portal registration and transfer. The `roles.spec.ts` smoke tests move to B5.
 - **2026-10-28**: DROP covers only files nothing kept refers to: `qa2-*.mjs`, `docs/testing-campaigns/**`, `e2e/docs/archive/**`, 4 unreferenced `probe-*` scripts, and `readNamePages.ts` (dead code). Process notes that specs or configs cite (`e2e-build-goal.md`, `coverage/handoff.md`, …) land with B0 to avoid dead links.
+- **2026-10-28**: Explorer can create V1 subnames (the user confirmed). It's a smoke gap, not N/A.
+- **2026-10-28**: The Mailinator key stays a secret. `e2e/.env` never lands, and CI already reads `secrets.MAILINATOR_API_KEY`. The key still needs rotating (see Waiting on).
+- **2026-10-28**: The user OK'd the push. The tracker was pushed after merging `origin/e2e-tests-coverage` (CCIP work and a main merge) in a scratch worktree, to keep the user's WIP untouched.
+- **2026-10-28**: Removed the 4 clean worktrees: `e2e-fix`, `main-mainnet`, `rebase-e2e` and `apr-gap-main`. The `rebase/e2e-tests-coverage` branch is kept.
 
 ## Worktree triage (2026-10-28)
 
 Run `pnpm --filter @ens-apps/e2e landing --worktrees` for the live table.
 - **Orphaned commits** are commits on neither main nor this branch. The count over-reports for `test/verify-pr-*` branches, because they carry the PR's own commits, which main took as a squash. Before calling one orphaned, check `git diff origin/main...<branch> -- e2e`.
-- **Removable once confirmed** (clean, nothing orphaned): `.claude/worktrees/e2e-fix`, `main-mainnet`, `rebase-e2e`, and `worktrees/apr-gap-main`.
+- **Removed 2026-10-28** (clean, nothing orphaned): `.claude/worktrees/e2e-fix`, `main-mainnet`, `rebase-e2e`, and `worktrees/apr-gap-main`.
 - **Need a decision** (dirty or orphaned work), roughly by size:
   - `worktrees/pr1494-approval-36`: 65 dirty, 11 orphaned commits.
   - `worktrees/migration-retention-matrix`: 63 dirty, 6 orphaned. B3 or B9.
   - `worktrees/ens-manager-replacement-parity`: 38 dirty, 9 orphaned. B9.
   - `worktrees/migration-scenario-seeder`: 23 orphaned. B3.
-  - `.claude/worktrees/offchain-ccip`: 12 orphaned, 15 dirty. B2.
-  - `.claude/worktrees/offchain-1577`: 7 orphaned, 22 dirty. B2.
+  - `.claude/worktrees/offchain-ccip`: 8 orphaned, 15 dirty. B2.
+  - `.claude/worktrees/offchain-1577`: 3 orphaned, 22 dirty. B2.
   - `pr-1494-userreg`, `pr1494-e2e-coverage`, `pr1494-apr-gap-fix`, `pr-1274-ci` and `pr-1188-network-config`: 14–29 orphaned each.
   - The remaining `test/verify-pr-*` and `retrofit/*` worktrees.
 
