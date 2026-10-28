@@ -87,9 +87,9 @@ beforeEach(() => {
 })
 
 describe('withdrawLeftoverFunds', () => {
-  it('sends every non-zero balance to the owner in one owner transaction', async () => {
+  it('sends the USDC balance to the owner in one owner transaction', async () => {
     const result = await run({
-      balances: { [TOKENS.USDC.address]: 2_713_400n, [TOKENS.DAI.address]: 0n },
+      balances: { [TOKENS.USDC.address]: 2_713_400n },
     })
 
     expect(sendMock).toHaveBeenCalledOnce()
@@ -122,17 +122,14 @@ describe('withdrawLeftoverFunds', () => {
   it('deploys an undeployed account before withdrawing from it', async () => {
     const result = await run({
       code: '0x',
-      balances: { [TOKENS.USDC.address]: 5n, [TOKENS.DAI.address]: 7n },
+      balances: { [TOKENS.USDC.address]: 5n },
     })
 
     expect(sendMock.mock.calls.map(([, tx]) => tx.to)).toEqual([
       DEPLOYMENT.to,
       hca,
     ])
-    expect(sentTransfers()?.map(({ call }) => call.args)).toEqual([
-      [owner, 5n],
-      [owner, 7n],
-    ])
+    expect(sentTransfers()?.map(({ call }) => call.args)).toEqual([[owner, 5n]])
     expect(result.deployed).toBe(true)
   })
 

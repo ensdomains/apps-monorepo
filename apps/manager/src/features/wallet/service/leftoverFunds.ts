@@ -18,8 +18,8 @@ import { chain } from '@/config'
 import { TOKENS } from '@/lib/tokens'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 
-/** Every stable the account pays registrations and renewals in. */
-const LEFTOVER_TOKENS = Object.values(TOKENS)
+/** The account only ever holds USDC: every intent is funded and paid in it. */
+const LEFTOVER_TOKENS = [TOKENS.USDC]
 
 export type LeftoverFund = {
   readonly token: Address
