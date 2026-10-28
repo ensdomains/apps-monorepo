@@ -27,23 +27,48 @@ import type {
 import { resolveEOAWalletChain } from './eoa-transport.actor'
 
 /**
+ * Wallets (by EIP-6963 rdns) whose EIP-7702 upgrade installs a delegate that
+ * can still own an HCA. `ready` doesn't name the delegate, so we gate on the
+ * wallet that picks it. Coinbase's `EIP7702Proxy` waits on its signing format
+ * being confirmed. See `docs/research/HCA_7702_WALLETS.md`.
+ */
+const HCA_SAFE_7702_WALLETS: ReadonlySet<string> = new Set([
+  'io.metamask', // EIP7702StatelessDeleGator
+  'me.rainbow', // Calibur, Rainbow's deployment
+  'org.uniswap.app', // Calibur, Uniswap's deployment
+])
+
+/**
+ * `supported` always batches. `ready` means our send upgrades the EOA through
+ * EIP-7702, so it only counts on a wallet whose delegate keeps the HCA working.
+ */
+export const isAtomicBatchUsable = (
+  status: string | undefined,
+  walletId: string | undefined,
+): boolean =>
+  status === 'supported' ||
+  (status === 'ready' &&
+    walletId !== undefined &&
+    HCA_SAFE_7702_WALLETS.has(walletId))
+
+/**
  * Whether the connected wallet can execute a `wallet_sendCalls` bundle
- * atomically on `chainId` (EIP-5792 `atomic` capability). Only `supported`
- * counts: `ready` means our send would prompt an EIP-7702 upgrade of the EOA,
- * which the app must never trigger. Any failure means "no", so callers fall
- * back to sequential txs.
+ * atomically on `chainId` (EIP-5792 `atomic` capability), per
+ * {@link isAtomicBatchUsable}. `walletId` is the wagmi connector id. Any
+ * failure means "no", so callers fall back to sequential txs.
  */
 export async function getAtomicBatchSupport(params: {
   readonly walletClient: WalletClient
   readonly chainId: number
+  readonly walletId?: string
 }): Promise<boolean> {
-  const { walletClient, chainId } = params
+  const { walletClient, chainId, walletId } = params
   try {
     const capabilities = await getCapabilities(walletClient, {
       account: walletClient.account,
       chainId,
     })
-    return capabilities.atomic?.status === 'supported'
+    return isAtomicBatchUsable(capabilities.atomic?.status, walletId)
   } catch (error) {
     logger.debug('wallet_getCapabilities unavailable', error)
     return false
@@ -69,7 +94,7 @@ export function submitEOABatch(input: {
   | AtomicBatchUnsupportedError
 > {
   const request = input.request as EOABatchTransactionRequest
-  const { walletClient } = input.signer
+  const { walletClient, walletId } = input.signer
 
   if (request.calls.length === 0) {
     return errAsync(
@@ -85,9 +110,10 @@ export function submitEOABatch(input: {
   const chain = walletChain.value
 
   // The support the flow was planned on can be stale: a wallet now reporting
-  // `ready` would turn `forceAtomic` into an EIP-7702 upgrade prompt.
+  // `ready` would turn `forceAtomic` into an EIP-7702 upgrade prompt, which is
+  // only acceptable on a wallet whose delegate keeps the HCA working.
   return ResultAsync.fromSafePromise(
-    getAtomicBatchSupport({ walletClient, chainId: chain.id }),
+    getAtomicBatchSupport({ walletClient, chainId: chain.id, walletId }),
   )
     .andThen((isSupported) =>
       isSupported

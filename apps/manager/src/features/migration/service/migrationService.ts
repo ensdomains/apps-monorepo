@@ -2032,6 +2032,7 @@ const assertAtomicBatchingAvailable = async (
     (await getAtomicBatchSupport({
       walletClient: ctx.signer.walletClient,
       chainId: requireChainId(ctx.publicClient, 'migration'),
+      walletId: ctx.signer.walletId,
     }))
   if (isSupported) return
   throw new MigrationPlanChangedError({
