@@ -107,30 +107,19 @@ const StepCopy = ({ step }: StepCopyProps) =>
         </>
       ),
     )
-    .with(
-      { type: 'approval', approvalId: 'base-registrar:hca' },
-      ({ count }) => (
-        <>
-          <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
-            {count ? (
-              <Plural
-                one="Approve # name"
-                other="Approve # names"
-                value={count}
-              />
-            ) : (
-              <Trans>Approve your names</Trans>
-            )}
-          </h3>
-          <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-            <Trans>
-              Allow the migration contract to move all unwrapped .eth names in
-              this wallet, including names you haven&apos;t selected.
-            </Trans>
-          </p>
-        </>
-      ),
-    )
+    .with({ type: 'approval', approvalId: 'base-registrar:hca' }, () => (
+      <>
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
+          <Trans>Approve all unwrapped names</Trans>
+        </h3>
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+          <Trans>
+            Allow the migration contract to move all unwrapped .eth names in
+            this wallet, including names you haven&apos;t selected.
+          </Trans>
+        </p>
+      </>
+    ))
     .with({ type: 'approval', approvalId: 'name-wrapper:hca' }, () => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">

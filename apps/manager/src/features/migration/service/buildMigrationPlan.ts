@@ -922,7 +922,7 @@ const buildRecoveryApprovalPlan = (params: {
     : []
   const plannedApprovals = remainingApprovals.flatMap((approval) => {
     // Older recovery snapshots may contain the collection-wide strategy. A
-    // resumed run must use the current token-scoped strategy instead.
+    // resumed run must retain the legacy token-scoped strategy instead.
     if (
       approval.id === 'base-registrar:hca' &&
       params.snapshot.registrationApprovalStrategy !== 'temporary-operator'

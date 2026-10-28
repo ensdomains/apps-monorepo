@@ -52,7 +52,7 @@ describe('prepareGraceRenewalMigration', () => {
   it.each([
     {
       canBatchAtomically: false,
-      registrationApprovalPolicy: 'minimize-requests',
+      registrationApprovalPolicy: 'temporary-operator',
     },
     { canBatchAtomically: true, registrationApprovalPolicy: 'per-token' },
   ])(

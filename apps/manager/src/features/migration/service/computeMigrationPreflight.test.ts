@@ -136,7 +136,7 @@ describe('computeMigrationPreflight — HCA approvals', () => {
           isWrapped: false,
         })),
         hcaAddress: HCA,
-        registrationApprovalPolicy: 'minimize-requests',
+        registrationApprovalPolicy: 'temporary-operator',
         hcaApprovals: {
           ...ALL_HCA_APPROVED,
           baseRegistrarHcaApproved: alreadyApproved,

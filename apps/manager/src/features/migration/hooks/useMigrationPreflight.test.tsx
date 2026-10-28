@@ -52,7 +52,7 @@ beforeEach(() => {
 })
 
 describe('useMigrationPreflight', () => {
-  it('does not reuse token-scoped preflight for a request-minimizing plan', async () => {
+  it('does not reuse token-scoped preflight for a temporary-operator plan', async () => {
     computeMigrationPreflightMock.mockResolvedValue({
       skipFetchProfilesPhase: false,
     })
@@ -62,12 +62,12 @@ describe('useMigrationPreflight', () => {
     const domains = [domain('alice'), domain('bob'), domain('carol')]
     await result.current.ensure(domains)
     await result.current.ensure(domains, {
-      registrationApprovalPolicy: 'minimize-requests',
+      registrationApprovalPolicy: 'temporary-operator',
     })
     expect(computeMigrationPreflightMock).toHaveBeenCalledTimes(2)
     expect(computeMigrationPreflightMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        registrationApprovalPolicy: 'minimize-requests',
+        registrationApprovalPolicy: 'temporary-operator',
       }),
     )
   })

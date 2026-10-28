@@ -13,6 +13,7 @@ import {
   type MigrationCleanupApproval,
   migrationApprovalForId,
   orderMigrationCleanupApprovals,
+  planMigrationApprovalPreflight,
   planMigrationApprovals,
   readActiveMigrationOperatorApprovals,
   temporaryMigrationHcaApproval,
@@ -173,45 +174,82 @@ describe('planMigrationApprovals', () => {
   })
 
   it.each([1, 2, 3, 4])(
-    'minimizes requests only when %i missing grants save a request',
+    'plans one temporary grant and revocation for %i missing approvals',
     (count) => {
       const tokenIds = Array.from({ length: count }, (_, index) =>
         BigInt(index + 1),
       )
-      const approvals = planMigrationApprovals({
+      const preflight = planMigrationApprovalPreflight({
         hcaAddress: HCA,
         needs: needsFor(tokenIds),
         status: statusFor(tokenIds),
-        registrationApprovalPolicy: 'minimize-requests',
+        registrationApprovalPolicy: 'temporary-operator',
       })
-      expect(approvals).toEqual(
-        count >= 3
-          ? [
-              migrationApprovalForId({
-                id: 'base-registrar:hca',
-                hcaAddress: HCA,
-              }),
-            ]
-          : tokenIds.map((tokenId) =>
-              migrationApprovalForId({
-                id: 'base-registrar:hca-token',
-                hcaAddress: HCA,
-                tokenId,
-              }),
-            ),
-      )
+      const grant = migrationApprovalForId({
+        id: 'base-registrar:hca',
+        hcaAddress: HCA,
+      })
+      expect(preflight.registrationApprovalStrategy).toBe('temporary-operator')
+      expect(preflight.migrationApprovals).toEqual([grant])
+      expect(preflight.migrationCleanupApprovals).toEqual([grant])
     },
   )
 
   it('does not replace existing global permission with a new grant in bulk mode', () => {
+    const preflight = planMigrationApprovalPreflight({
+      hcaAddress: HCA,
+      needs: needsFor([1n, 2n, 3n]),
+      status: statusFor([1n, 2n, 3n], { baseRegistrarHcaApproved: true }),
+      registrationApprovalPolicy: 'temporary-operator',
+    })
+    expect(preflight.migrationApprovals).toEqual([])
+    expect(preflight.migrationCleanupApprovals).toEqual([])
+  })
+
+  it.each([false, true])(
+    'reuses selected token approvals in bulk mode (all approved: %s)',
+    (allApproved) => {
+      const tokenIds = [TOKEN_ONE, TOKEN_TWO]
+      const preflight = planMigrationApprovalPreflight({
+        hcaAddress: HCA,
+        needs: needsFor(tokenIds),
+        status: statusFor(tokenIds, {
+          unwrappedTokenApprovals: [
+            { tokenId: TOKEN_ONE, approved: true },
+            { tokenId: TOKEN_TWO, approved: allApproved },
+          ],
+        }),
+        registrationApprovalPolicy: 'temporary-operator',
+      })
+      const expected = allApproved
+        ? []
+        : [
+            migrationApprovalForId({
+              id: 'base-registrar:hca',
+              hcaAddress: HCA,
+            }),
+          ]
+      expect(preflight.migrationApprovals).toEqual(expected)
+      expect(preflight.migrationCleanupApprovals).toEqual(expected)
+    },
+  )
+
+  it('preserves a reviewed token-scoped strategy when the current policy uses bulk approvals', () => {
     expect(
       planMigrationApprovals({
         hcaAddress: HCA,
-        needs: needsFor([1n, 2n, 3n]),
-        status: statusFor([1n, 2n, 3n], { baseRegistrarHcaApproved: true }),
-        registrationApprovalPolicy: 'minimize-requests',
+        needs: needsFor([TOKEN_ONE]),
+        status: statusFor([TOKEN_ONE]),
+        registrationApprovalStrategy: 'per-token',
+        registrationApprovalPolicy: 'temporary-operator',
       }),
-    ).toEqual([])
+    ).toEqual([
+      migrationApprovalForId({
+        id: 'base-registrar:hca-token',
+        hcaAddress: HCA,
+        tokenId: TOKEN_ONE,
+      }),
+    ])
   })
 
   it.each([1, 2])(

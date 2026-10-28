@@ -97,10 +97,6 @@ msgid "{count, plural, one {# subname} other {# subnames}}"
 msgstr "{count, plural, one {# subname} other {# subnames}}"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "{count, plural, one {Approve # name} other {Approve # names}}"
-msgstr "{count, plural, one {Approve # name} other {Approve # names}}"
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Copy records for # name} other {Copy records for # names}}"
 msgstr "{count, plural, one {Copy records for # name} other {Copy records for # names}}"
 
@@ -437,6 +433,10 @@ msgstr "Approve"
 msgid "Approve {name}"
 msgstr "Approve {name}"
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Approve all unwrapped names"
+msgstr "Approve all unwrapped names"
+
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Approve and register"
 msgstr "Approve and register"
@@ -500,10 +500,6 @@ msgstr "Approve this name in your wallet"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approve USDC on {l2ChainName} if your wallet asks, then sign the payment"
 msgstr "Approve USDC on {l2ChainName} if your wallet asks, then sign the payment"
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Approve your names"
-msgstr "Approve your names"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve your wrapped names"

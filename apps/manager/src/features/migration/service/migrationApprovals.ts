@@ -40,7 +40,7 @@ export type MigrationRegistrationApprovalStrategy =
 
 export type MigrationRegistrationApprovalPolicy =
   | 'per-token'
-  | 'minimize-requests'
+  | 'temporary-operator'
 
 export type MigrationApprovalReview = {
   readonly chainId: number
@@ -418,8 +418,7 @@ export const planMigrationApprovals = (params: {
   const usesTemporaryOperator =
     params.registrationApprovalStrategy === 'temporary-operator' ||
     (params.registrationApprovalStrategy === undefined &&
-      params.registrationApprovalPolicy === 'minimize-requests' &&
-      missingTokenIds.length >= 3)
+      params.registrationApprovalPolicy === 'temporary-operator')
   const registrationApprovals = usesTemporaryOperator
     ? [migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress })]
     : missingTokenIds.map((tokenId) =>

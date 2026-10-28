@@ -173,7 +173,7 @@ const buildEstimate = async (params: {
       requiresRegistryConfiguration: false,
       registrationApprovalPolicy: params.canBatchAtomically
         ? 'per-token'
-        : 'minimize-requests',
+        : 'temporary-operator',
     }),
   )
   params.signal.throwIfAborted()

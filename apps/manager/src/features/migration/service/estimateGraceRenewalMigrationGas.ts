@@ -143,7 +143,7 @@ const estimateProjectedMigration = async (
     requiresManagerRestoration: managerRestorationNames.length > 0,
     registrationApprovalPolicy: params.canBatchAtomically
       ? 'per-token'
-      : 'minimize-requests',
+      : 'temporary-operator',
     publicClient,
     wagmiConfig,
     signal,

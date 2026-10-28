@@ -103,13 +103,13 @@ it('marks fresh plans with the rollout state and refreshes it when the flag chan
   })
 })
 
-it('requests fewer approvals for a wallet without atomic batching', async () => {
+it('requests temporary bulk approval for a wallet without atomic batching', async () => {
   const { unmount } = renderHook(() => useMigrationGasEstimate(params))
   await invokeQuery()
   expect(mocks.preflight).toHaveBeenCalledWith(
     expect.anything(),
     expect.objectContaining({
-      registrationApprovalPolicy: 'minimize-requests',
+      registrationApprovalPolicy: 'temporary-operator',
     }),
   )
   unmount()
