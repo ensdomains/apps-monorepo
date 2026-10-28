@@ -37,7 +37,7 @@ export const readNameDetail =
   (client: BignameClient): ReadNameDetail =>
   ({ name }, options) =>
     client
-      .name(name, undefined, options)
+      .name(name, { namespace: 'ens' }, options)
       .map(({ data }): NameDetail | null =>
         data.read_status === 'not_found' ? null : toNameDetail(data),
       )

@@ -94,19 +94,10 @@ describe('csp', () => {
       expect(connectSrc).not.toContain('https://i.pinimg.com')
     })
 
-    it('allowlists the CCIP-read gateway fan-out as wildcards', () => {
-      // viem resolves the UniversalResolver's batch gateway locally
-      // (x-batch-gateway:true) and fetches the per-chain verifier gateways
-      // straight from the browser. Both domain families are
-      // subdomain-per-deployment (ccip-v3.ens.xyz, arbitrum-sepolia.3668.io,
-      // …), so the wildcard is the source of truth — a bare host alongside it
-      // is a redundant, easily-stale entry.
-      expect(connectSrc).toContain('https://*.ens.xyz')
-      expect(connectSrc).not.toContain('https://ccip-v3.ens.xyz')
-      expect(connectSrc).toContain('https://*.3668.io')
-      expect(connectSrc).not.toContain('https://linea-sepolia.3668.io')
-      // Unruggable's drpc-load-balanced gateway host — not the RPC (.live).
-      expect(connectSrc).toContain('https://lb.drpc.org')
+    it('opens HTTPS to the CCIP-Read gateway each resolver picks', () => {
+      // viem fetches them from the browser (x-batch-gateway:true); a custom
+      // resolver's gateway (api.coinbase.com for base.eth) can be any host.
+      expect(connectSrc).toContain('https:')
     })
 
     it('allowlists Intercom Messenger as wildcards', () => {
@@ -285,9 +276,8 @@ describe('custom RPC', () => {
   const originsFrom = (value: string) =>
     getCustomRpcOrigins(requestWith(`theme=dark; ${cookie('origin', value)}`))
 
-  it('keeps connect-src closed to arbitrary hosts without the cookies', () => {
-    // Opening https:/wss: for every visitor would let an XSS send data anywhere.
-    expect(header['connect-src']).not.toContain('https:')
+  it('keeps connect-src closed to arbitrary socket and local hosts without the cookies', () => {
+    // https: is open for CCIP-Read gateways; wss: and local RPCs stay opt-in.
     expect(header['connect-src']).not.toContain('wss:')
     expect(header['connect-src']).not.toContain('http://localhost:*')
     expect(

@@ -322,6 +322,7 @@ describe('getV1DetachTargets', () => {
       setEthAddress: true,
       detachResolver: true,
       detachRegistry: false,
+      transferManager: false,
     })
   })
 
@@ -346,10 +347,15 @@ describe('getV1DetachTargets', () => {
     })
   })
 
+  // The registrant can still `reclaim` the manager role for the recipient.
   it('hides record options from a registrant who is not the controller', () => {
     expect(
       targets({ kind: 'v1-registrar', registrant: ME, controller: OTHER }),
-    ).toMatchObject({ setEthAddress: false, detachResolver: false })
+    ).toMatchObject({
+      setEthAddress: false,
+      detachResolver: false,
+      transferManager: true,
+    })
   })
 
   it('offers record options to a registrant who is also the controller', () => {
@@ -365,6 +371,7 @@ describe('getV1DetachTargets', () => {
       setEthAddress: false,
       detachResolver: false,
       detachRegistry: false,
+      transferManager: false,
     })
   })
 })

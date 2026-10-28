@@ -34,6 +34,9 @@ const chain = vi.hoisted(() => ({
   primaryName: 'alpha.eth' as string | null,
   owner: '0x0000000000000000000000000000000000000001',
   preparation: { kind: 'ready' } as PrimaryNamePreparation,
+  protocol: 'v2' as 'v1' | 'v2',
+  registryRead: vi.fn(async () => false),
+  unreachableNames: new Set<string>(),
   read: vi.fn(),
   submit: vi.fn(),
   saveRecords: vi.fn(),
@@ -74,6 +77,7 @@ vi.mock('@/features/profile/service/setPrimaryName', () => ({
 }))
 vi.mock('@/features/profile/service/primaryNamePreparation', () => ({
   getPrimaryNamePreparation: async () => chain.preparation,
+  hasV1RegistryResolver: () => chain.registryRead(),
 }))
 vi.mock(
   '@/features/profile/service/profileRecordTransactions',
@@ -131,6 +135,8 @@ vi.mock('../hooks/usePrimaryNameDomains', () => ({
     })),
     isLoading: false,
     isSelectedNameOffered: true,
+    unreachableNames: chain.unreachableNames,
+    selectedProtocol: chain.protocol,
     hasForwardAddressError: false,
     searchQuery: '',
     onSearchChange: vi.fn(),
@@ -242,6 +248,9 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
   beforeEach(() => {
     chain.primaryName = 'alpha.eth'
     chain.preparation = { kind: 'ready' }
+    chain.protocol = 'v2'
+    chain.unreachableNames = new Set()
+    chain.registryRead.mockReset().mockResolvedValue(false)
     chain.saveRecords.mockReset().mockResolvedValue({})
     chain.read.mockReset().mockImplementation(async () => chain.primaryName)
     chain.submit
@@ -398,6 +407,113 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
         resolverAddress: PROBED_RESOLVER,
       }),
     )
+  })
+
+  it.each([
+    {
+      hasV1RegistryResolver: true,
+      message:
+        /no longer resolves, usually because its parent name has expired/,
+    },
+    {
+      hasV1RegistryResolver: false,
+      message: /set its resolver in the ENSv1 app/,
+    },
+  ])(
+    'explains why an ENSv1 name without a writable resolver cannot be primary (registry resolver: $hasV1RegistryResolver)',
+    async ({ hasV1RegistryResolver, message }) => {
+      chain.protocol = 'v1'
+      let resolveRegistry = (_hasResolver: boolean) => {}
+      chain.registryRead.mockReturnValue(
+        new Promise<boolean>((resolve) => {
+          resolveRegistry = resolve
+        }),
+      )
+      chain.preparation = {
+        kind: 'setup-resolver',
+        existingEthAddress: null,
+        hasResolver: false,
+        hasOffchainResolver: false,
+      }
+      await renderDashboard()
+      await expectPrimary('alpha.eth')
+      const list = screen.getByRole('region', { name: 'My Names' })
+      fireEvent.click(
+        within(list).getByRole('button', { name: 'Primary Name' }),
+      )
+      const dialog = await screen.findByRole('dialog', {
+        name: 'Choose Primary Name',
+      })
+      fireEvent.click(
+        within(dialog).getByRole('button', {
+          name: 'Select beta.eth as primary name',
+        }),
+      )
+      const confirm = within(dialog).getByRole('button', {
+        name: 'Set as Primary',
+      })
+      await waitFor(() => expect(confirm).toBeEnabled())
+      fireEvent.click(confirm)
+      const other = within(dialog).getByRole('button', {
+        name: 'Select alpha.eth as primary name',
+      })
+      await waitFor(() => expect(chain.registryRead).toHaveBeenCalledOnce())
+      expect(other).toBeDisabled()
+      resolveRegistry(hasV1RegistryResolver)
+
+      expect(await within(dialog).findByText(message)).toBeInTheDocument()
+      expect(other).toBeEnabled()
+      expect(chain.submit).not.toHaveBeenCalled()
+    },
+  )
+
+  it('greys out a name resolution no longer reaches instead of offering it', async () => {
+    chain.unreachableNames = new Set(['beta.eth'])
+    await renderDashboard()
+    await expectPrimary('alpha.eth')
+    const list = screen.getByRole('region', { name: 'My Names' })
+    fireEvent.click(within(list).getByRole('button', { name: 'Primary Name' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Choose Primary Name',
+    })
+
+    const option = within(dialog).getByRole('button', {
+      name: /Select beta\.eth as primary name/,
+    })
+    expect(option).toBeDisabled()
+    expect(option).toHaveTextContent(/no longer resolves/i)
+  })
+
+  it('tells the owner to set the address with their provider instead of replacing an offchain resolver', async () => {
+    chain.preparation = {
+      kind: 'setup-resolver',
+      existingEthAddress: null,
+      hasResolver: true,
+      hasOffchainResolver: true,
+    }
+    await renderDashboard()
+    await expectPrimary('alpha.eth')
+    const list = screen.getByRole('region', { name: 'My Names' })
+    fireEvent.click(within(list).getByRole('button', { name: 'Primary Name' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Choose Primary Name',
+    })
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'Select beta.eth as primary name',
+      }),
+    )
+    const confirm = within(dialog).getByRole('button', {
+      name: 'Set as Primary',
+    })
+    await waitFor(() => expect(confirm).toBeEnabled())
+    fireEvent.click(confirm)
+
+    expect(
+      await within(dialog).findByText(/beta\.eth uses an offchain resolver/),
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(chain.submit).not.toHaveBeenCalled()
   })
 
   it('keeps current surfaces and chooser on transaction failure', async () => {

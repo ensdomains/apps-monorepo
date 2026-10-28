@@ -33,6 +33,7 @@ import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialog
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import {
   getPrimaryNamePreparation,
+  hasV1RegistryResolver,
   type PrimaryNamePreparation,
 } from '@/features/profile/service/primaryNamePreparation'
 import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
@@ -147,11 +148,13 @@ const PrimaryNameOption = ({
   domain,
   selectedName,
   isSubmitting,
+  isUnreachable,
   onSelectName,
 }: {
   readonly domain: PrimaryNameDomain
   readonly selectedName: string | null
   readonly isSubmitting: boolean
+  readonly isUnreachable: boolean
   readonly onSelectName: (name: string) => void
 }) => {
   const { t } = useLingui()
@@ -170,8 +173,8 @@ const PrimaryNameOption = ({
         isSelected
           ? 'border-ens-blue bg-ens-lapis-dust'
           : 'border-ens-gray-two hover:border-ens-blue/50 hover:bg-ens-white'
-      } ${isSubmitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-      disabled={isSubmitting}
+      } ${isSubmitting || isUnreachable ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+      disabled={isSubmitting || isUnreachable}
       key={domain.id}
       onClick={() => onSelectName(label)}
       type="button"
@@ -180,9 +183,18 @@ const PrimaryNameOption = ({
         <div className="relative size-8.5 shrink-0 overflow-hidden rounded-sm bg-ens-white">
           <PrimaryNameOptionAvatar avatarRecord={avatarRecord} label={label} />
         </div>
-        <span className="font-mono text-[16px] text-foreground leading-[0.96] tracking-[-0.32px]">
-          {label}
-        </span>
+        <div className="flex flex-col items-start gap-1 text-left">
+          <span className="font-mono text-[16px] text-foreground leading-[0.96] tracking-[-0.32px]">
+            {label}
+          </span>
+          {isUnreachable && (
+            <span className="font-sans text-muted-foreground text-xs">
+              <Trans>
+                No longer resolves, usually because its parent name has expired
+              </Trans>
+            </span>
+          )}
+        </div>
       </div>
       {isSelected && (
         <Check className="size-5 shrink-0 text-ens-blue" strokeWidth={2.5} />
@@ -541,6 +553,41 @@ export const ChoosePrimaryNameDialog = ({
     }
   }
 
+  const readV1SetupError = async (
+    name: string,
+    hasResolver: boolean,
+  ): Promise<Error> => {
+    setIsCheckingPreparation(true)
+    const isUnreachable =
+      !hasResolver &&
+      (await hasV1RegistryResolver(publicClient as PublicClient, name).catch(
+        () => false,
+      ))
+    setIsCheckingPreparation(false)
+    return new Error(
+      isUnreachable
+        ? t`${name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name.`
+        : t`${name} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app.`,
+    )
+  }
+
+  // Say why a resolver setup can't complete here instead of walking into it.
+  const readSetupBlocker = async (
+    preparation: PrimaryNamePreparation,
+    name: string,
+  ): Promise<Error | null> => {
+    if (preparation.kind !== 'setup-resolver') return null
+    if (preparation.hasOffchainResolver)
+      return new Error(
+        t`${name} uses an offchain resolver, so its ETH address is set with that resolver’s provider. Point it at this wallet there, then try again.`,
+      )
+    // Setting up a resolver goes through the v2 registry, so an ENSv1 name
+    // with no resolver this wallet can write has no path here.
+    if (selectedProtocol === 'v1')
+      return readV1SetupError(name, preparation.hasResolver)
+    return null
+  }
+
   const applyPreparation = async (preparation: PrimaryNamePreparation) => {
     if (preparation.kind === 'setup-resolver') {
       await setupResolverMutation.mutateAsync()
@@ -596,16 +643,10 @@ export const ChoosePrimaryNameDialog = ({
       return
     }
 
-    // Setting up a resolver goes through the v2 registry, so an ENSv1 name
-    // with no resolver this wallet can write has no path here. Say so instead
-    // of walking the user into a setup that cannot complete.
-    if (preparation.kind === 'setup-resolver' && selectedProtocol === 'v1') {
+    const setupBlocker = await readSetupBlocker(preparation, selectedName)
+    if (setupBlocker) {
       setConfirmation(null)
-      setPreparationError(
-        new Error(
-          t`${selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app.`,
-        ),
-      )
+      setPreparationError(setupBlocker)
       return
     }
 
@@ -724,6 +765,9 @@ export const ChoosePrimaryNameDialog = ({
                     <PrimaryNameOption
                       domain={domain}
                       isSubmitting={isBusy}
+                      isUnreachable={nameList.unreachableNames.has(
+                        resolveDomainLabel(domain),
+                      )}
                       key={domain.id}
                       onSelectName={handleSelectName}
                       selectedName={selectedName}

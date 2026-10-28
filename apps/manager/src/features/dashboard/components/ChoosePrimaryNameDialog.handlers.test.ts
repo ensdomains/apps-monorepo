@@ -135,6 +135,7 @@ describe('primary-name confirmation', () => {
       needsPrimaryNameConfirmation({
         kind: 'setup-resolver',
         hasResolver: false,
+        hasOffchainResolver: false,
         existingEthAddress: null,
       }),
     ).toBe(true)
@@ -168,6 +169,7 @@ describe('primary-name confirmation', () => {
           kind: 'setup-resolver',
           existingEthAddress: null,
           hasResolver: false,
+          hasOffchainResolver: false,
         },
         confirmation,
       ),
@@ -218,13 +220,19 @@ describe('isConfirmBlocked', () => {
       kind: 'setup-resolver' as const,
       existingEthAddress: null,
       hasResolver: false,
+      hasOffchainResolver: false,
       name: 'pookie.eth',
       ownerAddress: '0x1111111111111111111111111111111111111111' as const,
     }
 
     expect(
       needsPrimaryNameConfirmation(
-        { kind: 'setup-resolver', existingEthAddress: null, hasResolver: true },
+        {
+          kind: 'setup-resolver',
+          existingEthAddress: null,
+          hasResolver: true,
+          hasOffchainResolver: false,
+        },
         confirmed,
       ),
     ).toBe(true)
@@ -234,6 +242,7 @@ describe('isConfirmBlocked', () => {
           kind: 'setup-resolver',
           existingEthAddress: null,
           hasResolver: false,
+          hasOffchainResolver: false,
         },
         confirmed,
       ),
@@ -253,6 +262,7 @@ describe('isConfirmBlocked', () => {
           kind: 'setup-resolver',
           existingEthAddress: null,
           hasResolver: false,
+          hasOffchainResolver: false,
         }),
       ).toBe(false)
     })
@@ -264,6 +274,7 @@ describe('isConfirmBlocked', () => {
           kind: 'setup-resolver',
           existingEthAddress: null,
           hasResolver: true,
+          hasOffchainResolver: false,
         }),
       ).toBe(true)
       expect(
@@ -272,6 +283,7 @@ describe('isConfirmBlocked', () => {
           kind: 'setup-resolver',
           existingEthAddress: '0x2222222222222222222222222222222222222222',
           hasResolver: false,
+          hasOffchainResolver: false,
         }),
       ).toBe(true)
     })

@@ -1,3 +1,4 @@
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createFileRoute,
@@ -17,7 +18,10 @@ import { dnsSecEnabledQuery } from '@/features/profile/service/dnsSecEnabled'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { normalizeProfileName } from '@/features/profile/service/profileName'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import {
+  type ProfileRecordsResult,
+  profileRecordsQuery,
+} from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { getReverseNameAddress } from '@/features/profile/service/reverseNameAddress'
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
@@ -77,6 +81,54 @@ const getCanonicalProfileName = (name: string): string => {
   return normalizedName
 }
 
+const loadOwnerlessName = async (
+  queryClient: QueryClient,
+  name: string,
+  profileRecords: ProfileRecordsResult | null,
+) => {
+  // An offchain (CCIP-Read) subname has no registry owner but resolves; show
+  // it read-only, as ens-app-v3 does.
+  if (hasResolvedRecords(profileRecords)) {
+    return {
+      fallback: undefined,
+      description: profileRecords?.texts.find((r) => r.key === 'description')
+        ?.value,
+      name,
+    }
+  }
+
+  // A failed record read (a gateway that is down) says nothing about the
+  // name; let the error boundary offer a retry instead of a false 404.
+  if (profileRecords === null) {
+    throw new Error('Could not load records for this name.')
+  }
+
+  // Name doesn't exist in v2 or v1
+  const missing = classifyMissingName(name)
+
+  if (missing === 'registrable') {
+    if (await isFreeToRegister(queryClient, name)) {
+      throw redirect({
+        params: { name },
+        to: '/register/$name',
+        replace: true,
+      })
+    }
+
+    return {
+      fallback: 'not-found' as const,
+      description: undefined,
+      name,
+    }
+  }
+
+  return {
+    fallback: missing,
+    description: undefined,
+    name,
+  }
+}
+
 export const Route = createFileRoute('/$name/')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
     const normalizedName = getCanonicalProfileName(name)
@@ -90,7 +142,11 @@ export const Route = createFileRoute('/$name/')({
     }
 
     const [profileRecords, ownerData] = await Promise.all([
-      queryClient.ensureQueryData(profileRecordsQuery(normalizedName)),
+      // Unreadable records leave the rest of the profile usable; the view
+      // reports them and keeps editing paused.
+      queryClient
+        .ensureQueryData(profileRecordsQuery(normalizedName))
+        .catch(() => null),
       // Fetch, not ensure: `ensureQueryData` serves invalidated data, so a name
       // cached as ownerless pre-registration would redirect its owner away.
       queryClient.fetchQuery(profileOwnerQuery(normalizedName)),
@@ -117,31 +173,8 @@ export const Route = createFileRoute('/$name/')({
       }
     }
 
-    // Name doesn't exist in v2 or v1
     if (!ownerData) {
-      const missing = classifyMissingName(normalizedName)
-
-      if (missing === 'registrable') {
-        if (await isFreeToRegister(queryClient, normalizedName)) {
-          throw redirect({
-            params: { name: normalizedName },
-            to: '/register/$name',
-            replace: true,
-          })
-        }
-
-        return {
-          fallback: 'not-found' as const,
-          description: undefined,
-          name: normalizedName,
-        }
-      }
-
-      return {
-        fallback: missing,
-        description: undefined,
-        name: normalizedName,
-      }
+      return loadOwnerlessName(queryClient, normalizedName, profileRecords)
     }
 
     const [expiryData] = await Promise.all([
@@ -171,7 +204,7 @@ export const Route = createFileRoute('/$name/')({
       })
     }
 
-    const description = profileRecords.texts.find(
+    const description = profileRecords?.texts.find(
       (r) => r.key === 'description',
     )?.value
 

@@ -184,6 +184,18 @@ msgstr "{migrated} out of {total} names upgraded"
 msgid "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
 msgstr "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{name} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
+msgstr "{name} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name."
+msgstr "{name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "{name} uses an offchain resolver, so its ETH address is set with that resolver’s provider. Point it at this wallet there, then try again."
+msgstr "{name} uses an offchain resolver, so its ETH address is set with that resolver’s provider. Point it at this wallet there, then try again."
+
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
 msgstr "{nameCount, plural, one {Upgrade your name to unlock your new ENS profile and claim your personalized NFT.} other {Upgrade your names to unlock your new ENS profile and claim your personalized NFT.}}"
@@ -199,10 +211,6 @@ msgstr "{permits, plural, one {Your wallet will be asked to approve this exact a
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "{selectedCount} selected"
 msgstr "{selectedCount} selected"
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "{selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
-msgstr "{selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
 
 #: src/features/migration/components/GameStep.tsx
 msgid "{selectedNameCount, plural, one {Upgrading your name...} other {Upgrading your names...}}"
@@ -635,6 +643,15 @@ msgstr "Cancel Email Verification?"
 msgid "Cancel Verification"
 msgstr "Cancel Verification"
 
+#: src/features/migration/components/success/NftVideoDownloadAction.tsx
+msgid "Cancel video export"
+msgstr "Cancel video export"
+
+#. placeholder {0}: state.progress
+#: src/features/migration/components/success/NftVideoDownloadAction.tsx
+msgid "Cancel video export ({0}%)"
+msgstr "Cancel video export ({0}%)"
+
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Cannot save profile"
 msgstr "Cannot save profile"
@@ -996,6 +1013,10 @@ msgstr "Couldn't enable notifications"
 msgid "Couldn't estimate the network fee"
 msgstr "Couldn't estimate the network fee"
 
+#: src/features/profile/components/view/ProfileView.tsx
+msgid "Couldn’t load this name’s records, so they’re hidden and editing is paused."
+msgstr "Couldn’t load this name’s records, so they’re hidden and editing is paused."
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Couldn’t load this name’s records. Please try again in a moment."
 msgstr "Couldn’t load this name’s records. Please try again in a moment."
@@ -1133,6 +1154,10 @@ msgstr "Domain transfer and expiry notifications"
 #: src/features/bulk-renew/components/SuccessStep.tsx
 msgid "Done"
 msgstr "Done"
+
+#: src/features/migration/components/success/NftVideoDownloadAction.tsx
+msgid "Download video"
+msgstr "Download video"
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Download WebP"
@@ -1875,6 +1900,10 @@ msgstr "NFT artwork downloaded"
 msgid "NFT traits"
 msgstr "NFT traits"
 
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "NFT video downloaded"
+msgstr "NFT video downloaded"
+
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No additional payment needed. You'll still need to sign the renewal."
 msgstr "No additional payment needed. You'll still need to sign the renewal."
@@ -1898,6 +1927,10 @@ msgstr "no ENSv1 registration was found for it."
 #: src/features/dashboard/components/FavoritesList.tsx
 msgid "No favorites to display"
 msgstr "No favorites to display"
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "No longer resolves, usually because its parent name has expired"
+msgstr "No longer resolves, usually because its parent name has expired"
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
 msgid "No matches"
@@ -3283,8 +3316,8 @@ msgid "The renewal for {label}.eth could not be completed. You can retry or go b
 msgstr "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 
 #: src/features/renew/components/RenewalFundingDialog.tsx
-msgid "The renewal price includes a 10% buffer: the rent is priced when the renewal executes, slightly after this quote."
-msgstr "The renewal price includes a 10% buffer: the rent is priced when the renewal executes, slightly after this quote."
+msgid "The renewal price includes a 10% buffer: the final price is set when the renewal executes, slightly after this quote."
+msgstr "The renewal price includes a 10% buffer: the final price is set when the renewal executes, slightly after this quote."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
@@ -3459,6 +3492,7 @@ msgstr "Trademark Guidelines"
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 #: src/features/migration/pages/MigrationPage.tsx
+#: src/features/profile/components/view/ProfileView.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
 msgid "Try again"
@@ -3663,6 +3697,18 @@ msgstr "Verify your wallet"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Verifying registration on-chain"
 msgstr "Verifying registration on-chain"
+
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "Video could not be downloaded. Please try again."
+msgstr "Video could not be downloaded. Please try again."
+
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "Video export is not supported in this browser."
+msgstr "Video export is not supported in this browser."
+
+#: src/features/migration/components/success/useNftVideoDownload.ts
+msgid "Video export is unavailable. Please try again later."
+msgstr "Video export is unavailable. Please try again later."
 
 #: src/features/profile/components/view/ReverseNameView.tsx
 msgid "View address"
@@ -4146,10 +4192,6 @@ msgstr "Your subnames are unaffected"
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
 msgstr "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
-
-#: src/features/migration/commemorative-nft/claimMessages.ts
-msgid "Your upgrades are still being verified. Check again in a moment."
-msgstr "Your upgrades are still being verified. Check again in a moment."
 
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx

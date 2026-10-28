@@ -1,3 +1,4 @@
+import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { safeRecordHref } from '../../utils/safeUrl'
 import { addressRecords } from './address'
 import {
@@ -40,6 +41,37 @@ export const forceFetchRecords = {
 }
 
 export const alwaysProbeAddressRecords = ['60']
+
+// ensjs batches a CCIP-Read name's records into one gateway GET, which Coinbase
+// rejects (414) at 60 records, so an offchain name the indexer has no keys for
+// reads the records ens-app-v3 shows.
+export const offchainProfileRecords = {
+  texts: [
+    'name',
+    'avatar',
+    'header',
+    'description',
+    'url',
+    'location',
+    'timezone',
+    'email',
+    'com.twitter',
+    'com.github',
+    'com.discord',
+    'org.telegram',
+  ],
+  coins: [
+    coinNameToTypeMap.eth,
+    coinNameToTypeMap.default,
+    coinNameToTypeMap.btc,
+    coinNameToTypeMap.sol,
+    coinNameToTypeMap.op,
+    coinNameToTypeMap.arb1,
+    coinNameToTypeMap.base,
+    coinNameToTypeMap.linea,
+    coinNameToTypeMap.scr,
+  ],
+}
 
 /**
  * Generates a URL for a given text record and value, if the record supports linking.

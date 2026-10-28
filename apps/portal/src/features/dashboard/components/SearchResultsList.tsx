@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
 import type { ProtocolVersion } from '@/utils/types'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
+import { isSubname } from '../utils/searchResultsUtils'
 
 const AVATAR_SIZE = '32px'
 
@@ -24,8 +25,6 @@ const RegisterLink = ({ name }: { name: string }) => (
     </a>
   </Button>
 )
-
-const isSubname = (name: string) => name.split('.').length > 2
 
 const getSuggestionDescription = ({
   isAvailable,
@@ -100,6 +99,7 @@ type SearchResultsListData = {
     | null
     | undefined
   >
+  readonly offchainNameIds: ReadonlySet<string>
   availableNames: Suggestion[]
   pendingAvailabilityIds: Set<string>
   ownedNamesFiltered: { name: string }[]
@@ -115,6 +115,7 @@ export type SearchResultsListProps = SearchResultsListData & {
 export const SearchResultsList = ({
   suggestions,
   ownerBySuggestionId,
+  offchainNameIds,
   availableNames,
   pendingAvailabilityIds,
   ownedNamesFiltered,
@@ -173,7 +174,9 @@ export const SearchResultsList = ({
                 ? ownerBySuggestionId.get(suggestion.id)
                 : undefined
               const ownerResolved = ownerData !== undefined
-              const hasOwner = ownerData !== null && ownerData !== undefined
+              const hasOwner =
+                (ownerData !== null && ownerData !== undefined) ||
+                offchainNameIds.has(suggestion.id)
               const isAvailable = availableNameIds.has(suggestion.id)
               const nameNotFound =
                 isName &&
@@ -230,7 +233,9 @@ export const SearchResultsList = ({
                 ? ownerBySuggestionId.get(suggestion.id)
                 : undefined
               const ownerResolved = ownerData !== undefined
-              const hasOwner = ownerData !== null && ownerData !== undefined
+              const hasOwner =
+                (ownerData !== null && ownerData !== undefined) ||
+                offchainNameIds.has(suggestion.id)
               const isAvailable = availableNameIds.has(suggestion.id)
               const nameNotFound =
                 isName &&

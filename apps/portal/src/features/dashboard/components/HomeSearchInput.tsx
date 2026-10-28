@@ -103,6 +103,7 @@ export const HomeSearchInput = ({
     searchNotice,
     suggestions,
     ownerBySuggestionId,
+    offchainNameIds,
     availableNames,
     pendingAvailabilityIds,
     ownedNamesFiltered,
@@ -341,6 +342,7 @@ export const HomeSearchInput = ({
               <SearchResultsList
                 suggestions={suggestions}
                 ownerBySuggestionId={ownerBySuggestionId}
+                offchainNameIds={offchainNameIds}
                 availableNames={availableNames}
                 pendingAvailabilityIds={pendingAvailabilityIds}
                 ownedNamesFiltered={ownedNamesFiltered}

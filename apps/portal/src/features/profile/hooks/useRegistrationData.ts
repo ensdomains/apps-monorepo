@@ -58,6 +58,7 @@ const readRegistrationTx = (
       bigname.nameHistory(
         normalizeOrLower(name),
         {
+          namespace: 'ens',
           type: ['registration'],
           order: 'asc',
           from_timestamp: secondsToTimestamp(registeredAt),

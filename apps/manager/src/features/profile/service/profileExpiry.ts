@@ -128,7 +128,7 @@ export const getExpiry = ResultFn(async function* (
       : yield* getIndexedExpiry(subname.name)
 
     return ok({
-      expiry,
+      expiry: expiry === 0n ? null : expiry,
       isNonExpiring: false,
       protocol: 'v2',
       isSubname: true,

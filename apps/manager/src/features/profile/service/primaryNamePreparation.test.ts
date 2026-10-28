@@ -1,12 +1,19 @@
 import { err, ok } from 'neverthrow'
 import { type PublicClient, zeroAddress } from 'viem'
+import { getEnsResolver } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getPrimaryNameForwardAddress,
   hasPrimaryNameForwardAddress,
 } from './primaryNameForwardAddress'
-import { getPrimaryNamePreparation } from './primaryNamePreparation'
-import { getResolverWriteState } from './resolverWriteAccess'
+import {
+  getPrimaryNamePreparation,
+  isUnreachableV1Name,
+} from './primaryNamePreparation'
+import {
+  getResolverWriteState,
+  readV1RegistryResolver,
+} from './resolverWriteAccess'
 
 vi.mock('./primaryNameForwardAddress', () => ({
   getPrimaryNameForwardAddress: vi.fn(),
@@ -14,6 +21,11 @@ vi.mock('./primaryNameForwardAddress', () => ({
 }))
 vi.mock('./resolverWriteAccess', () => ({
   getResolverWriteState: vi.fn(),
+  readV1RegistryResolver: vi.fn(),
+}))
+vi.mock('viem/actions', () => ({ getEnsResolver: vi.fn() }))
+vi.mock('./resolverRecordCalls', () => ({
+  isOffchainResolver: vi.fn(async () => false),
 }))
 
 const client = {} as PublicClient
@@ -49,6 +61,7 @@ describe('getPrimaryNamePreparation', () => {
       kind: 'setup-resolver',
       existingEthAddress: null,
       hasResolver: false,
+      hasOffchainResolver: false,
     })
     expect(getResolverWriteState).toHaveBeenCalledWith(name, owner)
   })
@@ -99,6 +112,7 @@ describe('getPrimaryNamePreparation', () => {
       kind: 'setup-resolver',
       existingEthAddress: null,
       hasResolver: false,
+      hasOffchainResolver: false,
     })
   })
 
@@ -128,6 +142,25 @@ describe('getPrimaryNamePreparation', () => {
       kind: 'setup-resolver',
       existingEthAddress: null,
       hasResolver: true,
+      hasOffchainResolver: false,
     })
   })
+})
+
+describe('isUnreachableV1Name', () => {
+  it.each([
+    { reached: zeroAddress, registry: RESOLVER, isUnreachable: true },
+    { reached: RESOLVER, registry: RESOLVER, isUnreachable: false },
+    { reached: zeroAddress, registry: undefined, isUnreachable: false },
+  ])(
+    'is $isUnreachable when resolution reaches $reached and the ENSv1 registry holds $registry',
+    async ({ reached, registry, isUnreachable }) => {
+      vi.mocked(getEnsResolver).mockResolvedValue(reached)
+      vi.mocked(readV1RegistryResolver).mockResolvedValue(registry)
+
+      await expect(isUnreachableV1Name(client, name)).resolves.toBe(
+        isUnreachable,
+      )
+    },
+  )
 })

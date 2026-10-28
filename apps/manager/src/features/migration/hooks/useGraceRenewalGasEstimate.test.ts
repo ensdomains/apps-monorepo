@@ -19,6 +19,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
 vi.mock('wagmi', () => ({
   useConfig: mocks.config,
   useCapabilities: () => ({ data: undefined }),
+  useConnection: () => ({}),
 }))
 vi.mock('../service/estimateGraceRenewalMigrationGas', () => ({
   estimateGraceRenewalMigrationGas: mocks.estimate,

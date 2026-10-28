@@ -75,7 +75,21 @@ const renderRouteOption = (option: 'component' | 'pendingComponent') => {
 
 const PROFILE_OWNER = '0x0000000000000000000000000000000000000001'
 
-const runLoader = async (name: string) => {
+type Records = {
+  readonly texts: readonly { readonly key: string; readonly value: string }[]
+  readonly coins: readonly never[]
+}
+
+const runLoader = async (
+  name: string,
+  {
+    owner = { owner: PROFILE_OWNER, protocol: 'v2' },
+    records = { coins: [], texts: [] },
+  }: {
+    readonly owner?: object | null
+    readonly records?: Records | Error
+  } = {},
+) => {
   vi.mocked(profileRecordsQuery).mockImplementation(
     (queryName) => ({ kind: 'records', name: queryName }) as never,
   )
@@ -96,14 +110,12 @@ const runLoader = async (name: string) => {
 
   const ensureQueryData = vi.fn(
     async (query: { readonly kind: string; readonly name: string }) => {
-      if (query.kind === 'records') return { coins: [], texts: [] }
-      return { expiry: null }
+      if (query.kind !== 'records') return { expiry: null }
+      if (records instanceof Error) throw records
+      return records
     },
   )
-  const fetchQuery = vi.fn().mockResolvedValue({
-    owner: PROFILE_OWNER,
-    protocol: 'v2',
-  })
+  const fetchQuery = vi.fn().mockResolvedValue(owner)
   const prefetchQuery = vi.fn().mockResolvedValue(undefined)
   const loader = Route.options.loader as (args: {
     params: { name: string }
@@ -202,6 +214,39 @@ describe('/$name client-rendered profile route', () => {
     expect(profileExpiryQuery).toHaveBeenCalledWith('alice.eth', 'v2')
     expect(profileRegistrationQuery).toHaveBeenCalledWith('alice.eth', 'v2')
     expect(profileReverseNameQuery).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    {
+      label: 'shows an offchain subname whose records resolve',
+      records: { texts: [{ key: 'description', value: 'gm' }], coins: [] },
+      expected: {
+        fallback: undefined,
+        description: 'gm',
+        name: 'jesse.base.eth',
+      },
+    },
+    {
+      label: 'reports a subname that resolves no records as not found',
+      records: { texts: [], coins: [] },
+      expected: {
+        fallback: 'not-found',
+        description: undefined,
+        name: 'jesse.base.eth',
+      },
+    },
+    {
+      label:
+        'fails rather than reporting a missing name when records cannot be read',
+      records: new Error('HTTP request failed.'),
+      expected: new Error('Could not load records for this name.'),
+    },
+  ])('$label when it has no registry owner', async ({ records, expected }) => {
+    const { outcome } = await runLoader('jesse.base.eth', {
+      owner: null,
+      records,
+    })
+    expect(outcome).toEqual(expected)
   })
 })
 

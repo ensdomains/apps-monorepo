@@ -40,7 +40,7 @@ export type CommemorativeNftMigrationCompletionParams = {
 }
 
 type CommemorativeNftMigrationCompletion = {
-  readonly status: 'complete' | 'incomplete' | 'reconciling'
+  readonly status: 'complete' | 'incomplete'
   readonly isComplete: boolean
   readonly remainingNameCount: number
   readonly migratedNameCount: number
@@ -181,11 +181,9 @@ const checkMigrationCompletion = async (
 
   params.signal?.throwIfAborted()
   const status =
-    remainingNames.size > 0
-      ? 'incomplete'
-      : migratedNameCount > 0
-        ? 'complete'
-        : 'reconciling'
+    remainingNames.size === 0 && migratedNameCount > 0
+      ? 'complete'
+      : 'incomplete'
   return {
     status,
     isComplete: status === 'complete',
@@ -236,9 +234,12 @@ export const commemorativeNftMigrationCompletionQueryOptions = (
     queryFn: ({ signal }) =>
       fetchCommemorativeNftMigrationCompletion({ ...params, signal }),
     retry: false,
+    // Allow a migration from another session to appear after indexing without
+    // presenting an empty wallet as a migration awaiting verification.
     refetchInterval: (query) =>
       query.state.status === 'success' &&
-      query.state.data?.status === 'reconciling' &&
+      query.state.data?.status === 'incomplete' &&
+      query.state.data.remainingNameCount === 0 &&
       query.state.dataUpdateCount < 6
         ? 2_000
         : false,

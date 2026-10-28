@@ -21,6 +21,11 @@ export type TransferOptions = {
    * move unless they are revoked first.
    */
   readonly revokeRoles: boolean
+  /**
+   * Hand the recipient the manager role along with the name (`reclaim`). V1
+   * unwrapped `.eth` 2LD only; when off the recipient can reclaim it later.
+   */
+  readonly transferManager: boolean
 }
 
 export type TransferStepKind =
@@ -125,7 +130,9 @@ export const buildTransferPlan = (
   const moveSteps: readonly TransferStep[] =
     kind === 'v2' && isSafeTransferRefused
       ? [{ kind: 'transfer-token-unsafe' }]
-      : MOVE_STEPS[kind]
+      : MOVE_STEPS[kind].filter(
+          (step) => step.kind !== 'reclaim' || options.transferManager,
+        )
 
   return [
     ...addressSteps,

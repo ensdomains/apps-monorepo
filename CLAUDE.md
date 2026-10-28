@@ -1,8 +1,65 @@
-# ENS Apps Monorepo - Claude Instructions
+# ENS Apps Monorepo - AI Agent Instructions
 
 ## Style Guide
 
-All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE.md](./STYLEGUIDE.md)**. Follow the rules and patterns defined there.
+**[STYLEGUIDE.md](./STYLEGUIDE.md)** applies to every app, worker and package in
+this repo. It is long, so don't work from memory: before writing code, open the
+sections for what you are touching (map below) and follow them. Before opening
+a PR, check the diff against `.greptile/config.json`; Greptile blocks merge on
+its `high` rules.
+
+**Where logic goes (the rule most often missed).** Business logic is a pure
+function: plain inputs in, a value or `Result` out, no React, no IO, no reads
+of globals, storage or the clock.
+- Components render and forward events (Thin React Layer, 🔴 Must).
+- Hooks only connect framework APIs (wagmi, TanStack Query, XState, the DOM)
+  to those functions. Validation, pricing, encoding and decisions on domain
+  data don't live in a hook (Pure Functions Over Custom Hooks).
+- Services, actors and handlers keep IO at the edges: read, call the pure
+  function, then write. Pass clients and other dependencies in as parameters.
+- Unit tests call the pure function directly, without mocks. If a test needs
+  `vi.mock` to reach a decision, extract that decision into a pure function.
+- When you change logic that is still tangled with IO, extract the part you
+  change into a pure function and test it there. Only the part you change:
+  the rest waits for its own PR.
+
+**Notice when a module outgrows its structure.** Signs: the same decision
+copied across files, states encoded as nullable fields and optional booleans,
+two sources of truth for one status, each change adding another special case,
+hidden `Date.now()`/storage/client reads inside logic, thrown errors steering
+control flow, retry/resume/cancel handled separately. When you see them:
+don't restructure in a fix or feature PR, don't make it worse (pure function,
+reuse the existing predicate, add a union variant instead of a flag), and add
+a "Design notes" section to the PR body naming the signs and the pattern that
+fits. For a large module, propose a plan as a ticket: target design, steps that
+each ship behind the existing tests, and what must not change. See "Managing
+Growing Complexity" in STYLEGUIDE.md for the patterns.
+
+**🔴 Must:** no `any` (use `unknown`), no `!`, no mutation, `bigint` for every
+on-chain value, never mix `Result` with try/catch or unwrap a `Result` by
+throwing, never `useEffect` for data fetching or to chain transactions, never
+create viem clients in components.
+
+**🟡 Defaults Greptile checks:** `readonly` inputs and fields (`readonly T[]`
+for arrays), `match()` for 3+ branches, one `TaggedError('Name')<{ cause:
+unknown }>` per operation, `ResultFn` for multi-step async `Result`s,
+`getXxxQueryOptions` factories with object query keys, `is`/`has`/`should`/
+`can` booleans, `UPPER_SNAKE_CASE` constants.
+
+**Section map:**
+
+| Touching | Read in STYLEGUIDE.md |
+| --- | --- |
+| Where logic lives, hooks | Core Principles, Business Logic Extraction |
+| A module that keeps growing | Managing Growing Complexity |
+| Components | React Patterns, Component Composition |
+| Errors, `Result` | Error Handling with neverthrow, Advanced neverthrow Patterns |
+| Queries | Data Fetching with TanStack Query |
+| Transactions, contracts | State Management (multi-step transactions), Web3 & Blockchain Patterns |
+| Styling, accessibility | Styling with Tailwind CSS, Accessibility |
+| Tests | Testing Strategy |
+
+Inside `packages/transaction-manager/`, also follow its `CLAUDE.md`.
 
 ## PR Conventions when working from Linear tickets
 
@@ -17,6 +74,64 @@ genuinely requires shared code updates (e.g., packages/).
 - Keep PRs focused on the ticket scope
 - Do NOT include raw ticket descriptions in PR bodies
 - Summarize changes made, not the full requirements
+
+## Preventing Regressions
+
+Most bugs here are regressions: a change that is right for its task but
+breaks something another flow relied on. These rules apply to every fix
+and feature.
+
+**Existing tests are the spec. Don't edit them to make your change pass.**
+- If an existing test fails after your change, assume the change is wrong
+  and fix the code. The test is doing its job.
+- Change an existing assertion only when the task explicitly changes that
+  behaviour. Then list each changed or deleted test, with one line of why,
+  under "Behaviour changes" in the PR body.
+- Never do any of these to get green: delete or `.skip` a test, change an
+  expected value to whatever the code now returns, loosen a matcher
+  (`toEqual` to `toMatchObject`, a literal to `expect.any`), drop an
+  assertion, update a snapshot or fixture without reading its diff, raise
+  a timeout, add retries, or mock the code under test.
+- The same goes for the other gates: no new `biome-ignore`,
+  `@ts-expect-error`, `as unknown as`, or `!` to silence an error your
+  change caused.
+- Deleting tests together with the code they cover is fine.
+
+**A bug fix starts with a failing test.** Write the test that reproduces
+the bug, run it, and watch it fail on the unfixed code. Then fix it. Keep
+the test: it stops the bug coming back.
+
+**Find the blast radius before changing shared code.**
+- Before changing an exported function, hook, type, default, query key,
+  error shape, or global CSS, find every caller (`git grep -n <name>`) and
+  check each still gets what it expects. `packages/` is used by every app.
+- Don't change a default to suit one caller; add an explicit option and
+  leave the other callers alone.
+- When you touch `packages/`, run typecheck and the affected tests in every
+  app that imports it, not just the one you are working in.
+
+**Understand code before removing it.** A check, early return, fallback,
+`!important`, or odd-looking branch usually exists because of a past bug.
+Read `git log -L` or `git blame` and the PR that added it first. If a
+comment states an invariant ("never", "must", "only"), keep it or say in
+the PR body why it no longer holds.
+
+**Keep the diff to the task.** No drive-by refactors, renames, file moves,
+or reformatting in a fix or feature PR; each is unreviewed behaviour
+change. If you find another bug, mention it in the PR instead of fixing it
+in passing.
+
+**Verify before calling it done.**
+- Run the tests for the modules you changed and the modules that import
+  them, plus `pnpm typecheck` in each affected app.
+- For a new or changed test, break the code it covers once and confirm the
+  test fails.
+- For UI changes, check the screen in the running app at desktop and
+  mobile width. Green tests don't prove a working screen.
+
+**Add a "Regression check" section to the PR body:** the callers you
+checked, existing tests you changed and why (or "none"), and any behaviour
+that changes for users or other callers.
 
 ## Type Checking
 

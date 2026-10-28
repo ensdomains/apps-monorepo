@@ -1,6 +1,10 @@
 import type { Address, Hex, PublicClient } from 'viem'
 import {
+  createClient,
+  custom,
   decodeFunctionData,
+  encodeAbiParameters,
+  encodeErrorResult,
   getAddress,
   namehash,
   parseAbi,
@@ -9,9 +13,12 @@ import {
 } from 'viem'
 import { packetToBytes } from 'viem/ens'
 import { describe, expect, it, vi } from 'vitest'
+import { envConfig } from '@/config'
 import {
   encodeResolverRecordsCall,
   getResolverSetterKind,
+  isOffchainName,
+  isOffchainResolver,
 } from './resolverRecordCalls'
 
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
@@ -71,6 +78,100 @@ describe('getResolverSetterKind', () => {
     await expect(getResolverSetterKind(client, RESOLVER)).rejects.toThrow(
       'rpc down',
     )
+  })
+})
+
+describe('isOffchainResolver', () => {
+  const revert = (data?: Hex) =>
+    Object.assign(new Error('execution reverted'), { code: 3, data })
+  // `resolve` without CCIP: an offchain resolver reverts with OffchainLookup.
+  const client = (isExtended: boolean, failure: Error) =>
+    ({
+      multicall: vi.fn(async () => [{ status: 'success', result: isExtended }]),
+      request: vi.fn(async () => {
+        throw failure
+      }),
+    }) as unknown as PublicClient
+
+  it.each([
+    {
+      label: 'asks for an offchain lookup',
+      isExtended: true,
+      data: '0x556f1830ab',
+      expected: true,
+    },
+    { label: 'reverts onchain', isExtended: true, data: '0x', expected: false },
+    {
+      label: 'has no extended resolution',
+      isExtended: false,
+      data: '0x556f1830ab',
+      expected: false,
+    },
+  ] as const)(
+    'is $expected for a resolver that $label',
+    async ({ isExtended, data, expected }) => {
+      await expect(
+        isOffchainResolver(client(isExtended, revert(data)), RESOLVER, NAME),
+      ).resolves.toBe(expected)
+    },
+  )
+
+  it('fails instead of guessing when the probe itself fails', async () => {
+    await expect(
+      isOffchainResolver(client(true, revert()), RESOLVER, NAME),
+    ).rejects.toThrow()
+  })
+})
+
+describe('isOffchainName', () => {
+  // `eth_call` of UniversalResolver.resolve with CCIP-Read off.
+  const clientAnswering = (answer: () => Promise<unknown>) =>
+    createClient({
+      chain: envConfig.chain,
+      transport: custom({ request: answer }),
+    })
+  const revert = (data: Hex) => async () => {
+    throw Object.assign(new Error('execution reverted'), { code: 3, data })
+  }
+
+  it.each([
+    {
+      label: 'resolves through an offchain lookup',
+      answer: revert('0x556f1830ab'),
+      expected: true,
+    },
+    {
+      label: 'resolves onchain',
+      answer: async () =>
+        encodeAbiParameters(
+          [{ type: 'bytes' }, { type: 'address' }],
+          [encodeAbiParameters([{ type: 'address' }], [OWNER]), RESOLVER],
+        ),
+      expected: false,
+    },
+    {
+      label: 'has no resolver',
+      answer: revert(
+        encodeErrorResult({
+          abi: parseAbi(['error ResolverNotFound(bytes name)']),
+          args: [toHex(packetToBytes(NAME))],
+        }),
+      ),
+      expected: false,
+    },
+  ])('is $expected for a name that $label', async ({ answer, expected }) => {
+    await expect(isOffchainName(clientAnswering(answer), NAME)).resolves.toBe(
+      expected,
+    )
+  })
+
+  it('fails instead of guessing when the probe itself fails', async () => {
+    const unreachable = async () => {
+      throw new Error('fetch failed')
+    }
+    await expect(
+      isOffchainName(clientAnswering(unreachable), NAME),
+    ).rejects.toThrow()
   })
 })
 

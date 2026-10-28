@@ -18,11 +18,6 @@ export interface StablecoinBalance {
   formattedBalance: string
 }
 
-export interface EthBalance {
-  balance: string
-  formattedBalance: string
-}
-
 /**
  * Base state shared by all account types
  */
@@ -36,8 +31,6 @@ export interface BaseAccountState {
 
   stablecoinBalances: StablecoinBalance[]
   isLoadingBalances: boolean
-  smartAccountEthBalance: EthBalance | null
-  isLoadingSmartAccountEth: boolean
 
   autoFundingMutation: UseMutationResult<
     | {

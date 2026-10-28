@@ -472,10 +472,7 @@ export const SmartAccountContextProvider = ({
     ? null
     : resolveVerifiedOwner(snapshot.context.ownerAddress, eoaAddress)
 
-  const balances = useSmartAccountBalances({
-    accountAddress,
-    ownerAddress,
-  })
+  const balances = useSmartAccountBalances({ ownerAddress })
 
   // Smart account is HCA-only: fund the EOA (which holds the ENS name and
   // stablecoins the smart account spends from). Execution costs are paid
@@ -1031,8 +1028,6 @@ export const SmartAccountContextProvider = ({
             ownerAddress: eoaAddress,
             stablecoinBalances: balances.stablecoinBalances,
             isLoadingBalances: balances.isLoadingBalances,
-            smartAccountEthBalance: balances.smartAccountEthBalance,
-            isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
             autoFundingMutation,
             signer,
             isAccountReady,
@@ -1071,8 +1066,6 @@ export const SmartAccountContextProvider = ({
             ownerAddress,
             stablecoinBalances: balances.stablecoinBalances,
             isLoadingBalances: balances.isLoadingBalances,
-            smartAccountEthBalance: balances.smartAccountEthBalance,
-            isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
             autoFundingMutation,
             signer,
             isAccountReady,
@@ -1109,8 +1102,6 @@ export const SmartAccountContextProvider = ({
       wagmiWalletClient,
       balances.stablecoinBalances,
       balances.isLoadingBalances,
-      balances.smartAccountEthBalance,
-      balances.isLoadingSmartAccountEth,
       snapshot.context.client,
       snapshot.context.config,
       snapshot.context.accountAddress,

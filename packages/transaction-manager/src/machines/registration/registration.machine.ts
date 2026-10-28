@@ -9,6 +9,7 @@ import {
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../../errors/transaction.errors'
+import { isUpgradeDeclineError } from '../../helpers/wallet-errors.helpers'
 import { transactionManager } from '../../providers/transactionManager'
 import type { L2FundingSource, Signer } from '../../types/signer.types'
 import { isRetryableSubmissionError } from '../retry-policy'
@@ -1979,6 +1980,12 @@ export const registrationMachine = setup({
             actions: assign({
               error: ({ event }) => event.error as Error,
               retryTarget: ({ context }) => commitRetryTarget(context),
+              // A declined 7702 upgrade sent nothing from the bundle, so the
+              // retry re-reads the resolver and goes out as separate steps.
+              canBatchAtomically: ({ context, event }) =>
+                isUpgradeDeclineError(event.error)
+                  ? false
+                  : context.canBatchAtomically,
             }),
           },
           {
