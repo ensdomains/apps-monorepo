@@ -57,17 +57,21 @@ async function runMigrationFlow(
 
   await page.waitForTimeout(2_000)
 
-  const confirmButton = page.getByRole('button', { name: 'Upgrade Names' })
+  const confirmButton = page.getByRole('button', {
+    name: /^Upgrade \d+ names?$/,
+  })
   await confirmButton.waitFor({ state: 'visible', timeout: 10_000 })
   await Promise.all([
     confirmButton.click(),
     authorizeTransaction(wallet, 90_000),
   ])
 
-  const successIndicator = page.getByText("You're on ENS v2!")
+  const successIndicator = page.getByRole('dialog', {
+    name: /Your names? (?:has|have) been upgraded!/,
+  })
   await successIndicator.waitFor({ state: 'visible', timeout: 60_000 })
 
-  const doneButton = page.getByRole('button', { name: 'Done' })
+  const doneButton = page.getByRole('button', { name: 'Go to dashboard' })
   await doneButton.waitFor({ state: 'visible', timeout: 10_000 })
   await doneButton.click()
 }
