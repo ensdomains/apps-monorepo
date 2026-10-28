@@ -17,6 +17,7 @@ import {
 import { sepolia } from 'viem/chains'
 import { testClient } from '../helpers/anvil-client.js'
 import { waitForBignameName } from '../helpers/bigname-sync.js'
+import { type CcipGateway, startCcipGateway } from '../helpers/ccip-gateway.js'
 import {
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
@@ -28,6 +29,11 @@ import type { PortalAccounts } from '../helpers/portal-auth.js'
 import { routeToLocalFork } from '../projects/migration-matrix/local-fork-routing.js'
 import { createMakeName } from './makeName.js'
 import { createMakeV2Name, type V2NameConfig } from './makeV2Name.js'
+import {
+  createMakeOffchainName,
+  type OffchainName,
+  type OffchainNameConfig,
+} from './offchainName.js'
 import { createTime, type Time } from './time.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -196,6 +202,13 @@ type ManagerFixtures = {
    * queries return it.
    */
   makeV2Name: (config: V2NameConfig) => Promise<string>
+  /** A local CCIP-Read gateway, started per test (helpers/ccip-gateway.ts). */
+  ccipGateway: CcipGateway
+  /**
+   * Register a V1 name owned by `user` whose resolver answers only through
+   * `ccipGateway`, plus an ownerless wildcard subname under it.
+   */
+  makeOffchainName: (config?: OffchainNameConfig) => Promise<OffchainName>
   /**
    * bigname mock control. When E2E_MOCK_BIGNAME=true, call `addName()` after
    * on-chain registration so dashboard/profile queries return the name.
@@ -340,6 +353,30 @@ export const test = base.extend<ManagerFixtures>({
         await waitForBignameName(name)
       }
       return name
+    })
+  },
+
+  ccipGateway: async ({}, use) => {
+    const gateway = await startCcipGateway()
+    await use(gateway)
+    await gateway.close()
+  },
+
+  makeOffchainName: async ({ accounts, ccipGateway }, use) => {
+    const inner = createMakeOffchainName({
+      gateway: ccipGateway,
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    await use(async (config) => {
+      const offchainName = await inner(config)
+      if (bignameMock.enabled)
+        bignameMock.addName({
+          name: offchainName.name,
+          owner: accounts.getAddress('user'),
+          resolver: offchainName.resolver,
+          protocol: 'v1',
+        })
+      return offchainName
     })
   },
 

@@ -415,6 +415,14 @@ expected to appear.
 | H9 | Empty states: no names, no history, no subnames | distinguish *empty* from *unknown* (INV4) |
 | H10 | Expiry rendering across all five states, in each locale | date + relative label correct |
 | H11 | Profile of a name owned by a contract / HCA | owner rendered as such, not as an EOA |
+| H12 | Manager profile of an offchain (CCIP-Read) name | records render via batched `resolve(multicall)`, not one gateway request per record |
+| H13 | Manager: ownerless wildcard subname under an offchain resolver | records render; no "doesn't exist" / register redirect |
+| H14 | Manager: gateway 500s a long batch URL (Namespace, ~4k chars) | single-read fallback; every record renders |
+| H15 | Manager: some offchain keys fail | returned records render, failed ones absent |
+| H16 | Manager: gateway 429 | no retry storm; notice + editing paused; "Try again" recovers |
+| H17 | Explorer: offchain name + ownerless wildcard subname | both render, batched; no false "Name not found" |
+| H18 | Explorer: gateway 500s a long batch URL | UniversalResolver fallback; records render |
+| H19 | Explorer: rate-limited ownerless name | "Error loading records", not "Name not found" |
 
 ### I — Fuses (V1 and migrated) · R0
 

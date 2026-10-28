@@ -27,6 +27,7 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import { type CcipGateway, startCcipGateway } from '../helpers/ccip-gateway.js'
 import { createBignameMock } from '../helpers/mock-bigname.js'
 import {
   connectWithHeadlessWallet,
@@ -35,6 +36,11 @@ import {
 import { createMakeMigratedName } from './makeMigratedName.js'
 import { createMakeName } from './makeName.js'
 import { createMakeSubname, type MakeSubname } from './makeSubname.js'
+import {
+  createMakeOffchainName,
+  type OffchainName,
+  type OffchainNameConfig,
+} from './offchainName.js'
 import { createTime, type Time } from './time.js'
 import { createWallets, type Wallets } from './wallets.js'
 
@@ -217,6 +223,13 @@ export type PortalFixtures = {
   wallets: Wallets
   /** Create N-deep V2 subnames through UserRegistry — see `makeSubname.ts`. */
   makeSubname: MakeSubname
+  /** A local CCIP-Read gateway, started per test (helpers/ccip-gateway.ts). */
+  ccipGateway: CcipGateway
+  /**
+   * Register a V1 name owned by `user` whose resolver answers only through
+   * `ccipGateway`, plus an ownerless wildcard subname under it.
+   */
+  makeOffchainName: (config?: OffchainNameConfig) => Promise<OffchainName>
   /**
    * Per-test/per-file opt-in for the mock indexer (an "option" fixture — set
    * with `test.use({ mockBignameEnabled: true })`, not overridden directly).
@@ -318,6 +331,30 @@ export const test = base.extend<PortalFixtures>({
 
   makeSubname: async ({ wallets }, use) => {
     await use(createMakeSubname({ account: wallets.account('owner') }))
+  },
+
+  ccipGateway: async ({}, use) => {
+    const gateway = await startCcipGateway()
+    await use(gateway)
+    await gateway.close()
+  },
+
+  makeOffchainName: async ({ accounts, ccipGateway }, use) => {
+    const inner = createMakeOffchainName({
+      gateway: ccipGateway,
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    await use(async (config) => {
+      const offchainName = await inner(config)
+      if (bignameMock.enabled)
+        bignameMock.addName({
+          name: offchainName.name,
+          owner: accounts.getAddress('user'),
+          resolver: offchainName.resolver,
+          protocol: 'v1',
+        })
+      return offchainName
+    })
   },
 
   mockBigname: async ({ mockBignameEnabled }, use) => {
