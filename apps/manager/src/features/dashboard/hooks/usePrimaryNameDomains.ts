@@ -94,6 +94,12 @@ export const usePrimaryNameDomains = ({
     ),
   )
   const isCheckingNames = forwardAddresses.some((query) => query.isLoading)
+  const isCheckingReach = needsReachCheck.some(
+    (needsCheck, index) => needsCheck && unreachableChecks[index]?.isPending,
+  )
+  const domains = pagination.domains.filter((domain) =>
+    checkedNames.has(resolveDomainLabel(domain)),
+  )
   const hasForwardAddressError = [
     ...forwardAddresses,
     ...unreachableChecks,
@@ -101,16 +107,16 @@ export const usePrimaryNameDomains = ({
 
   return {
     ...pagination,
-    domains: pagination.domains.filter((domain) =>
-      checkedNames.has(resolveDomainLabel(domain)),
-    ),
+    domains,
     unreachableNames,
     isSelectedNameOffered:
       ownsSelectedName &&
       checkedNames.has(selectedName ?? '') &&
       !unreachableNames.has(selectedName ?? ''),
     selectedProtocol: selectedDomain?.protocol ?? null,
-    isLoading: isLoading || isCheckingNames,
+    // Skeletons, not "No names found", while every row still waits on its check.
+    isLoading:
+      isLoading || isCheckingNames || (domains.length === 0 && isCheckingReach),
     hasForwardAddressError: hasDomainsError || hasForwardAddressError,
     searchQuery,
     onSearchChange: (query: string) => {
