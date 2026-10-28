@@ -37,11 +37,33 @@ vi.mock('@/lib/wallet', () => ({
     isDisconnecting: false,
   }),
 }))
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
+vi.mock('sonner', () => ({
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
+}))
+// The section renders outside a router here; a plain anchor is enough to
+// follow the link's wiring.
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  Link: ({
+    children,
+    onClick,
+  }: {
+    readonly children: React.ReactNode
+    readonly onClick?: () => void
+  }) => (
+    <a href="/register" onClick={onClick}>
+      {children}
+    </a>
+  ),
+}))
 
 const leftover = vi.hoisted(() => ({
   leftover: undefined as
-    | { isDeployed: boolean; funds: readonly unknown[] }
+    | {
+        isDeployed: boolean
+        funds: readonly unknown[]
+        heldForRegistration?: string | null
+      }
     | undefined,
   isLoading: false,
   isError: false,
@@ -346,6 +368,48 @@ describe('WalletSection smart session safety controls', () => {
     await waitFor(() => expect(leftover.withdraw).toHaveBeenCalledOnce())
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(onAction).not.toHaveBeenCalled()
+  })
+
+  it('holds the funds while a registration waits on them, and links back to it', () => {
+    leftover.leftover = { ...USDC_LEFTOVER, heldForRegistration: 'leon.eth' }
+    const onAction = vi.fn()
+    render(<WalletSection onAction={onAction} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Withdraw leftover funds' }),
+    )
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('registration of leon.eth')
+    expect(
+      within(dialog).getByRole('button', { name: 'Withdraw to wallet' }),
+    ).toBeDisabled()
+    fireEvent.click(
+      within(dialog).getByRole('link', { name: 'Continue registration' }),
+    )
+    expect(onAction).toHaveBeenCalledOnce()
+    expect(leftover.withdraw).not.toHaveBeenCalled()
+  })
+
+  it('still resets access when a registration keeps the funds in place', async () => {
+    leftover.leftover = { ...USDC_LEFTOVER, heldForRegistration: 'leon.eth' }
+    leftover.withdraw.mockResolvedValue({
+      status: 'held',
+      registrationName: 'leon.eth',
+    })
+    const onAction = vi.fn()
+    render(<WalletSection onAction={onAction} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Reset smart session access' }),
+    )
+    expect(screen.getByRole('dialog')).toHaveTextContent(
+      'your registration of leon.eth needs',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Reset access' }))
+
+    await waitFor(() => expect(onAction).toHaveBeenCalledOnce())
+    expect(session.revokeSession).toHaveBeenCalledOnce()
+    expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('leon.eth'))
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it('offers nothing to withdraw from an empty account', () => {

@@ -3,7 +3,13 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { readLeftoverFunds } from '@/features/wallet/service/leftoverFunds'
+import { chain } from '@/config'
+import { loadStoredRegistration } from '@/features/register-v2/service/registrationPersistence'
+import {
+  type LeftoverFunds,
+  readLeftoverFunds,
+} from '@/features/wallet/service/leftoverFunds'
+import { findRegistrationHoldingFunds } from '@/features/wallet/service/pendingRegistration'
 import { publicClient } from '@/lib/wagmi'
 
 export class ReadLeftoverFundsError extends TaggedError(
@@ -17,15 +23,32 @@ export interface LeftoverFundsQueryParams {
   readonly hca: Address | null
 }
 
+export type LeftoverFundsStatus = LeftoverFunds & {
+  /** A registration waiting to complete that still needs the funds. */
+  readonly heldForRegistration: string | null
+}
+
+/** The registration stored in this browser that needs the account's USDC, if any. */
+export const findPendingRegistrationFor = (hca: Address) =>
+  findRegistrationHoldingFunds({
+    hca,
+    chainId: chain.id,
+    publicClient,
+    stored: loadStoredRegistration(),
+  })
+
 const getLeftoverFunds = ResultFn(async function* (
   params: LeftoverFundsQueryParams,
 ) {
   if (!params.hca) return ok(null)
-  const leftover = yield* fromPromise(
-    readLeftoverFunds(publicClient, params.hca),
+  const [leftover, heldForRegistration] = yield* fromPromise(
+    Promise.all([
+      readLeftoverFunds(publicClient, params.hca),
+      findPendingRegistrationFor(params.hca),
+    ]),
     (cause) => new ReadLeftoverFundsError({ cause }),
   )
-  return ok(leftover)
+  return ok({ ...leftover, heldForRegistration } satisfies LeftoverFundsStatus)
 })
 
 /** What the smart account holds after its payments. */

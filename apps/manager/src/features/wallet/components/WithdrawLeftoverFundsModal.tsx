@@ -1,6 +1,7 @@
 'use client'
 
 import { Trans } from '@lingui/react/macro'
+import { Link } from '@tanstack/react-router'
 import { ArrowDownToLine, Loader2 } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import { formatUnits } from 'viem'
@@ -11,16 +12,61 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { LeftoverFunds } from '@/features/wallet/service/leftoverFunds'
+import type { LeftoverFundsStatus } from '@/features/wallet/data/queries/leftoverFunds.query'
 import { cn } from '@/lib/utils'
+
+type WithdrawNoteProps = {
+  readonly leftover: LeftoverFundsStatus
+  readonly onContinueRegistration: () => void
+}
+
+/** What withdrawing takes, or why it has to wait. */
+const WithdrawNote = ({
+  leftover,
+  onContinueRegistration,
+}: WithdrawNoteProps) =>
+  match(leftover)
+    .with({ heldForRegistration: P.string }, ({ heldForRegistration }) => (
+      <p className="text-center text-ens-blue-midnight text-sm">
+        <Trans>
+          Your registration of {heldForRegistration} is waiting to complete and
+          needs these funds. You can withdraw what's left once it's done.
+        </Trans>{' '}
+        <Link
+          className="text-ens-blue underline"
+          onClick={onContinueRegistration}
+          params={{ name: heldForRegistration }}
+          to="/register/$name"
+        >
+          <Trans>Continue registration</Trans>
+        </Link>
+      </p>
+    ))
+    .with({ isDeployed: true }, () => (
+      <p className="text-center text-ens-gray text-sm">
+        <Trans>
+          Withdrawing requires a wallet transaction and ETH for gas.
+        </Trans>
+      </p>
+    ))
+    .otherwise(() => (
+      <p className="text-center text-ens-gray text-sm">
+        <Trans>
+          It takes two transactions from your wallet, one to set up the account
+          and one to withdraw. Both require ETH for gas.
+        </Trans>
+      </p>
+    ))
 
 type WithdrawLeftoverFundsModalProps = {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   /** Resolves true once the withdrawal confirms. */
   readonly onWithdraw: () => Promise<boolean>
+  /** Called when the user leaves to finish the registration holding the funds. */
+  readonly onContinueRegistration: () => void
   /** Undefined until the balance has been read. */
-  readonly leftover?: LeftoverFunds
+  readonly leftover?: LeftoverFundsStatus
   readonly isLoading?: boolean
   readonly isError?: boolean
   readonly isWithdrawing?: boolean
@@ -37,6 +83,7 @@ export const WithdrawLeftoverFundsModal = ({
   open,
   onOpenChange,
   onWithdraw,
+  onContinueRegistration,
   leftover,
   isLoading = false,
   isError = false,
@@ -44,6 +91,7 @@ export const WithdrawLeftoverFundsModal = ({
   errorMessage = null,
 }: WithdrawLeftoverFundsModalProps) => {
   const hasFunds = (leftover?.funds.length ?? 0) > 0
+  const canWithdraw = hasFunds && !leftover?.heldForRegistration
 
   const handleWithdraw = async () => {
     if (isWithdrawing) return
@@ -114,19 +162,11 @@ export const WithdrawLeftoverFundsModal = ({
               ))}
           </div>
 
-          {hasFunds && (
-            <p className="text-center text-ens-gray text-sm">
-              {leftover?.isDeployed ? (
-                <Trans>
-                  Withdrawing requires a wallet transaction and ETH for gas.
-                </Trans>
-              ) : (
-                <Trans>
-                  It takes two transactions from your wallet, one to set up the
-                  account and one to withdraw. Both require ETH for gas.
-                </Trans>
-              )}
-            </p>
+          {leftover && hasFunds && (
+            <WithdrawNote
+              leftover={leftover}
+              onContinueRegistration={onContinueRegistration}
+            />
           )}
 
           {errorMessage && (
@@ -141,7 +181,7 @@ export const WithdrawLeftoverFundsModal = ({
               'hover:bg-ens-blue-hover',
               'disabled:cursor-not-allowed disabled:opacity-50',
             )}
-            disabled={isWithdrawing || isLoading || !hasFunds}
+            disabled={isWithdrawing || isLoading || !canWithdraw}
             onClick={() => void handleWithdraw()}
             type="button"
           >

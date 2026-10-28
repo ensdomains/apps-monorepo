@@ -30,7 +30,32 @@ type RevokeSessionsModalProps = {
   readonly leftoverFunds?: string | null
   /** True while that follow-up withdrawal is in flight. */
   readonly isWithdrawing?: boolean
+  /** A pending registration that needs the balance, so it stays put. */
+  readonly leftoverFundsHeldFor?: string | null
 }
+
+const LeftoverFundsNote = ({
+  leftoverFunds,
+  heldFor,
+}: {
+  readonly leftoverFunds: string
+  readonly heldFor: string | null
+}) => (
+  <p className="mt-2 text-ens-gray text-sm">
+    {heldFor ? (
+      <Trans>
+        Your smart account also holds {leftoverFunds}, which your registration
+        of {heldFor} needs to complete. It stays there, and you can withdraw
+        what's left once the registration is done.
+      </Trans>
+    ) : (
+      <Trans>
+        Your smart account also holds {leftoverFunds} left over from earlier
+        payments. It will be sent back to your wallet in one more transaction.
+      </Trans>
+    )}
+  </p>
+)
 
 /**
  * Confirm the owner-signed on-chain session revocation.
@@ -50,6 +75,7 @@ export const RevokeSessionsModal = ({
   isUndeployed = false,
   leftoverFunds = null,
   isWithdrawing = false,
+  leftoverFundsHeldFor = null,
 }: RevokeSessionsModalProps) => {
   const isBusy = isRevoking || isWithdrawing
   const handleRevoke = async () => {
@@ -104,13 +130,10 @@ export const RevokeSessionsModal = ({
               )}
             </p>
             {leftoverFunds && (
-              <p className="mt-2 text-ens-gray text-sm">
-                <Trans>
-                  Your smart account also holds {leftoverFunds} left over from
-                  earlier payments. It will be sent back to your wallet in one
-                  more transaction.
-                </Trans>
-              </p>
+              <LeftoverFundsNote
+                heldFor={leftoverFundsHeldFor}
+                leftoverFunds={leftoverFunds}
+              />
             )}
           </div>
 

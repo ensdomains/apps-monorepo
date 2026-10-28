@@ -927,6 +927,10 @@ msgstr ""
 msgid "Continue migration"
 msgstr ""
 
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Continue registration"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Continue to Telegram"
 msgstr ""
@@ -3053,6 +3057,10 @@ msgid "Smart session access was reset, but your leftover funds are still in your
 msgstr ""
 
 #: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart session access was reset. Your smart account's funds stay there until your registration of {registrationName} completes."
+msgstr ""
+
+#: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Smart sessions off"
 msgstr ""
 
@@ -4249,6 +4257,10 @@ msgstr ""
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
 
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Your registration of {heldForRegistration} is waiting to complete and needs these funds. You can withdraw what's left once it's done."
+msgstr ""
+
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
@@ -4259,6 +4271,10 @@ msgstr ""
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "Your smart account also holds {leftoverFunds} left over from earlier payments. It will be sent back to your wallet in one more transaction."
+msgstr ""
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Your smart account also holds {leftoverFunds}, which your registration of {heldFor} needs to complete. It stays there, and you can withdraw what's left once the registration is done."
 msgstr ""
 
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx

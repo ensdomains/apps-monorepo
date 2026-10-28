@@ -5,9 +5,13 @@ import { useLingui } from '@lingui/react/macro'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { useAccount, useConfig } from 'wagmi'
-import { getLeftoverFundsQueryOptions } from '@/features/wallet/data/queries/leftoverFunds.query'
 import {
-  type LeftoverFunds,
+  findPendingRegistrationFor,
+  getLeftoverFundsQueryOptions,
+  type LeftoverFundsStatus,
+} from '@/features/wallet/data/queries/leftoverFunds.query'
+import {
+  FundsHeldForRegistrationError,
   withdrawLeftoverFunds,
 } from '@/features/wallet/service/leftoverFunds'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -15,15 +19,20 @@ import { publicClient } from '@/lib/wagmi'
 import { WalletChainError } from '@/lib/wallet/ensureWalletChain'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 
-/** `declined` is the owner refusing in the wallet; `failed` is everything else. */
+/**
+ * `declined` is the owner refusing in the wallet; `held` means a pending
+ * registration still needs the funds, so nothing was sent; `failed` is
+ * everything else.
+ */
 export type WithdrawLeftoverFundsOutcome =
   | { readonly status: 'withdrawn' }
   | { readonly status: 'declined' }
+  | { readonly status: 'held'; readonly registrationName: string }
   | { readonly status: 'failed' }
 
 export type UseLeftoverFundsResult = {
   /** Undefined until the first read lands, and in EOA-only mode. */
-  readonly leftover: LeftoverFunds | undefined
+  readonly leftover: LeftoverFundsStatus | undefined
   readonly isLoading: boolean
   readonly isError: boolean
   readonly isWithdrawing: boolean
@@ -55,18 +64,25 @@ export const useLeftoverFunds = (): UseLeftoverFundsResult => {
       setIsWithdrawing(true)
       setWithdrawError(null)
       try {
-        const { hasDeployedAccount } = await withdrawLeftoverFunds({
+        await withdrawLeftoverFunds({
           hca,
           owner,
           hcaClient: client,
           publicClient,
           wagmiConfig,
+          refreshAccount,
+          findPendingRegistration: () => findPendingRegistrationFor(hca),
         })
-        // The account machine still believes the HCA is counterfactual.
-        if (hasDeployedAccount) await refreshAccount()
         return { status: 'withdrawn' }
       } catch (error) {
         if (isWalletDeclineError(error)) return { status: 'declined' }
+        // The refetch below picks the registration up, and the dialog explains.
+        if (error instanceof FundsHeldForRegistrationError) {
+          return {
+            status: 'held',
+            registrationName: error.registrationName,
+          }
+        }
         logger.error('Leftover funds withdrawal failed', error)
         setWithdrawError(
           error instanceof WalletChainError

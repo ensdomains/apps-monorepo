@@ -74,10 +74,15 @@ const fakePublicClient = (account: FakeAccount) =>
     }),
   })
 
+const refreshAccount = vi.fn()
+const findPendingRegistration = vi.fn()
+
 const run = (account: FakeAccount) =>
   withdrawLeftoverFunds({
     hca,
     owner,
+    refreshAccount,
+    findPendingRegistration,
     // `buildHcaDeploymentCall` is mocked, so the client is never read.
     hcaClient: {
       getAddress: () => hca,
@@ -104,6 +109,7 @@ const sentTransfers = () => {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  findPendingRegistration.mockResolvedValue(null)
   sendMock.mockResolvedValue(hash)
   receiptMock.mockResolvedValue({ status: 'success' } as Awaited<
     ReturnType<typeof waitForTransactionReceipt>
@@ -117,6 +123,7 @@ describe('withdrawLeftoverFunds', () => {
     })
 
     expect(sendMock).toHaveBeenCalledOnce()
+    expect(refreshAccount).not.toHaveBeenCalled()
     expect(sendMock.mock.calls[0]?.[1]).toMatchObject({
       account: owner,
       to: hca,
@@ -139,12 +146,11 @@ describe('withdrawLeftoverFunds', () => {
           amount: 2_713_400n,
         },
       ],
-      hasDeployedAccount: false,
     })
   })
 
   it('deploys an undeployed account before withdrawing from it', async () => {
-    const result = await run({
+    await run({
       code: '0x',
       balances: { [TOKENS.USDC.address]: 5n },
     })
@@ -154,13 +160,38 @@ describe('withdrawLeftoverFunds', () => {
       hca,
     ])
     expect(sentTransfers()?.map(({ call }) => call.args)).toEqual([[owner, 5n]])
-    expect(result.hasDeployedAccount).toBe(true)
+    expect(refreshAccount).toHaveBeenCalledOnce()
+    expect(refreshAccount.mock.invocationCallOrder[0]).toBeLessThan(
+      sendMock.mock.invocationCallOrder[1] ?? 0,
+    )
+  })
+
+  it('refreshes the account once it is deployed, even if the withdrawal is then declined', async () => {
+    sendMock
+      .mockResolvedValueOnce(hash)
+      .mockRejectedValueOnce(new Error('User rejected the request'))
+
+    await expect(
+      run({ code: '0x', balances: { [TOKENS.USDC.address]: 5n } }),
+    ).rejects.toThrow('User rejected')
+    expect(refreshAccount).toHaveBeenCalledOnce()
+  })
+
+  it('sends nothing, not even the deployment, while a registration needs the funds', async () => {
+    findPendingRegistration.mockResolvedValue('leon.eth')
+
+    await expect(
+      run({ code: '0x', balances: { [TOKENS.USDC.address]: 5n } }),
+    ).rejects.toMatchObject({
+      _tag: 'FundsHeldForRegistrationError',
+      registrationName: 'leon.eth',
+    })
+    expect(sendMock).not.toHaveBeenCalled()
   })
 
   it('sends nothing when the account holds nothing', async () => {
     await expect(run({ balances: {} })).resolves.toEqual({
       withdrawn: [],
-      hasDeployedAccount: false,
     })
     expect(sendMock).not.toHaveBeenCalled()
   })

@@ -66,16 +66,24 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
   // Revoke first: it is the urgent step, and funds left behind can still be
   // withdrawn from the menu. Only a failed reset keeps the dialog open.
   // Withdraw unconditionally: the label may still be loading, and the
-  // withdrawal re-reads the balance and sends nothing for an empty account.
+  // withdrawal re-reads the balance and sends nothing for an empty account,
+  // or while a pending registration still needs the funds.
   const handleRevokeSessions = async (options?: { deployFirst?: boolean }) => {
     const revoked = await revokeSession(options)
     if (!revoked) return false
     const outcome = await leftoverFunds.withdraw()
-    if (outcome.status !== 'withdrawn') {
-      toast.error(
-        t`Smart session access was reset, but your leftover funds are still in your smart account. Use "Withdraw leftover funds" to get them back.`,
+    match(outcome)
+      .with({ status: 'withdrawn' }, () => {})
+      .with({ status: 'held' }, ({ registrationName }) =>
+        toast.info(
+          t`Smart session access was reset. Your smart account's funds stay there until your registration of ${registrationName} completes.`,
+        ),
       )
-    }
+      .otherwise(() =>
+        toast.error(
+          t`Smart session access was reset, but your leftover funds are still in your smart account. Use "Withdraw leftover funds" to get them back.`,
+        ),
+      )
     onAction()
     return true
   }
@@ -216,6 +224,9 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         isUndeployed={revokeErrorReason === 'not-deployed'}
         isWithdrawing={leftoverFunds.isWithdrawing}
         leftoverFunds={leftoverFundsLabel}
+        leftoverFundsHeldFor={
+          leftoverFunds.leftover?.heldForRegistration ?? null
+        }
         onOpenChange={setIsRevokeOpen}
         onRevokeSessions={handleRevokeSessions}
         open={isRevokeOpen}
@@ -227,6 +238,10 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         isLoading={leftoverFunds.isLoading}
         isWithdrawing={leftoverFunds.isWithdrawing}
         leftover={leftoverFunds.leftover}
+        onContinueRegistration={() => {
+          setIsWithdrawOpen(false)
+          onAction()
+        }}
         onOpenChange={setIsWithdrawOpen}
         onWithdraw={async () => {
           const outcome = await leftoverFunds.withdraw()

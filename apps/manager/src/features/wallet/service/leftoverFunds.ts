@@ -22,6 +22,13 @@ import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 /** The account only ever holds USDC: every intent is funded and paid in it. */
 const LEFTOVER_TOKENS = [TOKENS.USDC]
 
+/** A registration still needs the funds, so nothing was sent. */
+export class FundsHeldForRegistrationError extends TaggedError(
+  'FundsHeldForRegistrationError',
+)<{
+  readonly registrationName: string
+}> {}
+
 /** The withdrawal could not be sent, or a transaction it sent reverted. */
 export class LeftoverFundsWithdrawalError extends TaggedError(
   'LeftoverFundsWithdrawalError',
@@ -118,8 +125,6 @@ const send = async (
 
 export type WithdrawLeftoverFundsResult = {
   readonly withdrawn: readonly LeftoverFund[]
-  /** True when this call had to deploy the account first. */
-  readonly hasDeployedAccount: boolean
 }
 
 /**
@@ -135,6 +140,10 @@ export const withdrawLeftoverFunds = async (params: {
   readonly hcaClient: BuildHcaDeploymentCallParams['client'] | null
   readonly publicClient: PublicClient
   readonly wagmiConfig: WagmiConfig
+  /** Rebuilds the account client, which still believes it is counterfactual. */
+  readonly refreshAccount: () => Promise<void>
+  /** The name of a registration that still needs the funds, if any. */
+  readonly findPendingRegistration: () => Promise<string | null>
 }): Promise<WithdrawLeftoverFundsResult> => {
   const { hca, owner, hcaClient, publicClient, wagmiConfig } = params
   await ensureWalletChain(wagmiConfig, chain.id)
@@ -142,7 +151,17 @@ export const withdrawLeftoverFunds = async (params: {
   // Read now, not from the cached query: transferring more than the balance
   // reverts, and less leaves dust behind.
   const { isDeployed, funds } = await readLeftoverFunds(publicClient, hca)
-  if (funds.length === 0) return { withdrawn: [], hasDeployedAccount: false }
+  if (funds.length === 0) return { withdrawn: [] }
+
+  // Checked here too, not only in the dialog: a registration can start after
+  // the balance was shown.
+  const registrationName = await params.findPendingRegistration()
+  if (registrationName) {
+    throw new FundsHeldForRegistrationError({
+      message: `The registration of ${registrationName} still needs these funds`,
+      registrationName,
+    })
+  }
 
   if (!isDeployed) {
     if (!hcaClient) {
@@ -160,6 +179,9 @@ export const withdrawLeftoverFunds = async (params: {
         expectedOwner: owner,
       }),
     )
+    // Right away, not after the withdrawal: a declined withdrawal must not
+    // leave a counterfactual client that re-deploys inside the next intent.
+    await params.refreshAccount()
   }
   // `executeByOwner` is `onlyOwner`; fail readably before the wallet opens.
   await verifyStandaloneHca({
@@ -186,5 +208,5 @@ export const withdrawLeftoverFunds = async (params: {
     }),
     WITHDRAW_LEFTOVER_FUNDS_GAS_LIMIT,
   )
-  return { withdrawn: funds, hasDeployedAccount: !isDeployed }
+  return { withdrawn: funds }
 }
