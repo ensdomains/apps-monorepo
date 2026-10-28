@@ -13,13 +13,13 @@ import { cn } from '@/lib/utils'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import type { BlockedSubnameMigration } from '../hooks/useMigrationEligibility'
+import { GameStepView } from './GameStep'
 import { NameRow } from './NameRow'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
 import {
   getMigrationRecoveryAction,
-  type MigrationRecoveryAction,
   shouldShowBulkSelection,
   shouldShowNameSearch,
   shouldUseCompactSelectionLayout,
@@ -132,7 +132,6 @@ const SelectionTitle = ({
   wrapperSyncCount,
   isRecoveryStale,
   isEligibilityError,
-  recoveryAction,
 }: {
   readonly eligibleCount: number
   readonly graceCount: number
@@ -140,13 +139,8 @@ const SelectionTitle = ({
   readonly wrapperSyncCount: number
   readonly isRecoveryStale: boolean
   readonly isEligibilityError: boolean
-  readonly recoveryAction: MigrationRecoveryAction | null
 }) => {
   if (isRecoveryStale) return <Trans>Your saved upgrade needs attention</Trans>
-  if (recoveryAction === 'remove-earlier-permission')
-    return <Trans>Remove earlier permission</Trans>
-  if (recoveryAction === 'finish-upgrade')
-    return <Trans>Finish your upgrade</Trans>
   if (isEligibilityError) return <Trans>We couldn't check your names</Trans>
   if (eligibleCount === 0 && graceCount > 0) {
     return <Trans>Renew your names before upgrading</Trans>
@@ -313,6 +307,47 @@ export const SelectNamesStep = ({
     [isUpgradeDisabled, onNext],
   )
 
+  const footer = (
+    <SelectNamesStepFooter
+      gasAffordability={gasAffordability}
+      gasEstimate={gasEstimate}
+      hasUnselectedEligibleNames={hasUnselectedEligibleNames}
+      isEstimatingGas={isEstimatingGas}
+      isStarting={isStarting}
+      isUpgradeDisabled={isUpgradeDisabled}
+      isWaitingForGasFunding={isWaitingForGasFunding}
+      onUpgrade={handleUpgrade}
+      recoveryAction={recoveryAction}
+      renewal={renewal}
+      renewalGasEstimate={renewalGasEstimate}
+      totalSelected={totalSelected}
+      visibleCount={visibleCount}
+    />
+  )
+
+  if (recoveryAction && preparedPlan && !isEligibilityError) {
+    return (
+      <div className="relative z-10 flex min-h-0 w-full flex-1 flex-col self-stretch">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="relative h-full min-h-140">
+            <GameStepView
+              hasCollapsed={false}
+              progress={{
+                currentStep: 0,
+                totalSteps: preparedPlan.stepDescriptors.length,
+                description: '',
+                isRecovering: true,
+              }}
+              selectedNameCount={totalSelected}
+              stepDescriptors={preparedPlan.stepDescriptors}
+            />
+          </div>
+        </div>
+        {footer}
+      </div>
+    )
+  }
+
   return (
     <div className="relative z-10 flex min-h-0 w-full flex-1 flex-col self-stretch">
       <div
@@ -338,29 +373,12 @@ export const SelectNamesStep = ({
               graceCount={gracePeriodNames.length}
               isEligibilityError={isEligibilityError}
               isRecoveryStale={isRecoveryStale}
-              recoveryAction={recoveryAction}
               unavailableCount={
                 unavailableNames.length + blockedSubnames.length
               }
               wrapperSyncCount={wrapperSyncNames.length}
             />
           </h1>
-
-          {recoveryAction && (
-            <p className="max-w-160 text-ens-garnet-900/75 text-sm leading-5 md:text-center">
-              {recoveryAction === 'remove-earlier-permission' ? (
-                <Trans>
-                  Remove the earlier migration permission before reviewing your
-                  updated upgrade.
-                </Trans>
-              ) : (
-                <Trans>
-                  Your names have been upgraded. Confirm the completed
-                  transactions and finish any remaining permission cleanup.
-                </Trans>
-              )}
-            </p>
-          )}
 
           {hasNamesNeedingManagerRestoration && !isRecoveryStale && (
             <p className="max-w-160 text-ens-garnet-900/75 text-sm leading-5 md:text-center">
@@ -479,21 +497,7 @@ export const SelectNamesStep = ({
         </div>
       </div>
 
-      <SelectNamesStepFooter
-        gasAffordability={gasAffordability}
-        gasEstimate={gasEstimate}
-        hasUnselectedEligibleNames={hasUnselectedEligibleNames}
-        isEstimatingGas={isEstimatingGas}
-        isStarting={isStarting}
-        isUpgradeDisabled={isUpgradeDisabled}
-        isWaitingForGasFunding={isWaitingForGasFunding}
-        onUpgrade={handleUpgrade}
-        recoveryAction={recoveryAction}
-        renewal={renewal}
-        renewalGasEstimate={renewalGasEstimate}
-        totalSelected={totalSelected}
-        visibleCount={visibleCount}
-      />
+      {footer}
     </div>
   )
 }

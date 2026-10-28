@@ -906,6 +906,7 @@ msgstr ""
 msgid "Content hash"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "Continue"
 msgstr ""
@@ -1437,10 +1438,6 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Finish upgrade"
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Finish your upgrade"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -2454,11 +2451,6 @@ msgstr ""
 msgid "Remove approval for unwrapped names"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Remove earlier permission"
-msgstr ""
-
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Remove Email Contact Method?"
 msgstr ""
@@ -2490,10 +2482,6 @@ msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Remove temporary access"
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Remove the earlier migration permission before reviewing your updated upgrade."
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -4153,10 +4141,6 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names can't be upgraded"
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Your names have been upgraded. Confirm the completed transactions and finish any remaining permission cleanup."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx

@@ -146,7 +146,7 @@ const UpgradeButtonLabel = ({
   if (isEstimatingGas) return <Trans>Estimating...</Trans>
   if (isWaitingForGasFunding) return <Trans>Preparing wallet...</Trans>
   if (recoveryAction === 'remove-earlier-permission')
-    return <Trans>Remove earlier permission</Trans>
+    return <Trans>Continue</Trans>
   if (recoveryAction === 'finish-upgrade') return <Trans>Finish upgrade</Trans>
   return (
     <Plural

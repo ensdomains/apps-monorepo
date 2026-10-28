@@ -901,6 +901,7 @@ msgstr "Contact methods"
 msgid "Content hash"
 msgstr "Content hash"
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "Continue"
 msgstr "Continue"
@@ -1433,10 +1434,6 @@ msgstr "Finish or cancel the other registration in its tab, then Try Again once 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Finish upgrade"
 msgstr "Finish upgrade"
-
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Finish your upgrade"
-msgstr "Finish your upgrade"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Finishing setup"
@@ -2449,11 +2446,6 @@ msgstr "Remove access you no longer need. Your wallet will ask you to confirm ea
 msgid "Remove approval for unwrapped names"
 msgstr "Remove approval for unwrapped names"
 
-#: src/features/migration/components/SelectNamesStep.tsx
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Remove earlier permission"
-msgstr "Remove earlier permission"
-
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Remove Email Contact Method?"
 msgstr "Remove Email Contact Method?"
@@ -2486,10 +2478,6 @@ msgstr "Remove Telegram Contact Method?"
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Remove temporary access"
 msgstr "Remove temporary access"
-
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Remove the earlier migration permission before reviewing your updated upgrade."
-msgstr "Remove the earlier migration permission before reviewing your updated upgrade."
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Remove the migration contract's permission over your unwrapped .eth names."
@@ -4149,10 +4137,6 @@ msgstr "Your names are upgraded one batch at a time. If an upgrade transaction f
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names can't be upgraded"
 msgstr "Your names can't be upgraded"
-
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Your names have been upgraded. Confirm the completed transactions and finish any remaining permission cleanup."
-msgstr "Your names have been upgraded. Confirm the completed transactions and finish any remaining permission cleanup."
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "Your names, text records, and addresses will be carried over during the upgrade"
