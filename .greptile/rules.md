@@ -19,6 +19,30 @@ Before flagging any violation, check whether the surrounding lines
 include a `// biome-ignore`, `// greptile:`, or short explanatory
 comment justifying the deviation.
 
+## Regression review comes first
+
+Most bugs that reach production here are regressions: a change that
+is right for its task but breaks something another flow relied on.
+Before the style rules, review every PR for that:
+
+1. **Read the test diff first.** For each existing test that was
+   edited or deleted, compare it with `main` and decide whether the
+   old assertion would now fail. A test changed to match new output is
+   the most likely place a regression is hiding (`no-weakened-tests`).
+2. **Follow shared changes to their callers.** For a changed export,
+   default, type, or query key, search for every usage and check each
+   one still gets what it expects (`shared-change-blast-radius`).
+3. **Look at what was removed.** Deleted guards, branches, fallbacks,
+   and invariant comments get a question, not a pass
+   (`removed-guard`).
+4. **Check the scope.** Changes the PR title does not explain are
+   unreviewed behaviour (`unrelated-changes`).
+
+Flag changes that weaken existing tests unless the PR body names the
+test under its behaviour changes with a reason, or the code it covers
+is deleted in the same PR. Adding or strengthening tests is not a
+finding. Put regression findings above style findings in the summary.
+
 ## What to skip entirely
 
 - Crowdin-generated translation files (`**/translations/**`,

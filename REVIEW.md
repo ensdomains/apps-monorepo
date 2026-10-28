@@ -19,6 +19,13 @@ flagged in PR review.
   including `packages/transaction-manager/CLAUDE.md` for neverthrow +
   XState patterns inside that package.
 
+## Regressions first
+
+Review every PR for regressions before style. Follow "Regression review
+comes first" in `.greptile/rules.md`: read edited or deleted tests
+against `main`, follow shared changes to their callers, question removed
+guards, and flag changes the PR title does not explain.
+
 ## Severity mapping
 
 `config.json` rule severities map to STYLEGUIDE.md tiers:
