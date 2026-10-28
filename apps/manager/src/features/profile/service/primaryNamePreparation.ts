@@ -1,5 +1,7 @@
+import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { queryOptions } from '@tanstack/react-query'
+import { fromPromise } from 'neverthrow'
 import {
   type Address,
   isAddressEqual,
@@ -48,16 +50,26 @@ export const isUnreachableV1Name = async (
   isAddressEqual(await getEnsResolver(publicClient, { name }), zeroAddress) &&
   (await hasV1RegistryResolver(publicClient, name))
 
-export const unreachableV1NameQuery = (
+export class UnreachableV1NameError extends TaggedError(
+  'UnreachableV1NameError',
+)<{
+  cause: unknown
+}> {}
+
+export const getUnreachableV1NameQueryOptions = (
   publicClient: PublicClient,
   name: string,
 ) =>
-  queryOptions({
+  resultQueryOptions({
     queryKey: qk('profile', 'unreachable_v1_name', {
       name,
       chainId: publicClient.chain?.id,
     }),
-    queryFn: () => isUnreachableV1Name(publicClient, name),
+    queryFn: () =>
+      fromPromise(
+        isUnreachableV1Name(publicClient, name),
+        (cause) => new UnreachableV1NameError({ cause }),
+      ),
   })
 
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
