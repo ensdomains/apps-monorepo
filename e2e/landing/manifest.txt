@@ -56,6 +56,8 @@ e2e/docs/e2e-master-test-plan.md
 e2e/docs/e2e-spec-audit.md
 e2e/docs/e2e-test-catalogue.md
 e2e/docs/hca-budget-web1506-test-plan.md
+e2e/docs/landing-handoff.md
+e2e/docs/landing-ledger.md
 e2e/docs/local-e2e-stack.md
 e2e/docs/manual-g02-delete.md
 e2e/docs/manual-g05-v1-roles.md
@@ -80,6 +82,7 @@ e2e/docs/stale-retry-error-web1229-test-plan.md
 e2e/docs/transaction-history-web1223-test-plan.md
 e2e/docs/transaction-scope-web1418-test-plan.md
 e2e/docs/transfer-eth-addr-strand-web1508-test-plan.md
+e2e/docs/transfer-manager-handover-1559-test-plan.md
 e2e/docs/transfer-subname-web128-test-plan.md
 e2e/docs/transfer-unemancipated-web1829-test-plan.md
 e2e/docs/transfer-v1-subname-web1407-test-plan.md
@@ -154,6 +157,8 @@ e2e/infra/metadata-service/entrypoint.sh
 e2e/infra/scripts/reset-bigname.sh
 e2e/infra/scripts/start-local-env.sh
 e2e/infra/scripts/wait-for-bigname.sh
+e2e/landing/batches.ts
+e2e/landing/manifest.txt
 e2e/matrix/assert.ts
 e2e/matrix/chain.ts
 e2e/matrix/expectations.ts
@@ -405,6 +410,7 @@ e2e/scripts/check-replacement-coverage.mjs
 e2e/scripts/clear-own-resolver.ts
 e2e/scripts/fund-replacement.ts
 e2e/scripts/generate-v1-matrix.ts
+e2e/scripts/landing-status.ts
 e2e/scripts/probe-controller-roles.ts
 e2e/scripts/probe-detach.ts
 e2e/scripts/probe-migrated.ts
