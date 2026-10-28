@@ -2,7 +2,51 @@
 
 ## Style Guide
 
-All coding guidelines, patterns, and conventions are documented in **[STYLEGUIDE.md](./STYLEGUIDE.md)**. Follow the rules and patterns defined there.
+**[STYLEGUIDE.md](./STYLEGUIDE.md)** applies to every app, worker and package in
+this repo. It is long, so don't work from memory: before writing code, open the
+sections for what you are touching (map below) and follow them. Before opening
+a PR, check the diff against `.greptile/config.json`; Greptile blocks merge on
+its `high` rules.
+
+**Where logic goes (the rule most often missed).** Business logic is a pure
+function: plain inputs in, a value or `Result` out, no React, no IO, no reads
+of globals, storage or the clock.
+- Components render and forward events (Thin React Layer, 🔴 Must).
+- Hooks only connect framework APIs (wagmi, TanStack Query, XState, the DOM)
+  to those functions. Validation, pricing, encoding and decisions on domain
+  data don't live in a hook (Pure Functions Over Custom Hooks).
+- Services, actors and handlers keep IO at the edges: read, call the pure
+  function, then write. Pass clients and other dependencies in as parameters.
+- Unit tests call the pure function directly, without mocks. If a test needs
+  `vi.mock` to reach a decision, extract that decision into a pure function.
+- When you change logic that is still tangled with IO, extract the part you
+  change into a pure function and test it there. Only the part you change:
+  the rest waits for its own PR.
+
+**🔴 Must:** no `any` (use `unknown`), no `!`, no mutation, `bigint` for every
+on-chain value, never mix `Result` with try/catch or unwrap a `Result` by
+throwing, never `useEffect` for data fetching or to chain transactions, never
+create viem clients in components.
+
+**🟡 Defaults Greptile checks:** `readonly` inputs and fields (`readonly T[]`
+for arrays), `match()` for 3+ branches, one `TaggedError('Name')<{ cause:
+unknown }>` per operation, `ResultFn` for multi-step async `Result`s,
+`getXxxQueryOptions` factories with object query keys, `is`/`has`/`should`/
+`can` booleans, `UPPER_SNAKE_CASE` constants.
+
+**Section map:**
+
+| Touching | Read in STYLEGUIDE.md |
+| --- | --- |
+| Where logic lives, hooks | Core Principles, Business Logic Extraction |
+| Components | React Patterns, Component Composition |
+| Errors, `Result` | Error Handling with neverthrow, Advanced neverthrow Patterns |
+| Queries | Data Fetching with TanStack Query |
+| Transactions, contracts | State Management (multi-step transactions), Web3 & Blockchain Patterns |
+| Styling, accessibility | Styling with Tailwind CSS, Accessibility |
+| Tests | Testing Strategy |
+
+Inside `packages/transaction-manager/`, also follow its `CLAUDE.md`.
 
 ## PR Conventions when working from Linear tickets
 

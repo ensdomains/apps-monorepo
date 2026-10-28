@@ -1,6 +1,6 @@
-# ENS Portal App Style Guide
+# ENS Apps Monorepo Style Guide
 
-A comprehensive guide for writing clean, maintainable, and type-safe code for the ENS Portal application.
+A comprehensive guide for writing clean, maintainable, and type-safe code across the ENS apps monorepo: every app, worker and package.
 
 > **Note for Contributors**: This guide is opinionated by design to maintain consistency across the codebase. When in doubt, follow existing patterns and favor clarity. Reasonable exceptions are allowed when justified—see the **Rule Severity** section for guidance on when rules are mandatory vs. preferred.
 
@@ -55,7 +55,7 @@ function processLargeDataset(data: any) {
 
 ## Core Principles
 
-The ENS Portal codebase is built on these fundamental principles:
+The codebase is built on these fundamental principles:
 
 ### 1. Thin React Layer
 
@@ -149,7 +149,7 @@ These rules improve code quality but are stylistic preferences:
 
 ## Tech Stack Overview
 
-The Portal app uses modern web and Web3 technologies:
+The apps use modern web and Web3 technologies:
 
 ### Core Framework
 - **React 19** - UI framework with modern hooks and concurrent features
@@ -3920,4 +3920,4 @@ Ask yourself these questions when writing code:
 
 ---
 
-*This style guide is a living document. As the ENS Portal evolves, so should these guidelines. When in doubt, follow existing patterns in the codebase and prioritize clarity and maintainability.*
+*This style guide is a living document. As the monorepo evolves, so should these guidelines. When in doubt, follow existing patterns in the codebase and prioritize clarity and maintainability.*
