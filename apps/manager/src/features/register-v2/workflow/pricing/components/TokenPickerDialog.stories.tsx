@@ -404,6 +404,50 @@ export const WithAccountCreditAndL2: Story = {
   },
 }
 
+// WEB-2025: the wallet can't cover the registration, but two L2s can.
+const WALLET_SHORT_FUNDING: RegistrationFundingSummary = {
+  registration: 16.49,
+  networkFee: 26.08,
+  total: 42.57,
+  walletDebit: 16.57,
+  hcaCredit: 26,
+  isLoading: false,
+}
+
+const WALLET_SHORT_L2_ROWS: readonly L2PaymentRow[] = [
+  l2Row(optimismSepolia, 19_330_000n, 'available', 16_650_000n),
+  l2Row(baseSepolia, 48_340_000n, 'available', 16_650_000n),
+]
+
+export const WalletShortPicksHighestL2: Story = {
+  args: {
+    label: 'bananananana',
+    initialSelectedToken: 'USDC',
+    pricingData: 42.57,
+    stablecoinBalances: [{ ...FUNDED_USDC, balance: '5000000' }],
+    funding: WALLET_SHORT_FUNDING,
+    l2Rows: WALLET_SHORT_L2_ROWS,
+  },
+}
+
+export const WalletCoversKeepsWallet: Story = {
+  args: {
+    ...WalletShortPicksHighestL2.args,
+    stablecoinBalances: [FUNDED_USDC],
+  },
+}
+
+export const NoMethodCovers: Story = {
+  args: {
+    ...WalletShortPicksHighestL2.args,
+    stablecoinBalances: [INSUFFICIENT_USDC],
+    l2Rows: [
+      l2Row(optimismSepolia, 9_000_000n, 'insufficient'),
+      l2Row(baseSepolia, 12_000_000n, 'insufficient'),
+    ],
+  },
+}
+
 export const LongNameWithApprovalDetails: Story = {
   args: {
     initialSelectedToken: 'USDC',

@@ -441,6 +441,39 @@ describe('TokenPickerContent', () => {
       screen.queryByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
     ).not.toBeInTheDocument()
   })
+
+  it('moves to the L2 holding the most when the wallet cannot pay', () => {
+    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+    containerMocks.walletBalance = '0'
+    containerMocks.renderBudget = fiveUsdcBudget
+    containerMocks.l2Balances = {
+      [optimismSepolia.id]: 10_000_000n,
+      [baseSepolia.id]: 25_000_000n,
+    }
+    containerMocks.l2AmountIn = 5_012_000n
+    renderContainer()
+
+    expect(containerMocks.send).toHaveBeenCalledWith({
+      type: 'pricing.fundingSource.select',
+      chainId: baseSepolia.id,
+    })
+    expect(
+      screen.queryByText(/Not enough USDC in your wallet/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps the wallet when it can pay, whatever the L2s hold', () => {
+    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+    containerMocks.renderBudget = fiveUsdcBudget
+    containerMocks.l2Balances = { [baseSepolia.id]: 250_000_000n }
+    containerMocks.l2AmountIn = 5_012_000n
+    renderContainer()
+
+    expect(containerMocks.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'pricing.fundingSource.select' }),
+    )
+  })
+
   it('holds the receipt while the quote waits on a paused retry', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
     containerMocks.walletBalance = '0'

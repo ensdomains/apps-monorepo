@@ -28,12 +28,17 @@ import { getManagerRegistrationPostRegistrationSetup } from '../../../state/regi
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useRegistrationLockHeartbeat } from '../../registering/hooks/useRegistrationLockHeartbeat'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
+import { useFallbackPaymentChoice } from '../hooks/useFallbackPaymentChoice'
 import {
   canPayFromL2,
   type L2PaymentProps,
   type L2PaymentRow,
   useL2Payment,
 } from '../hooks/useL2Payment'
+import {
+  getFallbackPaymentChoice,
+  type PayableMethod,
+} from '../lib/fallbackPaymentChoice'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import {
   getPaymentReceiptFigures,
@@ -664,6 +669,35 @@ const coversShare = (coin: StablecoinBalance, share: number | undefined) =>
   share !== undefined &&
   decimalBigintToNumber(BigInt(coin.balance), coin.decimals) >= share
 
+/** Every method that can pay right now, with what it holds. */
+const getPayableMethods = (
+  stablecoinBalances: readonly StablecoinBalance[],
+  walletShareOf: (symbol: string) => number | undefined,
+  l2Rows: readonly L2PaymentRow[],
+): readonly PayableMethod[] => [
+  ...stablecoinBalances
+    .filter((coin) => coversShare(coin, walletShareOf(coin.symbol)))
+    .map((coin) => ({
+      choice: { kind: 'wallet' as const, symbol: coin.symbol as TOKEN_SYMBOL },
+      balanceRaw: BigInt(coin.balance),
+      decimals: coin.decimals,
+    })),
+  ...l2Rows.flatMap((row) =>
+    canPayFromL2(row) && row.option.balanceRaw !== null
+      ? [
+          {
+            choice: {
+              kind: 'l2' as const,
+              chainId: row.option.source.chain.id,
+            },
+            balanceRaw: row.option.balanceRaw,
+            decimals: USDC_DECIMALS,
+          },
+        ]
+      : [],
+  ),
+]
+
 const getL2MethodItems = (
   l2Payment: L2PaymentProps | undefined,
   selectedL2: L2PaymentRow | undefined,
@@ -942,6 +976,31 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     paymentMethodItems.length > 0 &&
     !walletMethodItems.some((item) => item.isSelected)
 
+  // Registration only: when the chosen method can't pay, switch to the one holding the most
+  const fallbackChoice = l2Payment
+    ? getFallbackPaymentChoice({
+        isCurrentPayable: selectedL2
+          ? !isL2ShortOfFunds(selectedL2)
+          : walletMethodItems.some((item) => item.isSelected),
+        payableMethods: getPayableMethods(
+          stablecoinBalances,
+          walletShareOf,
+          l2Payment.rows,
+        ),
+      })
+    : undefined
+  useFallbackPaymentChoice({
+    choice: fallbackChoice,
+    isSettled:
+      isConnected &&
+      !isLoadingBalances &&
+      receiptState.status === 'ready' &&
+      !isRequoting &&
+      !isL2Pending,
+    onSelectCoin,
+    onSelectL2: l2Payment?.onSelect,
+  })
+
   const warning =
     globalErrorMessage ||
     (selectedL2 &&
@@ -953,6 +1012,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     (revalidatedShortfall !== undefined &&
       t`${formatUsd(revalidatedShortfall)} more needed in your wallet.`) ||
     (isWalletSelectionHidden &&
+      !fallbackChoice &&
       t`Not enough USDC in your wallet. Choose another payment method.`)
 
   return (
