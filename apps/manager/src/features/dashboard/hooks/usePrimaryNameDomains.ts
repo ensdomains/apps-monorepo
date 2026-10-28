@@ -2,6 +2,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { primaryNameForwardAddressQuery } from '@/features/profile/service/primaryNameForwardAddress'
+import { getUnreachableV1NameQueryOptions } from '@/features/profile/service/primaryNamePreparation'
 import { publicClient } from '@/lib/wagmi'
 import {
   getPrimaryNameCandidates,
@@ -65,21 +66,57 @@ export const usePrimaryNameDomains = ({
       enabled: open && Boolean(ownerAddress),
     })),
   })
+  // A name with no ETH address may sit under an expired parent; only ENSv1
+  // names can, since their registry keeps entries past expiry.
+  const needsReachCheck = lookupNames.map(
+    (name, index) =>
+      forwardAddresses[index]?.data === null &&
+      allDomains.some(
+        (domain) =>
+          resolveDomainLabel(domain) === name && domain.protocol === 'v1',
+      ),
+  )
+  const unreachableChecks = useQueries({
+    queries: lookupNames.map((name, index) => ({
+      ...getUnreachableV1NameQueryOptions(publicClient as PublicClient, name),
+      enabled: open && needsReachCheck[index],
+    })),
+  })
+  const unreachableNames: ReadonlySet<string> = new Set(
+    lookupNames.filter((_, index) => unreachableChecks[index]?.data === true),
+  )
+  // A row waits only for its own checks, so one slow read hides one name.
   const checkedNames = new Set(
-    lookupNames.filter((_, index) => forwardAddresses[index]?.isSuccess),
+    lookupNames.filter(
+      (_, index) =>
+        forwardAddresses[index]?.isSuccess &&
+        !(needsReachCheck[index] && unreachableChecks[index]?.isPending),
+    ),
   )
   const isCheckingNames = forwardAddresses.some((query) => query.isLoading)
-  const hasForwardAddressError = forwardAddresses.some((query) => query.isError)
+  const isCheckingReach = needsReachCheck.some(
+    (needsCheck, index) => needsCheck && unreachableChecks[index]?.isPending,
+  )
+  const domains = pagination.domains.filter((domain) =>
+    checkedNames.has(resolveDomainLabel(domain)),
+  )
+  const hasForwardAddressError = [
+    ...forwardAddresses,
+    ...unreachableChecks,
+  ].some((query) => query.isError)
 
   return {
     ...pagination,
-    domains: pagination.domains.filter((domain) =>
-      checkedNames.has(resolveDomainLabel(domain)),
-    ),
+    domains,
+    unreachableNames,
     isSelectedNameOffered:
-      ownsSelectedName && checkedNames.has(selectedName ?? ''),
+      ownsSelectedName &&
+      checkedNames.has(selectedName ?? '') &&
+      !unreachableNames.has(selectedName ?? ''),
     selectedProtocol: selectedDomain?.protocol ?? null,
-    isLoading: isLoading || isCheckingNames,
+    // Skeletons, not "No names found", while every row still waits on its check.
+    isLoading:
+      isLoading || isCheckingNames || (domains.length === 0 && isCheckingReach),
     hasForwardAddressError: hasDomainsError || hasForwardAddressError,
     searchQuery,
     onSearchChange: (query: string) => {

@@ -1928,6 +1928,10 @@ msgstr "no ENSv1 registration was found for it."
 msgid "No favorites to display"
 msgstr "No favorites to display"
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "No longer resolves, usually because its parent name has expired"
+msgstr "No longer resolves, usually because its parent name has expired"
+
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
 msgid "No matches"
 msgstr "No matches"
