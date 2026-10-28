@@ -115,7 +115,7 @@ export async function openMigrationFlow(page: Page): Promise<void> {
       // initializes. Wait for that prerequisite instead of spending all four
       // retries on partially hydrated dashboard documents.
       await page.waitForFunction(
-        () => (window as any).managerFeatureFlagsOverridden === true,
+        () => Reflect.get(window, 'managerFeatureFlagsOverridden') === true,
         undefined,
         { timeout: 30_000 },
       )

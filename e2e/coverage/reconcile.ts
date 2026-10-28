@@ -284,7 +284,7 @@ function listExecutable(): Map<string, string[]> {
       }
     }
 
-    let parsed: unknown
+    let parsed: Report
     try {
       parsed = JSON.parse(json.slice(json.indexOf('{')))
     } catch {
@@ -316,14 +316,36 @@ interface ListedSpec {
   ok: boolean
 }
 
+/** The parts of Playwright's JSON report (`--list`, `--reporter=json`) read here. */
+interface ReportSpec {
+  readonly file?: string
+  readonly title?: string
+  readonly tags?: readonly string[]
+  readonly ok?: boolean
+  readonly tests?: readonly {
+    readonly results?: readonly { readonly status?: TaggedTest['outcome'] }[]
+  }[]
+}
+
+interface ReportSuite {
+  readonly file?: string
+  readonly specs?: readonly ReportSpec[]
+  readonly suites?: readonly ReportSuite[]
+}
+
+interface Report {
+  readonly config?: { readonly rootDir?: string }
+  readonly suites?: readonly ReportSuite[]
+}
+
 /**
  * Playwright reports `file` relative to the config's `rootDir`, so every path
  * is resolved against it — otherwise nothing matches the filesystem scan.
  */
-function walkSpecs(report: unknown): ListedSpec[] {
+function walkSpecs(report: Report): ListedSpec[] {
   const out: ListedSpec[] = []
-  const rootDir = String((report as any)?.config?.rootDir ?? e2eRoot)
-  const visit = (node: any, file?: string) => {
+  const rootDir = String(report?.config?.rootDir ?? e2eRoot)
+  const visit = (node: ReportSuite, file?: string) => {
     if (!node || typeof node !== 'object') return
     const f = node.file ?? file
     for (const spec of node.specs ?? []) {
@@ -334,9 +356,7 @@ function walkSpecs(report: unknown): ListedSpec[] {
         ...[...text.matchAll(INV_TAG_RE)].map((m) => m[1]),
       ]
       const titleTags = both(String(spec.title ?? ''))
-      const arrayTags = (spec.tags ?? []).flatMap((t: string) =>
-        both(String(t)),
-      )
+      const arrayTags = (spec.tags ?? []).flatMap((t) => both(String(t)))
       out.push({
         file: resolve(rootDir, String(spec.file ?? f ?? '')),
         title: String(spec.title ?? ''),
@@ -346,7 +366,7 @@ function walkSpecs(report: unknown): ListedSpec[] {
     }
     for (const child of node.suites ?? []) visit(child, f)
   }
-  for (const suite of (report as any)?.suites ?? []) visit(suite)
+  for (const suite of report?.suites ?? []) visit(suite)
   return out
 }
 
@@ -360,9 +380,9 @@ function loadOutcomes(): Map<string, TaggedTest['outcome']> {
       console.warn(`⚠️  results file not found: ${file}`)
       continue
     }
-    const report = JSON.parse(readFileSync(path, 'utf8'))
+    const report: Report = JSON.parse(readFileSync(path, 'utf8'))
     const rootDir = String(report?.config?.rootDir ?? e2eRoot)
-    const visit = (node: any, f?: string) => {
+    const visit = (node: ReportSuite, f?: string) => {
       if (!node || typeof node !== 'object') return
       const nf = node.file ?? f
       for (const spec of node.specs ?? []) {

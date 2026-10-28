@@ -66,6 +66,13 @@ export type Target = BatchId | { drop: string }
 interface Rule {
   globs: string[]
   target: Target
+  /**
+   * Every batch lands a slice of these (scripts, deps, defect rows whose
+   * proving tests just landed, the ratchet baseline). They differ from the
+   * branch until the last batch, so a merged batch reads `partial` here,
+   * not `drifted`.
+   */
+  incremental?: true
 }
 
 const drop = (reason: string): Target => ({ drop: reason })
@@ -116,6 +123,18 @@ export const rules: Rule[] = [
     globs: ['e2e/.env'],
   },
 
+  // ── B0, pulled forward from later batches ────────────────────────────────
+  // Fixtures, harness specs and `coverage/scenarios.ts` import these, so B0
+  // does not compile without them (found preparing B0, 2026-10-28).
+  {
+    target: 'B0',
+    globs: [
+      'e2e/matrix/**',
+      'packages/v1-name-shapes/**',
+      'e2e/projects/migration-matrix/local-fork-routing.ts',
+    ],
+  },
+
   // ── B1a smoke: Explorer + CI ─────────────────────────────────────────────
   {
     target: 'B1a',
@@ -137,6 +156,9 @@ export const rules: Rule[] = [
     target: 'B1b',
     globs: [
       'e2e/projects/manager/playwright.{smoke,migration}.config.ts',
+      // Only the migration config runs it; the reconciler fails on a spec no
+      // config runs.
+      'e2e/specs/harness-manager-4ld.spec.ts',
       'e2e/projects/manager/tests/{registration,registration-rhinestone,profile,bulk-renew,primaryName,dashboard-names,hca-session-revoke,transaction-history}.spec.ts',
       'e2e/projects/manager/tests/migration{,-fuses,-subname,-grace,-time}.spec.ts',
       'e2e/projects/manager/tests/offchain-{resolver,migration}.spec.ts',
@@ -210,8 +232,6 @@ export const rules: Rule[] = [
   {
     target: 'B7',
     globs: [
-      'packages/v1-name-shapes/**',
-      'e2e/matrix/**',
       'e2e/projects/portal/matrix/**',
       'e2e/scripts/generate-v1-matrix.ts',
       'e2e/docs/v1-shape-matrix.generated.md',
@@ -244,6 +264,18 @@ export const rules: Rule[] = [
   // ── B0 infra (broad, so last) ────────────────────────────────────────────
   {
     target: 'B0',
+    incremental: true,
+    globs: [
+      'e2e/package.json',
+      'package.json',
+      'pnpm-lock.yaml',
+      'e2e/coverage/baseline.json',
+      'e2e/docs/e2e-defects.md',
+      'e2e/docs/e2e-coverage.md',
+    ],
+  },
+  {
+    target: 'B0',
     globs: [
       'e2e/infra/**',
       'e2e/helpers/**',
@@ -256,14 +288,9 @@ export const rules: Rule[] = [
       'e2e/projects/{manager,portal,cross-app}/playwright.config.ts',
       'e2e/scripts/{check-address-literals,check-name-resolves,seed-name}.ts',
       'e2e/README.md',
-      'e2e/docs/{local-e2e-stack,e2e-coverage,e2e-defects,e2e-test-catalogue,e2e-master-test-plan}.md',
+      'e2e/docs/{local-e2e-stack,e2e-test-catalogue,e2e-master-test-plan}.md',
       'e2e/docs/{e2e-build-goal,e2e-gap-analysis,e2e-spec-audit}.md',
       'e2e/docs/{bigname-harness,portal-bigname}-handoff.md',
-      // Edited by every batch: B0 lands the infra half, later batches add
-      // their own scripts and deps. The row reads `landed` only at the end.
-      'e2e/package.json',
-      'package.json',
-      'pnpm-lock.yaml',
       '.gitignore',
       'apps/*/.env.example',
       'apps/*/vite.config.ts',

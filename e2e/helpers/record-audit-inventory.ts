@@ -355,11 +355,8 @@ export async function mockV1Names(
         return fulfill(route, { data: detail(n), meta })
       }
 
-      if (
-        url.pathname === '/v1/events' &&
-        byName.has(url.searchParams.get('name') ?? '')
-      ) {
-        const target = byName.get(url.searchParams.get('name')!)!
+      const target = byName.get(url.searchParams.get('name') ?? '')
+      if (url.pathname === '/v1/events' && target) {
         const rows = (target.records?.interfaceIds ?? ['0x12345678']).map(
           (id) => ({ type: 'record', data: { key: `interface:${id}` } }),
         )

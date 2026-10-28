@@ -171,6 +171,7 @@ export async function switchWalletToSepolia(
 /** The chain id the page's injected provider reports (`eth_chainId`). */
 async function readPageChainId(page: Page): Promise<number> {
   const hex = await page.evaluate(() =>
+    // The headless wallet injects `ethereum`; `Window`'s type does not know it.
     (
       window as unknown as {
         ethereum: { request(args: { method: string }): Promise<string> }

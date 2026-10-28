@@ -89,7 +89,7 @@ export async function routeToLocalFork(page: Page) {
       const startedAt = Date.now()
       try {
         const response = await route.fetch({
-          url: process.env.ANVIL_RPC_URL!,
+          url: process.env.ANVIL_RPC_URL,
           timeout: 120000,
         })
         await route.fulfill({

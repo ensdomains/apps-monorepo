@@ -9,6 +9,8 @@
  *   landed      the blob on main is the blob on the branch
  *   pending     differs, and its batch has not merged
  *   drifted     differs, although its batch merged — the branch moved since
+ *   partial     an `incremental` file whose batch merged; later batches
+ *               land the rest
  *   dropped     a DROP rule matches; it will never land
  *   UNASSIGNED  no rule matches — fix `batches.ts`
  *
@@ -100,15 +102,22 @@ function globToRegExp(glob: string): RegExp {
 
 const compiled = rules.map((r) => ({
   target: r.target,
+  incremental: r.incremental,
   res: r.globs.map(globToRegExp),
 }))
 
-const targetOf = (path: string): Target | undefined =>
-  compiled.find((r) => r.res.some((re) => re.test(path)))?.target
+const ruleOf = (path: string) =>
+  compiled.find((r) => r.res.some((re) => re.test(path)))
 
 // ── File statuses ──────────────────────────────────────────────────────────
 
-type Status = 'landed' | 'pending' | 'drifted' | 'dropped' | 'UNASSIGNED'
+type Status =
+  | 'landed'
+  | 'pending'
+  | 'drifted'
+  | 'partial'
+  | 'dropped'
+  | 'UNASSIGNED'
 
 interface Row {
   path: string
@@ -143,14 +152,17 @@ function buildRows(): Row[] {
   const onBranch = blobs(BRANCH)
 
   return paths.map((path) => {
-    const target = targetOf(path)
-    if (!target) return { path, status: 'UNASSIGNED' }
+    const rule = ruleOf(path)
+    if (!rule) return { path, status: 'UNASSIGNED' }
+    const { target } = rule
     if (typeof target === 'object') return { path, target, status: 'dropped' }
     if (onMain.get(path) === onBranch.get(path)) {
       return { path, target, status: 'landed' }
     }
-    const merged = batchById.get(target)?.merged
-    return { path, target, status: merged ? 'drifted' : 'pending' }
+    if (!batchById.get(target)?.merged) {
+      return { path, target, status: 'pending' }
+    }
+    return { path, target, status: rule.incremental ? 'partial' : 'drifted' }
   })
 }
 
@@ -251,14 +263,16 @@ function renderBatches(rows: Row[]): string[] {
   const out: string[] = []
   out.push('## Batches')
   out.push('')
-  out.push('| Batch | Title | PR | Landed | Pending | Drifted | Total |')
-  out.push('|---|---|---|---|---|---|---|')
+  out.push(
+    '| Batch | Title | PR | Landed | Partial | Pending | Drifted | Total |',
+  )
+  out.push('|---|---|---|---|---|---|---|---|')
   for (const b of batches) {
     const mine = rows.filter((r) => r.target === b.id)
     const n = (s: Status) => mine.filter((r) => r.status === s).length
     const pr = b.pr ? `#${b.pr}${b.merged ? ' (merged)' : ''}` : ''
     out.push(
-      `| ${b.id} | ${b.title} | ${pr} | ${n('landed')} | ${n('pending')} | ${n('drifted')} | ${mine.length} |`,
+      `| ${b.id} | ${b.title} | ${pr} | ${n('landed')} | ${n('partial')} | ${n('pending')} | ${n('drifted')} | ${mine.length} |`,
     )
   }
   const dropped = rows.filter((r) => r.status === 'dropped').length
@@ -350,7 +364,7 @@ const count = (s: Status) => rows.filter((r) => r.status === s).length
 const smokeCount = (s: SmokeStatus) =>
   smokeRows.filter(([, x]) => x === s).length
 console.log(
-  `${rows.length} paths: ${count('landed')} landed, ${count('pending')} pending, ${count('drifted')} drifted, ${count('dropped')} dropped, ${count('UNASSIGNED')} unassigned`,
+  `${rows.length} paths: ${count('landed')} landed, ${count('partial')} partial, ${count('pending')} pending, ${count('drifted')} drifted, ${count('dropped')} dropped, ${count('UNASSIGNED')} unassigned`,
 )
 console.log(
   `smoke: ${smokeCount('on-main+tagged')} on main+tagged, ${smokeCount('on-main-untagged')} untagged, ${smokeCount('pending')} pending, ${smokeCount('GAP')} gaps, ${smokeCount('N/A')} n/a, ${smokeCount('MISSING-ON-BRANCH')} missing on branch`,
@@ -368,7 +382,7 @@ if (flag('--check') || flag('--discard-check')) {
 }
 if (flag('--discard-check')) {
   for (const r of rows) {
-    if (r.status === 'pending' || r.status === 'drifted')
+    if (r.status !== 'landed' && r.status !== 'dropped')
       problems.push(`${r.status}: ${r.path}`)
   }
   for (const [e, s] of smokeRows) {
