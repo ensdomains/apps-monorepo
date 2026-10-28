@@ -4,11 +4,16 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromPromise } from 'neverthrow'
 import {
   type Address,
+  BaseError,
+  ContractFunctionRevertedError,
+  ContractFunctionZeroDataError,
   isAddressEqual,
   type PublicClient,
+  parseAbi,
   zeroAddress,
 } from 'viem'
 import { getEnsResolver } from 'viem/actions'
+import { envConfig } from '@/config'
 import {
   getPrimaryNameForwardAddress,
   hasPrimaryNameForwardAddress,
@@ -42,13 +47,56 @@ export const hasV1RegistryResolver = async (
 ): Promise<boolean> =>
   (await readV1RegistryResolver(publicClient, name)) !== undefined
 
-/** An ENSv1 name with a resolver that resolution cannot reach, so it can't be a primary name. */
+const mirroredRegistryAbi = parseAbi([
+  'function REGISTRY_V1() view returns (address)',
+])
+
+/** ENSv2 reaches ENSv1 names through a resolver that mirrors the ENSv1 registry. */
+const isEnsV1MirrorResolver = async (
+  publicClient: PublicClient,
+  resolver: Address,
+): Promise<boolean> => {
+  try {
+    const registry = await publicClient.readContract({
+      address: resolver,
+      abi: mirroredRegistryAbi,
+      functionName: 'REGISTRY_V1',
+    })
+    return isAddressEqual(
+      registry,
+      envConfig.chain.contracts.ensLegacyRegistry.address,
+    )
+  } catch (error) {
+    // Any other resolver lacks the getter; an RPC failure must not read as that.
+    if (
+      error instanceof BaseError &&
+      error.walk(
+        (cause) =>
+          cause instanceof ContractFunctionRevertedError ||
+          cause instanceof ContractFunctionZeroDataError,
+      )
+    ) {
+      return false
+    }
+    throw error
+  }
+}
+
+/**
+ * An ENSv1 name whose registry resolver resolution no longer reads: its parent
+ * expired, or was re-registered on ENSv2, so it can't be a primary name.
+ */
 export const isUnreachableV1Name = async (
   publicClient: PublicClient,
   name: string,
-): Promise<boolean> =>
-  isAddressEqual(await getEnsResolver(publicClient, { name }), zeroAddress) &&
-  (await hasV1RegistryResolver(publicClient, name))
+): Promise<boolean> => {
+  const v1Resolver = await readV1RegistryResolver(publicClient, name)
+  if (!v1Resolver) return false
+  const reached = await getEnsResolver(publicClient, { name })
+  if (isAddressEqual(reached, zeroAddress)) return true
+  if (isAddressEqual(reached, v1Resolver)) return false
+  return !(await isEnsV1MirrorResolver(publicClient, reached))
+}
 
 export class UnreachableV1NameError extends TaggedError(
   'UnreachableV1NameError',

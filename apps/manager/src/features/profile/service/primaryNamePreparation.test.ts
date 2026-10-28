@@ -1,7 +1,12 @@
 import { err, ok } from 'neverthrow'
-import { type PublicClient, zeroAddress } from 'viem'
+import {
+  ContractFunctionRevertedError,
+  type PublicClient,
+  zeroAddress,
+} from 'viem'
 import { getEnsResolver } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { envConfig } from '@/config'
 import {
   getPrimaryNameForwardAddress,
   hasPrimaryNameForwardAddress,
@@ -148,19 +153,67 @@ describe('getPrimaryNamePreparation', () => {
 })
 
 describe('isUnreachableV1Name', () => {
-  it.each([
-    { reached: zeroAddress, registry: RESOLVER, isUnreachable: true },
-    { reached: RESOLVER, registry: RESOLVER, isUnreachable: false },
-    { reached: zeroAddress, registry: undefined, isUnreachable: false },
-  ])(
-    'is $isUnreachable when resolution reaches $reached and the ENSv1 registry holds $registry',
-    async ({ reached, registry, isUnreachable }) => {
-      vi.mocked(getEnsResolver).mockResolvedValue(reached)
-      vi.mocked(readV1RegistryResolver).mockResolvedValue(registry)
+  const PARENT_RESOLVER = '0x2222222222222222222222222222222222222222' as const
+  const reverted = new ContractFunctionRevertedError({
+    abi: [],
+    functionName: 'REGISTRY_V1',
+  })
 
-      await expect(isUnreachableV1Name(client, name)).resolves.toBe(
-        isUnreachable,
-      )
+  // `mirrors` is what the reached resolver answers to `REGISTRY_V1()`.
+  it.each([
+    {
+      case: 'no resolver is reached',
+      reached: zeroAddress,
+      isUnreachable: true,
+    },
+    {
+      case: 'the registry resolver is reached',
+      reached: RESOLVER,
+      isUnreachable: false,
+    },
+    {
+      case: 'the ENSv1 mirror resolver is reached',
+      reached: PARENT_RESOLVER,
+      mirrors: envConfig.chain.contracts.ensLegacyRegistry.address,
+      isUnreachable: false,
+    },
+    {
+      case: 'a re-registered parent resolver is reached',
+      reached: PARENT_RESOLVER,
+      mirrors: reverted,
+      isUnreachable: true,
+    },
+    {
+      case: 'the ENSv1 registry holds no resolver',
+      reached: zeroAddress,
+      registry: null,
+      isUnreachable: false,
+    },
+  ])(
+    'is $isUnreachable when $case',
+    async ({ reached, mirrors, registry = RESOLVER, isUnreachable }) => {
+      vi.mocked(getEnsResolver).mockResolvedValue(reached)
+      vi.mocked(readV1RegistryResolver).mockResolvedValue(registry ?? undefined)
+      const readContract = vi.fn(async () => {
+        if (mirrors instanceof Error) throw mirrors
+        return mirrors
+      })
+
+      await expect(
+        isUnreachableV1Name({ readContract } as unknown as PublicClient, name),
+      ).resolves.toBe(isUnreachable)
     },
   )
+
+  it('fails rather than greying out a name when the resolver read fails', async () => {
+    vi.mocked(getEnsResolver).mockResolvedValue(PARENT_RESOLVER)
+    vi.mocked(readV1RegistryResolver).mockResolvedValue(RESOLVER)
+    const readContract = vi.fn(async () => {
+      throw new Error('rpc down')
+    })
+
+    await expect(
+      isUnreachableV1Name({ readContract } as unknown as PublicClient, name),
+    ).rejects.toThrow('rpc down')
+  })
 })
