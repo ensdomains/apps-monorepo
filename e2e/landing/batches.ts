@@ -45,8 +45,13 @@ export const batches: Batch[] = [
   {
     id: 'B0',
     title: 'Infra: stack, helpers, fixtures, harness, address gate',
+    pr: 1599,
   },
-  { id: 'B1a', title: 'Smoke: Explorer specs + CI gate (smoke, nightly)' },
+  {
+    id: 'B1a',
+    title: 'Smoke: Explorer specs + CI gate (smoke, nightly)',
+    pr: 1601,
+  },
   { id: 'B1b', title: 'Smoke: Manager specs' },
   { id: 'B2', title: 'CCIP / offchain: the rest' },
   { id: 'B3', title: 'Migration: the rest' },
@@ -142,11 +147,17 @@ export const rules: Rule[] = [
       'e2e/docs/{bigname-harness,portal-bigname}-handoff.md',
     ],
   },
+  // The cross-app V1 4LD observers (B1a) read rows with these.
+  {
+    target: 'B1a',
+    incremental: true,
+    globs: ['e2e/matrix/{assert,expectations}.ts'],
+  },
   // The matrix runner and doc renderer serve the generated specs, not B0.
   // `render-docs.ts` imports `ids.ts`, so B7 needs B10 first.
   {
     target: 'B7',
-    globs: ['e2e/matrix/{run,assert,expectations,render-docs}.ts'],
+    globs: ['e2e/matrix/{run,render-docs}.ts'],
   },
 
   // ── B0, comments reworded ────────────────────────────────────────────────
@@ -199,9 +210,18 @@ export const rules: Rule[] = [
     ],
   },
 
+  {
+    target: drop(
+      "reverts main's Node 24 pin (#1597); its e2e filter is moot (no test:coverage script)",
+    ),
+    globs: ['.github/workflows/test.yml'],
+  },
   // ── B1a smoke: Explorer + CI ─────────────────────────────────────────────
+  // Incremental: B1a adds @smoke tags, rewrites smoke-suite.md and builds the
+  // workflows from main's, so these differ from this branch on purpose.
   {
     target: 'B1a',
+    incremental: true,
     globs: [
       '.github/workflows/**',
       'e2e/projects/portal/playwright.smoke.config.ts',

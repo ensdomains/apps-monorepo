@@ -4,34 +4,24 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Now
 
-- **Batch**: B0, step 3 in progress. One commit (`05cee518c`) on `e2e-land/b0-infra`, in worktree `/Users/sg/ens/worktrees/e2e-land-b0`, on `origin/main` at `ae8849020`. **Pushed (force-pushed 2026-10-28 after trimming and rewording).** No PR is open yet. 95 files, ~13.6k lines.
-- **Trimmed on the user's request (2026-10-28)**: the coverage ledger and the planning docs were taken out of B0 and the commit rewritten, so main's history never carries them. They stay on this branch as **B10**: `e2e/coverage/**` (reconciler, scenarios, invariants, baseline, handoff), `e2e/matrix/{ids,scenarios}.ts`, and `e2e/docs/` `e2e-{build-goal,coverage,defects,gap-analysis,master-test-plan,spec-audit,test-catalogue}.md` plus `{bigname-harness,portal-bigname}-handoff.md`. `e2e/matrix/{run,assert,expectations,render-docs}.ts` moved to B7. B0 also drops the `coverage` / `e2e:coverage` scripts, the README's Coverage Ledger section and one handoff link in `local-e2e-stack.md`.
-- **Local results (2026-10-28)**:
-
-  | Check | Result |
-  |---|---|
-  | typecheck | clean (re-run after the trim) |
-  | Biome | warnings only (re-run after the trim) |
-  | `check-address-literals` | pass (re-run after the trim) |
-  | `v1-name-shapes` unit tests | 11/11 (re-run after the trim) |
-  | Harness, portal config | 12/12 (before the trim; still lists 12 after) |
-  | Harness, manager config | 6/6 (before the trim; still lists 6 after) |
-  | Main's portal suite | 23 passed, 9 skipped (before the trim) |
-  | Main's manager suite | 24 passed, 3 skipped (before the trim) |
-
-  All run in CI's mode: `E2E_MOCK_BIGNAME=true`, with the `.env.ci` templates. The trim only removed files nothing in B0 imports, so the Playwright runs were not repeated.
-- **Comments reworded (2026-10-28, the user's call)**: every B0 citation of a B10 doc is reworded to stand alone: file links, "rule 5/6/7", "§5.C"-style plan sections, "plan item H1–H8" and "iteration N". The harness-manager test titles say "read-back" / "app-visible" instead of "rule 5" / "rule 6", the address gate prints "address-literal gate", the README loses its "Smoke vs. nightly" section (it documents B1a's scripts), and `.gitignore` loses the `!e2e/coverage/` exception. These files are `incremental` B0 rows; B10 brings back the branch's wording. The only remaining doc citation is `AUTH_PLAN.md`, which is on main. Re-checked: typecheck, address gate, Biome (warnings only), `v1-name-shapes` 11/11, harness lists 12 + 6.
+- **B0**: PR #1599 (`e2e-land/b0-infra`), CI green. The user approved it ("B0 is good") on 2026-10-28; not merged yet. The user merged main into it from GitHub (`fd7c91b48`), so **no more force-pushes on B0**: fixes go on as plain commits.
+- **B0 CI fixes (2026-10-28)**:
+  - Anvil's fork URL is `${ANVIL_FORK_URL:-${SEPOLIA_FORK_URL:-<drpc>}}`. A bare `docker compose up` (CI) forks drpc directly, as main does. `start-local-env.sh` and `reset-bigname.sh` set it to the upstream cache. In CI the cache's first upstream reads stalled past Anvil's health window. The cache now logs each failed upstream attempt.
+  - The harness's "pointed at this fork" check is split per app (`helpers/app-rpc.ts`): the portal harness checks the portal, the manager harness the manager. A CI job starts only its own app.
+  - drpc DNS flakes still fail an occasional stack start; a re-run passes. Fix proposed: an owned archive RPC in a `SEPOLIA_FORK_URL` secret, plus pinning `SEPOLIA_FORK_BLOCK` in CI (the user is weighing it).
+- **B1a**: draft PR #1601 (`e2e-land/b1a-explorer-smoke`, worktree `/Users/sg/ens/worktrees/e2e-land-b1a`), stacked on B0. CI is running. Contents and the local run are in the PR body. B1b stacks on B1a.
+- **Local run caveat**: the shared Anvil's clock was 29 h ahead of real time (other sessions' warps). Portal smoke locally: 22 passed, 4 failed (WEB-1229, WEB-1572 on `ERC20: transfer amount exceeds balance`; multi-name Extend 2/6 confirmed; creates a 3LD). Judge on CI's fresh stack.
 
 ## Next action
 
-1. On the user's go: open the PR from `e2e-land/b0-infra` (step 3). The body summarises the batch and has the results table above, with no attribution. Then record `pr:` for B0 in `landing/batches.ts`.
+1. Read #1601's CI. Fix real failures on the B1a branch; if a smoke test cannot pass with bigname mocked, untag it and record why in `smoke-suite.md`.
+2. When green, mark #1601 ready for review.
+3. Prepare B1b (`e2e-land/b1b-manager-smoke`) from the B1a branch: manager smoke config, `@smoke` tags per the checklist, `e2e.yml` manager job → smoke config, `test:smoke` / `e2e:smoke:manager` scripts.
 
 ## Waiting on
 
-- The user's go-ahead to open the B0 PR. The branch is already pushed; the split question is moot after the trim.
-
-- **Security, for the user**: rotate the Mailinator API key, and update the `MAILINATOR_API_KEY` GitHub secret. The raw key is in `e2e/.env` on this branch, which has been pushed to a **public** repo, so dropping the file from main doesn't un-leak it.
-- **Local checkout**: the user's local `e2e-tests-coverage` is behind origin by the sync merge. A fast-forward is blocked by uncommitted WIP in `e2e/package.json`, `pnpm-lock.yaml`, `e2e-coverage.md` and `e2e-defects.md`, and the user decides how to bring it forward.
+- B0 (#1599): peer review and merge by the user.
+- B1a (#1601): CI.
 
 ## Open questions for the user
 
@@ -77,8 +67,8 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 | Batch | Scope | Status |
 |---|---|---|
-| B0 | Infra: stack, helpers, fixtures, harness, matrix seeding libs, address gate (95 files, ~13.7k lines) | local-green. Pushed as `e2e-land/b0-infra`, no PR yet |
-| B1a | Smoke: Explorer specs + CI (sharded `@smoke` gate, nightly) | not started |
+| B0 | Infra: stack, helpers, fixtures, harness, matrix seeding libs, address gate (95 files, ~13.6k lines) | PR #1599, CI green, approved by the user, awaiting merge |
+| B1a | Smoke: Explorer specs + CI (sharded `@smoke` gate, nightly) (35 files, ~15.2k lines) | draft PR #1601 into B0, CI running |
 | B1b | Smoke: Manager specs | not started |
 | B1c | Smoke gaps, written on main (see below) | not started |
 | B2 | CCIP rest. `e2e/offchain-main` is merged into this branch. Fold in what's left on `e2e/offchain-ccip` (8 orphaned) and `e2e/offchain-1577` (3 orphaned) first | not started |
@@ -120,6 +110,9 @@ When one is written, replace its `gap` entry in `landing/batches.ts` with `spec`
 - **2026-10-28**: Main (#1585) now has Greptile block merges on `high` rules, and several of them cover `e2e/**`: `no-any`, `no-non-null-assertion`, `no-new-suppressions`, `no-weakened-tests`, `removed-guard`. B0's added lines had 5 `any`, 2 `!` and 1 unexplained cast. All are fixed without changing behaviour (a typed Playwright report in `reconcile.ts`, `Reflect.get`, a single map lookup, and a reason on the cast), on both B0 and this branch. **For every batch**: grep the added lines for these before opening the PR.
 - **2026-10-28**: The user took the coverage ledger (`e2e/coverage/**`) and the planning and handoff docs out of B0, to stay on this branch for now. They became batch B10. B0's commit was amended and force-pushed so main's history never carries them. `matrix/{ids,scenarios}.ts` went with them (they only feed the ledger), and the matrix runner files moved to B7. This also settled the one-PR-vs-split question.
 - **2026-10-28**: The user chose to reword B0's comments rather than ship links to B10's docs. B0 amended and force-pushed as `05cee518c`.
+- **2026-10-28**: B1 is split as planned: B1a → B0 (#1601), B1b → B1a, so both reach B0 as the user asked while staying reviewable (~15k and ~10k lines).
+- **2026-10-28**: B1a builds `e2e.yml` from main's file (Node 24 pin, path filter, sharding) rather than the branch's, and drops the branch's coverage/matrix-check steps (B10/B7 not landed). `e2e-land/**` is a PR base so stacked PRs get e2e CI; drop it after the landing.
+- **2026-10-28**: Cross-app `@smoke` tests skip unless bigname is real, so the per-PR gate has no cross-app job; nightly runs cross-app (two of its specs work with mocked bigname).
 
 ## Worktree triage (2026-10-28)
 
