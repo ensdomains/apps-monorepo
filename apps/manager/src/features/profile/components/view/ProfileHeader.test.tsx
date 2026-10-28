@@ -54,11 +54,12 @@ describe('ProfileHeader', () => {
     })
     vi.stubGlobal(
       'ResizeObserver',
-      class {
+      class implements ResizeObserver {
         constructor(callback: ResizeObserverCallback) {
-          notifiers.push(() => callback([], this as unknown as ResizeObserver))
+          notifiers.push(() => callback([], this))
         }
         observe() {}
+        unobserve() {}
         disconnect() {}
       },
     )
