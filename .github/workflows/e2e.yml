@@ -209,6 +209,12 @@ jobs:
             ANVIL_TIMEOUT=60
           fi
 
+          # Fork the same pinned block as local runs (e2e/infra/fork-block), so
+          # CI tests the chain the specs were written against, not whatever
+          # Sepolia holds today.
+          export SEPOLIA_FORK_BLOCK=$(tr -d '[:space:]' < e2e/infra/fork-block)
+          echo "Anvil fork block: $SEPOLIA_FORK_BLOCK"
+
           # The apps' bigname reads are mocked (E2E_MOCK_BIGNAME=true in e2e/.env.ci).
           SERVICES="anvil alto paymaster"
 
