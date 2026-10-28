@@ -6,6 +6,7 @@ import {
   useParams,
 } from '@tanstack/react-router'
 import { MobileHeader } from '@/components/MobileHeader'
+import { NonNormalizedNameWarning } from '@/components/NonNormalizedNameWarning'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageContainer } from '@/components/PageContainer'
 import { ProfileSidebar } from '@/components/ProfileSidebar'
@@ -25,8 +26,12 @@ export const Route = createFileRoute('/$name')({
   beforeLoad: async ({ params }) => {
     const { name } = params
 
+    // A non-normalised spelling would be read as its normalised twin, a
+    // different token. The page shows a warning instead, so skip the lookups.
+    if (!isValidEnsName(name)) return {}
+
     // Redirect valid TLDs to the dedicated /tld/$tld route
-    if (isValidEnsName(name) && isTLD(name)) {
+    if (isTLD(name)) {
       const shouldRedirect =
         name === 'eth' || (await getDnsSecEnabled(name)) === true
       if (shouldRedirect) {
@@ -43,8 +48,10 @@ export const Route = createFileRoute('/$name')({
         | undefined,
     }
   },
-  loader: ({ params }) =>
-    Promise.all([
+  loader: ({ params }) => {
+    if (!isValidEnsName(params.name)) return
+
+    return Promise.all([
       queryClient.prefetchQuery(
         getNameRegistriesQueryOptions({ name: params.name }),
       ),
@@ -55,19 +62,22 @@ export const Route = createFileRoute('/$name')({
             ),
           ]
         : []),
-    ]),
+    ])
+  },
 })
 
 function RouteComponent() {
   const { name } = useParams({ from: '/$name' })
   useRememberName(name)
+  const isValidName = isValidEnsName(name)
+
   return (
     <SidebarProvider>
-      <ProfileSidebar name={name} />
+      <ProfileSidebar name={name} isDisabled={!isValidName} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
         <PageContainer>
-          <Outlet />
+          {isValidName ? <Outlet /> : <NonNormalizedNameWarning name={name} />}
         </PageContainer>
       </SidebarInset>
     </SidebarProvider>

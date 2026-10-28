@@ -147,13 +147,24 @@ const getItems = (name: string, protocolVersion?: ProtocolVersion) => [
 
 interface ProfileSidebarProps {
   name: string
+  /**
+   * The URL spelling is not an ENS name, so its pages are disabled — see
+   * {@link NonNormalizedNameWarning}.
+   */
+  readonly isDisabled?: boolean
 }
 
-export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
-  const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
+export const ProfileSidebar = ({
+  name,
+  isDisabled = false,
+}: ProfileSidebarProps) => {
+  const { data: ownerData } = useQuery({
+    ...getEnsOwnerQueryOptions({ name }),
+    enabled: !isDisabled,
+  })
   const { data: availability } = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
-    enabled: isRegistrable(name),
+    enabled: !isDisabled && isRegistrable(name),
   })
   const protocolVersion = ownerData?.protocolVersion
   const items = getItems(name, protocolVersion)
@@ -189,13 +200,13 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
           </Link>
         </div>
 
-        {!availability?.isAvailable && (
+        {(isDisabled || !availability?.isAvailable) && (
           <SidebarGroup className="px-6 py-0 group-data-[collapsible=icon]:px-2">
             <SidebarGroupContent>
               <SidebarMenu className="gap-3">
                 {items.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    {item.disabled || item.upcoming ? (
+                    {isDisabled || item.disabled || item.upcoming ? (
                       <SidebarMenuButton
                         disabled
                         className="opacity-50 cursor-not-allowed"

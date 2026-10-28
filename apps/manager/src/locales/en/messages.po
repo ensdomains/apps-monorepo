@@ -402,8 +402,8 @@ msgid "Allow your smart account to configure your upgraded names and their subna
 msgstr "Allow your smart account to configure your upgraded names and their subnames. No managers are being added in this upgrade."
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
-msgstr "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in one signature. The first time, you also approve USDC on {chainName}."
+msgid "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, with no separate approval transaction."
+msgstr "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, with no separate approval transaction."
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
@@ -1977,10 +1977,6 @@ msgstr "No thanks"
 msgid "No upgrade access to remove"
 msgstr "No upgrade access to remove"
 
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Not enough ETH for approval"
-msgstr "Not enough ETH for approval"
-
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
 msgstr "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
@@ -2129,10 +2125,6 @@ msgstr "Pay with stablecoins"
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 msgid "Paying from {chainName} isn't available right now."
 msgstr "Paying from {chainName} isn't available right now."
-
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Paying from {chainName} the first time needs a little ETH there to approve USDC."
-msgstr "Paying from {chainName} the first time needs a little ETH there to approve USDC."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Paying from {l2ChainName}"

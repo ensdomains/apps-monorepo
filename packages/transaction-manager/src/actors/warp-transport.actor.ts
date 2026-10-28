@@ -15,7 +15,6 @@
 import {
   findGasRefundViolations,
   L2BridgeUnconfirmedError,
-  l2BridgeMaxFee,
   quoteL2Bridge,
   readQuotedGasRefunds,
   submitL2Bridge,
@@ -174,11 +173,6 @@ function submitL2FundedIntent(
   }
 
   return ResultFn(async function* () {
-    // Approve first: an approval can outlast a two-minute quote.
-    yield* fromPromise(
-      source.ensureAllowance(amountOut + l2BridgeMaxFee(amountOut)),
-      notSent('approve USDC for Permit2'),
-    )
     const wallet = yield* source
       .getAccount()
       .mapErr(notSent('reach the wallet'))
