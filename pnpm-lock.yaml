@@ -253,7 +253,7 @@ overrides:
   '@walletconnect/ethereum-provider': 2.21.8
 
 patchedDependencies:
-  '@rhinestone/sdk@1.22.0': 08466d391063020f98ba2e8a58c8c0b3fb53a0213d43a8e9bc574933cb7027ab
+  '@rhinestone/sdk@1.22.0': 012055188c0a748b8ad640f958a1d6f258040d3fc730539dc988de79e3396a9d
   class-variance-authority: ebe86d2b48ded23f6f7fdaac2701d1f2732a1a01bd27776367d7420a325783fd
   posthog-js@1.404.1: 4dd74f3f89898cb5d2ede434c6bb7f433ff3174d959dae30ecf8ab70ff98e3ee
   xstate: e93cf3ef96ce4349c3662071e9d49d95ca4d654a3d2cb90112d8abe588a5db38
@@ -384,7 +384,7 @@ importers:
         version: 1.4.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.22.0(patch_hash=08466d391063020f98ba2e8a58c8c0b3fb53a0213d43a8e9bc574933cb7027ab)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 1.22.0(patch_hash=012055188c0a748b8ad640f958a1d6f258040d3fc730539dc988de79e3396a9d)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
@@ -1134,7 +1134,7 @@ importers:
         version: 5.0.5
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.22.0(patch_hash=08466d391063020f98ba2e8a58c8c0b3fb53a0213d43a8e9bc574933cb7027ab)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 1.22.0(patch_hash=012055188c0a748b8ad640f958a1d6f258040d3fc730539dc988de79e3396a9d)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
@@ -1174,7 +1174,7 @@ importers:
         version: 5.0.5
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.22.0(patch_hash=08466d391063020f98ba2e8a58c8c0b3fb53a0213d43a8e9bc574933cb7027ab)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 1.22.0(patch_hash=012055188c0a748b8ad640f958a1d6f258040d3fc730539dc988de79e3396a9d)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       idb:
         specifier: ^8.0.4
         version: 8.0.4
@@ -10895,7 +10895,7 @@ snapshots:
 
   '@resvg/resvg-wasm@2.4.0': {}
 
-  '@rhinestone/sdk@1.22.0(patch_hash=08466d391063020f98ba2e8a58c8c0b3fb53a0213d43a8e9bc574933cb7027ab)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
+  '@rhinestone/sdk@1.22.0(patch_hash=012055188c0a748b8ad640f958a1d6f258040d3fc730539dc988de79e3396a9d)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
     dependencies:
       '@rhinestone/shared-configs': 2.16.0(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       solady: 0.1.26
