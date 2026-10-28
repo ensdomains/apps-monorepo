@@ -2,7 +2,10 @@ import { Trans } from '@lingui/react/macro'
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import { useMutation } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store-react'
+import { useState } from 'react'
+import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
+import { EnsMobileIcon } from '@/assets/icons/ens-mobile-icon'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
@@ -16,6 +19,7 @@ export const BackendAuthModal = () => {
     (state) => !state.context.authKey && state.context.modalDismissed === false,
   )
   const signIn = useMutation(signInBackendMutation)
+  const [isConfirmingSkip, setIsConfirmingSkip] = useState(false)
 
   const { isConnected: isWalletConnected } = useConnection()
   const { disconnect, isDisconnecting } = useWalletDisconnect()
@@ -58,102 +62,123 @@ export const BackendAuthModal = () => {
   return (
     <AlertDialog.Root open={shouldShowModal}>
       <AlertDialog.Content
+        className="gap-6 border-ens-gray-two p-6 sm:max-w-sm sm:p-8"
         onEscapeKeyDown={(event) => {
           event.preventDefault()
         }}
       >
-        <AlertDialog.Header>
-          <AlertDialog.Title>
-            <Trans>Verify your wallet</Trans>
-          </AlertDialog.Title>
-          <AlertDialog.Description>
-            <Trans>
-              Sign in with your wallet to enable backend features, including
-              notifications about your ENS domains, transfers, expiry reminders,
-              and important updates.
-            </Trans>
-          </AlertDialog.Description>
-        </AlertDialog.Header>
-        <div className="space-y-4">
-          <Button
-            className="w-full"
-            disabled={signIn.isPending || isDisconnecting || !walletClient}
-            onClick={handleSignIn}
-            size="lg"
-          >
-            {signIn.isPending ? (
-              <Trans>Signing in...</Trans>
-            ) : (
-              <Trans>Sign in with Wallet</Trans>
-            )}
-          </Button>
-          <Button
-            className="w-full"
-            disabled={signIn.isPending || isDisconnecting}
-            onClick={() => void disconnect()}
-            size="lg"
-            variant="outline"
-          >
-            {isDisconnecting ? (
-              <Trans>Disconnecting...</Trans>
-            ) : (
-              <Trans>Disconnect</Trans>
-            )}
-          </Button>
+        {isConfirmingSkip ? (
+          <>
+            <AlertDialog.Header className="items-center gap-0 text-center sm:text-center">
+              <AlertDialog.Title className="font-medium text-ens-blue-midnight text-xl tracking-tight">
+                <Trans>Continue without signing in?</Trans>
+              </AlertDialog.Title>
+              <AlertDialog.Description className="mt-4 self-stretch text-pretty text-left text-ens-gray text-xs leading-normal">
+                <Trans>
+                  Signing in is the recommended way to use the ENS App. It
+                  enables notifications for transfers and expirations, and saved
+                  items like favorites and searches.
+                </Trans>
+              </AlertDialog.Description>
+            </AlertDialog.Header>
+            <p className="-mt-3 text-pretty text-ens-gray text-xs leading-normal">
+              <Trans>You can sign in anytime from your wallet menu.</Trans>
+            </p>
 
-          {signIn.isError && (
-            <>
-              <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
-                <p className="text-destructive text-sm">
-                  <Trans>Failed to sign in. Please try again.</Trans>
-                </p>
-              </div>
-              <div className="rounded-lg border border-ens-lapis-dust/50 bg-ens-lapis-dust/20 p-4">
-                <p className="font-medium text-sm">
-                  <Trans>Continue without signing in?</Trans>
-                </p>
-                <p className="mt-1 text-muted-foreground text-sm">
-                  <Trans>
-                    You can still use the manager, but these features won't be
-                    available:
-                  </Trans>
-                </p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground text-sm">
-                  <li>
-                    <Trans>Domain transfer and expiry notifications</Trans>
-                  </li>
-                  <li>
-                    <Trans>Saved favorites and searches</Trans>
-                  </li>
-                </ul>
-                <p className="mt-3 text-muted-foreground text-xs">
-                  <Trans>
-                    To enable these features later, open your wallet menu and
-                    select Verify wallet ownership.
-                  </Trans>
-                </p>
-              </div>
+            <AlertDialog.Footer className="flex-row sm:justify-stretch">
               <Button
-                className="w-full"
-                onClick={() => backendAuthStore.trigger.dismissModal()}
+                className="min-w-0 flex-1 uppercase tracking-wider"
+                onClick={() => {
+                  // Reset so reopening from the wallet menu starts at sign-in
+                  setIsConfirmingSkip(false)
+                  backendAuthStore.trigger.dismissModal()
+                }}
                 size="lg"
                 variant="outline"
               >
-                <Trans>Continue without signing in</Trans>
+                <Trans>Continue</Trans>
               </Button>
-            </>
-          )}
-          {!walletClient && !isDisconnecting && (
-            <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
-              <p className="text-destructive text-sm">
+              <Button
+                className="min-w-0 flex-1 bg-ens-blue uppercase tracking-wider hover:bg-ens-blue-hover"
+                disabled={!walletClient}
+                onClick={() => {
+                  setIsConfirmingSkip(false)
+                  void handleSignIn()
+                }}
+                size="lg"
+              >
+                <Trans>Sign in</Trans>
+              </Button>
+            </AlertDialog.Footer>
+          </>
+        ) : (
+          <>
+            <AlertDialog.Header className="items-center gap-0 text-center sm:text-center">
+              <div className="mb-5 flex size-14 items-center justify-center rounded-md bg-ens-blue text-white shadow-[0_8px_24px_rgba(0,128,188,0.28)]">
+                <EnsMobileIcon className="h-8 w-7" />
+              </div>
+              <AlertDialog.Title className="font-medium text-ens-blue-midnight text-xl tracking-tight">
+                <Trans>Authenticate to continue</Trans>
+              </AlertDialog.Title>
+              <AlertDialog.Description className="mt-2 text-pretty text-ens-gray text-sm leading-normal">
+                <Trans>Please sign in with your connected wallet.</Trans>
+              </AlertDialog.Description>
+            </AlertDialog.Header>
+
+            {signIn.isError && (
+              <p className="-mt-2 text-center text-destructive text-sm">
+                <Trans>Signing didn't go through. Please try again.</Trans>
+              </p>
+            )}
+            {!walletClient && !isDisconnecting && (
+              <p className="-mt-2 text-center text-destructive text-sm">
                 <Trans>
                   Wallet client missing, please reconnect your wallet and try
                   again.
                 </Trans>
               </p>
-            </div>
-          )}
-        </div>
+            )}
+
+            <AlertDialog.Footer className="flex-row sm:justify-stretch">
+              <Button
+                className="min-w-0 flex-1 uppercase tracking-wider"
+                disabled={signIn.isPending || isDisconnecting}
+                onClick={() => void disconnect()}
+                size="lg"
+                variant="outline"
+              >
+                {isDisconnecting ? (
+                  <Trans>Disconnecting...</Trans>
+                ) : (
+                  <Trans>Disconnect</Trans>
+                )}
+              </Button>
+              <Button
+                className="min-w-0 flex-1 bg-ens-blue uppercase tracking-wider hover:bg-ens-blue-hover"
+                disabled={signIn.isPending || isDisconnecting || !walletClient}
+                onClick={handleSignIn}
+                size="lg"
+              >
+                {match(signIn)
+                  .with({ isPending: true }, () => <Trans>Signing in...</Trans>)
+                  .with({ isError: true }, () => <Trans>Try again</Trans>)
+                  .otherwise(() => (
+                    <Trans>Sign in</Trans>
+                  ))}
+              </Button>
+            </AlertDialog.Footer>
+
+            {signIn.isError && (
+              <Button
+                className="-mt-2 h-auto justify-self-center p-0 font-sans text-ens-gray text-xs underline underline-offset-4 hover:text-ens-blue-midnight"
+                onClick={() => setIsConfirmingSkip(true)}
+                variant="link"
+              >
+                <Trans>Continue without signing in</Trans>
+              </Button>
+            )}
+          </>
+        )}
       </AlertDialog.Content>
     </AlertDialog.Root>
   )
