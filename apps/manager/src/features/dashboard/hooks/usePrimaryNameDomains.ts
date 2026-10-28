@@ -2,6 +2,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { primaryNameForwardAddressQuery } from '@/features/profile/service/primaryNameForwardAddress'
+import { unreachableV1NameQuery } from '@/features/profile/service/primaryNamePreparation'
 import { publicClient } from '@/lib/wagmi'
 import {
   getPrimaryNameCandidates,
@@ -68,7 +69,26 @@ export const usePrimaryNameDomains = ({
   const checkedNames = new Set(
     lookupNames.filter((_, index) => forwardAddresses[index]?.isSuccess),
   )
-  const isCheckingNames = forwardAddresses.some((query) => query.isLoading)
+  // A name with no ETH address may sit under an expired parent; only ENSv1
+  // names can, since their registry keeps entries past expiry.
+  const unreachableChecks = useQueries({
+    queries: lookupNames.map((name, index) => ({
+      ...unreachableV1NameQuery(publicClient as PublicClient, name),
+      enabled:
+        open &&
+        forwardAddresses[index]?.data === null &&
+        allDomains.some(
+          (domain) =>
+            resolveDomainLabel(domain) === name && domain.protocol === 'v1',
+        ),
+    })),
+  })
+  const unreachableNames: ReadonlySet<string> = new Set(
+    lookupNames.filter((_, index) => unreachableChecks[index]?.data === true),
+  )
+  const isCheckingNames = [...forwardAddresses, ...unreachableChecks].some(
+    (query) => query.isLoading,
+  )
   const hasForwardAddressError = forwardAddresses.some((query) => query.isError)
 
   return {
@@ -76,8 +96,11 @@ export const usePrimaryNameDomains = ({
     domains: pagination.domains.filter((domain) =>
       checkedNames.has(resolveDomainLabel(domain)),
     ),
+    unreachableNames,
     isSelectedNameOffered:
-      ownsSelectedName && checkedNames.has(selectedName ?? ''),
+      ownsSelectedName &&
+      checkedNames.has(selectedName ?? '') &&
+      !unreachableNames.has(selectedName ?? ''),
     selectedProtocol: selectedDomain?.protocol ?? null,
     isLoading: isLoading || isCheckingNames,
     hasForwardAddressError: hasDomainsError || hasForwardAddressError,

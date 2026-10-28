@@ -1,9 +1,12 @@
+import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { queryOptions } from '@tanstack/react-query'
 import {
   type Address,
   isAddressEqual,
   type PublicClient,
   zeroAddress,
 } from 'viem'
+import { getEnsResolver } from 'viem/actions'
 import {
   getPrimaryNameForwardAddress,
   hasPrimaryNameForwardAddress,
@@ -36,6 +39,26 @@ export const hasV1RegistryResolver = async (
   name: string,
 ): Promise<boolean> =>
   (await readV1RegistryResolver(publicClient, name)) !== undefined
+
+/** An ENSv1 name with a resolver that resolution cannot reach, so it can't be a primary name. */
+export const isUnreachableV1Name = async (
+  publicClient: PublicClient,
+  name: string,
+): Promise<boolean> =>
+  isAddressEqual(await getEnsResolver(publicClient, { name }), zeroAddress) &&
+  (await hasV1RegistryResolver(publicClient, name))
+
+export const unreachableV1NameQuery = (
+  publicClient: PublicClient,
+  name: string,
+) =>
+  queryOptions({
+    queryKey: qk('profile', 'unreachable_v1_name', {
+      name,
+      chainId: publicClient.chain?.id,
+    }),
+    queryFn: () => isUnreachableV1Name(publicClient, name),
+  })
 
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
 export async function getPrimaryNamePreparation(

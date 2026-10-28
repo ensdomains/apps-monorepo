@@ -1933,6 +1933,10 @@ msgstr ""
 msgid "No favorites to display"
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "No longer resolves, usually because its parent name has expired"
+msgstr ""
+
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
 msgid "No matches"
 msgstr ""
