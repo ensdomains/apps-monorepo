@@ -1,6 +1,6 @@
 import type { Config as WagmiConfig } from '@wagmi/core'
 import { err, ok, type Result } from 'neverthrow'
-import type { Address, PublicClient } from 'viem'
+import { type Address, labelhash, type PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   OWNER as EOA,
@@ -13,6 +13,7 @@ import { ProfileFetchError } from './fetchV1Profiles'
 import {
   checkMigrationApprovals,
   type MigrationApprovalStatus,
+  type MigrationRegistrationApprovalPolicy,
 } from './migrationApprovals'
 import {
   assertNoLiveSubregistryOverwrite,
@@ -80,6 +81,8 @@ const run = (
     hcaAddress?: Address
     hcaApprovals?: MigrationApprovalStatus
     requiresManagerRestoration?: boolean
+    domains?: readonly Parameters<typeof makeDomain>[0][]
+    registrationApprovalPolicy?: MigrationRegistrationApprovalPolicy
   } = {},
 ) => {
   if (opts.hcaAddress) {
@@ -98,7 +101,10 @@ const run = (
   return computeMigrationPreflight({
     eoa: EOA,
     hcaAddress: opts.hcaAddress,
-    domains: [makeDomain({ resolverAddress: RESOLVER, ...opts.domain })],
+    domains: (opts.domains ?? [opts.domain]).map((domain) =>
+      makeDomain({ resolverAddress: RESOLVER, ...domain }),
+    ),
+    registrationApprovalPolicy: opts.registrationApprovalPolicy,
     requiresManagerRestoration: opts.requiresManagerRestoration,
     wagmiConfig: {} as WagmiConfig,
     publicClient: {} as PublicClient,
@@ -119,6 +125,36 @@ beforeEach(() => {
 })
 
 describe('computeMigrationPreflight — HCA approvals', () => {
+  it.each([false, true])(
+    'budgets cleanup only for a bulk permission introduced by this flow (already approved: %s)',
+    async (alreadyApproved) => {
+      const result = await run({
+        domains: ['alice', 'bob', 'carol'].map((label) => ({
+          name: `${label}.eth`,
+          labelName: label,
+          labelhash: labelhash(label),
+          isWrapped: false,
+        })),
+        hcaAddress: HCA,
+        registrationApprovalPolicy: 'minimize-requests',
+        hcaApprovals: {
+          ...ALL_HCA_APPROVED,
+          baseRegistrarHcaApproved: alreadyApproved,
+          ethRegistryHcaApproved: false,
+        },
+      })
+      expect(result.registrationApprovalStrategy).toBe(
+        alreadyApproved ? 'per-token' : 'temporary-operator',
+      )
+      expect(result.migrationApprovals?.map(({ id }) => id)).toEqual(
+        alreadyApproved ? [] : ['base-registrar:hca'],
+      )
+      expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual(
+        alreadyApproved ? [] : ['base-registrar:hca'],
+      )
+    },
+  )
+
   it('plans a token approval and manager approval when the owner opted a name in', async () => {
     const result = await run({
       domain: {

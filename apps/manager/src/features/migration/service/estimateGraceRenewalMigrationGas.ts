@@ -141,6 +141,9 @@ const estimateProjectedMigration = async (
     hcaAddress,
     domains,
     requiresManagerRestoration: managerRestorationNames.length > 0,
+    registrationApprovalPolicy: params.canBatchAtomically
+      ? 'per-token'
+      : 'minimize-requests',
     publicClient,
     wagmiConfig,
     signal,

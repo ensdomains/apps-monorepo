@@ -52,6 +52,26 @@ beforeEach(() => {
 })
 
 describe('useMigrationPreflight', () => {
+  it('does not reuse token-scoped preflight for a request-minimizing plan', async () => {
+    computeMigrationPreflightMock.mockResolvedValue({
+      skipFetchProfilesPhase: false,
+    })
+    const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
+      wrapper,
+    })
+    const domains = [domain('alice'), domain('bob'), domain('carol')]
+    await result.current.ensure(domains)
+    await result.current.ensure(domains, {
+      registrationApprovalPolicy: 'minimize-requests',
+    })
+    expect(computeMigrationPreflightMock).toHaveBeenCalledTimes(2)
+    expect(computeMigrationPreflightMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        registrationApprovalPolicy: 'minimize-requests',
+      }),
+    )
+  })
+
   it('returns EMPTY_PREFLIGHT without calling computeMigrationPreflight when eoa is undefined', async () => {
     const { result } = renderHook(
       () => useMigrationPreflight({ eoa: undefined }),

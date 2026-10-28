@@ -190,7 +190,10 @@ export const buildStepDescriptors = (
     })
   }
 
-  for (const approval of params.cleanupApprovals ?? params.approvals) {
+  const cleanupApprovals =
+    params.cleanupApprovals ??
+    params.approvals.filter(({ id }) => id === 'eth-registry:hca')
+  for (const approval of cleanupApprovals) {
     if (!requiresMigrationApprovalCleanup(approval)) continue
     descriptors.push({ type: 'cleanup', approvalId: approval.id })
   }

@@ -539,6 +539,32 @@ describe('SelectNamesStep', () => {
     })
   })
 
+  it('reviews earlier permission cleanup without claiming the remaining names are upgraded', async () => {
+    eligibilityState.recoveryStatus = 'recovering'
+    const onNext = vi.fn(async () => false)
+    const { getByRole, getByText, queryByText } = renderStep({
+      gasEstimate: {
+        ...readyGasEstimate,
+        plan: {
+          ...readyGasEstimate.plan,
+          requiresFreshPreviewAfterCleanup: true,
+        },
+      },
+      onNext,
+    })
+    expect(queryByText(/Your names have been upgraded/)).not.toBeInTheDocument()
+    expect(
+      getByText(
+        /Remove the earlier migration permission before reviewing your updated upgrade/,
+      ),
+    ).toBeInTheDocument()
+    expect(getByRole('button', { name: '1 request' })).toBeInTheDocument()
+    const button = getByRole('button', { name: 'Remove earlier permission' })
+    expect(button).not.toBeDisabled()
+    fireEvent.click(button)
+    await waitFor(() => expect(onNext).toHaveBeenCalledOnce())
+  })
+
   it('warns instead of quoting a fee when the wallet is short of gas', () => {
     const { getByText, queryByText } = renderStep({
       gasEstimate: readyGasEstimate,

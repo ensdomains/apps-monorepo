@@ -1,7 +1,11 @@
 import type { V1Domain } from '@ens-apps/migration'
 import { type Address, type Hex, isAddress } from 'viem'
 import type { Profile } from './fetchV1Profiles'
-import type { MigrationApprovalId } from './migrationApprovals'
+import type {
+  MigrationApprovalId,
+  MigrationApprovalReview,
+  MigrationRegistrationApprovalStrategy,
+} from './migrationApprovals'
 import type { SubnameRecreationSnapshot } from './subnameRecreation'
 
 const JOURNAL_VERSION = 1 as const
@@ -92,6 +96,7 @@ export type MigrationJournalOperation = {
 }
 
 export type SubmittedAtomicMigrationBatch = {
+  readonly migrationHelper?: Address
   readonly intentId: string
   readonly hash: Hex
   readonly names: readonly string[]
@@ -110,6 +115,9 @@ export type PendingAtomicMigrationIntent = {
  * are regenerated from this validated source data and the pinned manifest.
  */
 export type MigrationRecoverySnapshot = {
+  readonly registrationApprovalStrategy?: MigrationRegistrationApprovalStrategy
+  readonly registrationApprovalReview?: MigrationApprovalReview
+  readonly temporaryRegistrationApproval?: TemporaryRegistrationApproval
   readonly subnameRecreation?: SubnameRecreationSnapshot
   readonly registryDomains: readonly V1Domain[]
   readonly registryOperations: readonly MigrationJournalOperation[]
@@ -124,6 +132,24 @@ export type MigrationRecoverySnapshot = {
    * field is absent (a snapshot written before this existed), nothing.
    */
   readonly managerRestorationNames: readonly string[]
+}
+
+export type TemporaryRegistrationApproval = {
+  readonly contractAddress: Address
+  readonly operatorAddress: Address
+  readonly state:
+    | { readonly status: 'granted'; readonly hash: Hex }
+    | {
+        readonly status: 'grant-pending'
+        readonly transactionId: string
+        readonly hash?: Hex
+      }
+    | {
+        readonly status: 'revoke-pending'
+        readonly transactionId: string
+        readonly hash?: Hex
+        readonly grantHash: Hex
+      }
 }
 
 type MigrationRecoveryApproval = {
@@ -346,6 +372,86 @@ const parseManagerRestorationNames = (value: unknown): string[] | null => {
   return value
 }
 
+const parseApprovalReview = (
+  value: unknown,
+): MigrationApprovalReview | null => {
+  if (
+    !isRecord(value) ||
+    typeof value.chainId !== 'number' ||
+    !Number.isSafeInteger(value.chainId) ||
+    value.chainId <= 0 ||
+    typeof value.owner !== 'string' ||
+    !isAddress(value.owner) ||
+    typeof value.contractAddress !== 'string' ||
+    !isAddress(value.contractAddress) ||
+    typeof value.operatorAddress !== 'string' ||
+    !isAddress(value.operatorAddress) ||
+    !Array.isArray(value.names) ||
+    value.names.length === 0 ||
+    !value.names.every((name): name is string => typeof name === 'string') ||
+    new Set(value.names).size !== value.names.length
+  )
+    return null
+  return {
+    chainId: value.chainId,
+    owner: value.owner,
+    contractAddress: value.contractAddress,
+    operatorAddress: value.operatorAddress,
+    names: value.names,
+  }
+}
+
+const parseTemporaryRegistrationApproval = (
+  value: unknown,
+): TemporaryRegistrationApproval | null => {
+  if (
+    !isRecord(value) ||
+    typeof value.contractAddress !== 'string' ||
+    !isAddress(value.contractAddress) ||
+    typeof value.operatorAddress !== 'string' ||
+    !isAddress(value.operatorAddress) ||
+    !isRecord(value.state)
+  )
+    return null
+  const { state } = value
+  const addresses = {
+    contractAddress: value.contractAddress,
+    operatorAddress: value.operatorAddress,
+  }
+  if (state.status === 'granted') {
+    return isTransactionHash(state.hash)
+      ? { ...addresses, state: { status: 'granted', hash: state.hash as Hex } }
+      : null
+  }
+  if (
+    (state.status !== 'grant-pending' && state.status !== 'revoke-pending') ||
+    typeof state.transactionId !== 'string' ||
+    state.transactionId.length === 0 ||
+    (state.hash !== undefined && !isTransactionHash(state.hash))
+  )
+    return null
+  if (state.status === 'revoke-pending') {
+    if (!isTransactionHash(state.grantHash)) return null
+    return {
+      ...addresses,
+      state: {
+        status: 'revoke-pending',
+        transactionId: state.transactionId,
+        grantHash: state.grantHash as Hex,
+        ...(state.hash === undefined ? {} : { hash: state.hash as Hex }),
+      },
+    }
+  }
+  return {
+    ...addresses,
+    state: {
+      status: state.status,
+      transactionId: state.transactionId,
+      ...(state.hash === undefined ? {} : { hash: state.hash as Hex }),
+    },
+  }
+}
+
 const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
   if (
     !isRecord(value) ||
@@ -398,6 +504,26 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
     value.managerRestorationNames,
   )
   if (!managerRestorationNames) return null
+  const registrationApprovalStrategy = value.registrationApprovalStrategy
+  if (
+    registrationApprovalStrategy !== undefined &&
+    registrationApprovalStrategy !== 'per-token' &&
+    registrationApprovalStrategy !== 'temporary-operator'
+  )
+    return null
+  const registrationApprovalReview =
+    value.registrationApprovalReview === undefined
+      ? undefined
+      : parseApprovalReview(value.registrationApprovalReview)
+  const temporaryRegistrationApproval =
+    value.temporaryRegistrationApproval === undefined
+      ? undefined
+      : parseTemporaryRegistrationApproval(value.temporaryRegistrationApproval)
+  if (
+    registrationApprovalReview === null ||
+    temporaryRegistrationApproval === null
+  )
+    return null
   const registryDomains = value.registryDomains.map(parseV1Domain)
   const profiles = value.profiles.map(parseStoredProfile)
   if (registryDomains.some((domain) => domain === null)) return null
@@ -463,6 +589,15 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
     return null
   }
   return {
+    ...(registrationApprovalStrategy === undefined
+      ? {}
+      : { registrationApprovalStrategy }),
+    ...(registrationApprovalReview === undefined
+      ? {}
+      : { registrationApprovalReview }),
+    ...(temporaryRegistrationApproval === undefined
+      ? {}
+      : { temporaryRegistrationApproval }),
     registryDomains: registryDomains as V1Domain[],
     ...(recreation
       ? { subnameRecreation: recreation as SubnameRecreationSnapshot }
@@ -499,7 +634,16 @@ const parseSubmission = (
   const names = [...new Set(value.names)]
   const operations = parseOperations(value.operations, names)
   if (!operations) return null
+  if (
+    value.migrationHelper !== undefined &&
+    (typeof value.migrationHelper !== 'string' ||
+      !isAddress(value.migrationHelper))
+  )
+    return null
   return {
+    ...(value.migrationHelper === undefined
+      ? {}
+      : { migrationHelper: value.migrationHelper as Address }),
     intentId: value.intentId,
     hash: value.hash,
     names,
@@ -951,3 +1095,11 @@ export const loadMigrationBatchJournal = (
     recovery: entry?.recovery ? hydrateRecovery(entry.recovery) : null,
   }
 }
+
+export const hasMigrationRecoveryAttempt = (
+  journal: ReturnType<typeof loadMigrationBatchJournal>,
+): boolean =>
+  !!journal.recovery?.temporaryRegistrationApproval ||
+  (journal.recovery?.completedOperations.length ?? 0) > 0 ||
+  journal.pending.length > 0 ||
+  journal.submitted.length > 0

@@ -395,6 +395,10 @@ msgid "Allow registry setup"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Allow the migration contract to move all unwrapped .eth names in this wallet, including names you haven't selected."
+msgstr ""
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Allow the renewal contract to use USDC for your renewals."
 msgstr ""
 
@@ -2056,10 +2060,6 @@ msgstr ""
 msgid "Notifications worked here before, but the permission ended with your last session. When you re-enable, picking the permanent option keeps them working after you close the browser."
 msgstr ""
 
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "One approval covers all the .eth names you selected."
-msgstr ""
-
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "One of your names can't be upgraded right now. Contact support if this keeps happening."
 msgstr ""
@@ -2450,6 +2450,15 @@ msgstr ""
 msgid "Remove access you no longer need. Your wallet will ask you to confirm each change."
 msgstr ""
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Remove approval for unwrapped names"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Remove earlier permission"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Remove Email Contact Method?"
 msgstr ""
@@ -2481,6 +2490,14 @@ msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Remove temporary access"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Remove the earlier migration permission before reviewing your updated upgrade."
+msgstr ""
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Remove the migration contract's permission over your unwrapped .eth names."
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -4196,6 +4213,10 @@ msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
+msgstr ""
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Your upgrade used an earlier deployment. Its transaction record is saved, but this version cannot verify its completion proof. Your names will not be submitted again."
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx

@@ -18,6 +18,8 @@ import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
 import {
+  getMigrationRecoveryAction,
+  type MigrationRecoveryAction,
   shouldShowBulkSelection,
   shouldShowNameSearch,
   shouldUseCompactSelectionLayout,
@@ -130,7 +132,7 @@ const SelectionTitle = ({
   wrapperSyncCount,
   isRecoveryStale,
   isEligibilityError,
-  isFinishingRecovery,
+  recoveryAction,
 }: {
   readonly eligibleCount: number
   readonly graceCount: number
@@ -138,10 +140,13 @@ const SelectionTitle = ({
   readonly wrapperSyncCount: number
   readonly isRecoveryStale: boolean
   readonly isEligibilityError: boolean
-  readonly isFinishingRecovery: boolean
+  readonly recoveryAction: MigrationRecoveryAction | null
 }) => {
   if (isRecoveryStale) return <Trans>Your saved upgrade needs attention</Trans>
-  if (isFinishingRecovery) return <Trans>Finish your upgrade</Trans>
+  if (recoveryAction === 'remove-earlier-permission')
+    return <Trans>Remove earlier permission</Trans>
+  if (recoveryAction === 'finish-upgrade')
+    return <Trans>Finish your upgrade</Trans>
   if (isEligibilityError) return <Trans>We couldn't check your names</Trans>
   if (eligibleCount === 0 && graceCount > 0) {
     return <Trans>Renew your names before upgrading</Trans>
@@ -254,8 +259,10 @@ export const SelectNamesStep = ({
   // migration that fails for lack of gas before the ETH has landed.
   const isWaitingForGasFunding =
     totalSelected > 0 && gasFundingStatus === 'funding'
-  const isFinishingRecovery =
-    isRecovery && preparedPlan !== null && preparedPlan.classified.length === 0
+  const recoveryAction = getMigrationRecoveryAction({
+    isRecovery,
+    plan: preparedPlan,
+  })
   const recreation = preparedPlan?.subnameRecreation
   const hasSubnameCopies =
     preparedPlan?.classified.some(
@@ -267,7 +274,7 @@ export const SelectNamesStep = ({
     selected.has(name.domain.name),
   )
   const isUpgradeDisabled =
-    (totalSelected === 0 && !isFinishingRecovery) ||
+    (totalSelected === 0 && recoveryAction === null) ||
     isPending ||
     isRecoveryStale ||
     isStarting ||
@@ -287,7 +294,7 @@ export const SelectNamesStep = ({
     unavailableNames.length > 0 ||
     isEligibilityError
   const showSelectionOptions =
-    !isFinishingRecovery &&
+    recoveryAction === null &&
     (blockedSubnames.length === 0 ||
       eligible.length > 0 ||
       gracePeriodNames.length > 0 ||
@@ -330,8 +337,8 @@ export const SelectNamesStep = ({
               eligibleCount={eligible.length}
               graceCount={gracePeriodNames.length}
               isEligibilityError={isEligibilityError}
-              isFinishingRecovery={isFinishingRecovery}
               isRecoveryStale={isRecoveryStale}
+              recoveryAction={recoveryAction}
               unavailableCount={
                 unavailableNames.length + blockedSubnames.length
               }
@@ -339,12 +346,19 @@ export const SelectNamesStep = ({
             />
           </h1>
 
-          {isFinishingRecovery && (
+          {recoveryAction && (
             <p className="max-w-160 text-ens-garnet-900/75 text-sm leading-5 md:text-center">
-              <Trans>
-                Your names have been upgraded. Confirm the completed
-                transactions and finish any remaining permission cleanup.
-              </Trans>
+              {recoveryAction === 'remove-earlier-permission' ? (
+                <Trans>
+                  Remove the earlier migration permission before reviewing your
+                  updated upgrade.
+                </Trans>
+              ) : (
+                <Trans>
+                  Your names have been upgraded. Confirm the completed
+                  transactions and finish any remaining permission cleanup.
+                </Trans>
+              )}
             </p>
           )}
 
@@ -470,11 +484,11 @@ export const SelectNamesStep = ({
         gasEstimate={gasEstimate}
         hasUnselectedEligibleNames={hasUnselectedEligibleNames}
         isEstimatingGas={isEstimatingGas}
-        isFinishingRecovery={isFinishingRecovery}
         isStarting={isStarting}
         isUpgradeDisabled={isUpgradeDisabled}
         isWaitingForGasFunding={isWaitingForGasFunding}
         onUpgrade={handleUpgrade}
+        recoveryAction={recoveryAction}
         renewal={renewal}
         renewalGasEstimate={renewalGasEstimate}
         totalSelected={totalSelected}

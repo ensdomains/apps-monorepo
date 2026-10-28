@@ -8,6 +8,7 @@ import {
   EMPTY_PREFLIGHT,
   type MigrationPreflight,
 } from '@/features/migration/service/computeMigrationPreflight'
+import type { MigrationRegistrationApprovalPolicy } from '@/features/migration/service/migrationApprovals'
 
 type HookParams = {
   eoa: Address | undefined
@@ -20,6 +21,7 @@ type EnsureOptions = {
   /** Whether any name was opted in to manager restoration. */
   readonly requiresManagerRestoration?: boolean
   readonly requiresRegistryConfiguration?: boolean
+  readonly registrationApprovalPolicy?: MigrationRegistrationApprovalPolicy
 }
 
 export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
@@ -48,6 +50,8 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
       options.requiresManagerRestoration ?? false
     const requiresRegistryConfiguration =
       options.requiresRegistryConfiguration ?? false
+    const registrationApprovalPolicy =
+      options.registrationApprovalPolicy ?? 'per-token'
     const preflight = await queryClient.fetchQuery({
       queryKey: [
         'migration-preflight',
@@ -56,6 +60,7 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
         ids,
         requiresManagerRestoration,
         requiresRegistryConfiguration,
+        registrationApprovalPolicy,
       ] as const,
       queryFn: () =>
         computeMigrationPreflight({
@@ -64,6 +69,7 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
           domains,
           requiresManagerRestoration,
           requiresRegistryConfiguration,
+          registrationApprovalPolicy,
           wagmiConfig,
           publicClient: publicClient as unknown as PublicClient,
           signal: options.signal,

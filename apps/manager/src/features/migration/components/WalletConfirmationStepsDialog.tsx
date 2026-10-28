@@ -123,7 +123,10 @@ const StepCopy = ({ step }: StepCopyProps) =>
             )}
           </h3>
           <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-            <Trans>One approval covers all the .eth names you selected.</Trans>
+            <Trans>
+              Allow the migration contract to move all unwrapped .eth names in
+              this wallet, including names you haven&apos;t selected.
+            </Trans>
           </p>
         </>
       ),
@@ -205,6 +208,19 @@ const StepCopy = ({ step }: StepCopyProps) =>
           <Trans>
             Your wallet sends this one, because your temporary account no longer
             has permission to update these records.
+          </Trans>
+        </p>
+      </>
+    ))
+    .with({ type: 'cleanup', approvalId: 'base-registrar:hca' }, () => (
+      <>
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
+          <Trans>Remove approval for unwrapped names</Trans>
+        </h3>
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+          <Trans>
+            Remove the migration contract&apos;s permission over your unwrapped
+            .eth names.
           </Trans>
         </p>
       </>

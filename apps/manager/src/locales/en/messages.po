@@ -390,6 +390,10 @@ msgid "Allow registry setup"
 msgstr "Allow registry setup"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Allow the migration contract to move all unwrapped .eth names in this wallet, including names you haven't selected."
+msgstr "Allow the migration contract to move all unwrapped .eth names in this wallet, including names you haven't selected."
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Allow the renewal contract to use USDC for your renewals."
 msgstr "Allow the renewal contract to use USDC for your renewals."
 
@@ -2051,10 +2055,6 @@ msgstr "Notifications couldn't be set up"
 msgid "Notifications worked here before, but the permission ended with your last session. When you re-enable, picking the permanent option keeps them working after you close the browser."
 msgstr "Notifications worked here before, but the permission ended with your last session. When you re-enable, picking the permanent option keeps them working after you close the browser."
 
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "One approval covers all the .eth names you selected."
-msgstr "One approval covers all the .eth names you selected."
-
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "One of your names can't be upgraded right now. Contact support if this keeps happening."
 msgstr "One of your names can't be upgraded right now. Contact support if this keeps happening."
@@ -2445,6 +2445,15 @@ msgstr "Remove access"
 msgid "Remove access you no longer need. Your wallet will ask you to confirm each change."
 msgstr "Remove access you no longer need. Your wallet will ask you to confirm each change."
 
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Remove approval for unwrapped names"
+msgstr "Remove approval for unwrapped names"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Remove earlier permission"
+msgstr "Remove earlier permission"
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Remove Email Contact Method?"
 msgstr "Remove Email Contact Method?"
@@ -2477,6 +2486,14 @@ msgstr "Remove Telegram Contact Method?"
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Remove temporary access"
 msgstr "Remove temporary access"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Remove the earlier migration permission before reviewing your updated upgrade."
+msgstr "Remove the earlier migration permission before reviewing your updated upgrade."
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Remove the migration contract's permission over your unwrapped .eth names."
+msgstr "Remove the migration contract's permission over your unwrapped .eth names."
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Remove the temporary permission after the upgrade."
@@ -4192,6 +4209,10 @@ msgstr "Your subnames are unaffected"
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
 msgstr "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Your upgrade used an earlier deployment. Its transaction record is saved, but this version cannot verify its completion proof. Your names will not be submitted again."
+msgstr "Your upgrade used an earlier deployment. Its transaction record is saved, but this version cannot verify its completion proof. Your names will not be submitted again."
 
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx

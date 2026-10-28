@@ -7,6 +7,13 @@ import {
 } from './decodeMigrationError'
 import { ProfileFetchError } from './fetchV1Profiles'
 
+it('blocks retries while an approval transaction outcome is unknown', () => {
+  const error = Object.assign(new Error('Approval receipt is unknown'), {
+    name: 'MigrationApprovalIndeterminateError',
+  })
+  expect(decodeMigrationError(error)).toEqual({ type: 'retry-blocked' })
+})
+
 const revertWith = (data: Hex) =>
   Object.assign(new Error('reverted'), {
     name: 'ContractFunctionRevertedError',
@@ -70,6 +77,20 @@ describe('extractErrorMessage', () => {
 })
 
 describe('decodeMigrationError — direct mappings', () => {
+  it('preserves an unsupported historical deployment as a non-retryable outcome', () => {
+    const historical = Object.assign(
+      new Error('saved proof uses an earlier deployment'),
+      {
+        name: 'MigrationHistoricalDeploymentError',
+      },
+    )
+    const outer = new Error('migration failed', { cause: historical })
+
+    expect(decodeMigrationError(outer)).toEqual({
+      type: 'historical-deployment',
+    })
+  })
+
   it('maps permission-plan drift to a refreshable error', () => {
     const planChanged = Object.assign(new Error('preview is stale'), {
       name: 'MigrationPlanChangedError',

@@ -16,6 +16,7 @@ import {
 } from '@/features/migration/service/buildMigrationPlan'
 import type { MigrationPreflight } from '@/features/migration/service/computeMigrationPreflight'
 import { estimateMigrationGasCost } from '@/features/migration/service/estimateMigrationGasCost'
+import type { MigrationRegistrationApprovalPolicy } from '@/features/migration/service/migrationApprovals'
 import type { MigrationRecoverySnapshot } from '@/features/migration/service/migrationBatchJournal'
 import {
   type MigrationPreparationFailure,
@@ -105,6 +106,7 @@ const buildEstimate = async (params: {
       readonly staleTime: number
       readonly requiresManagerRestoration: boolean
       readonly requiresRegistryConfiguration: boolean
+      readonly registrationApprovalPolicy: MigrationRegistrationApprovalPolicy
     },
   ) => Promise<MigrationPreflight>
 }) => {
@@ -169,6 +171,9 @@ const buildEstimate = async (params: {
       staleTime: 0,
       requiresManagerRestoration: params.managerRestorationNames.length > 0,
       requiresRegistryConfiguration: false,
+      registrationApprovalPolicy: params.canBatchAtomically
+        ? 'per-token'
+        : 'minimize-requests',
     }),
   )
   params.signal.throwIfAborted()

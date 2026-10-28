@@ -54,7 +54,10 @@ import {
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
-import { invalidateMigrationQueries } from './MigrationPage.helpers'
+import {
+  canRetryMigration,
+  invalidateMigrationQueries,
+} from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
   <motion.div
@@ -131,6 +134,16 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
           <Trans>
             We couldn&apos;t safely retry. A transaction may already be pending
             or confirmed, so check your wallet activity before trying again.
+          </Trans>
+        </div>
+      )
+    case 'historical-deployment':
+      return (
+        <div>
+          <Trans>
+            Your upgrade used an earlier deployment. Its transaction record is
+            saved, but this version cannot verify its completion proof. Your
+            names will not be submitted again.
           </Trans>
         </div>
       )
@@ -236,7 +249,11 @@ const shouldCheckRetryImpact = (
   step: string,
   hasRetryContext: boolean,
   errorType?: MigrationError['type'],
-) => step === 'failure' && hasRetryContext && errorType !== 'cleanup-failed'
+) =>
+  step === 'failure' &&
+  hasRetryContext &&
+  canRetryMigration(errorType) &&
+  errorType !== 'cleanup-failed'
 
 const getImpactRenewalNames = (
   isRetry: boolean,
@@ -589,7 +606,8 @@ export const MigrationPage = () => {
             </p>
             {lastError &&
               lastError.type !== 'cleanup-failed' &&
-              lastError.type !== 'retry-blocked' && (
+              lastError.type !== 'retry-blocked' &&
+              canRetryMigration(lastError.type) && (
                 <p className="text-center text-ens-garnet-900/75 text-sm">
                   <Plural
                     one="Your name is safe."
@@ -622,23 +640,25 @@ export const MigrationPage = () => {
               >
                 <Trans>Back</Trans>
               </button>
-              <MigrationPrimaryButton
-                aria-disabled={confirmation.isChecking}
-                className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-                onClick={() => {
-                  if (confirmation.isChecking) return
-                  if (shouldCheckImpactBeforeRetry)
-                    void confirmation.request('retry')
-                  else uiActor.send({ type: 'retry' })
-                }}
-                type="button"
-              >
-                {lastError?.type === 'cleanup-failed' ? (
-                  <Trans>Retry upgrade and cleanup</Trans>
-                ) : (
-                  <Trans>Try again</Trans>
-                )}
-              </MigrationPrimaryButton>
+              {canRetryMigration(lastError?.type) && (
+                <MigrationPrimaryButton
+                  aria-disabled={confirmation.isChecking}
+                  className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                  onClick={() => {
+                    if (confirmation.isChecking) return
+                    if (shouldCheckImpactBeforeRetry)
+                      void confirmation.request('retry')
+                    else uiActor.send({ type: 'retry' })
+                  }}
+                  type="button"
+                >
+                  {lastError?.type === 'cleanup-failed' ? (
+                    <Trans>Retry upgrade and cleanup</Trans>
+                  ) : (
+                    <Trans>Try again</Trans>
+                  )}
+                </MigrationPrimaryButton>
+              )}
             </motion.div>
           </ResultLayout>
         ))

@@ -8,10 +8,14 @@ import {
   buildMigrationApprovalCall,
   buildMigrationOperatorApprovalRevocationCall,
   checkMigrationApprovals,
+  getMigrationApprovalReview,
   type MigrationApprovalStatus,
+  type MigrationCleanupApproval,
   migrationApprovalForId,
+  orderMigrationCleanupApprovals,
   planMigrationApprovals,
   readActiveMigrationOperatorApprovals,
+  temporaryMigrationHcaApproval,
 } from './migrationApprovals'
 
 vi.mock('@wagmi/core', () => ({
@@ -168,6 +172,67 @@ describe('planMigrationApprovals', () => {
     requiresManagerRestoration: false,
   })
 
+  it.each([1, 2, 3, 4])(
+    'minimizes requests only when %i missing grants save a request',
+    (count) => {
+      const tokenIds = Array.from({ length: count }, (_, index) =>
+        BigInt(index + 1),
+      )
+      const approvals = planMigrationApprovals({
+        hcaAddress: HCA,
+        needs: needsFor(tokenIds),
+        status: statusFor(tokenIds),
+        registrationApprovalPolicy: 'minimize-requests',
+      })
+      expect(approvals).toEqual(
+        count >= 3
+          ? [
+              migrationApprovalForId({
+                id: 'base-registrar:hca',
+                hcaAddress: HCA,
+              }),
+            ]
+          : tokenIds.map((tokenId) =>
+              migrationApprovalForId({
+                id: 'base-registrar:hca-token',
+                hcaAddress: HCA,
+                tokenId,
+              }),
+            ),
+      )
+    },
+  )
+
+  it('does not replace existing global permission with a new grant in bulk mode', () => {
+    expect(
+      planMigrationApprovals({
+        hcaAddress: HCA,
+        needs: needsFor([1n, 2n, 3n]),
+        status: statusFor([1n, 2n, 3n], { baseRegistrarHcaApproved: true }),
+        registrationApprovalPolicy: 'minimize-requests',
+      }),
+    ).toEqual([])
+  })
+
+  it.each([1, 2])(
+    'keeps the reviewed bulk strategy for %i remaining registrations on retry',
+    (count) => {
+      const tokenIds = Array.from({ length: count }, (_, index) =>
+        BigInt(index + 1),
+      )
+      expect(
+        planMigrationApprovals({
+          hcaAddress: HCA,
+          needs: needsFor(tokenIds),
+          status: statusFor(tokenIds),
+          registrationApprovalStrategy: 'temporary-operator',
+        }),
+      ).toEqual([
+        migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress: HCA }),
+      ])
+    },
+  )
+
   it('uses per-token approval for one missing registration', () => {
     const oneTokenPlan = planMigrationApprovals({
       hcaAddress: HCA,
@@ -251,6 +316,55 @@ describe('planMigrationApprovals', () => {
         status: statusFor([], { nameWrapperHcaApproved: true }),
       }).map((approval) => approval.id),
     ).toEqual(['eth-registry:hca'])
+  })
+})
+
+describe('migration approval review', () => {
+  const required = {
+    chainId: 1,
+    owner: EOA,
+    contractAddress: V1_CONTRACTS.BaseRegistrar,
+    operatorAddress: V2_CONTRACTS.MigrationHelper,
+    names: ['alice.eth', 'bob.eth'],
+  }
+
+  it('requires a review only for a new global registration grant', () => {
+    expect(
+      getMigrationApprovalReview({
+        chainId: 1,
+        owner: EOA,
+        names: required.names,
+        approvals: [
+          migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress: HCA }),
+        ],
+      }),
+    ).toEqual(required)
+    expect(
+      getMigrationApprovalReview({
+        chainId: 1,
+        owner: EOA,
+        names: required.names,
+        approvals: [],
+      }),
+    ).toBeNull()
+  })
+})
+
+describe('cleanup order', () => {
+  it('skips inactive permissions and a matching approval id for a different operator', () => {
+    const registration: MigrationCleanupApproval = {
+      kind: 'operator',
+      id: 'base-registrar:hca',
+      contractAddress: V1_CONTRACTS.BaseRegistrar,
+      operatorAddress: V2_CONTRACTS.MigrationHelper,
+    }
+
+    expect(
+      orderMigrationCleanupApprovals({
+        planned: [registration, temporaryMigrationHcaApproval(HCA)],
+        active: [{ ...registration, operatorAddress: OTHER }],
+      }),
+    ).toEqual([])
   })
 })
 

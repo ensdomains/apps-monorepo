@@ -41,6 +41,46 @@ const second = {
 beforeEach(() => vi.stubGlobal('localStorage', new Storage()))
 
 describe('migration batch journal', () => {
+  it('retains temporary registration approval recovery before any migration attempt', () => {
+    const domain = makeDomain({ name: 'alice.eth', labelName: 'alice' })
+    const operation = { name: domain.name, action: 'migrate' as const }
+    const registrationApprovalReview = {
+      chainId: scope.chainId,
+      owner: scope.owner,
+      contractAddress: scope.hca,
+      operatorAddress: scope.owner,
+      names: [domain.name],
+    }
+    const temporaryRegistrationApproval = {
+      contractAddress: scope.hca,
+      operatorAddress: scope.owner,
+      state: {
+        status: 'grant-pending' as const,
+        transactionId: 'registration-approval-1',
+        hash: first.hash,
+      },
+    }
+    persistMigrationRecoverySnapshot(scope, {
+      registryDomains: [domain],
+      registryOperations: [operation],
+      remainingOperations: [operation],
+      completedOperations: [],
+      profiles: new Map(),
+      ownedPermRes: null,
+      plannedApprovals: [{ id: 'base-registrar:hca' }],
+      managerRestorationNames: [],
+      registrationApprovalStrategy: 'temporary-operator',
+      registrationApprovalReview,
+      temporaryRegistrationApproval,
+    })
+
+    expect(loadMigrationRecoverySnapshot(scope)).toMatchObject({
+      registrationApprovalStrategy: 'temporary-operator',
+      registrationApprovalReview,
+      temporaryRegistrationApproval,
+    })
+  })
+
   it('persists an immutable tree, exact records, and remaining copy operations', () => {
     const root = makeDomain({ name: 'alice.eth', labelName: 'alice' })
     const copy = makeDomain({

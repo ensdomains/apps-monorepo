@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { isMigrationQueryKey } from './MigrationPage.helpers'
+import { canRetryMigration, isMigrationQueryKey } from './MigrationPage.helpers'
+
+describe('canRetryMigration', () => {
+  it.each([
+    ['retry-blocked', true],
+    ['historical-deployment', false],
+    ['cleanup-failed', true],
+    ['generic', true],
+  ] as const)('%s allows retry: %s', (errorType, expected) => {
+    expect(canRetryMigration(errorType)).toBe(expected)
+  })
+})
 
 describe('isMigrationQueryKey', () => {
   it.each([
