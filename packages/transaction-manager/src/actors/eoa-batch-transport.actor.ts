@@ -19,6 +19,7 @@ import {
   TransactionSubmissionError,
   TransactionUserRejectedError,
 } from '../errors/transaction.errors'
+import { isUpgradeDeclineError } from '../helpers/wallet-errors.helpers'
 import type { EOASigner } from '../types/signer.types'
 import type {
   EOABatchTransactionRequest,
@@ -135,7 +136,9 @@ export function submitEOABatch(input: {
           forceAtomic: true,
         }),
         (error) => {
-          if (isUserRejectionError(error)) {
+          // Declining the 7702 upgrade (5750) declines the bundle: resending
+          // would only ask again.
+          if (isUserRejectionError(error) || isUpgradeDeclineError(error)) {
             return new TransactionUserRejectedError(request, error)
           }
           logger.error('EOA batch submission failed', error)

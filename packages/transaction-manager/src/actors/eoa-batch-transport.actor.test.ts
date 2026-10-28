@@ -327,6 +327,30 @@ describe('eoa-batch through the transaction machine', () => {
     })
   })
 
+  it('stops without resending when the user declines the account upgrade', async () => {
+    const sendCalls = vi.fn(() => {
+      throw Object.assign(new Error('Upgrade rejected'), { code: 5750 })
+    })
+    const signer: EOASigner = {
+      ...signerWith((method) => {
+        if (method === 'wallet_getCapabilities') return capabilities('ready')
+        if (method === 'wallet_sendCalls') return sendCalls()
+        throw new Error(`unexpected RPC call: ${method}`)
+      }),
+      walletId: 'io.metamask',
+    }
+    const txId = transactionManager.startTransaction(batchRequest(), signer, {
+      id: 'tx-batch-upgrade-declined',
+      publicClient,
+      retryDelay: 1,
+    })
+
+    await expect(waitForTransaction(txId)).rejects.toBeInstanceOf(
+      TransactionUserRejectedError,
+    )
+    expect(sendCalls).toHaveBeenCalledOnce()
+  })
+
   it('times out, keeping the bundle, when a success never brings a receipt', async () => {
     const signer = signerWith((method) => {
       if (method === 'wallet_getCapabilities') return capabilities()
