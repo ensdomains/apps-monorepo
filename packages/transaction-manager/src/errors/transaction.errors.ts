@@ -205,6 +205,7 @@ export function isUserRejectionError(error: unknown): boolean {
   while (current instanceof Error) {
     if (current instanceof TransactionUserRejectedError) return true
     if (current.name === 'UserRejectedRequestError') return true
+    if (current.name === 'AtomicReadyWalletRejectedUpgradeError') return true
     current = current.cause
   }
 
@@ -240,8 +241,8 @@ export class CallsBundleTimeoutError
 }
 
 /**
- * The wallet stopped reporting atomic `supported` between planning a bundle and
- * sending it. Sending anyway could prompt an EIP-7702 upgrade of the EOA.
+ * The wallet no longer provides atomic execution under the request's upgrade
+ * policy. Stop before sending instead of splitting the reviewed bundle.
  */
 export class AtomicBatchUnsupportedError
   extends TransactionError

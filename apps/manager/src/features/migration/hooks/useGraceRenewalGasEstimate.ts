@@ -1,5 +1,4 @@
 import type { V1Domain } from '@ens-apps/migration'
-import { useAtomicBatchSupport } from '@ens-apps/transaction-manager'
 import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useFeatureFlagEnabled } from '@posthog/react'
@@ -7,7 +6,6 @@ import { hashKey, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { useConfig } from 'wagmi'
-import { chain } from '@/config'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import {
   estimateGraceRenewalMigrationGas,
@@ -15,6 +13,7 @@ import {
 } from '../service/estimateGraceRenewalMigrationGas'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
 import type { GraceRenewalQuoteState } from './useGraceRenewalQuote'
+import { useMigrationAtomicBatchSupport } from './useMigrationAtomicBatchSupport'
 import type { MigrationGasEstimateState } from './useMigrationGasEstimate'
 
 export type GraceRenewalGasEstimateState =
@@ -83,7 +82,7 @@ export const useGraceRenewalGasEstimate = ({
   readonly isEnabled: boolean
 }): GraceRenewalGasEstimateState => {
   const wagmiConfig = useConfig()
-  const canBatchAtomically = useAtomicBatchSupport(chain.id)
+  const { canBatchAtomically } = useMigrationAtomicBatchSupport()
   const isSubnameRecreationEnabled =
     useFeatureFlagEnabled(
       POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,

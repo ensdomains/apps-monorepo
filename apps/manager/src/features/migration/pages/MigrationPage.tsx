@@ -1,8 +1,5 @@
 import { classifyNames } from '@ens-apps/migration'
-import {
-  type Signer,
-  useAtomicBatchSupport,
-} from '@ens-apps/transaction-manager'
+import type { Signer } from '@ens-apps/transaction-manager'
 import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
 import { useLingui } from '@lingui/react'
 import { Plural, Trans } from '@lingui/react/macro'
@@ -16,7 +13,6 @@ import type { Address, PublicClient, WalletClient } from 'viem'
 import { useBalance } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { chain } from '@/config'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
@@ -31,6 +27,7 @@ import {
   useGraceRenewalQuote,
   withRenewalAccountReadiness,
 } from '@/features/migration/hooks/useGraceRenewalQuote'
+import { useMigrationAtomicBatchSupport } from '@/features/migration/hooks/useMigrationAtomicBatchSupport'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useMigrationGasFunding } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useSubnameMigrationConfirmation } from '@/features/migration/hooks/useSubnameMigrationConfirmation'
@@ -276,7 +273,8 @@ export const MigrationPage = () => {
     refreshAccount,
     walletClient: wagmiWalletClient,
   } = useSmartAccountContext()
-  const canBatchAtomically = useAtomicBatchSupport(chain.id)
+  const { canBatchAtomically, requiresUpgrade } =
+    useMigrationAtomicBatchSupport()
   const queryClient = useQueryClient()
   const migrationNftEnabled = useMigrationNftEnabled()
   const isMigrationSuccess = step === 'success'
@@ -576,6 +574,7 @@ export const MigrationPage = () => {
             ownerAddress={ownerAddress}
             renewal={renewal}
             renewalGasEstimate={renewalGasEstimate}
+            requiresWalletUpgrade={requiresUpgrade}
           />
         ))
         .with('migrate', () => <GameStep />)

@@ -4223,6 +4223,10 @@ msgstr "Your wallet does not have permission to change the resolver for this nam
 msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
 msgstr "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Your wallet may ask you to enable or update smart account features to combine confirmations. These features stay enabled until you change them in your wallet."
+msgstr "Your wallet may ask you to enable or update smart account features to combine confirmations. These features stay enabled until you change them in your wallet."
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Your wallet sends this one, because your temporary account no longer has permission to update these records."
 msgstr "Your wallet sends this one, because your temporary account no longer has permission to update these records."

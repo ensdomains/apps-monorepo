@@ -28,14 +28,14 @@ import { resolveEOAWalletChain } from './eoa-transport.actor'
 
 /**
  * Whether the connected wallet can execute a `wallet_sendCalls` bundle
- * atomically on `chainId` (EIP-5792 `atomic` capability). Only `supported`
- * counts: `ready` means our send would prompt an EIP-7702 upgrade of the EOA,
- * which the app must never trigger. Any failure means "no", so callers fall
- * back to sequential txs.
+ * atomically on `chainId` (EIP-5792 `atomic` capability). `ready` requires
+ * explicit permission to let the wallet request a smart-account upgrade.
+ * Any failure means "no", so callers can plan sequential transactions.
  */
 export async function getAtomicBatchSupport(params: {
   readonly walletClient: WalletClient
   readonly chainId: number
+  readonly allowUpgrade?: boolean
 }): Promise<boolean> {
   const { walletClient, chainId } = params
   try {
@@ -43,7 +43,11 @@ export async function getAtomicBatchSupport(params: {
       account: walletClient.account,
       chainId,
     })
-    return capabilities.atomic?.status === 'supported'
+    const status = capabilities.atomic?.status
+    return (
+      status === 'supported' ||
+      (params.allowUpgrade === true && status === 'ready')
+    )
   } catch (error) {
     logger.debug('wallet_getCapabilities unavailable', error)
     return false
@@ -84,10 +88,14 @@ export function submitEOABatch(input: {
   if (walletChain.isErr()) return errAsync(walletChain.error)
   const chain = walletChain.value
 
-  // The support the flow was planned on can be stale: a wallet now reporting
-  // `ready` would turn `forceAtomic` into an EIP-7702 upgrade prompt.
+  // Recheck immediately before sending, using the upgrade policy the caller
+  // reviewed when planning this request.
   return ResultAsync.fromSafePromise(
-    getAtomicBatchSupport({ walletClient, chainId: chain.id }),
+    getAtomicBatchSupport({
+      walletClient,
+      chainId: chain.id,
+      allowUpgrade: request.allowUpgrade,
+    }),
   )
     .andThen((isSupported) =>
       isSupported

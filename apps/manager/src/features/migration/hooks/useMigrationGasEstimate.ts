@@ -1,7 +1,6 @@
 // biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: this hook keeps standard preview, durable recovery, account readiness, and query result states in one stable hook order.
 
 import type { V1Domain } from '@ens-apps/migration'
-import { useAtomicBatchSupport } from '@ens-apps/transaction-manager'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -27,6 +26,7 @@ import {
   assertSupportedSubnameMigration,
   discoverSubnameRecreation,
 } from '../service/subnameRecreation'
+import { useMigrationAtomicBatchSupport } from './useMigrationAtomicBatchSupport'
 import { useMigrationPreflight } from './useMigrationPreflight'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
@@ -231,7 +231,7 @@ export const useMigrationGasEstimate = ({
     hcaAddress,
   })
   const recoverySnapshot = useMigrationRecoverySnapshot()
-  const canBatchAtomically = useAtomicBatchSupport(chain.id)
+  const { canBatchAtomically } = useMigrationAtomicBatchSupport()
 
   const selectedNameSet = useMemo(() => new Set(selectedNames), [selectedNames])
   const selectedNamesKey = useMemo(

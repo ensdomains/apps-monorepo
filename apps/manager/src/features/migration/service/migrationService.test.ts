@@ -2798,6 +2798,7 @@ describe('executeMigration with an atomic-batching wallet (EIP-5792)', () => {
     expect(mocks.startTransaction).toHaveBeenCalledTimes(2)
     expect(requestOf(0)).toEqual({
       type: 'eoa-batch',
+      allowUpgrade: true,
       from: OWNER,
       chainId: 11155111,
       calls: [
@@ -2808,6 +2809,7 @@ describe('executeMigration with an atomic-batching wallet (EIP-5792)', () => {
     })
     expect(requestOf(1)).toMatchObject({
       type: 'eoa-batch',
+      allowUpgrade: true,
       calls: [
         { to: HCA, data: OUTER_DATA, value: 0n },
         { to: V2_CONTRACTS.ETHRegistry },

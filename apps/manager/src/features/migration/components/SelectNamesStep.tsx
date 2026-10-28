@@ -114,6 +114,7 @@ const SubnameBlockReason = ({
 type SelectNamesStepProps = {
   readonly ownerAddress?: string | null
   readonly gasEstimate: MigrationGasEstimateState
+  readonly requiresWalletUpgrade?: boolean
   readonly gasAffordability: GasAffordability
   readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onNamesChange: (names: string[]) => void
@@ -158,6 +159,7 @@ const SelectionTitle = ({
 export const SelectNamesStep = ({
   ownerAddress,
   gasEstimate,
+  requiresWalletUpgrade = false,
   gasAffordability,
   gasFundingStatus,
   onNamesChange,
@@ -477,6 +479,7 @@ export const SelectNamesStep = ({
         onUpgrade={handleUpgrade}
         renewal={renewal}
         renewalGasEstimate={renewalGasEstimate}
+        requiresWalletUpgrade={requiresWalletUpgrade}
         totalSelected={totalSelected}
         visibleCount={visibleCount}
       />

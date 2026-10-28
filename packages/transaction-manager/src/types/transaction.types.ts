@@ -143,6 +143,8 @@ export interface EOABatchTransactionRequest extends BaseTransactionRequest {
   type: 'eoa-batch'
   /** Executed in order from `from`. Must be non-empty. */
   readonly calls: readonly Call[]
+  /** Allow the wallet to request a smart-account upgrade when atomic is `ready`. */
+  readonly allowUpgrade?: boolean
 }
 
 export type TransactionRequest =

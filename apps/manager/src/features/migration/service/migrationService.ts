@@ -449,6 +449,7 @@ const submitCalls = (
     ctx,
     {
       type: 'eoa-batch',
+      allowUpgrade: true,
       from: ctx.walletAddress,
       chainId: requireChainId(ctx.publicClient, 'migration'),
       calls,
@@ -2032,6 +2033,7 @@ const assertAtomicBatchingAvailable = async (
     (await getAtomicBatchSupport({
       walletClient: ctx.signer.walletClient,
       chainId: requireChainId(ctx.publicClient, 'migration'),
+      allowUpgrade: true,
     }))
   if (isSupported) return
   throw new MigrationPlanChangedError({
