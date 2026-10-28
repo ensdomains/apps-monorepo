@@ -32,6 +32,12 @@
       "severity": "medium"
     },
     {
+      "id": "complexity-growth",
+      "rule": "When a PR adds to a module that shows signs of outgrowing its structure, suggest the pattern that fits instead of restating size: a decision copied from another file (one pure classifier with a discriminated union), a new optional field or boolean encoding a state (a union variant), a second record of the same status (derive it from one source), another special-case branch in an already branchy function, a new `Date.now()`/storage/client read inside logic (inject it), a new thrown error class steering control flow (typed outcome), or retry/resume handled outside the existing lifecycle (state machine). Don't ask for the restructure in this PR; ask that the PR not deepen it and that the PR body name the design debt. See STYLEGUIDE.md 'Managing Growing Complexity'.",
+      "scope": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "workers/**/*.ts"],
+      "severity": "medium"
+    },
+    {
       "id": "unrelated-changes",
       "rule": "Flag changes unrelated to the PR title and body: refactors, renames, file moves, reformatting, or behaviour changes in code the task did not need to touch. They ship unreviewed behaviour; suggest a separate PR.",
       "scope": ["**/*.ts", "**/*.tsx", "**/*.css"],

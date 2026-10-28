@@ -23,6 +23,18 @@ of globals, storage or the clock.
   change into a pure function and test it there. Only the part you change:
   the rest waits for its own PR.
 
+**Notice when a module outgrows its structure.** Signs: the same decision
+copied across files, states encoded as nullable fields and optional booleans,
+two sources of truth for one status, each change adding another special case,
+hidden `Date.now()`/storage/client reads inside logic, thrown errors steering
+control flow, retry/resume/cancel handled separately. When you see them:
+don't restructure in a fix or feature PR, don't make it worse (pure function,
+reuse the existing predicate, add a union variant instead of a flag), and add
+a "Design notes" section to the PR body naming the signs and the pattern that
+fits. For a large module, propose a plan as a ticket: target design, steps that
+each ship behind the existing tests, and what must not change. See "Managing
+Growing Complexity" in STYLEGUIDE.md for the patterns.
+
 **🔴 Must:** no `any` (use `unknown`), no `!`, no mutation, `bigint` for every
 on-chain value, never mix `Result` with try/catch or unwrap a `Result` by
 throwing, never `useEffect` for data fetching or to chain transactions, never
@@ -39,6 +51,7 @@ unknown }>` per operation, `ResultFn` for multi-step async `Result`s,
 | Touching | Read in STYLEGUIDE.md |
 | --- | --- |
 | Where logic lives, hooks | Core Principles, Business Logic Extraction |
+| A module that keeps growing | Managing Growing Complexity |
 | Components | React Patterns, Component Composition |
 | Errors, `Result` | Error Handling with neverthrow, Advanced neverthrow Patterns |
 | Queries | Data Fetching with TanStack Query |

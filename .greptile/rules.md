@@ -57,7 +57,10 @@ finding. Put regression findings above style findings in the summary.
 - Cognitive complexity / "this function does too much" — enforced by
   Biome's `noExcessiveCognitiveComplexity` (threshold 15). Don't flag
   raw line-count complexity inline; rely on `file-length` only as a
-  structural "look here" signal.
+  structural "look here" signal. `complexity-growth` is different: it
+  names a specific design sign the PR adds to (a copied decision, a
+  state-encoding flag, a second source of truth) and the pattern that
+  fits, never size alone.
 - Structural tripwires (`file-length`, `component-prop-count`,
   `one-component-per-file`) never apply to test files
   (`**/*.test.ts(x)`), mocks (`**/*.mock.ts`, `**/MOCK.ts`), or

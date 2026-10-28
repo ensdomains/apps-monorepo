@@ -37,6 +37,7 @@ function processLargeDataset(data: any) {
 - [React Patterns](#react-patterns)
 - [State Management](#state-management)
 - [Business Logic Extraction](#business-logic-extraction)
+- [Managing Growing Complexity](#managing-growing-complexity)
 - [Error Handling with neverthrow](#error-handling-with-neverthrow)
 - [Data Fetching with TanStack Query](#data-fetching-with-tanstack-query)
 - [Web3 \& Blockchain Patterns](#web3--blockchain-patterns)
@@ -1435,6 +1436,63 @@ export const calculateRenewalPrice = ResultFn(async function* (
   return okAsync(price)
 })
 ```
+
+## Managing Growing Complexity
+
+A feature that started as one file and a few functions rarely stays that way.
+Each fix adds one more flag, branch or special case, and the module slowly
+turns into something nobody can change safely. A senior engineer notices the
+shape changing and moves the code to a structure that fits it. Agents must do
+the same: notice, then propose.
+
+### Signs a module has outgrown its structure (🟡 Default: notice and report)
+
+- **The same decision is made in several places.** A predicate, constant or
+  walk over the same data copied across files, each copy slightly different.
+- **States are encoded as nullable fields and optional booleans.** `undefined`
+  means "not loaded", "not applicable" and "failed" depending on the caller.
+- **More than one source of truth.** Progress, status or "is it done" is
+  tracked in two places that can disagree.
+- **Each change adds another special case** (`if (isX && !isY)`) to a function
+  that already has many.
+- **Hidden inputs.** `Date.now()`, storage, globals or a client read deep
+  inside logic, so the same inputs can give different answers.
+- **Errors used for control flow.** Many thrown error classes, or matching on
+  error messages, to decide what happens next.
+- **A lifecycle spread across functions and flags**: retry, resume, cancel and
+  recovery each handled separately.
+- **Tests need heavy mocking or a long setup** to reach one decision.
+
+File length is only a hint. A long file with one clear job is fine; a short
+file showing several of the signs above is not.
+
+### Patterns that fit, using tools already in the repo
+
+| Sign | Pattern | In this repo |
+| --- | --- | --- |
+| Same decision in several places | One pure classifier that returns a discriminated union; every caller uses it | ts-pattern `match().exhaustive()` |
+| Nullable fields encoding states | Model each state as a union variant carrying only its own data | Discriminated unions (TypeScript Usage) |
+| Several sources of truth | Keep one record (an event list or a log) and derive everything from it with a pure fold | Pure functions over plain data |
+| Lifecycle with retry, resume or cancel | A state machine, with side effects in invoked actors | XState (State Management) |
+| Hidden time, storage or clients | Functional core, imperative shell: pass the clock and clients in, keep IO at the edges | Business Logic Extraction |
+| Errors as control flow | Typed outcomes, matched exhaustively | neverthrow `Result` + `TaggedError` |
+| Plan, then run side effects | Build an immutable plan, check its invariants once, then execute it step by step | Pure planner + XState runner |
+| Outside data shapes leaking in | An adapter at the boundary that converts to the app's own types | One mapping function per source |
+| Logic shared across apps | Move the pure part into a package; dependencies point app → package only | `packages/*` |
+
+### What to do when you see the signs (🟡 Default)
+
+- **Don't restructure inside a fix or feature PR.** That breaks the
+  "keep the diff to the task" rule and hides behaviour changes in a refactor.
+- **Don't make it worse.** Put the new logic in a pure function, reuse an
+  existing predicate instead of copying it, and add a union variant instead of
+  another optional field.
+- **Say what you saw.** Add a short "Design notes" section to the PR body:
+  which signs appeared, where, and which pattern would fit.
+- **For a large module, propose a plan as a ticket**, not code. A good plan
+  states the target design, a list of steps that each ship on their own
+  behind the existing tests, and a "must not change" list of behaviour to
+  keep.
 
 ## Error Handling with neverthrow
 
