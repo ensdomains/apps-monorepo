@@ -134,7 +134,7 @@ pnpm e2e:portal
 pnpm e2e:cross-app
 
 # Infrastructure
-pnpm e2e:infra:up    # Start Anvil + Alto + Paymaster
+pnpm e2e:infra:down && pnpm e2e:infra:up   # Start Anvil + Alto + Paymaster
 pnpm e2e:infra:down  # Stop the stack
 
 # Against a specific app URL
