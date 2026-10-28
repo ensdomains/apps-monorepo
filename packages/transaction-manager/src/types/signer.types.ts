@@ -35,7 +35,7 @@ export interface EOASigner {
    * atomic batch upgrade the EOA through EIP-7702 on wallets whose delegate
    * can own an HCA; see `getAtomicBatchSupport`.
    */
-  walletId?: string
+  readonly walletId?: string
 }
 
 /**
