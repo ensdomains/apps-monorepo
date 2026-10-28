@@ -4,7 +4,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Now
 
-- **Batch**: B0, at step 2 done (local green). It's committed locally as one commit on `e2e-land/b0-infra`, in worktree `/Users/sg/ens/worktrees/e2e-land-b0`, and rebased on `origin/main` at `d9b258e00`. **Not pushed.**
+- **Batch**: B0, step 3 in progress. One commit (`92ea70576`) on `e2e-land/b0-infra`, in worktree `/Users/sg/ens/worktrees/e2e-land-b0`, rebased on `origin/main` at `ae8849020` and **pushed to origin (2026-10-28)**. No PR is open yet. After the rebase: frozen install, typecheck, reconcile and the address gate re-passed.
 - **Local results (2026-10-28)**:
 
   | Check | Result |
@@ -23,12 +23,12 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Next action
 
-1. The user decides: open B0 as one PR (115 files, ~28.7k lines), or split it into B0a (stack, harness, libraries, ~18k) and B0b (reconciler, ledger docs, ~10k, stacked).
-2. On the user's go: push `e2e-land/b0-infra` and open the PR (step 3). The body summarises the batch and has the results table above, with no attribution. Then record `pr:` for B0 in `landing/batches.ts`.
+1. The user decides: open B0 as one PR (115 files, ~28.7k lines), or split it into B0a (stack, harness, libraries, ~18k) and B0b (reconciler, ledger docs, ~10k, stacked). The branch is pushed as one commit.
+2. On the user's go: open the PR from `e2e-land/b0-infra` (step 3). The body summarises the batch and has the results table above, with no attribution. Then record `pr:` for B0 in `landing/batches.ts`.
 
 ## Waiting on
 
-- The user's go-ahead for the B0 PR, and the split decision.
+- The user's go-ahead to open the B0 PR, and the split decision. The branch is already pushed.
 
 - **Security, for the user**: rotate the Mailinator API key, and update the `MAILINATOR_API_KEY` GitHub secret. The raw key is in `e2e/.env` on this branch, which has been pushed to a **public** repo, so dropping the file from main doesn't un-leak it.
 - **Local checkout**: the user's local `e2e-tests-coverage` is behind origin by the sync merge. A fast-forward is blocked by uncommitted WIP in `e2e/package.json`, `pnpm-lock.yaml`, `e2e-coverage.md` and `e2e-defects.md`, and the user decides how to bring it forward.
@@ -81,7 +81,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 | Batch | Scope | Status |
 |---|---|---|
-| B0 | Infra: stack, helpers, fixtures, harness, matrix libs, coverage ledger (115 files, ~28.7k lines) | local-green. Committed on `e2e-land/b0-infra`, not pushed |
+| B0 | Infra: stack, helpers, fixtures, harness, matrix libs, coverage ledger (115 files, ~28.7k lines) | local-green. Pushed as `e2e-land/b0-infra`, no PR yet |
 | B1a | Smoke: Explorer specs + CI (sharded `@smoke` gate, nightly) | not started |
 | B1b | Smoke: Manager specs | not started |
 | B1c | Smoke gaps, written on main (see below) | not started |
