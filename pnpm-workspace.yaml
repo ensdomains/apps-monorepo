@@ -7,7 +7,7 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": ^5.2.8
+  "@ensdomains/ensjs": ^5.2.9
   "@ensdomains/ensjs-abi": ^5.0.5
   xstate: ^5.33.3
   typescript: ^7.0.2
@@ -112,7 +112,7 @@ allowBuilds:
   workerd: false
 
 minimumReleaseAgeExclude:
-  - '@ensdomains/ensjs@5.2.8'
+  - '@ensdomains/ensjs@5.2.9'
   - '@ensdomains/ensjs-abi@5.0.5'
   # Published by v1rtl.eth; new releases ship fixes the portal release depends on.
   - omnipin
