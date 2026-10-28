@@ -118,22 +118,25 @@ describe('a Safe through the transaction machine', () => {
     readonly logs?: readonly ExecutionLog[]
   } = {}) => {
     const getLogs = vi.fn(async () => logs)
+    // Only the carrying transaction has a receipt; a safeTxHash never gets one.
+    const waitForTransactionReceipt = vi.fn(
+      async ({ hash }: { hash: Hash }) => {
+        if (hash !== TX_HASH) throw new Error(`no receipt for ${hash}`)
+        return { status: 'success', transactionHash: hash, blockNumber: 1n }
+      },
+    )
     const publicClient = {
       pollingInterval: 5,
       getCode: async () => code,
       getBlockNumber: async () => 1_000n,
       getLogs,
-      // Only the carrying transaction has a receipt; a safeTxHash never gets one.
-      waitForTransactionReceipt: async ({ hash }: { hash: Hash }) => {
-        if (hash !== TX_HASH) throw new Error(`no receipt for ${hash}`)
-        return { status: 'success', transactionHash: hash, blockNumber: 1n }
-      },
+      waitForTransactionReceipt,
       getTransactionReceipt: async ({ hash }: { hash: Hash }) => {
         throw new TransactionReceiptNotFoundError({ hash })
       },
       // Only the reads the machine makes on these paths; the rest of PublicClient is unused.
     } as unknown as PublicClient
-    return { publicClient, getLogs }
+    return { publicClient, getLogs, waitForTransactionReceipt }
   }
 
   const callRequest: TransactionRequest = {
@@ -199,16 +202,20 @@ describe('a Safe through the transaction machine', () => {
     })
   })
 
-  it('fails as reverted when the Safe execution failed', async () => {
+  it('fails as reverted once the failed execution is confirmed', async () => {
+    const { publicClient, waitForTransactionReceipt } = publicClientWith({
+      logs: [executionLog({ event: EXECUTION_FAILURE })],
+    })
     const txId = transactionManager.startTransaction(callRequest, safeWallet, {
       id: 'tx-safe-call-failed',
-      publicClient: publicClientWith({
-        logs: [executionLog({ event: EXECUTION_FAILURE })],
-      }).publicClient,
+      publicClient,
     })
 
     await expect(waitForTransaction(txId)).rejects.toBeInstanceOf(
       TransactionRevertedError,
+    )
+    expect(waitForTransactionReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({ hash: TX_HASH }),
     )
   })
 

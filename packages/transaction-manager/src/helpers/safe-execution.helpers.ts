@@ -62,8 +62,8 @@ export const findSafeExecution = (
 }
 
 /**
- * Waits for `safe` to execute `safeTxHash` and returns the transaction that
- * carried it. Reads the chain, not the wallet, so the Safe app needn't be open.
+ * Waits for `safe` to execute `safeTxHash` and returns the execution. Reads the
+ * chain, not the wallet, so the Safe app needn't be open.
  */
 function waitForSafeExecution({
   publicClient,
@@ -77,7 +77,7 @@ function waitForSafeExecution({
   readonly safeTxHash: Hash
   readonly timeout: number
   readonly signal: AbortSignal
-}): ResultAsync<Hash, TransactionTimeoutError | TransactionRevertedError> {
+}): ResultAsync<SafeExecution, TransactionTimeoutError> {
   const deadline = Date.now() + timeout
 
   const poll = async (
@@ -107,18 +107,11 @@ function waitForSafeExecution({
         return undefined
       },
     ),
-  ).andThen((execution) => {
-    if (!execution)
-      return errAsync(new TransactionTimeoutError(safeTxHash, timeout))
-    if (!execution.isSuccess) {
-      return errAsync(
-        new TransactionRevertedError(
-          `Safe transaction ${safeTxHash} failed (tx ${execution.transactionHash})`,
-        ),
-      )
-    }
-    return okAsync(execution.transactionHash)
-  })
+  ).andThen((execution) =>
+    execution
+      ? okAsync(execution)
+      : errAsync(new TransactionTimeoutError(safeTxHash, timeout)),
+  )
 }
 
 /**
@@ -173,7 +166,18 @@ export function orSafeExecution<T, E1, E2>({
         timeout,
         signal: controller.signal,
       })
-        .andThen(settle)
+        // A failed execution still waits out the carrying transaction's confirmations.
+        .andThen(({ transactionHash, isSuccess }) =>
+          settle(transactionHash).andThen((outcome) =>
+            isSuccess
+              ? okAsync(outcome)
+              : errAsync(
+                  new TransactionRevertedError(
+                    `Safe transaction ${id} failed (tx ${transactionHash})`,
+                  ),
+                ),
+          ),
+        )
         .mapErr((error): WaitError => error)
       return new ResultAsync(
         Promise.race<Outcome>([
