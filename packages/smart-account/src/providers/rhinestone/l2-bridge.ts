@@ -256,8 +256,9 @@ const sameOp = (op: SignedOp | undefined, call: Call): boolean =>
  *    target;
  * 9. the only setup it asks for is a Permit2 allowance on the source token,
  *    signed by the owner as an EIP-2612 permit covering the transfer and open
- *    when we submit. An approval without such a permit is refused: every L2
- *    source is USDC, so it is never approved with a transaction of our own.
+ *    for as long as that transfer can fill. An approval without such a permit
+ *    is refused: every L2 source is USDC, so it is never approved with a
+ *    transaction of our own.
  */
 export function validateL2BridgeQuote(params: {
   readonly route: L2BridgeRoute
@@ -274,7 +275,7 @@ export function validateL2BridgeQuote(params: {
       readApproval(
         route,
         prepared.intentRoute.tokenRequirements,
-        accepted.amountIn,
+        accepted,
         now,
       ).map(() => accepted),
     )
@@ -391,7 +392,8 @@ function readPermit(
 function readApproval(
   route: L2BridgeRoute,
   tokenRequirements: IntentRoute['tokenRequirements'],
-  pulled: bigint,
+  /** What the witness transfer moves, and how long it may still fill. */
+  transfer: Pick<PermitTerms, 'amountIn' | 'deadline'>,
   now: bigint,
 ): Result<undefined, string> {
   const requirements = Object.entries(tokenRequirements ?? {}).flatMap(
@@ -414,7 +416,7 @@ function readApproval(
     const rejection = rejectApprovalPermit(
       requirement.permit,
       route,
-      pulled,
+      transfer,
       now,
     )
     if (rejection !== undefined) return err(rejection)
@@ -425,12 +427,14 @@ function readApproval(
 /**
  * The EIP-2612 permit the wallet signs so Permit2 can pull the source token: a
  * `Permit` in the token's own domain, from the owner to Permit2, for at least
- * the amount the transfer pulls, and open when we submit.
+ * the amount the transfer pulls. It must stay open for as long as the intent
+ * can fill: the settlement handler presents it at fill time, which the witness
+ * allows until its own deadline, so a shorter approval would fail late.
  */
 function rejectApprovalPermit(
   signed: TypedDataDefinition | undefined,
   route: L2BridgeRoute,
-  pulled: bigint,
+  transfer: Pick<PermitTerms, 'amountIn' | 'deadline'>,
   now: bigint,
 ): string | undefined {
   if (!signed) return 'The route asks for an onchain approval.'
@@ -445,7 +449,7 @@ function rejectApprovalPermit(
   ) {
     return 'The route asks for an unexpected approval.'
   }
-  if (!atLeast(message.value, pulled)) {
+  if (!atLeast(message.value, transfer.amountIn)) {
     return 'The approval covers less than the payment.'
   }
   const deadline = toBigInt(message.deadline)
@@ -454,6 +458,9 @@ function rejectApprovalPermit(
   }
   if (deadline > now + L2_BRIDGE_MAX_PERMIT_LIFETIME_S) {
     return 'The approval lasts too long.'
+  }
+  if (deadline < transfer.deadline) {
+    return 'The approval expires before the payment.'
   }
   return undefined
 }

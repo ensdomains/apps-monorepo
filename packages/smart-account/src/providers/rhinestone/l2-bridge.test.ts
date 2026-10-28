@@ -450,6 +450,12 @@ describe('validateL2BridgeQuote', () => {
         q.approval.permit.message.deadline = NOW + 601n
       },
     ],
+    [
+      'an approval that expires before the payment',
+      (q) => {
+        q.approval.permit.message.deadline = NOW + 60n
+      },
+    ],
   ])('rejects %s', (_, edit) => {
     expect(validate(edit)._unsafeUnwrapErr()).toBeInstanceOf(
       L2BridgeRejectedError,
@@ -460,6 +466,16 @@ describe('validateL2BridgeQuote', () => {
     expect(
       validate((q) => {
         q.prepared.intentRoute.tokenRequirements = {}
+      }).isOk(),
+    ).toBe(true)
+  })
+
+  // The handler presents the approval at fill time, so it may outlast the
+  // witness; it may not expire before it.
+  it('allows an approval that outlasts the permit', () => {
+    expect(
+      validate((q) => {
+        q.approval.permit.message.deadline = NOW + 300n
       }).isOk(),
     ).toBe(true)
   })
