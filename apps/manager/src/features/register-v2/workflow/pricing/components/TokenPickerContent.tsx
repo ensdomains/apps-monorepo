@@ -969,6 +969,13 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   const isL2Pending = !!l2Payment?.rows.some(
     (row) => row.option.status === 'loading' || row.isQuoteLoading,
   )
+  // A re-quote leaves some L2s on their old quote; rank once every one has settled.
+  const hasStaleL2Quote = !!l2Payment?.rows.some(
+    (row) =>
+      row.option.status === 'available' &&
+      row.isQuoteStale &&
+      !row.hasQuoteFailed,
+  )
   // The selected wallet coin went short (say the primary-name re-quote) while another method can pay.
   const isWalletSelectionHidden =
     !!walletSelection &&
@@ -996,7 +1003,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
       !isLoadingBalances &&
       receiptState.status === 'ready' &&
       !isRequoting &&
-      !isL2Pending,
+      !isL2Pending &&
+      !hasStaleL2Quote,
     onSelectCoin,
     onSelectL2: l2Payment?.onSelect,
   })

@@ -1070,6 +1070,35 @@ describe('TokenPickerContentBase L2 rows', () => {
     ).toBeVisible()
   })
 
+  it('waits for every L2 re-quote before picking the one holding the most', () => {
+    const base = baseSepoliaRow('available', {
+      amountInRaw: 5_012_573n,
+      isQuoteStale: true,
+    })
+    const op = {
+      ...baseSepoliaRow('available', { amountInRaw: 5_012_573n }),
+      option: {
+        ...base.option,
+        id: l2PaymentOptionId(optimismSepolia.id),
+        source: { ...base.option.source, chain: optimismSepolia },
+        balanceRaw: 10_000_000n,
+      },
+    }
+    const payment = {
+      rows: [op, base],
+      selectedChainId: undefined,
+      onSelect: vi.fn(),
+    }
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: payment,
+    })
+
+    expect(payment.onSelect).not.toHaveBeenCalled()
+  })
+
   it('lets an L2 that cannot pay be chosen, and says what it is short by', () => {
     const row = baseSepoliaRow('insufficient')
     renderPicker({
