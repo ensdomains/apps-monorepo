@@ -108,7 +108,7 @@ const getL2FeeExplanation = (row: L2PaymentRow) => {
     <Trans>
       An estimate of what the on-chain transactions that register your name
       cost, including moving the USDC from {chainName}. It is paid there with
-      the name price, in one signature.
+      the name price, with no separate approval transaction.
     </Trans>
   )
 }

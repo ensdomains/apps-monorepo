@@ -407,7 +407,7 @@ msgid "Allow your smart account to configure your upgraded names and their subna
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, in one signature."
+msgid "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, with no separate approval transaction."
 msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
