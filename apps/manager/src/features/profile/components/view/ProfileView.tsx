@@ -10,6 +10,7 @@ import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Name
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import { useResolverCopySource } from '@/features/profile/hooks/useResolverCopySource'
+import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import { canEditProfileHere } from '@/features/profile/service/profileEditability'
 import {
   getProfileExpiryResultStatus,
@@ -124,6 +125,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     refetch: refetchRecords,
   } = useQuery({
     ...profileRecordsQuery(name),
+    ...profileDisplayQueryOptions,
   })
   const records = transformProfileRecords(profileRecords)
   const [draft, setDraft] = useState<ProfileDraft | null>(null)
@@ -132,6 +134,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
+    ...profileDisplayQueryOptions,
   })
   const {
     data: expiryData,
@@ -140,9 +143,11 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     error: expiryError,
   } = useQuery({
     ...profileExpiryQuery(name, ownerData?.protocol),
+    ...profileDisplayQueryOptions,
   })
   const registration = useQuery({
     ...profileRegistrationQuery(name, ownerData?.protocol),
+    ...profileDisplayQueryOptions,
   })
 
   const expiry = getProfileExpiryResultStatus(expiryData)

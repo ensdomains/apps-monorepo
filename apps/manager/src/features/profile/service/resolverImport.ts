@@ -170,6 +170,8 @@ export const resolverCopySourceQuery = (name: string, wallet?: Address) => ({
   retry: false,
 })
 
+const DEFAULT_MAX_CONCURRENT_READS = 8
+
 type RecordRead = { readonly key: string; readonly data: Hex }
 
 const supplementalAbi = parseAbi([
@@ -279,6 +281,7 @@ export const readResolverRecords = async ({
   dataKeys = [],
   shouldReadPubkey = false,
   shouldDecodeStrictly = true,
+  maxConcurrentReads = DEFAULT_MAX_CONCURRENT_READS,
   publicClient: client,
 }: {
   readonly name: string
@@ -290,6 +293,7 @@ export const readResolverRecords = async ({
   readonly shouldReadPubkey?: boolean
   /** Viewing skips malformed values; imports and replacement verification remain strict. */
   readonly shouldDecodeStrictly?: boolean
+  readonly maxConcurrentReads?: number
   readonly publicClient: PublicClient
 }): Promise<{
   records: ImportedResolverRecords
@@ -425,9 +429,15 @@ export const readResolverRecords = async ({
     }
   }
   // Bound RPC concurrency without losing successful reads to a failed batch.
+  // A rejected gateway multicall keeps the existing conservative fallback.
+  const readConcurrency =
+    hasExtendedResolution && kind === 'node'
+      ? DEFAULT_MAX_CONCURRENT_READS
+      : maxConcurrentReads
   const readChunks = Array.from(
-    { length: Math.ceil(reads.length / 8) },
-    (_, index) => reads.slice(index * 8, (index + 1) * 8),
+    { length: Math.ceil(reads.length / readConcurrency) },
+    (_, index) =>
+      reads.slice(index * readConcurrency, (index + 1) * readConcurrency),
   )
   const results =
     batch?.length === reads.length
