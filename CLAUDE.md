@@ -1,4 +1,4 @@
-# ENS Apps Monorepo - Claude Instructions
+# ENS Apps Monorepo - AI Agent Instructions
 
 ## Style Guide
 
