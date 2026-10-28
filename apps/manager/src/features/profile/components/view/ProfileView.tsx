@@ -9,6 +9,7 @@ import { isEligibleProfileName } from '@/features/migration/components/UpgradeBa
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
+import { useLatchedFlag } from '@/features/profile/hooks/useLatchedFlag'
 import { useResolverCopySource } from '@/features/profile/hooks/useResolverCopySource'
 import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import { canEditProfileHere } from '@/features/profile/service/profileEditability'
@@ -172,6 +173,21 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     isUpgradeRequired,
   })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
+  const canEditProfile = canEditProfileHere({
+    isInGrace: expiry.isInGrace || isExpiryError,
+    canEditRecords,
+    hasRecords: profileRecords !== undefined,
+    isUpgradeRequired,
+    name,
+    protocol: ownerData?.protocol,
+  })
+  const sessionKey = `${name}:${ownerAddress}:${connectedAddress}:${chainId}`
+  // Keep an opened draft mounted across background capability/expiry refreshes.
+  // Actions and publishing are paused when fresh permission data is unavailable.
+  const hasFloatingBar = useLatchedFlag(
+    canEditProfile || Boolean(resolverCopySource),
+    sessionKey,
+  )
 
   if (isRecordsPending || (ownerMissing && isExpiryPending)) {
     return <ProfileLoading name={name} />
@@ -198,14 +214,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   const profileThemeColor = expiry.isInGrace
     ? undefined
     : themeVars['--theme-color']
-  const canEditProfile = canEditProfileHere({
-    isInGrace: expiry.isInGrace || isExpiryError,
-    canEditRecords,
-    hasRecords: profileRecords !== undefined,
-    isUpgradeRequired,
-    name,
-    protocol: ownerData?.protocol,
-  })
 
   // Figma page background and bottom padding (sticky bar height plus safe area)
   // have no matching tokens
@@ -248,7 +256,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               avatarUrl={avatarUrl}
               canEdit={canEditProfile}
               desktopActions={
-                canEditProfile || resolverCopySource ? undefined : (
+                hasFloatingBar ? undefined : (
                   <ProfileDesktopActions
                     avatarUrl={avatarUrl}
                     isOwner={resolvedIsOwner}
@@ -291,11 +299,12 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           <ProfileActions
             avatarUrl={avatarUrl}
             canEdit={canEditProfile}
+            hasFloatingBar={hasFloatingBar}
             // An unknown expiry could be a grace period, so editing waits too.
             isInGrace={expiry.isInGrace || isExpiryError}
             isOwner={resolvedIsOwner}
             isUpgradeRequired={isUpgradeRequired}
-            key={`${name}:${ownerAddress}:${connectedAddress}:${chainId}`}
+            key={sessionKey}
             name={name}
             onUpdated={refetchRecords}
             owner={owner}

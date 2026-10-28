@@ -1,5 +1,5 @@
 import { useLingui } from '@lingui/react/macro'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import type { ResolverCopySource } from '@/features/profile/service/resolverImport'
 import type { ProfileRecords } from '@/features/profile/types'
@@ -32,6 +32,8 @@ type ProfileDesktopActionsProps = {
 
 type ProfileActionsProps = ProfileDesktopActionsProps & {
   readonly canEdit: boolean
+  /** Latched by the view, so it also decides where the desktop actions go. */
+  readonly hasFloatingBar: boolean
   readonly isInGrace: boolean
   readonly isUpgradeRequired: boolean
   readonly onUpdated: () => undefined | Promise<unknown>
@@ -62,6 +64,7 @@ export const ProfileDesktopActions = ({
 export const ProfileActions = ({
   avatarUrl,
   canEdit,
+  hasFloatingBar,
   isInGrace,
   isOwner,
   isUpgradeRequired,
@@ -76,11 +79,6 @@ export const ProfileActions = ({
   const { t } = useLingui()
   const [bar, setBar] = useState<HTMLElement | null>(null)
   useIntercomClearance(bar)
-  // Keep an opened draft mounted across background capability/expiry refreshes.
-  // Actions and publishing are paused when fresh permission data is unavailable.
-  const hasEditor = useRef(false)
-  if (canEdit || resolverCopySource) hasEditor.current = true
-  const hasFloatingBar = hasEditor.current
   const hasBottomNav = isUpgradeRequired && !isInGrace
 
   const barActions = (
