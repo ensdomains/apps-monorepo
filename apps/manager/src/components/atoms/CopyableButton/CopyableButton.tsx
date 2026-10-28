@@ -52,8 +52,9 @@ export const CopyableButton = ({
       {children}
       {!isDisabled && (
         <MSymbol
+          aria-hidden
           className={cn(
-            'ms-opsz-24 ms-wght-300 text-[24px] leading-none',
+            'ms-opsz-24 ms-wght-300 text-2xl leading-none',
             iconClassName,
           )}
           symbol={copied ? 'check' : 'content_copy'}

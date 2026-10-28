@@ -7,6 +7,9 @@ import { ProfileDetails, ProfileNameBadge } from './ProfileDetails'
 
 // The about card's content sets the row height. The avatar copies that height
 // so it stays square without stretching the card.
+// Capped so a tall about card can't keep widening the avatar and squeezing itself
+const MAX_AVATAR_SIDE_PX = 240
+
 const useAboutSide = () => {
   const aboutRef = useRef<HTMLDivElement>(null)
   const [side, setSide] = useState<number>()
@@ -15,7 +18,8 @@ const useAboutSide = () => {
     const about = aboutRef.current
     if (!about) return
 
-    const update = () => setSide(about.offsetHeight)
+    const update = () =>
+      setSide(Math.min(about.offsetHeight, MAX_AVATAR_SIDE_PX))
     const observer = new ResizeObserver(update)
     observer.observe(about)
     update()

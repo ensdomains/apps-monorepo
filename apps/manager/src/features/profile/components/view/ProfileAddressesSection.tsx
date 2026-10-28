@@ -34,7 +34,7 @@ const COMPACT_CHAIN_COUNT = 5
 // 24px padding, matching the about and contact cards.
 const addressCardClassName = cn(
   profileTileClassName,
-  'h-auto min-h-16 w-full flex-row items-center justify-between gap-3 p-6 transition hover:bg-ens-quartz-50 has-[>svg]:px-6',
+  'h-auto min-h-16 w-full flex-row items-center justify-between gap-3 p-6 transition hover:bg-ens-quartz-50',
 )
 
 const AddressValue = ({ value }: { readonly value: string }) => (
