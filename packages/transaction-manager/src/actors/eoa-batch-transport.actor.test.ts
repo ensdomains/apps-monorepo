@@ -25,6 +25,7 @@ import type {
 } from '../types/transaction.types'
 import {
   getAtomicBatchSupport,
+  shouldBundleCall,
   submitEOABatch,
 } from './eoa-batch-transport.actor'
 
@@ -428,20 +429,55 @@ describe('eoa-batch through the transaction machine', () => {
   })
 })
 
+const CONTRACT_CODE: Hex = '0x6080604052'
+const DELEGATED_CODE: Hex = `0xef0100${'12'.repeat(20)}`
+
+const callRequest = (
+  settings: Partial<EOATransactionRequest> = {},
+): EOATransactionRequest => ({
+  type: 'eoa',
+  from: ACCOUNT,
+  chainId: sepolia.id,
+  to: TO,
+  data: '0x01',
+  value: 0n,
+  ...settings,
+})
+
+describe('shouldBundleCall', () => {
+  it("bundles a contract account's call", () => {
+    expect(
+      shouldBundleCall({ code: CONTRACT_CODE, request: callRequest() }),
+    ).toBe(true)
+  })
+
+  it.each<[string, Hex | undefined, Partial<EOATransactionRequest>]>([
+    ['no code', undefined, {}],
+    ['an EOA', '0x', {}],
+    ['an EIP-7702 delegation', DELEGATED_CODE, {}],
+    ['a contract account setting gas', CONTRACT_CODE, { gas: 100_000n }],
+    ['a contract account setting nonce', CONTRACT_CODE, { nonce: 7 }],
+    ['a contract account setting gasPrice', CONTRACT_CODE, { gasPrice: 1n }],
+    [
+      'a contract account setting maxFeePerGas',
+      CONTRACT_CODE,
+      { maxFeePerGas: 1n },
+    ],
+    [
+      'a contract account setting maxPriorityFeePerGas',
+      CONTRACT_CODE,
+      { maxPriorityFeePerGas: 1n },
+    ],
+  ])('keeps a plain call for %s', (_, code, settings) => {
+    expect(shouldBundleCall({ code, request: callRequest(settings) })).toBe(
+      false,
+    )
+  })
+})
+
 describe('a single call through the transaction machine', () => {
-  const CONTRACT_CODE: Hex = '0x6080604052'
-  const DELEGATED_CODE: Hex = `0xef0100${'12'.repeat(20)}`
   // Safe answers `eth_sendTransaction` with its safeTxHash, which no node has.
   const SAFE_TX_HASH = `0x${'5a'.repeat(32)}` as Hash
-
-  const callRequest = (): EOATransactionRequest => ({
-    type: 'eoa',
-    from: ACCOUNT,
-    chainId: sepolia.id,
-    to: TO,
-    data: '0x01',
-    value: 0n,
-  })
 
   const publicClientWith = (code: Hex | undefined) =>
     ({
@@ -474,7 +510,6 @@ describe('a single call through the transaction machine', () => {
 
   it.each([
     ['an EOA', '0x', 'supported'],
-    ['an EIP-7702-delegated EOA', DELEGATED_CODE, 'supported'],
     [
       'a contract account whose wallet cannot batch',
       CONTRACT_CODE,

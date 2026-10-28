@@ -1,11 +1,11 @@
 import { logger } from '@ens-apps/utils/logger'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
+import { errAsync, fromPromise, okAsync, ResultAsync } from 'neverthrow'
 import type { Hash, PublicClient, TransactionReceipt } from 'viem'
 import { TransactionReceiptNotFoundError } from 'viem'
 import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
 import {
-  isContractAccount,
+  shouldBundleCall,
   submitEOABatch,
   waitForEOABatchHash,
 } from '../actors/eoa-batch-transport.actor'
@@ -42,7 +42,7 @@ type SubmittedTransaction =
   | { readonly hash: Hash }
   | { readonly callsId: string }
 
-/** Safe answers `eth_sendTransaction` with a safeTxHash no node has, so a contract account's call goes out as a one-call bundle. */
+/** Safe answers `eth_sendTransaction` with a safeTxHash no node has, so a contract account's call goes out as a one-call bundle (see {@link shouldBundleCall}). */
 function submitEOACall({
   request,
   signer,
@@ -57,33 +57,41 @@ function submitEOACall({
       (hash): SubmittedTransaction => ({ hash }),
     )
 
-  return ResultAsync.fromSafePromise(
-    isContractAccount({ publicClient, address: request.from }),
-  ).andThen((isContract) =>
-    isContract
-      ? submitEOABatch({
-          request: {
-            type: 'eoa-batch',
-            from: request.from,
-            chainId: request.chainId,
-            calls: [
-              {
-                to: request.to,
-                data: request.data ?? '0x',
-                value: request.value ?? 0n,
-              },
-            ],
-          },
-          signer,
-        })
-          .map((callsId): SubmittedTransaction => ({ callsId }))
-          .orElse((error) =>
-            error instanceof AtomicBatchUnsupportedError
-              ? sendTransaction()
-              : errAsync(error),
-          )
-      : sendTransaction(),
-  )
+  return ResultAsync.fromThrowable(
+    publicClient.getCode,
+    (error) => error,
+  )({
+    address: request.from,
+  })
+    .orElse((error) => {
+      logger.debug('eth_getCode unavailable', error)
+      return okAsync(undefined)
+    })
+    .andThen((code) =>
+      shouldBundleCall({ code, request })
+        ? submitEOABatch({
+            request: {
+              type: 'eoa-batch',
+              from: request.from,
+              chainId: request.chainId,
+              calls: [
+                {
+                  to: request.to,
+                  data: request.data ?? '0x',
+                  value: request.value ?? 0n,
+                },
+              ],
+            },
+            signer,
+          })
+            .map((callsId): SubmittedTransaction => ({ callsId }))
+            .orElse((error) =>
+              error instanceof AtomicBatchUnsupportedError
+                ? sendTransaction()
+                : errAsync(error),
+            )
+        : sendTransaction(),
+    )
 }
 
 /**

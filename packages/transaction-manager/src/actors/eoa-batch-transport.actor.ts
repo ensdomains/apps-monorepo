@@ -7,13 +7,7 @@ import {
   okAsync,
   ResultAsync,
 } from 'neverthrow'
-import type {
-  Address,
-  GetCallsStatusReturnType,
-  Hash,
-  PublicClient,
-  WalletClient,
-} from 'viem'
+import type { GetCallsStatusReturnType, Hash, Hex, WalletClient } from 'viem'
 import { getCapabilities, sendCalls, waitForCallsStatus } from 'viem/actions'
 import {
   AtomicBatchUnsupportedError,
@@ -33,6 +27,7 @@ import {
 import type { EOASigner } from '../types/signer.types'
 import type {
   EOABatchTransactionRequest,
+  EOATransactionRequest,
   TransactionRequest,
 } from '../types/transaction.types'
 import { resolveEOAWalletChain } from './eoa-transport.actor'
@@ -96,22 +91,26 @@ export async function getAtomicBatchSupport(params: {
   }
 }
 
-/** Whether `address` has code that isn't an EIP-7702 delegation (a Safe); any failure means "no". */
-export async function isContractAccount({
-  publicClient,
-  address,
+/**
+ * A single call goes out as a one-call bundle only from a contract account
+ * (code that isn't an EIP-7702 delegation, e.g. a Safe), and only when it
+ * sets nothing a bundle can't carry: gas, nonce or fees.
+ */
+export const shouldBundleCall = ({
+  code,
+  request,
 }: {
-  readonly publicClient: PublicClient
-  readonly address: Address
-}): Promise<boolean> {
-  try {
-    const code = await publicClient.getCode({ address })
-    return code !== undefined && code !== '0x' && !code.startsWith('0xef0100')
-  } catch (error) {
-    logger.debug('eth_getCode unavailable', error)
-    return false
-  }
-}
+  readonly code: Hex | undefined
+  readonly request: EOATransactionRequest
+}): boolean =>
+  code !== undefined &&
+  code !== '0x' &&
+  !code.startsWith('0xef0100') &&
+  request.gas === undefined &&
+  request.nonce === undefined &&
+  request.gasPrice === undefined &&
+  request.maxFeePerGas === undefined &&
+  request.maxPriorityFeePerGas === undefined
 
 /**
  * EOA Batch Transport Actor
