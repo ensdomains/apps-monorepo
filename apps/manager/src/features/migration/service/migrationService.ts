@@ -65,12 +65,14 @@ import {
   type MigrationApprovalReview,
   type MigrationCleanupApproval,
   migrationApprovalKey,
-  migrationApprovalReviewKey,
   orderMigrationCleanupApprovals,
   planMigrationApprovals,
+  planMigrationCleanupApprovals,
   temporaryMigrationHcaApproval,
 } from './migrationApprovals'
 import {
+  classifyMigrationRecoverySubmission,
+  hasUnsettledMigrationRecoveryRequests,
   loadMigrationBatchJournal,
   loadMigrationRecoverySnapshot,
   type loadPendingAtomicMigrationIntents,
@@ -110,7 +112,9 @@ import {
 } from './subnameRecreation'
 import { assertSubnameRecreationSnapshotCurrent } from './subnameRecreationError'
 import {
+  isDefinitelyUnsubmittedMigrationApprovalError,
   isExpectedMigrationApprovalRequest,
+  isTemporaryRegistrationRecoveryScopeValid,
   registrationApprovalRecoveryDecision,
 } from './temporaryRegistrationApproval'
 import {
@@ -469,7 +473,7 @@ const submitCall = (
   ctx: MigrationCtx,
   call: Call,
   description: string,
-  onSubmitted?: (hash: Hex) => void,
+  onSubmitted?: (hash: Hex) => void | Promise<void>,
   gas?: bigint,
   transactionId?: string,
 ): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> =>
@@ -512,7 +516,7 @@ const submitRequest = async (
   ctx: MigrationCtx,
   request: TransactionRequest,
   description: string,
-  onSubmitted?: (hash: Hex) => void,
+  onSubmitted?: (hash: Hex) => void | Promise<void>,
   transactionId?: string,
 ): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> => {
   ctx.submissionGate.signal.throwIfAborted()
@@ -528,11 +532,12 @@ const submitRequest = async (
   )
   ctx.tracker.emit(description)
   const submittedHash = (await waitForTransactionHash(txId)) as Hex
-  onSubmitted?.(submittedHash)
+  await onSubmitted?.(submittedHash)
   ctx.tracker.submitted(description, submittedHash)
   const result = await waitForTransaction(txId)
   const hash = result.hash as Hex
-  if (hash.toLowerCase() !== submittedHash.toLowerCase()) onSubmitted?.(hash)
+  if (hash.toLowerCase() !== submittedHash.toLowerCase())
+    await onSubmitted?.(hash)
   const receipt =
     result.receipt ??
     (await ctx.publicClient.waitForTransactionReceipt({
@@ -652,11 +657,11 @@ const assertTemporaryRegistrationRecoveryScope = (
     approvals: [registrationCleanupApproval(temporary)],
   })
   if (
-    plan.registrationApprovalStrategy === 'temporary-operator' &&
-    required &&
-    recovery.registrationApprovalReview &&
-    migrationApprovalReviewKey(required) ===
-      migrationApprovalReviewKey(recovery.registrationApprovalReview)
+    isTemporaryRegistrationRecoveryScopeValid({
+      strategy: plan.registrationApprovalStrategy,
+      required,
+      reviewed: recovery.registrationApprovalReview,
+    })
   )
     return
   throw new MigrationPlanChangedError({
@@ -734,6 +739,63 @@ const readRegistrationApprovalActive = async (params: {
   })
 }
 
+const recordRegistrationApprovalSubmission = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+  readonly approval: TemporaryRegistrationApproval
+  readonly hash: Hex
+}): Promise<void> => {
+  const approval = {
+    ...params.approval,
+    submission: undefined,
+    state: { ...params.approval.state, hash: params.hash },
+  }
+  persistTemporaryRegistrationApproval({ ...params, approval })
+  const [transaction, blockNumber] = await Promise.all([
+    params.ctx.publicClient.getTransaction({ hash: params.hash }),
+    params.ctx.publicClient.getBlockNumber({ cacheTime: 0 }),
+  ])
+  persistTemporaryRegistrationApproval({
+    ...params,
+    approval: {
+      ...approval,
+      submission: {
+        nonce: BigInt(transaction.nonce),
+        blockNumber: transaction.blockNumber ?? blockNumber,
+      },
+    },
+  })
+}
+
+const findRegistrationApprovalReplacement = async (params: {
+  readonly ctx: MigrationCtx
+  readonly submission: NonNullable<TemporaryRegistrationApproval['submission']>
+}): Promise<Hex | undefined> => {
+  const { publicClient, walletAddress } = params.ctx
+  const latest = await publicClient.getBlockNumber({ cacheTime: 0 })
+  const countAt = (blockNumber: bigint) =>
+    publicClient
+      .getTransactionCount({ address: walletAddress, blockNumber })
+      .then(BigInt)
+  if (BigInt(await countAt(latest)) <= params.submission.nonce) return undefined
+  let low = params.submission.blockNumber
+  let high = latest
+  while (low < high) {
+    const middle = (low + high) / 2n
+    if ((await countAt(middle)) > params.submission.nonce) high = middle
+    else low = middle + 1n
+  }
+  const block = await publicClient.getBlock({
+    blockNumber: low,
+    includeTransactions: true,
+  })
+  return block.transactions.find(
+    (transaction) =>
+      isAddressEqual(transaction.from, walletAddress) &&
+      BigInt(transaction.nonce) === params.submission.nonce,
+  )?.hash
+}
+
 const reconcileTemporaryRegistrationApproval = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
@@ -756,19 +818,20 @@ const reconcileTemporaryRegistrationApproval = async (params: {
   }
   try {
     const active =
-      state.status !== 'granted' && !state.hash
-        ? transactionManager
+      state.status === 'granted'
+        ? undefined
+        : transactionManager
             .getTransaction?.(state.transactionId)
             ?.getSnapshot().context
-        : undefined
-    const recovered = active?.hash
-      ? { hash: active.hash, context: { request: active.request } }
-      : state.status !== 'granted' && !state.hash
-        ? ((await getPersistedTransaction(state.transactionId)) ??
+    const activeHash = active?.receipt?.transactionHash ?? active?.hash
+    const recovered = activeHash
+      ? { hash: activeHash, context: { request: active?.request } }
+      : state.status === 'granted'
+        ? undefined
+        : ((await getPersistedTransaction(state.transactionId)) ??
           (await getArchivedTransactions()).find(
             ({ id }) => id === state.transactionId,
           ))
-        : undefined
     if (recovered) {
       const context = recovered.context
       const request =
@@ -782,7 +845,7 @@ const reconcileTemporaryRegistrationApproval = async (params: {
         })
       }
     }
-    const hash = state.hash ?? recovered?.hash
+    let hash = recovered?.hash ?? state.hash
     const grantReceipt =
       state.status === 'revoke-pending'
         ? await ctx.publicClient.getTransactionReceipt({
@@ -811,17 +874,23 @@ const reconcileTemporaryRegistrationApproval = async (params: {
           'An earlier approval wallet request has no confirmed transaction outcome. Check the pending request in your wallet before continuing.',
       })
     }
-    if (state.status !== 'granted' && !state.hash) {
-      persistTemporaryRegistrationApproval({
-        ctx,
-        plan,
-        approval: { ...approval, state: { ...state, hash } },
-      })
-    }
-    const [transaction, receipt] = await Promise.all([
-      ctx.publicClient.getTransaction({ hash }),
-      ctx.publicClient.getTransactionReceipt({ hash }),
-    ])
+    const readTransaction = (hash: Hex) =>
+      Promise.all([
+        ctx.publicClient.getTransaction({ hash }),
+        ctx.publicClient.getTransactionReceipt({ hash }),
+      ])
+    const [transaction, receipt] = await readTransaction(hash).catch(
+      async (cause) => {
+        if (state.status === 'granted' || !approval.submission) throw cause
+        const replacement = await findRegistrationApprovalReplacement({
+          ctx,
+          submission: approval.submission,
+        })
+        if (!replacement) throw cause
+        hash = replacement
+        return readTransaction(hash)
+      },
+    )
     if (state.status === 'granted' && receipt.status !== 'success') {
       throw new MigrationApprovalIndeterminateError({
         message: 'The recorded registration grant is not confirmed.',
@@ -844,6 +913,20 @@ const reconcileTemporaryRegistrationApproval = async (params: {
           'The approval transaction changed. Its outcome must be reviewed before continuing.',
       })
     }
+    if (
+      approval.submission &&
+      BigInt(transaction.nonce) !== approval.submission.nonce
+    )
+      throw new MigrationApprovalIndeterminateError({
+        message:
+          'The recovered approval transaction does not match the recorded nonce.',
+      })
+    if (state.status !== 'granted' && hash !== state.hash)
+      persistTemporaryRegistrationApproval({
+        ctx,
+        plan,
+        approval: { ...approval, state: { ...state, hash } },
+      })
     const isActive = await readRegistrationApprovalActive({
       ctx,
       approval,
@@ -866,6 +949,8 @@ const reconcileTemporaryRegistrationApproval = async (params: {
     }
     const granted: TemporaryRegistrationApproval = {
       ...approval,
+      submission:
+        state.status === 'revoke-pending' ? undefined : approval.submission,
       state: {
         status: 'granted',
         hash: state.status === 'revoke-pending' ? state.grantHash : hash,
@@ -910,10 +995,13 @@ const getCurrentMigrationApprovals = async (params: {
     })
     return {
       missing: [],
-      cleanup: [
-        ...ownedRegistrationCleanup,
-        ...(isActive ? [temporaryMigrationHcaApproval(ctx.hcaAddress)] : []),
-      ],
+      cleanup: planMigrationCleanupApprovals({
+        hcaAddress: ctx.hcaAddress,
+        strategy: plan.registrationApprovalStrategy,
+        missing: [],
+        ownedRegistrationCleanup,
+        hasHcaApproval: isActive,
+      }),
     }
   }
   const basicNeeds = approvalNeedsFor(plan.groups)
@@ -940,25 +1028,13 @@ const getCurrentMigrationApprovals = async (params: {
     status,
     registrationApprovalStrategy: plan.registrationApprovalStrategy,
   })
-  const newRegistrationCleanup =
-    plan.registrationApprovalStrategy === 'temporary-operator'
-      ? missing.filter(
-          (approval): approval is MigrationCleanupApproval =>
-            approval.kind === 'operator' &&
-            approval.id === 'base-registrar:hca',
-        )
-      : []
-  const cleanup = [
-    ...new Map(
-      [...ownedRegistrationCleanup, ...newRegistrationCleanup].map(
-        (approval) => [migrationApprovalKey(approval), approval],
-      ),
-    ).values(),
-    ...(status.ethRegistryHcaApproved ||
-    missing.some(({ id }) => id === 'eth-registry:hca')
-      ? [temporaryMigrationHcaApproval(ctx.hcaAddress)]
-      : []),
-  ]
+  const cleanup = planMigrationCleanupApprovals({
+    hcaAddress: ctx.hcaAddress,
+    strategy: plan.registrationApprovalStrategy,
+    missing,
+    ownedRegistrationCleanup,
+    hasHcaApproval: status.ethRegistryHcaApproved,
+  })
   return { missing, cleanup }
 }
 
@@ -1192,13 +1268,11 @@ const ensureMigrationApprovals = async (params: {
         description,
         temporaryApproval
           ? (hash) =>
-              persistTemporaryRegistrationApproval({
+              recordRegistrationApprovalSubmission({
                 ctx,
                 plan,
-                approval: {
-                  ...temporaryApproval,
-                  state: { ...temporaryApproval.state, hash },
-                },
+                approval: temporaryApproval,
+                hash,
               })
           : undefined,
         undefined,
@@ -1209,7 +1283,8 @@ const ensureMigrationApprovals = async (params: {
           ctx,
           plan,
           approval: {
-            ...temporaryApproval,
+            ...(readTemporaryRegistrationApproval(ctx, plan) ??
+              temporaryApproval),
             state: { status: 'granted', hash },
           },
         })
@@ -1218,7 +1293,11 @@ const ensureMigrationApprovals = async (params: {
       ctx.tracker.next()
       ctx.tracker.emit('Permission granted', hash)
     } catch (error) {
-      if (temporaryApproval && isUserRejection(error)) {
+      if (
+        temporaryApproval &&
+        (isUserRejection(error) ||
+          isDefinitelyUnsubmittedMigrationApprovalError(error))
+      ) {
         const current = readTemporaryRegistrationApproval(ctx, plan)
         if (current?.state.status === 'grant-pending' && !current.state.hash) {
           persistTemporaryRegistrationApproval({
@@ -1317,6 +1396,7 @@ const revokeTemporaryOperatorApprovals = async (params: {
                 transactionId: createAtomicMigrationIntentId(),
                 grantHash: temporary.state.hash,
               },
+              submission: undefined,
             }
           : undefined
       if (pending)
@@ -1328,9 +1408,10 @@ const revokeTemporaryOperatorApprovals = async (params: {
           cleanupDescription(approval),
           pending
             ? (hash) =>
-                persistTemporaryRegistrationApproval({
+                recordRegistrationApprovalSubmission({
                   ...params,
-                  approval: { ...pending, state: { ...pending.state, hash } },
+                  approval: pending,
+                  hash,
                 })
             : undefined,
           undefined,
@@ -1363,7 +1444,8 @@ const revokeTemporaryOperatorApprovals = async (params: {
           ? readTemporaryRegistrationApproval(params.ctx, params.plan)
           : undefined
         if (
-          isUserRejection(cause) &&
+          (isUserRejection(cause) ||
+            isDefinitelyUnsubmittedMigrationApprovalError(cause)) &&
           current?.state.status === 'revoke-pending' &&
           !current.state.hash
         ) {
@@ -1407,31 +1489,21 @@ const releaseChangedHelperRecovery = async (params: {
       message: 'The earlier deployment recovery details are unavailable.',
     })
   }
-  const expectedOperations = new Map(
-    initialSnapshot.registryOperations.map(({ name, action }) => [
-      name,
-      action,
-    ]),
-  )
-  const belongsToPlan = (operations: readonly MigrationJournalOperation[]) =>
-    operations.some(({ name }) => expectedOperations.has(name))
   let settledSubmissions: readonly {
     readonly intentId: string
     readonly hash: Hex
   }[] = []
   try {
-    for (const submission of initialJournal.submitted.filter(({ operations }) =>
-      belongsToPlan(operations),
-    )) {
-      if (
-        submission.operations.some(
-          ({ name, action }) => expectedOperations.get(name) !== action,
-        )
-      ) {
+    for (const submission of initialJournal.submitted) {
+      const relation = classifyMigrationRecoverySubmission({
+        registryOperations: initialSnapshot.registryOperations,
+        operations: submission.operations,
+      })
+      if (relation === 'unrelated') continue
+      if (relation === 'mismatch')
         throw new Error(
           'Earlier migration operations do not match the stored recovery tree',
         )
-      }
       const status = await verifyMigrationRecoveryTransaction({
         scope,
         publicClient: params.ctx.publicClient,
@@ -1453,16 +1525,12 @@ const releaseChangedHelperRecovery = async (params: {
     }
     const journal = loadMigrationBatchJournal(scope)
     if (
-      journal.pending.some(
-        ({ id, operations }) =>
-          belongsToPlan(operations) &&
-          !settledSubmissions.some(({ intentId }) => intentId === id),
-      ) ||
-      journal.submitted.some(
-        ({ hash, operations }) =>
-          belongsToPlan(operations) &&
-          !settledSubmissions.some((submission) => submission.hash === hash),
-      )
+      hasUnsettledMigrationRecoveryRequests({
+        registryOperations: initialSnapshot.registryOperations,
+        pending: journal.pending,
+        submitted: journal.submitted,
+        settled: settledSubmissions,
+      })
     ) {
       throw new Error(
         'An earlier migration wallet request still has no confirmed outcome',

@@ -1,8 +1,57 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isDefinitelyUnsubmittedMigrationApprovalError,
   isExpectedMigrationApprovalRequest,
+  isTemporaryRegistrationRecoveryScopeValid,
   registrationApprovalRecoveryDecision,
 } from './temporaryRegistrationApproval'
+
+describe('isTemporaryRegistrationRecoveryScopeValid', () => {
+  const review = {
+    chainId: 1,
+    owner: '0x0000000000000000000000000000000000000001',
+    contractAddress: '0x0000000000000000000000000000000000000002',
+    operatorAddress: '0x0000000000000000000000000000000000000003',
+    names: ['alice.eth', 'bob.eth'],
+  } as const
+  it.each([
+    [review, true],
+    [{ ...review, names: ['bob.eth', 'alice.eth'] }, true],
+    [{ ...review, names: ['alice.eth'] }, false],
+    [{ ...review, chainId: 11155111 }, false],
+    [{ ...review, operatorAddress: review.owner }, false],
+    [undefined, false],
+  ])('keeps recovery bound to its reviewed scope: %o', (reviewed, expected) => {
+    expect(
+      isTemporaryRegistrationRecoveryScopeValid({
+        strategy: 'temporary-operator',
+        required: review,
+        reviewed,
+      }),
+    ).toBe(expected)
+  })
+})
+
+describe('isDefinitelyUnsubmittedMigrationApprovalError', () => {
+  it.each([
+    [{ _tag: 'ChainIdMismatchError' }, true],
+    [{ cause: { _tag: 'SignerAddressMismatchError' } }, true],
+    [{ cause: { name: 'ChainMismatchError' } }, true],
+    [
+      { _tag: 'TransactionSubmissionError', cause: new Error('response lost') },
+      false,
+    ],
+    [new Error('network disconnected'), false],
+    [undefined, false],
+  ])(
+    'only releases confirmed pre-submission failures: %o',
+    (error, expected) => {
+      expect(isDefinitelyUnsubmittedMigrationApprovalError(error)).toBe(
+        expected,
+      )
+    },
+  )
+})
 
 describe('registrationApprovalRecoveryDecision', () => {
   it.each([

@@ -15,6 +15,7 @@ import {
   orderMigrationCleanupApprovals,
   planMigrationApprovalPreflight,
   planMigrationApprovals,
+  planMigrationCleanupApprovals,
   readActiveMigrationOperatorApprovals,
   temporaryMigrationHcaApproval,
 } from './migrationApprovals'
@@ -48,6 +49,52 @@ const statusFor = (
 
 beforeEach(() => {
   readContractsMock.mockReset()
+})
+
+describe('planMigrationCleanupApprovals', () => {
+  const registrar: MigrationCleanupApproval = {
+    kind: 'operator',
+    id: 'base-registrar:hca',
+    contractAddress: V1_CONTRACTS.BaseRegistrar,
+    operatorAddress: V2_CONTRACTS.MigrationHelper,
+  }
+  const registry = temporaryMigrationHcaApproval(HCA)
+  it.each([
+    {
+      strategy: 'per-token' as const,
+      missing: [registrar],
+      owned: [],
+      active: false,
+      expected: [],
+    },
+    {
+      strategy: 'temporary-operator' as const,
+      missing: [registrar, registry],
+      owned: [registrar],
+      active: false,
+      expected: [registrar, registry],
+    },
+    {
+      strategy: 'temporary-operator' as const,
+      missing: [],
+      owned: [registrar],
+      active: true,
+      expected: [registrar, registry],
+    },
+  ])(
+    'derives cleanup from reviewed and owned permissions: $strategy, active $active',
+    ({ strategy, missing, owned, active, expected }) => {
+      expect(
+        planMigrationCleanupApprovals({
+          hcaAddress: HCA,
+          strategy,
+          missing,
+          ownedRegistrationCleanup: owned,
+          hasHcaApproval: active,
+        }),
+      ).toEqual(expected)
+    },
+  )
 })
 
 describe('checkMigrationApprovals', () => {

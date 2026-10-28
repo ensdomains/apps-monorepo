@@ -1,6 +1,43 @@
 import { match } from 'ts-pattern'
 import type { Address, Hex } from 'viem'
+import {
+  type MigrationApprovalReview,
+  type MigrationRegistrationApprovalStrategy,
+  migrationApprovalReviewKey,
+} from './migrationApprovals'
 import type { TemporaryRegistrationApproval } from './migrationBatchJournal'
+
+export const isTemporaryRegistrationRecoveryScopeValid = (params: {
+  readonly strategy: MigrationRegistrationApprovalStrategy | undefined
+  readonly required: MigrationApprovalReview | null
+  readonly reviewed: MigrationApprovalReview | undefined
+}): boolean =>
+  params.strategy === 'temporary-operator' &&
+  params.required !== null &&
+  params.reviewed !== undefined &&
+  migrationApprovalReviewKey(params.required) ===
+    migrationApprovalReviewKey(params.reviewed)
+
+export const isDefinitelyUnsubmittedMigrationApprovalError = (
+  error: unknown,
+): boolean => {
+  let current = error
+  for (
+    let depth = 0;
+    depth < 10 && typeof current === 'object' && current !== null;
+    depth += 1
+  ) {
+    if (
+      ('_tag' in current &&
+        (current._tag === 'ChainIdMismatchError' ||
+          current._tag === 'SignerAddressMismatchError')) ||
+      ('name' in current && current.name === 'ChainMismatchError')
+    )
+      return true
+    current = 'cause' in current ? current.cause : undefined
+  }
+  return false
+}
 
 export const registrationApprovalRecoveryDecision = (params: {
   readonly status: TemporaryRegistrationApproval['state']['status']

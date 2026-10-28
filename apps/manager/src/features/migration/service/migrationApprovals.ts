@@ -266,6 +266,34 @@ export const orderMigrationCleanupApprovals = (params: {
   })
 }
 
+export const planMigrationCleanupApprovals = (params: {
+  readonly hcaAddress: Address
+  readonly strategy: MigrationRegistrationApprovalStrategy | undefined
+  readonly missing: readonly MigrationApproval[]
+  readonly ownedRegistrationCleanup: readonly MigrationCleanupApproval[]
+  readonly hasHcaApproval: boolean
+}): readonly MigrationCleanupApproval[] => {
+  const newRegistrationCleanup =
+    params.strategy === 'temporary-operator'
+      ? params.missing.filter(
+          (approval): approval is MigrationCleanupApproval =>
+            approval.kind === 'operator' &&
+            approval.id === 'base-registrar:hca',
+        )
+      : []
+  return [
+    ...new Map(
+      [...params.ownedRegistrationCleanup, ...newRegistrationCleanup].map(
+        (approval) => [migrationApprovalKey(approval), approval],
+      ),
+    ).values(),
+    ...(params.hasHcaApproval ||
+    params.missing.some(({ id }) => id === 'eth-registry:hca')
+      ? [temporaryMigrationHcaApproval(params.hcaAddress)]
+      : []),
+  ]
+}
+
 const uniqueTokenIds = (tokenIds: readonly bigint[]): readonly bigint[] => [
   ...new Set(tokenIds),
 ]

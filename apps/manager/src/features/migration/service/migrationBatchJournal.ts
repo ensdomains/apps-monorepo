@@ -109,6 +109,50 @@ export type PendingAtomicMigrationIntent = {
   readonly operations: readonly MigrationJournalOperation[]
 }
 
+export const classifyMigrationRecoverySubmission = (params: {
+  readonly registryOperations: readonly MigrationJournalOperation[]
+  readonly operations: readonly MigrationJournalOperation[]
+}): 'unrelated' | 'matching' | 'mismatch' => {
+  const expected = new Map(
+    params.registryOperations.map(({ name, action }) => [name, action]),
+  )
+  if (!params.operations.some(({ name }) => expected.has(name)))
+    return 'unrelated'
+  return params.operations.some(
+    ({ name, action }) => expected.get(name) !== action,
+  )
+    ? 'mismatch'
+    : 'matching'
+}
+
+export const hasUnsettledMigrationRecoveryRequests = (params: {
+  readonly registryOperations: readonly MigrationJournalOperation[]
+  readonly pending: readonly PendingAtomicMigrationIntent[]
+  readonly submitted: readonly SubmittedAtomicMigrationBatch[]
+  readonly settled: readonly Pick<
+    SubmittedAtomicMigrationBatch,
+    'intentId' | 'hash'
+  >[]
+}): boolean => {
+  const isRelated = (operations: readonly MigrationJournalOperation[]) =>
+    classifyMigrationRecoverySubmission({
+      registryOperations: params.registryOperations,
+      operations,
+    }) !== 'unrelated'
+  return (
+    params.pending.some(
+      ({ id, operations }) =>
+        isRelated(operations) &&
+        !params.settled.some(({ intentId }) => intentId === id),
+    ) ||
+    params.submitted.some(
+      ({ hash, operations }) =>
+        isRelated(operations) &&
+        !params.settled.some((submission) => submission.hash === hash),
+    )
+  )
+}
+
 /**
  * Durable inputs required to rebuild the exact migration tree after a reload.
  * Calls and verification expectations are deliberately not serialized: they
@@ -137,6 +181,10 @@ export type MigrationRecoverySnapshot = {
 export type TemporaryRegistrationApproval = {
   readonly contractAddress: Address
   readonly operatorAddress: Address
+  readonly submission?: {
+    readonly nonce: bigint
+    readonly blockNumber: bigint
+  }
   readonly state:
     | { readonly status: 'granted'; readonly hash: Hex }
     | {
@@ -176,8 +224,17 @@ type StoredRecoveryProfile = {
 
 type StoredRecoverySnapshot = Omit<
   MigrationRecoverySnapshot,
-  'profiles' | 'plannedApprovals'
+  'profiles' | 'plannedApprovals' | 'temporaryRegistrationApproval'
 > & {
+  readonly temporaryRegistrationApproval?: Omit<
+    TemporaryRegistrationApproval,
+    'submission'
+  > & {
+    readonly submission?: {
+      readonly nonce: string
+      readonly blockNumber: string
+    }
+  }
   readonly profiles: readonly StoredRecoveryProfile[]
   readonly plannedApprovals: readonly {
     readonly id: MigrationApprovalId
@@ -403,7 +460,9 @@ const parseApprovalReview = (
 
 const parseTemporaryRegistrationApproval = (
   value: unknown,
-): TemporaryRegistrationApproval | null => {
+): NonNullable<
+  StoredRecoverySnapshot['temporaryRegistrationApproval']
+> | null => {
   if (
     !isRecord(value) ||
     typeof value.contractAddress !== 'string' ||
@@ -414,9 +473,29 @@ const parseTemporaryRegistrationApproval = (
   )
     return null
   const { state } = value
+  const submission = value.submission
+  if (
+    submission !== undefined &&
+    (!isRecord(submission) ||
+      typeof submission.nonce !== 'string' ||
+      !/^\d+$/.test(submission.nonce) ||
+      typeof submission.blockNumber !== 'string' ||
+      !/^\d+$/.test(submission.blockNumber))
+  )
+    return null
   const addresses = {
     contractAddress: value.contractAddress,
     operatorAddress: value.operatorAddress,
+    ...(isRecord(submission) &&
+    typeof submission.nonce === 'string' &&
+    typeof submission.blockNumber === 'string'
+      ? {
+          submission: {
+            nonce: submission.nonce,
+            blockNumber: submission.blockNumber,
+          },
+        }
+      : {}),
   }
   if (state.status === 'granted') {
     return isTransactionHash(state.hash)
@@ -803,6 +882,15 @@ const hydrateRecovery = (
   recovery: StoredRecoverySnapshot,
 ): MigrationRecoverySnapshot => ({
   ...recovery,
+  temporaryRegistrationApproval: recovery.temporaryRegistrationApproval && {
+    ...recovery.temporaryRegistrationApproval,
+    submission: recovery.temporaryRegistrationApproval.submission && {
+      nonce: BigInt(recovery.temporaryRegistrationApproval.submission.nonce),
+      blockNumber: BigInt(
+        recovery.temporaryRegistrationApproval.submission.blockNumber,
+      ),
+    },
+  },
   profiles: new Map(
     recovery.profiles.map((profile) => [
       profile.node,
@@ -834,6 +922,14 @@ const storeRecovery = (
   recovery: MigrationRecoverySnapshot,
 ): StoredRecoverySnapshot => ({
   ...recovery,
+  temporaryRegistrationApproval: recovery.temporaryRegistrationApproval && {
+    ...recovery.temporaryRegistrationApproval,
+    submission: recovery.temporaryRegistrationApproval.submission && {
+      nonce: recovery.temporaryRegistrationApproval.submission.nonce.toString(),
+      blockNumber:
+        recovery.temporaryRegistrationApproval.submission.blockNumber.toString(),
+    },
+  },
   profiles: [...recovery.profiles].map(([node, profile]) => ({
     node,
     texts: profile.texts,
