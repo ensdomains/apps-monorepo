@@ -82,6 +82,12 @@ const recordAbi = [
     'function data(bytes32, string) view returns (bytes)',
   ]),
 ] as const
+const RPC_ABI = [
+  ...multicall3Abi,
+  ...parseAbi(['function supportsInterface(bytes4) view returns (bool)']),
+  ...permissionedResolverResolveSnippet,
+  ...recordAbi,
+] as const
 const bytes = (value: Hex) => encodeAbiParameters([{ type: 'bytes' }], [value])
 const expected: ServiceRecordSnapshot = {
   texts: [
@@ -514,12 +520,6 @@ describe('offchain resolver records', () => {
 })
 
 describe('resolver record RPC batching', () => {
-  const rpcAbi = [
-    ...multicall3Abi,
-    ...parseAbi(['function supportsInterface(bytes4) view returns (bool)']),
-    ...permissionedResolverResolveSnippet,
-    ...recordAbi,
-  ] as const
   type RpcResult = { readonly success: boolean; readonly returnData: Hex }
   type RpcRequest = {
     readonly id: number
@@ -529,7 +529,7 @@ describe('resolver record RPC batching', () => {
   const texts = [
     'description',
     CUSTOM_KEY,
-    ...Array.from({ length: 70 }, (_, index) => `custom.${index}`),
+    ...Array.from({ length: 10 }, (_, index) => `custom.${index}`),
     'unsupported',
     'malformed',
   ]
@@ -574,7 +574,7 @@ describe('resolver record RPC batching', () => {
     const read = (data: Hex): RpcResult => {
       if (data.startsWith('0xac9650d8'))
         return { success: false, returnData: '0x' }
-      const call = decodeFunctionData({ abi: rpcAbi, data })
+      const call = decodeFunctionData({ abi: RPC_ABI, data })
       switch (call.functionName) {
         case 'aggregate3':
           return success(
@@ -613,7 +613,8 @@ describe('resolver record RPC batching', () => {
     )
     const client = createPublicClient({
       chain: mainnet,
-      batch: { multicall: { batchSize: 8192, wait: 16 } },
+      // Exercise payload splitting with a small record fixture.
+      batch: { multicall: { batchSize: 4096, wait: 16 } },
       transport: http('https://rpc.invalid', {
         batch: { batchSize: 20, wait: 16 },
         fetchFn: fetchRpc,
@@ -628,21 +629,21 @@ describe('resolver record RPC batching', () => {
       mode: 'profile',
       hasNameSetters: true,
       maxConcurrentReads: 64,
-      maxRequests: 6,
+      maxRequests: 3,
       maxCalls: 64,
     },
     {
       mode: 'import',
       hasNameSetters: true,
       maxConcurrentReads: undefined,
-      maxRequests: 11,
+      maxRequests: 4,
       maxCalls: 8,
     },
     {
       mode: 'offchain fallback',
       hasNameSetters: false,
       maxConcurrentReads: 64,
-      maxRequests: 12,
+      maxRequests: 5,
       maxCalls: 8,
     },
   ])(
@@ -694,7 +695,7 @@ describe('resolver record RPC batching', () => {
               callData.startsWith('0x9061b923') &&
               !callData.includes('ac9650d8'),
           ),
-      ).toHaveLength(78)
+      ).toHaveLength(18)
       expect(
         Math.max(...calls.map((batch) => batch.length)),
       ).toBeLessThanOrEqual(maxCalls)
