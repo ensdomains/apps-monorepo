@@ -321,15 +321,15 @@ export function useWeaveShader(
 
     const resize = () => {
       const rect = container.getBoundingClientRect()
-      const w = rect.width * DPR
-      const h = rect.height * DPR
-      canvas.width = w
-      canvas.height = h
+      const w = Math.round(rect.width * DPR)
+      const h = Math.round(rect.height * DPR)
       canvas.style.width = `${rect.width}px`
       canvas.style.height = `${rect.height}px`
+      if (canvas.width === w && canvas.height === h) return
+      canvas.width = w
+      canvas.height = h
       gl.viewport(0, 0, w, h)
-      // When static (no rAF loop), redraw immediately to fill the new size.
-      if (animationId == null) render(false)
+      render(false)
     }
 
     const setupGeometry = () => {

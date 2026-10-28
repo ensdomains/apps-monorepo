@@ -1,14 +1,46 @@
 import { getCoinTypeForReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import type { ReactNode } from 'react'
+import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { columns } from './columns'
+
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({
+    to,
+    params,
+    children,
+  }: {
+    to: string
+    params?: Record<string, string>
+    children: ReactNode
+  }) => (
+    <a href={to} data-params={JSON.stringify(params)}>
+      {children}
+    </a>
+  ),
+}))
+
+vi.mock('@/hooks/useSupportsInterfaces', () => ({
+  getSupportsInterfacesQueryOptions: () => ({
+    queryKey: ['supports-interfaces-mock'],
+    queryFn: async () => [false],
+  }),
+}))
+
+const renderRows = (data: readonly ReverseResolutionResult[]) =>
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Harness data={data} />
+    </QueryClientProvider>,
+  )
 
 /** Base Sepolia — an L2 row, so one that inherits `default.reverse`. */
 const L2_COIN_TYPE = getCoinTypeForReverseRegistrarChainId(8453, 'sepolia')
@@ -90,7 +122,7 @@ describe('reverse resolution columns', () => {
   // inherited name whose forward `addr` resolves elsewhere is a claim, not a
   // verified primary name.
   it('marks an inherited default that does not forward-resolve back as unverified', () => {
-    render(<Harness data={UNVERIFIED_DEFAULT} />)
+    renderRows(UNVERIFIED_DEFAULT)
 
     expect(screen.getByText('someone-elses.eth')).toBeInTheDocument()
     expect(screen.getByText('Unverified')).toBeInTheDocument()
@@ -100,7 +132,7 @@ describe('reverse resolution columns', () => {
   })
 
   it('marks an inherited default that does forward-resolve back as verified', () => {
-    render(<Harness data={VERIFIED_DEFAULT} />)
+    renderRows(VERIFIED_DEFAULT)
 
     expect(screen.getByText('True')).toBeInTheDocument()
     expect(screen.getByText('Primary name')).toBeInTheDocument()
@@ -108,17 +140,30 @@ describe('reverse resolution columns', () => {
   })
 
   it("leaves a row's own unverified record reporting False", () => {
-    render(<Harness data={OWN_UNVERIFIED_RECORD} />)
+    renderRows(OWN_UNVERIFIED_RECORD)
 
     expect(screen.getByText('False')).toBeInTheDocument()
     expect(screen.queryByText('Primary name')).not.toBeInTheDocument()
   })
 
   it('shows no inherited name at all on the Default and Mainnet rows', () => {
-    render(<Harness data={NEVER_INHERITS} />)
+    renderRows(NEVER_INHERITS)
 
     expect(screen.queryByText('someone-elses.eth')).not.toBeInTheDocument()
     expect(screen.queryByText('Unverified')).not.toBeInTheDocument()
     expect(screen.getAllByText('null')).toHaveLength(2)
+  })
+
+  it.each([
+    { name: 'nguyenk.eth', forwardMatch: false },
+    { name: 'alice.eth', forwardMatch: true },
+    { defaultName: 'inherited.eth', defaultForwardMatch: false },
+  ])('links the displayed name to its profile for %o', (record) => {
+    renderRows([l2Row(record)])
+
+    const name = record.name ?? record.defaultName ?? ''
+    const link = screen.getByText(name).closest('a')
+    expect(link).toHaveAttribute('href', '/$name')
+    expect(link).toHaveAttribute('data-params', JSON.stringify({ name }))
   })
 })

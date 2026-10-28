@@ -69,6 +69,7 @@ describe('fetchNameHistoryPage', () => {
     expect(getNameHistory).toHaveBeenCalledWith(
       'alice.eth',
       {
+        namespace: 'ens',
         include: ['data', 'raw'],
         type: ['resolver', 'record'],
         from_timestamp: '1700000000',
@@ -142,6 +143,12 @@ describe('fetchNameHistoryPage', () => {
     expect(result.events.map((event) => event.id)).toEqual(['lapse'])
     expect(result.events[0].transactionHash).toBeNull()
     expect(result.totalCount).toBeUndefined()
+  })
+
+  it('reads a name bigname has not indexed as an empty history', async () => {
+    getNameHistory.mockRejectedValue({ code: 'not_found' })
+    const result = await fetchNameHistoryPage({ name: 'jesse.base.eth' })
+    expect(result._unsafeUnwrap()).toMatchObject({ events: [], totalCount: 0 })
   })
 
   it('surfaces a bigname failure as an error result', async () => {

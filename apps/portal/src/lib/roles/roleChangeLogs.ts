@@ -129,7 +129,7 @@ const readRegistrationRoleRows = ResultFn(async function* (
   const toError = (cause: BignameError) =>
     new IndexedRoleChangeLogsError({ reason: 'failed', cause })
   const registration = yield* bigname
-    .name(normalizeOrLower(name), undefined, { signal })
+    .name(normalizeOrLower(name), { namespace: 'ens' }, { signal })
     .map(({ data }) => data.registration_id)
     .orElse((error) =>
       error.code === 'not_found'

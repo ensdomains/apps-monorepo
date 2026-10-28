@@ -1488,6 +1488,16 @@ const migrationGR: Scenario[] = suite('G.GR', 'migration', 'manager', 'P3', [
     'Index has not listed the record keys yet (stale key inventory)',
     'records on chain survive migration, or the app refuses to migrate until the index is current — an empty key list is not proof of no records',
   ],
+  [
+    'GR14',
+    'Unwrapped, wrapped and locked 2LD on a CCIP-Read (offchain) resolver',
+    '`keep-v1`: V2 points at the same resolver, the upgrade makes no gateway request, and the name and its wildcard subname still resolve in both apps',
+  ],
+  [
+    'GR15',
+    'Registered subname on a CCIP-Read resolver: registry-only, unlocked, emancipated and locked children',
+    'the child lands in the parent’s V2 subregistry on its own CCIP-Read resolver, nothing is read through the gateway, and it still resolves in both apps (copy routes need `migration-subname-recreation`)',
+  ],
 ])
 
 const migrationGM: Scenario[] = suite('G.GM', 'migration', 'manager', 'P3', [
@@ -1912,6 +1922,53 @@ const surfacesH: Scenario[] = suite('H', 'profile', 'shared', 'P5', [
     'H11',
     'Profile of a name owned by a contract or an HCA',
     'owner rendered as a contract/smart account, not as a plain EOA',
+  ],
+  // Offchain (CCIP-Read) names, #1571 / #1575. Fixture: fixtures/offchainName.ts
+  // with the controllable gateway in helpers/ccip-gateway.ts.
+  [
+    'H12',
+    'Manager profile of an offchain (CCIP-Read) name',
+    'records render, read in batched resolve(multicall) requests — not one gateway request per record',
+  ],
+  [
+    'H13',
+    'Manager profile of an ownerless wildcard subname under an offchain resolver',
+    'its gateway records render; never "doesn\'t exist" or a register redirect',
+  ],
+  [
+    'H14',
+    'Manager: gateway rejects the batch URL (500 above ~4k chars, as Namespace does)',
+    'falls back to single reads for that batch and every record still renders',
+  ],
+  [
+    'H15',
+    'Manager: some offchain keys fail at the gateway',
+    'the records that did come back render; the failed ones are absent',
+  ],
+  [
+    'H16',
+    'Manager: gateway rate limits (429)',
+    'no fallback storm or retry, a records-unavailable notice, editing paused, and "Try again" recovers',
+  ],
+  [
+    'H17',
+    'Explorer: offchain name and its ownerless wildcard subname',
+    'both render their gateway records in batched requests; the subname is not "Name not found"',
+  ],
+  [
+    'H18',
+    'Explorer: gateway rejects the batch URL',
+    'falls back through the UniversalResolver and the records still render',
+  ],
+  [
+    'H19',
+    'Explorer: rate-limited ownerless name',
+    '"Error loading records", not a false "Name not found"',
+  ],
+  [
+    'H20',
+    'Manager: an ENSv2 name its owner points at a CCIP-Read resolver',
+    'the profile editor goes away (the resolver has no setters) and the offchain records still show',
   ],
 ])
 

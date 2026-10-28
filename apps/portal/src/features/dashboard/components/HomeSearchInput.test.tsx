@@ -47,13 +47,30 @@ vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
   }),
 }))
 
+// Basenames have no registry owner; only jesse's records resolve.
 vi.mock('@/features/profile/hooks/useEnsOwner', () => ({
   getEnsOwnerQueryOptions: ({ name }: { name: string }) => ({
     queryKey: ['get-ens-owner', { name }],
+    queryFn: async () =>
+      name.endsWith('.base.eth')
+        ? null
+        : {
+            owner: '0x1234567890abcdef1234567890abcdef12345678',
+            registryAddress: '0x0000000000000000000000000000000000000000',
+            network: 'sepolia',
+          },
+  }),
+}))
+
+vi.mock('@/features/profile/hooks/useProfile', () => ({
+  getProfileQueryOptions: ({ name }: { name: string }) => ({
+    queryKey: ['profile', { name }],
     queryFn: async () => ({
-      owner: '0x1234567890abcdef1234567890abcdef12345678',
-      registryAddress: '0x0000000000000000000000000000000000000000',
-      network: 'sepolia',
+      records: {
+        texts:
+          name === 'jesse.base.eth' ? [{ key: 'url', value: 'jesse.xyz' }] : [],
+        coins: [],
+      },
     }),
   }),
 }))
@@ -89,6 +106,24 @@ async function openSearchDialog(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('HomeSearchInput', () => {
+  it.each([
+    ['jesse.base.eth', false],
+    ['sse.base.eth', true],
+  ])('an ownerless %s is not found: %s', async (name, isNotFound) => {
+    vi.mocked(useIsMobile).mockReturnValue(false)
+    const user = userEvent.setup()
+    render(<HomeSearchInput />, { wrapper: createWrapper() })
+
+    await user.type(await openSearchDialog(user), name)
+
+    await waitFor(() => {
+      expect(screen.queryByText('Name not found') !== null).toBe(isNotFound)
+      expect(screen.queryAllByText('View ENS name details')).toHaveLength(
+        isNotFound ? 0 : 1,
+      )
+    })
+  })
+
   describe('Address Suggestions', () => {
     it('should truncate address label on mobile', async () => {
       vi.mocked(useIsMobile).mockReturnValue(true)
