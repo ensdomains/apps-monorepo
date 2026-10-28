@@ -1,5 +1,6 @@
 import { buildConfig, type EnsNetwork, isEnsNetwork } from '@ens-apps/config'
 import { createIsomorphicFn } from '@tanstack/react-start'
+import { drpcRpcUrl } from './drpc'
 import { MANAGER_ENDPOINTS } from './endpoints'
 import { getL2Sources } from './l2Sources'
 
@@ -18,17 +19,13 @@ import { getL2Sources } from './l2Sources'
 /**
  * The manager's own RPC endpoint per network.
  *
- * Not a secret: the path key ships in every browser bundle and identifies a
- * quota bucket, nothing more. It is kept per app so usage is attributed to the
- * manager rather than pooled with the portal, and per network so a mainnet
- * build cannot inherit a Sepolia endpoint. A network with no entry falls back
- * to the shared public endpoints in the network profile.
+ * It is kept per network so a mainnet build cannot inherit a Sepolia
+ * endpoint. A network with no entry falls back to the shared public endpoints
+ * in the network profile.
  */
 const MANAGER_RPC_URLS: Partial<Record<EnsNetwork, string>> = {
-  mainnet:
-    'https://lb.drpc.live/ethereum/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j',
-  sepolia:
-    'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j',
+  mainnet: drpcRpcUrl('ethereum'),
+  sepolia: drpcRpcUrl('sepolia'),
 }
 
 const network = import.meta.env?.VITE_ENS_NETWORK

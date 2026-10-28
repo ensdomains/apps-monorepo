@@ -102,7 +102,9 @@ describe('commemorative NFT renderer readiness', () => {
     const { result, rendererWindow, onReady, onError, rerender } =
       mountRenderer()
 
-    sendMessage(rendererWindow)
+    const revealFrame = { x: 0.1, y: 0.1, width: 0.8, height: 0.8 }
+    sendMessage(rendererWindow, { ...readyMessage, revealFrame })
+    expect(result.current.revealFrame).toEqual(revealFrame)
     expect(result.current.ready).toBe(true)
     expect(result.current.failed).toBe(false)
     expect(onReady).toHaveBeenCalledOnce()

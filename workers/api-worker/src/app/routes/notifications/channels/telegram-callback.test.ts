@@ -45,15 +45,16 @@ describe('Telegram callback page', () => {
     expect(page).not.toContain('private')
   })
 
-  it('offers a Manager link only when one is configured', async () => {
-    const options = { isSuccess: true, nonce: 'page-test-nonce' }
-    const page = String(
-      await telegramCallbackPage({
-        ...options,
-        managerUrl: 'https://sepolia.app.ens.domains',
-      }),
-    )
-    expect(page).toContain('href="https://sepolia.app.ens.domains"')
-    expect(String(await telegramCallbackPage(options))).not.toContain('<a ')
-  })
+  it.each([false, true])(
+    'offers to close the callback window (success: %s)',
+    async (isSuccess) => {
+      const page = String(
+        await telegramCallbackPage({ isSuccess, nonce: 'page-test-nonce' }),
+      )
+      expect(page).toContain('id="close-window"')
+      expect(page).toContain('window.close()')
+      expect(page).toContain('<script nonce="page-test-nonce">')
+      expect(page).not.toContain('Open ENS App')
+    },
+  )
 })

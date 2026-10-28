@@ -64,7 +64,10 @@ export const CommemorativeNftTraitsTooltip = ({
         <div className="flex items-center justify-between gap-3 text-ens-garnet-500">
           <a
             className="underline underline-offset-2 hover:text-ens-garnet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2"
-            href={learnMoreUrl ?? 'https://ens.domains/blog'}
+            href={
+              learnMoreUrl ??
+              'https://ens.domains/blog/post/ensv2-commemorative-nft-collection'
+            }
             rel="noreferrer"
             target="_blank"
           >

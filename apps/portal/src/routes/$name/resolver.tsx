@@ -1,7 +1,10 @@
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
+import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import type { GetEnsResolverErrorType } from '@wagmi/core'
 import { ClockIcon } from 'lucide-react'
+import type { ReactElement } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
@@ -25,6 +28,7 @@ import {
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
@@ -40,7 +44,7 @@ import {
   universalResolverAddress,
 } from '@/lib/constants/universalResolver'
 import { wagmiConfig } from '@/lib/wagmi'
-import { isRegistrable } from '@/utils/ens/tldHelpers'
+import { is2LD, isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/$name/resolver')({
@@ -335,6 +339,35 @@ const NoResolverSet = ({
   )
 }
 
+/**
+ * What to show instead of the resolver for an ownerless name, if anything:
+ * only its records show that it exists (an offchain, CCIP-Read subname).
+ */
+const getOwnerlessFallback = ({
+  isOwnerless,
+  profileQuery,
+  notRegistered,
+}: {
+  readonly isOwnerless: boolean
+  readonly profileQuery: {
+    readonly isLoading: boolean
+    readonly error: unknown
+    readonly data?: { readonly records?: GetRecordsReturnType }
+  }
+  readonly notRegistered: ReactElement
+}) => {
+  if (!isOwnerless) return null
+  if (profileQuery.isLoading) return <LoadingMessage />
+  if (profileQuery.error)
+    return (
+      <ErrorMessage
+        title="Error loading records"
+        description={extractErrorMessage(profileQuery.error)}
+      />
+    )
+  return hasResolvedRecords(profileQuery.data?.records) ? null : notRegistered
+}
+
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/resolver' })
 
@@ -369,6 +402,11 @@ function RouteComponent() {
   // A gasless DNS name has no registry entry by design, yet the
   // UniversalResolver still finds a resolver for it (by wildcard).
   const offchain = useDnsOffchainName({ name, owner: ownerQuery.data })
+  // So does an offchain (CCIP-Read) subname; its records show it exists.
+  const profileQuery = useQuery({
+    ...getProfileQueryOptions({ name }),
+    enabled: !is2LD(name),
+  })
 
   if (ownerQuery.error) {
     return (
@@ -410,21 +448,25 @@ function RouteComponent() {
     )
   }
 
-  if (
-    availabilityQuery.data?.isAvailable ||
-    (!ownerQuery.data && !offchain.resolvedAddress)
+  const notRegistered = (
+    <NameNotRegisteredMessage
+      name={name}
+      description={
+        <>
+          <strong>{name}</strong> is not registered, so there is no resolver
+          data to display.
+        </>
+      }
+    />
   )
-    return (
-      <NameNotRegisteredMessage
-        name={name}
-        description={
-          <>
-            <strong>{name}</strong> is not registered, so there is no resolver
-            data to display.
-          </>
-        }
-      />
-    )
+  if (availabilityQuery.data?.isAvailable) return notRegistered
+
+  const ownerlessFallback = getOwnerlessFallback({
+    isOwnerless: !ownerQuery.data && !offchain.resolvedAddress,
+    profileQuery,
+    notRegistered,
+  })
+  if (ownerlessFallback) return ownerlessFallback
 
   const resolverAddress = resolverQuery.data
 

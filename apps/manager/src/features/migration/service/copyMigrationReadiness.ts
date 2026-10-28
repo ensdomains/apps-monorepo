@@ -1,4 +1,7 @@
-import { BASE_REGISTRAR_ABI, isKnownPublicResolver } from '@ens-apps/migration'
+import {
+  BASE_REGISTRAR_ABI,
+  isSupportedRecordResolver,
+} from '@ens-apps/migration'
 import { ROLES_ALL } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
@@ -244,7 +247,7 @@ const assertSourceResolverFresh = async (params: {
   if (
     params.requireSupportedResolver &&
     !isAddressEqual(resolver, zeroAddress) &&
-    !isKnownPublicResolver(resolver, envConfig.chain.id)
+    !isSupportedRecordResolver(resolver, envConfig.chain.id)
   ) {
     throw sourceError(
       name,
@@ -433,11 +436,15 @@ const assertRequiredMigratingRootsFresh = async (params: {
   readonly registryContext: readonly ClassifiedName[]
   readonly remainingNames: ReadonlySet<string>
   readonly recordedAttemptNames?: ReadonlySet<string>
+  readonly projectedExpiryNames?: ReadonlySet<string>
 }): Promise<void> => {
   const remainingRoots = requiredMigratingRoots(params.registryContext).filter(
     (root) =>
       params.remainingNames.has(normalizedName(root.domain.name)) &&
-      !params.recordedAttemptNames?.has(root.domain.name),
+      !params.recordedAttemptNames?.has(root.domain.name) &&
+      // A fee preview cannot read ownerOf/transferable wrapper expiry during
+      // grace. Execution rebuilds after renewal without projected expiries.
+      !params.projectedExpiryNames?.has(root.domain.name),
   )
   await Promise.all(
     remainingRoots.map((root) =>
@@ -895,6 +902,7 @@ export const assertCopyMigrationReadiness = async (params: {
       registryContext: params.registryContext,
       remainingNames,
       recordedAttemptNames: params.recordedAttemptNames,
+      projectedExpiryNames: params.projectedExpiryNames,
     }),
     assertCopySourcesFresh({
       publicClient: params.publicClient,

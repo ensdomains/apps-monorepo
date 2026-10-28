@@ -90,26 +90,45 @@ beforeEach(() => {
 })
 
 describe('commemorative NFT contract', () => {
-  it('blocks reads and claims for undeployed mainnet even with a Sepolia chain ID', async () => {
+  it('uses the deployed mainnet contract for reads and claims', async () => {
     config.network = 'mainnet'
+    writeContractMock.mockResolvedValue(hash)
     await expect(
       readCommemorativeNftClaimed({
         wagmiConfig,
-        chainId: 11155111,
+        chainId: 1,
         ownerAddress,
       }),
-    ).rejects.toMatchObject({ reason: 'unsupported-network' })
+    ).resolves.toBe(true)
     await expect(
       claimCommemorativeNft({
         wagmiConfig,
-        chainId: 11155111,
+        chainId: 1,
         ownerAddress,
         walletAddress: ownerAddress,
         proof,
       }),
-    ).rejects.toMatchObject({ reason: 'unsupported-network' })
-    expect(readContractMock).not.toHaveBeenCalled()
-    expect(writeContractMock).not.toHaveBeenCalled()
+    ).resolves.toBe(hash)
+    expect(readContractMock).toHaveBeenCalledWith(
+      wagmiConfig,
+      expect.objectContaining({
+        address: '0x20262e3433306a4FF250a64d20a8E0F09B2C7F68',
+        chainId: 1,
+        functionName: 'hasClaimed',
+        args: [ownerAddress],
+      }),
+    )
+    expect(ensureWalletChainMock).toHaveBeenCalledWith(wagmiConfig, 1)
+    expect(writeContractMock).toHaveBeenCalledWith(
+      wagmiConfig,
+      expect.objectContaining({
+        address: '0x20262e3433306a4FF250a64d20a8E0F09B2C7F68',
+        chainId: 1,
+        account: ownerAddress,
+        functionName: 'claim',
+        args: [proof],
+      }),
+    )
   })
   it('submits a plain EOA claim', async () => {
     writeContractMock.mockResolvedValue(hash)

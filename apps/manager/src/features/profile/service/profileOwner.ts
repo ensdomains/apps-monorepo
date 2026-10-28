@@ -121,9 +121,16 @@ const getV1ProfileOwner = ResultFn(async function* (
     }
   }
 
-  if (v1Owner?.owner && v1Owner.owner !== zeroAddress) {
+  // An unwrapped 2LD belongs to the registrar NFT holder; the registry owner is
+  // only its controller, which can be a different address.
+  const holder =
+    v1Owner?.ownershipLevel === 'registrar' && v1Owner.registrant
+      ? v1Owner.registrant
+      : v1Owner?.owner
+
+  if (holder && holder !== zeroAddress) {
     return ok({
-      owner: v1Owner.owner,
+      owner: holder,
       protocol: 'v1',
     } satisfies ProfileOwnerResult)
   }

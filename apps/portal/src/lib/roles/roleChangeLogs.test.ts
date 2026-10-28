@@ -121,9 +121,13 @@ describe('getRoleChangeLogs via bigname', () => {
   it('reads the current registration’s permission rows, oldest first', async () => {
     await read()
 
-    expect(mockName).toHaveBeenCalledWith(NAME, undefined, {
-      signal: expect.any(AbortSignal),
-    })
+    expect(mockName).toHaveBeenCalledWith(
+      NAME,
+      { namespace: 'ens' },
+      {
+        signal: expect.any(AbortSignal),
+      },
+    )
     expect(mockEvents).toHaveBeenCalledWith(
       expect.objectContaining({
         registration_id: REGISTRATION,
@@ -203,6 +207,54 @@ describe('getRoleChangeLogs via bigname', () => {
       () =>
         mockName.mockReturnValue(
           errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
+        ),
+    ],
+    [
+      'bigname rejects the read (400)',
+      () =>
+        mockName.mockReturnValue(
+          errAsync(
+            new BignameError({
+              status: 400,
+              code: 'invalid_input',
+              message: 'bad filter',
+            }),
+          ),
+        ),
+    ],
+    [
+      'bigname answers stale (409)',
+      () =>
+        mockName.mockReturnValue(
+          errAsync(
+            new BignameError({ status: 409, code: 'stale', message: 'stale' }),
+          ),
+        ),
+    ],
+    [
+      'bigname is rate limited (429)',
+      () =>
+        mockName.mockReturnValue(
+          errAsync(
+            new BignameError({
+              status: 429,
+              code: 'rate_limited',
+              message: 'slow down',
+            }),
+          ),
+        ),
+    ],
+    [
+      'bigname fails internally (500)',
+      () =>
+        mockName.mockReturnValue(
+          errAsync(
+            new BignameError({
+              status: 500,
+              code: 'internal_error',
+              message: 'boom',
+            }),
+          ),
         ),
     ],
     [

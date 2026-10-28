@@ -90,6 +90,53 @@ describe('profileMapKey', () => {
 })
 
 describe('fetchV1Profiles', () => {
+  it.each([
+    ['content', `0x${'11'.repeat(32)}`, 'LegacyResolverContentError'],
+    ['name', 'keep-me.eth', 'UnsupportedResolverRecordsError'],
+    ['content', zeroHash, null],
+    ['name', '', null],
+  ] as const)(
+    'preserves or refuses %s = %s without dropping the affected name',
+    async (record, value, errorName) => {
+      const name = {
+        ...A,
+        v1ResolverAddress:
+          record === 'content'
+            ? ('0x5FfC014343cd971B7eb70732021E26C35B744cc4' as Address)
+            : V1_RESOLVER,
+      }
+      mockKeys([
+        { id: NODE_A, texts: [], coinTypes: [], hasName: record === 'name' },
+      ])
+      const publicClient = {
+        ...clientWith((options) =>
+          (options as { contracts: { functionName: string }[] }).contracts.map(
+            ({ functionName }) =>
+              okCall(functionName === record ? value : [zeroHash, zeroHash]),
+          ),
+        ),
+        chain: { id: 1 },
+      } as unknown as PublicClient
+      const result = run([name], publicClient)
+
+      if (errorName) {
+        await expect(result).rejects.toMatchObject({
+          name: errorName,
+          ensName: 'a.eth',
+        })
+      } else {
+        expect((await result).get(NODE_A)).toEqual({
+          texts: [],
+          addresses: [],
+          contentHash: null,
+          abis: [],
+          interfaces: [],
+          pubkey: null,
+        })
+      }
+    },
+  )
+
   it('returns empty map without RPC when names is empty', async () => {
     const result = await run(
       [],

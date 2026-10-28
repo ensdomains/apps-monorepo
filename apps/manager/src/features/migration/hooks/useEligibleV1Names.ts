@@ -10,6 +10,7 @@ import {
 } from '@/features/migration/service/buildMigrationPlan'
 import {
   type ClassifiedName,
+  type CopyClassifiedName,
   classifyNames,
   type IneligibleName,
 } from '@/features/migration/service/classifyNames'
@@ -154,11 +155,21 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
     ? []
     : (eligibility?.blockedSubnames ?? [])
 
+  const verifiedSubnames = useMemo<readonly CopyClassifiedName[]>(() => {
+    if (recoverySnapshot) return []
+    const eligibleNames = new Set(eligible.map(({ domain }) => domain.name))
+    return (eligibility?.verifiedSubnames ?? []).filter(
+      ({ recreationRoot }) =>
+        recreationRoot && eligibleNames.has(recreationRoot),
+    )
+  }, [eligibility, eligible, recoverySnapshot])
+
   return {
     eligible,
     gracePeriodNames,
     unavailableNames,
     blockedSubnames,
+    verifiedSubnames,
     isEligibilityError:
       !recoverySnapshot && (!!isEligibilityError || !!isV1Error),
     retryEligibility: () => {

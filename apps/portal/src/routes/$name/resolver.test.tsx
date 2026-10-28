@@ -35,6 +35,7 @@ const settled = (data: unknown): QueryResult => ({
 let ownerResult: QueryResult
 let resolverResult: QueryResult
 let v1StateResult: QueryResult
+let profileResult: QueryResult
 
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
@@ -52,6 +53,7 @@ vi.mock('@tanstack/react-query', async () => {
       if (key === 'hasRoles') return settled(true)
       if (key === 'get-ens-owner') return ownerResult
       if (key === 'transfer-v1-name-state') return v1StateResult
+      if (key === 'profile') return profileResult
       return settled(undefined)
     },
   }
@@ -112,6 +114,7 @@ beforeEach(() => {
   // No registry entry by default — the gasless DNS name the first case covers.
   v1StateResult = settled({ subject: null })
   offchain = { isLoading: false, resolvedAddress: null }
+  profileResult = settled(undefined)
 })
 
 describe('resolver route', () => {
@@ -148,6 +151,39 @@ describe('resolver route', () => {
 
     expect(screen.getByText('Name not registered')).toBeInTheDocument()
     expect(screen.queryByTestId('dns-claimable')).not.toBeInTheDocument()
+  })
+
+  // An offchain (CCIP-Read) subname has no registry entry; its records show it exists.
+  it.each([
+    {
+      label: 'shows the resolver of an ownerless subname whose records resolve',
+      owner: null,
+      profile: settled({
+        records: { texts: [{ key: 'name', value: 'Jesse' }] },
+      }),
+      expected: ENS_V1_RESOLVER,
+    },
+    {
+      label: 'reports a failed record read as an error, not a missing name',
+      owner: null,
+      profile: { ...settled(undefined), error: new Error('bigname 503') },
+      expected: 'Error loading records',
+    },
+    {
+      label: 'shows a registered subname without waiting for its records',
+      owner: { owner: '0x55e55C649895940826a852820d9e1A076Ec47b09' },
+      profile: { ...settled(undefined), isLoading: true, isSuccess: false },
+      expected: ENS_V1_RESOLVER,
+    },
+  ])('$label', ({ owner, profile, expected }) => {
+    routeName = 'jesse.base.eth'
+    ownerResult = settled(owner)
+    profileResult = profile
+
+    render(<ResolverRoute />)
+
+    expect(screen.getByText(expected)).toBeInTheDocument()
+    expect(screen.queryByText('Name not registered')).not.toBeInTheDocument()
   })
 
   it('keeps the Change resolver button for a name with a registry entry', () => {

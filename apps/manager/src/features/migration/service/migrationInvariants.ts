@@ -61,6 +61,7 @@ export type MigrationContractInvariant =
   | 'resolver-implementation'
   | 'resolver-writer-roles'
   | 'public-resolver-set-membership'
+  | 'locked-resolver-record-control'
   | 'live-subregistry-overwrite'
 
 export class MigrationContractInvariantError extends TaggedError(
@@ -206,6 +207,7 @@ export const getRequiredMigrationContracts = (
 type LockedResolver = {
   readonly resolver: Address
   readonly replacement: Address
+  readonly isCertified: boolean
 }
 
 const readLockedResolvers = async (
@@ -246,6 +248,7 @@ const readLockedResolvers = async (
           name.domain.name,
           {
             resolver,
+            isCertified: replaced.has(resolver.toLowerCase() as Address),
             replacement: replaced.has(resolver.toLowerCase() as Address)
               ? V2_CONTRACTS.DefaultResolver
               : resolver,
@@ -256,7 +259,7 @@ const readLockedResolvers = async (
   )
 }
 
-/** Mirror the locked receiver at one block: a PublicResolverSet member becomes PublicResolverV2, anything else is kept. */
+/** Resolve the receiver's outcome at one block and refuse unsafe retained resolvers. */
 export const resolveLockedMigrationResolvers = async (params: {
   readonly publicClient: PublicClient
   readonly names: readonly ClassifiedName[]
@@ -282,6 +285,20 @@ export const resolveLockedMigrationResolvers = async (params: {
   return params.names.map((name) => {
     const state = locked.get(name.domain.name)
     if (name.action !== 'migrate' || !state) return name
+    // The V1 token moves to the Graveyard, which can take record write access
+    // with it. Current owner authorization cannot prove post-migration access
+    // for custom resolvers either, so require certification for any nonempty
+    // resolver that cannot be changed after the upgrade.
+    if (!isAddressEqual(state.resolver, zeroAddress) && !state.isCertified) {
+      throw new MigrationContractInvariantError({
+        invariant: 'locked-resolver-record-control',
+        contractName: 'PublicResolverSet',
+        address: state.resolver,
+        ensName: name.domain.name,
+        expected: 'certified replacement for a locked resolver',
+        actual: 'retained resolver with unverified record control',
+      })
+    }
     const resolver = isAddressEqual(state.resolver, zeroAddress)
       ? null
       : { address: state.resolver }

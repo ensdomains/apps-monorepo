@@ -80,7 +80,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
   test.describe.configure({ timeout: 300_000 })
 
   test('locked + CANNOT_SET_RESOLVER migrates and preserves V1 resolver', async ({
-    migrationConnectedPage: page,
+    connectedPage: page,
     mockBigname,
     wallet,
     accounts,
@@ -122,7 +122,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
   })
 
   test('locked + all child fuses migrates and produces locked V2 state', async ({
-    migrationConnectedPage: page,
+    connectedPage: page,
     mockBigname,
     wallet,
     accounts,

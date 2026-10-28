@@ -37,6 +37,8 @@ const publicClientForWrapper = (params: {
             params.implementation ?? V2_CONTRACTS.WrapperRegistryImpl,
           )
         case 'getWrappedNode':
+          if (params.hasCode === false)
+            return Promise.reject(new Error('No contract data'))
           return Promise.resolve(namehash(params.name))
         case 'getState':
           return Promise.resolve({
@@ -224,6 +226,24 @@ describe('resolveDirectMigrationRoutes', () => {
         publicClient: publicClientForWrapper({
           name: 'parent.eth',
           implementation: OTHER_WRAPPER,
+        }),
+        classified: [child],
+      }),
+    ).rejects.toMatchObject({ reason: 'uncertified-wrapper' })
+    const transportError = new Error('RPC unavailable')
+    const unreadable = publicClientForWrapper({ name: 'parent.eth' })
+    unreadable.getCode = vi.fn().mockRejectedValue(transportError)
+    await expect(
+      resolveDirectMigrationRoutes({
+        publicClient: unreadable,
+        classified: [child],
+      }),
+    ).rejects.toBe(transportError)
+    await expect(
+      resolveDirectMigrationRoutes({
+        publicClient: publicClientForWrapper({
+          name: 'parent.eth',
+          hasCode: false,
         }),
         classified: [child],
       }),

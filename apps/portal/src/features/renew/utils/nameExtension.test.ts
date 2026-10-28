@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { getNameRowId } from '@/features/names/components/NamesTable/columns'
-import type { ProtocolVersion } from '@/utils/types'
 import {
   getNameStatus,
-  getSelectedNames,
   isExtendable2LD,
   isNonCanonicalEthName,
   MS_PER_DAY,
@@ -192,112 +189,6 @@ describe('isExtendable2LD', () => {
         isExtendable2LD({ name: 'alice.eth', isV2: false, graceEndDate: null }),
       ).toBe(true)
     })
-  })
-})
-
-describe('getSelectedNames', () => {
-  const makeRow = (
-    name: string | null,
-    isV2 = true,
-    expiryDate: Date | null = future,
-  ) => ({
-    name,
-    expiryDate,
-    graceEndDate: future,
-    status: 'active' as const,
-    relations: ['owner', 'manager'] as const,
-    protocolVersion: (isV2 ? 'ENSv2' : 'ENSv1') as ProtocolVersion,
-  })
-
-  const select = (...rows: ReturnType<typeof makeRow>[]) =>
-    Object.fromEntries(
-      rows.map((row, index) => [getNameRowId(row, index), true]),
-    )
-
-  it('maps selected rows to SelectedName shape', () => {
-    const rows = [makeRow('alice.eth'), makeRow('bob.eth')]
-    const result = getSelectedNames(select(...rows), rows)
-    expect(result).toEqual([
-      {
-        name: 'alice.eth',
-        isV2: true,
-        expiryDate: future,
-        graceEndDate: future,
-      },
-      { name: 'bob.eth', isV2: true, expiryDate: future, graceEndDate: future },
-    ])
-  })
-
-  it('only returns rows matching the selection', () => {
-    const rows = [
-      makeRow('alice.eth'),
-      makeRow('bob.eth'),
-      makeRow('carol.eth'),
-    ]
-    const result = getSelectedNames(select(rows[1]), rows)
-    expect(result).toHaveLength(1)
-    expect(result[0].name).toBe('bob.eth')
-  })
-
-  // Loading more names re-sorts the list, so a position would end up naming a
-  // different row than the one that was ticked.
-  it('keeps the selection on the same name when rows move', () => {
-    const bob = makeRow('bob.eth')
-    const selection = select(bob)
-
-    const result = getSelectedNames(selection, [
-      makeRow('aaron.eth'),
-      makeRow('alice.eth'),
-      bob,
-    ])
-
-    expect(result.map((selected) => selected.name)).toEqual(['bob.eth'])
-  })
-
-  it('tells an ENSv1 name from an ENSv2 name of the same spelling', () => {
-    const v1 = makeRow('alice.eth', false)
-    const v2 = makeRow('alice.eth', true)
-
-    const result = getSelectedNames(select(v1), [v2, v1])
-
-    expect(result).toEqual([
-      {
-        name: 'alice.eth',
-        isV2: false,
-        expiryDate: future,
-        graceEndDate: future,
-      },
-    ])
-  })
-
-  it('excludes rows with null name', () => {
-    const rows = [makeRow(null), makeRow('alice.eth')]
-    const result = getSelectedNames(
-      { [getNameRowId(rows[0], 0)]: true, [getNameRowId(rows[1], 1)]: true },
-      rows,
-    )
-    expect(result).toHaveLength(1)
-    expect(result[0].name).toBe('alice.eth')
-  })
-
-  it('sets isV2 false for v1 names', () => {
-    const rows = [makeRow('alice.eth', false)]
-    const result = getSelectedNames(select(...rows), rows)
-    expect(result[0].isV2).toBe(false)
-  })
-
-  it('returns empty array when nothing is selected', () => {
-    const rows = [makeRow('alice.eth')]
-    expect(getSelectedNames({}, rows)).toHaveLength(0)
-  })
-
-  it('ignores a selection that matches no row', () => {
-    const rows = [makeRow('alice.eth')]
-    const result = getSelectedNames(
-      { ...select(...rows), 'ENSv2:gone.eth': true },
-      rows,
-    )
-    expect(result).toHaveLength(1)
   })
 })
 

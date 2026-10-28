@@ -1,5 +1,5 @@
 import { ChevronDown, type LucideIcon, XIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import {
   Button,
   type ButtonSize,
@@ -43,8 +43,6 @@ export const TableDateRangeFilter = ({
   hideValue?: boolean
 }) => {
   const [open, setOpen] = useState(false)
-  const [fromOpen, setFromOpen] = useState(false)
-  const [toOpen, setToOpen] = useState(false)
 
   const handleReset = () => {
     onChange({ from: undefined, to: undefined })
@@ -73,73 +71,7 @@ export const TableDateRangeFilter = ({
             </Button>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="date-from">From</Label>
-              <Popover open={fromOpen} onOpenChange={setFromOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between font-normal"
-                  >
-                    {dateRange.from
-                      ? formatDate(dateRange.from)
-                      : 'Select date'}
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-auto overflow-hidden p-0"
-                  align="start"
-                >
-                  <Calendar
-                    mode="single"
-                    selected={dateRange.from}
-                    captionLayout="dropdown"
-                    onSelect={(date: Date | undefined) => {
-                      onChange({ ...dateRange, from: date })
-                      setFromOpen(false)
-                    }}
-                    disabled={(date: Date) =>
-                      dateRange.to ? date > dateRange.to : false
-                    }
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="date-to">To</Label>
-              <Popover open={toOpen} onOpenChange={setToOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between font-normal"
-                  >
-                    {dateRange.to ? formatDate(dateRange.to) : 'Today'}
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-auto overflow-hidden p-0"
-                  align="start"
-                >
-                  <Calendar
-                    mode="single"
-                    selected={dateRange.to}
-                    captionLayout="dropdown"
-                    onSelect={(date: Date | undefined) => {
-                      onChange({ ...dateRange, to: date })
-                      setToOpen(false)
-                    }}
-                    disabled={(date: Date) =>
-                      dateRange.from ? date < dateRange.from : false
-                    }
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
+          <DateRangeFilterFields dateRange={dateRange} onChange={onChange} />
 
           <div className="mt-4 pt-4 flex gap-2">
             <Button
@@ -154,5 +86,81 @@ export const TableDateRangeFilter = ({
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+/** Controlled date fields shared by table filters and composed filter panels. */
+export const DateRangeFilterFields = ({
+  dateRange,
+  onChange,
+}: {
+  readonly dateRange: DateRange
+  readonly onChange: (range: DateRange) => void
+}) => {
+  const id = useId()
+  const [fromOpen, setFromOpen] = useState(false)
+  const [toOpen, setToOpen] = useState(false)
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={`${id}-from`}>From</Label>
+        <Popover open={fromOpen} onOpenChange={setFromOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              id={`${id}-from`}
+              variant="outline"
+              className="w-full justify-between font-normal"
+            >
+              {dateRange.from ? formatDate(dateRange.from) : 'Any date'}
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={dateRange.from}
+              captionLayout="dropdown"
+              onSelect={(date: Date | undefined) => {
+                onChange({ ...dateRange, from: date })
+                setFromOpen(false)
+              }}
+              disabled={(date: Date) =>
+                dateRange.to ? date > dateRange.to : false
+              }
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={`${id}-to`}>To</Label>
+        <Popover open={toOpen} onOpenChange={setToOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              id={`${id}-to`}
+              variant="outline"
+              className="w-full justify-between font-normal"
+            >
+              {dateRange.to ? formatDate(dateRange.to) : 'Any date'}
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={dateRange.to}
+              captionLayout="dropdown"
+              onSelect={(date: Date | undefined) => {
+                onChange({ ...dateRange, to: date })
+                setToOpen(false)
+              }}
+              disabled={(date: Date) =>
+                dateRange.from ? date < dateRange.from : false
+              }
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
   )
 }

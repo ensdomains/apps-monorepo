@@ -963,6 +963,26 @@ describe('registrationMachine — pure-EOA setup bundle (EIP-5792)', () => {
     resumeTimedOutBundle.mockRestore()
   })
 
+  it('retries as separate steps once the user declines the account upgrade', async () => {
+    const upgradeDeclined = new TransactionUserRejectedError(
+      {} as TransactionRequest,
+      Object.assign(new Error('Upgrade rejected'), { code: 5750 }),
+    )
+    const { actor, deployResolver, submitCommitment, submitEoaSetupBundle } =
+      startEoaRegistration({
+        canBatchAtomically: true,
+        pollTransactionStatus: vi.fn().mockRejectedValueOnce(upgradeDeclined),
+      })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+    expect(submitEoaSetupBundle).toHaveBeenCalledOnce()
+    expect(deployResolver).toHaveBeenCalledOnce()
+    expect(submitCommitment).toHaveBeenCalledOnce()
+  })
+
   it('keeps the sequential steps when the wallet does not bundle', async () => {
     const { actor, deployResolver, submitEoaSetupBundle } =
       startEoaRegistration({ canBatchAtomically: false })

@@ -2,6 +2,7 @@ import {
   publicResolverAbiSnippet,
   publicResolverContenthashSnippet,
   publicResolverMultiAddrSnippet,
+  publicResolverSingleAddrSnippet,
   publicResolverTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
 import { eacGrantRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
@@ -32,6 +33,8 @@ const ethRegistryGetStatusSnippet = parseAbi([
 ])
 
 const publicResolverInterfaceAndPubkeySnippet = parseAbi([
+  'function content(bytes32 node) view returns (bytes32)',
+  'function name(bytes32 node) view returns (string)',
   'function interfaceImplementer(bytes32 node, bytes4 interfaceID) view returns (address)',
   'function pubkey(bytes32 node) view returns (bytes32 x, bytes32 y)',
 ])
@@ -60,6 +63,7 @@ export const VERIFIABLE_FACTORY_ABI = verifiableFactoryDeployProxySnippet
  */
 export const V1_RESOLVER_PROFILE_ABI = [
   ...publicResolverTextSnippet,
+  ...publicResolverSingleAddrSnippet,
   ...publicResolverMultiAddrSnippet,
   ...publicResolverContenthashSnippet,
   ...publicResolverAbiSnippet,

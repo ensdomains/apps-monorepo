@@ -11,6 +11,7 @@ export type MigrationError =
   | { type: 'retry-blocked' }
   | { type: 'subregistry-conflict' }
   | { type: 'resolver-not-writable' }
+  | { type: 'locked-resolver-record-control'; cause: unknown }
   | { type: 'cleanup-failed' }
   | {
       type: 'profile-fetch-failed'
@@ -336,6 +337,9 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
   // records cannot be written by anyone the app can prompt for.
   if (invariantKind === 'resolver-writer-roles') {
     return { type: 'resolver-not-writable' }
+  }
+  if (invariantKind === 'locked-resolver-record-control') {
+    return { type: 'locked-resolver-record-control', cause: invariant }
   }
 
   const timeout = findTimeoutError(err)

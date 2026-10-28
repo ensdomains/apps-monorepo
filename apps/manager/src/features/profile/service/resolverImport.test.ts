@@ -14,7 +14,9 @@ import {
   decodeFunctionData,
   ExecutionRevertedError,
   encodeAbiParameters,
+  encodeFunctionResult,
   type Hex,
+  HttpRequestError,
   namehash,
   type PublicClient,
   parseAbi,
@@ -45,6 +47,7 @@ import type { ServiceRecordSnapshot } from './profileRecordTransactions'
 import {
   importResolverRecords,
   type ResolverCopySource,
+  readResolverRecords,
   verifyResolverRecords,
 } from './resolverImport'
 
@@ -420,4 +423,87 @@ describe('replacement record verification', () => {
       ).rejects.toThrow(/replacement records could not be verified/)
     },
   )
+})
+
+describe('offchain resolver records', () => {
+  const multicallAbi = parseAbi([
+    'function multicall(bytes[] data) returns (bytes[] results)',
+  ])
+  // A CCIP-Read resolver: extended resolution without name-based setters.
+  const offchain = (multicallFailure?: Error) => {
+    fixture()
+    const single = mocks.readContract.getMockImplementation()
+    mocks.multicall.mockImplementation(
+      async ({ contracts }: { contracts: { args: readonly [Hex] }[] }) =>
+        contracts.map(({ args: [id] }) => ({
+          status: 'success',
+          result: id === '0x9061b923',
+        })),
+    )
+    mocks.readContract.mockImplementation(
+      async (request: {
+        functionName: string
+        address: Address
+        args: readonly [Hex, Hex]
+      }) => {
+        const [dnsName, data] = request.args
+        if (
+          request.functionName !== 'resolve' ||
+          !data.startsWith('0xac9650d8')
+        )
+          return single?.(request)
+        if (multicallFailure) throw multicallFailure
+        const { args } = decodeFunctionData({ abi: multicallAbi, data })
+        const results = await Promise.all(
+          args[0].map((call) =>
+            single?.({ ...request, args: [dnsName, call] }),
+          ),
+        )
+        return encodeFunctionResult({
+          abi: multicallAbi,
+          functionName: 'multicall',
+          result: results,
+        })
+      },
+    )
+  }
+  const resolveCalls = () =>
+    mocks.readContract.mock.calls.filter(
+      ([request]) => request.functionName === 'resolve',
+    )
+  const read = () =>
+    readResolverRecords({
+      name: NAME,
+      resolver: RESOLVER,
+      texts: ['description', CUSTOM_KEY],
+      coins: [60],
+      publicClient: publicClient as PublicClient,
+    })
+
+  it('reads every record in one gateway request', async () => {
+    offchain()
+
+    const { records, readErrors } = await read()
+
+    expect(readErrors).toEqual([])
+    expect(records.texts).toEqual(expected.texts)
+    expect(records.coins).toEqual([
+      expect.objectContaining({ coinType: 60, value: WALLET }),
+    ])
+    expect(resolveCalls()).toHaveLength(1)
+  })
+
+  it('does not fall back to one request per record when the gateway rate limits', async () => {
+    offchain(
+      new BaseError('Gateway failed', {
+        cause: new HttpRequestError({
+          url: 'https://gateway.invalid',
+          status: 429,
+        }),
+      }),
+    )
+
+    await expect(read()).rejects.toThrow('Gateway failed')
+    expect(resolveCalls()).toHaveLength(1)
+  })
 })

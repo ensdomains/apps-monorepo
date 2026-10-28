@@ -29,7 +29,6 @@ import { PrimaryNameButton } from './PrimaryNameButton'
 export type Sort = `${SortField}-${SortDir}`
 
 interface MyNamesListProps {
-  readonly migrationEnabled?: boolean
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
   readonly version?: NameVersion | null
@@ -192,7 +191,6 @@ const AnimatedNameRow = ({
 }
 
 export const MyNamesList = ({
-  migrationEnabled = false,
   primaryLabel,
   searchQuery = '',
   version = null,
@@ -215,7 +213,7 @@ export const MyNamesList = ({
     eligibleKeys,
     isPending: isEligibilityPending,
     isError: isEligibilityError,
-  } = useDashboardMigrationEligibility(migrationEnabled)
+  } = useDashboardMigrationEligibility()
 
   const {
     pageNames,

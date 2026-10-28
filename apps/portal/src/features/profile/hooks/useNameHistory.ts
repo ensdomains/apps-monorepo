@@ -38,7 +38,11 @@ export type NameHistoryPage = {
 
 const getNameHistory = ({ name, ...params }: GetNameHistoryParameters) =>
   bigname
-    .nameHistory(name, { ...params, include: ['data', 'raw'] })
+    .nameHistory(name, {
+      ...params,
+      namespace: 'ens',
+      include: ['data', 'raw'],
+    })
     .andThen((envelope) =>
       dropUnassignedRecords(envelope.data).map((data) => ({
         ...envelope,

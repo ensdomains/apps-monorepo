@@ -4,14 +4,43 @@ import { trackNftEvent } from '../../commemorative-nft/diagnostics'
 const RENDERER_TIMEOUT_MS = 10_000
 const RENDERER_MESSAGE_TYPE = 'ens-commemorative-nft-renderer'
 
+export type NftRevealFrame = {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+const parseRevealFrame = (value: unknown): NftRevealFrame | undefined => {
+  if (!value || typeof value !== 'object') return undefined
+  const { x, y, width, height } = value as Record<string, unknown>
+  if (
+    typeof x !== 'number' ||
+    typeof y !== 'number' ||
+    typeof width !== 'number' ||
+    typeof height !== 'number' ||
+    ![x, y, width, height].every(Number.isFinite) ||
+    x < 0 ||
+    y < 0 ||
+    width <= 0 ||
+    height <= 0 ||
+    x + width > 1 ||
+    y + height > 1
+  )
+    return undefined
+  return { x, y, width, height }
+}
+
 type SourceStatus = 'loading' | 'ready' | 'failed'
 
 export const useCommemorativeNftRenderer = (params: {
   readonly rendererUrl?: string
   readonly onReady?: () => void
   readonly onError?: () => void
+  readonly holdForReveal?: boolean
 }) => {
   const rendererRef = useRef<HTMLIFrameElement>(null)
+  const [revealFrame, setRevealFrame] = useState<NftRevealFrame>()
   const rendererDocumentLoaded = useRef(false)
   const rendererUrl =
     params.rendererUrl && URL.canParse(params.rendererUrl)
@@ -68,8 +97,10 @@ export const useCommemorativeNftRenderer = (params: {
         return
 
       if (message.status === 'failed') setRendererStatus('failed')
-      else if (message.status === 'ready')
+      else if (message.status === 'ready') {
+        setRevealFrame(parseRevealFrame(Reflect.get(message, 'revealFrame')))
         setRendererStatus((status) => (status === 'loading' ? 'ready' : status))
+      }
     }
 
     window.addEventListener('message', onMessage)
@@ -89,6 +120,22 @@ export const useCommemorativeNftRenderer = (params: {
 
   const ready = rendererStatus === 'ready'
   const failed = rendererStatus === 'failed'
+  const requestedReveal = rendererUrl?.searchParams.get('reveal') === '1'
+
+  useEffect(() => {
+    if (
+      !ready ||
+      params.holdForReveal ||
+      !requestedReveal ||
+      !rendererOrigin ||
+      !tokenId
+    )
+      return
+    rendererRef.current?.contentWindow?.postMessage(
+      { type: RENDERER_MESSAGE_TYPE, status: 'animate', tokenId },
+      rendererOrigin,
+    )
+  }, [ready, params.holdForReveal, requestedReveal, rendererOrigin, tokenId])
 
   useEffect(() => {
     if (ready && reportedStatus.current !== 'ready') {
@@ -103,6 +150,7 @@ export const useCommemorativeNftRenderer = (params: {
 
   return {
     rendererRef,
+    revealFrame,
     rendererStatus,
     ready,
     failed,

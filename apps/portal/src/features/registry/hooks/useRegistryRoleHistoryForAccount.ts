@@ -1,15 +1,15 @@
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Address } from 'viem'
-import { getBignameRootRoleChanges } from '@/lib/roles/rootRoleReads'
+import { getRootRoleChanges } from '@/lib/roles/rootRoleReads'
 
 export type GetRegistryRoleHistoryParameters = {
   readonly registryAddress: Address
   readonly account: Address
 }
 
-/** One account's indexed root-role history, newest first. */
-export const getRegistryRoleHistoryForAccount = getBignameRootRoleChanges
+/** One account's root-role history, newest first, from bigname with a node fallback. */
+export const getRegistryRoleHistoryForAccount = getRootRoleChanges
 
 export const getRegistryRoleHistoryForAccountQueryKey = createQueryKey<
   'get-registry-role-history-for-account',

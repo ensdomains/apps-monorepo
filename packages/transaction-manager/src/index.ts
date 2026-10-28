@@ -55,7 +55,10 @@ export {
   waitForTransaction,
   waitForTransactionHash,
 } from './helpers/waitForTransaction'
-export { useAtomicBatchSupport } from './hooks/useAtomicBatchSupport'
+export {
+  useAtomicBatchSupport,
+  useHasDeclinedAtomicUpgrade,
+} from './hooks/useAtomicBatchSupport'
 export {
   computeDedicatedResolverAddress,
   encodeCommitCall,

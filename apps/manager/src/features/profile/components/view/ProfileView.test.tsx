@@ -22,7 +22,6 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
     <a href="/">{children}</a>
   ),
 }))
-vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: () => false }))
 vi.mock('@/lib/posthog/useMigrationNftEnabled', () => ({
   useMigrationNftEnabled: () => false,
 }))
@@ -86,10 +85,13 @@ vi.mock('@/features/profile/service/profileReverseName', () => ({
 }))
 vi.mock('./ProfileCards', () => ({ ProfileCards: () => null }))
 vi.mock('./ProfileStatusBanners', () => ({
-  ProfileMigrationBanner: () => null,
   ProfileGracePeriodBanner: () => null,
 }))
+vi.mock('@/features/migration/components/UpgradeBanner', () => ({
+  UpgradeBanner: () => null,
+}))
 vi.mock('./ProfileActions', () => ({
+  ProfileDesktopActions: () => null,
   // Simulate the editor's successful-save callback without a wallet transaction.
   ProfileActions: ({
     onUpdated,
@@ -129,6 +131,10 @@ const imageRecords = (
   ],
   coins: [],
 })
+
+// The loading skeleton shows the name too; only the full profile has actions.
+const profileLoaded = () =>
+  screen.findByRole('button', { name: 'Save profile' })
 
 const renderProfile = () =>
   render(
@@ -199,7 +205,7 @@ describe('ProfileView images', () => {
   it('renders saved HTTP avatar and header records after the images load', async () => {
     const { container } = renderProfile()
 
-    await screen.findByRole('heading', { name: 'example.eth' })
+    await profileLoaded()
     expectFallbacks(container)
     await loadImages(savedAvatar, savedHeader)
 
@@ -210,7 +216,7 @@ describe('ProfileView images', () => {
     mocks.getProfileRecords.mockResolvedValue({ texts: [], coins: [] })
     const { container } = renderProfile()
 
-    await screen.findByRole('heading', { name: 'example.eth' })
+    await profileLoaded()
 
     expectFallbacks(container)
     expect(probes.every(({ src }) => src === '')).toBe(true)
@@ -269,7 +275,7 @@ describe('ProfileView with a constructor text record', () => {
   it('renders the profile and opens the Edit Profile dialog', async () => {
     const { container } = renderProfile()
 
-    await screen.findByRole('heading', { name: 'example.eth' })
+    await profileLoaded()
     fireEvent.click(screen.getByRole('button', { name: /Edit Profile/i }))
 
     expect(
@@ -299,5 +305,34 @@ describe('ProfileView expiry read failure', () => {
     expect(
       screen.queryByText('Failed to load registration data for this name.'),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('ProfileView records read failure', () => {
+  beforeEach(() => {
+    mocks.getProfileRecords.mockReset()
+    mocks.getProfileRecords.mockRejectedValueOnce(new Error('rate limited'))
+  })
+
+  it('keeps the profile visible, says why records are missing, and retries', async () => {
+    mocks.getProfileRecords.mockResolvedValue(
+      imageRecords(savedAvatar, savedHeader),
+    )
+    renderProfile()
+
+    const retry = await screen.findByRole('button', { name: 'Try again' })
+    expect(
+      screen.getByText(/Couldn’t load this name’s records/),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText('example.eth').length).toBeGreaterThan(0)
+
+    fireEvent.click(retry)
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/Couldn’t load this name’s records/),
+      ).not.toBeInTheDocument(),
+    )
+    expect(mocks.getProfileRecords).toHaveBeenCalledTimes(2)
   })
 })

@@ -15,7 +15,7 @@ describe('isKnownPublicResolver', () => {
     ],
     [
       'known resolver (checksum)',
-      '0x1da022710dF5002339274AaDEe8D58218e9D6AB5',
+      '0x8948458626811dd0c23EB25Cc74291247077cC51',
       true,
     ],
     [
@@ -58,5 +58,13 @@ describe('isKnownPublicResolver', () => {
       isKnownPublicResolver(olderMainnetResolver, supportedL1Chains.mainnet),
     ).toBe(true)
     expect(isKnownPublicResolver(olderMainnetResolver, SEPOLIA)).toBe(false)
+  })
+
+  it('recognizes PublicResolverV4 only on mainnet', () => {
+    const resolver = '0xF29100983E058B709F3D539b0c765937B804AC15'
+    expect(isKnownPublicResolver(resolver, supportedL1Chains.mainnet)).toBe(
+      true,
+    )
+    expect(isKnownPublicResolver(resolver, SEPOLIA)).toBe(false)
   })
 })

@@ -14,6 +14,7 @@ const NO_OPTIONS: TransferOptions = {
   detachResolver: false,
   detachRegistry: false,
   revokeRoles: false,
+  transferManager: false,
 }
 
 /**
@@ -89,10 +90,13 @@ describe('buildTransferPlan (v1)', () => {
   // After `safeTransferFrom` the sender is no longer the registrant and so can
   // no longer `reclaim`; the controller slot would stay with them for good.
   it('hands over the controller before the registrant for an unwrapped 2LD', () => {
-    expect(planKinds(NO_OPTIONS, 'v1-registrar')).toEqual([
-      'reclaim',
-      'transfer-erc721',
-    ])
+    expect(
+      planKinds({ ...NO_OPTIONS, transferManager: true }, 'v1-registrar'),
+    ).toEqual(['reclaim', 'transfer-erc721'])
+  })
+
+  it('moves only the registrant when the manager handover is off', () => {
+    expect(planKinds(NO_OPTIONS, 'v1-registrar')).toEqual(['transfer-erc721'])
   })
 
   it('moves a registry-only name with setOwner', () => {
@@ -101,7 +105,7 @@ describe('buildTransferPlan (v1)', () => {
 
   it('runs config steps before the move', () => {
     const plan = planKinds(
-      { ...NO_OPTIONS, setEthAddress: true },
+      { ...NO_OPTIONS, setEthAddress: true, transferManager: true },
       'v1-registrar',
     )
     expect(plan).toEqual(['set-eth-addr', 'reclaim', 'transfer-erc721'])
@@ -134,6 +138,7 @@ describe('buildTransferPlan (v1)', () => {
           detachResolver: true,
           detachRegistry: true,
           revokeRoles: true,
+          transferManager: true,
         },
         'v1-wrapped',
         'parent',
@@ -186,7 +191,7 @@ describe('isRecordAheadOfMove', () => {
 
   it('keys off the last step of a two-step V1 move', () => {
     const v1 = buildTransferPlan(
-      { ...NO_OPTIONS, setEthAddress: true },
+      { ...NO_OPTIONS, setEthAddress: true, transferManager: true },
       'v1-registrar',
     )
     // `reclaim` alone doesn't hand over the registrant.
@@ -263,6 +268,7 @@ describe('buildTransferPlan (role revocations)', () => {
           detachResolver: true,
           detachRegistry: true,
           revokeRoles: true,
+          transferManager: false,
         },
         'v2',
         'owner',

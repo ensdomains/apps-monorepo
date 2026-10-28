@@ -259,41 +259,44 @@ const assertVerifiedWrapper = async (params: {
     })
   }
 
-  try {
-    const [code, implementation, wrappedNode] = await Promise.all([
-      params.publicClient.getCode({ address: params.expectedWrapper }),
-      params.publicClient.readContract({
-        address: V2_CONTRACTS.VerifiableFactory,
-        abi: verifiableFactoryAbi,
-        functionName: 'verifyContract',
-        args: [params.expectedWrapper],
-      }),
-      params.publicClient.readContract({
-        address: params.expectedWrapper,
-        abi: wrapperRegistryAbi,
-        functionName: 'getWrappedNode',
-      }),
-    ])
-    const hasCode = Boolean(code && code !== '0x')
-    const hasExpectedImplementation = isAddressEqual(
-      implementation,
-      V2_CONTRACTS.WrapperRegistryImpl,
-    )
-    const hasExpectedNode =
-      wrappedNode.toLowerCase() === namehash(params.name).toLowerCase()
-    if (!hasCode || !hasExpectedImplementation || !hasExpectedNode) {
-      throw new Error(
-        `code=${hasCode}; implementation=${implementation}; wrappedNode=${wrappedNode}`,
-      )
-    }
-  } catch (cause) {
+  const [code, implementation, wrappedNode] = await Promise.allSettled([
+    params.publicClient.getCode({ address: params.expectedWrapper }),
+    params.publicClient.readContract({
+      address: V2_CONTRACTS.VerifiableFactory,
+      abi: verifiableFactoryAbi,
+      functionName: 'verifyContract',
+      args: [params.expectedWrapper],
+    }),
+    params.publicClient.readContract({
+      address: params.expectedWrapper,
+      abi: wrapperRegistryAbi,
+      functionName: 'getWrappedNode',
+    }),
+  ])
+  const mismatches = [
+    code.status === 'fulfilled' && (!code.value || code.value === '0x')
+      ? 'wrapper has no code'
+      : null,
+    implementation.status === 'fulfilled' &&
+    !isAddressEqual(implementation.value, V2_CONTRACTS.WrapperRegistryImpl)
+      ? `unexpected implementation ${implementation.value}`
+      : null,
+    wrappedNode.status === 'fulfilled' &&
+    wrappedNode.value.toLowerCase() !== namehash(params.name).toLowerCase()
+      ? `unexpected wrapped node ${wrappedNode.value}`
+      : null,
+  ].filter(Boolean)
+  if (mismatches.length > 0) {
     throw new DirectMigrationRouteError({
       message: `Parent WrapperRegistry for "${params.name}" is not factory-certified`,
       reason: 'uncertified-wrapper',
       ensName: params.name,
       expected: params.expectedWrapper,
-      cause,
+      cause: new Error(mismatches.join('; ')),
     })
+  }
+  for (const result of [code, implementation, wrappedNode]) {
+    if (result.status === 'rejected') throw result.reason
   }
 }
 

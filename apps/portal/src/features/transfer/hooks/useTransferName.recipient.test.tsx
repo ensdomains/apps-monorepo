@@ -127,6 +127,7 @@ const NO_OPTIONS = {
   detachResolver: false,
   detachRegistry: false,
   revokeRoles: false,
+  transferManager: false,
 } as const
 
 /** A raw-address recipient: the form's value is the address itself. */

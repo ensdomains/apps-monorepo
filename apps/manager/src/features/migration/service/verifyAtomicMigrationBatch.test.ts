@@ -384,6 +384,7 @@ describe('verifyAtomicMigrationBatch', () => {
         hasRootRoles: true,
         getOwner: WALLET,
         getResolver: RESOLVER,
+        roles: ROLE_SET_RESOLVER,
         hasRoles: true,
         getWrappedNode: NODE,
       }
@@ -453,11 +454,42 @@ describe('verifyAtomicMigrationBatch', () => {
     expect(requests).toContainEqual(
       expect.objectContaining({
         address: MID_REGISTRY,
-        functionName: 'hasRoles',
-        args: [RESOURCE, ROLE_SET_RESOLVER, MANAGER],
+        functionName: 'roles',
+        args: [RESOURCE, MANAGER],
       }),
     )
     expect(requests.every(({ blockNumber }) => blockNumber === 456n)).toBe(true)
+  })
+
+  it('rejects a retained manager with unplanned administrative roles', async () => {
+    const managerExpectation = expectations.find(
+      ({ type }) => type === 'manager-role',
+    )
+    assert(managerExpectation)
+    const publicClient = {
+      readContract: vi.fn(async (request: ReadRequest) => {
+        if (request.functionName === 'getSubregistry') {
+          return readSubregistryFixture(request)
+        }
+        if (request.functionName === 'hasRoles') return true
+        if (request.functionName === 'roles') {
+          return ROLE_SET_RESOLVER | (1n << 156n)
+        }
+        throw new Error(`unexpected read: ${request.functionName}`)
+      }),
+    } as unknown as PublicClient
+
+    await expect(
+      verifyAtomicMigrationBatch({
+        publicClient,
+        batch: {
+          index: 9,
+          verificationExpectations: [managerExpectation],
+        },
+      }),
+    ).rejects.toMatchObject({
+      failures: [{ expectationId: 'name:manager' }],
+    })
   })
 
   it('fails an interface record that resolves to a different implementer', async () => {

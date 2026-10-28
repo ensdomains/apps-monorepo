@@ -135,7 +135,7 @@ async function getL2ReverseRecord(
   )
 
   // L2 chains live in a separate, local-only wagmi config so we don't have
-  // to pollute the explorer's global Sepolia-only config. See `@/lib/wagmiL2`.
+  // to pollute the explorer's global L1-only config. See `@/lib/wagmiL2`.
   let l2Client: ReturnType<typeof l2WagmiConfig.getClient>
   try {
     l2Client = l2WagmiConfig.getClient({

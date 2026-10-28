@@ -1,5 +1,4 @@
 import { Trans } from '@lingui/react/macro'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { Link } from '@tanstack/react-router'
 import {
   Popover,
@@ -8,7 +7,6 @@ import {
   PopoverTrigger,
 } from '@/components/base-ui/popover'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { cn } from '@/lib/utils'
 
 export const ProfileUpgradePopover = ({
@@ -16,11 +14,6 @@ export const ProfileUpgradePopover = ({
 }: {
   readonly className: string
 }) => {
-  const isMigrationEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.MIGRATION,
-    false,
-  )
-
   return (
     <Popover>
       {/* Editing is unavailable, but the explanation must stay interactive. */}
@@ -53,19 +46,17 @@ export const ProfileUpgradePopover = ({
             <Trans>Upgrade name to edit profile</Trans>
           </PopoverTitle>
         </div>
-        {isMigrationEnabled ? (
-          <Link
-            className="flex h-8.5 pointer-coarse:h-11 items-center gap-1.5 rounded font-semi-mono text-ens-lapis-500 text-sm uppercase tracking-tight hover:text-ens-lapis-900 focus-visible:outline-2 focus-visible:outline-ens-lapis-500 focus-visible:outline-offset-2"
-            to="/upgrade"
-          >
-            <Trans>Upgrade Name</Trans>
-            <MSymbol
-              aria-hidden="true"
-              className="ms-opsz-20 ms-wght-400 text-base leading-none"
-              symbol="double_arrow"
-            />
-          </Link>
-        ) : null}
+        <Link
+          className="flex h-8.5 pointer-coarse:h-11 items-center gap-1.5 rounded font-semi-mono text-ens-lapis-500 text-sm uppercase tracking-tight hover:text-ens-lapis-900 focus-visible:outline-2 focus-visible:outline-ens-lapis-500 focus-visible:outline-offset-2"
+          to="/upgrade"
+        >
+          <Trans>Upgrade Name</Trans>
+          <MSymbol
+            aria-hidden="true"
+            className="ms-opsz-20 ms-wght-400 text-base leading-none"
+            symbol="double_arrow"
+          />
+        </Link>
       </PopoverContent>
     </Popover>
   )

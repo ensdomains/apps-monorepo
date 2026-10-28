@@ -15,7 +15,6 @@ export {
   smartAccountMachine,
 } from './smart-account.machine'
 export type {
-  EthBalance,
   RhinestoneAccountState,
   SmartAccountState,
   StablecoinBalance,

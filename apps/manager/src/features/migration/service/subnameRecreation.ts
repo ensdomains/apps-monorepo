@@ -58,6 +58,7 @@ const newOwnerEvent = parseAbi([
 const fail: (ensName: string, reason: string) => never = (ensName, reason) => {
   throw new SubnameRecreationError({
     ensName,
+    detail: reason,
     message: `Cannot import subnames of "${ensName}": ${reason}`,
   })
 }
@@ -250,7 +251,11 @@ const readDirectInventory = async (
   publications: Map<bigint, Hex>,
   signal?: AbortSignal,
 ): Promise<readonly Subname[]> => {
-  const detail = await indexer.name(name, { include: ['counts'] }, { signal })
+  const detail = await indexer.name(
+    name,
+    { namespace: 'ens', include: ['counts'] },
+    { signal },
+  )
   if (detail.isErr())
     fail(name, 'the indexed child inventory could not be read.')
   const rootRecord = detail.value
