@@ -23,7 +23,7 @@ import {
   V1_PUBLIC_RESOLVER,
 } from '../../../fixtures/makeV1Name.js'
 import {
-  authorizeTransactionsWhile,
+  authorizeTransaction,
   test,
 } from '../../../fixtures/playwright.manager.fixture.js'
 import {
@@ -57,26 +57,17 @@ async function runMigrationFlow(
 
   await page.waitForTimeout(2_000)
 
-  const confirmButton = page.getByRole('button', {
-    name: /^Upgrade \d+ names?$/,
-  })
+  const confirmButton = page.getByRole('button', { name: 'Upgrade Names' })
   await confirmButton.waitFor({ state: 'visible', timeout: 10_000 })
-  const successIndicator = page.getByRole('dialog', {
-    name: /Your names? (?:has|have) been upgraded!/,
-  })
-  let migrationFinished = false
-  const waitForSuccess = successIndicator
-    .waitFor({ state: 'visible', timeout: 60_000 })
-    .then(() => {
-      migrationFinished = true
-    })
   await Promise.all([
     confirmButton.click(),
-    authorizeTransactionsWhile(page, wallet, () => migrationFinished),
-    waitForSuccess,
+    authorizeTransaction(wallet, 90_000),
   ])
 
-  const doneButton = page.getByRole('button', { name: 'Go to dashboard' })
+  const successIndicator = page.getByText("You're on ENS v2!")
+  await successIndicator.waitFor({ state: 'visible', timeout: 60_000 })
+
+  const doneButton = page.getByRole('button', { name: 'Done' })
   await doneButton.waitFor({ state: 'visible', timeout: 10_000 })
   await doneButton.click()
 }

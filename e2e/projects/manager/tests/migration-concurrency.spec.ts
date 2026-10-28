@@ -61,7 +61,13 @@ const connectSecondTab = async (
   const connectButton = page.getByRole('button', {
     name: /^connect( login)?$/i,
   })
-  if (await connectButton.isVisible().catch(() => false)) {
+  // Hydration can briefly restore the first tab's connection before the new
+  // provider disconnects. Wait for the connect button before deciding to skip.
+  const needsConnection = await connectButton
+    .waitFor({ state: 'visible', timeout: 15_000 })
+    .then(() => true)
+    .catch(() => false)
+  if (needsConnection) {
     await connectWithHeadlessWallet(page, wallet)
   }
   await dismissBackendAuthModal(page)
@@ -105,18 +111,35 @@ test.describe('migration cross-tab exclusion', () => {
     await firstPage
       .getByRole('button', { name: /^Upgrade \d+ names?$/ })
       .click()
-    await authorizeTransaction(firstWallet, 90_000)
-    await expect
-      .poll(
-        () =>
-          firstWallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
-        { timeout: 90_000 },
-      )
-      .toBe(1)
-
     try {
-      const journalBefore = await readMigrationJournal(firstPage)
-      expect(journalBefore).not.toBeNull()
+      let journalBefore: string | null = null
+      while (journalBefore === null) {
+        await expect
+          .poll(
+            () =>
+              firstWallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+            { timeout: 90_000 },
+          )
+          .toBe(1)
+
+        // Setup can need multiple authorizations. The batch intent is persisted
+        // before its wallet request, so inspect the journal after it is pending.
+        const storedJournal = await readMigrationJournal(firstPage)
+        if (storedJournal !== null) {
+          const journal = JSON.parse(storedJournal) as {
+            entries: { intents: { names: string[] }[] }[]
+          }
+          if (
+            journal.entries.some((entry) =>
+              entry.intents.some((intent) => intent.names.includes(v1Name)),
+            )
+          ) {
+            journalBefore = storedJournal
+            break
+          }
+        }
+        await authorizeTransaction(firstWallet, 90_000)
+      }
 
       await openMigrationConfirmation(secondPage)
       await secondPage

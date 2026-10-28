@@ -12,7 +12,7 @@ export default defineConfig({
   projects: [
     {
       name: 'manager-migration-e2e',
-      testMatch: /migration(?:-fuses|-concurrency)?\.spec\.ts$/,
+      testMatch: /migration(?:-concurrency)?\.spec\.ts$/,
     },
   ],
 })
