@@ -73,7 +73,7 @@ function RouteComponent() {
 
   return (
     <SidebarProvider>
-      <ProfileSidebar name={name} disabled={!isValidName} />
+      <ProfileSidebar name={name} isDisabled={!isValidName} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
         <PageContainer>
