@@ -80,7 +80,7 @@ export const useDnsImportTransactions = ({
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { address: connectedAddress } = useConnection()
+  const { address: connectedAddress, connector } = useConnection()
   const { closeModal, clearTransaction } = useTransactionModal()
   const attempt = useFlowAttempt()
 
@@ -155,7 +155,10 @@ export const useDnsImportTransactions = ({
       account: connectedAddress,
     })
     if (!walletClient || !publicClient) throw new Error('No connected wallet')
-    return { walletClient, signer: createEOASigner(walletClient) }
+    return {
+      walletClient,
+      signer: createEOASigner(walletClient, connector?.id),
+    }
   }
 
   const finishFlow = () => {

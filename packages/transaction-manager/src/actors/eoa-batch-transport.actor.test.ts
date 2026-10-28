@@ -105,19 +105,28 @@ describe('getAtomicBatchSupport', () => {
       throw new Error(`unexpected RPC call: ${method}`)
     }).walletClient
 
+  // `ready` makes our send upgrade the EOA through EIP-7702: only wallets whose
+  // delegate can own an HCA may do that.
   it.each([
-    ['supported', true],
-    // `ready` would make our send prompt an EIP-7702 upgrade of the EOA.
-    ['ready', false],
-    ['unsupported', false],
-  ])('reads atomic status %s as %s', async (status, expected) => {
-    await expect(
-      getAtomicBatchSupport({
-        walletClient: capabilitiesWith({ status }),
-        chainId: sepolia.id,
-      }),
-    ).resolves.toBe(expected)
-  })
+    ['supported', undefined, true],
+    ['ready', 'io.metamask', true],
+    ['ready', 'me.rainbow', true],
+    ['ready', 'org.uniswap.app', true],
+    ['ready', 'com.coinbase.wallet', false],
+    ['ready', undefined, false],
+    ['unsupported', 'io.metamask', false],
+  ])(
+    'reads atomic status %s from wallet %s as %s',
+    async (status, walletId, expected) => {
+      await expect(
+        getAtomicBatchSupport({
+          walletClient: capabilitiesWith({ status }),
+          chainId: sepolia.id,
+          walletId,
+        }),
+      ).resolves.toBe(expected)
+    },
+  )
 
   it('is false when the wallet reports no atomic capability', async () => {
     await expect(
@@ -177,8 +186,23 @@ describe('submitEOABatch', () => {
     expect(handler).not.toHaveBeenCalled()
   })
 
+  it('lets a wallet with an HCA-safe delegate upgrade through the send', async () => {
+    const handler = vi.fn((method: string) => {
+      if (method === 'wallet_getCapabilities') return capabilities('ready')
+      if (method === 'wallet_sendCalls') return { id: CALLS_ID }
+      throw new Error(`unexpected RPC call: ${method}`)
+    })
+
+    const result = await submitEOABatch({
+      request: batchRequest(),
+      signer: { ...signerWith(handler), walletId: 'io.metamask' },
+    })
+
+    expect(result._unsafeUnwrap()).toBe(CALLS_ID)
+  })
+
   // Planned while the wallet reported `supported`; sending now could prompt
-  // an EIP-7702 upgrade.
+  // an EIP-7702 upgrade to a delegate we haven't vetted.
   it.each(['ready', 'unsupported'])(
     'refuses to send once the wallet reports atomic %s',
     async (status) => {

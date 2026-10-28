@@ -30,6 +30,12 @@ export interface EOASigner {
     address: Address
   }
   walletClient: WalletClient
+  /**
+   * The wallet's wagmi connector id (its EIP-6963 rdns when injected). Lets an
+   * atomic batch upgrade the EOA through EIP-7702 on wallets whose delegate
+   * can own an HCA; see `getAtomicBatchSupport`.
+   */
+  walletId?: string
 }
 
 /**

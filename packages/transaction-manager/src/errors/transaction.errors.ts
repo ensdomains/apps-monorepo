@@ -241,7 +241,8 @@ export class CallsBundleTimeoutError
 
 /**
  * The wallet stopped reporting atomic `supported` between planning a bundle and
- * sending it. Sending anyway could prompt an EIP-7702 upgrade of the EOA.
+ * sending it. Sending anyway could prompt an EIP-7702 upgrade to a delegate
+ * the HCA can't work with.
  */
 export class AtomicBatchUnsupportedError
   extends TransactionError
