@@ -111,7 +111,7 @@ export const rules: Rule[] = [
   },
   {
     target: drop(
-      'review first: commits MAILINATOR_API_KEY; land only if main CI needs it',
+      'commits MAILINATOR_API_KEY; CI reads secrets.MAILINATOR_API_KEY instead',
     ),
     globs: ['e2e/.env'],
   },
@@ -356,7 +356,7 @@ export const smoke: SmokeEntry[] = [
     flow: 'Add 3LD / 4LD',
     app: 'Explorer',
     version: 'V1',
-    na: 'Explorer does not create V1 subnames; it links out to ENS Manager (V1Transfer.tsx). Pending user confirmation',
+    gap: 'no portal-suite test; parity/v1-subname.spec.ts (B9) creates V1 subnames under its authority matrix — port an allowed 3LD and 4LD case into portal/subnames',
   },
 
   // Renewals
