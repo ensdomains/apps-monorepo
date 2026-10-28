@@ -14,7 +14,7 @@ import type { Address } from 'viem'
  *   ERC-721 *registrant* on the BaseRegistrar and the *controller* in the
  *   registry; a full handover is `reclaim` (controller) then `safeTransferFrom`
  *   (registrant), in that order — once the token has moved the sender can no
- *   longer reclaim.
+ *   longer reclaim. The `reclaim` is optional: the new registrant can run it.
  * - `v1-registry`: anything else in the legacy registry — an unwrapped subname
  *   or a non-`.eth` name. One slot, moved with `setOwner`.
  */
@@ -87,6 +87,8 @@ export type TransferDetachOptionKey =
   | 'setEthAddress'
   | 'detachResolver'
   | 'detachRegistry'
+  /** Unwrapped `.eth` 2LD only: `reclaim` the manager role for the recipient. */
+  | 'transferManager'
 
 /**
  * `revokeRoles` is V2-only and isn't a detach target: whether to offer it

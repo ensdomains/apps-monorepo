@@ -140,7 +140,7 @@ export const EditProfileDialogTabs = ({
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
       <div className="hidden shrink-0 pb-5 pl-4 md:block">
-        <EditProfileTabList className="w-29.5" />
+        <EditProfileTabList className="w-max min-w-29.5" />
       </div>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

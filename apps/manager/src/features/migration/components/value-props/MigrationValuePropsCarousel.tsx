@@ -7,13 +7,13 @@ import {
 } from 'motion/react'
 import type { KeyboardEvent } from 'react'
 import { useCallback, useRef, useState } from 'react'
-import { useVisibleCommemorativeNftEligibility } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { cn } from '@/lib/utils'
 import { MigrationValuePropMediaCard } from './MigrationValuePropMediaCard'
 import {
   getMigrationValuePropSlides,
   type MigrationValuePropSlide,
 } from './migrationValueProps'
+import { useCarouselAutoplay } from './useCarouselAutoplay'
 
 const clampIndex = (index: number, length: number) =>
   Math.max(0, Math.min(index, length - 1))
@@ -123,7 +123,14 @@ const DesktopSlideButton = ({
         type="button"
       >
         <MigrationValuePropMediaCard media={media} />
-        <p className="font-semi-mono text-ens-garnet-500 text-xs uppercase leading-[1.2] tracking-[0.12px]">
+        {/* Type values match the Figma label. Hidden behind the active card so
+            its blur isn't clipped at the edges. */}
+        <p
+          className={cn(
+            'font-semi-mono text-ens-garnet-500 text-xs uppercase leading-[1.2] tracking-[0.12px] transition-opacity',
+            !isActive && 'opacity-0',
+          )}
+        >
           {label}
         </p>
       </motion.button>
@@ -131,12 +138,20 @@ const DesktopSlideButton = ({
   )
 }
 
-export const MigrationValuePropsCarousel = () => {
+type MigrationValuePropsCarouselProps = {
+  /** Only wallets eligible for the commemorative NFT get its slide. */
+  readonly isNftSlideVisible: boolean
+}
+
+export const MigrationValuePropsCarousel = ({
+  isNftSlideVisible,
+}: MigrationValuePropsCarouselProps) => {
   const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion() ?? false
-  const nftCopyEnabled = !!useVisibleCommemorativeNftEligibility()
-  const slides = getMigrationValuePropSlides(nftCopyEnabled)
+  const slides = getMigrationValuePropSlides(isNftSlideVisible)
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [isHovered, setIsHovered] = useState(false)
+  const [isFocused, setIsFocused] = useState(false)
   const activeIndex = clampIndex(selectedIndex, slides.length)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -165,6 +180,13 @@ export const MigrationValuePropsCarousel = () => {
     () => goToIndex(activeIndex - 1),
     [activeIndex, goToIndex],
   )
+
+  useCarouselAutoplay({
+    activeIndex,
+    slideCount: slides.length,
+    isPaused: shouldReduceMotion || isHovered || isFocused,
+    onAdvance: goToIndex,
+  })
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
@@ -207,7 +229,19 @@ export const MigrationValuePropsCarousel = () => {
   )
 
   return (
-    <section aria-label={t`Upgrade benefits`} className="w-full">
+    <section
+      aria-label={t`Upgrade benefits`}
+      className="w-full"
+      onBlur={(event) => {
+        // Focus moving between the carousel's own buttons keeps it paused
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsFocused(false)
+        }
+      }}
+      onFocus={() => setIsFocused(true)}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
+    >
       <div className="mb-2 flex items-center justify-center gap-0.5">
         {slides.map((slide, index) => (
           <button

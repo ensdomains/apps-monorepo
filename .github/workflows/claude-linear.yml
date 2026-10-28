@@ -23,35 +23,76 @@ jobs:
     if: |
       github.event_name == 'repository_dispatch' ||
       (
-        github.event_name == 'issue_comment' &&
-        contains(github.event.comment.body, '@claude')
-      ) ||
-      (
-        github.event_name == 'pull_request_review_comment' &&
-        contains(github.event.comment.body, '@claude')
+        (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
+        contains(github.event.comment.body, '@claude') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
       )
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
+      # The agent has no git CLI, so the workflow picks the branch it commits to.
+      - name: Resolve branch
+        id: branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          TICKET_ID: ${{ github.event.client_payload.ticket_id }}
+          IS_FOLLOWUP: ${{ github.event.client_payload.followup && 'true' || 'false' }}
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = repository_dispatch ]; then
+            [[ "$TICKET_ID" =~ ^[A-Za-z]+-[0-9]+$ ]] || { echo "Invalid ticket id"; exit 1; }
+            branch="claude/$TICKET_ID"
+            echo "name=$branch" >> "$GITHUB_OUTPUT"
+            # A rerun of the first dispatch must build on the commits the last
+            # one saved, not push a fresh branch over them.
+            if [ "$IS_FOLLOWUP" = true ] ||
+              gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" >/dev/null 2>&1; then
+              echo "create=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "create=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            pr=$(gh pr view "$PR_NUMBER" -R "$GITHUB_REPOSITORY" --json headRefName,isCrossRepository) || { echo "Not a pull request"; exit 1; }
+            [ "$(jq -r .isCrossRepository <<<"$pr")" = false ] || { echo "Fork pull requests are not supported"; exit 1; }
+            echo "name=$(jq -r .headRefName <<<"$pr")" >> "$GITHUB_OUTPUT"
+            echo "create=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ steps.branch.outputs.create == 'true' && github.event.repository.default_branch || steps.branch.outputs.name }}
+
+      - name: Create the ticket branch
+        if: steps.branch.outputs.create == 'true'
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: |
+          git switch -c "$BRANCH"
+          git push origin "HEAD:refs/heads/$BRANCH"
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           trigger_phrase: "@claude"
-          claude_args: "--dangerously-skip-permissions --model opus"
+          # No shell: the agent reads text anyone can write. Commits go through the
+          # action's API tools to the branch resolved above; CI checks the PR.
+          use_commit_signing: true
+          claude_args: >-
+            --model opus
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,mcp__github_file_ops__commit_files,mcp__github_file_ops__delete_files,mcp__github__create_pull_request"
 
           prompt: |
             ${{
               github.event_name == 'repository_dispatch' &&
               !github.event.client_payload.followup &&
               format(
-                'Implement the following task and create a PR when done.\n\nTitle: {0}\nDescription: {1}\nLinear Ticket: {2}\nProject: {3}\n\nUse branch name: claude/{2}\n\nIMPORTANT: The Project name indicates which app in the monorepo to work in. The project name contains the app folder name (e.g. "Manager v4 beta" means work in apps/manager/). Only modify files in the relevant app directory unless shared code changes are genuinely needed.\n\nDo NOT include the raw description in the PR body. Write a concise summary of what you implemented instead.',
+                'Implement the following task and create a PR when done.\n\nTitle: {0}\nDescription: {1}\nLinear Ticket: {2}\nProject: {3}\n\nYour commits go to the branch claude/{2}; open the PR from it into main.\n\nIMPORTANT: The Project name indicates which app in the monorepo to work in. The project name contains the app folder name (e.g. "Manager v4 beta" means work in apps/manager/). Only modify files in the relevant app directory unless shared code changes are genuinely needed.\n\nDo NOT include the raw description in the PR body. Write a concise summary of what you implemented instead.',
                 github.event.client_payload.title,
                 github.event.client_payload.description,
                 github.event.client_payload.ticket_id,
@@ -63,7 +104,7 @@ jobs:
               github.event_name == 'repository_dispatch' &&
               github.event.client_payload.followup &&
               format(
-                'You have an existing PR on branch claude/{0}. Check out that branch and apply the following changes:\n\nFeedback: {1}\n\nPush commits to the existing branch. Do NOT create a new PR.',
+                'You are on the branch claude/{0} of an existing PR. Apply the following changes:\n\nFeedback: {1}\n\nCommit them to this branch. Do NOT create a new PR.',
                 github.event.client_payload.ticket_id,
                 github.event.client_payload.feedback
               ) || ''
@@ -71,11 +112,13 @@ jobs:
             ${{
               (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
               format(
-                'You are on PR #{0}. Apply the following changes and push a commit:\n\n{1}\n\nDo NOT create a new PR. Push to the existing branch.',
+                'You are on the branch of PR #{0}. Apply the following changes and commit them:\n\n{1}\n\nDo NOT create a new PR.',
                 github.event.issue.number || github.event.pull_request.number,
                 github.event.comment.body
               ) || ''
             }}
+        env:
+          CLAUDE_BRANCH: ${{ steps.branch.outputs.name }}
 
       # Optional: update Linear ticket status after PR is created
       - name: Update Linear ticket to In Review

@@ -182,6 +182,7 @@ describe('dropUnassignedRecords', () => {
     expect(getNameHistory).toHaveBeenCalledWith(
       'alice.eth',
       {
+        namespace: 'ens',
         type: ['resolver', 'registration'],
         include: ['data'],
         order: 'asc',

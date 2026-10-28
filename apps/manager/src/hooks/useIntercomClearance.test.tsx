@@ -50,15 +50,21 @@ describe('useIntercomClearance', () => {
   })
 
   it('lifts the launcher above the bar and resets on unmount', () => {
+    const launcherBottom = () =>
+      document.documentElement.style.getPropertyValue(
+        '--intercom-launcher-bottom',
+      )
     const { unmount } = render(<Bar />)
 
     expect(update).toHaveBeenLastCalledWith({
       vertical_padding: BAR_HEIGHT + 16,
     })
+    expect(launcherBottom()).toBe(`${BAR_HEIGHT + 16}px`)
 
     unmount()
 
     expect(update).toHaveBeenLastCalledWith({ vertical_padding: 20 })
+    expect(launcherBottom()).toBe('20px')
   })
 
   it('keeps the default padding while the bar is display:none', () => {

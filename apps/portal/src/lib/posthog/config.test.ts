@@ -20,7 +20,7 @@ const initClient = () => {
       request.callback?.({
         statusCode: 200,
         json: {
-          featureFlags: { migration: true },
+          featureFlags: { 'test-flag': true },
           sessionRecording: { endpoint: '/s/' },
           surveys: [{ id: 'survey' }],
         },
@@ -74,7 +74,7 @@ describe('PostHog consent', () => {
       history.pushState({}, '', '/consent-test')
       await vi.advanceTimersByTimeAsync(3000)
 
-      expect(client.isFeatureEnabled('migration')).toBe(true)
+      expect(client.isFeatureEnabled('test-flag')).toBe(true)
       expect(client.has_opted_out_capturing()).toBe(true)
       // Loading must not answer for the visitor: that answer is every app's.
       expect(client.get_explicit_consent_status()).toBe('pending')

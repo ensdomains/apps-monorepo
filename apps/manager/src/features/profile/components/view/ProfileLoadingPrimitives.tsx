@@ -54,6 +54,6 @@ export const ProfileSectionLoading = ({
       className={tw('h-6', titleWidth)}
       shouldReduceMotion={shouldReduceMotion}
     />
-    <div className="mt-6">{children}</div>
+    <div className="mt-3">{children}</div>
   </motion.section>
 )

@@ -1,5 +1,4 @@
 import { Plural, Trans } from '@lingui/react/macro'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { useNavigate } from '@tanstack/react-router'
 import { match } from 'ts-pattern'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
@@ -11,7 +10,6 @@ import {
 } from '@/features/migration/components/UpgradeBanner.helpers'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 
@@ -25,12 +23,8 @@ export const UpgradeBanner = ({
   profileName,
 }: UpgradeBannerProps) => {
   const navigate = useNavigate()
-  const migrationEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.MIGRATION,
-    false,
-  )
   const { eligibility: nftEligibility, isConfirmedUnclaimed } =
-    useVisibleCommemorativeNftStatus({ enabled: migrationEnabled })
+    useVisibleCommemorativeNftStatus()
   const nftCopyEnabled = !!nftEligibility
   const isProfileBanner = profileName !== undefined
   const { isConnected } = useSmartAccountContext()
@@ -40,7 +34,6 @@ export const UpgradeBanner = ({
     wrapperSyncNames,
     isPending: isV1NamesPending,
   } = useEligibleV1Names({
-    enabled: migrationEnabled,
     fallbackToClassified: false,
   })
   const nameCount = eligibleV1Names.length
@@ -52,9 +45,8 @@ export const UpgradeBanner = ({
     profileName,
   })
   const { data: migratedCount, isPending: isMigratedCountPending } =
-    useMigratedNamesCount({ enabled: migrationEnabled && !isProfileBanner })
+    useMigratedNamesCount({ enabled: !isProfileBanner })
 
-  if (!migrationEnabled) return null
   if (!isConnected) return null
   if (isV1NamesPending || (!isProfileBanner && isMigratedCountPending)) {
     return null

@@ -34,6 +34,7 @@ export const NamesTable = ({ table }: NamesTableProps) => {
               relations={row.original.relations}
               roleCount={row.original.roleCount}
               protocolVersion={row.original.protocolVersion}
+              showCheckbox={row.getCanSelect()}
               isSelected={row.getIsSelected()}
               onSelectChange={(selected) => row.toggleSelected(selected)}
             />

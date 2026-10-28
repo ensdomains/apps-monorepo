@@ -1,28 +1,12 @@
-import {
-  createFileRoute,
-  redirect,
-  useHydrated,
-  useNavigate,
-} from '@tanstack/react-router'
-import { type ReactNode, useCallback } from 'react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import type { ReactNode } from 'react'
 import { useConnection } from 'wagmi'
 import { MigrationPage } from '@/features/migration/pages/MigrationPage'
 import { MigrationUiProvider } from '@/features/migration/state/migrationUi.context'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
-import { getFeatureFlag } from '@/lib/posthog/get-feature-flag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/upgrade')({
-  beforeLoad: async () => {
-    const migrationAccess = await getFeatureFlag({
-      data: { flag: POSTHOG_FEATURE_FLAGS.MIGRATION },
-    })
-
-    if (migrationAccess !== true) {
-      throw redirect({ to: '/dashboard', replace: true })
-    }
-  },
   component: RouteComponent,
 })
 
@@ -53,20 +37,22 @@ const MigrationRouteLoading = () => {
 
 const RequireConnectedWallet = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate()
-  const isHydrated = useHydrated()
-  const { isConnecting, isReconnecting } = useConnection()
-  const { hasInitialized, ownerAddress } = useSmartAccountContext()
+  const {
+    isConnected: isWalletConnected,
+    isConnecting,
+    isReconnecting,
+  } = useConnection()
+  const { isLoading, hasInitialized, isConnected } = useSmartAccountContext()
 
-  const handleDisconnect = useCallback(() => {
-    navigate({ to: '/', replace: true })
-  }, [navigate])
+  useOnDisconnected(() => {
+    navigate({ to: '/' })
+  })
 
-  useOnDisconnected(handleDisconnect)
+  if (isLoading || !hasInitialized || isConnecting || isReconnecting) {
+    return <MigrationRouteLoading />
+  }
 
-  const isRestoringConnection =
-    !isHydrated || isConnecting || isReconnecting || !hasInitialized
-
-  if (isRestoringConnection || !ownerAddress) {
+  if (!isConnected && !isWalletConnected) {
     return <MigrationRouteLoading />
   }
 

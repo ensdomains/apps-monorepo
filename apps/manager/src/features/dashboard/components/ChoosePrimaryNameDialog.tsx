@@ -2,7 +2,7 @@ import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, Check } from 'lucide-react'
+import { Check, CircleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
@@ -33,10 +33,10 @@ import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialog
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import {
   getPrimaryNamePreparation,
+  hasV1RegistryResolver,
   type PrimaryNamePreparation,
 } from '@/features/profile/service/primaryNamePreparation'
 import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
-import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
 import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
@@ -192,19 +192,6 @@ const PrimaryNameOption = ({
   )
 }
 
-/**
- * The connected wallet can't write to the name's resolver — either it has no
- * resolver (reset during transfer) or the resolver belongs to a previous owner.
- * Surfaced from the write path as a fallback; the pre-flight normally catches
- * this first and routes the flow through the resolver-setup path instead.
- */
-class ResolverNotControlledError extends Error {
-  constructor(options?: { cause?: unknown }) {
-    super('Wallet cannot write to this name’s resolver', options)
-    this.name = 'ResolverNotControlledError'
-  }
-}
-
 /** Label for the confirm button, reflecting the current step of the flow. */
 const ConfirmButtonLabel = ({
   settingUpResolver,
@@ -238,7 +225,6 @@ const PrimaryNameErrorNotice = ({
 
   return (
     <Alert variant="destructive">
-      <AlertCircle />
       <AlertDescription>{errorMessage}</AlertDescription>
     </Alert>
   )
@@ -256,8 +242,7 @@ const EthAddressUpdateNotice = ({
   const { t } = useLingui()
   if (!ownerAddress) return null
   return (
-    <Alert id={id} variant="warning">
-      <AlertCircle />
+    <Alert icon={<CircleAlert className="size-4" />} id={id} variant="warning">
       <AlertDescription>
         <p>
           {existingEthAddress
@@ -330,11 +315,12 @@ const useUpdateEthAddressMutation = ({
   readonly account: SmartAccountContextValue
   readonly chainId: number
   readonly selectedName: string | null
-}) => {
-  const { t } = useLingui()
-
-  return useMutation({
-    mutationFn: async () => {
+}) =>
+  useMutation({
+    mutationFn: async ({
+      resolverAddress,
+      existingEthAddress,
+    }: Extract<PrimaryNamePreparation, { kind: 'update-eth-address' }>) => {
       if (!selectedName || !account.ownerAddress) return
 
       const walletAddress = account.ownerAddress as Address
@@ -349,28 +335,14 @@ const useUpdateEthAddressMutation = ({
         return
       }
 
-      // Resolve the live pointer. An indexer resolver hint can refer to a
-      // resolver that is no longer attached to the name after a transfer.
-      const snapshot = await getProfileEthAddressSnapshot(selectedName)
-
-      if (snapshot.isErr()) {
-        const name = selectedName
-        throw new Error(t`Couldn’t read the wallet address for ${name}`)
-      }
-
-      const { resolverAddress, ethAddress } = snapshot.value
-
-      if (!resolverAddress) {
-        throw new ResolverNotControlledError()
-      }
-
-      if (ethAddress?.toLowerCase() === walletAddress.toLowerCase()) return
-
+      // The probed resolver, not the one resolution passed through (a URv1 reports the read-only ENSV2Resolver).
       await saveRecords({
         name: selectedName,
         before: {
           texts: [],
-          coins: ethAddress ? [{ coinType: 60, value: ethAddress }] : [],
+          coins: existingEthAddress
+            ? [{ coinType: 60, value: existingEthAddress }]
+            : [],
         },
         after: {
           texts: [],
@@ -387,7 +359,6 @@ const useUpdateEthAddressMutation = ({
       console.error('Failed to set ETH address record:', error)
     },
   })
-}
 
 /**
  * Set up a resolver this wallet can write to, then seed the ETH address.
@@ -571,11 +542,46 @@ export const ChoosePrimaryNameDialog = ({
     }
   }
 
+  const readV1SetupError = async (
+    name: string,
+    hasResolver: boolean,
+  ): Promise<Error> => {
+    setIsCheckingPreparation(true)
+    const isUnreachable =
+      !hasResolver &&
+      (await hasV1RegistryResolver(publicClient as PublicClient, name).catch(
+        () => false,
+      ))
+    setIsCheckingPreparation(false)
+    return new Error(
+      isUnreachable
+        ? t`${name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name.`
+        : t`${name} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app.`,
+    )
+  }
+
+  // Say why a resolver setup can't complete here instead of walking into it.
+  const readSetupBlocker = async (
+    preparation: PrimaryNamePreparation,
+    name: string,
+  ): Promise<Error | null> => {
+    if (preparation.kind !== 'setup-resolver') return null
+    if (preparation.hasOffchainResolver)
+      return new Error(
+        t`${name} uses an offchain resolver, so its ETH address is set with that resolver’s provider. Point it at this wallet there, then try again.`,
+      )
+    // Setting up a resolver goes through the v2 registry, so an ENSv1 name
+    // with no resolver this wallet can write has no path here.
+    if (selectedProtocol === 'v1')
+      return readV1SetupError(name, preparation.hasResolver)
+    return null
+  }
+
   const applyPreparation = async (preparation: PrimaryNamePreparation) => {
     if (preparation.kind === 'setup-resolver') {
       await setupResolverMutation.mutateAsync()
     } else if (preparation.kind === 'update-eth-address') {
-      await updateEthAddressMutation.mutateAsync()
+      await updateEthAddressMutation.mutateAsync(preparation)
     }
   }
 
@@ -626,16 +632,10 @@ export const ChoosePrimaryNameDialog = ({
       return
     }
 
-    // Setting up a resolver goes through the v2 registry, so an ENSv1 name
-    // with no resolver this wallet can write has no path here. Say so instead
-    // of walking the user into a setup that cannot complete.
-    if (preparation.kind === 'setup-resolver' && selectedProtocol === 'v1') {
+    const setupBlocker = await readSetupBlocker(preparation, selectedName)
+    if (setupBlocker) {
       setConfirmation(null)
-      setPreparationError(
-        new Error(
-          t`${selectedName} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app.`,
-        ),
-      )
+      setPreparationError(setupBlocker)
       return
     }
 

@@ -1,5 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { CheckCircle2, SquareUser, XCircle } from 'lucide-react'
+import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
@@ -54,7 +55,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
       if (!name && defaultName && canInheritDefault(row.original.coinType)) {
         return (
           <div className="flex flex-row items-center gap-2">
-            <span>{defaultName}</span>
+            <EntityBadge variant="name" name={defaultName} />
             <Badge variant="outline" className="text-small">
               Default
             </Badge>
@@ -68,7 +69,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
 
       return (
         <div className="flex flex-row items-center gap-2">
-          <span>{name}</span>
+          <EntityBadge variant="name" name={name} />
           {!row.original.normalized && (
             <Badge variant="secondary" className="text-small">
               Not normalized

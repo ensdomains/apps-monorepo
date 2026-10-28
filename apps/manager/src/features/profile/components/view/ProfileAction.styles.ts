@@ -1,8 +1,23 @@
+// Small Button / Secondary from ENS Consumer (871:3955): 44px tall.
 export const iconActionClassName =
-  'flex size-13.5 shrink-0 items-center justify-center rounded bg-white text-ens-quartz-700 shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 disabled:cursor-not-allowed disabled:opacity-50'
+  'inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-[#e2e8f0] p-0.5 text-ens-lapis-500 transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50'
+
+export const iconActionInnerClassName =
+  'flex h-full items-center justify-center gap-2.5 rounded-[10px] px-4 max-xs:px-2'
+
+export const iconActionIconInnerClassName =
+  'flex size-full items-center justify-center rounded-[10px]'
+
+export const iconActionSymbolClassName =
+  'ms-opsz-20 ms-wght-500 text-[20px] leading-none'
+
+export const favoriteActionClassName = 'bg-ens-magenta-light text-ens-magenta'
 
 export const renewActionClassName =
-  'inline-flex h-13.5 min-w-34 items-center justify-center gap-1 whitespace-nowrap rounded border-none bg-white px-3 py-0 font-semi-mono text-xs text-ens-quartz-900 uppercase tracking-[0.96px] shadow-[0_2px_6px_rgba(0,0,0,0.06)] hover:bg-ens-quartz-50 disabled:cursor-wait disabled:opacity-60 xl:w-33 xl:min-w-33'
+  'inline-flex h-11 min-h-11 w-auto max-h-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-[#e2e8f0] p-0.5 font-medium font-mono text-[13px] text-ens-lapis-500 uppercase leading-none tracking-[1.56px] transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60'
+
+export const renewActionSymbolClassName =
+  'ms-opsz-12 ms-wght-500 text-[12px] leading-none max-xs:hidden'
 
 export const editActionClassName =
   'h-15.25 w-full max-w-87 rounded border-none bg-(--theme-button-bg) px-6 py-0 font-semi-mono text-sm text-(--theme-button-text) uppercase tracking-[1.12px] shadow-none hover:bg-(--theme-button-hover-bg) xl:h-12.5 xl:w-42.75'
@@ -12,9 +27,6 @@ export const profileButtonClassName = 'h-10.5 rounded-sm text-xs uppercase'
 
 // Figma-spec bar sizes, offsets and shadows below have no matching tokens; the
 // calc() values add the device safe area
-export const renewBarActionClassName =
-  'inline-flex h-13.5 w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-ens-quartz-200 bg-transparent px-3 py-0 font-mono text-sm text-ens-quartz-900 uppercase tracking-[0.28px] transition-colors hover:bg-ens-quartz-50 disabled:cursor-wait disabled:opacity-60'
-
 export const editBottomNavClassName =
   'fixed inset-x-0 bottom-0 z-40 bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] xl:shadow-[0_-3.24px_91px_rgba(7,28,47,0.12)]'
 
@@ -24,11 +36,10 @@ export const editBottomNavContentClassName =
 export const editBottomBarContentClassName =
   'flex items-center justify-between gap-3 px-3 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] xl:p-6'
 
-export const profileBarActionsClassName =
-  'flex items-center gap-3 xl:gap-6 [&_a]:border [&_a]:border-ens-quartz-200 [&_a]:border-solid [&_a]:shadow-none [&_button]:border [&_button]:border-ens-quartz-200 [&_button]:border-solid [&_button]:shadow-none'
+export const profileBarActionsClassName = 'flex items-center gap-2'
 
 export const profileStickyBarClassName =
   'fixed inset-x-0 bottom-0 z-40 bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] xl:hidden'
 
-export const desktopActionContainerClassName =
-  'absolute top-[422px] left-[calc(50%+452.5px)] z-30 hidden w-33 flex-col gap-6 xl:flex'
+export const desktopActionClusterClassName =
+  'hidden shrink-0 items-center gap-2 xl:flex'

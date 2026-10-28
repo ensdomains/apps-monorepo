@@ -89,6 +89,7 @@ const readResolverTimeline = (name: string, signal?: AbortSignal) =>
       bigname.nameHistory(
         normalizeOrLower(name),
         {
+          namespace: 'ens',
           type: ['resolver', 'registration'],
           include: ['data'],
           order: 'asc',

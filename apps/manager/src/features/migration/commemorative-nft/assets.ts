@@ -16,7 +16,7 @@ const downloadFailureReason = (error: unknown) => {
   return error instanceof TypeError ? 'network' : 'unknown'
 }
 
-const saveBlobToFile: SaveBlob = (blob, filename) => {
+export const saveBlobToFile: SaveBlob = (blob, filename) => {
   const objectUrl = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.download = filename
@@ -25,7 +25,7 @@ const saveBlobToFile: SaveBlob = (blob, filename) => {
   document.documentElement.appendChild(anchor)
   anchor.click()
   anchor.remove()
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 5_000)
 }
 
 export const downloadCommemorativeNftImage = async (params: {

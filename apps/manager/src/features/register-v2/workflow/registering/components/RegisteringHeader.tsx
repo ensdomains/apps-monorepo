@@ -4,7 +4,6 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { useRegisteringStage } from '../../../state/registrationUi.selectors'
 import { RegistrationCompletionBanner } from './RegistrationCompletionBanner'
-import { RegistrationProgressBar } from './RegistrationProgressBar'
 import { WeaveTrackPlaceholder } from './WeaveTrackPlaceholder'
 
 const WeaveProgressBar = lazy(() =>
@@ -44,57 +43,41 @@ const RegisteringTitle = ({ label }: { label: string }) => {
 type RegisteringStage = ReturnType<typeof useRegisteringStage>
 
 export interface RegisteringHeaderProps {
-  isRegistrationComplete: boolean
-  uiStage: RegisteringStage
-  fillProgress: number
+  readonly isRegistrationComplete: boolean
+  readonly uiStage: RegisteringStage
+  readonly fillProgress: number
   /** Label for the post-registration setup stages (ETH record / primary name). */
-  stageLabel: string
+  readonly stageLabel: string
 }
 
 /** Title + progress bar (or completion banner) shown above the registration details. */
-export function RegisteringHeader({
+export const RegisteringHeader = ({
   isRegistrationComplete,
   uiStage,
   fillProgress,
   stageLabel,
-}: RegisteringHeaderProps) {
+}: RegisteringHeaderProps) => {
   const { t } = useLingui()
 
-  if (isRegistrationComplete) {
+  if (isRegistrationComplete || uiStage?.transaction === 'success') {
     return <RegistrationCompletionBanner />
   }
 
+  const label = match(uiStage?.transaction)
+    .with('pendingRegistration', () => t`Registering name`)
+    .with(undefined, () => t`Loading...`)
+    .otherwise(() => stageLabel)
+
   return (
-    match(uiStage?.transaction)
-      .with('pendingRegistration', () => (
-        <div className="flex w-full flex-col items-center gap-2 text-center max-md:px-3">
-          <RegisteringTitle label={t`Registering name`} />
-          <Suspense fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}>
-            <WeaveProgressBar
-              animate={false}
-              className="w-full max-w-2xl"
-              progress={fillProgress / 100}
-            />
-          </Suspense>
-        </div>
-      ))
-      .with('success', () => <RegistrationCompletionBanner />)
-      .with(undefined, () => (
-        <RegistrationProgressBar label={t`Loading...`} progress={0} />
-      ))
-      // Post-registration setup stages (ETH record sync / primary name) keep
-      // the same weave bar as the registration itself, with the stage message.
-      .otherwise(() => (
-        <div className="flex w-full flex-col items-center gap-2 text-center max-md:px-3">
-          <RegisteringTitle label={stageLabel} />
-          <Suspense fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}>
-            <WeaveProgressBar
-              animate={false}
-              className="w-full max-w-2xl"
-              progress={fillProgress / 100}
-            />
-          </Suspense>
-        </div>
-      ))
+    <div className="flex w-full flex-col items-center gap-2 text-center max-md:px-3">
+      <RegisteringTitle label={label} />
+      <Suspense fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}>
+        <WeaveProgressBar
+          animate={false}
+          className="w-full max-w-2xl"
+          progress={fillProgress / 100}
+        />
+      </Suspense>
+    </div>
   )
 }

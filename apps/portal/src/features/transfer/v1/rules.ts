@@ -248,6 +248,8 @@ export const getV1DetachTargets = ({
     detachResolver: resolverAddress !== null && canDetachResolver,
     // A V1 name has no subregistry.
     detachRegistry: false,
+    // Only an unwrapped `.eth` 2LD splits the manager role from the token.
+    transferManager: subject.kind === 'v1-registrar',
   }
 }
 

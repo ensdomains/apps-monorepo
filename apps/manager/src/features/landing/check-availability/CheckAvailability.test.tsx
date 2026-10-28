@@ -36,14 +36,24 @@ vi.mock('@/features/shared/service/checkNameAvailabilityService', () => ({
   }),
 }))
 
+const UNRESOLVED_NAMES: ReadonlySet<string> = new Set([
+  'missing.alice.eth',
+  'vitalik.xyz',
+  'vitalik.ethh',
+  'sub.vitalik.xyz',
+])
+
 vi.mock('@/features/profile/service/profileRecords', () => ({
   profileRecordsQuery: (name: string) => ({
     queryKey: ['test-records', name],
+    // An unowned name that resolves is offchain, so the missing ones resolve nothing.
     queryFn: async () => ({
-      texts: [
-        { key: 'theme', value: '#112233' },
-        { key: 'avatar', value: `https://example.com/${name}.png` },
-      ],
+      texts: UNRESOLVED_NAMES.has(name)
+        ? []
+        : [
+            { key: 'theme', value: '#112233' },
+            { key: 'avatar', value: `https://example.com/${name}.png` },
+          ],
       coins: [],
     }),
   }),

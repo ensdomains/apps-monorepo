@@ -1,12 +1,20 @@
 import type { NameRegistrationStatus } from '@ens-apps/indexer/reads'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, FilterFn } from '@tanstack/react-table'
+import { match } from 'ts-pattern'
 import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { RoleCount } from '@/features/dashboard/hooks/useAddressRoleCounts'
 import {
+  getNameLength,
+  getNameStatus,
+} from '@/features/renew/utils/nameExtension'
+import type { RegistryRole } from '@/lib/roles/registryPowerRoles'
+import type { DateRange } from '@/utils/formatting/formatDateRange'
+import {
   type AddressNameRelation,
   getShownExpiry,
+  isShownExpiryInRange,
 } from '@/utils/names/addressNames'
 import type { ProtocolVersion } from '@/utils/types'
 import { NameExpiry } from '../NameExpiry'
@@ -19,6 +27,7 @@ export type NameRow = {
   graceEndDate: Date | null
   status: NameRegistrationStatus
   relations: readonly AddressNameRelation[]
+  readonly registryRoles?: readonly RegistryRole[]
   roleCount?: RoleCount
   protocolVersion: ProtocolVersion
 }
@@ -27,11 +36,29 @@ export type NameRow = {
 export const getNameRowId = (row: NameRow, index: number): string =>
   row.name === null ? String(index) : `${row.protocolVersion}:${row.name}`
 
-const NameCell = ({ name }: { name: string }) => (
-  <EntityBadge variant="name" name={name} showAvatar>
-    {name}
-  </EntityBadge>
-)
+/** A common key space for V1 relationships and exact V2 roles. */
+const roleKeys = (row: NameRow): string[] =>
+  row.protocolVersion === 'ENSv1'
+    ? [...row.relations]
+    : (row.registryRoles ?? []).map((role) => `v2:${role}`)
+
+const matchesAny: FilterFn<NameRow> = (
+  row,
+  columnId,
+  selected: readonly string[],
+) => selected.includes(row.getValue<string>(columnId))
+matchesAny.autoRemove = (selected: readonly string[]) => !selected?.length
+
+const matchesExpiry: FilterFn<NameRow> = (row, _columnId, range: DateRange) =>
+  isShownExpiryInRange(row.original, range)
+matchesExpiry.autoRemove = (range: DateRange) => !range?.from && !range?.to
+
+/** Helper columns participate in filtering/faceting without appearing in the table. */
+export const nameColumnVisibility = {
+  levels: false,
+  statuses: false,
+  lengths: false,
+}
 
 export const columns: ColumnDef<NameRow>[] = [
   {
@@ -43,20 +70,26 @@ export const columns: ColumnDef<NameRow>[] = [
           table.getIsAllPageRowsSelected() ||
           (table.getIsSomePageRowsSelected() && 'indeterminate')
         }
+        disabled={!table.getRowModel().rows.some((row) => row.getCanSelect())}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
       />
     ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
+    cell: ({ row }) =>
+      row.getCanSelect() ? (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ) : null,
   },
   {
     accessorKey: 'name',
+    filterFn: (row, columnId, search: string) =>
+      (row.getValue<string | null>(columnId) ?? '')
+        .toLowerCase()
+        .includes(search.trim().toLowerCase()),
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -68,12 +101,23 @@ export const columns: ColumnDef<NameRow>[] = [
     cell: ({ getValue }) => {
       const name = getValue() as string
       if (!name) return null
-      return <NameCell name={name} />
+      return (
+        <EntityBadge
+          variant="name"
+          name={name}
+          showAvatar
+          format="truncate"
+          containerClassName="max-w-72"
+        >
+          {name}
+        </EntityBadge>
+      )
     },
   },
   {
     id: 'expiryDate',
     accessorFn: getShownExpiry,
+    filterFn: matchesExpiry,
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -85,8 +129,16 @@ export const columns: ColumnDef<NameRow>[] = [
     cell: ({ row }) => <NameExpiry {...row.original} />,
   },
   {
-    id: 'relations',
-    accessorFn: (row) => row.relations.length,
+    id: 'roles',
+    accessorFn: roleKeys,
+    getUniqueValues: roleKeys,
+    filterFn: 'arrIncludesSome',
+    sortingFn: (a, b) => {
+      const count = (row: NameRow) =>
+        typeof row.roleCount === 'number' ? row.roleCount : roleKeys(row).length
+      return count(a.original) - count(b.original)
+    },
+    sortDescFirst: false,
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -101,5 +153,32 @@ export const columns: ColumnDef<NameRow>[] = [
         roleCount={row.original.roleCount}
       />
     ),
+  },
+  {
+    id: 'levels',
+    accessorFn: (row) => {
+      const depth = row.name?.split('.').length ?? 0
+      return match(depth)
+        .with(2, () => '2ld')
+        .when(
+          (value) => value > 2,
+          () => 'subname',
+        )
+        .otherwise(() => '')
+    },
+    filterFn: matchesAny,
+    enableSorting: false,
+  },
+  {
+    id: 'statuses',
+    accessorFn: (row) => getNameStatus(row),
+    filterFn: matchesAny,
+    enableSorting: false,
+  },
+  {
+    id: 'lengths',
+    accessorFn: (row) => getNameLength(row.name),
+    filterFn: matchesAny,
+    enableSorting: false,
   },
 ]

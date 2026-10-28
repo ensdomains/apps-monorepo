@@ -110,6 +110,14 @@ const OPTIONS: readonly OptionConfig[] = [
     warning:
       'The accounts listed below keep their permissions on this name after the transfer. They hold no part of it, but they can still act on it — repointing its resolver, for instance — until the recipient revokes them.',
   },
+  {
+    key: 'transferManager',
+    label: 'Transfer the manager role too',
+    description:
+      'Makes the recipient this name’s manager as well as its owner, so they can change its records and subnames straight away. Costs an extra transaction.',
+    warning:
+      'The current manager keeps control of this name’s records and subnames after the transfer, until the recipient takes the manager role over from the Ownership page.',
+  },
 ]
 
 /**
@@ -250,6 +258,7 @@ const resolveOptions = ({
     detachResolver: options.detachResolver && visibility.detachResolver,
     detachRegistry: options.detachRegistry && visibility.detachRegistry,
     revokeRoles: options.revokeRoles && visibility.revokeRoles,
+    transferManager: options.transferManager && visibility.transferManager,
   }
 
   return {
@@ -301,6 +310,8 @@ export const SendNameForm = ({
     // On by default, like the other cleanup steps: a grant left behind is a
     // live write authority over a name its holder no longer has any stake in.
     revokeRoles: true,
+    // On by default: a full handover, unless the sender opts out of the extra step.
+    transferManager: true,
   })
   // What was acknowledged, not merely that something was — see
   // `getDetachConsentKey`.

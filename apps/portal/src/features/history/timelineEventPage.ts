@@ -11,7 +11,7 @@ import {
   secondsToTimestamp,
 } from '@ens-apps/indexer/bigname'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { okAsync, type ResultAsync } from 'neverthrow'
+import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
@@ -131,6 +131,7 @@ export const fetchNameHistoryPage = ({
             .nameHistory(
               normalizeOrLower(name),
               {
+                namespace: 'ens',
                 include:
                   includeChildRegistrations &&
                   canIncludeChildRegistrations(name)
@@ -156,6 +157,12 @@ export const fetchNameHistoryPage = ({
               ),
             ),
         signal,
+      ).orElse(
+        // A name bigname has not indexed, such as an offchain one, has no history.
+        (error) =>
+          error.cause.code === 'not_found' && !cursor
+            ? okAsync<TimelinePage, GetTimelineEventPageError>(EMPTY_PAGE)
+            : errAsync(error),
       )
 
 /** Every registration a registry emits is of one of its labels: a subname. */

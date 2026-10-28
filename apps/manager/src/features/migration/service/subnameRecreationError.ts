@@ -5,6 +5,8 @@ export class SubnameRecreationError extends TaggedError(
 )<{
   readonly message: string
   readonly ensName: string
+  /** The fixed reason, without the name, so callers can classify it. */
+  readonly detail?: string
 }> {}
 
 /** Older prototypes used different recipients, roles and resolver ownership. */

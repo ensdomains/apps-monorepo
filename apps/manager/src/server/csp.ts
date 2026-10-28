@@ -13,6 +13,7 @@ import { originFromEnvUrl } from '@ens-apps/config'
 import { envConfig, l2Sources } from '@/config'
 
 import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
+import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and
 // connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.
@@ -38,7 +39,8 @@ const OVERRIDE_CONNECT_ORIGINS = [
 ].filter((origin): origin is string => origin != null)
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
-// Keep this list tight and annotated; a missing host silently breaks a flow.
+// HTTPS is open for CCIP-Read gateways (below); the HTTPS entries still record
+// which flow needs each host, and wss:/http: hosts must be listed to connect.
 const DEFAULT_CONNECT_HOSTS = [
   // Every RPC endpoint the viem transports may use: the app's attributed
   // primary plus the network's shared fallbacks. Derived from the same config
@@ -69,6 +71,8 @@ const DEFAULT_CONNECT_HOSTS = [
   'https://api.etherscan.io',
   // ENS Cloudflare Workers (avatar upload, metadata, preview APIs).
   'https://*.ens-cf.workers.dev',
+  // The public avatar/header upload host shared with the legacy ENS app.
+  new URL(AVATAR_UPLOAD_BASE_URL).origin,
   // IPFS gateways for NFT-metadata JSON — profileNfts / profileImageRecord.
   // Images themselves are covered by `img-src https:`.
   'https://ipfs.io',
@@ -93,12 +97,10 @@ const DEFAULT_CONNECT_HOSTS = [
   'https://cloudflare-dns.com',
   'https://1.1.1.1',
   // CCIP-Read (ERC-3668) gateways — viem follows OffchainLookup reverts from
-  // the browser, so a miss surfaces as ResolverError("HTTP request failed").
-  // The UR's batch gateway (*.ens.xyz) fans out to Unruggable's *.3668.io and
-  // its mirror lb.drpc.org (distinct from the lb.drpc.live RPC above).
-  'https://*.ens.xyz',
-  'https://*.3668.io',
-  'https://lb.drpc.org',
+  // the browser, and each resolver picks its own gateway (api.coinbase.com for
+  // base.eth), so no allowlist can hold them; ens-app-v3 sets no connect-src.
+  // A miss surfaces as ResolverError("HTTP request failed."), not a CSP error.
+  'https:',
 ] as const
 
 const CONNECT_HOSTS = [

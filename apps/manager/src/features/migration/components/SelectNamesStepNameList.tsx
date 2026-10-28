@@ -1,12 +1,12 @@
-import { Trans } from '@lingui/react/macro'
-import { type CSSProperties, memo } from 'react'
+import { Plural, Trans } from '@lingui/react/macro'
+import { Info, RotateCcw } from 'lucide-react'
+import { memo, type ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import type { useNameSelection } from '@/features/migration/hooks/useNameSelection'
-import type { NameTreeNode } from '@/features/migration/service/groupByParent'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
-import { cn } from '@/lib/utils'
 import { NameListSkeleton } from './NameListSkeleton'
 import { NameRow } from './NameRow'
+import { NameTreeRows } from './NameTreeRows'
 
 type NameSelectionState = ReturnType<typeof useNameSelection>
 
@@ -15,6 +15,7 @@ type SelectNamesStepNameListProps = Pick<
   | 'filteredGroups'
   | 'filteredOrphans'
   | 'filteredGracePeriodNames'
+  | 'includedSubnames'
   | 'isManagerRestorationLocked'
   | 'managerCandidates'
   | 'restoredManagers'
@@ -23,127 +24,21 @@ type SelectNamesStepNameListProps = Pick<
   | 'toggleManagerRestoration'
   | 'toggleName'
 > & {
+  readonly children: ReactNode
+  readonly hasInsufficientRenewalFunds: boolean
   readonly isPending: boolean
 }
 
-type NameTreeRowsProps = {
-  readonly depth: number
-  readonly isManagerRestorationLocked: boolean
-  readonly managerCandidates: NameSelectionState['managerCandidates']
-  readonly nodes: readonly NameTreeNode[]
-  readonly primaryName: string | null | undefined
-  readonly restoredManagers: ReadonlySet<string>
-  readonly selected: ReadonlySet<string>
-  readonly toggleManagerRestoration: (name: string) => void
-  readonly toggleName: (name: string) => void
-}
-
-type NameTreeConnectorProps = {
-  readonly isFirst: boolean
-  readonly isLast: boolean
-}
-
-const LARGE_LIST_THRESHOLD = 100
-const OFFSCREEN_ROW_STYLE = {
-  containIntrinsicBlockSize: 'auto 37px',
-  contentVisibility: 'auto',
-} satisfies CSSProperties
-
-const NameTreeConnector = ({ isFirst, isLast }: NameTreeConnectorProps) => (
-  <span
-    aria-hidden
-    className="pointer-events-none absolute inset-y-0 left-0 w-7.5 text-ens-garnet-900 opacity-30"
-  >
-    {!isLast && (
-      <span className="absolute top-0 -bottom-4 left-0 w-px bg-current" />
-    )}
-    <span className="absolute top-0 left-0 h-9.25 w-7.5">
-      <span
-        className={cn(
-          'absolute right-0 bottom-1/2 left-0 rounded-bl-md border-current border-b border-l',
-          isFirst ? '-top-4' : 'top-0',
-        )}
-      />
-    </span>
-  </span>
-)
-
-const NameTreeRows = ({
-  depth,
-  isManagerRestorationLocked,
-  managerCandidates,
-  nodes,
-  primaryName,
-  restoredManagers,
-  selected,
-  toggleManagerRestoration,
-  toggleName,
-}: NameTreeRowsProps) => (
-  <ul
-    className={cn(
-      'flex min-w-0 flex-col',
-      'gap-4',
-      depth > 0 && 'mt-4',
-      depth === 1 && 'ml-10',
-      depth > 1 && 'ml-4.5',
-    )}
-  >
-    {nodes.map((node, index) => {
-      const name = node.item.domain.name
-      const isFirst = index === 0
-      const isLast = index === nodes.length - 1
-      // Paint containment would clip the primary badge above the row.
-      const shouldDeferOffscreenRow =
-        depth === 0 &&
-        nodes.length >= LARGE_LIST_THRESHOLD &&
-        name !== primaryName &&
-        node.children.length === 0
-      return (
-        <li
-          className={cn('relative min-w-0', depth > 0 && 'pl-7.5')}
-          key={node.item.domain.id}
-          style={shouldDeferOffscreenRow ? OFFSCREEN_ROW_STYLE : undefined}
-        >
-          {depth > 0 && <NameTreeConnector isFirst={isFirst} isLast={isLast} />}
-          <NameRow
-            depth={depth}
-            isManagerRestorationLocked={isManagerRestorationLocked}
-            isManagerRestored={restoredManagers.has(name)}
-            isPrimary={name === primaryName}
-            isSelected={selected.has(name)}
-            item={node.item}
-            managerCandidate={managerCandidates.get(name)}
-            onToggle={depth === 0 ? toggleName : undefined}
-            onToggleManagerRestoration={
-              depth === 0 ? toggleManagerRestoration : undefined
-            }
-          />
-          {node.children.length > 0 && (
-            <NameTreeRows
-              depth={depth + 1}
-              isManagerRestorationLocked={isManagerRestorationLocked}
-              managerCandidates={managerCandidates}
-              nodes={node.children}
-              primaryName={primaryName}
-              restoredManagers={restoredManagers}
-              selected={selected}
-              toggleManagerRestoration={toggleManagerRestoration}
-              toggleName={toggleName}
-            />
-          )}
-        </li>
-      )
-    })}
-  </ul>
-)
-
 const SelectNamesStepNameListComponent = ({
+  children,
   filteredGroups,
   filteredOrphans,
   filteredGracePeriodNames,
+  hasInsufficientRenewalFunds,
   isManagerRestorationLocked,
   isPending,
   managerCandidates,
+  includedSubnames,
   restoredManagers,
   search,
   selected,
@@ -151,7 +46,6 @@ const SelectNamesStepNameListComponent = ({
   toggleName,
 }: SelectNamesStepNameListProps) => {
   const { data: primaryName } = useConnectedReverseName()
-
   return match({
     isPending,
     hasResults:
@@ -175,39 +69,90 @@ const SelectNamesStepNameListComponent = ({
       </div>
     ))
     .otherwise(() => (
-      <>
-        <NameTreeRows
-          depth={0}
-          isManagerRestorationLocked={isManagerRestorationLocked}
-          managerCandidates={managerCandidates}
-          nodes={[...filteredGroups, ...filteredOrphans]}
-          primaryName={primaryName}
-          restoredManagers={restoredManagers}
-          selected={selected}
-          toggleManagerRestoration={toggleManagerRestoration}
-          toggleName={toggleName}
-        />
+      <div className="flex flex-col gap-8">
         {filteredGracePeriodNames.length > 0 && (
-          <ul className="flex min-w-0 flex-col gap-4">
-            {filteredGracePeriodNames.map((item) => (
-              <li className="min-w-0" key={item.domain.id}>
-                <NameRow
-                  depth={0}
-                  isInGrace
-                  isManagerRestorationLocked={isManagerRestorationLocked}
-                  isManagerRestored={restoredManagers.has(item.domain.name)}
-                  isPrimary={item.domain.name === primaryName}
-                  isSelected={selected.has(item.domain.name)}
-                  item={item}
-                  managerCandidate={managerCandidates.get(item.domain.name)}
-                  onToggle={toggleName}
-                  onToggleManagerRestoration={toggleManagerRestoration}
+          <section className="flex min-w-0 flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <h2 className="flex items-center gap-2 font-normal font-semi-mono text-ens-garnet-900 text-sm uppercase leading-[1.2] tracking-[0.14px] md:text-base md:tracking-[0.16px]">
+                <RotateCcw aria-hidden className="size-4 shrink-0" />
+                <Plural
+                  one="# name in grace"
+                  other="# names in grace"
+                  value={filteredGracePeriodNames.length}
                 />
-              </li>
-            ))}
-          </ul>
+              </h2>
+              <p className="flex items-start gap-1 text-ens-garnet-900/70 text-xs leading-normal tracking-[-0.24px] md:text-sm md:tracking-[-0.28px]">
+                <Info
+                  aria-hidden
+                  className="mt-0.5 size-3.5 shrink-0"
+                  strokeWidth={1.8}
+                />
+                <Trans>
+                  Names in grace will be renewed before being migrated
+                </Trans>
+              </p>
+            </div>
+            <ul className="flex min-w-0 flex-col gap-4">
+              {filteredGracePeriodNames.map((item) => (
+                <li className="min-w-0" key={item.domain.id}>
+                  <NameRow
+                    depth={0}
+                    isManagerRestorationLocked={isManagerRestorationLocked}
+                    isManagerRestored={restoredManagers.has(item.domain.name)}
+                    isPrimary={item.domain.name === primaryName}
+                    isSelected={selected.has(item.domain.name)}
+                    item={item}
+                    managerCandidate={managerCandidates.get(item.domain.name)}
+                    onToggle={toggleName}
+                    onToggleManagerRestoration={toggleManagerRestoration}
+                    warning={
+                      hasInsufficientRenewalFunds &&
+                      selected.has(item.domain.name) && (
+                        <Trans>
+                          Not enough USDC to renew the selected names. Add USDC
+                          or deselect this name.
+                        </Trans>
+                      )
+                    }
+                  />
+                  {selected.has(item.domain.name) &&
+                    includedSubnames.has(item.domain.name) && (
+                      <NameTreeRows
+                        depth={1}
+                        isManagerRestorationLocked={isManagerRestorationLocked}
+                        managerCandidates={managerCandidates}
+                        nodes={(
+                          includedSubnames.get(item.domain.name) ?? []
+                        ).map((child) => ({ item: child, children: [] }))}
+                        primaryName={primaryName}
+                        restoredManagers={restoredManagers}
+                        selected={selected}
+                        toggleManagerRestoration={toggleManagerRestoration}
+                        toggleName={toggleName}
+                      />
+                    )}
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
-      </>
+        {(filteredGroups.length > 0 || filteredOrphans.length > 0) && (
+          <section className="flex min-w-0 flex-col gap-6">
+            {children}
+            <NameTreeRows
+              depth={0}
+              isManagerRestorationLocked={isManagerRestorationLocked}
+              managerCandidates={managerCandidates}
+              nodes={[...filteredGroups, ...filteredOrphans]}
+              primaryName={primaryName}
+              restoredManagers={restoredManagers}
+              selected={selected}
+              toggleManagerRestoration={toggleManagerRestoration}
+              toggleName={toggleName}
+            />
+          </section>
+        )}
+      </div>
     ))
 }
 

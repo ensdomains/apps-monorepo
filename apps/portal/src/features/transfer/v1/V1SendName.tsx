@@ -166,9 +166,9 @@ const V1Notices = ({
                   {controller
                     ? `Another wallet (${truncateAddress(controller)}) manages this name's records and subnames. `
                     : 'This name currently has no manager. '}
-                  The transfer hands the recipient both the owner and manager
-                  roles. Until then only the manager can change records, so the
-                  record options aren't available here.
+                  Only the manager can change records, so the record options
+                  aren't available here. You can still hand the recipient the
+                  manager role along with the name.
                 </p>
               </AlertDescription>
             </Alert>

@@ -1,7 +1,7 @@
 import type { SupportedL1ChainId } from '@ensdomains/ensjs/chain'
 import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
 import { type Address, isAddress, maxUint64, zeroAddress } from 'viem'
-import { isKnownPublicResolver } from '../contracts/knownResolvers'
+import { isSupportedRecordResolver } from '../contracts/knownResolvers'
 import { GRACE_PERIOD_SECONDS } from './constants'
 import type { V1Domain } from './v1Domain'
 
@@ -168,7 +168,10 @@ const resolverStrategyFor = (params: {
     return 'keep-v1'
   }
 
-  if (v1ResolverAddress && !isKnownPublicResolver(v1ResolverAddress, chainId)) {
+  if (
+    v1ResolverAddress &&
+    !isSupportedRecordResolver(v1ResolverAddress, chainId)
+  ) {
     return 'keep-v1'
   }
 
@@ -221,7 +224,8 @@ const hasSupportedCopyResolver = (
   resolverAddress: string | null,
   chainId: SupportedL1ChainId,
 ): boolean =>
-  resolverAddress === null || isKnownPublicResolver(resolverAddress, chainId)
+  resolverAddress === null ||
+  isSupportedRecordResolver(resolverAddress, chainId)
 
 const hasExpiredDotEthRegistration = (
   domain: V1Domain,

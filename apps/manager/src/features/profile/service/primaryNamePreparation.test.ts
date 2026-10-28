@@ -15,6 +15,9 @@ vi.mock('./primaryNameForwardAddress', () => ({
 vi.mock('./resolverWriteAccess', () => ({
   getResolverWriteState: vi.fn(),
 }))
+vi.mock('./resolverRecordCalls', () => ({
+  isOffchainResolver: vi.fn(async () => false),
+}))
 
 const client = {} as PublicClient
 const owner = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const
@@ -49,11 +52,12 @@ describe('getPrimaryNamePreparation', () => {
       kind: 'setup-resolver',
       existingEthAddress: null,
       hasResolver: false,
+      hasOffchainResolver: false,
     })
     expect(getResolverWriteState).toHaveBeenCalledWith(name, owner)
   })
 
-  it('updates the ETH address when the live resolver accepts the write', async () => {
+  it('updates the ETH address on the resolver the probe accepted', async () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
@@ -62,7 +66,11 @@ describe('getPrimaryNamePreparation', () => {
 
     await expect(
       getPrimaryNamePreparation(client, name, owner),
-    ).resolves.toEqual({ kind: 'update-eth-address', existingEthAddress: null })
+    ).resolves.toEqual({
+      kind: 'update-eth-address',
+      existingEthAddress: null,
+      resolverAddress: RESOLVER,
+    })
   })
 
   it('provides the live different wallet address for the confirmation warning', async () => {
@@ -78,6 +86,7 @@ describe('getPrimaryNamePreparation', () => {
     ).resolves.toEqual({
       kind: 'update-eth-address',
       existingEthAddress: otherAddress,
+      resolverAddress: RESOLVER,
     })
   })
 
@@ -94,6 +103,7 @@ describe('getPrimaryNamePreparation', () => {
       kind: 'setup-resolver',
       existingEthAddress: null,
       hasResolver: false,
+      hasOffchainResolver: false,
     })
   })
 
@@ -123,6 +133,7 @@ describe('getPrimaryNamePreparation', () => {
       kind: 'setup-resolver',
       existingEthAddress: null,
       hasResolver: true,
+      hasOffchainResolver: false,
     })
   })
 })

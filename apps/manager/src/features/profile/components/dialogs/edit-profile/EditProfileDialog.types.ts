@@ -20,6 +20,7 @@ export interface EditProfileDialogProps {
 }
 
 interface EditProfileSaveOptions {
+  readonly editedRecordKeys: readonly string[]
   readonly hasRecordChanges: boolean
   readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
 }

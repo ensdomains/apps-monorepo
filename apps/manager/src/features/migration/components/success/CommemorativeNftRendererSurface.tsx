@@ -1,14 +1,22 @@
 import { Trans } from '@lingui/react/macro'
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { tw } from '@/utils/tailwind'
 import { getCommemorativeNftConfig } from '../../commemorative-nft/config'
 import type { CommemorativeNftEligibility } from '../../commemorative-nft/types'
 import { getRendererSandbox } from './rendererSandbox'
-import { useCommemorativeNftRenderer } from './useCommemorativeNftRenderer'
+import {
+  type NftRevealFrame,
+  useCommemorativeNftRenderer,
+} from './useCommemorativeNftRenderer'
+
+export const nftRendererFrameClassName =
+  'absolute top-1/2 left-1/2 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15]'
 
 type CommemorativeNftRendererSurfaceProps = {
   readonly eligibility: CommemorativeNftEligibility
   readonly interactive?: boolean
+  readonly holdForReveal?: boolean
+  readonly onRevealFrame?: (frame: NftRevealFrame | undefined) => void
   readonly onReady?: () => void
   readonly onError?: () => void
   readonly placeholder?: ReactNode
@@ -52,7 +60,20 @@ export const CommemorativeNftRendererSurface = (
   props: CommemorativeNftRendererSurfaceProps,
 ) => {
   const interactive = props.interactive !== false
-  const source = useCommemorativeNftRenderer(props)
+  // Keep the initial URL stable when the completed reveal releases the pose.
+  const [requestedReveal] = useState(props.holdForReveal === true)
+  const rendererUrl =
+    props.rendererUrl && URL.canParse(props.rendererUrl)
+      ? new URL(props.rendererUrl)
+      : undefined
+  if (requestedReveal) rendererUrl?.searchParams.set('reveal', '1')
+  const source = useCommemorativeNftRenderer({
+    ...props,
+    rendererUrl: rendererUrl?.toString(),
+  })
+  useEffect(() => {
+    props.onRevealFrame?.(source.revealFrame)
+  }, [props.onRevealFrame, source.revealFrame])
   const showRenderer = source.ready
 
   return (
@@ -69,7 +90,8 @@ export const CommemorativeNftRendererSurface = (
         <iframe
           aria-hidden={!showRenderer}
           className={tw(
-            'absolute top-1/2 left-1/2 z-0 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15] border-0 transition-opacity duration-300 ease-out motion-reduce:transition-none',
+            nftRendererFrameClassName,
+            'z-0 border-0 transition-opacity duration-300 ease-out motion-reduce:transition-none',
             showRenderer ? 'opacity-100' : 'opacity-0',
             (!showRenderer || !interactive) && 'pointer-events-none',
           )}
@@ -88,7 +110,7 @@ export const CommemorativeNftRendererSurface = (
                 : window.location.origin,
             trustedRendererOrigin: getCommemorativeNftConfig().rendererOrigin,
           })}
-          src={props.rendererUrl}
+          src={rendererUrl?.toString()}
           tabIndex={-1}
           title={`${interactive ? 'Interactive commemorative' : 'Commemorative'} NFT artwork for ${props.eligibility.rendererName}`}
         />

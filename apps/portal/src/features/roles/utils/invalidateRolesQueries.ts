@@ -7,7 +7,7 @@
 
 import type { QueryClient } from '@tanstack/react-query'
 import { getAddressNamesQueryKey } from '@/features/dashboard/hooks/useAddressNames'
-import { getAddressRoleCountsQueryKey } from '@/features/dashboard/hooks/useAddressRoleCounts'
+import { getAddressRolesQueryKey } from '@/features/dashboard/hooks/useAddressRoleCounts'
 import { getNameRolesAccountsQueryKey } from '../hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryKey } from '../hooks/useNameRolesForAccount'
 import { getRoleHistoryQueryKey } from '../hooks/useRoleHistory'
@@ -22,7 +22,7 @@ const ROLE_QUERY_KEYS: readonly unknown[] = [
 
 // bigname only: a first role on a name adds it to the address's names, a last revoke removes it.
 const INDEXED_QUERY_KEYS: readonly unknown[] = [
-  getAddressRoleCountsQueryKey.key,
+  getAddressRolesQueryKey.key,
   getAddressNamesQueryKey.key,
 ]
 

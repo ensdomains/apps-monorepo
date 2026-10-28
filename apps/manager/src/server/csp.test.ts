@@ -72,6 +72,9 @@ describe('csp', () => {
 
       expect(connectSrc).toContain('https://*.ens.domains')
       expect(connectSrc).not.toContain('https://edge.ens.domains')
+      expect(connectSrc).toContain(
+        'https://avatar-upload-staging.ens-cf.workers.dev',
+      )
     })
 
     it('allowlists Rhinestone and Intercom hosts', () => {
@@ -157,12 +160,10 @@ describe('csp', () => {
       expect(header['connect-src']).toContain('https://1.1.1.1')
     })
 
-    it('allowlists the CCIP-read batch and verifier gateways', () => {
-      // viem fans OffchainLookup batches out to these from the browser; a miss
-      // surfaces as ResolverError("HTTP request failed."), not a CSP error.
-      expect(header['connect-src']).toContain('https://*.ens.xyz')
-      expect(header['connect-src']).toContain('https://*.3668.io')
-      expect(header['connect-src']).toContain('https://lb.drpc.org')
+    it('opens HTTPS to the CCIP-Read gateway each resolver picks', () => {
+      // viem fetches them from the browser; a miss surfaces as
+      // ResolverError("HTTP request failed."), not a CSP error.
+      expect(header['connect-src']).toContain('https:')
     })
 
     it('allowlists every fallback RPC the viem transport can reach', () => {

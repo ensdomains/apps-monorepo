@@ -9,6 +9,7 @@ import {
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
   persistMigrationRecoverySnapshot,
+  persistPendingAtomicMigrationAttempt,
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
   removePendingAtomicMigrationIntent,
@@ -132,6 +133,45 @@ describe('migration batch journal', () => {
     expect(loadMigrationRecoverySnapshot(scope)?.remainingOperations).toEqual([
       { name: copy.name, action: 'copy' },
     ])
+  })
+
+  it('publishes recovery and pending intent in one journal revision', () => {
+    const domain = makeDomain({ name: 'alice.eth', labelName: 'alice' })
+    const operation = { name: domain.name, action: 'migrate' as const }
+    const intent = {
+      id: 'intent-1',
+      names: [domain.name],
+      operations: [operation],
+    }
+    const observations: ReturnType<typeof loadMigrationBatchJournal>[] = []
+    const unsubscribe = subscribeMigrationBatchJournal(() => {
+      observations.push(loadMigrationBatchJournal(scope))
+    })
+
+    persistPendingAtomicMigrationAttempt(scope, {
+      recovery: {
+        registryDomains: [domain],
+        registryOperations: [operation],
+        remainingOperations: [operation],
+        completedOperations: [],
+        profiles: new Map(),
+        ownedPermRes: null,
+        managerRestorationNames: [],
+        plannedApprovals: [],
+      },
+      intent,
+    })
+    unsubscribe()
+
+    expect(observations).toHaveLength(1)
+    expect(observations[0]).toMatchObject({
+      pending: [intent],
+      submitted: [],
+      recovery: {
+        remainingOperations: [operation],
+        completedOperations: [],
+      },
+    })
   })
 
   it('durably records an intent before a transaction hash exists', () => {

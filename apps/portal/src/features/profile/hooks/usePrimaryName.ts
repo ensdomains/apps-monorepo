@@ -1,8 +1,8 @@
 import {
   getChainIdForReverseRegistrarChainId,
+  getCoinTypeForReverseRegistrarChainId,
   getRegistrarAddress,
   l2ReverseRegistrarNameForAddrSnippet,
-  type ReverseRegistrarChainId,
 } from '@ens-apps/l2-primary/v1'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -24,12 +24,15 @@ class PrimaryNameError extends TaggedError('PrimaryNameError')<{
 // forward-verify, walk the supported L2 chains and use the first one whose
 // reverse record forward-verifies against its own chain-specific coin type.
 //
-// Sepolia only — the L2 reverse registrars we read are on the matching
-// sepolia testnets via the local `l2WagmiConfig`.
-const L2_FALLBACK_COIN_TYPES = [10, 42161, 8453, 59144, 534352] as const
+// Keyed on the L2 chain id, resolved to this build's chain and coin type by
+// `l2WagmiConfig` / `getCoinTypeForReverseRegistrarChainId`, so a Sepolia build
+// reads the matching testnets and a mainnet build the mainnets.
+const L2_FALLBACK_CHAIN_IDS = [10, 42161, 8453, 59144, 534352] as const
 const L2_REVERSE_NETWORK = envConfig.network
 
-const getPrimaryName = ResultFn(async function* (address: Address | undefined) {
+export const getPrimaryName = ResultFn(async function* (
+  address: Address | undefined,
+) {
   if (!address) return ok(null)
 
   const client = yield* safeGetClient()
@@ -46,15 +49,23 @@ const getPrimaryName = ResultFn(async function* (address: Address | undefined) {
   // Step 2: ENSIP-19 fallback through L2 reverse registrars. We read each
   // L2 reverse registrar via the local `l2WagmiConfig` (the global explorer
   // config is L1-only by design — see `@/lib/wagmiL2`).
-  for (const coinType of L2_FALLBACK_COIN_TYPES) {
+  for (const reverseRegistrarChainId of L2_FALLBACK_CHAIN_IDS) {
     const registrarAddress = getRegistrarAddress(
-      coinType as ReverseRegistrarChainId,
+      reverseRegistrarChainId,
       L2_REVERSE_NETWORK,
     )
     if (!registrarAddress) continue
 
     const chainId = getChainIdForReverseRegistrarChainId(
-      coinType as ReverseRegistrarChainId,
+      reverseRegistrarChainId,
+      L2_REVERSE_NETWORK,
+    )
+    // The reverse registrar is keyed on the L2 chain id, but the forward
+    // verification is an ENSIP-11 record keyed on the environment's coin type
+    // (`0x80000000 | chainId`). On Sepolia that is the *testnet* chain id, so
+    // passing the bare chain id here would never match a real record.
+    const coinType = getCoinTypeForReverseRegistrarChainId(
+      reverseRegistrarChainId,
       L2_REVERSE_NETWORK,
     )
 

@@ -13,7 +13,6 @@ describe('computeRegistrationFunding', () => {
   it('splits the budget into the rent and the network fee', () => {
     const funding = computeRegistrationFunding({
       budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 50_000_000n,
       decimals: USDC,
     })
 
@@ -32,7 +31,6 @@ describe('computeRegistrationFunding', () => {
     // screen rendered — not one round-tripped through a float.
     const funding = computeRegistrationFunding({
       budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 50_000_000n,
       hcaBalanceRaw: 1_196_054n,
       decimals: USDC,
     })
@@ -41,97 +39,19 @@ describe('computeRegistrationFunding', () => {
     expect(funding?.walletDebit).toBe(19)
   })
 
-  it('flags the wallet that covers the price but not the budget', () => {
-    // Exactly the production case: 20 USDC against an 8 USDC name. The token
-    // picker sees 20 > 8 and lets it through; the budget is what it fails on.
-    const funding = computeRegistrationFunding({
-      budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 20_000_000n,
-      decimals: USDC,
-    })
-
-    expect(funding?.isUnderfunded).toBe(true)
-    expect(funding?.shortfallCause).toBe('network-fee')
-    expect(funding?.walletBalance).toBe(20)
-    expect(funding?.registration).toBeLessThan(funding?.walletBalance ?? 0)
-  })
-
-  it('classifies a wallet below the name price in exact raw units', () => {
-    const funding = computeRegistrationFunding({
-      budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 8_000_020n,
-      decimals: USDC,
-    })
-
-    expect(funding?.isUnderfunded).toBe(true)
-    expect(funding?.shortfallCause).toBe('name-price')
-  })
-
-  it('classifies the exact name-price boundary as a network-fee shortfall', () => {
-    const funding = computeRegistrationFunding({
-      budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 8_000_021n,
-      decimals: USDC,
-    })
-
-    expect(funding?.isUnderfunded).toBe(true)
-    expect(funding?.shortfallCause).toBe('network-fee')
-  })
-
-  it('allows a wallet holding exactly the budget', () => {
-    const funding = computeRegistrationFunding({
-      budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 20_196_054n,
-      decimals: USDC,
-    })
-
-    expect(funding?.isUnderfunded).toBe(false)
-    expect(funding?.shortfallCause).toBeNull()
-  })
-
-  it('does not block when the balance could not be read', () => {
-    // The machine re-checks before signing the permit. Treating an unreadable
-    // balance as insufficient would strand a wallet that can actually pay.
-    const funding = computeRegistrationFunding({
-      budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: null,
-      decimals: USDC,
-    })
-
-    expect(funding?.isUnderfunded).toBe(false)
-    expect(funding?.shortfallCause).toBeNull()
-    expect(funding?.walletBalance).toBeNull()
-  })
-
   it('debits the wallet only the shortfall when the HCA is part-funded', () => {
     // An HCA holding 20.00 from a prior registration against a 20.196054
     // budget: the permit is signed for the 0.196054 difference, so a wallet
     // holding 1 USDC can pay even though it is far short of the budget.
     const funding = computeRegistrationFunding({
       budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 1_000_000n,
       hcaBalanceRaw: 20_000_000n,
       decimals: USDC,
     })
 
     expect(funding?.walletDebit).toBe(0.196054)
-    expect(funding?.isUnderfunded).toBe(false)
     // The registration still COSTS the full budget — only the debit shrinks.
     expect(funding?.total).toBe(20.196054)
-  })
-
-  it('still blocks when the wallet cannot cover even the shortfall', () => {
-    const funding = computeRegistrationFunding({
-      budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 100_000n, // 0.10 < 0.196054
-      hcaBalanceRaw: 20_000_000n,
-      decimals: USDC,
-    })
-
-    expect(funding?.isUnderfunded).toBe(true)
-    // Wallet alone is below the name price, but the partial HCA credit brings
-    // the combined funds above it. Only the network-funded budget is short.
-    expect(funding?.shortfallCause).toBe('network-fee')
   })
 
   it('credits the HCA balance so the debit and credit reconstruct the total', () => {
@@ -140,7 +60,6 @@ describe('computeRegistrationFunding', () => {
     // sums to something else prints two figures for the same quantity.
     const funding = computeRegistrationFunding({
       budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 100_000n,
       hcaBalanceRaw: 20_000_000n,
       decimals: USDC,
     })
@@ -155,7 +74,6 @@ describe('computeRegistrationFunding', () => {
   it('credits only what the budget needs when the HCA holds more', () => {
     const funding = computeRegistrationFunding({
       budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 0n,
       hcaBalanceRaw: 500_000_000n,
       decimals: USDC,
     })
@@ -169,7 +87,6 @@ describe('computeRegistrationFunding', () => {
   it('credits nothing when the HCA is empty', () => {
     const funding = computeRegistrationFunding({
       budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 50_000_000n,
       decimals: USDC,
     })
 
@@ -182,15 +99,12 @@ describe('computeRegistrationFunding', () => {
   it('asks nothing of the wallet when the HCA already covers the budget', () => {
     const funding = computeRegistrationFunding({
       budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 0n,
       hcaBalanceRaw: 25_000_000n,
       decimals: USDC,
     })
 
     // Floored at zero rather than going negative.
     expect(funding?.walletDebit).toBe(0)
-    expect(funding?.isUnderfunded).toBe(false)
-    expect(funding?.shortfallCause).toBeNull()
   })
 
   it('gates on the whole budget when the HCA balance is unknown', () => {
@@ -198,12 +112,10 @@ describe('computeRegistrationFunding', () => {
     // over-crediting the HCA would wave through a failing commit simulation.
     const funding = computeRegistrationFunding({
       budget: PRODUCTION_FAILURE,
-      walletBalanceRaw: 20_000_000n,
       decimals: USDC,
     })
 
     expect(funding?.walletDebit).toBe(20.196054)
-    expect(funding?.isUnderfunded).toBe(true)
   })
 
   it('returns null when no budget has been quoted', () => {
@@ -211,7 +123,6 @@ describe('computeRegistrationFunding', () => {
     expect(
       computeRegistrationFunding({
         budget: undefined,
-        walletBalanceRaw: 20_000_000n,
         decimals: USDC,
       }),
     ).toBeNull()
@@ -220,11 +131,9 @@ describe('computeRegistrationFunding', () => {
   it('never renders a negative fee when the quote prices the legs at zero', () => {
     const funding = computeRegistrationFunding({
       budget: { total: 8_000_021n, registrationPrice: 8_000_021n },
-      walletBalanceRaw: 20_000_000n,
       decimals: USDC,
     })
 
     expect(funding?.networkFee).toBe(0)
-    expect(funding?.isUnderfunded).toBe(false)
   })
 })

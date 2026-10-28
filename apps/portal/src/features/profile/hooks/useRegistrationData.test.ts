@@ -40,6 +40,7 @@ describe('getRegistrationTxQueryOptions', () => {
     expect(bigname.nameHistory).toHaveBeenCalledWith(
       'goatagent.eth',
       {
+        namespace: 'ens',
         type: ['registration'],
         order: 'asc',
         from_timestamp: '1768579704',

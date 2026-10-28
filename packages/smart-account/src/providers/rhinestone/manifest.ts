@@ -4,7 +4,7 @@
  * Provenance, per chain:
  *   - Sepolia: the 2026-10-01 Sepolia v2 redeploy, contracts-v2
  *     `contracts/deployments/sepolia` @ `95de2ee0`.
- *   - Mainnet: the 2026-10-18 v2 namespace (first written 2026-10-02). It
+ *   - Mainnet: the 2026-10-26 v2 namespace (first written 2026-10-02). It
  *     lists addresses but no deploy blocks, so the factory block below was
  *     read on chain.
  *
@@ -132,6 +132,11 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     ethRegistry: ensjsMainnet.ensRegistry.address,
     unlockedMigrationController:
       ensjsMainnet.ensUnlockedMigrationController.address,
+    lockedMigrationController:
+      ensjsMainnet.ensLockedMigrationController.address,
+    migrationHelper: ensjsMainnet.ensMigrationHelper.address,
+    // Matches WRAPPER_REGISTRY_IMPL() on the current locked controller.
+    wrapperRegistryImpl: '0xe86A4ef4d7A210aAA1d6A9594fC7Add7cD2Cf888',
     userRegistryImpl: ensjsMainnet.ensUserRegistryImpl.address,
     defaultReverseRegistrarHcaAdapter:
       ensjsMainnet.ensDefaultReverseRegistrarAdapter.address,
@@ -141,20 +146,11 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     // and the intent fee are denominated in it.
     usdc: ensjsMainnet.usdc.address,
 
-    // ensjs still has the 10-02 addresses for these (as of 5.2.3), so they
-    // are pinned here. MigrationHelper.LOCKED_CONTROLLER() returns the
-    // controller below, so the pair is consistent. Go back to the ensjs
-    // lookups when 5.2.4 is in the catalog.
-    migrationHelper: '0x0b92006fa187B4c98d0A7Dfc9d3b918b6D243485',
-    lockedMigrationController: '0xc46Bf3B6C7eBcFFd4EcfC3b012a1726a2463694d',
-
-    // Not in ensjs. These are from the 2026-10-18 mainnet namespace; the
+    // Not in ensjs. These are from the 2026-10-26 mainnet namespace; the
     // validator's factory, proxy logic, resolver, registry and reverse
-    // registrar getters return the values below (checked 2026-10-19).
+    // registrar getters return the values below (checked 2026-10-27).
     //
-    // The factory does not approve this implementation yet, so deploying an
-    // account fails the app's hca-implementation-approved invariant until
-    // the owner approves it.
+    // Keep the implementation paired with this deployment's validator.
     standaloneHcaImplementation: '0x116F462FA078ec0009e9b25DCd60309E70aaC4F4',
     hcaOwnerAndSessionValidator: '0xa818428ed2F3F949bdc71b8A15bDD7B5D27ce938',
     // The factory deploys this in its constructor and exposes it as
@@ -167,7 +163,6 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     verifiableFactoryDeployBlock: 26_105_299n,
     rootRegistry: '0x2553c09bE6447BeFfdB86FA622ad41fB8f77A91e',
     publicResolverSet: '0xfFCedA021CBDF20f1a66ebbef32E49d208cAbf62',
-    wrapperRegistryImpl: '0xCF3Edb3f5501DE63B57254D910b6782eE370039B',
     publicResolverV2: '0x66f9F566fF2f26309C1Bd9134388478A801dA3e1',
   },
 }
@@ -202,9 +197,6 @@ export const COIN_TYPE_ETH = 60n
  * take it as a parameter and this is only the app-level default.
  */
 export const DEFAULT_REGISTRATION_DURATION = 31536000n
-/** `referrer` is a bytes32 arg on makeCommitment/register (NOT an address). */
-export const REFERER =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const
 
 export const DEFAULT_SESSION_VALIDITY_SECONDS = 24 * 60 * 60
 

@@ -69,6 +69,12 @@ const isContractRevert = (error: unknown) =>
   error instanceof BaseError &&
   Boolean(error.walk((cause) => cause instanceof ExecutionRevertedError))
 
+const isRateLimited = (error: unknown): boolean => {
+  for (let cause = error; cause; cause = (cause as { cause?: unknown }).cause)
+    if ((cause as { status?: unknown }).status === 429) return true
+  return false
+}
+
 const isRecognizedV2Resolver = async (
   resolver: Address,
   client: PublicClient,
@@ -170,6 +176,9 @@ const supplementalAbi = parseAbi([
   'function pubkey(bytes32 node) view returns (bytes32 x, bytes32 y)',
   'function interfaceImplementer(bytes32 node, bytes4 interfaceId) view returns (address)',
   'function data(bytes32 node, string key) view returns (bytes)',
+])
+const multicallAbi = parseAbi([
+  'function multicall(bytes[] data) returns (bytes[] results)',
 ])
 const supportsInterfaceAbi = parseAbi([
   'function supportsInterface(bytes4) view returns (bool)',
@@ -338,8 +347,48 @@ export const readResolverRecords = async ({
         ]
       : []),
   ]
+  // A CCIP-Read gateway answers every record call separately, so ask once.
+  const batch =
+    hasExtendedResolution && kind === 'node'
+      ? await client
+          .readContract({
+            address: resolver,
+            abi: permissionedResolverResolveSnippet,
+            functionName: 'resolve',
+            args: [
+              dnsEncodeName(name),
+              encodeFunctionData({
+                abi: multicallAbi,
+                functionName: 'multicall',
+                args: [reads.map(({ data }) => data)],
+              }),
+            ],
+          })
+          .then((data) =>
+            decodeFunctionResult({
+              abi: multicallAbi,
+              functionName: 'multicall',
+              data,
+            }),
+          )
+          .catch((error: unknown) => {
+            // Falling back to one call per record would only deepen a rate limit.
+            if (isRateLimited(error)) throw error
+            return null
+          })
+      : null
+  const readOne = async (data: Hex) =>
+    kind === 'name' || hasExtendedResolution
+      ? await client.readContract({
+          address: resolver,
+          abi: permissionedResolverResolveSnippet,
+          functionName: 'resolve',
+          args: [dnsEncodeName(name), data],
+        })
+      : (await client.call({ to: resolver, data })).data
   const read = async (
     request: RecordRead,
+    batched?: Hex,
   ): Promise<
     Partial<ImportedResolverRecords> & {
       failedKeys: string[]
@@ -349,15 +398,7 @@ export const readResolverRecords = async ({
   > => {
     let isDecoding = false
     try {
-      const response =
-        kind === 'name' || hasExtendedResolution
-          ? await client.readContract({
-              address: resolver,
-              abi: permissionedResolverResolveSnippet,
-              functionName: 'resolve',
-              args: [dnsEncodeName(name), request.data],
-            })
-          : (await client.call({ to: resolver, data: request.data })).data
+      const response = batched ?? (await readOne(request.data))
       // Legacy resolvers may return no data for record types they do not support.
       if (!response || response === '0x')
         return {
@@ -388,13 +429,18 @@ export const readResolverRecords = async ({
     { length: Math.ceil(reads.length / 8) },
     (_, index) => reads.slice(index * 8, (index + 1) * 8),
   )
-  const results = await readChunks.reduce(
-    async (pending, chunk) => [
-      ...(await pending),
-      ...(await Promise.all(chunk.map(read))),
-    ],
-    Promise.resolve([] as Awaited<ReturnType<typeof read>>[]),
-  )
+  const results =
+    batch?.length === reads.length
+      ? await Promise.all(
+          reads.map((request, index) => read(request, batch[index])),
+        )
+      : await readChunks.reduce(
+          async (pending, chunk) => [
+            ...(await pending),
+            ...(await Promise.all(chunk.map((request) => read(request)))),
+          ],
+          Promise.resolve([] as Awaited<ReturnType<typeof read>>[]),
+        )
   return {
     records: {
       texts: results.flatMap((record) => record.texts ?? []),
@@ -432,7 +478,7 @@ export const importResolverRecords = async (
   if (source.kind !== 'copy')
     throw new Error('Initial resolver setup has no source records to import.')
   const warnings = [
-    'Only discovered and commonly used records can be imported. Review the recovered records and add any missing records before replacing the resolver.',
+    'Source records are shown for reference. Only records you edit will be saved to the replacement resolver.',
   ]
   const blockedKeys: string[] = []
   const inventory = await bigname.nameRecords(name, {

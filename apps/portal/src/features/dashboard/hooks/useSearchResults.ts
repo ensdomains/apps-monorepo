@@ -1,9 +1,11 @@
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, isAddress, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
@@ -19,6 +21,7 @@ import {
 import { filterAndSortOwnedNames } from '../utils/ownedNamesUtils'
 import {
   buildSearchResultItems,
+  isSubname,
   type SearchResultItem,
   sortExactMatchFirst,
 } from '../utils/searchResultsUtils'
@@ -53,6 +56,8 @@ export type UseSearchResultsReturn = {
     | null
     | undefined
   >
+  /** IDs of ownerless subnames whose records resolve: offchain names. */
+  readonly offchainNameIds: ReadonlySet<string>
   availableNames: Suggestion[]
   /** IDs of suggestions whose availability check is still in progress. */
   pendingAvailabilityIds: Set<string>
@@ -184,6 +189,43 @@ export const useSearchResults = ({
     ),
   })
 
+  // An offchain (CCIP-Read) subname has no registry owner but still resolves.
+  const ownerlessSubnames = useMemo(
+    () =>
+      nameSuggestions.filter(
+        (s, i) => ownerQueries[i]?.data === null && isSubname(s.inputValue),
+      ),
+    [nameSuggestions, ownerQueries],
+  )
+
+  const recordsQueries = useQueries({
+    queries: ownerlessSubnames.map((s) =>
+      getProfileQueryOptions({ name: s.inputValue }),
+    ),
+  })
+
+  const offchainNameIds = useMemo(
+    () =>
+      new Set(
+        ownerlessSubnames
+          .filter((_, i) =>
+            hasResolvedRecords(recordsQueries[i]?.data?.records),
+          )
+          .map((s) => s.id),
+      ),
+    [ownerlessSubnames, recordsQueries],
+  )
+
+  const pendingRecordsIds = useMemo(
+    () =>
+      new Set(
+        ownerlessSubnames
+          .filter((_, i) => recordsQueries[i]?.isPending)
+          .map((s) => s.id),
+      ),
+    [ownerlessSubnames, recordsQueries],
+  )
+
   const ownerBySuggestionId = useMemo(() => {
     const m = new Map<
       string,
@@ -197,10 +239,18 @@ export const useSearchResults = ({
     >()
     nameSuggestions.forEach((s, i) => {
       const query = ownerQueries[i]
-      m.set(s.id, query?.isError ? null : query?.data)
+      // Unresolved until an ownerless subname's records settle.
+      m.set(
+        s.id,
+        pendingRecordsIds.has(s.id)
+          ? undefined
+          : query?.isError
+            ? null
+            : query?.data,
+      )
     })
     return m
-  }, [nameSuggestions, ownerQueries])
+  }, [nameSuggestions, ownerQueries, pendingRecordsIds])
 
   // Owner isn't a proxy for registered: an expired name keeps a registry entry
   // pointing at the NameWrapper, so it has an owner and is still available.
@@ -250,6 +300,7 @@ export const useSearchResults = ({
   return {
     suggestions: suggestionsFiltered,
     ownerBySuggestionId,
+    offchainNameIds,
     availableNames,
     pendingAvailabilityIds,
     ownedNamesFiltered,

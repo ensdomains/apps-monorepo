@@ -1,3 +1,4 @@
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -178,7 +179,12 @@ function RouteComponent() {
     )
   }
 
-  if (!ownerQuery.data && !offchain.resolvedAddress) {
+  // An offchain (CCIP-Read) subname has no registry entry either, but resolves.
+  if (
+    !ownerQuery.data &&
+    !offchain.resolvedAddress &&
+    !hasResolvedRecords(profileQuery.data?.records)
+  ) {
     return (
       <NameNotRegisteredMessage
         name={name}

@@ -1,9 +1,14 @@
 import { computeWrapperRegistryAddress } from '@ens-apps/smart-account'
+import {
+  SECONDS_PER_DAY,
+  V2_GRACE_PERIOD_DAYS,
+} from '@ens-apps/utils/gracePeriod'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { permissionedRegistryGetSubregistrySnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   type Address,
   isAddressEqual,
+  labelhash,
   namehash,
   type PublicClient,
   parseAbi,
@@ -17,6 +22,12 @@ const verifiableFactoryAbi = parseAbi([
   'function verifyContract(address proxy) view returns (address implementation)',
 ])
 
+const registryStateAbi = parseAbi([
+  'struct State { uint8 status; uint64 expiry; address latestOwner; uint256 tokenId; uint256 resource; }',
+  'function getState(uint256 anyId) view returns (State state)',
+])
+const V2_GRACE_PERIOD_SECONDS =
+  BigInt(V2_GRACE_PERIOD_DAYS) * BigInt(SECONDS_PER_DAY)
 const wrapperRegistryAbi = parseAbi([
   'function getWrappedNode() view returns (bytes32)',
 ])
@@ -184,6 +195,31 @@ export const orderDirectMigrationNamesParentFirst = (
   return ordered
 }
 
+/**
+ * ETHRegistry hides an expired name's subregistry, including during the V2
+ * grace period. A migrated locked parent can't change that pointer, so its
+ * certified WrapperRegistry still applies while the parent can be renewed.
+ */
+const isEthParentInGrace = async (params: {
+  readonly publicClient: PublicClient
+  readonly registry: Address
+  readonly label: string
+}): Promise<boolean> => {
+  if (!isAddressEqual(params.registry, V2_CONTRACTS.ETHRegistry)) return false
+  const { expiry, latestOwner } = await params.publicClient.readContract({
+    address: params.registry,
+    abi: registryStateAbi,
+    functionName: 'getState',
+    args: [BigInt(labelhash(params.label))],
+  })
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+  return (
+    !isAddressEqual(latestOwner, zeroAddress) &&
+    expiry <= nowSeconds &&
+    nowSeconds < expiry + V2_GRACE_PERIOD_SECONDS
+  )
+}
+
 const assertVerifiedWrapper = async (params: {
   readonly publicClient: PublicClient
   readonly name: string
@@ -198,7 +234,10 @@ const assertVerifiedWrapper = async (params: {
     args: [params.label],
   })
 
-  if (isAddressEqual(actualWrapper, zeroAddress)) {
+  const isHiddenByGrace =
+    isAddressEqual(actualWrapper, zeroAddress) &&
+    (await isEthParentInGrace(params))
+  if (isAddressEqual(actualWrapper, zeroAddress) && !isHiddenByGrace) {
     throw new DirectMigrationRouteError({
       message: `Parent WrapperRegistry for "${params.name}" has not been migrated`,
       reason: 'missing-wrapper',
@@ -207,7 +246,10 @@ const assertVerifiedWrapper = async (params: {
       actual: actualWrapper,
     })
   }
-  if (!isAddressEqual(actualWrapper, params.expectedWrapper)) {
+  if (
+    !isHiddenByGrace &&
+    !isAddressEqual(actualWrapper, params.expectedWrapper)
+  ) {
     throw new DirectMigrationRouteError({
       message: `Parent WrapperRegistry for "${params.name}" conflicts with the deterministic deployment`,
       reason: 'conflicting-wrapper',
@@ -217,41 +259,44 @@ const assertVerifiedWrapper = async (params: {
     })
   }
 
-  try {
-    const [code, implementation, wrappedNode] = await Promise.all([
-      params.publicClient.getCode({ address: params.expectedWrapper }),
-      params.publicClient.readContract({
-        address: V2_CONTRACTS.VerifiableFactory,
-        abi: verifiableFactoryAbi,
-        functionName: 'verifyContract',
-        args: [params.expectedWrapper],
-      }),
-      params.publicClient.readContract({
-        address: params.expectedWrapper,
-        abi: wrapperRegistryAbi,
-        functionName: 'getWrappedNode',
-      }),
-    ])
-    const hasCode = Boolean(code && code !== '0x')
-    const hasExpectedImplementation = isAddressEqual(
-      implementation,
-      V2_CONTRACTS.WrapperRegistryImpl,
-    )
-    const hasExpectedNode =
-      wrappedNode.toLowerCase() === namehash(params.name).toLowerCase()
-    if (!hasCode || !hasExpectedImplementation || !hasExpectedNode) {
-      throw new Error(
-        `code=${hasCode}; implementation=${implementation}; wrappedNode=${wrappedNode}`,
-      )
-    }
-  } catch (cause) {
+  const [code, implementation, wrappedNode] = await Promise.allSettled([
+    params.publicClient.getCode({ address: params.expectedWrapper }),
+    params.publicClient.readContract({
+      address: V2_CONTRACTS.VerifiableFactory,
+      abi: verifiableFactoryAbi,
+      functionName: 'verifyContract',
+      args: [params.expectedWrapper],
+    }),
+    params.publicClient.readContract({
+      address: params.expectedWrapper,
+      abi: wrapperRegistryAbi,
+      functionName: 'getWrappedNode',
+    }),
+  ])
+  const mismatches = [
+    code.status === 'fulfilled' && (!code.value || code.value === '0x')
+      ? 'wrapper has no code'
+      : null,
+    implementation.status === 'fulfilled' &&
+    !isAddressEqual(implementation.value, V2_CONTRACTS.WrapperRegistryImpl)
+      ? `unexpected implementation ${implementation.value}`
+      : null,
+    wrappedNode.status === 'fulfilled' &&
+    wrappedNode.value.toLowerCase() !== namehash(params.name).toLowerCase()
+      ? `unexpected wrapped node ${wrappedNode.value}`
+      : null,
+  ].filter(Boolean)
+  if (mismatches.length > 0) {
     throw new DirectMigrationRouteError({
       message: `Parent WrapperRegistry for "${params.name}" is not factory-certified`,
       reason: 'uncertified-wrapper',
       ensName: params.name,
       expected: params.expectedWrapper,
-      cause,
+      cause: new Error(mismatches.join('; ')),
     })
+  }
+  for (const result of [code, implementation, wrappedNode]) {
+    if (result.status === 'rejected') throw result.reason
   }
 }
 

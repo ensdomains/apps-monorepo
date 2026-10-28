@@ -13,6 +13,7 @@ import {
 import { chain } from '@/config'
 import {
   buildMigrationPlan,
+  type MigrationPlan,
   namesWithDroppedPubkey,
 } from './buildMigrationPlan'
 import type { MigrationWalletRequestDescriptor } from './buildStepDescriptors'
@@ -20,6 +21,7 @@ import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { estimateGraceRenewalGas } from './estimateGraceRenewalGas'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type { GraceRenewalQuote } from './graceRenewal'
+import { discoverSubnameRecreation } from './subnameRecreation'
 
 const GRACE_PERIOD = BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 
@@ -33,10 +35,13 @@ type Params = {
   readonly managerRestorationNames?: readonly string[]
   /** The owner wallet bundles calls atomically (EIP-5792). */
   readonly canBatchAtomically?: boolean
+  readonly isSubnameRecreationEnabled?: boolean
   readonly signal?: AbortSignal
 }
 
 export type GraceRenewalMigrationGasEstimate = {
+  /** Fee/impact preview only; execution rebuilds the plan after renewal. */
+  readonly classified: MigrationPlan['classified']
   readonly gasUnits: bigint
   readonly feeWei: bigint
   readonly transactionCount: number
@@ -120,6 +125,16 @@ const estimateProjectedMigration = async (
 ) => {
   const { quote, hcaAddress, publicClient, wagmiConfig, signal } = params
   const managerRestorationNames = params.managerRestorationNames ?? []
+  const discovery = params.isSubnameRecreationEnabled
+    ? await discoverSubnameRecreation({
+        domains,
+        owner: quote.ownerAddress,
+        publicClient,
+        signal,
+      })
+    : undefined
+  const recreation = discovery?.snapshot.roots.length ? discovery : undefined
+  const migrationDomains = recreation?.domains ?? domains
   // Projected expiries must not share the executable preflight cache.
   const preflight = await computeMigrationPreflight({
     eoa: quote.ownerAddress,
@@ -132,7 +147,10 @@ const estimateProjectedMigration = async (
   })
   signal?.throwIfAborted()
   const plan = await buildMigrationPlan({
-    domains,
+    domains: migrationDomains,
+    subnameRecreation: recreation
+      ? { snapshot: recreation.snapshot }
+      : undefined,
     hcaAddress,
     migrationOwner: quote.ownerAddress,
     managerRestorationNames,
@@ -151,9 +169,11 @@ const estimateProjectedMigration = async (
     plan.classified.map(({ domain }) => [domain.id.toLowerCase(), domain.name]),
   )
   if (
-    plan.classified.length !== domains.length ||
-    included.size !== domains.length ||
-    domains.some(({ id, name }) => included.get(id.toLowerCase()) !== name)
+    plan.classified.length !== migrationDomains.length ||
+    included.size !== migrationDomains.length ||
+    migrationDomains.some(
+      ({ id, name }) => included.get(id.toLowerCase()) !== name,
+    )
   ) {
     throw new Error(
       'Could not estimate the network fee for every selected name.',
@@ -163,6 +183,7 @@ const estimateProjectedMigration = async (
   if (estimate.status === 'error') throw estimate.error
   return {
     ...estimate,
+    classified: plan.classified,
     stepDescriptors: plan.stepDescriptors,
     droppedPubkeyNames: namesWithDroppedPubkey(plan),
   }
@@ -197,6 +218,7 @@ export const estimateGraceRenewalMigrationGas = async (
   }
   stepDescriptors.push(...migration.stepDescriptors)
   return {
+    classified: migration.classified,
     gasUnits,
     feeWei: gasUnits * migration.feePerGasWei,
     transactionCount: migration.transactionCount + renewal.transactionCount,

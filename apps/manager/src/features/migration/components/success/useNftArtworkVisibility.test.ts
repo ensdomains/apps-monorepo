@@ -65,12 +65,12 @@ describe('NFT artwork visibility', () => {
     expect(result.current.visible).toBe(true)
   })
 
-  it('deactivates when offscreen, in a background tab, or covered by a modal', () => {
+  it('stays mounted across tab switches but deactivates offscreen or behind a modal', () => {
     const { result, rerender } = mountVisibility()
     intersect(true)
     expect(result.current.visible).toBe(true)
     visibility('hidden')
-    expect(result.current.visible).toBe(false)
+    expect(result.current.visible).toBe(true)
     visibility('visible')
     expect(result.current.visible).toBe(true)
     rerender({ active: false })
@@ -81,22 +81,17 @@ describe('NFT artwork visibility', () => {
     expect(result.current.visible).toBe(false)
   })
 
-  it('cleans up its observer and visibility listener', () => {
-    const removeListener = vi.spyOn(document, 'removeEventListener')
+  it('cleans up its observer', () => {
     const { unmount } = mountVisibility()
     unmount()
     expect(disconnect).toHaveBeenCalledOnce()
-    expect(removeListener).toHaveBeenCalledWith(
-      'visibilitychange',
-      expect.any(Function),
-    )
   })
 
-  it('allows rendering without IntersectionObserver while still respecting document visibility', () => {
+  it('keeps rendering across tab switches without IntersectionObserver', () => {
     vi.stubGlobal('IntersectionObserver', undefined)
     const { result } = mountVisibility()
     expect(result.current.visible).toBe(true)
     visibility('hidden')
-    expect(result.current.visible).toBe(false)
+    expect(result.current.visible).toBe(true)
   })
 })

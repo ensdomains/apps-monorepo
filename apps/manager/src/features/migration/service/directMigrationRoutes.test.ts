@@ -17,6 +17,11 @@ const publicClientForWrapper = (params: {
   readonly actualWrapper?: Address
   readonly implementation?: Address
   readonly hasCode?: boolean
+  /** The parent's ETHRegistry state; defaults to a name never registered in V2. */
+  readonly parentState?: {
+    readonly expiry: bigint
+    readonly latestOwner: Address
+  }
 }): PublicClient => {
   const expectedWrapper = computeExpectedWrapperRegistry({ name: params.name })
   return {
@@ -32,7 +37,16 @@ const publicClientForWrapper = (params: {
             params.implementation ?? V2_CONTRACTS.WrapperRegistryImpl,
           )
         case 'getWrappedNode':
+          if (params.hasCode === false)
+            return Promise.reject(new Error('No contract data'))
           return Promise.resolve(namehash(params.name))
+        case 'getState':
+          return Promise.resolve({
+            status: 0,
+            tokenId: 0n,
+            resource: 0n,
+            ...(params.parentState ?? { expiry: 0n, latestOwner: zeroAddress }),
+          })
         default:
           throw new Error(`Unexpected read ${functionName}`)
       }
@@ -216,6 +230,60 @@ describe('resolveDirectMigrationRoutes', () => {
         classified: [child],
       }),
     ).rejects.toMatchObject({ reason: 'uncertified-wrapper' })
+    const transportError = new Error('RPC unavailable')
+    const unreadable = publicClientForWrapper({ name: 'parent.eth' })
+    unreadable.getCode = vi.fn().mockRejectedValue(transportError)
+    await expect(
+      resolveDirectMigrationRoutes({
+        publicClient: unreadable,
+        classified: [child],
+      }),
+    ).rejects.toBe(transportError)
+    await expect(
+      resolveDirectMigrationRoutes({
+        publicClient: publicClientForWrapper({
+          name: 'parent.eth',
+          hasCode: false,
+        }),
+        classified: [child],
+      }),
+    ).rejects.toMatchObject({ reason: 'uncertified-wrapper' })
+  })
+
+  // ETHRegistry hides an expired parent's subregistry, but a locked parent's
+  // WrapperRegistry can't change, so its child stays migratable during grace.
+  describe('an emancipated child whose migrated .eth parent has expired', () => {
+    const DAY = 86_400n
+    const now = BigInt(Math.floor(Date.now() / 1000))
+    const child = makeClassified({
+      name: 'sub.parent.eth',
+      label: 'sub',
+      tokenType: 'detached-child',
+      parentName: 'parent.eth',
+    })
+    const route = (expiry: bigint) =>
+      resolveDirectMigrationRoutes({
+        publicClient: publicClientForWrapper({
+          name: 'parent.eth',
+          actualWrapper: zeroAddress,
+          parentState: { expiry, latestOwner: OTHER_WRAPPER },
+        }),
+        classified: [child],
+      })
+
+    it('migrates into the parent WrapperRegistry while the parent is in grace', async () => {
+      const routes = await route(now - DAY)
+
+      expect(routes.get('sub.parent.eth')?.receiver).toBe(
+        computeExpectedWrapperRegistry({ name: 'parent.eth' }),
+      )
+    })
+
+    it('stays blocked once the parent is past its grace period', async () => {
+      await expect(route(now - 29n * DAY)).rejects.toMatchObject({
+        reason: 'missing-wrapper',
+      })
+    })
   })
 
   it('blocks an emancipated subname whose unselected parent is not upgraded', async () => {

@@ -15,6 +15,25 @@ export const REGISTRY_ROLE_ORDER = [
   ...Object.keys(EXTRA_REGISTRY_ROLES),
 ] as readonly RegistryRole[]
 
+const REGISTRY_ROLE_BITS: Readonly<Record<RegistryRole, bigint>> = {
+  ...registryRoles,
+  ...EXTRA_REGISTRY_ROLES,
+}
+
+/**
+ * Decodes a registry role bitmap into {@link REGISTRY_ROLE_ORDER}, including
+ * the roles ensjs does not list. `decodeRoleBitmap` only knows ensjs's set, so
+ * a root change carrying just `ROLE_CAN_NAME` would decode to nothing.
+ */
+export const decodeRegistryRoleBitmap = (
+  bitmap: bigint | string,
+): RegistryRole[] => {
+  const value = typeof bitmap === 'string' ? BigInt(bitmap) : bitmap
+  return REGISTRY_ROLE_ORDER.filter(
+    (role) => (value & REGISTRY_ROLE_BITS[role]) !== 0n,
+  )
+}
+
 /**
  * bigname's ENSv2 registry powers, keyed to the ensjs role each one is. The
  * role tables, the role history and the "N Roles" badges all speak ensjs

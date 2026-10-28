@@ -4,6 +4,7 @@ import {
   isHeldInIndex,
   toExistenceSignal,
   toTldSupportSignal,
+  withResolvedRecords,
 } from './useNameClassification'
 
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
@@ -34,6 +35,34 @@ describe('toExistenceSignal', () => {
         indexerError: false,
         indexerHit: true,
       }),
+    ).toEqual({ status: 'owned' })
+  })
+})
+
+describe('withResolvedRecords', () => {
+  const records = (
+    overrides: Partial<Parameters<typeof withResolvedRecords>[1]>,
+  ) => ({
+    isPending: false,
+    isError: false,
+    hasRecords: false,
+    ...overrides,
+  })
+
+  it.each([
+    ['records resolve', records({ hasRecords: true }), 'owned'],
+    ['records are loading', records({ isPending: true }), 'pending'],
+    ['the record read fails', records({ isError: true }), 'unknown'],
+    ['nothing resolves', records({}), 'unowned'],
+  ] as const)('an unowned name when %s is %s', (_label, value, status) => {
+    expect(withResolvedRecords({ status: 'unowned' }, value)).toEqual({
+      status,
+    })
+  })
+
+  it('leaves a known owner alone', () => {
+    expect(
+      withResolvedRecords({ status: 'owned' }, records({ isPending: true })),
     ).toEqual({ status: 'owned' })
   })
 })

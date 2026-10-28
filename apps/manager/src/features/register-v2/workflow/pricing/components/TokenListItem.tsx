@@ -35,8 +35,6 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
   networkFee,
   isNetworkFeeLoading = false,
   showNetworkFeeDetails = false,
-  errorMessage,
-  isFeeTooltipOpen,
   feeTooltip,
 }: {
   readonly stablecoin: StablecoinBalance
@@ -46,9 +44,7 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
   readonly networkFee?: number
   readonly isNetworkFeeLoading?: boolean
   readonly showNetworkFeeDetails?: boolean
-  readonly errorMessage?: React.ReactNode
-  readonly isFeeTooltipOpen?: boolean
-  /** What the fee pays for; defaults to the registration wording. */
+  /** What the fee pays for. */
   readonly feeTooltip?: React.ReactNode
 }) => {
   const { t } = useLingui()
@@ -111,31 +107,16 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
     )
   }
 
-  const amount = formatUsd(priceUSD)
-  const displayedError =
-    errorMessage ??
-    (isFunded ? undefined : <Trans>{amount} needed to register name</Trans>)
-
   return (
     <PaymentMethodRow
       amount={formatUsd(coinBalanceUSD)}
       amountLabel={<Trans>balance</Trans>}
-      error={displayedError}
       fee={
         <Trans>
           {chainName} est. fee: {formatUsd(networkFee ?? Number.NaN)}
         </Trans>
       }
-      feeTooltip={
-        feeTooltip ?? (
-          <Trans>
-            An estimate of what the two on-chain transactions that register your
-            name will cost. It is collected together with the name price, in the
-            same approval.
-          </Trans>
-        )
-      }
-      feeTooltipLabel={t`What is the network fee?`}
+      feeTooltip={feeTooltip}
       icon={
         <PaymentMethodIcon
           icon={<IconComponent className="size-full" />}
@@ -144,8 +125,7 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
       }
       isAvailable
       isFeeLoading={isNetworkFeeLoading}
-      isFeeTooltipOpen={isFeeTooltipOpen}
-      isFunded={isFunded}
+      isInsufficient={!isFunded}
       isSelected={isSelected}
       name={stablecoin.symbol}
       onSelect={() => onSelectCoin(stablecoin.symbol as T)}

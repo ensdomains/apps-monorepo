@@ -2,6 +2,7 @@ import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { match } from 'ts-pattern'
 import { useDefaultMigrationSelection } from '@/features/migration/hooks/useDefaultMigrationSelection'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -11,7 +12,7 @@ import { useWrapperSync } from '@/features/migration/hooks/useWrapperSync'
 import { cn } from '@/lib/utils'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
-import type { SubnameMigrationBlockReason } from '../hooks/useMigrationEligibility'
+import type { BlockedSubnameMigration } from '../hooks/useMigrationEligibility'
 import { NameRow } from './NameRow'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
@@ -26,11 +27,19 @@ import { UnavailableMigrationNames } from './UnavailableMigrationNames'
 import { WrapperSyncNotice } from './WrapperSyncNotice'
 
 const SubnameBlockReason = ({
-  reason,
+  block,
 }: {
-  readonly reason: SubnameMigrationBlockReason
+  readonly block: BlockedSubnameMigration
 }) => {
-  switch (reason) {
+  switch (block.reason) {
+    case 'parent-not-upgraded': {
+      const parentName = block.parentName
+      return (
+        <Trans>
+          The parent name {parentName} must be upgraded before this subname.
+        </Trans>
+      )
+    }
     case 'imports-disabled':
       return (
         <Trans>
@@ -43,6 +52,12 @@ const SubnameBlockReason = ({
         <Trans>
           This parent has subnames whose protections cannot be preserved by this
           upgrade yet.
+        </Trans>
+      )
+    case 'unsupported-route':
+      return (
+        <Trans>
+          This subname's parent or registry is not supported for upgrading yet.
         </Trans>
       )
     case 'deeper-subnames':
@@ -156,6 +171,7 @@ export const SelectNamesStep = ({
     gracePeriodNames,
     unavailableNames,
     blockedSubnames = [],
+    verifiedSubnames,
     isEligibilityError = false,
     retryEligibility,
     wrapperSyncNames,
@@ -173,6 +189,18 @@ export const SelectNamesStep = ({
     isPending: isEligibilityPending,
     shouldSkip: recoveryState.status !== 'none',
   })
+  const needsRenewal = renewal.status !== 'idle'
+  const hasInsufficientRenewalFunds =
+    renewal.status === 'ready' &&
+    renewal.quote.balance < renewal.quote.totalAmount
+  const preparedPlan = gasEstimate.status === 'ready' ? gasEstimate.plan : null
+  const preparedNames = match({ needsRenewal, renewalGasEstimate })
+    .with(
+      { needsRenewal: true, renewalGasEstimate: { status: 'ready' } },
+      ({ renewalGasEstimate }) => renewalGasEstimate.classified,
+    )
+    .with({ needsRenewal: true }, () => undefined)
+    .otherwise(() => preparedPlan?.classified)
 
   const {
     search,
@@ -181,10 +209,14 @@ export const SelectNamesStep = ({
     totalSelected,
     visibleCount,
     displayedCount,
+    eligibleCount,
+    selectedEligibleCount,
     allSelected,
+    hasUnselectedEligibleNames,
     filteredGroups,
     filteredOrphans,
     filteredGracePeriodNames,
+    includedSubnames,
     isManagerRestorationLocked,
     managerCandidates,
     restoredManagers,
@@ -194,6 +226,7 @@ export const SelectNamesStep = ({
   } = useNameSelection({
     eligible,
     gracePeriodNames,
+    includedNames: preparedNames ?? verifiedSubnames,
     defaultExcludedNames: excludedNames,
     isPending,
     isRecovery,
@@ -206,7 +239,6 @@ export const SelectNamesStep = ({
   // The temporary approval is needed only for names the owner opted in.
   const hasNamesNeedingManagerRestoration = restoredManagers.size > 0
 
-  const needsRenewal = renewal.status !== 'idle'
   const isEstimatingGas = needsRenewal
     ? renewalGasEstimate.status === 'loading'
     : gasEstimate.status === 'loading'
@@ -222,7 +254,6 @@ export const SelectNamesStep = ({
   // migration that fails for lack of gas before the ETH has landed.
   const isWaitingForGasFunding =
     totalSelected > 0 && gasFundingStatus === 'funding'
-  const preparedPlan = gasEstimate.status === 'ready' ? gasEstimate.plan : null
   const isFinishingRecovery =
     isRecovery && preparedPlan !== null && preparedPlan.classified.length === 0
   const recreation = preparedPlan?.subnameRecreation
@@ -251,7 +282,10 @@ export const SelectNamesStep = ({
   const isCompactLayout = shouldUseCompactSelectionLayout(displayedCount)
   const isSmallSelectionCard =
     !isPending && shouldUseSmallSelectionCard(displayedCount)
-  const hasAdditionalDetails = blockedSubnames.length > 0 || isEligibilityError
+  const hasAdditionalDetails =
+    blockedSubnames.length > 0 ||
+    unavailableNames.length > 0 ||
+    isEligibilityError
   const showSelectionOptions =
     !isFinishingRecovery &&
     (blockedSubnames.length === 0 ||
@@ -372,9 +406,12 @@ export const SelectNamesStep = ({
           ) : showSelectionOptions ? (
             <SelectNamesStepSelectionOptions
               allSelected={allSelected}
+              eligibleCount={eligibleCount}
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
+              hasInsufficientRenewalFunds={hasInsufficientRenewalFunds}
+              includedSubnames={includedSubnames}
               isCompactLayout={isCompactLayout}
               isContentHeightCard={isContentHeightCard}
               isManagerRestorationLocked={isManagerRestorationLocked}
@@ -383,14 +420,13 @@ export const SelectNamesStep = ({
               restoredManagers={restoredManagers}
               search={search}
               selected={selected}
+              selectedEligibleCount={selectedEligibleCount}
               setSearch={setSearch}
               showBulkSelection={showBulkSelection}
               showNameSearch={showNameSearch}
               toggleAll={toggleAll}
               toggleManagerRestoration={toggleManagerRestoration}
               toggleName={toggleName}
-              totalSelected={totalSelected}
-              visibleCount={visibleCount}
             />
           ) : null}
 
@@ -407,13 +443,13 @@ export const SelectNamesStep = ({
                 <Trans>These names need to stay on ENSv1 for now</Trans>
               </h2>
               <ul className="mt-3 space-y-4">
-                {blockedSubnames.map(({ name, reason }) => (
-                  <li key={name.domain.id}>
+                {blockedSubnames.map((block) => (
+                  <li key={block.name.domain.id}>
                     <NameRow
                       depth={0}
-                      disabledReason={<SubnameBlockReason reason={reason} />}
+                      disabledReason={<SubnameBlockReason block={block} />}
                       isSelected={false}
-                      item={name}
+                      item={block.name}
                     />
                   </li>
                 ))}
@@ -432,6 +468,7 @@ export const SelectNamesStep = ({
       <SelectNamesStepFooter
         gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
+        hasUnselectedEligibleNames={hasUnselectedEligibleNames}
         isEstimatingGas={isEstimatingGas}
         isFinishingRecovery={isFinishingRecovery}
         isStarting={isStarting}

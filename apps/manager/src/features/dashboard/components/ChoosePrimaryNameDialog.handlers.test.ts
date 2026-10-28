@@ -85,6 +85,7 @@ describe('getPrimaryNamePage', () => {
 /** The wallet in the WEB-1256 repro, which transferred the name away. */
 const OLD_OWNER = '0x55e55C649895940826a852820d9e1A076Ec47b09'
 const THIRD_PARTY = '0x1111111111111111111111111111111111111111'
+const RESOLVER = '0x2222222222222222222222222222222222222222'
 
 describe('getPrimaryNameCandidates', () => {
   it('hides raw noncanonical names even when the indexer supplies a canonical twin', () => {
@@ -117,6 +118,7 @@ describe('primary-name confirmation', () => {
   const confirmation = {
     kind: 'update-eth-address',
     existingEthAddress: null,
+    resolverAddress: RESOLVER,
     name: 'ensv2sg.eth',
     ownerAddress: OLD_OWNER,
   } as const
@@ -126,19 +128,25 @@ describe('primary-name confirmation', () => {
       needsPrimaryNameConfirmation({
         kind: 'update-eth-address',
         existingEthAddress: null,
+        resolverAddress: RESOLVER,
       }),
     ).toBe(true)
     expect(
       needsPrimaryNameConfirmation({
         kind: 'setup-resolver',
         hasResolver: false,
+        hasOffchainResolver: false,
         existingEthAddress: null,
       }),
     ).toBe(true)
     expect(needsPrimaryNameConfirmation({ kind: 'ready' })).toBe(false)
     expect(
       needsPrimaryNameConfirmation(
-        { kind: 'update-eth-address', existingEthAddress: null },
+        {
+          kind: 'update-eth-address',
+          existingEthAddress: null,
+          resolverAddress: RESOLVER,
+        },
         confirmation,
       ),
     ).toBe(false)
@@ -147,7 +155,11 @@ describe('primary-name confirmation', () => {
   it('asks again if the live address or required resolver action changes', () => {
     expect(
       needsPrimaryNameConfirmation(
-        { kind: 'update-eth-address', existingEthAddress: THIRD_PARTY },
+        {
+          kind: 'update-eth-address',
+          existingEthAddress: THIRD_PARTY,
+          resolverAddress: RESOLVER,
+        },
         confirmation,
       ),
     ).toBe(true)
@@ -157,6 +169,7 @@ describe('primary-name confirmation', () => {
           kind: 'setup-resolver',
           existingEthAddress: null,
           hasResolver: false,
+          hasOffchainResolver: false,
         },
         confirmation,
       ),
@@ -207,13 +220,19 @@ describe('isConfirmBlocked', () => {
       kind: 'setup-resolver' as const,
       existingEthAddress: null,
       hasResolver: false,
+      hasOffchainResolver: false,
       name: 'pookie.eth',
       ownerAddress: '0x1111111111111111111111111111111111111111' as const,
     }
 
     expect(
       needsPrimaryNameConfirmation(
-        { kind: 'setup-resolver', existingEthAddress: null, hasResolver: true },
+        {
+          kind: 'setup-resolver',
+          existingEthAddress: null,
+          hasResolver: true,
+          hasOffchainResolver: false,
+        },
         confirmed,
       ),
     ).toBe(true)
@@ -223,6 +242,7 @@ describe('isConfirmBlocked', () => {
           kind: 'setup-resolver',
           existingEthAddress: null,
           hasResolver: false,
+          hasOffchainResolver: false,
         },
         confirmed,
       ),
@@ -242,6 +262,7 @@ describe('isConfirmBlocked', () => {
           kind: 'setup-resolver',
           existingEthAddress: null,
           hasResolver: false,
+          hasOffchainResolver: false,
         }),
       ).toBe(false)
     })
@@ -253,6 +274,7 @@ describe('isConfirmBlocked', () => {
           kind: 'setup-resolver',
           existingEthAddress: null,
           hasResolver: true,
+          hasOffchainResolver: false,
         }),
       ).toBe(true)
       expect(
@@ -261,6 +283,7 @@ describe('isConfirmBlocked', () => {
           kind: 'setup-resolver',
           existingEthAddress: '0x2222222222222222222222222222222222222222',
           hasResolver: false,
+          hasOffchainResolver: false,
         }),
       ).toBe(true)
     })

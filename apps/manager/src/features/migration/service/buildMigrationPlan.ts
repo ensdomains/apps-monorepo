@@ -996,7 +996,10 @@ export const buildMigrationRecoveryPlan = async (params: {
   })
   signal?.throwIfAborted()
   const groups = groupClassifiedNames([...classified])
-  const plannedApprovals = snapshot.plannedApprovals.flatMap((approval) => {
+  // With nothing left to migrate no grant runs, so cleanup follows live state.
+  const remainingApprovals =
+    classified.length > 0 ? snapshot.plannedApprovals : []
+  const plannedApprovals = remainingApprovals.flatMap((approval) => {
     // Older recovery snapshots may contain the collection-wide strategy. A
     // resumed run must use the current token-scoped strategy instead.
     if (approval.id === 'base-registrar:hca') {

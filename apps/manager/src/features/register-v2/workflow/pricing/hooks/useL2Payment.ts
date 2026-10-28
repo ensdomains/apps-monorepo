@@ -4,10 +4,15 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { l2Sources } from '@/config'
 import type { HcaBudgetQuote } from '../../../data/queries/hcaBudget.query'
+import { getL2ApprovalCostQueryOptions } from '../../../data/queries/l2ApprovalCost.query'
 import { getL2BalancesQueryOptions } from '../../../data/queries/l2Balances.query'
 import { getL2PaymentQuoteQueryOptions } from '../../../data/queries/l2PaymentQuote.query'
 import { getL2QuoteRoute } from '../../../service/l2FundingSource'
 import type { RegistrationV2UiActor } from '../../../state/registrationUi.context'
+import {
+  isShortOfApprovalGas,
+  needsPermit2Approval,
+} from '../lib/l2ApprovalGas'
 import {
   getL2PaymentOptions,
   type L2PaymentOption,
@@ -19,7 +24,11 @@ export type L2PaymentRow = Readonly<{
   /** What the L2 is charged, once quoted. */
   amountInRaw: bigint | undefined
   isQuoteLoading: boolean
+  /** `amountInRaw` is the previous quote, shown while a new one loads; never pay on it. */
+  isQuoteStale: boolean
   hasQuoteFailed: boolean
+  /** Needs the one-off Permit2 approval here, without the ETH to pay for it. */
+  isShortOfGas: boolean
 }>
 
 /** The registration picker's L2 rows, and what choosing one does. */
@@ -36,7 +45,9 @@ export const canPayFromL2 = (row: L2PaymentRow): boolean =>
   !row.hasQuoteFailed &&
   row.amountInRaw !== undefined &&
   row.option.balanceRaw !== null &&
-  row.option.balanceRaw >= row.amountInRaw
+  row.option.balanceRaw >= row.amountInRaw &&
+  !row.isQuoteStale &&
+  !row.isShortOfGas
 
 /** What the permit would carry: the budget less what the account holds. */
 const getShortfall = (
@@ -77,12 +88,35 @@ export const useL2Payment = ({
   readonly fundingSourceChainId: number | undefined
 }): L2PaymentProps | undefined => {
   const amountRaw = getShortfall(budget, isQuoteStale)
-  const balances = useQuery(
+  // Statuses keep the previous quote through a re-quote, so rows don't blink out and back.
+  const statusAmountRaw = getShortfall(budget, false)
+  const wallets = useQuery(
     getL2BalancesQueryOptions(isEnabled && owner ? owner : undefined),
   ).data
   const options = isEnabled
-    ? getL2PaymentOptions({ sources: l2Sources, balances, amountRaw })
+    ? getL2PaymentOptions({
+        sources: l2Sources,
+        balances:
+          wallets &&
+          Object.fromEntries(
+            Object.entries(wallets).map(([chainId, wallet]) => [
+              chainId,
+              wallet?.usdc ?? null,
+            ]),
+          ),
+        amountRaw: statusAmountRaw,
+      })
     : []
+  const approvalCosts = useQueries({
+    queries: options.map(({ source }) =>
+      getL2ApprovalCostQueryOptions(
+        owner ?? undefined,
+        needsPermit2Approval(wallets?.[source.chain.id], statusAmountRaw)
+          ? source
+          : undefined,
+      ),
+    ),
+  })
   const routes = options.map((option) =>
     owner && hca && amountRaw && option.status === 'available'
       ? getL2QuoteRoute({
@@ -101,15 +135,22 @@ export const useL2Payment = ({
   const rows = options.map((option, index): L2PaymentRow => {
     const isQuoted = routes[index] !== undefined
     const quote = quotes[index]
+    const amountInRaw = match({ amountRaw, isQuoted })
+      // The account's credit covers it all: nothing is bridged or charged.
+      .with({ amountRaw: 0n }, () => 0n)
+      .otherwise(() => quote?.data?.amountIn)
     return {
       option,
-      amountInRaw: match({ amountRaw, isQuoted })
-        // The account's credit covers it all: nothing is bridged or charged.
-        .with({ amountRaw: 0n }, () => 0n)
-        .with({ isQuoted: true }, () => quote?.data?.amountIn)
-        .otherwise(() => undefined),
+      amountInRaw,
       isQuoteLoading: isQuoted && !!quote?.isLoading,
+      isQuoteStale:
+        amountRaw !== 0n && (!isQuoted || !!quote?.isPlaceholderData),
       hasQuoteFailed: isQuoted && !!quote?.isError,
+      isShortOfGas: isShortOfApprovalGas(
+        wallets?.[option.source.chain.id],
+        amountInRaw ?? statusAmountRaw,
+        approvalCosts[index]?.data,
+      ),
     }
   })
   return {

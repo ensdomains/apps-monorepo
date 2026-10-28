@@ -12,25 +12,38 @@
  * same encoding as the write it gates.
  */
 
-import { getSupportedInterfaces } from '@ensdomains/ensjs/public'
-import { resolverMulticallParameters as nodeSetterCalls } from '@ensdomains/ensjs/utils'
+import {
+  getSupportedInterfaces,
+  resolveNameData,
+} from '@ensdomains/ensjs/public'
+import {
+  getAddressParameters,
+  resolverMulticallParameters as nodeSetterCalls,
+} from '@ensdomains/ensjs/utils'
 import {
   dnsEncodeName,
   resolverMulticallParameters as nameSetterCalls,
 } from '@ensdomains/ensjs/utils/v2'
 import {
   permissionedResolverLinkToRecordSnippet,
+  permissionedResolverResolveSnippet,
   permissionedResolverSetDataSnippet,
   permissionedResolverSetInterfaceSnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import {
   type Address,
+  BaseError,
+  type Client,
+  ContractFunctionRevertedError,
   encodeFunctionData,
   type Hex,
   type PublicClient,
   parseAbi,
+  type Transport,
   toFunctionSelector,
 } from 'viem'
+import { call } from 'viem/actions'
+import type { sepoliaWithEns } from '@/lib/wagmi'
 
 export type ResolverSetterKind = 'name' | 'node'
 
@@ -75,6 +88,78 @@ export async function getResolverSetterKind(
     { address: resolverAddress, interfaces: [NAME_SETTER_INTERFACE_ID] },
   )
   return supportsNameSetters ? 'name' : 'node'
+}
+
+const EXTENDED_RESOLVER_INTERFACE_ID = '0x9061b923'
+
+const OFFCHAIN_LOOKUP_SELECTOR = '0x556f1830'
+
+const findRevertData = (error: unknown): Hex | undefined => {
+  for (let cause = error; cause; cause = (cause as { cause?: unknown }).cause) {
+    const data = (cause as { data?: unknown }).data
+    const hex =
+      typeof data === 'object' ? (data as { data?: unknown })?.data : data
+    if (typeof hex === 'string' && hex.startsWith('0x')) return hex as Hex
+  }
+  return undefined
+}
+
+/** Whether resolving `name` asks for a CCIP-Read lookup; the gateway is not called. */
+export async function isOffchainResolver(
+  publicClient: PublicClient,
+  resolverAddress: Address,
+  name: string,
+): Promise<boolean> {
+  const [isExtended] = await getSupportedInterfaces(
+    publicClient as unknown as Parameters<typeof getSupportedInterfaces>[0],
+    { address: resolverAddress, interfaces: [EXTENDED_RESOLVER_INTERFACE_ID] },
+  )
+  if (!isExtended) return false
+  try {
+    await call(
+      { ...publicClient, ccipRead: false },
+      {
+        to: resolverAddress,
+        data: encodeFunctionData({
+          abi: permissionedResolverResolveSnippet,
+          functionName: 'resolve',
+          args: [
+            dnsEncodeName(name),
+            encodeFunctionData(getAddressParameters({ name, coin: 60 })),
+          ],
+        }),
+      },
+    )
+    return false
+  } catch (error) {
+    const data = findRevertData(error)
+    if (data === undefined) throw error
+    return data.startsWith(OFFCHAIN_LOOKUP_SELECTOR)
+  }
+}
+
+/** Whether the UniversalResolver resolves `name` through CCIP-Read; the gateway is not called. */
+export async function isOffchainName(
+  client: Client<Transport, typeof sepoliaWithEns>,
+  name: string,
+): Promise<boolean> {
+  try {
+    await resolveNameData(
+      { ...client, ccipRead: false },
+      {
+        name,
+        data: encodeFunctionData(getAddressParameters({ name, coin: 60 })),
+      },
+    )
+    return false
+  } catch (error) {
+    const revert =
+      error instanceof BaseError
+        ? error.walk((cause) => cause instanceof ContractFunctionRevertedError)
+        : null
+    if (!(revert instanceof ContractFunctionRevertedError)) throw error
+    return revert.signature === OFFCHAIN_LOOKUP_SELECTOR
+  }
 }
 
 const encodeCalls = (calls: readonly unknown[]): Hex[] =>

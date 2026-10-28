@@ -564,30 +564,21 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
   // renewal lands, so the live lease and reservation are still the old ones.
   it('accepts the projected expiry of a name whose renewal is pending', async () => {
     const root = migratingRoot('unwrapped')
+    const copy = registryCopy()
     const client = makeClient({
-      read: () => {
-        throw new Error('Unexpected read')
+      read: ({ functionName }) => {
+        if (functionName === 'owner') return WALLET
+        if (functionName === 'resolver') return zeroAddress
+        throw new Error(`Unavailable during grace: ${functionName}`)
       },
     })
-    vi.mocked(client.readContract).mockImplementation(async (request) =>
-      request.functionName === 'nameExpires'
-        ? WRAPPED_EXPIRY - 7776000n
-        : {
-            status: 1,
-            expiry:
-              WRAPPED_EXPIRY - 7776000n + MIGRATION_EXPIRY_BONUS_SECONDS - 2n,
-            latestOwner: zeroAddress,
-            tokenId: 0n,
-            resource: 2n,
-          },
-    )
 
     const expiries = await assertCopyMigrationReadiness({
       publicClient: client,
       hca: HCA,
       wallet: WALLET,
-      remaining: [root],
-      registryContext: [root],
+      remaining: [root, copy],
+      registryContext: [root, copy],
       projectedExpiryNames: new Set([root.domain.name]),
     })
 

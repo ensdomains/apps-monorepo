@@ -1,3 +1,5 @@
+import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
+import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import {
   createFileRoute,
@@ -70,6 +72,44 @@ export const Route = createFileRoute('/$name/')({
     ])
   },
 })
+
+// Profile | metadata | counters. A multi-track template has no Tailwind token:
+// the profile card column is fixed at 240px and the counter column at 300px.
+const profileGridClassName =
+  'grid grid-cols-1 lg:grid-cols-[240px_minmax(min-content,1fr)] xl:grid-cols-[240px_auto_300px] xl:justify-between gap-3'
+
+/** A name with no registry entry has only what its resolver returns. */
+const OffchainNameProfile = ({
+  name,
+  resolverAddress,
+  records,
+}: {
+  readonly name: string
+  readonly resolverAddress?: Address
+  readonly records?: GetRecordsReturnType
+}) => (
+  <div className="flex flex-col gap-8">
+    <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
+    <div className={profileGridClassName}>
+      <NameProfileCard name={name} stacked />
+      <div className="flex flex-col flex-1">
+        <ParentName name={name} asRow />
+        {resolverAddress && (
+          <ResolverCard name={name} resolverAddress={resolverAddress} asRow />
+        )}
+      </div>
+      {resolverAddress && (
+        <div className="grid grid-cols-1 gap-3 content-start">
+          <RecordCount
+            name={name}
+            records={records}
+            resolverAddress={resolverAddress}
+          />
+        </div>
+      )}
+    </div>
+  </div>
+)
 
 const Profile = ({
   name,
@@ -201,8 +241,18 @@ const Profile = ({
       )
     }
 
-    // Case 2: It's a 3LD+ that doesn't exist
+    // Case 2: a 3LD+ with no registry entry. An offchain (CCIP-Read) subname
+    // still resolves, so show its records read-only, as ens-app-v3 does.
     if (!is2LD(name)) {
+      if (hasResolvedRecords(profileQuery.data?.records)) {
+        return (
+          <OffchainNameProfile
+            name={name}
+            resolverAddress={resolverAddress}
+            records={profileQuery.data?.records}
+          />
+        )
+      }
       return (
         <NotFoundMessage
           title="Name not found"
@@ -394,7 +444,7 @@ const Profile = ({
       </div>
 
       {/* Profile | metadata | counters at xl; counters wrap to their own row below that */}
-      <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(min-content,1fr)] xl:grid-cols-[240px_auto_300px] xl:justify-between gap-3">
+      <div className={profileGridClassName}>
         {/* Left: avatar + bio + socials */}
         <NameProfileCard name={name} stacked />
 
