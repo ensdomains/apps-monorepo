@@ -4,7 +4,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Now
 
-- **Batch**: B0, step 3 in progress. One commit (`6b77b0af3`) on `e2e-land/b0-infra`, in worktree `/Users/sg/ens/worktrees/e2e-land-b0`, on `origin/main` at `ae8849020`. **Pushed (force-pushed 2026-10-28 after trimming).** No PR is open yet. 95 files, ~13.7k lines.
+- **Batch**: B0, step 3 in progress. One commit (`05cee518c`) on `e2e-land/b0-infra`, in worktree `/Users/sg/ens/worktrees/e2e-land-b0`, on `origin/main` at `ae8849020`. **Pushed (force-pushed 2026-10-28 after trimming and rewording).** No PR is open yet. 95 files, ~13.6k lines.
 - **Trimmed on the user's request (2026-10-28)**: the coverage ledger and the planning docs were taken out of B0 and the commit rewritten, so main's history never carries them. They stay on this branch as **B10**: `e2e/coverage/**` (reconciler, scenarios, invariants, baseline, handoff), `e2e/matrix/{ids,scenarios}.ts`, and `e2e/docs/` `e2e-{build-goal,coverage,defects,gap-analysis,master-test-plan,spec-audit,test-catalogue}.md` plus `{bigname-harness,portal-bigname}-handoff.md`. `e2e/matrix/{run,assert,expectations,render-docs}.ts` moved to B7. B0 also drops the `coverage` / `e2e:coverage` scripts, the README's Coverage Ledger section and one handoff link in `local-e2e-stack.md`.
 - **Local results (2026-10-28)**:
 
@@ -20,7 +20,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
   | Main's manager suite | 24 passed, 3 skipped (before the trim) |
 
   All run in CI's mode: `E2E_MOCK_BIGNAME=true`, with the `.env.ci` templates. The trim only removed files nothing in B0 imports, so the Playwright runs were not repeated.
-- **Known dangling links in B0**: code comments still cite `e2e-build-goal.md`, `e2e-defects.md`, `e2e-gap-analysis.md` and `coverage/handoff.md`, and the README links `docs/smoke-suite.md` (B1a). They resolve once B10 / B1a land.
+- **Comments reworded (2026-10-28, the user's call)**: every B0 citation of a B10 doc is reworded to stand alone: file links, "rule 5/6/7", "§5.C"-style plan sections, "plan item H1–H8" and "iteration N". The harness-manager test titles say "read-back" / "app-visible" instead of "rule 5" / "rule 6", the address gate prints "address-literal gate", the README loses its "Smoke vs. nightly" section (it documents B1a's scripts), and `.gitignore` loses the `!e2e/coverage/` exception. These files are `incremental` B0 rows; B10 brings back the branch's wording. The only remaining doc citation is `AUTH_PLAN.md`, which is on main. Re-checked: typecheck, address gate, Biome (warnings only), `v1-name-shapes` 11/11, harness lists 12 + 6.
 
 ## Next action
 
@@ -119,6 +119,7 @@ When one is written, replace its `gap` entry in `landing/batches.ts` with `spec`
 - **2026-10-28**: Allowlisted Anvil account #2 in `check-address-literals.ts`. The CCIP fixture uses it as a record value, and the gate had been failing on this branch since the offchain commits. The fix is on both B0 and this branch.
 - **2026-10-28**: Main (#1585) now has Greptile block merges on `high` rules, and several of them cover `e2e/**`: `no-any`, `no-non-null-assertion`, `no-new-suppressions`, `no-weakened-tests`, `removed-guard`. B0's added lines had 5 `any`, 2 `!` and 1 unexplained cast. All are fixed without changing behaviour (a typed Playwright report in `reconcile.ts`, `Reflect.get`, a single map lookup, and a reason on the cast), on both B0 and this branch. **For every batch**: grep the added lines for these before opening the PR.
 - **2026-10-28**: The user took the coverage ledger (`e2e/coverage/**`) and the planning and handoff docs out of B0, to stay on this branch for now. They became batch B10. B0's commit was amended and force-pushed so main's history never carries them. `matrix/{ids,scenarios}.ts` went with them (they only feed the ledger), and the matrix runner files moved to B7. This also settled the one-PR-vs-split question.
+- **2026-10-28**: The user chose to reword B0's comments rather than ship links to B10's docs. B0 amended and force-pushed as `05cee518c`.
 
 ## Worktree triage (2026-10-28)
 
@@ -140,6 +141,7 @@ Run `pnpm --filter @ens-apps/e2e landing --worktrees` for the live table.
 - `--paths` and the ledger compare `origin/*` refs, so run `git fetch origin` first. A local-only commit on this branch doesn't count until it's pushed.
 - `e2e/package.json`, `package.json`, `pnpm-lock.yaml`, `e2e/README.md` and `local-e2e-stack.md` are `incremental` B0 rows: every batch edits them. After B0 merges they read `partial`, and `landed` only after the last batch.
 - When diffing a batch branch, compare it with its own base (`HEAD`), not `origin/main`: main moves while the batch is in progress.
+- **Never chain `cd` after a network command.** A failed `git fetch` once skipped a `cd <worktree>` and the rest ran in the user's main checkout, committing their WIP (undone; the pre-commit hook had also reformatted two of their files, restored from their blobs). Use `git -C <path>` and absolute paths, with `set -e`.
 - Biome ignores `.claude/worktrees/`, so batch worktrees live under `/Users/sg/ens/worktrees/`.
 - Local stack quirks are in [local-e2e-stack.md](./local-e2e-stack.md). Don't duplicate them here.
 

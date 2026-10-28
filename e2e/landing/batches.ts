@@ -149,6 +149,44 @@ export const rules: Rule[] = [
     globs: ['e2e/matrix/{run,assert,expectations,render-docs}.ts'],
   },
 
+  // ── B0, comments reworded ────────────────────────────────────────────────
+  // B0 carries these with citations of B10's docs (rule numbers, plan sections,
+  // handoff iterations) reworded out, so they differ from this branch until B10
+  // lands (2026-10-28).
+  {
+    target: 'B0',
+    incremental: true,
+    globs: [
+      '.gitignore',
+      'apps/manager/.env.example',
+      'apps/portal/.env.example',
+      'e2e/fixtures/chain-snapshot.ts',
+      'e2e/fixtures/makeName.ts',
+      'e2e/fixtures/makeSubname.ts',
+      'e2e/fixtures/makeV1Name.ts',
+      'e2e/fixtures/makeV2Name.ts',
+      'e2e/fixtures/playwright.cross-app.fixture.ts',
+      'e2e/fixtures/v1-controller-auth.ts',
+      'e2e/fixtures/v1-records.ts',
+      'e2e/fixtures/v1-tails.ts',
+      'e2e/fixtures/wallets.ts',
+      'e2e/helpers/bigname-labels.ts',
+      'e2e/helpers/indexer-sync.ts',
+      'e2e/helpers/migration-assertions.ts',
+      'e2e/helpers/role-assertions.ts',
+      'e2e/helpers/transaction-modal.ts',
+      'e2e/projects/manager/playwright.config.ts',
+      'e2e/projects/portal/playwright.config.ts',
+      'e2e/scripts/check-address-literals.ts',
+      'e2e/specs/harness-manager.spec.ts',
+      'e2e/specs/harness.spec.ts',
+      'packages/v1-name-shapes/src/shapes.test.ts',
+      'packages/v1-name-shapes/src/shapes.ts',
+      'packages/v1-name-shapes/src/tabs.ts',
+      'packages/v1-name-shapes/src/types.ts',
+    ],
+  },
+
   // ── B0, pulled forward from later batches ────────────────────────────────
   // Fixtures and harness specs import these (seed, chain, records), so B0
   // does not compile without them (found preparing B0, 2026-10-28).
