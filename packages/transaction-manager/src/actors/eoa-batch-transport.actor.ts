@@ -20,6 +20,10 @@ import {
   TransactionUserRejectedError,
 } from '../errors/transaction.errors'
 import { isUpgradeDeclineError } from '../helpers/wallet-errors.helpers'
+import {
+  hasDeclinedUpgrade,
+  recordUpgradeDecline,
+} from '../services/upgrade-declines.service'
 import type { EOASigner } from '../types/signer.types'
 import type {
   EOABatchTransactionRequest,
@@ -41,16 +45,19 @@ const HCA_SAFE_7702_WALLETS: ReadonlySet<string> = new Set([
 
 /**
  * `supported` always batches. `ready` means our send upgrades the EOA through
- * EIP-7702, so it only counts on a wallet whose delegate keeps the HCA working.
+ * EIP-7702, so it only counts on a wallet whose delegate keeps the HCA working,
+ * and not once the user has declined that upgrade.
  */
-export const isAtomicBatchUsable = (
-  status: string | undefined,
-  walletId: string | undefined,
-): boolean =>
-  status === 'supported' ||
-  (status === 'ready' &&
-    walletId !== undefined &&
-    HCA_SAFE_7702_WALLETS.has(walletId))
+export const isAtomicBatchUsable = (params: {
+  readonly status: string | undefined
+  readonly walletId: string | undefined
+  readonly hasDeclinedUpgrade: boolean
+}): boolean =>
+  params.status === 'supported' ||
+  (params.status === 'ready' &&
+    !params.hasDeclinedUpgrade &&
+    params.walletId !== undefined &&
+    HCA_SAFE_7702_WALLETS.has(params.walletId))
 
 /**
  * Whether the connected wallet can execute a `wallet_sendCalls` bundle
@@ -69,7 +76,14 @@ export async function getAtomicBatchSupport(params: {
       account: walletClient.account,
       chainId,
     })
-    return isAtomicBatchUsable(capabilities.atomic?.status, walletId)
+    return isAtomicBatchUsable({
+      status: capabilities.atomic?.status,
+      walletId,
+      hasDeclinedUpgrade: hasDeclinedUpgrade(
+        walletClient.account?.address,
+        chainId,
+      ),
+    })
   } catch (error) {
     logger.debug('wallet_getCapabilities unavailable', error)
     return false
@@ -137,8 +151,12 @@ export function submitEOABatch(input: {
         }),
         (error) => {
           // Declining the 7702 upgrade (5750) declines the bundle: resending
-          // would only ask again.
-          if (isUserRejectionError(error) || isUpgradeDeclineError(error)) {
+          // would only ask again. Flows plan separate transactions from here.
+          if (isUpgradeDeclineError(error)) {
+            recordUpgradeDecline(request.from, chain.id)
+            return new TransactionUserRejectedError(request, error)
+          }
+          if (isUserRejectionError(error)) {
             return new TransactionUserRejectedError(request, error)
           }
           logger.error('EOA batch submission failed', error)
