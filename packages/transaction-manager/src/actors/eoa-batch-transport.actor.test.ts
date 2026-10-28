@@ -32,10 +32,10 @@ const CALLS_ID = `0x${'01'.repeat(32)}`
 
 type RpcHandler = (method: string, params: unknown) => unknown
 
-const signerWith = (handler: RpcHandler): EOASigner => ({
+const signerWith = (handler: RpcHandler, account = ACCOUNT): EOASigner => ({
   type: 'eoa',
   walletClient: createWalletClient({
-    account: ACCOUNT,
+    account,
     chain: sepolia,
     pollingInterval: 10,
     transport: custom(
@@ -327,7 +327,9 @@ describe('eoa-batch through the transaction machine', () => {
     })
   })
 
-  it('stops without resending when the user declines the account upgrade', async () => {
+  it('stops without resending when the user declines the account upgrade, and stops offering it', async () => {
+    // Its own account: the decline is remembered for the rest of the file.
+    const decliner = getAddress('0x000000000000000000000000000000000000dddd')
     const sendCalls = vi.fn(() => {
       throw Object.assign(new Error('Upgrade rejected'), { code: 5750 })
     })
@@ -336,19 +338,27 @@ describe('eoa-batch through the transaction machine', () => {
         if (method === 'wallet_getCapabilities') return capabilities('ready')
         if (method === 'wallet_sendCalls') return sendCalls()
         throw new Error(`unexpected RPC call: ${method}`)
-      }),
+      }, decliner),
       walletId: 'io.metamask',
     }
-    const txId = transactionManager.startTransaction(batchRequest(), signer, {
-      id: 'tx-batch-upgrade-declined',
-      publicClient,
-      retryDelay: 1,
-    })
+    const txId = transactionManager.startTransaction(
+      batchRequest(decliner),
+      signer,
+      { id: 'tx-batch-upgrade-declined', publicClient, retryDelay: 1 },
+    )
 
     await expect(waitForTransaction(txId)).rejects.toBeInstanceOf(
       TransactionUserRejectedError,
     )
     expect(sendCalls).toHaveBeenCalledOnce()
+    // Flows now plan separate transactions instead of asking again.
+    await expect(
+      getAtomicBatchSupport({
+        walletClient: signer.walletClient,
+        chainId: sepolia.id,
+        walletId: 'io.metamask',
+      }),
+    ).resolves.toBe(false)
   })
 
   it('times out, keeping the bundle, when a success never brings a receipt', async () => {
