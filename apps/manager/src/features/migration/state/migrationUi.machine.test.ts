@@ -996,6 +996,21 @@ describe('migrationUiMachine', () => {
       expect(actor.getSnapshot().value).toEqual({ migrate: 'failing' })
       expect(actor.getSnapshot().context.lastError?.type).toBe('generic')
     })
+
+    it('exposes cross-tab lock refusal as an actionable actor error', async () => {
+      executeMigrationMock.mockRejectedValueOnce(
+        Object.assign(new Error('another tab is active'), {
+          name: 'MigrationExecutionAlreadyActiveError',
+        }),
+      )
+      const actor = start()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'failing' })
+      expect(actor.getSnapshot().context.lastError).toEqual({
+        type: 'migration-active',
+      })
+    })
   })
 
   describe('failure.retry → resetForRetry', () => {

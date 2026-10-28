@@ -23,6 +23,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import {
   authorizeTransaction,
+  authorizeTransactionsWhile,
   expect,
   test,
 } from '../../../fixtures/playwright.manager.fixture.js'
@@ -58,23 +59,31 @@ async function runMigrationFlow(
   const upgradeButton = page
     .getByRole('button', { name: 'Upgrade Names' })
     .first()
-  await upgradeButton.waitFor({ state: 'visible', timeout: 10_000 })
+  await upgradeButton.waitFor({ state: 'visible', timeout: 30_000 })
   await upgradeButton.click()
 
   await page.waitForTimeout(2_000)
 
-  const confirmButton = page.getByRole('button', { name: 'Upgrade Names' })
-  await confirmButton.waitFor({ state: 'visible', timeout: 10_000 })
-  // Authorize the migration transaction concurrently with clicking confirm
+  const confirmButton = page.getByRole('button', {
+    name: /^Upgrade \d+ names?$/,
+  })
+  await confirmButton.waitFor({ state: 'visible', timeout: 60_000 })
+  const successIndicator = page.getByRole('dialog', {
+    name: /Your names? (?:has|have) been upgraded!/,
+  })
+  let migrationFinished = false
+  const waitForSuccess = successIndicator
+    .waitFor({ state: 'visible', timeout: 90_000 })
+    .then(() => {
+      migrationFinished = true
+    })
   await Promise.all([
     confirmButton.click(),
-    authorizeTransaction(wallet, 90_000),
+    authorizeTransactionsWhile(page, wallet, () => migrationFinished),
+    waitForSuccess,
   ])
 
-  const successIndicator = page.getByText("You're on ENS v2!")
-  await successIndicator.waitFor({ state: 'visible', timeout: 60_000 })
-
-  const doneButton = page.getByRole('button', { name: 'Done' })
+  const doneButton = page.getByRole('button', { name: 'Go to dashboard' })
   await doneButton.waitFor({ state: 'visible', timeout: 10_000 })
   await doneButton.click()
 }
@@ -93,7 +102,7 @@ async function searchAndNavigateToProfile(
   // Click the matching suggestion in the dropdown
   await page.getByText(name).first().click()
   // Wait for the profile page to load
-  await page.waitForURL(new RegExp(`/p/${name.replace('.', '\\.')}`), {
+  await page.waitForURL(new RegExp(`/(?:p/)?${name.replace('.', '\\.')}$`), {
     timeout: 15_000,
   })
   await page.waitForLoadState('networkidle')

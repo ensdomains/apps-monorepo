@@ -70,6 +70,15 @@ describe('extractErrorMessage', () => {
 })
 
 describe('decodeMigrationError — direct mappings', () => {
+  it.each([
+    ['MigrationExecutionAlreadyActiveError', 'migration-active'],
+    ['MigrationExecutionLockUnavailableError', 'migration-lock-unavailable'],
+  ] as const)('maps %s to %s', (name, type) => {
+    const error = Object.assign(new Error('lock refused'), { name })
+
+    expect(decodeMigrationError(error)).toEqual({ type })
+  })
+
   it('maps permission-plan drift to a refreshable error', () => {
     const planChanged = Object.assign(new Error('preview is stale'), {
       name: 'MigrationPlanChangedError',

@@ -38,24 +38,26 @@ import {
 // V1 Contract addresses (Sepolia fork)
 // ---------------------------------------------------------------------------
 const V1_ETH_REGISTRAR_CONTROLLER =
-  '0xF42dF26c1b222bee5a6B78cBB8bbfaa0Ba07786a' as const
+  '0xfb3cE5D01e0f33f41DbB39035dB9745962F1f968' as const
 export const V1_BASE_REGISTRAR =
-  '0x6409609247722761b8ba96371485de92a6d7b83b' as Address
+  '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85' as Address
+const V1_BASE_REGISTRAR_OWNER =
+  '0xf2ece44980778966b8a0FccB3A9E339440f6e045' as Address
 export const V1_NAME_WRAPPER =
-  '0xc7e033b8836e4bd55d069d113f018b98478cb091' as Address
+  '0x0635513f179D50A207757E05759CbD106d7dFcE8' as Address
 export const V1_PUBLIC_RESOLVER =
-  '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address
+  '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD' as Address
 export const V1_ENS_REGISTRY =
-  '0x7e89b563f936c68c31a360840eb7f9a4aacaf014' as Address
+  '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e' as Address
 
 // ---------------------------------------------------------------------------
 // V2 Contract addresses — used by reserveInV2()
 // ---------------------------------------------------------------------------
 // ETH Registry (PermissionedRegistry for .eth)
-const V2_ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address
+const V2_ETH_REGISTRY = '0xd4ebcbbdf463c9c45784603db0ddd499bc44a8b4' as Address
 // ETH Registrar — has ROLE_REGISTRAR on V2_ETH_REGISTRY (baked by bake-contracts.py)
 // We impersonate it to create RESERVED entries for dynamically-created test names.
-const V2_ETH_REGISTRAR = '0x68586418353b771cf2425ed14a07512aa880c532' as Address
+const V2_ETH_REGISTRAR = '0xf633e7fc17e2bbe0d0965d18ec1821dcb754a3d3' as Address
 
 // ---------------------------------------------------------------------------
 // ABIs — struct-based V1 controller
@@ -72,6 +74,8 @@ const V1_CONTROLLER_ABI = parseAbi([
 const BASE_REGISTRAR_ABI = parseAbi([
   'function setApprovalForAll(address operator, bool approved)',
   'function isApprovedForAll(address owner, address operator) view returns (bool)',
+  'function controllers(address controller) view returns (bool)',
+  'function addController(address controller)',
   'function nameExpires(uint256 id) view returns (uint256)',
 ])
 
@@ -115,6 +119,9 @@ export const FUSES = {
 // Constants
 // ---------------------------------------------------------------------------
 const DEFAULT_DURATION = 365 * 24 * 60 * 60
+const PREMIGRATION_BONUS_PERIOD = 62n * 24n * 60n * 60n + 1n
+const FIXTURE_TRANSACTION_GAS = 2_000_000n
+const IMPERSONATED_ACCOUNT_BALANCE = 10_000_000_000_000_000_000n
 
 const ANVIL_FUNDER = privateKeyToAccount(
   '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
@@ -190,11 +197,16 @@ export async function reserveInV2(
 ): Promise<void> {
   console.log(`[reserveInV2] reserving ${label}.eth in V2 (expiry=${v1Expiry})`)
 
+  await testClient.setBalance({
+    address: V2_ETH_REGISTRAR,
+    value: IMPERSONATED_ACCOUNT_BALANCE,
+  })
   await testClient.impersonateAccount({ address: V2_ETH_REGISTRAR })
   try {
     const hash = await walletClient.sendTransaction({
       account: V2_ETH_REGISTRAR,
       to: V2_ETH_REGISTRY,
+      gas: FIXTURE_TRANSACTION_GAS,
       data: encodeFunctionData({
         abi: V2_ETH_REGISTRY_ABI,
         functionName: 'register',
@@ -213,7 +225,10 @@ export async function reserveInV2(
   } catch (err: unknown) {
     // LabelAlreadyReserved → already RESERVED, nothing to do
     const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes('LabelAlreadyReserved') || msg.includes('0x')) {
+    if (
+      msg.includes('LabelAlreadyReserved') ||
+      msg.includes('AlreadyRegistered')
+    ) {
       console.log(`[reserveInV2] ${label}.eth already RESERVED, skipping`)
     } else {
       throw err
@@ -226,8 +241,44 @@ export async function reserveInV2(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-async function waitForTx(hash: Hash) {
-  return publicClient.waitForTransactionReceipt({ hash })
+async function waitForTx(hash: Hash): Promise<void> {
+  const receipt = await publicClient.waitForTransactionReceipt({ hash })
+  if (receipt.status === 'reverted') {
+    throw new Error(`Fixture transaction reverted: ${hash}`)
+  }
+}
+
+async function ensureV1ControllerAuthorized(): Promise<void> {
+  const authorized = await publicClient.readContract({
+    address: V1_BASE_REGISTRAR,
+    abi: BASE_REGISTRAR_ABI,
+    functionName: 'controllers',
+    args: [V1_ETH_REGISTRAR_CONTROLLER],
+  })
+  if (authorized) return
+
+  await testClient.setBalance({
+    address: V1_BASE_REGISTRAR_OWNER,
+    value: IMPERSONATED_ACCOUNT_BALANCE,
+  })
+  await testClient.impersonateAccount({ address: V1_BASE_REGISTRAR_OWNER })
+  try {
+    const hash = await walletClient.sendTransaction({
+      account: V1_BASE_REGISTRAR_OWNER,
+      to: V1_BASE_REGISTRAR,
+      gas: FIXTURE_TRANSACTION_GAS,
+      data: encodeFunctionData({
+        abi: BASE_REGISTRAR_ABI,
+        functionName: 'addController',
+        args: [V1_ETH_REGISTRAR_CONTROLLER],
+      }),
+    })
+    await waitForTx(hash)
+  } finally {
+    await testClient.stopImpersonatingAccount({
+      address: V1_BASE_REGISTRAR_OWNER,
+    })
+  }
 }
 
 type RegistrationStruct = readonly [
@@ -254,6 +305,8 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
   return async function makeV1Name(config: V1NameConfig): Promise<string> {
     const ownerAddress = resolvedUser.address
     const ownerAccount = resolvedUser
+    await ensureV1ControllerAuthorized()
+
     const timestamp = Math.floor(Date.now() / 1000)
     const uniqueLabel = `${config.label}-${timestamp}`
     const absDuration = Math.abs(config.duration ?? DEFAULT_DURATION)
@@ -298,6 +351,7 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
     const commitTx = await walletClient.sendTransaction({
       account: ownerAccount,
       to: V1_ETH_REGISTRAR_CONTROLLER,
+      gas: FIXTURE_TRANSACTION_GAS,
       data: encodeFunctionData({
         abi: V1_CONTROLLER_ABI,
         functionName: 'commit',
@@ -334,6 +388,7 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
     const registerTx = await walletClient.sendTransaction({
       account: ownerAccount,
       to: V1_ETH_REGISTRAR_CONTROLLER,
+      gas: FIXTURE_TRANSACTION_GAS,
       data: encodeFunctionData({
         abi: V1_CONTROLLER_ABI,
         functionName: 'register',
@@ -353,9 +408,9 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
     })
 
     // ── 5. Reserve in V2 BEFORE any time advancement ───────────────
-    // The reservation must be created while v1Expiry is still in the future
-    // so the V2 slot gets the correct active expiry.
-    await reserveInV2(uniqueLabel, v1Expiry)
+    // Production pre-migration reserves through the V1 expiry plus the 62-day
+    // migration bonus window. Readiness rejects a stale, shorter reservation.
+    await reserveInV2(uniqueLabel, v1Expiry + PREMIGRATION_BONUS_PERIOD)
 
     // ── 6. Wrap if requested ────────────────────────────────────────
     const nameType = config.type ?? 'unwrapped'
@@ -417,13 +472,14 @@ async function wrapName(
     const approveTx = await walletClient.sendTransaction({
       account: ownerAccount,
       to: V1_BASE_REGISTRAR,
+      gas: FIXTURE_TRANSACTION_GAS,
       data: encodeFunctionData({
         abi: BASE_REGISTRAR_ABI,
         functionName: 'setApprovalForAll',
         args: [V1_NAME_WRAPPER, true],
       }),
     })
-    await publicClient.waitForTransactionReceipt({ hash: approveTx })
+    await waitForTx(approveTx)
   }
 
   // For locked: always include CANNOT_UNWRAP, then OR in any additional fuses.
@@ -440,13 +496,14 @@ async function wrapName(
   const wrapTx = await walletClient.sendTransaction({
     account: ownerAccount,
     to: V1_NAME_WRAPPER,
+    gas: FIXTURE_TRANSACTION_GAS,
     data: encodeFunctionData({
       abi: NAME_WRAPPER_ABI,
       functionName: 'wrapETH2LD',
       args: [label, ownerAddress, ownerFuses, V1_PUBLIC_RESOLVER],
     }),
   })
-  await publicClient.waitForTransactionReceipt({ hash: wrapTx })
+  await waitForTx(wrapTx)
 
   const isWrapped = await publicClient.readContract({
     address: V1_NAME_WRAPPER,
@@ -477,6 +534,7 @@ async function setV1Records(
     const setResolverTx = await walletClient.sendTransaction({
       account: ownerAccount,
       to: V1_ENS_REGISTRY,
+      gas: FIXTURE_TRANSACTION_GAS,
       data: encodeFunctionData({
         abi: ENS_REGISTRY_ABI,
         functionName: 'setResolver',
@@ -490,6 +548,7 @@ async function setV1Records(
     const tx = await walletClient.sendTransaction({
       account: ownerAccount,
       to: V1_PUBLIC_RESOLVER,
+      gas: FIXTURE_TRANSACTION_GAS,
       data: encodeFunctionData({
         abi: RESOLVER_ABI,
         functionName: 'setText',
@@ -503,6 +562,7 @@ async function setV1Records(
     const tx = await walletClient.sendTransaction({
       account: ownerAccount,
       to: V1_PUBLIC_RESOLVER,
+      gas: FIXTURE_TRANSACTION_GAS,
       data: encodeFunctionData({
         abi: RESOLVER_ABI,
         functionName: 'setAddr',

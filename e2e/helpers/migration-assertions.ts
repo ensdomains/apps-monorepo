@@ -13,7 +13,7 @@ import { publicClient } from './anvil-client.js'
 // ---------------------------------------------------------------------------
 // V2 Contract addresses
 // ---------------------------------------------------------------------------
-const V2_ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address
+const V2_ETH_REGISTRY = '0xd4ebcbbdf463c9c45784603db0ddd499bc44a8b4' as Address
 
 const ETH_REGISTRY_ABI = parseAbi([
   // PermissionedRegistry read functions

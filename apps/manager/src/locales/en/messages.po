@@ -425,6 +425,10 @@ msgstr "Another address registered this name first, so it can no longer be regis
 msgid "Another Registration Is Running"
 msgstr "Another Registration Is Running"
 
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Another tab is already upgrading names for this wallet. Return to that tab to finish the upgrade."
+msgstr "Another tab is already upgrading names for this wallet. Return to that tab to finish the upgrade."
+
 #: src/components/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr "Approve"
@@ -3351,6 +3355,10 @@ msgstr "These subnames can't be preserved yet"
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."
 msgstr "This app needs its notification service worker to receive push messages. Reload the page and try again."
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "This browser can't safely run the upgrade. Open this page in an up-to-date browser and try again."
+msgstr "This browser can't safely run the upgrade. Open this page in an up-to-date browser and try again."
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This browser cannot safely coordinate your mint. Try an up-to-date browser."

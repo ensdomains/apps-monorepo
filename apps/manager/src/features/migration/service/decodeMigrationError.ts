@@ -7,6 +7,8 @@ import { ProfileFetchError } from './fetchV1Profiles'
 
 export type MigrationError =
   | { type: 'generic'; message: string }
+  | { type: 'migration-active' }
+  | { type: 'migration-lock-unavailable' }
   | { type: 'plan-changed' }
   | { type: 'retry-blocked' }
   | { type: 'subregistry-conflict' }
@@ -302,6 +304,12 @@ const matchMigrationRevert = (data: Hex, depth = 0): MigrationError | null => {
 
 export const decodeMigrationError = (err: unknown): MigrationError => {
   if (isUserRejection(err)) return { type: 'user-rejected' }
+  if (hasNamedError(err, 'MigrationExecutionAlreadyActiveError')) {
+    return { type: 'migration-active' }
+  }
+  if (hasNamedError(err, 'MigrationExecutionLockUnavailableError')) {
+    return { type: 'migration-lock-unavailable' }
+  }
 
   if (
     hasNamedError(err, 'MigrationPlanChangedError') ||

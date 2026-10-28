@@ -7,17 +7,21 @@
  * the resolver. Every other bigname request falls through to the next handler,
  * e.g. the shared bigname mock.
  */
-import type { Page, Route } from '@playwright/test'
-import { namehash } from 'viem'
+import type { Page, Request, Route } from '@playwright/test'
+import { labelhash, namehash, parseAbi } from 'viem'
 import type {
   V1AddressRecord,
   V1NameType,
   V1TextRecord,
 } from '../fixtures/makeV1Name.js'
+import { V1_BASE_REGISTRAR } from '../fixtures/makeV1Name.js'
+import { publicClient } from './anvil-client.js'
 
-const V1_PUBLIC_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
+const V1_PUBLIC_RESOLVER = '0x8fade66b79cc9f707ab26799354482eb93a5b7dd'
 const CHAIN_ID = 11155111
-const META = { as_of: {} }
+const BASE_REGISTRAR_ABI = parseAbi([
+  'function nameExpires(uint256 id) view returns (uint256)',
+])
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, POST, OPTIONS',
@@ -123,7 +127,7 @@ function v1Record(n: MockV1Name) {
 }
 
 /** The name's record inventory, as `/v1/resolvers/{c}/{a}/records` serves it. */
-function v1ResolverRecords(n: MockV1Name) {
+function v1ResolverRecords(n: MockV1Name, meta: object) {
   return {
     data: {
       namespace: 'ens',
@@ -140,12 +144,12 @@ function v1ResolverRecords(n: MockV1Name) {
         abi_content_types: [],
       },
     },
-    meta: META,
+    meta,
   }
 }
 
 /** The ENSv1 names page for an `authority=ens_v1` address names request. */
-function v1Listing(url: URL, mockNames: readonly MockV1Name[]) {
+function v1Listing(url: URL, mockNames: readonly MockV1Name[], meta: object) {
   const address = url.pathname
     .match(/^\/v1\/addresses\/([^/]+)\/names$/)?.[1]
     ?.toLowerCase()
@@ -165,7 +169,7 @@ function v1Listing(url: URL, mockNames: readonly MockV1Name[]) {
       total_count: rows.length,
       has_more: false,
     },
-    meta: META,
+    meta,
   }
 }
 
@@ -180,6 +184,75 @@ function nameAtResolver(url: URL, byName: ReadonlyMap<string, MockV1Name>) {
     : undefined
 }
 
+const nameFromPath = (
+  match: RegExpMatchArray | null,
+  byName: ReadonlyMap<string, MockV1Name>,
+): MockV1Name | undefined =>
+  byName.get(decodeURIComponent(match?.[1] ?? '').toLowerCase())
+
+function v1SubnamesResponse(
+  request: Request,
+  url: URL,
+  byName: ReadonlyMap<string, MockV1Name>,
+  meta: object,
+): object | undefined {
+  if (request.method() !== 'GET') return undefined
+  const parent = nameFromPath(
+    url.pathname.match(/^\/v1\/names\/([^/]+)\/subnames$/),
+    byName,
+  )
+  if (!parent) return undefined
+  return {
+    data: [],
+    page: {
+      cursor: null,
+      next_cursor: null,
+      page_size: 0,
+      total_count: 0,
+      has_more: false,
+    },
+    meta,
+  }
+}
+
+function v1NameResponse(
+  request: Request,
+  url: URL,
+  byName: ReadonlyMap<string, MockV1Name>,
+  meta: object,
+): object | undefined {
+  if (request.method() !== 'GET') return undefined
+  const n = nameFromPath(url.pathname.match(/^\/v1\/names\/([^/]+)$/), byName)
+  return n ? { data: v1Record(n), meta } : undefined
+}
+
+function v1LookupResponse(
+  request: Request,
+  url: URL,
+  byName: ReadonlyMap<string, MockV1Name>,
+  meta: object,
+): object | undefined {
+  if (request.method() !== 'POST' || url.pathname !== '/v1/lookup') {
+    return undefined
+  }
+  const inputs: { name?: string }[] = request.postDataJSON()?.inputs ?? []
+  const known = inputs.map((input) =>
+    input.name ? byName.get(input.name.toLowerCase()) : undefined,
+  )
+  if (inputs.length === 0 || known.some((n) => n === undefined)) {
+    return undefined
+  }
+  return {
+    data: inputs.map((input, index) => {
+      const n = known[index]
+      return n
+        ? { input, kind: 'name', status: 'ok', record: v1Record(n) }
+        : { input, kind: 'name', status: 'not_found' }
+    }),
+    meta,
+  }
+}
+
 /**
  * Serve mock ENSv1 names from bigname. Call this BEFORE navigating to pages
  * that read the migration list.
@@ -192,7 +265,33 @@ export async function mockV1Names(
   page: Page,
   mockNames: readonly MockV1Name[],
 ): Promise<{ readonly markMigrated: (bignameMock: BignameMock) => void }> {
-  const byName = new Map(mockNames.map((n) => [n.name.toLowerCase(), n]))
+  const resolvedMockNames = await Promise.all(
+    mockNames.map(async (mockName): Promise<MockV1Name> => {
+      if (mockName.expiryDate !== undefined) return mockName
+      const [label = ''] = mockName.name.split('.')
+      const expiryDate = await publicClient.readContract({
+        address: V1_BASE_REGISTRAR,
+        abi: BASE_REGISTRAR_ABI,
+        functionName: 'nameExpires',
+        args: [BigInt(labelhash(label))],
+      })
+      return { ...mockName, expiryDate: Number(expiryDate) }
+    }),
+  )
+  const byName = new Map(
+    resolvedMockNames.map((n) => [n.name.toLowerCase(), n]),
+  )
+  const block = await publicClient.getBlock()
+  const meta = {
+    as_of: {
+      [CHAIN_ID]: {
+        block_number: Number(block.number),
+        block_hash: block.hash,
+        timestamp: block.timestamp.toString(),
+      },
+    },
+    completeness: 'full',
+  }
   let isMigrated = false
 
   const fulfill = (route: Route, json: unknown) =>
@@ -206,29 +305,17 @@ export async function mockV1Names(
       return route.fulfill({ status: 204, headers: CORS_HEADERS })
     }
 
-    const listing = v1Listing(url, mockNames)
+    const listing = v1Listing(url, resolvedMockNames, meta)
     if (listing) return fulfill(route, listing)
 
     const atResolver = nameAtResolver(url, byName)
-    if (atResolver) return fulfill(route, v1ResolverRecords(atResolver))
+    if (atResolver) return fulfill(route, v1ResolverRecords(atResolver, meta))
 
-    if (request.method() === 'POST' && url.pathname === '/v1/lookup') {
-      const inputs: { name?: string }[] = request.postDataJSON()?.inputs ?? []
-      const known = inputs.map((input) =>
-        input.name ? byName.get(input.name.toLowerCase()) : undefined,
-      )
-      if (inputs.length > 0 && known.every((n) => n !== undefined)) {
-        return fulfill(route, {
-          data: inputs.map((input, index) => {
-            const n = known[index]
-            return n
-              ? { input, kind: 'name', status: 'ok', record: v1Record(n) }
-              : { input, kind: 'name', status: 'not_found' }
-          }),
-          meta: META,
-        })
-      }
-    }
+    const response =
+      v1SubnamesResponse(request, url, byName, meta) ??
+      v1NameResponse(request, url, byName, meta) ??
+      v1LookupResponse(request, url, byName, meta)
+    if (response) return fulfill(route, response)
 
     return route.fallback()
   })
@@ -237,7 +324,7 @@ export async function mockV1Names(
     /** After a migration, the names are ENSv2 names served by the shared mock. */
     markMigrated: (bignameMock) => {
       isMigrated = true
-      for (const n of mockNames) {
+      for (const n of resolvedMockNames) {
         bignameMock.addName({ name: n.name, owner: n.ownerAddress })
       }
     },

@@ -430,6 +430,10 @@ msgstr ""
 msgid "Another Registration Is Running"
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Another tab is already upgrading names for this wallet. Return to that tab to finish the upgrade."
+msgstr ""
+
 #: src/components/HcaFundingConfirmDialog.tsx
 msgid "Approve"
 msgstr ""
@@ -3355,6 +3359,10 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."
+msgstr ""
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "This browser can't safely run the upgrade. Open this page in an up-to-date browser and try again."
 msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts

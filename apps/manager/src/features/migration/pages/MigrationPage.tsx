@@ -113,6 +113,20 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
       return <Trans>Upgrade details: {error.message}</Trans>
+    case 'migration-active':
+      return (
+        <Trans>
+          Another tab is already upgrading names for this wallet. Return to that
+          tab to finish the upgrade.
+        </Trans>
+      )
+    case 'migration-lock-unavailable':
+      return (
+        <Trans>
+          This browser can&apos;t safely run the upgrade. Open this page in an
+          up-to-date browser and try again.
+        </Trans>
+      )
     case 'locked-resolver-record-control':
       return <LockedResolverFailureMessage cause={error.cause} />
     case 'parent-not-upgraded':

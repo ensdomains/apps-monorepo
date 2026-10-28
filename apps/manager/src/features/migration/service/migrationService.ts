@@ -79,6 +79,7 @@ import {
   persistMigrationCompletionCheckpoint,
   verifyAndPersistMigrationCompletionCheckpoint,
 } from './migrationCompletionCheckpoint'
+import { withMigrationExecutionLock } from './migrationExecutionLock'
 import {
   assertLockedMigrationResolversUnchanged,
   assertNoLiveSubregistryOverwrite,
@@ -2044,7 +2045,7 @@ const assertAtomicBatchingAvailable = async (
   })
 }
 
-export const executeMigration = async (params: {
+type ExecuteMigrationParams = {
   readonly plan: MigrationPlan
   readonly submissionGate: MigrationSubmissionGate
   readonly wagmiConfig: WagmiConfig
@@ -2057,7 +2058,11 @@ export const executeMigration = async (params: {
   /** Set on retry to reconcile a receipt whose post-state polling was uncertain. */
   readonly reconcileBeforeSubmit?: boolean
   readonly canRecreateSubnames?: () => boolean
-}): Promise<MigrationResult> => {
+}
+
+const executeMigrationWithLockHeld = async (
+  params: ExecuteMigrationParams,
+): Promise<MigrationResult> => {
   const {
     plan,
     wagmiConfig,
@@ -2243,3 +2248,15 @@ export const executeMigration = async (params: {
     ineligible: [...ineligible],
   }
 }
+
+export const executeMigration = async (
+  params: ExecuteMigrationParams,
+): Promise<MigrationResult> =>
+  withMigrationExecutionLock(
+    {
+      chainId: requireChainId(params.publicClient, 'migration'),
+      owner: params.plan.migrationOwner,
+      hca: params.plan.hcaAddress,
+    },
+    () => executeMigrationWithLockHeld(params),
+  )

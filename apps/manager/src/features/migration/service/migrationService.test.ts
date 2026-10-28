@@ -473,6 +473,15 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.assertSupportedSubnameMigration.mockResolvedValue(undefined)
   vi.stubGlobal('localStorage', new Storage())
+  vi.stubGlobal('navigator', {
+    locks: {
+      request: async <T>(
+        name: string,
+        _options: LockOptions,
+        callback: LockGrantedCallback<T>,
+      ): Promise<T> => callback({ name, mode: 'exclusive' }),
+    },
+  })
 
   let nextTransaction = 0
   mocks.startTransaction.mockImplementation(() => `tx-${nextTransaction++}`)
@@ -581,6 +590,37 @@ beforeEach(() => {
 })
 
 describe('executeMigration HCA orchestration', () => {
+  it('refuses a held cross-tab scope before wallet work or journal mutation', async () => {
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: async <T>(
+          _name: string,
+          _options: LockOptions,
+          callback: LockGrantedCallback<T>,
+        ): Promise<T> => callback(null),
+      },
+    })
+
+    await expect(runExecute()).rejects.toMatchObject({
+      name: 'MigrationExecutionAlreadyActiveError',
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+    expect(
+      loadPendingAtomicMigrationIntents({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      }),
+    ).toEqual([])
+    expect(
+      loadSubmittedAtomicMigrationBatches({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      }),
+    ).toEqual([])
+  })
+
   it('durably retains the full tree while advancing only verified gas-split nodes', async () => {
     const parent = classifiedFor('alice')
     const copy = copyClassifiedFor()
