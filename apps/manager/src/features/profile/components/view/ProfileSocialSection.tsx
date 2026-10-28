@@ -22,7 +22,7 @@ import { getSecondarySocialRecords } from './ProfileView.helpers'
 const socialLabelClassName = `truncate ${profileFieldLabelClassName}`
 const socialValueClassName = `truncate ${profileFieldValueClassName}`
 const socialTrailingIconClassName = profileCardArrowClassName
-const socialCardPaddingClassName = 'p-6 has-[>svg]:px-6'
+const socialCardPaddingClassName = 'p-6'
 
 const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
   const recordDef = getRecordDef(record.key)
