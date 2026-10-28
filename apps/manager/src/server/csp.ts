@@ -113,6 +113,8 @@ const CONNECT_HOSTS = [
 // that load an external script before any nonce-bearing app script runs.
 const SCRIPT_HOSTS = DQA_ORIGIN ? [DQA_ORIGIN] : []
 
+const FRAME_ANCESTORS = 'frame-ancestors https://app.safe.global'
+
 const FRAME_HOSTS = [
   'https://*.walletconnect.com',
   'https://*.walletconnect.org',
@@ -171,7 +173,7 @@ export function buildCsp(nonce: string): string {
     "base-uri 'self'",
     "form-action 'self'",
     'upgrade-insecure-requests',
-    "frame-ancestors 'none'",
+    FRAME_ANCESTORS,
     // POSTHOG_LAUNCH_PAUSE: reporting destination paused; restore with the endpoint and src/start.ts header.
     // 'report-to posthog',
     // `report-uri ${POSTHOG_CSP_REPORT_ENDPOINT}`,
@@ -180,7 +182,7 @@ export function buildCsp(nonce: string): string {
 
 /** Standard security headers applied alongside CSP (portal parity). */
 export const SECURITY_HEADER_VALUES = {
-  'X-Frame-Options': 'DENY',
+  'Content-Security-Policy': `${FRAME_ANCESTORS};`,
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
