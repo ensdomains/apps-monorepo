@@ -1,6 +1,5 @@
 import { isWalletDeclineError } from '@ens-apps/transaction-manager/helpers/wallet-errors.helpers'
 import { logger } from '@ens-apps/utils/logger'
-import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
@@ -8,6 +7,7 @@ import { useAccount, useConfig } from 'wagmi'
 import {
   findPendingRegistrationFor,
   getLeftoverFundsQueryOptions,
+  invalidateAfterWithdrawal,
   type LeftoverFundsStatus,
 } from '@/features/wallet/data/queries/leftoverFunds.query'
 import {
@@ -93,9 +93,7 @@ export const useLeftoverFunds = (): UseLeftoverFundsResult => {
       } finally {
         setIsWithdrawing(false)
         // Both sides moved: the account's balance and the wallet's.
-        void queryClient.invalidateQueries({
-          queryKey: $qk({ $scope: 'wallet' }),
-        })
+        void invalidateAfterWithdrawal(queryClient, hca)
       }
     }, [hca, owner, client, refreshAccount, wagmiConfig, queryClient, t])
 
