@@ -168,7 +168,9 @@ export const readOffchainRecords = async (
   client: Client,
   request: GetRecordsParameters,
 ): Promise<GetRecordsReturnType> => {
-  const resolverAddress = await getEnsResolver(client, { name: request.name })
+  const resolverAddress =
+    request.resolver?.address ??
+    (await getEnsResolver(client, { name: request.name }))
   const calls = getRecordCalls(request)
   const response = await readContract(client, {
     address: resolverAddress,
