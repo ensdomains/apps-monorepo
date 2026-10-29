@@ -83,9 +83,9 @@ const ExistingBalanceLabel = () => {
         </TooltipTrigger>
         <TooltipContent className="max-w-64 text-center">
           <Trans>
-            Your own USDC, moved to your ENS account by a registration you
-            started earlier. It is spent first, so your wallet pays the rest.
-            Nothing extra is charged for it.
+            Your own USDC, left in your ENS account by a payment you started
+            earlier. It is spent first, so your wallet pays the rest. Nothing
+            extra is charged for it.
           </Trans>
         </TooltipContent>
       </Tooltip>

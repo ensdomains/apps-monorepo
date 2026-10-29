@@ -726,7 +726,7 @@ describe('TokenPickerContentBase', () => {
     )
 
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
-      'moved to your ENS account by a registration you started earlier',
+      'left in your ENS account by a payment you started earlier',
     )
   })
   it('shows a single total without an existing balance', () => {

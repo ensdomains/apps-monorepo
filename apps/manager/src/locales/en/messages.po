@@ -4142,8 +4142,8 @@ msgid "Your new profile is ready."
 msgstr "Your new profile is ready."
 
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
-msgid "Your own USDC, moved to your ENS account by a registration you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
-msgstr "Your own USDC, moved to your ENS account by a registration you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
+msgid "Your own USDC, left in your ENS account by a payment you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
+msgstr "Your own USDC, left in your ENS account by a payment you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Your permissions changed. Go back to check the updated estimate."
