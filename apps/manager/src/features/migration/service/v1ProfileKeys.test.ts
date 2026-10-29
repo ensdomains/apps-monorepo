@@ -279,6 +279,71 @@ describe('getV1ProfileKeys', () => {
     expect(lookup).toHaveBeenCalledTimes(2)
   })
 
+  it.each([
+    '0x0000000000000000000000000000000000001234',
+    '0x5FfC014343cd971B7eb70732021E26C35B744cc4',
+  ] as const)(
+    'skips bulk lookup for resolver %s while preserving source inventory and supplemental history',
+    async (resolver) => {
+      chain.id = 1
+      resolverRecords.mockReturnValue(
+        answer({
+          resolver: { chain_id: 1, address: resolver },
+          inventory: inventory({ known_keys: ['text:url'] }),
+        }),
+      )
+      events.mockReturnValue(
+        recordEvents(['interface:0x12345678', 'name'], null),
+      )
+
+      const result = await optimizedRead([{ ...source('alice.eth'), resolver }])
+
+      expect(lookup).not.toHaveBeenCalled()
+      expect(resolverRecords).toHaveBeenCalledWith(
+        1,
+        resolver.toLowerCase(),
+        { name: 'alice.eth', include: ['inventory'], keys: ['contenthash'] },
+        { signal: undefined },
+      )
+      expect(result._unsafeUnwrap()).toEqual([
+        {
+          id: namehash('alice.eth'),
+          texts: ['url'],
+          coinTypes: [],
+          hasContentHash: false,
+          abiContentTypes: [],
+          interfaceIds: ['0x12345678'],
+          hasName: true,
+        },
+      ])
+    },
+  )
+
+  it('only sends compatible source names to a mixed bulk lookup', async () => {
+    const resolver = '0x0000000000000000000000000000000000001234'
+    lookup.mockReturnValue(bulkAnswer(['alice.eth']))
+    resolverRecords.mockReturnValue(
+      answer({ inventory: inventory({ known_keys: ['text:source-only'] }) }),
+    )
+
+    const result = await optimizedRead([
+      source('alice.eth'),
+      { ...source('bob.eth'), resolver },
+    ])
+
+    expect(lookup.mock.calls[0]?.[0].inputs).toEqual([
+      { id: '0', name: 'alice.eth' },
+    ])
+    expect(
+      result._unsafeUnwrap().map(({ id, texts }) => ({ id, texts })),
+    ).toEqual([
+      { id: namehash('alice.eth'), texts: ['url'] },
+      { id: namehash('bob.eth'), texts: ['source-only'] },
+    ])
+    expect(resolverRecords).toHaveBeenCalledTimes(1)
+    expect(events).toHaveBeenCalledTimes(2)
+  })
+
   it('still blocks DNS found in history when a bulk profile is available', async () => {
     lookup.mockReturnValue(bulkAnswer(['alice.eth']))
     resolverRecords.mockReturnValue(answer())

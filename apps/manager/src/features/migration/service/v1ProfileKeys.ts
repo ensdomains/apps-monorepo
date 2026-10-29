@@ -44,7 +44,7 @@ export class GetV1ProfilesError extends TaggedError('GetV1ProfilesError')<{
   cause: BignameError | Error
 }> {}
 
-// One request per name; a few at a time keeps a large wallet from flooding bigname.
+// Bound per-name history and source-inventory fallback reads.
 const CONCURRENT_READS = 8
 const EVENTS_PAGE_SIZE = 200
 const INTERFACE_KEY_PREFIX = 'interface:'
@@ -54,11 +54,9 @@ const INTERFACE_KEY_PREFIX = 'interface:'
  * name without an inventory, or whose ABI types cannot be listed, is left out
  * so callers fail closed.
  */
-export const toV1ProfileKeys = (
+const toV1ProfileKeys = (
   id: string,
   { inventory, records }: NameRecords,
-  interfaceIds: readonly Hex[] = [],
-  hasName = false,
 ): V1ProfileKeys[] => {
   if (!inventory?.abi_content_types) return []
   const keys = [...inventory.known_keys, ...inventory.unset_keys]
@@ -81,8 +79,8 @@ export const toV1ProfileKeys = (
       abiContentTypes: inventory.abi_content_types
         .filter((contentType) => /^\d+$/.test(contentType))
         .map((contentType) => BigInt(contentType)),
-      interfaceIds,
-      ...((hasName || keys.includes('name')) && { hasName: true }),
+      interfaceIds: [],
+      ...(keys.includes('name') && { hasName: true }),
     },
   ]
 }
@@ -242,9 +240,11 @@ export const getV1ProfileKeys = ResultFn(async function* (
       ? [
           ...new Set(
             sources
-              .filter(
-                (source) =>
-                  !isAddressOnlyResolver(source.resolver, envConfig.chain.id),
+              .filter(({ resolver }) =>
+                hasKnownContentHashGetter({
+                  resolver,
+                  chainId: envConfig.chain.id,
+                }),
               )
               .map(({ name }) => name),
           ),
