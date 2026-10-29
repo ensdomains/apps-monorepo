@@ -12,6 +12,13 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+vi.mock('./migrationInventoryIndexer', () => ({
+  getMigrationInventoryIndexer: async ({
+    indexer,
+  }: {
+    readonly indexer: unknown
+  }) => indexer,
+}))
 vi.mock('@ens-apps/migration', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ens-apps/migration')>()),
   getSubnameMigrationImpact: mocks.getSubnameMigrationImpact,
