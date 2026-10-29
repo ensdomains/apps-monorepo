@@ -20,7 +20,7 @@ export interface CreateRafProgressStoreOptions<TContext> {
    * the first frame back carries the whole time away; raise this when
    * `advance` should account for that time.
    */
-  maxDtSeconds?: number
+  readonly maxDtSeconds?: number
 }
 
 const DEFAULT_SNAP = (value: number) => value

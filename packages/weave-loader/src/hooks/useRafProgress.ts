@@ -12,7 +12,7 @@ export interface UseRafProgressOptions<TContext> {
   initial?: number
   snap?: (value: number) => number
   /** See `CreateRafProgressStoreOptions.maxDtSeconds`. Read once, on mount. */
-  maxDtSeconds?: number
+  readonly maxDtSeconds?: number
 }
 
 /**
