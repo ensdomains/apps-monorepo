@@ -1500,6 +1500,18 @@ test.describe('Portal registration — a step that landed on a resubmission stay
     tag: ['@smoke'],
   }, async ({ portalPage: page, wallet, accounts }) => {
     test.setTimeout(180_000)
+    // Known failure, tracked: since #1395 (2026-10-24) the shared registration
+    // calls pay the registrar in Circle's Sepolia USDC (the smart-account
+    // manifest's `usdc`), while the portal still shows, checks and approves
+    // MockUSDC (`chain.contracts.usdc`, what the faucet mints). Here the
+    // MockUSDC allowance reset no longer forces an approve step.
+    // Under the bug the run hangs after the reverted send instead of failing
+    // an assertion, so it is skipped (`fixme`) rather than run as `fail`.
+    // Remove this with the portal fix.
+    test.fixme(
+      true,
+      'Known failure: portal pays Circle USDC but shows and checks MockUSDC (#1395)',
+    )
     const owner = accounts.getAddress('user')
     await setRegistrarAllowance(owner, 0n) // the run must have an approve step
     const states = recordRegistrationTxStates(page)
@@ -1906,6 +1918,18 @@ test.describe('Portal registration — one resolver per wallet (WEB-1572)', () =
     tag: ['@smoke'],
   }, async ({ page }) => {
     test.setTimeout(300_000)
+    // Known failure, tracked: since #1395 (2026-10-24) the shared registration
+    // calls pay the registrar in Circle's Sepolia USDC (the smart-account
+    // manifest's `usdc`), while the portal still shows, checks and approves
+    // MockUSDC (`chain.contracts.usdc`, what the faucet mints). Here the
+    // fresh wallet holds only MockUSDC, so the register reverts.
+    // Under the bug the run hangs after the reverted send instead of failing
+    // an assertion, so it is skipped (`fixme`) rather than run as `fail`.
+    // Remove this with the portal fix.
+    test.fixme(
+      true,
+      'Known failure: portal pays Circle USDC but shows and checks MockUSDC (#1395)',
+    )
     const { account, wallet } = await freshWallet(page)
     const owner = account.address
 

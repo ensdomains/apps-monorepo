@@ -81,6 +81,18 @@ They are cheap: most need one seeded name and no indexer.
 | lets the user opt out of the ETH repoint when the resolver detach is not on offer | `transfer.spec.ts` | #1217 (WEB-1508), see [the test plan](./transfer-eth-addr-strand-web1508-test-plan.md) |
 | offers the handover on by default for an unwrapped 2LD, warning when it is switched off | `transfer.spec.ts` | #1559, see [the test plan](./transfer-manager-handover-1559-test-plan.md) |
 
+## Known failures
+
+These are marked `test.fixme()`, so they are skipped with the reason in the
+report. Under the bug they hang until their timeout rather than fail an
+assertion, which `test.fail()` cannot absorb. Remove the marker in the PR that
+fixes the bug, and check the test passes there.
+
+| Test | Bug |
+|---|---|
+| Try again after a failed approve keeps the commitment that landed on its second send | Since #1395 the portal pays the registrar in Circle's Sepolia USDC but shows, checks and approves MockUSDC, so the test's MockUSDC allowance reset no longer forces an approve step |
+| a resolver already deployed at the wallet’s address (as manager deploys it) is reused | Same bug: the fresh wallet holds only MockUSDC, so the register reverts after the commit and the approval |
+
 ## Adding or removing a test
 
 Tag the test `@smoke` next to its existing tags, and add it to one of the
