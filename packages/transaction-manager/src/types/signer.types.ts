@@ -1,6 +1,7 @@
 import type { RhinestoneAccount, Session } from '@rhinestone/sdk'
 import type { ResultAsync } from 'neverthrow'
 import type { Address, Chain, WalletClient } from 'viem'
+import type { Connector } from 'wagmi'
 
 import type { SessionEnableData, SmartAccountConfig } from './transaction.types'
 
@@ -36,6 +37,8 @@ export interface EOASigner {
    * can own an HCA; see `getAtomicBatchSupport`.
    */
   readonly walletId?: string
+  /** The wallet's wagmi connector. A Safe{Wallet} one answers with safeTxHashes. */
+  readonly connector?: Connector
 }
 
 /**

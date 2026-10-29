@@ -8,6 +8,7 @@ import { getL2BalancesQueryOptions } from '../../../data/queries/l2Balances.quer
 import { getL2PaymentQuoteQueryOptions } from '../../../data/queries/l2PaymentQuote.query'
 import { getL2QuoteRoute } from '../../../service/l2FundingSource'
 import type { RegistrationV2UiActor } from '../../../state/registrationUi.context'
+import type { FundingSourceOrigin } from '../../../state/registrationUi.machine'
 import {
   getL2PaymentOptions,
   type L2PaymentOption,
@@ -29,7 +30,10 @@ export type L2PaymentProps = Readonly<{
   rows: readonly L2PaymentRow[]
   /** Unset while the wallet row is the choice. */
   selectedChainId: number | undefined
+  /** Who picked `selectedChainId`; unset after a resume, which counts as the user's. */
+  selectedOrigin: FundingSourceOrigin | undefined
   onSelect: (chainId: number) => void
+  onFallbackSelect: (chainId: number) => void
 }>
 
 /** Quoted, and the balance there covers the quote. */
@@ -66,6 +70,7 @@ export const useL2Payment = ({
   isQuoteStale,
   isEnabled,
   fundingSourceChainId,
+  fundingSourceOrigin,
 }: {
   readonly uiActor: RegistrationV2UiActor
   readonly owner: Address | null
@@ -78,6 +83,7 @@ export const useL2Payment = ({
   /** Off on the EOA route, which has no budget to pay towards. */
   readonly isEnabled: boolean
   readonly fundingSourceChainId: number | undefined
+  readonly fundingSourceOrigin: FundingSourceOrigin | undefined
 }): L2PaymentProps | undefined => {
   const amountRaw = getShortfall(budget, isQuoteStale)
   // Statuses keep the previous quote through a re-quote, so rows don't blink out and back.
@@ -135,7 +141,14 @@ export const useL2Payment = ({
     selectedChainId: rows.find(
       ({ option }) => option.source.chain.id === fundingSourceChainId,
     )?.option.source.chain.id,
+    selectedOrigin: fundingSourceOrigin,
     onSelect: (chainId) =>
       uiActor.send({ type: 'pricing.fundingSource.select', chainId }),
+    onFallbackSelect: (chainId) =>
+      uiActor.send({
+        type: 'pricing.fundingSource.select',
+        chainId,
+        origin: 'fallback',
+      }),
   }
 }

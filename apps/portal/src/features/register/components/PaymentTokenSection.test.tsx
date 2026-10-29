@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { ComponentProps } from 'react'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { createTestQueryClient, TEST_ACCOUNTS } from '@/test-utils'
 import { PaymentTokenSection } from './PaymentTokenSection'
 
@@ -87,6 +88,7 @@ vi.mock('wagmi', async (importOriginal) => ({
 }))
 
 let balance = 0n
+let isAllowancePending = false
 vi.mock('wagmi/query', () => ({
   readContractsQueryOptions: (
     _config: unknown,
@@ -94,10 +96,12 @@ vi.mock('wagmi/query', () => ({
   ) => ({
     queryKey: ['readContracts', contracts.map((c) => c.functionName)],
     queryFn: async () =>
-      contracts.map((c) => ({
-        status: 'success',
-        result: c.functionName === 'balanceOf' ? balance : 0n,
-      })),
+      isAllowancePending && contracts[0]?.functionName === 'allowance'
+        ? new Promise(() => {})
+        : contracts.map((c) => ({
+            status: 'success',
+            result: c.functionName === 'balanceOf' ? balance : 0n,
+          })),
   }),
 }))
 
@@ -123,6 +127,7 @@ describe('PaymentTokenSection — price reads', () => {
     stubPicker = false
     getRegisterPrice.mockReset()
     balance = 0n
+    isAllowancePending = false
   })
 
   it('shows an error and disables Register when the price read rejects', async () => {
@@ -152,6 +157,37 @@ describe('PaymentTokenSection — price reads', () => {
       await screen.findByRole('button', { name: /USDC/ }),
     ).toBeInTheDocument()
     expect(screen.queryByText("Couldn't load price")).not.toBeInTheDocument()
+  })
+
+  it('selects USDC without a click when it can pay', async () => {
+    getRegisterPrice.mockResolvedValue(USDC_PRICE)
+    balance = 10_000_000n
+
+    const { onConfirm } = renderSection()
+
+    const register = screen.getByRole('button', { name: 'Register' })
+    await waitFor(() => expect(register).toBeEnabled())
+    expect(screen.getByRole('button', { name: /USDC/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await userEvent.click(register)
+    expect(onConfirm).toHaveBeenCalledWith(
+      SUPPORTED_TOKENS.USDC,
+      USDC_PRICE.base,
+    )
+  })
+
+  it('selects nothing until the allowance is read', async () => {
+    getRegisterPrice.mockResolvedValue(USDC_PRICE)
+    balance = 10_000_000n
+    isAllowancePending = true
+
+    renderSection()
+
+    await waitFor(() => expect(getRegisterPrice).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.getByRole('button', { name: 'Register' })).toBeDisabled()
   })
 
   it('reports insufficient balance against the real price on an empty wallet', async () => {

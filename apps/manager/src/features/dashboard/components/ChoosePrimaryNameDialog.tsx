@@ -241,6 +241,22 @@ const PrimaryNameErrorNotice = ({
   )
 }
 
+const MissingResolvingNamesNotice = ({
+  hasFailed,
+  isLoading,
+}: {
+  readonly hasFailed: boolean
+  readonly isLoading: boolean
+}) =>
+  hasFailed && !isLoading ? (
+    <p className="font-sans text-muted-foreground text-sm">
+      <Trans>
+        Names that point to your wallet couldn’t be loaded, so some may be
+        missing.
+      </Trans>
+    </p>
+  ) : null
+
 const EthAddressUpdateNotice = ({
   id,
   ownerAddress,
@@ -486,6 +502,7 @@ export const ChoosePrimaryNameDialog = ({
     domains,
     isLoading,
     hasForwardAddressError,
+    hasResolvingNamesError,
     isSelectedNameOffered,
     selectedProtocol,
   } = nameList
@@ -775,6 +792,11 @@ export const ChoosePrimaryNameDialog = ({
                   )),
                 )}
             </div>
+
+            <MissingResolvingNamesNotice
+              hasFailed={hasResolvingNamesError}
+              isLoading={isLoading}
+            />
 
             <PrimaryNameListFooter
               disabled={isBusy}
