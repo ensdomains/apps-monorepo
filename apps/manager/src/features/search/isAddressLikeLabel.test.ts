@@ -18,6 +18,12 @@ describe('isAddressLikeLabel', () => {
     ['a Bitcoin P2SH address', '3j98t1wpez73cnmqviecrnyiwrnqrhwnly'],
     ['a Solana address', '9wzdxwbbmkg8ztbnmquxvqrayrzzdsgydlvl9zytawwm'],
     ['another Solana address', '7xkxtg2cw87d97txjsdpbd5jbkhetqa83tzrujosgasu'],
+    [
+      'a Solana address with clustered digits',
+      'so11111111111111111111111111111111111111112',
+    ],
+    ['the Solana system program', '11111111111111111111111111111111'],
+    ['a Solana vanity address', 'abcdefghjkmnp1234567892222333344445555'],
   ])('flags %s', (_case, label) => {
     expect(isAddressLikeLabel(label)).toBe(true)
   })
@@ -28,6 +34,7 @@ describe('isAddressLikeLabel', () => {
     ['a short hex name', '0xdeadbeef'],
     ['a long name ending in a year', 'thebestcoffeeshopinnewyorkcity2024'],
     ['a long all-letter name', 'thisisaverylongnamethatsomeonemightregister'],
+    ['a long base58-shaped name with a year', 'summerroadtrip1999withfriends'],
     [
       'a name starting with bc1 that is not bech32',
       'bc1isthebestnameforbitcoinfans',
