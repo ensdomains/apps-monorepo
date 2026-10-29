@@ -164,6 +164,7 @@ type SelectNamesStepFooterProps = {
   readonly isStarting: boolean
   readonly isFinishingRecovery?: boolean
   readonly isMetaMaskWallet: boolean
+  readonly hasWrapperSyncNames: boolean
   readonly isUpgradeDisabled: boolean
   readonly isWaitingForGasFunding: boolean
   readonly onUpgrade: () => void
@@ -214,6 +215,7 @@ export const SelectNamesStepFooter = ({
   isStarting,
   isFinishingRecovery = false,
   isMetaMaskWallet,
+  hasWrapperSyncNames,
   isUpgradeDisabled,
   isWaitingForGasFunding,
   onUpgrade,
@@ -265,6 +267,7 @@ export const SelectNamesStepFooter = ({
           isMetaMaskWallet,
           totalSelected,
           isFinishingRecovery,
+          hasWrapperSyncNames,
         }) && <SmartTransactionsNotice />}
       </div>
       <div className="relative flex w-full flex-col gap-1 sm:w-auto">

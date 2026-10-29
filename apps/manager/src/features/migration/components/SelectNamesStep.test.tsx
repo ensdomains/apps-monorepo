@@ -597,6 +597,21 @@ describe('SelectNamesStep', () => {
     ).toHaveAttribute('href', expect.stringContaining('support.metamask.io'))
   })
 
+  it('asks MetaMask users to turn off Smart Transactions before a name sync', () => {
+    const stale = eligibleFixture[0]
+    if (!stale) throw new Error('Missing fixture')
+    eligibilityState.wrapperSyncNames = [stale]
+    const { getAllByRole, getByRole } = renderStep({ isMetaMaskWallet: true })
+
+    for (const checkbox of getAllByRole('checkbox'))
+      if (checkbox instanceof HTMLInputElement && checkbox.checked)
+        fireEvent.click(checkbox)
+    for (const checkbox of getAllByRole('checkbox'))
+      expect(checkbox).not.toBeChecked()
+
+    expect(getByRole('note')).toHaveTextContent(/Turn off Smart Transactions/i)
+  })
+
   it('does not mention Smart Transactions to other wallets', () => {
     const { queryByText } = renderStep({ gasEstimate: readyGasEstimate })
 

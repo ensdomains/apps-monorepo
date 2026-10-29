@@ -175,28 +175,39 @@ describe('shouldShowSmartTransactionsNotice', () => {
       isMetaMaskWallet: true,
       totalSelected: 1,
       isFinishingRecovery: false,
+      hasWrapperSyncNames: false,
       expected: true,
     },
     {
       isMetaMaskWallet: true,
       totalSelected: 0,
       isFinishingRecovery: true,
+      hasWrapperSyncNames: false,
       expected: true,
     },
     {
       isMetaMaskWallet: true,
       totalSelected: 0,
       isFinishingRecovery: false,
+      hasWrapperSyncNames: true,
+      expected: true,
+    },
+    {
+      isMetaMaskWallet: true,
+      totalSelected: 0,
+      isFinishingRecovery: false,
+      hasWrapperSyncNames: false,
       expected: false,
     },
     {
       isMetaMaskWallet: false,
       totalSelected: 3,
       isFinishingRecovery: true,
+      hasWrapperSyncNames: true,
       expected: false,
     },
   ])(
-    'is $expected for MetaMask $isMetaMaskWallet, $totalSelected selected, finishing recovery $isFinishingRecovery',
+    'is $expected for MetaMask $isMetaMaskWallet, $totalSelected selected, finishing recovery $isFinishingRecovery, wrapper sync $hasWrapperSyncNames',
     ({ expected, ...input }) => {
       expect(shouldShowSmartTransactionsNotice(input)).toBe(expected)
     },

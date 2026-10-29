@@ -462,6 +462,7 @@ export const SelectNamesStep = ({
         gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
         hasUnselectedEligibleNames={hasUnselectedEligibleNames}
+        hasWrapperSyncNames={wrapperSyncNames.length > 0}
         isEstimatingGas={isEstimatingGas}
         isFinishingRecovery={isFinishingRecovery}
         isMetaMaskWallet={isMetaMaskWallet}
