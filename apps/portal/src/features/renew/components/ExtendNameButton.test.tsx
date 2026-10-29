@@ -35,7 +35,11 @@ vi.mock('@/features/renew/components/ExtendNameModal', () => ({
 }))
 
 /** Mirrors `__root.tsx`: the renewal flow reads the transaction manager's context. */
-const TransactionManagerScope = ({ children }: { children: ReactNode }) => {
+const TransactionManagerScope = ({
+  children,
+}: {
+  readonly children: ReactNode
+}) => {
   const publicClient = usePublicClient()
   if (!publicClient) return <>{children}</>
   return (
@@ -53,7 +57,7 @@ const renderButton = (protocolVersion: ProtocolVersion) => {
       protocolVersion={protocolVersion}
     />,
     {
-      wrapper: ({ children }: { children: ReactNode }) => (
+      wrapper: ({ children }: { readonly children: ReactNode }) => (
         <TestProviders>
           <TransactionManagerScope>{children}</TransactionManagerScope>
         </TestProviders>

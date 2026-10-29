@@ -119,9 +119,11 @@ vi.mock('@/features/history/components/RecentHistoryTimeline', () => ({
 // The button hides itself for names that can't be renewed (useCanExtend) and
 // picks its own label (ExtendNameButton.test.tsx).
 vi.mock('@/features/renew/components/ExtendNameButton', () => ({
-  ExtendNameButton: ({ protocolVersion }: { protocolVersion: string }) => (
-    <div data-testid="renew-button">{protocolVersion}</div>
-  ),
+  ExtendNameButton: ({
+    protocolVersion,
+  }: {
+    readonly protocolVersion: string
+  }) => <div data-testid="renew-button">{protocolVersion}</div>,
 }))
 
 // The row's own V1-vs-V2 behaviour is covered in NameOwnerRow.test.tsx.
