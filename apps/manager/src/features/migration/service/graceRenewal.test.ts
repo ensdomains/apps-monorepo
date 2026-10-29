@@ -41,6 +41,17 @@ const OWNER = '0x1111111111111111111111111111111111111111' as const
 const OTHER = '0x2222222222222222222222222222222222222222' as const
 const APPROVAL_HASH = `0x${'a'.repeat(64)}` as Hex
 const RENEWAL_HASH = `0x${'b'.repeat(64)}` as Hex
+// checkIsSafeWallet reads only `type` and the WalletConnect session's peer.
+const SAFE_CONNECTOR = {
+  type: 'walletConnect',
+  getProvider: async () => ({
+    session: {
+      peer: {
+        metadata: { name: 'Safe{Wallet}', url: 'https://app.safe.global' },
+      },
+    },
+  }),
+} as unknown as Connector
 const DAY = 86_400n
 const NOW = 2_000_000_000n
 
@@ -706,7 +717,7 @@ describe('bulk grace renewal', () => {
     ])
   })
 
-  it('settles a Safe{Wallet} approval and renewal from their executions', async () => {
+  const renewFromSafe = async (renewalExecution: 'Success' | 'Failure') => {
     const s = setup()
     const quote = await s.quote()
     const executed = new Map<Hex, Hex>([
@@ -723,36 +734,37 @@ describe('bulk grace renewal', () => {
     s.getLogs.mockResolvedValue(
       [...executed].map(([transactionHash, safeTxHash]) => ({
         topics: [
-          toEventSelector('ExecutionSuccess(bytes32,uint256)'),
+          toEventSelector(
+            `Execution${safeTxHash === RENEWAL_HASH ? renewalExecution : 'Success'}(bytes32,uint256)`,
+          ),
           safeTxHash,
         ],
         data: zeroHash,
         transactionHash,
       })),
     )
-
     const result = await executeGraceRenewal({
       quote,
       publicClient: s.publicClient,
       walletClient: s.walletClient,
-      connector: {
-        type: 'walletConnect',
-        getProvider: async () => ({
-          session: {
-            peer: {
-              metadata: {
-                name: 'Safe{Wallet}',
-                url: 'https://app.safe.global',
-              },
-            },
-          },
-        }),
-      } as unknown as Connector,
+      connector: SAFE_CONNECTOR,
     })
+    return { quote, result }
+  }
+
+  it('settles a Safe{Wallet} approval and renewal from their executions', async () => {
+    const { result } = await renewFromSafe('Success')
 
     expect(result._unsafeUnwrap()[0]?.registration?.expiryDate).toBe(
       (NOW + 7n * DAY).toString(),
     )
+  })
+
+  it('clears a Safe{Wallet} renewal whose execution failed so it can be retried', async () => {
+    const { quote, result } = await renewFromSafe('Failure')
+
+    expect(result.isErr()).toBe(true)
+    expect(readPendingGraceRenewal(quote)).toBeNull()
   })
 
   it('resumes a known transaction after a timeout without submitting again', async () => {
