@@ -201,19 +201,6 @@ const StepCopy = ({ step }: StepCopyProps) =>
         </p>
       </>
     ))
-    .with({ type: 'cleanup', approvalId: 'base-registrar:hca' }, () => (
-      <>
-        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
-          <Trans>Remove approval for unwrapped names</Trans>
-        </h3>
-        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-          <Trans>
-            Remove the migration contract&apos;s permission over your unwrapped
-            .eth names.
-          </Trans>
-        </p>
-      </>
-    ))
     .with({ type: 'cleanup' }, () => (
       <>
         <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">

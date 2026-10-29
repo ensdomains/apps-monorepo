@@ -2441,10 +2441,6 @@ msgstr "Remove access"
 msgid "Remove access you no longer need. Your wallet will ask you to confirm each change."
 msgstr "Remove access you no longer need. Your wallet will ask you to confirm each change."
 
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Remove approval for unwrapped names"
-msgstr "Remove approval for unwrapped names"
-
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Remove Email Contact Method?"
 msgstr "Remove Email Contact Method?"
@@ -2477,10 +2473,6 @@ msgstr "Remove Telegram Contact Method?"
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Remove temporary access"
 msgstr "Remove temporary access"
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Remove the migration contract's permission over your unwrapped .eth names."
-msgstr "Remove the migration contract's permission over your unwrapped .eth names."
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Remove the temporary permission after the upgrade."
@@ -4200,10 +4192,6 @@ msgstr "Your subnames are unaffected"
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
 msgstr "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Your upgrade used an earlier deployment. Its transaction record is saved, but this version cannot verify its completion proof. Your names will not be submitted again."
-msgstr "Your upgrade used an earlier deployment. Its transaction record is saved, but this version cannot verify its completion proof. Your names will not be submitted again."
 
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx

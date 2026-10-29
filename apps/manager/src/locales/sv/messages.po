@@ -2446,10 +2446,6 @@ msgstr ""
 msgid "Remove access you no longer need. Your wallet will ask you to confirm each change."
 msgstr ""
 
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Remove approval for unwrapped names"
-msgstr ""
-
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Remove Email Contact Method?"
 msgstr ""
@@ -2481,10 +2477,6 @@ msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Remove temporary access"
-msgstr ""
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Remove the migration contract's permission over your unwrapped .eth names."
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -4204,10 +4196,6 @@ msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Your upgrade account doesn't match this wallet. Reconnect the owner wallet."
-msgstr ""
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Your upgrade used an earlier deployment. Its transaction record is saved, but this version cannot verify its completion proof. Your names will not be submitted again."
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx

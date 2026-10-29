@@ -41,9 +41,6 @@ export const prepareGraceRenewalMigration = async (params: {
     hcaAddress: params.hcaAddress,
     domains,
     requiresManagerRestoration: managerRestorationNames.length > 0,
-    registrationApprovalPolicy: params.canBatchAtomically
-      ? 'per-token'
-      : 'temporary-operator',
     wagmiConfig: params.wagmiConfig,
     publicClient: params.publicClient,
     signal: params.signal,

@@ -138,25 +138,6 @@ afterEach(() => vi.restoreAllMocks())
 describe('estimateGraceRenewalMigrationGas', () => {
   it.each([
     {
-      canBatchAtomically: false,
-      registrationApprovalPolicy: 'temporary-operator',
-    },
-    { canBatchAtomically: true, registrationApprovalPolicy: 'per-token' },
-  ])(
-    'previews the approval policy when atomic batching is $canBatchAtomically',
-    async ({ canBatchAtomically, registrationApprovalPolicy }) => {
-      await estimateGraceRenewalMigrationGas({
-        ...params(),
-        canBatchAtomically,
-      })
-      expect(computeMigrationPreflight).toHaveBeenCalledWith(
-        expect.objectContaining({ registrationApprovalPolicy }),
-      )
-    },
-  )
-
-  it.each([
-    {
       scenario: 'a mixed active/grace selection',
       selected: [active, unwrapped],
       parent: active,

@@ -1,9 +1,5 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
 import { invalidateDashboardNames } from '@/features/dashboard/service/queries/getDashboardNames'
-import type { MigrationError } from '../service/decodeMigrationError'
-
-export const canRetryMigration = (errorType?: MigrationError['type']) =>
-  errorType !== 'historical-deployment'
 
 export const isMigrationQueryKey = (key: QueryKey): boolean => {
   const first = key[0]

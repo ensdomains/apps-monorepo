@@ -16,7 +16,7 @@ import { chain } from '@/config'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { makeDomain } from './_fixtures'
 import { buildMigrationPlan } from './buildMigrationPlan'
-import { classifyNames, groupClassifiedNames } from './classifyNames'
+import { classifyNames } from './classifyNames'
 import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { prepareGraceRenewalMigration } from './prepareGraceRenewalMigration'
 import { discoverSubnameRecreation } from './subnameRecreation'
@@ -49,46 +49,6 @@ beforeEach(() => {
 })
 
 describe('prepareGraceRenewalMigration', () => {
-  it.each([
-    {
-      canBatchAtomically: false,
-      registrationApprovalPolicy: 'temporary-operator',
-    },
-    { canBatchAtomically: true, registrationApprovalPolicy: 'per-token' },
-  ])(
-    'retains the approval policy after renewal when atomic batching is $canBatchAtomically',
-    async ({ canBatchAtomically, registrationApprovalPolicy }) => {
-      const domains = [
-        makeDomain({ name: 'alice.eth' }),
-        makeDomain({ name: 'bob.eth' }),
-      ]
-      const classification = classifyNames(domains, ownerAddress, chain.id)
-      vi.mocked(buildMigrationPlan).mockResolvedValue({
-        ...classification,
-        groups: groupClassifiedNames(classification.classified),
-        hcaAddress: ownerAddress,
-        hcaDeploymentRequired: false,
-        migrationOwner: ownerAddress,
-        registryContext: classification.classified,
-        preflight: { skipFetchProfilesPhase: false },
-        ownedPermRes: null,
-        profiles: new Map(),
-        atomicBatches: [],
-        stepDescriptors: [],
-        directRoutes: new Map(),
-      })
-      await prepareGraceRenewalMigration({
-        ...params,
-        domains,
-        renewedDomains: [],
-        canBatchAtomically,
-      })
-      expect(computeMigrationPreflight).toHaveBeenCalledWith(
-        expect.objectContaining({ registrationApprovalPolicy }),
-      )
-    },
-  )
-
   it.each([
     { scenario: 'a mixed active/grace selection', isWrapped: false },
     { scenario: 'a wrapped grace parent', isWrapped: true },

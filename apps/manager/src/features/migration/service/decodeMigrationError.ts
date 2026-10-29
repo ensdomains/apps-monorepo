@@ -9,7 +9,6 @@ export type MigrationError =
   | { type: 'generic'; message: string }
   | { type: 'plan-changed' }
   | { type: 'retry-blocked' }
-  | { type: 'historical-deployment' }
   | { type: 'subregistry-conflict' }
   | { type: 'resolver-not-writable' }
   | { type: 'locked-resolver-record-control'; cause: unknown }
@@ -313,15 +312,11 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
   if (hasNamedError(err, 'MigrationCleanupError')) {
     return { type: 'cleanup-failed' }
   }
-  if (hasNamedError(err, 'MigrationHistoricalDeploymentError')) {
-    return { type: 'historical-deployment' }
-  }
   if (
     [
       'SubmittedAtomicMigrationIndeterminateError',
       'SubmittedAtomicMigrationVerificationError',
       'AtomicMigrationIntentIndeterminateError',
-      'MigrationApprovalIndeterminateError',
       'MigrationSourceOwnershipError',
       'MigrationBatchJournalCorruptError',
       'MigrationBatchJournalUnavailableError',

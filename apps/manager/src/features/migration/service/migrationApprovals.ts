@@ -1,9 +1,11 @@
 import type { Call } from '@ens-apps/transaction-manager'
 import { readContracts, type Config as WagmiConfig } from '@wagmi/core'
+import { match } from 'ts-pattern'
 import {
   type Address,
   encodeFunctionData,
   erc721Abi,
+  type Hex,
   isAddress,
   isAddressEqual,
   type PublicClient,
@@ -13,6 +15,7 @@ import {
   V1_CONTRACTS,
   V2_CONTRACTS,
 } from '@/features/migration/contracts/addresses'
+import type { TemporaryRegistrationApproval } from './migrationBatchJournal'
 
 export type MigrationApprovalNeeds = {
   readonly hasUnwrapped: boolean
@@ -37,18 +40,6 @@ export type MigrationApprovalStatus = {
 export type MigrationRegistrationApprovalStrategy =
   | 'per-token'
   | 'temporary-operator'
-
-export type MigrationRegistrationApprovalPolicy =
-  | 'per-token'
-  | 'temporary-operator'
-
-export type MigrationApprovalReview = {
-  readonly chainId: number
-  readonly owner: Address
-  readonly contractAddress: Address
-  readonly operatorAddress: Address
-  readonly names: readonly string[]
-}
 
 export type MigrationOperatorApprovalId =
   | 'base-registrar:hca'
@@ -85,7 +76,7 @@ export type MigrationApproval =
   | MigrationTokenApproval
 
 export type MigrationCleanupApproval = MigrationOperatorApproval & {
-  readonly id: 'eth-registry:hca' | 'base-registrar:hca'
+  readonly id: 'eth-registry:hca'
 }
 
 export const temporaryMigrationHcaApproval = (
@@ -146,37 +137,10 @@ export const hasTemporaryMigrationHcaApproval = async (params: {
     args: [params.eoa, params.hcaAddress],
   })) === true
 
-export const getMigrationApprovalReview = (params: {
-  readonly chainId: number
-  readonly owner: Address
-  readonly names: readonly string[]
-  readonly approvals: readonly MigrationApproval[]
-}): MigrationApprovalReview | null => {
-  const approval = params.approvals.find(
-    (candidate) =>
-      candidate.kind === 'operator' && candidate.id === 'base-registrar:hca',
-  )
-  return approval
-    ? {
-        chainId: params.chainId,
-        owner: params.owner,
-        contractAddress: approval.contractAddress,
-        operatorAddress: approval.operatorAddress,
-        names: params.names,
-      }
-    : null
-}
-
-export const migrationApprovalReviewKey = (
-  review: MigrationApprovalReview,
-): string =>
-  JSON.stringify({
-    chainId: review.chainId,
-    owner: review.owner.toLowerCase(),
-    contractAddress: review.contractAddress.toLowerCase(),
-    operatorAddress: review.operatorAddress.toLowerCase(),
-    names: [...new Set(review.names.map((name) => name.toLowerCase()))].sort(),
-  })
+export const requiresMigrationApprovalCleanup = (
+  approval: MigrationApproval,
+): approval is MigrationCleanupApproval =>
+  approval.kind === 'operator' && approval.id === 'eth-registry:hca'
 
 /** Build a required migration permission from the trusted deployment data. */
 export const migrationApprovalForId = (params: {
@@ -373,7 +337,6 @@ export const planMigrationApprovals = (params: {
   readonly hcaAddress: Address
   readonly needs: MigrationApprovalNeeds
   readonly status: MigrationApprovalStatus
-  readonly registrationApprovalPolicy?: MigrationRegistrationApprovalPolicy
   /** Preserve the permission surface already reviewed for an interrupted run. */
   readonly registrationApprovalStrategy?: MigrationRegistrationApprovalStrategy
 }): readonly MigrationApproval[] => {
@@ -393,9 +356,7 @@ export const planMigrationApprovals = (params: {
     !status.baseRegistrarHcaApproved &&
     missingTokenIds.length > 0
   const usesTemporaryOperator =
-    params.registrationApprovalStrategy === 'temporary-operator' ||
-    (params.registrationApprovalStrategy === undefined &&
-      params.registrationApprovalPolicy === 'temporary-operator')
+    params.registrationApprovalStrategy === 'temporary-operator'
   const registrationApprovals = usesTemporaryOperator
     ? [migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress })]
     : missingTokenIds.map((tokenId) =>
@@ -418,24 +379,23 @@ export const planMigrationApprovals = (params: {
   ]
 }
 
-export const planMigrationApprovalPreflight = (
-  params: Parameters<typeof planMigrationApprovals>[0],
-): {
-  readonly registrationApprovalStrategy: MigrationRegistrationApprovalStrategy
-  readonly migrationApprovals: readonly MigrationApproval[]
-  readonly migrationCleanupApprovals: readonly MigrationCleanupApproval[]
-} => {
-  const migrationApprovals = planMigrationApprovals(params)
-  return {
-    registrationApprovalStrategy: migrationApprovals.some(
-      ({ id }) => id === 'base-registrar:hca',
-    )
-      ? 'temporary-operator'
-      : 'per-token',
-    migrationApprovals,
-    // Permissions can be reviewed and revoked separately after migration.
-    migrationCleanupApprovals: [],
-  }
+export const prepareMigrationApprovals = (params: {
+  readonly approvals: readonly MigrationApproval[]
+  readonly hcaAddress: Address
+  readonly canBatchAtomically: boolean
+}): readonly MigrationApproval[] => {
+  if (
+    params.canBatchAtomically ||
+    !params.approvals.some(({ kind }) => kind === 'erc721-token')
+  )
+    return params.approvals
+  return [
+    migrationApprovalForId({
+      id: 'base-registrar:hca',
+      hcaAddress: params.hcaAddress,
+    }),
+    ...params.approvals.filter(({ kind }) => kind !== 'erc721-token'),
+  ]
 }
 
 export const buildMigrationApprovalCall = (
@@ -476,4 +436,90 @@ export const buildMigrationOperatorApprovalRevocationCall = (
     }),
     value: 0n,
   }
+}
+
+export const isRegistrationApprovalRecoveryScopeValid = (params: {
+  readonly approval: Pick<
+    TemporaryRegistrationApproval,
+    'contractAddress' | 'operatorAddress'
+  >
+  readonly currentApproval: MigrationApproval
+  readonly names: readonly string[]
+  readonly savedNames: readonly string[]
+}): boolean =>
+  isAddressEqual(
+    params.approval.contractAddress,
+    params.currentApproval.contractAddress,
+  ) &&
+  isAddressEqual(
+    params.approval.operatorAddress,
+    params.currentApproval.operatorAddress,
+  ) &&
+  params.names.length === params.savedNames.length &&
+  params.names.every((name) => params.savedNames.includes(name))
+
+export const isDefinitelyUnsubmittedMigrationApprovalError = (
+  error: unknown,
+): boolean => {
+  let current = error
+  for (
+    let depth = 0;
+    depth < 10 && typeof current === 'object' && current !== null;
+    depth += 1
+  ) {
+    if (
+      ('_tag' in current &&
+        (current._tag === 'ChainIdMismatchError' ||
+          current._tag === 'SignerAddressMismatchError')) ||
+      ('name' in current && current.name === 'ChainMismatchError')
+    )
+      return true
+    current = 'cause' in current ? current.cause : undefined
+  }
+  return false
+}
+
+export const registrationApprovalRecoveryDecision = (params: {
+  readonly status: TemporaryRegistrationApproval['state']['status']
+  readonly isActive: boolean
+  readonly receiptStatus?: 'success' | 'reverted'
+}): 'granted' | 'complete' | 'unresolved' =>
+  match(params.status)
+    .with('granted', () =>
+      params.isActive ? ('granted' as const) : ('complete' as const),
+    )
+    .with('grant-pending', () => {
+      if (params.receiptStatus === undefined) return 'unresolved' as const
+      return params.receiptStatus === 'success' && params.isActive
+        ? ('granted' as const)
+        : ('complete' as const)
+    })
+    .with('revoke-pending', () => {
+      if (!params.isActive) return 'complete' as const
+      return params.receiptStatus === 'reverted'
+        ? ('granted' as const)
+        : ('unresolved' as const)
+    })
+    .exhaustive()
+
+export const isExpectedMigrationApprovalRequest = (params: {
+  readonly request: unknown
+  readonly owner: Address
+  readonly chainId: number
+  readonly contractAddress: Address
+  readonly data: Hex
+}): boolean => {
+  const { request } = params
+  if (typeof request !== 'object' || request === null) return false
+  const fields = request as Record<string, unknown>
+  return (
+    typeof fields.from === 'string' &&
+    fields.from.toLowerCase() === params.owner.toLowerCase() &&
+    typeof fields.to === 'string' &&
+    fields.to.toLowerCase() === params.contractAddress.toLowerCase() &&
+    fields.chainId === params.chainId &&
+    typeof fields.data === 'string' &&
+    fields.data.toLowerCase() === params.data.toLowerCase() &&
+    fields.value === 0n
+  )
 }

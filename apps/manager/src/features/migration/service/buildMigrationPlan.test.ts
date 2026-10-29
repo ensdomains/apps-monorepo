@@ -22,6 +22,7 @@ import { type ClassifiedName, FUSES } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
 import type { Profile } from './fetchV1Profiles'
+import { migrationApprovalForId } from './migrationApprovals'
 import {
   type MigrationRecoverySnapshot,
   persistPendingAtomicMigrationIntent,
@@ -415,6 +416,55 @@ describe('buildMigrationPlan resolver preservation', () => {
 })
 
 describe('buildMigrationPlan gas preview', () => {
+  it.each([false, true])(
+    'uses the executable approval policy in the preview (atomic: %s)',
+    async (canBatchAtomically) => {
+      const tokenApproval = migrationApprovalForId({
+        id: 'base-registrar:hca-token',
+        hcaAddress: HCA,
+        tokenId: 1n,
+      })
+      const plan = await buildMigrationPlan({
+        domains: [makeDomain()],
+        hcaAddress: HCA,
+        migrationOwner: OWNER,
+        publicClient: publicClientWithProfileResults(),
+        canBatchAtomically,
+        preflight: {
+          skipFetchProfilesPhase: true,
+          migrationApprovals: [tokenApproval],
+          hcaReadiness: { status: 'deployment-required', hca: HCA },
+        },
+      })
+      expect(plan.preflight.migrationApprovals).toEqual([
+        canBatchAtomically
+          ? tokenApproval
+          : migrationApprovalForId({
+              id: 'base-registrar:hca',
+              hcaAddress: HCA,
+            }),
+      ])
+      const steps = plan.stepDescriptors.flatMap((step) =>
+        step.type === 'bundle' ? step.steps : [step],
+      )
+      expect(steps.filter(({ type }) => type === 'approval')).toEqual([
+        canBatchAtomically
+          ? {
+              type: 'approval',
+              approvalId: 'base-registrar:hca-token',
+              name: 'alice.eth',
+              tokenId: 1n,
+            }
+          : {
+              type: 'approval',
+              approvalId: 'base-registrar:hca',
+              count: 1,
+              roleGrants: undefined,
+            },
+      ])
+    },
+  )
+
   it('prices the wallet replay from the wallet executions only', async () => {
     await buildMigrationPlan({
       domains: [makeDomain()],
@@ -555,13 +605,7 @@ describe('buildMigrationRecoveryPlan', () => {
       snapshot: {
         ...snapshot,
         registrationApprovalStrategy: 'temporary-operator',
-        registrationApprovalReview: {
-          chainId: 11155111,
-          owner: OWNER,
-          contractAddress: V1_CONTRACTS.BaseRegistrar,
-          operatorAddress: '0x00000000000000000000000000000000000000ee',
-          names: snapshot.registryDomains.map(({ name }) => name),
-        },
+        migrationHelper: '0x00000000000000000000000000000000000000ee',
       },
       hcaAddress: HCA,
       migrationOwner: OWNER,

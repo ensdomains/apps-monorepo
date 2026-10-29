@@ -100,13 +100,6 @@ describe('migration batch journal', () => {
   it('retains temporary registration approval recovery before any migration attempt', () => {
     const domain = makeDomain({ name: 'alice.eth', labelName: 'alice' })
     const operation = { name: domain.name, action: 'migrate' as const }
-    const registrationApprovalReview = {
-      chainId: scope.chainId,
-      owner: scope.owner,
-      contractAddress: scope.hca,
-      operatorAddress: scope.owner,
-      names: [domain.name],
-    }
     const temporaryRegistrationApproval = {
       contractAddress: scope.hca,
       operatorAddress: scope.owner,
@@ -127,13 +120,12 @@ describe('migration batch journal', () => {
       plannedApprovals: [{ id: 'base-registrar:hca' }],
       managerRestorationNames: [],
       registrationApprovalStrategy: 'temporary-operator',
-      registrationApprovalReview,
       temporaryRegistrationApproval,
     })
 
     expect(loadMigrationRecoverySnapshot(scope)).toMatchObject({
+      migrationHelper: scope.owner,
       registrationApprovalStrategy: 'temporary-operator',
-      registrationApprovalReview,
       temporaryRegistrationApproval,
     })
   })
@@ -507,6 +499,17 @@ describe('recovery snapshot manager restoration (WEB-1528)', () => {
   }
 
   beforeEach(() => localStorage.clear())
+
+  it('recovers the helper address from an older approval review', () => {
+    storeRawRecovery(
+      baseRecovery({
+        registrationApprovalReview: { operatorAddress: scope.hca },
+      }),
+    )
+    expect(loadMigrationRecoverySnapshot(scope)?.migrationHelper).toBe(
+      scope.hca,
+    )
+  })
 
   it('restores nobody for a snapshot written before the opt-in existed', () => {
     storeRawRecovery(baseRecovery({}))

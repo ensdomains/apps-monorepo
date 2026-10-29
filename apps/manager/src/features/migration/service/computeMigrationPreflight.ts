@@ -18,9 +18,9 @@ import {
   checkMigrationApprovals,
   type MigrationApproval,
   type MigrationCleanupApproval,
-  type MigrationRegistrationApprovalPolicy,
-  type MigrationRegistrationApprovalStrategy,
-  planMigrationApprovalPreflight,
+  planMigrationApprovals,
+  requiresMigrationApprovalCleanup,
+  temporaryMigrationHcaApproval,
 } from '@/features/migration/service/migrationApprovals'
 import {
   assertNoLiveSubregistryOverwrite,
@@ -40,10 +40,9 @@ import {
 
 export type MigrationPreflight = {
   skipFetchProfilesPhase: boolean
-  readonly registrationApprovalStrategy?: MigrationRegistrationApprovalStrategy
   /** Missing grants only; confirmed operator entries remain available to the HCA. */
   migrationApprovals?: readonly MigrationApproval[]
-  /** Temporary permissions to budget for cleanup, independent of missing grants. */
+  /** HCA permissions to budget for cleanup, independent of missing grants. */
   migrationCleanupApprovals?: readonly MigrationCleanupApproval[]
   /** Deterministic HCA resolver, including deploy/role readiness. */
   hcaResolverReadiness?: MigrationResolverReadiness
@@ -95,9 +94,7 @@ const computeApprovalPreflight = async (params: {
   readonly requiresManagerRestoration: boolean
   readonly requiresRegistryConfiguration: boolean
   readonly wagmiConfig: WagmiConfig
-  readonly registrationApprovalPolicy?: MigrationRegistrationApprovalPolicy
 }): Promise<{
-  readonly registrationApprovalStrategy?: MigrationRegistrationApprovalStrategy
   readonly migrationApprovals?: readonly MigrationApproval[]
   readonly migrationCleanupApprovals?: readonly MigrationCleanupApproval[]
 }> => {
@@ -121,9 +118,8 @@ const computeApprovalPreflight = async (params: {
     },
     wagmiConfig,
   })
-  return planMigrationApprovalPreflight({
+  const migrationApprovals = planMigrationApprovals({
     hcaAddress,
-    registrationApprovalPolicy: params.registrationApprovalPolicy,
     needs: {
       ...needs,
       requiresManagerRestoration,
@@ -131,6 +127,15 @@ const computeApprovalPreflight = async (params: {
     },
     status: hcaApprovalStatus,
   })
+  const migrationCleanupApprovals =
+    hcaApprovalStatus.ethRegistryHcaApproved ||
+    migrationApprovals.some(requiresMigrationApprovalCleanup)
+      ? [temporaryMigrationHcaApproval(hcaAddress)]
+      : []
+  return {
+    migrationApprovals,
+    migrationCleanupApprovals,
+  }
 }
 
 const computeProfilePreflight = async (
@@ -196,7 +201,6 @@ export const computeMigrationPreflight = async (params: {
    */
   requiresManagerRestoration?: boolean
   requiresRegistryConfiguration?: boolean
-  readonly registrationApprovalPolicy?: MigrationRegistrationApprovalPolicy
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
   signal?: AbortSignal
@@ -249,7 +253,6 @@ export const computeMigrationPreflight = async (params: {
       requiresManagerRestoration,
       requiresRegistryConfiguration,
       wagmiConfig,
-      registrationApprovalPolicy: params.registrationApprovalPolicy,
     }),
     computeProfilePreflight(namesToOwnedPermRes, signal),
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),

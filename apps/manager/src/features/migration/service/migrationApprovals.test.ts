@@ -6,14 +6,16 @@ import { OPERATOR_APPROVAL_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import {
   buildMigrationApprovalCall,
-  buildMigrationOperatorApprovalRevocationCall,
   checkMigrationApprovals,
-  getMigrationApprovalReview,
+  isDefinitelyUnsubmittedMigrationApprovalError,
+  isExpectedMigrationApprovalRequest,
+  isRegistrationApprovalRecoveryScopeValid,
   type MigrationApprovalStatus,
   migrationApprovalForId,
-  planMigrationApprovalPreflight,
   planMigrationApprovals,
+  prepareMigrationApprovals,
   readActiveMigrationOperatorApprovals,
+  registrationApprovalRecoveryDecision,
 } from './migrationApprovals'
 
 vi.mock('@wagmi/core', () => ({
@@ -170,98 +172,6 @@ describe('planMigrationApprovals', () => {
     requiresManagerRestoration: false,
   })
 
-  it.each([1, 3])(
-    'plans one bulk grant without required revocation for %i missing approvals',
-    (count) => {
-      const tokenIds = Array.from({ length: count }, (_, index) =>
-        BigInt(index + 1),
-      )
-      const preflight = planMigrationApprovalPreflight({
-        hcaAddress: HCA,
-        needs: needsFor(tokenIds),
-        status: statusFor(tokenIds),
-        registrationApprovalPolicy: 'temporary-operator',
-      })
-      const grant = migrationApprovalForId({
-        id: 'base-registrar:hca',
-        hcaAddress: HCA,
-      })
-      expect(preflight.registrationApprovalStrategy).toBe('temporary-operator')
-      expect(preflight.migrationApprovals).toEqual([grant])
-      expect(preflight.migrationCleanupApprovals).toEqual([])
-    },
-  )
-
-  it('does not replace existing global permission with a new grant in bulk mode', () => {
-    const preflight = planMigrationApprovalPreflight({
-      hcaAddress: HCA,
-      needs: needsFor([1n, 2n, 3n]),
-      status: statusFor([1n, 2n, 3n], { baseRegistrarHcaApproved: true }),
-      registrationApprovalPolicy: 'temporary-operator',
-    })
-    expect(preflight.migrationApprovals).toEqual([])
-    expect(preflight.migrationCleanupApprovals).toEqual([])
-  })
-
-  it.each([false, true])(
-    'reuses selected token approvals in bulk mode (all approved: %s)',
-    (allApproved) => {
-      const tokenIds = [TOKEN_ONE, TOKEN_TWO]
-      const preflight = planMigrationApprovalPreflight({
-        hcaAddress: HCA,
-        needs: needsFor(tokenIds),
-        status: statusFor(tokenIds, {
-          unwrappedTokenApprovals: [
-            { tokenId: TOKEN_ONE, approved: true },
-            { tokenId: TOKEN_TWO, approved: allApproved },
-          ],
-        }),
-        registrationApprovalPolicy: 'temporary-operator',
-      })
-      const expected = allApproved
-        ? []
-        : [
-            migrationApprovalForId({
-              id: 'base-registrar:hca',
-              hcaAddress: HCA,
-            }),
-          ]
-      expect(preflight.migrationApprovals).toEqual(expected)
-      expect(preflight.migrationCleanupApprovals).toEqual([])
-    },
-  )
-
-  it('preserves a reviewed token-scoped strategy when the current policy uses bulk approvals', () => {
-    expect(
-      planMigrationApprovals({
-        hcaAddress: HCA,
-        needs: needsFor([TOKEN_ONE]),
-        status: statusFor([TOKEN_ONE]),
-        registrationApprovalStrategy: 'per-token',
-        registrationApprovalPolicy: 'temporary-operator',
-      }),
-    ).toEqual([
-      migrationApprovalForId({
-        id: 'base-registrar:hca-token',
-        hcaAddress: HCA,
-        tokenId: TOKEN_ONE,
-      }),
-    ])
-  })
-
-  it('keeps the reviewed bulk strategy for the last registration on retry', () => {
-    expect(
-      planMigrationApprovals({
-        hcaAddress: HCA,
-        needs: needsFor([TOKEN_ONE]),
-        status: statusFor([TOKEN_ONE]),
-        registrationApprovalStrategy: 'temporary-operator',
-      }),
-    ).toEqual([
-      migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress: HCA }),
-    ])
-  })
-
   it('uses per-token approval for one missing registration', () => {
     const oneTokenPlan = planMigrationApprovals({
       hcaAddress: HCA,
@@ -348,37 +258,6 @@ describe('planMigrationApprovals', () => {
   })
 })
 
-describe('migration approval review', () => {
-  const required = {
-    chainId: 1,
-    owner: EOA,
-    contractAddress: V1_CONTRACTS.BaseRegistrar,
-    operatorAddress: V2_CONTRACTS.MigrationHelper,
-    names: ['alice.eth', 'bob.eth'],
-  }
-
-  it('requires a review only for a new global registration grant', () => {
-    expect(
-      getMigrationApprovalReview({
-        chainId: 1,
-        owner: EOA,
-        names: required.names,
-        approvals: [
-          migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress: HCA }),
-        ],
-      }),
-    ).toEqual(required)
-    expect(
-      getMigrationApprovalReview({
-        chainId: 1,
-        owner: EOA,
-        names: required.names,
-        approvals: [],
-      }),
-    ).toBeNull()
-  })
-})
-
 describe('approval calldata', () => {
   it('encodes ERC-721 approval for MigrationHelper', () => {
     const approval = migrationApprovalForId({
@@ -406,17 +285,173 @@ describe('approval calldata', () => {
     })
     expect(decoded.args).toEqual([V2_CONTRACTS.MigrationHelper, true])
   })
+})
 
-  it('encodes operator revocation after migration', () => {
-    const approval = migrationApprovalForId({
-      id: 'name-wrapper:hca',
-      hcaAddress: HCA,
-    })
-    if (approval.kind !== 'operator') throw new Error('Expected operator')
-    const decoded = decodeFunctionData({
-      abi: OPERATOR_APPROVAL_ABI,
-      data: buildMigrationOperatorApprovalRevocationCall(approval).data,
-    })
-    expect(decoded.args).toEqual([V2_CONTRACTS.MigrationHelper, false])
+describe('prepareMigrationApprovals', () => {
+  it.each([1, 3])(
+    'uses one bulk grant for %i missing token approvals',
+    (count) => {
+      const approvals = Array.from({ length: count }, (_, index) =>
+        migrationApprovalForId({
+          id: 'base-registrar:hca-token',
+          hcaAddress: HCA,
+          tokenId: BigInt(index + 1),
+        }),
+      )
+      expect(
+        prepareMigrationApprovals({
+          approvals,
+          hcaAddress: HCA,
+          canBatchAtomically: false,
+        }),
+      ).toEqual([
+        migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress: HCA }),
+      ])
+      expect(
+        prepareMigrationApprovals({
+          approvals,
+          hcaAddress: HCA,
+          canBatchAtomically: true,
+        }),
+      ).toEqual(approvals)
+    },
+  )
+  it('leaves existing operator and wrapped approvals unchanged', () => {
+    const approvals = [
+      migrationApprovalForId({ id: 'name-wrapper:hca', hcaAddress: HCA }),
+    ]
+    expect(
+      prepareMigrationApprovals({
+        approvals,
+        hcaAddress: HCA,
+        canBatchAtomically: false,
+      }),
+    ).toEqual(approvals)
   })
+})
+
+describe('isRegistrationApprovalRecoveryScopeValid', () => {
+  const currentApproval = migrationApprovalForId({
+    id: 'base-registrar:hca',
+    hcaAddress: HCA,
+  })
+  it.each([
+    {
+      savedNames: ['bob.eth', 'alice.eth'],
+      approval: currentApproval,
+      expected: true,
+    },
+    { savedNames: ['alice.eth'], approval: currentApproval, expected: false },
+    {
+      savedNames: ['alice.eth', 'bob.eth'],
+      approval: { ...currentApproval, operatorAddress: OTHER },
+      expected: false,
+    },
+    {
+      savedNames: ['alice.eth', 'bob.eth'],
+      approval: { ...currentApproval, contractAddress: OTHER },
+      expected: false,
+    },
+  ])(
+    'validates the saved grant against the existing migration scope: %o',
+    ({ savedNames, approval, expected }) => {
+      expect(
+        isRegistrationApprovalRecoveryScopeValid({
+          approval,
+          currentApproval,
+          names: ['alice.eth', 'bob.eth'],
+          savedNames,
+        }),
+      ).toBe(expected)
+    },
+  )
+})
+
+describe('isDefinitelyUnsubmittedMigrationApprovalError', () => {
+  it.each([
+    [{ _tag: 'ChainIdMismatchError' }, true],
+    [{ cause: { _tag: 'SignerAddressMismatchError' } }, true],
+    [{ cause: { name: 'ChainMismatchError' } }, true],
+    [
+      { _tag: 'TransactionSubmissionError', cause: new Error('response lost') },
+      false,
+    ],
+    [new Error('network disconnected'), false],
+    [undefined, false],
+  ])(
+    'only releases confirmed pre-submission failures: %o',
+    (error, expected) => {
+      expect(isDefinitelyUnsubmittedMigrationApprovalError(error)).toBe(
+        expected,
+      )
+    },
+  )
+})
+
+describe('registrationApprovalRecoveryDecision', () => {
+  it.each([
+    ['grant-pending', false, undefined, 'unresolved'],
+    ['grant-pending', true, undefined, 'unresolved'],
+    ['grant-pending', false, 'success', 'complete'],
+    ['grant-pending', true, 'success', 'granted'],
+    ['grant-pending', false, 'reverted', 'complete'],
+    ['grant-pending', true, 'reverted', 'complete'],
+    ['granted', false, undefined, 'complete'],
+    ['granted', true, undefined, 'granted'],
+    ['revoke-pending', false, undefined, 'complete'],
+    ['revoke-pending', true, undefined, 'unresolved'],
+    ['revoke-pending', true, 'reverted', 'granted'],
+    ['revoke-pending', true, 'success', 'unresolved'],
+  ] as const)(
+    'resolves %s with permission %s and receipt %s as %s',
+    (status, isActive, receiptStatus, expected) => {
+      expect(
+        registrationApprovalRecoveryDecision({
+          status,
+          isActive,
+          receiptStatus,
+        }),
+      ).toBe(expected)
+    },
+  )
+})
+
+describe('isExpectedMigrationApprovalRequest', () => {
+  const expected = {
+    owner: '0x0000000000000000000000000000000000000001',
+    contractAddress: '0x0000000000000000000000000000000000000002',
+    chainId: 1,
+    data: '0x1234',
+  } as const
+  const request = {
+    from: expected.owner,
+    to: expected.contractAddress,
+    chainId: expected.chainId,
+    data: expected.data,
+    value: 0n,
+  }
+
+  it('accepts the exact account, chain, target, calldata and zero-value request', () => {
+    expect(isExpectedMigrationApprovalRequest({ ...expected, request })).toBe(
+      true,
+    )
+  })
+
+  it.each([
+    { from: expected.contractAddress },
+    { to: expected.owner },
+    { chainId: 11155111 },
+    { data: '0x5678' },
+    { value: 1n },
+  ])(
+    'rejects a recovered request with a different scope or call: %o',
+    (override) => {
+      expect(
+        isExpectedMigrationApprovalRequest({
+          ...expected,
+          request: { ...request, ...override },
+        }),
+      ).toBe(false)
+    },
+  )
 })

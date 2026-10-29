@@ -59,12 +59,15 @@ import {
   buildMigrationApprovalCall,
   buildMigrationOperatorApprovalRevocationCall,
   checkMigrationApprovals,
-  getMigrationApprovalReview,
+  isDefinitelyUnsubmittedMigrationApprovalError,
+  isExpectedMigrationApprovalRequest,
+  isRegistrationApprovalRecoveryScopeValid,
   type MigrationApproval,
-  type MigrationApprovalReview,
-  type MigrationCleanupApproval,
+  type MigrationOperatorApproval,
+  migrationApprovalForId,
   migrationApprovalKey,
   planMigrationApprovals,
+  registrationApprovalRecoveryDecision,
 } from './migrationApprovals'
 import {
   classifyMigrationRecoverySubmission,
@@ -101,12 +104,7 @@ import {
   describeUpgradeOperations,
   nameCount,
 } from './migrationProgressCopy'
-import {
-  isDefinitelyUnsubmittedMigrationApprovalError,
-  isExpectedMigrationApprovalRequest,
-  isRegistrationApprovalRecoveryScopeValid,
-  registrationApprovalRecoveryDecision,
-} from './registrationApprovalRecovery'
+
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
 import {
   assertSubnameRecreationUnchanged,
@@ -349,9 +347,8 @@ const recoverySnapshotFor = (
   }
   return {
     registrationApprovalStrategy: plan.registrationApprovalStrategy,
-    registrationApprovalReview:
-      existingSnapshot?.registrationApprovalReview ??
-      plan.registrationApprovalReview,
+    migrationHelper:
+      existingSnapshot?.migrationHelper ?? V2_CONTRACTS.MigrationHelper,
     temporaryRegistrationApproval: existingSnapshot
       ? existingSnapshot.temporaryRegistrationApproval
       : plan.temporaryRegistrationApproval,
@@ -613,7 +610,7 @@ const approvalDescription = (approval: MigrationApproval): string => {
 
 const registrationOperatorApproval = (
   approval: TemporaryRegistrationApproval,
-): MigrationCleanupApproval => ({
+): MigrationOperatorApproval => ({
   kind: 'operator',
   id: 'base-registrar:hca',
   contractAddress: approval.contractAddress,
@@ -642,23 +639,23 @@ const assertTemporaryRegistrationRecoveryScope = (
   const recovery = loadMigrationRecoverySnapshot(batchJournalScope(ctx))
   const temporary = recovery?.temporaryRegistrationApproval
   if (!temporary) return
-  const required = getMigrationApprovalReview({
-    chainId: requireChainId(ctx.publicClient, 'migration'),
-    owner: ctx.walletAddress,
-    names: plan.registryContext.map(({ domain }) => domain.name),
-    approvals: [registrationOperatorApproval(temporary)],
-  })
   if (
     isRegistrationApprovalRecoveryScopeValid({
-      strategy: plan.registrationApprovalStrategy,
-      required,
-      reviewed: recovery.registrationApprovalReview,
+      approval: temporary,
+      currentApproval: plan.requiresFreshDeploymentPreview
+        ? registrationOperatorApproval(temporary)
+        : migrationApprovalForId({
+            id: 'base-registrar:hca',
+            hcaAddress: ctx.hcaAddress,
+          }),
+      names: plan.registryContext.map(({ domain }) => domain.name),
+      savedNames: recovery.registryDomains.map(({ name }) => name),
     })
   )
     return
   throw new MigrationPlanChangedError({
     message:
-      'Resume the existing temporary registration permission before starting a different selection.',
+      'Resume the existing registration permission request before starting a different selection.',
     plannedApprovalKeys: [],
     currentApprovalKeys: [],
     plannedCleanupApprovalKeys: sortedApprovalKeys(
@@ -674,7 +671,6 @@ const persistTemporaryRegistrationApproval = (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
   readonly approval: TemporaryRegistrationApproval | undefined
-  readonly review?: MigrationApprovalReview
 }): void => {
   const scope = batchJournalScope(params.ctx)
   const existing = loadMigrationRecoverySnapshot(scope)
@@ -689,8 +685,6 @@ const persistTemporaryRegistrationApproval = (params: {
   const { temporaryRegistrationApproval: _previous, ...rest } = snapshot
   persistMigrationRecoverySnapshot(scope, {
     ...rest,
-    registrationApprovalReview:
-      params.review ?? snapshot.registrationApprovalReview,
     ...(params.approval
       ? { temporaryRegistrationApproval: params.approval }
       : {}),
@@ -1201,13 +1195,6 @@ const ensureMigrationApprovals = async (params: {
         ctx,
         plan,
         approval: temporaryApproval,
-        review:
-          getMigrationApprovalReview({
-            chainId: requireChainId(ctx.publicClient, 'migration'),
-            owner: ctx.walletAddress,
-            names: plan.registryContext.map(({ domain }) => domain.name),
-            approvals: [approval],
-          }) ?? undefined,
       })
     }
     try {
@@ -1299,8 +1286,8 @@ const releaseChangedHelperRecovery = async (params: {
   const initialJournal = loadMigrationBatchJournal(scope)
   const initialSnapshot = initialJournal.recovery
   const previousHelper =
-    initialSnapshot?.registrationApprovalReview?.operatorAddress ??
-    params.plan.registrationApprovalReview?.operatorAddress
+    initialSnapshot?.migrationHelper ??
+    initialSnapshot?.temporaryRegistrationApproval?.operatorAddress
   if (!initialSnapshot || !previousHelper) {
     throw new MigrationApprovalIndeterminateError({
       message: 'The earlier deployment recovery details are unavailable.',
@@ -1326,13 +1313,13 @@ const releaseChangedHelperRecovery = async (params: {
         publicClient: params.ctx.publicClient,
         transactionHash: submission.hash,
         operations: submission.operations,
-        migrationHelper: previousHelper,
+        migrationHelper: submission.migrationHelper ?? previousHelper,
         signal: params.ctx.submissionGate.signal,
       })
       if (status === 'success') {
         persistSubmittedAtomicMigrationBatch(scope, {
           ...submission,
-          migrationHelper: previousHelper,
+          migrationHelper: submission.migrationHelper ?? previousHelper,
         })
         settledSubmissions = [...settledSubmissions, submission]
         continue
@@ -1355,12 +1342,12 @@ const releaseChangedHelperRecovery = async (params: {
     }
     if (!journal.recovery)
       throw new Error('Migration recovery disappeared before the new preview')
-    const {
-      registrationApprovalReview: _previousReview,
-      temporaryRegistrationApproval: _previousApproval,
-      ...recovery
-    } = journal.recovery
-    persistMigrationRecoverySnapshot(scope, recovery)
+    const { temporaryRegistrationApproval: _previousApproval, ...recovery } =
+      journal.recovery
+    persistMigrationRecoverySnapshot(scope, {
+      ...recovery,
+      migrationHelper: V2_CONTRACTS.MigrationHelper,
+    })
   } catch (cause) {
     throw new MigrationApprovalIndeterminateError({
       message:
@@ -2340,10 +2327,6 @@ const assertSubnameRecreationEnabled = (
   }
 }
 
-/**
- * The temporary-access revoke, when the preview budgeted it and it is still
- * active, so it can ride atomically with the final batch.
- */
 const executeRemainingAtomicBatches = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan

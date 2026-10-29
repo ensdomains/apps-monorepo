@@ -57,10 +57,10 @@ import {
 import { resolverFor } from './encodeMigration'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
 import {
-  type MigrationApprovalReview,
   type MigrationCleanupApproval,
   type MigrationRegistrationApprovalStrategy,
   migrationApprovalForId,
+  prepareMigrationApprovals,
 } from './migrationApprovals'
 import {
   loadPendingAtomicMigrationIntents,
@@ -89,7 +89,6 @@ import { getV1ProfileKeys, type V1ProfileKeys } from './v1ProfileKeys'
 
 export type MigrationPlan = {
   readonly registrationApprovalStrategy?: MigrationRegistrationApprovalStrategy
-  readonly registrationApprovalReview?: MigrationApprovalReview
   readonly temporaryRegistrationApproval?: TemporaryRegistrationApproval
   readonly requiresFreshDeploymentPreview?: true
   readonly subnameRecreation?: SubnameRecreationSnapshot
@@ -643,7 +642,11 @@ export const buildMigrationPlan = async (params: {
   })
   signal?.throwIfAborted()
 
-  const approvals = preflight.migrationApprovals ?? []
+  const approvals = prepareMigrationApprovals({
+    approvals: preflight.migrationApprovals ?? [],
+    hcaAddress,
+    canBatchAtomically,
+  })
   const hcaDeploymentRequired =
     preflight.hcaReadiness?.status === 'deployment-required'
   const registrationApprovalTargets = groups.unwrapped.map(({ domain }) => ({
@@ -663,12 +666,20 @@ export const buildMigrationPlan = async (params: {
     hcaDeploymentRequired,
     migrationOwner,
     subnameRecreation: params.subnameRecreation?.snapshot,
-    registrationApprovalStrategy: preflight.registrationApprovalStrategy,
+    registrationApprovalStrategy: approvals.some(
+      ({ id }) => id === 'base-registrar:hca',
+    )
+      ? 'temporary-operator'
+      : 'per-token',
     classified,
     registryContext: classified,
     ineligible,
     groups,
-    preflight,
+    preflight: {
+      ...preflight,
+      migrationApprovals: approvals,
+      migrationCleanupApprovals: [],
+    },
     ownedPermRes,
     profiles,
     directRoutes,
@@ -837,8 +848,8 @@ const hasRegistrationHelperChanged = (params: {
   readonly migrationHelper: Address
 }): boolean => {
   const recordedHelper =
-    params.snapshot.temporaryRegistrationApproval?.operatorAddress ??
-    params.snapshot.registrationApprovalReview?.operatorAddress
+    params.snapshot.migrationHelper ??
+    params.snapshot.temporaryRegistrationApproval?.operatorAddress
   return (
     recordedHelper !== undefined &&
     !isAddressEqual(recordedHelper, params.migrationHelper)
@@ -881,7 +892,6 @@ const buildChangedHelperRecoveryPlan = (params: {
     requiresReconciliation: true,
     canBatchAtomically: false,
     registrationApprovalStrategy: snapshot.registrationApprovalStrategy,
-    registrationApprovalReview: snapshot.registrationApprovalReview,
     temporaryRegistrationApproval: snapshot.temporaryRegistrationApproval,
     requiresFreshDeploymentPreview: true,
   }
@@ -1153,7 +1163,6 @@ export const buildMigrationRecoveryPlan = async (params: {
     groups,
     preflight: {
       skipFetchProfilesPhase: true,
-      registrationApprovalStrategy: snapshot.registrationApprovalStrategy,
       migrationApprovals: plannedApprovals,
       migrationCleanupApprovals,
       hcaResolverReadiness: resolverReadiness,
@@ -1173,7 +1182,6 @@ export const buildMigrationRecoveryPlan = async (params: {
     requiresReconciliation: true,
     canBatchAtomically,
     registrationApprovalStrategy: snapshot.registrationApprovalStrategy,
-    registrationApprovalReview: snapshot.registrationApprovalReview,
     temporaryRegistrationApproval,
   }
 }

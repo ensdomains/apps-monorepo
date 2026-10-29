@@ -8,7 +8,8 @@ import type {
   MigrationOperatorApprovalId,
 } from './migrationApprovals'
 import {
-  planMigrationApprovalPreflight,
+  planMigrationApprovals,
+  prepareMigrationApprovals,
   temporaryMigrationHcaApproval,
 } from './migrationApprovals'
 
@@ -82,9 +83,8 @@ const makePublicClient = (fee: {
 describe('estimateMigrationGasCost', () => {
   it('budgets six requests with revocations left to the permissions page', async () => {
     const tokenIds = Array.from({ length: 79 }, (_, index) => BigInt(index + 1))
-    const approvals = planMigrationApprovalPreflight({
+    const tokenApprovals = planMigrationApprovals({
       hcaAddress: account,
-      registrationApprovalPolicy: 'temporary-operator',
       needs: {
         hasUnwrapped: true,
         unwrappedTokenIds: tokenIds,
@@ -101,10 +101,18 @@ describe('estimateMigrationGasCost', () => {
         ethRegistryHcaApproved: false,
       },
     })
+    const approvals = prepareMigrationApprovals({
+      approvals: tokenApprovals,
+      hcaAddress: account,
+      canBatchAtomically: false,
+    })
     const estimate = await estimateMigrationGasCost({
       plan: makePlan({
         hcaDeploymentRequired: true,
-        preflight: { skipFetchProfilesPhase: true, ...approvals },
+        preflight: {
+          skipFetchProfilesPhase: true,
+          migrationApprovals: approvals,
+        },
         atomicBatches: Array.from({ length: 2 }, () => makeAtomicBatch(100n)),
       }),
       publicClient: makePublicClient({ maxFeePerGas: 1n }),

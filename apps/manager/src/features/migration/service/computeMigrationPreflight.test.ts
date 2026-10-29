@@ -13,7 +13,6 @@ import { ProfileFetchError } from './fetchV1Profiles'
 import {
   checkMigrationApprovals,
   type MigrationApprovalStatus,
-  type MigrationRegistrationApprovalPolicy,
 } from './migrationApprovals'
 import {
   assertNoLiveSubregistryOverwrite,
@@ -81,7 +80,6 @@ const run = (
     hcaAddress?: Address
     hcaApprovals?: MigrationApprovalStatus
     requiresManagerRestoration?: boolean
-    registrationApprovalPolicy?: MigrationRegistrationApprovalPolicy
   } = {},
 ) => {
   if (opts.hcaAddress) {
@@ -101,7 +99,6 @@ const run = (
     eoa: EOA,
     hcaAddress: opts.hcaAddress,
     domains: [makeDomain({ resolverAddress: RESOLVER, ...opts.domain })],
-    registrationApprovalPolicy: opts.registrationApprovalPolicy,
     requiresManagerRestoration: opts.requiresManagerRestoration,
     wagmiConfig: {} as WagmiConfig,
     publicClient: {} as PublicClient,
@@ -122,24 +119,6 @@ beforeEach(() => {
 })
 
 describe('computeMigrationPreflight — HCA approvals', () => {
-  it('includes the bulk grant without required cleanup', async () => {
-    const result = await run({
-      domain: { isWrapped: false },
-      hcaAddress: HCA,
-      registrationApprovalPolicy: 'temporary-operator',
-      hcaApprovals: {
-        ...ALL_HCA_APPROVED,
-        baseRegistrarHcaApproved: false,
-        ethRegistryHcaApproved: false,
-      },
-    })
-    expect(result.registrationApprovalStrategy).toBe('temporary-operator')
-    expect(result.migrationApprovals?.map(({ id }) => id)).toEqual([
-      'base-registrar:hca',
-    ])
-    expect(result.migrationCleanupApprovals).toEqual([])
-  })
-
   it('plans a token approval and manager approval when the owner opted a name in', async () => {
     const result = await run({
       domain: {
@@ -160,7 +139,9 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       'base-registrar:hca-token',
       'eth-registry:hca',
     ])
-    expect(result.migrationCleanupApprovals).toEqual([])
+    expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual([
+      'eth-registry:hca',
+    ])
     expect(checkMigrationApprovalsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         eoa: EOA,
@@ -180,11 +161,13 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     )
   })
 
-  it('reuses an existing HCA approval without planning a revocation', async () => {
+  it('plans cleanup for an existing HCA approval without adding a new grant', async () => {
     const result = await run({ hcaAddress: HCA })
 
     expect(result.migrationApprovals).toEqual([])
-    expect(result.migrationCleanupApprovals).toEqual([])
+    expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual([
+      'eth-registry:hca',
+    ])
   })
 
   it('plans no manager approval for a divergent v1 controller that was not opted in (WEB-1528)', async () => {

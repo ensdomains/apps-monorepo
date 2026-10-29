@@ -52,26 +52,6 @@ beforeEach(() => {
 })
 
 describe('useMigrationPreflight', () => {
-  it('does not reuse token-scoped preflight for a temporary-operator plan', async () => {
-    computeMigrationPreflightMock.mockResolvedValue({
-      skipFetchProfilesPhase: false,
-    })
-    const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
-      wrapper,
-    })
-    const domains = [domain('alice'), domain('bob'), domain('carol')]
-    await result.current.ensure(domains)
-    await result.current.ensure(domains, {
-      registrationApprovalPolicy: 'temporary-operator',
-    })
-    expect(computeMigrationPreflightMock).toHaveBeenCalledTimes(2)
-    expect(computeMigrationPreflightMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        registrationApprovalPolicy: 'temporary-operator',
-      }),
-    )
-  })
-
   it('returns EMPTY_PREFLIGHT without calling computeMigrationPreflight when eoa is undefined', async () => {
     const { result } = renderHook(
       () => useMigrationPreflight({ eoa: undefined }),

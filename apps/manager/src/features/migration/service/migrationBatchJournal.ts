@@ -3,7 +3,6 @@ import { type Address, type Hex, isAddress } from 'viem'
 import type { Profile } from './fetchV1Profiles'
 import type {
   MigrationApprovalId,
-  MigrationApprovalReview,
   MigrationRegistrationApprovalStrategy,
 } from './migrationApprovals'
 import type { SubnameRecreationSnapshot } from './subnameRecreation'
@@ -159,8 +158,8 @@ export const hasUnsettledMigrationRecoveryRequests = (params: {
  * are regenerated from this validated source data and the pinned manifest.
  */
 export type MigrationRecoverySnapshot = {
+  readonly migrationHelper?: Address
   readonly registrationApprovalStrategy?: MigrationRegistrationApprovalStrategy
-  readonly registrationApprovalReview?: MigrationApprovalReview
   readonly temporaryRegistrationApproval?: TemporaryRegistrationApproval
   readonly subnameRecreation?: SubnameRecreationSnapshot
   readonly registryDomains: readonly V1Domain[]
@@ -192,6 +191,7 @@ export type TemporaryRegistrationApproval = {
         readonly transactionId: string
         readonly hash?: Hex
       }
+    // Read older pending revocations; new migrations never create this state.
     | {
         readonly status: 'revoke-pending'
         readonly transactionId: string
@@ -429,35 +429,6 @@ const parseManagerRestorationNames = (value: unknown): string[] | null => {
   return value
 }
 
-const parseApprovalReview = (
-  value: unknown,
-): MigrationApprovalReview | null => {
-  if (
-    !isRecord(value) ||
-    typeof value.chainId !== 'number' ||
-    !Number.isSafeInteger(value.chainId) ||
-    value.chainId <= 0 ||
-    typeof value.owner !== 'string' ||
-    !isAddress(value.owner) ||
-    typeof value.contractAddress !== 'string' ||
-    !isAddress(value.contractAddress) ||
-    typeof value.operatorAddress !== 'string' ||
-    !isAddress(value.operatorAddress) ||
-    !Array.isArray(value.names) ||
-    value.names.length === 0 ||
-    !value.names.every((name): name is string => typeof name === 'string') ||
-    new Set(value.names).size !== value.names.length
-  )
-    return null
-  return {
-    chainId: value.chainId,
-    owner: value.owner,
-    contractAddress: value.contractAddress,
-    operatorAddress: value.operatorAddress,
-    names: value.names,
-  }
-}
-
 const parseTemporaryRegistrationApproval = (
   value: unknown,
 ): NonNullable<
@@ -590,17 +561,20 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
     registrationApprovalStrategy !== 'temporary-operator'
   )
     return null
-  const registrationApprovalReview =
-    value.registrationApprovalReview === undefined
-      ? undefined
-      : parseApprovalReview(value.registrationApprovalReview)
   const temporaryRegistrationApproval =
     value.temporaryRegistrationApproval === undefined
       ? undefined
       : parseTemporaryRegistrationApproval(value.temporaryRegistrationApproval)
+  if (temporaryRegistrationApproval === null) return null
+  const migrationHelper =
+    value.migrationHelper ??
+    temporaryRegistrationApproval?.operatorAddress ??
+    (isRecord(value.registrationApprovalReview)
+      ? value.registrationApprovalReview.operatorAddress
+      : undefined)
   if (
-    registrationApprovalReview === null ||
-    temporaryRegistrationApproval === null
+    migrationHelper !== undefined &&
+    (typeof migrationHelper !== 'string' || !isAddress(migrationHelper))
   )
     return null
   const registryDomains = value.registryDomains.map(parseV1Domain)
@@ -668,12 +642,10 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
     return null
   }
   return {
+    ...(migrationHelper === undefined ? {} : { migrationHelper }),
     ...(registrationApprovalStrategy === undefined
       ? {}
       : { registrationApprovalStrategy }),
-    ...(registrationApprovalReview === undefined
-      ? {}
-      : { registrationApprovalReview }),
     ...(temporaryRegistrationApproval === undefined
       ? {}
       : { temporaryRegistrationApproval }),

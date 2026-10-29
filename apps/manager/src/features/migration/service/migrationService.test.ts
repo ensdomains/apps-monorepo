@@ -408,21 +408,13 @@ const BULK_APPROVAL = {
   contractAddress: V1_CONTRACTS.BaseRegistrar,
   operatorAddress: V2_CONTRACTS.MigrationHelper,
 }
-const BULK_REVIEW = {
-  chainId: 11155111,
-  owner: OWNER,
-  contractAddress: BULK_APPROVAL.contractAddress,
-  operatorAddress: BULK_APPROVAL.operatorAddress,
-  names: ['alice.eth', 'bob.eth', 'carol.eth'],
-}
 const bulkPlan = (): MigrationPlan => ({
   ...planFor(['alice', 'bob', 'carol']),
   registrationApprovalStrategy: 'temporary-operator',
   preflight: {
     skipFetchProfilesPhase: true,
-    registrationApprovalStrategy: 'temporary-operator',
     migrationApprovals: [BULK_APPROVAL],
-    migrationCleanupApprovals: [BULK_APPROVAL],
+    migrationCleanupApprovals: [],
   },
 })
 
@@ -508,7 +500,6 @@ const persistBulkRecovery = (
     plannedApprovals: [{ id: 'base-registrar:hca' }],
     managerRestorationNames: [],
     registrationApprovalStrategy: 'temporary-operator',
-    registrationApprovalReview: BULK_REVIEW,
     ...overrides,
   }
   persistMigrationRecoverySnapshot(
@@ -634,8 +625,6 @@ beforeEach(() => {
   mocks.planMigrationApprovals.mockReturnValue([])
   mocks.getPersistedTransaction.mockResolvedValue(null)
   mocks.getArchivedTransactions.mockResolvedValue([])
-  mocks.verifyMigrationRecoveryTransaction.mockResolvedValue('success')
-  mocks.restoreMigrationCompletionCheckpoint.mockResolvedValue(null)
   mocks.buildMigrationApprovalCall.mockImplementation(
     (approval: MigrationApproval) => ({
       to: approval.contractAddress,
@@ -693,6 +682,8 @@ beforeEach(() => {
       }
     },
   )
+  mocks.verifyMigrationRecoveryTransaction.mockResolvedValue('success')
+  mocks.restoreMigrationCompletionCheckpoint.mockResolvedValue(null)
   mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
     status: 'complete',
     verification: { batchIndex: 0, status: 'confirmed', results: [] },
@@ -764,21 +755,16 @@ describe('executeMigration HCA orchestration', () => {
     },
   )
 
-  it.each([
-    { phase: 'grant', visibility: 'after-retry' },
-    { phase: 'grant', visibility: 'after-confirmation' },
-  ] as const)(
-    'finishes when the $phase transaction becomes visible $visibility',
-    async ({ phase, visibility }) => {
+  it.each(['after-retry', 'after-confirmation'] as const)(
+    'finishes when the grant transaction becomes visible %s',
+    async (visibility) => {
       vi.useFakeTimers()
       try {
         const permission = mockBulkPermissionLifecycle()
-        const delayedHash = hashFor(phase === 'grant' ? 1 : 3)
-        const expectedStatus =
-          phase === 'grant' ? 'grant-pending' : 'revoke-pending'
+        const delayedHash = hashFor(1)
         const expectedSubmission =
           visibility === 'after-retry'
-            ? { nonce: phase === 'grant' ? 0n : 2n, blockNumber: 123n }
+            ? { nonce: 0n, blockNumber: 123n }
             : undefined
         const confirmed = new Set<Hex>()
         let hasMissedTransaction = false
@@ -807,7 +793,7 @@ describe('executeMigration HCA orchestration', () => {
               hca: HCA,
             })?.temporaryRegistrationApproval
             expect(approval?.state).toMatchObject({
-              status: expectedStatus,
+              status: 'grant-pending',
               hash,
             })
             expect(approval?.submission).toEqual(expectedSubmission)
@@ -1087,7 +1073,6 @@ describe('executeMigration HCA orchestration', () => {
           }),
         ).toMatchObject({
           registrationApprovalStrategy: 'temporary-operator',
-          registrationApprovalReview: BULK_REVIEW,
           temporaryRegistrationApproval: {
             contractAddress: BULK_APPROVAL.contractAddress,
             operatorAddress: BULK_APPROVAL.operatorAddress,
@@ -1239,6 +1224,7 @@ describe('executeMigration HCA orchestration', () => {
     'reverted',
     'pending-then-success',
     'success-with-wrong-profile',
+    'success-recorded-helper',
   ] as const)(
     'reconciles a %s earlier-helper migration before requiring fresh consent',
     async (status) => {
@@ -1247,17 +1233,17 @@ describe('executeMigration HCA orchestration', () => {
       const submissionHash = hashFor(10)
       const previousHelper =
         '0x0000000000000000000000000000000000000099' as Address
+      const recordedHelper =
+        status === 'success-recorded-helper'
+          ? ('0x0000000000000000000000000000000000000088' as Address)
+          : previousHelper
       const temporaryRegistrationApproval = {
         contractAddress: BULK_APPROVAL.contractAddress,
         operatorAddress: previousHelper,
         state: { status: 'granted' as const, hash: grantHash },
       }
-      const registrationApprovalReview = {
-        ...BULK_REVIEW,
-        operatorAddress: previousHelper,
-      }
       const recovery = persistBulkRecovery({
-        registrationApprovalReview,
+        migrationHelper: previousHelper,
         temporaryRegistrationApproval,
       })
       permission.transactions.set(grantHash, {
@@ -1272,6 +1258,9 @@ describe('executeMigration HCA orchestration', () => {
         {
           intentId: 'earlier-helper-batch',
           hash: submissionHash,
+          ...(status === 'success-recorded-helper'
+            ? { migrationHelper: recordedHelper }
+            : {}),
           names: ['alice.eth'],
           operations: [{ name: 'alice.eth', action: 'migrate' }],
         },
@@ -1287,13 +1276,10 @@ describe('executeMigration HCA orchestration', () => {
         requiresReconciliation: true,
         requiresFreshDeploymentPreview: true,
         temporaryRegistrationApproval,
-        registrationApprovalReview,
         preflight: {
           skipFetchProfilesPhase: true,
           migrationApprovals: [],
-          migrationCleanupApprovals: [
-            { ...BULK_APPROVAL, operatorAddress: previousHelper },
-          ],
+          migrationCleanupApprovals: [],
         },
       }
 
@@ -1315,9 +1301,7 @@ describe('executeMigration HCA orchestration', () => {
         expect(unresolved.recovery?.remainingOperations).toEqual(
           recovery.remainingOperations,
         )
-        expect(unresolved.recovery?.registrationApprovalReview).toEqual(
-          registrationApprovalReview,
-        )
+        expect(unresolved.recovery?.migrationHelper).toBe(previousHelper)
       }
       await expect(runExecute({ plan })).rejects.toMatchObject({
         name: 'MigrationPlanChangedError',
@@ -1326,7 +1310,7 @@ describe('executeMigration HCA orchestration', () => {
       expect(mocks.verifyMigrationRecoveryTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           transactionHash: submissionHash,
-          migrationHelper: previousHelper,
+          migrationHelper: recordedHelper,
         }),
       )
       const updated = loadMigrationBatchJournal({
@@ -1342,9 +1326,11 @@ describe('executeMigration HCA orchestration', () => {
       ).toEqual(
         status === 'reverted'
           ? []
-          : [{ hash: submissionHash, migrationHelper: previousHelper }],
+          : [{ hash: submissionHash, migrationHelper: recordedHelper }],
       )
-      expect(updated.recovery?.registrationApprovalReview).toBeUndefined()
+      expect(updated.recovery?.migrationHelper).toBe(
+        V2_CONTRACTS.MigrationHelper,
+      )
       expect(updated.recovery?.temporaryRegistrationApproval).toBeUndefined()
       expect(updated.recovery?.profiles).toEqual(recovery.profiles)
       expect(updated.recovery?.completedOperations).toEqual([])
