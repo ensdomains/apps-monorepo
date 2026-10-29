@@ -88,10 +88,14 @@ export const selectPreviewImage = ({
 export const getSourceExpiry = ({
   cacheControl,
   age,
+  expires,
+  date,
   now,
 }: {
   readonly cacheControl: string | null
   readonly age: string | null
+  readonly expires: string | null
+  readonly date: string | null
   readonly now: number
 }) => {
   if (
@@ -103,9 +107,15 @@ export const getSourceExpiry = ({
   const maxAge =
     /(?:^|,)\s*s-maxage\s*=\s*"?(\d+)/i.exec(cacheControl ?? '') ??
     /(?:^|,)\s*max-age\s*=\s*"?(\d+)/i.exec(cacheControl ?? '')
-  const ttl =
-    maxAge?.[1] === undefined ? PREVIEW_TTL_SECONDS : Number(maxAge[1])
-  const sourceAge = Math.max(0, Number(age) || 0)
+  const parsedDate = Date.parse(date ?? '')
+  const sourceDate = Number.isFinite(parsedDate) ? parsedDate : now
+  const expiresAt = Date.parse(expires ?? '')
+  const expiryTtl = Number.isFinite(expiresAt)
+    ? (expiresAt - sourceDate) / 1000
+    : 0
+  const fallbackTtl = expires === null ? PREVIEW_TTL_SECONDS : expiryTtl
+  const ttl = maxAge?.[1] === undefined ? fallbackTtl : Number(maxAge[1])
+  const sourceAge = Math.max(0, Number(age) || 0, (now - sourceDate) / 1000)
   return (
     now + Math.max(0, Math.min(PREVIEW_TTL_SECONDS, ttl - sourceAge)) * 1000
   )

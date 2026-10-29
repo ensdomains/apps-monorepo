@@ -241,6 +241,30 @@ describe('GET /link-preview/image', () => {
     },
   )
 
+  it.each(['HTML', 'image'])(
+    'does not cache a preview with an expired %s response',
+    async (resource) => {
+      const now = Date.now()
+      vi.spyOn(Date, 'now').mockReturnValue(now)
+      const expiredHeaders = {
+        Date: new Date(now - 120_000).toUTCString(),
+        Expires: new Date(now - 60_000).toUTCString(),
+      }
+      upstream.mockImplementation(async (url) =>
+        String(url) === pageUrl
+          ? html(
+              '<meta property="og:image" content="/og.png">',
+              resource === 'HTML' ? expiredHeaders : {},
+            )
+          : image(resource === 'image' ? expiredHeaders : {}),
+      )
+
+      expect((await request()).headers.get('Cache-Control')).toBe('no-store')
+      expect((await request()).status).toBe(200)
+      expect(upstream).toHaveBeenCalledTimes(4)
+    },
+  )
+
   it.each(['image/svg+xml', 'text/html'])(
     'rejects %s image responses',
     async (contentType) => {

@@ -16,9 +16,73 @@ describe('link preview cache policy', () => {
     ['no-store', null, 0],
     ['max-age=60', '90', 0],
   ])('respects upstream %s with Age %s', (cacheControl, age, lifetime) => {
-    expect(getSourceExpiry({ cacheControl, age, now: 1_000_000 })).toBe(
-      1_000_000 + lifetime,
-    )
+    expect(
+      getSourceExpiry({
+        cacheControl,
+        age,
+        expires: null,
+        date: null,
+        now: 1_000_000,
+      }),
+    ).toBe(1_000_000 + lifetime)
+  })
+
+  it.each([
+    {
+      name: 'an already-expired response',
+      headers: {
+        date: 'Thu, 01 Jan 1970 00:14:00 GMT',
+        expires: 'Thu, 01 Jan 1970 00:15:00 GMT',
+      },
+      lifetime: 0,
+    },
+    {
+      name: 'elapsed time since Date without double-counting Age',
+      headers: {
+        date: 'Thu, 01 Jan 1970 00:16:00 GMT',
+        expires: 'Thu, 01 Jan 1970 00:17:00 GMT',
+        age: '40',
+      },
+      lifetime: 20_000,
+    },
+    {
+      name: 'Age exceeding the apparent response age',
+      headers: {
+        date: 'Thu, 01 Jan 1970 00:16:00 GMT',
+        expires: 'Thu, 01 Jan 1970 00:18:00 GMT',
+        age: '90',
+      },
+      lifetime: 30_000,
+    },
+    {
+      name: 'an Expires deadline without Date',
+      headers: { expires: 'Thu, 01 Jan 1970 00:17:00 GMT' },
+      lifetime: 20_000,
+    },
+    {
+      name: 'an invalid Expires deadline',
+      headers: { expires: 'invalid' },
+      lifetime: 0,
+    },
+    {
+      name: 'max-age taking precedence over Expires',
+      headers: {
+        cacheControl: 'max-age=120',
+        age: '30',
+        expires: 'Thu, 01 Jan 1970 00:15:00 GMT',
+      },
+      lifetime: 90_000,
+    },
+  ])('respects $name', ({ headers, lifetime }) => {
+    expect(
+      getSourceExpiry({
+        cacheControl: null,
+        age: null,
+        date: null,
+        now: 1_000_000,
+        ...headers,
+      }),
+    ).toBe(1_000_000 + lifetime)
   })
 
   it('does not extend browser freshness near expiry or serve expired entries stale', () => {

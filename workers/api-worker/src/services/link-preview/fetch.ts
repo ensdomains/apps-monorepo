@@ -39,7 +39,7 @@ const readBody = async ({
 }) => {
   const reader = response.body?.getReader()
   if (!reader) return new ArrayBuffer(0)
-  let chunks: readonly Uint8Array[] = []
+  const chunks: Uint8Array[] = []
   let length = 0
   try {
     if (Number(response.headers.get('Content-Length')) > maxBytes)
@@ -49,9 +49,9 @@ const readBody = async ({
       if (chunk.done) break
       length += chunk.value.byteLength
       if (length > maxBytes) throw new PreviewLimitError('Resource too large')
-      chunks = [...chunks, chunk.value]
+      chunks.push(chunk.value)
     }
-    return await new Blob([...chunks]).arrayBuffer()
+    return await new Blob(chunks).arrayBuffer()
   } finally {
     // Cancellation must not hold a response open when an origin stalls.
     void reader.cancel().catch(() => undefined)
@@ -108,6 +108,8 @@ export const fetchPreviewResource = ResultFn(async function* ({
       getSourceExpiry({
         cacheControl: response.headers.get('Cache-Control'),
         age: response.headers.get('Age'),
+        expires: response.headers.get('Expires'),
+        date: response.headers.get('Date'),
         now: now(),
       }),
     )
