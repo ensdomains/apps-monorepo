@@ -30,8 +30,9 @@ export const profileButtonClassName = 'h-10.5 rounded-sm text-xs uppercase'
 export const barEditActionClassName =
   'h-11 gap-2 rounded-sm px-3.5 font-medium text-sm uppercase leading-none tracking-[1.56px] max-xs:px-2.5 xl:px-3'
 
+// Below 352px the icon no longer fits beside the Renew action, so it drops
 export const barEditActionSymbolClassName =
-  'ms-opsz-20 ms-wght-500 text-sm leading-none'
+  'ms-opsz-20 ms-wght-500 text-sm leading-none max-[22rem]:hidden'
 
 // Trims the label box to the cap height so it centres on the caps, as in Figma
 export const actionLabelClassName =
