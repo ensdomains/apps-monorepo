@@ -1,6 +1,12 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
+import { MSymbol } from '@/components/ui/material-symbol'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import type {
   PaymentReceiptFigures,
@@ -61,6 +67,32 @@ const Row = ({
   </div>
 )
 
+const ExistingBalanceLabel = () => {
+  const { t } = useLingui()
+
+  return (
+    <span className="flex items-center gap-1">
+      <Trans>Existing balance</Trans>
+      <Tooltip>
+        <TooltipTrigger
+          aria-label={t`Where did this come from?`}
+          className="flex items-center text-ens-quartz-350"
+          type="button"
+        >
+          <MSymbol className="ms-opsz-20 ms-wght-400" symbol="info" />
+        </TooltipTrigger>
+        <TooltipContent className="max-w-64 text-center">
+          <Trans>
+            Your own USDC, moved to your ENS account by a registration you
+            started earlier. It is spent first, so your wallet pays the rest.
+            Nothing extra is charged for it.
+          </Trans>
+        </TooltipContent>
+      </Tooltip>
+    </span>
+  )
+}
+
 /** A single total, or total, existing balance and what the user pays when a balance applies. */
 export const PaymentReceipt = ({
   state,
@@ -88,7 +120,7 @@ export const PaymentReceipt = ({
           <Row label={totalLabel}>
             <Amount field="total" isEstimate={isEstimate} state={state} />
           </Row>
-          <Row label={<Trans>Existing balance</Trans>}>
+          <Row label={<ExistingBalanceLabel />}>
             <Amount field="applied" isDeduction state={state} />
           </Row>
           <hr className="border-ens-quartz-100" />
