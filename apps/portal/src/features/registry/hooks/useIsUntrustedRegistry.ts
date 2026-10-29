@@ -52,4 +52,6 @@ export const getIsUntrustedRegistryQueryOptions = (
     queryKey: getIsUntrustedRegistryQueryKey(params),
     queryFn: ({ queryKey: [, queryParams] }) =>
       getIsUntrustedRegistry(queryParams),
+    // An upgrade to a trusted implementation lifts the warning, so each mount reads afresh.
+    staleTime: 0,
   })
