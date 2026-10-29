@@ -15,6 +15,12 @@ export interface CreateRafProgressStoreOptions<TContext> {
   advance: RafProgressAdvance<TContext>
   initial?: number
   snap?: (value: number) => number
+  /**
+   * Longest step handed to `advance`. rAF stops while the tab is hidden, so
+   * the first frame back carries the whole time away; raise this when
+   * `advance` should account for that time.
+   */
+  maxDtSeconds?: number
 }
 
 const DEFAULT_SNAP = (value: number) => value
@@ -24,6 +30,7 @@ export function createRafProgressStore<TContext>({
   advance,
   initial = 0,
   snap = DEFAULT_SNAP,
+  maxDtSeconds = 0.1,
 }: CreateRafProgressStoreOptions<TContext>): RafProgressStore<TContext> {
   let progress = initial
   let trackedGeneration = -1
@@ -41,7 +48,8 @@ export function createRafProgressStore<TContext>({
   const tick = (now: number) => {
     if (listeners.size === 0 || context === undefined) return
 
-    const dt = lastTime > 0 ? Math.min((now - lastTime) / 1000, 0.1) : 0
+    const dt =
+      lastTime > 0 ? Math.min((now - lastTime) / 1000, maxDtSeconds) : 0
     lastTime = now
 
     const next = snap(advance(context, progress, dt))
