@@ -102,10 +102,6 @@ msgid "{count, plural, one {# subname} other {# subnames}}"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "{count, plural, one {Approve # name} other {Approve # names}}"
-msgstr ""
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Copy records for # name} other {Copy records for # names}}"
 msgstr ""
 
@@ -395,6 +391,10 @@ msgid "Allow registry setup"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Allow the migration contract to move all unwrapped .eth names in this wallet, including names you haven't selected."
+msgstr ""
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Allow the renewal contract to use USDC for your renewals."
 msgstr ""
 
@@ -436,6 +436,10 @@ msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve {name}"
+msgstr ""
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "Approve all unwrapped names"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -500,10 +504,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approve USDC on {l2ChainName} if your wallet asks, then sign the payment"
-msgstr ""
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Approve your names"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -1847,6 +1847,10 @@ msgstr ""
 msgid "Names in grace will be renewed before being migrated"
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Names that point to your wallet couldn’t be loaded, so some may be missing."
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Names with deeper subnames, wrapped protections we cannot preserve, an incomplete subname list, or too many subnames for one safe upgrade must stay on ENSv1 for now. If subname copying is unavailable, the parent upgrade is blocked. There is no option to acknowledge the loss and continue. Your names keep working on ENSv1 while you wait."
 msgstr ""
@@ -2050,10 +2054,6 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Notifications worked here before, but the permission ended with your last session. When you re-enable, picking the permanent option keeps them working after you close the browser."
-msgstr ""
-
-#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "One approval covers all the .eth names you selected."
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
@@ -2706,6 +2706,10 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPermissionsPage.tsx
 msgid "Review access granted during ENS name upgrades."
+msgstr ""
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Review and revoke upgrade permissions"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
@@ -3884,6 +3888,10 @@ msgstr ""
 msgid "We couldn't upgrade one of your names. Try again."
 msgstr ""
 
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "We recommend removing upgrade permissions you no longer need."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
 msgid "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."
 msgstr ""
@@ -3939,6 +3947,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "Where did this come from?"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -4130,16 +4142,16 @@ msgstr ""
 msgid "Your names can't be upgraded"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Your names have been upgraded. Confirm the completed transactions and finish any remaining permission cleanup."
-msgstr ""
-
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "Your names, text records, and addresses will be carried over during the upgrade"
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Your new profile is ready."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "Your own USDC, left in your ENS account by a payment you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx

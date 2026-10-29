@@ -1508,6 +1508,22 @@ describe('paying from an L2', () => {
     expect(actor.getSnapshot().context.fundingSourceChainId).toBeUndefined()
   })
 
+  it('remembers whether the user or the fallback picked the L2 row', () => {
+    const actor = startActorInTokens()
+    actor.send({
+      type: 'pricing.fundingSource.select',
+      chainId: baseSepolia.id,
+      origin: 'fallback',
+    })
+    expect(actor.getSnapshot().context.fundingSourceOrigin).toBe('fallback')
+
+    actor.send({
+      type: 'pricing.fundingSource.select',
+      chainId: baseSepolia.id,
+    })
+    expect(actor.getSnapshot().context.fundingSourceOrigin).toBe('user')
+  })
+
   it('hands the registration the L2 it pays from', () => {
     const actor = startActorInTokens()
     actor.send({

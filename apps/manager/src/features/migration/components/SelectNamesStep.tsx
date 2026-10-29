@@ -339,15 +339,6 @@ export const SelectNamesStep = ({
             />
           </h1>
 
-          {isFinishingRecovery && (
-            <p className="max-w-160 text-ens-garnet-900/75 text-sm leading-5 md:text-center">
-              <Trans>
-                Your names have been upgraded. Confirm the completed
-                transactions and finish any remaining permission cleanup.
-              </Trans>
-            </p>
-          )}
-
           {hasNamesNeedingManagerRestoration && !isRecoveryStale && (
             <p className="max-w-160 text-ens-garnet-900/75 text-sm leading-5 md:text-center">
               <Trans>

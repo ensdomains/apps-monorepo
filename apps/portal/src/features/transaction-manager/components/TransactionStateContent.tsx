@@ -1,4 +1,5 @@
 import type { TransactionMachineActor } from '@ens-apps/transaction-manager'
+import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
   ArrowRight,
@@ -8,19 +9,20 @@ import {
   XCircle,
 } from 'lucide-react'
 import { match } from 'ts-pattern'
-import { useChainId } from 'wagmi'
+import { useChainId, useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
+import { getIsSafeWalletQueryOptions } from '@/features/wallet/safe'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
-import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import { useWaitRemaining } from '../hooks/useWaitRemaining'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getButtonTargetTransaction } from '../utils/getButtonTargetTransaction'
 import { getStatus } from '../utils/getStatus'
+import { getStepTxUrl } from '../utils/getStepTxUrl'
 import { getTransactionById } from '../utils/getTransactionById'
 import { shouldShowWaitCountdown } from '../utils/shouldShowWaitCountdown'
 import { NameWrapText } from './NameWrapText'
@@ -45,6 +47,10 @@ export const TransactionStateContent = ({
   setTransactionModalContentState,
 }: TransactionStateContentProps) => {
   const chainId = useChainId()
+  const { connector, address } = useConnection()
+  const { data: isSafeWallet = false } = useQuery(
+    getIsSafeWalletQueryOptions({ connector, address }),
+  )
 
   const activeTransaction = getActiveTransaction(transactions, txState)
   const activeTxStatus = getStatus(activeTransaction.id, activeTransactionsMap)
@@ -96,9 +102,13 @@ export const TransactionStateContent = ({
 
           const txHash = activeTxSnapshot?.context?.hash
 
-          const blockExplorerTxUrl = txHash
-            ? getBlockExplorerTxUrl(wagmiConfig.chains, chainId, txHash)
-            : undefined
+          const blockExplorerTxUrl = getStepTxUrl({
+            chains: wagmiConfig.chains,
+            chainId,
+            hash: txHash,
+            status,
+            isSafeWallet,
+          })
 
           const txError = activeTxSnapshot?.context?.error
 
