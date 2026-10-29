@@ -6,6 +6,7 @@ import type {
   CopyClassifiedName,
   DirectClassifiedName,
 } from './classifyNames'
+import { coalesceLatestBlockReads } from './coalesceLatestBlockReads'
 import {
   DirectMigrationRouteError,
   resolveDirectMigrationRoutes,
@@ -269,7 +270,7 @@ export const resolveMigratableNames = async (params: {
     candidates: direct,
     isSubnameImportEnabled: params.isSubnameImportEnabled,
     owner: params.owner,
-    publicClient: params.publicClient,
+    publicClient: coalesceLatestBlockReads(params.publicClient),
     signal: params.signal,
   })
   const blocked = checked.flatMap((result) =>

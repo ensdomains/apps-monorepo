@@ -4,7 +4,11 @@ import {
   readAllEnvelopes,
   type Subname,
 } from '@ens-apps/indexer/bigname'
-import { readSubnameMigrationImpact, type V1Domain } from '@ens-apps/migration'
+import {
+  readSubnameMigrationImpact,
+  type SubnameMigrationImpact,
+  type V1Domain,
+} from '@ens-apps/migration'
 import {
   registryOwnerSnippet,
   registryResolverSnippet,
@@ -641,7 +645,7 @@ export const assertSupportedSubnameMigration = async (params: {
   readonly publicClient: PublicClient
   readonly classified: readonly ClassifiedName[]
   readonly signal?: AbortSignal
-}): Promise<void> => {
+}): Promise<SubnameMigrationImpact> => {
   const unreviewed = params.classified.find(
     (name) => name.action === 'copy' && !name.recreationRoot,
   )
@@ -666,4 +670,5 @@ export const assertSupportedSubnameMigration = async (params: {
       impact.parents[0]?.name ?? 'selection',
       'this upgrade would leave dependent subnames behind. Deeper trees and unsupported wrapped permissions must stay on ENSv1 for now.',
     )
+  return impact
 }
