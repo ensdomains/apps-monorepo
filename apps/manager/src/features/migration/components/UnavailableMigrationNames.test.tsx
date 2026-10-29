@@ -27,7 +27,7 @@ describe('UnavailableMigrationNames', () => {
       'banner.eth: it has no ENSv2 reservation.',
     )
     expect(screen.getByText('bare.eth').parentElement).toHaveTextContent(
-      'bare.eth: no ENSv1 registration was found for it.',
+      "bare.eth: its registration couldn't be read. Try again later.",
     )
     expect(screen.getByText('left.done.eth').parentElement).toHaveTextContent(
       'left.done.eth: its parent name, or one above it, was upgraded without it.',
