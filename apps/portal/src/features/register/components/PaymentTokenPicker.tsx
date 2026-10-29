@@ -66,6 +66,16 @@ const getTokenData = (
       )
     : []
 
+/**
+ * Nothing is selected until every read is in, or behind a failed price: a
+ * missing allowance would read as zero and a stale token could be confirmed.
+ */
+const getSelectablePrices = (
+  prices: readonly TokenPrice[] | null,
+  isReading: boolean,
+  isPriceFailed: boolean,
+) => (isReading || isPriceFailed ? null : prices)
+
 const selectionKey = (token: TokenWithPriceAndBalance | null) =>
   token && `${token.address}:${token.price.total}:${token.allowance}`
 
@@ -178,9 +188,10 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
     !isPriceLoading &&
     (!resolvedPrices || priceQueries.some((query) => query.isError))
 
-  // Nothing is selected behind a failed price, so a stale token can't be confirmed.
+  const isReading =
+    balancesQuery.isLoading || allowancesQuery.isLoading || isPriceLoading
   const tokenData = getTokenData(
-    isPriceFailed ? null : resolvedPrices,
+    getSelectablePrices(resolvedPrices, isReading, isPriceFailed),
     balancesQuery.data,
     allowancesQuery.data,
   )
@@ -191,7 +202,7 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
     onSelectionChange,
   )
 
-  if (balancesQuery.isLoading || allowancesQuery.isLoading || isPriceLoading) {
+  if (isReading) {
     return <Skeleton />
   }
 

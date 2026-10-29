@@ -176,9 +176,11 @@ export const MultiNamePaymentTokenPicker = ({
     (q) => q.data && isPriceResult(q.data),
   )
 
-  const selectedToken = pricesResolved
-    ? getSelectedPaymentToken(tokenData, chosenToken)
-    : null
+  // A missing allowance would read as zero, so nothing is selected until every read is in.
+  const selectedToken =
+    pricesResolved && !isLoading
+      ? getSelectedPaymentToken(tokenData, chosenToken)
+      : null
   const selectedIndex = PAYMENT_TOKENS.findIndex(
     (token) => token.address === selectedToken?.address,
   )
