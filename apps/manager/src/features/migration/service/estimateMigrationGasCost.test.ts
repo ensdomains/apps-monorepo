@@ -80,7 +80,7 @@ const makePublicClient = (fee: {
   }) as unknown as PublicClient
 
 describe('estimateMigrationGasCost', () => {
-  it('budgets eight requests including both revocations for the large mixed selection', async () => {
+  it('budgets six requests with revocations left to the permissions page', async () => {
     const tokenIds = Array.from({ length: 79 }, (_, index) => BigInt(index + 1))
     const approvals = planMigrationApprovalPreflight({
       hcaAddress: account,
@@ -111,9 +111,9 @@ describe('estimateMigrationGasCost', () => {
     })
     expect(estimate).toEqual({
       status: 'ready',
-      transactionCount: 8,
-      gasUnits: 725_200n,
-      feeWei: 725_200n,
+      transactionCount: 6,
+      gasUnits: 615_200n,
+      feeWei: 615_200n,
       feePerGasWei: 1n,
     })
   })
@@ -174,7 +174,7 @@ describe('estimateMigrationGasCost', () => {
     expect(estimate.transactionCount).toBe(2)
   })
 
-  it('budgets both manager restoration grant and cleanup', async () => {
+  it('budgets the manager restoration grant without required cleanup', async () => {
     const publicClient = makePublicClient({ maxFeePerGas: 2n })
     const basePlan = makePlan({ atomicBatches: [makeAtomicBatch(100n)] })
     const managerPlan = makePlan({
@@ -200,7 +200,7 @@ describe('estimateMigrationGasCost', () => {
     if (base.status !== 'ready' || manager.status !== 'ready') {
       throw new Error('expected ready estimates')
     }
-    expect(manager.transactionCount - base.transactionCount).toBe(2)
+    expect(manager.transactionCount - base.transactionCount).toBe(1)
   })
 
   it('every additional atomic batch adds one confirmation', async () => {

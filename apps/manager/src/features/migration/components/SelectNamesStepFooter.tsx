@@ -145,8 +145,7 @@ const UpgradeButtonLabel = ({
   if (hasInsufficientUsdc) return <Trans>Insufficient USDC</Trans>
   if (isEstimatingGas) return <Trans>Estimating...</Trans>
   if (isWaitingForGasFunding) return <Trans>Preparing wallet...</Trans>
-  if (recoveryAction === 'remove-earlier-permission')
-    return <Trans>Continue</Trans>
+  if (recoveryAction === 'review-deployment') return <Trans>Continue</Trans>
   if (recoveryAction === 'finish-upgrade') return <Trans>Finish upgrade</Trans>
   return (
     <Plural

@@ -7,9 +7,7 @@ const NAME_SEARCH_THRESHOLD = 9
 const SMALL_SELECTION_LAYOUT_THRESHOLD = 6
 const COMPACT_SELECTION_LAYOUT_THRESHOLD = 10
 
-export type MigrationRecoveryAction =
-  | 'finish-upgrade'
-  | 'remove-earlier-permission'
+export type MigrationRecoveryAction = 'finish-upgrade' | 'review-deployment'
 
 export const getMigrationRecoveryAction = ({
   isRecovery,
@@ -18,12 +16,12 @@ export const getMigrationRecoveryAction = ({
   readonly isRecovery: boolean
   readonly plan: Pick<
     MigrationPlan,
-    'classified' | 'requiresFreshPreviewAfterCleanup'
+    'classified' | 'requiresFreshDeploymentPreview'
   > | null
 }): MigrationRecoveryAction | null => {
   if (!isRecovery || !plan || plan.classified.length > 0) return null
-  return plan.requiresFreshPreviewAfterCleanup
-    ? 'remove-earlier-permission'
+  return plan.requiresFreshDeploymentPreview
+    ? 'review-deployment'
     : 'finish-upgrade'
 }
 

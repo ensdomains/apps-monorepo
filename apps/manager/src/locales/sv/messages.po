@@ -2717,6 +2717,10 @@ msgstr ""
 msgid "Review access granted during ENS name upgrades."
 msgstr ""
 
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Review and revoke upgrade permissions"
+msgstr ""
+
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
 msgid "Review custom records, content hash and contract ABI. Empty values remove a record."
 msgstr ""
@@ -3891,6 +3895,10 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "We couldn't upgrade one of your names. Try again."
+msgstr ""
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "We recommend removing upgrade permissions you no longer need."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx

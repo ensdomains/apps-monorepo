@@ -122,7 +122,7 @@ beforeEach(() => {
 })
 
 describe('computeMigrationPreflight — HCA approvals', () => {
-  it('includes the bulk grant and cleanup from the approval planner', async () => {
+  it('includes the bulk grant without required cleanup', async () => {
     const result = await run({
       domain: { isWrapped: false },
       hcaAddress: HCA,
@@ -137,9 +137,7 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     expect(result.migrationApprovals?.map(({ id }) => id)).toEqual([
       'base-registrar:hca',
     ])
-    expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual([
-      'base-registrar:hca',
-    ])
+    expect(result.migrationCleanupApprovals).toEqual([])
   })
 
   it('plans a token approval and manager approval when the owner opted a name in', async () => {
@@ -162,9 +160,7 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       'base-registrar:hca-token',
       'eth-registry:hca',
     ])
-    expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual([
-      'eth-registry:hca',
-    ])
+    expect(result.migrationCleanupApprovals).toEqual([])
     expect(checkMigrationApprovalsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         eoa: EOA,
@@ -184,13 +180,11 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     )
   })
 
-  it('plans cleanup for an existing HCA approval without adding a new grant', async () => {
+  it('reuses an existing HCA approval without planning a revocation', async () => {
     const result = await run({ hcaAddress: HCA })
 
     expect(result.migrationApprovals).toEqual([])
-    expect(result.migrationCleanupApprovals?.map(({ id }) => id)).toEqual([
-      'eth-registry:hca',
-    ])
+    expect(result.migrationCleanupApprovals).toEqual([])
   })
 
   it('plans no manager approval for a divergent v1 controller that was not opted in (WEB-1528)', async () => {

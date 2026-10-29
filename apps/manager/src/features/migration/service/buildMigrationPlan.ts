@@ -57,14 +57,10 @@ import {
 import { resolverFor } from './encodeMigration'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
 import {
-  hasTemporaryMigrationHcaApproval,
-  type MigrationApproval,
   type MigrationApprovalReview,
   type MigrationCleanupApproval,
   type MigrationRegistrationApprovalStrategy,
   migrationApprovalForId,
-  requiresMigrationApprovalCleanup,
-  temporaryMigrationHcaApproval,
 } from './migrationApprovals'
 import {
   loadPendingAtomicMigrationIntents,
@@ -95,9 +91,9 @@ export type MigrationPlan = {
   readonly registrationApprovalStrategy?: MigrationRegistrationApprovalStrategy
   readonly registrationApprovalReview?: MigrationApprovalReview
   readonly temporaryRegistrationApproval?: TemporaryRegistrationApproval
-  readonly requiresFreshPreviewAfterCleanup?: true
+  readonly requiresFreshDeploymentPreview?: true
   readonly subnameRecreation?: SubnameRecreationSnapshot
-  /** Recovery may reconcile receipts and clean up even while rollout is off. */
+  /** Recovery may reconcile receipts even while rollout is off. */
   readonly isSubnameRecreationEnabled?: boolean
   readonly hcaAddress: Address
   readonly hcaDeploymentRequired: boolean
@@ -657,7 +653,6 @@ export const buildMigrationPlan = async (params: {
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired,
     approvals,
-    cleanupApprovals: preflight.migrationCleanupApprovals,
     atomicBatches: atomicPlan.batches,
     registrationApprovalTargets,
     canBatchAtomically,
@@ -822,24 +817,18 @@ export const classifyMigrationRecoverySnapshot = (params: {
   return { registryContext, classified }
 }
 
-const getRegistrationRecoveryCleanup = (params: {
+const assertRegistrationRecoveryRegistrar = (params: {
   readonly snapshot: MigrationRecoverySnapshot
   readonly baseRegistrar: Address
-}): MigrationCleanupApproval | undefined => {
+}): void => {
   const approval = params.snapshot.temporaryRegistrationApproval
-  if (!approval) return undefined
+  if (!approval) return
   if (!isAddressEqual(approval.contractAddress, params.baseRegistrar)) {
     throw new MigrationRecoveryPlanError({
       message:
         'The saved registration permission does not target the trusted registrar.',
       reason: 'approval-mismatch',
     })
-  }
-  return {
-    kind: 'operator',
-    id: 'base-registrar:hca',
-    contractAddress: approval.contractAddress,
-    operatorAddress: approval.operatorAddress,
   }
 }
 
@@ -856,24 +845,14 @@ const hasRegistrationHelperChanged = (params: {
   )
 }
 
-const buildChangedHelperCleanupPlan = async (params: {
+const buildChangedHelperRecoveryPlan = (params: {
   readonly snapshot: MigrationRecoverySnapshot
   readonly hcaAddress: Address
   readonly migrationOwner: Address
-  readonly publicClient: PublicClient
   readonly registryContext: readonly ClassifiedName[]
-  readonly registrationCleanup?: MigrationCleanupApproval
-}): Promise<MigrationPlan> => {
-  const { snapshot, hcaAddress, migrationOwner, publicClient } = params
-  const hasHcaApproval = await hasTemporaryMigrationHcaApproval({
-    publicClient,
-    eoa: migrationOwner,
-    hcaAddress,
-  })
-  const migrationCleanupApprovals = [
-    ...(hasHcaApproval ? [temporaryMigrationHcaApproval(hcaAddress)] : []),
-    ...(params.registrationCleanup ? [params.registrationCleanup] : []),
-  ]
+}): MigrationPlan => {
+  const { snapshot, hcaAddress, migrationOwner } = params
+  const migrationCleanupApprovals: readonly MigrationCleanupApproval[] = []
   return {
     hcaAddress,
     hcaDeploymentRequired: false,
@@ -894,7 +873,6 @@ const buildChangedHelperCleanupPlan = async (params: {
     stepDescriptors: buildStepDescriptors({
       hcaDeploymentRequired: false,
       approvals: [],
-      cleanupApprovals: migrationCleanupApprovals,
       atomicBatches: [],
       registrationApprovalTargets: [],
     }),
@@ -905,7 +883,7 @@ const buildChangedHelperCleanupPlan = async (params: {
     registrationApprovalStrategy: snapshot.registrationApprovalStrategy,
     registrationApprovalReview: snapshot.registrationApprovalReview,
     temporaryRegistrationApproval: snapshot.temporaryRegistrationApproval,
-    requiresFreshPreviewAfterCleanup: true,
+    requiresFreshDeploymentPreview: true,
   }
 }
 
@@ -914,9 +892,8 @@ const buildRecoveryApprovalPlan = (params: {
   readonly hcaAddress: Address
   readonly groups: GroupedNames
   readonly hasRemainingNames: boolean
-  readonly registrationCleanup?: MigrationCleanupApproval
 }) => {
-  // With nothing left to migrate no grant runs, so cleanup follows live state.
+  // No further grants are needed when every name has migrated.
   const remainingApprovals = params.hasRemainingNames
     ? params.snapshot.plannedApprovals
     : []
@@ -945,39 +922,7 @@ const buildRecoveryApprovalPlan = (params: {
       }),
     ]
   })
-  const registrationCleanupApprovals = params.registrationCleanup
-    ? [params.registrationCleanup]
-    : params.snapshot.registrationApprovalStrategy === 'temporary-operator'
-      ? plannedApprovals
-          .filter(requiresMigrationApprovalCleanup)
-          .filter(({ id }) => id === 'base-registrar:hca')
-      : []
-  return { plannedApprovals, registrationCleanupApprovals }
-}
-
-const buildRecoveryCleanupApprovals = async (params: {
-  readonly hcaAddress: Address
-  readonly migrationOwner: Address
-  readonly publicClient: PublicClient
-  readonly plannedApprovals: readonly MigrationApproval[]
-  readonly registrationCleanupApprovals: readonly MigrationCleanupApproval[]
-}): Promise<readonly MigrationCleanupApproval[]> => {
-  const willGrantHcaApproval = params.plannedApprovals.some(
-    ({ id }) => id === 'eth-registry:hca',
-  )
-  const needsHcaCleanup =
-    willGrantHcaApproval ||
-    (await hasTemporaryMigrationHcaApproval({
-      publicClient: params.publicClient,
-      eoa: params.migrationOwner,
-      hcaAddress: params.hcaAddress,
-    }))
-  return [
-    ...(needsHcaCleanup
-      ? [temporaryMigrationHcaApproval(params.hcaAddress)]
-      : []),
-    ...params.registrationCleanupApprovals,
-  ]
+  return plannedApprovals
 }
 
 /**
@@ -1003,7 +948,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     migrationOwner,
   })
   const temporaryRegistrationApproval = snapshot.temporaryRegistrationApproval
-  const registrationCleanup = getRegistrationRecoveryCleanup({
+  assertRegistrationRecoveryRegistrar({
     snapshot,
     baseRegistrar: V1_CONTRACTS.BaseRegistrar,
   })
@@ -1013,13 +958,11 @@ export const buildMigrationRecoveryPlan = async (params: {
       migrationHelper: V2_CONTRACTS.MigrationHelper,
     })
   ) {
-    return buildChangedHelperCleanupPlan({
+    return buildChangedHelperRecoveryPlan({
       snapshot,
       hcaAddress,
       migrationOwner,
-      publicClient,
       registryContext: recovered.registryContext,
-      registrationCleanup,
     })
   }
   const classified = await resolveLockedMigrationResolvers({
@@ -1181,26 +1124,17 @@ export const buildMigrationRecoveryPlan = async (params: {
   })
   signal?.throwIfAborted()
   const groups = groupClassifiedNames([...classified])
-  const { plannedApprovals, registrationCleanupApprovals } =
-    buildRecoveryApprovalPlan({
-      snapshot,
-      hcaAddress,
-      groups,
-      hasRemainingNames: classified.length > 0,
-      registrationCleanup,
-    })
-  const migrationCleanupApprovals = await buildRecoveryCleanupApprovals({
+  const plannedApprovals = buildRecoveryApprovalPlan({
+    snapshot,
     hcaAddress,
-    migrationOwner,
-    publicClient,
-    plannedApprovals,
-    registrationCleanupApprovals,
+    groups,
+    hasRemainingNames: classified.length > 0,
   })
+  const migrationCleanupApprovals: readonly MigrationCleanupApproval[] = []
   const hcaDeploymentRequired = hcaReadiness.status === 'deployment-required'
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired,
     approvals: plannedApprovals,
-    cleanupApprovals: migrationCleanupApprovals,
     atomicBatches: atomicPlan.batches,
     registrationApprovalTargets: groups.unwrapped.map(({ domain }) => ({
       name: domain.name,
@@ -1320,7 +1254,6 @@ export const adjustPlanForRetry = (
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired: plan.hcaDeploymentRequired,
     approvals: plan.preflight.migrationApprovals ?? [],
-    cleanupApprovals: plan.preflight.migrationCleanupApprovals,
     atomicBatches: remainingAtomicBatches,
     registrationApprovalTargets: groups.unwrapped.map(({ domain }) => ({
       name: domain.name,

@@ -2712,6 +2712,10 @@ msgstr "Reverse record for {0}"
 msgid "Review access granted during ENS name upgrades."
 msgstr "Review access granted during ENS name upgrades."
 
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Review and revoke upgrade permissions"
+msgstr "Review and revoke upgrade permissions"
+
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
 msgid "Review custom records, content hash and contract ABI. Empty values remove a record."
 msgstr "Review custom records, content hash and contract ABI. Empty values remove a record."
@@ -3887,6 +3891,10 @@ msgstr "We couldn't start your registration. Please try again."
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "We couldn't upgrade one of your names. Try again."
 msgstr "We couldn't upgrade one of your names. Try again."
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "We recommend removing upgrade permissions you no longer need."
+msgstr "We recommend removing upgrade permissions you no longer need."
 
 #: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
 msgid "We saw you're using Safe. Registering here needs a signature from a single owner key, which a Safe cannot give. Instead, use the ENS Explorer app which sends the transactions straight to your Safe, where your signers approve them as usual."

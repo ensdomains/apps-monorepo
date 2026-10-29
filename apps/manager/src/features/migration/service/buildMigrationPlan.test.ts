@@ -22,7 +22,6 @@ import { type ClassifiedName, FUSES } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
 import type { Profile } from './fetchV1Profiles'
-import { temporaryMigrationHcaApproval } from './migrationApprovals'
 import {
   type MigrationRecoverySnapshot,
   persistPendingAtomicMigrationIntent,
@@ -463,7 +462,7 @@ describe('buildMigrationPlan gas preview', () => {
 })
 
 describe('buildMigrationRecoveryPlan', () => {
-  it('keeps the reviewed bulk strategy and its cleanup when capabilities change', async () => {
+  it('keeps the reviewed bulk strategy when capabilities change', async () => {
     const { root, copy, snapshot } = makeRecoveryTree()
     const plan = await buildMigrationRecoveryPlan({
       snapshot: {
@@ -493,10 +492,10 @@ describe('buildMigrationRecoveryPlan', () => {
     ])
     expect(
       plan.preflight.migrationCleanupApprovals?.map(({ id }) => id),
-    ).toEqual(['base-registrar:hca'])
+    ).toEqual([])
   })
 
-  it('retains registration cleanup after every name has completed', async () => {
+  it('retains legacy grant recovery without requesting cleanup after every name has completed', async () => {
     const { snapshot } = makeRecoveryTree()
     const plan = await buildMigrationRecoveryPlan({
       snapshot: {
@@ -515,16 +514,14 @@ describe('buildMigrationRecoveryPlan', () => {
       publicClient: publicClientWithProfileResults(),
     })
     expect(plan.classified).toEqual([])
-    expect(plan.stepDescriptors).toEqual([
-      { type: 'cleanup', approvalId: 'base-registrar:hca' },
-    ])
+    expect(plan.stepDescriptors).toEqual([])
     expect(plan.temporaryRegistrationApproval?.state).toEqual({
       status: 'grant-pending',
       transactionId: 'approval-attempt',
     })
   })
 
-  it('plans only the recorded helper cleanup when the deployment changed', async () => {
+  it('requires a fresh preview without requesting cleanup when the deployment changed', async () => {
     const { snapshot } = makeRecoveryTree()
     const oldHelper: Address = '0x00000000000000000000000000000000000000ee'
     const plan = await buildMigrationRecoveryPlan({
@@ -541,17 +538,10 @@ describe('buildMigrationRecoveryPlan', () => {
       migrationOwner: OWNER,
       publicClient: publicClientWithProfileResults(),
     })
-    expect(plan.requiresFreshPreviewAfterCleanup).toBe(true)
+    expect(plan.requiresFreshDeploymentPreview).toBe(true)
     expect(plan.classified).toEqual([])
     expect(plan.atomicBatches).toEqual([])
-    expect(plan.preflight.migrationCleanupApprovals).toEqual([
-      {
-        kind: 'operator',
-        id: 'base-registrar:hca',
-        contractAddress: V1_CONTRACTS.BaseRegistrar,
-        operatorAddress: oldHelper,
-      },
-    ])
+    expect(plan.preflight.migrationCleanupApprovals).toEqual([])
     expect(plan.registryContext.map(({ domain }) => domain.name)).toEqual(
       snapshot.registryDomains.map(({ name }) => name),
     )
@@ -577,7 +567,7 @@ describe('buildMigrationRecoveryPlan', () => {
       migrationOwner: OWNER,
       publicClient: publicClientWithProfileResults(),
     })
-    expect(plan.requiresFreshPreviewAfterCleanup).toBe(true)
+    expect(plan.requiresFreshDeploymentPreview).toBe(true)
     expect(plan.preflight.migrationCleanupApprovals).toEqual([])
     expect(plan.atomicBatches).toEqual([])
   })
@@ -750,11 +740,11 @@ describe('buildMigrationRecoveryPlan', () => {
   })
 
   it.each([
-    ['already revoked', false, []],
-    ['still active', true, [temporaryMigrationHcaApproval(HCA)]],
+    ['already revoked', false],
+    ['still active', true],
   ])(
-    'plans cleanup-only recovery from live access when it is %s',
-    async (_state, isApproved, expectedCleanup) => {
+    'does not require cleanup for completed recovery when access is %s',
+    async (_state, isApproved) => {
       const { snapshot } = makeRecoveryTree()
       const publicClient = publicClientWithProfileResults()
       vi.mocked(publicClient.readContract).mockImplementation(
@@ -774,7 +764,7 @@ describe('buildMigrationRecoveryPlan', () => {
       })
 
       expect(plan.classified).toEqual([])
-      expect(plan.preflight.migrationCleanupApprovals).toEqual(expectedCleanup)
+      expect(plan.preflight.migrationCleanupApprovals).toEqual([])
     },
   )
 

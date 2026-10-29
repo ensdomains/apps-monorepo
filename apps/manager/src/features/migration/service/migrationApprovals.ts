@@ -146,16 +146,6 @@ export const hasTemporaryMigrationHcaApproval = async (params: {
     args: [params.eoa, params.hcaAddress],
   })) === true
 
-/**
- * The explicit cleanup plan may include a registration grant introduced by
- * this run. Existing helper grants and wrapped-name permissions remain reusable.
- */
-export const requiresMigrationApprovalCleanup = (
-  approval: MigrationApproval,
-): approval is MigrationCleanupApproval =>
-  approval.kind === 'operator' &&
-  (approval.id === 'eth-registry:hca' || approval.id === 'base-registrar:hca')
-
 export const getMigrationApprovalReview = (params: {
   readonly chainId: number
   readonly owner: Address
@@ -252,47 +242,6 @@ export const migrationApprovalKey = (approval: MigrationApproval): string =>
   approval.kind === 'erc721-token'
     ? `${approval.id}:${approval.tokenId}`
     : `${approval.contractAddress.toLowerCase()}:${approval.operatorAddress.toLowerCase()}`
-
-export const orderMigrationCleanupApprovals = (params: {
-  readonly planned: readonly MigrationCleanupApproval[]
-  readonly active: readonly MigrationCleanupApproval[]
-}): readonly MigrationCleanupApproval[] => {
-  const activeByKey = new Map(
-    params.active.map((approval) => [migrationApprovalKey(approval), approval]),
-  )
-  return params.planned.flatMap((approval) => {
-    const active = activeByKey.get(migrationApprovalKey(approval))
-    return active ? [active] : []
-  })
-}
-
-export const planMigrationCleanupApprovals = (params: {
-  readonly hcaAddress: Address
-  readonly strategy: MigrationRegistrationApprovalStrategy | undefined
-  readonly missing: readonly MigrationApproval[]
-  readonly ownedRegistrationCleanup: readonly MigrationCleanupApproval[]
-  readonly hasHcaApproval: boolean
-}): readonly MigrationCleanupApproval[] => {
-  const newRegistrationCleanup =
-    params.strategy === 'temporary-operator'
-      ? params.missing.filter(
-          (approval): approval is MigrationCleanupApproval =>
-            approval.kind === 'operator' &&
-            approval.id === 'base-registrar:hca',
-        )
-      : []
-  return [
-    ...new Map(
-      [...params.ownedRegistrationCleanup, ...newRegistrationCleanup].map(
-        (approval) => [migrationApprovalKey(approval), approval],
-      ),
-    ).values(),
-    ...(params.hasHcaApproval ||
-    params.missing.some(({ id }) => id === 'eth-registry:hca')
-      ? [temporaryMigrationHcaApproval(params.hcaAddress)]
-      : []),
-  ]
-}
 
 const uniqueTokenIds = (tokenIds: readonly bigint[]): readonly bigint[] => [
   ...new Set(tokenIds),
@@ -477,9 +426,6 @@ export const planMigrationApprovalPreflight = (
   readonly migrationCleanupApprovals: readonly MigrationCleanupApproval[]
 } => {
   const migrationApprovals = planMigrationApprovals(params)
-  const introducedCleanup = migrationApprovals.filter(
-    requiresMigrationApprovalCleanup,
-  )
   return {
     registrationApprovalStrategy: migrationApprovals.some(
       ({ id }) => id === 'base-registrar:hca',
@@ -487,12 +433,8 @@ export const planMigrationApprovalPreflight = (
       ? 'temporary-operator'
       : 'per-token',
     migrationApprovals,
-    migrationCleanupApprovals: [
-      ...introducedCleanup,
-      ...(params.status.ethRegistryHcaApproved
-        ? [temporaryMigrationHcaApproval(params.hcaAddress)]
-        : []),
-    ],
+    // Permissions can be reviewed and revoked separately after migration.
+    migrationCleanupApprovals: [],
   }
 }
 

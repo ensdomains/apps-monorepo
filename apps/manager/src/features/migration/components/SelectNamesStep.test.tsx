@@ -572,7 +572,7 @@ describe('SelectNamesStep', () => {
         ...readyGasEstimate,
         plan: {
           ...readyGasEstimate.plan,
-          requiresFreshPreviewAfterCleanup: true,
+          requiresFreshDeploymentPreview: true,
           stepDescriptors: [
             { type: 'cleanup', approvalId: 'base-registrar:hca' },
           ],

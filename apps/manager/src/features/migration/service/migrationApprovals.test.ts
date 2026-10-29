@@ -10,14 +10,10 @@ import {
   checkMigrationApprovals,
   getMigrationApprovalReview,
   type MigrationApprovalStatus,
-  type MigrationCleanupApproval,
   migrationApprovalForId,
-  orderMigrationCleanupApprovals,
   planMigrationApprovalPreflight,
   planMigrationApprovals,
-  planMigrationCleanupApprovals,
   readActiveMigrationOperatorApprovals,
-  temporaryMigrationHcaApproval,
 } from './migrationApprovals'
 
 vi.mock('@wagmi/core', () => ({
@@ -49,52 +45,6 @@ const statusFor = (
 
 beforeEach(() => {
   readContractsMock.mockReset()
-})
-
-describe('planMigrationCleanupApprovals', () => {
-  const registrar: MigrationCleanupApproval = {
-    kind: 'operator',
-    id: 'base-registrar:hca',
-    contractAddress: V1_CONTRACTS.BaseRegistrar,
-    operatorAddress: V2_CONTRACTS.MigrationHelper,
-  }
-  const registry = temporaryMigrationHcaApproval(HCA)
-  it.each([
-    {
-      strategy: 'per-token' as const,
-      missing: [registrar],
-      owned: [],
-      active: false,
-      expected: [],
-    },
-    {
-      strategy: 'temporary-operator' as const,
-      missing: [registrar, registry],
-      owned: [registrar],
-      active: false,
-      expected: [registrar, registry],
-    },
-    {
-      strategy: 'temporary-operator' as const,
-      missing: [],
-      owned: [registrar],
-      active: true,
-      expected: [registrar, registry],
-    },
-  ])(
-    'derives cleanup from reviewed and owned permissions: $strategy, active $active',
-    ({ strategy, missing, owned, active, expected }) => {
-      expect(
-        planMigrationCleanupApprovals({
-          hcaAddress: HCA,
-          strategy,
-          missing,
-          ownedRegistrationCleanup: owned,
-          hasHcaApproval: active,
-        }),
-      ).toEqual(expected)
-    },
-  )
 })
 
 describe('checkMigrationApprovals', () => {
@@ -221,7 +171,7 @@ describe('planMigrationApprovals', () => {
   })
 
   it.each([1, 3])(
-    'plans one temporary grant and revocation for %i missing approvals',
+    'plans one bulk grant without required revocation for %i missing approvals',
     (count) => {
       const tokenIds = Array.from({ length: count }, (_, index) =>
         BigInt(index + 1),
@@ -238,7 +188,7 @@ describe('planMigrationApprovals', () => {
       })
       expect(preflight.registrationApprovalStrategy).toBe('temporary-operator')
       expect(preflight.migrationApprovals).toEqual([grant])
-      expect(preflight.migrationCleanupApprovals).toEqual([grant])
+      expect(preflight.migrationCleanupApprovals).toEqual([])
     },
   )
 
@@ -277,7 +227,7 @@ describe('planMigrationApprovals', () => {
             }),
           ]
       expect(preflight.migrationApprovals).toEqual(expected)
-      expect(preflight.migrationCleanupApprovals).toEqual(expected)
+      expect(preflight.migrationCleanupApprovals).toEqual([])
     },
   )
 
@@ -426,24 +376,6 @@ describe('migration approval review', () => {
         approvals: [],
       }),
     ).toBeNull()
-  })
-})
-
-describe('cleanup order', () => {
-  it('skips inactive permissions and a matching approval id for a different operator', () => {
-    const registration: MigrationCleanupApproval = {
-      kind: 'operator',
-      id: 'base-registrar:hca',
-      contractAddress: V1_CONTRACTS.BaseRegistrar,
-      operatorAddress: V2_CONTRACTS.MigrationHelper,
-    }
-
-    expect(
-      orderMigrationCleanupApprovals({
-        planned: [registration, temporaryMigrationHcaApproval(HCA)],
-        active: [{ ...registration, operatorAddress: OTHER }],
-      }),
-    ).toEqual([])
   })
 })
 
