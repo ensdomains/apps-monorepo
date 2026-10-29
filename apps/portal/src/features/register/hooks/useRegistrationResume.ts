@@ -18,7 +18,7 @@ import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
-import { getConnection, getWalletClient } from '@wagmi/core/actions'
+import { getWalletClient } from '@wagmi/core/actions'
 import { fromPromise, ok } from 'neverthrow'
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -248,10 +248,7 @@ export const useRegistrationResume = ({
           !onResumeRef.current({
             record,
             token,
-            signer: createEOASigner(
-              walletClient,
-              getConnection(config).connector?.id,
-            ),
+            signer: createEOASigner(walletClient),
             commitmentOnChain,
             approvalNeeded,
           })
