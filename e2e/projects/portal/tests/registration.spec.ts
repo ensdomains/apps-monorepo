@@ -2966,8 +2966,8 @@ test.describe('Portal checkout — a failed price read blocks checkout instead o
     await driveTransactionsToSuccess(page, wallet, [
       `renewal-approve-${V2_RENEWER}`,
       `renewal-approve-${V1_RENEWER}`,
-      `renewal-renew-${v2Name}`,
-      `renewal-renew-${v1Name}`,
+      `renewal-renew-batch-${V2_RENEWER}-0`,
+      `renewal-renew-batch-${V1_RENEWER}-0`,
     ])
 
     await expect
@@ -3087,7 +3087,10 @@ test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
     ...[...new Set(legs.map((l) => (l.v1 ? V1_RENEWER : V2_RENEWER)))].map(
       (r) => `renewal-approve-${r}`,
     ),
-    ...legs.map((l) => `renewal-renew-${l.name}`),
+    // One renewBatch per renewer (#1488), each the renewer's first batch.
+    ...[...new Set(legs.map((l) => (l.v1 ? V1_RENEWER : V2_RENEWER)))].map(
+      (r) => `renewal-renew-batch-${r}-0`,
+    ),
   ]
 
   async function openExtend(
@@ -3227,7 +3230,7 @@ test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
     ).toBe(after[2] + wrapperGap)
   })
 
-  test('two V1 and two V2 names: one approval per renewer, one renew per name, and the total shown is what is charged', {
+  test('two V1 and two V2 names: one approval and one renewBatch per renewer, and the total shown is what is charged', {
     tag: ['@smoke', '@scenario:B21'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     const owner = accounts.getAddress('user')
