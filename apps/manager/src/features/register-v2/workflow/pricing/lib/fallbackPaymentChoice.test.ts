@@ -76,6 +76,21 @@ describe('getFallbackPaymentChoice', () => {
       ],
       expected: { kind: 'l2', chainId: baseSepolia.id },
     },
+    {
+      case: 'moves an L2 it picked back to a wallet coin that can now pay',
+      current: 'auto' as const,
+      payableMethods: [wallet(20_000_000n), l2(baseSepolia.id, 48_340_000n)],
+      expected: { kind: 'wallet', symbol: 'USDC' },
+    },
+    {
+      case: 'keeps an L2 it picked while no wallet coin can pay',
+      current: 'auto' as const,
+      payableMethods: [
+        l2(optimismSepolia.id, 19_330_000n),
+        l2(baseSepolia.id, 48_340_000n),
+      ],
+      expected: undefined,
+    },
   ])('$case', ({ current, payableMethods, expected }) => {
     expect(getFallbackPaymentChoice({ current, payableMethods })).toEqual(
       expected,

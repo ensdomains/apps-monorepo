@@ -44,6 +44,7 @@ const containerMocks = vi.hoisted(() => ({
   l2Balances: undefined as Record<number, bigint | null> | undefined,
   ownerAddress: null as string | null,
   fundingSourceChainId: undefined as number | undefined,
+  fundingSourceOrigin: undefined as 'user' | 'fallback' | undefined,
   /** What every quoted L2 row is charged. */
   l2AmountIn: undefined as bigint | undefined,
   l2QuoteKeys: [] as string[],
@@ -58,6 +59,7 @@ vi.mock('@xstate/react', () => ({
             duration: 31_536_000,
             selectedToken: 'USDC',
             fundingSourceChainId: containerMocks.fundingSourceChainId,
+            fundingSourceOrigin: containerMocks.fundingSourceOrigin,
             approvalOutcome: containerMocks.approvalOutcome,
             lastErrorMessage: containerMocks.lastErrorMessage,
             confirmedData: containerMocks.isApproving
@@ -282,6 +284,7 @@ describe('TokenPickerContent', () => {
     containerMocks.l2Balances = undefined
     containerMocks.ownerAddress = null
     containerMocks.fundingSourceChainId = undefined
+    containerMocks.fundingSourceOrigin = undefined
     containerMocks.l2AmountIn = undefined
     containerMocks.l2QuoteKeys = []
   })
@@ -456,11 +459,34 @@ describe('TokenPickerContent', () => {
     expect(containerMocks.send).toHaveBeenCalledWith({
       type: 'pricing.fundingSource.select',
       chainId: baseSepolia.id,
+      origin: 'fallback',
     })
     expect(
       screen.queryByText(/Not enough USDC in your wallet/),
     ).not.toBeInTheDocument()
   })
+
+  it.each([
+    { origin: 'fallback' as const, isMovedToWallet: true },
+    { origin: 'user' as const, isMovedToWallet: false },
+  ])(
+    'with the wallet able to pay again, an L2 picked by the $origin moves back: $isMovedToWallet',
+    ({ origin, isMovedToWallet }) => {
+      containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+      containerMocks.renderBudget = fiveUsdcBudget
+      containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
+      containerMocks.l2AmountIn = 5_012_000n
+      containerMocks.fundingSourceChainId = baseSepolia.id
+      containerMocks.fundingSourceOrigin = origin
+      renderContainer()
+
+      const isWalletSelected = containerMocks.send.mock.calls.some(
+        ([event]) =>
+          event.type === 'pricing.token.select' && event.token === 'USDC',
+      )
+      expect(isWalletSelected).toBe(isMovedToWallet)
+    },
+  )
 
   it('keeps the wallet when it can pay, whatever the L2s hold', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
@@ -958,10 +984,24 @@ describe('TokenPickerContentBase L2 rows', () => {
     hasQuoteFailed: false,
     ...overrides,
   })
+  // One mock behind both selects, so a test sees every selection the picker makes.
+  const l2PaymentOf = (
+    rows: readonly L2PaymentRow[],
+    selectedChainId: number | undefined = undefined,
+  ) => {
+    const onSelect = vi.fn()
+    return {
+      rows,
+      selectedChainId,
+      selectedOrigin: undefined,
+      onSelect,
+      onFallbackSelect: onSelect,
+    }
+  }
   const l2Payment = (
     row: L2PaymentRow,
     selectedChainId: number | undefined = undefined,
-  ) => ({ rows: [row], selectedChainId, onSelect: vi.fn() })
+  ) => l2PaymentOf([row], selectedChainId)
 
   it('lists an L2 next to a wallet that cannot pay, and selects it on click', () => {
     const payment = l2Payment(
@@ -1091,11 +1131,7 @@ describe('TokenPickerContentBase L2 rows', () => {
       funding: underfunded,
       selectedToken: 'USDC',
       stablecoinBalances: [usdc],
-      l2Payment: {
-        rows: [quoted, op],
-        selectedChainId: optimismSepolia.id,
-        onSelect: vi.fn(),
-      },
+      l2Payment: l2PaymentOf([quoted, op], optimismSepolia.id),
     })
 
     expect(screen.getByText('OP Sepolia est. fee: ~$0.21')).toBeVisible()
@@ -1118,11 +1154,7 @@ describe('TokenPickerContentBase L2 rows', () => {
         balanceRaw: 10_000_000n,
       },
     }
-    const payment = {
-      rows: [op, base],
-      selectedChainId: undefined,
-      onSelect: vi.fn(),
-    }
+    const payment = l2PaymentOf([op, base])
     renderPicker({
       funding: underfunded,
       selectedToken: 'USDC',

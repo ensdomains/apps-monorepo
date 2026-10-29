@@ -26,6 +26,7 @@ import {
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import type { FundingSourceOrigin } from '../../../state/registrationUi.machine'
 import { useRegistrationLockHeartbeat } from '../../registering/hooks/useRegistrationLockHeartbeat'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { useFallbackPaymentChoice } from '../hooks/useFallbackPaymentChoice'
@@ -186,15 +187,17 @@ export const TokenPickerContent = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const domainName = `${label}.eth`
-  const [duration, selectedToken, fundingSourceChainId] = useSelector(
-    uiActor,
-    (state) =>
-      [
-        state.context.duration,
-        state.context.selectedToken,
-        state.context.fundingSourceChainId,
-      ] as const,
-  )
+  const [duration, selectedToken, fundingSourceChainId, fundingSourceOrigin] =
+    useSelector(
+      uiActor,
+      (state) =>
+        [
+          state.context.duration,
+          state.context.selectedToken,
+          state.context.fundingSourceChainId,
+          state.context.fundingSourceOrigin,
+        ] as const,
+    )
   const pricingQuery = useQuery({
     ...getRegisterPriceQueryOptions(
       label,
@@ -307,6 +310,7 @@ export const TokenPickerContent = () => {
     isQuoteStale: budgetQuery.isPlaceholderData,
     isEnabled: isBudgetRequired,
     fundingSourceChainId,
+    fundingSourceOrigin,
   })
   const l2FundingChainId = l2Payment?.selectedChainId
   const isPaidFromL2 = l2FundingChainId !== undefined
@@ -672,12 +676,16 @@ const coversShare = (coin: StablecoinBalance, share: number | undefined) =>
 
 const getCurrentMethodState = (
   selectedL2: L2PaymentRow | undefined,
+  selectedOrigin: FundingSourceOrigin | undefined,
   walletSelection: TOKEN_SYMBOL | undefined,
   walletMethodItems: readonly PaymentMethodListItem[],
 ): CurrentMethodState =>
   match({ selectedL2, walletSelection })
     .with({ selectedL2: P.nonNullable }, ({ selectedL2 }) =>
-      isL2ShortOfFunds(selectedL2) ? ('short' as const) : ('payable' as const),
+      match({ isShort: isL2ShortOfFunds(selectedL2), selectedOrigin })
+        .with({ isShort: true }, () => 'short' as const)
+        .with({ selectedOrigin: 'fallback' }, () => 'auto' as const)
+        .otherwise(() => 'payable' as const),
     )
     .with({ walletSelection: P.nullish }, () => 'none' as const)
     .otherwise(() =>
@@ -1003,6 +1011,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     ? getFallbackPaymentChoice({
         current: getCurrentMethodState(
           selectedL2,
+          l2Payment.selectedOrigin,
           walletSelection,
           walletMethodItems,
         ),
@@ -1025,7 +1034,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
       !isL2Pending &&
       !hasStaleL2Quote,
     onSelectCoin,
-    onSelectL2: l2Payment?.onSelect,
+    onSelectL2: l2Payment?.onFallbackSelect,
   })
 
   const warning =

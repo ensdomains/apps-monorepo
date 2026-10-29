@@ -129,7 +129,9 @@ export const TokenPickerDialogShell = ({
           l2Rows && {
             rows: l2Rows,
             selectedChainId,
+            selectedOrigin: undefined,
             onSelect: setSelectedChainId,
+            onFallbackSelect: setSelectedChainId,
           }
         }
         label={label}
