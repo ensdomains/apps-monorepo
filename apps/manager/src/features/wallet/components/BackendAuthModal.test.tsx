@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { backendAuthStore } from '@/utils/backend-client'
 import { render } from '@/utils/test-utils'
@@ -182,6 +182,31 @@ describe('BackendAuthModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
 
     expect(backendAuthStore.get().context.modalDismissed).toBe(true)
+  })
+
+  it('reopens at sign-in after SKIP closes the skip confirmation', async () => {
+    showModal({ isError: true })
+
+    render(<BackendAuthModal />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue without signing in' }),
+    )
+    pressKeys(['s', 'k', 'i', 'p'])
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    })
+
+    act(() => {
+      backendAuthStore.trigger.resetModal()
+    })
+
+    expect(
+      await screen.findByRole('alertdialog', {
+        name: 'Authenticate to continue',
+      }),
+    ).toBeInTheDocument()
   })
 
   it('retries sign-in from the skip confirmation', () => {

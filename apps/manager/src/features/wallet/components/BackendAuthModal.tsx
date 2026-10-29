@@ -33,6 +33,12 @@ export const BackendAuthModal = () => {
   const shouldShowModal =
     isWalletConnected && isNotAuthedOrDismissed && isSmartAccountReady
 
+  // The modal stays mounted while closed (SKIP hotkey, disconnect, dismiss),
+  // so reset here to reopen at sign-in rather than the skip confirmation
+  if (!shouldShowModal && isConfirmingSkip) {
+    setIsConfirmingSkip(false)
+  }
+
   const handleSignIn = async () => {
     if (!walletClient) {
       throw new Error('No wallet client found')
@@ -88,12 +94,9 @@ export const BackendAuthModal = () => {
             <AlertDialog.Footer className="flex-row sm:justify-stretch">
               <Button
                 className="min-w-0 flex-1 uppercase tracking-wider"
-                onClick={() => {
-                  // Reset so reopening from the wallet menu starts at sign-in
-                  setIsConfirmingSkip(false)
-                  backendAuthStore.trigger.dismissModal()
-                }}
+                onClick={() => backendAuthStore.trigger.dismissModal()}
                 size="lg"
+                type="button"
                 variant="outline"
               >
                 <Trans>Continue</Trans>
@@ -106,6 +109,7 @@ export const BackendAuthModal = () => {
                   void handleSignIn()
                 }}
                 size="lg"
+                type="button"
               >
                 <Trans>Sign in</Trans>
               </Button>
@@ -114,7 +118,7 @@ export const BackendAuthModal = () => {
         ) : (
           <>
             <AlertDialog.Header className="items-center gap-0 text-center sm:text-center">
-              <div className="mb-5 flex size-14 items-center justify-center rounded-md bg-ens-blue text-white shadow-[0_8px_24px_rgba(0,128,188,0.28)]">
+              <div className="mb-5 flex size-14 items-center justify-center rounded-md bg-ens-blue text-white shadow-ens-blue/30 shadow-lg">
                 <EnsMobileIcon className="h-8 w-7" />
               </div>
               <AlertDialog.Title className="font-medium text-ens-blue-midnight text-xl tracking-tight">
@@ -145,6 +149,7 @@ export const BackendAuthModal = () => {
                 disabled={signIn.isPending || isDisconnecting}
                 onClick={() => void disconnect()}
                 size="lg"
+                type="button"
                 variant="outline"
               >
                 {isDisconnecting ? (
@@ -158,6 +163,7 @@ export const BackendAuthModal = () => {
                 disabled={signIn.isPending || isDisconnecting || !walletClient}
                 onClick={handleSignIn}
                 size="lg"
+                type="button"
               >
                 {match(signIn)
                   .with({ isPending: true }, () => <Trans>Signing in...</Trans>)
@@ -172,6 +178,7 @@ export const BackendAuthModal = () => {
               <Button
                 className="-mt-2 h-auto justify-self-center p-0 font-sans text-ens-gray text-xs underline underline-offset-4 hover:text-ens-blue-midnight"
                 onClick={() => setIsConfirmingSkip(true)}
+                type="button"
                 variant="link"
               >
                 <Trans>Continue without signing in</Trans>
