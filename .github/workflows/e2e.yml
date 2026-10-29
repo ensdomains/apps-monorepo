@@ -1,9 +1,9 @@
 name: E2E Tests
 
-# The fast per-PR gate. Portal runs only its `@smoke` tests (see
-# e2e/docs/smoke-suite.md); every spec, cross-app included, runs in
-# e2e-nightly.yml. Manager still runs its full suite here until its smoke
-# config lands.
+# The fast per-PR gate. Portal and manager migration run only their `@smoke`
+# tests (see e2e/docs/smoke-suite.md); every spec, cross-app included, runs
+# in e2e-nightly.yml. The rest of the manager still runs its full suite here
+# until its smoke config lands.
 on:
   push:
     branches:
@@ -78,6 +78,7 @@ jobs:
           # Emit a flat array of {project, shardIndex, shardTotal} objects so
           # each project gets the right number of shards:
           #   manager — 5 active test files → 3 shards
+          #   manager-migration — the migration @smoke flows → 1 shard
           #   portal  — @smoke subset → 2 shards
           #   (temporaryPremium skipped until snapshot is rebuilt)
           configs=()
@@ -85,6 +86,7 @@ jobs:
             for i in 1 2 3; do
               configs+=("{\"project\":\"manager\",\"shardIndex\":$i,\"shardTotal\":3}")
             done
+            configs+=("{\"project\":\"manager-migration\",\"shardIndex\":1,\"shardTotal\":1}")
           fi
           if [[ "$PORTAL_CHANGED" == "true" ]]; then
             for i in 1 2; do
@@ -280,6 +282,9 @@ jobs:
             portal)
               APPS="portal:3001"
               PLAYWRIGHT_ARGS="--config=projects/portal/playwright.smoke.config.ts" ;;
+            manager-migration)
+              APPS="manager:3000"
+              PLAYWRIGHT_ARGS="--config=projects/manager/playwright.migration.config.ts --grep @smoke" ;;
             manager-premium)
               APPS="manager:3000"
               PLAYWRIGHT_ARGS="--config=projects/manager/playwright.premium.config.ts" ;;

@@ -12,6 +12,8 @@ real, funds-at-risk bug.
 
 ```bash
 pnpm e2e:smoke:portal     # portal: the harness checks, then every @smoke test
+# manager migration: the manager harness checks, then the migration @smoke flows
+pnpm --filter @ens-apps/e2e exec playwright test --config=projects/manager/playwright.migration.config.ts --grep @smoke
 ```
 
 A test joins the suite with an `@smoke` tag next to its other tags.
@@ -22,9 +24,10 @@ project shrinks to the three checks tagged `@smoke`: distinct funded
 wallets, the portal pointed at this fork, and the fork itself.
 
 In CI (`.github/workflows/e2e.yml`), the portal job runs this config in two
-shards when a PR touches the portal or shared e2e code. The manager job
-still runs the full manager suite; it moves to its own smoke config with the
-manager smoke batch.
+shards when a PR touches the portal or shared e2e code. On manager changes a
+`manager-migration` job runs the migration flows below through
+`playwright.migration.config.ts`; the manager's other specs still run as its
+full suite until the manager smoke batch. Nightly runs every migration spec.
 
 ## Required flows
 
@@ -53,10 +56,15 @@ manager smoke batch.
 | Change resolver | Explorer | V2 | `resolver.spec.ts`: points a name at a different resolver | per PR |
 | Change registry | Explorer | V2 | **gap** (`subnames.spec.ts` only checks the deploy is offered) | — |
 | Transaction history | Explorer | V2 | **gap** | — |
+| Migration: unwrapped 2LD | Manager | V1→V2 | `migration.spec.ts`: an unwrapped 2LD lands in V2 with exactly the registration roles | per PR |
+| Migration: emancipated 2LD | Manager | V1→V2 | `migration.spec.ts`: an emancipated 2LD is unwrapped into the Graveyard | per PR |
+| Migration: wrapped, batched | Manager | V1→V2 | `migration.spec.ts`: two wrapped names move to the controller in one batched transfer | per PR |
+| Migration: records replayed | Manager | V1→V2 | `migration.spec.ts`: text records and the ETH address are replayed onto the new V2 resolver | per PR |
+| Migration: locked 2LD | Manager | V1→V2 | `migration-fuses.spec.ts`: a locked 2LD keeps its wrapper in the Graveyard | per PR |
 
-The Manager flows (registration, renewal, bulk renewal, primary name,
-records, header, migration, CCIP, My Names) join this table with the manager
-smoke batch. The gaps are new tests still to be written.
+The other Manager flows (registration, renewal, bulk renewal, primary name,
+records, header, migration of a registry subname or a name in grace, CCIP, My
+Names) join this table with the manager smoke batch. The gaps are new tests still to be written.
 
 The cross-app tests are tagged `@smoke` but skip unless the explorer reads a
 real bigname indexer (`E2E_MOCK_BIGNAME` unset), which CI does not run. Run
