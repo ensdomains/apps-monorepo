@@ -15,7 +15,7 @@ export const iconActionSymbolClassName =
 export const favoriteActionClassName = 'bg-ens-magenta-light text-ens-magenta'
 
 export const renewActionClassName =
-  'inline-flex h-11 min-h-11 w-auto max-h-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-[#e2e8f0] p-0.5 font-medium font-mono text-ens-lapis-500 text-sm uppercase leading-none tracking-[1.56px] transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60'
+  'inline-flex h-11 min-h-11 w-auto max-h-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border-0 bg-[#e2e8f0] p-0.5 font-medium font-mono text-ens-lapis-500 text-sm uppercase leading-none tracking-[1.56px] transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60'
 
 export const renewActionSymbolClassName =
   'ms-opsz-12 ms-wght-500 text-[12px] leading-none max-xs:hidden'
