@@ -3012,6 +3012,10 @@ msgid "Smart account access"
 msgstr ""
 
 #: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart session access reset"
+msgstr ""
+
+#: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Smart sessions off"
 msgstr ""
 

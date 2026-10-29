@@ -408,6 +408,36 @@ describe('SmartAccountContext', () => {
       expect(result.current.isRevokingSession).toBe(false)
     })
 
+    it('marks access as reset only after a confirmed revoke, so it is not offered twice', async () => {
+      revokeSessionsOnChainMock
+        .mockReturnValueOnce(
+          errAsync(
+            new SessionRevokeError({
+              message: 'revokeSessions transaction reverted',
+              reason: 'transaction-failed',
+            }),
+          ),
+        )
+        .mockReturnValueOnce(
+          okAsync({
+            transactionHash: `0x${'ab'.repeat(32)}`,
+            sessionNonce: 1n,
+          }),
+        )
+      const result = await connectWallet()
+      expect(result.current.isSessionAccessReset).toBe(false)
+
+      await act(async () => {
+        await result.current.revokeSession()
+      })
+      expect(result.current.isSessionAccessReset).toBe(false)
+
+      await act(async () => {
+        await result.current.revokeSession()
+      })
+      expect(result.current.isSessionAccessReset).toBe(true)
+    })
+
     it('deploys first when asked, with a deployment built for the connected wallet', async () => {
       const deploymentCall = { to: '0xFactory', value: 0n, data: '0xdead' }
       buildHcaDeploymentCallMock.mockReturnValueOnce(deploymentCall)
