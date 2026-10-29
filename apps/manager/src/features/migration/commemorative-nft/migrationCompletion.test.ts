@@ -1,10 +1,11 @@
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { Storage } from 'happy-dom'
-import { err, ok } from 'neverthrow'
+import { err, ok, okAsync } from 'neverthrow'
 import { type Address, type Hex, namehash, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { envConfig } from '@/config'
+import { bigname } from '@/lib/bigname'
 
 const mocks = vi.hoisted(() => ({
   getPublicClient: vi.fn(),
@@ -40,6 +41,7 @@ vi.mock('../service/migratableNames', async (importOriginal) => ({
 }))
 
 import { makeDomain } from '../service/_fixtures'
+import { makeConfirmedMigration } from '../service/_fixtures/confirmedMigration'
 import { type ClassifiedName, classifyNames } from '../service/classifyNames'
 import {
   persistMigrationRecoverySnapshot,
@@ -102,6 +104,9 @@ const submittedBatch = {
 beforeEach(() => {
   vi.stubGlobal('localStorage', new Storage())
   vi.resetAllMocks()
+  vi.spyOn(bigname, 'nameHistory').mockReturnValue(
+    okAsync({ data: [], meta: { as_of: {} } }),
+  )
   mocks.restoreCheckpoint.mockResolvedValue(null)
   mocks.getPublicClient.mockReturnValue(publicClient)
   mocks.getV1NamesForAddress.mockResolvedValue(ok([]))
@@ -116,11 +121,37 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
 
 describe('commemorative NFT migration completion', () => {
+  it('recognizes an upgrade confirmed after the browser closed and settles its saved recovery work', async () => {
+    const confirmed = makeConfirmedMigration()
+    mocks.getPublicClient.mockReturnValue(confirmed.publicClient)
+    persistMigrationRecoverySnapshot(scope, {
+      registryDomains: [domain],
+      registryOperations: pendingIntent.operations,
+      remainingOperations: pendingIntent.operations,
+      completedOperations: [],
+      profiles: new Map(),
+      ownedPermRes: null,
+      plannedApprovals: [],
+      managerRestorationNames: [],
+    })
+    persistSubmittedAtomicMigrationBatch(scope, submittedBatch)
+
+    await expect(
+      fetchCommemorativeNftMigrationCompletion(params),
+    ).resolves.toEqual({
+      status: 'complete',
+      isComplete: true,
+      remainingNameCount: 0,
+      migratedNameCount: 1,
+    })
+  })
+
   it.each(['ownerAddress', 'hcaAddress'] as const)(
     'rejects a missing %s even when manually refetched',
     async (addressKey) => {
