@@ -741,6 +741,114 @@ beforeEach(() => {
 })
 
 describe('executeMigration HCA orchestration', () => {
+  it.each([
+    { phase: 'grant', visibility: 'after-retry' },
+    { phase: 'revoke', visibility: 'after-retry' },
+    { phase: 'grant', visibility: 'after-confirmation' },
+    { phase: 'revoke', visibility: 'after-confirmation' },
+  ] as const)(
+    'finishes when the $phase transaction becomes visible $visibility',
+    async ({ phase, visibility }) => {
+      vi.useFakeTimers()
+      try {
+        const permission = mockBulkPermissionLifecycle()
+        const delayedHash = hashFor(phase === 'grant' ? 1 : 3)
+        const confirmed = new Set<Hex>()
+        let hasMissedTransaction = false
+        mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
+        getTransactionMock.mockImplementation(
+          ({ hash }: { readonly hash: Hex }) => {
+            if (
+              hash === delayedHash &&
+              !confirmed.has(hash) &&
+              (visibility === 'after-confirmation' || !hasMissedTransaction)
+            ) {
+              hasMissedTransaction = true
+              return Promise.reject(
+                new Error('Transaction not found on this RPC yet'),
+              )
+            }
+            return Promise.resolve(permission.transactions.get(hash))
+          },
+        )
+        mocks.waitForTransaction.mockImplementation(async (id: string) => {
+          const hash = await mocks.waitForTransactionHash(id)
+          if (hash === delayedHash) {
+            const approval = loadMigrationRecoverySnapshot({
+              chainId: 11155111,
+              owner: OWNER,
+              hca: HCA,
+            })?.temporaryRegistrationApproval
+            expect(approval?.state).toMatchObject({
+              status: phase === 'grant' ? 'grant-pending' : 'revoke-pending',
+              hash,
+            })
+            expect(approval?.submission).toEqual(
+              visibility === 'after-retry'
+                ? { nonce: phase === 'grant' ? 0n : 2n, blockNumber: 123n }
+                : undefined,
+            )
+          }
+          confirmed.add(hash)
+          return { hash }
+        })
+
+        const execution = runExecute({ plan: bulkPlan() })
+        const [{ result }] = await Promise.all([
+          execution,
+          vi.runAllTimersAsync(),
+        ])
+
+        expect(result.completed).toBe(3)
+        expect(result.txHashes).toEqual([hashFor(1), hashFor(2), hashFor(3)])
+        expect(permission.isActive()).toBe(false)
+        expect(
+          mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
+        ).toEqual([
+          BULK_APPROVAL.contractAddress,
+          HCA,
+          BULK_APPROVAL.contractAddress,
+        ])
+      } finally {
+        vi.useRealTimers()
+      }
+    },
+  )
+
+  it('keeps journal write failures fatal after saving a submitted approval hash', async () => {
+    mockBulkPermissionLifecycle()
+    mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
+    const write = localStorage.setItem.bind(localStorage)
+    const storage = vi
+      .spyOn(localStorage, 'setItem')
+      .mockImplementation((key, value) => {
+        if (value.includes('"submission":'))
+          throw new Error('Metadata journal quota exceeded')
+        write(key, value)
+      })
+    try {
+      await expect(runExecute({ plan: bulkPlan() })).rejects.toMatchObject({
+        name: 'MigrationCleanupError',
+      })
+      expect(
+        mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
+      ).toEqual([BULK_APPROVAL.contractAddress, BULK_APPROVAL.contractAddress])
+      expect(
+        loadMigrationRecoverySnapshot({
+          chainId: 11155111,
+          owner: OWNER,
+          hca: HCA,
+        })?.temporaryRegistrationApproval?.state,
+      ).toMatchObject({
+        status: 'revoke-pending',
+        hash: hashFor(2),
+        grantHash: hashFor(1),
+      })
+    } finally {
+      storage.mockRestore()
+    }
+  })
+
   it.each(['ChainIdMismatchError', 'SignerAddressMismatchError'])(
     'can retry a bulk grant after confirmed pre-submission %s',
     async (tag) => {

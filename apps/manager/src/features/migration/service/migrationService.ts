@@ -433,6 +433,7 @@ const clearCompletedRecoveryPlanJournal = (
 }
 
 const RECEIPT_TIMEOUT_MS = 300_000
+const APPROVAL_METADATA_RETRY_DELAYS_MS = [0, 250, 500, 1_000] as const
 const APPROVAL_HEAD_LAG_RETRY_DELAYS_MS = [
   250, 500, 1_000, 2_000, 4_000,
 ] as const
@@ -751,20 +752,28 @@ const recordRegistrationApprovalSubmission = async (params: {
     state: { ...params.approval.state, hash: params.hash },
   }
   persistTemporaryRegistrationApproval({ ...params, approval })
-  const [transaction, blockNumber] = await Promise.all([
-    params.ctx.publicClient.getTransaction({ hash: params.hash }),
-    params.ctx.publicClient.getBlockNumber({ cacheTime: 0 }),
-  ])
-  persistTemporaryRegistrationApproval({
-    ...params,
-    approval: {
-      ...approval,
-      submission: {
-        nonce: BigInt(transaction.nonce),
-        blockNumber: transaction.blockNumber ?? blockNumber,
+  // The wallet's RPC may see the transaction before ours. Keep its hash
+  // durable, but don't let optional replacement metadata block confirmation.
+  for (const retryDelay of APPROVAL_METADATA_RETRY_DELAYS_MS) {
+    if (retryDelay > 0) await delay(retryDelay)
+    const metadata = await Promise.all([
+      params.ctx.publicClient.getTransaction({ hash: params.hash }),
+      params.ctx.publicClient.getBlockNumber({ cacheTime: 0 }),
+    ]).catch(() => undefined)
+    if (!metadata) continue
+    const [transaction, blockNumber] = metadata
+    persistTemporaryRegistrationApproval({
+      ...params,
+      approval: {
+        ...approval,
+        submission: {
+          nonce: BigInt(transaction.nonce),
+          blockNumber: transaction.blockNumber ?? blockNumber,
+        },
       },
-    },
-  })
+    })
+    return
+  }
 }
 
 const findRegistrationApprovalReplacement = async (params: {
