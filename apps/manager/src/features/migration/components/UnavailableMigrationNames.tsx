@@ -30,7 +30,9 @@ export const UnavailableMigrationNames = ({
                   </Trans>
                 ))
                 .otherwise(() => (
-                  <Trans>no ENSv1 registration was found for it.</Trans>
+                  <Trans>
+                    its registration couldn&apos;t be read. Try again later.
+                  </Trans>
                 ))}
             </span>
           </li>
