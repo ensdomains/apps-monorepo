@@ -48,4 +48,17 @@ describe('describeRegistryContract', () => {
       'https://docs.ens.domains/contracts/ensv2/overview/',
     )
   })
+
+  it('does not call a registry on an untrusted implementation verified', () => {
+    const description = describeRegistryContract({
+      address: OTHER,
+      rootAddress: ROOT,
+      isUntrusted: true,
+    })
+
+    expect(description).toMatchObject({
+      type: 'Untrusted ENS V2 permissioned registry',
+      isVerified: false,
+    })
+  })
 })
