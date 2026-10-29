@@ -2,6 +2,7 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { SubregistryHistory } from '@/features/registry/hooks/useSubregistrySlot'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
@@ -114,19 +115,24 @@ const nameRegistriesResult: {
 // "never configured" when this is false; true means the pointer was zeroed and
 // the name is damaged, not new. See `useSubregistrySlot`.
 type SubregistryHistoryResult = {
-  readonly data: number | null | undefined
+  readonly data: SubregistryHistory | null | undefined
   readonly isError: boolean
+}
+
+const NEVER_LINKED: SubregistryHistory = {
+  linkCount: 0,
+  previousRegistry: undefined,
 }
 
 // Replaced wholesale per test rather than mutated field-by-field, so no case
 // can leak a half-reset fixture into the next one.
 let subregistryHistoryResult: SubregistryHistoryResult = {
-  data: 0,
+  data: NEVER_LINKED,
   isError: false,
 }
 
 const setSubregistryHistory = (result: Partial<SubregistryHistoryResult>) => {
-  subregistryHistoryResult = { data: 0, isError: false, ...result }
+  subregistryHistoryResult = { data: NEVER_LINKED, isError: false, ...result }
 }
 
 // The token's role holders. The owner (see `ownerData`) holds every token role
@@ -252,13 +258,16 @@ describe('V2RegistryInfo', () => {
   })
 
   describe('a subregistry slot that was zeroed, not never set (immunefi #93026)', () => {
+    const PREVIOUS_REGISTRY = '0x3333333333333333333333333333333333333333'
     const detachedLeaf = () => {
       setRegistries([
         zeroAddress, // foo.eth's subregistry — detached, not virgin
         '0x1111111111111111111111111111111111111111', // .eth registry
         '0x0000000000000000000000000000000000000000', // root
       ])
-      setSubregistryHistory({ data: 1 })
+      setSubregistryHistory({
+        data: { linkCount: 1, previousRegistry: PREVIOUS_REGISTRY },
+      })
     }
 
     it('does not offer the configure form on a detached slot', () => {
@@ -282,6 +291,8 @@ describe('V2RegistryInfo', () => {
       expect(
         screen.getByText(/point this name back at that registry/i),
       ).toBeInTheDocument()
+      expect(screen.getByText('previous registry')).toBeInTheDocument()
+      expect(screen.getByText(truncated(PREVIOUS_REGISTRY))).toBeInTheDocument()
     })
 
     it('withholds the configure form while the history lookup is in flight', () => {
