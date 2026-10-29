@@ -22,6 +22,8 @@ export type NameRecordsQuery = Readonly<{
   source?: Source | 'auto'
   /** At most 200 keys. */
   keys?: readonly RecordKey[]
+  /** False reads only the inventory; keys must be omitted. */
+  values?: boolean
   include?: readonly 'inventory'[]
 }>
 
@@ -78,6 +80,8 @@ export type ResolverRecordsQuery = Readonly<{
   name: string
   /** At most 200 keys. */
   keys?: readonly RecordKey[]
+  /** False reads only the inventory; keys must be omitted. */
+  values?: boolean
   include?: readonly 'inventory'[]
 }>
 
