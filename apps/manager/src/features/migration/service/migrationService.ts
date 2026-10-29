@@ -101,18 +101,18 @@ import {
   describeUpgradeOperations,
   nameCount,
 } from './migrationProgressCopy'
+import {
+  isDefinitelyUnsubmittedMigrationApprovalError,
+  isExpectedMigrationApprovalRequest,
+  isRegistrationApprovalRecoveryScopeValid,
+  registrationApprovalRecoveryDecision,
+} from './registrationApprovalRecovery'
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
 import {
   assertSubnameRecreationUnchanged,
   assertSupportedSubnameMigration,
 } from './subnameRecreation'
 import { assertSubnameRecreationSnapshotCurrent } from './subnameRecreationError'
-import {
-  isDefinitelyUnsubmittedMigrationApprovalError,
-  isExpectedMigrationApprovalRequest,
-  isTemporaryRegistrationRecoveryScopeValid,
-  registrationApprovalRecoveryDecision,
-} from './temporaryRegistrationApproval'
 import {
   reconcileAtomicMigrationBatch,
   verifyAtomicMigrationBatch,
@@ -649,7 +649,7 @@ const assertTemporaryRegistrationRecoveryScope = (
     approvals: [registrationOperatorApproval(temporary)],
   })
   if (
-    isTemporaryRegistrationRecoveryScopeValid({
+    isRegistrationApprovalRecoveryScopeValid({
       strategy: plan.registrationApprovalStrategy,
       required,
       reviewed: recovery.registrationApprovalReview,

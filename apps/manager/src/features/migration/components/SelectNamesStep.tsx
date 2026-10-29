@@ -13,13 +13,11 @@ import { cn } from '@/lib/utils'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import type { BlockedSubnameMigration } from '../hooks/useMigrationEligibility'
-import { GameStepView } from './GameStep'
 import { NameRow } from './NameRow'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
 import {
-  getMigrationRecoveryAction,
   shouldShowBulkSelection,
   shouldShowNameSearch,
   shouldUseCompactSelectionLayout,
@@ -132,6 +130,7 @@ const SelectionTitle = ({
   wrapperSyncCount,
   isRecoveryStale,
   isEligibilityError,
+  isFinishingRecovery,
 }: {
   readonly eligibleCount: number
   readonly graceCount: number
@@ -139,8 +138,10 @@ const SelectionTitle = ({
   readonly wrapperSyncCount: number
   readonly isRecoveryStale: boolean
   readonly isEligibilityError: boolean
+  readonly isFinishingRecovery: boolean
 }) => {
   if (isRecoveryStale) return <Trans>Your saved upgrade needs attention</Trans>
+  if (isFinishingRecovery) return <Trans>Finish your upgrade</Trans>
   if (isEligibilityError) return <Trans>We couldn't check your names</Trans>
   if (eligibleCount === 0 && graceCount > 0) {
     return <Trans>Renew your names before upgrading</Trans>
@@ -253,10 +254,8 @@ export const SelectNamesStep = ({
   // migration that fails for lack of gas before the ETH has landed.
   const isWaitingForGasFunding =
     totalSelected > 0 && gasFundingStatus === 'funding'
-  const recoveryAction = getMigrationRecoveryAction({
-    isRecovery,
-    plan: preparedPlan,
-  })
+  const isFinishingRecovery =
+    isRecovery && preparedPlan !== null && preparedPlan.classified.length === 0
   const recreation = preparedPlan?.subnameRecreation
   const hasSubnameCopies =
     preparedPlan?.classified.some(
@@ -268,7 +267,7 @@ export const SelectNamesStep = ({
     selected.has(name.domain.name),
   )
   const isUpgradeDisabled =
-    (totalSelected === 0 && recoveryAction === null) ||
+    (totalSelected === 0 && !isFinishingRecovery) ||
     isPending ||
     isRecoveryStale ||
     isStarting ||
@@ -288,7 +287,7 @@ export const SelectNamesStep = ({
     unavailableNames.length > 0 ||
     isEligibilityError
   const showSelectionOptions =
-    recoveryAction === null &&
+    !isFinishingRecovery &&
     (blockedSubnames.length === 0 ||
       eligible.length > 0 ||
       gracePeriodNames.length > 0 ||
@@ -306,47 +305,6 @@ export const SelectNamesStep = ({
     () => startUpgrade({ isUpgradeDisabled, onNext, setIsStarting }),
     [isUpgradeDisabled, onNext],
   )
-
-  const footer = (
-    <SelectNamesStepFooter
-      gasAffordability={gasAffordability}
-      gasEstimate={gasEstimate}
-      hasUnselectedEligibleNames={hasUnselectedEligibleNames}
-      isEstimatingGas={isEstimatingGas}
-      isStarting={isStarting}
-      isUpgradeDisabled={isUpgradeDisabled}
-      isWaitingForGasFunding={isWaitingForGasFunding}
-      onUpgrade={handleUpgrade}
-      recoveryAction={recoveryAction}
-      renewal={renewal}
-      renewalGasEstimate={renewalGasEstimate}
-      totalSelected={totalSelected}
-      visibleCount={visibleCount}
-    />
-  )
-
-  if (recoveryAction && preparedPlan && !isEligibilityError) {
-    return (
-      <div className="relative z-10 flex min-h-0 w-full flex-1 flex-col self-stretch">
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="relative h-full min-h-140">
-            <GameStepView
-              hasCollapsed={false}
-              progress={{
-                currentStep: 0,
-                totalSteps: preparedPlan.stepDescriptors.length,
-                description: '',
-                isRecovering: true,
-              }}
-              selectedNameCount={totalSelected}
-              stepDescriptors={preparedPlan.stepDescriptors}
-            />
-          </div>
-        </div>
-        {footer}
-      </div>
-    )
-  }
 
   return (
     <div className="relative z-10 flex min-h-0 w-full flex-1 flex-col self-stretch">
@@ -372,6 +330,7 @@ export const SelectNamesStep = ({
               eligibleCount={eligible.length}
               graceCount={gracePeriodNames.length}
               isEligibilityError={isEligibilityError}
+              isFinishingRecovery={isFinishingRecovery}
               isRecoveryStale={isRecoveryStale}
               unavailableCount={
                 unavailableNames.length + blockedSubnames.length
@@ -497,7 +456,21 @@ export const SelectNamesStep = ({
         </div>
       </div>
 
-      {footer}
+      <SelectNamesStepFooter
+        gasAffordability={gasAffordability}
+        gasEstimate={gasEstimate}
+        hasUnselectedEligibleNames={hasUnselectedEligibleNames}
+        isEstimatingGas={isEstimatingGas}
+        isFinishingRecovery={isFinishingRecovery}
+        isStarting={isStarting}
+        isUpgradeDisabled={isUpgradeDisabled}
+        isWaitingForGasFunding={isWaitingForGasFunding}
+        onUpgrade={handleUpgrade}
+        renewal={renewal}
+        renewalGasEstimate={renewalGasEstimate}
+        totalSelected={totalSelected}
+        visibleCount={visibleCount}
+      />
     </div>
   )
 }

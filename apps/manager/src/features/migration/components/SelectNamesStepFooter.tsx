@@ -13,7 +13,6 @@ import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEs
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import { GrainOverlay } from './GrainOverlay'
 import { MigrationUpgradeButton } from './MigrationUpgradeButton'
-import type { MigrationRecoveryAction } from './selectNames.helpers'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
 
 const DroppedPubkeyWarning = ({
@@ -41,7 +40,7 @@ type GasEstimateMessageProps = {
   readonly gasAffordability: GasAffordability
   readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
-  readonly recoveryAction?: MigrationRecoveryAction | null
+  readonly isFinishingRecovery?: boolean
   readonly renewal?: GraceRenewalQuoteState
 }
 
@@ -50,11 +49,11 @@ const GasEstimateMessage = ({
   gasAffordability,
   isWaitingForGasFunding,
   totalSelected,
-  recoveryAction = null,
+  isFinishingRecovery = false,
   renewal,
 }: GasEstimateMessageProps) => {
   const { _ } = useLingui()
-  if (totalSelected === 0 && recoveryAction === null) return null
+  if (totalSelected === 0 && !isFinishingRecovery) return null
 
   // The gas drip request only resolves once any sepETH top-up is confirmed
   // on-chain. Surface it so the owner knows why the button is briefly blocked.
@@ -130,7 +129,7 @@ type UpgradeButtonLabelProps = {
   readonly isStarting: boolean
   readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
-  readonly recoveryAction?: MigrationRecoveryAction | null
+  readonly isFinishingRecovery?: boolean
 }
 
 const UpgradeButtonLabel = ({
@@ -139,14 +138,13 @@ const UpgradeButtonLabel = ({
   isStarting,
   isWaitingForGasFunding,
   totalSelected,
-  recoveryAction = null,
+  isFinishingRecovery = false,
 }: UpgradeButtonLabelProps) => {
   if (isStarting) return <Trans>Starting...</Trans>
   if (hasInsufficientUsdc) return <Trans>Insufficient USDC</Trans>
   if (isEstimatingGas) return <Trans>Estimating...</Trans>
   if (isWaitingForGasFunding) return <Trans>Preparing wallet...</Trans>
-  if (recoveryAction === 'review-deployment') return <Trans>Continue</Trans>
-  if (recoveryAction === 'finish-upgrade') return <Trans>Finish upgrade</Trans>
+  if (isFinishingRecovery) return <Trans>Finish upgrade</Trans>
   return (
     <Plural
       one="Upgrade # name"
@@ -162,7 +160,7 @@ type SelectNamesStepFooterProps = {
   readonly hasUnselectedEligibleNames: boolean
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
-  readonly recoveryAction?: MigrationRecoveryAction | null
+  readonly isFinishingRecovery?: boolean
   readonly isUpgradeDisabled: boolean
   readonly isWaitingForGasFunding: boolean
   readonly onUpgrade: () => void
@@ -211,7 +209,7 @@ export const SelectNamesStepFooter = ({
   hasUnselectedEligibleNames,
   isEstimatingGas,
   isStarting,
-  recoveryAction = null,
+  isFinishingRecovery = false,
   isUpgradeDisabled,
   isWaitingForGasFunding,
   onUpgrade,
@@ -235,8 +233,8 @@ export const SelectNamesStepFooter = ({
           <GasEstimateMessage
             gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
+            isFinishingRecovery={isFinishingRecovery}
             isWaitingForGasFunding={isWaitingForGasFunding}
-            recoveryAction={recoveryAction}
             totalSelected={totalSelected}
           />
         ) : (
@@ -273,9 +271,9 @@ export const SelectNamesStepFooter = ({
           <UpgradeButtonLabel
             hasInsufficientUsdc={hasInsufficientUsdc}
             isEstimatingGas={isEstimatingGas}
+            isFinishingRecovery={isFinishingRecovery}
             isStarting={isStarting}
             isWaitingForGasFunding={isWaitingForGasFunding}
-            recoveryAction={recoveryAction}
             totalSelected={totalSelected}
           />
         </MigrationUpgradeButton>

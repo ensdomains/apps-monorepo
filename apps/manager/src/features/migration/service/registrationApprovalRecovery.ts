@@ -7,7 +7,7 @@ import {
 } from './migrationApprovals'
 import type { TemporaryRegistrationApproval } from './migrationBatchJournal'
 
-export const isTemporaryRegistrationRecoveryScopeValid = (params: {
+export const isRegistrationApprovalRecoveryScopeValid = (params: {
   readonly strategy: MigrationRegistrationApprovalStrategy | undefined
   readonly required: MigrationApprovalReview | null
   readonly reviewed: MigrationApprovalReview | undefined

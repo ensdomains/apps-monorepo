@@ -1,4 +1,3 @@
-import type { MigrationPlan } from '../service/buildMigrationPlan'
 import type { CopyClassifiedName } from '../service/classifyNames'
 import type { NameTreeNode } from '../service/groupByParent'
 
@@ -6,24 +5,6 @@ const BULK_SELECTION_THRESHOLD = 15
 const NAME_SEARCH_THRESHOLD = 9
 const SMALL_SELECTION_LAYOUT_THRESHOLD = 6
 const COMPACT_SELECTION_LAYOUT_THRESHOLD = 10
-
-export type MigrationRecoveryAction = 'finish-upgrade' | 'review-deployment'
-
-export const getMigrationRecoveryAction = ({
-  isRecovery,
-  plan,
-}: {
-  readonly isRecovery: boolean
-  readonly plan: Pick<
-    MigrationPlan,
-    'classified' | 'requiresFreshDeploymentPreview'
-  > | null
-}): MigrationRecoveryAction | null => {
-  if (!isRecovery || !plan || plan.classified.length > 0) return null
-  return plan.requiresFreshDeploymentPreview
-    ? 'review-deployment'
-    : 'finish-upgrade'
-}
 
 export const shouldShowBulkSelection = (eligibleCount: number): boolean =>
   eligibleCount >= BULK_SELECTION_THRESHOLD

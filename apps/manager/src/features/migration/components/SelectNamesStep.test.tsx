@@ -137,17 +137,6 @@ vi.mock('@/features/migration/hooks/useWrapperSync', () => ({
   useWrapperSync: () => wrapperSync,
 }))
 
-// happy-dom has no canvas context for Lottie's player initialization.
-vi.mock('lottie-web/build/player/lottie_light', () => ({
-  default: {
-    loadAnimation: () => ({
-      destroy: vi.fn(),
-      play: vi.fn(),
-      goToAndStop: vi.fn(),
-    }),
-  },
-}))
-
 beforeEach(() => {
   wrapperSync.mutate.mockReset()
   eligibilityState.wrapperSyncNames = []
@@ -536,24 +525,10 @@ describe('SelectNamesStep', () => {
     eligibilityState.recoveryStatus = 'recovering'
     const onNext = vi.fn(async () => false)
     const { getByRole } = renderStep({
-      gasEstimate: {
-        ...readyGasEstimate,
-        transactionCount: 2,
-        plan: {
-          ...readyGasEstimate.plan,
-          stepDescriptors: [
-            { type: 'cleanup', approvalId: 'base-registrar:hca' },
-            { type: 'cleanup', approvalId: 'eth-registry:hca' },
-          ],
-        },
-      },
+      gasEstimate: readyGasEstimate,
       onNext,
     })
 
-    expect(
-      getByRole('progressbar', { name: 'Upgrade progress' }),
-    ).toHaveAttribute('aria-valuenow', '0')
-    expect(getByRole('progressbar')).toHaveAttribute('aria-valuemax', '2')
     const button = getByRole('button', { name: 'Finish upgrade' })
     expect(button).not.toBeDisabled()
     fireEvent.click(button)
@@ -562,33 +537,6 @@ describe('SelectNamesStep', () => {
     await waitFor(() => {
       expect(getByRole('button', { name: 'Finish upgrade' })).not.toBeDisabled()
     })
-  })
-
-  it('resumes earlier permission cleanup in the game without claiming the remaining names are upgraded', async () => {
-    eligibilityState.recoveryStatus = 'recovering'
-    const onNext = vi.fn(async () => false)
-    const { getByRole, queryByText } = renderStep({
-      gasEstimate: {
-        ...readyGasEstimate,
-        plan: {
-          ...readyGasEstimate.plan,
-          requiresFreshDeploymentPreview: true,
-          stepDescriptors: [
-            { type: 'cleanup', approvalId: 'base-registrar:hca' },
-          ],
-        },
-      },
-      onNext,
-    })
-    expect(queryByText(/Your names have been upgraded/)).not.toBeInTheDocument()
-    expect(
-      getByRole('progressbar', { name: 'Upgrade progress' }),
-    ).toHaveAttribute('aria-valuenow', '0')
-    expect(getByRole('button', { name: '1 request' })).toBeInTheDocument()
-    const button = getByRole('button', { name: 'Continue' })
-    expect(button).not.toBeDisabled()
-    fireEvent.click(button)
-    await waitFor(() => expect(onNext).toHaveBeenCalledOnce())
   })
 
   it('warns instead of quoting a fee when the wallet is short of gas', () => {

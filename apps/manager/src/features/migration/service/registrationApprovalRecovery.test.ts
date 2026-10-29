@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   isDefinitelyUnsubmittedMigrationApprovalError,
   isExpectedMigrationApprovalRequest,
-  isTemporaryRegistrationRecoveryScopeValid,
+  isRegistrationApprovalRecoveryScopeValid,
   registrationApprovalRecoveryDecision,
-} from './temporaryRegistrationApproval'
+} from './registrationApprovalRecovery'
 
-describe('isTemporaryRegistrationRecoveryScopeValid', () => {
+describe('isRegistrationApprovalRecoveryScopeValid', () => {
   const review = {
     chainId: 1,
     owner: '0x0000000000000000000000000000000000000001',
@@ -23,7 +23,7 @@ describe('isTemporaryRegistrationRecoveryScopeValid', () => {
     [undefined, false],
   ])('keeps recovery bound to its reviewed scope: %o', (reviewed, expected) => {
     expect(
-      isTemporaryRegistrationRecoveryScopeValid({
+      isRegistrationApprovalRecoveryScopeValid({
         strategy: 'temporary-operator',
         required: review,
         reviewed,

@@ -897,7 +897,6 @@ msgstr "Contact methods"
 msgid "Content hash"
 msgstr "Content hash"
 
-#: src/features/migration/components/SelectNamesStepFooter.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "Continue"
 msgstr "Continue"
@@ -1430,6 +1429,10 @@ msgstr "Finish or cancel the other registration in its tab, then Try Again once 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Finish upgrade"
 msgstr "Finish upgrade"
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Finish your upgrade"
+msgstr "Finish your upgrade"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Finishing setup"
