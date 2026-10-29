@@ -8,7 +8,7 @@ autoInstallPeers: false
 
 catalog:
   "@ensdomains/address-encoder": ^2.0.1
-  "@ensdomains/ensjs": ^5.2.9
+  "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@3641a9f
   "@ensdomains/ensjs-abi": ^5.0.5
   xstate: ^5.33.3
   typescript: ^7.0.2
@@ -62,6 +62,7 @@ trustPolicy: no-downgrade
 trustPolicyIgnoreAfter: 10080 # 1 week
 
 overrides:
+  "@ensdomains/ensjs-abi": ^5.0.5
   available-typed-arrays: "npm:@socketregistry/available-typed-arrays@^1"
   es-define-property: "npm:@socketregistry/es-define-property@^1"
   for-each: "npm:@socketregistry/for-each@^1"
