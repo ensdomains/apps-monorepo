@@ -17,6 +17,7 @@ import {
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
+import { match } from 'ts-pattern'
 import {
   type Address,
   type Hex,
@@ -31,7 +32,7 @@ import {
   OPERATOR_APPROVAL_ABI,
 } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import { chunkWalletBundle, maxOuterGasFor } from './batchMigrate.constants'
+import { maxOuterGasFor } from './batchMigrate.constants'
 import {
   type AtomicMigrationBatch,
   buildAtomicMigrationBatches,
@@ -104,6 +105,7 @@ import {
   describeUpgradeOperations,
   nameCount,
 } from './migrationProgressCopy'
+import { planSetupBundles } from './planSetupBundles'
 
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
 import {
@@ -1092,32 +1094,34 @@ const ensureBundledSetup = async (params: {
       await ctx.publicClient.getCode({ address: ctx.hcaAddress }),
     )
     if (!shouldDeploy) await verifyHca()
-    const approvals = orderMigrationApprovals(plan, params.currentMissing).map(
-      ({ missing }) => missing,
-    )
-    // One slot per planned setup step, chunked like the preview's bundles;
-    // `null` is a step a previous attempt already completed.
-    const slots: readonly (Call | null)[] = [
-      ...(shouldDeploy
-        ? [
+    const missingApprovals = orderMigrationApprovals(
+      plan,
+      params.currentMissing,
+    ).map(({ missing }) => missing)
+    const bundles = planSetupBundles({
+      isHcaDeployed: !shouldDeploy,
+      isDeploymentPlanned: plan.hcaDeploymentRequired,
+      missingApprovals,
+    })
+
+    const hashes: Hex[] = []
+    for (const bundle of bundles) {
+      const calls = bundle.flatMap((step): Call[] =>
+        match(step)
+          .with({ type: 'deploy-hca' }, () => [
             buildHcaDeploymentCall({
               client: params.hcaClient,
               chainId,
               expectedHca: ctx.hcaAddress,
               expectedOwner: ctx.walletAddress,
             }),
-          ]
-        : plan.hcaDeploymentRequired
-          ? [null]
-          : []),
-      ...approvals.map((approval) =>
-        approval ? buildMigrationApprovalCall(approval) : null,
-      ),
-    ]
-
-    const hashes: Hex[] = []
-    for (const [index, chunk] of chunkWalletBundle(slots).entries()) {
-      const calls = chunk.filter((call) => call !== null)
+          ])
+          .with({ type: 'approval' }, ({ approval }) => [
+            buildMigrationApprovalCall(approval),
+          ])
+          .with({ type: 'done' }, () => [])
+          .exhaustive(),
+      )
       if (calls.length === 0) {
         // A retry can find setup already done; consume its planned step.
         ctx.tracker.next()
@@ -1125,7 +1129,7 @@ const ensureBundledSetup = async (params: {
         continue
       }
       const { hash } = await submitCalls(ctx, calls, 'Getting ready')
-      if (shouldDeploy && index === 0) {
+      if (bundle.some(({ type }) => type === 'deploy-hca')) {
         await verifyHca()
         await params.refreshAccount()
       }
@@ -1135,7 +1139,9 @@ const ensureBundledSetup = async (params: {
     }
     return {
       hashes,
-      hasGrantedApprovals: approvals.some((approval) => approval !== undefined),
+      hasGrantedApprovals: missingApprovals.some(
+        (approval) => approval !== undefined,
+      ),
     }
   } catch (error) {
     throw wrapMigrationError(error, 'Setting up HCA')
