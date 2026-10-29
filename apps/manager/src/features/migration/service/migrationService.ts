@@ -31,7 +31,7 @@ import {
   OPERATOR_APPROVAL_ABI,
 } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import { maxOuterGasFor } from './batchMigrate.constants'
+import { chunkWalletBundle, maxOuterGasFor } from './batchMigrate.constants'
 import {
   type AtomicMigrationBatch,
   buildAtomicMigrationBatches,
@@ -1060,10 +1060,12 @@ const orderMigrationApprovals = (
 }
 
 /**
- * HCA deployment and every missing approval as ONE wallet confirmation. The
- * bundle is atomic, so approvals can never land for an HCA whose deployment
- * failed; the deployment call itself is validated before it is signed, and an
- * already-deployed HCA is verified before anything is granted to it.
+ * HCA deployment and every missing approval as atomic wallet bundles of at
+ * most `MAX_WALLET_BUNDLE_CALLS` calls, one confirmation each. The deployment
+ * leads the first bundle and is verified before any later bundle is sent, so
+ * approvals can never land for an HCA whose deployment failed; the deployment
+ * call itself is validated before it is signed, and an already-deployed HCA is
+ * verified before anything is granted to it.
  */
 const ensureBundledSetup = async (params: {
   readonly ctx: MigrationCtx
@@ -1072,7 +1074,7 @@ const ensureBundledSetup = async (params: {
   readonly refreshAccount: () => Promise<void>
   readonly currentMissing: readonly MigrationApproval[]
 }): Promise<{
-  readonly hash: Hex | null
+  readonly hashes: readonly Hex[]
   readonly hasGrantedApprovals: boolean
 }> => {
   const { ctx, plan } = params
@@ -1090,10 +1092,12 @@ const ensureBundledSetup = async (params: {
       await ctx.publicClient.getCode({ address: ctx.hcaAddress }),
     )
     if (!shouldDeploy) await verifyHca()
-    const approvals = orderMigrationApprovals(plan, params.currentMissing)
-      .map(({ missing }) => missing)
-      .filter((approval) => approval !== undefined)
-    const calls = [
+    const approvals = orderMigrationApprovals(plan, params.currentMissing).map(
+      ({ missing }) => missing,
+    )
+    // One slot per planned setup step, chunked like the preview's bundles;
+    // `null` is a step a previous attempt already completed.
+    const slots: readonly (Call | null)[] = [
       ...(shouldDeploy
         ? [
             buildHcaDeploymentCall({
@@ -1103,30 +1107,36 @@ const ensureBundledSetup = async (params: {
               expectedOwner: ctx.walletAddress,
             }),
           ]
-        : []),
-      ...approvals.map(buildMigrationApprovalCall),
+        : plan.hcaDeploymentRequired
+          ? [null]
+          : []),
+      ...approvals.map((approval) =>
+        approval ? buildMigrationApprovalCall(approval) : null,
+      ),
     ]
 
-    if (calls.length === 0) {
-      // A retry can find setup already done; consume its planned step.
-      if (
-        plan.hcaDeploymentRequired ||
-        (plan.preflight.migrationApprovals ?? []).length > 0
-      ) {
+    const hashes: Hex[] = []
+    for (const [index, chunk] of chunkWalletBundle(slots).entries()) {
+      const calls = chunk.filter((call) => call !== null)
+      if (calls.length === 0) {
+        // A retry can find setup already done; consume its planned step.
         ctx.tracker.next()
         ctx.tracker.emit('Already set up')
+        continue
       }
-      return { hash: null, hasGrantedApprovals: false }
+      const { hash } = await submitCalls(ctx, calls, 'Getting ready')
+      if (shouldDeploy && index === 0) {
+        await verifyHca()
+        await params.refreshAccount()
+      }
+      hashes.push(hash)
+      ctx.tracker.next()
+      ctx.tracker.emit('Ready', hash)
     }
-
-    const { hash } = await submitCalls(ctx, calls, 'Getting ready')
-    if (shouldDeploy) {
-      await verifyHca()
-      await params.refreshAccount()
+    return {
+      hashes,
+      hasGrantedApprovals: approvals.some((approval) => approval !== undefined),
     }
-    ctx.tracker.next()
-    ctx.tracker.emit('Ready', hash)
-    return { hash, hasGrantedApprovals: approvals.length > 0 }
   } catch (error) {
     throw wrapMigrationError(error, 'Setting up HCA')
   }
@@ -1249,7 +1259,7 @@ const ensureMigrationApprovals = async (params: {
   return hashes
 }
 
-/** HCA deployment + approvals: one bundle, or one prompt each. */
+/** HCA deployment + approvals: bundled, or one prompt each. */
 const ensureMigrationSetup = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
@@ -1261,8 +1271,7 @@ const ensureMigrationSetup = async (params: {
   readonly hasGrantedApprovals: boolean
 }> => {
   if (params.ctx.canBatchAtomically) {
-    const { hash, hasGrantedApprovals } = await ensureBundledSetup(params)
-    return { hashes: hash ? [hash] : [], hasGrantedApprovals }
+    return ensureBundledSetup(params)
   }
 
   const deploymentHash = await ensureHcaDeployment({
