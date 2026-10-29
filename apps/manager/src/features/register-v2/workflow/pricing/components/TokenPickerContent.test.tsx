@@ -973,12 +973,46 @@ describe('TokenPickerContentBase L2 rows', () => {
       stablecoinBalances: [emptyUsdc],
       l2Payment: payment,
     })
+    // The fallback already picked it on mount; prove the click selects too.
+    payment.onSelect.mockClear()
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
     )
     expect(payment.onSelect).toHaveBeenCalledWith(baseSepolia.id)
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('leaves the method alone while a click is in flight', () => {
+    const payment = l2Payment(
+      baseSepoliaRow('available', { amountInRaw: 5_012_573n }),
+    )
+    renderPicker({
+      funding: underfunded,
+      isBusy: true,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: payment,
+    })
+
+    expect(payment.onSelect).not.toHaveBeenCalled()
+  })
+
+  it('with nothing chosen, picks a wallet coin that can pay over a bigger L2', () => {
+    const row = baseSepoliaRow('available', { amountInRaw: 5_012_573n })
+    const payment = l2Payment({
+      ...row,
+      option: { ...row.option, balanceRaw: 5_000_000_000n },
+    })
+    const onSelectCoin = renderPicker({
+      funding: underfunded,
+      selectedToken: undefined,
+      stablecoinBalances: [usdc],
+      l2Payment: payment,
+    })
+
+    expect(onSelectCoin).toHaveBeenCalledWith('USDC')
+    expect(payment.onSelect).not.toHaveBeenCalled()
   })
 
   it('registers from a chosen L2 once quoted, and totals what it is charged', () => {

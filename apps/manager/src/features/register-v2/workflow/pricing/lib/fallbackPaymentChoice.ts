@@ -10,28 +10,42 @@ export type PayableMethod = Readonly<{
   decimals: number
 }>
 
+/** The selected method: covers the payment, falls short, or nothing is chosen yet. */
+export type CurrentMethodState = 'payable' | 'short' | 'none'
+
 const COMPARE_DECIMALS = 18
 
 const toComparable = ({ balanceRaw, decimals }: PayableMethod) =>
   balanceRaw * 10n ** BigInt(COMPARE_DECIMALS - decimals)
 
-/**
- * What to switch to when the current method can't pay: the payable method
- * holding the most. A tie keeps list order, so the wallet wins it.
- */
-export const getFallbackPaymentChoice = ({
-  isCurrentPayable,
-  payableMethods,
-}: {
-  readonly isCurrentPayable: boolean
-  readonly payableMethods: readonly PayableMethod[]
-}): PaymentChoice | undefined => {
-  if (isCurrentPayable) return undefined
-  return payableMethods.reduce<PayableMethod | undefined>(
+const holdingMost = (methods: readonly PayableMethod[]) =>
+  methods.reduce<PayableMethod | undefined>(
     (best, method) =>
       best === undefined || toComparable(method) > toComparable(best)
         ? method
         : best,
     undefined,
-  )?.choice
+  )
+
+/**
+ * What to switch to when the current method can't pay: the payable method
+ * holding the most. A tie keeps list order, so the wallet wins it. With
+ * nothing chosen yet, a wallet coin that can pay goes first, as it needs no bridge.
+ */
+export const getFallbackPaymentChoice = ({
+  current,
+  payableMethods,
+}: {
+  readonly current: CurrentMethodState
+  readonly payableMethods: readonly PayableMethod[]
+}): PaymentChoice | undefined => {
+  if (current === 'payable') return undefined
+  const walletMethods = payableMethods.filter(
+    ({ choice }) => choice.kind === 'wallet',
+  )
+  const candidates =
+    current === 'none' && walletMethods.length > 0
+      ? walletMethods
+      : payableMethods
+  return holdingMost(candidates)?.choice
 }
