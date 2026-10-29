@@ -139,6 +139,8 @@ const res = await fetch(webhookUrl, {
   method: 'POST',
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify(message),
+  // Releases queue behind each other; a stuck post must not hold the next one.
+  signal: AbortSignal.timeout(10_000),
 });
 if (!res.ok) throw new Error(`Slack webhook failed: ${res.status} ${await res.text()}`);
 console.log(`Posted ${tag} (${isReleased ? 'released' : 'failed'}) to Slack.`);

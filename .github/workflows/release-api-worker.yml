@@ -172,6 +172,7 @@ jobs:
       # A failed post must not mark a finished release as failed.
       - name: Post to Slack
         continue-on-error: true
+        timeout-minutes: 1
         env:
           NEEDS: ${{ toJSON(needs) }}
           SLACK_WEBHOOK_URL: ${{ secrets.RELEASES_SLACK_WEBHOOK }}
