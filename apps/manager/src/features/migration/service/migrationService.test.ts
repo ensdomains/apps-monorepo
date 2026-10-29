@@ -753,6 +753,12 @@ describe('executeMigration HCA orchestration', () => {
       try {
         const permission = mockBulkPermissionLifecycle()
         const delayedHash = hashFor(phase === 'grant' ? 1 : 3)
+        const expectedStatus =
+          phase === 'grant' ? 'grant-pending' : 'revoke-pending'
+        const expectedSubmission =
+          visibility === 'after-retry'
+            ? { nonce: phase === 'grant' ? 0n : 2n, blockNumber: 123n }
+            : undefined
         const confirmed = new Set<Hex>()
         let hasMissedTransaction = false
         mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
@@ -780,14 +786,10 @@ describe('executeMigration HCA orchestration', () => {
               hca: HCA,
             })?.temporaryRegistrationApproval
             expect(approval?.state).toMatchObject({
-              status: phase === 'grant' ? 'grant-pending' : 'revoke-pending',
+              status: expectedStatus,
               hash,
             })
-            expect(approval?.submission).toEqual(
-              visibility === 'after-retry'
-                ? { nonce: phase === 'grant' ? 0n : 2n, blockNumber: 123n }
-                : undefined,
-            )
+            expect(approval?.submission).toEqual(expectedSubmission)
           }
           confirmed.add(hash)
           return { hash }
