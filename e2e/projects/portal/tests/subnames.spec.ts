@@ -24,6 +24,7 @@ import {
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient } from '../../../helpers/anvil-client.js'
+import { isRealBigname } from '../../../helpers/bigname-sync.js'
 import {
   waitForIndexedBlock,
   waitForIndexedName,
@@ -99,11 +100,16 @@ test.describe('Portal subnames', () => {
       `${label}.${parent} should be REGISTERED in ${registryAddress}`,
     ).toBe(REGISTERED)
 
-    await waitForIndexedName(`${label}.${parent}`, 180_000)
-    await page.goto(`${PORTAL_APP_URL}/${parent}/subnames`)
-    await expect(
-      subnamesTable(page).getByText(`${label}.${parent}`, { exact: true }),
-    ).toBeVisible({ timeout: 30_000 })
+    // The subnames list reads bigname. The route mock cannot learn a subname
+    // created during the test, so the list half needs a real indexer; the
+    // on-chain REGISTERED check above is the oracle either way.
+    if (isRealBigname) {
+      await waitForIndexedName(`${label}.${parent}`, 180_000)
+      await page.goto(`${PORTAL_APP_URL}/${parent}/subnames`)
+      await expect(
+        subnamesTable(page).getByText(`${label}.${parent}`, { exact: true }),
+      ).toBeVisible({ timeout: 30_000 })
+    }
   })
 
   test('creates a 4LD under a 3LD that owns its own registry', {

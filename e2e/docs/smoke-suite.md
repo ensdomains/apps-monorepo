@@ -37,8 +37,8 @@ full suite until the manager smoke batch. Nightly runs every migration spec.
 |---|---|---|---|---|
 | Registration | Explorer | V2 | `registration.spec.ts`: registers a name via headless wallet and stablecoin payment | per PR |
 | Registration | Explorer | V1 | not applicable: new registrations are V2 only | — |
-| Add 3LD | Explorer | V2 | `subnames.spec.ts`: creates a 3LD in the parent registry | per PR |
-| Add 4LD | Explorer | V2 | `subnames.spec.ts`: creates a 4LD under a 3LD that owns its own registry; `v2-4ld.spec.ts`: creates a native 4LD in its immediate parent registry | per PR |
+| Add 3LD | Explorer | V2 | `subnames.spec.ts`: creates a 3LD in the parent registry | per PR (the subnames-list check needs real bigname) |
+| Add 4LD | Explorer | V2 | `subnames.spec.ts`: creates a 4LD under a 3LD that owns its own registry (per PR); `v2-4ld.spec.ts`: creates a native 4LD in its immediate parent registry (local, real bigname) | per PR |
 | Add 3LD / 4LD | Explorer | V1 | **gap** | — |
 | Renew | Explorer | V2 | `registration.spec.ts`: Extend approves exactly the renewal price and leaves no allowance behind | per PR |
 | Renew | Explorer | V1 | `registration.spec.ts`: renewing a V1 name approves ETHRenewerV1 exactly its price | per PR |
