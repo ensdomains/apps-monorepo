@@ -1,5 +1,4 @@
 import type { JSX, SVGProps } from 'react'
-import type { Address } from 'viem'
 import type { SupportedTokenAddresses } from '../types/tokens'
 
 export type TokenPrice = {
@@ -36,22 +35,4 @@ export function buildTokenData(
     balance: typeof balances[i] === 'bigint' ? balances[i] : 0n,
     allowance: typeof allowances[i] === 'bigint' ? allowances[i] : 0n,
   }))
-}
-
-type SelectableToken = {
-  readonly address: Address
-  readonly balance: bigint
-  readonly price: { readonly total: bigint }
-}
-
-/**
- * The user's pick while it can still pay, otherwise the first token that can,
- * so checkout never waits on a click when a token can pay.
- */
-export const getSelectedPaymentToken = <T extends SelectableToken>(
-  tokens: readonly T[],
-  chosen: Address | null,
-): T | null => {
-  const payable = tokens.filter((token) => token.balance >= token.price.total)
-  return payable.find((token) => token.address === chosen) ?? payable[0] ?? null
 }

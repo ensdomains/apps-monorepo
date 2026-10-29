@@ -6,7 +6,7 @@ import {
   USDC_DECIMALS,
 } from '@/lib/constants/tokens'
 import type { SupportedTokenAddresses } from '../types/tokens'
-import { buildTokenData, getSelectedPaymentToken } from './tokenData'
+import { buildTokenData } from './tokenData'
 
 const mockToken = (
   symbol: string,
@@ -77,47 +77,5 @@ describe('buildTokenData', () => {
     const result = buildTokenData(tokens, prices, balances, [])
 
     expect(result[0].balance).toBe(0n)
-  })
-})
-
-describe('getSelectedPaymentToken', () => {
-  const usdc = (balance: bigint) => ({
-    address: SUPPORTED_TOKENS.USDC,
-    balance,
-    price: { total: 5_000_000n },
-  })
-  const dai = (balance: bigint) => ({
-    address: SUPPORTED_TOKENS.DAI,
-    balance,
-    price: { total: 5_000_000_000_000_000_000n },
-  })
-
-  it.each([
-    {
-      case: 'picks the first token that can pay when none is chosen',
-      tokens: [usdc(0n), dai(10n ** 19n)],
-      chosen: null,
-      expected: SUPPORTED_TOKENS.DAI,
-    },
-    {
-      case: 'keeps a chosen token that can pay',
-      tokens: [usdc(10_000_000n), dai(10n ** 19n)],
-      chosen: SUPPORTED_TOKENS.DAI,
-      expected: SUPPORTED_TOKENS.DAI,
-    },
-    {
-      case: 'drops a chosen token that can no longer pay',
-      tokens: [usdc(10_000_000n), dai(0n)],
-      chosen: SUPPORTED_TOKENS.DAI,
-      expected: SUPPORTED_TOKENS.USDC,
-    },
-    {
-      case: 'selects nothing when no token can pay',
-      tokens: [usdc(4_999_999n)],
-      chosen: SUPPORTED_TOKENS.USDC,
-      expected: undefined,
-    },
-  ])('$case', ({ tokens, chosen, expected }) => {
-    expect(getSelectedPaymentToken(tokens, chosen)?.address).toBe(expected)
   })
 })

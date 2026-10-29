@@ -11,9 +11,7 @@ import {
 } from '@/features/register/components/PaymentTokenList'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
-import { useReportPaymentSelection } from '@/features/register/hooks/useReportPaymentSelection'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
-import { getSelectedPaymentToken } from '@/features/register/utils/tokenData'
 import type {
   MultiRenewalEntry,
   RenewerPayment,
@@ -55,7 +53,7 @@ export const MultiNamePaymentTokenPicker = ({
 }: MultiNamePaymentTokenPickerProps) => {
   const config = useConfig()
   const { address } = useConnection()
-  const [chosenToken, setChosenToken] = useState<Address | null>(null)
+  const [selectedToken, setSelectedToken] = useState<Address | null>(null)
   const hasAddress = Boolean(address)
 
   // Distinct renewer contracts among the selected names — the ERC-20 spenders we
@@ -119,6 +117,28 @@ export const MultiNamePaymentTokenPicker = ({
     allowancesQuery.isLoading ||
     priceQueries.some((q) => q.isLoading)
 
+  if (isLoading) return <Skeleton />
+
+  // A settled-but-errored price read must NOT be treated as 0: that would
+  // understate a renewer's approval total (risking an on-chain revert) and make
+  // a token look affordable when it isn't. If any name's price failed to resolve,
+  // block selection and prompt a retry rather than price the batch wrong.
+  const pricesResolved = priceQueries.every(
+    (q) => q.data && isPriceResult(q.data),
+  )
+
+  if (!pricesResolved) {
+    return (
+      <MessageCard
+        variant="warning"
+        icon={<AlertTriangle className="size-6" />}
+        title="Couldn't load renewal prices"
+        className="xl:min-w-none"
+        description="We couldn't fetch the renewal price for one or more names. Please try again in a moment."
+      />
+    )
+  }
+
   const balances = (balancesQuery.data ?? []).map((balance) =>
     balance.status === 'success' && balance.result !== undefined
       ? BigInt(balance.result)
@@ -168,58 +188,18 @@ export const MultiNamePaymentTokenPicker = ({
     }),
   )
 
-  // A settled-but-errored price read must NOT be treated as 0: that would
-  // understate a renewer's approval total (risking an on-chain revert) and make
-  // a token look affordable when it isn't. If any name's price failed to resolve,
-  // block selection and prompt a retry rather than price the batch wrong.
-  const pricesResolved = priceQueries.every(
-    (q) => q.data && isPriceResult(q.data),
-  )
-
-  // A missing allowance would read as zero, so nothing is selected until every read is in.
-  const selectedToken =
-    pricesResolved && !isLoading
-      ? getSelectedPaymentToken(tokenData, chosenToken)
-      : null
-  const selectedIndex = PAYMENT_TOKENS.findIndex(
-    (token) => token.address === selectedToken?.address,
-  )
-  const selectedPayments = paymentsByToken[selectedIndex]
-  const selection =
-    selectedToken && selectedPayments
-      ? { tokenAddress: selectedToken.address, payments: selectedPayments }
-      : null
-  useReportPaymentSelection(
-    selection,
-    selection &&
-      `${selection.tokenAddress}:${selection.payments
-        .map(
-          ({ renewer, total, allowance }) => `${renewer}=${total}/${allowance}`,
-        )
-        .join(',')}`,
-    onSelectionChange,
-  )
-
-  if (isLoading) return <Skeleton />
-
-  if (!pricesResolved) {
-    return (
-      <MessageCard
-        variant="warning"
-        icon={<AlertTriangle className="size-6" />}
-        title="Couldn't load renewal prices"
-        className="xl:min-w-none"
-        description="We couldn't fetch the renewal price for one or more names. Please try again in a moment."
-      />
-    )
-  }
-
   const noSupportedTokenHasSufficientBalance = tokenData.every(
     (token) => token.balance < token.price.total,
   )
 
-  const handleSelect = (token: PaymentTokenDisplay) =>
-    setChosenToken(token.address)
+  const handleSelect = (token: PaymentTokenDisplay) => {
+    const index = PAYMENT_TOKENS.findIndex((t) => t.address === token.address)
+    setSelectedToken(token.address)
+    onSelectionChange({
+      tokenAddress: token.address,
+      payments: paymentsByToken[index],
+    })
+  }
 
   return (
     <>
@@ -235,7 +215,7 @@ export const MultiNamePaymentTokenPicker = ({
       ) : (
         <PaymentTokenList
           tokenData={tokenData}
-          selectedToken={selectedToken?.address}
+          selectedToken={selectedToken}
           isRegistering={false}
           onSelect={handleSelect}
         />
