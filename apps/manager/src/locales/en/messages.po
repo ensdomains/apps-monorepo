@@ -319,6 +319,10 @@ msgstr "A subname's owner or resolver could not be verified. Refresh and try aga
 msgid "About {0} more needed on {chainName}."
 msgstr "About {0} more needed on {chainName}."
 
+#: src/features/migration/components/SmartTransactionsNotice.tsx
+msgid "About Smart Transactions"
+msgstr "About Smart Transactions"
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr "Account address:"
@@ -3640,6 +3644,10 @@ msgstr "Use your ENS name in wallets, apps, blockchains, and browsers you alread
 #: src/components/NameFallbackCard.tsx
 msgid "uses an unsupported TLD"
 msgstr "uses an unsupported TLD"
+
+#: src/features/migration/components/SmartTransactionsNotice.tsx
+msgid "Using MetaMask? Turn off Smart Transactions in its settings before you start, or this page can lose track of your upgrade."
+msgstr "Using MetaMask? Turn off Smart Transactions in its settings before you start, or this page can lose track of your upgrade."
 
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "V1"

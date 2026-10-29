@@ -13,6 +13,8 @@ import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEs
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import { GrainOverlay } from './GrainOverlay'
 import { MigrationUpgradeButton } from './MigrationUpgradeButton'
+import { SmartTransactionsNotice } from './SmartTransactionsNotice'
+import { shouldShowSmartTransactionsNotice } from './selectNames.helpers'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
 
 const DroppedPubkeyWarning = ({
@@ -161,6 +163,7 @@ type SelectNamesStepFooterProps = {
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isFinishingRecovery?: boolean
+  readonly isMetaMaskWallet: boolean
   readonly isUpgradeDisabled: boolean
   readonly isWaitingForGasFunding: boolean
   readonly onUpgrade: () => void
@@ -210,6 +213,7 @@ export const SelectNamesStepFooter = ({
   isEstimatingGas,
   isStarting,
   isFinishingRecovery = false,
+  isMetaMaskWallet,
   isUpgradeDisabled,
   isWaitingForGasFunding,
   onUpgrade,
@@ -257,6 +261,11 @@ export const SelectNamesStepFooter = ({
             )}
           </>
         )}
+        {shouldShowSmartTransactionsNotice({
+          isMetaMaskWallet,
+          totalSelected,
+          isFinishingRecovery,
+        }) && <SmartTransactionsNotice />}
       </div>
       <div className="relative flex w-full flex-col gap-1 sm:w-auto">
         <MigrationUpgradeButton

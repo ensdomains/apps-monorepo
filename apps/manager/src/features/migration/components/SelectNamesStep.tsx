@@ -116,6 +116,7 @@ type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
   readonly gasAffordability: GasAffordability
   readonly gasFundingStatus: MigrationGasFundingStatus
+  readonly isMetaMaskWallet?: boolean
   readonly onNamesChange: (names: string[]) => void
   readonly onManagerRestorationChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
@@ -160,6 +161,7 @@ export const SelectNamesStep = ({
   gasEstimate,
   gasAffordability,
   gasFundingStatus,
+  isMetaMaskWallet = false,
   onNamesChange,
   onManagerRestorationChange,
   onNext,
@@ -462,6 +464,7 @@ export const SelectNamesStep = ({
         hasUnselectedEligibleNames={hasUnselectedEligibleNames}
         isEstimatingGas={isEstimatingGas}
         isFinishingRecovery={isFinishingRecovery}
+        isMetaMaskWallet={isMetaMaskWallet}
         isStarting={isStarting}
         isUpgradeDisabled={isUpgradeDisabled}
         isWaitingForGasFunding={isWaitingForGasFunding}

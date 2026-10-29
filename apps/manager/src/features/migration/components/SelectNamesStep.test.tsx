@@ -168,6 +168,7 @@ const renderStep = ({
   gasEstimate = { status: 'idle' } as MigrationGasEstimateState,
   gasAffordability = { status: 'unknown' } as GasAffordability,
   gasFundingStatus = 'settled',
+  isMetaMaskWallet = false,
   renewal = { status: 'idle' },
   renewalGasEstimate = { status: 'idle' },
   onNext = vi.fn(),
@@ -175,6 +176,7 @@ const renderStep = ({
   gasEstimate?: MigrationGasEstimateState
   gasAffordability?: GasAffordability
   gasFundingStatus?: MigrationGasFundingStatus
+  isMetaMaskWallet?: boolean
   renewal?: GraceRenewalQuoteState
   renewalGasEstimate?: GraceRenewalGasEstimateState
   onNext?: () => boolean | Promise<boolean>
@@ -190,6 +192,7 @@ const renderStep = ({
         gasAffordability={gasAffordability}
         gasEstimate={estimate}
         gasFundingStatus={gasFundingStatus}
+        isMetaMaskWallet={isMetaMaskWallet}
         onManagerRestorationChange={onManagerRestorationChange}
         onNamesChange={onNamesChange}
         onNext={onNext}
@@ -580,6 +583,24 @@ describe('SelectNamesStep', () => {
     expect(getByRole('note')).toHaveTextContent(
       /Public key records can.t be carried over .* for status\.eth\./i,
     )
+  })
+
+  it('asks MetaMask users to turn off Smart Transactions before upgrading', () => {
+    const { getByRole } = renderStep({
+      gasEstimate: readyGasEstimate,
+      isMetaMaskWallet: true,
+    })
+
+    expect(getByRole('note')).toHaveTextContent(/Turn off Smart Transactions/i)
+    expect(
+      getByRole('link', { name: 'About Smart Transactions' }),
+    ).toHaveAttribute('href', expect.stringContaining('support.metamask.io'))
+  })
+
+  it('does not mention Smart Transactions to other wallets', () => {
+    const { queryByText } = renderStep({ gasEstimate: readyGasEstimate })
+
+    expect(queryByText(/Smart Transactions/i)).not.toBeInTheDocument()
   })
 
   it('keeps the fee in the requests dialog when the balance cannot be read', () => {

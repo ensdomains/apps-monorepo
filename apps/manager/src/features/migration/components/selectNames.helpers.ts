@@ -19,6 +19,18 @@ export const shouldUseCompactSelectionLayout = (
 export const shouldUseSmallSelectionCard = (eligibleCount: number): boolean =>
   eligibleCount > 0 && eligibleCount <= SMALL_SELECTION_LAYOUT_THRESHOLD
 
+// Mirrors when the footer quotes the upgrade: shown only once there is
+// something to send from the wallet.
+export const shouldShowSmartTransactionsNotice = ({
+  isMetaMaskWallet,
+  totalSelected,
+  isFinishingRecovery,
+}: {
+  readonly isMetaMaskWallet: boolean
+  readonly totalSelected: number
+  readonly isFinishingRecovery: boolean
+}): boolean => isMetaMaskWallet && (totalSelected > 0 || isFinishingRecovery)
+
 export const collectAllSelectable = (
   groups: readonly NameTreeNode[],
   orphans: readonly NameTreeNode[],

@@ -324,6 +324,10 @@ msgstr ""
 msgid "About {0} more needed on {chainName}."
 msgstr ""
 
+#: src/features/migration/components/SmartTransactionsNotice.tsx
+msgid "About Smart Transactions"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr ""
@@ -3644,6 +3648,10 @@ msgstr ""
 
 #: src/components/NameFallbackCard.tsx
 msgid "uses an unsupported TLD"
+msgstr ""
+
+#: src/features/migration/components/SmartTransactionsNotice.tsx
+msgid "Using MetaMask? Turn off Smart Transactions in its settings before you start, or this page can lose track of your upgrade."
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
