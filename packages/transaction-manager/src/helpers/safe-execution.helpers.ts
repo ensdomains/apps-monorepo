@@ -142,6 +142,7 @@ export function orSafeExecution<T, E1, E2>({
   timeout,
   direct,
   settle,
+  signal,
 }: {
   readonly publicClient: PublicClient
   readonly connector: Connector | undefined
@@ -150,6 +151,8 @@ export function orSafeExecution<T, E1, E2>({
   readonly timeout: number
   readonly direct: ResultAsync<T, E1>
   readonly settle: (hash: Hash) => ResultAsync<T, E2>
+  /** Stops the log watch when the run itself is stopped. */
+  readonly signal: AbortSignal
 }): ResultAsync<
   T,
   E1 | E2 | TransactionTimeoutError | TransactionRevertedError
@@ -175,7 +178,7 @@ export function orSafeExecution<T, E1, E2>({
         safe: account,
         safeTxHash: id,
         timeout,
-        signal: controller.signal,
+        signal: AbortSignal.any([signal, controller.signal]),
       })
         // A failed execution still waits out the carrying transaction's confirmations.
         .andThen(({ transactionHash, isSuccess }) =>

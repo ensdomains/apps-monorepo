@@ -204,21 +204,24 @@ export const transactionMachine = setup({
      * Wait for Transaction Receipt
      */
     waitForReceipt: fromResultAsync(
-      ({
-        hash,
-        callsId,
-        request,
-        signer,
-        options,
-        publicClient,
-      }: {
-        hash?: Hash
-        callsId?: string
-        request?: TransactionRequest
-        signer?: Signer
-        options?: TransactionOptions
-        publicClient: PublicClient
-      }): ResultAsync<
+      (
+        {
+          hash,
+          callsId,
+          request,
+          signer,
+          options,
+          publicClient,
+        }: {
+          hash?: Hash
+          callsId?: string
+          request?: TransactionRequest
+          signer?: Signer
+          options?: TransactionOptions
+          publicClient: PublicClient
+        },
+        { signal },
+      ): ResultAsync<
         TransactionReceipt,
         | TransactionTimeoutError
         | CallsBundleTimeoutError
@@ -250,6 +253,7 @@ export const transactionMachine = setup({
             timeout,
             direct: waitForHash(hash),
             settle: waitForHash,
+            signal,
           })
         }
 
@@ -267,6 +271,7 @@ export const transactionMachine = setup({
               timeout,
             }).andThen(waitForHash),
             settle: waitForHash,
+            signal,
           })
         }
 

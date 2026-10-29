@@ -246,6 +246,21 @@ describe('a Safe through the transaction machine', () => {
     )
   })
 
+  it('stops reading logs once the run is cleared', async () => {
+    const { publicClient, getLogs } = publicClientWith()
+    transactionManager.startTransaction(callRequest, safeWallet, {
+      id: 'tx-safe-call-cleared',
+      publicClient,
+    })
+    await vi.waitFor(() => expect(getLogs).toHaveBeenCalled())
+
+    transactionManager.clear()
+    const callsAtClear = getLogs.mock.calls.length
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(getLogs).toHaveBeenCalledTimes(callsAtClear)
+  })
+
   it("leaves another wallet's transaction to its receipt", async () => {
     const { publicClient, getLogs } = publicClientWith()
     const otherWallet = signerWith((method) => {
