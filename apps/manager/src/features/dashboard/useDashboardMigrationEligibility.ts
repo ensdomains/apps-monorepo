@@ -1,65 +1,109 @@
+import {
+  type UseQueryResult,
+  useQueries,
+  useQuery,
+} from '@tanstack/react-query'
 import { useMemo } from 'react'
+import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { envConfig } from '@/config'
-import { getGracePeriodNames } from '@/features/migration/hooks/useEligibleV1Names.helpers'
 import {
-  useGraceRenewalEligibility,
-  useMigrationEligibility,
+  getGraceRenewalEligibilityQueryOptions,
+  getMigrationEligibilityQueryOptions,
+  useIsSubnameImportEnabled,
 } from '@/features/migration/hooks/useMigrationEligibility'
 import { useV1NameClassificationTime } from '@/features/migration/hooks/useV1NameClassificationTime'
-import { useV1Names } from '@/features/migration/hooks/useV1Names'
-import { classifyNames } from '@/features/migration/service/classifyNames'
+import { getV1NamesQueryOptions } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import {
-  classifyRenewedGraceNames,
-  getMigrationEligibleKeys,
+  classifyForHolders,
+  getMigrationHolders,
+  getUpgradeKeys,
 } from './dashboardMigrationEligibility'
 
-/** Namehashes of the ENSv1 names the connected owner can upgrade to ENSv2. */
-export const useDashboardMigrationEligibility = () => {
+// Module-level so useQueries memoizes the combined result.
+const combineEligibility = <T>(results: readonly UseQueryResult<T>[]) => ({
+  data: results.map(({ data }) => data),
+  isPending: results.map(({ isPending }) => isPending),
+})
+
+/**
+ * Namehashes of the ENSv1 names of `address` (the connected owner by default)
+ * that the connected owner can upgrade, and of those that whoever holds them
+ * can upgrade: a name the viewer manages, or someone else's.
+ */
+export const useDashboardMigrationEligibility = ({
+  address,
+}: {
+  readonly address?: Address
+} = {}) => {
   const { ownerAddress } = useSmartAccountContext()
-  const { address } = useConnection()
-  const resolvedOwnerAddress = ownerAddress ?? address
-  const { data: v1Names, isPending, isError } = useV1Names()
+  const { address: connectedAddress } = useConnection()
+  const viewer = ownerAddress ?? connectedAddress
+  const namesAddress = address ?? viewer
+  const {
+    data: v1Names,
+    isPending,
+    isError,
+  } = useQuery(getV1NamesQueryOptions(namesAddress))
   const nowSeconds = useV1NameClassificationTime(v1Names)
+  const isSubnameImportEnabled = useIsSubnameImportEnabled()
 
-  const { classified, renewedGraceNames } = useMemo(() => {
-    if (!v1Names || !resolvedOwnerAddress) {
-      return { classified: [], renewedGraceNames: [] }
-    }
-    const { classified, ineligible } = classifyNames(
-      v1Names,
-      resolvedOwnerAddress,
-      envConfig.chain.id,
-    )
-    return {
-      classified,
-      renewedGraceNames: classifyRenewedGraceNames({
-        gracePeriodNames: getGracePeriodNames(ineligible, nowSeconds),
-        ownerAddress: resolvedOwnerAddress,
-        chainId: envConfig.chain.id,
-        nowSeconds,
-      }),
-    }
-  }, [v1Names, resolvedOwnerAddress, nowSeconds])
-
-  const { data: eligibility, isPending: isEligibilityPending } =
-    useMigrationEligibility(classified, resolvedOwnerAddress)
-  const { data: graceEligibility, isPending: isGraceEligibilityPending } =
-    useGraceRenewalEligibility(renewedGraceNames, resolvedOwnerAddress)
-
-  const eligibleKeys = useMemo(
+  const holders = useMemo(
     () =>
-      getMigrationEligibleKeys({ classified, eligibility, graceEligibility }),
-    [classified, eligibility, graceEligibility],
+      v1Names
+        ? classifyForHolders({
+            domains: v1Names,
+            holders: getMigrationHolders(v1Names),
+            chainId: envConfig.chain.id,
+            nowSeconds,
+          })
+        : [],
+    [v1Names, nowSeconds],
+  )
+
+  const eligibilities = useQueries({
+    queries: holders.map(({ holder, classified }) =>
+      getMigrationEligibilityQueryOptions({
+        names: classified,
+        ownerAddress: holder,
+        isSubnameImportEnabled,
+      }),
+    ),
+    combine: combineEligibility,
+  })
+  const graceEligibilities = useQueries({
+    queries: holders.map(({ holder, renewedGraceNames }) =>
+      getGraceRenewalEligibilityQueryOptions({
+        names: renewedGraceNames,
+        ownerAddress: holder,
+        isSubnameImportEnabled,
+      }),
+    ),
+    combine: combineEligibility,
+  })
+
+  const { eligibleKeys, upgradeableKeys } = useMemo(
+    () =>
+      getUpgradeKeys({
+        holders,
+        eligibilities: eligibilities.data,
+        graceEligibilities: graceEligibilities.data,
+        viewer,
+      }),
+    [holders, viewer, eligibilities, graceEligibilities],
+  )
+
+  const isEligibilityPending = holders.some(
+    ({ classified, renewedGraceNames }, index) =>
+      (classified.length > 0 && eligibilities.isPending[index]) ||
+      (renewedGraceNames.length > 0 && graceEligibilities.isPending[index]),
   )
 
   return {
     eligibleKeys,
-    isPending:
-      isPending ||
-      (classified.length > 0 && isEligibilityPending) ||
-      (renewedGraceNames.length > 0 && isGraceEligibilityPending),
+    upgradeableKeys,
+    isPending: isPending || isEligibilityPending,
     isError,
   }
 }
