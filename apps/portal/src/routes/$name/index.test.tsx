@@ -116,8 +116,12 @@ vi.mock('@/features/profile/components/GraceBanner', () => ({
 vi.mock('@/features/history/components/RecentHistoryTimeline', () => ({
   RecentHistoryTimeline: () => null,
 }))
+// The button hides itself for names that can't be renewed (useCanExtend) and
+// picks its own label (ExtendNameButton.test.tsx).
 vi.mock('@/features/renew/components/ExtendNameButton', () => ({
-  ExtendNameButton: () => null,
+  ExtendNameButton: ({ protocolVersion }: { protocolVersion: string }) => (
+    <div data-testid="renew-button">{protocolVersion}</div>
+  ),
 }))
 
 // The row's own V1-vs-V2 behaviour is covered in NameOwnerRow.test.tsx.
@@ -274,6 +278,25 @@ describe('name route — Protocol row', () => {
     expect(screen.getByTestId('protocol-row')).toHaveTextContent('ENSv2')
     expect(screen.queryByTestId('v1-protocol-row')).not.toBeInTheDocument()
   })
+})
+
+// WEB-1546: ETHRenewerV1 renews V1 names, so the header offers renewal for
+// them too, not only for V2 names.
+describe('name route — renew button', () => {
+  afterEach(() => {
+    protocolVersion = 'ENSv1'
+  })
+
+  it.each(['ENSv1', 'ENSv2'] as const)(
+    'offers it for an %s name',
+    (version) => {
+      protocolVersion = version
+
+      renderRoute()
+
+      expect(screen.getByTestId('renew-button')).toHaveTextContent(version)
+    },
+  )
 })
 
 describe('name route — upgrade banner', () => {
