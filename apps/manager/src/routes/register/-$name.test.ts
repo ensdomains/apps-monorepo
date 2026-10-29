@@ -49,6 +49,15 @@ const runLoader = async (name: string, isAvailable = true) => {
 }
 
 describe('/register/$name loader', () => {
+  it('checks availability and loads registration for a dollar-sign name', async () => {
+    const { outcome, ensureQueryData } = await runLoader('agent$.eth')
+
+    expect(ensureQueryData).toHaveBeenCalledWith({
+      queryKey: [{ name: 'agent$.eth' }],
+    })
+    expect(outcome).toEqual({ fallback: undefined, label: 'agent$' })
+  })
+
   it('registers the label it checked as available', async () => {
     const { outcome, ensureQueryData } = await runLoader('vitalik.eth')
 
@@ -91,7 +100,7 @@ describe('/register/$name loader', () => {
     const { outcome, ensureQueryData } = await runLoader('xn--ls8h.eth')
 
     expect(ensureQueryData).not.toHaveBeenCalled()
-    expect(outcome).toMatchObject({ reason: 'NOT_NORMALIZED' })
+    expect(outcome).toMatchObject({ reason: 'INVALID_NAME' })
   })
 
   it('refuses a bracket-encoded labelhash', async () => {
@@ -100,7 +109,7 @@ describe('/register/$name loader', () => {
     )
 
     expect(ensureQueryData).not.toHaveBeenCalled()
-    expect(outcome).toMatchObject({ reason: 'INVALID_CHARACTER' })
+    expect(outcome).toMatchObject({ reason: 'INVALID_NAME' })
   })
 
   it('sends an unavailable name to its profile under the canonical name', async () => {
