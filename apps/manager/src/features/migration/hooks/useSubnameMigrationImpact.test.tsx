@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   stale: false,
   hasChild: false,
+  hasZeroCount: false,
 }))
 vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: () => false }))
 vi.mock('./useMigrationRecoverySnapshot', () => ({
@@ -46,6 +47,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.stale = false
   mocks.hasChild = false
+  mocks.hasZeroCount = false
   mocks.rpc.mockResolvedValue({
     number: '0x1',
     timestamp: `0x${NOW.toString(16)}`,
@@ -63,7 +65,7 @@ beforeEach(() => {
       status: 'active',
       owner: OWNER,
       ens_v1: { wrapper_state: 'unwrapped' },
-      subname_count: 0,
+      subname_count: mocks.hasChild ? 1 : mocks.hasZeroCount ? 0 : undefined,
       read_status: 'ok',
     }
     const children = mocks.hasChild
@@ -134,6 +136,16 @@ const run = async () => {
 }
 
 describe('fresh start checks with shared impact evidence', () => {
+  it('still reads a fresh zero count before starting without fetching an empty child list', async () => {
+    mocks.hasZeroCount = true
+    const { result } = await run()
+
+    await act(async () => {
+      expect(await result.current.checkBeforeStart()).toBe(true)
+    })
+
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+  })
   it('reads again before starting even when display evidence is fresh', async () => {
     const { result } = await run()
     expect(result.current.status).toBe('ready')

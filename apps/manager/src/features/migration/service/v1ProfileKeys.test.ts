@@ -1,22 +1,36 @@
-import type { NameRecords, RecordInventory } from '@ens-apps/indexer/bigname'
+import type {
+  LookupRecord,
+  Meta,
+  NameRecords,
+  RecordInventory,
+} from '@ens-apps/indexer/bigname'
 import { BignameError } from '@ens-apps/indexer/bigname'
-import { errAsync, okAsync } from 'neverthrow'
+import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import type { PublicClient } from 'viem'
 import { namehash, zeroHash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { resolverRecords, events, chain } = vi.hoisted(() => ({
+const { resolverRecords, events, lookup, chain } = vi.hoisted(() => ({
   resolverRecords: vi.fn(),
   events: vi.fn(),
+  lookup: vi.fn(),
   chain: { id: 11155111 },
 }))
-vi.mock('@/lib/bigname', () => ({ bigname: { resolverRecords, events } }))
+vi.mock('@/lib/bigname', () => ({
+  bigname: { resolverRecords, events, lookup },
+}))
 vi.mock('@/config', () => ({ envConfig: { chain } }))
 
 import { fetchV1Profiles, ProfileFetchError } from './fetchV1Profiles'
+import { buildProfileMulticallPlan } from './fetchV1Profiles.helpers'
 import { getV1ProfileKeys } from './v1ProfileKeys'
 
 const RESOLVER = '0x8fade66b79cc9f707ab26799354482eb93a5b7dd'
+
+const optimizedRead = (
+  sources: Parameters<typeof getV1ProfileKeys>[0],
+  options: Parameters<typeof getV1ProfileKeys>[1] = {},
+) => getV1ProfileKeys(sources, { ...options, chainId: chain.id })
 
 const source = (name: string) =>
   ({
@@ -24,6 +38,47 @@ const source = (name: string) =>
     name,
     resolver: RESOLVER,
   }) as const
+
+const bulkRecord = (name: string): LookupRecord => ({
+  name,
+  namehash: namehash(name),
+  display_name: name,
+  namespace: 'ens',
+  read_status: 'ok',
+  authority: 'ens_v1',
+  resolver: { chain_id: 11155111, address: RESOLVER },
+  records: {
+    seen_addresses: ['60'],
+    addresses: {},
+    seen_texts: ['url'],
+    texts: {},
+    seen_abis: ['16'],
+    abis: {},
+    seen_singletons: ['contenthash', 'name'],
+  },
+})
+
+const bulkAnswer = (
+  names: readonly string[],
+  recordOverrides: Partial<LookupRecord> = {},
+) =>
+  okAsync({
+    data: names.map((name, index) => ({
+      input: { id: String(index), name },
+      kind: 'name',
+      status: 'ok',
+      record: { ...bulkRecord(name), ...recordOverrides },
+    })),
+    meta: {
+      as_of: {
+        '11155111': {
+          block_number: 123,
+          block_hash: zeroHash,
+          timestamp: String(Math.floor(Date.now() / 1000)),
+        },
+      },
+    } satisfies Meta,
+  })
 
 const inventory = (
   overrides: Partial<RecordInventory> = {},
@@ -58,12 +113,230 @@ const recordEvents = (
     meta,
   })
 
+const deferred = <T>() => {
+  let resolve = (_value: T): void => {}
+  const promise = new Promise<T>((onResolve) => {
+    resolve = onResolve
+  })
+  return { promise, resolve }
+}
+
 describe('getV1ProfileKeys', () => {
   beforeEach(() => {
     chain.id = 11155111
     resolverRecords.mockReset()
     events.mockReset()
+    lookup.mockReset()
+    lookup.mockReturnValue(
+      errAsync(
+        new BignameError({
+          code: 'unsupported',
+          message: 'Bulk profile unavailable',
+        }),
+      ),
+    )
     events.mockReturnValue(recordEvents([], null))
+  })
+
+  it('reads supplemental history while the independent bulk inventory is pending', async () => {
+    const pending = deferred<Awaited<ReturnType<typeof bulkAnswer>>>()
+    lookup.mockReturnValue(
+      ResultAsync.fromSafePromise(pending.promise).andThen((result) => result),
+    )
+    events.mockReturnValue(recordEvents(['interface:0x12345678'], null))
+    const read = optimizedRead([source('alice.eth')])
+    try {
+      await vi.waitFor(() => expect(events).toHaveBeenCalledTimes(1))
+      expect(resolverRecords).not.toHaveBeenCalled()
+    } finally {
+      pending.resolve(await bulkAnswer(['alice.eth']))
+      await read
+    }
+    expect((await read)._unsafeUnwrap()[0]?.interfaceIds).toEqual([
+      '0x12345678',
+    ])
+  })
+
+  it('refills a free history slot without waiting for a slow name, bounds concurrency, and preserves source order', async () => {
+    const names = Array.from({ length: 10 }, (_, index) => `name${index}.eth`)
+    const gates = names.map(() => deferred<void>())
+    lookup.mockReturnValue(bulkAnswer(names))
+    events.mockImplementation(({ name }: { name: string }) =>
+      ResultAsync.fromSafePromise(
+        (gates[names.indexOf(name)]?.promise ?? Promise.resolve()).then(() =>
+          recordEvents([], null),
+        ),
+      ).andThen((result) => result),
+    )
+    const read = optimizedRead(names.map(source))
+    try {
+      await vi.waitFor(() => expect(events).toHaveBeenCalledTimes(8))
+      gates[1]?.resolve()
+      await vi.waitFor(() => expect(events).toHaveBeenCalledTimes(9))
+      gates[8]?.resolve()
+      await vi.waitFor(() => expect(events).toHaveBeenCalledTimes(10))
+    } finally {
+      for (const gate of [...gates].reverse()) gate.resolve()
+      await read
+    }
+    expect((await read)._unsafeUnwrap().map(({ id }) => id)).toEqual(
+      names.map(namehash),
+    )
+  })
+
+  it.each(['abort', 'history failure'] as const)(
+    'does not start queued names after an in-flight %s',
+    async (failure) => {
+      const names = Array.from({ length: 10 }, (_, index) => `name${index}.eth`)
+      const pending = deferred<void>()
+      const controller = new AbortController()
+      lookup.mockReturnValue(bulkAnswer(names))
+      events.mockImplementation(() =>
+        ResultAsync.fromSafePromise(pending.promise).andThen(() =>
+          recordEvents(
+            failure === 'history failure' ? ['dns:zonehash'] : [],
+            null,
+          ),
+        ),
+      )
+      const read = optimizedRead(names.map(source), {
+        signal: controller.signal,
+      })
+      await vi.waitFor(() => expect(events).toHaveBeenCalledTimes(8))
+      if (failure === 'abort') controller.abort()
+      pending.resolve()
+
+      const result = await read
+      expect(result.isErr()).toBe(true)
+      expect(events).toHaveBeenCalledTimes(8)
+      if (failure === 'abort')
+        expect(result._unsafeUnwrapErr().cause).toMatchObject({
+          code: 'network',
+        })
+      else
+        expect(result._unsafeUnwrapErr().cause).toMatchObject({
+          recordType: 'dns',
+          ensName: 'name0.eth',
+        })
+    },
+  )
+
+  it('stops queued names on a history failure even while that source inventory is still pending', async () => {
+    const names = Array.from({ length: 20 }, (_, index) => `name${index}.eth`)
+    const pending = deferred<void>()
+    lookup.mockReturnValue(bulkAnswer(names))
+    resolverRecords.mockReturnValue(
+      ResultAsync.fromSafePromise(pending.promise).andThen(() => answer()),
+    )
+    events.mockImplementation(({ name }: { name: string }) =>
+      recordEvents(name === 'name0.eth' ? ['dns:zonehash'] : [], null),
+    )
+    const sources = names.map(source)
+    const read = optimizedRead([
+      {
+        ...source('name0.eth'),
+        resolver: '0x0000000000000000000000000000000000001234',
+      },
+      ...sources.slice(1),
+    ])
+    try {
+      await vi.waitFor(() => expect(resolverRecords).toHaveBeenCalledTimes(1))
+      // Let successful siblings finish while the failed name's other read stays pending.
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(events).toHaveBeenCalledTimes(8)
+    } finally {
+      pending.resolve()
+      await read
+    }
+    expect((await read)._unsafeUnwrapErr().cause).toMatchObject({
+      recordType: 'dns',
+      ensName: 'name0.eth',
+    })
+  })
+
+  it('uses one fresh bulk read for several source inventories while preserving supplemental history', async () => {
+    lookup.mockReturnValue(bulkAnswer(['alice.eth', 'bob.eth']))
+    resolverRecords.mockReturnValue(answer())
+    events.mockReturnValue(recordEvents(['interface:0x12345678'], null))
+
+    const result = await optimizedRead([source('alice.eth'), source('bob.eth')])
+
+    expect(result._unsafeUnwrap()).toEqual(
+      ['alice.eth', 'bob.eth'].map((name) => ({
+        id: namehash(name),
+        texts: ['url'],
+        coinTypes: [60],
+        hasContentHash: true,
+        abiContentTypes: [16n],
+        interfaceIds: ['0x12345678'],
+        hasName: true,
+      })),
+    )
+    expect(lookup).toHaveBeenCalledTimes(1)
+    expect(resolverRecords).not.toHaveBeenCalled()
+    expect(events).toHaveBeenCalledTimes(2)
+    await optimizedRead([source('alice.eth'), source('bob.eth')])
+    expect(lookup).toHaveBeenCalledTimes(2)
+  })
+
+  it('still blocks DNS found in history when a bulk profile is available', async () => {
+    lookup.mockReturnValue(bulkAnswer(['alice.eth']))
+    resolverRecords.mockReturnValue(answer())
+    events.mockReturnValue(recordEvents(['dns:zonehash'], null))
+
+    const result = await optimizedRead([source('alice.eth')])
+
+    expect(result._unsafeUnwrapErr().cause).toMatchObject({
+      ensName: 'alice.eth',
+      recordType: 'dns',
+    })
+  })
+
+  it('independently reads the requested source when lookup serves another resolver', async () => {
+    lookup.mockReturnValue(
+      bulkAnswer(['alice.eth'], {
+        resolver: {
+          chain_id: 11155111,
+          address: '0x0000000000000000000000000000000000001234',
+        },
+      }),
+    )
+    resolverRecords.mockReturnValue(
+      answer({ inventory: inventory({ known_keys: ['text:source-only'] }) }),
+    )
+
+    const result = await optimizedRead([source('alice.eth')])
+
+    expect(result._unsafeUnwrap()[0]?.texts).toEqual(['source-only'])
+    expect(resolverRecords).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not let bulk keys authorize a profile when supplemental history is incomplete', async () => {
+    lookup.mockReturnValue(bulkAnswer(['alice.eth']))
+    events.mockReturnValue(recordEvents([], null, { completeness: 'partial' }))
+
+    const result = await optimizedRead([source('alice.eth')])
+
+    expect(result._unsafeUnwrapErr().cause).toMatchObject({
+      code: 'unsupported',
+    })
+    expect(resolverRecords).not.toHaveBeenCalled()
+  })
+
+  it('stops before any source or history fallback when cancelled during the bulk read', async () => {
+    const controller = new AbortController()
+    lookup.mockImplementationOnce(() => {
+      controller.abort()
+      return bulkAnswer(['alice.eth'])
+    })
+
+    const result = await optimizedRead([source('alice.eth')], {
+      signal: controller.signal,
+    })
+
+    expect(result._unsafeUnwrapErr().cause).toBe(controller.signal.reason)
+    expect(resolverRecords).not.toHaveBeenCalled()
+    expect(events).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -134,11 +407,16 @@ describe('getV1ProfileKeys', () => {
 
     const result = await getV1ProfileKeys([source('alice.eth')])
 
-    expect(resolverRecords).toHaveBeenCalledWith(11155111, RESOLVER, {
-      name: 'alice.eth',
-      include: ['inventory'],
-      keys: ['contenthash'],
-    })
+    expect(resolverRecords).toHaveBeenCalledWith(
+      11155111,
+      RESOLVER,
+      {
+        name: 'alice.eth',
+        include: ['inventory'],
+        keys: ['contenthash'],
+      },
+      { signal: undefined },
+    )
     expect(result._unsafeUnwrap()).toEqual([
       {
         id: namehash('alice.eth'),
@@ -229,15 +507,49 @@ describe('getV1ProfileKeys', () => {
   })
 
   it('counts a contenthash the answer serves even when the inventory omits it', async () => {
-    resolverRecords.mockReturnValue(
-      answer({ records: { contenthash: { status: 'ok', value: '0xe301' } } }),
+    const resolver = '0x0000000000000000000000000000000000001234'
+    resolverRecords.mockImplementation((_chain, _resolver, query) =>
+      answer({
+        resolver: { chain_id: chain.id, address: resolver },
+        records:
+          query.values === false
+            ? {}
+            : { contenthash: { status: 'ok', value: '0xe301' } },
+      }),
     )
 
     const [keys] = (
-      await getV1ProfileKeys([source('alice.eth')])
+      await getV1ProfileKeys([{ ...source('alice.eth'), resolver }])
     )._unsafeUnwrap()
 
     expect(keys?.hasContentHash).toBe(true)
+  })
+
+  it('preserves the on-chain contenthash probe when inventory-only responses contain no values', async () => {
+    resolverRecords.mockImplementation((_chain, _resolver, query) =>
+      answer({
+        records:
+          query.values === false
+            ? {}
+            : { contenthash: { status: 'ok', value: '0xe301' } },
+      }),
+    )
+    const keys = (await optimizedRead([source('alice.eth')]))._unsafeUnwrap()
+    const node = namehash('alice.eth')
+    const plan = buildProfileMulticallPlan(
+      keys,
+      new Map([
+        [
+          node,
+          { name: 'alice.eth', nodeHex: node, v1ResolverAddress: RESOLVER },
+        ],
+      ]),
+      chain.id,
+    )
+
+    expect(plan.contracts.map(({ functionName }) => functionName)).toContain(
+      'contenthash',
+    )
   })
 
   it('leaves out a name without an inventory or not indexed at the resolver', async () => {

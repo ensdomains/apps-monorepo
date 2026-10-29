@@ -192,6 +192,7 @@ const buildEstimate = async (params: {
   const subnameImpact = await runMigrationPreparationStage('plan', () =>
     assertSupportedSubnameMigration({
       publicClient,
+      ownerAddress,
       classified: plan.classified,
       signal: params.signal,
     }),

@@ -1,13 +1,16 @@
 import {
   getSubnameMigrationImpact,
   type SubnameMigrationImpact,
+  SubnameMigrationImpactError,
 } from '@ens-apps/migration'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { QueryClient } from '@tanstack/react-query'
+import { fromPromise } from 'neverthrow'
 import type { PublicClient } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { publicClient } from '@/lib/wagmi'
+import { getMigrationInventoryIndexer } from './migrationInventoryIndexer'
 
 type Scope = {
   readonly ownerAddress?: string | null
@@ -48,13 +51,31 @@ export const getSubnameMigrationImpactQueryOptions = (
   } = params
   return resultQueryOptions({
     queryKey: getImpactQueryKey(params),
-    queryFn: ({ signal }) =>
-      getSubnameMigrationImpact({
-        indexer: bigname,
-        publicClient: publicClient as PublicClient,
-        ...getImpactInputs(params),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]),
-      }),
+    queryFn: ({ signal }) => {
+      const requestSignal = AbortSignal.any([
+        signal,
+        AbortSignal.timeout(120_000),
+      ])
+      const inputs = getImpactInputs(params)
+      return fromPromise(
+        getMigrationInventoryIndexer({
+          indexer: bigname,
+          ownerAddress: params.ownerAddress,
+          names: inputs.migratingNames,
+          chainId: params.chainId,
+          signal: requestSignal,
+        }),
+        (cause) => new SubnameMigrationImpactError({ cause }),
+      ).andThen((indexer) =>
+        getSubnameMigrationImpact({
+          indexer,
+          publicClient: publicClient as PublicClient,
+          shouldSkipEmptySubtrees: true,
+          ...inputs,
+          signal: requestSignal,
+        }),
+      )
+    },
     enabled: isEnabled && isPrepared && hasSelectedNames,
     staleTime: FRESH_FOR_MS,
     refetchInterval: isEnabled && isRefetchEnabled ? FRESH_FOR_MS : false,
