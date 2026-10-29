@@ -30,6 +30,7 @@ const LINEAR_TICKET = /\b(?:WEB|FET)-\d+\b/g;
 // Slack rejects a section over 3000 characters.
 const SECTION_MAX = 2900;
 const MAX_CHANGES = 40;
+const TITLE_MAX = 200;
 
 const [notesDir = '.'] = process.argv.slice(2);
 const {
@@ -60,7 +61,7 @@ const releaseUrl = `${repoUrl}/releases/tag/${tag}`;
 const escapeSlack = s => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const linkTickets = s => s.replace(LINEAR_TICKET, id => `<https://linear.app/enslabs/issue/${id}|${id}>`);
 const changeLine = c =>
-  `• ${linkTickets(escapeSlack(c.title))} ${
+  `• ${linkTickets(escapeSlack(c.title.slice(0, TITLE_MAX)))} ${
     c.pr ? `<${repoUrl}/pull/${c.pr}|#${c.pr}>` : `<${repoUrl}/commit/${c.sha}|${c.sha}>`
   }`;
 
