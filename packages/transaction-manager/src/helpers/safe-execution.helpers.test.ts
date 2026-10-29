@@ -12,23 +12,40 @@ import {
 } from 'viem'
 import { sepolia } from 'viem/chains'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { Connector } from 'wagmi'
 import { TransactionRevertedError } from '../errors/transaction.errors'
 import { transactionManager } from '../providers/transactionManager'
 import type { EOASigner } from '../types/signer.types'
 import type { TransactionRequest } from '../types/transaction.types'
-import { findSafeExecution, isContractCode } from './safe-execution.helpers'
+import { checkIsSafeWallet, findSafeExecution } from './safe-execution.helpers'
 import { waitForTransaction } from './waitForTransaction'
 
 const SAFE = getAddress('0x000000000000000000000000000000000000aaaa')
 const TO = getAddress('0x000000000000000000000000000000000000cccc')
 const TX_HASH = `0x${'ef'.repeat(32)}` as Hash
 const SAFE_TX_HASH = `0x${'5a'.repeat(32)}` as Hash
-const CONTRACT_CODE: Hex = '0x6080604052'
 const EXECUTION_SUCCESS = toEventSelector('ExecutionSuccess(bytes32,uint256)')
 const EXECUTION_FAILURE = toEventSelector('ExecutionFailure(bytes32,uint256)')
 const NO_PAYMENT: Hex = `0x${'00'.repeat(32)}`
 
 type ExecutionLog = Pick<Log, 'topics' | 'data' | 'transactionHash'>
+
+const wcConnector = (metadata?: {
+  readonly name: string
+  readonly url: string
+}) =>
+  ({
+    type: 'walletConnect',
+    getProvider: async () => ({
+      session: metadata ? { peer: { metadata } } : undefined,
+    }),
+  }) as unknown as Connector
+
+const SAFE_WALLET = wcConnector({
+  name: 'Safe{Wallet}',
+  url: 'https://app.safe.global/',
+})
+const OTHER_WALLET = wcConnector({ name: 'Rainbow', url: 'https://rainbow.me' })
 
 /** Safe v1.4+ indexes the safeTxHash; v1.3 leaves it in the data. */
 const executionLog = ({
@@ -49,14 +66,23 @@ afterEach(() => {
   transactionManager.clear()
 })
 
-describe('isContractCode', () => {
-  it.each<[string, Hex | undefined, boolean]>([
-    ['no code', undefined, false],
-    ['an EOA', '0x', false],
-    ['an EIP-7702 delegation', `0xef0100${'12'.repeat(20)}`, false],
-    ['a contract account', CONTRACT_CODE, true],
-  ])('%s', (_, code, expected) => {
-    expect(isContractCode(code)).toBe(expected)
+describe('checkIsSafeWallet', () => {
+  it.each<[string, Connector | undefined, boolean]>([
+    ['no connector', undefined, false],
+    ['an injected wallet', { type: 'injected' } as unknown as Connector, false],
+    ['WalletConnect without a session', wcConnector(), false],
+    ['a Safe{Wallet} WalletConnect peer', SAFE_WALLET, true],
+    ['another WalletConnect peer', OTHER_WALLET, false],
+    [
+      'a Safe-named peer on another origin',
+      wcConnector({
+        name: 'Safe{Wallet}',
+        url: 'https://app.safe.global.evil.example',
+      }),
+      false,
+    ],
+  ])('%s', async (_, connector, expected) => {
+    expect(await checkIsSafeWallet(connector)).toBe(expected)
   })
 })
 
@@ -94,8 +120,12 @@ describe('findSafeExecution', () => {
 })
 
 describe('a Safe through the transaction machine', () => {
-  const signerWith = (handler: (method: string) => unknown): EOASigner => ({
+  const signerWith = (
+    handler: (method: string) => unknown,
+    connector: Connector = SAFE_WALLET,
+  ): EOASigner => ({
     type: 'eoa',
+    connector,
     walletClient: createWalletClient({
       account: SAFE,
       chain: sepolia,
@@ -111,10 +141,8 @@ describe('a Safe through the transaction machine', () => {
   })
 
   const publicClientWith = ({
-    code = CONTRACT_CODE,
     logs = [],
   }: {
-    readonly code?: Hex
     readonly logs?: readonly ExecutionLog[]
   } = {}) => {
     const getLogs = vi.fn(async () => logs)
@@ -127,7 +155,6 @@ describe('a Safe through the transaction machine', () => {
     )
     const publicClient = {
       pollingInterval: 5,
-      getCode: async () => code,
       getBlockNumber: async () => 1_000n,
       getLogs,
       waitForTransactionReceipt,
@@ -219,14 +246,14 @@ describe('a Safe through the transaction machine', () => {
     )
   })
 
-  it("leaves an EOA's transaction to its receipt", async () => {
-    const { publicClient, getLogs } = publicClientWith({ code: '0x' })
-    const eoaWallet = signerWith((method) => {
+  it("leaves another wallet's transaction to its receipt", async () => {
+    const { publicClient, getLogs } = publicClientWith()
+    const otherWallet = signerWith((method) => {
       if (method === 'eth_sendTransaction') return TX_HASH
       throw new Error(`unexpected RPC call: ${method}`)
-    })
-    const txId = transactionManager.startTransaction(callRequest, eoaWallet, {
-      id: 'tx-eoa-call',
+    }, OTHER_WALLET)
+    const txId = transactionManager.startTransaction(callRequest, otherWallet, {
+      id: 'tx-other-wallet-call',
       publicClient,
     })
 

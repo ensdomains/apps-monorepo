@@ -3,13 +3,14 @@ import { errAsync, okAsync, type Result, ResultAsync } from 'neverthrow'
 import {
   type Address,
   type Hash,
-  type Hex,
   isHash,
   type Log,
   type PublicClient,
   parseAbiItem,
   toEventSelector,
 } from 'viem'
+import type { Connector } from 'wagmi'
+import { walletConnect } from 'wagmi/connectors'
 import {
   TransactionRevertedError,
   TransactionTimeoutError,
@@ -26,6 +27,8 @@ const SAFE_EXECUTION_EVENTS = [
 const EXECUTION_SUCCESS = toEventSelector(SAFE_EXECUTION_EVENTS[0])
 const EXECUTION_FAILURE = toEventSelector(SAFE_EXECUTION_EVENTS[1])
 
+const SAFE_WALLET_URL = 'https://app.safe.global'
+
 /** Reaches an execution that landed just before the wait began (~20 min of mainnet blocks). */
 const LOOKBACK_BLOCKS = 100n
 
@@ -34,9 +37,20 @@ type SafeExecution = {
   readonly isSuccess: boolean
 }
 
-/** Code that isn't an EIP-7702 delegation: a Safe or another contract account. */
-export const isContractCode = (code: Hex | undefined): boolean =>
-  code !== undefined && code !== '0x' && !code.startsWith('0xef0100')
+// Neither app has a Safe connector, so Safe{Wallet} reaches them only over
+// WalletConnect. Ported from ens-app-v3's `checkIsSafeApp`.
+export const checkIsSafeWallet = async (
+  connector: Connector | undefined,
+): Promise<boolean> => {
+  if (connector?.type !== walletConnect.type) return false
+  const provider = await (
+    connector as Connector<ReturnType<typeof walletConnect>>
+  ).getProvider()
+  const peer = provider.session?.peer.metadata
+  if (!peer) return false
+  const peerUrl = peer.url.endsWith('/') ? peer.url.slice(0, -1) : peer.url
+  return peer.name.startsWith('Safe') && peerUrl === SAFE_WALLET_URL
+}
 
 /**
  * The execution of `safeTxHash` among a Safe's logs. Safe v1.4+ indexes the
@@ -117,11 +131,12 @@ function waitForSafeExecution({
 /**
  * Races `direct` against the Safe execution of `id`, settled through `settle`.
  * A Safe answers `eth_sendTransaction` and `wallet_sendCalls` with its
- * safeTxHash, which no node has. Only a contract account reads the logs, and a
- * success or a revert from either side decides.
+ * safeTxHash, which no node has. Only a Safe{Wallet} connection reads the logs,
+ * and a success or a revert from either side decides.
  */
 export function orSafeExecution<T, E1, E2>({
   publicClient,
+  connector,
   account,
   id,
   timeout,
@@ -129,6 +144,7 @@ export function orSafeExecution<T, E1, E2>({
   settle,
 }: {
   readonly publicClient: PublicClient
+  readonly connector: Connector | undefined
   readonly account: Address | undefined
   readonly id: string
   readonly timeout: number
@@ -145,18 +161,13 @@ export function orSafeExecution<T, E1, E2>({
   const isDecided = (result: Outcome) =>
     result.isOk() || result.error instanceof TransactionRevertedError
 
-  return ResultAsync.fromThrowable(
-    publicClient.getCode,
-    (error) => error,
-  )({
-    address: account,
-  })
+  return ResultAsync.fromPromise(checkIsSafeWallet(connector), (error) => error)
     .orElse((error) => {
-      logger.debug('eth_getCode unavailable', error)
-      return okAsync(undefined)
+      logger.warn('WalletConnect session unavailable', error)
+      return okAsync(false)
     })
-    .andThen((code): ResultAsync<T, WaitError> => {
-      if (!isContractCode(code)) return direct
+    .andThen((isSafe): ResultAsync<T, WaitError> => {
+      if (!isSafe) return direct
       const controller = new AbortController()
       const viaWallet = direct.mapErr((error): WaitError => error)
       const viaSafe = waitForSafeExecution({

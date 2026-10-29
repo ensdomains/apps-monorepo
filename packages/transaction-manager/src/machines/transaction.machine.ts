@@ -237,12 +237,14 @@ export const transactionMachine = setup({
             (_error) => new TransactionTimeoutError(txHash, timeout),
           )
 
-        // A wallet account may be a Safe, which answers with its safeTxHash.
-        const account = signer?.type === 'eoa' ? request?.from : undefined
+        // A Safe{Wallet} connection answers with the Safe's safeTxHash.
+        const connector = signer?.type === 'eoa' ? signer.connector : undefined
+        const account = request?.from
 
         if (hash) {
           return orSafeExecution({
             publicClient,
+            connector,
             account,
             id: hash,
             timeout,
@@ -255,6 +257,7 @@ export const transactionMachine = setup({
         if (callsId && signer?.type === 'eoa') {
           return orSafeExecution({
             publicClient,
+            connector,
             account,
             id: callsId,
             timeout,
