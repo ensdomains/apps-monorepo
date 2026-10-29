@@ -92,6 +92,34 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('useMigrationRecoverySnapshot', () => {
+  it('keeps an uncertain registration grant before any migration batch was submitted', () => {
+    const recovery = makeRecoverySnapshot()
+    const temporaryRegistrationApproval = {
+      contractAddress: RESOLVER,
+      operatorAddress: HCA,
+      state: {
+        status: 'grant-pending' as const,
+        transactionId: 'approval-before-migration',
+      },
+    }
+    persistMigrationRecoverySnapshot(scope, {
+      ...recovery,
+      remainingOperations: recovery.registryOperations,
+      completedOperations: [],
+      registrationApprovalStrategy: 'temporary-operator',
+      temporaryRegistrationApproval,
+    })
+
+    const { result } = renderHook(() => useMigrationRecoverySnapshot())
+
+    expect(result.current?.temporaryRegistrationApproval).toEqual(
+      temporaryRegistrationApproval,
+    )
+    expect(
+      loadMigrationRecoverySnapshot(scope)?.temporaryRegistrationApproval,
+    ).toEqual(temporaryRegistrationApproval)
+  })
+
   it('loads the remaining copy tree after a fresh hook mount', () => {
     persistMigrationRecoverySnapshot(scope, makeRecoverySnapshot())
 

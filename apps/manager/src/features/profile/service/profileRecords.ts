@@ -113,10 +113,11 @@ const getRecordKeys = ResultFn(async function* (
     // Viewing/editing commonly used fields remains possible while the index
     // is unavailable. Resolver replacement performs a separate warned import.
     .orElse(() => okAsync(undefined))
-  // The indexer never sees an offchain name's records. ensjs asks its gateway
-  // for them in one request, which a URL-length limit caps well below every key.
+  // The indexer never sees an offchain name's records, though it may still
+  // index the name with no keys. ensjs asks its gateway for them in one
+  // request, which a URL-length limit caps well below every key.
   if (
-    !inventory &&
+    !inventory?.known_keys.length &&
     (yield* fromPromise(
       isOffchainName(client, name),
       (error) => new GetProfileRecordsError({ cause: error }),
