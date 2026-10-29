@@ -23,7 +23,8 @@ export type ActionIcon =
 
 /**
  * An inline piece of an action label. `name`/`address`/`contract`/`text` render
- * as `EntityBadge` pills; `glyph`/`connective` are muted joiners.
+ * as `EntityBadge` pills; `glyph`/`connective` are muted joiners, and `label`
+ * continues the action label after a slot.
  */
 export type ActionSlot =
   | { readonly kind: 'name'; readonly value: string }
@@ -35,6 +36,7 @@ export type ActionSlot =
       readonly label?: string
     }
   | { readonly kind: 'text'; readonly value: string }
+  | { readonly kind: 'label'; readonly value: string }
   | { readonly kind: 'glyph'; readonly value: '→' | '↔' }
   | { readonly kind: 'connective'; readonly value: string }
   | { readonly kind: 'placeholder'; readonly value: string }

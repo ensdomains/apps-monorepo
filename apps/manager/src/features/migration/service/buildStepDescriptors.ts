@@ -6,9 +6,7 @@ import {
 import type {
   MigrationApproval,
   MigrationApprovalId,
-  MigrationCleanupApproval,
 } from './migrationApprovals'
-import { requiresMigrationApprovalCleanup } from './migrationApprovals'
 
 type RegistrationApprovalTarget = {
   readonly name: string
@@ -87,12 +85,11 @@ const roleGrantsForBatch = (
 export type BuildStepDescriptorsParams = {
   readonly hcaDeploymentRequired: boolean
   readonly approvals: readonly MigrationApproval[]
-  readonly cleanupApprovals?: readonly MigrationCleanupApproval[]
   readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly registrationApprovalTargets: readonly RegistrationApprovalTarget[]
   /**
    * The wallet bundles calls atomically: setup (deployment + approvals) is one
-   * confirmation, and cleanup rides with the final atomic batch.
+   * confirmation. Each migration batch is a separate confirmation.
    */
   readonly canBatchAtomically?: boolean
 }
@@ -190,11 +187,6 @@ export const buildStepDescriptors = (
     })
   }
 
-  for (const approval of params.cleanupApprovals ?? params.approvals) {
-    if (!requiresMigrationApprovalCleanup(approval)) continue
-    descriptors.push({ type: 'cleanup', approvalId: approval.id })
-  }
-
   return params.canBatchAtomically
     ? bundleDescriptors(descriptors)
     : descriptors
@@ -216,12 +208,5 @@ const bundleDescriptors = (
     ({ type }) => type === 'deploy-hca' || type === 'approval',
   )
   const batches = descriptors.filter(({ type }) => type === 'atomic-batch')
-  const cleanup = descriptors.filter(({ type }) => type === 'cleanup')
-  // Cleanup only rides along with a batch; a cleanup-only retry stays alone.
-  const finalBatch = batches.at(-1)
-  return [
-    ...bundleOf(setup),
-    ...batches.slice(0, -1),
-    ...(finalBatch ? bundleOf([finalBatch, ...cleanup]) : cleanup),
-  ]
+  return [...bundleOf(setup), ...batches]
 }

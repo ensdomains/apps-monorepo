@@ -8,7 +8,11 @@ import {
   getPrimaryNameCandidates,
   getPrimaryNamePage,
 } from '../components/ChoosePrimaryNameDialog.handlers'
-import { primaryNameDomainsQuery } from '../service/queries/getPrimaryNameDomains'
+import {
+  mergePrimaryNameDomains,
+  ownedPrimaryNamesQuery,
+  resolvingPrimaryNamesQuery,
+} from '../service/queries/getPrimaryNameDomains'
 import { resolveDomainLabel } from '../utils'
 
 /** Search owned names and names resolving to the owner, resolving only this page and the selection. */
@@ -36,16 +40,25 @@ export const usePrimaryNameDomains = ({
   }
 
   const {
-    data,
+    data: owned,
     isLoading,
     isError: hasDomainsError,
+  } = useQuery(ownedPrimaryNamesQuery(open ? address : undefined))
+  // Owned names don't wait for this read, and a failure only adds a notice.
+  const {
+    data: resolving,
+    isLoading: isLoadingResolvingNames,
+    isError: hasResolvingNamesError,
   } = useQuery(
-    primaryNameDomainsQuery(
-      open ? address : undefined,
-      ownerAddress ?? undefined,
-    ),
+    resolvingPrimaryNamesQuery(open ? (ownerAddress ?? undefined) : undefined),
   )
-  const allDomains = useMemo(() => getPrimaryNameCandidates(data ?? []), [data])
+  const allDomains = useMemo(
+    () =>
+      getPrimaryNameCandidates(
+        mergePrimaryNameDomains(owned ?? [], resolving ?? []),
+      ),
+    [owned, resolving],
+  )
   const pagination = useMemo(
     () => getPrimaryNamePage(allDomains, { searchQuery, page, reverseName }),
     [allDomains, searchQuery, page, reverseName],
@@ -114,10 +127,13 @@ export const usePrimaryNameDomains = ({
       checkedNames.has(selectedName ?? '') &&
       !unreachableNames.has(selectedName ?? ''),
     selectedProtocol: selectedDomain?.protocol ?? null,
-    // Skeletons, not "No names found", while every row still waits on its check.
+    // Rows that are ready stay visible while late names are still checked.
     isLoading:
-      isLoading || isCheckingNames || (domains.length === 0 && isCheckingReach),
+      isLoading ||
+      ((isCheckingNames || isLoadingResolvingNames || isCheckingReach) &&
+        domains.length === 0),
     hasForwardAddressError: hasDomainsError || hasForwardAddressError,
+    hasResolvingNamesError,
     searchQuery,
     onSearchChange: (query: string) => {
       setSearchQuery(query)

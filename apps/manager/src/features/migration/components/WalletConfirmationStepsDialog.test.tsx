@@ -28,6 +28,19 @@ const openDialog = async (steps: readonly MigrationStepDescriptor[]) => {
   await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy())
 }
 
+it('describes the full unwrapped-name approval scope even with one selected name', async () => {
+  await openDialog([
+    { type: 'approval', approvalId: 'base-registrar:hca', count: 1 },
+  ])
+
+  expect(
+    screen.queryByRole('heading', { name: 'Approve 1 name' }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByRole('heading', { name: 'Approve all unwrapped names' }),
+  ).toBeInTheDocument()
+})
+
 describe('WalletConfirmationStepsDialog role grants (WEB-1528)', () => {
   it('names the account that will receive a role, and the name it applies to', async () => {
     await openDialog([

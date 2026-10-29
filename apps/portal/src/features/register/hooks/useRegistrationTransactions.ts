@@ -474,7 +474,7 @@ export const useRegistrationTransactions = ({
 
     transactionManager.clear()
 
-    const signer = createEOASigner(walletClient, connection.connector?.id)
+    const signer = createEOASigner(walletClient)
 
     actor.send({
       type: 'START_REGISTRATION',

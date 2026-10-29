@@ -185,10 +185,10 @@ export const ProfileHeaderLoading = ({
 
     <div className="mt-29 flex flex-col gap-6 px-5 xl:mt-0 xl:flex-row xl:items-stretch xl:px-0">
       <NeutralAvatarLoading
-        className="hidden size-40 shrink-0 rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)] xl:block"
+        className="hidden shrink-0 xl:block"
         shouldReduceMotion={shouldReduceMotion}
       />
-      <Card className="min-h-0 flex-1 rounded-none border-0 bg-transparent p-0 shadow-none xl:min-h-45.5 xl:max-w-158.75 xl:rounded-xl xl:border-[0.5px] xl:bg-white xl:p-6 xl:shadow-temp-card">
+      <Card className="min-h-0 w-full flex-1 rounded-none border-0 bg-transparent p-0 shadow-none xl:min-h-45.5 xl:rounded-xl xl:border-[0.5px] xl:bg-white xl:p-6 xl:shadow-temp-card">
         <div className="grid w-full gap-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:justify-between xl:gap-8">
           <div className="min-w-0">
             <div className="flex items-start justify-between gap-3">
