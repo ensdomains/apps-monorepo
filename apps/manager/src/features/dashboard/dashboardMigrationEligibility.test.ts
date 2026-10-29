@@ -1,5 +1,5 @@
 import { sepolia } from 'viem/chains'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   makeClassified,
   makeDomain,
@@ -16,8 +16,12 @@ import {
   getV1NameStatus,
 } from './dashboardMigrationEligibility'
 
-const NOW = BigInt(Math.floor(Date.now() / 1000))
+const NOW = 1_780_000_000n
 const DAY = 86_400n
+
+// classifyNames reads Date.now(), so pin it to NOW.
+beforeAll(() => vi.useFakeTimers({ now: Number(NOW) * 1000, toFake: ['Date'] }))
+afterAll(() => vi.useRealTimers())
 
 const parent = makeClassified({ id: '0xAA', name: 'parent.eth' })
 const subname = makeClassified({
