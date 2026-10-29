@@ -5,6 +5,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { okAsync } from 'neverthrow'
 import { match, P } from 'ts-pattern'
+import type { Address } from 'viem'
 import { normalize } from 'viem/ens'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
@@ -20,14 +21,16 @@ type GetSubregistryHistoryParameters = {
 }
 
 /**
- * The ENSv1 registries. bigname files an ENSv1 `NewOwner` (`setSubnodeOwner`)
+ * The ENSv1 registries: the legacy registry and the 2017 mainnet one it
+ * replaced (its `old()`). bigname files an ENSv1 `NewOwner` (`setSubnodeOwner`)
  * as a `subregistry` row too, and that is not an ENSv2 subregistry link, so
- * rows these contracts emitted do not count.
+ * rows these contracts emitted do not count. Not `ensRegistry`: that is the
+ * ENSv2 .eth registry, which emits every 2LD's links.
  */
 const ENS_V1_REGISTRIES = new Set(
   [
-    envConfig.chain.contracts.ensRegistry?.address,
     envConfig.chain.contracts.ensLegacyRegistry?.address,
+    '0x314159265dD8dbb310642f98f50C066173C1259b',
   ].flatMap((address) => (address ? [address.toLowerCase()] : [])),
 )
 
@@ -38,9 +41,15 @@ const ENS_V1_REGISTRIES = new Set(
  */
 const SUBREGISTRY_HISTORY_WINDOW = 50
 
+export type SubregistryHistory = {
+  /** How many times the name's ENSv2 subregistry slot has been written. */
+  readonly linkCount: number
+  /** Where the newest write that set the slot pointed. */
+  readonly previousRegistry: Address | undefined
+}
+
 /**
- * How many times the name's ENSv2 subregistry slot has been written, or `null`
- * when that cannot be told.
+ * The name's ENSv2 subregistry writes, or `null` when they cannot be told.
  */
 export const getSubregistryHistory = ({
   name,
@@ -54,7 +63,7 @@ export const getSubregistryHistory = ({
     (cause) => cause,
   )
   if (normalized.isErr())
-    return okAsync<number | null, GetSubregistryHistoryError>(null)
+    return okAsync<SubregistryHistory | null, GetSubregistryHistoryError>(null)
 
   return bigname
     .nameHistory(normalized.value, {
@@ -64,15 +73,26 @@ export const getSubregistryHistory = ({
       page_size: SUBREGISTRY_HISTORY_WINDOW,
     })
     .mapErr((cause) => new GetSubregistryHistoryError({ cause }))
-    .map(({ data, page }): number | null => {
+    .map(({ data, page }): SubregistryHistory | null => {
       // A state-derived row names no contract; counted, since an unknown write
       // must not read as `never-configured`.
       const links = data.filter(
         (row) =>
           !row.contract_address ||
           !ENS_V1_REGISTRIES.has(row.contract_address.toLowerCase()),
-      ).length
-      return links === 0 && page?.has_more ? null : links
+      )
+      if (links.length === 0 && page?.has_more) return null
+      return {
+        linkCount: links.length,
+        // Rows come newest first, bigname's default order.
+        previousRegistry: links
+          .flatMap((row) =>
+            row.type === 'subregistry' && row.data?.subregistry
+              ? [row.data.subregistry.address]
+              : [],
+          )
+          .at(0),
+      }
     })
 }
 
@@ -102,7 +122,10 @@ export type SubregistrySlot =
   | { readonly status: 'loading' }
   | { readonly status: 'error' }
   | { readonly status: 'never-configured' }
-  | { readonly status: 'detached' }
+  | {
+      readonly status: 'detached'
+      readonly previousRegistry: Address | undefined
+    }
 
 /**
  * Opts out of the app-wide one-hour `staleTime`: this gates whether the app
@@ -125,10 +148,17 @@ export const useSubregistrySlot = (
   return (
     match({ isError, data })
       .with({ isError: true }, () => ({ status: 'error' }) as const)
-      // A null count is the indexer declining to answer, not a zero.
+      // A null history is the indexer declining to answer, not a zero.
       .with({ data: null }, () => ({ status: 'error' }) as const)
       .with({ data: P.nullish }, () => ({ status: 'loading' }) as const)
-      .with({ data: P.number.gt(0) }, () => ({ status: 'detached' }) as const)
+      .with(
+        { data: { linkCount: P.number.gt(0) } },
+        ({ data }) =>
+          ({
+            status: 'detached',
+            previousRegistry: data.previousRegistry,
+          }) as const,
+      )
       .otherwise(() => ({ status: 'never-configured' }) as const)
   )
 }
