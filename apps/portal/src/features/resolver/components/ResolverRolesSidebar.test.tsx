@@ -274,3 +274,107 @@ describe('ResolverRolesSidebar admin gating', () => {
     })
   })
 })
+
+// WEB-1649: the connected wallet's own row hid Remove user and locked every
+// box, and the Admin box was never enabled, so neither a role nor its admin
+// could be revoked.
+describe('ResolverRolesSidebar revoking roles and admins', () => {
+  const adminCheckbox = (roleKey: string) => {
+    const checkbox = document.getElementById(`${roleKey}-admin`)
+    if (!checkbox) throw new Error(`no admin checkbox for ${roleKey}`)
+    return checkbox
+  }
+  const ownRoot: ResolverRevocation = {
+    resource: ROOT_RESOURCE,
+    resourceLabel: ROOT_RESOURCE_LABEL,
+    roles: ['ROLE_SET_ADDRESS', 'ROLE_SET_ADDRESS_ADMIN'],
+  }
+  const ownRow = group({ account: admin, decodedRoles: ownRoot.roles })
+
+  it("offers Remove user and the role boxes on the wallet's own row", () => {
+    renderSidebar(ownRow, [ownRoot])
+
+    expect(screen.getByRole('button', { name: /Remove user/i })).toBeEnabled()
+    expect(userCheckbox('ROLE_SET_ADDRESS')).toBeEnabled()
+    expect(adminCheckbox('ROLE_SET_ADDRESS')).toBeEnabled()
+  })
+
+  it("enables an Admin box only when the caller holds that role's _ADMIN", () => {
+    callerAdminRoles = new Set<ResolverRole>(['ROLE_SET_TEXT_ADMIN'])
+    renderSidebar(
+      group({
+        decodedRoles: ['ROLE_SET_ADDRESS_ADMIN', 'ROLE_SET_TEXT_ADMIN'],
+      }),
+    )
+
+    expect(adminCheckbox('ROLE_SET_TEXT')).toBeEnabled()
+    expect(adminCheckbox('ROLE_SET_ADDRESS')).toBeDisabled()
+  })
+
+  it('only revokes an admin on a scoped row, never grants one', () => {
+    renderSidebar(
+      group({
+        isRoot: false,
+        resource: avatar.toString(),
+        resourceId: avatar,
+        resourceLabel: 'text "avatar"',
+        decodedRoles: ['ROLE_SET_TEXT', 'ROLE_SET_TEXT_ADMIN'],
+      }),
+    )
+
+    expect(adminCheckbox('ROLE_SET_TEXT')).toBeEnabled()
+    expect(adminCheckbox('ROLE_SET_ADDRESS')).toBeDisabled()
+  })
+
+  it('revokes the admin role when its box is unticked', async () => {
+    renderSidebar(
+      group({ decodedRoles: ['ROLE_SET_ADDRESS', 'ROLE_SET_ADDRESS_ADMIN'] }),
+    )
+
+    await userEvent.click(adminCheckbox('ROLE_SET_ADDRESS'))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+
+    steps[0]?.onStart()
+    expect(saveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account: alice,
+        resource: ROOT_RESOURCE,
+        rolesToGrant: [],
+        rolesToRevoke: ['ROLE_SET_ADDRESS_ADMIN'],
+      }),
+    )
+  })
+
+  it('warns before the wallet revokes its own admin', async () => {
+    renderSidebar(ownRow, [ownRoot])
+
+    await userEvent.click(adminCheckbox('ROLE_SET_ADDRESS'))
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(
+      screen.getByText(/removing your own Admin for Set Address/i),
+    ).toBeInTheDocument()
+  })
+
+  it('removes the wallet itself root last, so its root admin still covers the scoped revokes', async () => {
+    const ownAvatar: ResolverRevocation = {
+      resource: avatar,
+      resourceLabel: 'text "avatar"',
+      roles: ['ROLE_SET_TEXT'],
+    }
+    revokeChecks = [{ data: true }, { data: true }]
+    renderSidebar(ownRow, [ownRoot, ownAvatar])
+
+    await userEvent.click(screen.getByRole('button', { name: /Remove user/i }))
+    expect(
+      screen.getByText(/removing your own Admin for Set Address/i),
+    ).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Remove' }))
+
+    expect(steps.map((step) => step.title)).toEqual([
+      'Remove roles on text "avatar"',
+      `Remove roles on ${ROOT_RESOURCE_LABEL}`,
+    ])
+  })
+})

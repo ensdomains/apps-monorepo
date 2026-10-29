@@ -441,3 +441,25 @@ export const planAccountRemoval = <T extends RoleInput>(
 
   return { type: 'complete', revocations }
 }
+
+/**
+ * A removal of the caller's own grants, root last. The caller's root `_ADMIN`
+ * roles may be what authorises the scoped revokes, so taking root away first
+ * would make the steps after it revert.
+ */
+export const selfRemovalOrder = (
+  revocations: readonly ResolverRevocation[],
+): readonly ResolverRevocation[] =>
+  revocations.toSorted(
+    (a, b) =>
+      Number(a.resource === ROOT_RESOURCE) -
+      Number(b.resource === ROOT_RESOURCE),
+  )
+
+/** Titles of the permissions whose `_ADMIN` is among `roles`. */
+export const adminPermissionTitles = (
+  roles: readonly ResolverRole[],
+): readonly string[] =>
+  resolverPermissions
+    .filter(({ key }) => roles.includes(resolverAdminRoleOf(key)))
+    .map(({ title }) => title)

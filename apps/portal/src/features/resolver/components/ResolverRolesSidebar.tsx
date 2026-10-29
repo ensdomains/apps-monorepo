@@ -38,6 +38,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import {
   type AccountRemovalPlan,
   type AccountRoleGroup,
+  adminPermissionTitles,
   type ResolverRevocation,
   type ResolverRole,
   ROOT_RESOURCE,
@@ -45,6 +46,7 @@ import {
   resolverAdminRoleOf,
   resolverPermissions,
   resolverRoleGroupId,
+  selfRemovalOrder,
 } from '@/lib/roles/resolverRoles'
 import {
   computeRoleChanges,
@@ -143,13 +145,18 @@ const EditPermissionList = ({
               <Checkbox
                 id={`${permission.key}-admin`}
                 checked={rolePerms.admin}
-                disabled
+                disabled={
+                  !canSetRole || disabled || (!canGrant && !rolePerms.admin)
+                }
+                onCheckedChange={(checked) =>
+                  onChange(permission.key, 'admin', checked as boolean)
+                }
               />
               <Label
                 htmlFor={`${permission.key}-admin`}
                 className={cn(
                   'font-medium cursor-pointer',
-                  canManageRoles ? 'text-foreground' : 'text-muted-foreground',
+                  canSetRole ? 'text-foreground' : 'text-muted-foreground',
                 )}
               >
                 Admin
@@ -180,17 +187,44 @@ const RoleScopeSummary = ({
 )
 
 /**
+ * Shown before the connected wallet revokes its own `_ADMIN` roles: after
+ * that it can't change those roles, and if no one else holds the admin,
+ * nobody can.
+ */
+const SelfAdminRevokeWarning = ({
+  roles,
+}: {
+  readonly roles: readonly ResolverRole[]
+}) => {
+  const titles = adminPermissionTitles(roles)
+  if (titles.length === 0) return null
+  return (
+    <Alert variant="destructive">
+      <AlertDescription>
+        You're removing your own Admin for {titles.join(', ')}. You won't be
+        able to grant or revoke{' '}
+        {titles.length === 1 ? 'that role' : 'those roles'} afterwards, and if
+        no other account is Admin for {titles.length === 1 ? 'it' : 'them'},
+        nobody will.
+      </AlertDescription>
+    </Alert>
+  )
+}
+
+/**
  * Confirms a save, naming the scope it lands on. A root-scoped change reaches
  * every name the resolver serves, so it is never issued without the operator
  * reading the scope first (WEB-1513).
  */
 const ConfirmSaveDialog = ({
   save,
+  isSelf,
   onOpenChange,
   isPending,
   onConfirm,
 }: {
   readonly save: ResolverRolesSaveAction | null
+  readonly isSelf: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly isPending: boolean
   readonly onConfirm: () => void
@@ -223,6 +257,9 @@ const ConfirmSaveDialog = ({
           {save && save.rolesToRevoke.length > 0 && (
             <p className="text-p">Revoking: {save.rolesToRevoke.join(', ')}</p>
           )}
+          {save && isSelf && (
+            <SelfAdminRevokeWarning roles={save.rolesToRevoke} />
+          )}
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>
@@ -250,6 +287,7 @@ const RemoveUserDialog = ({
   onOpenChange,
   account,
   revocations,
+  isSelf,
   isPending,
   onConfirm,
 }: {
@@ -257,6 +295,7 @@ const RemoveUserDialog = ({
   readonly onOpenChange: (open: boolean) => void
   readonly account: Address
   readonly revocations: readonly ResolverRevocation[]
+  readonly isSelf: boolean
   readonly isPending: boolean
   readonly onConfirm: () => void
 }) => (
@@ -287,6 +326,11 @@ const RemoveUserDialog = ({
               resolver serves, not one name.
             </AlertDescription>
           </Alert>
+        )}
+        {isSelf && (
+          <SelfAdminRevokeWarning
+            roles={revocations.flatMap(({ roles }) => roles)}
+          />
         )}
       </DialogHeader>
       <DialogFooter>
@@ -373,8 +417,17 @@ export const ResolverRolesSidebar = ({
     editedPermissions,
   )
 
-  const revocations =
+  const isSelf = Boolean(
+    selectedAccount &&
+      connectedAddress &&
+      selectedAccount.toLowerCase() === connectedAddress.toLowerCase(),
+  )
+
+  const plannedRevocations =
     removalPlan?.type === 'complete' ? removalPlan.revocations : NO_REVOCATIONS
+  const revocations = isSelf
+    ? selfRemovalOrder(plannedRevocations)
+    : plannedRevocations
 
   const callerAdminRoles = useResolverCallerAdminRoles({
     resolverAddress,
@@ -476,13 +529,6 @@ export const ResolverRolesSidebar = ({
     attempt.scope,
   )
 
-  const isSelf = Boolean(
-    selectedAccount &&
-      connectedAddress &&
-      selectedAccount.toLowerCase() === connectedAddress.toLowerCase(),
-  )
-
-  const canEdit = canManageRoles && !isSelf
   const mutationError = saveMutation.error ?? removeUserMutation.error
 
   return (
@@ -501,7 +547,7 @@ export const ResolverRolesSidebar = ({
                   : 'Role Details'}
                 {selectedAccount && <CopyButton value={selectedAccount} />}
               </SheetTitle>
-              {canEdit && selectedAccount && (
+              {canManageRoles && selectedAccount && (
                 <Button
                   variant="outline"
                   disabled={
@@ -527,7 +573,7 @@ export const ResolverRolesSidebar = ({
                   }
                 />
 
-                {canEdit && resource === null && (
+                {canManageRoles && resource === null && (
                   <Alert variant="destructive">
                     <AlertDescription>
                       The scope of this grant can't be read, so it can't be
@@ -538,7 +584,7 @@ export const ResolverRolesSidebar = ({
                   </Alert>
                 )}
 
-                {canEdit && removalPlan?.type === 'unreadable' && (
+                {canManageRoles && removalPlan?.type === 'unreadable' && (
                   <Alert variant="destructive">
                     <AlertDescription>
                       {removalPlan.reason === 'incomplete'
@@ -554,18 +600,16 @@ export const ResolverRolesSidebar = ({
                   </Alert>
                 )}
 
-                <div className={cn(isSelf && 'opacity-50 pointer-events-none')}>
-                  <EditPermissionList
-                    editedPermissions={editedPermissions}
-                    onChange={handlePermissionChange}
-                    canManageRoles={canEdit}
-                    callerAdminRoles={callerAdminRoles}
-                    canGrant={group.isRoot}
-                    disabled={saveMutation.isPending}
-                  />
-                </div>
+                <EditPermissionList
+                  editedPermissions={editedPermissions}
+                  onChange={handlePermissionChange}
+                  canManageRoles={canManageRoles}
+                  callerAdminRoles={callerAdminRoles}
+                  canGrant={group.isRoot}
+                  disabled={saveMutation.isPending}
+                />
 
-                {canEdit && (
+                {canManageRoles && (
                   <div className="flex justify-end">
                     <Button
                       variant="default"
@@ -592,6 +636,7 @@ export const ResolverRolesSidebar = ({
 
         <ConfirmSaveDialog
           save={pendingSave}
+          isSelf={isSelf}
           onOpenChange={(open) => {
             if (!open) setPendingSave(null)
           }}
@@ -605,6 +650,7 @@ export const ResolverRolesSidebar = ({
             onOpenChange={setConfirmOpen}
             account={selectedAccount}
             revocations={revocations}
+            isSelf={isSelf}
             isPending={removeUserMutation.isPending}
             onConfirm={handleRemoveUser}
           />
