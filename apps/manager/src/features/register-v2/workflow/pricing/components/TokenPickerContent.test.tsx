@@ -767,6 +767,27 @@ describe('TokenPickerContentBase', () => {
     expect(receiptRow('Existing balance')).toHaveTextContent('-$1.82')
     expect(receiptRow('You pay')).toHaveTextContent('$162.50')
   })
+  it('explains where the existing balance came from', async () => {
+    renderPicker({
+      funding: {
+        registration: 160,
+        networkFee: 4.32,
+        total: 164.32,
+        walletDebit: 162.5,
+        hcaCredit: 1.82,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+    })
+
+    fireEvent.focus(
+      screen.getByRole('button', { name: 'Where did this come from?' }),
+    )
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'left in your ENS account by a payment you started earlier',
+    )
+  })
   it('shows a single total without an existing balance', () => {
     renderPicker({
       funding: {
