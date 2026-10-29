@@ -16,6 +16,10 @@ describe('isAddressLikeLabel', () => {
     ],
     ['a Bitcoin P2PKH address', '1a1zp1ep5qgefi2dmptftl5slmv7divfna'],
     ['a Bitcoin P2SH address', '3j98t1wpez73cnmqviecrnyiwrnqrhwnly'],
+    [
+      'a Bitcoin P2PKH address shorter than a Solana key',
+      '1boatslrhzbwx9t7e8m3vgnbmqn6p4',
+    ],
     ['a Solana address', '9wzdxwbbmkg8ztbnmquxvqrayrzzdsgydlvl9zytawwm'],
     ['another Solana address', '7xkxtg2cw87d97txjsdpbd5jbkhetqa83tzrujosgasu'],
     [
@@ -34,7 +38,18 @@ describe('isAddressLikeLabel', () => {
     ['a short hex name', '0xdeadbeef'],
     ['a long name ending in a year', 'thebestcoffeeshopinnewyorkcity2024'],
     ['a long all-letter name', 'thisisaverylongnamethatsomeonemightregister'],
-    ['a long base58-shaped name with a year', 'summerroadtrip1999withfriends'],
+    [
+      'a Solana-length base58-shaped name with a year',
+      'summerroadtripwithallmyfriends1999',
+    ],
+    [
+      'a short mixed name that is not a Solana key',
+      'satoshi21million4ever2moon',
+    ],
+    [
+      'a mixed name too short for Solana and not 1/3-prefixed',
+      'hello1world2hello3world4abc',
+    ],
     [
       'a name starting with bc1 that is not bech32',
       'bc1isthebestnameforbitcoinfans',
