@@ -9,13 +9,21 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
   - Anvil's fork URL is `${ANVIL_FORK_URL:-${SEPOLIA_FORK_URL:-<drpc>}}`. A bare `docker compose up` (CI) forks drpc directly, as main does. `start-local-env.sh` and `reset-bigname.sh` set it to the upstream cache. In CI the cache's first upstream reads stalled past Anvil's health window. The cache now logs each failed upstream attempt.
   - The harness's "pointed at this fork" check is split per app (`helpers/app-rpc.ts`): the portal harness checks the portal, the manager harness the manager. A CI job starts only its own app.
   - drpc DNS flakes still fail an occasional stack start; a re-run passes. Fix proposed: an owned archive RPC in a `SEPOLIA_FORK_URL` secret, plus pinning `SEPOLIA_FORK_BLOCK` in CI (the user is weighing it).
-- **B1a**: draft PR #1601 (`e2e-land/b1a-explorer-smoke`, worktree `/Users/sg/ens/worktrees/e2e-land-b1a`), stacked on B0. CI is running. Contents and the local run are in the PR body. B1b stacks on B1a.
-- **Local run caveat**: the shared Anvil's clock was 29 h ahead of real time (other sessions' warps). Portal smoke locally: 22 passed, 4 failed (WEB-1229, WEB-1572 on `ERC20: transfer amount exceeds balance`; multi-name Extend 2/6 confirmed; creates a 3LD). Judge on CI's fresh stack.
+- **B1a**: draft PR #1601 (`e2e-land/b1a-explorer-smoke`, worktree `/Users/sg/ens/worktrees/e2e-land-b1a`), stacked on B0. Head `deea03df8`. CI: portal shard 2 green; shard 1 leaves only the 3LD test failing (see below). Fixes so far:
+  - CI forks the pinned block (`e2e/infra/fork-block`) like local runs; this fixed the transfer failures that only CI saw.
+  - `helpers/transaction-modal.ts`: the modal now auto-advances after a success, and `isEnabled()` waits for the element (up to 60 s) when Next has already gone. Every multi-step flow lost a minute per step. Bounded at 5 s; shard 1 dropped from ~27 to ~19 min.
+  - Multi-name renewals expect `renewal-renew-batch-<renewer>-0` (#1488).
+  - WEB-1229 and WEB-1572 are `test.fixme` (known failures, listed in `smoke-suite.md`): **app bug on main** since #1395, where the shared registration calls pay Circle's Sepolia USDC (0x1c7D…) while the portal shows, checks and approves MockUSDC (0x240b…). The user parked the app fix and will come back to it.
+- **Open on B1a (the user will get back to these)**:
+  - The portal USDC fix: a separate PR to main; remove the two `fixme` markers there.
+  - "creates a 3LD in the parent registry": the on-chain creation check passes; only its subnames-list check needs real bigname (CI mocks it). Proposed: run the list check only when bigname is real.
+  - Portal smoke shard 1 is ~19 min of a 30 min job; consider 3 shards.
+  - Manager 1/3 failures in recent runs were stack starts (Alto unhealthy, Anvil drop), not tests.
+
 
 ## Next action
 
-1. Read #1601's CI. Fix real failures on the B1a branch; if a smoke test cannot pass with bigname mocked, untag it and record why in `smoke-suite.md`.
-2. When green, mark #1601 ready for review.
+1. Wait for the user's decisions on the open B1a items above; then make #1601 green and mark it ready for review.
 3. Prepare B1b (`e2e-land/b1b-manager-smoke`) from the B1a branch: manager smoke config, `@smoke` tags per the checklist, `e2e.yml` manager job → smoke config, `test:smoke` / `e2e:smoke:manager` scripts.
 
 ## Waiting on
