@@ -1727,6 +1727,10 @@ msgstr ""
 msgid "Look for a different name"
 msgstr ""
 
+#: src/components/NameFallbackCard.tsx
+msgid "looks like a wallet address and can't be registered"
+msgstr ""
+
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Lowest upfront cost"
 msgstr ""
