@@ -199,7 +199,10 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
     await expect(
       assertLockedResolverReplacementRecordSafety(
         [name],
-        publicClientWithProfileResults([UNSET_PUBKEY]),
+        publicClientWithProfileResults([
+          { status: 'success', result: '0x' },
+          UNSET_PUBKEY,
+        ]),
       ),
     ).resolves.toBeUndefined()
   })
@@ -225,6 +228,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
         publicClientWithProfileResults([
           { status: 'success', result: 'a@b.c' },
           { status: 'success', result: '0x1234' as Hex },
+          { status: 'success', result: '0x' },
           UNSET_PUBKEY,
         ]),
       ),
@@ -288,6 +292,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
       assertLockedResolverReplacementRecordSafety(
         [name],
         publicClientWithProfileResults([
+          { status: 'success', result: '0x' },
           {
             status: 'success',
             result: '0x000000000000000000000000000000000000beef' as Address,
