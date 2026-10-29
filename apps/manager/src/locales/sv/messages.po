@@ -3374,6 +3374,14 @@ msgstr ""
 msgid "These subnames were created without publishing their names onchain, so they can't be recreated on ENSv2. They stop working once their parent is upgraded. Every other subname is upgraded with it."
 msgstr ""
 
+#: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
+msgid "These subnames won't be upgraded"
+msgstr ""
+
+#: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
+msgid "They were created without publishing their names onchain, so they can't be recreated on ENSv2 and stop working once their parent is upgraded. Every other subname is upgraded with it."
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."
 msgstr ""

@@ -446,6 +446,8 @@ export const discoverSubnameRecreation = async (params: {
 }): Promise<{
   readonly domains: readonly V1Domain[]
   readonly snapshot: SubnameRecreationSnapshot
+  /** Unknown-label subnames the upgrade leaves behind on ENSv1. */
+  readonly unrecoverable: readonly string[]
 }> => {
   const { publicClient, signal } = params
   const indexer =
@@ -559,7 +561,11 @@ export const discoverSubnameRecreation = async (params: {
     chainId: envConfig.chain.id,
     inventoryDigest: inventoryDigest(values),
   }
-  return { domains: values, snapshot }
+  const unrecoverable = [...rowsByRoot.values()]
+    .flat()
+    .map((row) => row.name)
+    .filter((name) => unknownLabelhashOf(name) !== null)
+  return { domains: values, snapshot, unrecoverable }
 }
 
 /** Revalidate source identities before signing. Receipt checks verify the reviewed import, not live V1 synchronisation. */

@@ -22,8 +22,10 @@ import {
   shouldShowNameSearch,
   shouldUseCompactSelectionLayout,
   shouldUseSmallSelectionCard,
+  unrecoverableSubnamesOf,
 } from './selectNames.helpers'
 import { UnavailableMigrationNames } from './UnavailableMigrationNames'
+import { UnrecoverableSubnamesNotice } from './UnrecoverableSubnamesNotice'
 import { WrapperSyncNotice } from './WrapperSyncNotice'
 
 const SubnameBlockReason = ({
@@ -172,6 +174,7 @@ export const SelectNamesStep = ({
     unavailableNames,
     blockedSubnames = [],
     verifiedSubnames,
+    unrecoverableSubnames = [],
     isEligibilityError = false,
     retryEligibility,
     wrapperSyncNames,
@@ -426,6 +429,9 @@ export const SelectNamesStep = ({
             isPending={wrapperSync.isPending}
             names={wrapperSyncNames}
             onSync={() => wrapperSync.mutate()}
+          />
+          <UnrecoverableSubnamesNotice
+            names={unrecoverableSubnamesOf(unrecoverableSubnames, selected)}
           />
           <UnavailableMigrationNames names={unavailableNames} />
           {blockedSubnames.length > 0 && (

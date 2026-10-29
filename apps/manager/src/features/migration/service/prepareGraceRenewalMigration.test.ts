@@ -108,6 +108,7 @@ describe('prepareGraceRenewalMigration', () => {
       vi.mocked(discoverSubnameRecreation).mockResolvedValue({
         domains: [...refreshed, child],
         snapshot,
+        unrecoverable: [],
       })
       vi.mocked(buildMigrationPlan).mockImplementation(
         async ({ domains }) =>

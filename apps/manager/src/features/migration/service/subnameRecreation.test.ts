@@ -261,6 +261,7 @@ describe('direct subname source checks', () => {
       }).discover()
       expect(discovered.snapshot.roots).toEqual(roots)
       expect(discovered.domains.map(({ name }) => name)).not.toContain(UNKNOWN)
+      expect(discovered.unrecoverable).toEqual([UNKNOWN])
     },
   )
 
