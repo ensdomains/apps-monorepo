@@ -7,11 +7,47 @@ import {
   type GetRecordsParameters,
 } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
+import { type Client, createClient, custom, type Transport } from 'viem'
+import type { ensChain } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import {
+  hasContractRevert,
+  isOffchainLookupError,
+  readOffchainRecords,
+} from './offchainRecords'
 
 class RecordsError extends TaggedError('RecordsError')<{
   cause: GetRecordsErrorType
 }> {}
+
+type RecordsClient = Client<Transport, typeof ensChain>
+
+// Onchain names resolve in this first call. An offchain one reverts with
+// OffchainLookup instead of fanning out one gateway request per record.
+// Spreading `ccipRead: false` onto the client keeps its bound actions, which
+// still follow the lookup, so this is a separate client on the same transport.
+const readRecords = async (
+  client: RecordsClient,
+  params: GetRecordsParameters,
+) => {
+  const onchainOnly = createClient({
+    chain: client.chain,
+    transport: custom({ request: client.request }),
+    ccipRead: false,
+  })
+  try {
+    return await ensjs_getRecords(onchainOnly, params)
+  } catch (error) {
+    if (!isOffchainLookupError(error)) throw error
+  }
+  try {
+    return await readOffchainRecords(client, params)
+  } catch (error) {
+    // A resolver without multicall support reverts; HTTP failures propagate.
+    if (!hasContractRevert(error)) throw error
+    return ensjs_getRecords(client, params)
+  }
+}
 
 /**
  * Fetches ENS records for a given name.
@@ -22,7 +58,7 @@ export const getRecords = ResultFn(async function* (
   const client = yield* safeGetClient()
 
   const records = yield* fromPromise(
-    ensjs_getRecords(client, params),
+    readRecords(client, params),
     (e) => new RecordsError({ cause: e as GetRecordsErrorType }),
   )
 
