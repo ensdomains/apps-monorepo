@@ -342,7 +342,7 @@ export const MigrationSuccessDialog = ({
       open={open}
     >
       <DialogContent
-        className="h-auto max-h-[calc(100dvh-2rem)] w-[min(353px,calc(100vw-2rem))] max-w-none gap-0 overflow-y-auto overflow-x-hidden rounded-lg border-0 bg-[linear-gradient(181deg,var(--color-ens-garnet-100)_0.45%,var(--color-ens-garnet-200)_173.91%)] p-0 shadow-[0_24px_90px_rgba(70,0,30,0.24)] motion-reduce:animate-none sm:max-w-none md:w-[min(726px,calc(100vw-3rem))]"
+        className="h-auto max-h-[calc(100dvh_-_2rem)] w-[min(353px,calc(100vw_-_2rem))] max-w-none gap-0 overflow-y-auto overflow-x-hidden rounded-lg border-0 bg-[linear-gradient(181deg,var(--color-ens-garnet-100)_0.45%,var(--color-ens-garnet-200)_173.91%)] p-0 shadow-[0_24px_90px_rgba(70,0,30,0.24)] motion-reduce:animate-none sm:max-w-none md:w-[min(726px,calc(100vw_-_3rem))]"
         onFocusCapture={(event) => {
           // Radix loops focus with preventScroll; keep off-screen actions visible.
           if (event.target !== event.currentTarget) {
@@ -400,6 +400,19 @@ export const MigrationSuccessDialog = ({
                 state={state}
               />
             </>
+          )}
+          {context === 'migration' && (
+            <p className="mt-5 max-w-sm text-center text-ens-garnet-800/75 text-sm leading-relaxed">
+              <Trans>
+                We recommend removing upgrade permissions you no longer need.
+              </Trans>{' '}
+              <a
+                className="rounded-sm text-ens-garnet-900 underline underline-offset-4 hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2"
+                href="/upgrade-permissions"
+              >
+                <Trans>Review and revoke upgrade permissions</Trans>
+              </a>
+            </p>
           )}
         </div>
       </DialogContent>

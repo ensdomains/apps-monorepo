@@ -159,7 +159,6 @@ describe('buildStepDescriptors', () => {
         copyCount: 0,
         roleGrants: [],
       },
-      { type: 'cleanup', approvalId: 'eth-registry:hca' },
     ])
   })
 
@@ -193,7 +192,7 @@ describe('buildStepDescriptors', () => {
     ])
   })
 
-  it('groups setup and final batch + cleanup into one confirmation each when the wallet bundles', () => {
+  it('bundles setup and keeps each migration as one confirmation', () => {
     const descriptors = buildStepDescriptors({
       hcaDeploymentRequired: true,
       approvals: [tokenApproval(), operatorApproval('eth-registry:hca')],
@@ -205,7 +204,7 @@ describe('buildStepDescriptors', () => {
     expect(descriptors.map(({ type }) => type)).toEqual([
       'bundle',
       'atomic-batch',
-      'bundle',
+      'atomic-batch',
     ])
     expect(descriptors[0]).toMatchObject({
       steps: [
@@ -214,12 +213,7 @@ describe('buildStepDescriptors', () => {
         { type: 'approval', approvalId: 'eth-registry:hca' },
       ],
     })
-    expect(descriptors[2]).toMatchObject({
-      steps: [
-        { type: 'atomic-batch', index: 1 },
-        { type: 'cleanup', approvalId: 'eth-registry:hca' },
-      ],
-    })
+    expect(descriptors[2]).toMatchObject({ type: 'atomic-batch', index: 1 })
   })
 
   it('leaves a lone step unwrapped when the wallet bundles', () => {
@@ -232,18 +226,6 @@ describe('buildStepDescriptors', () => {
         canBatchAtomically: true,
       }).map(({ type }) => type),
     ).toEqual(['approval', 'atomic-batch'])
-  })
-
-  it('keeps a cleanup-only retry as its own confirmation when the wallet bundles', () => {
-    expect(
-      buildStepDescriptors({
-        hcaDeploymentRequired: false,
-        approvals: [operatorApproval('eth-registry:hca')],
-        atomicBatches: [],
-        registrationApprovalTargets: [],
-        canBatchAtomically: true,
-      }).map(({ type }) => type),
-    ).toEqual(['approval', 'cleanup'])
   })
 
   it('returns no descriptors when there is no work', () => {
