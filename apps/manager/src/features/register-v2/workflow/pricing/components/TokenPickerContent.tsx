@@ -26,14 +26,21 @@ import {
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import type { FundingSourceOrigin } from '../../../state/registrationUi.machine'
 import { useRegistrationLockHeartbeat } from '../../registering/hooks/useRegistrationLockHeartbeat'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
+import { useFallbackPaymentChoice } from '../hooks/useFallbackPaymentChoice'
 import {
   canPayFromL2,
   type L2PaymentProps,
   type L2PaymentRow,
   useL2Payment,
 } from '../hooks/useL2Payment'
+import {
+  type CurrentMethodState,
+  getFallbackPaymentChoice,
+  type PayableMethod,
+} from '../lib/fallbackPaymentChoice'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import {
   getPaymentReceiptFigures,
@@ -180,15 +187,17 @@ export const TokenPickerContent = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const domainName = `${label}.eth`
-  const [duration, selectedToken, fundingSourceChainId] = useSelector(
-    uiActor,
-    (state) =>
-      [
-        state.context.duration,
-        state.context.selectedToken,
-        state.context.fundingSourceChainId,
-      ] as const,
-  )
+  const [duration, selectedToken, fundingSourceChainId, fundingSourceOrigin] =
+    useSelector(
+      uiActor,
+      (state) =>
+        [
+          state.context.duration,
+          state.context.selectedToken,
+          state.context.fundingSourceChainId,
+          state.context.fundingSourceOrigin,
+        ] as const,
+    )
   const pricingQuery = useQuery({
     ...getRegisterPriceQueryOptions(
       label,
@@ -301,6 +310,7 @@ export const TokenPickerContent = () => {
     isQuoteStale: budgetQuery.isPlaceholderData,
     isEnabled: isBudgetRequired,
     fundingSourceChainId,
+    fundingSourceOrigin,
   })
   const l2FundingChainId = l2Payment?.selectedChainId
   const isPaidFromL2 = l2FundingChainId !== undefined
@@ -664,6 +674,53 @@ const coversShare = (coin: StablecoinBalance, share: number | undefined) =>
   share !== undefined &&
   decimalBigintToNumber(BigInt(coin.balance), coin.decimals) >= share
 
+const getCurrentMethodState = (
+  selectedL2: L2PaymentRow | undefined,
+  selectedOrigin: FundingSourceOrigin | undefined,
+  walletSelection: TOKEN_SYMBOL | undefined,
+  walletMethodItems: readonly PaymentMethodListItem[],
+): CurrentMethodState =>
+  match({ selectedL2, walletSelection })
+    .with({ selectedL2: P.nonNullable }, ({ selectedL2 }) =>
+      match({ isShort: isL2ShortOfFunds(selectedL2), selectedOrigin })
+        .with({ isShort: true }, () => 'short' as const)
+        .with({ selectedOrigin: 'fallback' }, () => 'auto' as const)
+        .otherwise(() => 'payable' as const),
+    )
+    .with({ walletSelection: P.nullish }, () => 'none' as const)
+    .otherwise(() =>
+      walletMethodItems.some((item) => item.isSelected) ? 'payable' : 'short',
+    )
+
+/** Every method that can pay right now, with what it holds. */
+const getPayableMethods = (
+  stablecoinBalances: readonly StablecoinBalance[],
+  walletShareOf: (symbol: string) => number | undefined,
+  l2Rows: readonly L2PaymentRow[],
+): readonly PayableMethod[] => [
+  ...stablecoinBalances
+    .filter((coin) => coversShare(coin, walletShareOf(coin.symbol)))
+    .map((coin) => ({
+      choice: { kind: 'wallet' as const, symbol: coin.symbol as TOKEN_SYMBOL },
+      balanceRaw: BigInt(coin.balance),
+      decimals: coin.decimals,
+    })),
+  ...l2Rows.flatMap((row) =>
+    canPayFromL2(row) && row.option.balanceRaw !== null
+      ? [
+          {
+            choice: {
+              kind: 'l2' as const,
+              chainId: row.option.source.chain.id,
+            },
+            balanceRaw: row.option.balanceRaw,
+            decimals: USDC_DECIMALS,
+          },
+        ]
+      : [],
+  ),
+]
+
 const getL2MethodItems = (
   l2Payment: L2PaymentProps | undefined,
   selectedL2: L2PaymentRow | undefined,
@@ -935,12 +992,50 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   const isL2Pending = !!l2Payment?.rows.some(
     (row) => row.option.status === 'loading' || row.isQuoteLoading,
   )
+  // A re-quote leaves some L2s on their old quote; rank once every one has settled.
+  const hasStaleL2Quote = !!l2Payment?.rows.some(
+    (row) =>
+      row.option.status === 'available' &&
+      row.isQuoteStale &&
+      !row.hasQuoteFailed,
+  )
   // The selected wallet coin went short (say the primary-name re-quote) while another method can pay.
   const isWalletSelectionHidden =
     !!walletSelection &&
     receiptState.status === 'ready' &&
     paymentMethodItems.length > 0 &&
     !walletMethodItems.some((item) => item.isSelected)
+
+  // Registration only: when the chosen method can't pay, switch to the one holding the most
+  const fallbackChoice = l2Payment
+    ? getFallbackPaymentChoice({
+        current: getCurrentMethodState(
+          selectedL2,
+          l2Payment.selectedOrigin,
+          walletSelection,
+          walletMethodItems,
+        ),
+        payableMethods: getPayableMethods(
+          stablecoinBalances,
+          walletShareOf,
+          l2Payment.rows,
+        ),
+      })
+    : undefined
+  useFallbackPaymentChoice({
+    choice: fallbackChoice,
+    // Never mid-click: any send invalidates the click's pricing snapshot.
+    isSettled:
+      isConnected &&
+      !isBusy &&
+      !isLoadingBalances &&
+      receiptState.status === 'ready' &&
+      !isRequoting &&
+      !isL2Pending &&
+      !hasStaleL2Quote,
+    onSelectCoin,
+    onSelectL2: l2Payment?.onFallbackSelect,
+  })
 
   const warning =
     globalErrorMessage ||
@@ -953,6 +1048,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     (revalidatedShortfall !== undefined &&
       t`${formatUsd(revalidatedShortfall)} more needed in your wallet.`) ||
     (isWalletSelectionHidden &&
+      !fallbackChoice &&
       t`Not enough USDC in your wallet. Choose another payment method.`)
 
   return (
