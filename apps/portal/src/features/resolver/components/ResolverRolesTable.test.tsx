@@ -375,3 +375,14 @@ describe('ResolverRolesTable unknown scopes', () => {
     expect(screen.getByRole('button', { name: 'Remove user' })).toBeDisabled()
   })
 })
+
+// WEB-1649: after Remove user the indexer still serves the account with no
+// powers, and the row stayed listed with nothing in it.
+describe('ResolverRolesTable revoked accounts', () => {
+  it('drops a row whose roles have all been revoked', () => {
+    renderTable([role(alice, SET_ADDRESS), role(bob, 0n)])
+
+    expect(screen.getByText(truncateAddress(alice, 6, 4))).toBeInTheDocument()
+    expect(screen.queryByText(truncateAddress(bob, 6, 4))).toBeNull()
+  })
+})
