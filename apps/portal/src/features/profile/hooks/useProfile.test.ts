@@ -192,6 +192,22 @@ describe('getProfile with a resolver bigname does not attribute', () => {
     expect(getRecords).toHaveBeenCalledOnce()
   })
 
+  it('keeps the records it has when the re-read fails', async () => {
+    inventory([])
+    const records = { resolverAddress: PARENT_RESOLVER }
+    vi.mocked(getRecords)
+      .mockReturnValueOnce(okAsync(records) as never)
+      .mockReturnValueOnce(errAsync(new Error('timed out')) as never)
+    vi.mocked(getLinkedRecordKeys).mockResolvedValue({
+      texts: ['test'],
+      coins: [],
+    })
+
+    const profile = await getProfile({ name: '1.dragonsy.eth' })
+
+    expect(profile._unsafeUnwrap()).toEqual({ records })
+  })
+
   it('keeps the records it has when the resolver events cannot be read', async () => {
     inventory([])
     const records = { resolverAddress: PARENT_RESOLVER }

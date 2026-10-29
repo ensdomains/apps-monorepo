@@ -19,6 +19,9 @@ const addressUpdatedEvent = parseAbiItem(
   'event AddressUpdated(uint256 indexed recordId, uint256 coinType, bytes addressBytes)',
 )
 
+/** The most a profile waits on this optional lookup. */
+export const LINKED_RECORD_KEYS_BUDGET_MS = 4_000
+
 export type LinkedRecordKeys = {
   readonly texts: readonly string[]
   readonly coins: readonly number[]
@@ -53,6 +56,28 @@ export const toLinkedRecordKeys = ({
  * subname answered by its upgraded parent's resolver, is found here.
  */
 export const getLinkedRecordKeys = async (
+  client: Client<Transport, EnsChain>,
+  resolver: Address,
+  name: string,
+  budgetMs = LINKED_RECORD_KEYS_BUDGET_MS,
+): Promise<LinkedRecordKeys> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      readLinkedRecordKeys(client, resolver, name),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`Linked record keys took over ${budgetMs}ms`)),
+          budgetMs,
+        )
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const readLinkedRecordKeys = async (
   client: Client<Transport, EnsChain>,
   resolver: Address,
   name: string,

@@ -142,7 +142,8 @@ export const getProfile = ResultFn(async function* ({
     }
     const answeringResolver = records.resolverAddress
     const client = yield* safeGetClient()
-    // Best effort: a node that refuses the log range leaves today's records.
+    // Best effort: a slow or refused log read, or a failed re-read, leaves the
+    // records already read.
     const linked = yield* fromPromise(
       getLinkedRecordKeys(client, answeringResolver, name),
       (cause) => cause,
@@ -157,7 +158,11 @@ export const getProfile = ResultFn(async function* ({
     }
     // Through resolution, as the first read: an ENSv2 resolver answers only
     // `resolve()`, so a read pinned to it directly comes back empty.
-    const linkedRecords = yield* getRecords({ ...request, texts, coins })
+    const linkedRecords = yield* getRecords({
+      ...request,
+      texts,
+      coins,
+    }).orElse(() => okAsync(records))
     return ok({ records: linkedRecords })
   }
 
