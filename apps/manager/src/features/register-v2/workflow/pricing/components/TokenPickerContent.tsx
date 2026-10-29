@@ -36,6 +36,7 @@ import {
   useL2Payment,
 } from '../hooks/useL2Payment'
 import {
+  type CurrentMethodState,
   getFallbackPaymentChoice,
   type PayableMethod,
 } from '../lib/fallbackPaymentChoice'
@@ -669,6 +670,20 @@ const coversShare = (coin: StablecoinBalance, share: number | undefined) =>
   share !== undefined &&
   decimalBigintToNumber(BigInt(coin.balance), coin.decimals) >= share
 
+const getCurrentMethodState = (
+  selectedL2: L2PaymentRow | undefined,
+  walletSelection: TOKEN_SYMBOL | undefined,
+  walletMethodItems: readonly PaymentMethodListItem[],
+): CurrentMethodState =>
+  match({ selectedL2, walletSelection })
+    .with({ selectedL2: P.nonNullable }, ({ selectedL2 }) =>
+      isL2ShortOfFunds(selectedL2) ? ('short' as const) : ('payable' as const),
+    )
+    .with({ walletSelection: P.nullish }, () => 'none' as const)
+    .otherwise(() =>
+      walletMethodItems.some((item) => item.isSelected) ? 'payable' : 'short',
+    )
+
 /** Every method that can pay right now, with what it holds. */
 const getPayableMethods = (
   stablecoinBalances: readonly StablecoinBalance[],
@@ -986,9 +1001,11 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   // Registration only: when the chosen method can't pay, switch to the one holding the most
   const fallbackChoice = l2Payment
     ? getFallbackPaymentChoice({
-        isCurrentPayable: selectedL2
-          ? !isL2ShortOfFunds(selectedL2)
-          : walletMethodItems.some((item) => item.isSelected),
+        current: getCurrentMethodState(
+          selectedL2,
+          walletSelection,
+          walletMethodItems,
+        ),
         payableMethods: getPayableMethods(
           stablecoinBalances,
           walletShareOf,
@@ -998,8 +1015,10 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     : undefined
   useFallbackPaymentChoice({
     choice: fallbackChoice,
+    // Never mid-click: any send invalidates the click's pricing snapshot.
     isSettled:
       isConnected &&
+      !isBusy &&
       !isLoadingBalances &&
       receiptState.status === 'ready' &&
       !isRequoting &&
