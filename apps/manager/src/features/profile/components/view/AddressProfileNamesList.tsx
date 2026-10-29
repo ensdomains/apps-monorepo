@@ -97,7 +97,7 @@ const AddressNameRow = ({
   readonly onToggleFavorite: () => void
 }) => {
   const isPrimary = primaryName?.toLowerCase() === name.label.toLowerCase()
-  const status: NameStatus | null = name.protocol === 'v1' ? 'ensv1Only' : null
+  const status: NameStatus | null = name.protocol === 'v1' ? 'ensv1' : null
   const canRenew =
     name.protocol === 'v1'
       ? isV1Renewable

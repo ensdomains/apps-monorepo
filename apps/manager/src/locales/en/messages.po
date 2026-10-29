@@ -1262,6 +1262,10 @@ msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
 
 #: src/features/dashboard/components/DashboardPills.tsx
+msgid "ENSv1"
+msgstr "ENSv1"
+
+#: src/features/dashboard/components/DashboardPills.tsx
 #: src/features/renew/workflow/pricing/PricingStep.tsx
 msgid "ENSv1 only"
 msgstr "ENSv1 only"

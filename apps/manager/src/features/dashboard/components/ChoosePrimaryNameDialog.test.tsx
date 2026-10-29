@@ -292,6 +292,7 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
     })
     eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
       eligibleKeys: new Set(),
+      unavailableKeys: new Set(),
       isPending: false,
       isError: false,
     })

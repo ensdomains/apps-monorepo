@@ -119,6 +119,7 @@ describe('MyNamesList', () => {
     vi.clearAllMocks()
     eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
       eligibleKeys: new Set(),
+      unavailableKeys: new Set(),
       isPending: false,
       isError: false,
     })
@@ -285,13 +286,14 @@ describe('MyNamesList', () => {
       'fgeorgescu.eth',
       'pokemon.fgeorgescu.eth',
     ])
-    expect(rows.every((row) => row.dataset.status === 'ensv1Only')).toBe(true)
+    expect(rows.every((row) => row.dataset.status === 'ensv1')).toBe(true)
     expect(rows.every((row) => row.dataset.cta === 'manageExplorer')).toBe(true)
   })
 
   it('shows the names while migration eligibility is still loading', () => {
     eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
       eligibleKeys: new Set(),
+      unavailableKeys: new Set(),
       isPending: true,
       isError: false,
     })
@@ -310,6 +312,7 @@ describe('MyNamesList', () => {
   it('marks an eligible V1 name for upgrade', () => {
     eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
       eligibleKeys: new Set(['0x02']),
+      unavailableKeys: new Set(),
       isPending: false,
       isError: false,
     })
@@ -318,7 +321,25 @@ describe('MyNamesList', () => {
 
     expect(
       screen.getAllByTestId('name-row').map((row) => row.dataset.status),
-    ).toEqual(['eligibleUpgrade', 'ensv1Only'])
+    ).toEqual(['eligibleUpgrade', 'ensv1'])
+  })
+
+  it('keeps ENSv1 only for a V1 name that cannot be upgraded', () => {
+    eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
+      eligibleKeys: new Set(),
+      unavailableKeys: new Set(['0x03']),
+      isPending: false,
+      isError: false,
+    })
+
+    renderList()
+
+    const rows = screen.getAllByTestId('name-row')
+    expect(rows.map((row) => row.dataset.status)).toEqual([
+      'ensv1',
+      'ensv1Only',
+    ])
+    expect(rows.every((row) => row.dataset.cta === 'manageExplorer')).toBe(true)
   })
 
   it('passes roles through to the name row', () => {
@@ -358,6 +379,7 @@ describe('MyNamesList', () => {
     mockNames([makeName({ name: 'alaska.eth' })])
     eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
       eligibleKeys: new Set(),
+      unavailableKeys: new Set(),
       isPending: false,
       isError: true,
     })

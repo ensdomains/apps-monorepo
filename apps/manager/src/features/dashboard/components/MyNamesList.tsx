@@ -81,6 +81,7 @@ const AnimatedNameRow = ({
   onToggleSelect,
   isV1Renewable,
   isEligibilityPending,
+  isUpgradeUnavailable,
   primaryNameAction,
 }: {
   readonly metadata: MergedNameRowMetadata
@@ -97,6 +98,7 @@ const AnimatedNameRow = ({
   readonly onToggleSelect: (name: DashboardName) => void
   readonly isV1Renewable: boolean
   readonly isEligibilityPending: boolean
+  readonly isUpgradeUnavailable: boolean
   readonly primaryNameAction?: ReactNode
 }) => {
   const {
@@ -121,6 +123,7 @@ const AnimatedNameRow = ({
     isV1,
     isMigrationEligible,
     isEligibilityPending,
+    isUpgradeUnavailable,
   })
     .returnType<NameRowActionState>()
     .with({ isV1: false }, () => ({
@@ -136,9 +139,14 @@ const AnimatedNameRow = ({
       cta: null,
       status: 'eligibleUpgrade',
     }))
+    .with(
+      { isV1: true, isMigrationEligible: false, isUpgradeUnavailable: true },
+      () => ({ cta: 'manageExplorer', status: 'ensv1Only' }),
+    )
+    // Upgradeable later, e.g. a subname that moves with its parent
     .with({ isV1: true, isMigrationEligible: false }, () => ({
       cta: 'manageExplorer',
-      status: 'ensv1Only',
+      status: 'ensv1',
     }))
     .exhaustive()
 
@@ -211,6 +219,7 @@ export const MyNamesList = ({
 
   const {
     eligibleKeys,
+    unavailableKeys,
     isPending: isEligibilityPending,
     isError: isEligibilityError,
   } = useDashboardMigrationEligibility()
@@ -351,6 +360,9 @@ export const MyNamesList = ({
                   isProfileRecordsLoading={
                     profileRecordState?.isLoading ?? false
                   }
+                  isUpgradeUnavailable={unavailableKeys.has(
+                    row.item.key.toLowerCase(),
+                  )}
                   isV1Renewable={
                     row.item.kind === 'v1' && isV1Renewable(row.name)
                   }
