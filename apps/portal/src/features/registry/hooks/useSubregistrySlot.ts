@@ -1,4 +1,4 @@
-import type { BignameError } from '@ens-apps/indexer/bigname'
+import type { BignameError, NameHistoryRow } from '@ens-apps/indexer/bigname'
 import { fromSync, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -49,6 +49,39 @@ export type SubregistryHistory = {
 }
 
 /**
+ * Reads a page of `subregistry` rows, newest first, as ENSv2 writes: rows the
+ * `v1Registries` emitted are dropped. `null` when none are left but more remain.
+ */
+export const readSubregistryHistory = ({
+  rows,
+  hasMore,
+  v1Registries,
+}: {
+  readonly rows: readonly NameHistoryRow[]
+  readonly hasMore: boolean
+  readonly v1Registries: ReadonlySet<string>
+}): SubregistryHistory | null => {
+  // A state-derived row names no contract; counted, since an unknown write
+  // must not read as `never-configured`.
+  const links = rows.filter(
+    (row) =>
+      !row.contract_address ||
+      !v1Registries.has(row.contract_address.toLowerCase()),
+  )
+  if (links.length === 0 && hasMore) return null
+  return {
+    linkCount: links.length,
+    previousRegistry: links
+      .flatMap((row) =>
+        row.type === 'subregistry' && row.data?.subregistry
+          ? [row.data.subregistry.address]
+          : [],
+      )
+      .at(0),
+  }
+}
+
+/**
  * The name's ENSv2 subregistry writes, or `null` when they cannot be told.
  */
 export const getSubregistryHistory = ({
@@ -73,27 +106,14 @@ export const getSubregistryHistory = ({
       page_size: SUBREGISTRY_HISTORY_WINDOW,
     })
     .mapErr((cause) => new GetSubregistryHistoryError({ cause }))
-    .map(({ data, page }): SubregistryHistory | null => {
-      // A state-derived row names no contract; counted, since an unknown write
-      // must not read as `never-configured`.
-      const links = data.filter(
-        (row) =>
-          !row.contract_address ||
-          !ENS_V1_REGISTRIES.has(row.contract_address.toLowerCase()),
-      )
-      if (links.length === 0 && page?.has_more) return null
-      return {
-        linkCount: links.length,
-        // Rows come newest first, bigname's default order.
-        previousRegistry: links
-          .flatMap((row) =>
-            row.type === 'subregistry' && row.data?.subregistry
-              ? [row.data.subregistry.address]
-              : [],
-          )
-          .at(0),
-      }
-    })
+    .map(({ data, page }) =>
+      // bigname answers newest first by default.
+      readSubregistryHistory({
+        rows: data,
+        hasMore: page?.has_more ?? false,
+        v1Registries: ENS_V1_REGISTRIES,
+      }),
+    )
 }
 
 const getSubregistryHistoryQueryKey = createQueryKey<

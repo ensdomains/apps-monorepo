@@ -1,4 +1,6 @@
+import type { NameHistoryRow } from '@ens-apps/indexer/bigname'
 import { ResultAsync } from 'neverthrow'
+import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getNameHistory = vi.fn()
@@ -10,12 +12,14 @@ vi.mock('@/lib/bigname', () => ({
 }))
 
 const { ensChain } = await import('@/lib/wagmi')
-const { getSubregistryHistory } = await import('./useSubregistrySlot')
+const { getSubregistryHistory, readSubregistryHistory } = await import(
+  './useSubregistrySlot'
+)
 
 const V1_REGISTRY = ensChain.contracts.ensLegacyRegistry?.address.toLowerCase()
 const V1_ORIGINAL_REGISTRY = '0x314159265dd8dbb310642f98f50c066173c1259b'
 const ETH_REGISTRY = ensChain.contracts.ensRegistry?.address.toLowerCase()
-const V2_REGISTRY = '0x541c00000000000000000000000000000000976f'
+const V2_REGISTRY: Address = '0x541c00000000000000000000000000000000976f'
 
 const rows = (contracts: (string | null | undefined)[], hasMore = false) => ({
   data: contracts.map((contract_address) => ({
@@ -81,28 +85,6 @@ describe('getSubregistryHistory', () => {
     expect(await linkCount()).toBe(1)
   })
 
-  it('names the registry the newest link pointed at, past a later clear', async () => {
-    const link = (subregistry?: string) => ({
-      type: 'subregistry',
-      contract_address: ETH_REGISTRY,
-      data: subregistry
-        ? { subregistry: { chain_id: 1, address: subregistry } }
-        : {},
-    })
-    getNameHistory.mockResolvedValue({
-      ...rows([]),
-      data: [
-        link(),
-        link(V2_REGISTRY),
-        link('0x1111111111111111111111111111111111111111'),
-      ],
-    })
-
-    expect(
-      (await getSubregistryHistory({ name: 'test.eth' }))._unsafeUnwrap(),
-    ).toEqual({ linkCount: 3, previousRegistry: V2_REGISTRY })
-  })
-
   it('answers unknown when the window held only ENSv1 rows and more remain', async () => {
     getNameHistory.mockResolvedValue(rows([V1_REGISTRY], true))
     expect(
@@ -117,5 +99,37 @@ describe('getSubregistryHistory', () => {
 
     expect(result._unsafeUnwrap()).toBeNull()
     expect(getNameHistory).not.toHaveBeenCalled()
+  })
+})
+
+describe('readSubregistryHistory', () => {
+  const link = (subregistry?: Address): NameHistoryRow => ({
+    id: 'a'.repeat(64),
+    type: 'subregistry',
+    name: 'test.eth',
+    namespace: 'ens',
+    registration_id: null,
+    block_number: 1,
+    timestamp: '1',
+    transaction_hash: null,
+    log_index: null,
+    contract_address: '0x2222222222222222222222222222222222222222',
+    data: subregistry
+      ? { subregistry: { chain_id: 1, address: subregistry } }
+      : {},
+  })
+
+  it('names the registry the newest link pointed at, past a later clear', () => {
+    expect(
+      readSubregistryHistory({
+        rows: [
+          link(),
+          link(V2_REGISTRY),
+          link('0x1111111111111111111111111111111111111111'),
+        ],
+        hasMore: false,
+        v1Registries: new Set(),
+      }),
+    ).toEqual({ linkCount: 3, previousRegistry: V2_REGISTRY })
   })
 })
