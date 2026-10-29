@@ -314,6 +314,10 @@ msgstr "A subname's complete name could not be verified. Keep this parent on ENS
 msgid "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
 msgstr "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
 
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "About"
+msgstr "About"
+
 #. placeholder {0}: formatUsd(m.shortfall)
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 msgid "About {0} more needed on {chainName}."
