@@ -2361,6 +2361,7 @@ const executeRemainingAtomicBatches = async (params: {
     })
     await assertSupportedSubnameMigration({
       publicClient: params.publicClient,
+      ownerAddress: params.plan.migrationOwner,
       classified: remaining,
     })
     assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
