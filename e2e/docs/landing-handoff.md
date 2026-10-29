@@ -9,17 +9,14 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
   - Anvil's fork URL is `${ANVIL_FORK_URL:-${SEPOLIA_FORK_URL:-<drpc>}}`. A bare `docker compose up` (CI) forks drpc directly, as main does. `start-local-env.sh` and `reset-bigname.sh` set it to the upstream cache. In CI the cache's first upstream reads stalled past Anvil's health window. The cache now logs each failed upstream attempt.
   - The harness's "pointed at this fork" check is split per app (`helpers/app-rpc.ts`): the portal harness checks the portal, the manager harness the manager. A CI job starts only its own app.
   - drpc DNS flakes still fail an occasional stack start; a re-run passes. Fix proposed: an owned archive RPC in a `SEPOLIA_FORK_URL` secret, plus pinning `SEPOLIA_FORK_BLOCK` in CI (the user is weighing it).
-- **B1a**: draft PR #1601 (`e2e-land/b1a-explorer-smoke`, worktree `/Users/sg/ens/worktrees/e2e-land-b1a`), stacked on B0. Head `deea03df8`. CI: portal shard 2 green; shard 1 leaves only the 3LD test failing (see below). Fixes so far:
-  - CI forks the pinned block (`e2e/infra/fork-block`) like local runs; this fixed the transfer failures that only CI saw.
-  - `helpers/transaction-modal.ts`: the modal now auto-advances after a success, and `isEnabled()` waits for the element (up to 60 s) when Next has already gone. Every multi-step flow lost a minute per step. Bounded at 5 s; shard 1 dropped from ~27 to ~19 min.
-  - Multi-name renewals expect `renewal-renew-batch-<renewer>-0` (#1488).
-  - WEB-1229 and WEB-1572 are `test.fixme` (known failures, listed in `smoke-suite.md`): **app bug on main** since #1395, where the shared registration calls pay Circle's Sepolia USDC (0x1c7D…) while the portal shows, checks and approves MockUSDC (0x240b…). The user parked the app fix and will come back to it.
-- **Open on B1a (the user will get back to these)**:
-  - The portal USDC fix: a separate PR to main; remove the two `fixme` markers there.
-  - "creates a 3LD in the parent registry": the on-chain creation check passes; only its subnames-list check needs real bigname (CI mocks it). Proposed: run the list check only when bigname is real.
-  - Portal smoke shard 1 is ~19 min of a 30 min job; consider 3 shards.
-  - Manager 1/3 failures in recent runs were stack starts (Alto unhealthy, Anvil drop), not tests.
-
+- **B1a**: PR #1601 (`e2e-land/b1a-explorer-smoke`, worktree `/Users/sg/ens/worktrees/e2e-land-b1a`), stacked on B0. The user merges main into B0 and B0 into B1a from GitHub: **never force-push**, rebase local commits on top. State on 2026-10-29:
+  - **Per-PR portal:** the smoke config, now including main's 17 existing portal tests (tagged `@smoke` so nothing main gates on today drops to nightly-only). 45 tests in 2 shards.
+  - **Per-PR migration (pulled from B1b at the user's request):** `manager-migration` CI job runs `playwright.migration.config.ts --grep @smoke`: unwrapped 2LD, emancipated 2LD, wrapped batch, records replayed, locked 2LD. 12 tests with the harness, ~4 min locally. Main's old migration specs (6/6 failing, excluded everywhere) were replaced by the branch rewrites.
+  - **`serveV1Names` mock mode** now serves the real BaseRegistrar expiry and an empty subname inventory. Without them the manager refused every mocked name ("subname could not be verified", "expiry changed").
+  - **Nightly** runs both migration files in full. 4 of their 20 tests fail and are not triaged: GW uncertified-resolver refusal (expected text never shown), GU4 profile edit after migration and GS11 24-name flow (both time out in `migrate()`), and the gas-budget split (click timeout).
+  - **Known failures (`test.fixme`):** WEB-1229 and WEB-1572, an app bug on main since #1395 (portal pays Circle USDC but shows/checks MockUSDC). The user parked the app fix.
+  - **Still red per PR:** "creates a 3LD in the parent registry" (its subnames-list check needs real bigname). Proposed: run that check only with real bigname.
+  - Helper fix: `transaction-modal.ts` bounds `isEnabled()` and clicks at 5 s (the modal auto-advances; an unbounded wait cost a minute per step).
 
 ## Next action
 

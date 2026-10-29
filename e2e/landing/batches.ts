@@ -216,6 +216,16 @@ export const rules: Rule[] = [
     ),
     globs: ['.github/workflows/test.yml'],
   },
+  // Pulled forward from B1b (2026-10-29): the user wanted the migration smoke
+  // flows per PR in B1a. B1a tags them and adds the manager-migration job.
+  {
+    target: 'B1a',
+    incremental: true,
+    globs: [
+      'e2e/projects/manager/playwright.migration.config.ts',
+      'e2e/projects/manager/tests/migration{,-fuses}.spec.ts',
+    ],
+  },
   // ── B1a smoke: Explorer + CI ─────────────────────────────────────────────
   // Incremental: B1a adds @smoke tags, rewrites smoke-suite.md and builds the
   // workflows from main's, so these differ from this branch on purpose.
@@ -239,12 +249,12 @@ export const rules: Rule[] = [
   {
     target: 'B1b',
     globs: [
-      'e2e/projects/manager/playwright.{smoke,migration}.config.ts',
+      'e2e/projects/manager/playwright.smoke.config.ts',
       // Only the migration config runs it; the reconciler fails on a spec no
       // config runs.
       'e2e/specs/harness-manager-4ld.spec.ts',
       'e2e/projects/manager/tests/{registration,registration-rhinestone,profile,bulk-renew,primaryName,dashboard-names,hca-session-revoke,transaction-history}.spec.ts',
-      'e2e/projects/manager/tests/migration{,-fuses,-subname,-grace,-time}.spec.ts',
+      'e2e/projects/manager/tests/migration{-subname,-grace,-time}.spec.ts',
       'e2e/projects/manager/tests/offchain-{resolver,migration}.spec.ts',
       'e2e/docs/{hca-budget-web1506,migration-grace-web424,payment-sheet-leftover-web1483,registration-lost-race-web1148,registration-tab-lock-web1702,session-revoke-web674,transaction-history-web1223}-test-plan.md',
     ],
