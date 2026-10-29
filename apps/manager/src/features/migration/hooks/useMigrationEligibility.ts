@@ -61,3 +61,44 @@ export const useMigrationEligibility = (
     retry: false,
   })
 }
+
+/**
+ * The upgrade's subname check for names in grace, as they will read once
+ * renewed. Skips the live ownership and reservation reads: the renewal
+ * restores the reservation, and the upgrade page reads neither before it.
+ */
+export const useGraceRenewalEligibility = (
+  renewedNames: readonly ClassifiedName[],
+  ownerAddress?: string | null,
+) => {
+  const isSubnameImportEnabled =
+    useFeatureFlagEnabled(
+      POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
+      false,
+    ) === true
+  return useQuery({
+    queryKey: qk('migration', 'grace-renewal-eligibility', {
+      owner: ownerAddress?.toLowerCase(),
+      isSubnameImportEnabled,
+      names: renewedNames.map((name) => ({
+        id: name.domain.id,
+        action: name.action,
+        tokenType: name.tokenType,
+        fuses: name.fuses.toString(),
+        resolver: name.v1ResolverAddress,
+      })),
+    }),
+    queryFn: ({ signal }) =>
+      resolveMigratableNames({
+        eligible: renewedNames,
+        isSubnameImportEnabled,
+        owner: ownerAddress as Address,
+        publicClient: publicClient as PublicClient,
+        signal,
+      }),
+    enabled: !!ownerAddress && renewedNames.length > 0,
+    staleTime: ELIGIBILITY_STALE_MS,
+    refetchOnWindowFocus: false,
+    retry: false,
+  })
+}
