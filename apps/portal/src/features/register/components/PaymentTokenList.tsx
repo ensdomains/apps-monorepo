@@ -18,7 +18,7 @@ export type PaymentTokenDisplay = {
 
 type PaymentTokenListProps<T extends PaymentTokenDisplay> = {
   readonly tokenData: readonly T[]
-  readonly selectedToken: Address | null
+  readonly selectedToken: Address | undefined
   readonly isRegistering: boolean
   readonly onSelect: (token: T) => void
 }
@@ -37,6 +37,7 @@ export const PaymentTokenList = <T extends PaymentTokenDisplay>({
         <button
           key={token.symbol}
           type="button"
+          aria-pressed={selectedToken === token.address}
           onClick={() => onSelect(token)}
           disabled={!hasSufficientBalance || isRegistering}
           className={cn(

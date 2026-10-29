@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { ComponentProps } from 'react'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { createTestQueryClient, TEST_ACCOUNTS } from '@/test-utils'
 import { PaymentTokenSection } from './PaymentTokenSection'
 
@@ -152,6 +153,25 @@ describe('PaymentTokenSection — price reads', () => {
       await screen.findByRole('button', { name: /USDC/ }),
     ).toBeInTheDocument()
     expect(screen.queryByText("Couldn't load price")).not.toBeInTheDocument()
+  })
+
+  it('selects USDC without a click when it can pay', async () => {
+    getRegisterPrice.mockResolvedValue(USDC_PRICE)
+    balance = 10_000_000n
+
+    const { onConfirm } = renderSection()
+
+    const register = screen.getByRole('button', { name: 'Register' })
+    await waitFor(() => expect(register).toBeEnabled())
+    expect(screen.getByRole('button', { name: /USDC/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await userEvent.click(register)
+    expect(onConfirm).toHaveBeenCalledWith(
+      SUPPORTED_TOKENS.USDC,
+      USDC_PRICE.base,
+    )
   })
 
   it('reports insufficient balance against the real price on an empty wallet', async () => {

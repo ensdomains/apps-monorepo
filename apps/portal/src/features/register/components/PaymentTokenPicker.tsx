@@ -1,7 +1,7 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { type Address, erc20Abi } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
@@ -10,11 +10,14 @@ import { PaymentTokenList } from '@/features/register/components/PaymentTokenLis
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
+import { useReportPaymentSelection } from '@/features/register/hooks/useReportPaymentSelection'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { getRenewerAddress } from '@/features/renew/utils/renewer'
 import { ensChain } from '@/lib/wagmi'
 import {
   buildTokenData,
+  getSelectedPaymentToken,
+  type TokenPrice,
   type TokenWithPriceAndBalance,
 } from '../utils/tokenData'
 
@@ -33,18 +36,38 @@ const Skeleton = () => (
   </div>
 )
 
-// The parent holds the last selection (and its price) to submit with — drop it
-// once prices fail so a stale token can't be confirmed behind the error.
-const useClearSelectionOnPriceFailure = (
-  isPriceFailed: boolean,
-  setSelectedToken: (token: null) => void,
-  onSelectionChange: (token: null) => void,
+const toAmounts = (
+  reads:
+    | readonly {
+        readonly status: 'success' | 'failure'
+        readonly result?: string | number | bigint
+      }[]
+    | undefined,
 ) =>
-  useEffect(() => {
-    if (!isPriceFailed) return
-    setSelectedToken(null)
-    onSelectionChange(null)
-  }, [isPriceFailed, setSelectedToken, onSelectionChange])
+  (reads ?? []).map((read) =>
+    read.status === 'success' && read.result !== undefined
+      ? BigInt(read.result)
+      : 0n,
+  )
+
+type ContractReads = Parameters<typeof toAmounts>[0]
+
+const getTokenData = (
+  prices: readonly TokenPrice[] | null,
+  balances: ContractReads,
+  allowances: ContractReads,
+) =>
+  prices && balances
+    ? buildTokenData(
+        PAYMENT_TOKENS,
+        prices,
+        toAmounts(balances),
+        toAmounts(allowances),
+      )
+    : []
+
+const selectionKey = (token: TokenWithPriceAndBalance | null) =>
+  token && `${token.address}:${token.price.total}:${token.allowance}`
 
 type PriceErrorCardProps = {
   readonly mode: 'register' | 'renew'
@@ -96,7 +119,7 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
   const { name, duration, isSubmitting = false, onSelectionChange } = props
   const config = useConfig()
   const { address } = useConnection()
-  const [selectedToken, setSelectedToken] = useState<Address | null>(null)
+  const [chosenToken, setChosenToken] = useState<Address | null>(null)
 
   const spender =
     props.mode === 'renew' ? getRenewerAddress(props.isV2) : ethRegistrar
@@ -155,9 +178,16 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
     !isPriceLoading &&
     (!resolvedPrices || priceQueries.some((query) => query.isError))
 
-  useClearSelectionOnPriceFailure(
-    isPriceFailed,
-    setSelectedToken,
+  // Nothing is selected behind a failed price, so a stale token can't be confirmed.
+  const tokenData = getTokenData(
+    isPriceFailed ? null : resolvedPrices,
+    balancesQuery.data,
+    allowancesQuery.data,
+  )
+  const selectedToken = getSelectedPaymentToken(tokenData, chosenToken)
+  useReportPaymentSelection(
+    selectedToken,
+    selectionKey(selectedToken),
     onSelectionChange,
   )
 
@@ -192,33 +222,12 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
     return null
   }
 
-  const balances = balancesQuery.data.map((balance) =>
-    balance.status === 'success' && balance.result !== undefined
-      ? BigInt(balance.result)
-      : 0n,
-  )
-
-  const allowances = (allowancesQuery.data ?? []).map((allowance) =>
-    allowance.status === 'success' && allowance.result !== undefined
-      ? BigInt(allowance.result)
-      : 0n,
-  )
-
-  const tokenData = buildTokenData(
-    PAYMENT_TOKENS,
-    resolvedPrices,
-    balances,
-    allowances,
-  )
-
   const noSupportedTokenHasSufficientBalance = tokenData.every(
     (token) => token.balance < token.price.total,
   )
 
-  const handleSelect = (token: TokenWithPriceAndBalance) => {
-    setSelectedToken(token.address)
-    onSelectionChange(token)
-  }
+  const handleSelect = (token: TokenWithPriceAndBalance) =>
+    setChosenToken(token.address)
 
   return (
     <>
@@ -240,7 +249,7 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
       ) : (
         <PaymentTokenList
           tokenData={tokenData}
-          selectedToken={selectedToken}
+          selectedToken={selectedToken?.address}
           isRegistering={isSubmitting}
           onSelect={handleSelect}
         />
