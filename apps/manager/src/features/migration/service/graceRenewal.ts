@@ -1,4 +1,5 @@
 import type { V1Domain } from '@ens-apps/migration'
+import { orSafeExecution } from '@ens-apps/transaction-manager'
 import {
   SECONDS_PER_DAY,
   V1_GRACE_PERIOD_DAYS,
@@ -24,12 +25,15 @@ import {
   numberToHex,
   type PublicClient,
   parseAbi,
+  type TransactionReceipt,
+  type WaitForTransactionReceiptParameters,
   type WalletClient,
   zeroAddress,
   zeroHash,
 } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { containsNodeError, getNodeError } from 'viem/utils'
+import type { Connector } from 'wagmi'
 import { chain } from '@/config'
 import { resolveRenewalLabel } from '@/features/renew/utils/renewableName'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
@@ -368,6 +372,7 @@ type ExecuteGraceRenewalParameters = {
   readonly quote: GraceRenewalQuote
   readonly publicClient: PublicClient
   readonly walletClient: WalletClient
+  readonly connector?: Connector
   readonly renewalHash?: Hex
   readonly signal?: AbortSignal
   readonly onStatus?: (status: GraceRenewalStatus) => void
@@ -402,12 +407,40 @@ const assertWallet = async ({
   signal?.throwIfAborted()
 }
 
+/** viem's default, which the direct receipt wait keeps. */
+const RECEIPT_TIMEOUT_MS = 180_000
+
+const waitForReceipt = async (
+  { publicClient, connector, quote, signal }: ExecuteGraceRenewalParameters,
+  parameters: WaitForTransactionReceiptParameters,
+): Promise<TransactionReceipt> => {
+  const receipt = await orSafeExecution({
+    publicClient,
+    connector,
+    account: quote.ownerAddress,
+    id: parameters.hash,
+    timeout: RECEIPT_TIMEOUT_MS,
+    direct: fromPromise(
+      publicClient.waitForTransactionReceipt(parameters),
+      (cause) => cause,
+    ),
+    settle: (hash) =>
+      fromPromise(
+        publicClient.waitForTransactionReceipt({ hash }),
+        (cause) => cause,
+      ),
+    signal: signal ?? AbortSignal.timeout(RECEIPT_TIMEOUT_MS),
+  })
+  if (receipt.isErr()) throw receipt.error
+  return receipt.value
+}
+
 const waitForRenewal = async (
   params: ExecuteGraceRenewalParameters,
   pending: PendingGraceRenewal & { readonly hash: Hex },
 ): Promise<void> => {
   params.onStatus?.('confirming')
-  const receipt = await params.publicClient.waitForTransactionReceipt({
+  const receipt = await waitForReceipt(params, {
     hash: pending.hash,
     onReplaced: ({ reason, transaction }) => {
       if (reason !== 'repriced') {
@@ -657,9 +690,7 @@ export const executeGraceRenewal = (params: ExecuteGraceRenewalParameters) =>
             args: [quote.renewerAddress, quote.totalAmount],
           })
           params.onStatus?.('approval-confirming')
-          const receipt = await publicClient.waitForTransactionReceipt({
-            hash: approvalHash,
-          })
+          const receipt = await waitForReceipt(params, { hash: approvalHash })
           if (receipt.status !== 'success')
             throw new Error('USDC approval reverted. Please try again.')
           params.onStatus?.('approval-complete')

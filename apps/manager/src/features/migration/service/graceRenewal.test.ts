@@ -10,12 +10,15 @@ import {
   InvalidInputRpcError,
   NonceTooLowError,
   type PublicClient,
+  toEventSelector,
+  WaitForTransactionReceiptTimeoutError,
   type WalletClient,
   zeroAddress,
   zeroHash,
 } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Connector } from 'wagmi'
 import { chain } from '@/config'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { classifyNames } from './classifyNames'
@@ -143,9 +146,12 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     }
     return { status: state.renewalStatus }
   })
+  const getLogs = vi.fn(async (): Promise<readonly unknown[]> => [])
   const publicClient = {
     chain,
     getBlock: vi.fn(async () => ({ number: 100n, timestamp: state.now })),
+    getBlockNumber: vi.fn(async () => 100n),
+    getLogs,
     readContract,
     waitForTransactionReceipt,
     simulateContract: vi.fn(async () => ({})),
@@ -199,6 +205,7 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     writeContract,
     readContract,
     waitForTransactionReceipt,
+    getLogs,
   }
 }
 
@@ -697,6 +704,55 @@ describe('bulk grace renewal', () => {
       'approving',
       'approval-confirming',
     ])
+  })
+
+  it('settles a Safe{Wallet} approval and renewal from their executions', async () => {
+    const s = setup()
+    const quote = await s.quote()
+    const executed = new Map<Hex, Hex>([
+      [`0x${'c'.repeat(64)}`, APPROVAL_HASH],
+      [`0x${'d'.repeat(64)}`, RENEWAL_HASH],
+    ])
+    const receiptOf = s.waitForTransactionReceipt.getMockImplementation()
+    s.waitForTransactionReceipt.mockImplementation(async ({ hash }) => {
+      const safeTxHash = executed.get(hash)
+      if (!safeTxHash || !receiptOf)
+        throw new WaitForTransactionReceiptTimeoutError({ hash })
+      return receiptOf({ hash: safeTxHash })
+    })
+    s.getLogs.mockResolvedValue(
+      [...executed].map(([transactionHash, safeTxHash]) => ({
+        topics: [
+          toEventSelector('ExecutionSuccess(bytes32,uint256)'),
+          safeTxHash,
+        ],
+        data: zeroHash,
+        transactionHash,
+      })),
+    )
+
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      connector: {
+        type: 'walletConnect',
+        getProvider: async () => ({
+          session: {
+            peer: {
+              metadata: {
+                name: 'Safe{Wallet}',
+                url: 'https://app.safe.global',
+              },
+            },
+          },
+        }),
+      } as unknown as Connector,
+    })
+
+    expect(result._unsafeUnwrap()[0]?.registration?.expiryDate).toBe(
+      (NOW + 7n * DAY).toString(),
+    )
   })
 
   it('resumes a known transaction after a timeout without submitting again', async () => {
