@@ -6,7 +6,11 @@ export type ParsedSearchQuery =
   | { readonly type: 'name'; readonly value: string }
   | { readonly type: 'invalid'; readonly value: string }
 
-export type SearchNameInvalidReason = 'too-short' | 'invalid-format'
+export type SearchNameInvalidReason =
+  | 'too-short'
+  | 'invalid-format'
+  /** A free .eth 2LD whose label reads like a wallet address */
+  | 'address-like'
 
 export type SearchNameKind =
   | { readonly type: 'eth-2ld'; readonly name: string; readonly label: string }
