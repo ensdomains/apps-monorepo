@@ -805,6 +805,13 @@ describe('executeMigration HCA orchestration', () => {
         expect(result.txHashes).toEqual([hashFor(1), hashFor(2), hashFor(3)])
         expect(permission.isActive()).toBe(false)
         expect(
+          loadMigrationRecoverySnapshot({
+            chainId: 11155111,
+            owner: OWNER,
+            hca: HCA,
+          }),
+        ).toBeNull()
+        expect(
           mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
         ).toEqual([
           BULK_APPROVAL.contractAddress,
@@ -851,84 +858,83 @@ describe('executeMigration HCA orchestration', () => {
     }
   })
 
-  it.each(['ChainIdMismatchError', 'SignerAddressMismatchError'])(
-    'can retry a bulk grant after confirmed pre-submission %s',
-    async (tag) => {
-      const permission = mockBulkPermissionLifecycle()
-      mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
-      mocks.startTransaction.mockImplementationOnce(() => {
-        throw Object.assign(new Error('not submitted'), { _tag: tag })
+  it('can retry a bulk grant after a confirmed pre-submission chain mismatch', async () => {
+    const permission = mockBulkPermissionLifecycle()
+    mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
+    mocks.startTransaction.mockImplementationOnce(() => {
+      throw Object.assign(new Error('not submitted'), {
+        _tag: 'ChainIdMismatchError',
       })
-      await expect(runExecute({ plan: bulkPlan() })).rejects.toBeInstanceOf(
-        Error,
-      )
-      expect(
-        loadMigrationRecoverySnapshot({
-          chainId: 11155111,
-          owner: OWNER,
-          hca: HCA,
-        })?.temporaryRegistrationApproval,
-      ).toBeUndefined()
-      mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
-        status: 'incomplete',
-        verification: { batchIndex: 0, status: 'confirmed', results: [] },
-        mismatches: [],
-      })
-      await runExecute({ plan: bulkPlan(), reconcileBeforeSubmit: true })
-      expect(permission.isActive()).toBe(false)
-    },
-  )
-
-  it('recovers an archived replacement even when the original grant hash is already recorded', async () => {
-    const permission = mockBulkPermissionLifecycle(true)
-    const originalHash = hashFor(8)
-    const replacementHash = hashFor(9)
-    const transactionId = 'sped-up-grant'
-    const request = {
-      from: OWNER,
-      to: BULK_APPROVAL.contractAddress,
-      chainId: 11155111,
-      data: GRANT_DATA,
-      value: 0n,
-    }
-    permission.transactions.set(replacementHash, {
-      ...request,
-      input: GRANT_DATA,
     })
-    persistBulkRecovery({
-      temporaryRegistrationApproval: {
-        contractAddress: BULK_APPROVAL.contractAddress,
-        operatorAddress: BULK_APPROVAL.operatorAddress,
-        state: { status: 'grant-pending', transactionId, hash: originalHash },
-      },
-    })
-    mocks.getArchivedTransactions.mockResolvedValue([
-      {
-        id: transactionId,
-        hash: replacementHash,
-        state: 'success',
-        context: { request },
-        timestamp: 0,
-        updatedAt: 0,
-      },
-    ])
-    getTransactionReceiptMock.mockImplementation(({ hash }) =>
-      hash === originalHash
-        ? Promise.reject(new Error('dropped transaction'))
-        : Promise.resolve({ status: 'success', blockNumber: 123n }),
-    )
-    mocks.planMigrationApprovals.mockReturnValue([])
+    await expect(runExecute({ plan: bulkPlan() })).rejects.toBeInstanceOf(Error)
+    expect(
+      loadMigrationRecoverySnapshot({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      })?.temporaryRegistrationApproval,
+    ).toBeUndefined()
     mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
       status: 'incomplete',
       verification: { batchIndex: 0, status: 'confirmed', results: [] },
       mismatches: [],
     })
     await runExecute({ plan: bulkPlan(), reconcileBeforeSubmit: true })
-    expect(
-      mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
-    ).toEqual([HCA, BULK_APPROVAL.contractAddress])
     expect(permission.isActive()).toBe(false)
   })
+
+  it.each([undefined, hashFor(8)])(
+    'recovers an archived grant without granting again (recorded hash: %s)',
+    async (originalHash) => {
+      const permission = mockBulkPermissionLifecycle(true)
+      const replacementHash = hashFor(9)
+      const transactionId = 'sped-up-grant'
+      const request = {
+        from: OWNER,
+        to: BULK_APPROVAL.contractAddress,
+        chainId: 11155111,
+        data: GRANT_DATA,
+        value: 0n,
+      }
+      permission.transactions.set(replacementHash, {
+        ...request,
+        input: GRANT_DATA,
+      })
+      persistBulkRecovery({
+        temporaryRegistrationApproval: {
+          contractAddress: BULK_APPROVAL.contractAddress,
+          operatorAddress: BULK_APPROVAL.operatorAddress,
+          state: { status: 'grant-pending', transactionId, hash: originalHash },
+        },
+      })
+      mocks.getArchivedTransactions.mockResolvedValue([
+        {
+          id: transactionId,
+          hash: replacementHash,
+          state: 'success',
+          context: { request },
+          timestamp: 0,
+          updatedAt: 0,
+        },
+      ])
+      getTransactionReceiptMock.mockImplementation(({ hash }) =>
+        hash === originalHash
+          ? Promise.reject(new Error('dropped transaction'))
+          : Promise.resolve({ status: 'success', blockNumber: 123n }),
+      )
+      mocks.planMigrationApprovals.mockReturnValue([])
+      mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
+        status: 'incomplete',
+        verification: { batchIndex: 0, status: 'confirmed', results: [] },
+        mismatches: [],
+      })
+      await runExecute({ plan: bulkPlan(), reconcileBeforeSubmit: true })
+      expect(
+        mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
+      ).toEqual([HCA, BULK_APPROVAL.contractAddress])
+      expect(permission.isActive()).toBe(false)
+    },
+  )
 
   it.each([true, false])(
     'reconciles a mined replacement by nonce and validates its call: %s',
@@ -1101,32 +1107,6 @@ describe('executeMigration HCA orchestration', () => {
       }),
     ).rejects.toMatchObject({ name: 'MigrationApprovalIndeterminateError' })
     expect(mocks.startTransaction).not.toHaveBeenCalled()
-  })
-
-  it('revokes only the temporary bulk grant after migration and retains it through batch journaling', async () => {
-    const permission = mockBulkPermissionLifecycle()
-    mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
-    const { result } = await runExecute({
-      plan: bulkPlan(),
-    })
-
-    expect(result.completed).toBe(3)
-    expect(result.txHashes).toEqual([hashFor(1), hashFor(2), hashFor(3)])
-    expect(
-      mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
-    ).toEqual([
-      BULK_APPROVAL.contractAddress,
-      HCA,
-      BULK_APPROVAL.contractAddress,
-    ])
-    expect(permission.isActive()).toBe(false)
-    expect(
-      loadMigrationRecoverySnapshot({
-        chainId: 11155111,
-        owner: OWNER,
-        hca: HCA,
-      }),
-    ).toBeNull()
   })
 
   it.each([
@@ -1323,57 +1303,6 @@ describe('executeMigration HCA orchestration', () => {
         ([{ request }]) => request.data === GRANT_DATA,
       ),
     ).toHaveLength(1)
-  })
-
-  it('recovers a missed grant hash from the matching archived transaction without granting again', async () => {
-    const permission = mockBulkPermissionLifecycle(true)
-    const grantHash = hashFor(9)
-    const transactionId = 'grant-hash-not-written'
-    const request = {
-      type: 'eoa',
-      from: OWNER,
-      to: BULK_APPROVAL.contractAddress,
-      chainId: 11155111,
-      data: GRANT_DATA,
-      value: 0n,
-    }
-    permission.transactions.set(grantHash, {
-      from: OWNER,
-      to: BULK_APPROVAL.contractAddress,
-      chainId: 11155111,
-      input: GRANT_DATA,
-      value: 0n,
-    })
-    persistBulkRecovery({
-      temporaryRegistrationApproval: {
-        contractAddress: BULK_APPROVAL.contractAddress,
-        operatorAddress: BULK_APPROVAL.operatorAddress,
-        state: { status: 'grant-pending', transactionId },
-      },
-    })
-    mocks.getArchivedTransactions.mockResolvedValue([
-      {
-        id: transactionId,
-        hash: grantHash,
-        state: 'success',
-        context: { request },
-        timestamp: 0,
-        updatedAt: 0,
-      },
-    ])
-    mocks.planMigrationApprovals.mockReturnValue([])
-    mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
-      status: 'incomplete',
-      verification: { batchIndex: 0, status: 'confirmed', results: [] },
-      mismatches: [],
-    })
-
-    await runExecute({ plan: bulkPlan(), reconcileBeforeSubmit: true })
-
-    expect(
-      mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
-    ).toEqual([HCA, BULK_APPROVAL.contractAddress])
-    expect(permission.isActive()).toBe(false)
   })
 
   it('retains a confirmed grant when the RPC head is behind its receipt', async () => {

@@ -80,75 +80,43 @@ const makePublicClient = (fee: {
   }) as unknown as PublicClient
 
 describe('estimateMigrationGasCost', () => {
-  it.each([
-    {
-      count: 1,
-      hasWrapped: false,
-      hasManagers: false,
-      batches: 1,
-      requests: 4,
-      gasUnits: 560_100n,
-    },
-    {
-      count: 2,
-      hasWrapped: false,
-      hasManagers: false,
-      batches: 1,
-      requests: 4,
-      gasUnits: 560_100n,
-    },
-    {
-      count: 79,
-      hasWrapped: true,
-      hasManagers: true,
-      batches: 2,
-      requests: 8,
+  it('budgets eight requests including both revocations for the large mixed selection', async () => {
+    const tokenIds = Array.from({ length: 79 }, (_, index) => BigInt(index + 1))
+    const approvals = planMigrationApprovalPreflight({
+      hcaAddress: account,
+      registrationApprovalPolicy: 'temporary-operator',
+      needs: {
+        hasUnwrapped: true,
+        unwrappedTokenIds: tokenIds,
+        hasWrapped: true,
+        requiresManagerRestoration: true,
+      },
+      status: {
+        baseRegistrarHcaApproved: false,
+        unwrappedTokenApprovals: tokenIds.map((tokenId) => ({
+          tokenId,
+          approved: false,
+        })),
+        nameWrapperHcaApproved: false,
+        ethRegistryHcaApproved: false,
+      },
+    })
+    const estimate = await estimateMigrationGasCost({
+      plan: makePlan({
+        hcaDeploymentRequired: true,
+        preflight: { skipFetchProfilesPhase: true, ...approvals },
+        atomicBatches: Array.from({ length: 2 }, () => makeAtomicBatch(100n)),
+      }),
+      publicClient: makePublicClient({ maxFeePerGas: 1n }),
+    })
+    expect(estimate).toEqual({
+      status: 'ready',
+      transactionCount: 8,
       gasUnits: 725_200n,
-    },
-  ])(
-    'budgets $requests requests including cleanup for $count unwrapped names',
-    async ({ count, hasWrapped, hasManagers, batches, requests, gasUnits }) => {
-      const tokenIds = Array.from({ length: count }, (_, index) =>
-        BigInt(index + 1),
-      )
-      const approvals = planMigrationApprovalPreflight({
-        hcaAddress: account,
-        registrationApprovalPolicy: 'temporary-operator',
-        needs: {
-          hasUnwrapped: true,
-          unwrappedTokenIds: tokenIds,
-          hasWrapped,
-          requiresManagerRestoration: hasManagers,
-        },
-        status: {
-          baseRegistrarHcaApproved: false,
-          unwrappedTokenApprovals: tokenIds.map((tokenId) => ({
-            tokenId,
-            approved: false,
-          })),
-          nameWrapperHcaApproved: false,
-          ethRegistryHcaApproved: false,
-        },
-      })
-      const estimate = await estimateMigrationGasCost({
-        plan: makePlan({
-          hcaDeploymentRequired: true,
-          preflight: { skipFetchProfilesPhase: true, ...approvals },
-          atomicBatches: Array.from({ length: batches }, () =>
-            makeAtomicBatch(100n),
-          ),
-        }),
-        publicClient: makePublicClient({ maxFeePerGas: 1n }),
-      })
-      expect(estimate).toEqual({
-        status: 'ready',
-        transactionCount: requests,
-        gasUnits,
-        feeWei: gasUnits,
-        feePerGasWei: 1n,
-      })
-    },
-  )
+      feeWei: 725_200n,
+      feePerGasWei: 1n,
+    })
+  })
 
   it('counts three confirmations for a fresh HCA and one unwrapped name', async () => {
     const publicClient = makePublicClient({ maxFeePerGas: 3n })

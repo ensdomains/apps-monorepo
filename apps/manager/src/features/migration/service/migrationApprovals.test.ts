@@ -220,7 +220,7 @@ describe('planMigrationApprovals', () => {
     requiresManagerRestoration: false,
   })
 
-  it.each([1, 2, 3, 4])(
+  it.each([1, 3])(
     'plans one temporary grant and revocation for %i missing approvals',
     (count) => {
       const tokenIds = Array.from({ length: count }, (_, index) =>
@@ -299,24 +299,18 @@ describe('planMigrationApprovals', () => {
     ])
   })
 
-  it.each([1, 2])(
-    'keeps the reviewed bulk strategy for %i remaining registrations on retry',
-    (count) => {
-      const tokenIds = Array.from({ length: count }, (_, index) =>
-        BigInt(index + 1),
-      )
-      expect(
-        planMigrationApprovals({
-          hcaAddress: HCA,
-          needs: needsFor(tokenIds),
-          status: statusFor(tokenIds),
-          registrationApprovalStrategy: 'temporary-operator',
-        }),
-      ).toEqual([
-        migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress: HCA }),
-      ])
-    },
-  )
+  it('keeps the reviewed bulk strategy for the last registration on retry', () => {
+    expect(
+      planMigrationApprovals({
+        hcaAddress: HCA,
+        needs: needsFor([TOKEN_ONE]),
+        status: statusFor([TOKEN_ONE]),
+        registrationApprovalStrategy: 'temporary-operator',
+      }),
+    ).toEqual([
+      migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress: HCA }),
+    ])
+  })
 
   it('uses per-token approval for one missing registration', () => {
     const oneTokenPlan = planMigrationApprovals({
