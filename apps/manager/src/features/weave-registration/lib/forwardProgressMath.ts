@@ -17,6 +17,8 @@ const MIN_SPEED_CHARS_PER_SEC = 0.04
 /** Finish the remaining fill in 0.5s once registration succeeds. */
 const COMPLETE_SWEEP_SEC = 0.5
 const COMPLETE_MIN_SPEED = 50
+/** One frame's worth of sweep, so a sweep resumed from a hidden tab still plays. */
+const MAX_SWEEP_STEP_SEC = 0.1
 
 export interface ForwardProgressInputs {
   stageProgress: number
@@ -57,7 +59,12 @@ function displayCap(machineProgress: number): number {
   return current + (next - current) * 0.85
 }
 
-/** Advance display progress by `dt` seconds toward the next cap. Pure — no side effects. */
+/**
+ * Advance display progress by `dt` seconds toward the next cap. Pure — no side effects.
+ *
+ * `dt` can be minutes long: rAF stops while the tab is hidden, and the first
+ * frame back carries the whole time away so the fill catches up with it.
+ */
 export function advanceForwardProgress(
   inputs: ForwardProgressInputs,
   current: number,
@@ -70,7 +77,7 @@ export function advanceForwardProgress(
     const remaining = 100 - current
     if (remaining <= 1e-4) return 100
     const speed = Math.max(remaining / COMPLETE_SWEEP_SEC, COMPLETE_MIN_SPEED)
-    return Math.min(100, current + speed * dt)
+    return Math.min(100, current + speed * Math.min(dt, MAX_SWEEP_STEP_SEC))
   }
 
   const pctPerChar = 100 / Math.max(1, nameLength)
@@ -82,11 +89,14 @@ export function advanceForwardProgress(
   if (cooldownRemainingSeconds !== null && cooldownRemainingSeconds > 0) {
     const cap = POST_COOLDOWN_DISPLAY
     if (current >= cap) return current
-    const speed = Math.max(
-      (cap - current) / Math.max(cooldownRemainingSeconds, 0.5),
-      minSpeed,
-    )
-    return Math.min(cap, current + speed * dt)
+    // Linear from here to the cap at the moment the cooldown ends. `dt` ago
+    // there were `cooldownRemainingSeconds + dt` left, so this holds however
+    // long the frame was.
+    const paced =
+      cap -
+      ((cap - current) * cooldownRemainingSeconds) /
+        (cooldownRemainingSeconds + dt)
+    return Math.min(cap, Math.max(paced, current + minSpeed * dt))
   }
 
   const cap = displayCap(stageProgress)
