@@ -344,7 +344,7 @@ test.describe('Portal name transfer', () => {
   })
 
   test('transfers a name from wallet A to an ENS name owned by wallet B', {
-    tag: ['@scenario:F10'],
+    tag: ['@smoke', '@scenario:F10'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
@@ -403,7 +403,7 @@ test.describe('Portal name transfer', () => {
   })
 
   test('cannot transfer a name to its own address or its own ENS name', {
-    tag: ['@scenario:F10'],
+    tag: ['@smoke', '@scenario:F10'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(120_000)
 
@@ -449,7 +449,7 @@ test.describe('Portal name transfer', () => {
   })
 
   test('cannot transfer to an invalid or unresolvable recipient', {
-    tag: ['@scenario:F10'],
+    tag: ['@smoke', '@scenario:F10'],
   }, async ({ portalPage: page, wallet, makeName }) => {
     test.setTimeout(120_000)
 
@@ -494,7 +494,7 @@ test.describe('Portal name transfer', () => {
   })
 
   test('lets the new owner edit records after a transfer', {
-    tag: ['@scenario:F11'],
+    tag: ['@smoke', '@scenario:F11'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
