@@ -2,8 +2,8 @@ import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import { isUntrustedRegistryImplementation } from './untrustedRegistry'
 
-const UNTRUSTED_V0 = '0xFAA23592ACA10A6d8875b18eA86954e8EB6d8d72'
-const UNTRUSTED_V1 = '0x75ff9adbcfce2469b097ac68f6ae650eae1351bb'
+const UNTRUSTED_V0 = '0x75FF9AdBcFcE2469B097AC68f6Ae650EaE1351Bb'
+const UNTRUSTED_V1 = '0xfaa23592aca10a6d8875b18ea86954e8eb6d8d72'
 const TRUSTED = '0xC927bCaA77cd7bE283518760896Be0CF3Cfbe08d'
 
 describe('isUntrustedRegistryImplementation', () => {

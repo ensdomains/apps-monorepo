@@ -20,16 +20,16 @@ export type RegistryContractDescription = {
 export const describeRegistryContract = ({
   address,
   rootAddress,
-  isUntrusted = false,
+  isUntrusted,
 }: {
   readonly address: Address
   readonly rootAddress: Address | null
-  /** Runs an untrusted UserRegistry implementation (WEB-2028). */
-  readonly isUntrusted?: boolean
+  /** Runs an untrusted UserRegistry implementation (WEB-2028); `undefined` while the check is pending or failed. */
+  readonly isUntrusted: boolean | undefined
 }): RegistryContractDescription => ({
   type: match(address)
     .when(
-      () => isUntrusted,
+      () => isUntrusted === true,
       () => 'Untrusted ENS V2 permissioned registry',
     )
     .when(
@@ -41,7 +41,11 @@ export const describeRegistryContract = ({
         rootAddress !== null && isAddressEqual(candidate, rootAddress),
       () => 'Official ENS V2 root registry',
     )
-    .otherwise(() => 'Verified ENS V2 permissioned registry'),
-  isVerified: !isUntrusted,
+    .when(
+      () => isUntrusted === false,
+      () => 'Verified ENS V2 permissioned registry',
+    )
+    .otherwise(() => 'ENS V2 permissioned registry'),
+  isVerified: isUntrusted === false,
   docsHref: CONTRACT_DOCS.registry,
 })

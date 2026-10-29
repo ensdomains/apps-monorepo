@@ -86,7 +86,7 @@ function RouteComponent() {
   const { type, isVerified, docsHref } = describeRegistryContract({
     address,
     rootAddress: ethRegistries?.at(-1) ?? null,
-    isUntrusted: isUntrusted === true,
+    isUntrusted,
   })
   const deployedDate = registry.createdAt
     ? formatTimestampDate(registry.createdAt)

@@ -14,26 +14,41 @@ const OTHER = '0x1111111111111111111111111111111111111111' as Address
 describe('describeRegistryContract', () => {
   it('names the .eth registry by the deployment address', () => {
     expect(
-      describeRegistryContract({ address: ETH_REGISTRY, rootAddress: ROOT })
-        .type,
+      describeRegistryContract({
+        address: ETH_REGISTRY,
+        rootAddress: ROOT,
+        isUntrusted: false,
+      }).type,
     ).toBe('Official ENS V2 .eth registry')
   })
 
   it('names the root registry by the address .eth hangs off', () => {
     expect(
-      describeRegistryContract({ address: ROOT, rootAddress: ROOT }).type,
+      describeRegistryContract({
+        address: ROOT,
+        rootAddress: ROOT,
+        isUntrusted: false,
+      }).type,
     ).toBe('Official ENS V2 root registry')
   })
 
   it('does not take an unnamed registry for the root', () => {
     expect(
-      describeRegistryContract({ address: OTHER, rootAddress: ROOT }).type,
+      describeRegistryContract({
+        address: OTHER,
+        rootAddress: ROOT,
+        isUntrusted: false,
+      }).type,
     ).toBe('Verified ENS V2 permissioned registry')
   })
 
   it('names nothing root while the root address is unknown', () => {
     expect(
-      describeRegistryContract({ address: OTHER, rootAddress: null }).type,
+      describeRegistryContract({
+        address: OTHER,
+        rootAddress: null,
+        isUntrusted: false,
+      }).type,
     ).toBe('Verified ENS V2 permissioned registry')
   })
 
@@ -41,6 +56,7 @@ describe('describeRegistryContract', () => {
     const description = describeRegistryContract({
       address: OTHER,
       rootAddress: ROOT,
+      isUntrusted: false,
     })
 
     expect(description.type).toBe('Verified ENS V2 permissioned registry')
@@ -58,6 +74,19 @@ describe('describeRegistryContract', () => {
 
     expect(description).toMatchObject({
       type: 'Untrusted ENS V2 permissioned registry',
+      isVerified: false,
+    })
+  })
+
+  it('withholds the verified label until the implementation check resolves', () => {
+    const description = describeRegistryContract({
+      address: OTHER,
+      rootAddress: ROOT,
+      isUntrusted: undefined,
+    })
+
+    expect(description).toMatchObject({
+      type: 'ENS V2 permissioned registry',
       isVerified: false,
     })
   })
