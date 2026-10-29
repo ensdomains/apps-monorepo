@@ -51,15 +51,22 @@ vi.mock('@ens-apps/dev-time-travel', async (importOriginal) => {
 import {
   buildHcaDeploymentCall,
   HcaDeploymentCallValidationError,
+  type RhinestoneStoredSession,
   removeSessionsByOwner,
   revokeSessionsOnChain,
   SessionRevokeError,
 } from '@ens-apps/smart-account'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { errAsync, okAsync } from 'neverthrow'
+import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
+import { chain as appChain } from '@/config'
 import { backendClient } from '@/utils/backend-client'
 import { resolveSessionActor } from './actors/session.actors'
-import { initializeRhinestoneAccount } from './rhinestone'
+import {
+  initializeRhinestoneAccount,
+  type RhinestoneInitResult,
+} from './rhinestone'
 import {
   SmartAccountContextProvider,
   useSmartAccountContext,
@@ -448,42 +455,46 @@ describe('SmartAccountContext', () => {
     it('offers reset again once a session is signed after it, even if this copy is forgotten', async () => {
       // Valid addresses: enabling a session needs the machine owner and the
       // connected wallet to agree.
-      const OWNER = '0x1111111111111111111111111111111111111111'
-      const HCA = '0x2222222222222222222222222222222222222222'
+      const OWNER: Address = '0x1111111111111111111111111111111111111111'
+      const HCA: Address = '0x2222222222222222222222222222222222222222'
+      // Only the client methods the session path calls.
+      const client: Pick<RhinestoneAccount, 'getAddress' | 'isDeployed'> = {
+        getAddress: () => HCA,
+        isDeployed: async () => true,
+      }
       vi.mocked(initializeRhinestoneAccount).mockResolvedValueOnce({
-        client: {
-          getAddress: vi.fn().mockReturnValue(HCA),
-          isDeployed: vi.fn().mockResolvedValue(true),
-        },
+        client,
         address: HCA,
         ownerAddress: OWNER,
-        config: { chain: { id: 11155111 } },
-      } as any)
+        alreadyDeployed: true,
+        config: { chain: appChain },
+      } as RhinestoneInitResult)
+      const walletClient: Pick<WalletClient, 'account'> = {
+        account: { address: OWNER, type: 'json-rpc' },
+      }
       vi.mocked(useWalletClient).mockReturnValue({
-        data: { account: { address: OWNER } },
-      } as any)
-      vi.mocked(resolveSessionActor).mockReturnValue(
-        okAsync({
-          session: {
-            provider: 'rhinestone',
-            sessionKeyAddress: '0x9999999999999999999999999999999999999999',
-            smartAccountAddress: HCA,
-            ownerAddress: OWNER,
-            createdAt: Date.now(),
-            chainId: 11155111,
-            validUntil: Math.floor(Date.now() / 1000) + 3600,
-            sessionPrivateKey: `0x${'1'.repeat(64)}`,
-            permissionId: `0x${'2'.repeat(64)}`,
-            resolver: '0x3333333333333333333333333333333333333333',
-            hcaSessionNonce: '1',
-            authorization: `0x${'4'.repeat(130)}`,
-            hashesAndChainIds: [
-              { chainId: '11155111', sessionDigest: `0x${'5'.repeat(64)}` },
-            ],
-            sessionToEnableIndex: 0,
-          },
-        } as any),
-      )
+        data: walletClient,
+      } as ReturnType<typeof useWalletClient>)
+      const session = {
+        id: 'session-after-reset',
+        provider: 'rhinestone',
+        sessionKeyAddress: '0x9999999999999999999999999999999999999999',
+        smartAccountAddress: HCA,
+        ownerAddress: OWNER,
+        createdAt: Date.now(),
+        chainId: 11155111,
+        validUntil: Math.floor(Date.now() / 1000) + 3600,
+        sessionPrivateKey: `0x${'1'.repeat(64)}`,
+        permissionId: `0x${'2'.repeat(64)}`,
+        resolver: '0x3333333333333333333333333333333333333333',
+        hcaSessionNonce: '1',
+        authorization: `0x${'4'.repeat(130)}`,
+        hashesAndChainIds: [
+          { chainId: '11155111', sessionDigest: `0x${'5'.repeat(64)}` },
+        ],
+        sessionToEnableIndex: 0,
+      } satisfies RhinestoneStoredSession
+      vi.mocked(resolveSessionActor).mockReturnValue(okAsync({ session }))
       revokeSessionsOnChainMock.mockReturnValue(
         okAsync({ transactionHash: `0x${'ab'.repeat(32)}`, sessionNonce: 1n }),
       )
