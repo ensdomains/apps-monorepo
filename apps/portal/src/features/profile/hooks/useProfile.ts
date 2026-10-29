@@ -6,10 +6,14 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { errAsync, fromPromise, ok, okAsync } from 'neverthrow'
 import { match } from 'ts-pattern'
-import { zeroAddress } from 'viem'
+import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLegacyRegistryResolver } from '@/utils/ens/getLegacyRegistryResolver'
+import {
+  getLinkedRecordKeys,
+  type LinkedRecordKeys,
+} from '@/utils/ens/getLinkedRecordKeys'
 import { getRecords } from './useRecords'
 
 class GetProfileError extends TaggedError('GetProfileError')<{
@@ -75,15 +79,42 @@ const unique = <T>(values: readonly T[]): T[] => Array.from(new Set(values))
 const getRecordKeys = (name: string) =>
   bigname
     .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
-    .map(({ data }) => data.inventory ?? NO_KEYS)
+    .map(({ data }) => ({
+      ...parseRecordKeys([
+        ...(data.inventory ?? NO_KEYS).known_keys,
+        ...(data.inventory ?? NO_KEYS).unsupported_keys,
+      ]),
+      indexedResolver: (data.resolver?.address ?? null) as Address | null,
+    }))
     .orElse((error) =>
       error.code === 'not_found'
-        ? okAsync(NO_KEYS)
+        ? okAsync({
+            ...parseRecordKeys([]),
+            indexedResolver: undefined,
+          })
         : errAsync(new GetProfileError({ cause: error })),
     )
-    .map((inventory) =>
-      parseRecordKeys([...inventory.known_keys, ...inventory.unsupported_keys]),
-    )
+
+/**
+ * Whether the resolver that answered is one bigname does not attribute to the
+ * name, so its keys must come from the resolver itself. An ENSv1 subname left
+ * behind by an upgraded parent resolves through the parent's resolver.
+ */
+export const isUnindexedResolver = ({
+  indexedResolver,
+  answeringResolver,
+}: {
+  /** `undefined` when bigname has not indexed the name at all. */
+  readonly indexedResolver: Address | null | undefined
+  readonly answeringResolver: Address | undefined
+}): boolean =>
+  indexedResolver !== undefined &&
+  !!answeringResolver &&
+  answeringResolver !== zeroAddress &&
+  (indexedResolver === null ||
+    !isAddressEqual(indexedResolver, answeringResolver))
+
+const NO_LINKED_KEYS: LinkedRecordKeys = { texts: [], coins: [] }
 
 export const getProfile = ResultFn(async function* ({
   name,
@@ -101,7 +132,33 @@ export const getProfile = ResultFn(async function* ({
 
   const records = yield* getRecords(request)
   if (records.resolverAddress && records.resolverAddress !== zeroAddress) {
-    return ok({ records })
+    if (
+      !isUnindexedResolver({
+        indexedResolver: keys.indexedResolver,
+        answeringResolver: records.resolverAddress,
+      })
+    ) {
+      return ok({ records })
+    }
+    const answeringResolver = records.resolverAddress
+    const client = yield* safeGetClient()
+    // Best effort: a node that refuses the log range leaves today's records.
+    const linked = yield* fromPromise(
+      getLinkedRecordKeys(client, answeringResolver, name),
+      (cause) => cause,
+    ).orElse(() => okAsync(NO_LINKED_KEYS))
+    const texts = unique([...request.texts, ...linked.texts])
+    const coins = unique([...request.coins, ...linked.coins])
+    if (
+      texts.length === request.texts.length &&
+      coins.length === request.coins.length
+    ) {
+      return ok({ records })
+    }
+    // Through resolution, as the first read: an ENSv2 resolver answers only
+    // `resolve()`, so a read pinned to it directly comes back empty.
+    const linkedRecords = yield* getRecords({ ...request, texts, coins })
+    return ok({ records: linkedRecords })
   }
 
   // No resolver answered, which a lapsed ENSv1 name hits for the 28 days
