@@ -9,7 +9,6 @@ import {
   ProfileCard,
   profileCardArrowClassName,
   profileCardCopyIconClassName,
-  profileCardTrailingIconStrokeWidth,
   profileRecordGridClassName,
   profileRecordGridItemClassName,
   profileTileClassName,
@@ -43,7 +42,7 @@ const contactCopyIconClassName = (wide: boolean) =>
     'absolute top-6 right-6',
     wide && 'max-xl:static max-xl:top-auto max-xl:right-auto',
   )
-const contactCardPaddingClassName = 'p-6 has-[>svg]:px-6'
+const contactCardPaddingClassName = 'p-6'
 
 export const ProfileContactCard = ({
   item,
@@ -112,7 +111,6 @@ export const ProfileContactCard = ({
     <Card asChild className={`${className} h-auto items-start`}>
       <CopyableButton
         iconClassName={contactCopyIconClassName(wide)}
-        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
         value={item.displayValue}
         variant="ghost"
       >

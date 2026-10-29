@@ -122,7 +122,7 @@ jobs:
           # pnpm/setup has no frozen-lockfile input; force it via config env.
           PNPM_CONFIG_FROZEN_LOCKFILE: true
         with:
-          runtime: node@lts
+          runtime: node@24
           cache: true
 
       - name: Get Playwright version

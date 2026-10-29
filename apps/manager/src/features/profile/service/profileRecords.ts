@@ -83,6 +83,7 @@ const isSupportedCoinType = (coinType: number): boolean =>
   safeGetCoderFromCoin(coinType).isOk()
 
 const MAX_RESOLVER_SPLIT_DEPTH = 1
+const MAX_CONCURRENT_PROFILE_READS = 64
 
 const GATEWAY_ERROR_ABI = parseAbi([
   'error HttpError(uint16 status, string message)',
@@ -183,6 +184,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
         coins,
         publicClient: publicClient as PublicClient,
         shouldDecodeStrictly: false,
+        maxConcurrentReads: MAX_CONCURRENT_PROFILE_READS,
       }),
       (error) => new GetProfileRecordsError({ cause: error }),
     )

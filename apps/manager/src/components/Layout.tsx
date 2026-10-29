@@ -5,6 +5,7 @@ import { GlobalBackButtonProvider } from '@/components/GlobalBackButton'
 import { LayoutBackRow } from '@/components/LayoutBackRow'
 import { NoticeBanner } from '@/components/NoticeBanner'
 import { Header } from '@/features/navigation/Header/Header'
+import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { BackendAuthModal } from '@/features/wallet/components/BackendAuthModal'
@@ -33,6 +34,7 @@ export const Layout = ({ children }: LayoutProps) => {
   const profileName = profileRouteMatch?.params.name ?? ''
   const profileRecords = useQuery({
     ...profileRecordsQuery(profileName),
+    ...profileDisplayQueryOptions,
     enabled: isEnsNameProfilePage,
   })
   const profileThemeColor = getThemeVars(

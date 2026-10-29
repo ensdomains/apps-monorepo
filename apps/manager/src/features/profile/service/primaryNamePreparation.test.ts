@@ -1,12 +1,18 @@
 import { err, ok } from 'neverthrow'
-import { type PublicClient, zeroAddress } from 'viem'
+import {
+  ContractFunctionRevertedError,
+  type PublicClient,
+  zeroAddress,
+} from 'viem'
 import { getEnsResolver } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { envConfig } from '@/config'
 import {
   getPrimaryNameForwardAddress,
   hasPrimaryNameForwardAddress,
 } from './primaryNameForwardAddress'
 import {
+  classifyV1Reachability,
   getPrimaryNamePreparation,
   isUnreachableV1Name,
 } from './primaryNamePreparation'
@@ -32,6 +38,7 @@ const client = {} as PublicClient
 const owner = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const
 const name = 'pookie.eth'
 const RESOLVER = '0x1234567890123456789012345678901234567890' as const
+const PARENT_RESOLVER = '0x2222222222222222222222222222222222222222' as const
 
 describe('getPrimaryNamePreparation', () => {
   beforeEach(() => {
@@ -147,7 +154,46 @@ describe('getPrimaryNamePreparation', () => {
   })
 })
 
+describe('classifyV1Reachability', () => {
+  it.each([
+    {
+      case: 'no registry resolver',
+      v1Resolver: undefined,
+      reached: zeroAddress,
+      want: 'reachable',
+    },
+    {
+      case: 'no resolver reached',
+      v1Resolver: RESOLVER,
+      reached: zeroAddress,
+      want: 'unreachable',
+    },
+    {
+      case: 'the registry resolver reached',
+      v1Resolver: RESOLVER,
+      reached: RESOLVER,
+      want: 'reachable',
+    },
+    {
+      case: 'another resolver reached',
+      v1Resolver: RESOLVER,
+      reached: PARENT_RESOLVER,
+      want: 'check-mirror',
+    },
+  ] as const)('$case is $want', ({ v1Resolver, reached, want }) => {
+    expect(classifyV1Reachability({ v1Resolver, reached })).toBe(want)
+  })
+})
+
 describe('isUnreachableV1Name', () => {
+  // Only `readContract` is read off the client; the other reads are mocked.
+  const clientReading = (read: () => Promise<unknown>) =>
+    ({ readContract: vi.fn(read) }) as unknown as PublicClient
+  const reverted = new ContractFunctionRevertedError({
+    abi: [],
+    functionName: 'REGISTRY_V1',
+  })
+
   it.each([
     { reached: zeroAddress, registry: RESOLVER, isUnreachable: true },
     { reached: RESOLVER, registry: RESOLVER, isUnreachable: false },
@@ -163,4 +209,43 @@ describe('isUnreachableV1Name', () => {
       )
     },
   )
+
+  it.each([
+    {
+      case: 'the ENSv1 mirror',
+      read: async () => envConfig.chain.contracts.ensLegacyRegistry.address,
+      isUnreachable: false,
+    },
+    {
+      case: 'a re-registered parent resolver',
+      read: async () => {
+        throw reverted
+      },
+      isUnreachable: true,
+    },
+  ])(
+    'is $isUnreachable when resolution reaches $case',
+    async ({ read, isUnreachable }) => {
+      vi.mocked(getEnsResolver).mockResolvedValue(PARENT_RESOLVER)
+      vi.mocked(readV1RegistryResolver).mockResolvedValue(RESOLVER)
+
+      await expect(
+        isUnreachableV1Name(clientReading(read), name),
+      ).resolves.toBe(isUnreachable)
+    },
+  )
+
+  it('fails rather than greying out a name when the resolver read fails', async () => {
+    vi.mocked(getEnsResolver).mockResolvedValue(PARENT_RESOLVER)
+    vi.mocked(readV1RegistryResolver).mockResolvedValue(RESOLVER)
+
+    await expect(
+      isUnreachableV1Name(
+        clientReading(async () => {
+          throw new Error('rpc down')
+        }),
+        name,
+      ),
+    ).rejects.toThrow('rpc down')
+  })
 })
