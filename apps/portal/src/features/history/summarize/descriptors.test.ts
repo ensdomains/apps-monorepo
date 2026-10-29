@@ -355,6 +355,17 @@ describe('row actions and newer types', () => {
       describeEvent(event('reservation', { action: 'registration_reserved' })),
     ).toEqual({
       label: 'reserved',
+      slots: [
+        { kind: 'name', value: 'collector.eth' },
+        { kind: 'label', value: 'for ENSv2' },
+      ],
+    })
+    expect(
+      describeEvent(
+        event('reservation', { action: 'reservation_became_reachable' }),
+      ),
+    ).toEqual({
+      label: 'reservation became reachable',
       slots: [{ kind: 'name', value: 'collector.eth' }],
     })
   })

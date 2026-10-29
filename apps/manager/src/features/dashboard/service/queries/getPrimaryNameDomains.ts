@@ -4,7 +4,6 @@ import { readAllNames } from '@ens-apps/indexer/reads'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
-import { okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import {
   hasEncodedLabelhash,
@@ -31,64 +30,76 @@ const nameQuery = {
   order: 'asc',
 } as const
 
-const byName = (a: NameSummary, b: NameSummary) =>
+const byName = (a: PrimaryNameDomain, b: PrimaryNameDomain) =>
   Number(a.name > b.name) - Number(a.name < b.name)
 
+const toPrimaryNameDomains = (names: readonly NameSummary[]) =>
+  names
+    .filter(({ name }) => isNormalizedName(name) && !hasEncodedLabelhash(name))
+    .map(toPrimaryNameDomain)
+
 /**
- * Every owned name, ENSv1 and ENSv2 alike, plus every name whose ETH record
- * still resolves to the owner wallet (e.g. transferred with the record kept),
- * all pages, so local search never silently omits later names. A label bigname
- * cannot normalize comes back as a bracketed labelhash, which can't be set as a
- * primary name.
+ * Every owned name, ENSv1 and ENSv2 alike, all pages, so local search never
+ * silently omits later names. A label bigname cannot normalize comes back as a
+ * bracketed labelhash, which can't be set as a primary name.
  */
-export const getPrimaryNameDomains = (
+export const getOwnedPrimaryNames = (
   readNames: ReadNamesForAddress,
   address: Address,
-  ownerAddress?: Address,
   signal?: AbortSignal,
 ) =>
-  ResultAsync.combine([
-    readAllNames(
-      readNames,
-      { ...nameQuery, address, relations: ['owner'] },
-      { signal },
-    ),
-    ownerAddress
-      ? readAllNames(
-          readNames,
-          { ...nameQuery, address: ownerAddress, resolvesTo: true },
-          { signal },
-        )
-      : okAsync([]),
-  ]).map(([owned, resolving]) =>
-    [
-      ...new Map(
-        [...owned, ...resolving].map((name) => [name.namehash, name]),
-      ).values(),
-    ]
-      .sort(byName)
-      .filter(
-        ({ name }) => isNormalizedName(name) && !hasEncodedLabelhash(name),
-      )
-      .map(toPrimaryNameDomain),
-  )
+  readAllNames(
+    readNames,
+    { ...nameQuery, address, relations: ['owner'] },
+    { signal },
+  ).map(toPrimaryNameDomains)
 
-export const primaryNameDomainsQuery = (
-  address: Address | undefined,
-  ownerAddress: Address | undefined,
+/** Names whose ETH record still resolves to the owner wallet (e.g. transferred with the record kept). */
+export const getResolvingPrimaryNames = (
+  readNames: ReadNamesForAddress,
+  ownerAddress: Address,
+  signal?: AbortSignal,
 ) =>
+  readAllNames(
+    readNames,
+    { ...nameQuery, address: ownerAddress, resolvesTo: true },
+    { signal },
+  ).map(toPrimaryNameDomains)
+
+export const mergePrimaryNameDomains = (
+  owned: readonly PrimaryNameDomain[],
+  resolving: readonly PrimaryNameDomain[],
+) =>
+  [
+    ...new Map(
+      [...owned, ...resolving].map((domain) => [domain.id, domain]),
+    ).values(),
+  ].sort(byName)
+
+export const ownedPrimaryNamesQuery = (address: Address | undefined) =>
   resultQueryOptions({
-    queryKey: qk('dashboard', 'primary_name_domains', {
+    queryKey: qk('dashboard', 'primary_name_owned', {
       address: address?.toLowerCase(),
-      ownerAddress: ownerAddress?.toLowerCase(),
     }),
     queryFn: address
       ? ({ signal }) =>
-          getPrimaryNameDomains(
+          getOwnedPrimaryNames(readNamesForAddress(bigname), address, signal)
+      : skipToken,
+  })
+
+export const resolvingPrimaryNamesQuery = (ownerAddress: Address | undefined) =>
+  resultQueryOptions({
+    queryKey: qk('dashboard', 'primary_name_resolving', {
+      ownerAddress: ownerAddress?.toLowerCase(),
+    }),
+    queryFn: ownerAddress
+      ? ({ signal }) =>
+          getResolvingPrimaryNames(
             readNamesForAddress(bigname),
-            address,
             ownerAddress,
             signal,
           )
       : skipToken,
+    // Optional: the dialog lists owned names without it and says names may be missing.
+    retry: false,
   })

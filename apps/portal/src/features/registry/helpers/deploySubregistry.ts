@@ -2,7 +2,7 @@
  * Pure async function to deploy a subregistry via the verifiable factory.
  *
  * Uses transactionManager.startTransaction for Step 1 of the deploy flow.
- * Extracts deployed address from the transaction receipt.
+ * Reads the deployed address from the factory's `ProxyDeployed` event.
  */
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
@@ -12,14 +12,9 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { deploySubregistryWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import type {
-  Address,
-  Hex,
-  PublicClient,
-  TransactionReceipt,
-  WalletClient,
-} from 'viem'
-import { bytesToBigInt, encodeFunctionData } from 'viem'
+import { proxyDeployedEventSnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
+import type { Address, Hex, PublicClient, WalletClient } from 'viem'
+import { bytesToBigInt, encodeFunctionData, parseEventLogs } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { WalletClientWithAccount } from '@/utils/types'
 
@@ -34,15 +29,6 @@ import type { WalletClientWithAccount } from '@/utils/types'
  */
 export const generateSubregistrySalt = (): bigint =>
   bytesToBigInt(crypto.getRandomValues(new Uint8Array(32)))
-
-function extractDeployedAddress(
-  receipt: TransactionReceipt | undefined,
-): Address | undefined {
-  if (!receipt) return undefined
-  if (receipt.contractAddress) return receipt.contractAddress
-  if (receipt.logs.length > 0) return receipt.logs[0]?.address
-  return undefined
-}
 
 export interface DeploySubregistryTransactionParameters {
   readonly factoryAddress: Address
@@ -129,7 +115,11 @@ export const deploySubregistry = async ({
   })
 
   const result = await waitForTransaction(txId)
-  const deployedAddress = extractDeployedAddress(result.receipt)
+  const [deployed] = parseEventLogs({
+    abi: proxyDeployedEventSnippet,
+    logs: result.receipt?.logs ?? [],
+  })
+  const deployedAddress = deployed?.args.proxyAddress
 
   if (!deployedAddress) {
     throw new Error('Could not extract deployed contract address from receipt')
