@@ -2,6 +2,7 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { type Address, erc20Abi, formatUnits } from 'viem'
 import { readContract } from 'viem/actions'
+import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import {
@@ -80,10 +81,10 @@ const readRenewalBalances = async (
  */
 export const useRenewalBalances = ({ enabled = true } = {}) => {
   const account = useSmartAccountContext()
+  const signer = useRenewalSigner()
   const owner = account.ownerAddress
   // Only the intent route spends from the account; an EOA pays for itself.
-  const hca =
-    account.signer?.type === 'rhinestone' ? account.accountAddress : null
+  const hca = signer?.type === 'rhinestone' ? account.accountAddress : null
 
   const query = useQuery({
     queryKey: $qk({

@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   submitHcaRenewal: vi.fn(),
   getExpiry: vi.fn(),
   useSmartAccountContext: vi.fn(),
+  useRenewalSigner: vi.fn(),
   useHcaFundingPrompt: vi.fn(),
   invalidateQueries: vi.fn(),
 }))
@@ -58,6 +59,9 @@ vi.mock('@/utils/router/root-context', () => ({
 vi.mock('@/lib/smart-account', () => ({
   useSmartAccountContext: mocks.useSmartAccountContext,
   useHcaFundingPrompt: mocks.useHcaFundingPrompt,
+}))
+vi.mock('@/features/renew/hooks/useRenewalSigner', () => ({
+  useRenewalSigner: mocks.useRenewalSigner,
 }))
 
 import {
@@ -133,6 +137,10 @@ beforeEach(() => {
   })
   mocks.getExpiry.mockReturnValue(expiryOnChain(CURRENT_EXPIRY))
   mocks.useSmartAccountContext.mockReturnValue(hcaAccount)
+  // Any wallet but a Safe renews with the account's own signer.
+  mocks.useRenewalSigner.mockImplementation(
+    () => mocks.useSmartAccountContext().signer,
+  )
   mocks.useHcaFundingPrompt.mockReturnValue({
     prompt: null,
     confirmFunding: vi.fn(),
@@ -363,6 +371,32 @@ describe('useBulkRenewSubmit (smart account)', () => {
 
     expect(result.current.phase).toBe('idle')
     expect(result.current.statuses).toEqual({})
+  })
+})
+
+describe('useBulkRenewSubmit (Safe{Wallet})', () => {
+  it('renews from the Safe with its connector, never through the HCA it cannot sign for', async () => {
+    // The account context still builds an HCA signer for a Safe owner.
+    const safeSigner = {
+      type: 'eoa',
+      walletClient,
+      connector: { id: 'walletConnect' },
+    }
+    mocks.useRenewalSigner.mockReturnValue(safeSigner)
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    expect(result.current.phase).toBe('success')
+    expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
+    expect(mocks.submitApprovalActor.mock.calls[0]?.[0]?.signer).toBe(
+      safeSigner,
+    )
+    expect(
+      mocks.submitRenewActor.mock.calls.map((call) => call[0]?.signer),
+    ).toEqual([safeSigner, safeSigner, safeSigner])
   })
 })
 
