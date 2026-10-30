@@ -8,10 +8,10 @@ describe('ResolverSetupConfirmDialog', () => {
     render(
       <ResolverSetupConfirmDialog
         intent="primary-name"
-        isReplacing={false}
         onConfirm={vi.fn()}
         onOpenChange={vi.fn()}
         open
+        replaces="nothing"
       />,
     )
 
@@ -24,10 +24,10 @@ describe('ResolverSetupConfirmDialog', () => {
     render(
       <ResolverSetupConfirmDialog
         intent="primary-name"
-        isReplacing
         onConfirm={vi.fn()}
         onOpenChange={vi.fn()}
         open
+        replaces="resolver"
       />,
     )
 
@@ -37,4 +37,29 @@ describe('ResolverSetupConfirmDialog', () => {
       screen.getByText(/keep only your wallet address/),
     ).toBeInTheDocument()
   })
+
+  // Nothing readable lives on a non-resolver, so say why it goes rather than
+  // warning that something is being overwritten.
+  it.each([
+    { intent: 'primary-name', confirmLabel: 'Replace & Continue' },
+    { intent: 'edit-profile', confirmLabel: 'Replace & Save' },
+  ] as const)(
+    'explains an invalid resolver for $intent',
+    ({ intent, confirmLabel }) => {
+      render(
+        <ResolverSetupConfirmDialog
+          intent={intent}
+          onConfirm={vi.fn()}
+          onOpenChange={vi.fn()}
+          open
+          replaces="invalid-resolver"
+        />,
+      )
+
+      expect(screen.getByText(/isn’t a working resolver/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: confirmLabel })).toHaveClass(
+        'bg-ens-blue',
+      )
+    },
+  )
 })

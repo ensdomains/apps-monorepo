@@ -2,12 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ResolverWriteState } from '@/features/profile/service/resolverWriteAccess'
 import { useCanEditRecords } from './useCanEditRecords'
 
 const OWNER_WALLET = '0x0000000000000000000000000000000000000001'
 
 const mocks = vi.hoisted(() => ({
-  canWrite: vi.fn<() => Promise<boolean>>(),
+  canWrite: vi.fn<() => Promise<ResolverWriteState>>(),
 }))
 
 vi.mock('@/lib/smart-account', () => ({
@@ -19,6 +20,12 @@ vi.mock('@/features/profile/service/resolverWriteAccess', () => ({
     queryFn: mocks.canWrite,
   }),
 }))
+
+const writeState = (canWrite: boolean): ResolverWriteState => ({
+  resolverAddress: undefined,
+  canWrite,
+  isResolverInvalid: false,
+})
 
 const wrapper = ({ children }: { readonly children: ReactNode }) => (
   <QueryClientProvider
@@ -46,14 +53,14 @@ describe('useCanEditRecords', () => {
   })
 
   it('lets a previous owner edit while their wallet can still write the resolver', async () => {
-    mocks.canWrite.mockResolvedValue(true)
+    mocks.canWrite.mockResolvedValue(writeState(true))
     const { result } = renderCanEdit(false)
 
     await waitFor(() => expect(result.current).toBe(true))
   })
 
   it('hides editing once the resolver rejects the wallet', async () => {
-    mocks.canWrite.mockResolvedValue(false)
+    mocks.canWrite.mockResolvedValue(writeState(false))
     const { result } = renderCanEdit(false)
 
     await waitFor(() => expect(mocks.canWrite).toHaveBeenCalled())

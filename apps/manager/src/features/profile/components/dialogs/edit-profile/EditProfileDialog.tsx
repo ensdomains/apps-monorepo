@@ -55,6 +55,7 @@ export const EditProfileDialog = ({
     handleSetupConfirmOpenChange,
     isFinalizingImageSave,
     isResolverAccessPending,
+    isResolverInvalid,
     resetPreparedImageSaveState,
     preparedImageUploads,
     setupConfirmOpen,
@@ -146,10 +147,10 @@ export const EditProfileDialog = ({
 
       <ResolverSetupConfirmDialog
         intent="edit-profile"
-        isReplacing
         onConfirm={confirmSetupSave}
         onOpenChange={handleSetupConfirmOpenChange}
         open={setupConfirmOpen}
+        replaces={isResolverInvalid ? 'invalid-resolver' : 'resolver'}
       />
     </>
   )

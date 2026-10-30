@@ -222,18 +222,21 @@ export const useEditProfileDialogSave = ({
   const ownerAddress = account.ownerAddress as Address | null
   const hasResolver = Boolean(savedRecords.resolverAddress)
 
-  // Probe write access whenever a resolver is present.
+  // Probe even without a readable resolver: the name may point at an address
+  // that is not a resolver, which the setup confirmation has to call out.
   const resolverWriteAccess = useQuery({
     ...resolverWriteAccessQuery(name, ownerAddress ?? undefined),
-    enabled: open && hasResolver && Boolean(ownerAddress),
+    enabled: open && Boolean(ownerAddress),
   })
 
   const needsResolverSetup =
     !hasResolver ||
-    (Boolean(ownerAddress) && resolverWriteAccess.data === false)
+    (Boolean(ownerAddress) && resolverWriteAccess.data?.canWrite === false)
+
+  const isResolverInvalid = resolverWriteAccess.data?.isResolverInvalid === true
 
   const isResolverAccessPending =
-    hasResolver && Boolean(ownerAddress) && resolverWriteAccess.isLoading
+    Boolean(ownerAddress) && resolverWriteAccess.isLoading
 
   const saveRecordsMutation = useMutation({
     mutationFn: ({
@@ -557,6 +560,7 @@ export const useEditProfileDialogSave = ({
     handleSetupConfirmOpenChange,
     isFinalizingImageSave,
     isResolverAccessPending,
+    isResolverInvalid,
     resetPreparedImageSaveState,
     preparedImageUploads,
     setupConfirmOpen,

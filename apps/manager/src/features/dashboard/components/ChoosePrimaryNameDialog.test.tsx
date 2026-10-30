@@ -80,7 +80,11 @@ vi.mock('@/features/profile/service/profileRecords', () => ({
 vi.mock('@/features/profile/service/resolverWriteAccess', () => ({
   resolverWriteAccessQuery: (name: string) => ({
     queryKey: accessQueryKey({ name }),
-    queryFn: async () => true,
+    queryFn: async () => ({
+      resolverAddress: undefined,
+      canWrite: true,
+      isResolverInvalid: false,
+    }),
   }),
 }))
 vi.mock('@/features/profile/service/profileRegistration', () => ({

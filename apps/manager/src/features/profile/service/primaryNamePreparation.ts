@@ -20,6 +20,8 @@ export type PrimaryNamePreparation =
       readonly kind: 'setup-resolver'
       readonly existingEthAddress: Address | null
       readonly hasResolver: boolean
+      /** The resolver being replaced is not a working resolver. */
+      readonly isResolverInvalid: boolean
     }
 
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
@@ -50,5 +52,6 @@ export async function getPrimaryNamePreparation(
     existingEthAddress,
     // A subname inheriting a wildcard parent's resolver counts as having one: ours would shadow it.
     hasResolver: writeState.value.resolverAddress !== undefined,
+    isResolverInvalid: writeState.value.isResolverInvalid,
   }
 }
