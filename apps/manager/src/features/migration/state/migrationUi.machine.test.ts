@@ -25,6 +25,17 @@ vi.mock(
   }),
 )
 
+// These actor wiring tests control the service's lifetime themselves. The real
+// document coordinator and service are exercised together in graceRenewal.test.
+vi.mock('@/features/migration/service/graceRenewalOperation', () => ({
+  observeGraceRenewalOperation: (
+    params: Parameters<
+      typeof import('../service/graceRenewal')['executeGraceRenewal']
+    >[0],
+    run: typeof import('../service/graceRenewal')['executeGraceRenewal'],
+  ) => run(params),
+}))
+
 vi.mock('@/features/migration/service/prepareGraceRenewalMigration', () => ({
   prepareGraceRenewalMigration: vi.fn(),
 }))

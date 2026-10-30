@@ -376,6 +376,7 @@ type ExecuteGraceRenewalParameters = {
   readonly connector?: Connector
   readonly renewalHash?: Hex
   readonly signal?: AbortSignal
+  readonly isAttached?: () => boolean
   readonly onStatus?: (status: GraceRenewalStatus) => void
   readonly onApprovalRequired?: (required: boolean) => void
   readonly onRenewalSubmitted?: (hash: Hex) => void
@@ -389,8 +390,11 @@ const assertWallet = async ({
   publicClient,
   walletClient,
   signal,
+  isAttached,
 }: ExecuteGraceRenewalParameters): Promise<void> => {
   signal?.throwIfAborted()
+  if (isAttached?.() === false)
+    throw new DOMException('The renewal screen was closed.', 'AbortError')
   assertChain(publicClient)
   const [walletChainId, addresses] = await Promise.all([
     walletClient.getChainId(),
@@ -406,6 +410,8 @@ const assertWallet = async ({
   )
     throw new Error('Reconnect the wallet and network used for this renewal.')
   signal?.throwIfAborted()
+  if (isAttached?.() === false)
+    throw new DOMException('The renewal screen was closed.', 'AbortError')
 }
 
 /** viem's default, which the direct receipt wait keeps. */
