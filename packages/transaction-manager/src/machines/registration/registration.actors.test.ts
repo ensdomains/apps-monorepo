@@ -4,39 +4,18 @@ import {
   extendChainWithEns,
   supportedL1Chains,
 } from '@ensdomains/ensjs/chain'
-import { ethRegistrarRegisterSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
-import type { Address, Hash, Hex, PublicClient, WalletClient } from 'viem'
-import { decodeFunctionData, getChainContractAddress } from 'viem'
+import type { Address, Hex, WalletClient } from 'viem'
+import { getChainContractAddress } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { SignerAddressMismatchError } from '../../errors/transaction.errors'
-import type {
-  EOASigner,
-  RhinestoneSigner,
-  Signer,
-} from '../../types/signer.types'
+import type { RhinestoneSigner, Signer } from '../../types/signer.types'
 import { type Call, getPrimaryCall } from '../../types/transaction.types'
 import {
   createTransactionRequest,
   getSignerAddress,
-  submitRegistrationActor,
+  resolvePaymentTokenAddress,
 } from './registration.actors'
-
-const mocks = vi.hoisted(() => ({
-  startTransaction: vi.fn(
-    (_intent: { readonly request: { readonly data: Hex } }) => 'tx-register',
-  ),
-}))
-
-vi.mock('../../providers/transactionManager', () => ({
-  transactionManager: { startTransaction: mocks.startTransaction },
-}))
-
-// The registrar's price oracle is a chain read; the token rule under test is
-// decided before it.
-vi.mock('../../contracts/paymentToken', () => ({
-  assertPaymentTokenSupported: vi.fn(async () => {}),
-}))
 
 const FROM = '0xF00000000000000000000000000000000000000F' as Address
 const eoaSigner = { type: 'eoa' } as unknown as Signer
@@ -175,56 +154,35 @@ describe('createTransactionRequest', () => {
   })
 })
 
-describe('submitRegistrationActor payment token', () => {
-  const OWNER = '0x1111111111111111111111111111111111111111' as Address
-  const chain = extendChainWithEns(sepolia)
-  const mockUsdc = getChainContractAddress({ chain, contract: 'usdc' })
-  const signer = {
-    type: 'eoa',
-    walletClient: { account: { address: OWNER } } as WalletClient,
-  } satisfies EOASigner
-
-  const registerToken = async (paymentTokenAddress?: Address) => {
-    await submitRegistrationActor({
-      name: 'alice',
-      commitment: {
-        commitment: `0x${'44'.repeat(32)}` as Hash,
-        secret: `0x${'55'.repeat(32)}` as Hex,
-      },
-      signer,
-      duration: 31_536_000n,
-      selectedToken: 'USDC',
-      paymentTokenAddress,
-      owner: OWNER,
-      publicClient: { chain } as PublicClient,
-      resolverAddress: OWNER,
-    })
-    const [intent] = mocks.startTransaction.mock.calls[0] ?? []
-    if (!intent) throw new Error('register was never submitted')
-    const { args } = decodeFunctionData({
-      abi: ethRegistrarRegisterSnippet,
-      data: intent.request.data,
-    })
-    return args?.[6]
-  }
-
-  beforeEach(() => {
-    mocks.startTransaction.mockClear()
+describe('resolvePaymentTokenAddress', () => {
+  const sepoliaChain = extendChainWithEns(sepolia)
+  const mainnetChain = extendChainWithEns(mainnet)
+  const mockUsdc = getChainContractAddress({
+    chain: sepoliaChain,
+    contract: 'usdc',
   })
 
-  it('pays in the token the caller showed', async () => {
-    expect(await registerToken(mockUsdc)).toBe(mockUsdc)
+  it('pays in the token the caller showed', () => {
+    expect(
+      resolvePaymentTokenAddress(
+        { selectedToken: 'USDC', paymentTokenAddress: mockUsdc },
+        sepoliaChain,
+      ),
+    ).toBe(mockUsdc)
   })
 
-  it("pays in the manifest's USDC when the caller names none", async () => {
-    expect(await registerToken()).toBe(getDestinationContracts(sepolia.id).usdc)
+  it("falls back to the manifest's USDC when the caller names none", () => {
+    expect(
+      resolvePaymentTokenAddress({ selectedToken: 'USDC' }, sepoliaChain),
+    ).toBe(getDestinationContracts(sepolia.id).usdc)
   })
 
   // Why the explorer's explicit token cannot change a mainnet registration:
-  // there the manifest's USDC is ensjs' USDC, the token the explorer shows.
+  // the fallback there is ensjs' USDC, the token the explorer shows.
   it('resolves to the same USDC either way on mainnet', () => {
-    expect(getDestinationContracts(mainnet.id).usdc).toBe(
-      ensL1Contracts[supportedL1Chains.mainnet].usdc.address,
-    )
+    const shown = ensL1Contracts[supportedL1Chains.mainnet].usdc.address
+    expect(
+      resolvePaymentTokenAddress({ selectedToken: 'USDC' }, mainnetChain),
+    ).toBe(shown)
   })
 })

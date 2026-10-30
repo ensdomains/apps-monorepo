@@ -280,7 +280,7 @@ export type RegistrationContext = {
    * rather than ensjs' MockUSDC. The explorer pays in the token it shows; the
    * registrar accepts both. On mainnet both resolve to the same address.
    */
-  paymentTokenAddress?: Address
+  readonly paymentTokenAddress?: Address
   tokenPrice: bigint
   /**
    * Standalone-HCA: USDC budget transferred wallet → HCA in the commit leg
@@ -458,7 +458,7 @@ export type RegistrationEvent =
       readonly referrer?: Hex
       token: TOKEN_SYMBOL
       /** See `RegistrationContext.paymentTokenAddress`. */
-      paymentTokenAddress?: Address
+      readonly paymentTokenAddress?: Address
       price: bigint
       signer: Signer
       /**
@@ -758,7 +758,7 @@ export const registrationMachine = setup({
       (input: {
         tokenPrice: bigint
         selectedToken: TOKEN_SYMBOL
-        paymentTokenAddress?: Address
+        readonly paymentTokenAddress?: Address
         signer: Signer
         publicClient: PublicClient
         id?: string
@@ -774,7 +774,7 @@ export const registrationMachine = setup({
         duration: bigint
         readonly referrer?: Hex
         selectedToken: TOKEN_SYMBOL
-        paymentTokenAddress?: Address
+        readonly paymentTokenAddress?: Address
         owner: Address
         publicClient: PublicClient
         resolverAddress: Address
@@ -841,7 +841,7 @@ export const registrationMachine = setup({
         name: string
         duration: bigint
         selectedToken: TOKEN_SYMBOL
-        paymentTokenAddress?: Address
+        readonly paymentTokenAddress?: Address
         publicClient: PublicClient
       }) => {
         return readPaymentAuthorizationActor(input)

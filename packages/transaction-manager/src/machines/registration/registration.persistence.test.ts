@@ -194,6 +194,7 @@ describe('registration record serialization', () => {
     const context = baseContext({
       duration: 63_072_000n,
       referrer: `0x${'12'.repeat(32)}`,
+      paymentTokenAddress: '0x240b0316Df57887DBBE58b586508b19e633a14aa',
       tokenPrice: 12_345_678n,
       resolverSalt: 2n ** 200n,
       commitment: { commitment: COMMITMENT, secret: SECRET },
@@ -217,6 +218,9 @@ describe('registration record serialization', () => {
     expect(result._unsafeUnwrap().context.duration).toBe(63_072_000n)
     expect(result._unsafeUnwrap().context.resolverSalt).toBe(2n ** 200n)
     expect(result._unsafeUnwrap().context.commitment?.secret).toBe(SECRET)
+    expect(result._unsafeUnwrap().context.paymentTokenAddress).toBe(
+      '0x240b0316Df57887DBBE58b586508b19e633a14aa',
+    )
     expect(result._unsafeUnwrap().context.registrationIntentId).toBe(
       2n ** 250n + 123n,
     )

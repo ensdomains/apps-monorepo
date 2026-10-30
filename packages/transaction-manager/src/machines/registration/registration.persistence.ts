@@ -67,7 +67,7 @@ export type PersistedRegistrationContext = {
   duration: bigint
   readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
-  paymentTokenAddress?: Address
+  readonly paymentTokenAddress?: Address
   tokenPrice: bigint
   signerType: Signer['type']
   accountAddress?: Address
