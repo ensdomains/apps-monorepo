@@ -4281,6 +4281,10 @@ msgstr ""
 msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
 msgstr ""
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, you can sign the renewal."
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Your wallet sends this one, because your temporary account no longer has permission to update these records."
 msgstr ""
@@ -4295,8 +4299,4 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
-msgstr ""
-
-#: src/components/HcaFundingApprovalDialog.tsx
-msgid "Your wallet's delegation cannot use this USDC permit. You can approve your smart account with a separate transaction, then sign the renewal. This transaction costs ETH gas."
 msgstr ""

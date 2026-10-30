@@ -86,7 +86,7 @@ type ApprovalRecovery =
   | { readonly kind: 'ready' }
   | { readonly kind: 'approve' }
   | { readonly kind: 'blocked' }
-  | { readonly kind: 'wait'; readonly hash: Hash }
+  | { readonly kind: 'wait'; readonly hash: Hash; readonly amount: bigint }
 
 /** An outstanding set-allowance may still land even when today's allowance covers a new run. */
 export const getHcaApprovalRecovery = (
@@ -95,7 +95,8 @@ export const getHcaApprovalRecovery = (
   required: bigint,
 ): ApprovalRecovery => {
   if (pending?.kind === 'reserved') return { kind: 'blocked' }
-  if (pending?.kind === 'submitted') return { kind: 'wait', hash: pending.hash }
+  if (pending?.kind === 'submitted')
+    return { kind: 'wait', hash: pending.hash, amount: BigInt(pending.amount) }
   return { kind: allowance >= required ? 'ready' : 'approve' }
 }
 
@@ -273,7 +274,10 @@ const runApproval = ResultFn(async function* (
     )
   if (recovery.kind === 'ready') return ok({ kind: 'none' as const })
   const prepared = yield* recovery.kind === 'wait'
-    ? ok({ hash: recovery.hash, prompt: approvalPrompt(input, 0n) })
+    ? ok({
+        hash: recovery.hash,
+        prompt: approvalPrompt({ ...input, amount: recovery.amount }, 0n),
+      })
     : prepareApproval(input, environment, key)
   const { hash, prompt } = prepared
   input.onState?.({ kind: 'approval-receipt', prompt, hash })
@@ -285,7 +289,7 @@ const runApproval = ResultFn(async function* (
       onReplaced: ({ transaction }) => {
         const saved = savePending(environment.storage, key, {
           kind: 'submitted',
-          amount: amount.toString(),
+          amount: prompt.amount.toString(),
           hash: transaction.hash,
         })
         replacements.set(transaction.hash, saved)
@@ -312,6 +316,7 @@ const runApproval = ResultFn(async function* (
     chainId,
     ...(signal ? { signal } : {}),
   })
+  if (input.existingOnly) return ok({ kind: 'settled' as const })
   const settledAllowance = yield* boundary(
     publicClient.readContract({
       address: token,

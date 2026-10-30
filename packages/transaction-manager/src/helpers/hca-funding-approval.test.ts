@@ -405,3 +405,45 @@ it.each([
     expect(result.isOk()).toBe(allowed)
   },
 )
+
+it('recovers the persisted approval amount independently of a fresh quote and preserves replacement metadata', async () => {
+  const { input, records } = makeRun()
+  input.publicClient.waitForTransactionReceipt.mockRejectedValueOnce(
+    new Error('receipt unavailable'),
+  )
+  expect((await approveHcaFunding(input)).isErr()).toBe(true)
+  input.onState.mockClear()
+  const replacement =
+    '0x2222222222222222222222222222222222222222222222222222222222222222'
+  const persisted = vi.fn()
+  input.publicClient.waitForTransactionReceipt.mockImplementation(
+    async ({ onReplaced }) => {
+      onReplaced({ transaction: { hash: replacement } })
+      persisted([...records.values()])
+      return { status: 'success' }
+    },
+  )
+  expect(
+    (await recoverHcaFundingApproval({ ...input, amount: 6n })).isOk(),
+  ).toBe(true)
+  expect(input.onState).toHaveBeenCalledWith(
+    expect.objectContaining({
+      kind: 'approval-receipt',
+      prompt: expect.objectContaining({ amount: 4n }),
+    }),
+  )
+  expect(persisted).toHaveBeenCalledWith([
+    JSON.stringify({ kind: 'submitted', amount: '4', hash: replacement }),
+  ])
+  expect(input.walletClient.request).toHaveBeenCalledOnce()
+})
+
+it('keeps the persisted pending amount in the pure recovery plan', () => {
+  expect(
+    getHcaApprovalRecovery(
+      { kind: 'submitted', amount: '4', hash: HASH },
+      4n,
+      6n,
+    ),
+  ).toEqual({ kind: 'wait', hash: HASH, amount: 4n })
+})

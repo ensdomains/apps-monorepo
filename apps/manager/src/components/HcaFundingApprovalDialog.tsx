@@ -40,9 +40,9 @@ export const HcaFundingApprovalDialog = ({
     ))
     .otherwise(() => (
       <Trans>
-        Your wallet's delegation cannot use this USDC permit. You can approve
-        your smart account with a separate transaction, then sign the renewal.
-        This transaction costs ETH gas.
+        Your wallet needs a separate transaction to approve USDC for your smart
+        account. This costs ETH gas. After it confirms, you can sign the
+        renewal.
       </Trans>
     ))
   return (

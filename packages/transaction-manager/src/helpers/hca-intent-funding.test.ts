@@ -886,66 +886,69 @@ describe('explicit renewal permit validation', () => {
   })
 })
 
-it('refreshes HCA balances after recovering a pending approval instead of pulling a stale shortfall', async () => {
-  prepareTransaction.mockResolvedValue({
-    intentRoute: {
-      intentCost: {
-        tokensSpent: {
-          '1': {
-            [getDestinationContracts(1).usdc.toLowerCase()]: {
-              locked: '0',
-              unlocked: '900000',
+it.each([900_000n, 1_100_000n])(
+  'refreshes HCA balances after recovering a pending approval instead of pulling a stale shortfall (fresh quote %s)',
+  async (freshFee) => {
+    prepareTransaction.mockResolvedValue({
+      intentRoute: {
+        intentCost: {
+          tokensSpent: {
+            '1': {
+              [getDestinationContracts(1).usdc.toLowerCase()]: {
+                locked: '0',
+                unlocked: freshFee.toString(),
+              },
             },
           },
         },
       },
-    },
-  })
-  const pending = {
-    kind: 'submitted',
-    amount: '900000',
-    hash: `0x${'11'.repeat(32)}`,
-  }
-  const walletClient = {
-    ...createWalletClient({
+    })
+    const pending = {
+      kind: 'submitted',
+      amount: '900000',
+      hash: `0x${'11'.repeat(32)}`,
+    }
+    const walletClient = {
+      ...createWalletClient({
+        chain: mainnet,
+        transport: custom({ request: async () => undefined }),
+      }),
+      getAddresses: vi.fn().mockResolvedValue([OWNER]),
+      getChainId: vi.fn().mockResolvedValue(1),
+    }
+    const client = {
+      ...publicClient,
       chain: mainnet,
-      transport: custom({ request: async () => undefined }),
-    }),
-    getAddresses: vi.fn().mockResolvedValue([OWNER]),
-    getChainId: vi.fn().mockResolvedValue(1),
-  }
-  const client = {
-    ...publicClient,
-    chain: mainnet,
-    readContract: vi.fn().mockResolvedValue(900_000n),
-    waitForTransactionReceipt: vi.fn().mockImplementation(async () => {
-      mockReads({ hcaBalance: 900_000n, allowance: 900_000n })
-      return { status: 'success' }
-    }),
-  }
-  const funding = await planHcaIntentFunding({
-    ...params,
-    chainId: 1,
-    publicClient: client,
-    approvalSigner: { type: 'eoa', walletClient },
-    approvalFallback: {
-      confirmApproval: () => true,
-      environment: {
-        storage: {
-          getItem: () => JSON.stringify(pending),
-          setItem: () => undefined,
-          removeItem: () => undefined,
-        },
-        locks: {
-          request: vi.fn(
-            async (_name, _options, callback) =>
-              await callback({ name: 'test', mode: 'exclusive' }),
-          ),
+      readContract: vi.fn().mockResolvedValue(900_000n),
+      waitForTransactionReceipt: vi.fn().mockImplementation(async () => {
+        mockReads({ hcaBalance: freshFee, allowance: 900_000n })
+        return { status: 'success' }
+      }),
+    }
+    const funding = await planHcaIntentFunding({
+      ...params,
+      chainId: 1,
+      publicClient: client,
+      approvalSigner: { type: 'eoa', walletClient },
+      approvalFallback: {
+        confirmApproval: () => true,
+        environment: {
+          storage: {
+            getItem: () => JSON.stringify(pending),
+            setItem: () => undefined,
+            removeItem: () => undefined,
+          },
+          locks: {
+            request: vi.fn(
+              async (_name, _options, callback) =>
+                await callback({ name: 'test', mode: 'exclusive' }),
+            ),
+          },
         },
       },
-    },
-  })
-  expect(funding.calls).toEqual(actionCalls)
-  expect(funding.incomingUsdc).toBeUndefined()
-  expect(signFundingPermit).not.toHaveBeenCalled()
-})
+    })
+    expect(funding.calls).toEqual(actionCalls)
+    expect(funding.incomingUsdc).toBeUndefined()
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  },
+)
