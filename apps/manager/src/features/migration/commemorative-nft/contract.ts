@@ -1,16 +1,21 @@
+import { orSafeExecution } from '@ens-apps/transaction-manager'
+import { TransactionRevertedError } from '@ens-apps/transaction-manager/errors/transaction.errors'
 import {
+  type Connector,
   getPublicClient,
   getTransaction,
   readContract,
   type Config as WagmiConfig,
   writeContract,
 } from '@wagmi/core'
+import { fromPromise } from 'neverthrow'
 import {
   type Address,
   encodeFunctionData,
   getAddress,
   type Hex,
   parseAbi,
+  type WaitForTransactionReceiptParameters,
 } from 'viem'
 import { waitForTransactionReceipt } from 'viem/actions'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
@@ -192,9 +197,13 @@ export type CommemorativeNftClaimReceiptResult = {
   readonly hash: Hex
 }
 
+const CLAIM_RECEIPT_TIMEOUT_MS = 5 * 60 * 1_000
+
 export const waitForCommemorativeNftClaimReceipt = async (params: {
   readonly wagmiConfig: WagmiConfig
   readonly pendingClaim: PendingNftClaim
+  /** The wallet's connector. A Safe{Wallet} one answers with safeTxHashes. */
+  readonly connector?: Connector
   readonly onReplaced?: (hash: Hex) => void
   readonly signal?: AbortSignal
 }): Promise<CommemorativeNftClaimReceiptResult> => {
@@ -219,21 +228,49 @@ export const waitForCommemorativeNftClaimReceipt = async (params: {
     )
   let hash = pendingClaim.hash
   let replacementReason: 'cancelled' | 'replaced' | 'repriced' | undefined
-  try {
-    const receipt = await withRequestDeadline(
-      () =>
-        waitForTransactionReceipt(publicClient, {
-          hash,
-          pollingInterval: 2_000,
-          timeout: 5 * 60 * 1_000,
-          onReplaced: (replacement) => {
-            hash = replacement.transactionReceipt.transactionHash
-            replacementReason = replacement.reason
-            params.onReplaced?.(hash)
-          },
-        }),
-      { signal: params.signal, timeoutMs: 5 * 60 * 1_000 },
+  const receiptOf = (receipt: WaitForTransactionReceiptParameters) =>
+    fromPromise(
+      waitForTransactionReceipt(publicClient, receipt),
+      (cause) => cause,
     )
+  try {
+    const settled = await withRequestDeadline(
+      async (signal) =>
+        orSafeExecution({
+          publicClient,
+          connector: params.connector,
+          account: pendingClaim.ownerAddress,
+          id: pendingClaim.hash,
+          timeout: CLAIM_RECEIPT_TIMEOUT_MS,
+          direct: receiptOf({
+            hash,
+            pollingInterval: 2_000,
+            timeout: CLAIM_RECEIPT_TIMEOUT_MS,
+            onReplaced: (replacement) => {
+              hash = replacement.transactionReceipt.transactionHash
+              replacementReason = replacement.reason
+              params.onReplaced?.(hash)
+            },
+          }).map((receipt) => ({ receipt, isSafeExecution: false })),
+          settle: (transactionHash) =>
+            receiptOf({ hash: transactionHash, pollingInterval: 2_000 }).map(
+              (receipt) => ({ receipt, isSafeExecution: true }),
+            ),
+          signal,
+        }),
+      { signal: params.signal, timeoutMs: CLAIM_RECEIPT_TIMEOUT_MS },
+    )
+    // Only a Safe's ExecutionFailure is a decided revert; any other failure to
+    // read the receipt proves nothing, so the claim stays pending.
+    if (settled.isErr())
+      return {
+        status:
+          settled.error instanceof TransactionRevertedError
+            ? 'reverted'
+            : 'pending',
+        hash,
+      }
+    const { receipt, isSafeExecution } = settled.value
     hash = receipt.transactionHash
     if (replacementReason === 'cancelled') return { status: 'cancelled', hash }
     if (replacementReason === 'replaced') return { status: 'replaced', hash }
@@ -241,24 +278,27 @@ export const waitForCommemorativeNftClaimReceipt = async (params: {
 
     // A successful same-nonce replacement can be an unrelated transfer. Check
     // the transaction itself as persisted data and replacement events are not
-    // proof that this owner called the configured NFT claim.
-    const transaction = await withRequestDeadline(
-      () =>
-        getTransaction(params.wagmiConfig, {
-          chainId: pendingClaim.chainId,
-          hash,
-        }),
-      { signal: params.signal },
-    )
-    if (
-      transaction.from.toLowerCase() !==
-        pendingClaim.ownerAddress.toLowerCase() ||
-      transaction.to?.toLowerCase() !== contractAddress.toLowerCase() ||
-      transaction.value !== 0n ||
-      transaction.input.toLowerCase() !==
-        pendingClaim.expectedClaimData.toLowerCase()
-    ) {
-      return { status: 'replaced', hash }
+    // proof that this owner called the configured NFT claim. A Safe's claim
+    // runs inside its execTransaction, which `orSafeExecution` already matched.
+    if (!isSafeExecution) {
+      const transaction = await withRequestDeadline(
+        () =>
+          getTransaction(params.wagmiConfig, {
+            chainId: pendingClaim.chainId,
+            hash,
+          }),
+        { signal: params.signal },
+      )
+      if (
+        transaction.from.toLowerCase() !==
+          pendingClaim.ownerAddress.toLowerCase() ||
+        transaction.to?.toLowerCase() !== contractAddress.toLowerCase() ||
+        transaction.value !== 0n ||
+        transaction.input.toLowerCase() !==
+          pendingClaim.expectedClaimData.toLowerCase()
+      ) {
+        return { status: 'replaced', hash }
+      }
     }
     const claimed = await readCommemorativeNftClaimed({
       wagmiConfig: params.wagmiConfig,

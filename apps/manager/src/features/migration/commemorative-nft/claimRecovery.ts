@@ -1,4 +1,4 @@
-import type { Config as WagmiConfig } from '@wagmi/core'
+import type { Connector, Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex } from 'viem'
 import { withNftClaimSubmissionLock } from './claimSubmissionLock'
 import {
@@ -152,12 +152,14 @@ export const requireScopedPendingNftClaim = (params: {
 export const reconcilePendingNftClaim = async (params: {
   readonly wagmiConfig: WagmiConfig
   readonly claim: PendingNftClaim
+  readonly connector?: Connector
   readonly onHash: (hash: Hex) => void
 }) => {
   let claim = params.claim
   const outcome = await waitForCommemorativeNftClaimReceipt({
     wagmiConfig: params.wagmiConfig,
     pendingClaim: claim,
+    connector: params.connector,
     onReplaced: (hash) => {
       const previousHash = claim.hash
       claim = { ...claim, hash }
