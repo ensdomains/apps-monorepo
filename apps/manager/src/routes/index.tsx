@@ -23,12 +23,13 @@ const LandingPage = () => {
 
   return (
     <div
+      className="mb-[min(15vh,7rem)]"
       style={{
         background: `url("${patternBg}") center/30px repeat`,
       }}
     >
       {/* Hero Section */}
-      <div className="mx-auto flex w-full-[2rem] flex-col items-center pt-11">
+      <div className="mx-auto flex w-full-[2rem] flex-col items-center pt-[20vh] pb-[min(10vh,5rem)]">
         <h1 className="whitespace-nowrap text-center text-[56px] capitalize leading-none tracking-[-2px]">
           <span className="font-serif text-ens-lapis-core">
             <Trans>Find your</Trans>{' '}
