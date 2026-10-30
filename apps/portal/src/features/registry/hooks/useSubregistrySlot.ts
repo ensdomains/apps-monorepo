@@ -1,19 +1,21 @@
 import type { BignameError, NameHistoryRow } from '@ens-apps/indexer/bigname'
+import type { IndexerReadError } from '@ens-apps/indexer/reads'
 import { fromSync, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
-import { okAsync } from 'neverthrow'
+import { okAsync, ResultAsync } from 'neverthrow'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { normalize } from 'viem/ens'
 import { envConfig } from '@/config'
+import { readIndexedNameDetail } from '@/features/profile/hooks/useNameDetail'
 import { bigname } from '@/lib/bigname'
 
 class GetSubregistryHistoryError extends TaggedError(
   'GetSubregistryHistoryError',
 )<{
-  cause: BignameError
+  cause: BignameError | IndexerReadError
 }> {}
 
 type GetSubregistryHistoryParameters = {
@@ -61,10 +63,13 @@ export const readSubregistryHistory = ({
   rows,
   hasMore,
   v1Registries,
+  currentRegistrationId,
 }: {
   readonly rows: readonly NameHistoryRow[]
   readonly hasMore: boolean
   readonly v1Registries: ReadonlySet<string>
+  /** The name's registration now; a restore must undo a clear made in it. */
+  readonly currentRegistrationId: string | null
 }): SubregistryHistory | null => {
   // A state-derived row names no contract; counted, since an unknown write
   // must not read as `never-configured`.
@@ -91,12 +96,15 @@ export const readSubregistryHistory = ({
     linkCount: links.length,
     previousRegistry: lastLink?.registry,
     // Across a re-registration the old registry is a former holder's, and a
-    // row with no registration proves neither way.
+    // row with no registration proves neither way. bigname files an expiry's
+    // clear under the lapsed registration and a re-registration without a
+    // registry emits nothing, so the clear must also be in the current one.
     isRestorable:
       lastWrite?.type === 'subregistry' &&
       !lastWrite.data?.subregistry &&
       lastWrite.registration_id !== null &&
-      lastWrite.registration_id === lastLink?.registrationId,
+      lastWrite.registration_id === lastLink?.registrationId &&
+      lastWrite.registration_id === currentRegistrationId,
   }
 }
 
@@ -117,20 +125,23 @@ export const getSubregistryHistory = ({
   if (normalized.isErr())
     return okAsync<SubregistryHistory | null, GetSubregistryHistoryError>(null)
 
-  return bigname
-    .nameHistory(normalized.value, {
+  return ResultAsync.combine([
+    bigname.nameHistory(normalized.value, {
       namespace: 'ens',
       type: ['subregistry'],
       include: ['data'],
       page_size: SUBREGISTRY_HISTORY_WINDOW,
-    })
+    }),
+    readIndexedNameDetail({ name: normalized.value }),
+  ])
     .mapErr((cause) => new GetSubregistryHistoryError({ cause }))
-    .map(({ data, page }) =>
+    .map(([{ data, page }, detail]) =>
       // bigname answers newest first by default.
       readSubregistryHistory({
         rows: data,
         hasMore: page?.has_more ?? false,
         v1Registries: ENS_V1_REGISTRIES,
+        currentRegistrationId: detail?.registrationId ?? null,
       }),
     )
 }
