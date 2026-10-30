@@ -7,7 +7,11 @@ import { computeExpectedWrapperRegistry } from './directMigrationRoutes'
 import { SubnameRecreationError } from './subnameRecreationError'
 
 const mocks = vi.hoisted(() => ({
-  discoverSubnameRecreation: vi.fn(),
+  discoverSubnameRecreation: vi.fn(async () => ({
+    domains: [],
+    snapshot: {},
+    unrecoverable: [] as readonly string[],
+  })),
   getSubnameMigrationImpact: vi.fn(),
 }))
 
@@ -32,6 +36,87 @@ vi.mock('./subnameRecreation', () => ({
 import { resolveMigratableNames } from './migratableNames'
 
 describe('resolveMigratableNames', () => {
+  const UNKNOWN = `[${'ab'.repeat(32)}].label.eth`
+
+  it.each([
+    {
+      path: 'the import',
+      isSubnameImportEnabled: true,
+      setup: () =>
+        mocks.discoverSubnameRecreation.mockResolvedValueOnce({
+          domains: [],
+          snapshot: {},
+          unrecoverable: [UNKNOWN],
+        }),
+    },
+    {
+      path: 'the impact check',
+      isSubnameImportEnabled: false,
+      setup: () =>
+        mocks.getSubnameMigrationImpact.mockResolvedValueOnce(
+          ok({ affectedCount: 0, unrecoverable: [UNKNOWN] }),
+        ),
+    },
+  ])(
+    'keeps a name upgradable and reports the unknown-label subnames $path leaves behind',
+    async ({ isSubnameImportEnabled, setup }) => {
+      setup()
+      const name = makeClassified({
+        name: 'label.eth',
+        id: namehash('label.eth'),
+        label: 'label',
+      })
+
+      const result = await resolveMigratableNames({
+        eligible: [name],
+        isSubnameImportEnabled,
+        owner: OWNER,
+        publicClient: {} as PublicClient,
+      })
+
+      expect(result.eligible).toEqual([name])
+      expect(result.blockedSubnames).toEqual([])
+      expect(result.unrecoverableSubnames).toEqual([UNKNOWN])
+    },
+  )
+
+  it.each([
+    { count: 5, isBlocked: false },
+    { count: 6, isBlocked: true },
+  ])(
+    'with $count unknown-label subnames to import blocks: $isBlocked',
+    async ({ count, isBlocked }) => {
+      const unrecoverable = Array.from(
+        { length: count },
+        (_, index) => `[${index.toString(16).padStart(64, '0')}].label.eth`,
+      )
+      mocks.discoverSubnameRecreation.mockResolvedValueOnce({
+        domains: [],
+        snapshot: {},
+        unrecoverable,
+      })
+      const name = makeClassified({
+        name: 'label.eth',
+        id: namehash('label.eth'),
+        label: 'label',
+      })
+
+      const result = await resolveMigratableNames({
+        eligible: [name],
+        isSubnameImportEnabled: true,
+        owner: OWNER,
+        publicClient: {} as PublicClient,
+      })
+
+      expect(result.blockedSubnames).toEqual(
+        isBlocked ? [{ name, reason: 'too-many-unknown-labels' }] : [],
+      )
+      expect(result.unrecoverableSubnames).toEqual(
+        isBlocked ? [] : unrecoverable,
+      )
+    },
+  )
+
   // The error message embeds the name, so only the fixed reason may decide.
   it.each([
     ['the indexed child inventory could not be read.', 'incomplete-inventory'],
@@ -102,7 +187,9 @@ describe('resolveMigratableNames', () => {
       tokenType: 'locked-child',
       parentName: 'rpc-failure.eth',
     })
-    mocks.getSubnameMigrationImpact.mockResolvedValue(ok({ affectedCount: 0 }))
+    mocks.getSubnameMigrationImpact.mockResolvedValue(
+      ok({ affectedCount: 0, unrecoverable: [] }),
+    )
     let parentReads = 0
     const publicClient = {
       getCode: vi.fn(async () => '0x01'),

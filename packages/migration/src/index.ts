@@ -32,9 +32,11 @@ export {
 } from './service/preflightChecks'
 export {
   getSubnameMigrationImpact,
+  MAX_UNRECOVERABLE_SUBNAMES,
   readSubnameMigrationImpact,
   type SubnameMigrationImpact,
   SubnameMigrationImpactError,
+  unknownLabelhashOf,
 } from './service/subnameMigrationImpact'
 export type { V1Domain } from './service/v1Domain'
 export {

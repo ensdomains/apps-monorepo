@@ -19,6 +19,13 @@ export const shouldUseCompactSelectionLayout = (
 export const shouldUseSmallSelectionCard = (eligibleCount: number): boolean =>
   eligibleCount > 0 && eligibleCount <= SMALL_SELECTION_LAYOUT_THRESHOLD
 
+/** Unknown-label subnames the selected names leave behind on ENSv1. */
+export const unrecoverableSubnamesOf = (
+  names: readonly string[],
+  selected: ReadonlySet<string>,
+): readonly string[] =>
+  names.filter((name) => selected.has(name.slice(name.indexOf('.') + 1)))
+
 export const collectAllSelectable = (
   groups: readonly NameTreeNode[],
   orphans: readonly NameTreeNode[],

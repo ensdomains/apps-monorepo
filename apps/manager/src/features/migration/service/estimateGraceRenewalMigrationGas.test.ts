@@ -193,6 +193,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
           chainId: chain.id,
           inventoryDigest: namehash('preview-inventory'),
         },
+        unrecoverable: [],
       } satisfies Awaited<ReturnType<typeof discoverSubnameRecreation>>
       vi.mocked(discoverSubnameRecreation).mockResolvedValue(discovery)
       vi.mocked(buildMigrationPlan).mockImplementation(async ({ domains }) => {

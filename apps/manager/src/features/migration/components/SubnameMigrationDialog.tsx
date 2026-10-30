@@ -23,9 +23,11 @@ const ImpactSummary = ({
   const isError = state.status === 'error'
   const affectedCount = state.impact?.affectedCount ?? 0
   const hasImpact = affectedCount > 0
+  const unrecoverable = state.impact?.unrecoverable ?? []
+  const hasUnrecoverable = unrecoverable.length > 0
   return (
     <div aria-live="polite" className="mt-5 shrink-0">
-      {match({ isLoading, isError, hasImpact })
+      {match({ isLoading, isError, hasImpact, hasUnrecoverable })
         .with({ isLoading: true }, () => (
           <div
             className="flex items-center gap-2 py-3 text-ens-garnet-900/65 text-sm"
@@ -71,6 +73,24 @@ const ImpactSummary = ({
             </ul>
           </div>
         ))
+        .with({ hasUnrecoverable: true }, () => (
+          <div className="rounded-xl border border-ens-garnet-900/10 bg-white/60 p-4">
+            <p className="mb-3 font-medium text-ens-garnet-900/65 text-xs uppercase tracking-wider">
+              <Plural
+                one="# subname left on ENSv1"
+                other="# subnames left on ENSv1"
+                value={unrecoverable.length}
+              />
+            </p>
+            <ul className="space-y-3">
+              {unrecoverable.map((name) => (
+                <li className="break-all font-medium text-sm" key={name}>
+                  {name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
         .otherwise(() => null)}
     </div>
   )
@@ -80,6 +100,8 @@ export const SubnameMigrationDialog = ({
   isOpen,
   state,
   isChecking,
+  hasAcknowledgedImpact,
+  onAcknowledgeImpact,
   onCancel,
   onContinue,
   onRestoreFocus,
@@ -99,6 +121,7 @@ export const SubnameMigrationDialog = ({
   const isError = state.status === 'error'
   const affectedCount = state.impact?.affectedCount ?? 0
   const hasImpact = affectedCount > 0
+  const hasUnrecoverable = (state.impact?.unrecoverable.length ?? 0) > 0
 
   return (
     <Dialog
@@ -122,7 +145,7 @@ export const SubnameMigrationDialog = ({
           <CircleAlert aria-hidden="true" className="size-5" />
         </div>
         <DialogTitle className="text-balance font-normal text-2xl leading-tight tracking-tight sm:text-3xl">
-          {match({ isError, isLoading, hasImpact })
+          {match({ isError, isLoading, hasImpact, hasUnrecoverable })
             .with({ isError: true }, () => (
               <Trans>We couldn&apos;t check your subnames</Trans>
             ))
@@ -132,12 +155,15 @@ export const SubnameMigrationDialog = ({
             .with({ hasImpact: true }, () => (
               <Trans>These subnames can&apos;t be preserved yet</Trans>
             ))
+            .with({ hasUnrecoverable: true }, () => (
+              <Trans>Some subnames will be left behind</Trans>
+            ))
             .otherwise(() => (
               <Trans>Your subnames are unaffected</Trans>
             ))}
         </DialogTitle>
         <DialogDescription className="mt-3 shrink-0 text-pretty text-base text-ens-garnet-900/75 leading-relaxed">
-          {match({ isError, isLoading, hasImpact })
+          {match({ isError, isLoading, hasImpact, hasUnrecoverable })
             .with({ isError: true }, () => (
               <Trans>
                 The impact is unknown. Try again or contact{' '}
@@ -163,6 +189,14 @@ export const SubnameMigrationDialog = ({
                 affected parents before continuing.
               </Trans>
             ))
+            .with({ hasUnrecoverable: true }, () => (
+              <Trans>
+                These subnames were created without publishing their names
+                onchain, so they can&apos;t be recreated on ENSv2. They stop
+                working once their parent is upgraded. Every other subname is
+                upgraded with it.
+              </Trans>
+            ))
             .otherwise(() => (
               <Trans>
                 The latest check found no affected subnames. You can continue
@@ -171,6 +205,21 @@ export const SubnameMigrationDialog = ({
             ))}
         </DialogDescription>
         <ImpactSummary isLoading={isLoading} state={state} />
+        {hasUnrecoverable && !hasImpact && !isLoading && !isError && (
+          <label className="mt-4 flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+            <input
+              checked={hasAcknowledgedImpact}
+              className="size-4 shrink-0 accent-ens-garnet-900"
+              onChange={(event) => onAcknowledgeImpact(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              <Trans>
+                I understand these subnames will stop working after the upgrade.
+              </Trans>
+            </span>
+          </label>
+        )}
         {hasImpact && !isLoading && (
           <a
             className={`${linkClassName} mt-3 inline-flex min-h-11 items-center text-sm`}
@@ -194,7 +243,8 @@ export const SubnameMigrationDialog = ({
               isLoading ||
               state.status !== 'ready' ||
               !state.canReview ||
-              hasImpact
+              hasImpact ||
+              (hasUnrecoverable && !hasAcknowledgedImpact)
             }
             onClick={onContinue}
             type="button"

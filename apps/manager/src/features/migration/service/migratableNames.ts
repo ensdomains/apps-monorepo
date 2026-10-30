@@ -1,5 +1,8 @@
 import type { BignameClient } from '@ens-apps/indexer/bigname'
-import { getSubnameMigrationImpact } from '@ens-apps/migration'
+import {
+  getSubnameMigrationImpact,
+  MAX_UNRECOVERABLE_SUBNAMES,
+} from '@ens-apps/migration'
 import type { Address, PublicClient } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
@@ -28,6 +31,7 @@ export type SubnameMigrationBlockReason =
   | 'wrapped-protections'
   | 'too-large'
   | 'unknown-label'
+  | 'too-many-unknown-labels'
   | 'incomplete-inventory'
   | 'unverified-source'
   | 'requires-parent'
@@ -86,8 +90,18 @@ type SubnameCandidateResult =
   | {
       readonly status: 'verified'
       readonly subnames: readonly CopyClassifiedName[]
+      readonly unrecoverable: readonly string[]
     }
   | { readonly status: 'blocked'; readonly block: BlockedSubnameMigration }
+
+const verifiedCandidate = (
+  name: ClassifiedName,
+  subnames: readonly CopyClassifiedName[],
+  unrecoverable: readonly string[],
+): SubnameCandidateResult =>
+  unrecoverable.length > MAX_UNRECOVERABLE_SUBNAMES
+    ? { status: 'blocked', block: { name, reason: 'too-many-unknown-labels' } }
+    : { status: 'verified', subnames, unrecoverable }
 
 const checkSubnameCandidates = async (params: {
   readonly candidates: readonly ClassifiedName[]
@@ -122,12 +136,13 @@ const checkSubnameCandidates = async (params: {
                 classified: [name],
                 owner: params.owner,
               })
-              return {
-                status: 'verified',
-                subnames: verified.filter(
+              return verifiedCandidate(
+                name,
+                verified.filter(
                   (item): item is CopyClassifiedName => item.action === 'copy',
                 ),
-              }
+                discovery.unrecoverable,
+              )
             }
             const impact = await getSubnameMigrationImpact({
               shouldSkipEmptySubtrees: true,
@@ -147,7 +162,11 @@ const checkSubnameCandidates = async (params: {
                       : 'unsupported-parent',
                   },
                 }
-              : { status: 'verified', subnames: [] }
+              : {
+                  status: 'verified',
+                  subnames: [],
+                  unrecoverable: impact.value.unrecoverable,
+                }
           } catch (error) {
             params.signal?.throwIfAborted()
             return {
@@ -266,6 +285,8 @@ export const resolveMigratableNames = async (params: {
   readonly eligible: readonly ClassifiedName[]
   readonly blockedSubnames: readonly BlockedSubnameMigration[]
   readonly verifiedSubnames: readonly CopyClassifiedName[]
+  /** Unknown-label subnames of upgradable names; they are left on ENSv1. */
+  readonly unrecoverableSubnames: readonly string[]
 }> => {
   const direct = params.eligible.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
@@ -317,6 +338,9 @@ export const resolveMigratableNames = async (params: {
     blockedSubnames: blocked,
     verifiedSubnames: checked.flatMap((result) =>
       result.status === 'verified' ? result.subnames : [],
+    ),
+    unrecoverableSubnames: checked.flatMap((result) =>
+      result.status === 'verified' ? result.unrecoverable : [],
     ),
   }
 }

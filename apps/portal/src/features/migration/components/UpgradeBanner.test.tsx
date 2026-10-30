@@ -4,12 +4,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestWrapper } from '@/test-utils/providers'
 import { describeUpgrade, UpgradeBanner } from './UpgradeBanner'
 
-const impact = vi.hoisted(() => ({ affectedCount: 0 }))
+const impact = vi.hoisted(() => ({
+  affectedCount: 0,
+  unrecoverable: [] as readonly string[],
+}))
 
 vi.mock('@ens-apps/migration', () => ({
   getSubnameMigrationImpact: () =>
     okAsync({
       affectedCount: impact.affectedCount,
+      unrecoverable: impact.unrecoverable,
       parents: [],
       fingerprint: 'f',
       checkedAt: 0,
@@ -19,6 +23,7 @@ vi.mock('@ens-apps/migration', () => ({
 describe('UpgradeBanner', () => {
   beforeEach(() => {
     impact.affectedCount = 0
+    impact.unrecoverable = []
   })
 
   it('offers a plain upgrade for a name that is not wrapped', () => {
@@ -64,6 +69,17 @@ describe('UpgradeBanner', () => {
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/must be unwrapped/)).not.toBeInTheDocument()
+  })
+
+  it('counts unknown-label subnames as lost', async () => {
+    impact.unrecoverable = [`[${'ab'.repeat(32)}].jooooe.eth`]
+    render(<UpgradeBanner name="jooooe.eth" />, {
+      wrapper: createTestWrapper(),
+    })
+
+    expect(
+      await screen.findByText(/would delete 1 subname\./),
+    ).toBeInTheDocument()
   })
 
   it('keeps the base sentence and points at Manager when the check fails', () => {

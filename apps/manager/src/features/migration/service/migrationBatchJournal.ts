@@ -528,6 +528,10 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
       !Array.isArray(recreation.roots) ||
       !recreation.roots.length ||
       !Array.isArray(recreation.names) ||
+      (recreation.skipped !== undefined &&
+        (!Array.isArray(recreation.skipped) ||
+          !recreation.skipped.length ||
+          !recreation.skipped.every((name) => typeof name === 'string'))) ||
       !recreation.names.length ||
       !recreation.names.every((name) => typeof name === 'string') ||
       new Set(recreation.names).size !== recreation.names.length ||

@@ -38,6 +38,11 @@ msgstr ""
 msgid "{0, plural, one {# step} other {# steps}}"
 msgstr ""
 
+#. placeholder {0}: unrecoverable.length
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "{0, plural, one {# subname left on ENSv1} other {# subnames left on ENSv1}}"
+msgstr ""
+
 #. placeholder {0}: data.years
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
 msgid "{0, plural, one {# year} other {# years}}"
@@ -1559,6 +1564,10 @@ msgstr ""
 msgid "I understand that only records I edit will be saved. Existing records I do not edit will not be copied to the replacement resolver."
 msgstr ""
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "I understand these subnames will stop working after the upgrade."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Idle"
 msgstr ""
@@ -3051,6 +3060,10 @@ msgstr ""
 msgid "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
 msgstr ""
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "Some subnames will be left behind"
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Something about your names changed since you last tried, so we can't safely pick up where you left off."
 msgstr ""
@@ -3357,6 +3370,18 @@ msgstr ""
 msgid "These subnames can't be preserved yet"
 msgstr ""
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "These subnames were created without publishing their names onchain, so they can't be recreated on ENSv2. They stop working once their parent is upgraded. Every other subname is upgraded with it."
+msgstr ""
+
+#: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
+msgid "These subnames won't be upgraded"
+msgstr ""
+
+#: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
+msgid "They were created without publishing their names onchain, so they can't be recreated on ENSv2 and stop working once their parent is upgraded. Every other subname is upgraded with it."
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."
 msgstr ""
@@ -3391,6 +3416,10 @@ msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name has expired, but can be renewed for the previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "This name has more than {MAX_UNRECOVERABLE_SUBNAMES} subnames with unknown labels. Upgrading it would leave them all behind, so keep it on ENSv1 for now."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx

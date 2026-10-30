@@ -71,6 +71,7 @@ const eligibilityState = vi.hoisted(() => ({
   blockedSubnames: [] as BlockedSubnameMigration[],
   wrapperSyncNames: [] as ClassifiedName[],
   verifiedSubnames: [] as CopyClassifiedName[],
+  unrecoverableSubnames: [] as string[],
   recoveryStatus: 'none' as 'none' | 'recovering',
   gracePeriodNames: [] as IneligibleName[],
 }))
@@ -91,6 +92,7 @@ vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
     unavailableNames: [],
     wrapperSyncNames: eligibilityState.wrapperSyncNames,
     verifiedSubnames: eligibilityState.verifiedSubnames,
+    unrecoverableSubnames: eligibilityState.unrecoverableSubnames,
     isPending: false,
     recoveryState: { status: eligibilityState.recoveryStatus },
   }),
@@ -141,6 +143,7 @@ beforeEach(() => {
   wrapperSync.mutate.mockReset()
   eligibilityState.wrapperSyncNames = []
   eligibilityState.verifiedSubnames = []
+  eligibilityState.unrecoverableSubnames = []
   impactState.status = 'ready'
   impactState.impact.parents = []
   eligibilityState.blockedSubnames = []
@@ -435,6 +438,19 @@ describe('SelectNamesStep', () => {
     expect(lastCall).not.toContain('sub1234.eth')
     expect(lastCall).not.toContain('gm.sub1234.eth')
     expect(lastCall).toContain('sub123.eth')
+  })
+
+  it('warns which unknown-label subnames a selected name leaves behind', () => {
+    const unknown = `[${'ab'.repeat(32)}].one.eth`
+    eligibilityState.unrecoverableSubnames = [unknown]
+    const { getByRole, queryByText } = renderStep()
+
+    expect(queryByText("These subnames won't be upgraded")).toBeVisible()
+    expect(queryByText(unknown)).toBeVisible()
+
+    fireEvent.click(getByRole('checkbox', { name: 'one.eth' }))
+    expect(queryByText("These subnames won't be upgraded")).toBeNull()
+    expect(queryByText(unknown)).toBeNull()
   })
 
   it('subname rows are not individually interactive', () => {

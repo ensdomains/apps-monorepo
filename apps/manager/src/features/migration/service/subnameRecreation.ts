@@ -7,6 +7,7 @@ import {
 import {
   readSubnameMigrationImpact,
   type SubnameMigrationImpact,
+  unknownLabelhashOf,
   type V1Domain,
 } from '@ens-apps/migration'
 import {
@@ -16,6 +17,7 @@ import {
 import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import {
   type Address,
+  concat,
   type Hex,
   isAddress,
   isAddressEqual,
@@ -53,6 +55,8 @@ export type SubnameRecreationSnapshot = {
   readonly blockHash: Hex
   readonly chainId?: number
   readonly inventoryDigest?: Hex
+  /** Unknown-label leaves left on ENSv1; checked for new descendants before signing. */
+  readonly skipped?: readonly string[]
 }
 
 const SOURCE_MAX_AGE_SECONDS = 300n
@@ -83,6 +87,16 @@ const countOf = (name: string, count: number | null | undefined): number => {
   return count
 }
 const assertIdentity = (name: string, node: string): void => {
+  const unknownLabelhash = unknownLabelhashOf(name)
+  if (unknownLabelhash) {
+    // The label was never published, so prove the node from its hash instead.
+    if (
+      keccak256(concat([namehash(parentOf(name)), unknownLabelhash])) !==
+      node.toLowerCase()
+    )
+      fail(name, 'an exact, valid subname label is required before migration.')
+    return
+  }
   if (
     name.includes('[') ||
     normalize(name) !== name ||
@@ -339,13 +353,12 @@ const assertCanonicalPublications = async (
   }
 }
 
-const readChildSource = async (
+const assertNoNewDescendants = async (
   publicClient: PublicClient,
-  root: V1Domain,
   row: Subname,
   oldestPublication: bigint,
   block: { number: bigint },
-): Promise<V1Domain> => {
+): Promise<void> => {
   const descendants = await publicClient.getLogs({
     address: V1_CONTRACTS.LegacyRegistry,
     event: newOwnerEvent,
@@ -358,6 +371,16 @@ const readChildSource = async (
       row.name,
       'its descendants changed after indexing. Refresh the complete tree before continuing.',
     )
+}
+
+const readChildSource = async (
+  publicClient: PublicClient,
+  root: V1Domain,
+  row: Subname,
+  oldestPublication: bigint,
+  block: { number: bigint },
+): Promise<V1Domain> => {
+  await assertNoNewDescendants(publicClient, row, oldestPublication, block)
   const [registryOwner, resolver] = await Promise.all([
     publicClient.readContract({
       address: V1_CONTRACTS.LegacyRegistry,
@@ -425,6 +448,8 @@ export const discoverSubnameRecreation = async (params: {
 }): Promise<{
   readonly domains: readonly V1Domain[]
   readonly snapshot: SubnameRecreationSnapshot
+  /** Unknown-label subnames the upgrade leaves behind on ENSv1. */
+  readonly unrecoverable: readonly string[]
 }> => {
   const { publicClient, signal } = params
   const indexer =
@@ -472,7 +497,11 @@ export const discoverSubnameRecreation = async (params: {
     const name = root.domain.name
     const rows = rowsByRoot.get(name) ?? []
     const labels = new Set(
-      rows.map((row) => labelhash(row.name.split('.')[0] ?? '').toLowerCase()),
+      rows.map(
+        (row) =>
+          unknownLabelhashOf(row.name) ??
+          labelhash(row.name.split('.')[0] ?? '').toLowerCase(),
+      ),
     )
     const events = await publicClient.getLogs({
       address: V1_CONTRACTS.LegacyRegistry,
@@ -493,6 +522,16 @@ export const discoverSubnameRecreation = async (params: {
       )
     for (const row of rows) {
       signal?.throwIfAborted()
+      // Unknown labels cannot be recreated in ENSv2; the upgrade drops them.
+      if (unknownLabelhashOf(row.name)) {
+        await assertNoNewDescendants(
+          publicClient,
+          row,
+          oldestPublication,
+          block,
+        )
+        continue
+      }
       domains.set(
         row.name,
         await readChildSource(
@@ -514,6 +553,10 @@ export const discoverSubnameRecreation = async (params: {
       'selection',
       'the source checkpoint changed while reading the inventory. Please refresh.',
     )
+  const unrecoverable = [...rowsByRoot.values()]
+    .flat()
+    .map((row) => row.name)
+    .filter((name) => unknownLabelhashOf(name) !== null)
   const snapshot: SubnameRecreationSnapshot = {
     version: 5,
     roots: roots.map(({ domain }) => domain.name),
@@ -523,8 +566,28 @@ export const discoverSubnameRecreation = async (params: {
     timestamp: block.timestamp.toString(),
     chainId: envConfig.chain.id,
     inventoryDigest: inventoryDigest(values),
+    ...(unrecoverable.length > 0 ? { skipped: unrecoverable } : {}),
   }
-  return { domains: values, snapshot }
+  return { domains: values, snapshot, unrecoverable }
+}
+
+const assertSkippedUnchanged = async (
+  publicClient: PublicClient,
+  skipped: readonly string[],
+  reviewedBlock: bigint,
+  head: bigint,
+): Promise<void> => {
+  const [first] = skipped
+  if (!first || head <= reviewedBlock) return
+  const descendants = await publicClient.getLogs({
+    address: V1_CONTRACTS.LegacyRegistry,
+    event: newOwnerEvent,
+    args: { node: skipped.map((name) => namehash(name)) },
+    fromBlock: reviewedBlock + 1n,
+    toBlock: head,
+  })
+  if (descendants.length)
+    fail(first, 'its descendants changed after review. Prepare a fresh import.')
 }
 
 /** Revalidate source identities before signing. Receipt checks verify the reviewed import, not live V1 synchronisation. */
@@ -570,6 +633,14 @@ export const assertSubnameRecreationUnchanged = async (params: {
         'the child inventory changed after review. Prepare and review a fresh import.',
       )
   }
+  await assertSkippedUnchanged(
+    params.publicClient,
+    (params.snapshot.skipped ?? []).filter((name) =>
+      relevantRoots.includes(parentOf(name)),
+    ),
+    BigInt(params.snapshot.blockNumber),
+    head.number,
+  )
   for (const domain of params.domains) {
     if (!relevantRoots.includes(parentOf(domain.name))) continue
     if (head.number > BigInt(params.snapshot.blockNumber)) {

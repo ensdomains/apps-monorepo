@@ -1,3 +1,4 @@
+import { MAX_UNRECOVERABLE_SUBNAMES } from '@ens-apps/migration'
 import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
@@ -22,8 +23,10 @@ import {
   shouldShowNameSearch,
   shouldUseCompactSelectionLayout,
   shouldUseSmallSelectionCard,
+  unrecoverableSubnamesOf,
 } from './selectNames.helpers'
 import { UnavailableMigrationNames } from './UnavailableMigrationNames'
+import { UnrecoverableSubnamesNotice } from './UnrecoverableSubnamesNotice'
 import { WrapperSyncNotice } from './WrapperSyncNotice'
 
 const SubnameBlockReason = ({
@@ -85,6 +88,14 @@ const SubnameBlockReason = ({
         <Trans>
           A subname's complete name could not be verified. Keep this parent on
           ENSv1 until it can be recovered.
+        </Trans>
+      )
+    case 'too-many-unknown-labels':
+      return (
+        <Trans>
+          This name has more than {MAX_UNRECOVERABLE_SUBNAMES} subnames with
+          unknown labels. Upgrading it would leave them all behind, so keep it
+          on ENSv1 for now.
         </Trans>
       )
     case 'incomplete-inventory':
@@ -172,6 +183,7 @@ export const SelectNamesStep = ({
     unavailableNames,
     blockedSubnames = [],
     verifiedSubnames,
+    unrecoverableSubnames = [],
     isEligibilityError = false,
     retryEligibility,
     wrapperSyncNames,
@@ -426,6 +438,9 @@ export const SelectNamesStep = ({
             isPending={wrapperSync.isPending}
             names={wrapperSyncNames}
             onSync={() => wrapperSync.mutate()}
+          />
+          <UnrecoverableSubnamesNotice
+            names={unrecoverableSubnamesOf(unrecoverableSubnames, selected)}
           />
           <UnavailableMigrationNames names={unavailableNames} />
           {blockedSubnames.length > 0 && (
