@@ -1,6 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
-import type { UseMutationResult } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import type { RhinestoneConfig } from './rhinestone'
 
@@ -31,18 +30,6 @@ export interface BaseAccountState {
 
   stablecoinBalances: StablecoinBalance[]
   isLoadingBalances: boolean
-
-  autoFundingMutation: UseMutationResult<
-    | {
-        txHash: null
-      }
-    | {
-        txHash: `0x${string}`
-      },
-    Error,
-    `0x${string}`,
-    unknown
-  >
 
   signer: Signer | null
 }

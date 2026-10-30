@@ -26,9 +26,7 @@ import type {
 } from '@ens-apps/transaction-manager'
 import { isWalletDeclineError } from '@ens-apps/transaction-manager/helpers/wallet-errors.helpers'
 import { logger } from '@ens-apps/utils/logger'
-import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActor, useSelector } from '@xstate/react'
 import { err, ok, type Result } from 'neverthrow'
 import {
@@ -41,7 +39,6 @@ import {
   useRef,
   useState,
 } from 'react'
-import { toast } from 'sonner'
 import {
   type Address,
   isAddressEqual,
@@ -55,11 +52,10 @@ import {
   useWalletClient,
 } from 'wagmi'
 import { type EventFromLogic, waitFor } from 'xstate'
-import { chain as appChain, isTestnet } from '@/config'
+import { chain as appChain } from '@/config'
 import { SUPPORTED_TOKENS } from '@/lib/tokens'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 import { followChain } from '@/lib/wallet/followChain'
-import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'
 import { resolveSessionActor } from './actors/session.actors'
@@ -390,7 +386,6 @@ function usePreviousOwnerSessionEviction(
 export const SmartAccountContextProvider = ({
   children,
 }: SmartAccountContextProviderProps) => {
-  const queryClient = useQueryClient()
   const { t } = useLingui()
   const { isConnecting, isReconnecting } = useConnection()
   const wagmiConfig = useConfig()
@@ -461,8 +456,7 @@ export const SmartAccountContextProvider = ({
   // In EOA-only mode the wagmi wallet client _is_ the account; otherwise pull
   // both addresses from the smart-account state machine.
   const accountAddress = useEoa ? eoaAddress : snapshot.context.accountAddress
-  // Display / balances / funding owner. Funding tops up the connected EOA's
-  // stablecoins and is independent of the HCA session, so the legacy
+  // Display / balances owner. Independent of the HCA session, so the legacy
   // machine-owner-with-EOA-fallback is fine here.
   const ownerAddress = useEoa
     ? eoaAddress
@@ -484,19 +478,6 @@ export const SmartAccountContextProvider = ({
     : resolveVerifiedOwner(snapshot.context.ownerAddress, eoaAddress)
 
   const balances = useSmartAccountBalances({ ownerAddress })
-
-  // Smart account is HCA-only: fund the EOA (which holds the ENS name and
-  // stablecoins the smart account spends from). Execution costs are paid
-  // by Rhinestone, so the SCA itself doesn't need funding.
-  const addressToFund = ownerAddress
-
-  // The (address + balance read) we last kicked off a fund for. We fund at most
-  // ONCE per balance read: `balancesUpdatedAt` advances only on a genuine
-  // refetch (every 30s, or the post-success invalidation) — never on render or
-  // mutation-settle churn — so this both retries transient failures on the next
-  // refetch AND can't loop on every render. This is what stops the previous
-  // infinite loop / faucet+Para spam.
-  const lastFundedKeyRef = useRef<string | null>(null)
 
   // Dev-only: tracks which owner addresses we've already set up on Anvil so we
   // don't repeat the setCode + mint on every render.
@@ -522,119 +503,6 @@ export const SmartAccountContextProvider = ({
       anvilSetupDoneRef.current.delete(ownerAddress)
     })
   }, [ownerAddress])
-
-  const autoFundingMutation = useMutation({
-    mutationKey: $qk({
-      $scope: 'wallet',
-      $action: 'fund',
-      address: accountAddress,
-    }),
-    mutationFn: async (address: Address) => {
-      toast.loading(t`Funding wallet`, {
-        description: t`Funding wallet ${address} with mock USDC & DAI tokens`,
-        id: `fund-wallet-${address}`,
-      })
-      const response = await backendClient.wallet.fund.$post({
-        json: { address },
-      })
-      if (!response.ok) {
-        throw new Error(`${response.status} ${response.statusText}`)
-      }
-      return response.json()
-    },
-    onSuccess: (data, address) => {
-      if (!data?.txHash) {
-        toast.dismiss(`fund-wallet-${address}`)
-        return
-      }
-      toast.success(t`Wallet funded successfully`, {
-        description: t`Wallet ${address} funded successfully`,
-        id: `fund-wallet-${address}`,
-      })
-      queryClient.invalidateQueries({
-        queryKey: $qk({
-          $scope: 'wallet',
-          $action: 'stablecoinBalances',
-        }),
-      })
-    },
-    onError: (error, address) => {
-      toast.error(t`Failed to fund wallet`, {
-        description: t`Failed to fund wallet: ${error.message}`,
-        id: `fund-wallet-${address}`,
-      })
-      // Intentionally keep the latch set for this snapshot. A failed attempt
-      // is NOT retried until the balances are genuinely re-read (the 30s
-      // refetch produces a new snapshot → new key → one retry). Resetting the
-      // latch here would let the effect re-fire the instant `isPending` flips
-      // back to false, hammering the faucet (and Para) on persistent errors.
-    },
-  })
-
-  const { isPending: isFundingPending, mutate: fundWallet } =
-    autoFundingMutation
-
-  // Whether the owner is low on stablecoins. Computed here (not inside the
-  // effect) and reduced to a stable *boolean* so the funding effect doesn't
-  // re-run on the balances array's per-render ref churn — only when the
-  // low/healthy verdict actually flips. Sum in whole-token units with exact
-  // bigint powers (`10n ** decimals`, not `BigInt(10 ** decimals)`) so
-  // 18-decimal DAI never goes through a lossy float.
-  const needsStablecoins = useMemo(() => {
-    const totalBalance = balances.stablecoinBalances.reduce(
-      (acc, balance) =>
-        acc + BigInt(balance.balance) / 10n ** BigInt(balance.decimals),
-      0n,
-    )
-    return totalBalance < 500n
-  }, [balances.stablecoinBalances])
-
-  useEffect(() => {
-    // The faucet mints MockUSDC, not the Circle USDC the route pays in, so on
-    // real Sepolia a top-up never clears the low balance and would repeat.
-    if (!isTimeTravelEnabled()) return
-
-    // NOTE: deliberately NOT gated on the smart-account machine's `isLoading`.
-    // Funding tops up the EOA owner's stablecoins, which is independent of HCA
-    // initialization. The machine can flap disconnected→initializing→ready
-    // (Para reconnects, etc.); gating on `isLoading` there meant funding never
-    // got a stable window and the EOA stayed at $0. We only need the owner
-    // address and a loaded balance read.
-    if (
-      !isTestnet ||
-      !addressToFund ||
-      balances.isLoadingBalances ||
-      // A fund is already in flight — wait for it to settle before deciding
-      // whether another is needed.
-      isFundingPending
-    ) {
-      return
-    }
-
-    // Fund when the owner is low on stablecoins. The api-worker faucet mints
-    // mock USDC/DAI as needed; gated on a low balance so this stays idempotent.
-    // (HCA execution costs are paid in USDC and the payment approval is a gasless permit,
-    // so the EOA owner never needs native ETH.)
-    if (!needsStablecoins) return
-
-    // Fund at most once per distinct (address, balance read). The key only
-    // changes when the owner address changes or the balances are genuinely
-    // re-read (`balancesUpdatedAt` advances on refetch), so render churn and the
-    // in-flight mutation can't re-fire it — while a persistent low balance still
-    // retries on the next 30s refetch.
-    const fundKey = `${addressToFund}:${balances.balancesUpdatedAt}`
-    if (lastFundedKeyRef.current === fundKey) return
-
-    lastFundedKeyRef.current = fundKey
-    fundWallet(addressToFund)
-  }, [
-    addressToFund,
-    balances.isLoadingBalances,
-    balances.balancesUpdatedAt,
-    needsStablecoins,
-    isFundingPending,
-    fundWallet,
-  ])
 
   const baseClient = snapshot.context.client
   const infrastructure = snapshot.context.infrastructure
@@ -1044,7 +912,6 @@ export const SmartAccountContextProvider = ({
             ownerAddress: eoaAddress,
             stablecoinBalances: balances.stablecoinBalances,
             isLoadingBalances: balances.isLoadingBalances,
-            autoFundingMutation,
             signer,
             isAccountReady,
             hasInitialized,
@@ -1083,7 +950,6 @@ export const SmartAccountContextProvider = ({
             ownerAddress,
             stablecoinBalances: balances.stablecoinBalances,
             isLoadingBalances: balances.isLoadingBalances,
-            autoFundingMutation,
             signer,
             isAccountReady,
             hasInitialized,
@@ -1120,7 +986,6 @@ export const SmartAccountContextProvider = ({
       isReady,
       isLoading,
       signer,
-      autoFundingMutation,
       wagmiWalletClient,
       balances.stablecoinBalances,
       balances.isLoadingBalances,

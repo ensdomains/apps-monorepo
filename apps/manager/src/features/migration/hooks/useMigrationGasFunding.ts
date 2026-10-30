@@ -25,11 +25,10 @@ export type MigrationGasFundingStatus = 'idle' | 'funding' | 'settled'
  * to settle (`'funding'` -> `'settled'`).
  *
  * Backed by React Query keyed on the address, so it fires once per address
- * (re-renders are deduped), refetch is disabled, and concurrent callers (e.g.
- * the stablecoin auto-fund in SmartAccountContext) share the worker's
- * per-address KV lock. Best-effort: a failed request resolves to `'settled'`
- * rather than blocking the user forever — the migration flow still surfaces
- * any out-of-gas failure itself.
+ * (re-renders are deduped), refetch is disabled, and concurrent callers share
+ * the worker's per-address KV lock. Best-effort: a failed request resolves to
+ * `'settled'` rather than blocking the user forever — the migration flow still
+ * surfaces any out-of-gas failure itself.
  */
 export const useMigrationGasFunding = (
   ownerAddress: Address | string | null | undefined,
