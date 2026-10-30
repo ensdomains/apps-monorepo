@@ -3,6 +3,11 @@ import { ResolverSetupConfirmDialog } from './ResolverSetupConfirmDialog'
 
 const noop = () => undefined
 
+const recordWrites = [
+  { key: 'text:description', value: 'Building on ENS' },
+  { key: 'addr:60', value: '0x1111111111111111111111111111111111111111' },
+]
+
 const meta = {
   title: 'Features/Profile/ResolverSetupConfirmDialog',
   component: ResolverSetupConfirmDialog,
@@ -42,9 +47,9 @@ export const PrimaryNameInvalidResolver: Story = {
 }
 
 export const EditProfileReplacing: Story = {
-  args: { intent: 'edit-profile' },
+  args: { intent: 'edit-profile', recordWrites },
 }
 
 export const EditProfileInvalidResolver: Story = {
-  args: { intent: 'edit-profile', replaces: 'invalid-resolver' },
+  args: { intent: 'edit-profile', replaces: 'invalid-resolver', recordWrites },
 }
