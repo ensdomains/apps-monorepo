@@ -51,14 +51,14 @@ export const V2SendName = ({
     owner,
   })
 
-  // Registry roles are keyed on the label while the token is keyed on its id,
-  // so a grant made from the roles page outlives the transfer. Read who holds
-  // one before the form offers to hand the name over.
-  const { data: isPendingUpgrade = false } = useQuery({
+  const pendingUpgrade = useQuery({
     ...getIsRegistryPendingUpgradeQueryOptions({ registryAddress }),
     enabled: parentName !== null,
   })
 
+  // Registry roles are keyed on the label while the token is keyed on its id,
+  // so a grant made from the roles page outlives the transfer. Read who holds
+  // one before the form offers to hand the name over.
   const roleRevocations = useTransferRoleRevocations({
     name,
     registryAddress,
@@ -82,8 +82,9 @@ export const V2SendName = ({
           ? null
           : {
               parentName,
-              isLoading: authority.isLoading,
-              isError: authority.isError,
+              // An unchecked registry is never shown as settled.
+              isLoading: authority.isLoading || pendingUpgrade.isPending,
+              isError: authority.isError || pendingUpgrade.isError,
               parentIsSelf: authority.parentIsSelf,
               powers: [
                 authority.canReclaimNow &&
@@ -93,7 +94,7 @@ export const V2SendName = ({
                 authority.canRepointRegistry &&
                   `point ${parentName} at a different registry, which stops this name resolving no matter who owns it`,
               ].filter((power): power is string => typeof power === 'string'),
-              isPendingUpgrade,
+              isPendingUpgrade: pendingUpgrade.data === true,
             }
       }
       transfer={transfer}

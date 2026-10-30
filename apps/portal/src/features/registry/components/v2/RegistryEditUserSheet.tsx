@@ -175,7 +175,7 @@ export const RegistryEditUserSheet = ({
   const upgradeGuard = useUpgradeRevokeGuard({
     registryAddress,
     account,
-    rows: rolesData,
+    saveGrants: diff.toGrant,
     saveRevokes: diff.toRevoke,
     removeRevokes: removableRoles,
   })

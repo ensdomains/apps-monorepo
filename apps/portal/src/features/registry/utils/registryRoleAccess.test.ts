@@ -112,68 +112,68 @@ describe('getSoleAdminRoles', () => {
 })
 
 describe('isUpgradeRevokeBlocked', () => {
-  it.each([
-    {
-      case: 'revoking the only upgrader',
-      holders: [
-        { account: ALICE, roles: ['ROLE_UPGRADE', 'ROLE_UPGRADE_ADMIN'] },
-      ],
+  const blocked = (
+    overrides: Partial<Parameters<typeof isUpgradeRevokeBlocked>[0]> = {},
+  ) =>
+    isUpgradeRevokeBlocked({
+      isPendingUpgrade: true,
+      rootRoleCounts: { ROLE_UPGRADE: 1, ROLE_UPGRADE_ADMIN: 1 },
+      accountRoles: ['ROLE_UPGRADE', 'ROLE_UPGRADE_ADMIN'],
+      toGrant: [],
       toRevoke: ['ROLE_UPGRADE', 'ROLE_UPGRADE_ADMIN'],
-      expected: true,
-    },
+      ...overrides,
+    })
+
+  it.each([
+    { case: 'the last holder revokes both', overrides: {}, expected: true },
     {
       case: 'the account keeps the admin role',
-      holders: [
-        { account: ALICE, roles: ['ROLE_UPGRADE', 'ROLE_UPGRADE_ADMIN'] },
-      ],
-      toRevoke: ['ROLE_UPGRADE'],
+      overrides: { toRevoke: ['ROLE_UPGRADE'] as Role[] },
       expected: false,
     },
     {
-      case: 'another account can still upgrade',
-      holders: [
-        { account: ALICE, roles: ['ROLE_UPGRADE'] },
-        { account: BOB, roles: ['ROLE_UPGRADE_ADMIN'] },
-      ],
-      toRevoke: ['ROLE_UPGRADE'],
+      case: 'another account holds it on-chain',
+      overrides: { rootRoleCounts: { ROLE_UPGRADE: 2, ROLE_UPGRADE_ADMIN: 1 } },
+      expected: false,
+    },
+    {
+      case: 'the admin role is swapped for the role in one edit',
+      overrides: {
+        accountRoles: ['ROLE_UPGRADE_ADMIN'] as Role[],
+        rootRoleCounts: { ROLE_UPGRADE: 0, ROLE_UPGRADE_ADMIN: 1 },
+        toGrant: ['ROLE_UPGRADE'] as Role[],
+        toRevoke: ['ROLE_UPGRADE_ADMIN'] as Role[],
+      },
       expected: false,
     },
     {
       case: 'no upgrade role is revoked',
-      holders: [{ account: ALICE, roles: ['ROLE_UPGRADE', 'ROLE_RENEW'] }],
-      toRevoke: ['ROLE_RENEW'],
+      overrides: { toRevoke: ['ROLE_RENEW'] as Role[] },
       expected: false,
     },
-  ] as const)('$case: $expected', ({ holders, toRevoke, expected }) => {
-    expect(
-      isUpgradeRevokeBlocked({
-        isPendingUpgrade: true,
-        rows: rows(
-          holders.map(({ account, roles }) => ({ account, roles: [...roles] })),
-        ),
-        account: ALICE.toLowerCase() as Address,
-        toRevoke,
-      }),
-    ).toBe(expected)
-  })
-
-  it.each([
-    { isPendingUpgrade: undefined, holders: undefined, expected: true },
-    { isPendingUpgrade: true, holders: undefined, expected: true },
-    { isPendingUpgrade: false, holders: undefined, expected: false },
-  ])(
-    'pending upgrade $isPendingUpgrade and unknown holders: $expected',
-    ({ isPendingUpgrade, holders, expected }) => {
-      expect(
-        isUpgradeRevokeBlocked({
-          isPendingUpgrade,
-          rows: holders,
-          account: ALICE,
-          toRevoke: ['ROLE_UPGRADE_ADMIN'],
-        }),
-      ).toBe(expected)
+    {
+      case: 'the registry is not pending an upgrade',
+      overrides: { isPendingUpgrade: false },
+      expected: false,
     },
-  )
+    {
+      case: 'the registry is unchecked',
+      overrides: { isPendingUpgrade: undefined },
+      expected: true,
+    },
+    {
+      case: 'the counts are unknown',
+      overrides: { rootRoleCounts: undefined },
+      expected: true,
+    },
+    {
+      case: "the account's roles are unknown",
+      overrides: { accountRoles: undefined },
+      expected: true,
+    },
+  ])('$case: $expected', ({ overrides, expected }) => {
+    expect(blocked(overrides)).toBe(expected)
+  })
 })
 
 describe('computeRoleDiff', () => {
