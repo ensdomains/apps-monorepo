@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Address, Hex } from 'viem'
-import { useChainId, useConfig } from 'wagmi'
+import { useChainId, useConfig, useConnection } from 'wagmi'
 import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
@@ -216,6 +216,7 @@ export const useCommemorativeNftFlow = ({
 }: UseCommemorativeNftFlowOptions) => {
   const wagmiConfig = useConfig()
   const chainId = useChainId()
+  const { connector } = useConnection()
   const queryClient = useQueryClient()
   const contractAddress = getCommemorativeNftContractAddress()
   const mutationKey = qk('commemorative_nft', 'claim', {
@@ -293,7 +294,7 @@ export const useCommemorativeNftFlow = ({
         setTxHash(hash)
       }
       onHash(claim.hash)
-      return reconcilePendingNftClaim({ wagmiConfig, claim, onHash })
+      return reconcilePendingNftClaim({ wagmiConfig, claim, connector, onHash })
     },
     onSuccess: async ({ claim, outcome }) => {
       if (outcome.status !== 'confirmed') return
