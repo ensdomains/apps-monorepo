@@ -12,7 +12,6 @@ import { match, P } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import type { Actor } from 'xstate'
-import type { ResolverSetupReplacement } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import { NameRegistryNotFoundError } from '@/features/profile/service/changeResolver'
 import {
   refreshProfileImageCaches,
@@ -46,6 +45,7 @@ import {
   setupControlledResolver,
 } from '@/features/profile/service/setupControlledResolver'
 import type { ProfileRecords } from '@/features/profile/types'
+import { getResolverReplacement } from '@/features/profile/utils/resolverReplacement'
 import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
@@ -315,14 +315,10 @@ export const useEditProfileDialogSave = ({
         reviewedResolverChanged ||
         (!resolverCopySource && !resolverWriteAccess.data?.canWrite)))
 
-  const setupReplaces = match({
+  const setupReplaces = getResolverReplacement({
     isResolverInvalid: resolverWriteAccess.data?.isResolverInvalid === true,
     hasResolver,
   })
-    .returnType<ResolverSetupReplacement>()
-    .with({ isResolverInvalid: true }, () => 'invalid-resolver')
-    .with({ hasResolver: true }, () => 'resolver')
-    .otherwise(() => 'nothing')
 
   const saveRecordsMutation = useMutation({
     mutationFn: ({
