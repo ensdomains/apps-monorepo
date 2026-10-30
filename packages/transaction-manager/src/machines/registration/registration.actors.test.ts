@@ -1,12 +1,42 @@
-import type { Address, Hex, WalletClient } from 'viem'
-import { describe, expect, it } from 'vitest'
+import { getDestinationContracts } from '@ens-apps/smart-account'
+import {
+  ensL1Contracts,
+  extendChainWithEns,
+  supportedL1Chains,
+} from '@ensdomains/ensjs/chain'
+import { ethRegistrarRegisterSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import type { Address, Hash, Hex, PublicClient, WalletClient } from 'viem'
+import { decodeFunctionData, getChainContractAddress } from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
+import { describe, expect, it, vi } from 'vitest'
 import { SignerAddressMismatchError } from '../../errors/transaction.errors'
-import type { RhinestoneSigner, Signer } from '../../types/signer.types'
+import type {
+  EOASigner,
+  RhinestoneSigner,
+  Signer,
+} from '../../types/signer.types'
 import { type Call, getPrimaryCall } from '../../types/transaction.types'
 import {
   createTransactionRequest,
   getSignerAddress,
+  resolvePaymentTokenAddress,
+  submitRegistrationActor,
 } from './registration.actors'
+
+const mocks = vi.hoisted(() => ({
+  startTransaction: vi.fn(
+    (_intent: { readonly request: { readonly data: Hex } }) => 'tx-register',
+  ),
+}))
+
+vi.mock('../../providers/transactionManager', () => ({
+  transactionManager: { startTransaction: mocks.startTransaction },
+}))
+
+// The oracle's token whitelist is a chain read, outside the token choice.
+vi.mock('../../contracts/paymentToken', () => ({
+  assertPaymentTokenSupported: vi.fn(async () => {}),
+}))
 
 const FROM = '0xF00000000000000000000000000000000000000F' as Address
 const eoaSigner = { type: 'eoa' } as unknown as Signer
@@ -142,5 +172,71 @@ describe('createTransactionRequest', () => {
         calls: [],
       }),
     ).toThrow(/at least one call/i)
+  })
+})
+
+describe('resolvePaymentTokenAddress', () => {
+  const sepoliaChain = extendChainWithEns(sepolia)
+  const mainnetChain = extendChainWithEns(mainnet)
+  const mockUsdc = getChainContractAddress({
+    chain: sepoliaChain,
+    contract: 'usdc',
+  })
+
+  it('pays in the token the caller showed', () => {
+    expect(
+      resolvePaymentTokenAddress(
+        { selectedToken: 'USDC', paymentTokenAddress: mockUsdc },
+        sepoliaChain,
+      ),
+    ).toBe(mockUsdc)
+  })
+
+  it("falls back to the manifest's USDC when the caller names none", () => {
+    expect(
+      resolvePaymentTokenAddress({ selectedToken: 'USDC' }, sepoliaChain),
+    ).toBe(getDestinationContracts(sepolia.id).usdc)
+  })
+
+  // Why the explorer's explicit token cannot change a mainnet registration:
+  // the fallback there is ensjs' USDC, the token the explorer shows.
+  it('resolves to the same USDC either way on mainnet', () => {
+    const shown = ensL1Contracts[supportedL1Chains.mainnet].usdc.address
+    expect(
+      resolvePaymentTokenAddress({ selectedToken: 'USDC' }, mainnetChain),
+    ).toBe(shown)
+  })
+})
+
+describe('submitRegistrationActor', () => {
+  it('registers paying in the token the caller showed', async () => {
+    const owner = '0x1111111111111111111111111111111111111111' as Address
+    const chain = extendChainWithEns(sepolia)
+    const mockUsdc = getChainContractAddress({ chain, contract: 'usdc' })
+
+    await submitRegistrationActor({
+      name: 'alice',
+      commitment: {
+        commitment: `0x${'44'.repeat(32)}` as Hash,
+        secret: `0x${'55'.repeat(32)}` as Hex,
+      },
+      signer: {
+        type: 'eoa',
+        walletClient: { account: { address: owner } } as WalletClient,
+      } satisfies EOASigner,
+      duration: 31_536_000n,
+      selectedToken: 'USDC',
+      paymentTokenAddress: mockUsdc,
+      owner,
+      publicClient: { chain } as PublicClient,
+      resolverAddress: owner,
+    })
+
+    const [intent] = mocks.startTransaction.mock.calls[0] ?? []
+    const { args } = decodeFunctionData({
+      abi: ethRegistrarRegisterSnippet,
+      data: intent?.request.data ?? '0x',
+    })
+    expect(args?.[6]).toBe(mockUsdc)
   })
 })
