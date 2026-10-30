@@ -1,10 +1,18 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EnableSessionOutcome } from '@/lib/smart-account/SmartAccountContext'
+import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
 import { render } from '@/utils/test-utils'
 import { useSmartSessionGate } from './useSmartSessionGate'
 
 const enableSession = vi.fn<() => Promise<EnableSessionOutcome>>()
+const connector = vi.hoisted(() => ({ uid: 'wc' }) as never)
+
+vi.mock('wagmi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('wagmi')>()),
+  useConnection: () => ({ connector, address: undefined }),
+}))
 
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
   useSmartAccountContext: () => ({
@@ -134,6 +142,24 @@ describe('useSmartSessionGate', () => {
     await waitFor(() => expect(enableSession).toHaveBeenCalledOnce())
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText('Enable Sessions')).toBeInTheDocument()
+    expect(proceed).not.toHaveBeenCalled()
+  })
+
+  it('never opens the session prompt for a Safe{Wallet}', () => {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(
+      getIsSafeWalletQueryOptions({ connector, address: undefined }).queryKey,
+      true,
+    )
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Harness />
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getByText('Next'))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(proceed).not.toHaveBeenCalled()
   })
 })
