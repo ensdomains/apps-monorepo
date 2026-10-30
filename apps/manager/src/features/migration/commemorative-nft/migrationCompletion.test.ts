@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getV1NamesForAddress: vi.fn(),
   getMigratedNamesCount: vi.fn(),
   runEligibilityChecks: vi.fn(),
+  resolveMigratableNames: vi.fn(),
   restoreCheckpoint: vi.fn(),
 }))
 
@@ -32,6 +33,10 @@ vi.mock('../service/getMigratedNamesCount', () => ({
 }))
 vi.mock('../service/preflightChecks', () => ({
   runEligibilityChecks: mocks.runEligibilityChecks,
+}))
+vi.mock('../service/migratableNames', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../service/migratableNames')>()),
+  resolveMigratableNames: mocks.resolveMigratableNames,
 }))
 
 import { makeDomain } from '../service/_fixtures'
@@ -102,6 +107,12 @@ beforeEach(() => {
   mocks.getV1NamesForAddress.mockResolvedValue(ok([]))
   mocks.getMigratedNamesCount.mockResolvedValue(ok(1))
   mocks.runEligibilityChecks.mockResolvedValue(emptyEligibility())
+  mocks.resolveMigratableNames.mockImplementation(
+    async ({ eligible }: { eligible: readonly ClassifiedName[] }) => ({
+      eligible,
+      blockedSubnames: [],
+    }),
+  )
 })
 
 afterEach(() => {
@@ -151,8 +162,14 @@ describe('commemorative NFT migration completion', () => {
     })
   })
 
-  it('unlocks only with no eligible names and positive migrated evidence', async () => {
-    mocks.getV1NamesForAddress.mockResolvedValue(ok([domain]))
+  it('unlocks with grace-period names remaining and positive migrated evidence', async () => {
+    const graceDomain = makeDomain({
+      id: namehash('grace.eth'),
+      name: 'grace.eth',
+      labelName: 'grace',
+      registrationExpiry: String(Math.floor(Date.now() / 1000) - 60),
+    })
+    mocks.getV1NamesForAddress.mockResolvedValue(ok([domain, graceDomain]))
     mocks.runEligibilityChecks.mockResolvedValue({
       ...emptyEligibility(),
       alreadyMigrated: classified,
@@ -168,6 +185,39 @@ describe('commemorative NFT migration completion', () => {
       migratedNameCount: 3,
     })
     expect(mocks.getMigratedNamesCount).toHaveBeenCalledWith(ownerAddress)
+    expect(mocks.runEligibilityChecks).toHaveBeenCalledWith(
+      publicClient,
+      classified,
+      ownerAddress,
+    )
+  })
+
+  // An owner can migrate some names while the upgrade screen refuses others,
+  // such as a parent whose subname label is unknown.
+  it.each([
+    [
+      'unlocks past a name the upgrade screen refuses',
+      'unsupported-route',
+      'complete',
+    ],
+    [
+      'keeps a name locked while its subnames cannot be read',
+      'incomplete-inventory',
+      'incomplete',
+    ],
+  ] as const)('%s', async (_title, reason, status) => {
+    mocks.runEligibilityChecks.mockResolvedValue({
+      ...emptyEligibility(),
+      eligible: classified,
+    })
+    mocks.resolveMigratableNames.mockResolvedValue({
+      eligible: [],
+      blockedSubnames: classified.map((name) => ({ name, reason })),
+    })
+
+    await expect(
+      fetchCommemorativeNftMigrationCompletion(params),
+    ).resolves.toMatchObject({ status })
   })
 
   it('does not treat an empty wallet as evidence of migration', async () => {
@@ -175,7 +225,7 @@ describe('commemorative NFT migration completion', () => {
     await expect(
       fetchCommemorativeNftMigrationCompletion(params),
     ).resolves.toEqual({
-      status: 'reconciling',
+      status: 'incomplete',
       isComplete: false,
       remainingNameCount: 0,
       migratedNameCount: 0,
@@ -565,7 +615,7 @@ describe('completion restoration and bounded reconciliation', () => {
     )
   })
 
-  it('stops automatic reconciliation after six passes while remaining explicitly reconciling', async () => {
+  it('stops automatic reconciliation after six passes without unlocking an empty wallet', async () => {
     vi.useFakeTimers()
     mocks.getMigratedNamesCount.mockResolvedValue(ok(0))
     const client = new QueryClient()
@@ -577,7 +627,7 @@ describe('completion restoration and bounded reconciliation', () => {
     try {
       await vi.advanceTimersByTimeAsync(20_000)
       expect(mocks.getV1NamesForAddress).toHaveBeenCalledTimes(6)
-      expect(observer.getCurrentResult().data?.status).toBe('reconciling')
+      expect(observer.getCurrentResult().data?.status).toBe('incomplete')
       expect(observer.getCurrentResult().fetchStatus).toBe('idle')
       await observer.refetch()
       expect(mocks.getV1NamesForAddress).toHaveBeenCalledTimes(7)

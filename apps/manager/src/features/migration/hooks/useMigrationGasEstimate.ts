@@ -1,10 +1,13 @@
 // biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: this hook keeps standard preview, durable recovery, account readiness, and query result states in one stable hook order.
 
 import type { V1Domain } from '@ens-apps/migration'
-import { useQuery } from '@tanstack/react-query'
+import { useAtomicBatchSupport } from '@ens-apps/transaction-manager'
+import { useFeatureFlagEnabled } from '@posthog/react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, formatEther, type PublicClient } from 'viem'
 import { usePublicClient } from 'wagmi'
+import { chain } from '@/config'
 import {
   buildMigrationPlan,
   buildMigrationRecoveryPlan,
@@ -19,6 +22,12 @@ import {
   migrationPreparationFailure,
   runMigrationPreparationStage,
 } from '@/features/migration/service/migrationPreparationError'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import { publishPreparedSubnameImpact } from '../service/subnameMigrationImpactQuery'
+import {
+  assertSupportedSubnameMigration,
+  discoverSubnameRecreation,
+} from '../service/subnameRecreation'
 import { useMigrationPreflight } from './useMigrationPreflight'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
@@ -86,7 +95,9 @@ const buildEstimate = async (params: {
   readonly recoverySnapshot: MigrationRecoverySnapshot | null
   readonly recoverySelectionMatches: boolean
   readonly domains: readonly V1Domain[]
+  readonly shouldRecreateSubnames: boolean
   readonly managerRestorationNames: readonly string[]
+  readonly canBatchAtomically: boolean
   readonly signal: AbortSignal
   readonly ensurePreflight: (
     domains: readonly V1Domain[],
@@ -94,6 +105,7 @@ const buildEstimate = async (params: {
       readonly signal: AbortSignal
       readonly staleTime: number
       readonly requiresManagerRestoration: boolean
+      readonly requiresRegistryConfiguration: boolean
     },
   ) => Promise<MigrationPreflight>
 }) => {
@@ -122,6 +134,7 @@ const buildEstimate = async (params: {
         hcaAddress,
         migrationOwner: ownerAddress,
         publicClient,
+        canBatchAtomically: params.canBatchAtomically,
         signal: params.signal,
       }),
     )
@@ -132,35 +145,72 @@ const buildEstimate = async (params: {
       return result
     })
     params.signal.throwIfAborted()
-    return { estimate, plan }
+    return {
+      estimate,
+      plan: {
+        ...plan,
+        isSubnameRecreationEnabled: params.shouldRecreateSubnames,
+      },
+    }
   }
+  const discovery = params.shouldRecreateSubnames
+    ? await runMigrationPreparationStage('plan', () =>
+        discoverSubnameRecreation({
+          domains: params.domains,
+          owner: ownerAddress,
+          publicClient,
+          signal: params.signal,
+        }),
+      )
+    : undefined
+  const recreation = discovery?.snapshot.roots.length ? discovery : undefined
   const preflight = await runMigrationPreparationStage('preflight', () =>
     params.ensurePreflight(params.domains, {
       signal: params.signal,
       staleTime: 0,
       requiresManagerRestoration: params.managerRestorationNames.length > 0,
+      requiresRegistryConfiguration: false,
     }),
   )
   params.signal.throwIfAborted()
   const plan = await runMigrationPreparationStage('plan', () =>
     buildMigrationPlan({
-      domains: params.domains,
+      domains: recreation?.domains ?? params.domains,
+      subnameRecreation: recreation
+        ? { snapshot: recreation.snapshot }
+        : undefined,
       hcaAddress,
       migrationOwner: ownerAddress,
       managerRestorationNames: params.managerRestorationNames,
       publicClient,
       preflight,
+      canBatchAtomically: params.canBatchAtomically,
       signal: params.signal,
     }),
   )
   params.signal.throwIfAborted()
+  const subnameImpact = await runMigrationPreparationStage('plan', () =>
+    assertSupportedSubnameMigration({
+      publicClient,
+      ownerAddress,
+      classified: plan.classified,
+      signal: params.signal,
+    }),
+  )
   const estimate = await runMigrationPreparationStage('fee', async () => {
     const result = await estimateMigrationGasCost({ plan, publicClient })
     if (result.status === 'error') throw result.error
     return result
   })
   params.signal.throwIfAborted()
-  return { estimate, plan }
+  return {
+    estimate,
+    subnameImpact,
+    plan: {
+      ...plan,
+      isSubnameRecreationEnabled: params.shouldRecreateSubnames,
+    },
+  }
 }
 
 export const useMigrationGasEstimate = ({
@@ -172,12 +222,20 @@ export const useMigrationGasEstimate = ({
   v1Names,
   enabled: estimateEnabled = true,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
-  const publicClient = usePublicClient()
+  // Roll out the reviewed-snapshot import independently of ordinary migration.
+  const queryClient = useQueryClient()
+  const helperFlag = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
+    false,
+  )
+  const shouldRecreateSubnames = helperFlag === true
+  const publicClient = usePublicClient({ chainId: chain.id })
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress,
     hcaAddress,
   })
   const recoverySnapshot = useMigrationRecoverySnapshot()
+  const canBatchAtomically = useAtomicBatchSupport(chain.id)
 
   const selectedNameSet = useMemo(() => new Set(selectedNames), [selectedNames])
   const selectedNamesKey = useMemo(
@@ -213,25 +271,35 @@ export const useMigrationGasEstimate = ({
     !!ownerAddress &&
     !!hcaAddress &&
     !!publicClient &&
-    selectedNames.length > 0 &&
+    (selectedNames.length > 0 || !!recoverySnapshot) &&
     domains.length > 0
   const recoverySelectionMatches =
     !recoverySnapshot ||
-    (selectedNames.length === recoverySnapshot.remainingOperations.length &&
-      recoverySnapshot.remainingOperations.every(({ name }) =>
-        selectedNameSet.has(name),
+    (recoverySnapshot.remainingOperations.every(
+      ({ name }) =>
+        selectedNameSet.has(name) ||
+        recoverySnapshot.subnameRecreation?.roots.some(
+          (root) => selectedNameSet.has(root) && name.endsWith(`.${root}`),
+        ),
+    ) &&
+      selectedNames.every((name) =>
+        recoverySnapshot.remainingOperations.some(
+          (operation) => operation.name === name,
+        ),
       ))
 
   const query = useQuery({
     queryKey: [
       'migration-gas-estimate',
       {
+        shouldRecreateSubnames,
         ownerAddress: ownerAddress?.toLowerCase() ?? '',
         hcaAddress: hcaAddress?.toLowerCase() ?? '',
         domainIds,
         selectedNames: selectedNamesKey,
         managerRestorationNames: managerRestorationKey,
         recoveryOperations,
+        canBatchAtomically,
       },
     ] as const,
     enabled,
@@ -241,17 +309,39 @@ export const useMigrationGasEstimate = ({
     refetchOnReconnect: false,
     queryFn: async ({ signal }) => {
       await waitForStableSelection(signal)
-      return buildEstimate({
+      const prepared = await buildEstimate({
         ownerAddress,
         hcaAddress,
         publicClient: publicClient as unknown as PublicClient | undefined,
         recoverySnapshot,
         recoverySelectionMatches,
+        shouldRecreateSubnames,
         domains,
         managerRestorationNames: managerRestorationKey,
+        canBatchAtomically,
         ensurePreflight,
         signal,
       })
+      if (
+        'subnameImpact' in prepared &&
+        prepared.subnameImpact &&
+        ownerAddress
+      ) {
+        publishPreparedSubnameImpact({
+          queryClient,
+          ownerAddress,
+          chainId: chain.id,
+          migratingNames: prepared.plan.classified
+            .filter((name) => name.action === 'migrate')
+            .map(({ domain }) => domain.name),
+          copiedNames: prepared.plan.classified
+            .filter((name) => name.action === 'copy')
+            .map(({ domain }) => domain.name),
+          renewingNames: [],
+          impact: prepared.subnameImpact,
+        })
+      }
+      return prepared
     },
   })
 
@@ -284,6 +374,9 @@ export const useMigrationGasEstimate = ({
     gasUnits: query.data.estimate.gasUnits,
     feeWei: query.data.estimate.feeWei,
     transactionCount: query.data.estimate.transactionCount,
-    plan: query.data.plan,
+    plan: {
+      ...query.data.plan,
+      isSubnameRecreationEnabled: shouldRecreateSubnames,
+    },
   }
 }

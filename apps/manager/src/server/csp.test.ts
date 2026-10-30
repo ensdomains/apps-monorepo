@@ -1,6 +1,6 @@
 import { originFromEnvUrl } from '@ens-apps/config'
 import { describe, expect, it } from 'vitest'
-import { envConfig } from '@/config'
+import { envConfig, l2Sources } from '@/config'
 import {
   buildCsp,
   CSP_HEADER_NAME,
@@ -43,9 +43,12 @@ describe('csp', () => {
       expect(header['script-src']).not.toContain("'unsafe-eval'")
     })
 
-    it('forbids framing via both frame-ancestors and X-Frame-Options', () => {
-      expect(header['frame-ancestors']).toEqual(["'none'"])
-      expect(SECURITY_HEADER_VALUES['X-Frame-Options']).toBe('DENY')
+    it('allows framing only from Safe and omits X-Frame-Options', () => {
+      expect(header['frame-ancestors']).toEqual(['https://app.safe.global'])
+      expect(SECURITY_HEADER_VALUES).not.toHaveProperty('X-Frame-Options')
+      expect(SECURITY_HEADER_VALUES['Content-Security-Policy']).toBe(
+        'frame-ancestors https://app.safe.global;',
+      )
     })
   })
 
@@ -72,6 +75,9 @@ describe('csp', () => {
 
       expect(connectSrc).toContain('https://*.ens.domains')
       expect(connectSrc).not.toContain('https://edge.ens.domains')
+      expect(connectSrc).toContain(
+        'https://avatar-upload-staging.ens-cf.workers.dev',
+      )
     })
 
     it('allowlists Rhinestone and Intercom hosts', () => {
@@ -140,7 +146,7 @@ describe('csp', () => {
   describe('security headers', () => {
     it('sets the standard baselines', () => {
       expect(SECURITY_HEADER_VALUES).toEqual({
-        'X-Frame-Options': 'DENY',
+        'Content-Security-Policy': 'frame-ancestors https://app.safe.global;',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
         'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
@@ -157,16 +163,22 @@ describe('csp', () => {
       expect(header['connect-src']).toContain('https://1.1.1.1')
     })
 
-    it('allowlists the CCIP-read batch and verifier gateways', () => {
-      // viem fans OffchainLookup batches out to these from the browser; a miss
-      // surfaces as ResolverError("HTTP request failed."), not a CSP error.
-      expect(header['connect-src']).toContain('https://*.ens.xyz')
-      expect(header['connect-src']).toContain('https://*.3668.io')
-      expect(header['connect-src']).toContain('https://lb.drpc.org')
+    it('opens HTTPS to the CCIP-Read gateway each resolver picks', () => {
+      // viem fetches them from the browser; a miss surfaces as
+      // ResolverError("HTTP request failed."), not a CSP error.
+      expect(header['connect-src']).toContain('https:')
     })
 
     it('allowlists every fallback RPC the viem transport can reach', () => {
       for (const url of envConfig.rpcFallbacks) {
+        expect(header['connect-src']).toContain(new URL(url).origin)
+      }
+    })
+
+    it('allowlists every L2 bridge source RPC', () => {
+      const urls = l2Sources.flatMap(({ rpcUrls }) => rpcUrls)
+      expect(urls.length).toBeGreaterThan(0)
+      for (const url of urls) {
         expect(header['connect-src']).toContain(new URL(url).origin)
       }
     })
@@ -181,7 +193,7 @@ describe('csp', () => {
     it('disables the PostHog reporting destination without changing the policy', () => {
       expect(header['report-to']).toBeUndefined()
       expect(header['report-uri']).toBeUndefined()
-      expect(header['frame-ancestors']).toEqual(["'none'"])
+      expect(header['frame-ancestors']).toEqual(['https://app.safe.global'])
     })
   })
 })

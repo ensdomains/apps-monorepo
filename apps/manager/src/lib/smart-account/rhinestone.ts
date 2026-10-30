@@ -20,6 +20,7 @@
 
 import {
   type RhinestoneInitResult as CoreRhinestoneInitResult,
+  createL2BridgeAccount,
   fetchIntentOperationStatus,
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccount as initializeRhinestoneAccountCore,
@@ -27,7 +28,7 @@ import {
 } from '@ens-apps/smart-account'
 import { type RhinestoneAccount, walletClientToAccount } from '@rhinestone/sdk'
 import type { Account, Address, PublicClient, WalletClient } from 'viem'
-import { chain as appChain } from '@/config'
+import { chain as appChain, l2Sources } from '@/config'
 import { getRhinestoneAccessToken } from './rhinestoneAccessToken'
 
 export interface RhinestoneConfig {
@@ -135,6 +136,36 @@ export function buildIntentStatusFetcher():
   } catch {
     return undefined
   }
+}
+
+/**
+ * An SDK account for the wallet itself, to pay with its USDC on an L2. Reads the
+ * source L2 and the app chain over the app's own RPCs.
+ *
+ * The SDK's custom provider takes one URL per chain, so neither chain gets the
+ * failover the read clients have: it is handed the primary, which is drpc. Both
+ * chains must therefore be enabled for the drpc key, or every quote and submit
+ * for an L2 payment fails there while the balance still reads through the
+ * public fallback.
+ */
+export function createBridgeAccount(params: {
+  readonly eoa: Account
+  readonly sourceChainId: number
+}) {
+  const { rhinestoneAuth, rhinestoneEndpointUrl } = resolveSdkEnv()
+  const rpcUrls: Record<number, string> = {}
+  const sourceRpcUrl = l2Sources.find(
+    ({ chain }) => chain.id === params.sourceChainId,
+  )?.rpcUrls[0]
+  if (sourceRpcUrl) rpcUrls[params.sourceChainId] = sourceRpcUrl
+  const appRpcUrl = appChain.rpcUrls.default.http[0]
+  if (appRpcUrl) rpcUrls[appChain.id] = appRpcUrl
+  return createL2BridgeAccount({
+    eoa: params.eoa,
+    auth: rhinestoneAuth,
+    endpointUrl: rhinestoneEndpointUrl,
+    rpcUrls,
+  })
 }
 
 /**

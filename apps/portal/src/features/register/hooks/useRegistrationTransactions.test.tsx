@@ -25,6 +25,12 @@ import { PAYMENT_TOKENS } from '../constants/paymentTokens'
 import { useRegistrationTransactions } from './useRegistrationTransactions'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
+const wallet = vi.hoisted(() => ({ canBatchAtomically: false }))
+
+vi.mock('@ens-apps/transaction-manager', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@ens-apps/transaction-manager')>()),
+  useAtomicBatchSupport: () => wallet.canBatchAtomically,
+}))
 
 // Chain reads never answer, so a resumed run stays in its on-chain check.
 const pending = () => new Promise<never>(() => {})
@@ -64,6 +70,7 @@ const resumeAtCommitPrompt = (
     {
       chainId: 11155111,
       name: 'leon.eth',
+      referrer: `0x${'ab'.repeat(32)}`,
       duration: 31_536_000n,
       selectedToken: 'USDC',
       tokenPrice: 5_000_000n,
@@ -253,6 +260,25 @@ describe('useRegistrationTransactions before a run', () => {
     ])
   })
 
+  it('collapses everything before the cooldown into one step on a bundling wallet', () => {
+    wallet.canBatchAtomically = true
+    try {
+      const result = render()
+
+      expect(result.current.transactions.map(({ id }) => id)).toEqual([
+        REGISTRATION_TX_IDS.setupBundle,
+        REGISTRATION_TX_IDS.register,
+      ])
+      expect(result.current.transactions[0]?.steps).toEqual([
+        'Deploy resolver',
+        'Submit commitment',
+        expect.stringMatching(/^Approve /),
+      ])
+    } finally {
+      wallet.canBatchAtomically = false
+    }
+  })
+
   it('drops the deploy step once the wallet has a resolver', () => {
     vi.mocked(useBytecode).mockReturnValue({
       data: '0x6080',
@@ -282,4 +308,16 @@ describe('useRegistrationTransactions before a run', () => {
       REGISTRATION_TX_IDS.register,
     ])
   })
+})
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useSearch: () => ({ referrer: '0x1234' }),
+}))
+
+it('resumes with the committed referrer even if the URL supplies a different one', () => {
+  const result = resumeAtCommitPrompt(true)
+  expect(result.current.actor.getSnapshot().context.referrer).toBe(
+    `0x${'ab'.repeat(32)}`,
+  )
 })

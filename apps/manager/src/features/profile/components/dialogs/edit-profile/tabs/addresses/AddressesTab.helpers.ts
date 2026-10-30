@@ -1,11 +1,9 @@
 import { type Address, isAddress, isAddressEqual } from 'viem'
-import { getAddressRecordDef } from '@/features/profile/data/records'
+import { getAddressPresentation } from '@/features/profile/data/records'
 import type { AddressRecordValue } from '@/features/profile/types'
 import { validateAddressRecordValue } from '@/features/profile/utils/validateAddress'
 import {
   type AddressOption,
-  BNB_COIN_TYPE,
-  BSC_COIN_TYPE,
   ETH_COIN_TYPE,
   evmChainOptions,
   isEvmCoinType,
@@ -18,16 +16,8 @@ export const getAddressValue = (
 ) => addresses.find((address) => address.coinType === coinType)?.value ?? ''
 
 export const getAddressOption = (coinType: number): AddressOption => {
-  const configuredOption = [...evmChainOptions, ...otherNetworkOptions].find(
-    (option) => option.coinType === coinType,
-  )
-  if (configuredOption) return configuredOption
-
-  const record = getAddressRecordDef(coinType)
-  return {
-    coinType,
-    label: record?.name ?? `Address ${coinType}`,
-  }
+  const { label } = getAddressPresentation(coinType)
+  return { coinType, label }
 }
 
 export const normalizeAddressRows = (
@@ -105,15 +95,6 @@ export const applyEthAddressChange = (
         address.coinType === ETH_COIN_TYPE ||
         !isEvmCoinType(address.coinType),
     )
-
-export const getRecordIcon = (coinType: number) => {
-  const record = getAddressRecordDef(coinType)
-  if (record?.icon) return record.icon
-  if (record?.coinType === BSC_COIN_TYPE) {
-    return getAddressRecordDef(BNB_COIN_TYPE)?.icon
-  }
-  return undefined
-}
 
 const getComparableEvmAddress = (value: string): Address | null => {
   const trimmedValue = value.trim()

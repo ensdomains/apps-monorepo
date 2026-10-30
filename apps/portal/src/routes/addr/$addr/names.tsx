@@ -4,8 +4,12 @@ import { createFileRoute } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
   getCoreRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
   getFilteredRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
+  type PaginationState,
   type RowSelectionState,
   type SortingState,
   useReactTable,
@@ -15,17 +19,11 @@ import { useId, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import {
-  ListLoader,
-  type ListLoaderProps,
-} from '@/components/ListLoader/ListLoader'
-import { useListLoader } from '@/components/ListLoader/useListLoader'
+import { ListLoader } from '@/components/ListLoader/ListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
-import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
-import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -37,14 +35,15 @@ import {
   getAddressNamesQueryOptions,
 } from '@/features/dashboard/hooks/useAddressNames'
 import {
-  getAddressRoleCountsQueryOptions,
-  roleCountsOf,
-  withRoleCounts,
+  getAddressRolesQueryOptions,
+  withAddressRoles,
 } from '@/features/dashboard/hooks/useAddressRoleCounts'
+import { NamesFilters } from '@/features/names/components/NamesFilters'
 import {
   columns,
   getNameRowId,
   type NameRow,
+  nameColumnVisibility,
 } from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
@@ -55,11 +54,8 @@ import {
   useRenewalTransactions,
 } from '@/features/renew/hooks/useRenewalTransactions'
 import {
-  getNameLength,
-  getNameStatus,
-  getSelectedNames,
   isExtendable2LD,
-  isNonCanonicalEthName,
+  toSelectedName,
 } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
@@ -67,40 +63,7 @@ import {
   useActiveTransactionState,
 } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
-import type { DateRange } from '@/utils/formatting/formatDateRange'
-import { isShownExpiryInRange } from '@/utils/names/addressNames'
 import { queryClient } from '@/utils/queryClient'
-
-const STATUS_FILTER_GROUPS: FilterGroup[] = [
-  {
-    title: 'Active',
-    options: [
-      { label: 'Registered', value: 'registered' },
-      { label: 'Expires with parent', value: 'expires-with-parent' },
-      { label: 'Does not expire', value: 'no-expiry' },
-    ],
-  },
-  {
-    title: 'Expired',
-    options: [
-      { label: 'Expired', value: 'expired' },
-      { label: 'Grace', value: 'grace' },
-      { label: 'Price cooldown', value: 'premium' },
-    ],
-  },
-]
-
-const LENGTH_FILTER_GROUPS: FilterGroup[] = [
-  {
-    title: 'Name Length',
-    options: [
-      { label: '3 characters', value: '3' },
-      { label: '4 characters', value: '4' },
-      { label: '5+ characters', value: '5+' },
-    ],
-  },
-]
 
 const NO_NAMES: NameRow[] = []
 const NAMES_INITIAL_COUNT = 100
@@ -150,22 +113,20 @@ function useRenewableNames(candidates: readonly SelectedName[]): {
 const NamesList = ({
   address,
   names,
-  loader,
-  search,
-  onSearchChange,
-  isSearching,
+  v2RolesState,
 }: {
   readonly address: Address
-  /** The names shown so far. */
+  /** Every loaded name, before filtering and sorting. */
   readonly names: NameRow[]
-  readonly loader: ListLoaderProps
-  readonly search: string
-  readonly onSearchChange: (search: string) => void
-  readonly isSearching: boolean
+  readonly v2RolesState: 'ready' | 'loading' | 'unavailable'
 }) => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: NAMES_INITIAL_COUNT,
+  })
   const [extendModalOpen, setExtendModalOpen] = useState(false)
 
   const {
@@ -187,44 +148,16 @@ const NamesList = ({
   const activeTxState = useActiveTransactionState()
   const { isOpen: isTransactionModalOpen } = useTransactionModal()
 
-  // Filter state
-  const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
-  const [selectedLengths, setSelectedLengths] = useState<string[]>([])
-  // Apply filters to data
-  const filteredData = useMemo(() => {
-    let filtered = names
-
-    // Filter by expiry date range
-    if (expiryDateRange.from || expiryDateRange.to) {
-      filtered = filtered.filter((row) =>
-        isShownExpiryInRange(row, expiryDateRange),
-      )
-    }
-
-    // Filter by status
-    if (selectedStatuses.length > 0) {
-      filtered = filtered.filter((row) => {
-        const status = getNameStatus(row)
-        return selectedStatuses.includes(status)
-      })
-    }
-
-    // Filter by name length
-    if (selectedLengths.length > 0) {
-      filtered = filtered.filter((row) => {
-        const length = getNameLength(row.name)
-        return selectedLengths.includes(length)
-      })
-    }
-
-    return filtered
-  }, [names, expiryDateRange, selectedStatuses, selectedLengths])
-
   const table = useReactTable({
-    data: filteredData,
+    data: names,
     columns,
     getRowId: getNameRowId,
+    initialState: { columnVisibility: nameColumnVisibility },
+    autoResetPageIndex: false,
+    enableRowSelection: ({ original }) => {
+      const candidate = toSelectedName(original)
+      return candidate !== null && isExtendable2LD(candidate)
+    },
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
@@ -232,56 +165,66 @@ const NamesList = ({
       sorting,
       rowSelection,
       columnFilters,
+      pagination,
     },
     onRowSelectionChange: setRowSelection,
-    onColumnFiltersChange: setColumnFilters,
+    onColumnFiltersChange: (update) => {
+      setColumnFilters(update)
+      setPagination({ pageIndex: 0, pageSize: NAMES_INITIAL_COUNT })
+    },
+    onPaginationChange: setPagination,
     getFilteredRowModel: getFilteredRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    getPaginationRowModel: getPaginationRowModel(),
   })
 
-  const rowCount = useMemo(
-    () => Object.keys(rowSelection).length,
-    [rowSelection],
+  const selectedRows = table.getSelectedRowModel().rows
+  const rowCount = selectedRows.length
+  const selectedNames = selectedRows.flatMap(
+    ({ original }) => toSelectedName(original) ?? [],
   )
-
-  // Coarse grace-window pre-filter, then narrow to names that are actually
-  // renewable now (drops non-renewable v1 names — see useRenewableNames).
-  const selectedNames = getSelectedNames(rowSelection, filteredData)
+  // Keep the authoritative on-chain V1 check after selection.
   const coarseExtendable = selectedNames.filter(isExtendable2LD)
-  const nonCanonicalCount = selectedNames.filter((selected) =>
-    isNonCanonicalEthName(selected.name),
-  ).length
   const { names: extendableNames, isLoading: renewabilityLoading } =
     useRenewableNames(coarseExtendable)
 
   const searchNamesId = useId()
 
-  const hasActiveFilters = Boolean(
-    expiryDateRange.from ||
-      expiryDateRange.to ||
-      selectedStatuses.length > 0 ||
-      selectedLengths.length > 0,
-  )
+  const search =
+    (table.getColumn('name')?.getFilterValue() as string | undefined) ?? ''
+  const isSearching = search.trim() !== ''
+  const hasActiveFilters = columnFilters.some((filter) => filter.id !== 'name')
+  const filteredCount = table.getFilteredRowModel().rows.length
+  const shown = table.getRowModel().rows.length
+  const moreCount = Math.min(pagination.pageSize * 2, filteredCount)
+  const loader = {
+    shown,
+    total: filteredCount,
+    moreCount,
+    canShowMore: shown < filteredCount,
+    // Match the shared list loader's limit on rendering everything at once.
+    canShowAll: filteredCount <= 1000,
+    status: 'idle' as const,
+    onMore: () => table.setPageSize(moreCount),
+    onAll: () => table.setPageSize(filteredCount),
+  }
 
   return (
     <>
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row justify-between">
           <PageHeading parent={{ type: 'addr', addr: address }}>
-            {match({
-              total: loader.total,
-              hasActiveFilters,
-              isSearching,
-            })
+            {match({ hasActiveFilters, isSearching })
               .with(
                 { hasActiveFilters: true },
-                () => `Names (${filteredData.length} of ${names.length} shown)`,
+                () => `Names (${filteredCount} of ${names.length} matching)`,
               )
-              .with({ total: undefined }, () => 'Names')
               .with(
                 { isSearching: true },
-                ({ total }) => `Names (${total} matching)`,
+                () => `Names (${filteredCount} matching)`,
               )
-              .otherwise(({ total }) => `Names (${total})`)}
+              .otherwise(() => `Names (${names.length})`)}
           </PageHeading>
         </div>
         {rowCount > 0 ? (
@@ -296,13 +239,6 @@ const NamesList = ({
               </button>
               {rowCount} selected
             </div>
-            {nonCanonicalCount > 0 && (
-              <p className="text-p text-muted-foreground">
-                {nonCanonicalCount} selected name(s) have a non-normalized label
-                and can’t be extended here: a renewal would go to a different
-                name.
-              </p>
-            )}
             <Button
               variant="default"
               size="sm"
@@ -333,45 +269,29 @@ const NamesList = ({
             </Button>
           </div>
         ) : (
-          <>
-            <InputGroup className="bg-background rounded-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <InputGroup className="bg-background min-w-0 flex-1 rounded-sm">
               <InputGroupInput
                 id={searchNamesId}
                 className="w-full"
                 placeholder="Search names..."
                 value={search}
-                onChange={(event) => onSearchChange(event.target.value)}
+                onChange={(event) =>
+                  table
+                    .getColumn('name')
+                    ?.setFilterValue(
+                      event.target.value.trim()
+                        ? event.target.value
+                        : undefined,
+                    )
+                }
               />
               <InputGroupAddon>
                 <Search />
               </InputGroupAddon>
             </InputGroup>
-            {loader.canShowMore && hasActiveFilters && (
-              <p className="text-p text-muted-foreground">
-                Filters cover the {names.length} names shown so far. Show more
-                to include the rest.
-              </p>
-            )}
-            <div className="flex flex-row gap-2 flex-wrap">
-              <TableDateRangeFilter
-                label="Expiry"
-                dateRange={expiryDateRange}
-                onChange={setExpiryDateRange}
-              />
-              <TableMultiSelectFilter
-                label="Status"
-                groups={STATUS_FILTER_GROUPS}
-                selectedValues={selectedStatuses}
-                onChange={setSelectedStatuses}
-              />
-              <TableMultiSelectFilter
-                label="Length"
-                groups={LENGTH_FILTER_GROUPS}
-                selectedValues={selectedLengths}
-                onChange={setSelectedLengths}
-              />
-            </div>
-          </>
+            <NamesFilters table={table} v2RolesState={v2RolesState} />
+          </div>
         )}
       </header>
       <div className="overflow-x-auto">
@@ -412,42 +332,24 @@ const NamesList = ({
 function RouteComponent() {
   const { addr: address } = Route.useParams() as { addr: Address }
 
-  // Kept with its address and dropped when the address changes, so a search
-  // neither follows you to another address nor waits for you to come back.
-  const [typed, setTyped] = useState({ address, search: '' })
-  if (typed.address !== address) setTyped({ address, search: '' })
-  const search = typed.address === address ? typed.search : ''
-  const isSearching = search.trim() !== ''
-
   const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
-  const roleCounts = roleCountsOf(
-    useQuery(getAddressRoleCountsQueryOptions({ address })),
-  )
-  const allNames = useMemo(
-    () => withRoleCounts<NameRow>(namesQuery.data ?? NO_NAMES, roleCounts),
-    [namesQuery.data, roleCounts],
-  )
-  // bigname serves the whole list, so a search filters it here.
-  const matching = useMemo(() => {
-    const needle = search.trim().toLowerCase()
-    return needle
-      ? allNames.filter((name) => name.name?.toLowerCase().includes(needle))
-      : allNames
-  }, [allNames, search])
-
-  const loader = useListLoader({
-    initialCount: NAMES_INITIAL_COUNT,
-    loaded: matching.length,
-    resetKey: `${address}:${search.trim()}`,
+  const rolesQuery = useQuery(getAddressRolesQueryOptions({ address }))
+  const v2RolesState = match({
+    hasData: !!rolesQuery.data,
+    isError: rolesQuery.isError,
   })
-
-  // Must be memoised: a fresh array makes the table recompute its row model,
-  // which auto-resets the page index, which re-renders — forever.
-  const names: NameRow[] = useMemo(
-    () => matching.slice(0, loader.shown),
-    [matching, loader.shown],
+    .returnType<'ready' | 'unavailable' | 'loading'>()
+    .with({ hasData: true }, () => 'ready')
+    .with({ isError: true }, () => 'unavailable')
+    .otherwise(() => 'loading')
+  const allNames = useMemo(
+    () =>
+      withAddressRoles<NameRow>(namesQuery.data ?? NO_NAMES, {
+        data: rolesQuery.data,
+        isError: rolesQuery.isError,
+      }),
+    [namesQuery.data, rolesQuery.data, rolesQuery.isError],
   )
-
   if (namesQuery.isLoading) {
     return <LoadingMessage />
   }
@@ -461,7 +363,7 @@ function RouteComponent() {
     )
   }
 
-  if (allNames.length === 0 && !isSearching)
+  if (allNames.length === 0)
     return (
       <>
         <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
@@ -479,12 +381,10 @@ function RouteComponent() {
 
   return (
     <NamesList
+      key={address}
       address={address}
-      names={names}
-      loader={loader}
-      search={search}
-      onSearchChange={(next) => setTyped({ address, search: next })}
-      isSearching={isSearching}
+      names={allNames}
+      v2RolesState={v2RolesState}
     />
   )
 }

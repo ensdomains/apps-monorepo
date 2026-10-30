@@ -12,23 +12,49 @@
  * same encoding as the write it gates.
  */
 
-import { getSupportedInterfaces } from '@ensdomains/ensjs/public'
-import { resolverMulticallParameters as nodeSetterCalls } from '@ensdomains/ensjs/utils'
+import {
+  getSupportedInterfaces,
+  resolveNameData,
+} from '@ensdomains/ensjs/public'
+import {
+  getAddressParameters,
+  resolverMulticallParameters as nodeSetterCalls,
+} from '@ensdomains/ensjs/utils'
 import {
   dnsEncodeName,
   resolverMulticallParameters as nameSetterCalls,
 } from '@ensdomains/ensjs/utils/v2'
-import { permissionedResolverLinkToRecordSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import {
+  permissionedResolverLinkToRecordSnippet,
+  permissionedResolverResolveSnippet,
+  permissionedResolverSetDataSnippet,
+  permissionedResolverSetInterfaceSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import {
   type Address,
+  BaseError,
+  type Client,
+  ContractFunctionRevertedError,
   encodeFunctionData,
   type Hex,
   type PublicClient,
   parseAbi,
+  type Transport,
   toFunctionSelector,
 } from 'viem'
+import { call } from 'viem/actions'
+import type { sepoliaWithEns } from '@/lib/wagmi'
 
 export type ResolverSetterKind = 'name' | 'node'
+
+/** Records preserved by resolver replacement, outside the editable profile fields. */
+export type SupplementalResolverRecords = {
+  readonly interfaces?: readonly {
+    readonly interfaceId: Hex
+    readonly implementer: Address
+  }[]
+  readonly data?: readonly { readonly key: string; readonly value: Hex }[]
+}
 
 /**
  * ERC-165 id of `IAddressSetter` (a single-function interface). Only resolvers
@@ -64,6 +90,78 @@ export async function getResolverSetterKind(
   return supportsNameSetters ? 'name' : 'node'
 }
 
+const EXTENDED_RESOLVER_INTERFACE_ID = '0x9061b923'
+
+const OFFCHAIN_LOOKUP_SELECTOR = '0x556f1830'
+
+const findRevertData = (error: unknown): Hex | undefined => {
+  for (let cause = error; cause; cause = (cause as { cause?: unknown }).cause) {
+    const data = (cause as { data?: unknown }).data
+    const hex =
+      typeof data === 'object' ? (data as { data?: unknown })?.data : data
+    if (typeof hex === 'string' && hex.startsWith('0x')) return hex as Hex
+  }
+  return undefined
+}
+
+/** Whether resolving `name` asks for a CCIP-Read lookup; the gateway is not called. */
+export async function isOffchainResolver(
+  publicClient: PublicClient,
+  resolverAddress: Address,
+  name: string,
+): Promise<boolean> {
+  const [isExtended] = await getSupportedInterfaces(
+    publicClient as unknown as Parameters<typeof getSupportedInterfaces>[0],
+    { address: resolverAddress, interfaces: [EXTENDED_RESOLVER_INTERFACE_ID] },
+  )
+  if (!isExtended) return false
+  try {
+    await call(
+      { ...publicClient, ccipRead: false },
+      {
+        to: resolverAddress,
+        data: encodeFunctionData({
+          abi: permissionedResolverResolveSnippet,
+          functionName: 'resolve',
+          args: [
+            dnsEncodeName(name),
+            encodeFunctionData(getAddressParameters({ name, coin: 60 })),
+          ],
+        }),
+      },
+    )
+    return false
+  } catch (error) {
+    const data = findRevertData(error)
+    if (data === undefined) throw error
+    return data.startsWith(OFFCHAIN_LOOKUP_SELECTOR)
+  }
+}
+
+/** Whether the UniversalResolver resolves `name` through CCIP-Read; the gateway is not called. */
+export async function isOffchainName(
+  client: Client<Transport, typeof sepoliaWithEns>,
+  name: string,
+): Promise<boolean> {
+  try {
+    await resolveNameData(
+      { ...client, ccipRead: false },
+      {
+        name,
+        data: encodeFunctionData(getAddressParameters({ name, coin: 60 })),
+      },
+    )
+    return false
+  } catch (error) {
+    const revert =
+      error instanceof BaseError
+        ? error.walk((cause) => cause instanceof ContractFunctionRevertedError)
+        : null
+    if (!(revert instanceof ContractFunctionRevertedError)) throw error
+    return revert.signature === OFFCHAIN_LOOKUP_SELECTOR
+  }
+}
+
 const encodeCalls = (calls: readonly unknown[]): Hex[] =>
   calls.map((call) =>
     encodeFunctionData(call as Parameters<typeof encodeFunctionData>[0]),
@@ -72,9 +170,36 @@ const encodeCalls = (calls: readonly unknown[]): Hex[] =>
 async function nameRecordCalls(
   name: string,
   { clearRecords, ...records }: ResolverRecords,
+  supplemental: SupplementalResolverRecords,
 ): Promise<Hex[]> {
-  const setters = encodeCalls(await nameSetterCalls({ name, ...records }))
+  const setters = [
+    ...encodeCalls(await nameSetterCalls({ name, ...records })),
+    ...(supplemental.interfaces ?? []).map(({ interfaceId, implementer }) =>
+      encodeFunctionData({
+        abi: permissionedResolverSetInterfaceSnippet,
+        functionName: 'setInterface',
+        args: [dnsEncodeName(name), interfaceId, implementer],
+      }),
+    ),
+    ...(supplemental.data ?? []).map(({ key, value }) =>
+      encodeFunctionData({
+        abi: permissionedResolverSetDataSnippet,
+        functionName: 'setData',
+        args: [dnsEncodeName(name), key, value],
+      }),
+    ),
+  ]
   if (!clearRecords) return setters
+  // Unlink alone reads the resolver's default record. Allocate a fresh empty
+  // record even for an empty reviewed draft so unrelated defaults cannot leak.
+  const freshSetters = setters.length
+    ? setters
+    : encodeCalls(
+        await nameSetterCalls({
+          name,
+          texts: [{ key: 'description', value: '' }],
+        }),
+      )
   // The name-based resolver has no `clearRecords`. Unlinking the name drops it
   // to the resolver's default record, and the setters that follow in the same
   // multicall allocate it a fresh one, which is the same clean slate.
@@ -84,7 +209,7 @@ async function nameRecordCalls(
       functionName: 'linkToRecord',
       args: [dnsEncodeName(name), 0n],
     }),
-    ...setters,
+    ...freshSetters,
   ]
 }
 
@@ -98,11 +223,19 @@ export async function encodeResolverRecordsCall(params: {
   readonly kind: ResolverSetterKind
   readonly name: string
   readonly records: ResolverRecords
+  readonly supplemental?: SupplementalResolverRecords
 }): Promise<Hex> {
-  const { kind, name, records } = params
+  const { kind, name, records, supplemental = {} } = params
+  if (
+    kind !== 'name' &&
+    (supplemental.interfaces?.length || supplemental.data?.length)
+  )
+    throw new Error(
+      'The target resolver cannot preserve interface and data records.',
+    )
   const calls =
     kind === 'name'
-      ? await nameRecordCalls(name, records)
+      ? await nameRecordCalls(name, records, supplemental)
       : encodeCalls(await nodeSetterCalls({ name, ...records }))
 
   const [firstCall] = calls

@@ -21,7 +21,8 @@ export const AnalyticsConsentBanner = () => {
         <p className="font-medium">Help us improve ENS</p>
         <p className="text-small">
           Share usage data to help us find problems and make ENS better for
-          everyone. This is optional.{' '}
+          everyone. This is optional, and you can change your choice in
+          Settings.{' '}
           <a
             className="underline underline-offset-2"
             href={PRIVACY_POLICY_URL}

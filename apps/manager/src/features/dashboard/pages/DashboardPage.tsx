@@ -1,5 +1,4 @@
 import { Trans } from '@lingui/react/macro'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { Card } from '@/components/ui/card'
@@ -18,7 +17,6 @@ import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
 import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
@@ -78,10 +76,6 @@ const PrimaryNameCardWithRecords = ({
 export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
-  const migrationEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.MIGRATION,
-    false,
-  )
   const commemorativeNftEnabled = useMigrationNftEnabled()
 
   // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
@@ -95,13 +89,11 @@ export const DashboardPage = () => {
 
   return (
     <div className="mx-auto flex w-full xs:w-[calc(100%-2rem)] max-w-7xl flex-col gap-4 pt-0 pb-6 md:w-[calc(100%-4rem)] md:flex-row md:items-start md:gap-8 md:pb-10">
-      {migrationEnabled && <MigrationModal />}
+      <MigrationModal />
       <div className="flex min-w-0 flex-1 flex-col gap-6">
-        {migrationEnabled && (
-          <motion.div className="w-full" {...stagger(0, shouldReduceMotion)}>
-            <UpgradeBanner />
-          </motion.div>
-        )}
+        <motion.div className="w-full" {...stagger(0, shouldReduceMotion)}>
+          <UpgradeBanner />
+        </motion.div>
         <motion.div
           className="w-full px-4 xs:px-0 empty:hidden"
           {...stagger(1, shouldReduceMotion)}
@@ -144,13 +136,10 @@ export const DashboardPage = () => {
           className="block rounded-none xs:rounded-xl px-4 py-6 md:px-6 md:py-8"
         >
           <motion.div {...stagger(3, shouldReduceMotion)}>
-            <NamesTable
-              migrationEnabled={migrationEnabled}
-              primaryLabel={defaultName}
-            />
+            <NamesTable primaryLabel={defaultName} />
           </motion.div>
         </Card>
-        {migrationEnabled && <MigrationProgressBanner />}
+        <MigrationProgressBanner />
         <TemporaryMigrationAccessNotice />
         {commemorativeNftEnabled ? <CommemorativeNftDashboard /> : null}
         <Card

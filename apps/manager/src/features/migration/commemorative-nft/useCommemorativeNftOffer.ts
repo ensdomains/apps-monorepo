@@ -53,8 +53,7 @@ export const useCommemorativeNftOffer = (params: {
   const canReconcileMigration =
     isCandidate &&
     pendingClaim.status === 'empty' &&
-    (migrationCompletion.status === 'reconciling' ||
-      migrationCompletion.status === 'error')
+    migrationCompletion.status === 'error'
   return {
     availability,
     migrationCompletion,

@@ -5,11 +5,10 @@ import type {
   SaveRecordsParams,
   ServiceRecordSnapshot,
 } from '@/features/profile/service/profileRecordTransactions'
+import type { ResolverRecordReview } from '@/features/profile/service/resolverReplacementRecords'
+import { assertProfileResolverState } from '@/features/profile/service/resolverWriteAccess'
 import type { ProfileRecords } from '@/features/profile/types'
-import {
-  newEmptyProfileRecords,
-  transformToServiceFormat,
-} from '@/features/profile/utils/transformRecords'
+import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
 import { hasOwnerWallet } from '@/lib/wallet'
 import {
   type GeneralField,
@@ -32,6 +31,9 @@ export interface SaveDeps {
    * record diff instead of writing in place.
    */
   readonly needsResolverSetup?: boolean
+  readonly sourceResolver?: Address
+  readonly assertCurrentIdentity?: () => void
+  readonly recordReview?: ResolverRecordReview
 }
 
 interface PendingUpdateSave {
@@ -41,6 +43,7 @@ interface PendingUpdateSave {
 }
 
 interface PendingSetupSave {
+  readonly recordReview?: ResolverRecordReview
   readonly kind: 'setup'
   readonly currentRecords: ProfileRecords
   readonly before: ServiceRecordSnapshot
@@ -51,6 +54,8 @@ interface PendingSetupSave {
   readonly ownerAddress: Address
   readonly signer: EOASigner
   readonly publicClient: PublicClient
+  readonly sourceResolver?: Address
+  readonly assertCurrentIdentity?: () => void
 }
 
 const ethCoinValue = (coins: readonly { coinType: number; value: string }[]) =>
@@ -104,7 +109,7 @@ const getPendingSave = (
 
     return {
       kind: 'setup',
-      currentRecords: newEmptyProfileRecords(),
+      currentRecords,
       before,
       after,
       ethAddressChanged,
@@ -113,12 +118,16 @@ const getPendingSave = (
       ownerAddress: deps.walletClient.account.address,
       signer: { type: 'eoa', walletClient: deps.walletClient },
       publicClient: deps.publicClient,
+      sourceResolver: deps.sourceResolver,
+      assertCurrentIdentity: deps.assertCurrentIdentity,
+      recordReview: deps.recordReview,
     }
   }
 
   if (!savedRecords.resolverAddress) {
     throw new Error('Cannot save profile - resolver address is not available.')
   }
+  const reviewedResolver = savedRecords.resolverAddress
 
   // In-place record writes are ALWAYS plain owner-EOA transactions, never HCA
   // intents. Registration hands the owner wallet every role on the resolver
@@ -133,6 +142,7 @@ const getPendingSave = (
   if (!hasOwnerWallet(deps.walletClient, deps.ownerAddress)) {
     throw new Error('Account not ready. Please wait for wallet to connect.')
   }
+  const writerAddress = deps.walletClient.account.address
 
   return {
     kind: 'update',
@@ -147,6 +157,13 @@ const getPendingSave = (
       chainId: deps.chainId,
       resolverAddress: savedRecords.resolverAddress,
       retryCount: deps.retryCount,
+      assertCurrentIdentity: deps.assertCurrentIdentity,
+      assertCurrentResolver: () =>
+        assertProfileResolverState({
+          name: deps.name,
+          resolverAddress: reviewedResolver,
+          ownerAddress: writerAddress,
+        }),
     },
   }
 }
@@ -183,7 +200,9 @@ export const editProfileDialogMachine = setup({
     nameChanged: ({ context, event }) =>
       event.type === 'SAVE_REQUESTED' && context.name !== event.deps.name,
     missingOwner: ({ event }) =>
-      event.type === 'SAVE_REQUESTED' && !event.deps.owner,
+      event.type === 'SAVE_REQUESTED' &&
+      !event.deps.owner &&
+      !event.deps.needsResolverSetup,
     missingAccount: ({ event }) =>
       event.type === 'SAVE_REQUESTED' &&
       !hasOwnerWallet(event.deps.walletClient, event.deps.ownerAddress),

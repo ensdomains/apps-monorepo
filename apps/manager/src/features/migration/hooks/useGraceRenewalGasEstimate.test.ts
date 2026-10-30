@@ -16,7 +16,11 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQuery: mocks.query,
 }))
-vi.mock('wagmi', () => ({ useConfig: mocks.config }))
+vi.mock('wagmi', () => ({
+  useConfig: mocks.config,
+  useCapabilities: () => ({ data: undefined }),
+  useConnection: () => ({}),
+}))
 vi.mock('../service/estimateGraceRenewalMigrationGas', () => ({
   estimateGraceRenewalMigrationGas: mocks.estimate,
 }))
@@ -54,6 +58,7 @@ const quote: GraceRenewalQuote = {
   quotedAtMs: 1_000_000,
 }
 const estimate: GraceRenewalMigrationGasEstimate = {
+  classified: [],
   gasUnits: 321_000n,
   feeWei: 321_000_000_000_000n,
   transactionCount: 3,
@@ -121,6 +126,8 @@ describe('useGraceRenewalGasEstimate', () => {
       publicClient: params.publicClient,
       wagmiConfig,
       managerRestorationNames: [],
+      canBatchAtomically: false,
+      isSubnameRecreationEnabled: false,
       signal,
     })
     unmount()
@@ -367,6 +374,7 @@ describe('useGraceRenewalGasEstimate', () => {
 
     expect(result.current).toEqual({
       status: 'ready',
+      classified: estimate.classified,
       gasUnits: estimate.gasUnits,
       transactionCount: estimate.transactionCount,
       stepDescriptors: estimate.stepDescriptors,

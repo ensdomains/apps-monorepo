@@ -3,12 +3,15 @@ import { type Address, type Hex, namehash } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeDomain } from './_fixtures'
 import {
+  classifyMigrationRecoverySubmission,
   getMigrationBatchJournalRevision,
+  hasUnsettledMigrationRecoveryRequests,
   loadMigrationBatchJournal,
   loadMigrationRecoverySnapshot,
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
   persistMigrationRecoverySnapshot,
+  persistPendingAtomicMigrationAttempt,
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
   removePendingAtomicMigrationIntent,
@@ -39,7 +42,94 @@ const second = {
 
 beforeEach(() => vi.stubGlobal('localStorage', new Storage()))
 
+describe('migration recovery classification', () => {
+  it.each([
+    { operations: second.operations, expected: 'unrelated' },
+    { operations: first.operations, expected: 'matching' },
+    {
+      operations: [{ name: 'alice.eth', action: 'copy' as const }],
+      expected: 'mismatch',
+    },
+  ])(
+    'classifies recorded operations as $expected',
+    ({ operations, expected }) => {
+      expect(
+        classifyMigrationRecoverySubmission({
+          registryOperations: first.operations,
+          operations,
+        }),
+      ).toBe(expected)
+    },
+  )
+
+  it.each([
+    {
+      pending: [
+        { id: 'intent-1', names: first.names, operations: first.operations },
+      ],
+      submitted: [first],
+      settled: [first],
+      expected: false,
+    },
+    {
+      pending: [
+        { id: 'unknown', names: first.names, operations: first.operations },
+      ],
+      submitted: [first],
+      settled: [first],
+      expected: true,
+    },
+    { pending: [], submitted: [first], settled: [], expected: true },
+    { pending: [], submitted: [second], settled: [], expected: false },
+  ])(
+    'keeps unresolved related attempts blocked: $expected',
+    ({ pending, submitted, settled, expected }) => {
+      expect(
+        hasUnsettledMigrationRecoveryRequests({
+          registryOperations: first.operations,
+          pending,
+          submitted,
+          settled,
+        }),
+      ).toBe(expected)
+    },
+  )
+})
+
 describe('migration batch journal', () => {
+  it('retains temporary registration approval recovery before any migration attempt', () => {
+    const domain = makeDomain({ name: 'alice.eth', labelName: 'alice' })
+    const operation = { name: domain.name, action: 'migrate' as const }
+    const temporaryRegistrationApproval = {
+      contractAddress: scope.hca,
+      operatorAddress: scope.owner,
+      submission: { nonce: 17n, blockNumber: 26292921n },
+      state: {
+        status: 'grant-pending' as const,
+        transactionId: 'registration-approval-1',
+        hash: first.hash,
+      },
+    }
+    persistMigrationRecoverySnapshot(scope, {
+      registryDomains: [domain],
+      registryOperations: [operation],
+      remainingOperations: [operation],
+      completedOperations: [],
+      profiles: new Map(),
+      ownedPermRes: null,
+      plannedApprovals: [{ id: 'base-registrar:hca' }],
+      managerRestorationNames: [],
+      registrationApprovalStrategy: 'temporary-operator',
+      temporaryRegistrationApproval,
+    })
+
+    expect(loadMigrationRecoverySnapshot(scope)).toMatchObject({
+      migrationHelper: scope.owner,
+      registrationApprovalStrategy: 'temporary-operator',
+      temporaryRegistrationApproval,
+    })
+  })
+
   it('persists an immutable tree, exact records, and remaining copy operations', () => {
     const root = makeDomain({ name: 'alice.eth', labelName: 'alice' })
     const copy = makeDomain({
@@ -132,6 +222,45 @@ describe('migration batch journal', () => {
     expect(loadMigrationRecoverySnapshot(scope)?.remainingOperations).toEqual([
       { name: copy.name, action: 'copy' },
     ])
+  })
+
+  it('publishes recovery and pending intent in one journal revision', () => {
+    const domain = makeDomain({ name: 'alice.eth', labelName: 'alice' })
+    const operation = { name: domain.name, action: 'migrate' as const }
+    const intent = {
+      id: 'intent-1',
+      names: [domain.name],
+      operations: [operation],
+    }
+    const observations: ReturnType<typeof loadMigrationBatchJournal>[] = []
+    const unsubscribe = subscribeMigrationBatchJournal(() => {
+      observations.push(loadMigrationBatchJournal(scope))
+    })
+
+    persistPendingAtomicMigrationAttempt(scope, {
+      recovery: {
+        registryDomains: [domain],
+        registryOperations: [operation],
+        remainingOperations: [operation],
+        completedOperations: [],
+        profiles: new Map(),
+        ownedPermRes: null,
+        managerRestorationNames: [],
+        plannedApprovals: [],
+      },
+      intent,
+    })
+    unsubscribe()
+
+    expect(observations).toHaveLength(1)
+    expect(observations[0]).toMatchObject({
+      pending: [intent],
+      submitted: [],
+      recovery: {
+        remainingOperations: [operation],
+        completedOperations: [],
+      },
+    })
   })
 
   it('durably records an intent before a transaction hash exists', () => {
@@ -370,6 +499,17 @@ describe('recovery snapshot manager restoration (WEB-1528)', () => {
   }
 
   beforeEach(() => localStorage.clear())
+
+  it('recovers the helper address from an older approval review', () => {
+    storeRawRecovery(
+      baseRecovery({
+        registrationApprovalReview: { operatorAddress: scope.hca },
+      }),
+    )
+    expect(loadMigrationRecoverySnapshot(scope)?.migrationHelper).toBe(
+      scope.hca,
+    )
+  })
 
   it('restores nobody for a snapshot written before the opt-in existed', () => {
     storeRawRecovery(baseRecovery({}))

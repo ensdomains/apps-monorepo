@@ -23,6 +23,7 @@ import {
 } from 'viem'
 import { NAME_WRAPPER_ABI } from '../contracts/abis'
 import { FUSES, hasFuse } from './classifyNames'
+import { canSkipEmptySubtree } from './subnameMigrationImpact.helpers'
 
 export type SubnameMigrationImpact = {
   readonly parents: readonly {
@@ -42,6 +43,8 @@ type Parameters = {
   /** Only copy operations included in the actual migration plan. */
   readonly copiedNames?: readonly string[]
   readonly renewingNames?: readonly string[]
+  /** Reuse a freshly verified empty root count instead of listing its children. */
+  readonly shouldSkipEmptySubtrees?: boolean
   readonly signal?: AbortSignal
 }
 
@@ -134,6 +137,7 @@ export const readSubnameMigrationImpact = async ({
   migratingNames,
   copiedNames = [],
   renewingNames = [],
+  shouldSkipEmptySubtrees = false,
   signal,
 }: Parameters): Promise<SubnameMigrationImpact> => {
   const migrating = new Set(migratingNames.map((name) => name.toLowerCase()))
@@ -214,7 +218,11 @@ export const readSubnameMigrationImpact = async ({
   }> => {
     const result = await retryStale(
       (requestSignal) =>
-        indexer.name(name, { include: ['counts'] }, { signal: requestSignal }),
+        indexer.name(
+          name,
+          { namespace: 'ens', include: ['counts'] },
+          { signal: requestSignal },
+        ),
       isStale,
       { signal },
     )
@@ -236,6 +244,17 @@ export const readSubnameMigrationImpact = async ({
     ) {
       fail(`${name} is no longer active`)
     }
+    if (
+      canSkipEmptySubtree({
+        shouldSkipEmptySubtrees,
+        name,
+        count: row.subname_count,
+        meta: result.value.meta,
+        chainId: chain.id,
+        selectedNames: [...migrating, ...copied],
+      })
+    )
+      return { branches: [], remainingRoots: [] }
     return {
       branches: [{ name, affectedParent: name, isPreserved: true }],
       remainingRoots: [],

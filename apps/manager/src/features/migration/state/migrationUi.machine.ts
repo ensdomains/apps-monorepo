@@ -2,6 +2,7 @@ import type { V1Domain } from '@ens-apps/migration'
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
+import posthog from 'posthog-js/dist/module.full.no-external'
 import type { Address, Hex, PublicClient } from 'viem'
 import {
   assign,
@@ -25,6 +26,7 @@ import {
   type MigrationProgress,
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import {
   executeGraceRenewal,
@@ -46,6 +48,10 @@ type RenewalPreparation = {
   readonly domains: readonly V1Domain[]
   readonly hcaAddress: Address
   readonly requestSteps?: readonly MigrationWalletRequestDescriptor[]
+  /** Prepared copy operations for the impact check before a renewal retry. */
+  readonly classified?: MigrationPlan['classified']
+  /** The plan rebuilt after renewal must keep the previewed bundling. */
+  readonly canBatchAtomically?: boolean
 }
 
 const renewalStepsOf = (steps: readonly MigrationWalletRequestDescriptor[]) =>
@@ -197,6 +203,7 @@ export const migrationUiMachine = setup({
       void executeGraceRenewal({
         quote: input.renewal.quote,
         walletClient: input.signer.walletClient,
+        connector: input.signer.connector,
         publicClient: defaultPublicClient as PublicClient,
         renewalHash: input.renewalHash,
         signal: controller.signal,
@@ -245,6 +252,11 @@ export const migrationUiMachine = setup({
         publicClient: defaultPublicClient as PublicClient,
         wagmiConfig: input.wagmiConfig,
         managerRestorationNames: input.managerRestorationNames,
+        canBatchAtomically: input.renewal.canBatchAtomically,
+        isSubnameRecreationEnabled:
+          posthog.isFeatureEnabled(
+            POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
+          ) === true,
         signal,
       }),
     ),
@@ -260,6 +272,7 @@ export const migrationUiMachine = setup({
         renewalStepCount: number
       }
     >(({ input, sendBack }) => {
+      const controller = new AbortController()
       let cancelled = false
 
       const onProgress = (progress: MigrationProgress) => {
@@ -284,6 +297,11 @@ export const migrationUiMachine = setup({
 
       executeMigration({
         plan: input.plan,
+        submissionGate: { signal: controller.signal },
+        canRecreateSubnames: () =>
+          posthog.isFeatureEnabled(
+            POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
+          ) === true,
         wagmiConfig: input.wagmiConfig,
         publicClient: defaultPublicClient as PublicClient,
         signer: input.signer,
@@ -307,12 +325,16 @@ export const migrationUiMachine = setup({
 
       return () => {
         cancelled = true
+        controller.abort()
       }
     }),
   },
   guards: {
+    // A recovery plan may have only cleanup or reconciliation left.
     hasSelection: ({ event }) =>
-      event.type === 'migration.start' && event.plan.classified.length > 0,
+      event.type === 'migration.start' &&
+      (event.plan.classified.length > 0 ||
+        event.plan.requiresReconciliation === true),
     isOnlyFailures: ({ event, context }) =>
       event.type === 'migration.complete' &&
       event.result.txHashes.length === 0 &&

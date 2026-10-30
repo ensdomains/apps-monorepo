@@ -23,7 +23,6 @@ import {
   temporaryMigrationHcaApproval,
 } from '@/features/migration/service/migrationApprovals'
 import {
-  assertLockedPublicResolverSetMembership,
   assertNoLiveSubregistryOverwrite,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
@@ -32,6 +31,7 @@ import {
   getRequiredMigrationContracts,
   type MigrationHcaReadiness,
   type MigrationResolverReadiness,
+  resolveLockedMigrationResolvers,
 } from '@/features/migration/service/migrationInvariants'
 import {
   getV1ProfileKeys,
@@ -92,24 +92,39 @@ const computeApprovalPreflight = async (params: {
   readonly hcaAddress?: Address
   readonly needs: ApprovalNeeds
   readonly requiresManagerRestoration: boolean
+  readonly requiresRegistryConfiguration: boolean
   readonly wagmiConfig: WagmiConfig
 }): Promise<{
   readonly migrationApprovals?: readonly MigrationApproval[]
   readonly migrationCleanupApprovals?: readonly MigrationCleanupApproval[]
 }> => {
-  const { eoa, hcaAddress, needs, requiresManagerRestoration, wagmiConfig } =
-    params
+  const {
+    eoa,
+    hcaAddress,
+    needs,
+    requiresManagerRestoration,
+    requiresRegistryConfiguration,
+    wagmiConfig,
+  } = params
   if (!hcaAddress) return {}
 
   const hcaApprovalStatus = await checkMigrationApprovals({
     eoa,
     hcaAddress,
-    needs: { ...needs, requiresManagerRestoration },
+    needs: {
+      ...needs,
+      requiresManagerRestoration,
+      requiresRegistryConfiguration,
+    },
     wagmiConfig,
   })
   const migrationApprovals = planMigrationApprovals({
     hcaAddress,
-    needs: { ...needs, requiresManagerRestoration },
+    needs: {
+      ...needs,
+      requiresManagerRestoration,
+      requiresRegistryConfiguration,
+    },
     status: hcaApprovalStatus,
   })
   const migrationCleanupApprovals =
@@ -126,6 +141,7 @@ const computeApprovalPreflight = async (params: {
 const computeProfilePreflight = async (
   namesToOwnedPermRes: readonly ClassifiedName[],
   signal?: AbortSignal,
+  chainId?: number,
 ): Promise<{
   readonly skipFetchProfilesPhase: boolean
   readonly profileKeys?: readonly V1ProfileKeys[]
@@ -144,7 +160,7 @@ const computeProfilePreflight = async (
         ? [{ id: domain.id, name: domain.name, resolver: v1ResolverAddress }]
         : [],
     ),
-    { signal },
+    { signal, chainId },
   )
   signal?.throwIfAborted()
   if (keysResult.isErr()) {
@@ -185,6 +201,7 @@ export const computeMigrationPreflight = async (params: {
    * of this (cached) computation.
    */
   requiresManagerRestoration?: boolean
+  requiresRegistryConfiguration?: boolean
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
   signal?: AbortSignal
@@ -194,17 +211,18 @@ export const computeMigrationPreflight = async (params: {
     hcaAddress,
     domains,
     requiresManagerRestoration = false,
+    requiresRegistryConfiguration = false,
     wagmiConfig,
     publicClient,
     signal,
   } = params
   signal?.throwIfAborted()
 
-  const classified = classifyNames(
-    [...domains],
-    eoa,
-    envConfig.chain.id,
-  ).classified
+  const classified = await resolveLockedMigrationResolvers({
+    publicClient,
+    names: classifyNames([...domains], eoa, envConfig.chain.id).classified,
+  })
+  signal?.throwIfAborted()
   const directNames = classified.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
   )
@@ -234,16 +252,17 @@ export const computeMigrationPreflight = async (params: {
       hcaAddress,
       needs,
       requiresManagerRestoration,
+      requiresRegistryConfiguration,
       wagmiConfig,
     }),
-    computeProfilePreflight(namesToOwnedPermRes, signal),
+    computeProfilePreflight(
+      namesToOwnedPermRes,
+      signal,
+      params.publicClient.chain?.id,
+    ),
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
     hcaAddress
       ? (async () => {
-          await assertLockedPublicResolverSetMembership({
-            publicClient,
-            names: classified,
-          })
           await assertNoLiveSubregistryOverwrite({
             publicClient,
             names: classified,

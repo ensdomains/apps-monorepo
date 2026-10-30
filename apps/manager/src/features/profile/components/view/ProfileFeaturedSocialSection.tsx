@@ -1,6 +1,10 @@
 import { Trans } from '@lingui/react/macro'
 import type { ProfileRecords } from '@/features/profile/types'
-import { ProfileCard } from './ProfileCard'
+import {
+  ProfileCard,
+  profileRecordGridClassName,
+  profileRecordGridItemClassName,
+} from './ProfileCard'
 import { ProfileContactCard } from './ProfileContactSection'
 import { getFeaturedSocialItems } from './ProfileView.helpers'
 
@@ -14,9 +18,23 @@ export const ProfileFeaturedSocialSection = ({
 
   return (
     <ProfileCard title={<Trans>Featured</Trans>}>
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-3 xl:gap-6">
-        {featuredSocials.map((item) => (
-          <ProfileContactCard item={item} key={item.key} />
+      <div className={profileRecordGridClassName}>
+        {featuredSocials.map((item, index) => (
+          <div
+            className={profileRecordGridItemClassName(
+              index,
+              featuredSocials.length,
+            )}
+            key={item.key}
+          >
+            <ProfileContactCard
+              item={item}
+              wide={
+                index === featuredSocials.length - 1 &&
+                featuredSocials.length % 2 === 1
+              }
+            />
+          </div>
         ))}
       </div>
     </ProfileCard>

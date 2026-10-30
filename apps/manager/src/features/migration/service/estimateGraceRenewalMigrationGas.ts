@@ -1,8 +1,4 @@
 import type { V1Domain } from '@ens-apps/migration'
-import {
-  SECONDS_PER_DAY,
-  V1_GRACE_PERIOD_DAYS,
-} from '@ens-apps/utils/gracePeriod'
 import type { Config } from '@wagmi/core'
 import {
   type Address,
@@ -13,6 +9,7 @@ import {
 import { chain } from '@/config'
 import {
   buildMigrationPlan,
+  type MigrationPlan,
   namesWithDroppedPubkey,
 } from './buildMigrationPlan'
 import type { MigrationWalletRequestDescriptor } from './buildStepDescriptors'
@@ -20,8 +17,8 @@ import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { estimateGraceRenewalGas } from './estimateGraceRenewalGas'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type { GraceRenewalQuote } from './graceRenewal'
-
-const GRACE_PERIOD = BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
+import { projectRenewedDomain } from './projectRenewedDomain'
+import { discoverSubnameRecreation } from './subnameRecreation'
 
 type Params = {
   readonly quote: GraceRenewalQuote
@@ -31,10 +28,15 @@ type Params = {
   readonly wagmiConfig: Config
   /** Names whose ENSv1 controller the owner chose to keep as an ENSv2 manager. */
   readonly managerRestorationNames?: readonly string[]
+  /** The owner wallet bundles calls atomically (EIP-5792). */
+  readonly canBatchAtomically?: boolean
+  readonly isSubnameRecreationEnabled?: boolean
   readonly signal?: AbortSignal
 }
 
 export type GraceRenewalMigrationGasEstimate = {
+  /** Fee/impact preview only; execution rebuilds the plan after renewal. */
+  readonly classified: MigrationPlan['classified']
   readonly gasUnits: bigint
   readonly feeWei: bigint
   readonly transactionCount: number
@@ -96,19 +98,8 @@ const projectSelectedDomains = ({
       throw new Error('The renewal quote expired. Refresh the estimate.')
     }
     if (item.duration === 0n) return item.domain
-    return {
-      ...item.domain,
-      // ETHRenewerV1 extends the ENSv2 reservation as well as the v1 lease.
-      // Only project this for a renewal; execution rechecks it on chain.
-      isUnreserved: undefined,
-      registration: { expiryDate: item.targetExpiry.toString() },
-      wrappedDomain: item.domain.wrappedDomain
-        ? {
-            ...item.domain.wrappedDomain,
-            expiryDate: (item.targetExpiry + GRACE_PERIOD).toString(),
-          }
-        : null,
-    }
+    // Only project this for a renewal; execution rechecks it on chain.
+    return projectRenewedDomain(item.domain, item.targetExpiry)
   })
 }
 
@@ -118,6 +109,16 @@ const estimateProjectedMigration = async (
 ) => {
   const { quote, hcaAddress, publicClient, wagmiConfig, signal } = params
   const managerRestorationNames = params.managerRestorationNames ?? []
+  const discovery = params.isSubnameRecreationEnabled
+    ? await discoverSubnameRecreation({
+        domains,
+        owner: quote.ownerAddress,
+        publicClient,
+        signal,
+      })
+    : undefined
+  const recreation = discovery?.snapshot.roots.length ? discovery : undefined
+  const migrationDomains = recreation?.domains ?? domains
   // Projected expiries must not share the executable preflight cache.
   const preflight = await computeMigrationPreflight({
     eoa: quote.ownerAddress,
@@ -130,12 +131,21 @@ const estimateProjectedMigration = async (
   })
   signal?.throwIfAborted()
   const plan = await buildMigrationPlan({
-    domains,
+    domains: migrationDomains,
+    subnameRecreation: recreation
+      ? { snapshot: recreation.snapshot }
+      : undefined,
     hcaAddress,
     migrationOwner: quote.ownerAddress,
     managerRestorationNames,
     publicClient,
     preflight,
+    canBatchAtomically: params.canBatchAtomically,
+    projectedExpiryNames: new Set(
+      quote.items.flatMap(({ domain, duration }) =>
+        duration > 0n ? [domain.name] : [],
+      ),
+    ),
     signal,
   })
   signal?.throwIfAborted()
@@ -143,9 +153,11 @@ const estimateProjectedMigration = async (
     plan.classified.map(({ domain }) => [domain.id.toLowerCase(), domain.name]),
   )
   if (
-    plan.classified.length !== domains.length ||
-    included.size !== domains.length ||
-    domains.some(({ id, name }) => included.get(id.toLowerCase()) !== name)
+    plan.classified.length !== migrationDomains.length ||
+    included.size !== migrationDomains.length ||
+    migrationDomains.some(
+      ({ id, name }) => included.get(id.toLowerCase()) !== name,
+    )
   ) {
     throw new Error(
       'Could not estimate the network fee for every selected name.',
@@ -155,6 +167,7 @@ const estimateProjectedMigration = async (
   if (estimate.status === 'error') throw estimate.error
   return {
     ...estimate,
+    classified: plan.classified,
     stepDescriptors: plan.stepDescriptors,
     droppedPubkeyNames: namesWithDroppedPubkey(plan),
   }
@@ -189,6 +202,7 @@ export const estimateGraceRenewalMigrationGas = async (
   }
   stepDescriptors.push(...migration.stepDescriptors)
   return {
+    classified: migration.classified,
     gasUnits,
     feeWei: gasUnits * migration.feePerGasWei,
     transactionCount: migration.transactionCount + renewal.transactionCount,

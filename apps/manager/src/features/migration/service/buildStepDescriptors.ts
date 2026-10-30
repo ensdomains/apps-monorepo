@@ -1,4 +1,5 @@
 import type { Address } from 'viem'
+import { chunkWalletBundle } from './batchMigrate.constants'
 import {
   type AtomicMigrationBatch,
   walletReplayNames,
@@ -6,9 +7,7 @@ import {
 import type {
   MigrationApproval,
   MigrationApprovalId,
-  MigrationCleanupApproval,
 } from './migrationApprovals'
-import { requiresMigrationApprovalCleanup } from './migrationApprovals'
 
 type RegistrationApprovalTarget = {
   readonly name: string
@@ -58,6 +57,11 @@ export type MigrationStepDescriptor =
       readonly type: 'cleanup'
       readonly approvalId: MigrationApprovalId
     }
+  | {
+      /** Several steps the wallet confirms at once, as one EIP-5792 bundle. */
+      readonly type: 'bundle'
+      readonly steps: readonly MigrationStepDescriptor[]
+    }
 
 /**
  * Every third-party account the batch grants `ROLE_SET_RESOLVER` to. Read off
@@ -82,9 +86,14 @@ const roleGrantsForBatch = (
 export type BuildStepDescriptorsParams = {
   readonly hcaDeploymentRequired: boolean
   readonly approvals: readonly MigrationApproval[]
-  readonly cleanupApprovals?: readonly MigrationCleanupApproval[]
   readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly registrationApprovalTargets: readonly RegistrationApprovalTarget[]
+  /**
+   * The wallet bundles calls atomically: setup (deployment + approvals) is one
+   * confirmation per `MAX_WALLET_BUNDLE_CALLS` calls. Each migration batch is a
+   * separate confirmation.
+   */
+  readonly canBatchAtomically?: boolean
 }
 
 export type MigrationWalletRequestDescriptor =
@@ -180,10 +189,26 @@ export const buildStepDescriptors = (
     })
   }
 
-  for (const approval of params.cleanupApprovals ?? params.approvals) {
-    if (!requiresMigrationApprovalCleanup(approval)) continue
-    descriptors.push({ type: 'cleanup', approvalId: approval.id })
-  }
+  return params.canBatchAtomically
+    ? bundleDescriptors(descriptors)
+    : descriptors
+}
 
-  return descriptors
+const bundleOf = (
+  steps: readonly MigrationStepDescriptor[],
+): MigrationStepDescriptor[] => {
+  if (steps.length === 0) return []
+  if (steps.length === 1) return [...steps]
+  return [{ type: 'bundle', steps }]
+}
+
+/** Regroups sequential descriptors into the confirmations an atomic wallet sees. */
+const bundleDescriptors = (
+  descriptors: readonly MigrationStepDescriptor[],
+): MigrationStepDescriptor[] => {
+  const setup = descriptors.filter(
+    ({ type }) => type === 'deploy-hca' || type === 'approval',
+  )
+  const batches = descriptors.filter(({ type }) => type === 'atomic-batch')
+  return [...chunkWalletBundle(setup).flatMap(bundleOf), ...batches]
 }

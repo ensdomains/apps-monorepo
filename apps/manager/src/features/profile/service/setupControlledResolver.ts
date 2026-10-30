@@ -5,18 +5,28 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import type { Address, PublicClient } from 'viem'
+import { type Address, isAddressEqual, type PublicClient } from 'viem'
 import {
   buildDeployOwnedPermResCall,
   findExistingPermRes,
   simulateOwnedPermResAddress,
 } from '@/features/migration/service/ensureOwnedPermRes'
 import { checkMigrationResolverReadiness } from '@/features/migration/service/migrationInvariants'
-import { buildSetResolverCall, resolveNameRegistry } from './changeResolver'
+import {
+  buildSetResolverCall,
+  readNameResolver,
+  resolveNameRegistry,
+} from './changeResolver'
 import {
   type ServiceRecordSnapshot,
   saveRecords,
 } from './profileRecordTransactions'
+import { type ResolverImport, verifyResolverRecords } from './resolverImport'
+import {
+  assertResolverRecordReview,
+  getResolverReplacementRecords,
+  type ResolverRecordReview,
+} from './resolverReplacementRecords'
 import { canSetNameResolver } from './setResolverAccess'
 
 export class ResolverChangeNotAuthorizedError extends Error {
@@ -61,11 +71,15 @@ const hasRecords = ({
   coins,
   contentHash,
   abi,
+  interfaces,
+  data,
 }: ServiceRecordSnapshot): boolean =>
   texts.length > 0 ||
   coins.length > 0 ||
   Boolean(contentHash?.trim()) ||
-  Boolean(abi?.trim())
+  Boolean(abi?.trim()) ||
+  Boolean(interfaces?.length) ||
+  Boolean(data?.length)
 
 /**
  * `name` arrives either as a bare label (`alice`) or as a full name
@@ -97,6 +111,11 @@ export interface SetupControlledResolverParams {
   readonly after: ServiceRecordSnapshot
   /** Transaction-manager description. Defaults to a generic setup label. */
   readonly description?: string
+  /** Pointer reviewed by the user; a change requires a new import/review. */
+  readonly sourceResolver?: Address
+  readonly assertCurrentIdentity?: () => void
+  readonly resolverImport?: ResolverImport
+  readonly recordReview?: ResolverRecordReview
 }
 
 /**
@@ -124,8 +143,54 @@ export async function setupControlledResolver({
   before,
   after,
   description = `Set up resolver for ${name}`,
+  sourceResolver,
+  assertCurrentIdentity,
+  resolverImport,
+  recordReview,
 }: SetupControlledResolverParams): Promise<Address> {
-  const location = await resolveNameRegistry(qualifyName(name))
+  if (resolverImport?.blockedKeys.length || resolverImport?.records.pubkey)
+    throw new Error(
+      'Some source records cannot be preserved. Retry the import before replacing the resolver.',
+    )
+  const reviewedRecords = getResolverReplacementRecords(before, after)
+  if (recordReview) assertResolverRecordReview(reviewedRecords, recordReview)
+  const location = await resolveNameRegistry(qualifyName(name), publicClient)
+  const source =
+    sourceResolver ?? (await readNameResolver(location, publicClient))
+  const assertFresh = async () => {
+    if (recordReview)
+      assertResolverRecordReview(
+        getResolverReplacementRecords(before, after),
+        recordReview,
+      )
+    assertCurrentIdentity?.()
+    const [walletChain, wallets, currentLocation] = await Promise.all([
+      signer.walletClient.getChainId(),
+      signer.walletClient.getAddresses(),
+      resolveNameRegistry(qualifyName(name), publicClient),
+    ])
+    if (
+      walletChain !== chainId ||
+      !wallets.some((wallet) => isAddressEqual(wallet, ownerAddress))
+    )
+      throw new Error(
+        'Your wallet or network changed. Reopen the editor before saving.',
+      )
+    if (
+      !isAddressEqual(
+        location.registryAddress,
+        currentLocation.registryAddress,
+      ) ||
+      !isAddressEqual(
+        source,
+        await readNameResolver(currentLocation, publicClient),
+      )
+    )
+      throw new Error(
+        'The source resolver changed. Reopen the editor to review the current records.',
+      )
+  }
+  await assertFresh()
 
   const existing = await findExistingPermRes({
     eoa: ownerAddress,
@@ -137,6 +202,10 @@ export async function setupControlledResolver({
       eoa: ownerAddress,
       publicClient,
     }))
+  if (isAddressEqual(resolver, source))
+    throw new Error(
+      'The replacement resolver is already active. Refresh the profile before editing.',
+    )
 
   const setResolverCall = buildSetResolverCall({
     ...location,
@@ -154,6 +223,7 @@ export async function setupControlledResolver({
   }
 
   const sendOwnerTransaction = async (call: Call): Promise<void> => {
+    await assertFresh()
     const request: TransactionRequest = {
       type: 'eoa',
       from: ownerAddress,
@@ -181,19 +251,27 @@ export async function setupControlledResolver({
 
   await assertOwnedResolverReady({ resolver, ownerAddress, publicClient })
 
-  if (existing || hasRecords(before) || hasRecords(after)) {
+  if (existing || hasRecords(before) || hasRecords(reviewedRecords)) {
+    await assertFresh()
     await saveRecords({
       name,
-      before,
-      after,
+      // Seed only explicit changes; inherited source records are never copied.
+      before: { texts: [], coins: [] },
+      after: reviewedRecords,
       shouldClearRecords: true,
       signer,
       accountAddress: ownerAddress,
       publicClient,
       chainId,
       resolverAddress: resolver,
+      assertCurrentIdentity,
+      assertCurrentResolver: assertFresh,
     })
   }
+
+  await assertOwnedResolverReady({ resolver, ownerAddress, publicClient })
+  await verifyResolverRecords(name, resolver, reviewedRecords, publicClient)
+  await assertFresh()
 
   const canStillRepoint = await canSetNameResolver({
     location,

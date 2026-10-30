@@ -3,7 +3,9 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
+import { envConfig } from '@/config'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { useEligibleV1Names } from '../hooks/useEligibleV1Names'
 import {
   getMigrationBatchJournalRevision,
   getServerMigrationBatchJournalRevision,
@@ -11,11 +13,10 @@ import {
 } from '../service/migrationBatchJournal'
 import { commemorativeNftMigrationCompletionQueryOptions } from './migrationCompletion'
 import { verifiedNftMigrationQueryOptions } from './verifiedMigration'
-
-const getCompletionStatus = (
-  isError: boolean,
-  status?: 'complete' | 'incomplete' | 'reconciling',
-) => (isError ? ('error' as const) : (status ?? ('pending' as const)))
+import {
+  getAutomaticNftCompletionMode,
+  getNftCompletionPresentation,
+} from './visibility'
 
 export const useCommemorativeNftMigrationCompletion = (params: {
   readonly ownerAddress: Address | undefined
@@ -50,6 +51,17 @@ export const useCommemorativeNftMigrationCompletion = (params: {
     !!params.ownerAddress &&
     params.ownerAddress.toLowerCase() === ownerAddress?.toLowerCase() &&
     !!accountAddress
+  const eligibility = useEligibleV1Names({
+    enabled: enabled && chainId === envConfig.chain.id,
+    fallbackToClassified: false,
+  })
+  const automaticMode = getAutomaticNftCompletionMode({
+    isSameChain: chainId === envConfig.chain.id,
+    isRecovering: eligibility.recoveryState.status !== 'none',
+    isPending: eligibility.isPending,
+    isError: eligibility.isEligibilityError,
+    hasEligibleNames: eligibility.eligible.length > 0,
+  })
   const scope = JSON.stringify([
     params.ownerAddress?.toLowerCase(),
     accountAddress?.toLowerCase(),
@@ -75,10 +87,8 @@ export const useCommemorativeNftMigrationCompletion = (params: {
       journalRevision,
       verifiedMigration: verifiedMigration.data,
     }),
-    enabled,
+    enabled: enabled && automaticMode === 'verify',
   })
-  const hasResolved =
-    enabled && query.isFetchedAfterMount && query.data !== undefined
   const evidenceRevision = verifiedMigration.data?.revision ?? 0
   const isCurrent = useCallback(() => {
     if (activeScope.current !== scope || latestScope.current !== scope)
@@ -126,15 +136,16 @@ export const useCommemorativeNftMigrationCompletion = (params: {
     isCurrent,
     // Preserve an already resolved offer during background reads, but disable
     // mint until that read finishes successfully for this exact owner scope.
-    isComplete: hasResolved && query.data.isComplete,
-    isFreshComplete:
-      hasResolved &&
-      query.data.isComplete &&
-      query.isSuccess &&
-      query.fetchStatus === 'idle',
-    status: getCompletionStatus(
-      query.isError,
-      hasResolved ? query.data.status : undefined,
-    ),
+    ...getNftCompletionPresentation({
+      isEnabled: enabled,
+      mode: automaticMode,
+      isFetchedAfterMount: query.isFetchedAfterMount,
+      completionUpdatedAt: query.dataUpdatedAt,
+      eligibilityUpdatedAt: eligibility.eligibilityUpdatedAt,
+      isError: query.isError,
+      isSuccess: query.isSuccess,
+      isIdle: query.fetchStatus === 'idle',
+      data: query.data,
+    }),
   }
 }

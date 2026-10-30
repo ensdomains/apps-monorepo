@@ -1,5 +1,7 @@
 # Telegram API Wrapper for Cloudflare Workers
 
+For notification authentication, configuration, rollout and manual testing, see [Telegram OIDC login](./OIDC.md).
+
 A lightweight, type-safe wrapper for the Telegram Bot API designed specifically for Cloudflare Workers. This wrapper provides a clean interface for sending messages and handling webhooks with full TypeScript support.
 
 ## Features

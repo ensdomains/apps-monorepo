@@ -17,8 +17,7 @@ export const ResumeConnectWalletBanner = () => {
   if (resume.status !== 'no-wallet') return null
 
   return (
-    <Alert variant="warning">
-      <Wallet className="h-4 w-4" />
+    <Alert icon={<Wallet className="size-4" />} variant="warning">
       <AlertTitle>
         <Trans>Unfinished registration</Trans>
       </AlertTitle>

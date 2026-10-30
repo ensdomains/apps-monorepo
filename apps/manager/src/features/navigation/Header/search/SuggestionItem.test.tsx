@@ -53,6 +53,13 @@ vi.mock('@/features/profile/service/profileOwner', () => ({
   }),
 }))
 
+vi.mock('@/features/profile/service/profileRecords', () => ({
+  profileRecordsQuery: (name: string) => ({
+    queryKey: ['test-records', name],
+    queryFn: async () => ({ texts: [], coins: [] }),
+  }),
+}))
+
 vi.mock('@/features/shared/service/nameDetail', () => ({
   getNameDetailQueryOptions: () => ({
     queryKey: ['test-name-detail'],

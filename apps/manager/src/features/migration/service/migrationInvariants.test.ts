@@ -9,14 +9,16 @@ import { V2_CONTRACTS } from '../contracts/addresses'
 import { makeClassified } from './_fixtures'
 import { FUSES } from './classifyNames'
 import { computeExpectedWrapperRegistry } from './directMigrationRoutes'
+import { resolverFor } from './encodeMigration'
 import {
-  assertLockedPublicResolverSetMembership,
+  assertLockedMigrationResolversUnchanged,
   assertNoLiveSubregistryOverwrite,
   assertRequiredMigrationContractCode,
   checkMigrationHcaReadiness,
   checkMigrationResolverReadiness,
   getMigrationResolverAddress,
   MigrationContractInvariantError,
+  resolveLockedMigrationResolvers,
 } from './migrationInvariants'
 
 vi.mock('@ens-apps/smart-account', async (importActual) => ({
@@ -36,7 +38,9 @@ const CUSTOM_RESOLVER: Address = '0x0000000000000000000000000000000000000005'
 
 const makePublicClient = () =>
   ({
+    getBlockNumber: vi.fn(),
     getCode: vi.fn(),
+    multicall: vi.fn(),
     readContract: vi.fn(),
   }) as unknown as PublicClient
 
@@ -91,114 +95,133 @@ describe('assertRequiredMigrationContractCode', () => {
   })
 })
 
-describe('assertLockedPublicResolverSetMembership', () => {
-  it('checks each known resolver used by a locked CANNOT_SET_RESOLVER name once', async () => {
-    const publicClient = makePublicClient()
-    vi.mocked(publicClient.readContract).mockResolvedValue(true)
-    const locked = makeClassified({
+describe('resolveLockedMigrationResolvers', () => {
+  const BLOCK = 123n
+  const pinned = (v1ResolverAddress: Address | null = KNOWN_PUBLIC_RESOLVER) =>
+    makeClassified({
       tokenType: 'locked-2ld',
       fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_SET_RESOLVER,
       resolverStrategy: 'keep-v1',
-      v1ResolverAddress: KNOWN_PUBLIC_RESOLVER,
+      v1ResolverAddress,
     })
-
-    await expect(
-      assertLockedPublicResolverSetMembership({
-        publicClient,
-        names: [
-          locked,
-          { ...locked, domain: { ...locked.domain, id: '0x02' } },
-        ],
-      }),
-    ).resolves.toBeUndefined()
-
-    expect(publicClient.readContract).toHaveBeenCalledOnce()
-    expect(publicClient.readContract).toHaveBeenCalledWith({
-      address: V2_CONTRACTS.PublicResolverSet,
-      abi: expect.any(Array),
-      functionName: 'includes',
-      args: [KNOWN_PUBLIC_RESOLVER],
-    })
-  })
-
-  it('ignores custom resolvers and names whose resolver can still be changed', async () => {
+  const chainClient = (live: Address, included: boolean) => {
     const publicClient = makePublicClient()
+    vi.mocked(publicClient.getBlockNumber).mockResolvedValue(BLOCK)
+    vi.mocked(publicClient.multicall)
+      .mockResolvedValueOnce([live])
+      .mockResolvedValueOnce([included])
+    return publicClient
+  }
 
-    await expect(
-      assertLockedPublicResolverSetMembership({
+  it.each([CUSTOM_RESOLVER, V2_CONTRACTS.DefaultResolver])(
+    'follows PublicResolverSet for a certified resolver %s',
+    async (resolver) => {
+      const publicClient = chainClient(resolver, true)
+
+      const [name] = await resolveLockedMigrationResolvers({
         publicClient,
-        names: [
-          makeClassified({
-            tokenType: 'locked-child',
-            fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_SET_RESOLVER,
-            resolverStrategy: 'keep-v1',
-            v1ResolverAddress: CUSTOM_RESOLVER,
-          }),
-          makeClassified({
-            tokenType: 'locked-2ld',
-            fuses: FUSES.CANNOT_UNWRAP,
-            resolverStrategy: 'to-owned-permres',
-            v1ResolverAddress: KNOWN_PUBLIC_RESOLVER,
-          }),
-          makeClassified({
-            tokenType: 'unlocked',
-            fuses: FUSES.CANNOT_SET_RESOLVER,
-            resolverStrategy: 'to-owned-permres',
-            v1ResolverAddress: KNOWN_PUBLIC_RESOLVER,
-          }),
-        ],
-      }),
-    ).resolves.toBeUndefined()
-    expect(publicClient.readContract).not.toHaveBeenCalled()
-  })
+        names: [pinned(resolver)],
+      })
 
-  it('fails closed when the pinned set excludes the resolver', async () => {
-    const publicClient = makePublicClient()
-    vi.mocked(publicClient.readContract).mockResolvedValue(false)
+      expect(name).toMatchObject({
+        v1ResolverAddress: resolver,
+        lockedResolverAddress: V2_CONTRACTS.DefaultResolver,
+      })
+      expect(
+        name && resolverFor(name, V2_CONTRACTS.DefaultResolver, null),
+      ).toBe(V2_CONTRACTS.DefaultResolver)
+      expect(vi.mocked(publicClient.multicall).mock.calls).toEqual([
+        [expect.objectContaining({ blockNumber: BLOCK })],
+        [expect.objectContaining({ blockNumber: BLOCK })],
+      ])
+    },
+  )
 
-    await expect(
-      assertLockedPublicResolverSetMembership({
-        publicClient,
-        names: [
-          makeClassified({
-            tokenType: 'locked-2ld',
-            fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_SET_RESOLVER,
-            resolverStrategy: 'keep-v1',
-            v1ResolverAddress: KNOWN_PUBLIC_RESOLVER,
-          }),
-        ],
-      }),
-    ).rejects.toMatchObject({
-      invariant: 'public-resolver-set-membership',
-      contractName: 'PublicResolverSet',
-      address: KNOWN_PUBLIC_RESOLVER,
-      expected: 'included',
-      actual: 'not-included',
+  it.each([
+    ['locked-2ld', KNOWN_PUBLIC_RESOLVER],
+    ['locked-child', KNOWN_PUBLIC_RESOLVER],
+    ['locked-2ld', CUSTOM_RESOLVER],
+    ['locked-child', CUSTOM_RESOLVER],
+  ] as const)(
+    'blocks %s with an uncertified resolver %s',
+    async (tokenType, resolver) => {
+      await expect(
+        resolveLockedMigrationResolvers({
+          publicClient: chainClient(resolver, false),
+          names: [{ ...pinned(), tokenType }],
+        }),
+      ).rejects.toMatchObject({
+        name: 'MigrationContractInvariantError',
+        invariant: 'locked-resolver-record-control',
+        ensName: pinned().domain.name,
+        address: resolver,
+      })
+    },
+  )
+
+  it('preserves an empty resolver without requiring set membership', async () => {
+    const [name] = await resolveLockedMigrationResolvers({
+      publicClient: chainClient(ZERO_ADDRESS, false),
+      names: [pinned(KNOWN_PUBLIC_RESOLVER)],
+    })
+
+    expect(name).toMatchObject({
+      v1ResolverAddress: null,
+      domain: { resolver: null },
+      lockedResolverAddress: ZERO_ADDRESS,
     })
   })
 
-  it('fails closed when membership cannot be read', async () => {
+  it('reads nothing for names whose resolver can still be changed', async () => {
+    const publicClient = makePublicClient()
+    const names = [
+      makeClassified({
+        tokenType: 'locked-2ld',
+        fuses: FUSES.CANNOT_UNWRAP,
+        resolverStrategy: 'to-owned-permres',
+        v1ResolverAddress: KNOWN_PUBLIC_RESOLVER,
+      }),
+    ]
+
+    await expect(
+      resolveLockedMigrationResolvers({ publicClient, names }),
+    ).resolves.toEqual(names)
+    expect(publicClient.multicall).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when the resolver state cannot be read', async () => {
     const publicClient = makePublicClient()
     const cause = new Error('rpc unavailable')
-    vi.mocked(publicClient.readContract).mockRejectedValue(cause)
+    vi.mocked(publicClient.getBlockNumber).mockResolvedValue(BLOCK)
+    vi.mocked(publicClient.multicall).mockRejectedValue(cause)
 
     await expect(
-      assertLockedPublicResolverSetMembership({
-        publicClient,
-        names: [
-          makeClassified({
-            tokenType: 'locked-child',
-            fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_SET_RESOLVER,
-            resolverStrategy: 'keep-v1',
-            v1ResolverAddress: KNOWN_PUBLIC_RESOLVER,
-          }),
-        ],
-      }),
+      resolveLockedMigrationResolvers({ publicClient, names: [pinned()] }),
     ).rejects.toMatchObject({
       invariant: 'public-resolver-set-membership',
       actual: 'unverified',
       cause,
     })
+  })
+
+  it('refuses a batch whose locked resolver changed since the plan', async () => {
+    const planned = {
+      ...pinned(CUSTOM_RESOLVER),
+      lockedResolverAddress: V2_CONTRACTS.DefaultResolver,
+    }
+
+    await expect(
+      assertLockedMigrationResolversUnchanged({
+        publicClient: chainClient(CUSTOM_RESOLVER, true),
+        names: [planned],
+      }),
+    ).resolves.toBeUndefined()
+    await expect(
+      assertLockedMigrationResolversUnchanged({
+        publicClient: chainClient(ZERO_ADDRESS, false),
+        names: [planned],
+      }),
+    ).rejects.toMatchObject({ invariant: 'public-resolver-set-membership' })
   })
 })
 
@@ -235,6 +258,33 @@ describe('assertNoLiveSubregistryOverwrite', () => {
       functionName: 'getSubregistry',
       args: ['alice'],
     })
+  })
+
+  it('reads code once per registry while still rejecting a conflict on another label', async () => {
+    const publicClient = makeRegistryClient({})
+    vi.mocked(publicClient.readContract).mockImplementation(async ({ args }) =>
+      args?.[0] === 'bob' ? LIVE_REGISTRY : ZERO_ADDRESS,
+    )
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [
+          makeClassified({ tokenType: 'unwrapped', label: 'alice' }),
+          makeClassified({
+            tokenType: 'unwrapped',
+            label: 'bob',
+            name: 'bob.eth',
+          }),
+        ],
+      }),
+    ).rejects.toMatchObject({
+      invariant: 'live-subregistry-overwrite',
+      ensName: 'bob.eth',
+    })
+    expect(publicClient.getCode).toHaveBeenCalledExactlyOnceWith({
+      address: V2_CONTRACTS.ETHRegistry,
+    })
+    expect(publicClient.readContract).toHaveBeenCalledTimes(2)
   })
 
   it('fails closed when the entry already points at a live child registry', async () => {

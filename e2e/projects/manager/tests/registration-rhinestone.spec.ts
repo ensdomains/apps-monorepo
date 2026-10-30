@@ -30,6 +30,10 @@ import {
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
 import { expectFlowSuccess } from '../../../helpers/flow-completion.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
+import {
+  clickRegistrationPaymentAction,
+  selectUsdcIfNeeded,
+} from '../../../helpers/payment-picker.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
 const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
@@ -57,7 +61,7 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     // picker. Click through it (the single ENABLE intent is auto-authorized via
     // PERMITTED_SIGN_KINDS); idempotent no-op in EOA mode.
     await clickThroughEnableSessions(page)
-    await page.getByRole('button', { name: 'Select USDC' }).click()
+    await selectUsdcIfNeeded(page)
 
     createConsoleMonitor(page, {
       onStateChange: (state, allStates) => {
@@ -65,16 +69,15 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       },
     })
 
-    await page
-      .getByRole('dialog', { name: 'Approve and register name' })
-      .getByRole('button', { name: /^(approve and register|register name)$/i })
-      .click()
+    await clickRegistrationPaymentAction(page)
 
     // RegistrationDetails (including the completion banner) stays hidden while
     // the parallel notification-settings region is waiting for a choice.
     await page.getByRole('button', { name: 'Set up later' }).click()
 
-    const successBanner = page.locator('p.text-ens-peridot-text-dark')
+    const successBanner = page
+      .getByRole('status')
+      .filter({ hasText: 'Registration Complete' })
 
     // The registration itself needs no eth_sendTransaction on the HCA path
     // (payment is an auto-authorized EIP-2612 permit carried into the
@@ -89,7 +92,7 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       () => registrationComplete,
     )
     await expectFlowSuccess(page, {
-      success: successBanner.filter({ hasText: 'Registration Complete' }),
+      success: successBanner,
       failureTitle: 'Registration Failed',
       timeout: 240_000,
     })

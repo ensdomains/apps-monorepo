@@ -1,21 +1,21 @@
-import { isKnownPublicResolver } from '@ens-apps/migration'
 import {
   computeResolverAddress,
   ROLES_ALL,
   verifyStandaloneHca,
 } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { registryResolverSnippet } from '@ensdomains/ensjs-abi/registry'
 import { permissionedRegistryGetSubregistrySnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   type Address,
   isAddressEqual,
+  namehash,
   type PublicClient,
   parseAbi,
   zeroAddress,
 } from 'viem'
-import { envConfig } from '@/config'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import { V2_CONTRACTS } from '../contracts/addresses'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 import {
   computeExpectedWrapperRegistry,
@@ -61,6 +61,7 @@ export type MigrationContractInvariant =
   | 'resolver-implementation'
   | 'resolver-writer-roles'
   | 'public-resolver-set-membership'
+  | 'locked-resolver-record-control'
   | 'live-subregistry-overwrite'
 
 export class MigrationContractInvariantError extends TaggedError(
@@ -106,12 +107,9 @@ export const assertRequiredMigrationContractCode = async (params: {
   }
 }
 
-const requiresPinnedPublicResolverMembership = (
-  name: ClassifiedName,
-): name is ClassifiedName & { readonly v1ResolverAddress: Address } =>
+const hasPinnedResolver = (name: ClassifiedName): boolean =>
   (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child') &&
-  hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER) &&
-  isKnownPublicResolver(name.v1ResolverAddress, envConfig.chain.id)
+  hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER)
 
 type RequiredMigrationContractsParams = {
   readonly remaining: readonly ClassifiedName[]
@@ -158,7 +156,10 @@ const nameContracts = (
     contracts.push('VerifiableFactoryProxyLogic')
   if (name.resolverStrategy === 'to-owned-permres') {
     contracts.push('PermissionedResolverImpl')
-    if (params.resolverReadiness?.status === 'deployment-required')
+    if (
+      params.resolverReadiness?.status === 'deployment-required' ||
+      name.managerAddress
+    )
       contracts.push('VerifiableFactoryProxyLogic')
   }
   if (
@@ -168,8 +169,7 @@ const nameContracts = (
     )
   )
     contracts.push('DefaultResolver')
-  if (requiresPinnedPublicResolverMembership(name))
-    contracts.push('PublicResolverSet')
+  if (hasPinnedResolver(name)) contracts.push('PublicResolverSet')
   return contracts
 }
 
@@ -204,54 +204,135 @@ export const getRequiredMigrationContracts = (
   ]
 }
 
-/**
- * Locked migration cannot apply the app's resolver choice when
- * CANNOT_SET_RESOLVER is burned. The controller replaces the old resolver only
- * when PublicResolverSet certifies it, so prove that membership before asking
- * the wallet to sign anything.
- */
-export const assertLockedPublicResolverSetMembership = async (params: {
+type LockedResolver = {
+  readonly resolver: Address
+  readonly replacement: Address
+  readonly isCertified: boolean
+}
+
+const readLockedResolvers = async (
+  publicClient: PublicClient,
+  names: readonly ClassifiedName[],
+): Promise<ReadonlyMap<string, LockedResolver>> => {
+  const blockNumber = await publicClient.getBlockNumber()
+  const current = await publicClient.multicall({
+    allowFailure: false,
+    blockNumber,
+    contracts: names.map((name) => ({
+      address: V1_CONTRACTS.LegacyRegistry,
+      abi: registryResolverSnippet,
+      functionName: 'resolver' as const,
+      args: [namehash(name.domain.name)] as const,
+    })),
+  })
+  const resolvers = [
+    ...new Set(current.map((resolver) => resolver.toLowerCase() as Address)),
+  ].filter((resolver) => !isAddressEqual(resolver, zeroAddress))
+  const included = await publicClient.multicall({
+    allowFailure: false,
+    blockNumber,
+    contracts: resolvers.map((resolver) => ({
+      address: V2_CONTRACTS.PublicResolverSet,
+      abi: publicResolverSetAbi,
+      functionName: 'includes' as const,
+      args: [resolver] as const,
+    })),
+  })
+  const replaced = new Set(resolvers.filter((_, index) => included[index]))
+  return new Map(
+    names.flatMap((name, index) => {
+      const resolver = current[index]
+      if (resolver === undefined) return []
+      return [
+        [
+          name.domain.name,
+          {
+            resolver,
+            isCertified: replaced.has(resolver.toLowerCase() as Address),
+            replacement: replaced.has(resolver.toLowerCase() as Address)
+              ? V2_CONTRACTS.DefaultResolver
+              : resolver,
+          },
+        ],
+      ]
+    }),
+  )
+}
+
+/** Resolve the receiver's outcome at one block and refuse unsafe retained resolvers. */
+export const resolveLockedMigrationResolvers = async (params: {
+  readonly publicClient: PublicClient
+  readonly names: readonly ClassifiedName[]
+}): Promise<ClassifiedName[]> => {
+  const pinned = params.names.filter(
+    (name) => name.action === 'migrate' && hasPinnedResolver(name),
+  )
+  if (pinned.length === 0) return [...params.names]
+
+  let locked: ReadonlyMap<string, LockedResolver>
+  try {
+    locked = await readLockedResolvers(params.publicClient, pinned)
+  } catch (cause) {
+    throw new MigrationContractInvariantError({
+      invariant: 'public-resolver-set-membership',
+      contractName: 'PublicResolverSet',
+      address: V2_CONTRACTS.PublicResolverSet,
+      expected: 'verified',
+      actual: 'unverified',
+      cause,
+    })
+  }
+  return params.names.map((name) => {
+    const state = locked.get(name.domain.name)
+    if (name.action !== 'migrate' || !state) return name
+    // The V1 token moves to the Graveyard, which can take record write access
+    // with it. Current owner authorization cannot prove post-migration access
+    // for custom resolvers either, so require certification for any nonempty
+    // resolver that cannot be changed after the upgrade.
+    if (!isAddressEqual(state.resolver, zeroAddress) && !state.isCertified) {
+      throw new MigrationContractInvariantError({
+        invariant: 'locked-resolver-record-control',
+        contractName: 'PublicResolverSet',
+        address: state.resolver,
+        ensName: name.domain.name,
+        expected: 'certified replacement for a locked resolver',
+        actual: 'retained resolver with unverified record control',
+      })
+    }
+    const resolver = isAddressEqual(state.resolver, zeroAddress)
+      ? null
+      : { address: state.resolver }
+    return {
+      ...name,
+      domain: { ...name.domain, resolver },
+      v1ResolverAddress: resolver?.address ?? null,
+      lockedResolverAddress: state.replacement,
+    }
+  })
+}
+
+/** Refuse a batch whose locked resolver outcome moved since the plan was reviewed. */
+export const assertLockedMigrationResolversUnchanged = async (params: {
   readonly publicClient: PublicClient
   readonly names: readonly ClassifiedName[]
 }): Promise<void> => {
-  const resolvers = new Map<string, Address>()
-  for (const name of params.names) {
-    if (!requiresPinnedPublicResolverMembership(name)) continue
-    resolvers.set(name.v1ResolverAddress.toLowerCase(), name.v1ResolverAddress)
+  const current = await resolveLockedMigrationResolvers(params)
+  for (const [index, name] of params.names.entries()) {
+    const live = current[index]
+    if (live?.action !== 'migrate' || live.lockedResolverAddress === undefined)
+      continue
+    const planned = `${name.v1ResolverAddress ?? zeroAddress}->${name.action === 'migrate' ? (name.lockedResolverAddress ?? 'unresolved') : 'unresolved'}`
+    const actual = `${live.v1ResolverAddress ?? zeroAddress}->${live.lockedResolverAddress}`
+    if (planned.toLowerCase() === actual.toLowerCase()) continue
+    throw new MigrationContractInvariantError({
+      invariant: 'public-resolver-set-membership',
+      contractName: 'PublicResolverSet',
+      address: V2_CONTRACTS.PublicResolverSet,
+      ensName: name.domain.name,
+      expected: planned,
+      actual,
+    })
   }
-
-  await Promise.all(
-    [...resolvers.values()].map(async (resolver) => {
-      let included: boolean
-      try {
-        included = await params.publicClient.readContract({
-          address: V2_CONTRACTS.PublicResolverSet,
-          abi: publicResolverSetAbi,
-          functionName: 'includes',
-          args: [resolver],
-        })
-      } catch (cause) {
-        throw new MigrationContractInvariantError({
-          invariant: 'public-resolver-set-membership',
-          contractName: 'PublicResolverSet',
-          address: resolver,
-          expected: 'included',
-          actual: 'unverified',
-          cause,
-        })
-      }
-
-      if (!included) {
-        throw new MigrationContractInvariantError({
-          invariant: 'public-resolver-set-membership',
-          contractName: 'PublicResolverSet',
-          address: resolver,
-          expected: 'included',
-          actual: 'not-included',
-        })
-      }
-    }),
-  )
 }
 
 type SubregistryWrite = {
@@ -355,12 +436,24 @@ export const assertNoLiveSubregistryOverwrite = async ({
     .map((name) => subregistryWriteFor({ name, selectedNames, copyParents }))
     .filter((write): write is SubregistryWrite => write !== null)
 
+  const registries = new Map(
+    writes.map(({ registry }) => [registry.toLowerCase(), registry] as const),
+  )
+  const deployedRegistries = new Set(
+    (
+      await Promise.all(
+        [...registries].map(async ([key, address]) =>
+          hasCode(await publicClient.getCode({ address })) ? [key] : [],
+        ),
+      )
+    ).flat(),
+  )
+
   await Promise.all(
     writes.map(async (write) => {
       // An undeployed destination has no entries. Missing parent wrappers are
       // reported by `resolveDirectMigrationRoutes`, which knows the route.
-      const code = await publicClient.getCode({ address: write.registry })
-      if (!hasCode(code)) return
+      if (!deployedRegistries.has(write.registry.toLowerCase())) return
 
       let current: Address
       try {
@@ -400,6 +493,8 @@ export const assertNoLiveSubregistryOverwrite = async ({
 }
 
 export type MigrationHcaReadiness =
+  /** Receipt recovery defers current authority until further writes are needed. */
+  | { readonly status: 'deferred'; readonly hca: Address }
   | { readonly status: 'deployment-required'; readonly hca: Address }
   | {
       readonly status: 'verified'

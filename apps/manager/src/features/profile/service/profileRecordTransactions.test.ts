@@ -21,6 +21,46 @@ const clientFor = (supportsNameSetters: boolean) =>
 const publicClient = clientFor(true)
 
 describe('buildRecordsUpdateCalls', () => {
+  it('includes interface and binary data setters in the same clean import batch', async () => {
+    const { calls } = await buildRecordsUpdateCalls({
+      name: 'alice.eth',
+      before: { texts: [], coins: [] },
+      after: {
+        texts: [],
+        coins: [],
+        interfaces: [{ interfaceId: '0x12345678', implementer: RESOLVER }],
+        data: [{ key: 'binary', value: '0x00ff0100' }],
+      },
+      shouldClearRecords: true,
+      publicClient,
+      resolverAddress: RESOLVER,
+    })
+    const [call] = calls
+    if (!call) throw new Error('Missing record write')
+    const batch = decodeFunctionData({
+      abi: multicallAbi,
+      data: call.data,
+    }).args[0]
+    expect(batch[0]?.slice(0, 10)).toBe(
+      toFunctionSelector('linkToRecord(bytes,uint256)'),
+    )
+    const abi = parseAbi([
+      'function setInterface(bytes,bytes4,address)',
+      'function setData(bytes,string,bytes)',
+    ])
+    expect(
+      batch.slice(1).map((data) => decodeFunctionData({ abi, data })),
+    ).toEqual([
+      {
+        functionName: 'setInterface',
+        args: ['0x05616c6963650365746800', '0x12345678', RESOLVER],
+      },
+      {
+        functionName: 'setData',
+        args: ['0x05616c6963650365746800', 'binary', '0x00ff0100'],
+      },
+    ])
+  })
   it('does not republish inherited social records when a different social record is edited', async () => {
     const saved = transformProfileRecords({
       texts: [

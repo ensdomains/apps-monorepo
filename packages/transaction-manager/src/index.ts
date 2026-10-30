@@ -1,7 +1,9 @@
+export { getAtomicBatchSupport } from './actors/eoa-batch-transport.actor'
 // Contracts
 // Errors
 export {
   ChainIdMismatchError,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   SignerAddressMismatchError,
   TransactionStoppedError,
@@ -32,6 +34,10 @@ export {
   quoteHcaIntentFeeUsdc,
 } from './helpers/hca-intent-funding'
 export { pollTransactionStatus } from './helpers/pollTransactionStatus.actor'
+export {
+  checkIsSafeWallet,
+  orSafeExecution,
+} from './helpers/safe-execution.helpers'
 // Persistence
 export {
   archiveTransaction,
@@ -54,7 +60,12 @@ export {
   waitForTransactionHash,
 } from './helpers/waitForTransaction'
 export {
+  useAtomicBatchSupport,
+  useHasDeclinedAtomicUpgrade,
+} from './hooks/useAtomicBatchSupport'
+export {
   computeDedicatedResolverAddress,
+  encodeCommitCall,
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
   hasDeployedCode,
@@ -68,6 +79,7 @@ export type {
   RegistrationEvent,
   RegistrationInput,
   SessionReauthorization,
+  UnsettledL2Bridge,
 } from './machines/registration/registration.machine'
 export {
   REGISTRATION_TX_IDS,
@@ -127,6 +139,7 @@ export type {
 } from './types/audit.types'
 export type {
   EOASigner,
+  L2FundingSource,
   RhinestoneSessionContext,
   RhinestoneSigner,
   Signer,
@@ -136,6 +149,7 @@ export type {
   Call,
   CustomTransactionIntent,
   ENSRenewalTransactionIntent,
+  EOABatchTransactionRequest,
   EOATransactionRequest,
   ETHTransferTransactionIntent,
   PaymentMethod,

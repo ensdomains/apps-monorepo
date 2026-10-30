@@ -19,6 +19,8 @@ import { getDisplayHost, getSafeProfileHref } from './ProfileView.helpers'
 const getContactRecordValue = (records: ProfileRecords | null, key: string) =>
   records?.contact.find((record) => record.key === key)?.value?.trim()
 
+// Language codes stay uppercase (EN). Place names and timezones keep the
+// saved casing, so they are not restyled as a second label.
 const formatLanguage = (language: string | undefined) =>
   language
     ?.split(',')
@@ -63,7 +65,7 @@ const ProfileDescription = ({
     <Dialog>
       <div className="mt-3">
         <p
-          className="wrap-anywhere line-clamp-2 text-ens-quartz-500 text-sm leading-normal"
+          className="wrap-anywhere line-clamp-2 max-w-[50ch] text-ens-quartz-500 text-sm leading-normal"
           ref={descriptionRef}
         >
           {description}
@@ -104,10 +106,10 @@ const AboutMetaItem = ({
 
   return (
     <div className="flex min-w-0 items-center gap-1 text-ens-quartz-700">
-      <span className="flex size-5 shrink-0 items-center justify-center text-ens-quartz-700 leading-none xl:size-6">
+      <span className="flex size-5 shrink-0 items-center justify-center text-ens-quartz-500 leading-none">
         {icon}
       </span>
-      <span className="min-w-0 text-[12px] leading-4.5 xl:text-sm xl:leading-normal">
+      <span className="min-w-0 truncate font-sans text-[13px] leading-none tracking-[0.2px]">
         {value}
       </span>
     </div>
@@ -132,7 +134,7 @@ export const ProfileAbout = ({
   const description = records?.base.description?.trim()
   const timezone = getContactRecordValue(records, 'timezone')
   const language = formatLanguage(records?.base.language)
-  const location = getContactRecordValue(records, 'location')?.toUpperCase()
+  const location = getContactRecordValue(records, 'location')
 
   const hasContent = Boolean(
     fullName || description || websiteHref || timezone || language || location,
@@ -145,10 +147,8 @@ export const ProfileAbout = ({
       asChild
       className={cn(
         profileTileClassName,
-        'wrap-anywhere flex min-h-0 min-w-0 flex-1',
-        primaryName
-          ? 'min-h-47 p-6 xl:min-h-45 xl:max-w-158.75'
-          : 'p-6 xl:min-h-45.5 xl:max-w-158.75',
+        'wrap-anywhere flex min-h-0 w-full min-w-0 flex-1',
+        primaryName ? 'min-h-47 p-6 xl:min-h-45' : 'p-6 xl:min-h-45.5',
         className,
       )}
     >
@@ -158,22 +158,40 @@ export const ProfileAbout = ({
             'grid w-full min-w-0',
             primaryName
               ? 'gap-3'
-              : 'gap-8 xl:grid-cols-[minmax(0,346.5px)_228px] xl:gap-3',
+              : 'gap-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:justify-between xl:gap-8',
           )}
         >
           <div className="min-w-0">
-            {primaryName ? (
-              <NamePill
-                className="bg-[var(--theme-color,var(--color-ens-lapis-500))] text-white"
-                label={primaryName}
-              />
-            ) : (
-              <h2 className="text-base text-ens-quartz-700 leading-normal">
-                <span className="block">
-                  {fullName || <Trans>Profile Description</Trans>}
-                </span>
-              </h2>
-            )}
+            <div className="flex items-start justify-between gap-3">
+              {primaryName ? (
+                <NamePill
+                  className="bg-[var(--theme-color,var(--color-ens-lapis-500))] text-white"
+                  label={primaryName}
+                />
+              ) : (
+                <h2 className="min-w-0 text-base text-ens-quartz-700 leading-normal">
+                  <span className="block">
+                    {fullName || <Trans>About</Trans>}
+                  </span>
+                </h2>
+              )}
+              {websiteHref ? (
+                <a
+                  className="mt-1 inline-flex max-w-[50%] shrink-0 items-center gap-1 font-sans text-(--theme-color) text-sm leading-normal hover:opacity-80 xl:hidden"
+                  href={websiteHref}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  <span className="min-w-0 truncate">
+                    {getDisplayHost(websiteHref)}
+                  </span>
+                  <MSymbol
+                    className="ms-opsz-20 ms-wght-300 shrink-0 text-[20px] leading-none xl:ms-opsz-14 xl:text-[14px]"
+                    symbol="arrow_outward"
+                  />
+                </a>
+              ) : null}
+            </div>
             {description ? (
               <ProfileDescription description={description} />
             ) : null}
@@ -184,43 +202,54 @@ export const ProfileAbout = ({
             ) : null}
             {websiteHref ? (
               <a
-                className="mt-1 inline-flex max-w-full items-center gap-1 font-mono text-(--theme-color) text-sm leading-normal hover:opacity-80"
+                className="mt-3 hidden max-w-full items-center gap-1 font-sans text-(--theme-color) text-sm leading-normal hover:opacity-80 xl:inline-flex"
                 href={websiteHref}
                 rel="noopener noreferrer"
                 target="_blank"
               >
                 <span className="min-w-0">{getDisplayHost(websiteHref)}</span>
                 <MSymbol
-                  className="ms-opsz-20 ms-wght-300 shrink-0"
+                  className="ms-opsz-20 ms-wght-300 shrink-0 text-[20px] leading-none xl:ms-opsz-14 xl:text-[14px]"
                   symbol="arrow_outward"
                 />
               </a>
             ) : null}
           </div>
           {primaryName ? null : (
-            <div className="grid min-w-0 grid-cols-3 gap-4 xl:flex xl:flex-col xl:justify-start xl:gap-1.5">
-              <AboutMetaItem
-                icon={
-                  <MSymbol
-                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
-                    symbol="language"
+            <div
+              className={cn(
+                'flex min-w-0 items-start gap-4 xl:flex-col xl:items-start xl:gap-1.5 xl:justify-self-end',
+                location &&
+                  (timezone || language) &&
+                  'max-xl:flex-row-reverse max-xl:justify-between',
+              )}
+            >
+              {timezone || language ? (
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <AboutMetaItem
+                    icon={
+                      <MSymbol
+                        className="ms-opsz-20 ms-wght-300"
+                        symbol="language"
+                      />
+                    }
+                    value={timezone}
                   />
-                }
-                value={timezone}
-              />
-              <AboutMetaItem
-                icon={
-                  <MSymbol
-                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
-                    symbol="translate"
+                  <AboutMetaItem
+                    icon={
+                      <MSymbol
+                        className="ms-opsz-20 ms-wght-300"
+                        symbol="translate"
+                      />
+                    }
+                    value={language}
                   />
-                }
-                value={language}
-              />
+                </div>
+              ) : null}
               <AboutMetaItem
                 icon={
                   <MSymbol
-                    className="ms-opsz-20 ms-wght-300 text-[20px] xl:ms-opsz-24 xl:text-[24px]"
+                    className="ms-opsz-20 ms-wght-300"
                     symbol="distance"
                   />
                 }

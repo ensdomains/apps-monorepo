@@ -1,11 +1,21 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Link, useHydrated } from '@tanstack/react-router'
-import { Check, Copy } from 'lucide-react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn, truncateAddress } from '@/lib/utils'
 import { formatProfileDetailDate } from './ProfileView.helpers'
+
+/**
+ * Owner, registration, and expiry under the profile name.
+ *
+ * Each item stacks a 13px quartz-500 label over a 13px quartz-700 value.
+ * Dates stay short sentence case ("Oct 23, 2026") at every width.
+ * The three items stay in one row and share the width evenly. They wrap
+ * only when the row is narrower than their content.
+ * The owner copy icon stays visible on touch and below xl; on desktop
+ * fine pointers it appears on hover or focus-within.
+ */
 
 type ProfileDetailsProps = {
   readonly displayExpiryDate?: Date | null
@@ -15,9 +25,11 @@ type ProfileDetailsProps = {
 }
 
 const detailLabelClassName =
-  'relative flex items-center text-ens-quartz-400 text-xs leading-5.25 xl:text-base xl:leading-normal'
+  'flex items-center gap-0.5 font-sans text-[13px] text-ens-quartz-500 leading-none'
 const detailValueClassName =
-  'font-sans text-[11px] text-ens-quartz-700 leading-4.5 tracking-[0.77px] xl:text-[13px] xl:leading-normal xl:tracking-[0.91px]'
+  'font-sans text-[13px] text-ens-quartz-700 leading-none tracking-[0.2px]'
+const detailIconClassName =
+  'ms-opsz-11 ms-wght-300 shrink-0 text-[11px] leading-[11px]'
 
 export const ProfileNameBadge = ({ name }: { readonly name: string }) => (
   <div className="inline-flex max-w-full items-center rounded-[3px] bg-[var(--theme-color,var(--color-ens-lapis-500))] px-3 py-1.5 text-white">
@@ -34,36 +46,16 @@ const ProfileDetailCopyButton = ({ value }: { readonly value: string }) => {
   return (
     <button
       aria-label={t`Copy to clipboard`}
-      className="inline-flex size-4 shrink-0 items-center justify-center text-ens-quartz-400 xl:size-5"
+      className="inline-flex size-[13px] shrink-0 items-center justify-center text-ens-quartz-500 xl:pointer-fine:opacity-0 xl:pointer-fine:group-hover:opacity-100 xl:pointer-fine:group-focus-within:opacity-100"
       onClick={() => copy(value)}
       title={t`Copy to clipboard`}
       type="button"
     >
-      {copied ? (
-        <Check className="size-3.5 xl:size-4" />
-      ) : (
-        <Copy className="size-3.5 xl:size-4" />
-      )}
+      <MSymbol
+        className="ms-opsz-11 ms-wght-400 text-[11px] leading-[11px]"
+        symbol={copied ? 'check' : 'content_copy'}
+      />
     </button>
-  )
-}
-
-const ProfileDetailDateValue = ({
-  date,
-}: {
-  readonly date: Date | null | undefined
-}) => {
-  const timeZone = useHydrated() ? 'local' : 'utc'
-  const mobileValue = formatProfileDetailDate(date, 'mobile', timeZone)
-  const desktopValue = formatProfileDetailDate(date, 'desktop', timeZone)
-
-  if (!mobileValue || !desktopValue) return null
-
-  return (
-    <>
-      <span className="xl:hidden">{mobileValue}</span>
-      <span className="hidden xl:inline">{desktopValue}</span>
-    </>
   )
 }
 
@@ -72,26 +64,26 @@ const ProfileDetail = ({
   label,
   value,
   copyValue,
-  labelPaddingClassName = 'pl-8',
 }: {
   readonly icon: React.ReactNode
   readonly label: React.ReactNode
   readonly value: React.ReactNode
   readonly copyValue?: string
-  readonly labelPaddingClassName?: string
 }) => (
-  <div className="flex min-w-0 flex-col items-start gap-0 xl:flex-row xl:items-baseline xl:gap-1.5">
-    <div className={cn(detailLabelClassName, labelPaddingClassName)}>
-      <span className="absolute inset-y-0 left-0 flex items-center">
-        {icon}
-      </span>
+  <div className="group flex shrink-0 flex-col items-start gap-0.5 overflow-visible">
+    <div className={detailLabelClassName}>
+      {icon}
       <span>{label}</span>
     </div>
-    <div className="flex min-w-0 items-center gap-1 pl-6 xl:pl-0">
-      <span className={`${detailValueClassName} min-w-0 truncate`}>
+    <div className="relative flex min-w-0 max-w-full items-center py-1">
+      <span className={cn(detailValueClassName, 'min-w-0 truncate')}>
         {value}
       </span>
-      {copyValue ? <ProfileDetailCopyButton value={copyValue} /> : null}
+      {copyValue ? (
+        <span className="absolute top-1/2 left-full ml-0.5 -translate-y-1/2">
+          <ProfileDetailCopyButton value={copyValue} />
+        </span>
+      ) : null}
     </div>
   </div>
 )
@@ -102,24 +94,28 @@ export const ProfileDetails = ({
   ownerReverseName,
   registrationDate,
 }: ProfileDetailsProps) => {
+  const timeZone = useHydrated() ? 'local' : 'utc'
   const registrationDetailDate = registrationDate
     ? new Date(registrationDate * 1000)
     : undefined
   const formattedRegistrationDate = formatProfileDetailDate(
     registrationDetailDate,
+    timeZone,
   )
-  const formattedExpiryDate = formatProfileDetailDate(displayExpiryDate)
+  const formattedExpiryDate = formatProfileDetailDate(
+    displayExpiryDate,
+    timeZone,
+  )
 
   return (
-    <div className="grid w-full grid-cols-1 gap-3 xl:flex xl:max-w-full xl:flex-wrap xl:items-center xl:gap-x-6 xl:gap-y-3 min-[375px]:grid-cols-3">
+    <div className="flex min-w-0 flex-1 flex-row flex-wrap items-start justify-between gap-5 xl:flex-nowrap xl:justify-start">
       {owner ? (
         <ProfileDetail
           copyValue={owner}
           icon={
-            <MSymbol className="ms-opsz-20 ms-wght-300" symbol="key_vertical" />
+            <MSymbol className={detailIconClassName} symbol="key_vertical" />
           }
           label={<Trans>Owner</Trans>}
-          labelPaddingClassName="pl-[22px]"
           value={
             <Link
               className="text-inherit hover:underline focus-visible:underline focus-visible:outline-none"
@@ -134,20 +130,17 @@ export const ProfileDetails = ({
       {formattedRegistrationDate ? (
         <ProfileDetail
           icon={
-            <MSymbol
-              className="ms-opsz-20 ms-wght-300"
-              symbol="calendar_clock"
-            />
+            <MSymbol className={detailIconClassName} symbol="calendar_clock" />
           }
           label={<Trans>Registered</Trans>}
-          value={<ProfileDetailDateValue date={registrationDetailDate} />}
+          value={formattedRegistrationDate}
         />
       ) : null}
       {formattedExpiryDate ? (
         <ProfileDetail
-          icon={<MSymbol className="ms-opsz-20 ms-wght-300" symbol="history" />}
+          icon={<MSymbol className={detailIconClassName} symbol="history" />}
           label={<Trans>Expires</Trans>}
-          value={<ProfileDetailDateValue date={displayExpiryDate} />}
+          value={formattedExpiryDate}
         />
       ) : null}
     </div>

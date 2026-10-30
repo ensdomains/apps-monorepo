@@ -13,7 +13,19 @@ import {
   getNameRegistries,
   getOwner as getOwnerV2,
 } from '@ensdomains/ensjs/public/v2'
-import { type Address, type Client, type Transport, zeroAddress } from 'viem'
+import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
+import {
+  type Address,
+  type Client,
+  isAddressEqual,
+  labelhash,
+  namehash,
+  parseAbi,
+  type Transport,
+  zeroAddress,
+} from 'viem'
+import { readContract } from 'viem/actions'
+import { getAction } from 'viem/utils'
 import { isContractRevert } from '@/utils/errors/isContractRevert'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -42,7 +54,7 @@ type EnsResolveClient = Client<Transport, EnsChain>
  * coalesces them into a single request. Returns `null` if the name is unowned
  * or any ancestor registry along the path is missing or reverts (WEB-1885).
  */
-async function resolveV2EthOwner(
+export async function resolveV2EthOwner(
   client: EnsResolveClient,
   name: string,
 ): Promise<{ owner: Address; registryAddress: Address } | null> {
@@ -65,6 +77,36 @@ async function resolveV2EthOwner(
   if (!registryAddress || registryAddress === zeroAddress) return null
 
   return { owner: v2Owner, registryAddress }
+}
+
+const registryStateAbi = parseAbi([
+  'struct State { uint8 status; uint64 expiry; address latestOwner; uint256 tokenId; uint256 resource; }',
+  'function getState(uint256 anyId) view returns (State state)',
+])
+
+/** The expiry of a `.eth` 2LD registered in V2 that has since expired (so `ownerOf` reads zero), or null. */
+export const getExpiredV2Token = async (
+  client: EnsResolveClient,
+  name: string,
+): Promise<{ readonly expiry: bigint } | null> => {
+  const [, ethRegistry] = await getNameRegistries(client, { name })
+  if (!ethRegistry || isAddressEqual(ethRegistry, zeroAddress)) return null
+  const label = name.split('.')[0] ?? ''
+  const state = await getAction(
+    client,
+    readContract,
+    'readContract',
+  )({
+    address: ethRegistry,
+    abi: registryStateAbi,
+    functionName: 'getState',
+    args: [BigInt(labelhash(label))],
+  })
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+  return isAddressEqual(state.latestOwner, zeroAddress) ||
+    state.expiry > nowSeconds
+    ? null
+    : { expiry: state.expiry }
 }
 
 /**
@@ -104,16 +146,56 @@ export async function resolveEnsOwner(
         protocolVersion: 'ENSv2',
       }
     }
+    // A migrated name that expired still has a V2 token; its V1 entry is left
+    // behind and must not make it read as ENSv1 (and hide its V2 renewal).
+    if (labels.length === 2 && (await getExpiredV2Token(client, name)))
+      return null
   }
 
   const v1Owner = await getOwnerV1(client, { name })
   if (v1Owner?.owner && v1Owner.owner !== zeroAddress) {
     return {
-      owner: v1Owner.owner,
+      owner: await unwrapV1Owner(client, name, v1Owner.owner),
       registryAddress: v1EthRegistry,
       protocolVersion: 'ENSv1',
     }
   }
 
   return null
+}
+
+/**
+ * The holder behind a wrapped name, where the registry names the NameWrapper.
+ *
+ * Normally ensjs reports the wrapper's owner itself, but once the registration
+ * lapses the registrar stops naming a registrant and the read falls back to the
+ * registry slot, which is the wrapper contract. Left alone, a name in grace
+ * reads as owned by a contract and its holder loses every owner-gated action.
+ *
+ * The name is hashed as given, the same string the reads above already used;
+ * normalising here would throw on an encoded `[labelhash]` label.
+ */
+async function unwrapV1Owner(
+  client: EnsResolveClient,
+  name: string,
+  owner: Address,
+): Promise<Address> {
+  const nameWrapper = getChainContractAddress({
+    chain: client.chain,
+    contract: 'ensNameWrapper',
+  })
+  if (!isAddressEqual(owner, nameWrapper)) return owner
+
+  const [wrappedOwner] = await getAction(
+    client,
+    readContract,
+    'readContract',
+  )({
+    address: nameWrapper,
+    abi: nameWrapperGetDataSnippet,
+    functionName: 'getData',
+    args: [BigInt(namehash(name))],
+  })
+
+  return wrappedOwner && wrappedOwner !== zeroAddress ? wrappedOwner : owner
 }

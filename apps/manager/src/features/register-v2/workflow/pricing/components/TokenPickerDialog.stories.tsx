@@ -1,19 +1,23 @@
 import { Trans } from '@lingui/react/macro'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { type ReactNode, useState } from 'react'
-import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
+import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import type { L2Source } from '@/l2Sources'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
+import type { L2PaymentRow } from '../hooks/useL2Payment'
+import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import {
   PaymentMethodList,
   type PaymentMethodListItem,
 } from './PaymentMethodList'
 import { PaymentMethodRow } from './PaymentMethodRow'
-import { PaymentTotalRow } from './PaymentTotalRow'
+import { PaymentReceipt } from './PaymentReceipt'
 import {
   type RegistrationFundingSummary,
   TokenPickerContentBase,
@@ -34,6 +38,35 @@ const INSUFFICIENT_USDC: StablecoinBalance = {
   formattedBalance: '0.00',
 }
 
+const l2Row = (
+  chain: typeof baseSepolia | typeof arbitrumSepolia | typeof optimismSepolia,
+  balanceRaw: bigint | null,
+  status: L2PaymentOption['status'],
+  amountInRaw?: bigint,
+): L2PaymentRow => ({
+  option: {
+    id: l2PaymentOptionId(chain.id),
+    source: {
+      chain,
+      usdc: FUNDED_USDC.address,
+      rpcUrls: [],
+      client: {} as L2Source['client'],
+    },
+    balanceRaw,
+    status,
+  },
+  amountInRaw,
+  isQuoteLoading: false,
+  isQuoteStale: false,
+  hasQuoteFailed: false,
+})
+
+const FIXTURE_L2_ROWS: readonly L2PaymentRow[] = [
+  l2Row(baseSepolia, 400_000_000n, 'available', 352_012_573n),
+  l2Row(arbitrumSepolia, 100_000_000n, 'insufficient'),
+  l2Row(optimismSepolia, null, 'unavailable'),
+]
+
 interface TokenPickerDialogShellProps {
   readonly label: string
   readonly defaultOpen?: boolean
@@ -44,13 +77,13 @@ interface TokenPickerDialogShellProps {
   readonly isLoadingBalances?: boolean
   readonly stablecoinBalances?: StablecoinBalance[]
   readonly globalErrorMessage?: string | null
-  readonly infoMessage?: string
+  readonly helpMessage?: string
   readonly footer?: ReactNode
-  readonly methodErrorMessage?: string | null
   readonly initialSelectedToken?: SUPPORTED_TOKEN
   readonly funding?: RegistrationFundingSummary
   readonly isQuotingFunding?: boolean
-  readonly isFeeTooltipOpen?: boolean
+  /** L2 rows the registration can be paid from. */
+  readonly l2Rows?: readonly L2PaymentRow[]
 }
 
 export const TokenPickerDialogShell = ({
@@ -63,18 +96,18 @@ export const TokenPickerDialogShell = ({
   isLoadingBalances = false,
   stablecoinBalances = [FUNDED_USDC],
   globalErrorMessage = null,
-  infoMessage,
+  helpMessage,
   footer,
-  methodErrorMessage = null,
   initialSelectedToken,
   funding,
   isQuotingFunding = false,
-  isFeeTooltipOpen,
+  l2Rows,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
   const [selectedToken, setSelectedToken] = useState<
     SUPPORTED_TOKEN | undefined
   >(initialSelectedToken)
+  const [selectedChainId, setSelectedChainId] = useState<number>()
 
   return (
     <PaymentDialogBase
@@ -87,16 +120,26 @@ export const TokenPickerDialogShell = ({
         footer={footer}
         funding={funding}
         globalErrorMessage={globalErrorMessage}
-        infoMessage={infoMessage}
+        helpMessage={helpMessage}
         isConnected={isConnected}
-        isFeeTooltipOpen={isFeeTooltipOpen}
         isInPriceCooldown={isInPriceCooldown}
         isLoadingBalances={isLoadingBalances}
         isQuotingFunding={isQuotingFunding}
+        l2Payment={
+          l2Rows && {
+            rows: l2Rows,
+            selectedChainId,
+            selectedOrigin: undefined,
+            onSelect: setSelectedChainId,
+            onFallbackSelect: setSelectedChainId,
+          }
+        }
         label={label}
-        methodErrorMessage={methodErrorMessage}
         onNext={() => {}}
-        onSelectCoin={setSelectedToken}
+        onSelectCoin={(coin) => {
+          setSelectedChainId(undefined)
+          setSelectedToken(coin)
+        }}
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         selectedToken={selectedToken}
@@ -115,9 +158,6 @@ type FixtureMethod = {
   readonly network: 'Mainnet' | 'Optimism' | 'Base'
   readonly balance: string
   readonly isAvailable: boolean
-  readonly isFunded: boolean
-  readonly isCommon: boolean
-  readonly error?: string
 }
 
 export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
@@ -127,8 +167,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Mainnet',
     balance: '$1,000.00',
     isAvailable: true,
-    isFunded: true,
-    isCommon: true,
   },
   {
     id: 'dai-mainnet',
@@ -136,8 +174,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Mainnet',
     balance: '$500.00',
     isAvailable: true,
-    isFunded: true,
-    isCommon: true,
   },
   {
     id: 'usdt-mainnet',
@@ -145,9 +181,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Mainnet',
     balance: '$410.00',
     isAvailable: true,
-    isFunded: false,
-    isCommon: true,
-    error: 'Not enough ETH for permit approval',
   },
   {
     id: 'eth-mainnet',
@@ -155,8 +188,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Mainnet',
     balance: '$620.00',
     isAvailable: false,
-    isFunded: true,
-    isCommon: false,
   },
   {
     id: 'usdc-optimism',
@@ -164,8 +195,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Optimism',
     balance: '$280.00',
     isAvailable: false,
-    isFunded: false,
-    isCommon: false,
   },
   {
     id: 'dai-optimism',
@@ -173,9 +202,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Optimism',
     balance: '$0.00',
     isAvailable: true,
-    isFunded: false,
-    isCommon: false,
-    error: '$352.00 needed to register name',
   },
   {
     id: 'usdt-optimism',
@@ -183,8 +209,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Optimism',
     balance: '$0.00',
     isAvailable: false,
-    isFunded: false,
-    isCommon: false,
   },
   {
     id: 'eth-optimism',
@@ -192,8 +216,6 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Optimism',
     balance: '$0.00',
     isAvailable: false,
-    isFunded: false,
-    isCommon: false,
   },
   {
     id: 'usdc-base',
@@ -201,82 +223,31 @@ export const FIXTURE_MULTIPLE_METHODS: readonly FixtureMethod[] = [
     network: 'Base',
     balance: '$125.00',
     isAvailable: false,
-    isFunded: false,
-    isCommon: false,
   },
 ]
 
 export const FIXTURE_NO_VALID_COMMON_METHODS: readonly FixtureMethod[] =
-  FIXTURE_MULTIPLE_METHODS.map((method) => ({
-    ...method,
-    isAvailable: false,
-    isFunded: false,
-    error:
-      method.name === 'USDC' && method.network === 'Mainnet'
-        ? '$352.00 needed to register name'
-        : method.name === 'USDT' && method.network === 'Mainnet'
-          ? 'Not enough ETH for permit approval'
-          : method.name === 'DAI' && method.network === 'Mainnet'
-            ? '$352.00 needed to register name'
-            : method.error,
-  }))
-
-const FixtureTokenIcon = ({ name }: Pick<FixtureMethod, 'name'>) => {
-  if (name === 'USDC') return <USDCIcon className="size-full" />
-  if (name === 'USDT') return <USDTIcon className="size-full" />
-  if (name === 'DAI') return <DAI className="size-full" />
-  return (
-    <span className="flex size-full items-center justify-center rounded-full bg-[#627eea] font-medium text-white">
-      Ξ
-    </span>
-  )
-}
-
-const FixtureNetworkBadge = ({ network }: Pick<FixtureMethod, 'network'>) => (
-  <span
-    className={cn(
-      'flex size-full items-center justify-center font-medium text-[7px] text-white sm:text-[9px]',
-      network === 'Mainnet' && 'bg-[#6c5ce7]',
-      network === 'Optimism' && 'bg-[#ff0420]',
-      network === 'Base' && 'bg-[#0052ff]',
-    )}
-  >
-    {network === 'Mainnet' ? '◆' : network.at(0)}
-  </span>
-)
+  FIXTURE_MULTIPLE_METHODS.map((method) => ({ ...method, isAvailable: false }))
 
 export const FixtureTokenPickerContent = ({
   methods,
-  defaultExpanded = false,
   initialSelectedId,
 }: {
   readonly methods: readonly FixtureMethod[]
-  readonly defaultExpanded?: boolean
   readonly initialSelectedId?: string
 }) => {
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const selectedMethod = methods.find(({ id }) => id === selectedId)
   const items: PaymentMethodListItem[] = methods.map((method) => ({
     id: method.id,
-    isAvailable: method.isAvailable,
-    isFunded: method.isFunded,
-    isCommon: method.isCommon,
+    isSelected: selectedId === method.id,
     content: (
       <PaymentMethodRow
         amount={method.balance}
         amountLabel="balance"
-        error={method.error}
-        fee="Mainnet est. fee: $0.27"
-        feeTooltip="An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
-        feeTooltipLabel="What is the network fee?"
-        icon={
-          <PaymentMethodIcon
-            icon={<FixtureTokenIcon name={method.name} />}
-            networkBadge={<FixtureNetworkBadge network={method.network} />}
-          />
-        }
+        fee="Sepolia · est. fee $0.27"
+        icon={<PaymentMethodIcon icon={<USDCIcon className="size-full" />} />}
         isAvailable={method.isAvailable}
-        isFunded={method.isFunded}
         isSelected={selectedId === method.id}
         name={method.name}
         onSelect={() => setSelectedId(method.id)}
@@ -284,7 +255,7 @@ export const FixtureTokenPickerContent = ({
       />
     ),
   }))
-  const canRegister = !!(selectedMethod?.isAvailable && selectedMethod.isFunded)
+  const canRegister = !!selectedMethod?.isAvailable
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-6 pt-2 pb-6">
@@ -298,10 +269,18 @@ export const FixtureTokenPickerContent = ({
           <h2 className="text-center font-medium text-[18px] leading-none">
             <Trans>Select payment</Trans>
           </h2>
-          <PaymentMethodList defaultExpanded={defaultExpanded} items={items} />
+          <PaymentMethodList items={items} />
         </div>
       </div>
-      <PaymentTotalRow isEstimate={false} total={352} />
+      <PaymentReceipt
+        hasExistingBalance={false}
+        isEstimate={false}
+        state={{
+          status: 'ready',
+          figures: { total: 352, applied: 0, due: 352 },
+        }}
+        totalLabel={<Trans>Registration total</Trans>}
+      />
       <Button
         className={cn(
           'h-20 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
@@ -318,7 +297,6 @@ export const FixtureTokenPickerContent = ({
 
 const FixtureTokenPickerDialogShell = ({
   methods,
-  defaultExpanded,
   initialSelectedId,
 }: Parameters<typeof FixtureTokenPickerContent>[0]) => {
   const [open, setOpen] = useState(true)
@@ -330,7 +308,6 @@ const FixtureTokenPickerDialogShell = ({
       title="Select payment"
     >
       <FixtureTokenPickerContent
-        defaultExpanded={defaultExpanded}
         initialSelectedId={initialSelectedId}
         methods={methods}
       />
@@ -354,10 +331,10 @@ const meta = {
     isLoadingBalances: false,
     stablecoinBalances: [FUNDED_USDC],
     globalErrorMessage: null,
-    methodErrorMessage: null,
   },
   argTypes: {
     stablecoinBalances: { control: false },
+    l2Rows: { control: false },
     initialSelectedToken: {
       control: 'inline-radio',
       options: [undefined, 'USDC'],
@@ -386,7 +363,6 @@ export const InsufficientUSDC: Story = {
   args: {
     initialSelectedToken: 'USDC',
     stablecoinBalances: [INSUFFICIENT_USDC],
-    methodErrorMessage: '$352.00 needed to register name',
     funding: {
       registration: 351.73,
       networkFee: 0.27,
@@ -395,6 +371,13 @@ export const InsufficientUSDC: Story = {
       hcaCredit: 0,
       isLoading: false,
     },
+  },
+}
+
+export const PayFromL2: Story = {
+  args: {
+    ...InsufficientUSDC.args,
+    l2Rows: FIXTURE_L2_ROWS,
   },
 }
 
@@ -413,10 +396,57 @@ export const WithAccountCredit: Story = {
   },
 }
 
-export const FeeTooltipOpen: Story = {
+export const WithAccountCreditAndL2: Story = {
   args: {
-    ...FundedUSDC.args,
-    isFeeTooltipOpen: true,
+    ...WithAccountCredit.args,
+    l2Rows: [
+      l2Row(baseSepolia, 400_000_000n, 'available', 162_780_000n),
+      l2Row(optimismSepolia, 250_000_000n, 'available', 162_770_000n),
+    ],
+  },
+}
+
+// WEB-2025: the wallet can't cover the registration, but two L2s can.
+const WALLET_SHORT_FUNDING: RegistrationFundingSummary = {
+  registration: 16.49,
+  networkFee: 26.08,
+  total: 42.57,
+  walletDebit: 16.57,
+  hcaCredit: 26,
+  isLoading: false,
+}
+
+const WALLET_SHORT_L2_ROWS: readonly L2PaymentRow[] = [
+  l2Row(optimismSepolia, 19_330_000n, 'available', 16_650_000n),
+  l2Row(baseSepolia, 48_340_000n, 'available', 16_650_000n),
+]
+
+export const WalletShortPicksHighestL2: Story = {
+  args: {
+    label: 'bananananana',
+    initialSelectedToken: 'USDC',
+    pricingData: 42.57,
+    stablecoinBalances: [{ ...FUNDED_USDC, balance: '5000000' }],
+    funding: WALLET_SHORT_FUNDING,
+    l2Rows: WALLET_SHORT_L2_ROWS,
+  },
+}
+
+export const WalletCoversKeepsWallet: Story = {
+  args: {
+    ...WalletShortPicksHighestL2.args,
+    stablecoinBalances: [FUNDED_USDC],
+  },
+}
+
+export const NoMethodCovers: Story = {
+  args: {
+    ...WalletShortPicksHighestL2.args,
+    stablecoinBalances: [INSUFFICIENT_USDC],
+    l2Rows: [
+      l2Row(optimismSepolia, 9_000_000n, 'insufficient'),
+      l2Row(baseSepolia, 12_000_000n, 'insufficient'),
+    ],
   },
 }
 
@@ -433,8 +463,8 @@ export const LongNameWithApprovalDetails: Story = {
       isLoading: false,
     },
     label: 'rh-resume-c-mvfdmryi7p3',
-    infoMessage:
-      "What was left from your last attempt covers the 160.00 USDC this registration needs, so you won't be asked to approve a payment.",
+    helpMessage:
+      'Your wallet will ask you to sign a payment approval for the amount shown.',
   },
   render: (args) => (
     <TokenPickerDialogShell
@@ -463,17 +493,6 @@ export const FixtureMultipleMethodsCollapsed: Story = {
   name: '[Fixture only] Multiple methods collapsed',
   render: () => (
     <FixtureTokenPickerDialogShell
-      initialSelectedId="usdc-mainnet"
-      methods={FIXTURE_MULTIPLE_METHODS}
-    />
-  ),
-}
-
-export const FixtureMultipleMethodsExpanded: Story = {
-  name: '[Fixture only] Multiple methods expanded',
-  render: () => (
-    <FixtureTokenPickerDialogShell
-      defaultExpanded
       initialSelectedId="usdc-mainnet"
       methods={FIXTURE_MULTIPLE_METHODS}
     />

@@ -32,14 +32,10 @@ type ConnectedWallet = {
   readonly connector: { readonly name: string }
 }
 
-// With consent the wallet becomes the analytics identity. Without it PostHog
-// stays anonymous and gets the address only as an input to wallet-targeted
-// flag rules (migration testers).
+// With consent the wallet becomes the analytics identity. Without it nothing
+// is sent, so wallet-targeted flags match only after Accept.
 const identifyWallet = (wallet: ConnectedWallet) => {
-  if (!hasAnalyticsConsent(posthog)) {
-    posthog.setPersonPropertiesForFlags({ address: wallet.address })
-    return
-  }
+  if (!hasAnalyticsConsent(posthog)) return
   posthog.identify(
     wallet.address,
     { address: wallet.address },
@@ -199,12 +195,14 @@ export const PHProvider = ({
         console.warn('[posthog] wallet identify failed', error)
       }
 
+      // Intercom runs for everyone, for support; the wallet only with consent.
       try {
-        trackIntercomEvent('wallet:connect', {
-          wallet_address: data.address,
-          chain_id: data.chainId,
-          wallet_connector: data.connector.name,
-        })
+        if (hasAnalyticsConsent(posthog))
+          trackIntercomEvent('wallet:connect', {
+            wallet_address: data.address,
+            chain_id: data.chainId,
+            wallet_connector: data.connector.name,
+          })
       } catch (error) {
         console.warn('[intercom] wallet:connect failed', error)
       }

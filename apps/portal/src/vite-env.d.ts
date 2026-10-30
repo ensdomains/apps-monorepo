@@ -23,6 +23,8 @@ interface ImportMetaEnv {
   readonly VITE_PUBLIC_POSTHOG_KEY?: string
   readonly VITE_PUBLIC_POSTHOG_HOST?: string
   readonly VITE_PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID?: string
+  readonly VITE_INTERCOM_APP_ID?: string
+  readonly VITE_WALLETCONNECT_PROJECT_ID?: string
   readonly VITE_CSP_ENFORCE?: string
 }
 

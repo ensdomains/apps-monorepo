@@ -152,11 +152,17 @@ describe('renderOgImage', () => {
     expect(og.htmls[0]).toContain(OWNER)
   })
 
-  it('offers an unowned name as available', async () => {
-    await renderOgImage('snowman.eth', null, null, URL_, env)
+  it.each([
+    [false, 'Available to register'],
+    [true, 'In grace period'],
+  ])(
+    'labels an unowned name by whether it is in grace (%s)',
+    async (isInGrace, label) => {
+      await renderOgImage('snowman.eth', null, null, URL_, env, isInGrace)
 
-    expect(og.htmls[0]).toContain('Available to register')
-  })
+      expect(og.htmls[0]).toContain(label)
+    },
+  )
 
   it('retries without the avatar when that card fails to render', async () => {
     // An avatar is the one element of the card sized by someone else, so it is

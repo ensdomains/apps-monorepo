@@ -5,16 +5,24 @@ import {
   ContractFunctionExecutionError,
   ExecutionRevertedError,
   toFunctionSelector,
+  zeroAddress,
 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { hasV2NameEntry, readNameResolver } from './changeResolver'
 import { getProfileEthAddressSnapshot } from './profileEthAddress'
 
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
+const V1_RESOLVER = '0x4444444444444444444444444444444444444444' as Address
+const V2_RESOLVER = '0x5555555555555555555555555555555555555555' as Address
+const FALLBACK_RESOLVER =
+  '0x6666666666666666666666666666666666666666' as Address
 
 const client = vi.hoisted(() => ({
   multicall: vi.fn(),
   call: vi.fn(),
+  getCode: vi.fn(async () => '0x6000'),
+  readContract: vi.fn(),
 }))
 
 vi.mock('@/lib/wagmi', () => ({ publicClient: client }))
@@ -26,6 +34,18 @@ vi.mock('@/lib/wagmi/helpers', async () => {
 vi.mock('@ensdomains/ensjs/public', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ensdomains/ensjs/public')>()),
   getResolver: vi.fn(),
+}))
+
+vi.mock('./changeResolver', () => ({
+  resolveNameRegistry: vi.fn(async () => ({
+    label: 'leon',
+    registryAddress: RESOLVER,
+  })),
+  readNameResolver: vi.fn(
+    async () => '0x0000000000000000000000000000000000000000',
+  ),
+  hasV2NameEntry: vi.fn(async () => false),
+  NameRegistryNotFoundError: class extends Error {},
 }))
 
 vi.mock('./profileEthAddress', async () => {
@@ -67,9 +87,13 @@ const answersAsResolver = (isResolver: boolean) =>
   ])
 
 beforeEach(() => {
+  vi.mocked(hasV2NameEntry).mockResolvedValue(false)
+  vi.mocked(readNameResolver).mockResolvedValue(zeroAddress)
   client.multicall.mockReset()
   client.call.mockReset()
   vi.mocked(getResolver).mockReset()
+  client.readContract.mockReset()
+  client.readContract.mockResolvedValue(zeroAddress)
 })
 
 describe('getResolverWriteState', () => {
@@ -160,6 +184,22 @@ describe('getResolverWriteState', () => {
     const result = await getResolverWriteState('pookie.eth', OWNER)
 
     expect(result._unsafeUnwrap()).toEqual({
+      resolverAddress: undefined,
+      canWrite: false,
+      isResolverInvalid: true,
+    })
+    expect(client.call).not.toHaveBeenCalled()
+  })
+
+  it('flags an ENSv2 resolver pointer that is a wallet address as invalid', async () => {
+    vi.mocked(hasV2NameEntry).mockResolvedValue(true)
+    vi.mocked(readNameResolver).mockResolvedValue(OWNER)
+    client.getCode.mockResolvedValueOnce('0x')
+    answersAsResolver(false)
+
+    const result = await getResolverWriteState('pookie.eth', OWNER)
+
+    expect(result._unsafeUnwrap()).toEqual({
       resolverAddress: OWNER,
       canWrite: false,
       isResolverInvalid: true,
@@ -190,5 +230,53 @@ describe('getResolverWriteState', () => {
     })
     // A writable resolver is working; it is not probed again.
     expect(client.multicall).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    { case: 'ENSv1 subname', isRegisteredInV2: false, expected: V1_RESOLVER },
+    {
+      case: 'ENSv1 .eth name the v2 registry falls back for',
+      isRegisteredInV2: false,
+      v2Resolver: FALLBACK_RESOLVER,
+      expected: V1_RESOLVER,
+    },
+    {
+      case: 'registered ENSv2 name',
+      isRegisteredInV2: true,
+      v2Resolver: V2_RESOLVER,
+      expected: V2_RESOLVER,
+    },
+  ])(
+    'probes the resolver that holds the records of an $case',
+    async ({ isRegisteredInV2, v2Resolver, expected }) => {
+      vi.mocked(hasV2NameEntry).mockResolvedValue(isRegisteredInV2)
+      if (v2Resolver) vi.mocked(readNameResolver).mockResolvedValue(v2Resolver)
+      client.readContract.mockResolvedValue(V1_RESOLVER)
+      supportsNameSetters(false)
+      client.call.mockResolvedValue({ data: '0x' })
+
+      const result = await getResolverWriteState('2.testname1234.eth', OWNER)
+
+      expect(result._unsafeUnwrap()).toEqual({
+        resolverAddress: expected,
+        canWrite: true,
+        isResolverInvalid: false,
+      })
+      expect(client.call).toHaveBeenCalledWith(
+        expect.objectContaining({ to: expected }),
+      )
+    },
+  )
+
+  it('keeps a name resolution cannot reach unwritable despite an ENSv1 registry resolver', async () => {
+    client.readContract.mockResolvedValue(V1_RESOLVER)
+    vi.mocked(getProfileEthAddressSnapshot).mockReturnValueOnce(
+      okAsync({ resolverAddress: undefined, ethAddress: undefined }),
+    )
+
+    const result = await getResolverWriteState('1.qa-ens.eth', OWNER)
+
+    expect(result._unsafeUnwrap().canWrite).toBe(false)
+    expect(client.call).not.toHaveBeenCalled()
   })
 })

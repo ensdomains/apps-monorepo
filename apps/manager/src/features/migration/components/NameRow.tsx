@@ -1,24 +1,21 @@
 import { Trans } from '@lingui/react/macro'
-import { memo, useId, useState } from 'react'
+import { memo, type ReactNode, useId, useState } from 'react'
 import type { Address } from 'viem'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { cn, truncateAddress } from '@/lib/utils'
 import type { ClassifiedName } from '../service/classifyNames'
 import { getMigrationAvatarUrl } from './nameAvatar.helpers'
 
 type NameRowProps = {
-  readonly item: Pick<ClassifiedName, 'domain'>
+  readonly item: Pick<ClassifiedName, 'domain'> &
+    Partial<Pick<ClassifiedName, 'resolverStrategy'>>
   readonly isSelected: boolean
   readonly isPrimary?: boolean
-  readonly isInGrace?: boolean
   readonly depth: number
   readonly onToggle?: (name: string) => void
+  readonly disabledReason?: ReactNode
+  readonly warning?: ReactNode
   /** The v1 registry controller, when it differs from the registrant. */
   readonly managerCandidate?: Address
   readonly isManagerRestored?: boolean
@@ -32,20 +29,22 @@ type NameRowProps = {
  *
  * It always shows the address, because the account is neither the owner nor
  * anything the rest of the flow names: for a name bought on a marketplace it is
- * the seller, and granting it `ROLE_SET_RESOLVER` would let it keep changing
- * the name's resolver after the upgrade.
+ * the seller. Retaining it permits resolver changes and, when records are
+ * copied, edits on the name's dedicated resolver.
  */
 const ManagerRestorationOptIn = ({
   name,
   manager,
   isRestored,
   isLocked,
+  isCopyingProfile,
   onToggle,
 }: {
   readonly name: string
   readonly manager: Address
   readonly isRestored: boolean
   readonly isLocked: boolean
+  readonly isCopyingProfile: boolean
   readonly onToggle: (name: string) => void
 }) => (
   <label
@@ -74,8 +73,18 @@ const ManagerRestorationOptIn = ({
         <span className="font-semi-mono text-ens-garnet-900">
           {truncateAddress(manager)}
         </span>{' '}
-        as a manager. It can change this name&apos;s resolver after the upgrade.
-      </Trans>
+        as a manager.
+      </Trans>{' '}
+      {isCopyingProfile ? (
+        <Trans>
+          It can edit copied profile records and change this name&apos;s
+          resolver after the upgrade. Ownership stays with you.
+        </Trans>
+      ) : (
+        <Trans>
+          It can change this name&apos;s resolver after the upgrade.
+        </Trans>
+      )}
       {isLocked && (
         <span className="block text-ens-garnet-900/50">
           <Trans>Carried over from your earlier attempt.</Trans>
@@ -89,9 +98,10 @@ const NameRowComponent = ({
   item,
   isSelected,
   isPrimary = false,
-  isInGrace = false,
   depth,
   onToggle,
+  disabledReason,
+  warning,
   managerCandidate,
   isManagerRestored = false,
   isManagerRestorationLocked = false,
@@ -102,9 +112,14 @@ const NameRowComponent = ({
   const isNested = depth > 0
   const showAvatar = failedAvatarUrl !== avatarUrl
   const primaryNameId = useId()
-  const renewalId = useId()
+  const disabledReasonId = useId()
+  const warningId = useId()
   const descriptions =
-    [isPrimary && primaryNameId, isInGrace && renewalId]
+    [
+      isPrimary && primaryNameId,
+      disabledReason && disabledReasonId,
+      warning && warningId,
+    ]
       .filter(Boolean)
       .join(' ') || undefined
   const badgeClass = cn(
@@ -116,7 +131,7 @@ const NameRowComponent = ({
 
   const content = (
     <>
-      {!isNested && (
+      {!isNested && !disabledReason && (
         <div
           aria-hidden
           className={cn(
@@ -166,49 +181,18 @@ const NameRowComponent = ({
         )}
       >
         <span className="truncate">{item.domain.name}</span>
-        {(isPrimary || isInGrace) && (
+        {isPrimary && (
           <span className="absolute -top-3.5 -right-3 flex gap-1">
-            {isInGrace && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    aria-labelledby={renewalId}
-                    className={cn(
-                      badgeClass,
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2',
-                    )}
-                    role="img"
-                    // biome-ignore lint/a11y/noNoninteractiveTabindex: Allow keyboard access to the tooltip without adding a button inside the checkbox label.
-                    tabIndex={0}
-                    title=""
-                  >
-                    <MSymbol
-                      aria-hidden
-                      className="ms-wght-300 size-4 text-base leading-none"
-                      symbol="cached"
-                    />
-                    <span className="sr-only" id={renewalId}>
-                      <Trans>Renew before upgrade</Trans>
-                    </span>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <Trans>Renew before upgrade</Trans>
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {isPrimary && (
-              <span className={badgeClass}>
-                <MSymbol
-                  aria-hidden
-                  className="ms-wght-300 size-4 text-base leading-none"
-                  symbol="person_check"
-                />
-                <span className="sr-only" id={primaryNameId}>
-                  <Trans>Primary name</Trans>
-                </span>
+            <span className={badgeClass}>
+              <MSymbol
+                aria-hidden
+                className="ms-wght-300 size-4 text-base leading-none"
+                symbol="person_check"
+              />
+              <span className="sr-only" id={primaryNameId}>
+                <Trans>Primary name</Trans>
               </span>
-            )}
+            </span>
           </span>
         )}
       </div>
@@ -217,39 +201,58 @@ const NameRowComponent = ({
 
   const rowClass = cn(
     'relative flex max-w-full items-center gap-1',
-    isNested ? 'cursor-default' : 'cursor-pointer',
+    isNested || disabledReason ? 'cursor-default' : 'cursor-pointer',
+    !!disabledReason && 'opacity-65',
   )
 
   if (isNested) {
-    return (
-      <div className={rowClass} title={item.domain.name}>
-        {content}
-      </div>
-    )
+    return <div className={rowClass}>{content}</div>
   }
 
   // A locked row with nothing recorded has no choice left to show.
   const showManagerOptIn =
     isSelected &&
+    !disabledReason &&
     !!managerCandidate &&
     !!onToggleManagerRestoration &&
     (!isManagerRestorationLocked || isManagerRestored)
+  const Row = disabledReason ? 'div' : 'label'
 
   return (
     <div className="flex min-w-0 flex-col">
-      <label className={rowClass} title={item.domain.name}>
-        <input
-          aria-describedby={descriptions}
-          aria-label={item.domain.name}
-          checked={isSelected}
-          className="peer sr-only"
-          onChange={() => onToggle?.(item.domain.name)}
-          type="checkbox"
-        />
+      {warning && (
+        <p
+          className="mb-2 text-destructive text-sm leading-5"
+          id={warningId}
+          role="alert"
+        >
+          {warning}
+        </p>
+      )}
+      <Row className={rowClass}>
+        {!disabledReason && (
+          <input
+            aria-describedby={descriptions}
+            aria-label={item.domain.name}
+            checked={isSelected}
+            className="peer sr-only"
+            onChange={() => onToggle?.(item.domain.name)}
+            type="checkbox"
+          />
+        )}
         {content}
-      </label>
+      </Row>
+      {disabledReason && (
+        <p
+          className="mt-2 max-w-full text-ens-garnet-900/75 text-sm leading-5"
+          id={disabledReasonId}
+        >
+          {disabledReason}
+        </p>
+      )}
       {showManagerOptIn && (
         <ManagerRestorationOptIn
+          isCopyingProfile={item.resolverStrategy === 'to-owned-permres'}
           isLocked={isManagerRestorationLocked}
           isRestored={isManagerRestored}
           manager={managerCandidate}

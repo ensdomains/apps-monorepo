@@ -1,6 +1,7 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
+import { SubnameRecreationError } from './subnameRecreationError'
 
 type MigrationPreparationStage =
   | 'account'
@@ -14,10 +15,14 @@ type MigrationPreparationReason =
   | 'contract-unavailable'
   | 'contract-incompatible'
   | 'resolver-not-writable'
+  | 'locked-resolver-record-control'
+  | 'legacy-resolver-content'
+  | 'unsupported-resolver-records'
   | 'records-unavailable'
   | 'records-not-replayable'
   | 'recovery-changed'
   | 'parent-not-upgraded'
+  | 'reservation-not-synced'
   | 'rpc-unavailable'
   | 'fee-unavailable'
   | 'unknown'
@@ -57,6 +62,14 @@ const reasonFor = (
   cause: unknown,
 ): MigrationPreparationReason => {
   const chain = causeChain(cause)
+  if (
+    chain.some(
+      (error) =>
+        error.name === 'CopyMigrationReadinessError' &&
+        error.reason === 'reservation-expiry-mismatch',
+    )
+  )
+    return 'reservation-not-synced'
   // Before the fee fallback: the grace renewal estimate checks routes under the fee stage.
   if (
     chain.some(
@@ -66,6 +79,18 @@ const reasonFor = (
     )
   )
     return 'parent-not-upgraded'
+  if (
+    chain.some(
+      (error) =>
+        error.name === 'MigrationContractInvariantError' &&
+        error.invariant === 'locked-resolver-record-control',
+    )
+  )
+    return 'locked-resolver-record-control'
+  if (chain.some((error) => error.name === 'LegacyResolverContentError'))
+    return 'legacy-resolver-content'
+  if (chain.some((error) => error.name === 'UnsupportedResolverRecordsError'))
+    return 'unsupported-resolver-records'
   if (stage === 'fee') return 'fee-unavailable'
   if (
     chain.some(
@@ -173,15 +198,66 @@ const messages: Record<MigrationPreparationReason, MessageDescriptor> = {
   'contract-unavailable': msg`A required upgrade contract is unavailable. Please try again later.`,
   'contract-incompatible': msg`The upgrade contracts don't match this account. Please contact support.`,
   'resolver-not-writable': msg`Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again.`,
+  'locked-resolver-record-control': msg`A locked name's resolver cannot be safely replaced. Upgrading could make its records permanently uneditable. Deselect the name to continue.`,
+  'legacy-resolver-content': msg`A name has a legacy content record that this upgrade cannot preserve. Update it to a contenthash record before upgrading, or deselect the name.`,
+  'unsupported-resolver-records': msg`A name has primary-name records or DNS history that this upgrade cannot preserve. Deselect the name to keep its records.`,
   'records-unavailable': msg`Couldn't verify your name records. Please try again.`,
   'records-not-replayable': msg`Some locked names have records that this upgrade cannot preserve. Deselect those names to continue.`,
   'recovery-changed': msg`Couldn't restore your upgrade progress. Reload to check the latest state.`,
   'parent-not-upgraded': msg`Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames.`,
+  'reservation-not-synced': msg`A renewed name's ENSv2 reservation is out of date. Wait for it to sync before upgrading. If this continues, contact support.`,
   'rpc-unavailable': msg`Couldn't reach the network to prepare your upgrade. Please try again.`,
   'fee-unavailable': msg`Couldn't estimate the network fee`,
   unknown: msg`Couldn't prepare your upgrade. Please try again.`,
 }
 
 export const migrationPreparationMessage = (
-  failure: Pick<MigrationPreparationFailure, 'reason'>,
-): MessageDescriptor => messages[failure.reason]
+  failure: Pick<MigrationPreparationFailure, 'reason'> &
+    Partial<Pick<MigrationPreparationFailure, 'cause'>>,
+): MessageDescriptor => {
+  if (failure.cause instanceof SubnameRecreationError) {
+    const details = failure.cause.message
+    return msg`${details}`
+  }
+  if (failure.reason === 'parent-not-upgraded') {
+    const error = causeChain(failure.cause).find(
+      (cause) =>
+        cause.name === 'DirectMigrationRouteError' &&
+        cause.reason === 'missing-wrapper',
+    )
+    if (typeof error?.ensName === 'string') {
+      const parentName = error.ensName
+      return msg`Some subnames can't upgrade because ${parentName} hasn't been upgraded yet. Upgrade this parent first, or deselect those subnames.`
+    }
+  }
+  if (failure.reason === 'locked-resolver-record-control') {
+    const error = causeChain(failure.cause).find(
+      (cause) =>
+        cause.name === 'MigrationContractInvariantError' &&
+        cause.invariant === 'locked-resolver-record-control',
+    )
+    if (typeof error?.ensName === 'string') {
+      const ensName = error.ensName
+      return msg`Upgrading ${ensName} could make its records permanently uneditable because its resolver cannot be replaced. Deselect this name to continue.`
+    }
+  }
+  if (failure.reason === 'legacy-resolver-content') {
+    const error = causeChain(failure.cause).find(
+      (cause) => cause.name === 'LegacyResolverContentError',
+    )
+    if (typeof error?.ensName === 'string') {
+      const ensName = error.ensName
+      return msg`${ensName} has a legacy content record that this upgrade cannot preserve. Update it to a contenthash record before upgrading, or deselect this name.`
+    }
+  }
+  if (failure.reason === 'unsupported-resolver-records') {
+    const error = causeChain(failure.cause).find(
+      (cause) => cause.name === 'UnsupportedResolverRecordsError',
+    )
+    if (typeof error?.ensName === 'string') {
+      const ensName = error.ensName
+      return msg`${ensName} has primary-name records or DNS history that this upgrade cannot preserve. Deselect this name to keep its records.`
+    }
+  }
+  return messages[failure.reason]
+}

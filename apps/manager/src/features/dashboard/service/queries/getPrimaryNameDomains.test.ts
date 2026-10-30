@@ -3,10 +3,13 @@ import type {
   Page,
   ReadNamesForAddress,
 } from '@ens-apps/indexer/reads'
-import { IndexerReadError } from '@ens-apps/indexer/reads'
-import { errAsync, okAsync } from 'neverthrow'
+import { okAsync } from 'neverthrow'
 import { describe, expect, it, vi } from 'vitest'
-import { getPrimaryNameDomains } from './getPrimaryNameDomains'
+import {
+  getOwnedPrimaryNames,
+  getResolvingPrimaryNames,
+  mergePrimaryNameDomains,
+} from './getPrimaryNameDomains'
 
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
 
@@ -16,11 +19,12 @@ const OWNER = '0x0000000000000000000000000000000000000def'
 const summary = (
   name: string,
   namehash: `0x${string}` = `0x${name.length}`,
+  protocol: NameSummary['protocol'] = 'v2',
 ): NameSummary => ({
   name,
   displayName: name,
   namehash,
-  protocol: 'v2',
+  protocol,
   relations: ['owner'],
   isPrimary: false,
   isMigrated: false,
@@ -37,20 +41,31 @@ const page = (
   nextCursor: string | null = null,
 ): Page<NameSummary> => ({ items, nextCursor, totalCount: null })
 
-describe('getPrimaryNameDomains', () => {
-  it('asks for owned ENSv2 names by name and maps them to dialog rows', async () => {
+describe('getOwnedPrimaryNames', () => {
+  // An ENSv1 name that resolves to its owner can be a primary name, so the
+  // read must not ask bigname for one protocol.
+  it('asks for owned names of either protocol and maps them to dialog rows', async () => {
     const readNames = vi.fn<ReadNamesForAddress>(() =>
-      okAsync(page([summary('alice.eth', '0x01')])),
+      okAsync(
+        page([
+          summary('alice.eth', '0x01'),
+          summary('sub.legacy.eth', '0x02', 'v1'),
+        ]),
+      ),
     )
 
-    const result = await getPrimaryNameDomains(readNames, ADDRESS)
+    const result = await getOwnedPrimaryNames(readNames, ADDRESS)
 
-    expect(result._unsafeUnwrap()).toEqual([{ id: '0x01', name: 'alice.eth' }])
+    expect(result._unsafeUnwrap()).toEqual([
+      { id: '0x01', name: 'alice.eth', protocol: 'v2' },
+      // The protocol rides along: the dialog needs it to tell an ENSv1 name
+      // apart before offering ENSv2-only resolver setup.
+      { id: '0x02', name: 'sub.legacy.eth', protocol: 'v1' },
+    ])
     expect(readNames).toHaveBeenCalledWith(
       {
         address: ADDRESS,
         relations: ['owner'],
-        protocol: 'v2',
         sort: 'name',
         order: 'asc',
         pageSize: 200,
@@ -70,9 +85,11 @@ describe('getPrimaryNameDomains', () => {
       ),
     )
 
-    const result = await getPrimaryNameDomains(readNames, ADDRESS)
+    const result = await getOwnedPrimaryNames(readNames, ADDRESS)
 
-    expect(result._unsafeUnwrap()).toEqual([{ id: '0x01', name: 'alice.eth' }])
+    expect(result._unsafeUnwrap()).toEqual([
+      { id: '0x01', name: 'alice.eth', protocol: 'v2' },
+    ])
   })
 
   it('follows the cursor until every page is read', async () => {
@@ -86,7 +103,7 @@ describe('getPrimaryNameDomains', () => {
       okAsync(pages[call++] ?? page([])),
     )
 
-    const result = await getPrimaryNameDomains(readNames, ADDRESS)
+    const result = await getOwnedPrimaryNames(readNames, ADDRESS)
 
     expect(result._unsafeUnwrap().map(({ name }) => name)).toEqual([
       'a.eth',
@@ -99,22 +116,9 @@ describe('getPrimaryNameDomains', () => {
       expect.anything(),
     )
   })
+})
 
-  it('passes a read failure on', async () => {
-    const failure = new IndexerReadError({
-      message: 'unavailable',
-      kind: 'unavailable',
-      cause: new Error('down'),
-    })
-
-    const result = await getPrimaryNameDomains(
-      vi.fn<ReadNamesForAddress>(() => errAsync(failure)),
-      ADDRESS,
-    )
-
-    expect(result._unsafeUnwrapErr()).toBe(failure)
-  })
-
+describe('mergePrimaryNameDomains', () => {
   it('adds names still resolving to the owner wallet, once each and in name order', async () => {
     const readNames = vi.fn<ReadNamesForAddress>((query) =>
       okAsync(
@@ -126,31 +130,18 @@ describe('getPrimaryNameDomains', () => {
       ),
     )
 
-    const result = await getPrimaryNameDomains(readNames, ADDRESS, OWNER)
+    const owned = await getOwnedPrimaryNames(readNames, ADDRESS)
+    const resolving = await getResolvingPrimaryNames(readNames, OWNER)
 
-    expect(result._unsafeUnwrap().map(({ name }) => name)).toEqual([
-      'alice.eth',
-      'fox-1.eth',
-      'zed.eth',
-    ])
+    expect(
+      mergePrimaryNameDomains(
+        owned._unsafeUnwrap(),
+        resolving._unsafeUnwrap(),
+      ).map(({ name }) => name),
+    ).toEqual(['alice.eth', 'fox-1.eth', 'zed.eth'])
     expect(readNames).toHaveBeenCalledWith(
       expect.objectContaining({ address: OWNER, resolvesTo: true }),
       expect.anything(),
     )
-  })
-
-  it('passes a failed resolving-names read on instead of listing only owned names', async () => {
-    const failure = new IndexerReadError({
-      message: 'unavailable',
-      kind: 'unavailable',
-      cause: new Error('down'),
-    })
-    const readNames = vi.fn<ReadNamesForAddress>((query) =>
-      query.resolvesTo ? errAsync(failure) : okAsync(page([])),
-    )
-
-    const result = await getPrimaryNameDomains(readNames, ADDRESS, OWNER)
-
-    expect(result._unsafeUnwrapErr()).toBe(failure)
   })
 })

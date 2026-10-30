@@ -6,11 +6,21 @@ const mockGetOwnerV2 = vi.fn()
 const mockGetNameRegistries = vi.fn()
 
 const V1_ETH_REGISTRY = '0x00000000000000000000000000000000000e1000'
+const NAME_WRAPPER = '0x00000000000000000000000000000000000f1aa5'
+
+const mockReadContract = vi.fn()
 
 vi.mock('@ensdomains/ensjs/chain', () => ({
-  // resolveEnsOwner only resolves a chain contract for the V1 fallback now;
-  // the V2 path reads everything by name via the UniversalHelper.
-  getChainContractAddress: () => V1_ETH_REGISTRY,
+  // The V2 path reads everything by name via the UniversalHelper; the V1
+  // fallback needs the legacy registry and, for wrapped names, the wrapper.
+  getChainContractAddress: ({ contract }: { contract: string }) =>
+    contract === 'ensNameWrapper' ? NAME_WRAPPER : V1_ETH_REGISTRY,
+}))
+
+vi.mock('viem/actions', () => ({ readContract: vi.fn() }))
+vi.mock('viem/utils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('viem/utils')>()),
+  getAction: () => mockReadContract,
 }))
 
 vi.mock('@ensdomains/ensjs/public/v1', () => ({
@@ -39,6 +49,7 @@ describe('resolveEnsOwner', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetOwnerV1.mockResolvedValue(null)
+    mockReadContract.mockReset()
     mockGetOwnerV2.mockResolvedValue(zeroAddress)
     mockGetNameRegistries.mockResolvedValue([zeroAddress, zeroAddress])
   })
@@ -166,22 +177,45 @@ describe('resolveEnsOwner', () => {
     expect(mockGetOwnerV1).toHaveBeenCalledWith(client, { name: 'florin.xyz' })
   })
 
-  it('falls back to the V1 registry when V2 has no owner', async () => {
+  // An unmigrated V1 name has no V2 token (a reservation has no owner), so it
+  // falls back to V1; a migrated name that expired keeps its V2 token and must
+  // not read as V1, which would hide its V2 renewal.
+  it.each([
+    ['falls back to V1 for a name with no V2 token', zeroAddress, 'ENSv1'],
+    ['stays ENSv2 for a migrated name whose V2 lease expired', OWNER, null],
+  ] as const)('%s', async (_, latestOwner, protocolVersion) => {
     mockGetOwnerV2.mockResolvedValueOnce(zeroAddress)
-    mockGetNameRegistries.mockResolvedValueOnce([
+    mockGetNameRegistries.mockResolvedValue([
       zeroAddress,
       ETH_REGISTRY,
       ROOT_REGISTRY,
     ])
+    mockReadContract.mockResolvedValue({ status: 0, expiry: 1n, latestOwner })
     mockGetOwnerV1.mockResolvedValueOnce({ owner: OWNER })
 
     const result = await resolveEnsOwner(client, 'legacy.eth')
 
-    expect(result).toEqual({
-      owner: OWNER,
-      registryAddress: V1_ETH_REGISTRY,
-      protocolVersion: 'ENSv1',
+    expect(result?.protocolVersion ?? null).toBe(protocolVersion)
+  })
+
+  // A failed owner read on an active name must not make it look expired.
+  it('falls back to V1 when the V2 token has not expired', async () => {
+    mockGetOwnerV2.mockResolvedValueOnce(zeroAddress)
+    mockGetNameRegistries.mockResolvedValue([
+      zeroAddress,
+      ETH_REGISTRY,
+      ROOT_REGISTRY,
+    ])
+    mockReadContract.mockResolvedValue({
+      status: 2,
+      expiry: BigInt(Math.floor(Date.now() / 1000) + 86_400),
+      latestOwner: OWNER,
     })
+    mockGetOwnerV1.mockResolvedValueOnce({ owner: OWNER })
+
+    expect((await resolveEnsOwner(client, 'legacy.eth'))?.protocolVersion).toBe(
+      'ENSv1',
+    )
   })
 
   // WEB-1885: a parent whose subregistry has no registry behind it makes the
@@ -212,5 +246,39 @@ describe('resolveEnsOwner', () => {
       transport,
     )
     expect(mockGetOwnerV1).not.toHaveBeenCalled()
+  })
+
+  // Once a wrapped name's registration lapses the registrar names no
+  // registrant, so the read falls back to the registry slot, which holds the
+  // NameWrapper. Reporting that would hand the holder's own name to a contract.
+  it('reports the holder behind a wrapped name the registry attributes to the wrapper', async () => {
+    mockGetOwnerV1.mockResolvedValue({ owner: NAME_WRAPPER })
+    mockReadContract.mockResolvedValue([OWNER, 196608, 1794082860n])
+
+    const result = await resolveEnsOwner(client, 'lapsed.eth')
+
+    expect(result).toEqual({
+      owner: OWNER,
+      registryAddress: V1_ETH_REGISTRY,
+      protocolVersion: 'ENSv1',
+    })
+  })
+
+  it('keeps the registry owner when the wrapper has no holder to report', async () => {
+    mockGetOwnerV1.mockResolvedValue({ owner: NAME_WRAPPER })
+    mockReadContract.mockResolvedValue([zeroAddress, 0, 0n])
+
+    const result = await resolveEnsOwner(client, 'lapsed.eth')
+
+    expect(result?.owner).toBe(NAME_WRAPPER)
+  })
+
+  it('does not read the wrapper for an unwrapped name', async () => {
+    mockGetOwnerV1.mockResolvedValue({ owner: OWNER })
+
+    const result = await resolveEnsOwner(client, 'plain.eth')
+
+    expect(result?.owner).toBe(OWNER)
+    expect(mockReadContract).not.toHaveBeenCalled()
   })
 })

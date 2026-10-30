@@ -35,6 +35,53 @@ const INTERFACE_IMPLEMENTER: Address =
 const RESOURCE = 123n
 const EXPIRY = 4_294_967_295n
 const ROLES_ALL = (1n << 256n) - 1n
+
+describe('legacy reservation expiry recovery', () => {
+  it.each([true, false])(
+    'accepts the shorter legacy expiry only when the historical reservation proves it (%s)',
+    async (hasMatchingReservation) => {
+      const expected: AtomicMigrationVerificationExpectation = {
+        id: 'alice:name-expiry',
+        type: 'name-expiry',
+        name: 'alice.eth',
+        resource: RESOURCE,
+        registryPath: {
+          type: 'eth-registry-2ld',
+          registry: ROOT_REGISTRY,
+          label: 'alice',
+          resource: RESOURCE,
+        },
+        expectedExpiry: EXPIRY,
+        canUseLegacyReservationExpiry: true,
+      }
+      const client = {
+        readContract: vi.fn(
+          async ({ blockNumber }: { blockNumber?: bigint }) => ({
+            status: blockNumber === 9n ? 1 : 2,
+            expiry:
+              blockNumber === 9n && !hasMatchingReservation
+                ? EXPIRY
+                : EXPIRY - 1n,
+            resource: RESOURCE,
+          }),
+        ),
+      } as unknown as PublicClient
+      const verification = verifyAtomicMigrationBatch({
+        publicClient: client,
+        batch: { index: 0, verificationExpectations: [expected] },
+        blockNumber: 10n,
+      })
+      const outcome = await verification.then(
+        ({ status }) => status,
+        (error) =>
+          error instanceof AtomicMigrationBatchVerificationError
+            ? 'mismatch'
+            : Promise.reject(error),
+      )
+      expect(outcome).toBe(hasMatchingReservation ? 'confirmed' : 'mismatch')
+    },
+  )
+})
 // RegistryRolesLib uses nybble-packed roles: SET_RESOLVER is the seventh
 // nybble, not the seventh contiguous bit.
 const ROLE_SET_RESOLVER = 1n << 24n
@@ -337,6 +384,7 @@ describe('verifyAtomicMigrationBatch', () => {
         hasRootRoles: true,
         getOwner: WALLET,
         getResolver: RESOLVER,
+        roles: ROLE_SET_RESOLVER,
         hasRoles: true,
         getWrappedNode: NODE,
       }
@@ -406,11 +454,42 @@ describe('verifyAtomicMigrationBatch', () => {
     expect(requests).toContainEqual(
       expect.objectContaining({
         address: MID_REGISTRY,
-        functionName: 'hasRoles',
-        args: [RESOURCE, ROLE_SET_RESOLVER, MANAGER],
+        functionName: 'roles',
+        args: [RESOURCE, MANAGER],
       }),
     )
     expect(requests.every(({ blockNumber }) => blockNumber === 456n)).toBe(true)
+  })
+
+  it('rejects a retained manager with unplanned administrative roles', async () => {
+    const managerExpectation = expectations.find(
+      ({ type }) => type === 'manager-role',
+    )
+    assert(managerExpectation)
+    const publicClient = {
+      readContract: vi.fn(async (request: ReadRequest) => {
+        if (request.functionName === 'getSubregistry') {
+          return readSubregistryFixture(request)
+        }
+        if (request.functionName === 'hasRoles') return true
+        if (request.functionName === 'roles') {
+          return ROLE_SET_RESOLVER | (1n << 156n)
+        }
+        throw new Error(`unexpected read: ${request.functionName}`)
+      }),
+    } as unknown as PublicClient
+
+    await expect(
+      verifyAtomicMigrationBatch({
+        publicClient,
+        batch: {
+          index: 9,
+          verificationExpectations: [managerExpectation],
+        },
+      }),
+    ).rejects.toMatchObject({
+      failures: [{ expectationId: 'name:manager' }],
+    })
   })
 
   it('fails an interface record that resolves to a different implementer', async () => {

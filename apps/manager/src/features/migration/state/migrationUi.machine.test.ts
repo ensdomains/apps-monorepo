@@ -1,6 +1,6 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
-import type { Config as WagmiConfig } from '@wagmi/core'
+import type { Connector, Config as WagmiConfig } from '@wagmi/core'
 import { errAsync, fromPromise, okAsync } from 'neverthrow'
 import type { Address, Hex, WalletClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -166,6 +166,7 @@ const startRenewal = (
   domains: [V1Domain, ...V1Domain[]] = [domain('alice')],
   requestSteps?: readonly MigrationWalletRequestDescriptor[],
   quoteOverrides: Partial<GraceRenewalQuote> = {},
+  signer: Signer = EOA_SIGNER,
 ) => {
   const actor = createActor(migrationUiMachine, {
     input: { wagmiConfig: WAGMI },
@@ -179,7 +180,7 @@ const startRenewal = (
       hcaAddress: SCA,
       requestSteps,
     },
-    signer: EOA_SIGNER,
+    signer,
     hcaClient: HCA_CLIENT,
     refreshAccount: REFRESH_ACCOUNT,
   })
@@ -236,6 +237,32 @@ describe('migrationUiMachine', () => {
       expect(executeGraceRenewalMock).not.toHaveBeenCalled()
       expect(prepareGraceRenewalMigrationMock).not.toHaveBeenCalled()
       expect(executeMigrationMock).not.toHaveBeenCalled()
+      actor.stop()
+    })
+
+    it('renews through the wallet connector, which tells a Safe{Wallet} apart', async () => {
+      const connector = {} as Connector
+      executeGraceRenewalMock.mockReturnValue(
+        fromPromise(
+          new Promise(() => {}),
+          (cause) => new GraceRenewalError({ cause }),
+        ),
+      )
+
+      const actor = startRenewal(
+        [domain('alice')],
+        undefined,
+        {},
+        {
+          ...EOA_SIGNER,
+          connector,
+        },
+      )
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(executeGraceRenewalMock).toHaveBeenCalledWith(
+        expect.objectContaining({ connector }),
+      )
       actor.stop()
     })
 
@@ -778,9 +805,53 @@ describe('migrationUiMachine', () => {
       })
       expect(actor.getSnapshot().value).toBe('select')
     })
+
+    it('starts cleanup-only reconciliation after every name completed', () => {
+      executeMigrationMock.mockImplementation(() => new Promise(() => {}))
+      const completed = makePlan([domain('alice')]).classified[0]
+      const plan = makePlan([], {
+        classified: [],
+        registryContext: completed ? [completed] : [],
+        priorCompletedOperations: [{ name: 'alice.eth', action: 'migrate' }],
+        requiresReconciliation: true,
+        stepDescriptors: [{ type: 'cleanup', approvalId: 'eth-registry:hca' }],
+      })
+      const actor = createActor(migrationUiMachine, {
+        input: { wagmiConfig: WAGMI },
+      })
+      actor.start()
+
+      actor.send({
+        type: 'migration.start',
+        plan,
+        signer: SIGNER,
+        hcaClient: HCA_CLIENT,
+        refreshAccount: REFRESH_ACCOUNT,
+      })
+
+      expect(actor.getSnapshot().value).toEqual({ migrate: 'running' })
+      expect(executeMigrationMock).toHaveBeenCalledWith(
+        expect.objectContaining({ plan, reconcileBeforeSubmit: true }),
+      )
+      actor.stop()
+    })
   })
 
   describe('migrate.running state', () => {
+    it('aborts the migration submission gate when the actor stops', () => {
+      let submissionSignal: AbortSignal | undefined
+      executeMigrationMock.mockImplementation(({ submissionGate }) => {
+        submissionSignal = submissionGate.signal
+        return new Promise(() => {})
+      })
+
+      const actor = start()
+
+      expect(submissionSignal?.aborted).toBe(false)
+      actor.stop()
+      expect(submissionSignal?.aborted).toBe(true)
+    })
+
     it('transitions select → migrate.running on migration.start with classified names', () => {
       executeMigrationMock.mockImplementation(() => new Promise(() => {}))
       const actor = start()

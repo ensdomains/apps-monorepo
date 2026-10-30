@@ -10,6 +10,7 @@ import {
 } from '@/features/migration/service/buildMigrationPlan'
 import {
   type ClassifiedName,
+  type CopyClassifiedName,
   classifyNames,
   type IneligibleName,
 } from '@/features/migration/service/classifyNames'
@@ -18,8 +19,11 @@ import {
   getGracePeriodNames,
   getUnavailableNames,
 } from './useEligibleV1Names.helpers'
+import type { BlockedSubnameMigration } from './useMigrationEligibility'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 import { useV1NameClassificationTime } from './useV1NameClassificationTime'
+
+const EMPTY_WRAPPER_SYNC_NAMES: readonly ClassifiedName[] = []
 
 type UseEligibleV1NamesOptions = {
   readonly enabled?: boolean
@@ -46,8 +50,13 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
   const { ownerAddress } = useSmartAccountContext()
   const { address } = useConnection()
   const resolvedOwnerAddress = ownerAddress ?? address
-  const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names({ enabled })
   const recoverySnapshot = useMigrationRecoverySnapshot()
+  const {
+    data: v1NamesRaw,
+    isPending: isV1Pending,
+    isError: isV1Error,
+    refetch: refetchV1Names,
+  } = useV1Names({ enabled: enabled && !recoverySnapshot })
   const nowSeconds = useV1NameClassificationTime(
     recoverySnapshot?.registryDomains ?? v1NamesRaw,
     enabled,
@@ -113,14 +122,20 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
       nowSeconds,
     ])
 
-  const { data: eligibility, isPending: isEligibilityPending } =
-    useMigrationEligibility(
-      recoverySnapshot ? [] : classified,
-      enabled ? resolvedOwnerAddress : undefined,
-    )
+  const {
+    data: eligibility,
+    dataUpdatedAt: eligibilityUpdatedAt,
+    isPending: isEligibilityPending,
+    isError: isEligibilityError,
+    refetch: refetchEligibility,
+  } = useMigrationEligibility(
+    recoverySnapshot ? [] : classified,
+    enabled ? resolvedOwnerAddress : undefined,
+  )
 
   const eligible = useMemo<readonly ClassifiedName[]>(() => {
     if (recoverySnapshot) return classified
+    if (isEligibilityError || isV1Error) return []
     if (!eligibility) return fallbackToClassified ? classified : []
 
     // Cached RPC eligibility must not keep a newly expired name selectable.
@@ -128,12 +143,45 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
       eligibility.eligible.map(({ domain }) => domain.id),
     )
     return classified.filter(({ domain }) => eligibleIds.has(domain.id))
-  }, [eligibility, classified, fallbackToClassified, recoverySnapshot])
+  }, [
+    eligibility,
+    classified,
+    fallbackToClassified,
+    recoverySnapshot,
+    isEligibilityError,
+    isV1Error,
+  ])
+
+  const blockedSubnames: readonly BlockedSubnameMigration[] = recoverySnapshot
+    ? []
+    : (eligibility?.blockedSubnames ?? [])
+
+  const verifiedSubnames = useMemo<readonly CopyClassifiedName[]>(() => {
+    if (recoverySnapshot) return []
+    const eligibleNames = new Set(eligible.map(({ domain }) => domain.name))
+    return (eligibility?.verifiedSubnames ?? []).filter(
+      ({ recreationRoot }) =>
+        recreationRoot && eligibleNames.has(recreationRoot),
+    )
+  }, [eligibility, eligible, recoverySnapshot])
 
   return {
     eligible,
+    eligibilityUpdatedAt,
     gracePeriodNames,
     unavailableNames,
+    blockedSubnames,
+    verifiedSubnames,
+    isEligibilityError:
+      !recoverySnapshot && (!!isEligibilityError || !!isV1Error),
+    retryEligibility: () => {
+      if (recoverySnapshot) return
+      void refetchV1Names()
+      void refetchEligibility()
+    },
+    wrapperSyncNames: recoverySnapshot
+      ? EMPTY_WRAPPER_SYNC_NAMES
+      : (eligibility?.needsWrapperSync ?? EMPTY_WRAPPER_SYNC_NAMES),
     recoveryState,
     isPending:
       enabled &&

@@ -1,11 +1,14 @@
 import type { V1Domain } from '@ens-apps/migration'
+import { useAtomicBatchSupport } from '@ens-apps/transaction-manager'
 import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { hashKey, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { useConfig } from 'wagmi'
-import type { MigrationWalletRequestDescriptor } from '../service/buildStepDescriptors'
+import { chain } from '@/config'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import {
   estimateGraceRenewalMigrationGas,
   type GraceRenewalMigrationGasEstimate,
@@ -16,12 +19,9 @@ import type { MigrationGasEstimateState } from './useMigrationGasEstimate'
 
 export type GraceRenewalGasEstimateState =
   | Exclude<MigrationGasEstimateState, { readonly status: 'ready' }>
-  | (Omit<
-      Extract<MigrationGasEstimateState, { readonly status: 'ready' }>,
-      'plan'
-    > & {
-      readonly stepDescriptors: readonly MigrationWalletRequestDescriptor[]
-      readonly droppedPubkeyNames: readonly string[]
+  | (GraceRenewalMigrationGasEstimate & {
+      readonly status: 'ready'
+      readonly formattedEth: string
     })
 
 const graceRenewalGasEstimateQueryKey = createQueryKey<
@@ -33,6 +33,8 @@ const graceRenewalGasEstimateQueryKey = createQueryKey<
       readonly hcaAddress: string | undefined
       readonly selectedNames: readonly string[]
       readonly managerRestorationNames: readonly string[]
+      readonly canBatchAtomically: boolean
+      readonly isSubnameRecreationEnabled: boolean
       readonly domains: readonly V1Domain[]
       readonly renewal:
         | {
@@ -81,6 +83,12 @@ export const useGraceRenewalGasEstimate = ({
   readonly isEnabled: boolean
 }): GraceRenewalGasEstimateState => {
   const wagmiConfig = useConfig()
+  const canBatchAtomically = useAtomicBatchSupport(chain.id)
+  const isSubnameRecreationEnabled =
+    useFeatureFlagEnabled(
+      POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
+      false,
+    ) === true
   const quote = renewal.status === 'ready' ? renewal.quote : undefined
   const domains = useMemo(() => {
     const selected = new Set(selectedNames)
@@ -92,6 +100,8 @@ export const useGraceRenewalGasEstimate = ({
     hcaAddress: hcaAddress?.toLowerCase(),
     selectedNames: [...selectedNames].sort(),
     managerRestorationNames: [...managerRestorationNames].sort(),
+    canBatchAtomically,
+    isSubnameRecreationEnabled,
     domains,
     renewal: quote && {
       chainId: quote.chainId,
@@ -151,6 +161,8 @@ export const useGraceRenewalGasEstimate = ({
         publicClient,
         wagmiConfig,
         managerRestorationNames,
+        canBatchAtomically,
+        isSubnameRecreationEnabled,
         signal,
       })
     },

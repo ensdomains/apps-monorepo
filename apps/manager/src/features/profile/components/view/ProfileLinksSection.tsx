@@ -1,20 +1,15 @@
 import { Trans } from '@lingui/react/macro'
-import { ExternalLink } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { MSymbol } from '@/components/ui/material-symbol'
 import type { ProfileRecords } from '@/features/profile/types'
-import {
-  ProfileCard,
-  profileCardTrailingIconStrokeWidth,
-  profileTileClassName,
-  valueClassName,
-} from './ProfileCard'
+import { ProfileCard, profileTileClassName } from './ProfileCard'
 import {
   getSafeProfileLinks,
   type SafeProfileLink,
 } from './ProfileView.helpers'
 import { useLinkPreviewPattern } from './useLinkPreviewPattern'
 
-const linkPreviewClassName = `${profileTileClassName} group h-51.25 min-w-0 gap-0 overflow-hidden p-0 text-left transition hover:bg-ens-quartz-50`
+const linkPreviewClassName = `${profileTileClassName} group min-w-0 gap-0 overflow-hidden p-0 text-left transition hover:bg-ens-quartz-50`
 const linkPreviewPanelClassName = 'h-30 shrink-0 overflow-hidden bg-white'
 
 const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
@@ -43,17 +38,17 @@ const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
             backgroundSize: '80px 80px',
           }}
         />
-        <div className="min-w-0 px-6 pt-5 pb-4">
-          <div className="truncate text-ens-quartz-900 text-sm leading-normal">
+        <div className="min-w-0 p-6 pt-4">
+          <div className="truncate text-ens-quartz-900 text-sm leading-[21px]">
             {link.name}
           </div>
           <div className="mt-1 flex min-w-0 items-center gap-1 text-ens-quartz-500">
-            <span className={`${valueClassName} truncate`}>
+            <span className="truncate font-normal font-sans text-ens-quartz-500 text-xs leading-4 tracking-normal">
               {link.displayHost}
             </span>
-            <ExternalLink
-              className="size-4 shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-              strokeWidth={profileCardTrailingIconStrokeWidth}
+            <MSymbol
+              className="ms-opsz-16 ms-wght-300 shrink-0 text-[16px] text-ens-quartz-500 leading-none"
+              symbol="arrow_outward"
             />
           </div>
         </div>

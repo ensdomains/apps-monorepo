@@ -7,6 +7,9 @@ const REGISTRY = '0x1111111111111111111111111111111111111111'
 const RESOLVER = '0x2222222222222222222222222222222222222222'
 
 let protocolVersion: 'ENSv1' | 'ENSv2' = 'ENSv1'
+let routeName = 'alice.eth'
+let hasOwner = true
+let profile: { records: unknown } | undefined
 let isInGrace = false
 let migrationStatus: {
   isMigratableByConnectedOwner: boolean
@@ -26,7 +29,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
     Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
       <a href={to}>{children}</a>
     ),
-    useParams: () => ({ name: 'alice.eth' }),
+    useParams: () => ({ name: routeName }),
     useRouterState: ({
       select,
     }: {
@@ -113,8 +116,14 @@ vi.mock('@/features/profile/components/GraceBanner', () => ({
 vi.mock('@/features/history/components/RecentHistoryTimeline', () => ({
   RecentHistoryTimeline: () => null,
 }))
+// The button hides itself for names that can't be renewed (useCanExtend) and
+// picks its own label (ExtendNameButton.test.tsx).
 vi.mock('@/features/renew/components/ExtendNameButton', () => ({
-  ExtendNameButton: () => null,
+  ExtendNameButton: ({
+    protocolVersion,
+  }: {
+    readonly protocolVersion: string
+  }) => <div data-testid="renew-button">{protocolVersion}</div>,
 }))
 
 // The row's own V1-vs-V2 behaviour is covered in NameOwnerRow.test.tsx.
@@ -135,14 +144,18 @@ vi.mock('@tanstack/react-query', async () => {
         case 'get-ens-owner':
           return {
             // `resolveEnsOwner` reports the controller for an unwrapped 2LD.
-            data: {
-              owner: CONTROLLER,
-              registryAddress: REGISTRY,
-              protocolVersion,
-            },
+            data: hasOwner
+              ? {
+                  owner: CONTROLLER,
+                  registryAddress: REGISTRY,
+                  protocolVersion,
+                }
+              : null,
             isLoading: false,
             error: null,
           }
+        case 'profile':
+          return { data: profile, isLoading: false, error: null }
         case 'check-name-availability':
           return {
             data: { isAvailable: false },
@@ -214,6 +227,39 @@ describe('name route — Owner row', () => {
   })
 })
 
+describe('name route — ownerless subname', () => {
+  afterEach(() => {
+    routeName = 'alice.eth'
+    hasOwner = true
+    profile = undefined
+  })
+
+  // An offchain (CCIP-Read) subname has no registry owner.
+  it.each([
+    {
+      label: 'shows one whose records resolve',
+      records: { texts: [{ key: 'description', value: 'gm' }], coins: [] },
+      isFound: true,
+    },
+    {
+      label: 'reports one that resolves nothing as not found',
+      records: { texts: [], coins: [] },
+      isFound: false,
+    },
+  ])('$label', ({ records, isFound }) => {
+    routeName = 'jesse.base.eth'
+    hasOwner = false
+    profile = { records }
+
+    renderRoute()
+
+    expect(screen.queryByText('Name not found') === null).toBe(isFound)
+    expect(
+      screen.queryByRole('heading', { name: 'jesse.base.eth' }) !== null,
+    ).toBe(isFound)
+  })
+})
+
 describe('name route — Protocol row', () => {
   // The V1 row decides for itself whether the viewer owns the name and so
   // gets the migration verdict; see ProtocolRow.test.tsx.
@@ -234,6 +280,25 @@ describe('name route — Protocol row', () => {
     expect(screen.getByTestId('protocol-row')).toHaveTextContent('ENSv2')
     expect(screen.queryByTestId('v1-protocol-row')).not.toBeInTheDocument()
   })
+})
+
+// WEB-1546: ETHRenewerV1 renews V1 names, so the header offers renewal for
+// them too, not only for V2 names.
+describe('name route — renew button', () => {
+  afterEach(() => {
+    protocolVersion = 'ENSv1'
+  })
+
+  it.each(['ENSv1', 'ENSv2'] as const)(
+    'offers it for an %s name',
+    (version) => {
+      protocolVersion = version
+
+      renderRoute()
+
+      expect(screen.getByTestId('renew-button')).toHaveTextContent(version)
+    },
+  )
 })
 
 describe('name route — upgrade banner', () => {

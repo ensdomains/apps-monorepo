@@ -25,6 +25,7 @@ import {
 import { MigrateRegistryPrompt } from './MigrateRegistryPrompt'
 import { ReconfigureRegistryForm } from './ReconfigureRegistryForm'
 import { RegistryPanel } from './RegistryPanel'
+import { RestorePreviousRegistry } from './RestorePreviousRegistry'
 import { UnconfiguredRegistry } from './UnconfiguredRegistry'
 
 type RegistryTreeItemProps = {
@@ -328,7 +329,13 @@ const RegistryEmptyState = ({
 
   return (
     match(slot)
-      .with({ status: 'detached' }, () => <DetachedRegistryNotice />)
+      .with({ status: 'detached' }, ({ previousRegistry, isRestorable }) => (
+        <DetachedRegistryNotice
+          name={name}
+          previousRegistry={previousRegistry}
+          isRestorable={isRestorable}
+        />
+      ))
       .with({ status: 'error' }, () => (
         <div className="pt-4 pl-1 lg:pl-14 max-w-xl">
           <ErrorMessage
@@ -355,7 +362,15 @@ const RegistryEmptyState = ({
  * registry here is a re-mint surface, not a setup step, so the path out is
  * restoring the old pointer rather than creating a replacement.
  */
-const DetachedRegistryNotice = () => (
+const DetachedRegistryNotice = ({
+  name,
+  previousRegistry,
+  isRestorable,
+}: {
+  readonly name: string
+  readonly previousRegistry: Address | undefined
+  readonly isRestorable: boolean
+}) => (
   <RegistryPanel>
     <Alert className="p-5 gap-2" variant="warning">
       <TriangleAlert className="size-4" />
@@ -366,6 +381,17 @@ const DetachedRegistryNotice = () => (
           have stopped resolving. They still exist in the old registry — point
           this name back at that registry to restore them.
         </p>
+        {previousRegistry ? (
+          <EntityBadge
+            label="previous registry"
+            variant="contract"
+            className="font-normal"
+            address={previousRegistry}
+            isRegistry
+          >
+            {truncateAddress(previousRegistry, 6, 4)}
+          </EntityBadge>
+        ) : null}
         <p>
           Configuring a new registry here won't recover them: it would create a
           second, empty namespace in which the old subnames can be re-issued to
@@ -373,6 +399,12 @@ const DetachedRegistryNotice = () => (
         </p>
       </AlertDescription>
     </Alert>
+    {previousRegistry && isRestorable ? (
+      <RestorePreviousRegistry
+        name={name}
+        previousRegistry={previousRegistry}
+      />
+    ) : null}
   </RegistryPanel>
 )
 

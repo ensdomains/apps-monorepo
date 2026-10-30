@@ -4,6 +4,7 @@ import {
   getPrimaryCall,
   transactionManager,
 } from '@ens-apps/transaction-manager'
+import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { act, renderHook } from '@testing-library/react'
 import {
   type Address,
@@ -11,9 +12,8 @@ import {
   erc20Abi,
   type PublicClient,
   parseAbi,
-  zeroHash,
 } from 'viem'
-import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { ensChain } from '@/lib/wagmi'
 import {
@@ -25,17 +25,23 @@ import { useRenewalTransactions } from './useRenewalTransactions'
 
 const from: Address = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 const walletClient = { account: { address: from } }
+const wallet = vi.hoisted(() => ({
+  canBatchAtomically: false,
+  hasDeclinedUpgrade: false,
+}))
 
 vi.mock('@ens-apps/transaction-manager', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ens-apps/transaction-manager')>()),
   transactionManager: { clear: vi.fn(), startTransaction: vi.fn() },
+  useAtomicBatchSupport: () => wallet.canBatchAtomically,
+  useHasDeclinedAtomicUpgrade: () => wallet.hasDeclinedUpgrade,
 }))
 
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
   useConfig: () => ({}),
   useConnection: () => ({ address: from }),
-  usePublicClient: () => ({}),
+  usePublicClient: () => publicClient,
 }))
 
 vi.mock('@wagmi/core/actions', () => ({
@@ -187,8 +193,8 @@ describe('useRenewalTransactions batch renew', () => {
         to: getRenewerAddress(true),
         args: [
           [
-            { label: 'a', duration: 100n, referrer: zeroHash },
-            { label: 'c', duration: 300n, referrer: zeroHash },
+            { label: 'a', duration: 100n, referrer: `0x${'0'.repeat(60)}1234` },
+            { label: 'c', duration: 300n, referrer: `0x${'0'.repeat(60)}1234` },
           ],
           SUPPORTED_TOKENS.USDC,
         ],
@@ -196,11 +202,136 @@ describe('useRenewalTransactions batch renew', () => {
       {
         to: getRenewerAddress(false),
         args: [
-          [{ label: 'b', duration: 200n, referrer: zeroHash }],
+          [{ label: 'b', duration: 200n, referrer: `0x${'0'.repeat(60)}1234` }],
           SUPPORTED_TOKENS.USDC,
         ],
       },
     ])
+  })
+})
+
+// A wallet with EIP-5792 atomic support confirms the whole flow at once.
+describe('useRenewalTransactions with an atomic-batching wallet', () => {
+  beforeEach(() => {
+    wallet.canBatchAtomically = true
+    vi.mocked(transactionManager.startTransaction).mockClear()
+  })
+  afterEach(() => {
+    wallet.canBatchAtomically = false
+    wallet.hasDeclinedUpgrade = false
+  })
+
+  it('splits the bundle into separate steps once the user declines the account upgrade', () => {
+    const { result, rerender } = renderHook(() => useRenewalTransactions())
+    act(() =>
+      result.current.startFlow(
+        { name: 'example.eth', isV2: true },
+        {
+          duration: 31_536_000,
+          tokenAddress: SUPPORTED_TOKENS.USDC,
+          tokenPrice,
+        },
+      ),
+    )
+    expect(result.current.transactions).toHaveLength(1)
+
+    wallet.canBatchAtomically = false
+    wallet.hasDeclinedUpgrade = true
+    rerender()
+
+    expect(result.current.transactions.map(({ title }) => title)).toEqual([
+      'Approve payment',
+      'Extend example.eth',
+    ])
+  })
+
+  const submittedBundle = () => {
+    const intent = vi.mocked(transactionManager.startTransaction).mock
+      .calls[0]?.[0] as CustomTransactionIntent | undefined
+    assert(intent?.request.type === 'eoa-batch')
+    return intent.request
+  }
+
+  it('approves and renews one name in a single confirmation', async () => {
+    const { result } = renderHook(() => useRenewalTransactions())
+    act(() =>
+      result.current.startFlow(
+        { name: 'example.eth', isV2: true },
+        {
+          duration: 31_536_000,
+          tokenAddress: SUPPORTED_TOKENS.USDC,
+          tokenPrice,
+        },
+      ),
+    )
+
+    expect(result.current.transactions).toHaveLength(1)
+    await act(() => result.current.transactions[0]?.onStart?.())
+
+    const bundle = submittedBundle()
+    expect(bundle.calls).toHaveLength(2)
+    const [approveCall, renewCall] = bundle.calls
+    assert(approveCall)
+    expect(
+      decodeFunctionData({ abi: erc20Abi, data: approveCall.data }).args,
+    ).toEqual([getRenewerAddress(true), tokenPrice])
+    expect(renewCall?.to).toBe(getRenewerAddress(true))
+    assert(renewCall)
+    expect(
+      decodeFunctionData({
+        abi: ethRegistrarRenewSnippet,
+        data: renewCall.data,
+      }).args?.[0].referrer,
+    ).toBe(`0x${'0'.repeat(60)}1234`)
+  })
+
+  it('confirms every approval and renew of a batch at once, in order', async () => {
+    const { result } = renderHook(() => useRenewalTransactions())
+    act(() =>
+      result.current.startMultiFlow({
+        renewals: [
+          { selectedName: { name: 'a.eth', isV2: true }, duration: 31_536_000 },
+          {
+            selectedName: { name: 'b.eth', isV2: false },
+            duration: 31_536_000,
+          },
+        ],
+        tokenAddress: SUPPORTED_TOKENS.USDC,
+        payments: [
+          {
+            renewer: getRenewerAddress(true),
+            total: tokenPrice,
+            allowance: 0n,
+          },
+          {
+            renewer: getRenewerAddress(false),
+            total: 3_000_000n,
+            allowance: 0n,
+          },
+        ],
+      }),
+    )
+
+    expect(result.current.transactions).toHaveLength(1)
+    await act(() => result.current.transactions[0]?.onStart?.())
+
+    expect(submittedBundle().calls.map(({ to }) => to)).toEqual([
+      SUPPORTED_TOKENS.USDC,
+      SUPPORTED_TOKENS.USDC,
+      getRenewerAddress(true),
+      getRenewerAddress(false),
+    ])
+    for (const call of submittedBundle().calls.slice(2)) {
+      const decoded = decodeFunctionData({
+        abi: parseAbi([
+          'function renewBatch((string label, uint64 duration, bytes32 referrer)[] rds, address paymentToken)',
+        ]),
+        data: call.data,
+      })
+      expect(decoded.args[0].map((entry) => entry.referrer)).toEqual([
+        `0x${'0'.repeat(60)}1234`,
+      ])
+    }
   })
 })
 
@@ -252,4 +383,85 @@ describe('buildRenewIntent', () => {
     const intent = buildRenewIntent(renewParams('alice.eth'))
     expect(intent).toBeDefined()
   })
+})
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useSearch: () => ({ referrer: '0x1234' }),
+}))
+
+describe('renewal referrer propagation', () => {
+  it.each(['single', 'multi'] as const)(
+    'carries URL attribution into every %s renewal',
+    async (kind) => {
+      vi.mocked(transactionManager.startTransaction).mockClear()
+      const { result } = renderHook(() => useRenewalTransactions())
+      act(() => {
+        if (kind === 'single') {
+          result.current.startFlow(
+            { name: 'alice.eth', isV2: true },
+            {
+              duration: 31_536_000,
+              tokenAddress: SUPPORTED_TOKENS.USDC,
+              tokenPrice,
+              tokenAllowance: tokenPrice,
+            },
+          )
+        } else {
+          result.current.startMultiFlow({
+            renewals: [
+              {
+                selectedName: { name: 'alice.eth', isV2: true },
+                duration: 31_536_000,
+              },
+              {
+                selectedName: { name: 'bob.eth', isV2: false },
+                duration: 31_536_000,
+              },
+            ],
+            tokenAddress: SUPPORTED_TOKENS.USDC,
+            payments: [
+              {
+                renewer: getRenewerAddress(true),
+                total: tokenPrice,
+                allowance: tokenPrice,
+              },
+              {
+                renewer: getRenewerAddress(false),
+                total: tokenPrice,
+                allowance: tokenPrice,
+              },
+            ],
+          })
+        }
+      })
+      for (const transaction of result.current.transactions) {
+        await act(() => transaction.onStart?.())
+      }
+      const calls = vi.mocked(transactionManager.startTransaction).mock.calls
+      expect(calls).toHaveLength(kind === 'single' ? 1 : 2)
+      for (const [intent] of calls) {
+        assert(intent.type === 'custom')
+        const call = getPrimaryCall(intent.request)
+        assert(call?.data)
+        if (kind === 'single') {
+          const decoded = decodeFunctionData({
+            abi: ethRegistrarRenewSnippet,
+            data: call.data,
+          })
+          expect(decoded.args?.[0].referrer).toBe(`0x${'0'.repeat(60)}1234`)
+        } else {
+          const decoded = decodeFunctionData({
+            abi: parseAbi([
+              'function renewBatch((string label, uint64 duration, bytes32 referrer)[] rds, address paymentToken)',
+            ]),
+            data: call.data,
+          })
+          expect(decoded.args[0].map((entry) => entry.referrer)).toEqual([
+            `0x${'0'.repeat(60)}1234`,
+          ])
+        }
+      }
+    },
+  )
 })

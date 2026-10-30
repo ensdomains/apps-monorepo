@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
+import { chain } from '@/config'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import {
   getMigrationBatchJournalRevision,
   getServerMigrationBatchJournalRevision,
-  loadMigrationRecoverySnapshot,
-  loadPendingAtomicMigrationIntents,
-  loadSubmittedAtomicMigrationBatches,
+  hasMigrationRecoveryAttempt,
+  loadMigrationBatchJournal,
+  type loadMigrationRecoverySnapshot,
   type MigrationBatchJournalScope,
   removeMigrationRecoverySnapshot,
   subscribeMigrationBatchJournal,
@@ -19,7 +20,7 @@ type RecoveryState = {
 }
 
 export const useMigrationRecoverySnapshot = () => {
-  const publicClient = usePublicClient()
+  const publicClient = usePublicClient({ chainId: chain.id })
   const { ownerAddress, accountAddress: hcaAddress } = useSmartAccountContext()
   const chainId = publicClient?.chain?.id
   const journalRevision = useSyncExternalStore(
@@ -45,13 +46,11 @@ export const useMigrationRecoverySnapshot = () => {
       owner: ownerAddress as Address,
       hca: hcaAddress as Address,
     }
-    const snapshot = loadMigrationRecoverySnapshot(scope)
+    const journal = loadMigrationBatchJournal(scope)
+    const snapshot = journal.recovery
     if (!snapshot) return { snapshot: null, discardedScope: null }
 
-    const hasRecordedAttempt =
-      snapshot.completedOperations.length > 0 ||
-      loadPendingAtomicMigrationIntents(scope).length > 0 ||
-      loadSubmittedAtomicMigrationBatches(scope).length > 0
+    const hasRecordedAttempt = hasMigrationRecoveryAttempt(journal)
 
     return hasRecordedAttempt
       ? { snapshot, discardedScope: null }

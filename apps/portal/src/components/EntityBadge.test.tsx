@@ -285,6 +285,16 @@ describe('EntityActionCopy clipboard interaction', () => {
     vi.useRealTimers()
   })
 
+  it('copies the full name when the displayed labelhash is shortened', async () => {
+    const name = `[${'ab'.repeat(32)}].eth`
+    render(<EntityBadge variant="name" name={name} />)
+    expect(screen.getByText('[abab…abab].eth')).toBeInTheDocument()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    })
+    expect(writeText).toHaveBeenCalledWith(name)
+  })
+
   it('writes the copy value to the clipboard and shows the copied state, then reverts after 2s', async () => {
     render(
       <EntityBadge variant="default" copyValue="0xabc">
@@ -310,5 +320,42 @@ describe('EntityActionCopy clipboard interaction', () => {
 
     expect(button).toHaveTextContent('Copy')
     expect(button.querySelector('.lucide-check')).toBeNull()
+  })
+})
+
+describe('EntityBadge name display', () => {
+  const hash = 'ab'.repeat(32)
+
+  it('shortens each unknown label without changing navigation', () => {
+    const name = `[${hash}].[${hash}].eth`
+    render(<EntityBadge variant="name" name={name} format="truncate" />)
+    const text = screen.getByText('[abab…abab].[abab…abab].eth')
+    expect(text.closest('a')).toHaveAttribute(
+      'data-params',
+      JSON.stringify({ name }),
+    )
+    expect(screen.getByTitle(name)).toContainElement(text)
+  })
+
+  it('allows full labelhash display and preserves custom name content', () => {
+    const name = `[${hash}].eth`
+    render(
+      <>
+        <EntityBadge variant="name" name={name} shortenLabelhashes={false} />
+        <EntityBadge variant="name" name={name}>
+          <strong>Custom label</strong>
+        </EntityBadge>
+        <EntityBadge variant="default">{name}</EntityBadge>
+      </>,
+    )
+    expect(screen.getAllByText(name)).toHaveLength(2)
+    expect(screen.getByText('Custom label').tagName).toBe('STRONG')
+    expect(screen.queryByText('[abab…abab].eth')).not.toBeInTheDocument()
+  })
+
+  it('exposes the complete plaintext when truncating', () => {
+    const name = `${'long'.repeat(40)}.eth`
+    render(<EntityBadge variant="name" name={name} format="truncate" />)
+    expect(screen.getByTitle(name)).toContainElement(screen.getByText(name))
   })
 })

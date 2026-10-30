@@ -1,44 +1,70 @@
 import { useLingui } from '@lingui/react/macro'
 import { useState } from 'react'
 import type { Address } from 'viem'
+import type { ResolverCopySource } from '@/features/profile/service/resolverImport'
 import type { ProfileRecords } from '@/features/profile/types'
 import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import { useIntercomClearance } from '@/hooks/useIntercomClearance'
 import { cn } from '@/lib/utils'
 import {
-  desktopActionContainerClassName,
+  barEditActionClassName,
+  desktopActionClusterClassName,
   editActionClassName,
   editBottomBarContentClassName,
   editBottomNavClassName,
   editBottomNavContentClassName,
   profileBarActionsClassName,
-  profileButtonClassName,
   profileStickyBarClassName,
   renewActionClassName,
-  renewBarActionClassName,
 } from './ProfileAction.styles'
 import { ProfileEditAction } from './ProfileEditAction'
 import { ProfileFavoriteAction } from './ProfileFavoriteAction'
 import { ProfileRenewAction } from './ProfileRenewAction'
 import { ProfileShareAction } from './ProfileShareAction'
 
-type ProfileActionsProps = {
+type ProfileDesktopActionsProps = {
   readonly avatarUrl?: string
-  readonly canEdit: boolean
-  readonly isInGrace: boolean
   readonly isOwner?: boolean
-  readonly isUpgradeRequired: boolean
   readonly name: string
-  readonly onUpdated: () => undefined | Promise<unknown>
-  readonly owner?: Address
-  readonly records: ProfileRecords
   readonly renewalProtocol?: RenewalProtocol
   readonly url: string
 }
 
+type ProfileActionsProps = ProfileDesktopActionsProps & {
+  readonly canEdit: boolean
+  /** Latched by the view, so it also decides where the desktop actions go. */
+  readonly hasFloatingBar: boolean
+  readonly isInGrace: boolean
+  readonly isUpgradeRequired: boolean
+  readonly onUpdated: () => undefined | Promise<unknown>
+  readonly owner?: Address
+  readonly records: ProfileRecords
+  readonly resolverCopySource?: ResolverCopySource
+}
+
+export const ProfileDesktopActions = ({
+  avatarUrl,
+  isOwner,
+  name,
+  renewalProtocol,
+  url,
+}: ProfileDesktopActionsProps) => (
+  <div className={desktopActionClusterClassName}>
+    <ProfileFavoriteAction name={name} />
+    <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+    <ProfileRenewAction
+      className={renewActionClassName}
+      isOwner={isOwner}
+      name={name}
+      protocol={renewalProtocol}
+    />
+  </div>
+)
+
 export const ProfileActions = ({
   avatarUrl,
   canEdit,
+  hasFloatingBar,
   isInGrace,
   isOwner,
   isUpgradeRequired,
@@ -48,11 +74,11 @@ export const ProfileActions = ({
   records,
   renewalProtocol,
   url,
+  resolverCopySource,
 }: ProfileActionsProps) => {
   const { t } = useLingui()
   const [bar, setBar] = useState<HTMLElement | null>(null)
   useIntercomClearance(bar)
-  const hasFloatingBar = canEdit
   const hasBottomNav = isUpgradeRequired && !isInGrace
 
   const barActions = (
@@ -60,8 +86,7 @@ export const ProfileActions = ({
       <ProfileFavoriteAction name={name} />
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
       <ProfileRenewAction
-        className={renewBarActionClassName}
-        isBarAction
+        className={renewActionClassName}
         isOwner={isOwner}
         name={name}
         protocol={renewalProtocol}
@@ -73,33 +98,24 @@ export const ProfileActions = ({
     return (
       <ProfileEditAction
         canEdit={canEdit}
-        className={profileButtonClassName}
+        className={barEditActionClassName}
         isInGrace={isInGrace}
+        isUpgradeRequired={isUpgradeRequired}
+        keepMounted
+        // Owned profiles keep favorite, share, and renew in this bar at every width.
         leftActions={barActions}
         name={name}
         onUpdated={onUpdated}
         owner={owner}
         protocol={renewalProtocol}
         records={records}
+        resolverCopySource={resolverCopySource}
       />
     )
   }
 
   return (
     <>
-      <div className={desktopActionContainerClassName}>
-        <div className="flex items-center gap-6">
-          <ProfileFavoriteAction name={name} />
-          <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
-        </div>
-        <ProfileRenewAction
-          className={renewActionClassName}
-          isOwner={isOwner}
-          name={name}
-          protocol={renewalProtocol}
-        />
-      </div>
-
       {hasBottomNav ? (
         <nav
           aria-label={t`Profile actions`}
@@ -129,7 +145,7 @@ export const ProfileActions = ({
           className={profileStickyBarClassName}
           ref={setBar}
         >
-          <div className={cn(editBottomBarContentClassName, 'justify-start')}>
+          <div className={cn(editBottomBarContentClassName, 'justify-center')}>
             <div className={profileBarActionsClassName}>{barActions}</div>
           </div>
         </nav>

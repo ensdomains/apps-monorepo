@@ -1,6 +1,10 @@
 import { classifyNames } from '@ens-apps/migration'
-import type { Signer } from '@ens-apps/transaction-manager'
+import {
+  type Signer,
+  useAtomicBatchSupport,
+} from '@ens-apps/transaction-manager'
 import { assessGasAffordability } from '@ens-apps/utils/gasAffordability'
+import { useLingui } from '@lingui/react'
 import { Plural, Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
@@ -9,9 +13,10 @@ import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient, WalletClient } from 'viem'
-import { useBalance, useWalletClient } from 'wagmi'
+import { useBalance, useConnection } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { chain } from '@/config'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
@@ -36,6 +41,7 @@ import {
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
+import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
 import { recordRecentlyMigratedNames } from '@/features/migration/service/recentlyMigratedNames'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
@@ -89,10 +95,26 @@ const PlainMigrationSuccessDialog = ({
   />
 )
 
+const LockedResolverFailureMessage = ({
+  cause,
+}: {
+  readonly cause: unknown
+}) => {
+  const { _ } = useLingui()
+  return _(
+    migrationPreparationMessage({
+      reason: 'locked-resolver-record-control',
+      cause,
+    }),
+  )
+}
+
 const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
       return <Trans>Upgrade details: {error.message}</Trans>
+    case 'locked-resolver-record-control':
+      return <LockedResolverFailureMessage cause={error.cause} />
     case 'parent-not-upgraded':
       return <Trans>Upgrade the parent name first, then its subnames.</Trans>
     case 'plan-changed':
@@ -107,8 +129,8 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
       return (
         <div>
           <Trans>
-            We couldn&apos;t safely retry. Nothing was submitted and nothing
-            changed.
+            We couldn&apos;t safely retry. A transaction may already be pending
+            or confirmed, so check your wallet activity before trying again.
           </Trans>
         </div>
       )
@@ -252,8 +274,10 @@ export const MigrationPage = () => {
     client: hcaClient,
     error: hcaError,
     refreshAccount,
+    walletClient: wagmiWalletClient,
   } = useSmartAccountContext()
-  const { data: wagmiWalletClient } = useWalletClient()
+  const { connector } = useConnection()
+  const canBatchAtomically = useAtomicBatchSupport(chain.id)
   const queryClient = useQueryClient()
   const migrationNftEnabled = useMigrationNftEnabled()
   const isMigrationSuccess = step === 'success'
@@ -346,6 +370,7 @@ export const MigrationPage = () => {
         { shouldCheckImpactBeforeRetry: true },
         ({ migrationPlan }) =>
           migrationPlan?.classified ??
+          retryRenewal?.classified ??
           (ownerAddress
             ? classifyNames(
                 retryDomains,
@@ -359,12 +384,8 @@ export const MigrationPage = () => {
         ({ gasEstimate }) => gasEstimate.plan.classified,
       )
       .with({ hasGraceDomains: true }, () =>
-        ownerAddress
-          ? classifyNames(
-              v1Names,
-              ownerAddress as Address,
-              migrationExecutionClient.chain.id,
-            ).classified
+        renewalGasEstimate.status === 'ready'
+          ? renewalGasEstimate.classified
           : [],
       )
       .otherwise(() => [])
@@ -373,11 +394,12 @@ export const MigrationPage = () => {
   }, [
     shouldCheckImpactBeforeRetry,
     migrationPlan,
+    retryRenewal,
+    renewalGasEstimate,
     retryDomains,
     gasEstimate,
     graceDomains.length,
     ownerAddress,
-    v1Names,
     completedOperations,
   ])
   const subnameImpact = useSubnameMigrationImpact({
@@ -459,6 +481,8 @@ export const MigrationPage = () => {
     const signer: Signer = {
       type: 'eoa',
       walletClient: wagmiWalletClient as WalletClient,
+      walletId: connector?.id,
+      connector,
     }
 
     try {
@@ -473,6 +497,8 @@ export const MigrationPage = () => {
             domains: v1Names.filter(({ name }) => selected.has(name)),
             hcaAddress: hcaAddress as Address,
             requestSteps: renewalGasEstimate.stepDescriptors,
+            classified: renewalGasEstimate.classified,
+            canBatchAtomically,
           },
           signer,
           hcaClient,
@@ -502,6 +528,8 @@ export const MigrationPage = () => {
     hcaClient,
     refreshAccount,
     wagmiWalletClient,
+    connector,
+    canBatchAtomically,
     gasEstimate,
     gasFundingStatus,
     graceDomains,

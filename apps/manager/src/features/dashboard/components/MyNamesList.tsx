@@ -16,6 +16,7 @@ import type { ProfileRecordsResult } from '@/features/profile/service/profileRec
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
+import { getV1NameStatus } from '../dashboardMigrationEligibility'
 import { type DashboardName, isHeldName } from '../dashboardNames'
 import { useDashboardMigrationEligibility } from '../useDashboardMigrationEligibility'
 import { DASHBOARD_PAGE_SIZE, useDashboardNames } from '../useDashboardNames'
@@ -29,7 +30,6 @@ import { PrimaryNameButton } from './PrimaryNameButton'
 export type Sort = `${SortField}-${SortDir}`
 
 interface MyNamesListProps {
-  readonly migrationEnabled?: boolean
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
   readonly version?: NameVersion | null
@@ -110,6 +110,7 @@ const AnimatedNameRow = ({
     isInGrace,
     expiryCta,
     isMigrationEligible,
+    isMigrationUpgradeable,
   } = metadata
   const profilePreview = getNameRowProfilePreview({
     label,
@@ -139,7 +140,10 @@ const AnimatedNameRow = ({
     }))
     .with({ isV1: true, isMigrationEligible: false }, () => ({
       cta: 'manageExplorer',
-      status: 'ensv1Only',
+      status: getV1NameStatus({
+        isEligible: false,
+        isUpgradeable: isMigrationUpgradeable,
+      }),
     }))
     .exhaustive()
 
@@ -192,7 +196,6 @@ const AnimatedNameRow = ({
 }
 
 export const MyNamesList = ({
-  migrationEnabled = false,
   primaryLabel,
   searchQuery = '',
   version = null,
@@ -213,9 +216,10 @@ export const MyNamesList = ({
 
   const {
     eligibleKeys,
+    upgradeableKeys,
     isPending: isEligibilityPending,
     isError: isEligibilityError,
-  } = useDashboardMigrationEligibility(migrationEnabled)
+  } = useDashboardMigrationEligibility()
 
   const {
     pageNames,
@@ -248,8 +252,8 @@ export const MyNamesList = ({
   const totalPages = Math.max(1, Math.ceil(total / DASHBOARD_PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const pageItems = useMemo(
-    () => toMergedItems(pageNames, eligibleKeys),
-    [pageNames, eligibleKeys],
+    () => toMergedItems(pageNames, eligibleKeys, upgradeableKeys),
+    [pageNames, eligibleKeys, upgradeableKeys],
   )
   const rangeStart =
     total === 0 ? 0 : (currentPage - 1) * DASHBOARD_PAGE_SIZE + 1

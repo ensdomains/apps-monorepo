@@ -1,4 +1,7 @@
-import { BASE_REGISTRAR_ABI, isKnownPublicResolver } from '@ens-apps/migration'
+import {
+  BASE_REGISTRAR_ABI,
+  isSupportedRecordResolver,
+} from '@ens-apps/migration'
 import { ROLES_ALL } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
@@ -6,6 +9,7 @@ import {
   registryOwnerSnippet,
   registryResolverSnippet,
 } from '@ensdomains/ensjs-abi/registry'
+import { baseRegistrarNameExpiresSnippet } from '@ensdomains/ensjs-abi/v1/baseRegistrar'
 import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import {
   type Address,
@@ -24,8 +28,13 @@ import {
   type DirectClassifiedName,
   FUSES,
   hasFuse,
+  is2LD,
   wrappedCopyExpiry,
 } from './classifyNames'
+import {
+  directMigrationExpiry,
+  MIGRATION_EXPIRY_BONUS_SECONDS,
+} from './migrationExpiry'
 import { computeUserRegistryAddress } from './userRegistryMigration'
 
 const MAX_UINT64 = (1n << 64n) - 1n
@@ -48,6 +57,7 @@ type CopyMigrationReadinessFailure =
   | 'invalid-route'
   | 'source-owner-changed'
   | 'source-expiry-changed'
+  | 'reservation-expiry-mismatch'
   | 'source-lock-changed'
   | 'source-resolver-changed'
   | 'unsupported-resolver'
@@ -154,14 +164,17 @@ const assertWrappedSourceFresh = async (params: {
     args: [BigInt(copy.domain.id)],
   })
 
-  if (!isAddressEqual(owner, wallet)) {
+  if (!isAddressEqual(owner, copy.recreationRoot ? copy.tokenHolder : wallet)) {
     throw sourceError(
       copy,
       'source-owner-changed',
       `The V1 owner of "${copy.domain.name}" changed after selection`,
     )
   }
-  if (hasFuse(BigInt(fuses), FUSES.CANNOT_UNWRAP)) {
+  if (
+    hasFuse(BigInt(fuses), FUSES.CANNOT_UNWRAP) ||
+    (copy.recreationRoot && BigInt(fuses) !== 0n)
+  ) {
     throw sourceError(
       copy,
       'source-lock-changed',
@@ -170,8 +183,15 @@ const assertWrappedSourceFresh = async (params: {
   }
   const liveExpiry = wrappedCopyExpiry(expiry, BigInt(fuses))
   if (
-    liveExpiry !== copy.sourceExpiry ||
-    liveExpiry <= BigInt(Math.floor(Date.now() / 1000))
+    liveExpiry !==
+      (copy.recreationRoot
+        ? wrappedCopyExpiry(
+            BigInt(copy.domain.wrappedDomain?.expiryDate ?? 0),
+            BigInt(copy.domain.wrappedDomain?.fuses ?? 0),
+          )
+        : copy.sourceExpiry) ||
+    (!copy.recreationRoot &&
+      liveExpiry <= BigInt(Math.floor(Date.now() / 1000)))
   ) {
     throw sourceError(
       copy,
@@ -194,7 +214,7 @@ const assertRegistrySourceFresh = async (params: {
     functionName: 'owner',
     args: [node],
   })
-  if (!isAddressEqual(owner, wallet)) {
+  if (!isAddressEqual(owner, copy.recreationRoot ? copy.tokenHolder : wallet)) {
     throw sourceError(
       copy,
       'source-owner-changed',
@@ -227,7 +247,7 @@ const assertSourceResolverFresh = async (params: {
   if (
     params.requireSupportedResolver &&
     !isAddressEqual(resolver, zeroAddress) &&
-    !isKnownPublicResolver(resolver, envConfig.chain.id)
+    !isSupportedRecordResolver(resolver, envConfig.chain.id)
   ) {
     throw sourceError(
       name,
@@ -263,7 +283,7 @@ const assertCopySourceFresh = async (params: {
       publicClient,
       name: copy,
       node,
-      requireSupportedResolver: true,
+      requireSupportedResolver: copy.resolverStrategy !== 'keep-v1',
     })
   } catch (cause) {
     if (cause instanceof CopyMigrationReadinessError) throw cause
@@ -416,11 +436,15 @@ const assertRequiredMigratingRootsFresh = async (params: {
   readonly registryContext: readonly ClassifiedName[]
   readonly remainingNames: ReadonlySet<string>
   readonly recordedAttemptNames?: ReadonlySet<string>
+  readonly projectedExpiryNames?: ReadonlySet<string>
 }): Promise<void> => {
   const remainingRoots = requiredMigratingRoots(params.registryContext).filter(
     (root) =>
       params.remainingNames.has(normalizedName(root.domain.name)) &&
-      !params.recordedAttemptNames?.has(root.domain.name),
+      !params.recordedAttemptNames?.has(root.domain.name) &&
+      // A fee preview cannot read ownerOf/transferable wrapper expiry during
+      // grace. Execution rebuilds after renewal without projected expiries.
+      !params.projectedExpiryNames?.has(root.domain.name),
   )
   await Promise.all(
     remainingRoots.map((root) =>
@@ -679,14 +703,10 @@ const assertPlannedRegistryReadiness = async (params: {
   readonly hasRecordedAttempt: boolean
   readonly hasCode: HasCode
 }): Promise<void> => {
+  // Reconcile the journaled receipt before judging its current grants or
+  // pointers. A later owner action cannot invalidate historical completion.
+  if (params.hasRecordedAttempt) return
   if (!params.isRemaining) {
-    await assertExistingRegistry(params)
-    return
-  }
-  if (
-    params.hasRecordedAttempt &&
-    (await params.hasCode(params.planned.registry))
-  ) {
     await assertExistingRegistry(params)
     return
   }
@@ -764,6 +784,86 @@ const assertRemainingCopyTargetsPristine = async (params: {
  * Freeze the copy source values and fail closed on deterministic registry or
  * V2 target conflicts immediately before preview/live gas estimation.
  */
+const assertDirectMigrationExpiries = async (params: {
+  readonly publicClient: PublicClient
+  readonly remaining: readonly ClassifiedName[]
+  readonly recordedAttemptNames?: ReadonlySet<string>
+  readonly projectedExpiryNames?: ReadonlySet<string>
+}): Promise<ReadonlyMap<string, bigint>> => {
+  const direct = params.remaining.filter(
+    (name): name is DirectClassifiedName =>
+      name.action === 'migrate' &&
+      !params.recordedAttemptNames?.has(name.domain.name),
+  )
+  const expiries = await Promise.all(
+    direct.map(async (name) => {
+      try {
+        const expectedExpiry = directMigrationExpiry(name)
+        if (params.projectedExpiryNames?.has(name.domain.name))
+          return [name.domain.name, expectedExpiry] as const
+        if (!is2LD(name)) {
+          const [, , expiry] = await params.publicClient.readContract({
+            address: V1_CONTRACTS.NameWrapper,
+            abi: nameWrapperGetDataSnippet,
+            functionName: 'getData',
+            args: [BigInt(name.domain.id)],
+          })
+          if (expiry !== expectedExpiry)
+            throw sourceError(
+              name,
+              'source-expiry-changed',
+              `The ENSv1 expiry of "${name.domain.name}" changed. Refresh before upgrading.`,
+            )
+          return [name.domain.name, expiry] as const
+        }
+        const [registrationExpiry, state] = await Promise.all([
+          params.publicClient.readContract({
+            address: V1_CONTRACTS.BaseRegistrar,
+            abi: baseRegistrarNameExpiresSnippet,
+            functionName: 'nameExpires',
+            args: [BigInt(name.domain.labelhash)],
+          }),
+          params.publicClient.readContract({
+            address: V2_CONTRACTS.ETHRegistry,
+            abi: registryReadAbi,
+            functionName: 'getState',
+            args: [BigInt(name.domain.labelhash)],
+          }),
+        ])
+        if (
+          expectedExpiry !==
+          registrationExpiry + MIGRATION_EXPIRY_BONUS_SECONDS
+        )
+          throw sourceError(
+            name,
+            'source-expiry-changed',
+            `The ENSv1 expiry of "${name.domain.name}" changed. Refresh before upgrading.`,
+          )
+        if (
+          state.status !== 1 ||
+          (state.expiry !== expectedExpiry &&
+            state.expiry !== expectedExpiry - 1n)
+        )
+          throw sourceError(
+            name,
+            'reservation-expiry-mismatch',
+            `The ENSv2 reservation for "${name.domain.name}" has not caught up with its ENSv1 expiry. Wait for it to update before upgrading.`,
+          )
+        return [name.domain.name, state.expiry] as const
+      } catch (cause) {
+        if (cause instanceof CopyMigrationReadinessError) throw cause
+        throw new CopyMigrationReadinessError({
+          message: `Could not verify the current expiry of "${name.domain.name}"`,
+          reason: 'read-failed',
+          ensName: name.domain.name,
+          cause,
+        })
+      }
+    }),
+  )
+  return new Map(expiries)
+}
+
 export const assertCopyMigrationReadiness = async (params: {
   readonly publicClient: PublicClient
   readonly hca: Address
@@ -772,21 +872,37 @@ export const assertCopyMigrationReadiness = async (params: {
   readonly registryContext: readonly ClassifiedName[]
   /** Durable wallet attempts may already have created exact V2 state. */
   readonly recordedAttemptNames?: ReadonlySet<string>
-}): Promise<void> => {
+  /** Fee previews of a pending renewal: their expiry is projected, not on chain yet. */
+  readonly projectedExpiryNames?: ReadonlySet<string>
+}): Promise<ReadonlyMap<string, bigint>> => {
   assertCopyMigrationTopology(params.registryContext)
   const remainingNames = new Set(
     params.remaining.map((name) => normalizedName(name.domain.name)),
   )
-  const remainingCopies = copyNames(params.remaining)
+  // A submitted import is reconciled from its receipt and saved destination
+  // expectations first. Later V1 clearing/transfers must not prevent recovery
+  // of a transaction that already completed. Unsubmitted work is checked again
+  // immediately before the next atomic batch is built and signed.
+  const remainingCopies = copyNames(params.remaining).filter(
+    ({ domain }) => !params.recordedAttemptNames?.has(domain.name),
+  )
   const hasCode = createHasCode(params.publicClient)
+  const expiryReadiness = assertDirectMigrationExpiries({
+    publicClient: params.publicClient,
+    remaining: params.remaining,
+    recordedAttemptNames: params.recordedAttemptNames,
+    projectedExpiryNames: params.projectedExpiryNames,
+  })
 
   await assertConcurrentChecks([
+    expiryReadiness.then(() => {}),
     assertRequiredMigratingRootsFresh({
       publicClient: params.publicClient,
       wallet: params.wallet,
       registryContext: params.registryContext,
       remainingNames,
       recordedAttemptNames: params.recordedAttemptNames,
+      projectedExpiryNames: params.projectedExpiryNames,
     }),
     assertCopySourcesFresh({
       publicClient: params.publicClient,
@@ -810,4 +926,5 @@ export const assertCopyMigrationReadiness = async (params: {
       hasCode,
     }),
   ])
+  return expiryReadiness
 }

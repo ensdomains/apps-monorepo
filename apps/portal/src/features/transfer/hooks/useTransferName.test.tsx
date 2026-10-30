@@ -39,6 +39,7 @@ vi.mock('wagmi', async (importOriginal) => {
 
 vi.mock('@wagmi/core/actions', () => ({
   getWalletClient: vi.fn(async () => ({ account: { address: ACCOUNT } })),
+  getConnection: () => ({}),
 }))
 
 vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
@@ -117,6 +118,7 @@ const options: TransferOptions = {
   detachResolver: false,
   detachRegistry: false,
   revokeRoles: false,
+  transferManager: false,
 }
 
 const makeQueryClient = () =>
@@ -368,7 +370,7 @@ describe('useTransferName — V1 manager handover', () => {
         recipientInput: RECIPIENT,
         roleGrants: [],
         hasRemainingRoleHolders: false,
-        options,
+        options: { ...options, transferManager: true },
       })
     })
     await waitFor(() => {

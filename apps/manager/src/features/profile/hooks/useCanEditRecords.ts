@@ -8,17 +8,17 @@ type UseCanEditRecordsParams = {
   readonly name: string
 }
 
-/** Owners edit; a non-owner edits only while its wallet can still write the name's resolver. */
+/** Registry ownership alone never grants resolver write access. */
 export const useCanEditRecords = ({
   enabled,
   isOwner,
   name,
 }: UseCanEditRecordsParams) => {
   const { ownerAddress } = useSmartAccountContext()
-  const { data: writeState } = useQuery({
+  const { data: canWriteResolver, isError } = useQuery({
     ...resolverWriteAccessQuery(name, ownerAddress ?? undefined),
-    enabled: enabled && isOwner === false && Boolean(ownerAddress),
+    enabled: enabled && isOwner !== undefined && Boolean(ownerAddress),
   })
 
-  return isOwner || writeState?.canWrite === true
+  return enabled && !isError && canWriteResolver === true
 }

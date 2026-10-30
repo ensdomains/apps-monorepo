@@ -4,9 +4,10 @@ import {
   readContract,
   writeContract,
 } from '@wagmi/core'
-import type { Address, Hex } from 'viem'
+import { type Address, type Hex, UserRejectedRequestError } from 'viem'
 import { waitForTransactionReceipt } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 import {
   CommemorativeNftClaimError,
   claimCommemorativeNft,
@@ -35,7 +36,11 @@ vi.mock('viem/actions', async (importOriginal) => ({
   ...(await importOriginal<typeof import('viem/actions')>()),
   waitForTransactionReceipt: vi.fn(),
 }))
+vi.mock('@/lib/wallet/ensureWalletChain', () => ({
+  ensureWalletChain: vi.fn(),
+}))
 const publicClient = {} as NonNullable<ReturnType<typeof getPublicClient>>
+const ensureWalletChainMock = vi.mocked(ensureWalletChain)
 const writeContractMock = vi.mocked(writeContract)
 const readContractMock = vi.mocked(readContract)
 const waitForTransactionReceiptMock = vi.mocked(waitForTransactionReceipt)
@@ -85,26 +90,45 @@ beforeEach(() => {
 })
 
 describe('commemorative NFT contract', () => {
-  it('blocks reads and claims for undeployed mainnet even with a Sepolia chain ID', async () => {
+  it('uses the deployed mainnet contract for reads and claims', async () => {
     config.network = 'mainnet'
+    writeContractMock.mockResolvedValue(hash)
     await expect(
       readCommemorativeNftClaimed({
         wagmiConfig,
-        chainId: 11155111,
+        chainId: 1,
         ownerAddress,
       }),
-    ).rejects.toMatchObject({ reason: 'unsupported-network' })
+    ).resolves.toBe(true)
     await expect(
       claimCommemorativeNft({
         wagmiConfig,
-        chainId: 11155111,
+        chainId: 1,
         ownerAddress,
         walletAddress: ownerAddress,
         proof,
       }),
-    ).rejects.toMatchObject({ reason: 'unsupported-network' })
-    expect(readContractMock).not.toHaveBeenCalled()
-    expect(writeContractMock).not.toHaveBeenCalled()
+    ).resolves.toBe(hash)
+    expect(readContractMock).toHaveBeenCalledWith(
+      wagmiConfig,
+      expect.objectContaining({
+        address: '0x20262e3433306a4FF250a64d20a8E0F09B2C7F68',
+        chainId: 1,
+        functionName: 'hasClaimed',
+        args: [ownerAddress],
+      }),
+    )
+    expect(ensureWalletChainMock).toHaveBeenCalledWith(wagmiConfig, 1)
+    expect(writeContractMock).toHaveBeenCalledWith(
+      wagmiConfig,
+      expect.objectContaining({
+        address: '0x20262e3433306a4FF250a64d20a8E0F09B2C7F68',
+        chainId: 1,
+        account: ownerAddress,
+        functionName: 'claim',
+        args: [proof],
+      }),
+    )
   })
   it('submits a plain EOA claim', async () => {
     writeContractMock.mockResolvedValue(hash)
@@ -117,6 +141,8 @@ describe('commemorative NFT contract', () => {
         proof,
       }),
     ).resolves.toBe(hash)
+    expect(ensureWalletChainMock).toHaveBeenCalledWith(wagmiConfig, 11155111)
+    expect(ensureWalletChainMock).toHaveBeenCalledBefore(writeContractMock)
     expect(writeContractMock).toHaveBeenCalledWith(
       wagmiConfig,
       expect.objectContaining({
@@ -127,6 +153,21 @@ describe('commemorative NFT contract', () => {
         args: [proof],
       }),
     )
+  })
+  it('treats a declined chain switch as a cancelled mint', async () => {
+    ensureWalletChainMock.mockRejectedValueOnce(
+      new UserRejectedRequestError(new Error('User rejected the request.')),
+    )
+    await expect(
+      claimCommemorativeNft({
+        wagmiConfig,
+        chainId: 11155111,
+        ownerAddress,
+        walletAddress: ownerAddress,
+        proof,
+      }),
+    ).rejects.toMatchObject({ reason: 'user-rejected' })
+    expect(writeContractMock).not.toHaveBeenCalled()
   })
   it('refuses a different wallet', async () => {
     await expect(

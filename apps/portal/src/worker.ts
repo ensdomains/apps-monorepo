@@ -158,12 +158,12 @@ async function handleOgImage(
 
   // Name OG image, with any legacy subpage segment ignored as above.
   const name = decoded.split('/')[0]
-  const { avatar, owner } = await fetchEnsData(
+  const { avatar, owner, isInGrace } = await fetchEnsData(
     env,
     name,
     new URL(request.url).host,
   )
-  return renderOgImage(name, avatar, owner, request.url, env)
+  return renderOgImage(name, avatar, owner, request.url, env, isInGrace)
 }
 
 /** Inject meta tags for an `/addr/0x…` page. */

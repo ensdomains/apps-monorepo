@@ -247,6 +247,21 @@ describe('getOwner', () => {
     )
   })
 
+  it('reports the registrar holder rather than a different registry controller', async () => {
+    mocks.getV1Owner.mockResolvedValue({
+      owner: '0x0000000000000000000000000000000000000001',
+      registrant: '0x0000000000000000000000000000000000000003',
+      ownershipLevel: 'registrar',
+    })
+
+    const result = await getOwner({ name: 'yield.eth' })
+
+    expect(result._unsafeUnwrap()).toEqual({
+      owner: '0x0000000000000000000000000000000000000003',
+      protocol: 'v1',
+    })
+  })
+
   it('skips the V2 2LD registration check for subnames', async () => {
     mocks.getV1Owner.mockResolvedValue({
       owner: '0x0000000000000000000000000000000000000001',

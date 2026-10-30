@@ -9,6 +9,7 @@ import {
   zeroHash,
 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { makeClassified, makeDomain, OWNER } from './_fixtures'
 import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
 import {
@@ -17,10 +18,11 @@ import {
   buildMigrationRecoveryPlan,
   namesWithDroppedPubkey,
 } from './buildMigrationPlan'
-import { FUSES } from './classifyNames'
+import { type ClassifiedName, FUSES } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
 import type { Profile } from './fetchV1Profiles'
+import { migrationApprovalForId } from './migrationApprovals'
 import {
   type MigrationRecoverySnapshot,
   persistPendingAtomicMigrationIntent,
@@ -40,10 +42,20 @@ vi.mock('./buildAtomicMigrationBatches', async (importActual) => ({
 vi.mock('./copyMigrationReadiness', () => ({
   assertCopyMigrationReadiness: vi.fn(() => Promise.resolve()),
 }))
+const applySubnameRecreationMock = vi.hoisted(() => vi.fn())
+
+vi.mock('./subnameRecreation', async (importActual) => {
+  const actual = await importActual<typeof import('./subnameRecreation')>()
+  applySubnameRecreationMock.mockImplementation(actual.applySubnameRecreation)
+  return { ...actual, applySubnameRecreation: applySubnameRecreationMock }
+})
+
 vi.mock('./migrationInvariants', async (importActual) => ({
   ...(await importActual<typeof import('./migrationInvariants')>()),
   assertRequiredMigrationContractCode: vi.fn(() => Promise.resolve()),
-  assertLockedPublicResolverSetMembership: vi.fn(() => Promise.resolve()),
+  resolveLockedMigrationResolvers: vi.fn(({ names }) =>
+    Promise.resolve([...names]),
+  ),
   checkMigrationHcaReadiness: vi.fn(({ hca }) =>
     Promise.resolve({ status: 'verified', hca, implementation: HCA }),
   ),
@@ -85,6 +97,7 @@ const publicClientWithProfileResults = (
     // The recovery plan resolves its chain from the client and refuses a
     // client without one.
     chain: { id: 11155111 },
+    getCode: vi.fn().mockResolvedValue('0x'),
     multicall: vi.fn(() => Promise.resolve(results)),
     readContract: vi.fn().mockResolvedValue(false),
   }) as unknown as PublicClient
@@ -164,7 +177,7 @@ beforeEach(() => {
     batches: [],
   })
   assertCopyMigrationReadinessMock.mockReset()
-  assertCopyMigrationReadinessMock.mockResolvedValue(undefined)
+  assertCopyMigrationReadinessMock.mockResolvedValue(new Map())
 })
 
 describe('assertLockedResolverReplacementRecordSafety', () => {
@@ -186,7 +199,10 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
     await expect(
       assertLockedResolverReplacementRecordSafety(
         [name],
-        publicClientWithProfileResults([UNSET_PUBKEY]),
+        publicClientWithProfileResults([
+          { status: 'success', result: '0x' },
+          UNSET_PUBKEY,
+        ]),
       ),
     ).resolves.toBeUndefined()
   })
@@ -212,6 +228,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
         publicClientWithProfileResults([
           { status: 'success', result: 'a@b.c' },
           { status: 'success', result: '0x1234' as Hex },
+          { status: 'success', result: '0x' },
           UNSET_PUBKEY,
         ]),
       ),
@@ -275,6 +292,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
       assertLockedResolverReplacementRecordSafety(
         [name],
         publicClientWithProfileResults([
+          { status: 'success', result: '0x' },
           {
             status: 'success',
             result: '0x000000000000000000000000000000000000beef' as Address,
@@ -379,7 +397,10 @@ describe('buildMigrationPlan resolver preservation', () => {
       domains: [domain],
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
       preflight,
     })
 
@@ -400,12 +421,64 @@ describe('buildMigrationPlan resolver preservation', () => {
 })
 
 describe('buildMigrationPlan gas preview', () => {
+  it.each([false, true])(
+    'uses the executable approval policy in the preview (atomic: %s)',
+    async (canBatchAtomically) => {
+      const tokenApproval = migrationApprovalForId({
+        id: 'base-registrar:hca-token',
+        hcaAddress: HCA,
+        tokenId: 1n,
+      })
+      const plan = await buildMigrationPlan({
+        domains: [makeDomain()],
+        hcaAddress: HCA,
+        migrationOwner: OWNER,
+        publicClient: publicClientWithProfileResults(),
+        canBatchAtomically,
+        preflight: {
+          skipFetchProfilesPhase: true,
+          migrationApprovals: [tokenApproval],
+          hcaReadiness: { status: 'deployment-required', hca: HCA },
+        },
+      })
+      expect(plan.preflight.migrationApprovals).toEqual([
+        canBatchAtomically
+          ? tokenApproval
+          : migrationApprovalForId({
+              id: 'base-registrar:hca',
+              hcaAddress: HCA,
+            }),
+      ])
+      const steps = plan.stepDescriptors.flatMap((step) =>
+        step.type === 'bundle' ? step.steps : [step],
+      )
+      expect(steps.filter(({ type }) => type === 'approval')).toEqual([
+        canBatchAtomically
+          ? {
+              type: 'approval',
+              approvalId: 'base-registrar:hca-token',
+              name: 'alice.eth',
+              tokenId: 1n,
+            }
+          : {
+              type: 'approval',
+              approvalId: 'base-registrar:hca',
+              count: 1,
+              roleGrants: undefined,
+            },
+      ])
+    },
+  )
+
   it('prices the wallet replay from the wallet executions only', async () => {
     await buildMigrationPlan({
       domains: [makeDomain()],
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
       preflight: {
         skipFetchProfilesPhase: true,
         hcaReadiness: { status: 'deployment-required', hca: HCA },
@@ -444,6 +517,110 @@ describe('buildMigrationPlan gas preview', () => {
 })
 
 describe('buildMigrationRecoveryPlan', () => {
+  it('keeps the reviewed bulk strategy when capabilities change', async () => {
+    const { root, copy, snapshot } = makeRecoveryTree()
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: {
+        ...snapshot,
+        registrationApprovalStrategy: 'temporary-operator',
+        temporaryRegistrationApproval: {
+          contractAddress: V1_CONTRACTS.BaseRegistrar,
+          operatorAddress: V2_CONTRACTS.MigrationHelper,
+          state: { status: 'granted', hash: `0x${'11'.repeat(32)}` },
+        },
+        remainingOperations: [
+          { name: root.name, action: 'migrate' },
+          { name: copy.name, action: 'copy' },
+        ],
+        completedOperations: [],
+        plannedApprovals: [{ id: 'base-registrar:hca' }],
+      },
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: publicClientWithProfileResults(),
+      canBatchAtomically: true,
+    })
+    expect(plan.canBatchAtomically).toBe(false)
+    expect(plan.registrationApprovalStrategy).toBe('temporary-operator')
+    expect(plan.preflight.migrationApprovals?.map(({ id }) => id)).toEqual([
+      'base-registrar:hca',
+    ])
+    expect(
+      plan.preflight.migrationCleanupApprovals?.map(({ id }) => id),
+    ).toEqual([])
+  })
+
+  it('retains legacy grant recovery without requesting cleanup after every name has completed', async () => {
+    const { snapshot } = makeRecoveryTree()
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: {
+        ...snapshot,
+        registrationApprovalStrategy: 'temporary-operator',
+        temporaryRegistrationApproval: {
+          contractAddress: V1_CONTRACTS.BaseRegistrar,
+          operatorAddress: V2_CONTRACTS.MigrationHelper,
+          state: { status: 'grant-pending', transactionId: 'approval-attempt' },
+        },
+        remainingOperations: [],
+        completedOperations: snapshot.registryOperations,
+      },
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: publicClientWithProfileResults(),
+    })
+    expect(plan.classified).toEqual([])
+    expect(plan.stepDescriptors).toEqual([])
+    expect(plan.temporaryRegistrationApproval?.state).toEqual({
+      status: 'grant-pending',
+      transactionId: 'approval-attempt',
+    })
+  })
+
+  it('requires a fresh preview without requesting cleanup when the deployment changed', async () => {
+    const { snapshot } = makeRecoveryTree()
+    const oldHelper: Address = '0x00000000000000000000000000000000000000ee'
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: {
+        ...snapshot,
+        registrationApprovalStrategy: 'temporary-operator',
+        temporaryRegistrationApproval: {
+          contractAddress: V1_CONTRACTS.BaseRegistrar,
+          operatorAddress: oldHelper,
+          state: { status: 'granted', hash: `0x${'11'.repeat(32)}` },
+        },
+      },
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: publicClientWithProfileResults(),
+    })
+    expect(plan.requiresFreshDeploymentPreview).toBe(true)
+    expect(plan.classified).toEqual([])
+    expect(plan.atomicBatches).toEqual([])
+    expect(plan.preflight.migrationCleanupApprovals).toEqual([])
+    expect(plan.registryContext.map(({ domain }) => domain.name)).toEqual(
+      snapshot.registryDomains.map(({ name }) => name),
+    )
+    expect(plan.priorCompletedOperations).toEqual(snapshot.completedOperations)
+    expect(buildAtomicMigrationBatchesMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps the changed-helper recovery gate after its permission was revoked', async () => {
+    const { snapshot } = makeRecoveryTree()
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: {
+        ...snapshot,
+        registrationApprovalStrategy: 'temporary-operator',
+        migrationHelper: '0x00000000000000000000000000000000000000ee',
+      },
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: publicClientWithProfileResults(),
+    })
+    expect(plan.requiresFreshDeploymentPreview).toBe(true)
+    expect(plan.preflight.migrationCleanupApprovals).toEqual([])
+    expect(plan.atomicBatches).toEqual([])
+  })
+
   it('converts a saved collection-wide registration grant to token approvals', async () => {
     const { root, copy, snapshot } = makeRecoveryTree()
     const recoverySnapshot: MigrationRecoverySnapshot = {
@@ -471,6 +648,58 @@ describe('buildMigrationRecoveryPlan', () => {
     ])
   })
 
+  it('resumes a recreation tree without an ETHRegistry approval it never planned', async () => {
+    const { root, copy, snapshot } = makeRecoveryTree()
+    // Only the tree's shape matters here, not its saved source identity.
+    applySubnameRecreationMock.mockImplementationOnce(
+      ({ classified }: { readonly classified: readonly ClassifiedName[] }) => [
+        ...classified,
+        {
+          ...makeClassified({
+            action: 'copy',
+            tokenType: 'registry-child',
+            name: copy.name,
+            label: 'sub',
+            parentName: root.name,
+          }),
+          domain: copy,
+          recreationRoot: root.name,
+        },
+      ],
+    )
+
+    const plan = await buildMigrationRecoveryPlan({
+      snapshot: {
+        ...snapshot,
+        remainingOperations: [
+          { name: root.name, action: 'migrate' },
+          { name: copy.name, action: 'copy' },
+        ],
+        completedOperations: [],
+        plannedApprovals: [],
+        subnameRecreation: {
+          version: 5,
+          roots: [root.name],
+          names: [root.name, copy.name],
+          blockNumber: '100',
+          timestamp: '1000',
+          blockHash: `0x${'11'.repeat(32)}`,
+          chainId: 11155111,
+          inventoryDigest: `0x${'22'.repeat(32)}`,
+        },
+      },
+      hcaAddress: HCA,
+      migrationOwner: OWNER,
+      publicClient: publicClientWithProfileResults(),
+    })
+
+    expect(plan.registryContext).toContainEqual(
+      expect.objectContaining({ recreationRoot: root.name }),
+    )
+    expect(plan.preflight.migrationApprovals).toEqual([])
+    expect(plan.preflight.migrationCleanupApprovals).toEqual([])
+  })
+
   it('rebuilds unsent copies with their completed root retained only as registry context', async () => {
     const { root, copy, snapshot } = makeRecoveryTree()
 
@@ -478,7 +707,10 @@ describe('buildMigrationRecoveryPlan', () => {
       snapshot,
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
     })
 
     const checkedContracts = vi.mocked(assertRequiredMigrationContractCode).mock
@@ -542,7 +774,10 @@ describe('buildMigrationRecoveryPlan', () => {
         snapshot,
         hcaAddress: HCA,
         migrationOwner: OWNER,
-        publicClient: { chain: { id: 11155111 } } as PublicClient,
+        publicClient: {
+          chain: { id: 11155111 },
+          getCode: vi.fn().mockResolvedValue('0x'),
+        } as unknown as PublicClient,
       }),
     ).resolves.toBeDefined()
 
@@ -552,6 +787,35 @@ describe('buildMigrationRecoveryPlan', () => {
       }),
     )
   })
+
+  it.each([
+    ['already revoked', false],
+    ['still active', true],
+  ])(
+    'does not require cleanup for completed recovery when access is %s',
+    async (_state, isApproved) => {
+      const { snapshot } = makeRecoveryTree()
+      const publicClient = publicClientWithProfileResults()
+      vi.mocked(publicClient.readContract).mockImplementation(
+        ({ functionName }) =>
+          Promise.resolve(functionName === 'isApprovedForAll' && isApproved),
+      )
+
+      const plan = await buildMigrationRecoveryPlan({
+        snapshot: {
+          ...snapshot,
+          remainingOperations: [],
+          completedOperations: snapshot.registryOperations,
+        },
+        hcaAddress: HCA,
+        migrationOwner: OWNER,
+        publicClient,
+      })
+
+      expect(plan.classified).toEqual([])
+      expect(plan.preflight.migrationCleanupApprovals).toEqual([])
+    },
+  )
 
   it('fails closed when a durable-tree name has a different journaled action', async () => {
     const { copy, snapshot } = makeRecoveryTree()
@@ -569,7 +833,10 @@ describe('buildMigrationRecoveryPlan', () => {
         snapshot,
         hcaAddress: HCA,
         migrationOwner: OWNER,
-        publicClient: { chain: { id: 11155111 } } as PublicClient,
+        publicClient: {
+          chain: { id: 11155111 },
+          getCode: vi.fn().mockResolvedValue('0x'),
+        } as unknown as PublicClient,
       }),
     ).rejects.toMatchObject({
       name: 'MigrationRecoveryPlanError',
@@ -620,7 +887,10 @@ describe('buildMigrationRecoveryPlan manager restoration (WEB-1528)', () => {
       snapshot,
       hcaAddress: HCA,
       migrationOwner: OWNER,
-      publicClient: { chain: { id: 11155111 } } as PublicClient,
+      publicClient: {
+        chain: { id: 11155111 },
+        getCode: vi.fn().mockResolvedValue('0x'),
+      } as unknown as PublicClient,
     })
 
   it('replays the opt-in recorded on the durable snapshot', async () => {

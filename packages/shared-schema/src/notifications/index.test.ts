@@ -1,11 +1,7 @@
 import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import * as sharedSchema from '../index'
-import {
-  channelDefinitions,
-  notificationDefinitions,
-  TelegramAuthSchema,
-} from '../index'
+import { channelDefinitions, notificationDefinitions } from '../index'
 
 describe('notifications catalog', () => {
   it('exposes all required fields for every notification kind', () => {
@@ -48,15 +44,11 @@ describe('notifications catalog', () => {
   })
 })
 
-describe('telegram auth schema', () => {
-  it('parses valid auth payload', () => {
-    const parsed = v.safeParse(TelegramAuthSchema, {
-      id: 1,
-      username: 'ens_user',
-      auth_date: 1_700_000_000,
-      hash: 'abc123',
-    })
-
-    expect(parsed.success).toBe(true)
+describe('telegram channel schema', () => {
+  it('accepts an account without a username', () => {
+    expect(
+      v.safeParse(channelDefinitions.telegram.dataSchema, { name: 'Alice' })
+        .success,
+    ).toBe(true)
   })
 })

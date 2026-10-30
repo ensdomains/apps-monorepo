@@ -3,6 +3,8 @@ import type { Suggestion } from './buildSearchSuggestions'
 /**
  * Flat item for keyboard nav and selection: suggestions, then owned names.
  */
+export const isSubname = (name: string) => name.split('.').length > 2
+
 export type SearchResultItem =
   | { type: 'suggestion'; value: string; suggestion: Suggestion }
   | { type: 'owned'; value: string; name: string }

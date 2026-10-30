@@ -80,9 +80,21 @@ describe('migration preparation errors', () => {
   it('names the parent prerequisite when a grace renewal is in the selection', () => {
     const cause = failure('DirectMigrationRouteError', {
       reason: 'missing-wrapper',
+      ensName: 'woiaf.eth',
     })
-    expect(migrationPreparationFailure(cause, 'fee').reason).toBe(
+    const wrapped = failure('OuterError', { cause })
+    expect(migrationPreparationFailure(wrapped, 'fee').reason).toBe(
       'parent-not-upgraded',
+    )
+    expect(message(wrapped, 'fee')).toBe(
+      "Some subnames can't upgrade because woiaf.eth hasn't been upgraded yet. Upgrade this parent first, or deselect those subnames.",
+    )
+    expect(
+      message(
+        failure('DirectMigrationRouteError', { reason: 'missing-wrapper' }),
+      ),
+    ).toBe(
+      "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames.",
     )
     expect(
       migrationPreparationFailure(failure('HttpRequestError'), 'fee').reason,
@@ -129,6 +141,24 @@ describe('migration preparation errors', () => {
       "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again.",
     )
   })
+
+  it.each(['preflight', 'plan', 'recovery', 'fee'] as const)(
+    'explains the locked resolver risk for the affected name during %s',
+    (stage) => {
+      const cause = failure('MigrationContractInvariantError', {
+        invariant: 'locked-resolver-record-control',
+        ensName: 'locked.eth',
+      })
+      const wrapped = failure('OuterError', { cause })
+      expect(migrationPreparationFailure(wrapped, stage).reason).toBe(
+        'locked-resolver-record-control',
+      )
+      expect(message(wrapped, stage)).toBe(
+        'Upgrading locked.eth could make its records permanently uneditable because its resolver cannot be replaced. Deselect this name to continue.',
+      )
+      expect(message(wrapped, stage)).not.toMatch(/secret|deadbeef/)
+    },
+  )
 
   it('does not leak raw account errors or unknown RPC payloads', () => {
     expect(message('raw account RPC data', 'account')).toBe(

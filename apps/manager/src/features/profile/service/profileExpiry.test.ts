@@ -32,6 +32,13 @@ vi.mock('@/lib/wagmi/helpers', async () => {
     safeGetClient: () => ok(mocks.client),
   }
 })
+vi.mock('./changeResolver', () => ({
+  resolveNameRegistry: async () => ({
+    label: 'mini',
+    registryAddress: '0x1111111111111111111111111111111111111111',
+  }),
+  NameRegistryNotFoundError: class extends Error {},
+}))
 
 import {
   getExpiry,
@@ -187,7 +194,8 @@ describe('getExpiry', () => {
 describe('subnames', () => {
   // Not clamped to the parent: a v2 label carries its own expiry in its
   // registry, and a detached or custom subregistry can outlive its parent.
-  it('reads the expiry the indexer records for the subname itself', async () => {
+  it('reads the expiry the holding registry records for the subname itself', async () => {
+    mocks.getV2Expiry.mockResolvedValue(1_821_700_419n)
     mocks.getNameDetail.mockReturnValue(
       okAsync({ expiresAt: new Date(1_821_700_419 * 1000) }),
     )
@@ -200,18 +208,31 @@ describe('subnames', () => {
       protocol: 'v2',
       isSubname: true,
     })
-    expect(mocks.getV2Expiry).not.toHaveBeenCalled()
+    expect(mocks.getV2Expiry).toHaveBeenCalledWith(mocks.client, {
+      name: 'mini.shiba.eth',
+      registryAddress: '0x1111111111111111111111111111111111111111',
+    })
   })
 
-  it('reports no expiry for a subname the indexer does not know', async () => {
+  it('reads on-chain expiry for a subname the indexer does not know', async () => {
+    mocks.getV2Expiry.mockResolvedValue(1_821_700_419n)
     mocks.getNameDetail.mockReturnValue(okAsync(null))
 
     const result = await getExpiry('mini.shiba.eth')
 
+    expect(result._unsafeUnwrap().expiry).toBe(1_821_700_419n)
+  })
+
+  it('reports no expiry for a subname the holding registry has no entry for', async () => {
+    mocks.getV2Expiry.mockResolvedValue(0n)
+
+    const result = await getExpiry('alice.shiba.eth')
+
     expect(result._unsafeUnwrap().expiry).toBeNull()
   })
 
-  it('fails rather than reporting no expiry when the index cannot be read', async () => {
+  it('fails rather than reporting no expiry when the registry cannot be read', async () => {
+    mocks.getV2Expiry.mockRejectedValueOnce(new Error('RPC down'))
     mocks.getNameDetail.mockReturnValue(errAsync(new Error('bigname down')))
 
     const result = await getExpiry('mini.shiba.eth')
@@ -220,6 +241,7 @@ describe('subnames', () => {
   })
 
   it('reports no grace window after a subname expires', async () => {
+    mocks.getV2Expiry.mockResolvedValue(1_600_000_000n)
     mocks.getNameDetail.mockReturnValue(
       okAsync({ expiresAt: new Date(1_600_000_000 * 1000) }),
     )

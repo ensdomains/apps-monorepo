@@ -1,7 +1,11 @@
 import { useLingui } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ShareProfileDialog } from '@/features/profile/components/dialogs/ShareProfileDialog'
-import { iconActionClassName } from './ProfileAction.styles'
+import {
+  iconActionClassName,
+  iconActionIconInnerClassName,
+  iconActionSymbolClassName,
+} from './ProfileAction.styles'
 import { useProfileThemeColor } from './ProfileThemeColor'
 
 type ProfileShareActionProps = {
@@ -29,10 +33,9 @@ export const ProfileShareAction = ({
           className={iconActionClassName}
           type="button"
         >
-          <MSymbol
-            className="ms-opsz-32 ms-wght-200 text-[32px]"
-            symbol="ios_share"
-          />
+          <span className={iconActionIconInnerClassName}>
+            <MSymbol className={iconActionSymbolClassName} symbol="ios_share" />
+          </span>
         </button>
       }
       url={url}

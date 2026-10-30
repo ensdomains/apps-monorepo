@@ -95,7 +95,7 @@ jobs:
           # pnpm/setup has no frozen-lockfile input; force it via config env.
           PNPM_CONFIG_FROZEN_LOCKFILE: true
         with:
-          runtime: node@lts
+          runtime: node@24
           cache: true
 
       - name: Download the release notes
@@ -145,3 +145,34 @@ jobs:
           else
             gh release create "$TAG" --title "$TAG" --notes-file "$notes" --verify-tag
           fi
+
+  # Posts the outcome to Slack, failures included. Rerunning a failed job
+  # reruns this one too, so the retry's outcome is posted as well.
+  notify:
+    name: Post to Slack
+    needs: [prepare, cloudflare, release]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts
+
+      # Missing when the tag check failed; the post still goes out.
+      - name: Download the release notes
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/notes
+
+      # A failed post must not mark a finished release as failed.
+      - name: Post to Slack
+        continue-on-error: true
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          SLACK_WEBHOOK_URL: ${{ secrets.RELEASES_SLACK_WEBHOOK }}
+        run: node scripts/release-slack.mjs "$RUNNER_TEMP/notes"

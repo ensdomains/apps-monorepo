@@ -243,12 +243,10 @@ export const getDashboardNamesInfiniteQueryOptions = (
         pageParam,
         getDashboardNameVisibility((name) =>
           query.recordEditorAddress
-            ? queryClient
-                .fetchQuery({
-                  ...resolverWriteAccessQuery(name, query.recordEditorAddress),
-                  staleTime: RECORD_WRITE_ACCESS_STALE_MS,
-                })
-                .then(({ canWrite }) => canWrite)
+            ? queryClient.fetchQuery({
+                ...resolverWriteAccessQuery(name, query.recordEditorAddress),
+                staleTime: RECORD_WRITE_ACCESS_STALE_MS,
+              })
             : Promise.resolve(true),
         ),
       ),

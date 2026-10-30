@@ -30,6 +30,11 @@ vi.mock('@ensdomains/ensjs/public/v2', () => ({
   getNameRegistries: mockGetNameRegistries,
 }))
 
+// The V2 state of a V1 name: no token was ever registered, so no latest owner.
+vi.mock('viem/actions', () => ({
+  readContract: vi.fn(async () => ({ status: 0, latestOwner: zeroAddress })),
+}))
+
 // Dynamic import after mocking
 const { getEnsOwner } = await import('./useEnsOwner')
 

@@ -1,6 +1,7 @@
 import type { RegistrationMachineActor } from '@ens-apps/transaction-manager'
 import {
   computeDedicatedResolverAddress,
+  encodeCommitCall,
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
   hasDeployedCode,
@@ -8,12 +9,15 @@ import {
   registrationMachine,
   subscribeRegistrationPersistence,
   transactionManager,
+  useAtomicBatchSupport,
 } from '@ens-apps/transaction-manager'
+import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { useSearch } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { type Address, erc20Abi } from 'viem'
+import { type Address, erc20Abi, keccak256, toHex } from 'viem'
 import {
   useBytecode,
   useConfig,
@@ -27,6 +31,7 @@ import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLook
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import {
   buildApproveIntent,
+  toEoaBatchIntent,
   toEoaCustomIntent,
 } from '@/features/transaction-manager/helpers/intents'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -133,10 +138,99 @@ function buildSetupSteps({
   return steps
 }
 
+/**
+ * Everything before the cooldown as ONE confirmation, for a wallet that bundles
+ * atomically: the resolver (first registration only), the commit and the
+ * payment approval. Register stays its own step after the cooldown.
+ */
+function buildSetupBundleStep({
+  name,
+  owner,
+  deploy,
+  approval,
+  resumed,
+  onStart,
+  onProceed,
+}: {
+  readonly name: string
+  readonly owner: Address | undefined
+  readonly deploy: boolean
+  readonly approval:
+    | {
+        readonly tokenSymbol: string
+        /** Unknown until a token is picked; the estimate waits for it. */
+        readonly payment:
+          | { readonly token: Address; readonly amount: bigint }
+          | undefined
+      }
+    | undefined
+  readonly resumed: boolean
+  readonly onStart: () => void
+  readonly onProceed: () => void
+}): Transaction {
+  return {
+    id: REGISTRATION_TX_IDS.setupBundle,
+    title: 'Prepare registration',
+    transactionName: `Prepare to register ${name}`,
+    steps: [
+      ...(deploy ? ['Deploy resolver'] : []),
+      'Submit commitment',
+      ...(approval ? [`Approve ${approval.tokenSymbol} for registration`] : []),
+    ],
+    // The commitment's secret is only drawn when the run starts, so the
+    // estimate commits a stand-in hash nobody has committed: `commit` costs
+    // the same for any fresh one.
+    intent: {
+      prepare:
+        owner && (!approval || approval.payment)
+          ? ({ walletClient }) => {
+              const from = walletClient.account.address
+              return toEoaBatchIntent([
+                ...(deploy
+                  ? [
+                      toEoaCustomIntent({
+                        from,
+                        ...encodeDeployDedicatedResolverCall({
+                          owner,
+                          chain: ensChain,
+                        }),
+                        chainId: ensChain.id,
+                      }),
+                    ]
+                  : []),
+                toEoaCustomIntent({
+                  from,
+                  ...encodeCommitCall({
+                    commitment: keccak256(toHex(`estimate:${name}:${from}`)),
+                    chain: ensChain,
+                  }),
+                  chainId: ensChain.id,
+                }),
+                ...(approval?.payment
+                  ? [
+                      buildApproveIntent({
+                        from,
+                        token: approval.payment.token,
+                        spender: ethRegistrar,
+                        amount: approval.payment.amount,
+                        chainId: ensChain.id,
+                      }),
+                    ]
+                  : []),
+              ])
+            }
+          : undefined,
+    },
+    onStart: resumed ? onProceed : onStart,
+    onDone: onProceed,
+  }
+}
+
 export const useRegistrationTransactions = ({
   name,
   duration,
 }: UseRegistrationTransactionsParams) => {
+  const { referrer } = useSearch({ strict: false })
   const chainId = ensChain.id
   const config = useConfig()
   const connection = useConnection()
@@ -164,9 +258,22 @@ export const useRegistrationTransactions = ({
     boolean | null
   >(null)
 
+  // Whether the wallet bundles the pre-cooldown steps (EIP-5792), fixed when
+  // the run starts or resumes so a late capabilities answer can't reshape it.
+  const canBatchAtomically = useAtomicBatchSupport(chainId)
+  const [isSetupBundled, setIsSetupBundled] = useState<boolean | null>(null)
+
   const actor: RegistrationMachineActor = useActorRef(registrationMachine, {
     input: { chainId },
   })
+  // The machine stops bundling once the user declines the account upgrade; the
+  // steps follow it.
+  const isMachineBundling = useSelector(
+    actor,
+    (state) => state.context.canBatchAtomically !== false,
+  )
+  const shouldBundleSetup =
+    (isSetupBundled ?? canBatchAtomically) && isMachineBundling
 
   // Mirror progress into localStorage so a reload can pick it back up.
   useEffect(
@@ -190,6 +297,10 @@ export const useRegistrationTransactions = ({
   const resolverAddress = useSelector(
     actor,
     (state) => state.context.resolverAddress,
+  )
+  const registrationReferrer = useSelector(
+    actor,
+    (state) => state.context.referrer,
   )
   const commitment = useSelector(actor, (state) => state.context.commitment)
   const verifiedResolverRef = useRef<Address | null>(null)
@@ -278,6 +389,35 @@ export const useRegistrationTransactions = ({
   const { refetch: refetchWalletResolver } = walletResolverQuery
   const showResolverDeployStep = isResolverDeployPlanned ?? shouldDeployResolver
 
+  const handleProceed = useCallback(async () => {
+    // A resumed run reads the chain before it takes a retry: a commit that was
+    // never sent only fails its check after several seconds. A click landing in
+    // that window waits for the verdict instead of being dropped, so Start on
+    // that commit step puts the prompt back up. Only then — every other click
+    // resolves from the state already in hand, in the same tick.
+    if (CHECKING_CHAIN_STATES.has(String(actor.getSnapshot().value))) {
+      await waitFor(
+        actor,
+        (snapshot) => !CHECKING_CHAIN_STATES.has(String(snapshot.value)),
+      ).catch(() => null)
+    }
+    // Read the state now, not the snapshot the wait resolved with: several
+    // clicks can be waiting on the same verdict, and only the first may retry.
+    // A later one would retire the transaction that retry just started.
+    if (actor.getSnapshot().value !== 'error') return
+    // Only the failed attempt is retired. The machine resumes from that step,
+    // so clearing every transaction would send steps that already landed back
+    // to "Not Started". A timed-out bundle stays: the retry waits on it.
+    for (const id of Object.values(REGISTRATION_TX_IDS)) {
+      if (
+        transactionManager.getTransaction(id)?.getSnapshot().context.error &&
+        !transactionManager.hasTimedOutBundle(id)
+      )
+        transactionManager.cancelTransaction(id)
+    }
+    actor.send({ type: 'RETRY' })
+  }, [actor])
+
   const handleStart = useCallback(async () => {
     if (!publicClient || !connection.address || !savedParams) {
       throw new Error(
@@ -286,6 +426,15 @@ export const useRegistrationTransactions = ({
     }
 
     const currentState = actor.getSnapshot().value
+
+    // The accepted setup bundle timed out and may still land. Starting over
+    // would pay for it again under a new commitment, so wait on it instead.
+    if (
+      currentState === 'error' &&
+      transactionManager.hasTimedOutBundle(REGISTRATION_TX_IDS.setupBundle)
+    ) {
+      return handleProceed()
+    }
 
     // Already under way (e.g. resumed after a reload): starting over would
     // cancel it, discard its record and pay for a second commitment.
@@ -321,6 +470,7 @@ export const useRegistrationTransactions = ({
       allowance === undefined || allowance < savedParams.tokenPrice,
     )
     setIsResolverDeployPlanned(!hasDeployedCode(walletResolverRead.data))
+    setIsSetupBundled(canBatchAtomically)
 
     transactionManager.clear()
 
@@ -328,56 +478,100 @@ export const useRegistrationTransactions = ({
 
     actor.send({
       type: 'START_REGISTRATION',
+      referrer: normalizeReferrer(referrer),
       name,
       duration: BigInt(duration),
       token: savedParams.tokenSymbol,
+      // On Sepolia the symbol alone resolves to Circle USDC, not the shown MockUSDC.
+      paymentTokenAddress: savedParams.tokenAddress,
       price: savedParams.tokenPrice,
       signer,
       accountAddress: connection.address,
       publicClient,
+      canBatchAtomically,
     })
   }, [
     actor,
     name,
     duration,
+    referrer,
     publicClient,
     connection,
     config,
     savedParams,
     refetchAllowance,
     refetchWalletResolver,
+    canBatchAtomically,
+    handleProceed,
   ])
-
-  const handleProceed = useCallback(async () => {
-    // A resumed run reads the chain before it takes a retry: a commit that was
-    // never sent only fails its check after several seconds. A click landing in
-    // that window waits for the verdict instead of being dropped, so Start on
-    // that commit step puts the prompt back up. Only then — every other click
-    // resolves from the state already in hand, in the same tick.
-    if (CHECKING_CHAIN_STATES.has(String(actor.getSnapshot().value))) {
-      await waitFor(
-        actor,
-        (snapshot) => !CHECKING_CHAIN_STATES.has(String(snapshot.value)),
-      ).catch(() => null)
-    }
-    // Read the state now, not the snapshot the wait resolved with: several
-    // clicks can be waiting on the same verdict, and only the first may retry.
-    // A later one would retire the transaction that retry just started.
-    if (actor.getSnapshot().value !== 'error') return
-    // Only the failed attempt is retired. The machine resumes from that step,
-    // so clearing every transaction would send steps that already landed back
-    // to "Not Started".
-    for (const id of Object.values(REGISTRATION_TX_IDS)) {
-      if (transactionManager.getTransaction(id)?.getSnapshot().context.error)
-        transactionManager.cancelTransaction(id)
-    }
-    actor.send({ type: 'RETRY' })
-  }, [actor])
 
   const handleDone = useCallback(() => {
     closeModal()
     clearTransaction()
   }, [closeModal, clearTransaction])
+
+  const registerStep: Transaction = useMemo(
+    () => ({
+      id: REGISTRATION_TX_IDS.register,
+      title: 'Register name',
+      transactionName: `Register ${name}`,
+      // Known once commitment + resolver exist; gas cap covers the commitment-age
+      // window where live estimateGas reverts.
+      intent: {
+        prepare:
+          commitment && resolverAddress && connection.address && savedParams
+            ? ({ walletClient }) =>
+                toEoaCustomIntent({
+                  from: walletClient.account.address,
+                  ...encodeRegisterCall({
+                    name,
+                    referrer: registrationReferrer,
+                    owner: connection.address as Address,
+                    secret: commitment.secret,
+                    duration: BigInt(duration),
+                    paymentToken: savedParams.tokenAddress,
+                    resolverAddress,
+                    registrarAddress: ethRegistrar,
+                  }),
+                  chainId,
+                  gas: 500_000n,
+                })
+            : undefined,
+      },
+      onStart: handleProceed,
+      onDone: handleDone,
+      waitUntil: registerWaitUntil,
+    }),
+    [
+      name,
+      duration,
+      connection.address,
+      savedParams,
+      commitment,
+      registrationReferrer,
+      resolverAddress,
+      registerWaitUntil,
+      handleProceed,
+      handleDone,
+    ],
+  )
+
+  // The approval a bundled setup carries, described for its step.
+  const setupBundleApproval = useMemo(
+    () =>
+      showApprovalStep
+        ? {
+            tokenSymbol: savedParams?.tokenSymbol ?? 'token',
+            payment: savedParams
+              ? {
+                  token: savedParams.tokenAddress,
+                  amount: savedParams.tokenPrice,
+                }
+              : undefined,
+          }
+        : undefined,
+    [showApprovalStep, savedParams],
+  )
 
   const transactions: Transaction[] = useMemo(() => {
     // A resumed run deployed its resolver in the earlier session: listing that
@@ -386,11 +580,27 @@ export const useRegistrationTransactions = ({
     // The record holds a commitment from before the commit prompt opens, so a
     // run interrupted at that prompt never sent it (see
     // `assessRegistrationResume`).
+    const isSetupAhead = !resumed?.commitmentOnChain
+    if (shouldBundleSetup && isSetupAhead) {
+      return [
+        buildSetupBundleStep({
+          name,
+          owner: connection.address as Address | undefined,
+          deploy: !resumed && showResolverDeployStep,
+          approval: setupBundleApproval,
+          resumed: Boolean(resumed),
+          onStart: handleStart,
+          onProceed: handleProceed,
+        }),
+        registerStep,
+      ]
+    }
+
     const steps: Transaction[] = buildSetupSteps({
       name,
       owner: connection.address as Address | undefined,
       deploy: !resumed && showResolverDeployStep,
-      commit: !resumed?.commitmentOnChain,
+      commit: isSetupAhead,
       resumed: Boolean(resumed),
       onStart: handleStart,
       onProceed: handleProceed,
@@ -422,52 +632,21 @@ export const useRegistrationTransactions = ({
       })
     }
 
-    steps.push({
-      id: REGISTRATION_TX_IDS.register,
-      title: 'Register name',
-      transactionName: `Register ${name}`,
-      // Known once commitment + resolver exist; gas cap covers the commitment-age
-      // window where live estimateGas reverts.
-      intent: {
-        prepare:
-          commitment && resolverAddress && connection.address && savedParams
-            ? ({ walletClient }) =>
-                toEoaCustomIntent({
-                  from: walletClient.account.address,
-                  ...encodeRegisterCall({
-                    name,
-                    owner: connection.address as Address,
-                    secret: commitment.secret,
-                    duration: BigInt(duration),
-                    paymentToken: savedParams.tokenAddress,
-                    resolverAddress,
-                    registrarAddress: ethRegistrar,
-                  }),
-                  chainId,
-                  gas: 500_000n,
-                })
-            : undefined,
-      },
-      onStart: handleProceed,
-      onDone: handleDone,
-      waitUntil: registerWaitUntil,
-    })
+    steps.push(registerStep)
 
     return steps
   }, [
     name,
-    duration,
     connection.address,
     savedParams,
     resumed,
+    shouldBundleSetup,
     showResolverDeployStep,
     showApprovalStep,
-    commitment,
-    resolverAddress,
-    registerWaitUntil,
+    setupBundleApproval,
+    registerStep,
     handleStart,
     handleProceed,
-    handleDone,
   ])
 
   const startFlow = (selectedTokenAddress: Address, tokenPrice: bigint) => {
@@ -512,16 +691,17 @@ export const useRegistrationTransactions = ({
       })
       setResumed({ commitmentOnChain })
       setApprovalPlanned(approvalNeeded)
+      setIsSetupBundled(canBatchAtomically)
 
       actor.send({
         type: 'RESUME',
         stage: record.stage,
         context: record.context,
-        deps: { signer, publicClient },
+        deps: { signer, publicClient, canBatchAtomically },
       })
       return true
     },
-    [actor, publicClient],
+    [actor, publicClient, canBatchAtomically],
   )
 
   const paid = savedParams
@@ -535,6 +715,7 @@ export const useRegistrationTransactions = ({
     setResumed(null)
     setApprovalPlanned(null)
     setIsResolverDeployPlanned(null)
+    setIsSetupBundled(null)
     closeModal()
     clearTransaction()
   }, [actor, closeModal, clearTransaction])
@@ -544,6 +725,7 @@ export const useRegistrationTransactions = ({
     setResumed(null)
     setApprovalPlanned(null)
     setIsResolverDeployPlanned(null)
+    setIsSetupBundled(null)
     closeModal()
     clearTransaction()
   }, [actor, closeModal, clearTransaction])

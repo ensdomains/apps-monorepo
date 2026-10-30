@@ -21,14 +21,14 @@ const SelectedCountLabel = ({
     <Trans>
       <span>All </span>
       <span>{visibleCount}</span>
-      <span className="font-semi-mono uppercase"> names selected</span>
+      <span className="font-semi-mono uppercase"> eligible names selected</span>
     </Trans>
   ) : (
     <Trans>
       <span>{totalSelected}</span>
       <span> out of </span>
       <span>{visibleCount}</span>
-      <span className="font-semi-mono uppercase"> names selected</span>
+      <span className="font-semi-mono uppercase"> eligible names selected</span>
     </Trans>
   )
 
@@ -38,6 +38,7 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   | 'filteredGroups'
   | 'filteredOrphans'
   | 'filteredGracePeriodNames'
+  | 'includedSubnames'
   | 'isManagerRestorationLocked'
   | 'managerCandidates'
   | 'restoredManagers'
@@ -47,9 +48,10 @@ type SelectNamesStepSelectionOptionsProps = Pick<
   | 'toggleAll'
   | 'toggleManagerRestoration'
   | 'toggleName'
-  | 'totalSelected'
-  | 'visibleCount'
+  | 'eligibleCount'
+  | 'selectedEligibleCount'
 > & {
+  readonly hasInsufficientRenewalFunds: boolean
   readonly isCompactLayout: boolean
   readonly isContentHeightCard: boolean
   readonly isPending: boolean
@@ -62,11 +64,13 @@ export const SelectNamesStepSelectionOptions = ({
   filteredGroups,
   filteredOrphans,
   filteredGracePeriodNames,
+  hasInsufficientRenewalFunds,
   isCompactLayout,
   isContentHeightCard,
   isManagerRestorationLocked,
   isPending,
   managerCandidates,
+  includedSubnames,
   restoredManagers,
   search,
   selected,
@@ -76,10 +80,58 @@ export const SelectNamesStepSelectionOptions = ({
   toggleAll,
   toggleManagerRestoration,
   toggleName,
-  totalSelected,
-  visibleCount,
+  eligibleCount,
+  selectedEligibleCount,
 }: SelectNamesStepSelectionOptionsProps) => {
   const { t } = useLingui()
+  const eligibleHeader = (
+    <>
+      <div className="flex shrink-0 flex-col gap-2">
+        <div className="flex items-center gap-2 text-ens-garnet-900 text-sm leading-[1.2] tracking-[0.14px] md:text-base md:tracking-[0.16px]">
+          <Check className="size-5 shrink-0 md:hidden" strokeWidth={1.8} />
+          <h2 className="font-normal">
+            <SelectedCountLabel
+              allSelected={
+                eligibleCount > 0 && selectedEligibleCount === eligibleCount
+              }
+              totalSelected={selectedEligibleCount}
+              visibleCount={eligibleCount}
+            />
+          </h2>
+        </div>
+        <p className="flex items-start gap-1 text-ens-garnet-900/70 text-xs leading-normal tracking-[-0.24px] md:items-center md:text-sm md:leading-[0.96] md:tracking-[-0.28px]">
+          <Info
+            className="mt-0.5 size-3.5 shrink-0 md:mt-0"
+            strokeWidth={1.8}
+          />
+          <Trans>
+            Your names, text records, and addresses will be carried over during
+            the upgrade
+          </Trans>
+        </p>
+      </div>
+    </>
+  )
+
+  const bulkSelection = showBulkSelection && (
+    <button
+      aria-pressed={allSelected}
+      className="mb-6 flex shrink-0 items-center gap-2 self-start text-ens-garnet-900 text-sm leading-[1.2] tracking-[0.14px] md:text-base md:tracking-[0.16px]"
+      disabled={isPending}
+      onClick={toggleAll}
+      type="button"
+    >
+      <span
+        className={cn(
+          'flex size-7 shrink-0 items-center justify-center rounded-full border border-ens-garnet-900 bg-transparent p-1 transition-colors',
+          isPending && 'opacity-50',
+        )}
+      >
+        <Check className="size-5 text-ens-garnet-900" strokeWidth={2.25} />
+      </span>
+      {allSelected ? <Trans>Deselect all</Trans> : <Trans>Select all</Trans>}
+    </button>
+  )
 
   return (
     <div
@@ -110,68 +162,20 @@ export const SelectNamesStepSelectionOptions = ({
           isContentHeightCard && 'md:flex-none',
         )}
       >
-        <div className="flex shrink-0 flex-col gap-2">
-          <div className="flex items-center gap-2 text-ens-garnet-900 text-sm leading-[1.2] tracking-[0.14px] md:text-base md:tracking-[0.16px]">
-            <Check className="size-5 shrink-0 md:hidden" strokeWidth={1.8} />
-            <p>
-              <SelectedCountLabel
-                allSelected={allSelected}
-                totalSelected={totalSelected}
-                visibleCount={visibleCount}
-              />
-            </p>
-          </div>
-          <p className="flex items-start gap-1 text-ens-garnet-900/70 text-xs leading-normal tracking-[-0.24px] md:items-center md:text-sm md:leading-[0.96] md:tracking-[-0.28px]">
-            <Info
-              className="mt-0.5 size-3.5 shrink-0 md:mt-0"
-              strokeWidth={1.8}
-            />
-            <Trans>
-              Your names, text records, and addresses will be carried over
-              during the upgrade
-            </Trans>
-          </p>
-        </div>
-
-        {showBulkSelection && (
-          <button
-            aria-pressed={allSelected}
-            className="mt-4 flex shrink-0 items-center gap-2 self-start text-ens-garnet-900 text-sm leading-[1.2] tracking-[0.14px] md:mt-3 md:text-base md:tracking-[0.16px]"
-            disabled={isPending}
-            onClick={toggleAll}
-            type="button"
-          >
-            <span
-              className={cn(
-                'flex size-7 shrink-0 items-center justify-center rounded-full border border-ens-garnet-900 bg-transparent p-1 transition-colors',
-                isPending && 'opacity-50',
-              )}
-            >
-              <Check
-                className="size-5 text-ens-garnet-900"
-                strokeWidth={2.25}
-              />
-            </span>
-            {allSelected ? (
-              <Trans>Deselect all</Trans>
-            ) : (
-              <Trans>Select all</Trans>
-            )}
-          </button>
-        )}
-
+        {bulkSelection}
         <div
           className={cn(
             'min-h-0 flex-1 overflow-y-auto pr-3 [scrollbar-color:#f2b9d0_rgba(250,249,247,0.45)] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#f2b9d0] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[rgba(250,249,247,0.45)] [&::-webkit-scrollbar]:w-2',
-            isCompactLayout ? 'mt-4' : 'mt-8',
             isContentHeightCard && 'md:flex-none md:overflow-visible',
           )}
         >
-          <div className="flex flex-col gap-4 pt-4">
+          <div className="flex flex-col gap-4 pt-1">
             <SelectNamesStepNameList
               filteredGracePeriodNames={filteredGracePeriodNames}
               filteredGroups={filteredGroups}
               filteredOrphans={filteredOrphans}
+              hasInsufficientRenewalFunds={hasInsufficientRenewalFunds}
+              includedSubnames={includedSubnames}
               isManagerRestorationLocked={isManagerRestorationLocked}
               isPending={isPending}
               managerCandidates={managerCandidates}
@@ -180,7 +184,9 @@ export const SelectNamesStepSelectionOptions = ({
               selected={selected}
               toggleManagerRestoration={toggleManagerRestoration}
               toggleName={toggleName}
-            />
+            >
+              {eligibleHeader}
+            </SelectNamesStepNameList>
           </div>
         </div>
       </div>

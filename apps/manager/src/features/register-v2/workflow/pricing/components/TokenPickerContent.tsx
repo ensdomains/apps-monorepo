@@ -1,18 +1,15 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
-import { LoaderCircle } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { isAddressEqual } from 'viem'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
-import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -29,21 +26,41 @@ import {
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import type { FundingSourceOrigin } from '../../../state/registrationUi.machine'
 import { useRegistrationLockHeartbeat } from '../../registering/hooks/useRegistrationLockHeartbeat'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
-import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
-import { getPremiumLabel } from '../lib/premiumLabel'
+import { useFallbackPaymentChoice } from '../hooks/useFallbackPaymentChoice'
 import {
-  computeRegistrationFunding,
-  getRegistrationShortfallCause,
-  type RegistrationShortfallCause,
-} from '../lib/registrationFunding'
-import { PaymentBreakdown } from './PaymentBreakdown'
+  canPayFromL2,
+  type L2PaymentProps,
+  type L2PaymentRow,
+  useL2Payment,
+} from '../hooks/useL2Payment'
+import {
+  type CurrentMethodState,
+  getFallbackPaymentChoice,
+  type PayableMethod,
+} from '../lib/fallbackPaymentChoice'
+import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
+import {
+  getPaymentReceiptFigures,
+  getPaymentReceiptState,
+  getWalletShortfall,
+} from '../lib/paymentReceiptFigures'
+import { getPremiumLabel } from '../lib/premiumLabel'
+import { computeRegistrationFunding } from '../lib/registrationFunding'
+import {
+  getEstimatedL2AmountIn,
+  getL2SelectionMessage,
+  isL2ShortOfFunds,
+  L2SourceListItem,
+} from './L2SourceListItem'
+import { PaymentAction } from './PaymentAction'
 import {
   PaymentMethodList,
   type PaymentMethodListItem,
 } from './PaymentMethodList'
-import { PaymentTotalRow } from './PaymentTotalRow'
+import { PaymentReceipt } from './PaymentReceipt'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
 
@@ -57,7 +74,6 @@ class InsufficientFundingError extends Error {
   constructor(
     readonly required: number,
     readonly available: number,
-    readonly shortfallCause: Exclude<RegistrationShortfallCause, null>,
   ) {
     super('Insufficient USDC to fund the registration')
     this.name = 'InsufficientFundingError'
@@ -142,26 +158,6 @@ const PaymentMethods = <T extends TOKEN_SYMBOL>({
   )
 }
 
-const getPaymentHeadline = (
-  funding: RegistrationFundingSummary | undefined,
-  displayTotal: number | undefined,
-) => {
-  if (!funding) {
-    return {
-      hasAccountCredit: false,
-      headlineAmount: displayTotal,
-      networkFee: undefined,
-    }
-  }
-
-  const figures = getPaymentBreakdownFigures(funding)
-  return {
-    hasAccountCredit: figures.credit > 0,
-    headlineAmount: figures.walletDebit,
-    networkFee: figures.networkFee,
-  }
-}
-
 export const TokenPickerContent = () => {
   const { t } = useLingui()
   const { label, uiActor, registrationActor } = useRegistrationV2Context()
@@ -179,7 +175,9 @@ export const TokenPickerContent = () => {
     registrationActor,
     (state) =>
       state?.matches('signingFundingPermit') ||
-      state?.matches('approvingToken'),
+      state?.matches('approvingToken') ||
+      // Paid from an L2, the wallet signs that payment instead.
+      state?.matches('bridgingFromL2'),
   )
   useRegistrationLockHeartbeat(
     approvalState.isApproving ? approvalState.ownerAddress : undefined,
@@ -189,10 +187,17 @@ export const TokenPickerContent = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const domainName = `${label}.eth`
-  const [duration, selectedToken] = useSelector(
-    uiActor,
-    (state) => [state.context.duration, state.context.selectedToken] as const,
-  )
+  const [duration, selectedToken, fundingSourceChainId, fundingSourceOrigin] =
+    useSelector(
+      uiActor,
+      (state) =>
+        [
+          state.context.duration,
+          state.context.selectedToken,
+          state.context.fundingSourceChainId,
+          state.context.fundingSourceOrigin,
+        ] as const,
+    )
   const pricingQuery = useQuery({
     ...getRegisterPriceQueryOptions(
       label,
@@ -286,10 +291,30 @@ export const TokenPickerContent = () => {
   // Absent until the quote lands, and permanently absent if it fails.
   const funding = computeRegistrationFunding({
     budget: budgetQuery.data,
-    walletBalanceRaw: usdcBalanceRaw,
     ...(budgetQuery.data ? { hcaBalanceRaw: budgetQuery.data.hcaBalance } : {}),
     decimals: USDC_DECIMALS,
   })
+
+  const l2Payment = useL2Payment({
+    uiActor,
+    owner: account.ownerAddress,
+    // What an L2 payment is quoted into; the EOA route has no HCA.
+    hca:
+      account.signer?.type === 'rhinestone' && account.accountAddress
+        ? {
+            address: account.accountAddress,
+            config: account.signer.account.config,
+          }
+        : undefined,
+    budget: budgetQuery.data,
+    isQuoteStale: budgetQuery.isPlaceholderData,
+    isEnabled: isBudgetRequired,
+    fundingSourceChainId,
+    fundingSourceOrigin,
+  })
+  const l2FundingChainId = l2Payment?.selectedChainId
+  const isPaidFromL2 = l2FundingChainId !== undefined
+  const displayedL2Charge = getSelectedL2(l2Payment)?.amountInRaw
 
   // An explicit toggle choice always wins. Otherwise resolve the eligibility
   // lookups (already in flight for the toggle default — fetchQuery dedupes)
@@ -315,6 +340,8 @@ export const TokenPickerContent = () => {
     }
   }
 
+  const { referrer } = useSearch({ strict: false })
+
   // Dispatch `registration.start`. The smart-session gate runs UP FRONT (in
   // PaymentCard, before this chooser opens), so on the HCA path a session is
   // already active here and `account.signer` carries it — no signer override
@@ -331,6 +358,7 @@ export const TokenPickerContent = () => {
     if (uiActor.getSnapshot() !== pricingSnapshot) return
     uiActor.send({
       type: 'registration.start',
+      referrer,
       label,
       duration: BigInt(Math.ceil(duration)),
       token: selectedToken,
@@ -351,6 +379,10 @@ export const TokenPickerContent = () => {
       ...(funding && !budgetQuery.isPlaceholderData
         ? { displayedWalletDebit: funding.walletDebitRaw }
         : {}),
+      // Paid from an L2, the funding is bridged in from there, not permitted.
+      ...(l2FundingChainId === undefined ? {} : { l2FundingChainId }),
+      // And that L2's charge, fee included, bounds the bridge the same way.
+      ...(displayedL2Charge === undefined ? {} : { displayedL2Charge }),
     })
   }
 
@@ -378,24 +410,17 @@ export const TokenPickerContent = () => {
           ? budget.total - budget.hcaBalance
           : 0n
         : null
-      const shortfallCause = budget
-        ? getRegistrationShortfallCause({
-            totalRaw: budget.total,
-            registrationPriceRaw: budget.registrationPrice,
-            hcaBalanceRaw: budget.hcaBalance,
-            walletBalanceRaw: usdcBalanceRaw,
-          })
-        : null
 
+      // A chosen L2 pays instead, so the wallet's own balance is no gate.
       if (
+        !isPaidFromL2 &&
         walletDebitRaw !== null &&
         usdcBalanceRaw !== null &&
-        shortfallCause !== null
+        usdcBalanceRaw < walletDebitRaw
       ) {
         throw new InsufficientFundingError(
           decimalBigintToNumber(walletDebitRaw, USDC_DECIMALS),
           decimalBigintToNumber(usdcBalanceRaw, USDC_DECIMALS),
-          shortfallCause,
         )
       }
 
@@ -436,47 +461,29 @@ export const TokenPickerContent = () => {
       ? availabilityMutation.error
       : null
 
-  // Funding errors belong to the affected method. Prefer the rendered quote:
-  // it is the amount the user is looking at, while a click-path revalidation
-  // can only supply a fallback when no rendered shortfall is available.
-  const methodErrorMessage = match({
-    renderFunding: funding,
-    revalidatedFundingError,
-  })
-    .with(
-      { renderFunding: { shortfallCause: 'name-price' } },
-      ({ renderFunding }) => {
-        const amount = formatUsd(renderFunding.walletDebit)
-        return t`${amount} needed to register name`
-      },
-    )
-    .with(
-      { renderFunding: { shortfallCause: 'network-fee' } },
-      () => t`not enough funds to pay network fees`,
-    )
-    .with(
-      { revalidatedFundingError: { shortfallCause: 'name-price' } },
-      ({ revalidatedFundingError }) => {
-        const amount = formatUsd(revalidatedFundingError.required)
-        return t`${amount} needed to register name`
-      },
-    )
-    .with(
-      { revalidatedFundingError: { shortfallCause: 'network-fee' } },
-      () => t`not enough funds to pay network fees`,
-    )
-    .otherwise(() => null)
+  const revalidatedShortfall = getWalletShortfall(
+    revalidatedFundingError?.required,
+    revalidatedFundingError?.available,
+  )
 
   const globalErrorMessage = match({
     approvalState,
+    isPaidFromL2,
     hasBudgetQuoteFailed,
     mutationError: availabilityMutation.error,
     isAvailabilityError: availabilityMutation.isError,
   })
     .with(
       { approvalState: { approvalOutcome: 'rejected' } },
-      () =>
-        t`Payment approval was cancelled. Approve the payment in your wallet to start registration.`,
+      () => t`Signature cancelled. You can try again.`,
+    )
+    // An L2 payment fails for reasons worth reading, such as one still settling.
+    .with(
+      {
+        isPaidFromL2: true,
+        approvalState: { approvalOutcome: 'failed', errorMessage: P.string },
+      },
+      ({ approvalState }) => approvalState.errorMessage,
     )
     .with(
       { approvalState: { approvalOutcome: 'failed' } },
@@ -492,47 +499,60 @@ export const TokenPickerContent = () => {
         { hasBudgetQuoteFailed: true },
         { mutationError: P.instanceOf(BudgetQuoteUnavailableError) },
       ),
-      () =>
-        t`We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment.`,
+      () => t`We couldn't calculate the total. Please try again.`,
     )
     .with(
-      { isAvailabilityError: true },
+      {
+        isAvailabilityError: true,
+        mutationError: P.not(P.instanceOf(InsufficientFundingError)),
+      },
       () =>
         t`We couldn't confirm that ${domainName} is still available. Please try again.`,
     )
     .otherwise(() => null)
 
-  // Positive counterpart to the underfunded copy, for the one thing no amount
-  // in the breakdown can show. Full coverage takes the no-permit branch in
-  // `computingHcaBudget`, so the approval step they saw last time simply will
-  // not appear; saying so up front is the difference between "it skipped a
-  // step" and "something went wrong". A partial credit is only an amount, and
-  // belongs in the breakdown rather than in a sentence repeating it.
   const isBusy = availabilityMutation.isPending || approvalState.isApproving
   const isPaymentApprovalRequired = !funding || funding.walletDebitRaw > 0n
-  const infoMessage = match(funding)
+  const isQuoting = isBudgetQuoting(isBudgetRequired, budgetQuery)
+  const helpMessage = match({
+    isPaymentApprovalRequired,
+    l2Chain: getSelectedL2(l2Payment)?.option.source.chain.name,
+    signerType: account.signer?.type,
+  })
+    .with({ isPaymentApprovalRequired: false }, () => undefined)
     .with(
-      { isUnderfunded: false, hcaCredit: P.number.gt(0), walletDebit: 0 },
-      (f) =>
-        t`What was left from your last attempt covers the ${f.total.toFixed(2)} USDC this registration needs, so you won't be asked to approve a payment.`,
+      { l2Chain: P.string },
+      ({ l2Chain }) =>
+        t`Your wallet will ask you to sign a payment of the amount shown on ${l2Chain}. Registration starts once it arrives.`,
     )
-    .otherwise(() =>
-      account.signer?.type === 'rhinestone'
-        ? t`Your wallet will ask you to sign a payment approval (permit) for the amount shown. This lets ENS use your USDC to pay for registration and network fees. Registration starts after you approve.`
-        : t`Approve the payment in your wallet to let ENS use your selected token for registration. Registration starts after approval completes.`,
+    .with(
+      { signerType: 'rhinestone' },
+      () =>
+        t`Your wallet will ask you to sign a payment approval for the amount shown. This allows that USDC to pay for registration and network fees. Registration starts after you sign.`,
+    )
+    .otherwise(
+      () =>
+        t`Approve the payment in your wallet to let ENS use your selected token for registration. Registration starts after approval completes.`,
     )
 
   const nextMessage = match({
     isBusy,
     isAwaitingPaymentApproval,
     isPaymentApprovalRequired,
-    isQuoting: isBudgetQuoting(isBudgetRequired, budgetQuery),
+    isQuoting,
+    isLoadingBalances,
+    hasFunding: !!funding,
   })
     .with({ isBusy: true, isAwaitingPaymentApproval: true }, () => (
-      <Trans>Approve in wallet</Trans>
+      <Trans>Signing payment approval…</Trans>
     ))
-    .with({ isBusy: true }, () => <Trans>Preparing registration...</Trans>)
-    .with({ isQuoting: true }, () => <Trans>Calculating cost...</Trans>)
+    .with({ isBusy: true }, () => <Trans>Preparing registration…</Trans>)
+    .with(P.union({ isLoadingBalances: true }, { isQuoting: true }), () => (
+      <Trans>Register name</Trans>
+    ))
+    .with({ isPaymentApprovalRequired: true, hasFunding: true }, () => (
+      <Trans>Sign payment approval</Trans>
+    ))
     .with({ isPaymentApprovalRequired: true }, () => (
       <Trans>Approve and register</Trans>
     ))
@@ -576,20 +596,27 @@ export const TokenPickerContent = () => {
       }
       globalErrorMessage={globalErrorMessage}
       hasBudgetQuoteFailed={hasBudgetQuoteFailed}
-      infoMessage={infoMessage}
+      helpMessage={helpMessage}
       isBusy={isBusy}
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
       isQuoteStale={budgetQuery.isPlaceholderData}
-      isQuotingFunding={isBudgetRequired && budgetQuery.isFetching}
+      isQuotingFunding={
+        isBudgetRequired && (budgetQuery.isFetching || budgetQuery.isPending)
+      }
+      l2Payment={l2Payment}
       label={label}
-      methodErrorMessage={methodErrorMessage}
       nextMessage={nextMessage}
       onNext={() => availabilityMutation.mutate()}
+      onRetry={() => {
+        availabilityMutation.reset()
+        budgetQuery.refetch()
+      }}
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
+      revalidatedShortfall={revalidatedShortfall}
       selectedToken={selectedToken}
       showNetworkFeeDetails
       stablecoinBalances={stablecoinBalances}
@@ -597,31 +624,142 @@ export const TokenPickerContent = () => {
   )
 }
 
+const getSelectedL2 = (l2Payment: L2PaymentProps | undefined) =>
+  l2Payment?.rows.find(
+    ({ option }) => option.source.chain.id === l2Payment.selectedChainId,
+  )
+
 /**
- * The single message slot under the token list. The error wins when there is
- * one — a "you are already funded" note printed beneath a funding failure is a
- * contradiction, and the error is the half the user can act on.
+ * The sheet's figures when an L2 quoted at `amountInRaw` pays: it is charged
+ * that, and the fee line carries whatever that takes over the name price.
  */
-const PickerMessage = ({
-  errorMessage,
-  infoMessage,
-}: {
-  errorMessage?: string | null
-  infoMessage?: string | null
-}) => {
-  if (errorMessage) {
-    return (
-      <p className="text-center text-ens-error text-sm" role="alert">
-        {errorMessage}
-      </p>
-    )
+const getL2FundingSummary = (
+  funding: RegistrationFundingSummary,
+  amountInRaw: bigint,
+): RegistrationFundingSummary => {
+  const walletDebit = decimalBigintToNumber(amountInRaw, USDC_DECIMALS)
+  const total = walletDebit + funding.hcaCredit
+  return {
+    ...funding,
+    walletDebit,
+    total,
+    networkFee: total - funding.registration,
   }
-  if (infoMessage) {
-    return (
-      <p className="text-center text-ens-blue-dark text-sm">{infoMessage}</p>
+}
+
+/** A chosen L2 pays in place of the wallet, so only its own quote must cover it. */
+const canPaySelection = (
+  selectedL2: L2PaymentRow | undefined,
+  canWalletPay: boolean,
+) => (selectedL2 ? canPayFromL2(selectedL2) : canWalletPay)
+
+/** With an L2 chosen and quoted, the sheet shows what that L2 is charged. */
+const getShownFunding = (
+  funding: RegistrationFundingSummary | undefined,
+  selectedL2: L2PaymentRow | undefined,
+) =>
+  funding && selectedL2?.amountInRaw !== undefined
+    ? getL2FundingSummary(funding, selectedL2.amountInRaw)
+    : funding
+
+/** Highest L2 balance first; an unread balance goes last. */
+const byBalanceDescending = (a: L2PaymentRow, b: L2PaymentRow) => {
+  const left = a.option.balanceRaw ?? -1n
+  const right = b.option.balanceRaw ?? -1n
+  if (left === right) return 0
+  return right > left ? 1 : -1
+}
+
+const coversShare = (coin: StablecoinBalance, share: number | undefined) =>
+  share !== undefined &&
+  decimalBigintToNumber(BigInt(coin.balance), coin.decimals) >= share
+
+const getCurrentMethodState = (
+  selectedL2: L2PaymentRow | undefined,
+  selectedOrigin: FundingSourceOrigin | undefined,
+  walletSelection: TOKEN_SYMBOL | undefined,
+  walletMethodItems: readonly PaymentMethodListItem[],
+): CurrentMethodState =>
+  match({ selectedL2, walletSelection })
+    .with({ selectedL2: P.nonNullable }, ({ selectedL2 }) =>
+      match({ isShort: isL2ShortOfFunds(selectedL2), selectedOrigin })
+        .with({ isShort: true }, () => 'short' as const)
+        .with({ selectedOrigin: 'fallback' }, () => 'auto' as const)
+        .otherwise(() => 'payable' as const),
     )
-  }
-  return null
+    .with({ walletSelection: P.nullish }, () => 'none' as const)
+    .otherwise(() =>
+      walletMethodItems.some((item) => item.isSelected) ? 'payable' : 'short',
+    )
+
+/** Every method that can pay right now, with what it holds. */
+const getPayableMethods = (
+  stablecoinBalances: readonly StablecoinBalance[],
+  walletShareOf: (symbol: string) => number | undefined,
+  l2Rows: readonly L2PaymentRow[],
+): readonly PayableMethod[] => [
+  ...stablecoinBalances
+    .filter((coin) => coversShare(coin, walletShareOf(coin.symbol)))
+    .map((coin) => ({
+      choice: { kind: 'wallet' as const, symbol: coin.symbol as TOKEN_SYMBOL },
+      balanceRaw: BigInt(coin.balance),
+      decimals: coin.decimals,
+    })),
+  ...l2Rows.flatMap((row) =>
+    canPayFromL2(row) && row.option.balanceRaw !== null
+      ? [
+          {
+            choice: {
+              kind: 'l2' as const,
+              chainId: row.option.source.chain.id,
+            },
+            balanceRaw: row.option.balanceRaw,
+            decimals: USDC_DECIMALS,
+          },
+        ]
+      : [],
+  ),
+]
+
+const getL2MethodItems = (
+  l2Payment: L2PaymentProps | undefined,
+  selectedL2: L2PaymentRow | undefined,
+  funding: RegistrationFundingSummary | undefined,
+): PaymentMethodListItem[] => {
+  if (!l2Payment) return []
+  const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
+  // A chain appears once its full quote covers it; a chosen one stays through refreshes.
+  return l2Payment.rows
+    .filter(
+      (row) =>
+        row === selectedL2 ||
+        (row.amountInRaw !== undefined && !isL2ShortOfFunds(row)),
+    )
+    .sort(byBalanceDescending)
+    .map((row) => {
+      const amountIn = row.amountInRaw ?? estimatedAmountIn
+      return {
+        id: row.option.id,
+        isSelected: row === selectedL2,
+        content: (
+          <L2SourceListItem
+            isFeeEstimated={
+              row.amountInRaw === undefined && estimatedAmountIn !== undefined
+            }
+            isSelected={row === selectedL2}
+            networkFee={
+              funding && amountIn !== undefined
+                ? getPaymentBreakdownFigures(
+                    getL2FundingSummary(funding, amountIn),
+                  ).networkFee
+                : undefined
+            }
+            onSelect={() => l2Payment.onSelect(row.option.source.chain.id)}
+            row={row}
+          />
+        ),
+      }
+    })
 }
 
 /** A quote is pending, or a stale one (the toggle re-keyed it) is being replaced. */
@@ -632,15 +770,19 @@ const isRequotingFunding = (isQuotingFunding: boolean, isQuoteStale: boolean) =>
 const isCheckoutSettling = (isBusy: boolean, isRequoting: boolean) =>
   isBusy || isRequoting
 
-/** Whether the dialog is waiting on the budget: the first quote, a refresh, or a re-key after the toggle. */
+/** Waiting on the budget: the first quote (fetching or paused), a refresh, or a re-key after the toggle. */
 const isBudgetQuoting = (
   isBudgetRequired: boolean,
   budgetQuery: {
     readonly isFetching: boolean
+    readonly isPending: boolean
     readonly isPlaceholderData: boolean
   },
 ) =>
-  isBudgetRequired && (budgetQuery.isFetching || budgetQuery.isPlaceholderData)
+  isBudgetRequired &&
+  (budgetQuery.isFetching ||
+    budgetQuery.isPending ||
+    budgetQuery.isPlaceholderData)
 
 export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   label,
@@ -649,14 +791,19 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   isInPriceCooldown = false,
   selectedToken,
   globalErrorMessage,
-  methodErrorMessage,
-  infoMessage,
+  revalidatedShortfall,
+  helpMessage,
+  fullyCoveredMessage = (
+    <Trans>
+      No additional payment needed. Your available balance covers the total.
+    </Trans>
+  ),
   onSelectCoin,
   onNext,
+  onRetry,
   stablecoinBalances,
   accountCredit,
   fundedAmount,
-  acceptedTokens = ['USDC'],
   isLoadingBalances,
   isConnected,
   nextMessage = <Trans>Register name</Trans>,
@@ -664,13 +811,21 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   funding,
   isQuotingFunding = false,
   showNetworkFeeDetails = false,
-  isFeeTooltipOpen,
   isQuoteStale = false,
   hasBudgetQuoteFailed = false,
   isBusy = false,
   canProceed = true,
-  networkFeeTooltip,
+  networkFeeTooltip = (
+    <Trans>
+      An estimate of what the two on-chain transactions that register your name
+      will cost. It is collected together with the name price, in the same
+      approval.
+    </Trans>
+  ),
+  totalLabel = <Trans>Registration total</Trans>,
+  isEstimate = false,
   walletDebitFor,
+  l2Payment,
 }: {
   readonly label: string
   readonly pricingLoading: boolean
@@ -678,11 +833,13 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly isInPriceCooldown?: boolean
   readonly selectedToken: T | undefined
   readonly globalErrorMessage?: string | null
-  readonly methodErrorMessage?: string | null
-  /** Reassurance shown only when there is no global error. */
-  readonly infoMessage?: string | null
+  /** A shortfall found at click time, shown when the render saw none. */
+  readonly revalidatedShortfall?: number | undefined
+  readonly helpMessage?: ReactNode
+  readonly fullyCoveredMessage?: ReactNode
   readonly onSelectCoin: (coin: T) => void
   readonly onNext: () => void
+  readonly onRetry?: () => void
   readonly stablecoinBalances: readonly StablecoinBalance[]
   /**
    * What the smart account already holds of each coin. It pays first, so the
@@ -694,8 +851,6 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
    * a renewal intent funds its approval's headroom as well as the rent.
    */
   readonly fundedAmount?: number
-  /** The coins shown under "Stables accepted". */
-  readonly acceptedTokens?: readonly TOKEN_SYMBOL[]
   readonly isLoadingBalances: boolean
   readonly isConnected: boolean
   readonly nextMessage?: ReactNode
@@ -703,16 +858,14 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly footer?: ReactNode
   /**
    * Carries the funding budget used by the method-level fee disclosure and the
-   * inherited account-credit breakdown. When present, `walletDebit` — not
-   * `pricingData` — is what the wallet must cover.
+   * receipt. When present, `walletDebit`, not `pricingData`, is what the wallet
+   * must cover.
    */
   readonly funding?: RegistrationFundingSummary
   /** The method-level fee quote is still in flight. */
   readonly isQuotingFunding?: boolean
   /** Registration-only disclosure; renewals keep their existing token row. */
   readonly showNetworkFeeDetails?: boolean
-  /** Story-only control used to capture the open tooltip reference state. */
-  readonly isFeeTooltipOpen?: boolean
   /** A placeholder quote belongs to the previous primary-name choice. */
   readonly isQuoteStale?: boolean
   /** A required budget quote failed, so checkout must remain blocked. */
@@ -720,10 +873,15 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly isBusy?: boolean
   /** False while the caller is missing something `onNext` needs, such as the signing wallet. */
   readonly canProceed?: boolean
-  /** Replaces the fee tooltip's registration wording. */
+  /** What the wallet row's fee info explains. */
   readonly networkFeeTooltip?: ReactNode
+  readonly totalLabel?: ReactNode
+  /** Prefix amounts with "up to", for a total carrying approval headroom. */
+  readonly isEstimate?: boolean
   /** Per-coin override of what the wallet must cover, for a fee paid in one coin and rent in another. */
   readonly walletDebitFor?: (symbol: TOKEN_SYMBOL) => number
+  /** Registration only: rows that pay the registration from an L2. */
+  readonly l2Payment?: L2PaymentProps
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -741,8 +899,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   // Gate on the funded amount, never the rent alone: the permit is signed for
   // `rent + networkFee`, so a wallet holding only the rent cannot pay. It is
   // the wallet's DEBIT rather than the budget, since a part-funded HCA covers
-  // the remainder itself — gating on the budget would block a wallet that only
-  // owes the shortfall.
+  // the remainder itself.
   const requiredAmount = funding?.walletDebit ?? fundedAmount ?? pricingData
   // The account's own balance of a coin pays first; the wallet covers the rest.
   const walletShareOf = (symbol: string) => {
@@ -755,36 +912,21 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         )
   }
 
-  // What the registration costs before any standing credit is applied.
-  const displayTotal = funding?.total ?? pricingData
-
-  // With USDC already in the HCA the headline is the wallet debit. The credit
-  // line and the method-level fee use the same rounded figures, so the amounts
-  // shown on screen remain checkable.
-  const {
-    hasAccountCredit,
-    headlineAmount,
-    networkFee: displayedNetworkFee,
-  } = getPaymentHeadline(funding, displayTotal)
+  const selectedL2 = getSelectedL2(l2Payment)
+  const shownFunding = getShownFunding(funding, selectedL2)
+  const displayedNetworkFee = funding
+    ? getPaymentBreakdownFigures(funding).networkFee
+    : undefined
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
   )
-
   // Tested for presence, never truthiness: a debit of 0 is a legitimate state,
-  // not a missing quote. An HCA already holding the whole budget — an aborted
-  // registration that funded the commit but never revealed — owes the wallet
-  // nothing, and a falsy 0 would block exactly the retry that should sail
-  // through.
+  // not a missing quote.
   const selectedShare =
     selectedCoinBalance && walletShareOf(selectedCoinBalance.symbol)
   const hasSufficientBalanceForSelectedCoin =
-    selectedCoinBalance !== undefined &&
-    selectedShare !== undefined &&
-    decimalBigintToNumber(
-      BigInt(selectedCoinBalance.balance),
-      selectedCoinBalance.decimals,
-    ) >= selectedShare
+    !!selectedCoinBalance && coversShare(selectedCoinBalance, selectedShare)
 
   const canNext =
     isConnected &&
@@ -794,61 +936,120 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     // The fee is part of the figure being confirmed, so wait for it.
     !isQuotingFunding &&
     !isQuoteStale &&
-    hasBalances &&
-    hasSufficientBalanceForSelectedCoin &&
     // Refuse rather than proceed on a figure that cannot fund the batch.
-    !hasBudgetQuoteFailed
+    !hasBudgetQuoteFailed &&
+    canPaySelection(
+      selectedL2,
+      hasBalances && hasSufficientBalanceForSelectedCoin,
+    )
+  const walletSelection = selectedL2 ? undefined : selectedToken
+  const l2MethodItems = getL2MethodItems(l2Payment, selectedL2, funding)
 
   const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
   const isSettling = isCheckoutSettling(isBusy, isRequoting)
 
-  const actionClasses = match({ canNext, isBusy })
-    .with(
-      { isBusy: true },
-      () =>
-        'bg-ens-blue text-white hover:bg-ens-blue-hover disabled:opacity-100',
-    )
-    .with(
-      { canNext: true },
-      () => 'bg-ens-blue text-white hover:bg-ens-blue-hover',
-    )
-    .otherwise(() => undefined)
+  const receiptFigures = getPaymentReceiptFigures({
+    funding: shownFunding,
+    price: fundedAmount ?? pricingData,
+    accountCredit: selectedToken ? (accountCredit?.[selectedToken] ?? 0) : 0,
+  })
+  const receiptState = getPaymentReceiptState({
+    hasQuoteFailed: hasBudgetQuoteFailed,
+    // A background refetch keeps the last figures on screen.
+    isLoading:
+      isQuoteStale || pricingLoading || (isQuotingFunding && !shownFunding),
+    figures: receiptFigures,
+  })
+  // Unrounded, so a sub-cent debit keeps the methods.
+  const isFullyCovered =
+    receiptState.status === 'ready' && selectedShare === 0 && !!walletSelection
 
-  const paymentMethodItems: PaymentMethodListItem[] = stablecoinBalances.map(
+  const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances.flatMap(
     (stablecoin) => {
-      const balance = decimalBigintToNumber(
-        BigInt(stablecoin.balance),
-        stablecoin.decimals,
-      )
       const share = walletShareOf(stablecoin.symbol)
-      const isFunded = share !== undefined && balance >= share
-
-      return {
-        id: stablecoin.address,
-        isAvailable: true,
-        isFunded,
-        isCommon: stablecoin.symbol === TOKENS.USDC.symbol,
-        content: (
-          <TokenListItem
-            errorMessage={
-              stablecoin.symbol === TOKENS.USDC.symbol
-                ? methodErrorMessage
-                : undefined
-            }
-            feeTooltip={networkFeeTooltip}
-            isFeeTooltipOpen={isFeeTooltipOpen}
-            isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
-            networkFee={displayedNetworkFee}
-            onSelectCoin={onSelectCoin}
-            priceUSD={share ?? 0}
-            selectedCoin={selectedToken}
-            showNetworkFeeDetails={showNetworkFeeDetails}
-            stablecoin={stablecoin}
-          />
-        ),
-      }
+      if (share === undefined || !coversShare(stablecoin, share)) return []
+      return [
+        {
+          id: stablecoin.address,
+          isSelected: walletSelection === stablecoin.symbol,
+          content: (
+            <TokenListItem
+              feeTooltip={networkFeeTooltip}
+              isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
+              networkFee={displayedNetworkFee}
+              onSelectCoin={onSelectCoin}
+              priceUSD={share}
+              selectedCoin={walletSelection}
+              showNetworkFeeDetails={showNetworkFeeDetails}
+              stablecoin={stablecoin}
+            />
+          ),
+        },
+      ]
     },
   )
+  const paymentMethodItems = [...walletMethodItems, ...l2MethodItems]
+  const isL2Pending = !!l2Payment?.rows.some(
+    (row) => row.option.status === 'loading' || row.isQuoteLoading,
+  )
+  // A re-quote leaves some L2s on their old quote; rank once every one has settled.
+  const hasStaleL2Quote = !!l2Payment?.rows.some(
+    (row) =>
+      row.option.status === 'available' &&
+      row.isQuoteStale &&
+      !row.hasQuoteFailed,
+  )
+  // The selected wallet coin went short (say the primary-name re-quote) while another method can pay.
+  const isWalletSelectionHidden =
+    !!walletSelection &&
+    receiptState.status === 'ready' &&
+    paymentMethodItems.length > 0 &&
+    !walletMethodItems.some((item) => item.isSelected)
+
+  // Registration only: when the chosen method can't pay, switch to the one holding the most
+  const fallbackChoice = l2Payment
+    ? getFallbackPaymentChoice({
+        current: getCurrentMethodState(
+          selectedL2,
+          l2Payment.selectedOrigin,
+          walletSelection,
+          walletMethodItems,
+        ),
+        payableMethods: getPayableMethods(
+          stablecoinBalances,
+          walletShareOf,
+          l2Payment.rows,
+        ),
+      })
+    : undefined
+  useFallbackPaymentChoice({
+    choice: fallbackChoice,
+    // Never mid-click: any send invalidates the click's pricing snapshot.
+    isSettled:
+      isConnected &&
+      !isBusy &&
+      !isLoadingBalances &&
+      receiptState.status === 'ready' &&
+      !isRequoting &&
+      !isL2Pending &&
+      !hasStaleL2Quote,
+    onSelectCoin,
+    onSelectL2: l2Payment?.onFallbackSelect,
+  })
+
+  const warning =
+    globalErrorMessage ||
+    (selectedL2 &&
+      getL2SelectionMessage(
+        selectedL2,
+        funding?.walletDebit,
+        l2Payment && getEstimatedL2AmountIn(l2Payment.rows),
+      )) ||
+    (revalidatedShortfall !== undefined &&
+      t`${formatUsd(revalidatedShortfall)} more needed in your wallet.`) ||
+    (isWalletSelectionHidden &&
+      !fallbackChoice &&
+      t`Not enough USDC in your wallet. Choose another payment method.`)
 
   return (
     // A fieldset's anonymous content box prevents its flex children shrinking
@@ -860,8 +1061,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           showNetworkFeeDetails ? undefined : 'px-4',
         )}
       >
-        <div className="flex min-h-0 flex-1 flex-col items-center gap-8 overflow-y-auto">
-          <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
+          <div className="flex w-full min-w-0 flex-col items-center gap-3 px-5 py-3">
             {(premiumLabel || isInPriceCooldown) && (
               <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
                 {premiumLabel && (
@@ -884,56 +1085,53 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
             >
               {domainName}
             </span>
-
-            <PaymentBreakdown funding={funding} isQuoting={isQuotingFunding} />
           </div>
 
-          <div className="flex w-full flex-col gap-4">
-            <h2 className="text-center font-medium text-[18px] leading-ens-none">
-              <Trans>Select payment</Trans>
-            </h2>
+          <div className="flex w-full flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-ens-quartz-400 text-lg leading-none">
+                <Trans>Select payment</Trans>
+              </h2>
+              <USDCIcon aria-hidden="true" className="size-[18px]" />
+            </div>
             {match({
-              isLoadingBalances,
-              hasBalances,
-              stablecoinsCount: stablecoinBalances?.length ?? 0,
               isConnected,
-              pricingLoading,
+              isLoading:
+                isLoadingBalances ||
+                pricingLoading ||
+                (isQuotingFunding && !shownFunding) ||
+                (paymentMethodItems.length === 0 && isL2Pending),
+              isFullyCovered,
+              hasNoMethods:
+                showNetworkFeeDetails && paymentMethodItems.length === 0,
+              stablecoinsCount: stablecoinBalances?.length ?? 0,
             })
               .with({ isConnected: false }, () => (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="mb-2 text-ens-gray text-sm">
-                    <Trans>Please connect your wallet first</Trans>
-                  </div>
-                  <div className="text-ens-gray-three text-xs">
+                <p className="text-ens-quartz-500 text-sm">
+                  <Trans>Connect a wallet to see your balances.</Trans>
+                </p>
+              ))
+              .with({ isLoading: true }, () => (
+                <div className="flex h-16 items-center justify-center rounded bg-ens-quartz-75 text-ens-quartz-500 text-xs">
+                  <Trans>Loading balances…</Trans>
+                </div>
+              ))
+              .with({ isFullyCovered: true }, () => (
+                <p className="text-ens-quartz-500 text-sm">
+                  {fullyCoveredMessage}
+                </p>
+              ))
+              .with(
+                P.union({ hasNoMethods: true }, { stablecoinsCount: 0 }),
+                () => (
+                  <p className="text-ens-signal-danger-800 text-lg">
                     <Trans>
-                      You need to connect a wallet to see your stablecoin
-                      balances
+                      You do not have enough USDC to complete this transaction.
                     </Trans>
-                  </div>
-                </div>
-              ))
-              .with({ isLoadingBalances: true }, () => (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-ens-gray-two text-sm">
-                    <Trans>Loading your stablecoin balances...</Trans>
-                  </div>
-                </div>
-              ))
-              .with({ pricingLoading: true }, () => (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-ens-gray-two text-sm">
-                    <Trans>Loading pricing...</Trans>
-                  </div>
-                </div>
-              ))
-              .with({ stablecoinsCount: 0 }, () => (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-ens-gray-two text-sm">
-                    <Trans>No stablecoins available</Trans>
-                  </div>
-                </div>
-              ))
-              .with({ stablecoinsCount: P.number.gt(0) }, () => (
+                  </p>
+                ),
+              )
+              .otherwise(() => (
                 <PaymentMethods
                   onSelectCoin={onSelectCoin}
                   paymentMethodItems={paymentMethodItems}
@@ -942,53 +1140,31 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
                   stablecoinBalances={stablecoinBalances}
                   walletShareOf={walletShareOf}
                 />
-              ))
-              .otherwise(() => undefined)}
-
-            <PickerMessage
-              errorMessage={globalErrorMessage}
-              infoMessage={infoMessage}
-            />
-
-            <div className="flex flex-col items-center gap-1.5">
-              <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
-                <Trans>Stables accepted</Trans>
-              </p>
-              <div className="flex items-center gap-1">
-                {acceptedTokens.map((symbol) => {
-                  const Icon = STABLECOINS[symbol]?.icon ?? USDCIcon
-                  return <Icon className="h-7 w-7" key={symbol} />
-                })}
-              </div>
-            </div>
+              ))}
 
             {footer}
           </div>
         </div>
 
-        <PaymentTotalRow
-          hasAccountCredit={hasAccountCredit}
-          isEstimate={!!funding || hasBudgetQuoteFailed}
-          isLoading={isRequoting}
-          total={headlineAmount}
+        <PaymentReceipt
+          hasExistingBalance={(receiptFigures?.applied ?? 0) > 0}
+          isEstimate={isEstimate}
+          state={receiptState}
+          totalLabel={totalLabel}
         />
 
-        <Button
-          aria-busy={isSettling}
-          className={cn(
-            'h-20 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
-            'hover:bg-ens-gray-two',
-            'disabled:cursor-not-allowed disabled:opacity-50',
-            actionClasses,
-          )}
-          disabled={isBusy || !canNext}
-          onClick={onNext}
-        >
-          {isSettling && (
-            <LoaderCircle aria-hidden="true" className="animate-spin" />
-          )}
-          {nextMessage}
-        </Button>
+        <PaymentAction
+          canNext={canNext}
+          helpMessage={helpMessage}
+          isBusy={isBusy}
+          isSettling={isSettling}
+          label={nextMessage}
+          onNext={onNext}
+          onRetry={
+            hasBudgetQuoteFailed && !isQuotingFunding ? onRetry : undefined
+          }
+          warning={warning}
+        />
       </div>
     </fieldset>
   )

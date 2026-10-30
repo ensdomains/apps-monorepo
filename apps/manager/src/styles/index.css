@@ -61,6 +61,14 @@
     position: relative;
     z-index: 40;
   }
+
+  @media (max-width: 449px) {
+    .intercom-lightweight-app-launcher,
+    div:has(> .intercom-launcher-frame) {
+      /* biome-ignore lint/complexity/noImportantStyles: beats Intercom's injected launcher styles */
+      bottom: var(--intercom-launcher-bottom, 20px) !important;
+    }
+  }
 }
 
 [data-sonner-toast].ens-sonner-toast[data-styled="true"] {

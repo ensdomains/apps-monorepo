@@ -20,11 +20,11 @@ const SkeletonCardLoading = ({
   readonly shouldReduceMotion: boolean
   readonly valueWidth: string
 }) => (
-  <Card className="relative min-h-28 w-full items-start gap-2 rounded-[14px] p-4 text-left xl:min-h-33.5 xl:rounded-xl xl:p-[24.25px]">
+  <Card className="relative min-h-28 w-full items-start gap-2 rounded-[14px] p-6 text-left xl:min-h-33.5 xl:rounded-xl">
     <div className="flex w-full min-w-0 flex-col items-start gap-2">
       <div className="flex w-full items-center justify-between">
         <SkeletonBlock
-          className="size-7 rounded-md xl:size-7.5"
+          className="size-6 rounded-md"
           shouldReduceMotion={shouldReduceMotion}
         />
       </div>
@@ -34,7 +34,7 @@ const SkeletonCardLoading = ({
       />
     </div>
     <SkeletonBlock
-      className="absolute top-4 right-4 size-5 rounded xl:top-[24.25px] xl:right-[24.25px] xl:size-7.5"
+      className="absolute top-6 right-6 size-6 rounded"
       shouldReduceMotion={shouldReduceMotion}
     />
     <SkeletonBlock

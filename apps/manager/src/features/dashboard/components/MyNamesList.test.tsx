@@ -108,7 +108,6 @@ const renderList = (
     <MyNamesList
       favoriteLabels={new Set()}
       isAuthenticated
-      migrationEnabled={false}
       onToggleFavorite={() => undefined}
       sort="name-asc"
       {...props}
@@ -213,7 +212,6 @@ describe('MyNamesList', () => {
       <MyNamesList
         favoriteLabels={new Set()}
         isAuthenticated
-        migrationEnabled={false}
         onToggleFavorite={() => undefined}
         sort="name-asc"
       />,
@@ -233,7 +231,6 @@ describe('MyNamesList', () => {
       <MyNamesList
         favoriteLabels={new Set()}
         isAuthenticated
-        migrationEnabled={false}
         onToggleFavorite={() => undefined}
         primaryLabel={primaryName}
         sort="name-asc"
@@ -322,6 +319,24 @@ describe('MyNamesList', () => {
     expect(
       screen.getAllByTestId('name-row').map((row) => row.dataset.status),
     ).toEqual(['eligibleUpgrade', 'ensv1Only'])
+  })
+
+  it('labels a name its holder can upgrade but the viewer cannot as ENSv1', () => {
+    eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
+      eligibleKeys: new Set(),
+      upgradeableKeys: new Set(['0x02']),
+      isPending: false,
+      isError: false,
+    })
+
+    renderList()
+
+    const rows = screen.getAllByTestId('name-row')
+    expect(rows.map((row) => row.dataset.status)).toEqual([
+      'ensv1',
+      'ensv1Only',
+    ])
+    expect(rows.every((row) => row.dataset.cta === 'manageExplorer')).toBe(true)
   })
 
   it('passes roles through to the name row', () => {

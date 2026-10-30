@@ -3,7 +3,6 @@ import { act, render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnectionEffect } from 'wagmi'
-import { INTERCOM_APP_ID } from '@/lib/intercom'
 import { POSTHOG_CONFIG, setAnalyticsConsent } from './config'
 import { PHProvider } from './provider'
 
@@ -75,6 +74,7 @@ describe('PostHog provider', () => {
     vi.clearAllMocks()
     consent.stored = 'pending'
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
+    vi.stubEnv('VITE_INTERCOM_APP_ID', 'test-app')
   })
   afterEach(() => {
     vi.unstubAllEnvs()
@@ -91,7 +91,7 @@ describe('PostHog provider', () => {
 
   it('links Intercom to analytics only with consent, including after Accept', () => {
     renderProvider()
-    expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
+    expect(boot).toHaveBeenCalledWith({ app_id: 'test-app' })
     expect(update).not.toHaveBeenCalled()
 
     act(() => setAnalyticsConsent(posthog, true))
@@ -132,12 +132,13 @@ describe('PostHog provider', () => {
     expect(posthog.get_explicit_consent_status()).toBe('granted')
   })
 
-  it('sends no wallet address to PostHog without consent', () => {
+  it('sends nothing about the wallet without consent', () => {
     renderProvider()
     connectWallet()
 
     expect(posthog.identify).not.toHaveBeenCalled()
     expect(posthog.register).not.toHaveBeenCalled()
+    expect(trackEvent).not.toHaveBeenCalled()
   })
 
   it('identifies a connected wallet on Accept and forgets it on Decline', () => {
@@ -193,6 +194,15 @@ describe('PostHog provider', () => {
     })
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     renderProvider()
-    expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
+    expect(boot).toHaveBeenCalledWith({ app_id: 'test-app' })
+  })
+
+  // The .eth mirror builds with neither.
+  it('starts neither SDK without their keys', () => {
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', '')
+    vi.stubEnv('VITE_INTERCOM_APP_ID', '')
+    renderProvider()
+    expect(posthog.init).not.toHaveBeenCalled()
+    expect(boot).not.toHaveBeenCalled()
   })
 })

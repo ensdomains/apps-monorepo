@@ -1,11 +1,17 @@
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions } from '@tanstack/react-query'
 import { getPublicClient, type Config as WagmiConfig } from '@wagmi/core'
+import posthog from 'posthog-js/dist/module.full.no-external'
 import { type Address, isAddress, type PublicClient, zeroAddress } from 'viem'
 import { envConfig } from '@/config'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { abortablePublicClient } from '../service/abortablePublicClient'
 import { classifyNames } from '../service/classifyNames'
 import { getMigratedNamesCount } from '../service/getMigratedNamesCount'
+import {
+  isTransientSubnameBlock,
+  resolveMigratableNames,
+} from '../service/migratableNames'
 import {
   loadMigrationBatchJournal,
   type MigrationBatchJournalScope,
@@ -34,7 +40,7 @@ export type CommemorativeNftMigrationCompletionParams = {
 }
 
 type CommemorativeNftMigrationCompletion = {
-  readonly status: 'complete' | 'incomplete' | 'reconciling'
+  readonly status: 'complete' | 'incomplete'
   readonly isComplete: boolean
   readonly remainingNameCount: number
   readonly migratedNameCount: number
@@ -131,19 +137,42 @@ const checkMigrationCompletion = async (
     envConfig.chain.id,
   )
   params.signal?.throwIfAborted()
-  const eligibility = await withRequestDeadline(
-    (signal) =>
-      runEligibilityChecks(
-        abortablePublicClient(publicClient as PublicClient, signal),
+  // Count what the upgrade screen offers: a name it refuses (an orphan
+  // subname, or a tree the upgrade cannot preserve) must not lock the NFT.
+  // A failed read still counts, so a stale index cannot unlock it early.
+  const remaining = await withRequestDeadline(
+    async (signal) => {
+      const client = abortablePublicClient(publicClient as PublicClient, signal)
+      const eligibility = await runEligibilityChecks(
+        client,
         classified,
         params.ownerAddress,
-      ),
+      )
+      if (eligibility.failed.length > 0) {
+        throw new Error(
+          'Some ENSv1 names could not be checked. Please try again.',
+        )
+      }
+      const migratable = await resolveMigratableNames({
+        eligible: eligibility.eligible,
+        isSubnameImportEnabled:
+          posthog.isFeatureEnabled(
+            POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
+          ) === true,
+        owner: params.ownerAddress,
+        publicClient: client,
+        signal,
+      })
+      return [
+        ...migratable.eligible,
+        ...migratable.blockedSubnames
+          .filter(({ reason }) => isTransientSubnameBlock(reason))
+          .map(({ name }) => name),
+      ]
+    },
     { signal: params.signal },
   )
-  if (eligibility.failed.length > 0) {
-    throw new Error('Some ENSv1 names could not be checked. Please try again.')
-  }
-  for (const name of eligibility.eligible) {
+  for (const name of remaining) {
     remainingNames.add(name.domain.name.toLowerCase())
   }
   // An in-flight migration can add recovery work while the network reads run.
@@ -152,11 +181,9 @@ const checkMigrationCompletion = async (
 
   params.signal?.throwIfAborted()
   const status =
-    remainingNames.size > 0
-      ? 'incomplete'
-      : migratedNameCount > 0
-        ? 'complete'
-        : 'reconciling'
+    remainingNames.size === 0 && migratedNameCount > 0
+      ? 'complete'
+      : 'incomplete'
   return {
     status,
     isComplete: status === 'complete',
@@ -207,9 +234,12 @@ export const commemorativeNftMigrationCompletionQueryOptions = (
     queryFn: ({ signal }) =>
       fetchCommemorativeNftMigrationCompletion({ ...params, signal }),
     retry: false,
+    // Allow a migration from another session to appear after indexing without
+    // presenting an empty wallet as a migration awaiting verification.
     refetchInterval: (query) =>
       query.state.status === 'success' &&
-      query.state.data?.status === 'reconciling' &&
+      query.state.data?.status === 'incomplete' &&
+      query.state.data.remainingNameCount === 0 &&
       query.state.dataUpdateCount < 6
         ? 2_000
         : false,

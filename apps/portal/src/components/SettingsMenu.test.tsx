@@ -2,17 +2,26 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const displaySurvey = vi.fn()
-// PostHog's answer to the analytics banner.
-let consent = 'pending'
-
-vi.mock('@posthog/react', () => ({
-  usePostHog: () => ({
+// PostHog, keeping the answer the way its consent cookie does.
+const posthog = vi.hoisted(() => {
+  const client = {
     __loaded: true,
-    get_explicit_consent_status: () => consent,
-    displaySurvey,
-  }),
-}))
+    stored: 'pending',
+    get_explicit_consent_status: () => client.stored,
+    opt_in_capturing: () => {
+      client.stored = 'granted'
+    },
+    opt_out_capturing: () => {
+      client.stored = 'denied'
+    },
+    reset: () => {
+      client.stored = 'pending'
+    },
+    displaySurvey: vi.fn(),
+  }
+  return client
+})
+vi.mock('posthog-js/dist/module.full.no-external', () => ({ default: posthog }))
 
 vi.mock('./ThemeToggle', () => ({
   ThemeToggle: () => <div data-testid="theme-toggle" />,
@@ -42,18 +51,19 @@ const openMenu = async (surveyId: string | undefined) => {
 
 afterEach(() => {
   vi.unstubAllEnvs()
-  consent = 'pending'
-  displaySurvey.mockClear()
+  posthog.__loaded = true
+  posthog.stored = 'pending'
+  posthog.displaySurvey.mockClear()
 })
 
 describe('SettingsMenu', () => {
   it('opens the PostHog feedback survey once analytics are accepted', async () => {
-    consent = 'granted'
+    posthog.stored = 'granted'
     const user = await openMenu('survey-123')
 
     await user.click(screen.getByRole('menuitem', { name: /feedback/i }))
 
-    expect(displaySurvey).toHaveBeenCalledWith('survey-123', {
+    expect(posthog.displaySurvey).toHaveBeenCalledWith('survey-123', {
       displayType: 'popover',
       ignoreConditions: true,
       ignoreDelay: true,
@@ -66,9 +76,33 @@ describe('SettingsMenu', () => {
   })
 
   it('hides feedback when no survey id is configured', async () => {
-    consent = 'granted'
+    posthog.stored = 'granted'
     await openMenu(undefined)
     expect(screen.queryByRole('menuitem', { name: /feedback/i })).toBeNull()
+  })
+
+  it('turns sharing usage data on and off', async () => {
+    const user = await openMenu(undefined)
+    const item = screen.getByRole('menuitemcheckbox', {
+      name: 'Share usage data',
+    })
+    expect(item).toHaveAttribute('aria-checked', 'false')
+
+    await user.click(item)
+    expect(posthog.stored).toBe('granted')
+    expect(item).toHaveAttribute('aria-checked', 'true')
+
+    await user.click(item)
+    expect(posthog.stored).toBe('denied')
+    expect(item).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('hides the usage data setting until PostHog loads', async () => {
+    posthog.__loaded = false
+    await openMenu(undefined)
+    expect(
+      screen.queryByRole('menuitemcheckbox', { name: 'Share usage data' }),
+    ).toBeNull()
   })
 
   it('shows the RPC entry and opens its dialog', async () => {

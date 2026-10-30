@@ -1,14 +1,17 @@
 import { Trans } from '@lingui/react/macro'
-import { useFeatureFlagEnabled } from '@posthog/react'
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Address } from 'viem'
-import { useConnection } from 'wagmi'
+import { useChainId, useConnection } from 'wagmi'
 import { CommemorativeNftProfileSection } from '@/features/migration/components/success/CommemorativeNftProfileSection'
+import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { isEligibleProfileName } from '@/features/migration/components/UpgradeBanner.helpers'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
+import { useLatchedFlag } from '@/features/profile/hooks/useLatchedFlag'
+import { useResolverCopySource } from '@/features/profile/hooks/useResolverCopySource'
+import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import { canEditProfileHere } from '@/features/profile/service/profileEditability'
 import {
   getProfileExpiryResultStatus,
@@ -22,19 +25,15 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { ProfileActions } from './ProfileActions'
+import { ProfileActions, ProfileDesktopActions } from './ProfileActions'
 import { ProfileBanner } from './ProfileBanner'
 import { ProfileCards } from './ProfileCards'
 import { type ProfileDraft, ProfileDraftProvider } from './ProfileDraft.context'
 import { ProfileHeader } from './ProfileHeader'
 import { ProfileLoading } from './ProfileLoading'
-import {
-  ProfileGracePeriodBanner,
-  ProfileMigrationBanner,
-} from './ProfileStatusBanners'
+import { ProfileGracePeriodBanner } from './ProfileStatusBanners'
 import { ProfileThemeColorProvider } from './ProfileThemeColor'
 
 type ProfileViewProps = {
@@ -78,6 +77,25 @@ const ProfileCommemorativeNftSection = ({
   return <CommemorativeNftProfileSection isOwner name={name} />
 }
 
+const RecordsUnavailableNotice = ({
+  hasRecords,
+  onRetry,
+}: {
+  readonly hasRecords: boolean
+  readonly onRetry: () => void
+}) =>
+  hasRecords ? null : (
+    <p className="px-4 pt-2 text-muted-foreground text-xs">
+      <Trans>
+        Couldn’t load this name’s records, so they’re hidden and editing is
+        paused.
+      </Trans>{' '}
+      <button className="underline" onClick={onRetry} type="button">
+        <Trans>Try again</Trans>
+      </button>
+    </p>
+  )
+
 const getImageUrls = (
   draft: ProfileDraft | null,
   avatarData: string | null | undefined,
@@ -88,26 +106,27 @@ const getImageUrls = (
 })
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
-  const migrationEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.MIGRATION,
-    false,
-  )
   const commemorativeNftEnabled = useMigrationNftEnabled()
-  const { isConnected } = useSmartAccountContext()
+  const { isConnected, ownerAddress } = useSmartAccountContext()
+  const { address: connectedAddress } = useConnection()
+  const chainId = useChainId()
   const { eligible: eligibleV1Names, isPending: isV1NamesPending } =
     useEligibleV1Names({
-      enabled: migrationEnabled,
       fallbackToClassified: false,
     })
   // Use the banner's verified eligibility even when indexed V2 data masks the
   // current V1 owner. This only exposes the upgrade prompt, never the editor.
   const isUpgradeRequired =
     isConnected &&
-    migrationEnabled &&
     !isV1NamesPending &&
     isEligibleProfileName(eligibleV1Names, name)
-  const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
+  const {
+    data: profileRecords,
+    isPending: isRecordsPending,
+    refetch: refetchRecords,
+  } = useQuery({
     ...profileRecordsQuery(name),
+    ...profileDisplayQueryOptions,
   })
   const records = transformProfileRecords(profileRecords)
   const [draft, setDraft] = useState<ProfileDraft | null>(null)
@@ -116,6 +135,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
+    ...profileDisplayQueryOptions,
   })
   const {
     data: expiryData,
@@ -124,9 +144,11 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     error: expiryError,
   } = useQuery({
     ...profileExpiryQuery(name, ownerData?.protocol),
+    ...profileDisplayQueryOptions,
   })
   const registration = useQuery({
     ...profileRegistrationQuery(name, ownerData?.protocol),
+    ...profileDisplayQueryOptions,
   })
 
   const expiry = getProfileExpiryResultStatus(expiryData)
@@ -144,9 +166,30 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     isOwner: resolvedIsOwner,
     name,
   })
+  const resolverCopySource = useResolverCopySource({
+    name,
+    isInGrace: expiry.isInGrace,
+    isExpiryError,
+    isUpgradeRequired,
+  })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
+  const canEditProfile = canEditProfileHere({
+    isInGrace: expiry.isInGrace || isExpiryError,
+    canEditRecords,
+    hasRecords: profileRecords !== undefined,
+    isUpgradeRequired,
+    name,
+    protocol: ownerData?.protocol,
+  })
+  const sessionKey = `${name}:${ownerAddress}:${connectedAddress}:${chainId}`
+  // Keep an opened draft mounted across background capability/expiry refreshes.
+  // Actions and publishing are paused when fresh permission data is unavailable.
+  const hasFloatingBar = useLatchedFlag(
+    canEditProfile || Boolean(resolverCopySource),
+    sessionKey,
+  )
 
-  if (ownerMissing && isExpiryPending) {
+  if (isRecordsPending || (ownerMissing && isExpiryPending)) {
     return <ProfileLoading name={name} />
   }
 
@@ -171,14 +214,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   const profileThemeColor = expiry.isInGrace
     ? undefined
     : themeVars['--theme-color']
-  const hasMobileStatusBanner = migrationEnabled || expiry.isInGrace
-  const canEditProfile = canEditProfileHere({
-    isInGrace: expiry.isInGrace || isExpiryError,
-    canEditRecords,
-    isUpgradeRequired,
-    name,
-    protocol: ownerData?.protocol,
-  })
 
   // Figma page background and bottom padding (sticky bar height plus safe area)
   // have no matching tokens
@@ -195,10 +230,9 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           headerUrl={headerUrl}
           name={name}
         />
-        <ProfileMigrationBanner
+        <UpgradeBanner
           className="absolute inset-x-4 top-32 z-20 mx-auto hidden max-w-275.5 xl:block"
-          isMigrationEnabled={migrationEnabled}
-          name={name}
+          profileName={name}
         />
         <ProfileGracePeriodBanner
           className="absolute inset-x-4 top-24.5 z-20 mx-auto hidden max-w-275.5 xl:block"
@@ -209,11 +243,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         />
         <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 xl:-mt-11.25 xl:max-w-226.25">
           <div>
-            <ProfileMigrationBanner
-              className="mb-6 xl:hidden"
-              isMigrationEnabled={migrationEnabled}
-              name={name}
-            />
+            <UpgradeBanner className="mb-6 xl:hidden" profileName={name} />
             <ProfileGracePeriodBanner
               className="mb-6 xl:hidden"
               expiry={expiry}
@@ -225,8 +255,18 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               avatarLoading={avatar.isLoading}
               avatarUrl={avatarUrl}
               canEdit={canEditProfile}
+              desktopActions={
+                hasFloatingBar ? undefined : (
+                  <ProfileDesktopActions
+                    avatarUrl={avatarUrl}
+                    isOwner={resolvedIsOwner}
+                    name={name}
+                    renewalProtocol={ownerData?.protocol}
+                    url={getProfileUrl(name)}
+                  />
+                )
+              }
               displayExpiryDate={expiry.displayExpiryDate}
-              hasMobileStatusBanner={hasMobileStatusBanner}
               name={name}
               owner={owner}
               ownerReverseName={ownerReverseName.data}
@@ -241,6 +281,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
                 </Trans>
               </p>
             ) : null}
+            <RecordsUnavailableNotice
+              hasRecords={profileRecords !== undefined}
+              onRetry={() => void refetchRecords()}
+            />
             <div className="space-y-0">
               <ProfileCards records={displayRecords} />
               <ProfileCommemorativeNftSection
@@ -255,15 +299,18 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           <ProfileActions
             avatarUrl={avatarUrl}
             canEdit={canEditProfile}
+            hasFloatingBar={hasFloatingBar}
             // An unknown expiry could be a grace period, so editing waits too.
             isInGrace={expiry.isInGrace || isExpiryError}
             isOwner={resolvedIsOwner}
             isUpgradeRequired={isUpgradeRequired}
+            key={sessionKey}
             name={name}
             onUpdated={refetchRecords}
             owner={owner}
             records={records}
             renewalProtocol={ownerData?.protocol}
+            resolverCopySource={resolverCopySource}
             url={getProfileUrl(name)}
           />
         </ProfileDraftProvider>

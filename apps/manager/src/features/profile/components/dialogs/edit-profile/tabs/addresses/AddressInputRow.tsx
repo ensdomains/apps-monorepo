@@ -1,8 +1,8 @@
 import { X } from 'lucide-react'
 import { useId } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { AddressIcon } from '@/features/profile/components/AddressIcon'
 import { cn } from '@/lib/utils'
-import { AddressIcon } from './AddressIcon'
 
 interface AddressInputRowProps {
   readonly disabled?: boolean
@@ -30,7 +30,7 @@ export const AddressInputRow = ({
   return (
     <div className="relative flex items-start gap-3 pt-2">
       <div className="pointer-events-none absolute top-7.5 left-0 z-10 -translate-x-1/2 -translate-y-1/2">
-        <AddressIcon coinType={coinType} label={label} size="md" />
+        <AddressIcon coinType={coinType} size="md" />
       </div>
       <label
         className="absolute top-0 left-4 z-10 bg-white px-1 text-[14px] text-ens-quartz-400 leading-none"

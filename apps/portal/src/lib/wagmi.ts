@@ -1,4 +1,3 @@
-import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/config'
 import { walletConnect } from '@wagmi/connectors'
 import { match, P } from 'ts-pattern'
 import { createClient, fallback, http, webSocket } from 'viem'
@@ -15,8 +14,6 @@ import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
  * Browser-only (`ssr: false`). The SSR/OG worker reads its own Cloudflare
  * secret and builds a separate client; see `worker/clients.ts`.
  */
-
-export { WALLETCONNECT_PROJECT_ID }
 
 // Failover across the app's attributed primary and the network's shared
 // public endpoints.
@@ -45,6 +42,9 @@ export const fallbackTransport = match(getCustomRpcUrl())
 // The build's network, mainnet or Sepolia, with its ENS contracts.
 export const ensChain = envConfig.chain
 
+// Unset on the .eth mirror, whose domain the WalletConnect project doesn't allow.
+const walletConnectProjectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
+
 // Injected wallets (MetaMask, Coinbase extension, Rabby, …) are discovered via
 // EIP-6963, so WalletConnect is the only explicit connector. We skip the
 // Coinbase SDK connector: its Smart Wallet is mainnet-only and breaks on Sepolia.
@@ -54,12 +54,17 @@ export const wagmiConfig = createConfig({
   multiInjectedProviderDiscovery: true,
   chains: [ensChain],
   connectors: [
-    walletConnect({
-      projectId: WALLETCONNECT_PROJECT_ID,
-      // Match the app's light/dark preference on load. The modal theme is fixed
-      // at connector creation, so a mid-session toggle won't restyle it.
-      qrModalOptions: { themeMode: getResolvedThemeMode() },
-    }),
+    ...(walletConnectProjectId
+      ? [
+          walletConnect({
+            projectId: walletConnectProjectId,
+            // Match the app's light/dark preference on load. The modal theme is
+            // fixed at connector creation, so a mid-session toggle won't
+            // restyle it.
+            qrModalOptions: { themeMode: getResolvedThemeMode() },
+          }),
+        ]
+      : []),
     // Test-only: auto-signing wallet for Playwright/agents. Off in production.
     ...(isMockWalletEnabled ? [mockConnector] : []),
   ],

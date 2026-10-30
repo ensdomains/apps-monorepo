@@ -27,7 +27,6 @@ import type { PostHog } from 'posthog-js'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { type RefObject, useEffect, useRef } from 'react'
 import { useConnectionEffect } from 'wagmi'
-import { INTERCOM_APP_ID } from '@/lib/intercom'
 import {
   applyAnalyticsConsent,
   POSTHOG_CONFIG,
@@ -110,7 +109,8 @@ export const PHProvider = ({
     }
 
     try {
-      bootIntercom({ app_id: INTERCOM_APP_ID })
+      const intercomAppId = import.meta.env.VITE_INTERCOM_APP_ID
+      if (intercomAppId) bootIntercom({ app_id: intercomAppId })
     } catch (error) {
       console.warn('[intercom] init failed', error)
     }
@@ -132,12 +132,14 @@ export const PHProvider = ({
         console.warn('[posthog] wallet identify failed', error)
       }
 
+      // Intercom runs for everyone, for support; the wallet only with consent.
       try {
-        trackIntercomEvent('wallet:connect', {
-          wallet_address: data.address,
-          chain_id: data.chainId,
-          wallet_connector: data.connector.name,
-        })
+        if (hasAnalyticsConsent(posthog))
+          trackIntercomEvent('wallet:connect', {
+            wallet_address: data.address,
+            chain_id: data.chainId,
+            wallet_connector: data.connector.name,
+          })
       } catch (error) {
         console.warn('[intercom] wallet:connect failed', error)
       }

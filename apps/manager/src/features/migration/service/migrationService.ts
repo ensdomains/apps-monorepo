@@ -5,6 +5,9 @@ import {
 } from '@ens-apps/smart-account'
 import {
   type Call,
+  getArchivedTransactions,
+  getAtomicBatchSupport,
+  getTransaction as getPersistedTransaction,
   type Signer,
   type TransactionRequest,
   transactionManager,
@@ -14,6 +17,7 @@ import {
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
+import { match } from 'ts-pattern'
 import {
   type Address,
   type Hex,
@@ -22,17 +26,24 @@ import {
   type PublicClient,
   type TransactionReceipt,
 } from 'viem'
-
-import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
+import {
+  BASE_REGISTRAR_ABI,
+  NAME_WRAPPER_ABI,
+  OPERATOR_APPROVAL_ABI,
+} from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import { TARGET_GAS } from './batchMigrate.constants'
+import { maxOuterGasFor } from './batchMigrate.constants'
 import {
   type AtomicMigrationBatch,
   buildAtomicMigrationBatches,
   maxBatchGas,
   walletReplayNames,
 } from './buildAtomicMigrationBatches'
-import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
+import {
+  adjustPlanForRetry,
+  assertLockedResolverReplacementRecordSafety,
+  type MigrationPlan,
+} from './buildMigrationPlan'
 import type {
   CopyClassifiedName,
   DirectClassifiedName,
@@ -49,33 +60,42 @@ import {
   buildMigrationApprovalCall,
   buildMigrationOperatorApprovalRevocationCall,
   checkMigrationApprovals,
-  hasTemporaryMigrationHcaApproval,
+  isDefinitelyUnsubmittedMigrationApprovalError,
+  isExpectedMigrationApprovalRequest,
+  isRegistrationApprovalRecoveryScopeValid,
   type MigrationApproval,
-  type MigrationCleanupApproval,
+  type MigrationOperatorApproval,
+  migrationApprovalForId,
   migrationApprovalKey,
   planMigrationApprovals,
-  requiresMigrationApprovalCleanup,
-  temporaryMigrationHcaApproval,
+  registrationApprovalRecoveryDecision,
 } from './migrationApprovals'
 import {
+  classifyMigrationRecoverySubmission,
+  hasUnsettledMigrationRecoveryRequests,
   loadMigrationBatchJournal,
+  loadMigrationRecoverySnapshot,
   type loadPendingAtomicMigrationIntents,
   type loadSubmittedAtomicMigrationBatches,
   type MigrationBatchJournalScope,
   type MigrationJournalOperation,
   type MigrationRecoverySnapshot,
   persistMigrationRecoverySnapshot,
-  persistPendingAtomicMigrationIntent,
+  persistPendingAtomicMigrationAttempt,
   persistSubmittedAtomicMigrationBatch,
   removeMigrationRecoverySnapshot,
   removePendingAtomicMigrationIntent,
   removeSubmittedAtomicMigrationBatch,
+  type TemporaryRegistrationApproval,
 } from './migrationBatchJournal'
 import {
   persistMigrationCompletionCheckpoint,
+  restoreMigrationCompletionCheckpoint,
   verifyAndPersistMigrationCompletionCheckpoint,
+  verifyMigrationRecoveryTransaction,
 } from './migrationCompletionCheckpoint'
 import {
+  assertLockedMigrationResolversUnchanged,
   assertNoLiveSubregistryOverwrite,
   checkDeterministicMigrationResolverReadiness,
   resolverWriterFor,
@@ -85,6 +105,14 @@ import {
   describeUpgradeOperations,
   nameCount,
 } from './migrationProgressCopy'
+import { planSetupBundles } from './planSetupBundles'
+
+import { checkRetainedManagerResolvers } from './retainedManagerResolver'
+import {
+  assertSubnameRecreationUnchanged,
+  assertSupportedSubnameMigration,
+} from './subnameRecreation'
+import { assertSubnameRecreationSnapshotCurrent } from './subnameRecreationError'
 import {
   reconcileAtomicMigrationBatch,
   verifyAtomicMigrationBatch,
@@ -92,6 +120,10 @@ import {
 
 export type { MigrationPlan } from './buildMigrationPlan'
 export type { MigrationStepDescriptor } from './buildStepDescriptors'
+
+export type MigrationSubmissionGate = {
+  readonly signal: AbortSignal
+}
 
 class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
@@ -112,6 +144,13 @@ class MigrationPlanChangedError extends TaggedError(
   readonly currentApprovalKeys: readonly string[]
   readonly plannedCleanupApprovalKeys: readonly string[]
   readonly currentCleanupApprovalKeys: readonly string[]
+}> {}
+
+class MigrationSourceChangedError extends TaggedError(
+  'MigrationSourceChangedError',
+)<{
+  readonly message: string
+  readonly cause: unknown
 }> {}
 
 class SubmittedAtomicMigrationIndeterminateError extends TaggedError(
@@ -148,9 +187,18 @@ class MigrationSourceOwnershipError extends TaggedError(
   readonly cause?: unknown
 }> {}
 
-class MigrationCleanupError extends TaggedError('MigrationCleanupError')<{
+class MigrationApprovalIndeterminateError extends TaggedError(
+  'MigrationApprovalIndeterminateError',
+)<{
   readonly message: string
-  readonly cause: unknown
+  readonly cause?: unknown
+}> {}
+
+class MigrationHistoricalDeploymentError extends TaggedError(
+  'MigrationHistoricalDeploymentError',
+)<{
+  readonly message: string
+  readonly cause?: unknown
 }> {}
 
 const isUserRejection = (error: unknown): boolean => {
@@ -245,12 +293,16 @@ const createTracker = (
 }
 
 type MigrationCtx = {
+  readonly onCurrentDeploymentCheckpoint: () => void
+  readonly submissionGate: MigrationSubmissionGate
   readonly wagmiConfig: WagmiConfig
   readonly publicClient: PublicClient
   readonly signer: Signer
   readonly walletAddress: Address
   readonly hcaAddress: Address
   readonly tracker: Tracker
+  /** Setup goes out as one wallet bundle; each migration batch is one request. */
+  readonly canBatchAtomically: boolean
 }
 
 const batchJournalScope = (
@@ -273,6 +325,7 @@ const usesDurableCopyRecovery = (plan: MigrationPlan): boolean =>
 const recoverySnapshotFor = (
   plan: MigrationPlan,
   remaining: readonly (typeof plan.registryContext)[number][],
+  existingSnapshot?: MigrationRecoverySnapshot | null,
 ): MigrationRecoverySnapshot => {
   const remainingNames = new Set(remaining.map(({ domain }) => domain.name))
   const registryOperations = plan.registryContext.map(({ domain, action }) => ({
@@ -295,6 +348,13 @@ const recoverySnapshotFor = (
     }
   }
   return {
+    registrationApprovalStrategy: plan.registrationApprovalStrategy,
+    migrationHelper:
+      existingSnapshot?.migrationHelper ?? V2_CONTRACTS.MigrationHelper,
+    temporaryRegistrationApproval: existingSnapshot
+      ? existingSnapshot.temporaryRegistrationApproval
+      : plan.temporaryRegistrationApproval,
+    subnameRecreation: plan.subnameRecreation,
     registryDomains: plan.registryContext.map(({ domain }) => domain),
     registryOperations,
     remainingOperations: registryOperations.filter(({ name }) =>
@@ -326,8 +386,10 @@ const persistRecoveryPlan = (
   plan: MigrationPlan,
   remaining: readonly (typeof plan.registryContext)[number][] = plan.classified,
 ): void => {
-  if (!usesDurableCopyRecovery(plan)) return
-  persistMigrationRecoverySnapshot(scope, recoverySnapshotFor(plan, remaining))
+  persistMigrationRecoverySnapshot(
+    scope,
+    recoverySnapshotFor(plan, remaining, loadMigrationRecoverySnapshot(scope)),
+  )
 }
 
 const clearCompletedRecoveryPlanJournal = (
@@ -342,7 +404,7 @@ const clearCompletedRecoveryPlanJournal = (
   ): boolean =>
     operations.every(({ name, action }) => expectedActions.get(name) === action)
 
-  // Remove the snapshot first while retaining every receipt/intent. If cleanup
+  // Remove the snapshot first while retaining every receipt/intent. If completion
   // is interrupted, retry evidence remains durable instead of leaving a stale
   // snapshot whose final operation has already been verified.
   removeMigrationRecoverySnapshot(scope)
@@ -361,6 +423,7 @@ const clearCompletedRecoveryPlanJournal = (
 }
 
 const RECEIPT_TIMEOUT_MS = 300_000
+const APPROVAL_METADATA_RETRY_DELAYS_MS = [0, 250, 500, 1_000] as const
 const APPROVAL_HEAD_LAG_RETRY_DELAYS_MS = [
   250, 500, 1_000, 2_000, 4_000,
 ] as const
@@ -397,17 +460,62 @@ const wrapMigrationError = (
     ? new MigrationUserRejectedError({ step })
     : new MigrationError({ cause: error, step })
 
-const submitCall = async (
+const submitCall = (
   ctx: MigrationCtx,
   call: Call,
   description: string,
-  onSubmitted?: (hash: Hex) => void,
+  onSubmitted?: (hash: Hex) => void | Promise<void>,
   gas?: bigint,
+  transactionId?: string,
+): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> =>
+  submitRequest(
+    ctx,
+    buildEOARequest(ctx, call, gas),
+    description,
+    onSubmitted,
+    transactionId,
+  )
+
+/**
+ * Sends `calls` as one atomic EIP-5792 bundle — a single wallet confirmation.
+ * Only for plans built with `canBatchAtomically`; the wallet estimates the gas.
+ */
+const submitCalls = (
+  ctx: MigrationCtx,
+  calls: readonly Call[],
+  description: string,
+  onSubmitted?: (hash: Hex) => void,
 ): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> => {
+  const [only] = calls
+  if (calls.length === 1 && only) {
+    return submitCall(ctx, only, description, onSubmitted)
+  }
+  return submitRequest(
+    ctx,
+    {
+      type: 'eoa-batch',
+      from: ctx.walletAddress,
+      chainId: requireChainId(ctx.publicClient, 'migration'),
+      calls,
+    },
+    description,
+    onSubmitted,
+  )
+}
+
+const submitRequest = async (
+  ctx: MigrationCtx,
+  request: TransactionRequest,
+  description: string,
+  onSubmitted?: (hash: Hex) => void | Promise<void>,
+  transactionId?: string,
+): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> => {
+  ctx.submissionGate.signal.throwIfAborted()
   const txId = transactionManager.startTransaction(
-    { type: 'custom', request: buildEOARequest(ctx, call, gas) },
+    { type: 'custom', request },
     ctx.signer,
     {
+      ...(transactionId ? { id: transactionId } : {}),
       description,
       publicClient: ctx.publicClient,
       retryCount: 0,
@@ -415,11 +523,12 @@ const submitCall = async (
   )
   ctx.tracker.emit(description)
   const submittedHash = (await waitForTransactionHash(txId)) as Hex
-  onSubmitted?.(submittedHash)
+  await onSubmitted?.(submittedHash)
   ctx.tracker.submitted(description, submittedHash)
   const result = await waitForTransaction(txId)
   const hash = result.hash as Hex
-  if (hash.toLowerCase() !== submittedHash.toLowerCase()) onSubmitted?.(hash)
+  if (hash.toLowerCase() !== submittedHash.toLowerCase())
+    await onSubmitted?.(hash)
   const receipt =
     result.receipt ??
     (await ctx.publicClient.waitForTransactionReceipt({
@@ -497,36 +606,380 @@ const approvalDescription = (approval: MigrationApproval): string => {
     case 'name-wrapper:hca':
       return 'Getting permission to upgrade your wrapped names'
     case 'eth-registry:hca':
-      return 'Getting permission to restore your managers'
+      return 'Getting permission to configure your upgraded names'
+  }
+}
+
+const registrationOperatorApproval = (
+  approval: TemporaryRegistrationApproval,
+): MigrationOperatorApproval => ({
+  kind: 'operator',
+  id: 'base-registrar:hca',
+  contractAddress: approval.contractAddress,
+  operatorAddress: approval.operatorAddress,
+})
+
+const readTemporaryRegistrationApproval = (
+  ctx: MigrationCtx,
+  plan: MigrationPlan,
+): TemporaryRegistrationApproval | undefined => {
+  if (
+    plan.registrationApprovalStrategy !== 'temporary-operator' &&
+    !plan.temporaryRegistrationApproval
+  )
+    return undefined
+  const snapshot = loadMigrationRecoverySnapshot(batchJournalScope(ctx))
+  return snapshot
+    ? snapshot.temporaryRegistrationApproval
+    : plan.temporaryRegistrationApproval
+}
+
+const assertTemporaryRegistrationRecoveryScope = (
+  ctx: MigrationCtx,
+  plan: MigrationPlan,
+): void => {
+  const recovery = loadMigrationRecoverySnapshot(batchJournalScope(ctx))
+  const temporary = recovery?.temporaryRegistrationApproval
+  if (!temporary) return
+  if (
+    isRegistrationApprovalRecoveryScopeValid({
+      approval: temporary,
+      currentApproval: plan.requiresFreshDeploymentPreview
+        ? registrationOperatorApproval(temporary)
+        : migrationApprovalForId({
+            id: 'base-registrar:hca',
+            hcaAddress: ctx.hcaAddress,
+          }),
+      names: plan.registryContext.map(({ domain }) => domain.name),
+      savedNames: recovery.registryDomains.map(({ name }) => name),
+    })
+  )
+    return
+  throw new MigrationPlanChangedError({
+    message:
+      'Resume the existing registration permission request before starting a different selection.',
+    plannedApprovalKeys: [],
+    currentApprovalKeys: [],
+    plannedCleanupApprovalKeys: sortedApprovalKeys(
+      plan.preflight.migrationCleanupApprovals ?? [],
+    ),
+    currentCleanupApprovalKeys: [
+      migrationApprovalKey(registrationOperatorApproval(temporary)),
+    ],
+  })
+}
+
+const persistTemporaryRegistrationApproval = (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+  readonly approval: TemporaryRegistrationApproval | undefined
+}): void => {
+  const scope = batchJournalScope(params.ctx)
+  const existing = loadMigrationRecoverySnapshot(scope)
+  if (!existing && params.plan.requiresFreshDeploymentPreview) {
+    throw new MigrationApprovalIndeterminateError({
+      message:
+        'The earlier deployment recovery record is unavailable. Refresh before removing its permission.',
+    })
+  }
+  const snapshot =
+    existing ?? recoverySnapshotFor(params.plan, params.plan.classified)
+  const { temporaryRegistrationApproval: _previous, ...rest } = snapshot
+  persistMigrationRecoverySnapshot(scope, {
+    ...rest,
+    ...(params.approval
+      ? { temporaryRegistrationApproval: params.approval }
+      : {}),
+  })
+}
+
+const readRegistrationApprovalActive = async (params: {
+  readonly ctx: MigrationCtx
+  readonly approval: TemporaryRegistrationApproval
+  readonly minimumBlockNumber?: bigint
+}): Promise<boolean> => {
+  if (
+    !isAddressEqual(params.approval.contractAddress, V1_CONTRACTS.BaseRegistrar)
+  ) {
+    throw new MigrationApprovalIndeterminateError({
+      message:
+        'Stored migration approval is not for the expected registration contract.',
+    })
+  }
+  const blockNumber = await params.ctx.publicClient.getBlockNumber({
+    cacheTime: 0,
+  })
+  if (
+    params.minimumBlockNumber !== undefined &&
+    blockNumber < params.minimumBlockNumber
+  ) {
+    throw new MigrationApprovalIndeterminateError({
+      message:
+        'The current permission state has not caught up with the confirmed approval.',
+    })
+  }
+  return params.ctx.publicClient.readContract({
+    address: params.approval.contractAddress,
+    abi: OPERATOR_APPROVAL_ABI,
+    functionName: 'isApprovedForAll',
+    args: [params.ctx.walletAddress, params.approval.operatorAddress],
+    blockNumber,
+  })
+}
+
+const recordRegistrationApprovalSubmission = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+  readonly approval: TemporaryRegistrationApproval
+  readonly hash: Hex
+}): Promise<void> => {
+  const approval = {
+    ...params.approval,
+    submission: undefined,
+    state: { ...params.approval.state, hash: params.hash },
+  }
+  persistTemporaryRegistrationApproval({ ...params, approval })
+  // The wallet's RPC may see the transaction before ours. Keep its hash
+  // durable, but don't let optional replacement metadata block confirmation.
+  for (const retryDelay of APPROVAL_METADATA_RETRY_DELAYS_MS) {
+    if (retryDelay > 0) await delay(retryDelay)
+    const metadata = await Promise.all([
+      params.ctx.publicClient.getTransaction({ hash: params.hash }),
+      params.ctx.publicClient.getBlockNumber({ cacheTime: 0 }),
+    ]).catch(() => undefined)
+    if (!metadata) continue
+    const [transaction, blockNumber] = metadata
+    persistTemporaryRegistrationApproval({
+      ...params,
+      approval: {
+        ...approval,
+        submission: {
+          nonce: BigInt(transaction.nonce),
+          blockNumber: transaction.blockNumber ?? blockNumber,
+        },
+      },
+    })
+    return
+  }
+}
+
+const findRegistrationApprovalReplacement = async (params: {
+  readonly ctx: MigrationCtx
+  readonly submission: NonNullable<TemporaryRegistrationApproval['submission']>
+}): Promise<Hex | undefined> => {
+  const { publicClient, walletAddress } = params.ctx
+  const latest = await publicClient.getBlockNumber({ cacheTime: 0 })
+  const countAt = (blockNumber: bigint) =>
+    publicClient
+      .getTransactionCount({ address: walletAddress, blockNumber })
+      .then(BigInt)
+  if (BigInt(await countAt(latest)) <= params.submission.nonce) return undefined
+  let low = params.submission.blockNumber
+  let high = latest
+  while (low < high) {
+    const middle = (low + high) / 2n
+    if ((await countAt(middle)) > params.submission.nonce) high = middle
+    else low = middle + 1n
+  }
+  const block = await publicClient.getBlock({
+    blockNumber: low,
+    includeTransactions: true,
+  })
+  return block.transactions.find(
+    (transaction) =>
+      isAddressEqual(transaction.from, walletAddress) &&
+      BigInt(transaction.nonce) === params.submission.nonce,
+  )?.hash
+}
+
+const reconcileTemporaryRegistrationApproval = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+}): Promise<TemporaryRegistrationApproval | undefined> => {
+  const { ctx, plan } = params
+  const approval = readTemporaryRegistrationApproval(ctx, plan)
+  if (!approval) return undefined
+  const { state } = approval
+  const call =
+    state.status === 'revoke-pending'
+      ? buildMigrationOperatorApprovalRevocationCall(
+          registrationOperatorApproval(approval),
+        )
+      : buildMigrationApprovalCall(registrationOperatorApproval(approval))
+  const expected = {
+    owner: ctx.walletAddress,
+    chainId: requireChainId(ctx.publicClient, 'migration'),
+    contractAddress: approval.contractAddress,
+    data: call.data,
+  }
+  try {
+    const active =
+      state.status === 'granted'
+        ? undefined
+        : transactionManager
+            .getTransaction?.(state.transactionId)
+            ?.getSnapshot().context
+    const activeHash = active?.receipt?.transactionHash ?? active?.hash
+    const recovered = activeHash
+      ? { hash: activeHash, context: { request: active?.request } }
+      : state.status === 'granted'
+        ? undefined
+        : ((await getPersistedTransaction(state.transactionId)) ??
+          (await getArchivedTransactions()).find(
+            ({ id }) => id === state.transactionId,
+          ))
+    if (recovered) {
+      const context = recovered.context
+      const request =
+        typeof context === 'object' && context !== null && 'request' in context
+          ? context.request
+          : undefined
+      if (!isExpectedMigrationApprovalRequest({ ...expected, request })) {
+        throw new MigrationApprovalIndeterminateError({
+          message:
+            'The saved approval transaction does not match the reviewed permission.',
+        })
+      }
+    }
+    let hash = recovered?.hash ?? state.hash
+    const grantReceipt =
+      state.status === 'revoke-pending'
+        ? await ctx.publicClient.getTransactionReceipt({
+            hash: state.grantHash,
+          })
+        : undefined
+    if (grantReceipt && grantReceipt.status !== 'success') {
+      throw new MigrationApprovalIndeterminateError({
+        message: 'The original registration approval could not be confirmed.',
+      })
+    }
+    if (!hash) {
+      if (
+        state.status === 'revoke-pending' &&
+        !(await readRegistrationApprovalActive({
+          ctx,
+          approval,
+          minimumBlockNumber: grantReceipt?.blockNumber,
+        }))
+      ) {
+        persistTemporaryRegistrationApproval({ ctx, plan, approval: undefined })
+        return undefined
+      }
+      throw new MigrationApprovalIndeterminateError({
+        message:
+          'An earlier approval wallet request has no confirmed transaction outcome. Check the pending request in your wallet before continuing.',
+      })
+    }
+    const readTransaction = (hash: Hex) =>
+      Promise.all([
+        ctx.publicClient.getTransaction({ hash }),
+        ctx.publicClient.getTransactionReceipt({ hash }),
+      ])
+    const [transaction, receipt] = await readTransaction(hash).catch(
+      async (cause) => {
+        if (state.status === 'granted' || !approval.submission) throw cause
+        const replacement = await findRegistrationApprovalReplacement({
+          ctx,
+          submission: approval.submission,
+        })
+        if (!replacement) throw cause
+        hash = replacement
+        return readTransaction(hash)
+      },
+    )
+    if (state.status === 'granted' && receipt.status !== 'success') {
+      throw new MigrationApprovalIndeterminateError({
+        message: 'The recorded registration grant is not confirmed.',
+      })
+    }
+    if (
+      !isExpectedMigrationApprovalRequest({
+        ...expected,
+        request: {
+          from: transaction.from,
+          to: transaction.to,
+          data: transaction.input,
+          value: transaction.value,
+          chainId: transaction.chainId ?? expected.chainId,
+        },
+      })
+    ) {
+      throw new MigrationApprovalIndeterminateError({
+        message:
+          'The approval transaction changed. Its outcome must be reviewed before continuing.',
+      })
+    }
+    if (
+      approval.submission &&
+      BigInt(transaction.nonce) !== approval.submission.nonce
+    )
+      throw new MigrationApprovalIndeterminateError({
+        message:
+          'The recovered approval transaction does not match the recorded nonce.',
+      })
+    if (state.status !== 'granted' && hash !== state.hash)
+      persistTemporaryRegistrationApproval({
+        ctx,
+        plan,
+        approval: { ...approval, state: { ...state, hash } },
+      })
+    const isActive = await readRegistrationApprovalActive({
+      ctx,
+      approval,
+      minimumBlockNumber: receipt.blockNumber,
+    })
+    const decision = registrationApprovalRecoveryDecision({
+      status: state.status,
+      isActive,
+      receiptStatus: receipt.status,
+    })
+    if (decision === 'unresolved') {
+      throw new MigrationApprovalIndeterminateError({
+        message:
+          'The temporary registration permission has not reached its expected state.',
+      })
+    }
+    if (decision === 'complete') {
+      persistTemporaryRegistrationApproval({ ctx, plan, approval: undefined })
+      return undefined
+    }
+    const granted: TemporaryRegistrationApproval = {
+      ...approval,
+      submission:
+        state.status === 'revoke-pending' ? undefined : approval.submission,
+      state: {
+        status: 'granted',
+        hash: state.status === 'revoke-pending' ? state.grantHash : hash,
+      },
+    }
+    persistTemporaryRegistrationApproval({ ctx, plan, approval: granted })
+    return granted
+  } catch (cause) {
+    if (cause instanceof MigrationApprovalIndeterminateError) throw cause
+    throw new MigrationApprovalIndeterminateError({
+      message:
+        'The earlier migration permission transaction could not be confirmed. No new approval will be sent.',
+      cause,
+    })
   }
 }
 
 const getCurrentMigrationApprovals = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
-}): Promise<{
-  readonly missing: readonly MigrationApproval[]
-  readonly cleanup: readonly MigrationCleanupApproval[]
-}> => {
+}): Promise<readonly MigrationApproval[]> => {
   const { ctx, plan } = params
-  if (plan.classified.length === 0) {
-    // Reconciliation may finish every name before setup. No grant is needed,
-    // but a newly active HCA permission would still add a cleanup prompt.
-    const isActive = await hasTemporaryMigrationHcaApproval({
-      publicClient: ctx.publicClient,
-      eoa: ctx.walletAddress,
-      hcaAddress: ctx.hcaAddress,
-    })
-    return {
-      missing: [],
-      cleanup: isActive ? [temporaryMigrationHcaApproval(ctx.hcaAddress)] : [],
-    }
-  }
+  if (plan.classified.length === 0) return []
   const basicNeeds = approvalNeedsFor(plan.groups)
   const needs = {
     ...basicNeeds,
     requiresManagerRestoration: plan.classified.some(
       (name) => name.managerAddress !== null,
+    ),
+    requiresRegistryConfiguration: plan.atomicBatches.some((batch) =>
+      batch.innerExecutions.some(
+        ({ phase }) => phase === 'subregistry-attachment',
+      ),
     ),
   }
   const status = await checkMigrationApprovals({
@@ -539,13 +992,9 @@ const getCurrentMigrationApprovals = async (params: {
     hcaAddress: ctx.hcaAddress,
     needs,
     status,
+    registrationApprovalStrategy: plan.registrationApprovalStrategy,
   })
-  const cleanup =
-    status.ethRegistryHcaApproved ||
-    missing.some(requiresMigrationApprovalCleanup)
-      ? [temporaryMigrationHcaApproval(ctx.hcaAddress)]
-      : []
-  return { missing, cleanup }
+  return missing
 }
 
 const sortedApprovalKeys = (
@@ -557,15 +1006,11 @@ const assertMigrationApprovalPlanCurrent = async (params: {
   readonly plan: MigrationPlan
   readonly allowGrantChanges: boolean
 }): Promise<readonly MigrationApproval[]> => {
-  const { missing, cleanup } = await getCurrentMigrationApprovals(params)
+  const missing = await getCurrentMigrationApprovals(params)
   const plannedApprovalKeys = sortedApprovalKeys(
     params.plan.preflight.migrationApprovals ?? [],
   )
   const currentApprovalKeys = sortedApprovalKeys(missing)
-  const plannedCleanupApprovalKeys = sortedApprovalKeys(
-    params.plan.preflight.migrationCleanupApprovals ?? [],
-  )
-  const currentCleanupApprovalKeys = sortedApprovalKeys(cleanup)
   const grantsMatch =
     plannedApprovalKeys.length === currentApprovalKeys.length &&
     plannedApprovalKeys.every(
@@ -574,44 +1019,32 @@ const assertMigrationApprovalPlanCurrent = async (params: {
   const hasUnplannedGrants = currentApprovalKeys.some(
     (approvalKey) => !plannedApprovalKeys.includes(approvalKey),
   )
-  const cleanupMatches =
-    plannedCleanupApprovalKeys.length === currentCleanupApprovalKeys.length &&
-    plannedCleanupApprovalKeys.every(
-      (approvalKey, index) => approvalKey === currentCleanupApprovalKeys[index],
-    )
-
-  if (
-    (params.allowGrantChanges ? hasUnplannedGrants : !grantsMatch) ||
-    !cleanupMatches
-  ) {
+  if (params.allowGrantChanges ? hasUnplannedGrants : !grantsMatch) {
     throw new MigrationPlanChangedError({
       message:
-        'Migration permissions or cleanup changed after the preview. Return to selection to review the updated confirmation estimate.',
+        'Migration permissions changed after the preview. Return to selection to review the updated confirmation estimate.',
       plannedApprovalKeys,
       currentApprovalKeys,
-      plannedCleanupApprovalKeys,
-      currentCleanupApprovalKeys,
+      plannedCleanupApprovalKeys: [],
+      currentCleanupApprovalKeys: [],
     })
   }
   return missing
 }
 
-const ensureMigrationApprovals = async (params: {
-  readonly ctx: MigrationCtx
-  readonly plan: MigrationPlan
-  readonly currentMissing?: readonly MigrationApproval[]
-}): Promise<readonly Hex[]> => {
-  const { ctx, plan } = params
-  const missing =
-    params.currentMissing ??
-    (await getCurrentMigrationApprovals({ ctx, plan })).missing
-
-  const hashes: Hex[] = []
+/** Planned approvals in preview order (with what is still missing), then unplanned ones. */
+const orderMigrationApprovals = (
+  plan: MigrationPlan,
+  missing: readonly MigrationApproval[],
+): readonly {
+  readonly approval: MigrationApproval
+  readonly missing: MigrationApproval | undefined
+}[] => {
   const missingById = new Map(
     missing.map((approval) => [migrationApprovalKey(approval), approval]),
   )
   const plannedApprovals = plan.preflight.migrationApprovals ?? []
-  const orderedApprovals = [
+  return [
     ...plannedApprovals.map((approval) => ({
       approval,
       missing: missingById.get(migrationApprovalKey(approval)),
@@ -626,75 +1059,314 @@ const ensureMigrationApprovals = async (params: {
       )
       .map((approval) => ({ approval, missing: approval })),
   ]
+}
 
-  for (const { approval, missing: missingApproval } of orderedApprovals) {
+/**
+ * HCA deployment and every missing approval as atomic wallet bundles of at
+ * most `MAX_WALLET_BUNDLE_CALLS` calls, one confirmation each. The deployment
+ * leads the first bundle and is verified before any later bundle is sent, so
+ * approvals can never land for an HCA whose deployment failed; the deployment
+ * call itself is validated before it is signed, and an already-deployed HCA is
+ * verified before anything is granted to it.
+ */
+const ensureBundledSetup = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+  readonly hcaClient: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
+  readonly refreshAccount: () => Promise<void>
+  readonly currentMissing: readonly MigrationApproval[]
+}): Promise<{
+  readonly hashes: readonly Hex[]
+  readonly hasGrantedApprovals: boolean
+}> => {
+  const { ctx, plan } = params
+  const chainId = requireChainId(ctx.publicClient, 'migration')
+  const verifyHca = () =>
+    verifyStandaloneHca({
+      publicClient: ctx.publicClient,
+      hca: ctx.hcaAddress,
+      expectedOwner: ctx.walletAddress,
+      chainId,
+    })
+
+  try {
+    const shouldDeploy = !hasCode(
+      await ctx.publicClient.getCode({ address: ctx.hcaAddress }),
+    )
+    if (!shouldDeploy) await verifyHca()
+    const missingApprovals = orderMigrationApprovals(
+      plan,
+      params.currentMissing,
+    ).map(({ missing }) => missing)
+    const bundles = planSetupBundles({
+      isHcaDeployed: !shouldDeploy,
+      isDeploymentPlanned: plan.hcaDeploymentRequired,
+      missingApprovals,
+    })
+
+    const hashes: Hex[] = []
+    for (const bundle of bundles) {
+      const calls = bundle.flatMap((step): Call[] =>
+        match(step)
+          .with({ type: 'deploy-hca' }, () => [
+            buildHcaDeploymentCall({
+              client: params.hcaClient,
+              chainId,
+              expectedHca: ctx.hcaAddress,
+              expectedOwner: ctx.walletAddress,
+            }),
+          ])
+          .with({ type: 'approval' }, ({ approval }) => [
+            buildMigrationApprovalCall(approval),
+          ])
+          .with({ type: 'done' }, () => [])
+          .exhaustive(),
+      )
+      if (calls.length === 0) {
+        // A retry can find setup already done; consume its planned step.
+        ctx.tracker.next()
+        ctx.tracker.emit('Already set up')
+        continue
+      }
+      const { hash } = await submitCalls(ctx, calls, 'Getting ready')
+      if (bundle.some(({ type }) => type === 'deploy-hca')) {
+        await verifyHca()
+        await params.refreshAccount()
+      }
+      hashes.push(hash)
+      ctx.tracker.next()
+      ctx.tracker.emit('Ready', hash)
+    }
+    return {
+      hashes,
+      hasGrantedApprovals: missingApprovals.some(
+        (approval) => approval !== undefined,
+      ),
+    }
+  } catch (error) {
+    throw wrapMigrationError(error, 'Setting up HCA')
+  }
+}
+
+const ensureMigrationApprovals = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+  readonly currentMissing?: readonly MigrationApproval[]
+}): Promise<readonly Hex[]> => {
+  const { ctx, plan } = params
+  const missing =
+    params.currentMissing ?? (await getCurrentMigrationApprovals({ ctx, plan }))
+
+  const hashes: Hex[] = []
+  for (const { approval, missing: missingApproval } of orderMigrationApprovals(
+    plan,
+    missing,
+  )) {
     if (!missingApproval) {
       ctx.tracker.next()
       ctx.tracker.emit('Permission already granted')
       continue
     }
     const description = approvalDescription(approval)
+    const usesTemporaryRegistrationApproval =
+      plan.registrationApprovalStrategy === 'temporary-operator' &&
+      approval.id === 'base-registrar:hca'
+    const transactionId = usesTemporaryRegistrationApproval
+      ? createAtomicMigrationIntentId()
+      : undefined
+    const temporaryApproval: TemporaryRegistrationApproval | undefined =
+      transactionId
+        ? {
+            contractAddress: approval.contractAddress,
+            operatorAddress: approval.operatorAddress,
+            state: { status: 'grant-pending', transactionId },
+          }
+        : undefined
+    if (temporaryApproval) {
+      if (
+        await readRegistrationApprovalActive({
+          ctx,
+          approval: temporaryApproval,
+        })
+      ) {
+        throw new MigrationPlanChangedError({
+          message:
+            'Registration permission changed before the approval request. Review the updated confirmation estimate.',
+          plannedApprovalKeys: [migrationApprovalKey(approval)],
+          currentApprovalKeys: [],
+          plannedCleanupApprovalKeys: sortedApprovalKeys(
+            plan.preflight.migrationCleanupApprovals ?? [],
+          ),
+          currentCleanupApprovalKeys: [],
+        })
+      }
+      assertTemporaryRegistrationRecoveryScope(ctx, plan)
+      if (readTemporaryRegistrationApproval(ctx, plan)) {
+        throw new MigrationApprovalIndeterminateError({
+          message:
+            'An earlier registration permission request is still recorded. Resume that request before granting permission again.',
+        })
+      }
+      persistTemporaryRegistrationApproval({
+        ctx,
+        plan,
+        approval: temporaryApproval,
+      })
+    }
     try {
       const { hash } = await submitCall(
         ctx,
         buildMigrationApprovalCall(approval),
         description,
+        temporaryApproval
+          ? (hash) =>
+              recordRegistrationApprovalSubmission({
+                ctx,
+                plan,
+                approval: temporaryApproval,
+                hash,
+              })
+          : undefined,
+        undefined,
+        transactionId,
       )
+      if (temporaryApproval) {
+        persistTemporaryRegistrationApproval({
+          ctx,
+          plan,
+          approval: {
+            ...(readTemporaryRegistrationApproval(ctx, plan) ??
+              temporaryApproval),
+            state: { status: 'granted', hash },
+          },
+        })
+      }
       hashes.push(hash)
       ctx.tracker.next()
       ctx.tracker.emit('Permission granted', hash)
     } catch (error) {
+      if (
+        temporaryApproval &&
+        (isUserRejection(error) ||
+          isDefinitelyUnsubmittedMigrationApprovalError(error))
+      ) {
+        const current = readTemporaryRegistrationApproval(ctx, plan)
+        if (current?.state.status === 'grant-pending' && !current.state.hash) {
+          persistTemporaryRegistrationApproval({
+            ctx,
+            plan,
+            approval: undefined,
+          })
+        }
+      }
       throw wrapMigrationError(error, description)
     }
   }
   return hashes
 }
 
-const cleanupDescription = (_approval: MigrationCleanupApproval): string =>
-  'Removing temporary access'
-
-const revokeTemporaryOperatorApprovals = async (params: {
+/** HCA deployment + approvals: bundled, or one prompt each. */
+const ensureMigrationSetup = async (params: {
   readonly ctx: MigrationCtx
-  readonly plannedCleanupApprovals: readonly MigrationCleanupApproval[]
-}): Promise<readonly Hex[]> => {
-  const approval = temporaryMigrationHcaApproval(params.ctx.hcaAddress)
-  try {
-    const isActive = await hasTemporaryMigrationHcaApproval({
-      publicClient: params.ctx.publicClient,
-      eoa: params.ctx.walletAddress,
-      hcaAddress: params.ctx.hcaAddress,
+  readonly plan: MigrationPlan
+  readonly hcaClient: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
+  readonly refreshAccount: () => Promise<void>
+  readonly currentMissing: readonly MigrationApproval[]
+}): Promise<{
+  readonly hashes: readonly Hex[]
+  readonly hasGrantedApprovals: boolean
+}> => {
+  if (params.ctx.canBatchAtomically) {
+    return ensureBundledSetup(params)
+  }
+
+  const deploymentHash = await ensureHcaDeployment({
+    ctx: params.ctx,
+    hcaClient: params.hcaClient,
+    refreshAccount: params.refreshAccount,
+    plannedDeployment: params.plan.hcaDeploymentRequired,
+  })
+  const approvalHashes = await ensureMigrationApprovals(params)
+  return {
+    hashes: [...(deploymentHash ? [deploymentHash] : []), ...approvalHashes],
+    hasGrantedApprovals: approvalHashes.length > 0,
+  }
+}
+
+const releaseChangedHelperRecovery = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+}): Promise<void> => {
+  const scope = batchJournalScope(params.ctx)
+  const initialJournal = loadMigrationBatchJournal(scope)
+  const initialSnapshot = initialJournal.recovery
+  const previousHelper =
+    initialSnapshot?.migrationHelper ??
+    initialSnapshot?.temporaryRegistrationApproval?.operatorAddress
+  if (!initialSnapshot || !previousHelper) {
+    throw new MigrationApprovalIndeterminateError({
+      message: 'The earlier deployment recovery details are unavailable.',
     })
-    if (!isActive) return []
-
-    // This read also covers errors before the pre-submit check was reached.
-    // Never open a cleanup prompt that the preview did not budget.
-    const plannedCleanupApprovalKeys = sortedApprovalKeys(
-      params.plannedCleanupApprovals,
-    )
-    const currentCleanupApprovalKey = migrationApprovalKey(approval)
-    if (!plannedCleanupApprovalKeys.includes(currentCleanupApprovalKey)) {
-      throw new MigrationPlanChangedError({
-        message:
-          'Migration cleanup changed after the preview. Return to selection to review the updated confirmation estimate.',
-        plannedApprovalKeys: [],
-        currentApprovalKeys: [],
-        plannedCleanupApprovalKeys,
-        currentCleanupApprovalKeys: [currentCleanupApprovalKey],
+  }
+  let settledSubmissions: readonly {
+    readonly intentId: string
+    readonly hash: Hex
+  }[] = []
+  try {
+    for (const submission of initialJournal.submitted) {
+      const relation = classifyMigrationRecoverySubmission({
+        registryOperations: initialSnapshot.registryOperations,
+        operations: submission.operations,
       })
+      if (relation === 'unrelated') continue
+      if (relation === 'mismatch')
+        throw new Error(
+          'Earlier migration operations do not match the stored recovery tree',
+        )
+      const status = await verifyMigrationRecoveryTransaction({
+        scope,
+        publicClient: params.ctx.publicClient,
+        transactionHash: submission.hash,
+        operations: submission.operations,
+        migrationHelper: submission.migrationHelper ?? previousHelper,
+        signal: params.ctx.submissionGate.signal,
+      })
+      if (status === 'success') {
+        persistSubmittedAtomicMigrationBatch(scope, {
+          ...submission,
+          migrationHelper: submission.migrationHelper ?? previousHelper,
+        })
+        settledSubmissions = [...settledSubmissions, submission]
+        continue
+      }
+      removeSubmittedAtomicMigrationBatch(scope, submission.hash)
+      removePendingAtomicMigrationIntent(scope, submission.intentId)
     }
-
-    const { hash } = await submitCall(
-      params.ctx,
-      buildMigrationOperatorApprovalRevocationCall(approval),
-      cleanupDescription(approval),
-    )
-    params.ctx.tracker.next()
-    params.ctx.tracker.emit('Temporary access removed', hash)
-    return [hash]
+    const journal = loadMigrationBatchJournal(scope)
+    if (
+      hasUnsettledMigrationRecoveryRequests({
+        registryOperations: initialSnapshot.registryOperations,
+        pending: journal.pending,
+        submitted: journal.submitted,
+        settled: settledSubmissions,
+      })
+    ) {
+      throw new Error(
+        'An earlier migration wallet request still has no confirmed outcome',
+      )
+    }
+    if (!journal.recovery)
+      throw new Error('Migration recovery disappeared before the new preview')
+    const { temporaryRegistrationApproval: _previousApproval, ...recovery } =
+      journal.recovery
+    persistMigrationRecoverySnapshot(scope, {
+      ...recovery,
+      migrationHelper: V2_CONTRACTS.MigrationHelper,
+    })
   } catch (cause) {
-    if (cause instanceof MigrationPlanChangedError) throw cause
-    throw new MigrationCleanupError({
-      message: 'Temporary migration access still needs to be revoked.',
+    throw new MigrationApprovalIndeterminateError({
+      message:
+        'Earlier migration transactions still need reconciliation before changing deployments.',
       cause,
     })
   }
@@ -714,11 +1386,18 @@ type MigrationRetryReconciliation = {
 }
 
 type RecoveredSubmittedBatch = {
+  readonly migrationHelper?: Address
   readonly intentId: string
   readonly names: readonly string[]
   readonly operations: readonly MigrationJournalOperation[]
   readonly hash: Hex
 }
+
+const isHistoricalMigrationSubmission = (submission: {
+  readonly migrationHelper?: Address
+}): boolean =>
+  submission.migrationHelper !== undefined &&
+  !isAddressEqual(submission.migrationHelper, V2_CONTRACTS.MigrationHelper)
 
 type SubmittedBatchReconciliation = {
   readonly recovered: readonly RecoveredSubmittedBatch[]
@@ -815,6 +1494,16 @@ const reconcileSubmittedAtomicBatch = async (params: {
     (name) => params.executions.get(name)?.verificationExpectations ?? [],
   )
   try {
+    if (params.plan.subnameRecreation)
+      await assertSubnameRecreationUnchanged({
+        publicClient: params.ctx.publicClient,
+        snapshot: params.plan.subnameRecreation,
+        domains: params.plan.registryContext
+          .filter(({ domain }) => submission.names.includes(domain.name))
+          .map(({ domain }) => domain),
+        toBlock: receipt.blockNumber,
+        ownTransactionHash: submission.hash,
+      })
     await verifyAtomicMigrationBatch({
       publicClient: params.ctx.publicClient,
       batch: { index: 0, verificationExpectations },
@@ -831,11 +1520,14 @@ const reconcileSubmittedAtomicBatch = async (params: {
       cause,
     })
   }
-  persistMigrationCompletionCheckpoint({
-    scope: params.scope,
-    transactionHash: submission.hash,
-    operations: submission.operations,
-  })
+  if (!isHistoricalMigrationSubmission(submission)) {
+    persistMigrationCompletionCheckpoint({
+      scope: params.scope,
+      transactionHash: submission.hash,
+      operations: submission.operations,
+    })
+    params.ctx.onCurrentDeploymentCheckpoint()
+  }
   return submission
 }
 
@@ -910,6 +1602,7 @@ const reconcileJournaledSubmission = async (params: {
 }
 
 const discardJournalEntriesAlreadyInRecoverySnapshot = async (params: {
+  readonly onCurrentDeploymentCheckpoint: () => void
   readonly publicClient: PublicClient
   readonly scope: MigrationBatchJournalScope
   readonly plan: MigrationPlan
@@ -959,6 +1652,7 @@ const discardJournalEntriesAlreadyInRecoverySnapshot = async (params: {
   }
   for (const submission of params.submissions) {
     assertActionsMatch(submission.operations, 'submission')
+    if (isHistoricalMigrationSubmission(submission)) continue
     if (
       !includesCurrentName(submission.names) &&
       submission.operations.every(isDurablyCompleted)
@@ -969,6 +1663,7 @@ const discardJournalEntriesAlreadyInRecoverySnapshot = async (params: {
         transactionHash: submission.hash,
         operations: submission.operations,
       })
+      params.onCurrentDeploymentCheckpoint()
       removeSubmittedAtomicMigrationBatch(params.scope, submission.hash)
       removePendingAtomicMigrationIntent(params.scope, submission.intentId)
     }
@@ -993,6 +1688,7 @@ const reconcileSubmittedAtomicBatches = async (params: {
     loadMigrationBatchJournal(scope)
   const { intents, submissions } =
     await discardJournalEntriesAlreadyInRecoverySnapshot({
+      onCurrentDeploymentCheckpoint: params.ctx.onCurrentDeploymentCheckpoint,
       publicClient: params.ctx.publicClient,
       scope,
       plan: params.plan,
@@ -1255,6 +1951,7 @@ const recoverMaskedRpcEstimate = async (params: {
   readonly ctx: Pick<MigrationCtx, 'publicClient' | 'walletAddress'>
   readonly call: Call
   readonly error: ReturnType<typeof decodeMigrationError>
+  readonly maxGas: bigint
 }): Promise<bigint | null> => {
   if (
     params.error.type !== 'generic' ||
@@ -1269,9 +1966,9 @@ const recoverMaskedRpcEstimate = async (params: {
       to: params.call.to,
       data: params.call.data,
       value: params.call.value,
-      gas: TARGET_GAS,
+      gas: params.maxGas,
     })
-    return TARGET_GAS
+    return params.maxGas
   } catch {
     try {
       await params.ctx.publicClient.call({
@@ -1281,7 +1978,7 @@ const recoverMaskedRpcEstimate = async (params: {
         value: params.call.value,
         gas: 20_000_000n,
       })
-      return TARGET_GAS + 1n
+      return params.maxGas + 1n
     } catch {
       return null
     }
@@ -1309,6 +2006,7 @@ const estimateOuterCallGas = async (params: {
   readonly ctx: MigrationCtx
   readonly call: Call
   readonly retryPermissionHeadLag: boolean
+  readonly maxGas: bigint
 }): Promise<bigint> => {
   let retryIndex = 0
   while (true) {
@@ -1331,6 +2029,7 @@ const estimateOuterCallGas = async (params: {
         ctx: params.ctx,
         call: params.call,
         error: decodedError,
+        maxGas: params.maxGas,
       })
       if (recoveredEstimate !== null) return recoveredEstimate
       throw error
@@ -1348,7 +2047,13 @@ const buildNextAtomicBatch = async (params: {
   readonly retryPermissionHeadLag: boolean
 }) => {
   const { ctx, plan, remaining, retryPermissionHeadLag } = params
-  await assertCopyMigrationReadiness({
+  const maxOuterGas = maxOuterGasFor(ctx.canBatchAtomically)
+  await assertLockedMigrationResolversUnchanged({
+    publicClient: ctx.publicClient,
+    names: remaining,
+  })
+  await assertLockedResolverReplacementRecordSafety(remaining, ctx.publicClient)
+  const directMigrationExpiries = await assertCopyMigrationReadiness({
     publicClient: ctx.publicClient,
     hca: ctx.hcaAddress,
     wallet: ctx.walletAddress,
@@ -1378,6 +2083,7 @@ const buildNextAtomicBatch = async (params: {
       )
       .find((count) => count > 0) ?? 1
   const atomicPlan = await buildAtomicMigrationBatches({
+    directMigrationExpiries,
     chainId: requireChainId(ctx.publicClient, 'migration'),
     hca: ctx.hcaAddress,
     wallet: ctx.walletAddress,
@@ -1391,7 +2097,14 @@ const buildNextAtomicBatch = async (params: {
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
     resolverWriter: resolverWriterFor(resolverReadiness),
-    maxOuterGas: TARGET_GAS,
+    deployedManagerResolvers: await checkRetainedManagerResolvers({
+      publicClient: ctx.publicClient,
+      chainId: requireChainId(ctx.publicClient, 'migration'),
+      hca: ctx.hcaAddress,
+      wallet: ctx.walletAddress,
+      classified: remaining,
+    }),
+    maxOuterGas,
     firstBatchOnly: true,
     initialBatchSize,
     estimateBatchGas: async ({ call, walletCall }) => ({
@@ -1399,6 +2112,7 @@ const buildNextAtomicBatch = async (params: {
         ctx,
         call,
         retryPermissionHeadLag,
+        maxGas: maxOuterGas,
       }),
       // The replay is a plain transaction, so nothing can lag behind it and the
       // masked dRPC recovery (an ERC-1155 wrapper ceiling) does not apply.
@@ -1409,7 +2123,7 @@ const buildNextAtomicBatch = async (params: {
   })
   const batch = atomicPlan.batches[0]
   if (!batch) throw new Error('Atomic migration did not produce a batch')
-  if (batch.estimatedGas <= 0n || maxBatchGas(batch) > TARGET_GAS) {
+  if (batch.estimatedGas <= 0n || maxBatchGas(batch) > maxOuterGas) {
     throw new Error('Migration batch exceeds the supported gas budget')
   }
   return batch
@@ -1447,10 +2161,10 @@ const commitReconciliationJournal = (params: {
 }): void => {
   if (params.intentIds.length === 0 && params.submissions.length === 0) return
   const durableCopyRecovery = usesDurableCopyRecovery(params.sourcePlan)
-  const retainFinalEvidenceForCleanup =
+  const retainFinalEvidence =
     durableCopyRecovery && params.executionPlan.classified.length === 0
 
-  if (durableCopyRecovery && !retainFinalEvidenceForCleanup) {
+  if (!retainFinalEvidence) {
     // Advance the immutable tree before deleting the evidence that authorized
     // exact-state reconciliation. A crash on either side remains recoverable.
     persistRecoveryPlan(
@@ -1459,12 +2173,13 @@ const commitReconciliationJournal = (params: {
       params.executionPlan.classified,
     )
   }
-  if (retainFinalEvidenceForCleanup) return
+  if (retainFinalEvidence) return
 
   for (const intentId of params.intentIds) {
     removePendingAtomicMigrationIntent(params.scope, intentId)
   }
   for (const submission of params.submissions) {
+    if (isHistoricalMigrationSubmission(submission)) continue
     removeSubmittedAtomicMigrationBatch(params.scope, submission.hash)
     removePendingAtomicMigrationIntent(params.scope, submission.intentId)
   }
@@ -1612,12 +2327,28 @@ const replayWalletRecords = async (params: {
   params.ctx.tracker.emit('Records copied')
 }
 
+const assertSubnameRecreationEnabled = (
+  plan: MigrationPlan,
+  canRecreateSubnames?: () => boolean,
+): void => {
+  if (
+    plan.subnameRecreation &&
+    (plan.isSubnameRecreationEnabled === false ||
+      canRecreateSubnames?.() === false)
+  ) {
+    throw new Error(
+      'Subname migration is not enabled for this session. Your transaction history has been reconciled; remaining imports are preserved for later.',
+    )
+  }
+}
+
 const executeRemainingAtomicBatches = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
   readonly publicClient: PublicClient
   readonly onBatchComplete?: OnBatchComplete
   readonly retryPermissionHeadLag: boolean
+  readonly canRecreateSubnames?: () => boolean
 }): Promise<readonly Hex[]> => {
   const hashes: Hex[] = []
   let remaining = [...params.plan.classified]
@@ -1625,6 +2356,7 @@ const executeRemainingAtomicBatches = async (params: {
   let retryPermissionHeadLag = params.retryPermissionHeadLag
 
   while (remaining.length > 0) {
+    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const batch = await buildNextAtomicBatch({
       ctx: params.ctx,
       plan: params.plan,
@@ -1642,6 +2374,12 @@ const executeRemainingAtomicBatches = async (params: {
       remaining,
       registryContext: params.plan.registryContext,
     })
+    await assertSupportedSubnameMigration({
+      publicClient: params.publicClient,
+      ownerAddress: params.plan.migrationOwner,
+      classified: remaining,
+    })
+    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const description = describeUpgradeOperations(batch.operations)
     try {
       await replayWalletRecords({
@@ -1652,38 +2390,66 @@ const executeRemainingAtomicBatches = async (params: {
     } catch (error) {
       throw wrapMigrationError(error, description)
     }
+    if (params.plan.subnameRecreation)
+      await assertSubnameRecreationUnchanged({
+        publicClient: params.publicClient,
+        snapshot: params.plan.subnameRecreation,
+        domains: params.plan.registryContext
+          .filter(({ domain }) => batch.names.includes(domain.name))
+          .map(({ domain }) => domain),
+      })
     const intent = {
       id: createAtomicMigrationIntentId(),
       names: batch.names,
       operations: batch.operations,
     }
-    persistPendingAtomicMigrationIntent(journalScope, intent)
+    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
+    params.ctx.submissionGate.signal.throwIfAborted()
+    persistPendingAtomicMigrationAttempt(journalScope, {
+      recovery: recoverySnapshotFor(
+        params.plan,
+        remaining,
+        loadMigrationRecoverySnapshot(journalScope),
+      ),
+      intent,
+    })
     let submittedHash: Hex | undefined
+    const onSubmitted = (nextHash: Hex) => {
+      const previousHash = submittedHash
+      submittedHash = nextHash
+      persistSubmittedAtomicMigrationBatch(journalScope, {
+        intentId: intent.id,
+        hash: nextHash,
+        names: batch.names,
+        operations: batch.operations,
+      })
+      if (
+        previousHash &&
+        previousHash.toLowerCase() !== nextHash.toLowerCase()
+      ) {
+        removeSubmittedAtomicMigrationBatch(journalScope, previousHash)
+      }
+      removePendingAtomicMigrationIntent(journalScope, intent.id)
+    }
 
     try {
       const { hash, receipt } = await submitCall(
         params.ctx,
         batch.outerCall,
         description,
-        (nextHash) => {
-          const previousHash = submittedHash
-          submittedHash = nextHash
-          persistSubmittedAtomicMigrationBatch(journalScope, {
-            intentId: intent.id,
-            hash: nextHash,
-            names: batch.names,
-            operations: batch.operations,
-          })
-          if (
-            previousHash &&
-            previousHash.toLowerCase() !== nextHash.toLowerCase()
-          ) {
-            removeSubmittedAtomicMigrationBatch(journalScope, previousHash)
-          }
-          removePendingAtomicMigrationIntent(journalScope, intent.id)
-        },
+        onSubmitted,
         withGasBuffer(batch.estimatedGas),
       )
+      if (params.plan.subnameRecreation)
+        await assertSubnameRecreationUnchanged({
+          publicClient: params.publicClient,
+          snapshot: params.plan.subnameRecreation,
+          domains: params.plan.registryContext
+            .filter(({ domain }) => batch.names.includes(domain.name))
+            .map(({ domain }) => domain),
+          toBlock: receipt.blockNumber,
+          ownTransactionHash: hash,
+        })
       await verifyAtomicMigrationBatch({
         publicClient: params.publicClient,
         batch,
@@ -1694,10 +2460,11 @@ const executeRemainingAtomicBatches = async (params: {
         transactionHash: hash,
         operations: batch.operations,
       })
+      params.ctx.onCurrentDeploymentCheckpoint()
       const nextRemaining = removeNames(remaining, batch.names)
-      const retainFinalReceiptForCleanup =
+      const retainFinalReceipt =
         nextRemaining.length === 0 && usesDurableCopyRecovery(params.plan)
-      if (!retainFinalReceiptForCleanup) {
+      if (!retainFinalReceipt) {
         // Commit the remaining operation set before deleting the receipt
         // journal. A crash at either side of this boundary therefore leaves at
         // least one durable route to reconstruct or reconcile the completed
@@ -1705,10 +2472,8 @@ const executeRemainingAtomicBatches = async (params: {
         persistRecoveryPlan(journalScope, params.plan, nextRemaining)
         removeSubmittedAtomicMigrationBatch(journalScope, hash)
       }
-      // For copy trees, keep the final verified submission and its pre-batch
-      // recovery snapshot until temporary HCA access is revoked. A reload
-      // during cleanup can then reconcile this receipt without registering the
-      // final copy twice. Direct-only plans retain their existing journal flow.
+      // Keep the final verified copy receipt until completion is durably
+      // recorded, so a reload cannot register the final copy twice.
       hashes.push(hash)
       params.onBatchComplete?.(batch.operations, hash)
       remaining = nextRemaining
@@ -1725,8 +2490,35 @@ const executeRemainingAtomicBatches = async (params: {
   return hashes
 }
 
+/**
+ * A plan previewed with bundled confirmations needs a wallet that still
+ * bundles atomically; otherwise the preview's confirmation count is wrong.
+ */
+const assertAtomicBatchingAvailable = async (
+  ctx: MigrationCtx,
+): Promise<void> => {
+  if (!ctx.canBatchAtomically) return
+  const isSupported =
+    ctx.signer.type === 'eoa' &&
+    (await getAtomicBatchSupport({
+      walletClient: ctx.signer.walletClient,
+      chainId: requireChainId(ctx.publicClient, 'migration'),
+      walletId: ctx.signer.walletId,
+    }))
+  if (isSupported) return
+  throw new MigrationPlanChangedError({
+    message:
+      'Your wallet can no longer combine confirmations. Return to selection to review the updated confirmation estimate.',
+    plannedApprovalKeys: [],
+    currentApprovalKeys: [],
+    plannedCleanupApprovalKeys: [],
+    currentCleanupApprovalKeys: [],
+  })
+}
+
 export const executeMigration = async (params: {
   readonly plan: MigrationPlan
+  readonly submissionGate: MigrationSubmissionGate
   readonly wagmiConfig: WagmiConfig
   readonly publicClient: PublicClient
   readonly signer: Signer
@@ -1736,6 +2528,7 @@ export const executeMigration = async (params: {
   readonly onBatchComplete?: OnBatchComplete
   /** Set on retry to reconcile a receipt whose post-state polling was uncertain. */
   readonly reconcileBeforeSubmit?: boolean
+  readonly canRecreateSubnames?: () => boolean
 }): Promise<MigrationResult> => {
   const {
     plan,
@@ -1747,6 +2540,9 @@ export const executeMigration = async (params: {
     onProgress,
     onBatchComplete,
   } = params
+  if (plan.subnameRecreation) {
+    assertSubnameRecreationSnapshotCurrent(plan.subnameRecreation)
+  }
   const { classified, ineligible } = plan
   const reconcileBeforeSubmit =
     params.reconcileBeforeSubmit ?? plan.requiresReconciliation ?? false
@@ -1762,105 +2558,153 @@ export const executeMigration = async (params: {
     }
   }
 
+  let hasCurrentDeploymentCheckpoint = false
   const ctx: MigrationCtx = {
+    onCurrentDeploymentCheckpoint: () => {
+      hasCurrentDeploymentCheckpoint = true
+    },
+    submissionGate: params.submissionGate,
     wagmiConfig,
     publicClient,
     signer,
     walletAddress: plan.migrationOwner,
     hcaAddress: plan.hcaAddress,
     tracker: createTracker(onProgress, plan.stepDescriptors.length),
+    canBatchAtomically:
+      plan.registrationApprovalStrategy !== 'temporary-operator' &&
+      plan.canBatchAtomically === true,
   }
   const txHashes: Hex[] = []
-
-  try {
-    const executionPlan = await prepareExecutionPlan({
-      reconcileBeforeSubmit,
-      publicClient,
-      plan,
-      ctx,
-      onBatchComplete,
-    })
-
-    if (executionPlan.classified.length > 0) {
-      // Re-read every destination pointer this plan writes, immediately before
-      // the first wallet prompt. Preflight checks it too, but that verdict is as
-      // old as the preview the user has been reading — and a retry rebuilds the
-      // stored plan without ever re-running preflight. A name that gained a
-      // registry in between would otherwise have that pointer replaced, detaching
-      // the registry and every subname inside it (WEB-1249). A pointer already
-      // equal to what this plan writes passes, so a resumed migration is never
-      // blocked by its own earlier batches.
-      await assertNoLiveSubregistryOverwrite({
+  assertTemporaryRegistrationRecoveryScope(ctx, plan)
+  await reconcileTemporaryRegistrationApproval({ ctx, plan })
+  const executionPlan = plan.requiresFreshDeploymentPreview
+    ? plan
+    : await prepareExecutionPlan({
+        reconcileBeforeSubmit,
         publicClient,
-        names: executionPlan.classified,
+        plan,
+        ctx,
+        onBatchComplete,
+      })
+
+  if (executionPlan.classified.length > 0) {
+    // A reviewed resolver may have lost certification since the estimate.
+    // Refuse before setup can request any wallet transaction.
+    await assertLockedMigrationResolversUnchanged({
+      publicClient,
+      names: executionPlan.classified,
+    })
+    // Reconcile mined work before checking capabilities: completed recovery
+    // does not need a wallet bundle and must not resubmit completed migrations.
+    await assertAtomicBatchingAvailable(ctx)
+    assertSubnameRecreationEnabled(executionPlan, params.canRecreateSubnames)
+    // Re-read every destination pointer this plan writes, immediately before
+    // the first wallet prompt. Preflight checks it too, but that verdict is as
+    // old as the preview the user has been reading — and a retry rebuilds the
+    // stored plan without ever re-running preflight. A name that gained a
+    // registry in between would otherwise have that pointer replaced, detaching
+    // the registry and every subname inside it (WEB-1249). A pointer already
+    // equal to what this plan writes passes, so a resumed migration is never
+    // blocked by its own earlier batches.
+    await assertNoLiveSubregistryOverwrite({
+      publicClient,
+      names: executionPlan.classified,
+    })
+    // The reviewed preview may predate a renewal or source change. Check
+    // again before setup signatures, after reconciling any mined batches.
+    try {
+      await assertCopyMigrationReadiness({
+        publicClient,
+        hca: executionPlan.hcaAddress,
+        wallet: executionPlan.migrationOwner,
+        remaining: executionPlan.classified,
+        registryContext: executionPlan.registryContext,
+      })
+    } catch (cause) {
+      throw new MigrationSourceChangedError({
+        message:
+          'The reviewed migration source could not be verified. Refresh before upgrading.',
+        cause,
       })
     }
+  }
 
-    // Permission state is mutable outside this flow. Check both grants and
-    // cleanup before the first wallet prompt, including cleanup-only retries.
-    // Retries may skip grants completed by a prior attempt, but new grants and
-    // cleanup must match the plan and its confirmation estimate.
-    const currentMissing = await assertMigrationApprovalPlanCurrent({
+  // Recheck grants before the first wallet prompt. Recovery can reuse grants
+  // already completed, but any new grant requires a matching preview.
+  const currentMissing = await assertMigrationApprovalPlanCurrent({
+    ctx,
+    plan: executionPlan,
+    allowGrantChanges: reconcileBeforeSubmit,
+  })
+
+  if (executionPlan.classified.length > 0) {
+    assertSubnameRecreationEnabled(executionPlan, params.canRecreateSubnames)
+    const setup = await ensureMigrationSetup({
       ctx,
       plan: executionPlan,
-      allowGrantChanges: reconcileBeforeSubmit,
+      hcaClient,
+      refreshAccount,
+      currentMissing,
     })
+    txHashes.push(...setup.hashes)
 
-    if (executionPlan.classified.length > 0) {
-      const deploymentHash = await ensureHcaDeployment({
-        ctx,
-        hcaClient,
-        refreshAccount,
-        plannedDeployment: executionPlan.hcaDeploymentRequired,
-      })
-      if (deploymentHash) txHashes.push(deploymentHash)
+    const journalScope = batchJournalScope(ctx)
+    if (usesDurableCopyRecovery(executionPlan)) {
+      persistRecoveryPlan(journalScope, executionPlan)
+    }
 
-      const approvalHashes = await ensureMigrationApprovals({
+    txHashes.push(
+      ...(await executeRemainingAtomicBatches({
         ctx,
         plan: executionPlan,
-        currentMissing,
-      })
-      txHashes.push(...approvalHashes)
-
-      const journalScope = batchJournalScope(ctx)
-      // Refresh the durable snapshot after setup and immediately before the
-      // first atomic submission.
-      persistRecoveryPlan(journalScope, executionPlan)
-
-      txHashes.push(
-        ...(await executeRemainingAtomicBatches({
-          ctx,
-          plan: executionPlan,
-          publicClient,
-          onBatchComplete,
-          retryPermissionHeadLag: approvalHashes.length > 0,
-        })),
-      )
-    }
-  } catch (error) {
-    // A changed preview must return for a new estimate without opening an
-    // unplanned revocation prompt. No transaction has been attempted yet.
-    if (error instanceof MigrationPlanChangedError) throw error
-    // A grant can be confirmed even when a later wallet prompt or batch fails.
-    // Keep the original failure if cleanup succeeds; surface cleanup failure
-    // when the wallet declines the revocation.
-    await revokeTemporaryOperatorApprovals({
-      ctx,
-      plannedCleanupApprovals: plan.preflight.migrationCleanupApprovals ?? [],
+        publicClient,
+        onBatchComplete,
+        retryPermissionHeadLag: setup.hasGrantedApprovals,
+        canRecreateSubnames: params.canRecreateSubnames,
+      })),
+    )
+  }
+  if (plan.requiresFreshDeploymentPreview) {
+    await releaseChangedHelperRecovery({ ctx, plan })
+    throw new MigrationPlanChangedError({
+      message:
+        'Review the current deployment before continuing your upgrade. Earlier permissions can be removed on the upgrade permissions page.',
+      plannedApprovalKeys: [],
+      currentApprovalKeys: [],
+      plannedCleanupApprovalKeys: [],
+      currentCleanupApprovalKeys: [],
     })
-    throw error
   }
-  txHashes.push(
-    ...(await revokeTemporaryOperatorApprovals({
-      ctx,
-      plannedCleanupApprovals: plan.preflight.migrationCleanupApprovals ?? [],
-    })),
+  const hasHistoricalEvidence = loadMigrationBatchJournal(
+    batchJournalScope(ctx),
+  ).submitted.some(
+    (submission) =>
+      isHistoricalMigrationSubmission(submission) &&
+      submission.operations.some(({ name, action }) =>
+        plan.registryContext.some(
+          (item) => item.domain.name === name && item.action === action,
+        ),
+      ),
   )
-  ctx.tracker.complete('Upgrade complete', txHashes.at(-1))
-
-  if (usesDurableCopyRecovery(plan)) {
-    clearCompletedRecoveryPlanJournal(batchJournalScope(ctx), plan)
+  if (!hasCurrentDeploymentCheckpoint && hasHistoricalEvidence) {
+    try {
+      const restored = await restoreMigrationCompletionCheckpoint({
+        scope: batchJournalScope(ctx),
+        publicClient,
+        signal: params.submissionGate.signal,
+      })
+      if (!restored)
+        throw new Error('No current-deployment completion proof is available')
+    } catch (cause) {
+      throw new MigrationHistoricalDeploymentError({
+        message:
+          'Your earlier upgrade used a previous deployment. Its transaction evidence is saved, but this version cannot restore its completion proof. No names will be submitted again.',
+        cause,
+      })
+    }
   }
+  clearCompletedRecoveryPlanJournal(batchJournalScope(ctx), plan)
+  ctx.tracker.complete('Upgrade complete', txHashes.at(-1))
 
   const completedOperations = [
     ...(plan.priorCompletedOperations ?? []),

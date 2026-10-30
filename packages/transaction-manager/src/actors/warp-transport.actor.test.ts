@@ -7,23 +7,42 @@
 import {
   buildHcaSessionConfig,
   getDestinationContracts,
+  type L2BridgeQuote,
+  L2BridgeRejectedError,
+  L2BridgeSubmitError,
+  L2BridgeUnconfirmedError,
+  quoteL2Bridge,
   sizeRefundCaps,
+  submitL2Bridge,
 } from '@ens-apps/smart-account'
-import type { RhinestoneAccount } from '@rhinestone/sdk'
+import type {
+  RhinestoneAccount,
+  RhinestoneAccountConfig,
+  TransactionResult,
+} from '@rhinestone/sdk'
+import { errAsync, okAsync } from 'neverthrow'
 import type { Address, Hash, Hex } from 'viem'
-import { mainnet, sepolia } from 'viem/chains'
+import { baseSepolia, mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ChainIdMismatchError,
+  L2PaymentNotSentError,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
-import type { RhinestoneSigner } from '../types/signer.types'
+import type { L2FundingSource, RhinestoneSigner } from '../types/signer.types'
 import type {
   EOATransactionRequest,
   RhinestoneTransactionRequest,
 } from '../types/transaction.types'
 import { submitWarpTransaction } from './warp-transport.actor'
+
+// The route rules are `validateL2BridgeQuote`'s, tested in smart-account.
+vi.mock('@ens-apps/smart-account', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@ens-apps/smart-account')>()),
+  quoteL2Bridge: vi.fn(),
+  submitL2Bridge: vi.fn(),
+}))
 
 // ── Fixtures ───────────────────────────────────────────────────────────
 
@@ -472,5 +491,256 @@ describe('submitWarpTransaction — session refund caps', () => {
     })
 
     expect(result.isOk()).toBe(true)
+  })
+})
+
+describe('submitWarpTransaction — paid from an L2', () => {
+  const OWNER = '0xd509C22482895c538D302556756630520677b76f' as Address
+  const HCA = '0xcD5d6F82dbFDfAdf0f944EE7c0AD9eD9c8e4961d' as Address
+  const BASE_USDC = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address
+  const USDC = getDestinationContracts(sepolia.id).usdc
+  const HCA_CONFIG = { account: { type: 'hca' } } as RhinestoneAccountConfig
+  const QUOTE = { amountIn: 5_012_000n } as L2BridgeQuote
+  const INTENT = {
+    type: 'intent',
+    id: 7n,
+    targetChain: sepolia.id,
+  } satisfies TransactionResult
+
+  const setup = () => {
+    const wallet = {
+      getAddress: () => OWNER,
+      waitForExecution: vi.fn(async () => ({ fill: { hash: MOCK_TX_HASH } })),
+    }
+    const source = {
+      chain: baseSepolia,
+      token: BASE_USDC,
+      getAccount: vi.fn(() => okAsync(wallet as unknown as RhinestoneAccount)),
+    } satisfies L2FundingSource
+    const signer = createMockSigner()
+    Object.assign(signer.account, { getAddress: () => HCA, config: HCA_CONFIG })
+    const onIntentSubmitted = vi.fn()
+    const request = createRhinestoneRequest({
+      rhinestoneParams: {
+        calls: MOCK_CALLS,
+        tokenRequests: [{ address: USDC, amount: 5_000_000n }],
+        onIntentSubmitted,
+      },
+    })
+    return {
+      wallet,
+      source,
+      request,
+      onIntentSubmitted,
+      signer: { ...signer, l2Funding: source },
+    }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(quoteL2Bridge).mockReturnValue(okAsync(QUOTE))
+    vi.mocked(submitL2Bridge).mockReturnValue(okAsync(INTENT))
+  })
+
+  it('quotes the HCA calls from the L2 and waits for the fill', async () => {
+    const { wallet, request, onIntentSubmitted, signer } = setup()
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
+    expect(quoteL2Bridge).toHaveBeenCalledWith(wallet, {
+      owner: OWNER,
+      sourceChain: baseSepolia,
+      sourceToken: BASE_USDC,
+      targetChain: sepolia,
+      targetToken: USDC,
+      amountOut: 5_000_000n,
+      recipient: { address: HCA, config: HCA_CONFIG },
+      calls: MOCK_CALLS,
+    })
+    expect(submitL2Bridge).toHaveBeenCalledWith(wallet, QUOTE)
+    expect(onIntentSubmitted).toHaveBeenCalledWith(7n)
+    expect(wallet.waitForExecution).toHaveBeenCalledWith(INTENT, false)
+    // Nothing goes through the HCA's own session path.
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalled()
+  })
+
+  it('pays one that only delivers, with nothing to run on the target', async () => {
+    const { wallet, request, signer } = setup()
+    const bridge = {
+      ...request,
+      rhinestoneParams: { ...request.rhinestoneParams, calls: [] },
+    }
+
+    const result = await submitWarpTransaction({ request: bridge, signer })
+
+    expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
+    expect(quoteL2Bridge).toHaveBeenCalledWith(
+      wallet,
+      expect.objectContaining({ amountOut: 5_000_000n, calls: [] }),
+    )
+  })
+
+  // The fee cap bounds the quote alone; checkout's figure is the consent.
+  it('refuses a charge above what checkout showed, before signing', async () => {
+    const { request, signer } = setup()
+
+    const result = await submitWarpTransaction({
+      request,
+      signer: { ...signer, l2DisplayedCharge: 4_000_000n },
+    })
+
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(L2PaymentNotSentError)
+    expect(error.message).toContain('5.012 USDC')
+    expect(submitL2Bridge).not.toHaveBeenCalled()
+  })
+
+  it('signs a charge within drift of what checkout showed', async () => {
+    const { request, signer } = setup()
+
+    const result = await submitWarpTransaction({
+      request,
+      signer: { ...signer, l2DisplayedCharge: QUOTE.amountIn },
+    })
+
+    expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
+    expect(submitL2Bridge).toHaveBeenCalled()
+  })
+
+  // The orchestrator may have it, so the id must reach whoever settles it.
+  it('reports an unconfirmed submission as sent, with its id', async () => {
+    const { request, onIntentSubmitted, signer } = setup()
+    vi.mocked(submitL2Bridge).mockReturnValue(
+      errAsync(
+        new L2BridgeUnconfirmedError({
+          message: 'The payment was sent, but not confirmed.',
+          intentId: 77n,
+        }),
+      ),
+    )
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(TransactionSubmissionError)
+    expect(error).not.toBeInstanceOf(L2PaymentNotSentError)
+    expect(onIntentSubmitted).toHaveBeenCalledWith(77n)
+  })
+
+  it('needs exactly one token request', async () => {
+    const { signer } = setup()
+
+    const result = await submitWarpTransaction({
+      request: createRhinestoneRequest(),
+      signer,
+    })
+
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2PaymentNotSentError)
+  })
+
+  it('does not ask for a signature when the quote is refused', async () => {
+    const { request, signer } = setup()
+    const refusal = new L2BridgeRejectedError({ message: 'Refused' })
+    vi.mocked(quoteL2Bridge).mockReturnValue(errAsync(refusal))
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(L2PaymentNotSentError)
+    expect((error.cause as Error).cause).toBe(refusal)
+    expect(submitL2Bridge).not.toHaveBeenCalled()
+  })
+
+  // A wallet can reject with a bare object, which says nothing as a cause.
+  it('names the step and the reason in what it reports', async () => {
+    const { source, request, signer } = setup()
+    source.getAccount.mockReturnValueOnce(
+      errAsync(
+        new Error('The wallet did not respond.', {
+          cause: { code: -32603, message: 'nope' },
+        }),
+      ),
+    )
+
+    const error = (
+      await submitWarpTransaction({ request, signer })
+    )._unsafeUnwrapErr()
+
+    expect(error).toBeInstanceOf(L2PaymentNotSentError)
+    expect(error.message).toBe(
+      'Failed to submit transaction: Could not reach the wallet on Base Sepolia: The wallet did not respond. nope',
+    )
+  })
+
+  // Wallets reject with bare, sometimes circular, objects that have no message.
+  it('reports a reason that has no message', async () => {
+    const { request, signer } = setup()
+    const reason: Record<string, unknown> = { code: 4100 }
+    reason.self = reason
+    vi.mocked(submitL2Bridge).mockReturnValue(
+      errAsync(
+        new L2BridgeSubmitError({
+          message: 'The payment was not signed.',
+          cause: reason,
+        }),
+      ),
+    )
+
+    const error = (
+      await submitWarpTransaction({ request, signer })
+    )._unsafeUnwrapErr()
+
+    expect(error.message).toBe(
+      'Failed to submit transaction: Could not sign the payment on Base Sepolia: The payment was not signed. {"code":4100}',
+    )
+  })
+
+  it('says so when the wallet gives no reason at all', async () => {
+    const { source, request, signer } = setup()
+    const reason: Record<string, unknown> = {}
+    reason.self = reason
+    source.getAccount.mockReturnValueOnce(errAsync(reason as never))
+
+    const error = (
+      await submitWarpTransaction({ request, signer })
+    )._unsafeUnwrapErr()
+
+    expect(error.message).toBe(
+      'Failed to submit transaction: Could not reach the wallet on Base Sepolia: no reason was given',
+    )
+  })
+
+  it("reports the wallet's own reason under a refused signature", async () => {
+    const { request, signer } = setup()
+    vi.mocked(submitL2Bridge).mockReturnValue(
+      errAsync(
+        new L2BridgeSubmitError({
+          message: 'The payment was not signed.',
+          cause: new Error('Chain 84532 is not added to the wallet'),
+        }),
+      ),
+    )
+
+    const error = (
+      await submitWarpTransaction({ request, signer })
+    )._unsafeUnwrapErr()
+
+    expect(error.message).toBe(
+      'Failed to submit transaction: Could not sign the payment on Base Sepolia: The payment was not signed. Chain 84532 is not added to the wallet',
+    )
+  })
+
+  // Submitted, so it may still fill: the caller checks the chain instead.
+  it('reports a fill it lost track of as sent', async () => {
+    const { wallet, request, signer } = setup()
+    wallet.waitForExecution.mockRejectedValueOnce(new Error('timed out'))
+
+    const error = (
+      await submitWarpTransaction({ request, signer })
+    )._unsafeUnwrapErr()
+
+    expect(error).toBeInstanceOf(TransactionSubmissionError)
+    expect(error).not.toBeInstanceOf(L2PaymentNotSentError)
   })
 })

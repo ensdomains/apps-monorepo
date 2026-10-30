@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { EditRecordsDeniedMessage } from '@/features/records/components/EditRecordsDeniedMessage'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
 import { prepareSaveRecordsTransaction } from '@/features/records/helpers/saveRecords'
@@ -78,6 +79,7 @@ function EditRecordsPage() {
     useNameResolverAddress({ name })
   const {
     canEdit,
+    editLock,
     hasOwnResolver,
     editableTypes,
     isLoading: isCanEditLoading,
@@ -202,29 +204,11 @@ function EditRecordsPage() {
           </Link>
           <h1 className="text-h1">{name}</h1>
         </div>
-        {isPermissionsError ? (
-          <ErrorMessage
-            title="Permissions unavailable"
-            description={
-              <>
-                We couldn’t read your resolver permissions for{' '}
-                <strong>{name}</strong>, so editing is disabled. Try again in a
-                moment.
-              </>
-            }
-          />
-        ) : (
-          <ErrorMessage
-            title="Permission Denied"
-            description={
-              <>
-                You don't have permission to edit records for{' '}
-                <strong>{name}</strong>. Record edits require the relevant
-                resolver roles (or ownership on a non-permissioned resolver).
-              </>
-            }
-          />
-        )}
+        <EditRecordsDeniedMessage
+          editLock={editLock}
+          isPermissionsError={isPermissionsError}
+          name={name}
+        />
       </div>
     )
   }

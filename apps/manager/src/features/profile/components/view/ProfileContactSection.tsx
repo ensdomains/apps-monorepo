@@ -1,68 +1,106 @@
 import { Trans } from '@lingui/react/macro'
-import { ArrowUpRight } from 'lucide-react'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Card } from '@/components/ui/card'
+import { type MaterialSymbol, MSymbol } from '@/components/ui/material-symbol'
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
 import {
   ProfileCard,
+  profileCardArrowClassName,
   profileCardCopyIconClassName,
-  profileCardTrailingIconStrokeWidth,
+  profileRecordGridClassName,
+  profileRecordGridItemClassName,
   profileTileClassName,
 } from './ProfileCard'
 import { getContactItems, type ProfileContactItem } from './ProfileView.helpers'
+
+const contactMaterialIcon: Partial<Record<string, MaterialSymbol>> = {
+  email: 'mail',
+  mail: 'home',
+  phone: 'phone',
+}
+
+const contactMaterialIconClassName =
+  'ms-opsz-32 ms-wght-280 text-[32px] text-ens-quartz-900 leading-none tracking-[0.4px] [text-box-edge:cap_alphabetic] [text-box-trim:trim-both]'
 
 const contactCardSurfaceClassName = cn(
   profileTileClassName,
   'transition hover:bg-ens-quartz-50',
 )
 const contactLabelClassName =
-  'w-full truncate text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] xl:text-xs xl:leading-4.5 xl:tracking-[-0.132px]'
+  'h-[16.5px] w-full truncate font-sans font-normal text-[11px] text-ens-quartz-500 leading-[16.5px] tracking-[-0.121px] xl:h-[18px] xl:text-xs xl:leading-[18px] xl:tracking-[-0.132px]'
 const contactValueClassName =
-  'w-full truncate text-ens-quartz-500 text-[13px] leading-[19.5px] tracking-[-0.143px] xl:text-sm xl:text-ens-quartz-700 xl:leading-normal xl:tracking-[-0.154px]'
-const contactTrailingIconClassName =
-  'absolute top-4 right-4 ml-0 size-6 shrink-0 text-ens-quartz-400 xl:top-[24.25px] xl:right-[24.25px] xl:size-7.5 xl:text-ens-quartz-700'
-const contactCopyIconClassName = cn(
-  profileCardCopyIconClassName,
-  'absolute top-4 right-4 xl:top-[24.25px] xl:right-[24.25px]',
+  'h-[19.5px] w-full truncate font-sans font-normal text-[13px] text-ens-quartz-500 leading-[19.5px] tracking-[-0.143px] xl:h-[21px] xl:text-sm xl:text-ens-quartz-700 xl:leading-[21px] xl:tracking-[-0.154px]'
+const contactTrailingIconClassName = cn(
+  profileCardArrowClassName,
+  'absolute top-6 right-6',
 )
-const contactCardPaddingClassName =
-  'p-4 has-[>svg]:px-4 xl:p-[24.25px] xl:has-[>svg]:px-[24.25px]'
+const contactCopyIconClassName = (wide: boolean) =>
+  cn(
+    profileCardCopyIconClassName,
+    'absolute top-6 right-6',
+    wide && 'max-xl:static max-xl:top-auto max-xl:right-auto',
+  )
+const contactCardPaddingClassName = 'p-6'
 
 export const ProfileContactCard = ({
   item,
+  wide = false,
 }: {
   readonly item: ProfileContactItem
+  readonly wide?: boolean
 }) => {
+  const materialIcon = contactMaterialIcon[item.key]
+  const icon = materialIcon ? (
+    <MSymbol className={contactMaterialIconClassName} symbol={materialIcon} />
+  ) : (
+    <IconRenderer className="size-6 text-ens-quartz-900" icon={item.icon} />
+  )
+  const value = (
+    <p className={contactValueClassName}>
+      {item.displayPrefix}
+      {item.displayValue}
+    </p>
+  )
   const content = (
     <>
-      <div className="flex w-full min-w-0 flex-col items-start gap-2">
-        <div className="flex w-full items-center justify-between">
-          <IconRenderer
-            className="size-7 text-ens-quartz-900 xl:size-7.5"
-            icon={item.icon}
-          />
+      <div
+        className={cn(
+          'flex w-full min-w-0 flex-col items-start gap-2',
+          wide &&
+            'max-xl:w-auto max-xl:flex-row max-xl:items-center max-xl:gap-3',
+        )}
+      >
+        {icon}
+        <div className="flex min-w-0 flex-col">
+          <p className={contactLabelClassName}>{item.label}</p>
+          {wide ? <div className="xl:hidden">{value}</div> : null}
         </div>
-        <p className={contactLabelClassName}>{item.label}</p>
       </div>
-      <p className={contactValueClassName}>
-        {item.displayPrefix}
-        {item.displayValue}
-      </p>
+      {wide ? <div className="hidden w-full xl:block">{value}</div> : value}
     </>
   )
 
-  const className = `${contactCardSurfaceClassName} ${contactCardPaddingClassName} relative flex min-h-28 w-full flex-col items-start gap-2 text-left xl:min-h-33.5`
+  // Stacked cards keep a 112px floor and stretch with the row. The full-width
+  // mobile card hugs its icon and two text lines instead of that floor.
+  const className = cn(
+    contactCardSurfaceClassName,
+    contactCardPaddingClassName,
+    'relative flex w-full flex-col items-start gap-0 text-left font-sans xl:gap-2',
+    'min-h-28 xl:min-h-33.5',
+    wide &&
+      'max-xl:h-auto max-xl:min-h-0 max-xl:flex-row max-xl:items-center max-xl:justify-between',
+  )
 
   if (item.href) {
     return (
       <Card asChild className={className}>
         <a href={item.href} rel="noopener noreferrer" target="_blank">
           {content}
-          <ArrowUpRight
+          <MSymbol
             className={contactTrailingIconClassName}
-            strokeWidth={1.33}
+            symbol="arrow_outward"
           />
         </a>
       </Card>
@@ -72,8 +110,7 @@ export const ProfileContactCard = ({
   return (
     <Card asChild className={`${className} h-auto items-start`}>
       <CopyableButton
-        iconClassName={contactCopyIconClassName}
-        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
+        iconClassName={contactCopyIconClassName(wide)}
         value={item.displayValue}
         variant="ghost"
       >
@@ -93,9 +130,17 @@ export const ProfileContactSection = ({
 
   return (
     <ProfileCard title={<Trans>Contact</Trans>}>
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-3 xl:gap-6">
-        {contacts.map((item) => (
-          <ProfileContactCard item={item} key={item.key} />
+      <div className={profileRecordGridClassName}>
+        {contacts.map((item, index) => (
+          <div
+            className={profileRecordGridItemClassName(index, contacts.length)}
+            key={item.key}
+          >
+            <ProfileContactCard
+              item={item}
+              wide={index === contacts.length - 1 && contacts.length % 2 === 1}
+            />
+          </div>
         ))}
       </div>
     </ProfileCard>

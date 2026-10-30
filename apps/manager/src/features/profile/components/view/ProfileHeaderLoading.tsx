@@ -1,4 +1,3 @@
-import { Copy } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Card } from '@/components/ui/card'
 import {
@@ -8,6 +7,7 @@ import {
 import { getLoadingHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { cn } from '@/lib/utils'
 import { tw } from '@/utils/tailwind'
+import { ProfileDesktopActionsLoading } from './ProfileActionsLoading'
 import { getMotionProps, SkeletonBlock } from './ProfileLoadingPrimitives'
 
 const neutralAvatarCellIds = Array.from({ length: 36 }, (_, index) => index)
@@ -110,23 +110,26 @@ const ProfileDetailLoading = ({
   readonly symbol: MaterialSymbolProps['symbol']
   readonly valueWidth: string
 }) => (
-  <div className="flex min-w-0 flex-col items-start gap-0 xl:flex-row xl:items-center xl:gap-1.5">
+  <div className="flex min-w-0 flex-col items-start gap-0.5">
     <div
       className={cn(
-        'flex items-center text-ens-quartz-400 text-xs leading-5.25 xl:text-base xl:leading-normal',
+        'flex items-center text-[13px] text-ens-quartz-500 leading-none',
         iconGapClassName,
       )}
     >
-      <MSymbol className="ms-opsz-20 ms-wght-300 shrink-0" symbol={symbol} />
+      <MSymbol className="ms-opsz-11 ms-wght-300 shrink-0" symbol={symbol} />
       <span>{label}</span>
     </div>
-    <div className="flex min-w-0 items-center gap-1 pl-6 xl:pl-0">
+    <div className="flex min-w-0 items-center gap-0.5 py-1">
       <SkeletonBlock
-        className={tw('h-4.5 rounded-sm xl:h-5', valueWidth)}
+        className={tw('h-[13px] rounded-sm', valueWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
       {hasCopy ? (
-        <Copy className="size-3.5 shrink-0 text-ens-quartz-400 xl:size-4" />
+        <MSymbol
+          className="ms-opsz-11 ms-wght-400 text-[11px] text-ens-quartz-500 leading-[11px]"
+          symbol="content_copy"
+        />
       ) : null}
     </div>
   </div>
@@ -152,8 +155,8 @@ export const ProfileHeaderLoading = ({
         name={name}
         shouldReduceMotion={shouldReduceMotion}
       />
-      <div className="mt-10 w-full px-5 xl:mt-0 xl:px-0">
-        <div className="grid w-full grid-cols-3 gap-3 xl:flex xl:max-w-full xl:flex-wrap xl:items-center xl:gap-x-6 xl:gap-y-3">
+      <div className="mt-8 flex w-full items-start justify-between gap-4 px-5 xl:mt-0 xl:px-0">
+        <div className="flex min-w-0 flex-1 flex-row flex-wrap items-start justify-between gap-5 xl:flex-nowrap xl:justify-start">
           <ProfileDetailLoading
             hasCopy
             iconGapClassName="gap-0.5"
@@ -175,22 +178,29 @@ export const ProfileHeaderLoading = ({
             valueWidth="w-14 xl:w-28"
           />
         </div>
+        <ProfileDesktopActionsLoading shouldReduceMotion={shouldReduceMotion} />
       </div>
       <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t xl:hidden" />
     </div>
 
     <div className="mt-29 flex flex-col gap-6 px-5 xl:mt-0 xl:flex-row xl:items-stretch xl:px-0">
       <NeutralAvatarLoading
-        className="hidden size-45.5 shrink-0 rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)] xl:block"
+        className="hidden shrink-0 xl:block"
         shouldReduceMotion={shouldReduceMotion}
       />
-      <Card className="min-h-0 flex-1 rounded-none border-0 bg-transparent p-0 shadow-none xl:min-h-45.5 xl:max-w-158.75 xl:rounded-xl xl:border-[0.5px] xl:bg-white xl:p-6 xl:shadow-temp-card">
-        <div className="grid w-full gap-8 xl:grid-cols-[minmax(0,346.5px)_228px] xl:gap-3">
+      <Card className="min-h-0 w-full flex-1 rounded-none border-0 bg-transparent p-0 shadow-none xl:min-h-45.5 xl:rounded-xl xl:border-[0.5px] xl:bg-white xl:p-6 xl:shadow-temp-card">
+        <div className="grid w-full gap-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:justify-between xl:gap-8">
           <div className="min-w-0">
-            <SkeletonBlock
-              className="h-5 w-16"
-              shouldReduceMotion={shouldReduceMotion}
-            />
+            <div className="flex items-start justify-between gap-3">
+              <SkeletonBlock
+                className="h-5 w-16"
+                shouldReduceMotion={shouldReduceMotion}
+              />
+              <SkeletonBlock
+                className="h-4 w-28 xl:hidden"
+                shouldReduceMotion={shouldReduceMotion}
+              />
+            </div>
             <div className="mt-4 space-y-3">
               <SkeletonBlock
                 className="h-4 w-full"
@@ -206,25 +216,34 @@ export const ProfileHeaderLoading = ({
               />
             </div>
           </div>
-          <div className="grid min-w-0 grid-cols-3 gap-4 xl:flex xl:flex-col xl:justify-start xl:gap-1.5">
-            {['timezone', 'language', 'location'].map((id, index) => (
-              <div
-                className="flex min-w-0 items-start gap-1 xl:items-center"
-                key={id}
-              >
-                <SkeletonBlock
-                  className="size-5 shrink-0 rounded xl:size-6"
-                  shouldReduceMotion={shouldReduceMotion}
-                />
-                <SkeletonBlock
-                  className={tw(
-                    'h-5',
-                    index === 0 ? 'w-36' : index === 1 ? 'w-24' : 'w-28',
-                  )}
-                  shouldReduceMotion={shouldReduceMotion}
-                />
-              </div>
-            ))}
+          <div className="flex min-w-0 flex-row-reverse items-start justify-between gap-4 xl:flex-col xl:gap-1.5 xl:justify-self-end">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              {['timezone', 'language'].map((id) => (
+                <div className="flex min-w-0 items-center gap-1" key={id}>
+                  <SkeletonBlock
+                    className="size-5 shrink-0 rounded"
+                    shouldReduceMotion={shouldReduceMotion}
+                  />
+                  <SkeletonBlock
+                    className={tw(
+                      'h-[13px]',
+                      id === 'timezone' ? 'w-36' : 'w-24',
+                    )}
+                    shouldReduceMotion={shouldReduceMotion}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex min-w-0 items-center gap-1">
+              <SkeletonBlock
+                className="size-5 shrink-0 rounded"
+                shouldReduceMotion={shouldReduceMotion}
+              />
+              <SkeletonBlock
+                className="h-[13px] w-28"
+                shouldReduceMotion={shouldReduceMotion}
+              />
+            </div>
           </div>
         </div>
       </Card>

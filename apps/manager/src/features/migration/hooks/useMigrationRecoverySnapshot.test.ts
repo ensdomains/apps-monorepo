@@ -12,8 +12,11 @@ vi.mock('wagmi', () => wagmiMock)
 
 import { makeDomain } from '../service/_fixtures'
 import {
+  loadMigrationRecoverySnapshot,
   type MigrationRecoverySnapshot,
   persistMigrationRecoverySnapshot,
+  persistPendingAtomicMigrationAttempt,
+  removePendingAtomicMigrationIntent,
 } from '../service/migrationBatchJournal'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
@@ -89,6 +92,34 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('useMigrationRecoverySnapshot', () => {
+  it('keeps an uncertain registration grant before any migration batch was submitted', () => {
+    const recovery = makeRecoverySnapshot()
+    const temporaryRegistrationApproval = {
+      contractAddress: RESOLVER,
+      operatorAddress: HCA,
+      state: {
+        status: 'grant-pending' as const,
+        transactionId: 'approval-before-migration',
+      },
+    }
+    persistMigrationRecoverySnapshot(scope, {
+      ...recovery,
+      remainingOperations: recovery.registryOperations,
+      completedOperations: [],
+      registrationApprovalStrategy: 'temporary-operator',
+      temporaryRegistrationApproval,
+    })
+
+    const { result } = renderHook(() => useMigrationRecoverySnapshot())
+
+    expect(result.current?.temporaryRegistrationApproval).toEqual(
+      temporaryRegistrationApproval,
+    )
+    expect(
+      loadMigrationRecoverySnapshot(scope)?.temporaryRegistrationApproval,
+    ).toEqual(temporaryRegistrationApproval)
+  })
+
   it('loads the remaining copy tree after a fresh hook mount', () => {
     persistMigrationRecoverySnapshot(scope, makeRecoverySnapshot())
 
@@ -103,6 +134,32 @@ describe('useMigrationRecoverySnapshot', () => {
     expect(result.current?.plannedApprovals).toEqual([
       { id: 'eth-registry:hca' },
     ])
+  })
+
+  it('discards a fresh recovery snapshot after its pending attempt is rejected', () => {
+    const recovery = makeRecoverySnapshot()
+    const freshRecovery = {
+      ...recovery,
+      remainingOperations: recovery.registryOperations,
+      completedOperations: [],
+    }
+    const intent = {
+      id: 'intent-1',
+      names: freshRecovery.remainingOperations.map(({ name }) => name),
+      operations: freshRecovery.remainingOperations,
+    }
+    persistPendingAtomicMigrationAttempt(scope, {
+      recovery: freshRecovery,
+      intent,
+    })
+
+    const { result } = renderHook(() => useMigrationRecoverySnapshot())
+    expect(result.current).toMatchObject({ completedOperations: [] })
+
+    act(() => removePendingAtomicMigrationIntent(scope, intent.id))
+
+    expect(result.current).toBeNull()
+    expect(loadMigrationRecoverySnapshot(scope)).toBeNull()
   })
 
   it('does not load another HCA scope', () => {

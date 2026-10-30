@@ -2,13 +2,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ResolverWriteState } from '@/features/profile/service/resolverWriteAccess'
 import { useCanEditRecords } from './useCanEditRecords'
 
 const OWNER_WALLET = '0x0000000000000000000000000000000000000001'
 
 const mocks = vi.hoisted(() => ({
-  canWrite: vi.fn<() => Promise<ResolverWriteState>>(),
+  canWrite: vi.fn<() => Promise<boolean>>(),
 }))
 
 vi.mock('@/lib/smart-account', () => ({
@@ -20,12 +19,6 @@ vi.mock('@/features/profile/service/resolverWriteAccess', () => ({
     queryFn: mocks.canWrite,
   }),
 }))
-
-const writeState = (canWrite: boolean): ResolverWriteState => ({
-  resolverAddress: undefined,
-  canWrite,
-  isResolverInvalid: false,
-})
 
 const wrapper = ({ children }: { readonly children: ReactNode }) => (
   <QueryClientProvider
@@ -45,22 +38,23 @@ describe('useCanEditRecords', () => {
     mocks.canWrite.mockReset()
   })
 
-  it('lets the owner edit without probing the resolver', () => {
+  it('lets the owner edit after probing the resolver', async () => {
+    mocks.canWrite.mockResolvedValue(true)
     const { result } = renderCanEdit(true)
 
-    expect(result.current).toBe(true)
-    expect(mocks.canWrite).not.toHaveBeenCalled()
+    await waitFor(() => expect(result.current).toBe(true))
+    expect(mocks.canWrite).toHaveBeenCalled()
   })
 
   it('lets a previous owner edit while their wallet can still write the resolver', async () => {
-    mocks.canWrite.mockResolvedValue(writeState(true))
+    mocks.canWrite.mockResolvedValue(true)
     const { result } = renderCanEdit(false)
 
     await waitFor(() => expect(result.current).toBe(true))
   })
 
   it('hides editing once the resolver rejects the wallet', async () => {
-    mocks.canWrite.mockResolvedValue(writeState(false))
+    mocks.canWrite.mockResolvedValue(false)
     const { result } = renderCanEdit(false)
 
     await waitFor(() => expect(mocks.canWrite).toHaveBeenCalled())

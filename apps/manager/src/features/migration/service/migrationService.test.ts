@@ -9,18 +9,23 @@ import { Storage } from 'happy-dom'
 import {
   type Address,
   encodeErrorResult,
+  encodeFunctionData,
   type Hex,
   type PublicClient,
   parseAbi,
   type TransactionReceipt,
 } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { V2_CONTRACTS } from '../contracts/addresses'
+import { OPERATOR_APPROVAL_ABI } from '../contracts/abis'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 
 const mocks = vi.hoisted(() => ({
   buildHcaDeploymentCall: vi.fn(),
   verifyStandaloneHca: vi.fn(),
   startTransaction: vi.fn(),
+  getAtomicBatchSupport: vi.fn(),
+  getPersistedTransaction: vi.fn(),
+  getArchivedTransactions: vi.fn(),
   waitForTransactionHash: vi.fn(),
   waitForTransaction: vi.fn(),
   buildAtomicMigrationBatches: vi.fn(),
@@ -30,9 +35,20 @@ const mocks = vi.hoisted(() => ({
   checkResolverReadiness: vi.fn(),
   assertCopyMigrationReadiness: vi.fn(),
   assertCopySourcesFresh: vi.fn(),
+  assertSupportedSubnameMigration: vi.fn(),
   reconcileAtomicMigrationBatch: vi.fn(),
   verifyAtomicMigrationBatch: vi.fn(),
   assertNoLiveSubregistryOverwrite: vi.fn(),
+  assertLockedMigrationResolversUnchanged: vi.fn(),
+  assertLockedResolverReplacementRecordSafety: vi.fn(),
+  verifyMigrationRecoveryTransaction: vi.fn(),
+  restoreMigrationCompletionCheckpoint: vi.fn(),
+}))
+
+vi.mock('./buildMigrationPlan', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./buildMigrationPlan')>()),
+  assertLockedResolverReplacementRecordSafety:
+    mocks.assertLockedResolverReplacementRecordSafety,
 }))
 
 vi.mock('@ens-apps/smart-account', async (importOriginal) => ({
@@ -43,6 +59,9 @@ vi.mock('@ens-apps/smart-account', async (importOriginal) => ({
 
 vi.mock('@ens-apps/transaction-manager', () => ({
   transactionManager: { startTransaction: mocks.startTransaction },
+  getAtomicBatchSupport: mocks.getAtomicBatchSupport,
+  getTransaction: mocks.getPersistedTransaction,
+  getArchivedTransactions: mocks.getArchivedTransactions,
   waitForTransactionHash: mocks.waitForTransactionHash,
   waitForTransaction: mocks.waitForTransaction,
 }))
@@ -63,11 +82,25 @@ vi.mock('./migrationInvariants', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./migrationInvariants')>()),
   checkDeterministicMigrationResolverReadiness: mocks.checkResolverReadiness,
   assertNoLiveSubregistryOverwrite: mocks.assertNoLiveSubregistryOverwrite,
+  assertLockedMigrationResolversUnchanged:
+    mocks.assertLockedMigrationResolversUnchanged,
 }))
 
 vi.mock('./copyMigrationReadiness', () => ({
   assertCopyMigrationReadiness: mocks.assertCopyMigrationReadiness,
   assertCopySourcesFresh: mocks.assertCopySourcesFresh,
+}))
+
+vi.mock('./subnameRecreation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./subnameRecreation')>()),
+  assertSupportedSubnameMigration: mocks.assertSupportedSubnameMigration,
+}))
+
+vi.mock('./migrationCompletionCheckpoint', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./migrationCompletionCheckpoint')>()),
+  verifyMigrationRecoveryTransaction: mocks.verifyMigrationRecoveryTransaction,
+  restoreMigrationCompletionCheckpoint:
+    mocks.restoreMigrationCompletionCheckpoint,
 }))
 
 vi.mock('./verifyAtomicMigrationBatch', async (importOriginal) => ({
@@ -84,6 +117,7 @@ import type {
 } from './buildAtomicMigrationBatches'
 import { buildMigrationHelperCall } from './buildMigrationHelperCall'
 import type { MigrationPlan } from './buildMigrationPlan'
+import { buildStepDescriptors } from './buildStepDescriptors'
 import type { ClassifiedName, CopyClassifiedName } from './classifyNames'
 import { groupClassifiedNames } from './classifyNames'
 import { createMigrationData } from './encodeMigration'
@@ -92,11 +126,15 @@ import {
   temporaryMigrationHcaApproval,
 } from './migrationApprovals'
 import {
+  loadMigrationBatchJournal,
   loadMigrationRecoverySnapshot,
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
+  type MigrationRecoverySnapshot,
+  persistMigrationRecoverySnapshot,
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
+  subscribeMigrationBatchJournal,
 } from './migrationBatchJournal'
 import {
   executeMigration,
@@ -133,18 +171,24 @@ const HCA_CLIENT = {
 } as unknown as Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
 
 const getCodeMock = vi.fn()
+const getBlockNumberMock = vi.fn()
 const estimateGasMock = vi.fn()
 const readContractMock = vi.fn()
 const getTransactionReceiptMock = vi.fn()
 const getTransactionMock = vi.fn()
+const getTransactionCountMock = vi.fn()
+const getBlockMock = vi.fn()
 const waitForReceiptMock = vi.fn()
 const PUBLIC_CLIENT = {
   chain: { id: 11155111 },
   getCode: getCodeMock,
+  getBlockNumber: getBlockNumberMock,
   estimateGas: estimateGasMock,
   readContract: readContractMock,
   getTransactionReceipt: getTransactionReceiptMock,
   getTransaction: getTransactionMock,
+  getTransactionCount: getTransactionCountMock,
+  getBlock: getBlockMock,
   waitForTransactionReceipt: waitForReceiptMock,
 } as unknown as PublicClient
 
@@ -359,6 +403,113 @@ const planFromClassified = (
 const planFor = (labels: readonly string[] = ['alice']): MigrationPlan =>
   planFromClassified(labels.map(classifiedFor))
 
+const BULK_APPROVAL = {
+  kind: 'operator' as const,
+  id: 'base-registrar:hca' as const,
+  contractAddress: V1_CONTRACTS.BaseRegistrar,
+  operatorAddress: V2_CONTRACTS.MigrationHelper,
+}
+const bulkPlan = (): MigrationPlan => ({
+  ...planFor(['alice', 'bob', 'carol']),
+  registrationApprovalStrategy: 'temporary-operator',
+  preflight: {
+    skipFetchProfilesPhase: true,
+    migrationApprovals: [BULK_APPROVAL],
+    migrationCleanupApprovals: [],
+  },
+})
+
+const mockBulkPermissionLifecycle = (initiallyActive = false) => {
+  let isActive = initiallyActive
+  let nextTransaction = 0
+  const transactions = new Map<
+    Hex,
+    {
+      readonly from: Address
+      readonly to: Address
+      readonly input: Hex
+      readonly value: bigint
+      readonly chainId: number
+      readonly nonce?: number
+    }
+  >()
+  const hashesById = new Map<string, Hex>()
+  mocks.startTransaction.mockImplementation(({ request }, _signer, options) => {
+    const hash = hashFor(++nextTransaction)
+    const transactionId = options.id ?? `tx-${nextTransaction}`
+    hashesById.set(transactionId, hash)
+    transactions.set(hash, {
+      from: request.from,
+      to: request.to,
+      input: request.data,
+      value: request.value,
+      chainId: request.chainId,
+      nonce: nextTransaction - 1,
+    })
+    if (request.to === BULK_APPROVAL.contractAddress)
+      isActive = request.data === GRANT_DATA
+    return transactionId
+  })
+  mocks.waitForTransactionHash.mockImplementation((id: string) =>
+    Promise.resolve(hashesById.get(id)),
+  )
+  mocks.waitForTransaction.mockImplementation((id: string) =>
+    Promise.resolve({ hash: hashesById.get(id) }),
+  )
+  getTransactionMock.mockImplementation(({ hash }: { readonly hash: Hex }) =>
+    Promise.resolve(transactions.get(hash)),
+  )
+  getBlockNumberMock.mockResolvedValue(123n)
+  readContractMock.mockImplementation(
+    ({
+      address,
+      functionName,
+    }: {
+      readonly address: Address
+      readonly functionName: string
+    }) => {
+      if (functionName === 'isApprovedForAll')
+        return Promise.resolve(
+          address === BULK_APPROVAL.contractAddress && isActive,
+        )
+      if (functionName === 'ownerOf') return Promise.resolve(OWNER)
+      if (functionName === 'balanceOf') return Promise.resolve(1n)
+      return Promise.resolve(true)
+    },
+  )
+  return {
+    isActive: () => isActive,
+    transactions,
+  }
+}
+
+const persistBulkRecovery = (
+  overrides: Partial<MigrationRecoverySnapshot> = {},
+) => {
+  const plan = bulkPlan()
+  const operations = plan.registryContext.map(({ domain, action }) => ({
+    name: domain.name,
+    action,
+  }))
+  const snapshot: MigrationRecoverySnapshot = {
+    registryDomains: plan.registryContext.map(({ domain }) => domain),
+    registryOperations: operations,
+    remainingOperations: operations,
+    completedOperations: [],
+    profiles: plan.profiles,
+    ownedPermRes: plan.ownedPermRes,
+    plannedApprovals: [{ id: 'base-registrar:hca' }],
+    managerRestorationNames: [],
+    registrationApprovalStrategy: 'temporary-operator',
+    ...overrides,
+  }
+  persistMigrationRecoverySnapshot(
+    { chainId: 11155111, owner: OWNER, hca: HCA },
+    snapshot,
+  )
+  return snapshot
+}
+
 /** A batch whose profile text records the owner wallet has to write itself. */
 const walletReplayBatch = (params: {
   readonly names: readonly string[]
@@ -422,12 +573,17 @@ const runExecute = async (
     onBatchComplete?: OnBatchComplete
     reconcileBeforeSubmit?: boolean
     onProgress?: (progress: MigrationProgress) => void
+    canRecreateSubnames?: () => boolean
+    readonly submissionSignal?: AbortSignal
   } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
   const refreshAccount = overrides.refreshAccount ?? vi.fn()
+  const submissionSignal =
+    overrides.submissionSignal ?? new AbortController().signal
   const result = await executeMigration({
     plan: overrides.plan ?? planFor(),
+    submissionGate: { signal: submissionSignal },
     wagmiConfig: WAGMI,
     publicClient: PUBLIC_CLIENT,
     signer: SIGNER,
@@ -439,12 +595,14 @@ const runExecute = async (
     },
     onBatchComplete: overrides.onBatchComplete,
     reconcileBeforeSubmit: overrides.reconcileBeforeSubmit,
+    canRecreateSubnames: overrides.canRecreateSubnames,
   })
   return { progressEvents, refreshAccount, result }
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.assertSupportedSubnameMigration.mockResolvedValue(undefined)
   vi.stubGlobal('localStorage', new Storage())
 
   let nextTransaction = 0
@@ -466,6 +624,8 @@ beforeEach(() => {
   mocks.verifyStandaloneHca.mockResolvedValue(HCA)
   mocks.checkMigrationApprovals.mockResolvedValue({})
   mocks.planMigrationApprovals.mockReturnValue([])
+  mocks.getPersistedTransaction.mockResolvedValue(null)
+  mocks.getArchivedTransactions.mockResolvedValue([])
   mocks.buildMigrationApprovalCall.mockImplementation(
     (approval: MigrationApproval) => ({
       to: approval.contractAddress,
@@ -474,6 +634,8 @@ beforeEach(() => {
     }),
   )
   mocks.assertNoLiveSubregistryOverwrite.mockResolvedValue(undefined)
+  mocks.assertLockedMigrationResolversUnchanged.mockResolvedValue(undefined)
+  mocks.assertLockedResolverReplacementRecordSafety.mockResolvedValue(undefined)
   mocks.checkResolverReadiness.mockResolvedValue({
     status: 'verified',
     resolver: RESOLVER,
@@ -521,6 +683,8 @@ beforeEach(() => {
       }
     },
   )
+  mocks.verifyMigrationRecoveryTransaction.mockResolvedValue('success')
+  mocks.restoreMigrationCompletionCheckpoint.mockResolvedValue(null)
   mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
     status: 'complete',
     verification: { batchIndex: 0, status: 'confirmed', results: [] },
@@ -532,6 +696,7 @@ beforeEach(() => {
   })
 
   getCodeMock.mockResolvedValue('0x6000')
+  getBlockNumberMock.mockResolvedValue(123n)
   estimateGasMock.mockResolvedValue(500_000n)
   readContractMock.mockImplementation(
     ({ functionName }: { functionName: string }) => {
@@ -552,6 +717,770 @@ beforeEach(() => {
 })
 
 describe('executeMigration HCA orchestration', () => {
+  it.each([false, true])(
+    'leaves bulk permission for manual removal when migration fails: %s',
+    async (hasMigrationFailed) => {
+      const permission = mockBulkPermissionLifecycle()
+      mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
+      if (hasMigrationFailed)
+        mocks.verifyAtomicMigrationBatch.mockRejectedValueOnce(
+          new Error('Migration verification failed'),
+        )
+      const plan = bulkPlan()
+      const execution = runExecute({
+        plan: {
+          ...plan,
+          preflight: { ...plan.preflight, migrationCleanupApprovals: [] },
+        },
+      })
+      if (hasMigrationFailed)
+        await expect(execution).rejects.toMatchObject({
+          name: 'MigrationError',
+          cause: { message: 'Migration verification failed' },
+        })
+      else {
+        const { result } = await execution
+        expect(result.completed).toBe(3)
+        expect(
+          loadMigrationRecoverySnapshot({
+            chainId: 11155111,
+            owner: OWNER,
+            hca: HCA,
+          }),
+        ).toBeNull()
+      }
+      expect(permission.isActive()).toBe(true)
+      expect(
+        mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
+      ).toEqual([BULK_APPROVAL.contractAddress, HCA])
+    },
+  )
+
+  it.each(['after-retry', 'after-confirmation'] as const)(
+    'finishes when the grant transaction becomes visible %s',
+    async (visibility) => {
+      vi.useFakeTimers()
+      try {
+        const permission = mockBulkPermissionLifecycle()
+        const delayedHash = hashFor(1)
+        const expectedSubmission =
+          visibility === 'after-retry'
+            ? { nonce: 0n, blockNumber: 123n }
+            : undefined
+        const confirmed = new Set<Hex>()
+        let hasMissedTransaction = false
+        mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
+        getTransactionMock.mockImplementation(
+          ({ hash }: { readonly hash: Hex }) => {
+            if (
+              hash === delayedHash &&
+              !confirmed.has(hash) &&
+              (visibility === 'after-confirmation' || !hasMissedTransaction)
+            ) {
+              hasMissedTransaction = true
+              return Promise.reject(
+                new Error('Transaction not found on this RPC yet'),
+              )
+            }
+            return Promise.resolve(permission.transactions.get(hash))
+          },
+        )
+        mocks.waitForTransaction.mockImplementation(async (id: string) => {
+          const hash = await mocks.waitForTransactionHash(id)
+          if (hash === delayedHash) {
+            const approval = loadMigrationRecoverySnapshot({
+              chainId: 11155111,
+              owner: OWNER,
+              hca: HCA,
+            })?.temporaryRegistrationApproval
+            expect(approval?.state).toMatchObject({
+              status: 'grant-pending',
+              hash,
+            })
+            expect(approval?.submission).toEqual(expectedSubmission)
+          }
+          confirmed.add(hash)
+          return { hash }
+        })
+
+        const execution = runExecute({ plan: bulkPlan() })
+        const [{ result }] = await Promise.all([
+          execution,
+          vi.runAllTimersAsync(),
+        ])
+
+        expect(result.completed).toBe(3)
+        expect(result.txHashes).toEqual([hashFor(1), hashFor(2)])
+        expect(permission.isActive()).toBe(true)
+        expect(
+          loadMigrationRecoverySnapshot({
+            chainId: 11155111,
+            owner: OWNER,
+            hca: HCA,
+          }),
+        ).toBeNull()
+        expect(
+          mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
+        ).toEqual([BULK_APPROVAL.contractAddress, HCA])
+      } finally {
+        vi.useRealTimers()
+      }
+    },
+  )
+
+  it('keeps journal write failures fatal after saving a submitted approval hash', async () => {
+    mockBulkPermissionLifecycle()
+    mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
+    const write = localStorage.setItem.bind(localStorage)
+    const storage = vi
+      .spyOn(localStorage, 'setItem')
+      .mockImplementation((key, value) => {
+        if (value.includes('"submission":'))
+          throw new Error('Metadata journal quota exceeded')
+        write(key, value)
+      })
+    try {
+      await expect(runExecute({ plan: bulkPlan() })).rejects.toMatchObject({
+        name: 'MigrationError',
+      })
+      expect(
+        mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
+      ).toEqual([BULK_APPROVAL.contractAddress])
+      expect(
+        loadMigrationRecoverySnapshot({
+          chainId: 11155111,
+          owner: OWNER,
+          hca: HCA,
+        })?.temporaryRegistrationApproval?.state,
+      ).toMatchObject({
+        status: 'grant-pending',
+        hash: hashFor(1),
+      })
+    } finally {
+      storage.mockRestore()
+    }
+  })
+
+  it('can retry a bulk grant after a confirmed pre-submission chain mismatch', async () => {
+    const permission = mockBulkPermissionLifecycle()
+    mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
+    mocks.startTransaction.mockImplementationOnce(() => {
+      throw Object.assign(new Error('not submitted'), {
+        _tag: 'ChainIdMismatchError',
+      })
+    })
+    await expect(runExecute({ plan: bulkPlan() })).rejects.toBeInstanceOf(Error)
+    expect(
+      loadMigrationRecoverySnapshot({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      })?.temporaryRegistrationApproval,
+    ).toBeUndefined()
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
+      status: 'incomplete',
+      verification: { batchIndex: 0, status: 'confirmed', results: [] },
+      mismatches: [],
+    })
+    await runExecute({ plan: bulkPlan(), reconcileBeforeSubmit: true })
+    expect(permission.isActive()).toBe(true)
+  })
+
+  it.each([undefined, hashFor(8)])(
+    'recovers an archived grant without granting again (recorded hash: %s)',
+    async (originalHash) => {
+      const permission = mockBulkPermissionLifecycle(true)
+      const replacementHash = hashFor(9)
+      const transactionId = 'sped-up-grant'
+      const request = {
+        from: OWNER,
+        to: BULK_APPROVAL.contractAddress,
+        chainId: 11155111,
+        data: GRANT_DATA,
+        value: 0n,
+      }
+      permission.transactions.set(replacementHash, {
+        ...request,
+        input: GRANT_DATA,
+      })
+      persistBulkRecovery({
+        temporaryRegistrationApproval: {
+          contractAddress: BULK_APPROVAL.contractAddress,
+          operatorAddress: BULK_APPROVAL.operatorAddress,
+          state: { status: 'grant-pending', transactionId, hash: originalHash },
+        },
+      })
+      mocks.getArchivedTransactions.mockResolvedValue([
+        {
+          id: transactionId,
+          hash: replacementHash,
+          state: 'success',
+          context: { request },
+          timestamp: 0,
+          updatedAt: 0,
+        },
+      ])
+      getTransactionReceiptMock.mockImplementation(({ hash }) =>
+        hash === originalHash
+          ? Promise.reject(new Error('dropped transaction'))
+          : Promise.resolve({ status: 'success', blockNumber: 123n }),
+      )
+      mocks.planMigrationApprovals.mockReturnValue([])
+      mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
+        status: 'incomplete',
+        verification: { batchIndex: 0, status: 'confirmed', results: [] },
+        mismatches: [],
+      })
+      await runExecute({ plan: bulkPlan(), reconcileBeforeSubmit: true })
+      expect(
+        mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
+      ).toEqual([HCA])
+      expect(permission.isActive()).toBe(true)
+    },
+  )
+
+  it.each([true, false])(
+    'reconciles a mined replacement by nonce and validates its call: %s',
+    async (isExpectedCall) => {
+      const permission = mockBulkPermissionLifecycle(true)
+      const originalHash = hashFor(8)
+      const replacementHash = hashFor(9)
+      const replacement = {
+        hash: replacementHash,
+        from: OWNER,
+        to: BULK_APPROVAL.contractAddress,
+        input: isExpectedCall ? GRANT_DATA : ('0xdead' as Hex),
+        value: 0n,
+        chainId: 11155111,
+        nonce: 7,
+      }
+      permission.transactions.set(replacementHash, replacement)
+      persistBulkRecovery({
+        temporaryRegistrationApproval: {
+          contractAddress: BULK_APPROVAL.contractAddress,
+          operatorAddress: BULK_APPROVAL.operatorAddress,
+          submission: { nonce: 7n, blockNumber: 100n },
+          state: {
+            status: 'grant-pending',
+            transactionId: 'replaced-grant',
+            hash: originalHash,
+          },
+        },
+      })
+      getTransactionCountMock.mockImplementation(
+        ({ blockNumber }: { readonly blockNumber: bigint }) =>
+          Promise.resolve(blockNumber < 120n ? 7 : 8),
+      )
+      getBlockMock.mockResolvedValue({ transactions: [replacement] })
+      getTransactionReceiptMock.mockImplementation(({ hash }) =>
+        hash === originalHash
+          ? Promise.reject(new Error('dropped transaction'))
+          : Promise.resolve({ status: 'success', blockNumber: 123n }),
+      )
+      mocks.planMigrationApprovals.mockReturnValue([])
+      mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
+        status: 'incomplete',
+        verification: { batchIndex: 0, status: 'confirmed', results: [] },
+        mismatches: [],
+      })
+      const execution = runExecute({
+        plan: bulkPlan(),
+        reconcileBeforeSubmit: true,
+      })
+      if (isExpectedCall) {
+        await execution
+        expect(permission.isActive()).toBe(true)
+        expect(
+          mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
+        ).toEqual([HCA])
+      } else {
+        await expect(execution).rejects.toMatchObject({
+          name: 'MigrationApprovalIndeterminateError',
+        })
+        expect(mocks.startTransaction).not.toHaveBeenCalled()
+      }
+      expect(getBlockMock).toHaveBeenCalledWith({
+        blockNumber: 120n,
+        includeTransactions: true,
+      })
+    },
+  )
+
+  it('recovers a legacy reverted revoke without repeating its grant', async () => {
+    const permission = mockBulkPermissionLifecycle(true)
+    const grantHash = hashFor(8)
+    const revokeHash = hashFor(9)
+    permission.transactions.set(grantHash, {
+      from: OWNER,
+      to: BULK_APPROVAL.contractAddress,
+      input: GRANT_DATA,
+      chainId: 11155111,
+      value: 0n,
+      nonce: 1,
+    })
+    permission.transactions.set(revokeHash, {
+      from: OWNER,
+      to: BULK_APPROVAL.contractAddress,
+      input: encodeFunctionData({
+        abi: OPERATOR_APPROVAL_ABI,
+        functionName: 'setApprovalForAll',
+        args: [BULK_APPROVAL.operatorAddress, false],
+      }),
+      chainId: 11155111,
+      value: 0n,
+      nonce: 2,
+    })
+    persistBulkRecovery({
+      temporaryRegistrationApproval: {
+        contractAddress: BULK_APPROVAL.contractAddress,
+        operatorAddress: BULK_APPROVAL.operatorAddress,
+        submission: { nonce: 2n, blockNumber: 123n },
+        state: {
+          status: 'revoke-pending',
+          transactionId: 'failed-revoke',
+          grantHash,
+          hash: revokeHash,
+        },
+      },
+    })
+    getTransactionReceiptMock.mockImplementation(({ hash }) =>
+      Promise.resolve({
+        status: hash === revokeHash ? 'reverted' : 'success',
+        blockNumber: 123n,
+      }),
+    )
+    mocks.planMigrationApprovals.mockReturnValue([])
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
+      status: 'incomplete',
+      verification: { batchIndex: 0, status: 'confirmed', results: [] },
+      mismatches: [],
+    })
+    await runExecute({ plan: bulkPlan(), reconcileBeforeSubmit: true })
+    expect(permission.isActive()).toBe(true)
+    expect(
+      mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
+    ).toEqual([HCA])
+  })
+
+  it('keeps an uncertain bulk grant durable before the first migration request', async () => {
+    mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
+    mocks.startTransaction.mockImplementation(({ request }) => {
+      if (request.to === BULK_APPROVAL.contractAddress) {
+        expect(
+          loadMigrationRecoverySnapshot({
+            chainId: 11155111,
+            owner: OWNER,
+            hca: HCA,
+          }),
+        ).toMatchObject({
+          registrationApprovalStrategy: 'temporary-operator',
+          temporaryRegistrationApproval: {
+            contractAddress: BULK_APPROVAL.contractAddress,
+            operatorAddress: BULK_APPROVAL.operatorAddress,
+            state: { status: 'grant-pending' },
+          },
+        })
+        throw new Error('wallet response lost')
+      }
+      return 'tx-0'
+    })
+
+    await expect(
+      runExecute({
+        plan: bulkPlan(),
+      }),
+    ).rejects.toBeInstanceOf(Error)
+
+    expect(
+      loadMigrationRecoverySnapshot({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      })?.temporaryRegistrationApproval?.state,
+    ).toMatchObject({ status: 'grant-pending' })
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+
+    mocks.startTransaction.mockClear()
+    await expect(
+      runExecute({
+        plan: bulkPlan(),
+        reconcileBeforeSubmit: true,
+      }),
+    ).rejects.toMatchObject({ name: 'MigrationApprovalIndeterminateError' })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('does not turn a rejected bulk grant into individual approvals', async () => {
+    mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
+    mocks.startTransaction.mockImplementation(() => {
+      throw Object.assign(new Error('User rejected request'), {
+        name: 'UserRejectedRequestError',
+      })
+    })
+
+    await expect(runExecute({ plan: bulkPlan() })).rejects.toMatchObject({
+      name: 'MigrationUserRejectedError',
+    })
+
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(
+      loadMigrationRecoverySnapshot({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      })?.temporaryRegistrationApproval,
+    ).toBeUndefined()
+  })
+
+  it('does not open the bulk approval when durable recovery storage cannot be written', async () => {
+    mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('Storage quota exceeded')
+    })
+
+    await expect(runExecute({ plan: bulkPlan() })).rejects.toThrow(
+      'Storage quota exceeded',
+    )
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('preserves another reviewed selection when a stale plan sees its temporary grant', async () => {
+    const temporaryRegistrationApproval = {
+      contractAddress: BULK_APPROVAL.contractAddress,
+      operatorAddress: BULK_APPROVAL.operatorAddress,
+      state: {
+        status: 'grant-pending' as const,
+        transactionId: 'another-selection',
+      },
+    }
+    persistBulkRecovery({ temporaryRegistrationApproval })
+
+    await expect(
+      runExecute({ plan: planFor(['different']) }),
+    ).rejects.toMatchObject({ name: 'MigrationPlanChangedError' })
+
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+    expect(
+      loadMigrationRecoverySnapshot({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      })?.temporaryRegistrationApproval,
+    ).toEqual(temporaryRegistrationApproval)
+  })
+
+  it('preserves a preexisting collection-wide registration permission', async () => {
+    const permission = mockBulkPermissionLifecycle(true)
+    mocks.checkMigrationApprovals.mockResolvedValue({
+      baseRegistrarHcaApproved: true,
+    })
+    mocks.planMigrationApprovals.mockReturnValue([])
+
+    const { result } = await runExecute()
+
+    expect(result.completed).toBe(1)
+    expect(
+      mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
+    ).toEqual([HCA])
+    expect(permission.isActive()).toBe(true)
+  })
+
+  it('retains a confirmed grant when the RPC head is behind its receipt', async () => {
+    const permission = mockBulkPermissionLifecycle(true)
+    const hash = hashFor(9)
+    permission.transactions.set(hash, {
+      from: OWNER,
+      to: BULK_APPROVAL.contractAddress,
+      chainId: 11155111,
+      input: GRANT_DATA,
+      value: 0n,
+    })
+    persistBulkRecovery({
+      temporaryRegistrationApproval: {
+        contractAddress: BULK_APPROVAL.contractAddress,
+        operatorAddress: BULK_APPROVAL.operatorAddress,
+        state: { status: 'granted', hash },
+      },
+    })
+    getBlockNumberMock.mockResolvedValue(122n)
+
+    await expect(
+      runExecute({ plan: bulkPlan(), reconcileBeforeSubmit: true }),
+    ).rejects.toMatchObject({ name: 'MigrationApprovalIndeterminateError' })
+
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+    expect(
+      loadMigrationRecoverySnapshot({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      })?.temporaryRegistrationApproval?.state,
+    ).toEqual({ status: 'granted', hash })
+  })
+
+  it.each([
+    'success',
+    'reverted',
+    'pending-then-success',
+    'success-with-wrong-profile',
+    'success-recorded-helper',
+  ] as const)(
+    'reconciles a %s earlier-helper migration before requiring fresh consent',
+    async (status) => {
+      const permission = mockBulkPermissionLifecycle(true)
+      const grantHash = hashFor(9)
+      const submissionHash = hashFor(10)
+      const previousHelper =
+        '0x0000000000000000000000000000000000000099' as Address
+      const recordedHelper =
+        status === 'success-recorded-helper'
+          ? ('0x0000000000000000000000000000000000000088' as Address)
+          : previousHelper
+      const temporaryRegistrationApproval = {
+        contractAddress: BULK_APPROVAL.contractAddress,
+        operatorAddress: previousHelper,
+        state: { status: 'granted' as const, hash: grantHash },
+      }
+      const recovery = persistBulkRecovery({
+        migrationHelper: previousHelper,
+        temporaryRegistrationApproval,
+      })
+      permission.transactions.set(grantHash, {
+        from: OWNER,
+        to: BULK_APPROVAL.contractAddress,
+        chainId: 11155111,
+        input: GRANT_DATA,
+        value: 0n,
+      })
+      persistSubmittedAtomicMigrationBatch(
+        { chainId: 11155111, owner: OWNER, hca: HCA },
+        {
+          intentId: 'earlier-helper-batch',
+          hash: submissionHash,
+          ...(status === 'success-recorded-helper'
+            ? { migrationHelper: recordedHelper }
+            : {}),
+          names: ['alice.eth'],
+          operations: [{ name: 'alice.eth', action: 'migrate' }],
+        },
+      )
+      mocks.verifyMigrationRecoveryTransaction.mockResolvedValue(
+        status === 'reverted' ? 'reverted' : 'success',
+      )
+      const plan: MigrationPlan = {
+        ...bulkPlan(),
+        classified: [],
+        groups: groupClassifiedNames([]),
+        atomicBatches: [],
+        requiresReconciliation: true,
+        requiresFreshDeploymentPreview: true,
+        temporaryRegistrationApproval,
+        preflight: {
+          skipFetchProfilesPhase: true,
+          migrationApprovals: [],
+          migrationCleanupApprovals: [],
+        },
+      }
+
+      if (status === 'pending-then-success') {
+        mocks.verifyMigrationRecoveryTransaction.mockRejectedValueOnce(
+          new Error('Receipt is still pending'),
+        )
+        await expect(runExecute({ plan })).rejects.toMatchObject({
+          name: 'MigrationApprovalIndeterminateError',
+        })
+        const unresolved = loadMigrationBatchJournal({
+          chainId: 11155111,
+          owner: OWNER,
+          hca: HCA,
+        })
+        expect(unresolved.submitted.map(({ hash }) => hash)).toEqual([
+          submissionHash,
+        ])
+        expect(unresolved.recovery?.remainingOperations).toEqual(
+          recovery.remainingOperations,
+        )
+        expect(unresolved.recovery?.migrationHelper).toBe(previousHelper)
+      }
+      await expect(runExecute({ plan })).rejects.toMatchObject({
+        name: 'MigrationPlanChangedError',
+      })
+
+      expect(mocks.verifyMigrationRecoveryTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionHash: submissionHash,
+          migrationHelper: recordedHelper,
+        }),
+      )
+      const updated = loadMigrationBatchJournal({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      })
+      expect(
+        updated.submitted.map(({ hash, migrationHelper }) => ({
+          hash,
+          migrationHelper,
+        })),
+      ).toEqual(
+        status === 'reverted'
+          ? []
+          : [{ hash: submissionHash, migrationHelper: recordedHelper }],
+      )
+      expect(updated.recovery?.migrationHelper).toBe(
+        V2_CONTRACTS.MigrationHelper,
+      )
+      expect(updated.recovery?.temporaryRegistrationApproval).toBeUndefined()
+      expect(updated.recovery?.profiles).toEqual(recovery.profiles)
+      expect(updated.recovery?.completedOperations).toEqual([])
+      expect(
+        updated.recovery?.remainingOperations.map(({ name }) => name),
+      ).toEqual(['alice.eth', 'bob.eth', 'carol.eth'])
+      expect(permission.isActive()).toBe(true)
+      if (status !== 'success' && status !== 'success-with-wrong-profile')
+        return
+
+      const profileExpectation = {
+        id: 'alice.eth:profile-text:url',
+        type: 'profile-text' as const,
+        name: 'alice.eth',
+        node: hashFor(88),
+        resolver: RESOLVER,
+        key: 'url',
+        value: 'https://frozen.example',
+      }
+      const freshPlan = bulkPlan()
+      // The recorded old helper stays approved; the new helper has no grant.
+      mockBulkPermissionLifecycle()
+      const resumedPlan = {
+        ...freshPlan,
+        atomicBatches: freshPlan.atomicBatches.map((batch) => ({
+          ...batch,
+          nameExecutions: batch.nameExecutions.map((execution) =>
+            execution.classified.domain.name === 'alice.eth'
+              ? {
+                  ...execution,
+                  verificationExpectations: [
+                    ...execution.verificationExpectations,
+                    profileExpectation,
+                  ],
+                }
+              : execution,
+          ),
+        })),
+      }
+      mocks.startTransaction.mockClear()
+      mocks.planMigrationApprovals.mockReturnValue([BULK_APPROVAL])
+      mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
+        status: 'incomplete',
+        verification: { batchIndex: 0, status: 'confirmed', results: [] },
+        mismatches: [],
+      })
+      if (status === 'success-with-wrong-profile') {
+        mocks.verifyAtomicMigrationBatch.mockRejectedValueOnce(
+          new Error('The frozen URL record does not match'),
+        )
+        await expect(
+          runExecute({ plan: resumedPlan, reconcileBeforeSubmit: true }),
+        ).rejects.toMatchObject({
+          name: 'MigrationError',
+          cause: { name: 'SubmittedAtomicMigrationVerificationError' },
+        })
+        expect(mocks.startTransaction).not.toHaveBeenCalled()
+        expect(
+          loadSubmittedAtomicMigrationBatches({
+            chainId: 11155111,
+            owner: OWNER,
+            hca: HCA,
+          }).map(({ hash }) => hash),
+        ).toEqual([submissionHash])
+      } else {
+        const { result } = await runExecute({
+          plan: resumedPlan,
+          reconcileBeforeSubmit: true,
+        })
+        expect(result.completed).toBe(3)
+        expect(
+          mocks.buildAtomicMigrationBatches.mock.calls.map(([input]) =>
+            input.classified.map(({ domain }: ClassifiedName) => domain.name),
+          ),
+        ).toEqual([['bob.eth', 'carol.eth']])
+      }
+      expect(mocks.verifyAtomicMigrationBatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          batch: expect.objectContaining({
+            verificationExpectations: expect.arrayContaining([
+              profileExpectation,
+            ]),
+          }),
+          blockNumber: 123n,
+        }),
+      )
+    },
+  )
+
+  it.each([false, true])(
+    'keeps terminal historical evidence unless a current checkpoint verifies (verified: %s)',
+    async (hasCurrentProof) => {
+      const operations = persistBulkRecovery().registryOperations
+      persistSubmittedAtomicMigrationBatch(
+        { chainId: 11155111, owner: OWNER, hca: HCA },
+        {
+          intentId: 'old-terminal-batch',
+          hash: hashFor(10),
+          migrationHelper: '0x0000000000000000000000000000000000000099',
+          names: operations.map(({ name }) => name),
+          operations,
+        },
+      )
+      mocks.restoreMigrationCompletionCheckpoint.mockResolvedValue(
+        hasCurrentProof ? operations[0] : null,
+      )
+      const plan = {
+        ...bulkPlan(),
+        preflight: {
+          skipFetchProfilesPhase: true,
+          migrationApprovals: [],
+          migrationCleanupApprovals: [],
+        },
+      }
+      if (hasCurrentProof) {
+        const { result } = await runExecute({
+          plan,
+          reconcileBeforeSubmit: true,
+        })
+        expect(result.completed).toBe(3)
+        expect(
+          loadMigrationBatchJournal({
+            chainId: 11155111,
+            owner: OWNER,
+            hca: HCA,
+          }).submitted,
+        ).toEqual([])
+      } else {
+        await expect(
+          runExecute({ plan, reconcileBeforeSubmit: true }),
+        ).rejects.toMatchObject({ name: 'MigrationHistoricalDeploymentError' })
+        expect(
+          loadMigrationBatchJournal({
+            chainId: 11155111,
+            owner: OWNER,
+            hca: HCA,
+          }).submitted.map(({ hash }) => hash),
+        ).toEqual([hashFor(10)])
+      }
+      expect(mocks.verifyAtomicMigrationBatch).toHaveBeenCalledOnce()
+      expect(mocks.restoreMigrationCompletionCheckpoint).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scope: { chainId: 11155111, owner: OWNER, hca: HCA },
+        }),
+      )
+      expect(mocks.startTransaction).not.toHaveBeenCalled()
+    },
+  )
+
   it('durably retains the full tree while advancing only verified gas-split nodes', async () => {
     const parent = classifiedFor('alice')
     const copy = copyClassifiedFor()
@@ -620,55 +1549,148 @@ describe('executeMigration HCA orchestration', () => {
     expect(recovery?.profiles.size).toBe(2)
   })
 
-  it('retains the final receipt through cleanup and resumes without duplicate registration', async () => {
-    setHcaApprovalActive()
+  it('does not submit a second durable copy gas-split batch after the submission gate is aborted', async () => {
     const parent = classifiedFor('alice')
     const copy = copyClassifiedFor()
-    const basePlan = planFromClassified([parent, copy], [parent, copy])
+    const plan = planFromClassified([parent, copy], [parent, copy])
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({
+        hca,
+        classified,
+        estimateBatchGas,
+      }: BuildAtomicMigrationBatchesParams) => {
+        const first = classified.slice(0, 1)
+        const names = first.map(({ domain }) => domain.name)
+        const outerCall = { to: hca, data: OUTER_DATA, value: 0n }
+        const { outerGas } = await estimateBatchGas({
+          call: outerCall,
+          names,
+          innerExecutions: [],
+          walletCall: null,
+          walletExecutions: [],
+        })
+        return {
+          resolver: RESOLVER,
+          batches: [
+            {
+              index: 0,
+              names,
+              operations: first.map(({ domain, action }) => ({
+                name: domain.name,
+                action,
+              })),
+              nameExecutions: [],
+              innerExecutions: [],
+              outerCall,
+              walletCall: null,
+              estimatedGas: outerGas,
+              walletEstimatedGas: 0n,
+              verificationExpectations: [],
+            },
+          ],
+        }
+      },
+    )
+    let resolveFirstTransaction!: (result: { readonly hash: Hex }) => void
+    const firstTransaction = new Promise<{ readonly hash: Hex }>((resolve) => {
+      resolveFirstTransaction = resolve
+    })
+    let resolveFirstTransactionHeld!: () => void
+    const firstTransactionHeld = new Promise<void>((resolve) => {
+      resolveFirstTransactionHeld = resolve
+    })
+    mocks.waitForTransaction.mockImplementationOnce(() => {
+      resolveFirstTransactionHeld()
+      return firstTransaction
+    })
+    const controller = new AbortController()
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    let hasPersistedSecondBatchIntent = false
+    const unsubscribe = subscribeMigrationBatchJournal(() => {
+      if (
+        loadPendingAtomicMigrationIntents(scope).some(({ names }) =>
+          names.includes(copy.domain.name),
+        )
+      ) {
+        hasPersistedSecondBatchIntent = true
+      }
+    })
+
+    const observedExecution = runExecute({
+      plan,
+      submissionSignal: controller.signal,
+    }).then(
+      () => undefined,
+      () => undefined,
+    )
+    await firstTransactionHeld
+    controller.abort()
+    resolveFirstTransaction({ hash: hashFor(1) })
+    await observedExecution
+    unsubscribe()
+
+    const recovery = loadMigrationRecoverySnapshot(scope)
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(hasPersistedSecondBatchIntent).toBe(false)
+    expect(
+      mocks.verifyAtomicMigrationBatch.mock.calls[0]?.[0].batch.names,
+    ).toEqual([parent.domain.name])
+    expect(recovery).toMatchObject({
+      completedOperations: [{ name: parent.domain.name, action: 'migrate' }],
+      remainingOperations: [{ name: copy.domain.name, action: 'copy' }],
+    })
+  })
+
+  // Leaves the page once the final batch is in the wallet, so the batch lands
+  // but cleanup reaches a closed gate.
+  const leaveDuringFinalBatch = (): AbortController => {
+    const controller = new AbortController()
+    let nextTransaction = mocks.startTransaction.mock.calls.length
+    mocks.startTransaction.mockImplementation(
+      ({ request }: { readonly request: { readonly data: Hex } }) => {
+        if (request.data === OUTER_DATA) controller.abort()
+        return `tx-${nextTransaction++}`
+      },
+    )
+    return controller
+  }
+
+  const submittedKinds = () =>
+    mocks.startTransaction.mock.calls.map((call) => {
+      const [{ request }] = call as [
+        { readonly request: { readonly to: Address; readonly data: Hex } },
+      ]
+      if (request.data === OUTER_DATA) return 'batch'
+      if (request.to === V2_CONTRACTS.ETHRegistry) return 'cleanup'
+      return 'other'
+    })
+
+  it('leaves nothing to resubmit after leaving during a direct-only final batch', async () => {
+    setHcaApprovalActive()
     const plan = {
-      ...basePlan,
+      ...planFor(),
       preflight: {
-        ...basePlan.preflight,
-        migrationApprovals: [MANAGER_APPROVAL],
+        ...planFor().preflight,
         migrationCleanupApprovals: [CLEANUP_APPROVAL],
       },
     }
-    mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
-    mocks.waitForTransactionHash
-      .mockResolvedValueOnce(hashFor(1))
-      .mockResolvedValueOnce(hashFor(2))
-      .mockRejectedValueOnce(new Error('cleanup provider response was lost'))
-
-    await expect(runExecute({ plan })).rejects.toMatchObject({
-      name: 'MigrationCleanupError',
-    })
-
     const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
-    expect(loadMigrationRecoverySnapshot(scope)?.remainingOperations).toEqual([
-      { name: parent.domain.name, action: 'migrate' },
-      { name: copy.domain.name, action: 'copy' },
-    ])
-    expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([
-      expect.objectContaining({
-        hash: hashFor(2),
-        operations: [
-          { name: parent.domain.name, action: 'migrate' },
-          { name: copy.domain.name, action: 'copy' },
-        ],
-      }),
-    ])
-
-    mocks.waitForTransactionHash.mockResolvedValue(hashFor(4))
-    mocks.buildAtomicMigrationBatches.mockClear()
+    const controller = leaveDuringFinalBatch()
 
     const { result } = await runExecute({
       plan,
-      reconcileBeforeSubmit: true,
+      submissionSignal: controller.signal,
     })
+    expect(result.completed).toBe(1)
 
-    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
-    expect(result).toMatchObject({ completed: 2, migrated: 1, copied: 1 })
-    expect(loadMigrationRecoverySnapshot(scope)).toBeNull()
+    // The temporary access stays for the permissions page to revoke; the
+    // journal holds no operation that /upgrade could submit again.
+    expect(submittedKinds()).toEqual(['batch'])
+    expect(mocks.verifyAtomicMigrationBatch).toHaveBeenCalledOnce()
+    expect(
+      loadMigrationRecoverySnapshot(scope)?.remainingOperations ?? [],
+    ).toEqual([])
+    expect(loadPendingAtomicMigrationIntents(scope)).toEqual([])
     expect(loadSubmittedAtomicMigrationBatches(scope)).toEqual([])
   })
 
@@ -707,7 +1729,7 @@ describe('executeMigration HCA orchestration', () => {
 
     await runExecute({ plan })
 
-    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
+    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(3)
     expect(
       mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[0],
     ).toBeLessThan(
@@ -715,7 +1737,7 @@ describe('executeMigration HCA orchestration', () => {
         Number.POSITIVE_INFINITY,
     )
     expect(
-      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[1],
+      mocks.assertCopyMigrationReadiness.mock.invocationCallOrder[2],
     ).toBeLessThan(
       mocks.startTransaction.mock.invocationCallOrder[0] ??
         Number.POSITIVE_INFINITY,
@@ -1142,7 +2164,7 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
   })
 
-  it('keeps temporary-approval cleanup within the planned step count', async () => {
+  it('finishes the planned steps without required cleanup', async () => {
     setHcaApprovalActive()
     mocks.planMigrationApprovals.mockReturnValue([APPROVAL, MANAGER_APPROVAL])
     const plan = {
@@ -1164,7 +2186,6 @@ describe('executeMigration HCA orchestration', () => {
           copyCount: 0,
           roleGrants: [],
         },
-        { type: 'cleanup' as const, approvalId: MANAGER_APPROVAL.id },
       ],
     }
 
@@ -1172,11 +2193,10 @@ describe('executeMigration HCA orchestration', () => {
 
     expect(
       Math.max(...progressEvents.map(({ currentStep }) => currentStep)),
-    ).toBe(4)
+    ).toBe(3)
     expect(progressEvents.at(-1)).toMatchObject({
-      currentStep: 4,
-      totalSteps: 4,
-      description: 'Temporary access removed',
+      currentStep: 3,
+      totalSteps: 3,
     })
   })
 
@@ -1349,7 +2369,7 @@ describe('executeMigration HCA orchestration', () => {
     )
   })
 
-  it('requires a new preview when temporary HCA access appears before submission', async () => {
+  it('does not add a revocation when registry access appears before submission', async () => {
     setHcaApprovalActive()
     const plan = {
       ...planFor(),
@@ -1357,22 +2377,14 @@ describe('executeMigration HCA orchestration', () => {
       stepDescriptors: [{ type: 'deploy-hca' as const }],
     }
 
-    const error = await runExecute({ plan }).catch((cause: unknown) => cause)
-
-    expect(error).toMatchObject({
-      name: 'MigrationPlanChangedError',
-      plannedApprovalKeys: [],
-      currentApprovalKeys: [],
-      plannedCleanupApprovalKeys: [],
-      currentCleanupApprovalKeys: [
-        `${V2_CONTRACTS.ETHRegistry.toLowerCase()}:${HCA.toLowerCase()}`,
-      ],
-    })
-    expect(mocks.buildHcaDeploymentCall).not.toHaveBeenCalled()
-    expect(mocks.startTransaction).not.toHaveBeenCalled()
+    const { result } = await runExecute({ plan })
+    expect(result.completed).toBe(1)
+    expect(
+      mocks.startTransaction.mock.calls.map(([{ request }]) => request.to),
+    ).toEqual([HCA])
   })
 
-  it('checks cleanup after retry reconciliation completes every name', async () => {
+  it('completes recovery without a revocation after every name is reconciled', async () => {
     setHcaApprovalActive()
     persistPendingAtomicMigrationIntent(
       { chainId: 11155111, owner: OWNER, hca: HCA },
@@ -1383,20 +2395,93 @@ describe('executeMigration HCA orchestration', () => {
       },
     )
 
-    const error = await runExecute({ reconcileBeforeSubmit: true }).catch(
-      (cause: unknown) => cause,
-    )
-
-    expect(error).toMatchObject({
-      name: 'MigrationPlanChangedError',
-      plannedCleanupApprovalKeys: [],
-      currentCleanupApprovalKeys: [
-        `${V2_CONTRACTS.ETHRegistry.toLowerCase()}:${HCA.toLowerCase()}`,
-      ],
-    })
+    const { result } = await runExecute({ reconcileBeforeSubmit: true })
+    expect(result.completed).toBe(1)
     expect(mocks.assertNoLiveSubregistryOverwrite).not.toHaveBeenCalled()
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
+
+  it('reconciles a mined bundled run without another request if the wallet loses batching', async () => {
+    setHcaApprovalActive()
+    mocks.getAtomicBatchSupport.mockResolvedValue(false)
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'mined-bundle-cleanup',
+        names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
+      },
+    )
+    const plan = {
+      ...planFor(),
+      canBatchAtomically: true,
+      preflight: {
+        ...planFor().preflight,
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
+      },
+    }
+    const { result } = await runExecute({ plan, reconcileBeforeSubmit: true })
+    expect(result.completed).toBe(1)
+    expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(mocks.buildHcaDeploymentCall).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('blocks changed source state without a revocation request', async () => {
+    setHcaApprovalActive()
+    const cause = new Error('The ENSv1 expiry changed after review')
+    mocks.assertCopyMigrationReadiness.mockRejectedValueOnce(cause)
+    const plan = {
+      ...planFor(),
+      hcaDeploymentRequired: true,
+      preflight: {
+        ...planFor().preflight,
+        migrationApprovals: [MANAGER_APPROVAL],
+        migrationCleanupApprovals: [CLEANUP_APPROVAL],
+      },
+    }
+
+    await expect(runExecute({ plan })).rejects.toMatchObject({
+      name: 'MigrationSourceChangedError',
+      cause,
+    })
+    expect(mocks.buildHcaDeploymentCall).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { canBatchAtomically: false, hasFlagChangedAfterReadiness: false },
+    { canBatchAtomically: false, hasFlagChangedAfterReadiness: true },
+    { canBatchAtomically: true, hasFlagChangedAfterReadiness: false },
+    { canBatchAtomically: true, hasFlagChangedAfterReadiness: true },
+  ])(
+    'blocks recreation when the rollout flag turns off (%j)',
+    async ({ canBatchAtomically, hasFlagChangedAfterReadiness }) => {
+      mocks.getAtomicBatchSupport.mockResolvedValue(true)
+      const plan: MigrationPlan = {
+        ...planFor(),
+        canBatchAtomically,
+        isSubnameRecreationEnabled: true,
+        subnameRecreation: {
+          version: 5,
+          roots: ['alice.eth'],
+          names: ['alice.eth'],
+          blockNumber: '100',
+          timestamp: '1000',
+          blockHash: `0x${'11'.repeat(32)}`,
+          chainId: 11155111,
+          inventoryDigest: `0x${'22'.repeat(32)}`,
+        },
+      }
+      const canRecreateSubnames = vi.fn(() => false)
+      if (hasFlagChangedAfterReadiness)
+        canRecreateSubnames.mockReturnValueOnce(true)
+      await expect(runExecute({ plan, canRecreateSubnames })).rejects.toThrow(
+        /not enabled/,
+      )
+      expect(mocks.startTransaction).not.toHaveBeenCalled()
+    },
+  )
 
   it('does not prompt for unplanned cleanup when an earlier read fails', async () => {
     setHcaApprovalActive()
@@ -1406,13 +2491,7 @@ describe('executeMigration HCA orchestration', () => {
 
     const error = await runExecute().catch((cause: unknown) => cause)
 
-    expect(error).toMatchObject({
-      name: 'MigrationPlanChangedError',
-      plannedCleanupApprovalKeys: [],
-      currentCleanupApprovalKeys: [
-        `${V2_CONTRACTS.ETHRegistry.toLowerCase()}:${HCA.toLowerCase()}`,
-      ],
-    })
+    expect(error).toEqual(new Error('pointer read failed'))
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
@@ -1433,6 +2512,58 @@ describe('executeMigration HCA orchestration', () => {
       names: [expect.objectContaining({ label: 'alice' })],
     })
     expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])(
+    'refuses unsafe locked resolvers before setup or cleanup prompts (existing approval: %s)',
+    async (existingApproval) => {
+      getCodeMock.mockResolvedValue('0x')
+      if (existingApproval) setHcaApprovalActive()
+      const basePlan = planFor()
+      const plan = {
+        ...basePlan,
+        hcaDeploymentRequired: true,
+        preflight: {
+          ...basePlan.preflight,
+          migrationCleanupApprovals: existingApproval ? [CLEANUP_APPROVAL] : [],
+        },
+      }
+      mocks.assertLockedMigrationResolversUnchanged.mockRejectedValueOnce(
+        Object.assign(new Error('unsafe resolver'), {
+          name: 'MigrationContractInvariantError',
+          invariant: 'locked-resolver-record-control',
+          ensName: 'alice.eth',
+        }),
+      )
+
+      await expect(runExecute({ plan })).rejects.toMatchObject({
+        invariant: 'locked-resolver-record-control',
+        ensName: 'alice.eth',
+      })
+      expect(mocks.startTransaction).not.toHaveBeenCalled()
+      expect(mocks.buildHcaDeploymentCall).not.toHaveBeenCalled()
+      expect(mocks.buildAtomicMigrationBatches).not.toHaveBeenCalled()
+    },
+  )
+
+  it('re-checks locked resolver records before each batch, including resumed ones', async () => {
+    mocks.assertLockedResolverReplacementRecordSafety.mockRejectedValueOnce(
+      Object.assign(new Error('records found'), {
+        name: 'LockedResolverRecordSafetyError',
+      }),
+    )
+
+    await expect(runExecute()).rejects.toMatchObject({
+      name: 'LockedResolverRecordSafetyError',
+    })
+
+    expect(
+      mocks.assertLockedResolverReplacementRecordSafety,
+    ).toHaveBeenCalledWith(
+      [expect.objectContaining({ label: 'alice' })],
+      PUBLIC_CLIENT,
+    )
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
@@ -1535,6 +2666,51 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
+  it('publishes recovery and attempt evidence together for a direct-only plan', async () => {
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    const observations: ReturnType<typeof loadMigrationBatchJournal>[] = []
+    const unsubscribe = subscribeMigrationBatchJournal(() => {
+      observations.push(loadMigrationBatchJournal(scope))
+    })
+    let resolveHash!: (hash: Hex) => void
+    mocks.waitForTransactionHash.mockImplementationOnce(
+      () =>
+        new Promise<Hex>((resolve) => {
+          resolveHash = resolve
+        }),
+    )
+
+    const execution = runExecute()
+    await vi.waitFor(() =>
+      expect(mocks.startTransaction).toHaveBeenCalledOnce(),
+    )
+    const recovery = loadMigrationRecoverySnapshot(scope)
+    resolveHash(hashFor(1))
+    await execution
+    unsubscribe()
+
+    expect(recovery).toMatchObject({
+      registryOperations: [{ name: 'alice.eth', action: 'migrate' }],
+      remainingOperations: [{ name: 'alice.eth', action: 'migrate' }],
+    })
+    expect(
+      observations.some(
+        ({ recovery: snapshot, pending, submitted }) =>
+          snapshot !== null &&
+          snapshot.completedOperations.length === 0 &&
+          pending.length === 0 &&
+          submitted.length === 0,
+      ),
+    ).toBe(false)
+    expect(
+      observations.some(
+        ({ recovery: snapshot, pending }) =>
+          snapshot?.remainingOperations.length === 1 && pending.length === 1,
+      ),
+    ).toBe(true)
+    expect(loadMigrationRecoverySnapshot(scope)).toBeNull()
+  })
+
   it('durably records the batch intent before opening the wallet prompt', async () => {
     mocks.startTransaction.mockImplementationOnce(() => {
       expect(
@@ -1572,6 +2748,16 @@ describe('executeMigration HCA orchestration', () => {
         hca: HCA,
       }),
     ).toEqual([expect.objectContaining({ names: ['alice.eth'] })])
+    expect(
+      loadMigrationRecoverySnapshot({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      }),
+    ).toMatchObject({
+      registryOperations: [{ name: 'alice.eth', action: 'migrate' }],
+      remainingOperations: [{ name: 'alice.eth', action: 'migrate' }],
+    })
 
     mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
       status: 'incomplete',
@@ -1968,7 +3154,7 @@ describe('executeMigration HCA orchestration', () => {
       wallet: OWNER,
       copies: [copy],
     })
-    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(2)
+    expect(mocks.assertCopyMigrationReadiness).toHaveBeenCalledTimes(3)
     expect(readContractMock).not.toHaveBeenCalledWith(
       expect.objectContaining({ functionName: 'ownerOf' }),
     )
@@ -1999,7 +3185,6 @@ describe('executeMigration HCA orchestration', () => {
           copyCount: 0,
           roleGrants: [],
         },
-        { type: 'cleanup' as const, approvalId: MANAGER_APPROVAL.id },
       ],
     }
     persistPendingAtomicMigrationIntent(
@@ -2016,13 +3201,13 @@ describe('executeMigration HCA orchestration', () => {
       reconcileBeforeSubmit: true,
     })
 
-    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
     expect(progressEvents.at(-1)).toMatchObject({
-      currentStep: 4,
-      totalSteps: 4,
+      currentStep: 3,
+      totalSteps: 3,
       description: 'Upgrade complete',
     })
-    expect(progressEvents.every(({ currentStep }) => currentStep <= 4)).toBe(
+    expect(progressEvents.every(({ currentStep }) => currentStep <= 3)).toBe(
       true,
     )
   })
@@ -2172,7 +3357,7 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
 
-  it('revokes a temporary operator approval after a successful migration', async () => {
+  it('leaves registry permission active after a successful migration', async () => {
     setHcaApprovalActive()
     mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
     waitForReceiptMock
@@ -2200,105 +3385,13 @@ describe('executeMigration HCA orchestration', () => {
       MANAGER_APPROVAL,
     )
     expect(result.completed).toBe(1)
-    expect(result.txHashes).toEqual([hashFor(1), hashFor(2), hashFor(3)])
-  })
-
-  it('surfaces cleanup rejection for the dedicated recovery action', async () => {
-    setHcaApprovalActive()
-    mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
-    mocks.waitForTransactionHash.mockImplementation((txId: string) =>
-      txId === 'tx-2'
-        ? Promise.reject(new Error('cleanup rejected'))
-        : Promise.resolve(
-            hashFor(Number.parseInt(txId.slice('tx-'.length), 10) + 1),
-          ),
-    )
-    const plan = {
-      ...planFor(),
-      preflight: {
-        ...planFor().preflight,
-        migrationApprovals: [MANAGER_APPROVAL],
-        migrationCleanupApprovals: [CLEANUP_APPROVAL],
-      },
-    }
-
-    const error = await runExecute({ plan }).catch((cause: unknown) => cause)
-
-    expect(error).toMatchObject({ name: 'MigrationCleanupError' })
-    expect(mocks.verifyAtomicMigrationBatch).toHaveBeenCalledOnce()
-  })
-
-  it('revokes an approval left active after an aborted run on a fresh attempt', async () => {
-    let isApprovedForAll = false
-    let rejectFirstCleanup = true
-    let nextTransaction = 0
-    mocks.checkMigrationApprovals.mockImplementation(() =>
-      Promise.resolve({ ethRegistryHcaApproved: isApprovedForAll }),
-    )
-    readContractMock.mockImplementation(
-      ({ functionName }: { functionName: string }) => {
-        if (functionName === 'isApprovedForAll') {
-          return Promise.resolve(isApprovedForAll)
-        }
-        if (functionName === 'ownerOf') return Promise.resolve(OWNER)
-        if (functionName === 'balanceOf') return Promise.resolve(1n)
-        return Promise.resolve(true)
-      },
-    )
-    mocks.startTransaction.mockImplementation(
-      ({ request }: { request: { data: Hex; to: Address } }) => {
-        if (request.data === GRANT_DATA) isApprovedForAll = true
-        if (request.to === V2_CONTRACTS.ETHRegistry) {
-          if (rejectFirstCleanup) {
-            rejectFirstCleanup = false
-            throw new Error('cleanup rejected')
-          }
-          isApprovedForAll = false
-        }
-        return `tx-${nextTransaction++}`
-      },
-    )
-    mocks.buildAtomicMigrationBatches.mockRejectedValueOnce(
-      new Error('batch preparation aborted'),
-    )
-    mocks.planMigrationApprovals.mockReturnValueOnce([MANAGER_APPROVAL])
-    const firstPlan = {
-      ...planFor(),
-      preflight: {
-        ...planFor().preflight,
-        migrationApprovals: [MANAGER_APPROVAL],
-        migrationCleanupApprovals: [CLEANUP_APPROVAL],
-      },
-    }
-    await expect(runExecute({ plan: firstPlan })).rejects.toMatchObject({
-      name: 'MigrationCleanupError',
-    })
-    expect(isApprovedForAll).toBe(true)
-
-    // A new preflight sees the existing grant and therefore plans no grant.
-    mocks.planMigrationApprovals.mockReturnValue([])
-    const restartedPlan = {
-      ...planFor(),
-      preflight: {
-        ...planFor().preflight,
-        migrationApprovals: [],
-        migrationCleanupApprovals: [CLEANUP_APPROVAL],
-      },
-    }
-    const { result } = await runExecute({ plan: restartedPlan })
-
-    expect(result.completed).toBe(1)
-    expect(isApprovedForAll).toBe(false)
-    expect(
-      readContractMock.mock.calls.filter(
-        ([call]) => call.functionName === 'isApprovedForAll',
-      ).length,
-    ).toBeGreaterThanOrEqual(2)
+    expect(result.txHashes).toEqual([hashFor(1), hashFor(2)])
   })
 
   it('returns immediately when no eligible names remain', async () => {
     const result = await executeMigration({
       plan: planFor([]),
+      submissionGate: { signal: new AbortController().signal },
       wagmiConfig: WAGMI,
       publicClient: PUBLIC_CLIENT,
       signer: SIGNER,
@@ -2321,6 +3414,174 @@ describe('executeMigration HCA orchestration', () => {
 })
 
 afterEach(() => vi.unstubAllGlobals())
+
+describe('executeMigration with an atomic-batching wallet (EIP-5792)', () => {
+  const bundledPlan = (): MigrationPlan => ({
+    ...planFor(),
+    hcaDeploymentRequired: true,
+    canBatchAtomically: true,
+    preflight: {
+      ...planFor().preflight,
+      migrationApprovals: [APPROVAL, MANAGER_APPROVAL],
+      migrationCleanupApprovals: [CLEANUP_APPROVAL],
+    },
+    stepDescriptors: [
+      {
+        type: 'bundle',
+        steps: [
+          { type: 'deploy-hca' },
+          { type: 'approval', approvalId: APPROVAL.id },
+          { type: 'approval', approvalId: MANAGER_APPROVAL.id },
+        ],
+      },
+      {
+        type: 'bundle',
+        steps: [
+          {
+            type: 'atomic-batch',
+            index: 0,
+            total: 1,
+            count: 1,
+            migrateCount: 1,
+            copyCount: 0,
+            roleGrants: [],
+          },
+          { type: 'cleanup', approvalId: MANAGER_APPROVAL.id },
+        ],
+      },
+    ],
+  })
+
+  const requestOf = (call: number) =>
+    mocks.startTransaction.mock.calls[call]?.[0].request
+
+  beforeEach(() => {
+    mocks.getAtomicBatchSupport.mockResolvedValue(true)
+    getCodeMock.mockResolvedValue('0x')
+    mocks.checkMigrationApprovals.mockResolvedValue({
+      ethRegistryHcaApproved: false,
+    })
+    mocks.planMigrationApprovals.mockReturnValue([APPROVAL, MANAGER_APPROVAL])
+    // Temporary access is live from the setup bundle until the final bundle.
+    readContractMock.mockImplementation(
+      ({ functionName }: { functionName: string }) => {
+        if (functionName === 'ownerOf') return Promise.resolve(OWNER)
+        if (functionName === 'balanceOf') return Promise.resolve(1n)
+        if (functionName === 'isApprovedForAll') {
+          return Promise.resolve(mocks.startTransaction.mock.calls.length === 1)
+        }
+        return Promise.resolve(true)
+      },
+    )
+  })
+
+  it('confirms bundled setup and the final migration without cleanup', async () => {
+    const refreshAccount = vi.fn(() => Promise.resolve())
+
+    const { progressEvents, result } = await runExecute({
+      plan: bundledPlan(),
+      refreshAccount,
+    })
+
+    expect(mocks.startTransaction).toHaveBeenCalledTimes(2)
+    expect(requestOf(0)).toEqual({
+      type: 'eoa-batch',
+      from: OWNER,
+      chainId: 11155111,
+      calls: [
+        { to: FACTORY, data: DEPLOY_DATA, value: 0n },
+        { to: APPROVAL_CONTRACT, data: GRANT_DATA, value: 0n },
+        { to: APPROVAL_CONTRACT, data: GRANT_DATA, value: 0n },
+      ],
+    })
+    expect(requestOf(1)).toMatchObject({
+      type: 'eoa',
+      to: HCA,
+      data: OUTER_DATA,
+      value: 0n,
+    })
+    expect(mocks.verifyStandaloneHca).toHaveBeenCalledOnce()
+    expect(refreshAccount).toHaveBeenCalledOnce()
+    expect(mocks.buildAtomicMigrationBatches).toHaveBeenCalledWith(
+      expect.objectContaining({ maxOuterGas: 14_800_000n }),
+    )
+    expect(result.txHashes).toEqual([hashFor(1), hashFor(2)])
+    expect(progressEvents.at(-1)).toMatchObject({
+      currentStep: 2,
+      totalSteps: 2,
+    })
+  })
+
+  it('splits setup into bundles the wallet accepts, deploying in the first', async () => {
+    const approvals: readonly MigrationApproval[] = [
+      ...Array.from(
+        { length: 12 },
+        (_, index): MigrationApproval => ({
+          kind: 'erc721-token',
+          id: 'base-registrar:hca-token',
+          contractAddress: APPROVAL_CONTRACT,
+          operatorAddress: V2_CONTRACTS.MigrationHelper,
+          tokenId: BigInt(index + 1),
+        }),
+      ),
+      MANAGER_APPROVAL,
+    ]
+    mocks.planMigrationApprovals.mockReturnValue(approvals)
+    const plan = bundledPlan()
+
+    const { progressEvents } = await runExecute({
+      plan: {
+        ...plan,
+        preflight: { ...plan.preflight, migrationApprovals: approvals },
+        stepDescriptors: buildStepDescriptors({
+          hcaDeploymentRequired: true,
+          approvals,
+          atomicBatches: plan.atomicBatches,
+          registrationApprovalTargets: [],
+          canBatchAtomically: true,
+        }),
+      },
+    })
+
+    expect(requestOf(0)).toMatchObject({ type: 'eoa-batch' })
+    expect(requestOf(0).calls).toHaveLength(10)
+    expect(requestOf(0).calls[0]).toEqual({
+      to: FACTORY,
+      data: DEPLOY_DATA,
+      value: 0n,
+    })
+    expect(requestOf(1)).toMatchObject({ type: 'eoa-batch' })
+    expect(requestOf(1).calls).toHaveLength(4)
+    expect(requestOf(2)).toMatchObject({ type: 'eoa', data: OUTER_DATA })
+    // The deployment is verified before the second bundle is requested.
+    expect(mocks.verifyStandaloneHca.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.startTransaction.mock.invocationCallOrder[1] ?? 0,
+    )
+    expect(progressEvents.at(-1)).toMatchObject({
+      currentStep: 3,
+      totalSteps: 3,
+    })
+  })
+
+  it('verifies an existing HCA before granting it anything', async () => {
+    getCodeMock.mockResolvedValue('0x6000')
+    mocks.verifyStandaloneHca.mockRejectedValueOnce(new Error('wrong owner'))
+
+    await expect(runExecute({ plan: bundledPlan() })).rejects.toMatchObject({
+      name: 'MigrationError',
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('asks for a new preview when the wallet can no longer bundle', async () => {
+    mocks.getAtomicBatchSupport.mockResolvedValue(false)
+
+    await expect(runExecute({ plan: bundledPlan() })).rejects.toMatchObject({
+      name: 'MigrationPlanChangedError',
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+})
 
 describe('durable migration completion handoff', () => {
   const scope = { chainId: 11155111, owner: OWNER, hca: HCA }

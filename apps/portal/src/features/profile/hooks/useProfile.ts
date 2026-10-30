@@ -4,13 +4,20 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
-import { errAsync, ok, okAsync } from 'neverthrow'
+import { errAsync, fromPromise, ok, okAsync } from 'neverthrow'
 import { match } from 'ts-pattern'
+import { zeroAddress } from 'viem'
 import { bigname } from '@/lib/bigname'
+import { safeGetClient } from '@/lib/wagmi/helpers'
+import { getLegacyRegistryResolver } from '@/utils/ens/getLegacyRegistryResolver'
 import { getRecords } from './useRecords'
 
 class GetProfileError extends TaggedError('GetProfileError')<{
   cause: BignameError
+}> {}
+
+class GetLegacyResolverError extends TaggedError('GetLegacyResolverError')<{
+  readonly cause: unknown
 }> {}
 
 type GetProfileParameters = {
@@ -83,16 +90,36 @@ export const getProfile = ResultFn(async function* ({
 }: GetProfileParameters) {
   const keys = yield* getRecordKeys(name)
 
-  const records = yield* getRecords({
+  const request = {
     name,
     coins: unique([...keys.coins, ...DEFAULT_COINS]),
     texts: unique([...keys.texts, ...DEFAULT_TEXTS]),
     contentHash: true,
     abi: true,
     ignoreInvalidCoinTypes: true,
+  } as const
+
+  const records = yield* getRecords(request)
+  if (records.resolverAddress && records.resolverAddress !== zeroAddress) {
+    return ok({ records })
+  }
+
+  // No resolver answered, which a lapsed ENSv1 name hits for the 28 days
+  // between its v2 reservation expiring and its v1 grace ending. Its records
+  // are still on the resolver the legacy registry names.
+  const client = yield* safeGetClient()
+  const legacyResolver = yield* fromPromise(
+    getLegacyRegistryResolver(client, name),
+    (cause) => new GetLegacyResolverError({ cause }),
+  )
+  if (!legacyResolver) return ok({ records })
+
+  const legacyRecords = yield* getRecords({
+    ...request,
+    resolver: { address: legacyResolver },
   })
 
-  return ok({ records })
+  return ok({ records: legacyRecords })
 })
 
 export const profileQueryKey = createQueryKey<'profile', GetProfileParameters>(

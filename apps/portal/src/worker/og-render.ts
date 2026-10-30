@@ -173,13 +173,17 @@ function nameOgHtml(
   name: string,
   avatar: string | null,
   owner: string | null,
+  isInGrace: boolean,
 ): string {
   const palette = getOgPalette('name')
 
   return renderStack(
     palette,
     renderNameChip(palette, name, avatar) +
-      renderSubtitle(palette, owner ?? 'Available to register'),
+      renderSubtitle(
+        palette,
+        owner ?? (isInGrace ? 'In grace period' : 'Available to register'),
+      ),
   )
 }
 
@@ -198,15 +202,20 @@ export async function renderOgImage(
   owner: string | null,
   requestUrl: string,
   env: Env,
+  isInGrace = false,
 ): Promise<Response | null> {
   const rendered = await renderCardImage(
-    nameOgHtml(name, avatar, owner),
+    nameOgHtml(name, avatar, owner, isInGrace),
     requestUrl,
     env,
   )
   if (rendered || !avatar) return rendered
 
-  return renderCardImage(nameOgHtml(name, null, owner), requestUrl, env)
+  return renderCardImage(
+    nameOgHtml(name, null, owner, isInGrace),
+    requestUrl,
+    env,
+  )
 }
 
 /**

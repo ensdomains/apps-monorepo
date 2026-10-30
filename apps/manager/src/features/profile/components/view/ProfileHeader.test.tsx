@@ -33,11 +33,69 @@ describe('ProfileHeader', () => {
       />,
     )
 
-    const aboutContainer = screen
-      .getByRole('heading', { name: 'Profile Description' })
-      .closest('section')?.parentElement
+    const aboutRow = screen
+      .getByRole('heading', { name: 'About' })
+      .closest('.mt-6')
 
-    expect(aboutContainer).toHaveClass('mt-29', 'xl:mt-0')
+    expect(aboutRow).toHaveClass('xl:mt-0')
+  })
+
+  it('matches the desktop avatar to the about card, capped at 240px', () => {
+    let aboutHeight = 320
+    const notifiers: (() => void)[] = []
+    const offsetHeight = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'offsetHeight',
+    )
+
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get: () => aboutHeight,
+    })
+    vi.stubGlobal(
+      'ResizeObserver',
+      class implements ResizeObserver {
+        constructor(callback: ResizeObserverCallback) {
+          notifiers.push(() => callback([], this))
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+
+    try {
+      const { container } = render(
+        <ProfileHeader
+          avatarLoading={false}
+          name="example.eth"
+          records={newEmptyProfileRecords()}
+        />,
+      )
+      const avatar = () =>
+        [...container.querySelectorAll<HTMLElement>('div')].find(
+          (element) => element.style.width,
+        )
+
+      expect(avatar()?.style).toMatchObject({ width: '240px', height: '240px' })
+
+      aboutHeight = 200
+      act(() => {
+        for (const notify of notifiers) notify()
+      })
+
+      expect(avatar()?.style).toMatchObject({ width: '200px', height: '200px' })
+    } finally {
+      if (offsetHeight) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          'offsetHeight',
+          offsetHeight,
+        )
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight')
+      }
+    }
   })
 
   it('shows the full description when the two-line preview overflows', () => {

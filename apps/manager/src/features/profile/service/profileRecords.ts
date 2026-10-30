@@ -16,20 +16,37 @@ import {
   getContentHashParameters,
   getTextParameters,
 } from '@ensdomains/ensjs/utils'
-import { errAsync, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
-import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
+import { err, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
+import type { Client, PublicClient, Transport } from 'viem'
+import {
+  type Address,
+  decodeErrorResult,
+  encodeFunctionData,
+  type Hex,
+  parseAbi,
+  zeroAddress,
+} from 'viem'
 import { bigname } from '@/lib/bigname'
+import { publicClient, type sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { isDebugProfileName } from '@/utils/debug-features'
 import {
   addressRecords,
   alwaysProbeAddressRecords,
   forceFetchRecords,
+  offchainProfileRecords,
   staticTextRecords,
   textRecords,
 } from '../data/records'
-import { DEBUG_PROFILE } from '../MOCK'
+import { getDebugProfileRecords } from '../MOCK'
+import {
+  hasV2NameEntry,
+  NameRegistryNotFoundError,
+  readNameResolver,
+  resolveNameRegistry,
+} from './changeResolver'
 import { decodeCoinResult } from './decodeCoinRecord'
+import { readResolverRecords } from './resolverImport'
+import { isOffchainName } from './resolverRecordCalls'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
@@ -66,37 +83,117 @@ const isSupportedCoinType = (coinType: number): boolean =>
   safeGetCoderFromCoin(coinType).isOk()
 
 const MAX_RESOLVER_SPLIT_DEPTH = 1
+const MAX_CONCURRENT_PROFILE_READS = 64
+
+const GATEWAY_ERROR_ABI = parseAbi([
+  'error HttpError(uint16 status, string message)',
+])
+// Statuses a gateway answers for a name it does not know (World answers 400).
+const UNKNOWN_NAME_STATUSES: ReadonlySet<number> = new Set([400, 404])
+
+// A resolver that reverts with no reason, or a gateway that answers 400 or 404,
+// does not know the name. viem encodes every other gateway failure as an
+// HttpError or Error(string).
+const isNameRejection = (returnData: Hex): boolean =>
+  returnData === '0x' ||
+  fromThrowable(() =>
+    decodeErrorResult({ abi: GATEWAY_ERROR_ABI, data: returnData }),
+  )()
+    .map(({ args: [status] }) => UNKNOWN_NAME_STATUSES.has(status))
+    .unwrapOr(false)
+
+const getRecordKeys = ResultFn(async function* (
+  client: Client<Transport, typeof sepoliaWithEns>,
+  name: string,
+) {
+  // A name bigname has not indexed has no indexed keys; the static ones still apply.
+  const inventory = yield* bigname
+    .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
+    .map(({ data }) => data.inventory)
+    // Viewing/editing commonly used fields remains possible while the index
+    // is unavailable. Resolver replacement performs a separate warned import.
+    .orElse(() => okAsync(undefined))
+  // The indexer never sees an offchain name's records, though it may still
+  // index the name with no keys. ensjs asks its gateway for them in one
+  // request, which a URL-length limit caps well below every key.
+  if (
+    !inventory?.known_keys.length &&
+    (yield* fromPromise(
+      isOffchainName(client, name),
+      (error) => new GetProfileRecordsError({ cause: error }),
+    ))
+  )
+    return ok(offchainProfileRecords)
+
+  const recordKeys = parseKnownKeys(inventory?.known_keys ?? [])
+  return ok({
+    texts: unique([
+      ...staticTextRecords,
+      ...textRecords.map((record) => record.key),
+      ...forceFetchRecords.always,
+      ...forceFetchRecords.whenNotIndexed,
+      // Newly saved links must be readable before the indexer discovers the key.
+      'links',
+      ...recordKeys.texts,
+    ]),
+    coins: unique([
+      ...alwaysProbeAddressRecords.map(Number),
+      ...addressRecords.map((record) => record.coinType),
+      ...recordKeys.coins,
+    ]).filter(isSupportedCoinType),
+  })
+})
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
-  if (isDebugProfileName(name)) {
-    return ok(DEBUG_PROFILE)
-  }
+  const debugProfile = getDebugProfileRecords(name)
+  if (debugProfile) return ok(debugProfile)
 
   const client = yield* safeGetClient()
-  // A name bigname has not indexed has no indexed keys; the static ones still apply.
-  const recordKeys = yield* bigname
-    .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
-    .map(({ data }) => parseKnownKeys(data.inventory?.known_keys ?? []))
-    .orElse((error) =>
-      error.code === 'not_found'
-        ? okAsync(parseKnownKeys([]))
-        : errAsync(new GetProfileRecordsError({ cause: error })),
-    )
+  const { texts, coins } = yield* getRecordKeys(client, name)
 
-  const texts = unique([
-    ...staticTextRecords,
-    ...textRecords.map((record) => record.key),
-    ...forceFetchRecords.always,
-    ...forceFetchRecords.whenNotIndexed,
-    // Newly saved links must be readable before the indexer discovers the key.
-    'links',
-    ...recordKeys.texts,
-  ])
-  const coins = unique([
-    ...alwaysProbeAddressRecords.map(Number),
-    ...addressRecords.map((record) => record.coinType),
-    ...recordKeys.coins,
-  ]).filter(isSupportedCoinType)
+  const v2Source = yield* fromPromise(
+    (async () => {
+      try {
+        const location = await resolveNameRegistry(name)
+        if (!(await hasV2NameEntry(location, publicClient as PublicClient)))
+          return { resolver: undefined, hasV2Entry: false }
+        const resolver = await readNameResolver(
+          location,
+          publicClient as PublicClient,
+        )
+        if (resolver.toLowerCase() !== zeroAddress)
+          return { resolver, hasV2Entry: false }
+        return {
+          resolver: undefined,
+          hasV2Entry: true,
+        }
+      } catch (error) {
+        if (!(error instanceof NameRegistryNotFoundError)) throw error
+      }
+      return { resolver: undefined, hasV2Entry: false }
+    })(),
+    (error) => new GetProfileRecordsError({ cause: error }),
+  )
+  if (v2Source.hasV2Entry)
+    return ok({ texts: [], coins: [] } satisfies ProfileRecordsResult)
+  if (v2Source.resolver) {
+    const { records, readErrors } = yield* fromPromise(
+      readResolverRecords({
+        name,
+        resolver: v2Source.resolver,
+        texts,
+        coins,
+        publicClient: publicClient as PublicClient,
+        shouldDecodeStrictly: false,
+        maxConcurrentReads: MAX_CONCURRENT_PROFILE_READS,
+      }),
+      (error) => new GetProfileRecordsError({ cause: error }),
+    )
+    // Unsupported probes are expected; failed reads must reach query retry/error handling.
+    if (readErrors.length)
+      return err(new GetProfileRecordsError({ cause: readErrors[0] }))
+    return ok(records)
+  }
 
   const data = [
     ...texts.map((key) => encodeFunctionData(getTextParameters({ name, key }))),
@@ -146,6 +243,13 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
     resolveData(data),
     (error) => new GetProfileRecordsError({ cause: error }),
   )
+  // A gateway that is down fails every read; that is not an empty profile. One
+  // that rejects every read does not know the name, which is.
+  const failedRead = resolution?.resolvedData.find(
+    (item) => !(item.success || isNameRejection(item.returnData)),
+  )
+  if (failedRead && resolution?.resolvedData.every((item) => !item.success))
+    return err(new GetProfileRecordsError({ cause: failedRead.returnData }))
 
   const rawResult = (index: number) => {
     const item = resolution?.resolvedData[index]

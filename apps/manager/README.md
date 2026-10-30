@@ -50,6 +50,24 @@ are debug-only and must never reach a production deploy:
 select mainnet. See [app environment configuration](../../README.md#app-environments)
 for env-file layering, local overrides and deployment behavior.
 
+On Sepolia every flow pays in Circle's testnet USDC
+([faucet.circle.com](https://faucet.circle.com)); the auto-fund faucet only runs
+against the local Anvil fork.
+
+`VITE_AVATAR_UPLOAD_URL` selects the avatar/header upload service independently
+of `VITE_ENS_NETWORK`. The committed `.env` and `.env.ci` use
+`https://avatar-upload-staging.ens-cf.workers.dev`. The `.env.mainnet` file
+defaults to `https://euc.li`, matching the legacy ENS app; the production
+release already selects this file through `build:mainnet`.
+
+Override the variable in `.env.mainnet.local` for mainnet builds, or
+`.env.local` for default Sepolia builds. A build-environment variable can
+override either mode to select either upload service. Changing a deployed
+Worker variable does not change a URL already compiled into the browser bundle.
+
+Avatars use `<upload-base>/<name>` and headers append `/h`. Sepolia adds a
+`/sepolia` prefix to either path, regardless of the chosen upload service.
+
 Mainnet requires a Bigname endpoint in the network profile or
 `VITE_BIGNAME_API_URL`; validation fails until one is supplied. The mainnet
 Telegram bot ID is intentionally empty until provisioned. Configure the new

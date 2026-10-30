@@ -7,8 +7,9 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": ^5.2.5
-  "@ensdomains/ensjs-abi": ^5.0.4
+  "@ensdomains/address-encoder": ^2.0.1
+  "@ensdomains/ensjs": ^5.2.10
+  "@ensdomains/ensjs-abi": ^5.0.5
   xstate: ^5.33.3
   typescript: ^7.0.2
   vite: ^8.3.4
@@ -20,7 +21,7 @@ catalog:
   posthog-js: 1.404.1
   "@posthog/react": ^1.11.3
   viem: ^2.57.7
-  "@rhinestone/sdk": 1.8.0
+  "@rhinestone/sdk": 1.22.0
   # Peer of @rhinestone/sdk/jwt-server, which signs the orchestrator access tokens.
   jose: ^6.2.12
   # Optional peer dep of @wagmi/connectors (walletConnect connector). Since wagmi
@@ -96,8 +97,8 @@ overrides:
 patchedDependencies:
   xstate: patches/xstate.patch
   class-variance-authority: patches/class-variance-authority.patch
-  "@rhinestone/sdk@1.8.0": patches/@rhinestone%2Fsdk@1.8.0.patch
   posthog-js@1.404.1: patches/posthog-js@1.404.1.patch
+  '@rhinestone/sdk@1.22.0': patches/@rhinestone__sdk@1.22.0.patch
 
 # pnpm >=11 fails the install on any dependency build script not listed here.
 # All denied: these ship prebuilt binaries via optionalDependencies.
@@ -112,5 +113,11 @@ allowBuilds:
   workerd: false
 
 minimumReleaseAgeExclude:
-  - '@ensdomains/ensjs-abi@5.0.2 || 5.0.4'
-  - '@ensdomains/ensjs@5.2.0 || 5.2.1 || 5.2.5'
+  # @rhinestone/sdk 1.22.0 is the release that signs the Permit2 approval's
+  # EIP-2612 permit for us. Drop this once it is older than minimumReleaseAge
+  # (published 2026-10-27T17:00Z); the committed lockfile entry itself is fine.
+  - '@rhinestone/sdk@1.22.0'
+  - '@ensdomains/ensjs@5.2.10'
+  - '@ensdomains/ensjs-abi@5.0.5'
+  # Published by v1rtl.eth; new releases ship fixes the portal release depends on.
+  - omnipin

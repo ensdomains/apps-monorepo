@@ -1,6 +1,6 @@
 import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert, LoaderCircle } from 'lucide-react'
-import { type ReactNode, useRef } from 'react'
+import { useRef } from 'react'
 import { match } from 'ts-pattern'
 import {
   Dialog,
@@ -8,25 +8,10 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { EXPLORER_URL } from '@/constants'
 import type { SubnameMigrationImpactState } from '../hooks/useSubnameMigrationImpact'
 
 const linkClassName =
   'rounded-sm font-medium text-ens-garnet-900 underline decoration-ens-garnet-900/30 underline-offset-4 hover:decoration-ens-garnet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2 focus-visible:ring-offset-ens-quartz-100'
-
-const ExplorerLink = ({ children }: { readonly children: ReactNode }) =>
-  EXPLORER_URL ? (
-    <a
-      className={linkClassName}
-      href={EXPLORER_URL}
-      rel="noopener noreferrer"
-      target="_blank"
-    >
-      {children}
-    </a>
-  ) : (
-    <span>{children}</span>
-  )
 
 const ImpactSummary = ({
   state,
@@ -93,11 +78,8 @@ const ImpactSummary = ({
 
 export const SubnameMigrationDialog = ({
   isOpen,
-  selectedNameCount,
   state,
   isChecking,
-  hasAcknowledgedImpact,
-  onAcknowledgeImpact,
   onCancel,
   onContinue,
   onRestoreFocus,
@@ -148,7 +130,7 @@ export const SubnameMigrationDialog = ({
               <Trans>Checking your subnames</Trans>
             ))
             .with({ hasImpact: true }, () => (
-              <Trans>Some subnames will be deleted</Trans>
+              <Trans>These subnames can&apos;t be preserved yet</Trans>
             ))
             .otherwise(() => (
               <Trans>Your subnames are unaffected</Trans>
@@ -174,26 +156,12 @@ export const SubnameMigrationDialog = ({
               <Trans>Checking the latest name state before you continue.</Trans>
             ))
             .with({ hasImpact: true }, () => (
-              <>
-                <Plural
-                  one="The selected name has subnames which will be deleted when upgrading to ENS v2."
-                  other="The selected names have subnames which will be deleted when upgrading to ENS v2."
-                  value={selectedNameCount}
-                />{' '}
-                <Trans>
-                  After upgrading, recreate the subnames in{' '}
-                  <ExplorerLink>ENS Explorer</ExplorerLink>. Please contact{' '}
-                  <a
-                    className={linkClassName}
-                    href="https://support.ens.domains"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    support
-                  </a>{' '}
-                  with any questions.
-                </Trans>
-              </>
+              <Trans>
+                This upgrade cannot preserve every subname below the selected
+                parents. Keep those parents on ENSv1 for now, where their
+                subnames keep working. Return to your selection and remove the
+                affected parents before continuing.
+              </Trans>
             ))
             .otherwise(() => (
               <Trans>
@@ -203,23 +171,13 @@ export const SubnameMigrationDialog = ({
             ))}
         </DialogDescription>
         <ImpactSummary isLoading={isLoading} state={state} />
-        {hasImpact && (
-          <label className="mt-5 flex min-h-11 shrink-0 cursor-pointer items-start gap-3 py-2 text-ens-garnet-900 text-sm leading-normal">
-            <input
-              checked={hasAcknowledgedImpact}
-              className="mt-0.5 size-5 shrink-0 rounded-sm accent-ens-garnet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2 focus-visible:ring-offset-ens-quartz-100 disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={
-                isLoading || state.status !== 'ready' || !state.canReview
-              }
-              onChange={(event) => onAcknowledgeImpact(event.target.checked)}
-              type="checkbox"
-            />
-            <span>
-              <Trans>
-                I understand that the affected subnames will be deleted.
-              </Trans>
-            </span>
-          </label>
+        {hasImpact && !isLoading && (
+          <a
+            className={`${linkClassName} mt-3 inline-flex min-h-11 items-center text-sm`}
+            href="/dashboard#subname-upgrades"
+          >
+            <Trans>Learn how subnames affect upgrades</Trans>
+          </a>
         )}
         <div className="mt-7 flex shrink-0 flex-col-reverse gap-3 sm:flex-row">
           <button
@@ -228,7 +186,7 @@ export const SubnameMigrationDialog = ({
             ref={cancelRef}
             type="button"
           >
-            <Trans>Cancel</Trans>
+            <Trans>Back to selection</Trans>
           </button>
           <button
             className="min-h-12 flex-1 rounded-xl bg-ens-garnet-900 px-5 font-medium text-ens-quartz-100 text-sm transition-colors hover:bg-ens-garnet-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2 focus-visible:ring-offset-ens-quartz-100 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
@@ -236,7 +194,7 @@ export const SubnameMigrationDialog = ({
               isLoading ||
               state.status !== 'ready' ||
               !state.canReview ||
-              (hasImpact && !hasAcknowledgedImpact)
+              hasImpact
             }
             onClick={onContinue}
             type="button"

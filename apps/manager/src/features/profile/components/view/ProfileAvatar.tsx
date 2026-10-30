@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { cn } from '@/lib/utils'
@@ -8,6 +9,7 @@ type ProfileAvatarProps = {
   readonly avatarUrl?: string
   readonly className?: string
   readonly name: string
+  readonly style?: CSSProperties
 }
 
 export const ProfileAvatar = ({
@@ -15,6 +17,7 @@ export const ProfileAvatar = ({
   avatarUrl,
   className,
   name,
+  style,
 }: ProfileAvatarProps) => {
   const themeColor = useProfileThemeColor()
 
@@ -24,6 +27,7 @@ export const ProfileAvatar = ({
         'relative size-45.5 shrink-0 overflow-hidden rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)]',
         className,
       )}
+      style={style}
     >
       <ImageFallback.Root className="contents">
         <ImageFallback.Image

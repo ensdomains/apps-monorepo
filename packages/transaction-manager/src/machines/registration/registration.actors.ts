@@ -10,6 +10,7 @@ import {
   computeVerifiableProxyAddress,
   getDestinationContracts,
 } from '@ens-apps/smart-account'
+import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
@@ -23,7 +24,7 @@ import {
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
-import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
+import { errAsync, fromPromise, okAsync, ResultAsync } from 'neverthrow'
 import type {
   Address,
   Hash,
@@ -42,7 +43,6 @@ import {
   isAddressEqual,
   parseAbi,
   zeroAddress,
-  zeroHash,
 } from 'viem'
 import { getBlock, multicall, readContract } from 'viem/actions'
 import type { Signer } from '../..'
@@ -147,6 +147,7 @@ function generateCommitment(
   duration: bigint,
   resolverAddress: Address,
   registrarAddress?: Address,
+  referrer?: Hex,
 ): ResultAsync<CommitmentData, Error> {
   const registrar =
     registrarAddress ??
@@ -177,7 +178,7 @@ function generateCommitment(
           zeroAddress,
           resolverAddress,
           duration,
-          zeroHash,
+          normalizeReferrer(referrer),
         ],
       })
       return { commitment, secret }
@@ -269,11 +270,13 @@ export function encodeRegisterCall({
   paymentToken,
   resolverAddress,
   registrarAddress,
+  referrer,
 }: {
   name: string
   owner: Address
   secret: Hash
   duration: bigint
+  readonly referrer?: Hex
   paymentToken: Address
   resolverAddress: Address
   registrarAddress: Address
@@ -291,7 +294,7 @@ export function encodeRegisterCall({
         resolverAddress,
         duration,
         paymentToken,
-        zeroHash,
+        normalizeReferrer(referrer),
       ],
     }),
     value: 0n,
@@ -302,11 +305,28 @@ export type TOKEN_SYMBOL = 'USDC' | 'DAI'
 
 export const PAYMENT_TOKEN_CONTRACT = { USDC: 'usdc', DAI: 'dai' } as const
 
+// USDC is the manifest's, the token checkout reads and the HCA route pays in,
+// not ensjs' MockUSDC: the registrar and renewers accept both on Sepolia.
 function getPaymentTokenAddress(token: TOKEN_SYMBOL, chain: Chain): Address {
+  if (token === 'USDC') return getDestinationContracts(chain.id).usdc
   return getChainContractAddress({
     chain,
     contract: PAYMENT_TOKEN_CONTRACT[token],
   })
+}
+
+/** The caller's token if given, else the symbol's default; every step uses this. */
+export function resolvePaymentTokenAddress(
+  input: {
+    readonly selectedToken: TOKEN_SYMBOL
+    readonly paymentTokenAddress?: Address
+  },
+  chain: Chain,
+): Address {
+  return (
+    input.paymentTokenAddress ??
+    getPaymentTokenAddress(input.selectedToken, chain)
+  )
 }
 
 export function getSignerAddress(signer: Signer): Address {
@@ -521,6 +541,24 @@ export function encodeDeployDedicatedResolverCall(input: {
 }
 
 /**
+ * The registrar `commit` call. Exported so the app's pre-start estimate of a
+ * setup bundle encodes the commit exactly as the machine submits it.
+ */
+export function encodeCommitCall(input: {
+  readonly commitment: Hash
+  readonly chain: Chain
+}): { to: Address; data: Hex; value: bigint } {
+  return {
+    to: getChainContractAddress({
+      chain: input.chain,
+      contract: 'ensEthRegistrar',
+    }),
+    data: encodeCommitmentData(input.commitment),
+    value: 0n,
+  }
+}
+
+/**
  * Wait for resolver deployment transaction and extract deployed proxy address
  */
 export function resolveResolverDeploymentActor(input: {
@@ -550,6 +588,7 @@ export function generateCommitmentActor(input: {
   name: string
   owner: Address
   duration: bigint
+  readonly referrer?: Hex
   publicClient: PublicClient
   selectedToken: TOKEN_SYMBOL
   resolverAddress: Address
@@ -566,6 +605,7 @@ export function generateCommitmentActor(input: {
     input.duration,
     input.resolverAddress,
     registrarAddress,
+    input.referrer,
   )
 }
 
@@ -682,8 +722,8 @@ export function readPaymentTokenAllowanceActor(input: {
   publicClient: PublicClient
   /** Spender to read the allowance for. Defaults to the legacy registrar. */
   registrarAddress?: Address
-  /** Payment token to read. Defaults to the legacy mock token for the symbol. */
-  paymentTokenAddress?: Address
+  /** Payment token to read. Defaults to the symbol's payment token. */
+  readonly paymentTokenAddress?: Address
 }): ResultAsync<bigint, Error> {
   const registrarAddress =
     input.registrarAddress ??
@@ -691,12 +731,10 @@ export function readPaymentTokenAllowanceActor(input: {
       chain: requireEnsChain(input.publicClient, 'registration'),
       contract: 'ensEthRegistrar',
     })
-  const tokenAddress =
-    input.paymentTokenAddress ??
-    getPaymentTokenAddress(
-      input.selectedToken,
-      requireEnsChain(input.publicClient, 'registration'),
-    )
+  const tokenAddress = resolvePaymentTokenAddress(
+    input,
+    requireEnsChain(input.publicClient, 'registration'),
+  )
   return fromPromise(
     readContract(input.publicClient, {
       address: tokenAddress,
@@ -723,8 +761,8 @@ export function readPaymentAuthorizationActor(input: {
   publicClient: PublicClient
   /** Spender/pricer to read. Defaults to the legacy registrar. */
   registrarAddress?: Address
-  /** Payment token to read. Defaults to the legacy mock token for the symbol. */
-  paymentTokenAddress?: Address
+  /** Payment token to read. Defaults to the symbol's payment token. */
+  readonly paymentTokenAddress?: Address
 }): ResultAsync<{ allowance: bigint; livePrice: bigint }, MulticallErrorType> {
   const registrarAddress =
     input.registrarAddress ??
@@ -732,12 +770,10 @@ export function readPaymentAuthorizationActor(input: {
       chain: requireEnsChain(input.publicClient, 'registration'),
       contract: 'ensEthRegistrar',
     })
-  const tokenAddress =
-    input.paymentTokenAddress ??
-    getPaymentTokenAddress(
-      input.selectedToken,
-      requireEnsChain(input.publicClient, 'registration'),
-    )
+  const tokenAddress = resolvePaymentTokenAddress(
+    input,
+    requireEnsChain(input.publicClient, 'registration'),
+  )
   const label = input.name.replace('.eth', '')
   return fromPromise(
     (async () => {
@@ -788,7 +824,10 @@ export type VerifyPollOptions = {
   isDefinitivelyDead?: () => Promise<boolean>
 }
 
-function sleepUnlessAborted(ms: number, signal?: AbortSignal): Promise<void> {
+export function sleepUnlessAborted(
+  ms: number,
+  signal?: AbortSignal,
+): Promise<void> {
   return new Promise<void>((resolve) => {
     if (signal?.aborted) return resolve()
 
@@ -1145,8 +1184,8 @@ export function submitApprovalActor(input: {
   id?: string
   /** Spender to approve. Defaults to the legacy registrar. */
   registrarAddress?: Address
-  /** Token to approve. Defaults to the legacy mock token for the symbol. */
-  paymentTokenAddress?: Address
+  /** Token to approve. Defaults to the symbol's payment token. */
+  readonly paymentTokenAddress?: Address
 }): ResultAsync<string, Error> {
   const registrarAddress =
     input.registrarAddress ??
@@ -1159,12 +1198,10 @@ export function submitApprovalActor(input: {
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
 
-      const tokenAddress =
-        input.paymentTokenAddress ??
-        getPaymentTokenAddress(
-          input.selectedToken,
-          requireEnsChain(input.publicClient, 'registration'),
-        )
+      const tokenAddress = resolvePaymentTokenAddress(
+        input,
+        requireEnsChain(input.publicClient, 'registration'),
+      )
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
       console.log(
@@ -1211,6 +1248,110 @@ export function submitApprovalActor(input: {
 }
 
 /**
+ * Pure-EOA on a wallet that bundles atomically (EIP-5792): everything before
+ * the commitment cooldown goes out as ONE confirmation — the wallet's resolver
+ * (first registration only), the commit, and the payment approval when the
+ * live price isn't already covered. Returns the approved price (null when no
+ * approve was needed) so the machine tracks what was authorized.
+ */
+export function submitEoaSetupBundleActor(input: {
+  readonly name: string
+  readonly commitment: CommitmentData
+  /** The account the resolver grants its roles to. */
+  readonly resolverOwner: Address
+  readonly shouldDeployResolver: boolean
+  /** The name owner, who pays the registrar. */
+  readonly owner: Address
+  readonly duration: bigint
+  readonly selectedToken: TOKEN_SYMBOL
+  /** The token the caller chose to pay with; see `RegistrationContext`. */
+  readonly paymentTokenAddress?: Address
+  /** Approved when the live price can't be read. */
+  readonly tokenPrice: bigint
+  readonly signer: Signer
+  readonly publicClient: PublicClient
+  readonly id?: string
+}): ResultAsync<
+  { readonly txId: string; readonly approvedPrice: bigint | null },
+  Error
+> {
+  // An unreadable allowance falls back to approving the quote, as the
+  // sequential `checkingAllowance` does.
+  const approvalPrice = readPaymentAuthorizationActor({
+    owner: input.owner,
+    name: input.name,
+    duration: input.duration,
+    selectedToken: input.selectedToken,
+    paymentTokenAddress: input.paymentTokenAddress,
+    publicClient: input.publicClient,
+  })
+    .map(({ allowance, livePrice }) =>
+      allowance >= livePrice ? null : livePrice,
+    )
+    .orElse(() => okAsync(input.tokenPrice))
+
+  return approvalPrice.andThen((approvedPrice) =>
+    ResultAsync.fromPromise(
+      Promise.resolve().then(() => {
+        const chain = requireEnsChain(input.publicClient, 'registration')
+        const registrarAddress = getChainContractAddress({
+          chain,
+          contract: 'ensEthRegistrar',
+        })
+        const from = getSignerAddress(input.signer)
+        const calls: Call[] = [
+          ...(input.shouldDeployResolver
+            ? [
+                encodeDeployDedicatedResolverCall({
+                  owner: input.resolverOwner,
+                  chain,
+                }),
+              ]
+            : []),
+          encodeCommitCall({ commitment: input.commitment.commitment, chain }),
+          ...(approvedPrice === null
+            ? []
+            : [
+                {
+                  to: resolvePaymentTokenAddress(input, chain),
+                  data: encodeTokenApprovalData(
+                    registrarAddress,
+                    authorizedPaymentAmount(approvedPrice),
+                  ),
+                  value: 0n,
+                },
+              ]),
+        ]
+        // A lone commit is a plain transaction: only real bundles go through
+        // `wallet_sendCalls`.
+        const request: TransactionRequest =
+          calls.length > 1
+            ? { type: 'eoa-batch', from, chainId: chain.id, calls }
+            : createTransactionRequest({
+                signer: input.signer,
+                from,
+                chainId: chain.id,
+                calls,
+              })
+
+        const txId = transactionManager.startTransaction(
+          { type: 'custom', request },
+          input.signer,
+          {
+            id: input.id,
+            description: `Set up registration for ${input.name}.eth`,
+            publicClient: input.publicClient,
+            timeout: 120_000,
+          },
+        )
+        return { txId, approvedPrice }
+      }),
+      (error) => new Error(`Failed to submit registration setup: ${error}`),
+    ),
+  )
+}
+
+/**
  * Submit registration transaction via transaction manager
  * Note: Normalizes payment token address to lowercase for Rhinestone SDK compatibility
  */
@@ -1219,7 +1360,10 @@ export function submitRegistrationActor(input: {
   commitment: CommitmentData
   signer: import('../..').Signer
   duration: bigint
+  readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
+  /** The token the caller chose to pay with; see `RegistrationContext`. */
+  readonly paymentTokenAddress?: Address
   owner: Address
   publicClient: PublicClient
   resolverAddress: Address
@@ -1234,8 +1378,8 @@ export function submitRegistrationActor(input: {
     (async () => {
       const accountAddress = getSignerAddress(input.signer)
 
-      const paymentToken = getPaymentTokenAddress(
-        input.selectedToken,
+      const paymentToken = resolvePaymentTokenAddress(
+        input,
         requireEnsChain(input.publicClient, 'registration'),
       )
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
@@ -1258,6 +1402,7 @@ export function submitRegistrationActor(input: {
         owner: input.owner,
         secret: input.commitment.secret,
         duration: input.duration,
+        referrer: input.referrer,
         registrarAddress,
         paymentToken: normalizedPaymentToken,
         resolverAddress: input.resolverAddress,
@@ -1360,12 +1505,16 @@ export function encodeRenewData(
   label: string,
   duration: bigint,
   paymentToken: Address,
+  referrer?: Hex,
 ): Hash {
   const cleanLabel = label.replace('.eth', '')
   return encodeFunctionData({
     abi: ethRegistrarRenewSnippet,
     functionName: 'renew',
-    args: [{ label: cleanLabel, duration, referrer: zeroHash }, paymentToken],
+    args: [
+      { label: cleanLabel, duration, referrer: normalizeReferrer(referrer) },
+      paymentToken,
+    ],
   })
 }
 
@@ -1376,6 +1525,7 @@ export interface RenewDataEntry {
   readonly label: string
   /** Duration in SECONDS, as `renew` takes it. */
   readonly duration: bigint
+  readonly referrer?: Hex
 }
 
 /**
@@ -1396,7 +1546,7 @@ export function encodeRenewBatchData(
       entries.map((entry) => ({
         label: entry.label.replace('.eth', ''),
         duration: entry.duration,
-        referrer: zeroHash,
+        referrer: normalizeReferrer(entry.referrer),
       })),
       paymentToken,
     ],
@@ -1412,6 +1562,7 @@ export function encodeRenewBatchData(
 export function submitRenewActor(input: {
   label: string
   duration: bigint
+  readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
   signer: import('../..').Signer
   publicClient: PublicClient
@@ -1452,6 +1603,7 @@ export function submitRenewActor(input: {
         input.label,
         input.duration,
         normalizedPaymentToken,
+        input.referrer,
       )
 
       const request = createTransactionRequest({

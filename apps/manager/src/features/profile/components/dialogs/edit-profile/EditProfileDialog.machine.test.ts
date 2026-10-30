@@ -139,7 +139,7 @@ describe('editProfileDialogMachine', () => {
     })
   })
 
-  it('passes the edited record diff to resolver setup', () => {
+  it('passes the edited record diff and confirmation review to resolver setup', () => {
     const eth = '0x5555555555555555555555555555555555555555'
     const records = {
       ...defaultProfileRecords,
@@ -163,12 +163,20 @@ describe('editProfileDialogMachine', () => {
         ownerAddress: OWNER,
         publicClient: {} as PublicClient,
         walletClient,
+        recordReview: {
+          editedKeys: ['text:description'],
+          writes: [{ key: 'text:description', value: 'edited bio' }],
+        },
       },
     })
 
     const pendingSave = actor.getSnapshot().context.pendingSave
     expect(pendingSave).toMatchObject({
       kind: 'setup',
+      recordReview: {
+        editedKeys: ['text:description'],
+        writes: [{ key: 'text:description', value: 'edited bio' }],
+      },
       ethAddressChanged: false,
       before: {
         texts: [{ key: 'description', value: 'existing bio' }],
@@ -180,8 +188,10 @@ describe('editProfileDialogMachine', () => {
       },
     })
     if (pendingSave?.kind === 'setup') {
-      expect(pendingSave.currentRecords.addresses).toEqual([])
-      expect(pendingSave.currentRecords.base).toEqual({})
+      expect(pendingSave.currentRecords.addresses).toEqual(records.addresses)
+      expect(pendingSave.currentRecords.base).toEqual({
+        description: 'edited bio',
+      })
     }
   })
 

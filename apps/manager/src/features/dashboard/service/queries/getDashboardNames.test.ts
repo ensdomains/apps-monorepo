@@ -323,14 +323,13 @@ describe('getDashboardNamesInfiniteQueryOptions', () => {
     const client = new QueryClient({
       defaultOptions: { queries: { staleTime: Infinity, retry: false } },
     })
-    client.setQueryData(resolverWriteAccessQuery('managed.eth', EOA).queryKey, {
-      resolverAddress: undefined,
-      canWrite: false,
-      isResolverInvalid: false,
-    })
+    client.setQueryData(
+      resolverWriteAccessQuery('managed.eth', EOA).queryKey,
+      false,
+    )
     client.setQueryData(
       resolverWriteAccessQuery('managed.eth', SMART_ACCOUNT).queryKey,
-      { resolverAddress: undefined, canWrite: true, isResolverInvalid: false },
+      true,
     )
     const query: DashboardNamesQuery = {
       ...QUERY,

@@ -48,15 +48,26 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
-import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
+import {
+  useConfig,
+  useConnection,
+  usePublicClient,
+  useWalletClient,
+} from 'wagmi'
 import { type EventFromLogic, waitFor } from 'xstate'
 import { chain as appChain, isTestnet } from '@/config'
 import { SUPPORTED_TOKENS } from '@/lib/tokens'
+import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
+import { followChain } from '@/lib/wallet/followChain'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'
 import { resolveSessionActor } from './actors/session.actors'
-import { resolveVerifiedOwner, sessionHydrationKey } from './sessionGate'
+import {
+  isSessionAccessReset,
+  resolveVerifiedOwner,
+  sessionHydrationKey,
+} from './sessionGate'
 import {
   selectIsLoading,
   selectIsReady,
@@ -141,6 +152,13 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    * only once the receipt confirms and carries the HCA's `SessionsRevoked`.
    */
   readonly revokeSession: (options?: RevokeSessionOptions) => Promise<boolean>
+  /**
+   * True once this page has reset the current HCA's sessions and no session
+   * has been authorized since: there is nothing left to revoke. Page-lifetime
+   * only, so a fresh load (where an owner goes after a leak elsewhere) can
+   * always reset.
+   */
+  readonly isSessionAccessReset: boolean
   /** Why the last revocation failed, for UI that branches on the cause. */
   readonly revokeErrorReason: SessionRevokeReason | null
   /**
@@ -375,7 +393,21 @@ export const SmartAccountContextProvider = ({
   const queryClient = useQueryClient()
   const { t } = useLingui()
   const { isConnecting, isReconnecting } = useConnection()
-  const { data: wagmiWalletClient } = useWalletClient()
+  const wagmiConfig = useConfig()
+  // Pinned to the app chain while the wallet may sit on an L2; chain-bound
+  // requests move the wallet back first.
+  const { data: connectorWalletClient } = useWalletClient({
+    chainId: appChain.id,
+    assertChainId: false,
+  })
+  const wagmiWalletClient = useMemo(
+    () =>
+      connectorWalletClient &&
+      followChain(connectorWalletClient, appChain, (chainId) =>
+        ensureWalletChain(wagmiConfig, chainId),
+      ),
+    [connectorWalletClient, wagmiConfig],
+  )
   const wagmiPublicClient = usePublicClient({ chainId: appChain.id })
 
   // True while the connector is still establishing/restoring a session, so
@@ -451,10 +483,7 @@ export const SmartAccountContextProvider = ({
     ? null
     : resolveVerifiedOwner(snapshot.context.ownerAddress, eoaAddress)
 
-  const balances = useSmartAccountBalances({
-    accountAddress,
-    ownerAddress,
-  })
+  const balances = useSmartAccountBalances({ ownerAddress })
 
   // Smart account is HCA-only: fund the EOA (which holds the ENS name and
   // stablecoins the smart account spends from). Execution costs are paid
@@ -487,6 +516,8 @@ export const SmartAccountContextProvider = ({
     anvilSetupDoneRef.current.add(ownerAddress)
     anvilSetupOwner(ownerAddress, appChain, {
       USDC: SUPPORTED_TOKENS.USDC,
+      // Circle's FiatToken keeps balances at slot 9 and has no open `mint`.
+      usdcBalanceSlot: 9n,
     }).catch(() => {
       anvilSetupDoneRef.current.delete(ownerAddress)
     })
@@ -559,8 +590,9 @@ export const SmartAccountContextProvider = ({
   }, [balances.stablecoinBalances])
 
   useEffect(() => {
-    // The faucet mints MockUSDC, which is also the payment token of the
-    // standalone-HCA route, so auto-fund runs on real Sepolia too.
+    // The faucet mints MockUSDC, not the Circle USDC the route pays in, so on
+    // real Sepolia a top-up never clears the low balance and would repeat.
+    if (!isTimeTravelEnabled()) return
 
     // NOTE: deliberately NOT gated on the smart-account machine's `isLoading`.
     // Funding tops up the EOA owner's stablecoins, which is independent of HCA
@@ -620,6 +652,9 @@ export const SmartAccountContextProvider = ({
   const [revokeError, setRevokeError] = useState<string | null>(null)
   const [revokeErrorReason, setRevokeErrorReason] =
     useState<SessionRevokeReason | null>(null)
+  // The HCA this page last revoked for. Kept in memory on purpose: another
+  // device can sign a session we never see, so a reload must offer reset again.
+  const [resetAccount, setResetAccount] = useState<Address | null>(null)
 
   // When the owner changes (incl. initial mount / reconnect), hydrate the
   // active session from localStorage: a valid, non-expired stored session for
@@ -739,6 +774,7 @@ export const SmartAccountContextProvider = ({
 
       // Update state so future renders/intents pick up the session…
       setActiveSession(result.value.session)
+      setResetAccount(null)
 
       // …AND return a signer with the session attached NOW, so the caller can
       // start registration in the same tick without waiting for a re-render
@@ -852,6 +888,7 @@ export const SmartAccountContextProvider = ({
           // `revokeSessionsOnChain` already dropped the stored row; clear the
           // in-memory one so the gate re-prompts on the next action.
           setActiveSession(null)
+          setResetAccount(revokedAccount)
           // The account machine still believes the HCA is counterfactual.
           if (deploymentTransactionHash) send({ type: 'REFRESH' })
           return true
@@ -1007,8 +1044,6 @@ export const SmartAccountContextProvider = ({
             ownerAddress: eoaAddress,
             stablecoinBalances: balances.stablecoinBalances,
             isLoadingBalances: balances.isLoadingBalances,
-            smartAccountEthBalance: balances.smartAccountEthBalance,
-            isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
             autoFundingMutation,
             signer,
             isAccountReady,
@@ -1026,6 +1061,7 @@ export const SmartAccountContextProvider = ({
             revokeError: null,
             revokeErrorReason: null,
             revokeSession,
+            isSessionAccessReset: false,
             forgetLocalSession,
             activeStoredSession: null,
             getSessionEnablePayload,
@@ -1047,8 +1083,6 @@ export const SmartAccountContextProvider = ({
             ownerAddress,
             stablecoinBalances: balances.stablecoinBalances,
             isLoadingBalances: balances.isLoadingBalances,
-            smartAccountEthBalance: balances.smartAccountEthBalance,
-            isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
             autoFundingMutation,
             signer,
             isAccountReady,
@@ -1066,6 +1100,11 @@ export const SmartAccountContextProvider = ({
             revokeError,
             revokeErrorReason,
             revokeSession,
+            isSessionAccessReset: isSessionAccessReset({
+              resetAccount,
+              accountAddress: snapshot.context.accountAddress,
+              hasActiveSession: !!activeSession && !isActiveSessionRevoked,
+            }),
             forgetLocalSession,
             activeStoredSession: activeSession,
             getSessionEnablePayload,
@@ -1085,8 +1124,6 @@ export const SmartAccountContextProvider = ({
       wagmiWalletClient,
       balances.stablecoinBalances,
       balances.isLoadingBalances,
-      balances.smartAccountEthBalance,
-      balances.isLoadingSmartAccountEth,
       snapshot.context.client,
       snapshot.context.config,
       snapshot.context.accountAddress,
@@ -1103,6 +1140,7 @@ export const SmartAccountContextProvider = ({
       revokeError,
       revokeErrorReason,
       revokeSession,
+      resetAccount,
       forgetLocalSession,
       getSessionEnablePayload,
       refreshAccount,

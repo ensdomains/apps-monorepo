@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { LinkButton } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import {
   profileExpiryDateFromSeconds,
   profileExpiryQuery,
@@ -14,10 +15,14 @@ import {
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
 import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/thirdPartyRenewalWarning'
+import {
+  actionLabelClassName,
+  iconActionInnerClassName,
+  renewActionSymbolClassName,
+} from './ProfileAction.styles'
 
 type ProfileRenewActionProps = {
   readonly className: string
-  readonly isBarAction?: boolean
   readonly isOwner?: boolean
   readonly name: string
   readonly protocol?: RenewalProtocol
@@ -25,13 +30,13 @@ type ProfileRenewActionProps = {
 
 export const ProfileRenewAction = ({
   className,
-  isBarAction = false,
   isOwner,
   name,
   protocol,
 }: ProfileRenewActionProps) => {
   const { data: expiryData } = useQuery({
     ...profileExpiryQuery(name, protocol),
+    ...profileDisplayQueryOptions,
   })
   const expiryDate = profileExpiryDateFromSeconds(expiryData?.expiry)
   const resolvedProtocol = protocol ?? expiryData?.protocol ?? 'v2'
@@ -46,24 +51,17 @@ export const ProfileRenewAction = ({
 
   if (!canRenew) return null
 
-  const buttonContent = isBarAction ? (
-    <>
-      <span className="xl:hidden">
-        <Trans>Renew</Trans>
-      </span>
-      <span className="hidden xl:inline">
+  const buttonContent = (
+    <span className={iconActionInnerClassName}>
+      <span className={actionLabelClassName}>
         <Trans>Renew Name</Trans>
       </span>
-    </>
-  ) : (
-    <>
-      <Trans>Renew Name</Trans>
       <MSymbol
         aria-hidden="true"
-        className="ms-opsz-20 ms-wght-600 text-base leading-none"
+        className={renewActionSymbolClassName}
         symbol="double_arrow"
       />
-    </>
+    </span>
   )
 
   if (isOwner === undefined) {
