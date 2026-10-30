@@ -27,6 +27,7 @@ import { prepareGrantRegistryRolesTransaction } from '@/features/registry/helper
 import { prepareRevokeRegistryRolesTransaction } from '@/features/registry/helpers/revokeRegistryRoles'
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
 import { useRevokeRegistryRolesMutation } from '@/features/registry/hooks/useRevokeRegistryRoles'
+import { useUpgradeRevokeGuard } from '@/features/registry/hooks/useUpgradeRevokeGuard'
 import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -171,6 +172,13 @@ export const RegistryEditUserSheet = ({
   }
 
   const removableRoles = getRemovableRoles(currentRoles, callerAdminRoles)
+  const upgradeGuard = useUpgradeRevokeGuard({
+    registryAddress,
+    account,
+    rows: rolesData,
+    saveRevokes: diff.toRevoke,
+    removeRevokes: removableRoles,
+  })
 
   const removeAdminLockoutRoles = removableRoles.filter((role) =>
     selfSoleAdminRoles.has(role),
@@ -284,7 +292,11 @@ export const RegistryEditUserSheet = ({
                 type="button"
                 variant="outline"
                 onClick={handleRemove}
-                disabled={removableRoles.length === 0 || isPending}
+                disabled={
+                  removableRoles.length === 0 ||
+                  upgradeGuard.isRemoveBlocked ||
+                  isPending
+                }
               >
                 <Trash2 className="size-4" />
                 Remove user
@@ -316,8 +328,22 @@ export const RegistryEditUserSheet = ({
                 </Alert>
               )}
 
+              {upgradeGuard.isAnyBlocked && (
+                <Alert variant="warning">
+                  <AlertDescription>
+                    This registry needs an upgrade to its current version first.
+                    Someone has to keep the Upgrade role until then, so it can't
+                    be removed yet.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="flex justify-end">
-                <Button type="submit" variant="default" disabled={!hasChanges}>
+                <Button
+                  type="submit"
+                  variant="default"
+                  disabled={!hasChanges || upgradeGuard.isSaveBlocked}
+                >
                   {match({ isPending })
                     .with({ isPending: true }, () => 'Saving...')
                     .otherwise(() => 'Save')}

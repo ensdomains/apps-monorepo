@@ -66,6 +66,41 @@ export const getSoleAdminRoles = (
   return result
 }
 
+const UPGRADE_ROLES: ReadonlySet<string> = new Set([
+  'ROLE_UPGRADE',
+  'ROLE_UPGRADE_ADMIN',
+])
+
+const canUpgrade = (roles: readonly string[]) =>
+  roles.some((role) => UPGRADE_ROLES.has(role))
+
+/** On a UserRegistry pending an upgrade (or unverified), refuse a revoke that leaves no one able to upgrade it. */
+export const isUpgradeRevokeBlocked = ({
+  isPendingUpgrade,
+  rows,
+  account,
+  toRevoke,
+}: {
+  readonly isPendingUpgrade: boolean | undefined
+  readonly rows: readonly RootRoleHolder[] | undefined
+  readonly account: Address | null
+  readonly toRevoke: readonly Role[]
+}): boolean => {
+  if (!account || isPendingUpgrade === false || !canUpgrade(toRevoke))
+    return false
+  if (!rows) return true
+  const target = account.toLowerCase()
+  const revoked = new Set<string>(toRevoke)
+  const keepsUpgrader = rows.some((row) =>
+    canUpgrade(
+      row.account.toLowerCase() === target
+        ? row.roles.filter((role) => !revoked.has(role))
+        : row.roles,
+    ),
+  )
+  return rows.some((row) => canUpgrade(row.roles)) && !keepsUpgrader
+}
+
 /** Roles to grant/revoke to move a holder from `current` to `selected`. */
 export const computeRoleDiff = (
   current: ReadonlySet<Role>,

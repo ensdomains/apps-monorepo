@@ -1,4 +1,6 @@
+import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
+import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { useParentAuthority } from '../hooks/useParentAuthority'
 import { useRegistryDetachImpact } from '../hooks/useRegistryDetachImpact'
@@ -52,6 +54,11 @@ export const V2SendName = ({
   // Registry roles are keyed on the label while the token is keyed on its id,
   // so a grant made from the roles page outlives the transfer. Read who holds
   // one before the form offers to hand the name over.
+  const { data: isPendingUpgrade = false } = useQuery({
+    ...getIsRegistryPendingUpgradeQueryOptions({ registryAddress }),
+    enabled: parentName !== null,
+  })
+
   const roleRevocations = useTransferRoleRevocations({
     name,
     registryAddress,
@@ -86,6 +93,7 @@ export const V2SendName = ({
                 authority.canRepointRegistry &&
                   `point ${parentName} at a different registry, which stops this name resolving no matter who owns it`,
               ].filter((power): power is string => typeof power === 'string'),
+              isPendingUpgrade,
             }
       }
       transfer={transfer}
