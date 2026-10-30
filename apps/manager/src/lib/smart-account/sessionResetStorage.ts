@@ -32,6 +32,9 @@ const readAll = (): SessionResets => {
   }
 }
 
+// Writes in this tab; other tabs hear about them through the `storage` event.
+const listeners = new Set<() => void>()
+
 // Best-effort: without storage, a reload just offers the reset again.
 const writeAll = (resets: SessionResets): void => {
   if (typeof window === 'undefined') return
@@ -39,6 +42,20 @@ const writeAll = (resets: SessionResets): void => {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(resets))
   } catch {}
+  for (const listener of listeners) listener()
+}
+
+/** Calls back whenever the saved resets change, in this tab or another. */
+export const subscribeSessionResets = (onChange: () => void) => {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY || event.key === null) onChange()
+  }
+  listeners.add(onChange)
+  window.addEventListener('storage', onStorage)
+  return () => {
+    listeners.delete(onChange)
+    window.removeEventListener('storage', onStorage)
+  }
 }
 
 export const readSessionResetNonce = (
