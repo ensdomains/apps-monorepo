@@ -18,6 +18,10 @@ const client = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/wagmi', () => ({ publicClient: client }))
+vi.mock('@/lib/wagmi/helpers', async () => {
+  const { ok } = await import('neverthrow')
+  return { safeGetClient: () => ok(client) }
+})
 
 vi.mock('@ensdomains/ensjs/public', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ensdomains/ensjs/public')>()),

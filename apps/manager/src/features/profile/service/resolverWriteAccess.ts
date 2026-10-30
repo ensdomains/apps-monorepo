@@ -6,10 +6,13 @@ import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
   BaseError,
+  type Client,
   ExecutionRevertedError,
   type PublicClient,
+  type Transport,
 } from 'viem'
-import { publicClient } from '@/lib/wagmi'
+import { publicClient, type sepoliaWithEns } from '@/lib/wagmi'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getProfileEthAddressSnapshot } from './profileEthAddress'
 import {
   encodeResolverRecordsCall,
@@ -58,6 +61,8 @@ const canWriteEthAddressRecord = async (
   }
 }
 
+type EnsClient = Client<Transport, typeof sepoliaWithEns>
+
 /**
  * ERC-165 ids a working resolver reports at least one of: `addr`, multicoin
  * `addr`, `text`, `contenthash` (V1 and public resolvers) or
@@ -75,20 +80,20 @@ const RESOLVER_INTERFACE_IDS = [
  * Whether `address` answers as a resolver. An EOA, or a contract that is not a
  * resolver, reports none of the ids; an RPC failure throws.
  */
-const isWorkingResolver = async (address: Address): Promise<boolean> => {
-  const supported = await getSupportedInterfaces(
-    publicClient as unknown as Parameters<typeof getSupportedInterfaces>[0],
-    { address, interfaces: RESOLVER_INTERFACE_IDS },
-  )
+const isWorkingResolver = async (
+  client: EnsClient,
+  address: Address,
+): Promise<boolean> => {
+  const supported = await getSupportedInterfaces(client, {
+    address,
+    interfaces: RESOLVER_INTERFACE_IDS,
+  })
   return supported.some(Boolean)
 }
 
 /** The name's resolver pointer, even when it is not a contract the UniversalResolver can call. */
-const findResolverPointer = async (name: string) =>
-  (await getResolver(
-    publicClient as unknown as Parameters<typeof getResolver>[0],
-    { name },
-  )) ?? undefined
+const findResolverPointer = async (client: EnsClient, name: string) =>
+  (await getResolver(client, { name })) ?? undefined
 
 export type ResolverWriteState = {
   /** Undefined when the name has no resolver. */
@@ -113,14 +118,18 @@ export const getResolverWriteState = ResultFn(async function* (
 
   const toAccessError = (e: unknown) =>
     new ResolverWriteAccessError({ cause: e })
+  const client = yield* safeGetClient()
   const { resolverAddress } = yield* getProfileEthAddressSnapshot(name)
 
   // The UniversalResolver reports no resolver when the pointer is not a
   // contract, so read the pointer itself to tell "none" from "invalid".
   if (!resolverAddress) {
-    const pointer = yield* fromPromise(findResolverPointer(name), toAccessError)
+    const pointer = yield* fromPromise(
+      findResolverPointer(client, name),
+      toAccessError,
+    )
     const isResolverInvalid = pointer
-      ? !(yield* fromPromise(isWorkingResolver(pointer), toAccessError))
+      ? !(yield* fromPromise(isWorkingResolver(client, pointer), toAccessError))
       : false
     return ok<ResolverWriteState>({
       resolverAddress: isResolverInvalid ? pointer : undefined,
@@ -136,7 +145,10 @@ export const getResolverWriteState = ResultFn(async function* (
   // Only a resolver the wallet cannot write needs telling apart from a non-resolver.
   const isResolverInvalid = canWrite
     ? false
-    : !(yield* fromPromise(isWorkingResolver(resolverAddress), toAccessError))
+    : !(yield* fromPromise(
+        isWorkingResolver(client, resolverAddress),
+        toAccessError,
+      ))
 
   return ok<ResolverWriteState>({
     resolverAddress,
