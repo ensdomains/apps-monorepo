@@ -273,13 +273,7 @@ export type RegistrationContext = {
   duration: bigint
   readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
-  /**
-   * The token address the caller showed and checked, for the approve and the
-   * register to pay with. Unset, `selectedToken` resolves through the
-   * smart-account manifest, which on Sepolia is Circle's USDC (bridged funds)
-   * rather than ensjs' MockUSDC. The explorer pays in the token it shows; the
-   * registrar accepts both. On mainnet both resolve to the same address.
-   */
+  /** Token the caller showed; unset, `selectedToken` resolves via the manifest (Circle USDC on Sepolia). */
   readonly paymentTokenAddress?: Address
   tokenPrice: bigint
   /**

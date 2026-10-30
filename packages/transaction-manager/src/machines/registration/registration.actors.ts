@@ -315,11 +315,7 @@ function getPaymentTokenAddress(token: TOKEN_SYMBOL, chain: Chain): Address {
   })
 }
 
-/**
- * The token a registration reads, approves and pays in: the one the caller
- * showed when it names one, else the symbol's default above. Every step of a
- * run resolves through here so the approval and the register can't disagree.
- */
+/** The caller's token if given, else the symbol's default; every step uses this. */
 export function resolvePaymentTokenAddress(
   input: {
     readonly selectedToken: TOKEN_SYMBOL

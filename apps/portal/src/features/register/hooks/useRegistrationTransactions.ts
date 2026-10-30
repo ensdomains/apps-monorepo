@@ -482,8 +482,7 @@ export const useRegistrationTransactions = ({
       name,
       duration: BigInt(duration),
       token: savedParams.tokenSymbol,
-      // Pay in the token the checkout showed and checked (#1395 made the
-      // symbol resolve to Circle's USDC on Sepolia).
+      // On Sepolia the symbol alone resolves to Circle USDC, not the shown MockUSDC.
       paymentTokenAddress: savedParams.tokenAddress,
       price: savedParams.tokenPrice,
       signer,
