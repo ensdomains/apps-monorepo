@@ -1256,6 +1256,8 @@ export function submitEoaSetupBundleActor(input: {
   readonly owner: Address
   readonly duration: bigint
   readonly selectedToken: TOKEN_SYMBOL
+  /** The token the caller chose to pay with; see `RegistrationContext`. */
+  readonly paymentTokenAddress?: Address
   /** Approved when the live price can't be read. */
   readonly tokenPrice: bigint
   readonly signer: Signer
@@ -1272,6 +1274,7 @@ export function submitEoaSetupBundleActor(input: {
     name: input.name,
     duration: input.duration,
     selectedToken: input.selectedToken,
+    paymentTokenAddress: input.paymentTokenAddress,
     publicClient: input.publicClient,
   })
     .map(({ allowance, livePrice }) =>
@@ -1302,7 +1305,9 @@ export function submitEoaSetupBundleActor(input: {
             ? []
             : [
                 {
-                  to: getPaymentTokenAddress(input.selectedToken, chain),
+                  to:
+                    input.paymentTokenAddress ??
+                    getPaymentTokenAddress(input.selectedToken, chain),
                   data: encodeTokenApprovalData(
                     registrarAddress,
                     authorizedPaymentAmount(approvedPrice),
@@ -1351,6 +1356,8 @@ export function submitRegistrationActor(input: {
   duration: bigint
   readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
+  /** The token the caller chose to pay with; see `RegistrationContext`. */
+  paymentTokenAddress?: Address
   owner: Address
   publicClient: PublicClient
   resolverAddress: Address
@@ -1365,10 +1372,12 @@ export function submitRegistrationActor(input: {
     (async () => {
       const accountAddress = getSignerAddress(input.signer)
 
-      const paymentToken = getPaymentTokenAddress(
-        input.selectedToken,
-        requireEnsChain(input.publicClient, 'registration'),
-      )
+      const paymentToken =
+        input.paymentTokenAddress ??
+        getPaymentTokenAddress(
+          input.selectedToken,
+          requireEnsChain(input.publicClient, 'registration'),
+        )
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
       console.log(

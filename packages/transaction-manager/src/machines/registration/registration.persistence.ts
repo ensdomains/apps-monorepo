@@ -67,6 +67,7 @@ export type PersistedRegistrationContext = {
   duration: bigint
   readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
+  paymentTokenAddress?: Address
   tokenPrice: bigint
   signerType: Signer['type']
   accountAddress?: Address
@@ -233,6 +234,7 @@ export function serializeRegistrationContext(
     duration: context.duration,
     referrer: context.referrer,
     selectedToken: context.selectedToken,
+    paymentTokenAddress: context.paymentTokenAddress,
     tokenPrice: context.tokenPrice,
     // The subscriber refuses to persist a context with no signer, so the
     // fallback is unreachable in practice; it exists to keep the persisted
@@ -325,6 +327,8 @@ const persistedContextSchema = v.object({
   selectedToken: v.picklist(
     Object.keys(PAYMENT_TOKEN_CONTRACT) as TOKEN_SYMBOL[],
   ),
+  // Optional: records written before it existed resume on the symbol.
+  paymentTokenAddress: v.optional(addressSchema),
   tokenPrice: v.bigint(),
   signerType: v.picklist(['eoa', 'rhinestone']),
   accountAddress: v.optional(addressSchema),
