@@ -319,6 +319,10 @@ msgstr ""
 msgid "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
 msgstr ""
 
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "About"
+msgstr ""
+
 #. placeholder {0}: formatUsd(m.shortfall)
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 msgid "About {0} more needed on {chainName}."

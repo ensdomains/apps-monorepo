@@ -1,0 +1,19 @@
+{
+  "name": "@ens-apps/v1-name-shapes",
+  "version": "1.0.0",
+  "description": "The V1 name-shape vocabulary: every wrapped/unwrapped/emancipated/locked × depth × holder combination the explorer has to render correctly, plus the portal tabs that render them. Pure data — no runtime dependencies, so the e2e suite and the dev-tools drawer can share one table.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "biome check"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

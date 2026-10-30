@@ -273,6 +273,8 @@ export type RegistrationContext = {
   duration: bigint
   readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
+  /** Token the caller showed; unset, `selectedToken` resolves via the manifest (Circle USDC on Sepolia). */
+  readonly paymentTokenAddress?: Address
   tokenPrice: bigint
   /**
    * Standalone-HCA: USDC budget transferred wallet → HCA in the commit leg
@@ -449,6 +451,8 @@ export type RegistrationEvent =
       duration: bigint
       readonly referrer?: Hex
       token: TOKEN_SYMBOL
+      /** See `RegistrationContext.paymentTokenAddress`. */
+      readonly paymentTokenAddress?: Address
       price: bigint
       signer: Signer
       /**
@@ -748,6 +752,7 @@ export const registrationMachine = setup({
       (input: {
         tokenPrice: bigint
         selectedToken: TOKEN_SYMBOL
+        readonly paymentTokenAddress?: Address
         signer: Signer
         publicClient: PublicClient
         id?: string
@@ -763,6 +768,7 @@ export const registrationMachine = setup({
         duration: bigint
         readonly referrer?: Hex
         selectedToken: TOKEN_SYMBOL
+        readonly paymentTokenAddress?: Address
         owner: Address
         publicClient: PublicClient
         resolverAddress: Address
@@ -829,6 +835,7 @@ export const registrationMachine = setup({
         name: string
         duration: bigint
         selectedToken: TOKEN_SYMBOL
+        readonly paymentTokenAddress?: Address
         publicClient: PublicClient
       }) => {
         return readPaymentAuthorizationActor(input)
@@ -1097,6 +1104,7 @@ export const registrationMachine = setup({
               duration: ({ event }) => event.duration,
               referrer: ({ event }) => normalizeReferrer(event.referrer),
               selectedToken: ({ event }) => event.token,
+              paymentTokenAddress: ({ event }) => event.paymentTokenAddress,
               tokenPrice: ({ event }) => event.price,
               signer: ({ event }) => event.signer,
               approvalSigner: ({ event }) => event.approvalSigner,
@@ -1884,6 +1892,7 @@ export const registrationMachine = setup({
           owner: context.ownerAddress ?? context.accountAddress!,
           duration: context.duration,
           selectedToken: context.selectedToken,
+          paymentTokenAddress: context.paymentTokenAddress,
           tokenPrice: context.tokenPrice,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
@@ -2351,6 +2360,7 @@ export const registrationMachine = setup({
           name: context.name,
           duration: context.duration,
           selectedToken: context.selectedToken,
+          paymentTokenAddress: context.paymentTokenAddress,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
         }),
@@ -2416,6 +2426,7 @@ export const registrationMachine = setup({
         input: ({ context }) => ({
           tokenPrice: context.tokenPrice,
           selectedToken: context.selectedToken,
+          paymentTokenAddress: context.paymentTokenAddress,
           // The registrar pulls the payment token from the name owner (the
           // EOA), so the approve must be signed by the EOA. Use the dedicated
           // EOA `approvalSigner` when provided (HCA flows); otherwise fall back
@@ -2503,6 +2514,7 @@ export const registrationMachine = setup({
           duration: context.duration,
           referrer: context.referrer,
           selectedToken: context.selectedToken,
+          paymentTokenAddress: context.paymentTokenAddress,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
