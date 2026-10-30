@@ -287,12 +287,9 @@ test.describe('Portal name transfer', () => {
     await expectOwnerOnNamePages(page, name, recipient)
   })
 
-  test('transfers a name to wallet B with the resolver detached', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    makeName,
-  }) => {
+  test('transfers a name to wallet B with the resolver detached', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
     await connectWithHeadlessWallet(page, wallet)
