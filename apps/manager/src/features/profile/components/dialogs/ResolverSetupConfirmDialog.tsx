@@ -14,10 +14,19 @@ import type { ResolverRecordWrite } from '@/features/profile/service/resolverRep
 
 export type ResolverSetupConfirmIntent = 'primary-name' | 'edit-profile'
 
+/**
+ * What the new resolver replaces: nothing (a plain continue), a working
+ * resolver or address (a destructive replace), or an address that is not a
+ * working resolver, which holds nothing readable.
+ */
+export type ResolverSetupReplacement =
+  | 'nothing'
+  | 'resolver'
+  | 'invalid-resolver'
+
 interface ResolverSetupConfirmDialogProps {
   readonly intent: ResolverSetupConfirmIntent
-  /** False when the name has nothing to replace, so the action is a plain continue. */
-  readonly isReplacing: boolean
+  readonly replaces: ResolverSetupReplacement
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly onConfirm: () => void
@@ -27,10 +36,32 @@ interface ResolverSetupConfirmDialogProps {
 
 const getCopy = (
   intent: ResolverSetupConfirmIntent,
-  isReplacing: boolean,
+  replaces: ResolverSetupReplacement,
 ): { title: ReactNode; description: ReactNode; confirmLabel: ReactNode } =>
-  match({ intent, isReplacing })
-    .with({ intent: 'primary-name', isReplacing: true }, () => ({
+  match({ intent, replaces })
+    .with({ intent: 'primary-name', replaces: 'invalid-resolver' }, () => ({
+      title: <Trans>Replace this name’s resolver?</Trans>,
+      description: (
+        <Trans>
+          This name points to an address that isn’t a working resolver, so its
+          records can’t be read or saved. To use it as your primary name, we’ll
+          replace it with a resolver your wallet controls.
+        </Trans>
+      ),
+      confirmLabel: <Trans>Replace & Continue</Trans>,
+    }))
+    .with({ intent: 'edit-profile', replaces: 'invalid-resolver' }, () => ({
+      title: <Trans>Replace this name’s resolver?</Trans>,
+      description: (
+        <Trans>
+          This name points to an address that isn’t a working resolver, so its
+          records can’t be read or saved. To save these changes, we’ll replace
+          it with a resolver your wallet controls.
+        </Trans>
+      ),
+      confirmLabel: <Trans>Replace & Save</Trans>,
+    }))
+    .with({ intent: 'primary-name', replaces: 'resolver' }, () => ({
       title: <Trans>Set this as your primary name?</Trans>,
       description: (
         <Trans>
@@ -40,7 +71,7 @@ const getCopy = (
       ),
       confirmLabel: <Trans>Replace & Continue</Trans>,
     }))
-    .with({ intent: 'primary-name', isReplacing: false }, () => ({
+    .with({ intent: 'primary-name', replaces: 'nothing' }, () => ({
       title: <Trans>Set this as your primary name?</Trans>,
       description: (
         <Trans>
@@ -50,7 +81,7 @@ const getCopy = (
       ),
       confirmLabel: <Trans>Continue</Trans>,
     }))
-    .with({ intent: 'edit-profile', isReplacing: false }, () => ({
+    .with({ intent: 'edit-profile', replaces: 'nothing' }, () => ({
       title: <Trans>Set up this name’s resolver?</Trans>,
       description: (
         <Trans>
@@ -60,7 +91,7 @@ const getCopy = (
       ),
       confirmLabel: <Trans>Set up & Save</Trans>,
     }))
-    .with({ intent: 'edit-profile', isReplacing: true }, () => ({
+    .with({ intent: 'edit-profile', replaces: 'resolver' }, () => ({
       title: <Trans>Set up this name’s resolver?</Trans>,
       description: (
         <Trans>
@@ -75,14 +106,14 @@ const getCopy = (
 
 export const ResolverSetupConfirmDialog = ({
   intent,
-  isReplacing,
+  replaces,
   open,
   onOpenChange,
   onConfirm,
   children,
   recordWrites,
 }: ResolverSetupConfirmDialogProps) => {
-  const { title, description, confirmLabel } = getCopy(intent, isReplacing)
+  const { title, description, confirmLabel } = getCopy(intent, replaces)
 
   return (
     <AlertDialog onOpenChange={onOpenChange} open={open}>
@@ -138,7 +169,7 @@ export const ResolverSetupConfirmDialog = ({
               onOpenChange(false)
             }}
             size="lg"
-            variant={isReplacing ? 'destructive' : 'default'}
+            variant={replaces === 'resolver' ? 'destructive' : 'default'}
           >
             {confirmLabel}
           </Button>

@@ -2624,6 +2624,10 @@ msgstr "Replace & Save"
 msgid "Replace resolver"
 msgstr "Replace resolver"
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Replace this name’s resolver?"
+msgstr "Replace this name’s resolver?"
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Resend in {resendWait}s"
 msgstr "Resend in {resendWait}s"
@@ -3419,6 +3423,14 @@ msgstr "This name is in price cooldown"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 msgstr "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "This name points to an address that isn’t a working resolver, so its records can’t be read or saved. To save these changes, we’ll replace it with a resolver your wallet controls."
+msgstr "This name points to an address that isn’t a working resolver, so its records can’t be read or saved. To save these changes, we’ll replace it with a resolver your wallet controls."
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "This name points to an address that isn’t a working resolver, so its records can’t be read or saved. To use it as your primary name, we’ll replace it with a resolver your wallet controls."
+msgstr "This name points to an address that isn’t a working resolver, so its records can’t be read or saved. To use it as your primary name, we’ll replace it with a resolver your wallet controls."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "This parent has subnames whose protections cannot be preserved by this upgrade yet."

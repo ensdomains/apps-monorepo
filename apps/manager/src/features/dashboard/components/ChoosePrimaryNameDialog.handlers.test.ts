@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   getPrimaryNameCandidates,
   getPrimaryNamePage,
+  getResolverSetupReplacement,
   isConfirmationForSelection,
   isConfirmBlocked,
-  isResolverSetupReplacing,
   needsPrimaryNameConfirmation,
 } from './ChoosePrimaryNameDialog.handlers'
 
@@ -136,6 +136,7 @@ describe('primary-name confirmation', () => {
         kind: 'setup-resolver',
         hasResolver: false,
         hasOffchainResolver: false,
+        isResolverInvalid: false,
         existingEthAddress: null,
       }),
     ).toBe(true)
@@ -170,6 +171,7 @@ describe('primary-name confirmation', () => {
           existingEthAddress: null,
           hasResolver: false,
           hasOffchainResolver: false,
+          isResolverInvalid: false,
         },
         confirmation,
       ),
@@ -221,6 +223,7 @@ describe('isConfirmBlocked', () => {
       existingEthAddress: null,
       hasResolver: false,
       hasOffchainResolver: false,
+      isResolverInvalid: false,
       name: 'pookie.eth',
       ownerAddress: '0x1111111111111111111111111111111111111111' as const,
     }
@@ -232,6 +235,7 @@ describe('isConfirmBlocked', () => {
           existingEthAddress: null,
           hasResolver: true,
           hasOffchainResolver: false,
+          isResolverInvalid: false,
         },
         confirmed,
       ),
@@ -243,49 +247,60 @@ describe('isConfirmBlocked', () => {
           existingEthAddress: null,
           hasResolver: false,
           hasOffchainResolver: false,
+          isResolverInvalid: false,
         },
         confirmed,
       ),
     ).toBe(false)
   })
 
-  describe('isResolverSetupReplacing', () => {
-    const base = {
+  it('asks again when the resolver turned out to be invalid since confirming', () => {
+    const confirmed = {
+      kind: 'setup-resolver' as const,
+      existingEthAddress: null,
+      hasResolver: true,
+      hasOffchainResolver: false,
+      isResolverInvalid: false,
       name: 'pookie.eth',
       ownerAddress: '0x1111111111111111111111111111111111111111' as const,
     }
 
-    it('is a plain continue when the name has no resolver and no address', () => {
-      expect(
-        isResolverSetupReplacing({
-          ...base,
-          kind: 'setup-resolver',
-          existingEthAddress: null,
-          hasResolver: false,
-          hasOffchainResolver: false,
-        }),
-      ).toBe(false)
-    })
+    expect(
+      needsPrimaryNameConfirmation(
+        { ...confirmed, isResolverInvalid: true },
+        confirmed,
+      ),
+    ).toBe(true)
+  })
 
-    it('replaces when a foreign resolver or an address exists', () => {
-      expect(
-        isResolverSetupReplacing({
-          ...base,
-          kind: 'setup-resolver',
-          existingEthAddress: null,
-          hasResolver: true,
-          hasOffchainResolver: false,
-        }),
-      ).toBe(true)
-      expect(
-        isResolverSetupReplacing({
-          ...base,
-          kind: 'setup-resolver',
-          existingEthAddress: '0x2222222222222222222222222222222222222222',
-          hasResolver: false,
-          hasOffchainResolver: false,
-        }),
-      ).toBe(true)
+  describe('getResolverSetupReplacement', () => {
+    const setup = {
+      name: 'pookie.eth',
+      ownerAddress: '0x1111111111111111111111111111111111111111' as const,
+      kind: 'setup-resolver' as const,
+      existingEthAddress: null,
+      hasResolver: false,
+      hasOffchainResolver: false,
+      isResolverInvalid: false,
+    }
+
+    it.each([
+      ['no resolver and no address', {}, 'nothing'],
+      ['a foreign resolver', { hasResolver: true }, 'resolver'],
+      [
+        'an address on the name',
+        { existingEthAddress: '0x2222222222222222222222222222222222222222' },
+        'resolver',
+      ],
+      [
+        'a resolver pointer that is not a resolver',
+        { hasResolver: true, isResolverInvalid: true },
+        'invalid-resolver',
+      ],
+    ] as const)('classifies a name with %s', (_, override, expected) => {
+      expect(getResolverSetupReplacement({ ...setup, ...override })).toBe(
+        expected,
+      )
     })
   })
 })

@@ -59,7 +59,11 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({ resolverAddress: undefined, canWrite: false }),
+      ok({
+        resolverAddress: undefined,
+        canWrite: false,
+        isResolverInvalid: false,
+      }),
     )
 
     await expect(
@@ -69,6 +73,7 @@ describe('getPrimaryNamePreparation', () => {
       existingEthAddress: null,
       hasResolver: false,
       hasOffchainResolver: false,
+      isResolverInvalid: false,
     })
     expect(getResolverWriteState).toHaveBeenCalledWith(name, owner)
   })
@@ -77,7 +82,11 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({ resolverAddress: RESOLVER, canWrite: true }),
+      ok({
+        resolverAddress: RESOLVER,
+        canWrite: true,
+        isResolverInvalid: false,
+      }),
     )
 
     await expect(
@@ -94,7 +103,11 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(otherAddress)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({ resolverAddress: RESOLVER, canWrite: true }),
+      ok({
+        resolverAddress: RESOLVER,
+        canWrite: true,
+        isResolverInvalid: false,
+      }),
     )
 
     await expect(
@@ -110,7 +123,11 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(zeroAddress)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({ resolverAddress: undefined, canWrite: false }),
+      ok({
+        resolverAddress: undefined,
+        canWrite: false,
+        isResolverInvalid: false,
+      }),
     )
 
     await expect(
@@ -120,6 +137,7 @@ describe('getPrimaryNamePreparation', () => {
       existingEthAddress: null,
       hasResolver: false,
       hasOffchainResolver: false,
+      isResolverInvalid: false,
     })
   })
 
@@ -136,11 +154,14 @@ describe('getPrimaryNamePreparation', () => {
     )
   })
 
-  it('flags a foreign resolver as being replaced', async () => {
+  it.each([
+    { label: 'a foreign resolver', isResolverInvalid: false },
+    { label: 'an invalid resolver', isResolverInvalid: true },
+  ])('flags $label as being replaced', async ({ isResolverInvalid }) => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({ resolverAddress: RESOLVER, canWrite: false }),
+      ok({ resolverAddress: RESOLVER, canWrite: false, isResolverInvalid }),
     )
 
     await expect(
@@ -150,6 +171,7 @@ describe('getPrimaryNamePreparation', () => {
       existingEthAddress: null,
       hasResolver: true,
       hasOffchainResolver: false,
+      isResolverInvalid,
     })
   })
 })

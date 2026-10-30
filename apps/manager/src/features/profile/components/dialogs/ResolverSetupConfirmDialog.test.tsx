@@ -9,7 +9,6 @@ describe('ResolverSetupConfirmDialog', () => {
     render(
       <ResolverSetupConfirmDialog
         intent="edit-profile"
-        isReplacing
         onConfirm={onConfirm}
         onOpenChange={vi.fn()}
         open
@@ -20,6 +19,7 @@ describe('ResolverSetupConfirmDialog', () => {
             value: '0x1111111111111111111111111111111111111111',
           },
         ]}
+        replaces="resolver"
       />,
     )
     const list = screen.getByRole('list', { name: 'Records to write' })
@@ -39,11 +39,11 @@ describe('ResolverSetupConfirmDialog', () => {
     render(
       <ResolverSetupConfirmDialog
         intent="edit-profile"
-        isReplacing
         onConfirm={onConfirm}
         onOpenChange={vi.fn()}
         open
         recordWrites={[]}
+        replaces="resolver"
       />,
     )
     expect(screen.getByText(/No profile records will be kept/)).toBeVisible()
@@ -55,10 +55,10 @@ describe('ResolverSetupConfirmDialog', () => {
     render(
       <ResolverSetupConfirmDialog
         intent="edit-profile"
-        isReplacing
         onConfirm={vi.fn()}
         onOpenChange={vi.fn()}
         open
+        replaces="resolver"
       />,
     )
     expect(
@@ -70,10 +70,10 @@ describe('ResolverSetupConfirmDialog', () => {
     render(
       <ResolverSetupConfirmDialog
         intent="primary-name"
-        isReplacing={false}
         onConfirm={vi.fn()}
         onOpenChange={vi.fn()}
         open
+        replaces="nothing"
       />,
     )
 
@@ -86,10 +86,10 @@ describe('ResolverSetupConfirmDialog', () => {
     render(
       <ResolverSetupConfirmDialog
         intent="primary-name"
-        isReplacing
         onConfirm={vi.fn()}
         onOpenChange={vi.fn()}
         open
+        replaces="resolver"
       />,
     )
 
@@ -99,4 +99,29 @@ describe('ResolverSetupConfirmDialog', () => {
       screen.getByText(/keep only your wallet address/),
     ).toBeInTheDocument()
   })
+
+  // Nothing readable lives on a non-resolver, so say why it goes rather than
+  // warning that something is being overwritten.
+  it.each([
+    { intent: 'primary-name', confirmLabel: 'Replace & Continue' },
+    { intent: 'edit-profile', confirmLabel: 'Replace & Save' },
+  ] as const)(
+    'explains an invalid resolver for $intent',
+    ({ intent, confirmLabel }) => {
+      render(
+        <ResolverSetupConfirmDialog
+          intent={intent}
+          onConfirm={vi.fn()}
+          onOpenChange={vi.fn()}
+          open
+          replaces="invalid-resolver"
+        />,
+      )
+
+      expect(screen.getByText(/isn’t a working resolver/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: confirmLabel })).toHaveClass(
+        'bg-ens-blue',
+      )
+    },
+  )
 })

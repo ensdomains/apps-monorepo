@@ -45,6 +45,7 @@ import {
   setupControlledResolver,
 } from '@/features/profile/service/setupControlledResolver'
 import type { ProfileRecords } from '@/features/profile/types'
+import { getResolverReplacement } from '@/features/profile/utils/resolverReplacement'
 import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
@@ -291,7 +292,6 @@ export const useEditProfileDialogSave = ({
   ])
   const hasResolver = Boolean(savedRecords.resolverAddress)
 
-  // Probe write access whenever a resolver is present.
   const resolverWriteAccess = useQuery({
     ...resolverWriteStateQuery(name, ownerAddress ?? undefined),
     enabled: open && hasResolver && Boolean(ownerAddress),
@@ -314,6 +314,11 @@ export const useEditProfileDialogSave = ({
         resolverWriteAccess.isError ||
         reviewedResolverChanged ||
         (!resolverCopySource && !resolverWriteAccess.data?.canWrite)))
+
+  const setupReplaces = getResolverReplacement({
+    isResolverInvalid: resolverWriteAccess.data?.isResolverInvalid === true,
+    hasResolver,
+  })
 
   const saveRecordsMutation = useMutation({
     mutationFn: ({
@@ -760,6 +765,7 @@ export const useEditProfileDialogSave = ({
     handleSetupConfirmOpenChange,
     isFinalizingImageSave,
     isResolverAccessPending,
+    setupReplaces,
     resetPreparedImageSaveState,
     preparedImageUploads,
     setupConfirmOpen,

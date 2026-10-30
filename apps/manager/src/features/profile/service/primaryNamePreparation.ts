@@ -39,6 +39,8 @@ export type PrimaryNamePreparation =
       readonly hasResolver: boolean
       /** Its records come from an outside gateway, so only that provider can set them. */
       readonly hasOffchainResolver: boolean
+      /** The resolver being replaced is not a working resolver. */
+      readonly isResolverInvalid: boolean
     }
 
 /** An ENSv1 resolver that resolution no longer reaches, e.g. under an expired parent. */
@@ -165,7 +167,7 @@ export async function getPrimaryNamePreparation(
       ? forwardAddress
       : null
 
-  const { resolverAddress, canWrite } = writeState.value
+  const { resolverAddress, canWrite, isResolverInvalid } = writeState.value
   if (canWrite && resolverAddress) {
     return { kind: 'update-eth-address', existingEthAddress, resolverAddress }
   }
@@ -177,6 +179,8 @@ export async function getPrimaryNamePreparation(
     hasResolver: resolverAddress !== undefined,
     hasOffchainResolver:
       resolverAddress !== undefined &&
+      !isResolverInvalid &&
       (await isOffchainResolver(publicClient, resolverAddress, name)),
+    isResolverInvalid,
   }
 }
