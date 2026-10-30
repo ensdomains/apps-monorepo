@@ -9,10 +9,9 @@ import patternBg from '@/assets/pattern-bg.svg'
 import { getHasDashboardNamesQueryOptions } from '@/features/dashboard/service/queries/hasDashboardNames'
 import { CheckAvailability } from '@/features/landing/check-availability/CheckAvailability'
 import { FeaturesCarousel } from '@/features/landing/FeaturesCarousel'
-import { homepageThemeColor } from '@/features/landing/homepageThemeColor'
 import { IntegrationsSection } from '@/features/landing/IntegrationsSection'
-import { useLandingSearchTheme } from '@/features/landing/LandingSearchTheme'
 import { ProfilesShowcase } from '@/features/landing/ProfilesShowcase'
+import { useConnectedAvatar } from '@/features/wallet/hooks/useConnectedAvatar'
 import { getConnectionCookie } from '@/lib/connection-cookie'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
@@ -22,9 +21,8 @@ const HAS_NAMES_WAIT_MS = 3000
 const LandingPage = () => {
   const navigate = useNavigate()
   useRedirectToDashboard()
-  // Raw `theme` text record from the search. No record keeps the Lapis classes.
-  const { themeRecord, setThemeRecord } = useLandingSearchTheme()
-  const themeColor = homepageThemeColor(themeRecord)
+  // Primary name theme for the connected wallet. No name/theme keeps Lapis.
+  const { themeColor } = useConnectedAvatar()
 
   return (
     <div
@@ -56,7 +54,6 @@ const LandingPage = () => {
             onRegistrationComplete={(name) => {
               navigate({ to: '/register/$name', params: { name } })
             }}
-            onThemeRecord={setThemeRecord}
           />
         </div>
       </div>

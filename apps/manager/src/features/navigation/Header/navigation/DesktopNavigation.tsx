@@ -15,7 +15,7 @@ import { NavigationContent } from './NavigationContent'
 type DesktopNavigationProps = {
   readonly anchorRef?: React.RefObject<HTMLElement | null>
   readonly isConnected: boolean
-  /** Homepage search theme. Swaps the static mark for the themed logo. */
+  /** Connected wallet theme. Swaps the static mark for the themed logo. */
   readonly landingThemeColor?: string
   readonly profileHeader?: boolean
   readonly profileThemeColor?: string
@@ -62,7 +62,7 @@ export const DesktopNavigation = ({
           className="flex shrink-0 items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
           to={isConnected ? '/dashboard' : '/'}
         >
-          {/* Homepage search theme replaces the static mark. The chevron follows profileHeader. */}
+          {/* Connected-wallet theme replaces the static mark. The chevron follows profileHeader. */}
           {profileHeader ? (
             <ProfileThemeEnsLogo color={profileThemeColor} />
           ) : landingThemeColor ? (

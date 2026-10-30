@@ -6,7 +6,7 @@ import vitalikAvatar from '@/assets/pages/landing/vitalik.webp'
 import { ProfileCard } from './components/ProfileCard'
 
 type ProfilesShowcaseProps = {
-  /** Resolved homepage theme. Missing keeps the Lapis heading. */
+  /** Connected wallet theme. Missing keeps the Lapis heading. */
   readonly themeColor?: string
 }
 

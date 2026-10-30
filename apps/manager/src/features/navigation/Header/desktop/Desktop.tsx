@@ -9,7 +9,7 @@ import { DisconnectedRightBlock } from './DisconnectedRightBlock'
 type DesktopHeaderProps = {
   readonly isConnected: boolean
   readonly connectionSettled: boolean
-  /** Homepage search theme. Recolors the ENS mark and leaves the chevron alone. */
+  /** Connected wallet theme. Recolors the ENS mark and leaves the chevron alone. */
   readonly landingThemeColor?: string
   readonly profileThemeColor?: string
   readonly transparentBackground?: boolean

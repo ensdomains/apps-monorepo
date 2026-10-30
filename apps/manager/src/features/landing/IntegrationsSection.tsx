@@ -82,7 +82,7 @@ const INTEGRATIONS: {
 ]
 
 type IntegrationsSectionProps = {
-  /** Resolved homepage theme. Missing keeps the Lapis heading. */
+  /** Connected wallet theme. Missing keeps the Lapis heading. */
   readonly themeColor?: string
 }
 

@@ -4,7 +4,6 @@ import type { ReactNode } from 'react'
 import { GlobalBackButtonProvider } from '@/components/GlobalBackButton'
 import { LayoutBackRow } from '@/components/LayoutBackRow'
 import { NoticeBanner } from '@/components/NoticeBanner'
-import { LandingSearchThemeProvider } from '@/features/landing/LandingSearchTheme'
 import { Header } from '@/features/navigation/Header/Header'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
@@ -41,40 +40,38 @@ export const Layout = ({ children }: LayoutProps) => {
   )['--theme-color']
 
   return (
-    <LandingSearchThemeProvider>
-      <div
-        className={tw(
-          'relative flex flex-col bg-[#FCFBFB]',
-          isMigrationPage
-            ? 'h-dvh overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200'
-            : 'min-h-screen',
-        )}
-      >
-        <NoticeBanner />
-        <div className="sticky inset-x-0 top-(--notice-bar-h) z-30 shrink-0">
-          <Header
-            desktopBreakpoint={isProfilePage ? 'xl' : 'md'}
-            hasMobileBlurredBackground={isProfilePage}
-            profileThemeColor={
-              isMigrationPage ? migrationHeaderColor : profileThemeColor
-            }
-            transparentBackground={isProfilePage || isMigrationPage}
-          />
-        </div>
-
-        <GlobalBackButtonProvider>
-          <main
-            className={tw(
-              'relative isolate flex flex-1 flex-col',
-              isMigrationPage && 'min-h-0',
-            )}
-          >
-            <LayoutBackRow isHidden={isProfilePage} />
-            {children}
-          </main>
-        </GlobalBackButtonProvider>
-        <BackendAuthModal />
+    <div
+      className={tw(
+        'relative flex flex-col bg-[#FCFBFB]',
+        isMigrationPage
+          ? 'h-dvh overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200'
+          : 'min-h-screen',
+      )}
+    >
+      <NoticeBanner />
+      <div className="sticky inset-x-0 top-(--notice-bar-h) z-30 shrink-0">
+        <Header
+          desktopBreakpoint={isProfilePage ? 'xl' : 'md'}
+          hasMobileBlurredBackground={isProfilePage}
+          profileThemeColor={
+            isMigrationPage ? migrationHeaderColor : profileThemeColor
+          }
+          transparentBackground={isProfilePage || isMigrationPage}
+        />
       </div>
-    </LandingSearchThemeProvider>
+
+      <GlobalBackButtonProvider>
+        <main
+          className={tw(
+            'relative isolate flex flex-1 flex-col',
+            isMigrationPage && 'min-h-0',
+          )}
+        >
+          <LayoutBackRow isHidden={isProfilePage} />
+          {children}
+        </main>
+      </GlobalBackButtonProvider>
+      <BackendAuthModal />
+    </div>
   )
 }
