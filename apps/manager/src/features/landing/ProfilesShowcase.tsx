@@ -5,11 +5,23 @@ import nickAvatar from '@/assets/pages/landing/nick.webp'
 import vitalikAvatar from '@/assets/pages/landing/vitalik.webp'
 import { ProfileCard } from './components/ProfileCard'
 
-export const ProfilesShowcase = () => {
+type ProfilesShowcaseProps = {
+  /** Resolved homepage theme. Missing keeps the Lapis heading. */
+  readonly themeColor?: string
+}
+
+export const ProfilesShowcase = ({ themeColor }: ProfilesShowcaseProps) => {
   return (
     <div className="mx-auto mt-20 mb-28 w-full-[4rem] max-w-6xl">
       <div className="space-y-6">
-        <h2 className="max-w-md font-medium text-ens-lapis-core text-temp-32px leading-ens-none">
+        <h2
+          className={
+            themeColor
+              ? 'max-w-md font-medium text-temp-32px leading-ens-none'
+              : 'max-w-md font-medium text-ens-lapis-core text-temp-32px leading-ens-none'
+          }
+          style={themeColor ? { color: themeColor } : undefined}
+        >
           <Trans>Customize your profile to share what matters</Trans>
         </h2>
         <p className="max-w-md text-lg leading-ens-normal">

@@ -15,6 +15,8 @@ import { NavigationContent } from './NavigationContent'
 type DesktopNavigationProps = {
   readonly anchorRef?: React.RefObject<HTMLElement | null>
   readonly isConnected: boolean
+  /** Homepage search theme. Swaps the static mark for the themed logo. */
+  readonly landingThemeColor?: string
   readonly profileHeader?: boolean
   readonly profileThemeColor?: string
 }
@@ -42,6 +44,7 @@ const ProfileThemeEnsLogo = ({ color }: { readonly color?: string }) => (
 export const DesktopNavigation = ({
   anchorRef,
   isConnected,
+  landingThemeColor,
   profileHeader = false,
   profileThemeColor,
 }: DesktopNavigationProps) => {
@@ -59,8 +62,11 @@ export const DesktopNavigation = ({
           className="flex shrink-0 items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
           to={isConnected ? '/dashboard' : '/'}
         >
+          {/* Homepage search theme replaces the static mark. The chevron follows profileHeader. */}
           {profileHeader ? (
             <ProfileThemeEnsLogo color={profileThemeColor} />
+          ) : landingThemeColor ? (
+            <ProfileThemeEnsLogo color={landingThemeColor} />
           ) : (
             <img alt="ENS Logo" className="h-6.5 shrink-0" src={ensLogo} />
           )}

@@ -9,7 +9,9 @@ import patternBg from '@/assets/pattern-bg.svg'
 import { getHasDashboardNamesQueryOptions } from '@/features/dashboard/service/queries/hasDashboardNames'
 import { CheckAvailability } from '@/features/landing/check-availability/CheckAvailability'
 import { FeaturesCarousel } from '@/features/landing/FeaturesCarousel'
+import { homepageThemeColor } from '@/features/landing/homepageThemeColor'
 import { IntegrationsSection } from '@/features/landing/IntegrationsSection'
+import { useLandingSearchTheme } from '@/features/landing/LandingSearchTheme'
 import { ProfilesShowcase } from '@/features/landing/ProfilesShowcase'
 import { getConnectionCookie } from '@/lib/connection-cookie'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -20,6 +22,9 @@ const HAS_NAMES_WAIT_MS = 3000
 const LandingPage = () => {
   const navigate = useNavigate()
   useRedirectToDashboard()
+  // Raw `theme` text record from the search. No record keeps the Lapis classes.
+  const { themeRecord, setThemeRecord } = useLandingSearchTheme()
+  const themeColor = homepageThemeColor(themeRecord)
 
   return (
     <div
@@ -31,7 +36,12 @@ const LandingPage = () => {
       {/* Hero Section */}
       <div className="mx-auto flex w-full-[2rem] flex-col items-center pt-[20vh] pb-[min(10vh,5rem)]">
         <h1 className="whitespace-nowrap text-center text-[56px] capitalize leading-none tracking-[-2px]">
-          <span className="font-serif text-ens-lapis-core">
+          <span
+            className={
+              themeColor ? 'font-serif' : 'font-serif text-ens-lapis-core'
+            }
+            style={themeColor ? { color: themeColor } : undefined}
+          >
             <Trans>Find your</Trans>{' '}
           </span>
           <span className="font-serif text-ens-quartz-900">
@@ -46,15 +56,16 @@ const LandingPage = () => {
             onRegistrationComplete={(name) => {
               navigate({ to: '/register/$name', params: { name } })
             }}
+            onThemeRecord={setThemeRecord}
           />
         </div>
       </div>
 
       <FeaturesCarousel />
 
-      <ProfilesShowcase />
+      <ProfilesShowcase themeColor={themeColor} />
 
-      <IntegrationsSection />
+      <IntegrationsSection themeColor={themeColor} />
     </div>
   )
 }

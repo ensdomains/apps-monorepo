@@ -1,6 +1,8 @@
 import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { useHydrated } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
+import { homepageThemeColor } from '@/features/landing/homepageThemeColor'
+import { useLandingSearchThemeRecord } from '@/features/landing/LandingSearchTheme'
 import { DesktopHeader } from './desktop/Desktop'
 import { MobileHeader } from './mobile/MobileHeader'
 
@@ -22,6 +24,9 @@ export const Header = ({
   )
   const isHydrated = useHydrated()
   const { isConnected, isConnecting, isReconnecting } = useConnection()
+  // Homepage search theme. The desktop mark uses it. The mobile mark stays dark.
+  const landingThemeRecord = useLandingSearchThemeRecord()
+  const landingThemeColor = homepageThemeColor(landingThemeRecord)
 
   // Show a loading placeholder (not "Connect") until hydrated and nothing is
   // mid-connect, so the slot doesn't flash during reconnection.
@@ -46,6 +51,7 @@ export const Header = ({
     <DesktopHeader
       connectionSettled={connectionSettled}
       isConnected={isConnected}
+      landingThemeColor={landingThemeColor}
       profileThemeColor={profileThemeColor}
       transparentBackground={transparentBackground}
     />

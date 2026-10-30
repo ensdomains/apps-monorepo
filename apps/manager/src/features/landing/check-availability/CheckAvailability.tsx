@@ -3,7 +3,13 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
-import { type ChangeEvent, type ReactNode, useRef, useState } from 'react'
+import {
+  type ChangeEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { match } from 'ts-pattern'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import {
@@ -90,11 +96,28 @@ const SearchStatusResult = ({
 }
 
 export type CheckAvailabilityProps = {
-  onRegistrationComplete?: (name: string) => void
+  readonly onRegistrationComplete?: (name: string) => void
+  /** Raw profile `theme` text record for the searched name, when one exists. */
+  readonly onThemeRecord?: (record: string | undefined) => void
+}
+
+/**
+ * Forwards the searched name's raw `theme` text record to the landing page.
+ * The profile query already lives with the search; this effect only reports
+ * that result. It does not fetch.
+ */
+const useReportLandingThemeRecord = (
+  themeRecord: string | undefined,
+  onThemeRecord: ((record: string | undefined) => void) | undefined,
+): void => {
+  useEffect(() => {
+    onThemeRecord?.(themeRecord)
+  }, [onThemeRecord, themeRecord])
 }
 
 export const CheckAvailability = ({
   onRegistrationComplete: _onRegistrationComplete,
+  onThemeRecord,
 }: CheckAvailabilityProps) => {
   const [inputValue, setInputValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -135,6 +158,11 @@ export const CheckAvailability = ({
   const themeColor = profileRecords?.texts.find(
     (text) => text.key === 'theme',
   )?.value
+
+  useReportLandingThemeRecord(
+    profileName ? themeColor : undefined,
+    onThemeRecord,
+  )
 
   const avatarRecord = profileRecords?.texts
     .find((text) => text.key === 'avatar')
