@@ -36,7 +36,7 @@ const SmartSessionPaymentCard = (props: RenewalPaymentCardProps) => {
 
 export const PaymentCard = () => {
   const { uiActor, label, protocol } = useRenewalUiContext()
-  const signer = useRenewalSigner()
+  const route = getRenewalPaymentRoute(useRenewalSigner())
 
   const [duration, canNext] = useSelector(uiActor, (state) => [
     state.context.duration,
@@ -68,7 +68,7 @@ export const PaymentCard = () => {
   }
 
   // The wallet route sends transactions and signs no session, like a v1 renewal.
-  if (protocol === 'v1' || getRenewalPaymentRoute(signer) === 'wallet') {
+  if (protocol === 'v1' || route === 'wallet') {
     return (
       <PaymentCardBase
         {...paymentCardProps}
@@ -78,5 +78,11 @@ export const PaymentCard = () => {
     )
   }
 
-  return <SmartSessionPaymentCard {...paymentCardProps} />
+  // Until the route is known, a Safe could still reach the session prompt.
+  return (
+    <SmartSessionPaymentCard
+      {...paymentCardProps}
+      canNext={canNext && route === 'intent'}
+    />
+  )
 }
