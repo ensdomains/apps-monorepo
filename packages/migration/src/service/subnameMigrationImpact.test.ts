@@ -259,6 +259,23 @@ describe('readSubnameMigrationImpact', () => {
     })
   })
 
+  it.each([
+    { count: 5, affectedCount: 0, droppedCount: 5 },
+    { count: 6, affectedCount: 6, droppedCount: 0 },
+  ])(
+    'blocks a parent past the unknown-label limit ($count leaves)',
+    async ({ count, affectedCount, droppedCount }) => {
+      const { read } = fixture({
+        'parent.eth': Array.from({ length: count }, (_, index) =>
+          subname(`[${index.toString(16).padStart(64, '0')}].parent.eth`),
+        ),
+      })
+      const impact = await read()
+      expect(impact.affectedCount).toBe(affectedCount)
+      expect(impact.unrecoverable).toHaveLength(droppedCount)
+    },
+  )
+
   it('still blocks on an unknown-label subname that has its own subnames', async () => {
     const unknown = `[${'ab'.repeat(32)}].parent.eth`
     const { read } = fixture({

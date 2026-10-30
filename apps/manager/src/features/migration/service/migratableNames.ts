@@ -1,5 +1,8 @@
 import type { BignameClient } from '@ens-apps/indexer/bigname'
-import { getSubnameMigrationImpact } from '@ens-apps/migration'
+import {
+  getSubnameMigrationImpact,
+  MAX_UNRECOVERABLE_SUBNAMES,
+} from '@ens-apps/migration'
 import type { Address, PublicClient } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
@@ -20,8 +23,6 @@ import {
 } from './subnameRecreation'
 
 const DISCOVERY_CONCURRENCY = 4
-/** Product sign-off covers leaving up to this many unknown-label subnames behind per name. */
-export const MAX_UNRECOVERABLE_SUBNAMES = 5
 
 export type SubnameMigrationBlockReason =
   | 'imports-disabled'
@@ -161,7 +162,11 @@ const checkSubnameCandidates = async (params: {
                       : 'unsupported-parent',
                   },
                 }
-              : verifiedCandidate(name, [], impact.value.unrecoverable)
+              : {
+                  status: 'verified',
+                  subnames: [],
+                  unrecoverable: impact.value.unrecoverable,
+                }
           } catch (error) {
             params.signal?.throwIfAborted()
             return {

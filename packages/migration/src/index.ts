@@ -32,6 +32,7 @@ export {
 } from './service/preflightChecks'
 export {
   getSubnameMigrationImpact,
+  MAX_UNRECOVERABLE_SUBNAMES,
   readSubnameMigrationImpact,
   type SubnameMigrationImpact,
   SubnameMigrationImpactError,

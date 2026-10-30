@@ -55,6 +55,8 @@ export type SubnameRecreationSnapshot = {
   readonly blockHash: Hex
   readonly chainId?: number
   readonly inventoryDigest?: Hex
+  /** Unknown-label leaves left on ENSv1; checked for new descendants before signing. */
+  readonly skipped?: readonly string[]
 }
 
 const SOURCE_MAX_AGE_SECONDS = 300n
@@ -551,6 +553,10 @@ export const discoverSubnameRecreation = async (params: {
       'selection',
       'the source checkpoint changed while reading the inventory. Please refresh.',
     )
+  const unrecoverable = [...rowsByRoot.values()]
+    .flat()
+    .map((row) => row.name)
+    .filter((name) => unknownLabelhashOf(name) !== null)
   const snapshot: SubnameRecreationSnapshot = {
     version: 5,
     roots: roots.map(({ domain }) => domain.name),
@@ -560,12 +566,28 @@ export const discoverSubnameRecreation = async (params: {
     timestamp: block.timestamp.toString(),
     chainId: envConfig.chain.id,
     inventoryDigest: inventoryDigest(values),
+    ...(unrecoverable.length > 0 ? { skipped: unrecoverable } : {}),
   }
-  const unrecoverable = [...rowsByRoot.values()]
-    .flat()
-    .map((row) => row.name)
-    .filter((name) => unknownLabelhashOf(name) !== null)
   return { domains: values, snapshot, unrecoverable }
+}
+
+const assertSkippedUnchanged = async (
+  publicClient: PublicClient,
+  skipped: readonly string[],
+  reviewedBlock: bigint,
+  head: bigint,
+): Promise<void> => {
+  const [first] = skipped
+  if (!first || head <= reviewedBlock) return
+  const descendants = await publicClient.getLogs({
+    address: V1_CONTRACTS.LegacyRegistry,
+    event: newOwnerEvent,
+    args: { node: skipped.map((name) => namehash(name)) },
+    fromBlock: reviewedBlock + 1n,
+    toBlock: head,
+  })
+  if (descendants.length)
+    fail(first, 'its descendants changed after review. Prepare a fresh import.')
 }
 
 /** Revalidate source identities before signing. Receipt checks verify the reviewed import, not live V1 synchronisation. */
@@ -611,6 +633,14 @@ export const assertSubnameRecreationUnchanged = async (params: {
         'the child inventory changed after review. Prepare and review a fresh import.',
       )
   }
+  await assertSkippedUnchanged(
+    params.publicClient,
+    (params.snapshot.skipped ?? []).filter((name) =>
+      relevantRoots.includes(parentOf(name)),
+    ),
+    BigInt(params.snapshot.blockNumber),
+    head.number,
+  )
   for (const domain of params.domains) {
     if (!relevantRoots.includes(parentOf(domain.name))) continue
     if (head.number > BigInt(params.snapshot.blockNumber)) {

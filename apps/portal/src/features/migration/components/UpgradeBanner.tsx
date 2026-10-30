@@ -59,7 +59,7 @@ export const UpgradeBanner = ({
     .with({ isError: true }, () => ({ status: 'error' }))
     .with({ data: P.nonNullable }, ({ data }) => ({
       status: 'ready',
-      affectedCount: data.affectedCount,
+      affectedCount: data.affectedCount + data.unrecoverable.length,
     }))
     .otherwise(() => ({ status: 'pending' }))
 

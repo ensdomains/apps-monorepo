@@ -81,28 +81,20 @@ describe('resolveMigratableNames', () => {
   )
 
   it.each([
-    { count: 5, isSubnameImportEnabled: true, isBlocked: false },
-    { count: 6, isSubnameImportEnabled: true, isBlocked: true },
-    { count: 5, isSubnameImportEnabled: false, isBlocked: false },
-    { count: 6, isSubnameImportEnabled: false, isBlocked: true },
+    { count: 5, isBlocked: false },
+    { count: 6, isBlocked: true },
   ])(
-    'with $count unknown-label subnames (imports $isSubnameImportEnabled) blocks: $isBlocked',
-    async ({ count, isSubnameImportEnabled, isBlocked }) => {
+    'with $count unknown-label subnames to import blocks: $isBlocked',
+    async ({ count, isBlocked }) => {
       const unrecoverable = Array.from(
         { length: count },
         (_, index) => `[${index.toString(16).padStart(64, '0')}].label.eth`,
       )
-      if (isSubnameImportEnabled) {
-        mocks.discoverSubnameRecreation.mockResolvedValueOnce({
-          domains: [],
-          snapshot: {},
-          unrecoverable,
-        })
-      } else {
-        mocks.getSubnameMigrationImpact.mockResolvedValueOnce(
-          ok({ affectedCount: 0, unrecoverable }),
-        )
-      }
+      mocks.discoverSubnameRecreation.mockResolvedValueOnce({
+        domains: [],
+        snapshot: {},
+        unrecoverable,
+      })
       const name = makeClassified({
         name: 'label.eth',
         id: namehash('label.eth'),
@@ -111,7 +103,7 @@ describe('resolveMigratableNames', () => {
 
       const result = await resolveMigratableNames({
         eligible: [name],
-        isSubnameImportEnabled,
+        isSubnameImportEnabled: true,
         owner: OWNER,
         publicClient: {} as PublicClient,
       })

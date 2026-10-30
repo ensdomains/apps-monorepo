@@ -289,6 +289,20 @@ describe('direct subname source checks', () => {
     )
   })
 
+  it('blocks signing when a skipped unknown-label child gains a subname after review', async () => {
+    const context = fixture({ count: 1, rows: [unknownRow] })
+    const found = await context.discover()
+    context.state.head = 101n
+    context.state.descendantEvents = [{ args: { label: labelhash('new') } }]
+
+    await expect(
+      assertSubnameRecreationUnchanged({
+        publicClient: context.client,
+        ...found,
+      }),
+    ).rejects.toThrow(/descendants changed after review/)
+  })
+
   it.each(['owner', 'resolver'] as const)(
     'blocks signing when the child %s changed after review',
     async (field) => {

@@ -130,6 +130,37 @@ describe('migration batch journal', () => {
     })
   })
 
+  it('keeps the unknown-label subnames an import skipped', () => {
+    const domain = makeDomain({ name: 'alice.eth', labelName: 'alice' })
+    const operation = { name: domain.name, action: 'migrate' as const }
+    const skipped = [`[${'ab'.repeat(32)}].alice.eth`]
+    persistMigrationRecoverySnapshot(scope, {
+      registryDomains: [domain],
+      registryOperations: [operation],
+      remainingOperations: [operation],
+      completedOperations: [],
+      profiles: new Map(),
+      ownedPermRes: null,
+      plannedApprovals: [],
+      managerRestorationNames: [],
+      subnameRecreation: {
+        version: 5,
+        roots: [domain.name],
+        names: [domain.name],
+        skipped,
+        blockNumber: '100',
+        timestamp: '1000',
+        blockHash: `0x${'a'.repeat(64)}`,
+        chainId: scope.chainId,
+        inventoryDigest: `0x${'b'.repeat(64)}`,
+      },
+    })
+
+    expect(
+      loadMigrationRecoverySnapshot(scope)?.subnameRecreation,
+    ).toMatchObject({ skipped })
+  })
+
   it('persists an immutable tree, exact records, and remaining copy operations', () => {
     const root = makeDomain({ name: 'alice.eth', labelName: 'alice' })
     const copy = makeDomain({
