@@ -1726,6 +1726,10 @@ msgstr "Long-term identity"
 msgid "Look for a different name"
 msgstr "Look for a different name"
 
+#: src/components/NameFallbackCard.tsx
+msgid "looks like a wallet address and can't be registered"
+msgstr "looks like a wallet address and can't be registered"
+
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Lowest upfront cost"
 msgstr "Lowest upfront cost"

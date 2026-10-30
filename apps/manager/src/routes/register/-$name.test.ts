@@ -103,6 +103,23 @@ describe('/register/$name loader', () => {
     expect(outcome).toMatchObject({ reason: 'INVALID_CHARACTER' })
   })
 
+  it.each([
+    ['an EVM', '0xd8da6bf26964af9d7eed9e03e53415d37aa96045.eth'],
+    ['a Bitcoin', 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq.eth'],
+    ['a Solana', '9wzdxwbbmkg8ztbnmquxvqrayrzzdsgydlvl9zytawwm.eth'],
+  ])('refuses a free name that reads like %s address', async (_case, name) => {
+    const { outcome } = await runLoader(name)
+
+    expect(outcome).toEqual({ fallback: 'address-like', label: '' })
+  })
+
+  it('still sends a registered address-like name to its profile', async () => {
+    const name = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045.eth'
+    const { outcome } = await runLoader(name, false)
+
+    expect(outcome).toEqual({ redirect: { to: '/$name', params: { name } } })
+  })
+
   it('sends an unavailable name to its profile under the canonical name', async () => {
     const { outcome } = await runLoader('vitalik.eth', false)
 
