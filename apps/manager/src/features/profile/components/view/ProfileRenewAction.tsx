@@ -16,6 +16,7 @@ import {
 } from '@/features/renew/utils/renewalProtocol'
 import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/thirdPartyRenewalWarning'
 import {
+  actionLabelClassName,
   iconActionInnerClassName,
   renewActionSymbolClassName,
 } from './ProfileAction.styles'
@@ -52,7 +53,9 @@ export const ProfileRenewAction = ({
 
   const buttonContent = (
     <span className={iconActionInnerClassName}>
-      <Trans>Renew Name</Trans>
+      <span className={actionLabelClassName}>
+        <Trans>Renew Name</Trans>
+      </span>
       <MSymbol
         aria-hidden="true"
         className={renewActionSymbolClassName}

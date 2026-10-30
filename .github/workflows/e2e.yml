@@ -1,5 +1,9 @@
 name: E2E Tests
 
+# The fast per-PR gate. Portal and manager migration run only their `@smoke`
+# tests (see e2e/docs/smoke-suite.md); every spec, cross-app included, runs
+# in e2e-nightly.yml. The rest of the manager still runs its full suite here
+# until its smoke config lands.
 on:
   push:
     branches:
@@ -9,6 +13,8 @@ on:
     branches:
       - main
       - ensjs-v2
+      # Stacked PRs that land e2e-tests-coverage onto main in batches.
+      - "e2e-land/**"
     paths:
       - ".github/workflows/e2e.yml"
       - "apps/manager/**"
@@ -72,13 +78,15 @@ jobs:
           # Emit a flat array of {project, shardIndex, shardTotal} objects so
           # each project gets the right number of shards:
           #   manager — 5 active test files → 3 shards
-          #   portal  — 2 active test files → 2 shards
+          #   manager-migration — the migration @smoke flows → 1 shard
+          #   portal  — @smoke subset → 2 shards
           #   (temporaryPremium skipped until snapshot is rebuilt)
           configs=()
           if [[ "$MANAGER_CHANGED" == "true" ]]; then
             for i in 1 2 3; do
               configs+=("{\"project\":\"manager\",\"shardIndex\":$i,\"shardTotal\":3}")
             done
+            configs+=("{\"project\":\"manager-migration\",\"shardIndex\":1,\"shardTotal\":1}")
           fi
           if [[ "$PORTAL_CHANGED" == "true" ]]; then
             for i in 1 2; do
@@ -93,6 +101,23 @@ jobs:
             echo "configs=[${json%,}]" >> "$GITHUB_OUTPUT"
             echo "has-configs=true" >> "$GITHUB_OUTPUT"
           fi
+
+  # Cheap integrity gates: no docker, no browser.
+  harness-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        env:
+          PNPM_CONFIG_FROZEN_LOCKFILE: true
+        with:
+          runtime: node@24
+          cache: true
+      # A suite whose fixtures hardcode a drifted contract address tests the
+      # wrong deployment and still goes green.
+      - name: No contract address literals in e2e/
+        run: pnpm e2e:check:addresses
 
   e2e:
     needs: changes
@@ -186,6 +211,12 @@ jobs:
             ANVIL_TIMEOUT=60
           fi
 
+          # Fork the same pinned block as local runs (e2e/infra/fork-block), so
+          # CI tests the chain the specs were written against, not whatever
+          # Sepolia holds today.
+          export SEPOLIA_FORK_BLOCK=$(tr -d '[:space:]' < e2e/infra/fork-block)
+          echo "Anvil fork block: $SEPOLIA_FORK_BLOCK"
+
           # The apps' bigname reads are mocked (E2E_MOCK_BIGNAME=true in e2e/.env.ci).
           SERVICES="anvil alto paymaster"
 
@@ -232,7 +263,7 @@ jobs:
           bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
       - name: Fund Rhinestone smart accounts
-        if: matrix.config.project == 'manager' || matrix.config.project == 'manager-premium'
+        if: matrix.config.project != 'portal'
         run: |
           bash e2e/infra/scripts/fund-rhinestone-account.sh
           # The manager app runs with VITE_FF_USE_EOA=false in CI (the HCA path;
@@ -245,46 +276,46 @@ jobs:
       # ── run e2e tests ─────────────────────────────────────────────
       - name: Run E2E tests (${{ matrix.config.project }})
         run: |
-          # Resolve the app filter and port (manager-premium reuses the manager app)
-          if [[ "${{ matrix.config.project }}" == "portal" ]]; then
-            APP_FILTER=portal
-            APP_PORT=3001
-          else
-            APP_FILTER=manager
-            APP_PORT=3000
-          fi
+          # The app dev server each project needs, and what it runs. Portal
+          # runs its @smoke tests; nightly runs the rest.
+          case "${{ matrix.config.project }}" in
+            portal)
+              APPS="portal:3001"
+              PLAYWRIGHT_ARGS="--config=projects/portal/playwright.smoke.config.ts" ;;
+            manager-migration)
+              APPS="manager:3000"
+              PLAYWRIGHT_ARGS="--config=projects/manager/playwright.migration.config.ts --grep @smoke" ;;
+            manager-premium)
+              APPS="manager:3000"
+              PLAYWRIGHT_ARGS="--config=projects/manager/playwright.premium.config.ts" ;;
+            *)
+              APPS="manager:3000"
+              PLAYWRIGHT_ARGS="--config=projects/manager/playwright.config.ts" ;;
+          esac
 
-          # Enable Vite dep optimization logging to catch late-discovered deps
-          DEBUG=vite:deps pnpm --filter "$APP_FILTER" dev -- --port ${APP_PORT} > /tmp/app-dev.log 2>&1 &
-          APP_PID=$!
-          timeout 60 bash -c "until curl -sf http://localhost:${APP_PORT} > /dev/null 2>&1; do sleep 2; done"
-          echo "✅ ${APP_FILTER} dev server on :${APP_PORT} (PID $APP_PID)"
+          # One app at a time: two cold vite starts at once compete for the
+          # dependency optimizer. Vite dep logging catches late-discovered deps.
+          PIDS=""
+          for entry in $APPS; do
+            app="${entry%%:*}"; port="${entry##*:}"
+            DEBUG=vite:deps pnpm --filter "$app" dev -- --port "$port" > "/tmp/$app-dev.log" 2>&1 &
+            PIDS="$PIDS $!"
+            timeout 60 bash -c "until curl -sf http://localhost:${port} > /dev/null 2>&1; do sleep 2; done"
+            echo "✅ $app dev server on :$port"
+          done
 
-          # Verify Anvil is still reachable and the app's env is correct
+          # Verify Anvil is still reachable
           echo "Verifying Anvil RPC..."
           curl -sf -X POST http://127.0.0.1:8545 \
             -H 'Content-Type: application/json' \
             -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
             && echo " ✅ Anvil RPC OK" || echo " ❌ Anvil RPC FAILED"
 
-          # Check what RPC URL the app is using (grep the served JS bundle)
-          echo "Checking app RPC URL..."
-          curl -s http://localhost:${APP_PORT}/ | grep -oE 'http://[^"]+:8545[^"]*' | head -3 || echo "(RPC URL not found in HTML — may be in JS chunks)"
-
-          # Map project name to its playwright config path
-          if [[ "${{ matrix.config.project }}" == "manager-premium" ]]; then
-            PLAYWRIGHT_CONFIG="projects/manager/playwright.premium.config.ts"
-          elif [[ "${{ matrix.config.project }}" == "portal" ]]; then
-            PLAYWRIGHT_CONFIG="projects/portal/playwright.config.ts"
-          else
-            PLAYWRIGHT_CONFIG="projects/manager/playwright.config.ts"
-          fi
-
           pnpm --filter @ens-apps/e2e exec playwright test \
-            --config=${PLAYWRIGHT_CONFIG} \
+            $PLAYWRIGHT_ARGS \
             --shard=${{ matrix.config.shardIndex }}/${{ matrix.config.shardTotal }}
           TEST_EXIT=$?
-          kill $APP_PID 2>/dev/null || true
+          kill $PIDS 2>/dev/null || true
           exit $TEST_EXIT
         env:
           CI: "true"
@@ -295,11 +326,12 @@ jobs:
       - name: Show failure context
         if: failure()
         run: |
-          echo "=== App dev server log (last 100 lines) ==="
-          tail -100 /tmp/app-dev.log 2>/dev/null || echo "(no app dev log)"
-          echo ""
-          echo "=== Vite dep optimization events ==="
-          grep -i 'optimized\|reloading\|new dependencies\|deps' /tmp/app-dev.log 2>/dev/null || echo "(none)"
+          for log in /tmp/*-dev.log; do
+            echo "=== $log (last 100 lines) ==="
+            tail -100 "$log" 2>/dev/null || true
+            echo "=== Vite dep optimization events ($log) ==="
+            grep -i 'optimized\|reloading\|new dependencies\|deps' "$log" 2>/dev/null || echo "(none)"
+          done
           echo ""
           echo "=== Docker container status ==="
           docker compose -f e2e/infra/docker-compose.yml ps -a 2>/dev/null || echo "(docker compose not available)"

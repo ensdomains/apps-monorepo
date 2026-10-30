@@ -10,7 +10,7 @@ type UseV1NamesOptions = {
   readonly enabled?: boolean
 }
 
-const v1NamesQueryOptions = (
+export const getV1NamesQueryOptions = (
   address?: Address | null,
   enabled: boolean = true,
 ) =>
@@ -29,5 +29,5 @@ export const useV1Names = (options: UseV1NamesOptions = {}) => {
   const { enabled = true } = options
   const { ownerAddress } = useSmartAccountContext()
   const { address } = useConnection()
-  return useQuery(v1NamesQueryOptions(ownerAddress ?? address, enabled))
+  return useQuery(getV1NamesQueryOptions(ownerAddress ?? address, enabled))
 }

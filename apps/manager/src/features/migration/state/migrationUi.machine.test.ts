@@ -1,6 +1,6 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
-import type { Config as WagmiConfig } from '@wagmi/core'
+import type { Connector, Config as WagmiConfig } from '@wagmi/core'
 import { errAsync, fromPromise, okAsync } from 'neverthrow'
 import type { Address, Hex, WalletClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -166,6 +166,7 @@ const startRenewal = (
   domains: [V1Domain, ...V1Domain[]] = [domain('alice')],
   requestSteps?: readonly MigrationWalletRequestDescriptor[],
   quoteOverrides: Partial<GraceRenewalQuote> = {},
+  signer: Signer = EOA_SIGNER,
 ) => {
   const actor = createActor(migrationUiMachine, {
     input: { wagmiConfig: WAGMI },
@@ -179,7 +180,7 @@ const startRenewal = (
       hcaAddress: SCA,
       requestSteps,
     },
-    signer: EOA_SIGNER,
+    signer,
     hcaClient: HCA_CLIENT,
     refreshAccount: REFRESH_ACCOUNT,
   })
@@ -236,6 +237,32 @@ describe('migrationUiMachine', () => {
       expect(executeGraceRenewalMock).not.toHaveBeenCalled()
       expect(prepareGraceRenewalMigrationMock).not.toHaveBeenCalled()
       expect(executeMigrationMock).not.toHaveBeenCalled()
+      actor.stop()
+    })
+
+    it('renews through the wallet connector, which tells a Safe{Wallet} apart', async () => {
+      const connector = {} as Connector
+      executeGraceRenewalMock.mockReturnValue(
+        fromPromise(
+          new Promise(() => {}),
+          (cause) => new GraceRenewalError({ cause }),
+        ),
+      )
+
+      const actor = startRenewal(
+        [domain('alice')],
+        undefined,
+        {},
+        {
+          ...EOA_SIGNER,
+          connector,
+        },
+      )
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(executeGraceRenewalMock).toHaveBeenCalledWith(
+        expect.objectContaining({ connector }),
+      )
       actor.stop()
     })
 
