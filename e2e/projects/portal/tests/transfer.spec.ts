@@ -56,6 +56,7 @@ import {
   testClient,
   walletClient,
 } from '../../../helpers/anvil-client.js'
+import { preserveWalletRpcErrors } from '../../../helpers/headless-wallet-errors.js'
 import { waitForIndexedRegistry } from '../../../helpers/indexer-sync.js'
 import {
   authorizeTransaction,
@@ -1376,6 +1377,8 @@ test.describe('Portal name transfer', () => {
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(300_000)
 
+    // Preserve the rejection code so the app does not automatically retry it.
+    preserveWalletRpcErrors(wallet)
     await connectWithHeadlessWallet(page, wallet)
 
     const name = await makeName({
