@@ -319,6 +319,10 @@ msgstr ""
 msgid "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
 msgstr ""
 
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "About"
+msgstr ""
+
 #. placeholder {0}: formatUsd(m.shortfall)
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 msgid "About {0} more needed on {chainName}."
@@ -1264,6 +1268,10 @@ msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardPills.tsx
+msgid "ENSv1"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
@@ -3009,6 +3017,10 @@ msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Smart account access"
+msgstr ""
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart session access reset"
 msgstr ""
 
 #: src/features/navigation/Header/account/WalletSection.tsx

@@ -34,7 +34,7 @@ describe('ProfileHeader', () => {
     )
 
     const aboutRow = screen
-      .getByRole('heading', { name: 'Profile Description' })
+      .getByRole('heading', { name: 'About' })
       .closest('.mt-6')
 
     expect(aboutRow).toHaveClass('xl:mt-0')

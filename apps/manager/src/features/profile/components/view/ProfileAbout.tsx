@@ -171,7 +171,7 @@ export const ProfileAbout = ({
               ) : (
                 <h2 className="min-w-0 text-base text-ens-quartz-700 leading-normal">
                   <span className="block">
-                    {fullName || <Trans>Profile Description</Trans>}
+                    {fullName || <Trans>About</Trans>}
                   </span>
                 </h2>
               )}

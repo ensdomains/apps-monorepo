@@ -16,6 +16,8 @@ import {
 } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { testClient } from '../helpers/anvil-client.js'
+import { waitForBignameName } from '../helpers/bigname-sync.js'
+import { type CcipGateway, startCcipGateway } from '../helpers/ccip-gateway.js'
 import {
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
@@ -24,8 +26,14 @@ import {
 } from '../helpers/manager-auth.js'
 import { createBignameMock, type MockDomain } from '../helpers/mock-bigname.js'
 import type { PortalAccounts } from '../helpers/portal-auth.js'
+import { routeToLocalFork } from '../projects/migration-matrix/local-fork-routing.js'
 import { createMakeName } from './makeName.js'
 import { createMakeV2Name, type V2NameConfig } from './makeV2Name.js'
+import {
+  createMakeOffchainName,
+  type OffchainName,
+  type OffchainNameConfig,
+} from './offchainName.js'
 import { createTime, type Time } from './time.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -41,10 +49,74 @@ if (existsSync(envPath)) {
 // Override Sepolia chain to point at the local Anvil fork. The headless
 // provider's internal walletClient uses this RPC to sign/submit.
 const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
-const localSepolia = {
+export const localSepolia = {
   ...sepolia,
   rpcUrls: { default: { http: [ANVIL_RPC_URL] } },
 } as const
+
+export const MIGRATION_FEATURE_FLAGS = { migration: true } as const
+export const PROFILE_FEATURE_FLAGS = { 'profile-view-new': true } as const
+const FEATURE_FLAG_OVERRIDE_TIMEOUT = 10_000
+
+export async function overrideManagerFeatureFlags(
+  page: Page,
+  featureFlags: Record<string, boolean>,
+): Promise<void> {
+  await page.addInitScript((featureFlags) => {
+    type PostHogWindow = Window & {
+      managerFeatureFlagsOverridden?: boolean
+      posthog?: {
+        __loaded?: boolean
+        featureFlags?: {
+          overrideFeatureFlags(options: {
+            flags: Record<string, boolean>
+          }): void
+        }
+      }
+    }
+
+    const applyOverride = () => {
+      const postHogWindow = window as PostHogWindow
+      const posthog = postHogWindow.posthog
+
+      if (!posthog?.__loaded || !posthog.featureFlags) return false
+
+      posthog.featureFlags.overrideFeatureFlags({
+        flags: featureFlags,
+      })
+      postHogWindow.managerFeatureFlagsOverridden = true
+      return true
+    }
+
+    if (applyOverride()) return
+
+    const interval = window.setInterval(() => {
+      if (applyOverride()) window.clearInterval(interval)
+    }, 10)
+  }, featureFlags)
+}
+
+export async function waitForManagerFeatureFlagOverride(
+  page: Page,
+): Promise<void> {
+  await page
+    .waitForFunction(
+      () =>
+        (
+          window as Window & {
+            managerFeatureFlagsOverridden?: boolean
+          }
+        ).managerFeatureFlagsOverridden === true,
+      undefined,
+      { timeout: FEATURE_FLAG_OVERRIDE_TIMEOUT },
+    )
+    .catch((cause: unknown) => {
+      throw new Error(
+        `PostHog feature flag override was not applied within ${FEATURE_FLAG_OVERRIDE_TIMEOUT}ms`,
+        { cause },
+      )
+    })
+}
 
 // ---------------------------------------------------------------------------
 // Accounts — derived from the default Anvil mnemonic
@@ -55,14 +127,14 @@ const DEFAULT_MNEMONIC =
   'test test test test test test test test test test test junk'
 const ACCOUNT_USERS = ['user', 'user2', 'user3', 'user4'] as const
 
-export function createAccounts(): PortalAccounts {
+export function createAccounts(addressIndexOffset = 0): PortalAccounts {
   const { accountList, privateKeys } = ACCOUNT_USERS.reduce<{
     accountList: { address: Address }[]
     privateKeys: Hash[]
   }>(
     (acc, _, index) => {
       const { getHdKey } = mnemonicToAccount(DEFAULT_MNEMONIC, {
-        addressIndex: index,
+        addressIndex: addressIndexOffset + index,
       })
       const pk = bytesToHex(getHdKey().privateKey!) as Hash
       const account = privateKeyToAccount(pk, { nonceManager })
@@ -107,15 +179,17 @@ type ManagerFixtures = {
    * that don't need backend-gated state.
    */
   connectedPage: Page
-  /** Connected page for profile scenarios. */
+  /** `connectedPage` with the new profile view feature flag applied. */
   profileConnectedPage: Page
+  /** `connectedPage` with the migration feature flag applied. */
+  migrationConnectedPage: Page
   /**
    * Same as `connectedPage` but completes the BackendAuthModal SIWE prompt
    * instead of dismissing it. Required for backend-gated features
    * (notification settings, favorites, etc). Hits the deployed worker.
    */
   authenticatedPageWithBackend: Page
-  /** Backend-authenticated page for profile scenarios. */
+  /** Backend-authenticated page with the new profile view feature flag applied. */
   profileAuthenticatedPageWithBackend: Page
   /** Time fixture for syncing anvil block time with the browser clock. */
   time: Time
@@ -128,6 +202,13 @@ type ManagerFixtures = {
    * queries return it.
    */
   makeV2Name: (config: V2NameConfig) => Promise<string>
+  /** A local CCIP-Read gateway, started per test (helpers/ccip-gateway.ts). */
+  ccipGateway: CcipGateway
+  /**
+   * Register a V1 name owned by `user` whose resolver answers only through
+   * `ccipGateway`, plus an ownerless wildcard subname under it.
+   */
+  makeOffchainName: (config?: OffchainNameConfig) => Promise<OffchainName>
   /**
    * bigname mock control. When E2E_MOCK_BIGNAME=true, call `addName()` after
    * on-chain registration so dashboard/profile queries return the name.
@@ -147,12 +228,15 @@ type ManagerFixtures = {
  * (SIWE) modal appears once connected, handled by the caller. In EOA mode the
  * gate is a no-op (the signer is an EOA), so no session modal appears at all.
  */
-async function connectHeadless(
+export async function connectHeadless(
   page: Page,
   wallet: Web3ProviderBackend,
 ): Promise<void> {
   const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
-  await page.goto(baseURL)
+  await page.goto(baseURL, {
+    waitUntil:
+      process.env.MATRIX_LOCAL_RPC_ONLY === '1' ? 'domcontentloaded' : 'load',
+  })
   await Promise.race([
     page.waitForLoadState('networkidle'),
     page.waitForTimeout(5_000),
@@ -164,13 +248,12 @@ async function connectHeadless(
 export const test = base.extend<ManagerFixtures>({
   // Install the bigname mock on every page when E2E_MOCK_BIGNAME=true.
   // Nothing indexes the local chain, so bigname reads are answered from the mock.
-  page: async ({ page, baseURL }, use) => {
-    // Answer the analytics banner up front so it never covers a control.
-    await page
-      .context()
-      .addCookies([{ name: 'ens_analytics_consent', value: '0', url: baseURL }])
+  page: async ({ page }, use) => {
+    if (process.env.MATRIX_LOCAL_RPC_ONLY === '1') await routeToLocalFork(page)
     await bignameMock.installIfEnabled(page)
     await use(page)
+    if (process.env.MATRIX_LOCAL_RPC_ONLY === '1')
+      await page.unrouteAll({ behavior: 'ignoreErrors' })
   },
 
   accounts: async ({}, use) => {
@@ -207,8 +290,18 @@ export const test = base.extend<ManagerFixtures>({
   },
 
   profileConnectedPage: async ({ page, wallet }, use) => {
+    await overrideManagerFeatureFlags(page, PROFILE_FEATURE_FLAGS)
     await connectHeadless(page, wallet)
     await dismissBackendAuthModal(page)
+    await waitForManagerFeatureFlagOverride(page)
+    await use(page)
+  },
+
+  migrationConnectedPage: async ({ page, wallet }, use) => {
+    await overrideManagerFeatureFlags(page, MIGRATION_FEATURE_FLAGS)
+    await connectHeadless(page, wallet)
+    await dismissBackendAuthModal(page)
+    await waitForManagerFeatureFlagOverride(page)
     await use(page)
   },
 
@@ -219,8 +312,10 @@ export const test = base.extend<ManagerFixtures>({
   },
 
   profileAuthenticatedPageWithBackend: async ({ page, wallet }, use) => {
+    await overrideManagerFeatureFlags(page, PROFILE_FEATURE_FLAGS)
     await connectHeadless(page, wallet)
     await signInBackendAuthModal(page)
+    await waitForManagerFeatureFlagOverride(page)
     await use(page)
   },
 
@@ -252,8 +347,36 @@ export const test = base.extend<ManagerFixtures>({
           owner: ownerAddress,
           records: config.records,
         })
+      } else {
+        // The real local bigname has to index the name before the dashboard,
+        // search or profile can list it.
+        await waitForBignameName(name)
       }
       return name
+    })
+  },
+
+  ccipGateway: async ({}, use) => {
+    const gateway = await startCcipGateway()
+    await use(gateway)
+    await gateway.close()
+  },
+
+  makeOffchainName: async ({ accounts, ccipGateway }, use) => {
+    const inner = createMakeOffchainName({
+      gateway: ccipGateway,
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    await use(async (config) => {
+      const offchainName = await inner(config)
+      if (bignameMock.enabled)
+        bignameMock.addName({
+          name: offchainName.name,
+          owner: accounts.getAddress('user'),
+          resolver: offchainName.resolver,
+          protocol: 'v1',
+        })
+      return offchainName
     })
   },
 

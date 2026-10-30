@@ -314,6 +314,10 @@ msgstr "A subname's complete name could not be verified. Keep this parent on ENS
 msgid "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
 msgstr "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
 
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "About"
+msgstr "About"
+
 #. placeholder {0}: formatUsd(m.shortfall)
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 msgid "About {0} more needed on {chainName}."
@@ -1260,6 +1264,10 @@ msgstr "ENS Explorer"
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
+
+#: src/features/dashboard/components/DashboardPills.tsx
+msgid "ENSv1"
+msgstr "ENSv1"
 
 #: src/features/dashboard/components/DashboardPills.tsx
 #: src/features/renew/workflow/pricing/PricingStep.tsx
@@ -3005,6 +3013,10 @@ msgstr "Signing renewal…"
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Smart account access"
 msgstr "Smart account access"
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart session access reset"
+msgstr "Smart session access reset"
 
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Smart sessions off"
