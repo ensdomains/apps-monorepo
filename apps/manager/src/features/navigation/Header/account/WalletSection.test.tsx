@@ -15,6 +15,7 @@ const session = vi.hoisted(() => ({
   revokeSession: vi.fn(),
   isSessionAccessReset: false,
   useEoa: false,
+  isSafeWallet: false,
 }))
 
 vi.mock('@/lib/smart-account', () => ({
@@ -38,6 +39,14 @@ vi.mock('@/lib/wallet', () => ({
   }),
 }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+vi.mock('wagmi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('wagmi')>()),
+  useAccount: () => ({ address: undefined, connector: { uid: 'wc' } }),
+}))
+vi.mock('@ens-apps/transaction-manager', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@ens-apps/transaction-manager')>()),
+  checkIsSafeWallet: async () => session.isSafeWallet,
+}))
 
 describe('WalletSection smart session safety controls', () => {
   beforeEach(() => {
@@ -49,6 +58,7 @@ describe('WalletSection smart session safety controls', () => {
     session.revokeErrorReason = null
     session.isSessionAccessReset = false
     session.useEoa = false
+    session.isSafeWallet = false
     session.enableSession.mockResolvedValue({ status: 'enabled' })
     session.revokeSession.mockResolvedValue(true)
   })
@@ -232,6 +242,19 @@ describe('WalletSection smart session safety controls', () => {
     render(<WalletSection onAction={vi.fn()} />)
 
     expect(screen.queryByText('Smart sessions off')).not.toBeInTheDocument()
+    expect(screen.queryByText('Enable smart sessions')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Reset smart session access'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('hides smart-session controls for a Safe{Wallet}', async () => {
+    session.isSafeWallet = true
+    render(<WalletSection onAction={vi.fn()} />)
+
+    await waitFor(() =>
+      expect(screen.queryByText('Smart sessions off')).not.toBeInTheDocument(),
+    )
     expect(screen.queryByText('Enable smart sessions')).not.toBeInTheDocument()
     expect(
       screen.queryByText('Reset smart session access'),
