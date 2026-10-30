@@ -117,6 +117,7 @@ import type {
 } from './buildAtomicMigrationBatches'
 import { buildMigrationHelperCall } from './buildMigrationHelperCall'
 import type { MigrationPlan } from './buildMigrationPlan'
+import { buildStepDescriptors } from './buildStepDescriptors'
 import type { ClassifiedName, CopyClassifiedName } from './classifyNames'
 import { groupClassifiedNames } from './classifyNames'
 import { createMigrationData } from './encodeMigration'
@@ -3508,6 +3509,57 @@ describe('executeMigration with an atomic-batching wallet (EIP-5792)', () => {
     expect(progressEvents.at(-1)).toMatchObject({
       currentStep: 2,
       totalSteps: 2,
+    })
+  })
+
+  it('splits setup into bundles the wallet accepts, deploying in the first', async () => {
+    const approvals: readonly MigrationApproval[] = [
+      ...Array.from(
+        { length: 12 },
+        (_, index): MigrationApproval => ({
+          kind: 'erc721-token',
+          id: 'base-registrar:hca-token',
+          contractAddress: APPROVAL_CONTRACT,
+          operatorAddress: V2_CONTRACTS.MigrationHelper,
+          tokenId: BigInt(index + 1),
+        }),
+      ),
+      MANAGER_APPROVAL,
+    ]
+    mocks.planMigrationApprovals.mockReturnValue(approvals)
+    const plan = bundledPlan()
+
+    const { progressEvents } = await runExecute({
+      plan: {
+        ...plan,
+        preflight: { ...plan.preflight, migrationApprovals: approvals },
+        stepDescriptors: buildStepDescriptors({
+          hcaDeploymentRequired: true,
+          approvals,
+          atomicBatches: plan.atomicBatches,
+          registrationApprovalTargets: [],
+          canBatchAtomically: true,
+        }),
+      },
+    })
+
+    expect(requestOf(0)).toMatchObject({ type: 'eoa-batch' })
+    expect(requestOf(0).calls).toHaveLength(10)
+    expect(requestOf(0).calls[0]).toEqual({
+      to: FACTORY,
+      data: DEPLOY_DATA,
+      value: 0n,
+    })
+    expect(requestOf(1)).toMatchObject({ type: 'eoa-batch' })
+    expect(requestOf(1).calls).toHaveLength(4)
+    expect(requestOf(2)).toMatchObject({ type: 'eoa', data: OUTER_DATA })
+    // The deployment is verified before the second bundle is requested.
+    expect(mocks.verifyStandaloneHca.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.startTransaction.mock.invocationCallOrder[1] ?? 0,
+    )
+    expect(progressEvents.at(-1)).toMatchObject({
+      currentStep: 3,
+      totalSteps: 3,
     })
   })
 

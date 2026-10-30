@@ -1,4 +1,5 @@
 import type { Address } from 'viem'
+import { chunkWalletBundle } from './batchMigrate.constants'
 import {
   type AtomicMigrationBatch,
   walletReplayNames,
@@ -89,7 +90,8 @@ export type BuildStepDescriptorsParams = {
   readonly registrationApprovalTargets: readonly RegistrationApprovalTarget[]
   /**
    * The wallet bundles calls atomically: setup (deployment + approvals) is one
-   * confirmation. Each migration batch is a separate confirmation.
+   * confirmation per `MAX_WALLET_BUNDLE_CALLS` calls. Each migration batch is a
+   * separate confirmation.
    */
   readonly canBatchAtomically?: boolean
 }
@@ -208,5 +210,5 @@ const bundleDescriptors = (
     ({ type }) => type === 'deploy-hca' || type === 'approval',
   )
   const batches = descriptors.filter(({ type }) => type === 'atomic-batch')
-  return [...bundleOf(setup), ...batches]
+  return [...chunkWalletBundle(setup).flatMap(bundleOf), ...batches]
 }
