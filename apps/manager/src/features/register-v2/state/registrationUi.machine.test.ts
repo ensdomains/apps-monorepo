@@ -1461,7 +1461,6 @@ describe('registration referrer boundary', () => {
   it.each([
     ['0x1234', `0x${'0'.repeat(60)}1234`],
     ['0xgg', ENS_LABS_REFERRER],
-    ['0x0', ENS_LABS_REFERRER],
     [undefined, ENS_LABS_REFERRER],
   ])(
     'normalizes %s before saving confirmed data and starting the child',

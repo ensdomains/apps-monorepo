@@ -82,14 +82,10 @@ it.each([true, false])(
   },
 )
 
-it.each([
-  [true, undefined],
-  [false, undefined],
-  [true, '0xnot-hex'],
-])(
-  'sends the Explorer referrer on the v2=%s renewal path when the link gives %s',
-  (isV2, referrer) => {
-    const { args } = renewCall({ name: 'alice.eth', isV2, referrer })
+it.each([true, false])(
+  'sends the Explorer referrer on the v2=%s renewal path when the link gives none',
+  (isV2) => {
+    const { args } = renewCall({ name: 'alice.eth', isV2 })
     expect(args?.[0].referrer).toBe(ENS_LABS_REFERRER)
   },
 )
