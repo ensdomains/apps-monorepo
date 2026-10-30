@@ -5,6 +5,7 @@ import { match } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { canEditRecords } from '@/features/records/helpers/canEditRecords'
 import type { RecordEditLock } from '@/features/records/helpers/recordEditLock'
 import { useNameHasOwnResolver } from '@/features/records/hooks/useNameHasOwnResolver'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
@@ -262,17 +263,15 @@ export function useCanEditRecords({
     !!resolverAddress &&
     hasOwnResolver === true
 
-  const canEdit = match({ isSettled, isPermissioned, isV2, editLock })
-    .with({ isSettled: false }, () => false)
-    // Every write probe "succeeds" against an account with no code, so this
-    // has to override the permissioned and V2 answers too.
-    .with({ editLock: 'resolver-not-contract' }, () => false)
-    .with(
-      { isPermissioned: true },
-      () => grantedRoles.length + grantedScopes.length > 0,
-    )
-    .with({ isV2: true }, () => resolverWriteQuery.data === true)
-    .otherwise(() => isOwner && !editLock)
+  const canEdit = canEditRecords({
+    isSettled,
+    isPermissioned,
+    isV2,
+    hasGrant: grantedRoles.length + grantedScopes.length > 0,
+    canWriteOnResolver: resolverWriteQuery.data,
+    isOwner,
+    editLock,
+  })
 
   return {
     canEdit,

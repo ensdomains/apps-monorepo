@@ -335,27 +335,11 @@ describe('useCanEditRecords', () => {
     expect(result.canEdit).toBe(false)
   })
 
-  // WEB-1324: a resolver set to a wallet. Each branch below would otherwise
-  // say yes — ownership, a role read that answers, a write probe that
-  // "succeeds" — and send a record write the wallet then rejects.
-  it.each([
-    ['a v1 owner', () => {}],
-    [
-      'a v2 owner whose write probe passes',
-      () => {
-        ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
-        resolverWriteQuery = settled(true)
-      },
-    ],
-    [
-      'a granted resolver role',
-      () => {
-        isPermissionedQuery = settled(true)
-        roleQueries = [settled(true)]
-      },
-    ],
-  ] as const)('refuses %s when the resolver has no code', (_, arrange) => {
-    arrange()
+  // The decision is tested in `canEditRecords.test.ts`; this checks the code
+  // probe reaches it and the lock is returned.
+  it('refuses a v2 owner whose write probe passes when the resolver has no code', () => {
+    ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
+    resolverWriteQuery = settled(true)
     hasCodeQuery = settled(false)
 
     const result = render()
