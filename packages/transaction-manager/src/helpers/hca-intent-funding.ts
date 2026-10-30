@@ -44,6 +44,7 @@ import {
 } from 'viem'
 import { readContract } from 'viem/actions'
 import {
+  type FundingPermit,
   type PermitKind,
   type PermitPurpose,
   type PermitValueBounds,
@@ -53,6 +54,15 @@ import {
 } from '../machines/registration/registration.hca.actors'
 import type { RhinestoneSigner, Signer } from '../types/signer.types'
 import type { Call } from '../types/transaction.types'
+
+import {
+  approveHcaFunding,
+  type HcaApprovalEnvironment,
+  type HcaFundingApprovalCapability,
+  reconcileHcaFundingBalances,
+  recoverHcaFundingApproval,
+} from './hca-funding-approval'
+import { isCanonicalHcaUsdc, validateHcaUsdcPermit } from './hca-usdc-permit'
 
 const erc2612Abi = parseAbi([
   'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
@@ -412,6 +422,11 @@ export interface PlanHcaIntentFundingParams {
    * {@link STANDALONE_INTENT_PERMIT_PURPOSE}.
    */
   readonly purpose?: PermitPurpose
+  /** Only renewal callers opt into a separate on-chain USDC approval. */
+  readonly approvalFallback?: HcaFundingApprovalCapability & {
+    readonly environment?: HcaApprovalEnvironment
+  }
+  readonly signal?: AbortSignal
 }
 
 export type { PermitKind, PermitPurpose }
@@ -470,6 +485,36 @@ async function planFundingLeg(
   return { ...leg, requiresPermit: allowance < leg.shortfall }
 }
 
+const encodeFundingPermit = (permit: FundingPermit) =>
+  permit.kind === 'dai-legacy'
+    ? encodeFunctionData({
+        abi: daiPermitAbi,
+        functionName: 'permit',
+        args: [
+          permit.holder,
+          permit.spender,
+          permit.nonce,
+          permit.expiry,
+          permit.allowed,
+          permit.v,
+          permit.r,
+          permit.s,
+        ],
+      })
+    : encodeFunctionData({
+        abi: erc2612Abi,
+        functionName: 'permit',
+        args: [
+          permit.owner,
+          permit.spender,
+          permit.value,
+          permit.deadline,
+          permit.v,
+          permit.r,
+          permit.s,
+        ],
+      })
+
 /** The calls that move one leg into the HCA: its permit when needed, then the pull. */
 async function legCalls(
   leg: FundingLeg,
@@ -482,7 +527,12 @@ async function legCalls(
   },
   bounds: PermitValueBounds,
   purpose: PermitPurpose,
-): Promise<Call[]> {
+  approvalFallback?: PlanHcaIntentFundingParams['approvalFallback'],
+  signal?: AbortSignal,
+): Promise<
+  | { readonly kind: 'calls'; readonly calls: Call[] }
+  | { readonly kind: 'approved' }
+> {
   const pull: Call = {
     to: leg.token,
     value: 0n,
@@ -492,8 +542,9 @@ async function legCalls(
       args: [input.ownerAddress, input.hca, leg.shortfall],
     }),
   }
-  if (!leg.requiresPermit) return [pull]
+  if (!leg.requiresPermit) return { kind: 'calls', calls: [pull] }
 
+  signal?.throwIfAborted()
   const permit = await signFundingPermitForTokenActor({
     wallet: input.ownerAddress,
     hca: input.hca,
@@ -516,37 +567,41 @@ async function legCalls(
     },
   )
 
-  const data =
-    permit.kind === 'dai-legacy'
-      ? encodeFunctionData({
-          abi: daiPermitAbi,
-          functionName: 'permit',
-          args: [
-            permit.holder,
-            permit.spender,
-            permit.nonce,
-            permit.expiry,
-            permit.allowed,
-            permit.v,
-            permit.r,
-            permit.s,
-          ],
-        })
-      : encodeFunctionData({
-          abi: erc2612Abi,
-          functionName: 'permit',
-          args: [
-            permit.owner,
-            permit.spender,
-            permit.value,
-            permit.deadline,
-            permit.v,
-            permit.r,
-            permit.s,
-          ],
-        })
+  signal?.throwIfAborted()
+  const data = encodeFundingPermit(permit)
 
-  return [{ to: leg.token, value: 0n, data }, pull]
+  const permitCalls = {
+    kind: 'calls' as const,
+    calls: [{ to: leg.token, value: 0n, data }, pull],
+  }
+  if (
+    !approvalFallback ||
+    permit.kind !== 'eip2612' ||
+    !isCanonicalHcaUsdc(input.chainId, leg.token)
+  )
+    return permitCalls
+  const result = await validateHcaUsdcPermit({
+    publicClient: input.publicClient,
+    chainId: input.chainId,
+    token: leg.token,
+    permit,
+  })
+  if (result.isErr()) return Promise.reject(result.error)
+  if (result.value === 'permit') return permitCalls
+  if (input.approvalSigner.type !== 'eoa')
+    return Promise.reject(new Error('Approval requires the owner wallet.'))
+  const approved = await approveHcaFunding({
+    ...approvalFallback,
+    publicClient: input.publicClient,
+    walletClient: input.approvalSigner.walletClient,
+    chainId: input.chainId,
+    owner: input.ownerAddress,
+    token: leg.token,
+    spender: input.hca,
+    amount: leg.shortfall,
+    ...(signal ? { signal } : {}),
+  })
+  return approved.isOk() ? { kind: 'approved' } : Promise.reject(approved.error)
 }
 
 /**
@@ -716,7 +771,7 @@ export async function planHcaIntentFunding(
     balance,
     tokenBalance,
     quotedFeeUsdc,
-  } = await quoteIntent(params)
+  } = await recoverQuotedFunding(params, await quoteIntent(params))
 
   if (quotedFeeUsdc === null) {
     throw new Error(
@@ -795,6 +850,88 @@ const tokenPromptLeg = (
     : {}),
 })
 
+async function readFundingBalances(
+  publicClient: PublicClient,
+  quoted: Pick<QuotedIntent, 'usdc' | 'hca' | 'otherSpend'>,
+) {
+  const { usdc, hca, otherSpend } = quoted
+  const [balance, tokenBalance] = await Promise.all([
+    readContract(publicClient, {
+      address: usdc,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [hca],
+    }),
+    otherSpend
+      ? readContract(publicClient, {
+          address: otherSpend.token,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [hca],
+        })
+      : Promise.resolve(0n),
+  ])
+  return { balance, tokenBalance }
+}
+
+/** A recovered receipt may have waited across balance changes; keep the original fee quote. */
+async function recoverQuotedFunding(
+  params: PlanHcaIntentFundingParams,
+  quoted: QuotedIntent,
+): Promise<QuotedIntent> {
+  if (
+    !params.approvalFallback ||
+    !isCanonicalHcaUsdc(params.chainId, quoted.usdc) ||
+    params.approvalSigner.type !== 'eoa' ||
+    quoted.quotedFeeUsdc === null
+  )
+    return quoted
+  const recovered = await recoverHcaFundingApproval({
+    ...params.approvalFallback,
+    publicClient: params.publicClient,
+    walletClient: params.approvalSigner.walletClient,
+    chainId: params.chainId,
+    owner: params.ownerAddress,
+    token: quoted.usdc,
+    spender: quoted.hca,
+    amount: bigintMax(
+      quoted.requiredUsdc + quoted.quotedFeeUsdc - quoted.balance,
+      0n,
+    ),
+    ...(params.signal ? { signal: params.signal } : {}),
+  })
+  if (recovered.isErr()) return Promise.reject(recovered.error)
+  return recovered.value.kind === 'settled'
+    ? { ...quoted, ...(await readFundingBalances(params.publicClient, quoted)) }
+    : quoted
+}
+
+/** Re-read settlement against the original quote, then reuse the existing allowance route. */
+async function refreshApprovedFunding(
+  params: PlanHcaIntentFundingParams,
+  quoted: QuotedFunding,
+): Promise<HcaIntentFunding> {
+  const { balance, tokenBalance } = await readFundingBalances(
+    params.publicClient,
+    quoted,
+  )
+  const { otherSpend } = quoted
+  const reconciled = reconcileHcaFundingBalances({
+    requiredUsdc: quoted.requiredUsdc,
+    quotedFeeUsdc: quoted.quotedFeeUsdc,
+    requiredToken: otherSpend?.amount ?? 0n,
+    hcaUsdc: balance,
+    hcaToken: tokenBalance,
+    consentedUsdc: quoted.usdcShortfall,
+    consentedToken: quoted.tokenShortfall,
+  })
+  if (reconciled.isErr()) return Promise.reject(reconciled.error)
+  return fundShortfalls(
+    { ...params, approvalFallback: undefined, confirmFunding: () => true },
+    { ...quoted, balance, tokenBalance, ...reconciled.value },
+  )
+}
+
 /**
  * Plan each leg, show the amounts, then sign — in that order, so nothing is
  * signed for a figure the user did not see or a wallet that cannot pay it.
@@ -803,7 +940,7 @@ async function fundShortfalls(
   params: PlanHcaIntentFundingParams,
   quoted: QuotedFunding,
 ): Promise<HcaIntentFunding> {
-  const { ownerAddress, approvalSigner, publicClient, chainId, calls } = params
+  const { ownerAddress, publicClient } = params
   const { hca, usdc, balance, requiredUsdc, usdcShortfall, otherSpend } = quoted
 
   const owner = { publicClient, ownerAddress, hca }
@@ -830,6 +967,7 @@ async function fundShortfalls(
 
   // Show the amounts before anything is signed, permit or not: either way they
   // leave the wallet when the intent fills.
+  params.signal?.throwIfAborted()
   const approved = await (params.confirmFunding?.({
     permitValue: usdcShortfall,
     requiresPermit: usdcLeg?.requiresPermit ?? false,
@@ -840,29 +978,38 @@ async function fundShortfalls(
       ? { token: tokenPromptLeg(otherSpend, quoted, tokenLeg) }
       : {}),
   }) ?? true)
+  params.signal?.throwIfAborted()
   if (!approved) throw new HcaFundingDeclinedError()
 
+  return buildFundingCalls(params, quoted, usdcLeg, tokenLeg)
+}
+
+async function buildFundingCalls(
+  params: PlanHcaIntentFundingParams,
+  quoted: QuotedFunding,
+  usdcLeg: FundingLeg | null,
+  tokenLeg: FundingLeg | null,
+): Promise<HcaIntentFunding> {
+  const { ownerAddress, approvalSigner, publicClient, chainId, calls } = params
+  const { hca, usdc, balance, requiredUsdc, usdcShortfall } = quoted
   const signing = { ownerAddress, hca, approvalSigner, publicClient, chainId }
   const purpose = params.purpose ?? STANDALONE_INTENT_PERMIT_PURPOSE
-  // Each permit is bounded by what `confirmFunding` just put on screen. Equal
-  // by construction, so this asserts the two can never drift apart if these
-  // steps reorder.
-  const tokenCalls = tokenLeg
-    ? await legCalls(
-        tokenLeg,
-        signing,
-        { displayedValue: quoted.tokenShortfall },
-        purpose,
-      )
-    : []
-  const usdcCalls = usdcLeg
+  const earlyTokenResult =
+    tokenLeg && !(params.approvalFallback && isCanonicalHcaUsdc(chainId, usdc))
+      ? await legCalls(
+          tokenLeg,
+          signing,
+          { displayedValue: quoted.tokenShortfall },
+          purpose,
+          undefined,
+          params.signal,
+        )
+      : undefined
+  const usdcResult = usdcLeg
     ? await legCalls(
         usdcLeg,
         signing,
         {
-          // The permit tops the HCA up to what the intent spends, so the
-          // ceiling nets off the standing balance exactly as the value does,
-          // over the same two components (what it buys, plus the bounded fee).
           expectedMaximum: bigintMax(
             requiredUsdc + quoted.maxFeeUsdc - balance,
             0n,
@@ -870,8 +1017,28 @@ async function fundShortfalls(
           displayedValue: usdcShortfall,
         },
         purpose,
+        params.approvalFallback,
+        params.signal,
       )
-    : []
+    : { kind: 'calls' as const, calls: [] }
+  if (usdcResult.kind === 'approved')
+    return refreshApprovedFunding(params, quoted)
+
+  const tokenResult =
+    earlyTokenResult ??
+    (tokenLeg
+      ? await legCalls(
+          tokenLeg,
+          signing,
+          { displayedValue: quoted.tokenShortfall },
+          purpose,
+          undefined,
+          params.signal,
+        )
+      : { kind: 'calls' as const, calls: [] })
+  // Approval fallback is USDC-only; the other token preserves its existing permit behavior.
+  const tokenCalls = tokenResult.kind === 'calls' ? tokenResult.calls : []
+  const usdcCalls = usdcResult.calls
 
   return {
     calls: [...tokenCalls, ...usdcCalls, ...calls],

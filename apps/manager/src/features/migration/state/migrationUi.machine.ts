@@ -33,6 +33,7 @@ import {
   type GraceRenewalQuote,
   type GraceRenewalStatus,
 } from '../service/graceRenewal'
+import { observeGraceRenewalOperation } from '../service/graceRenewalOperation'
 import type { PendingGraceRenewal } from '../service/graceRenewalPending'
 import { prepareGraceRenewalMigration } from '../service/prepareGraceRenewalMigration'
 import {
@@ -125,6 +126,7 @@ type Events =
       type: 'renewal.discardConfirmation'
       confirmation: NonNullable<Context['renewalDiscardConfirmation']>
     }
+  | { type: 'renewal.recovered'; quote: GraceRenewalQuote }
   | { type: 'renewal.submitted'; hash: Hex }
   | { type: 'renewal.approvalRequired'; required: boolean }
   | { type: 'renewal.status'; status: GraceRenewalStatus }
@@ -200,29 +202,39 @@ export const migrationUiMachine = setup({
         })
         return
       }
-      void executeGraceRenewal({
-        quote: input.renewal.quote,
-        walletClient: input.signer.walletClient,
-        connector: input.signer.connector,
-        publicClient: defaultPublicClient as PublicClient,
-        renewalHash: input.renewalHash,
-        signal: controller.signal,
-        confirmDiscardUnsubmittedRenewal: (pending) =>
-          new Promise<boolean>((resolve) => {
-            controller.signal.addEventListener('abort', () => resolve(false), {
-              once: true,
-            })
-            sendBack({
-              type: 'renewal.discardConfirmation',
-              confirmation: { pending, resolve },
-            })
-          }),
-        onRenewalSubmitted: (hash) =>
-          sendBack({ type: 'renewal.submitted', hash }),
-        onApprovalRequired: (required) =>
-          sendBack({ type: 'renewal.approvalRequired', required }),
-        onStatus: (status) => sendBack({ type: 'renewal.status', status }),
-      }).then((result) => {
+      void observeGraceRenewalOperation(
+        {
+          quote: input.renewal.quote,
+          selection: input.renewal.domains.map(({ id }) => id),
+          onQuoteRecovered: (quote) =>
+            sendBack({ type: 'renewal.recovered', quote }),
+          walletClient: input.signer.walletClient,
+          connector: input.signer.connector,
+          publicClient: defaultPublicClient as PublicClient,
+          renewalHash: input.renewalHash,
+          signal: controller.signal,
+          confirmDiscardUnsubmittedRenewal: (pending) =>
+            new Promise<boolean>((resolve) => {
+              controller.signal.addEventListener(
+                'abort',
+                () => resolve(false),
+                {
+                  once: true,
+                },
+              )
+              sendBack({
+                type: 'renewal.discardConfirmation',
+                confirmation: { pending, resolve },
+              })
+            }),
+          onRenewalSubmitted: (hash) =>
+            sendBack({ type: 'renewal.submitted', hash }),
+          onApprovalRequired: (required) =>
+            sendBack({ type: 'renewal.approvalRequired', required }),
+          onStatus: (status) => sendBack({ type: 'renewal.status', status }),
+        },
+        executeGraceRenewal,
+      ).then((result) => {
         if (controller.signal.aborted) return
         if (result.isErr()) {
           sendBack({
@@ -597,6 +609,14 @@ export const migrationUiMachine = setup({
               actions: 'setRenewalApprovalRequired',
             },
             'renewal.status': { actions: 'setRenewalStatus' },
+            'renewal.recovered': {
+              actions: assign({
+                renewal: ({ context, event }) =>
+                  context.renewal
+                    ? { ...context.renewal, quote: event.quote }
+                    : undefined,
+              }),
+            },
             'renewal.submitted': {
               actions: assign({ renewalHash: ({ event }) => event.hash }),
             },

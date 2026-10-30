@@ -555,3 +555,35 @@ it.each(['eoa', 'hca'] as const)(
     }
   },
 )
+
+it('cancels a detached bulk funding run before another chunk can submit', async () => {
+  let release: (value: {
+    readonly txId: string
+    readonly quotedFeeUsdc: bigint
+  }) => void = () => undefined
+  const pending = new Promise<{
+    readonly txId: string
+    readonly quotedFeeUsdc: bigint
+  }>((resolve) => {
+    release = resolve
+  })
+  mocks.submitHcaRenewal.mockReturnValueOnce(pending)
+  const { result, unmount } = renderHook(() => useBulkRenewSubmit())
+  const many = Array.from({ length: 26 }, (_, index) => ({
+    duration: 31_557_600n,
+    currentExpiry: CURRENT_EXPIRY,
+    label: `detached-${index}`,
+  }))
+  let running: Promise<void> = Promise.resolve()
+  await act(async () => {
+    running = result.current.submit({ ...args, items: many })
+    for (let index = 0; index < 10; index += 1) await Promise.resolve()
+  })
+  const signal = mocks.submitHcaRenewal.mock.calls[0]?.[0].signal
+  expect(signal.aborted).toBe(false)
+  unmount()
+  expect(signal.aborted).toBe(true)
+  release({ txId: 'finished-first-chunk', quotedFeeUsdc: 1n })
+  await act(async () => await running)
+  expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce()
+})
