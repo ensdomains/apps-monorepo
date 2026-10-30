@@ -411,6 +411,15 @@ describe('profile records', () => {
     },
   )
 
+  it('reads only the profile keys for an offchain name bigname indexed without keys', async () => {
+    mocks.isOffchainName.mockResolvedValue(true)
+    mocks.resolveNameData.mockResolvedValue(null)
+
+    await getProfileRecords('offchain.eth')
+
+    expect(requestedTextKeys()).toEqual(['description'])
+  })
+
   const gatewayError = (status: number) => ({
     success: false,
     returnData: encodeErrorResult({

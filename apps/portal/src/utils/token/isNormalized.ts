@@ -28,6 +28,22 @@ export const isNormalized = (name: string) =>
     .every((label) => isEncodedLabelhash(label) || isNormalizedLabel(label))
 
 /**
+ * The ENSIP-15 spelling of `name`, or `null` when the input can't be
+ * normalised at all (disallowed characters, empty labels, …).
+ *
+ * Only meaningful as a *suggestion*: a non-normalised spelling may normalise
+ * to a different, separately registered name (see {@link isCanonicalName}), so
+ * callers must show it as "did you mean…", never as the name in the URL.
+ */
+export const getNormalizedName = (name: string): string | null => {
+  try {
+    return ens_normalize(name)
+  } catch {
+    return null
+  }
+}
+
+/**
  * The name is spelled exactly as ENSIP-15 normalises it, so the label on screen
  * is the label every hash is taken over.
  *

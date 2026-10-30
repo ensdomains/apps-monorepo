@@ -6,6 +6,7 @@ import { ok } from 'neverthrow'
 import type { Address, Hash } from 'viem'
 import { getTransaction } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { getTransactionSender } from '@/utils/history/getTransactionSender'
 
 type GetTransactionSendersParameters = {
   transactionHashes: Hash[]
@@ -22,7 +23,7 @@ const getTransactionSenders = ResultFn(async function* ({
   const results = await Promise.allSettled(
     transactionHashes.map(async (hash) => {
       const tx = await getTransaction(client, { hash })
-      return { hash, from: tx.from }
+      return { hash, from: getTransactionSender(tx) }
     }),
   )
 

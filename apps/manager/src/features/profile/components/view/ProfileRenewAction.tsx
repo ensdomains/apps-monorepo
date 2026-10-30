@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { LinkButton } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import {
   profileExpiryDateFromSeconds,
   profileExpiryQuery,
@@ -15,6 +16,7 @@ import {
 } from '@/features/renew/utils/renewalProtocol'
 import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/thirdPartyRenewalWarning'
 import {
+  actionLabelClassName,
   iconActionInnerClassName,
   renewActionSymbolClassName,
 } from './ProfileAction.styles'
@@ -34,6 +36,7 @@ export const ProfileRenewAction = ({
 }: ProfileRenewActionProps) => {
   const { data: expiryData } = useQuery({
     ...profileExpiryQuery(name, protocol),
+    ...profileDisplayQueryOptions,
   })
   const expiryDate = profileExpiryDateFromSeconds(expiryData?.expiry)
   const resolvedProtocol = protocol ?? expiryData?.protocol ?? 'v2'
@@ -50,7 +53,9 @@ export const ProfileRenewAction = ({
 
   const buttonContent = (
     <span className={iconActionInnerClassName}>
-      <Trans>Renew Name</Trans>
+      <span className={actionLabelClassName}>
+        <Trans>Renew Name</Trans>
+      </span>
       <MSymbol
         aria-hidden="true"
         className={renewActionSymbolClassName}

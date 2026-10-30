@@ -7,16 +7,20 @@ import {
   publicResolverSingleAddrSnippet,
   publicResolverTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
+import { permissionedResolverResolveSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { errAsync, okAsync } from 'neverthrow'
 import {
   type Address,
   BaseError,
+  createPublicClient,
   decodeFunctionData,
   ExecutionRevertedError,
   encodeAbiParameters,
   encodeFunctionResult,
   type Hex,
   HttpRequestError,
+  http,
+  multicall3Abi,
   namehash,
   type PublicClient,
   parseAbi,
@@ -24,6 +28,7 @@ import {
   zeroAddress,
   zeroHash,
 } from 'viem'
+import { mainnet } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -76,6 +81,12 @@ const recordAbi = [
     'function interfaceImplementer(bytes32, bytes4) view returns (address)',
     'function data(bytes32, string) view returns (bytes)',
   ]),
+] as const
+const RPC_ABI = [
+  ...multicall3Abi,
+  ...parseAbi(['function supportsInterface(bytes4) view returns (bool)']),
+  ...permissionedResolverResolveSnippet,
+  ...recordAbi,
 ] as const
 const bytes = (value: Hex) => encodeAbiParameters([{ type: 'bytes' }], [value])
 const expected: ServiceRecordSnapshot = {
@@ -506,4 +517,188 @@ describe('offchain resolver records', () => {
     await expect(read()).rejects.toThrow('Gateway failed')
     expect(resolveCalls()).toHaveLength(1)
   })
+})
+
+describe('resolver record RPC batching', () => {
+  type RpcResult = { readonly success: boolean; readonly returnData: Hex }
+  type RpcRequest = {
+    readonly id: number
+    readonly method: string
+    readonly params: readonly [{ readonly data: Hex }]
+  }
+  const texts = [
+    'description',
+    CUSTOM_KEY,
+    ...Array.from({ length: 10 }, (_, index) => `custom.${index}`),
+    'unsupported',
+    'malformed',
+  ]
+  const transportFixture = (hasNameSetters: boolean) => {
+    const success = (returnData: Hex): RpcResult => ({
+      success: true,
+      returnData,
+    })
+    const readRecord = (data: Hex): RpcResult => {
+      const call = decodeFunctionData({ abi: recordAbi, data })
+      switch (call.functionName) {
+        case 'text':
+          if (call.args[1] === 'unsupported')
+            return { success: false, returnData: '0x' }
+          return success(
+            call.args[1] === 'malformed'
+              ? '0x1234'
+              : encodeAbiParameters(
+                  [{ type: 'string' }],
+                  [`value:${call.args[1]}`],
+                ),
+          )
+        case 'addr':
+          return success(
+            call.args.length === 1
+              ? encodeAbiParameters([{ type: 'address' }], [WALLET])
+              : bytes(RESOLVER),
+          )
+        case 'contenthash':
+          return success(bytes(encodeContentHash(CONTENT_HASH)))
+        case 'ABI':
+          return success(
+            encodeAbiParameters(
+              [{ type: 'uint256' }, { type: 'bytes' }],
+              [1n, toHex('[]')],
+            ),
+          )
+        default:
+          throw new Error(`Unexpected record read: ${call.functionName}`)
+      }
+    }
+    const read = (data: Hex): RpcResult => {
+      if (data.startsWith('0xac9650d8'))
+        return { success: false, returnData: '0x' }
+      const call = decodeFunctionData({ abi: RPC_ABI, data })
+      switch (call.functionName) {
+        case 'aggregate3':
+          return success(
+            encodeFunctionResult({
+              abi: multicall3Abi,
+              functionName: 'aggregate3',
+              result: call.args[0].map(({ callData }) => read(callData)),
+            }),
+          )
+        case 'supportsInterface':
+          return success(
+            encodeAbiParameters(
+              [{ type: 'bool' }],
+              [call.args[0] === '0x9061b923' || hasNameSetters],
+            ),
+          )
+        case 'resolve': {
+          const result = read(call.args[1])
+          return result.success ? success(bytes(result.returnData)) : result
+        }
+        default:
+          return readRecord(data)
+      }
+    }
+    const fetchRpc = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const requests = JSON.parse(String(init?.body)) as readonly RpcRequest[]
+        return Response.json(
+          requests.map(({ id, method, params: [{ data }] }) => {
+            if (method !== 'eth_call')
+              throw new Error(`Unexpected RPC: ${method}`)
+            return { id, jsonrpc: '2.0', result: read(data).returnData }
+          }),
+        )
+      },
+    )
+    const client = createPublicClient({
+      chain: mainnet,
+      // Exercise payload splitting with a small record fixture.
+      batch: { multicall: { batchSize: 4096, wait: 16 } },
+      transport: http('https://rpc.invalid', {
+        batch: { batchSize: 20, wait: 16 },
+        fetchFn: fetchRpc,
+        retryCount: 0,
+      }),
+    })
+    return { client, fetchRpc }
+  }
+
+  it.each([
+    {
+      mode: 'profile',
+      hasNameSetters: true,
+      maxConcurrentReads: 64,
+      maxRequests: 3,
+      maxCalls: 64,
+    },
+    {
+      mode: 'import',
+      hasNameSetters: true,
+      maxConcurrentReads: undefined,
+      maxRequests: 4,
+      maxCalls: 8,
+    },
+    {
+      mode: 'offchain fallback',
+      hasNameSetters: false,
+      maxConcurrentReads: 64,
+      maxRequests: 5,
+      maxCalls: 8,
+    },
+  ])(
+    'preserves every result with bounded $mode batches',
+    async ({ hasNameSetters, maxConcurrentReads, maxRequests, maxCalls }) => {
+      const { client, fetchRpc } = transportFixture(hasNameSetters)
+      const parameters = {
+        name: NAME,
+        resolver: RESOLVER,
+        texts,
+        coins: [60, 2147483658],
+        shouldDecodeStrictly: false,
+        publicClient: client,
+        maxConcurrentReads,
+      } satisfies Parameters<typeof readResolverRecords>[0]
+      const result = await readResolverRecords(parameters)
+
+      expect(result.records).toEqual({
+        texts: texts
+          .slice(0, -2)
+          .map((key) => ({ key, value: `value:${key}` })),
+        coins: [
+          { coinType: 60, symbol: 'eth', value: WALLET },
+          { coinType: 2147483658, symbol: 'op', value: RESOLVER },
+        ],
+        contentHash: CONTENT_HASH,
+        abi: '[]',
+        resolverAddress: RESOLVER,
+      })
+      expect(result.failedKeys).toEqual(['text:unsupported'])
+      expect(result.unsupportedKeys).toEqual(['text:unsupported'])
+      expect(result.readErrors).toEqual([])
+      expect(fetchRpc.mock.calls.length).toBeLessThanOrEqual(maxRequests)
+
+      const calls = fetchRpc.mock.calls.flatMap(([, init]) => {
+        const requests = JSON.parse(String(init?.body)) as readonly RpcRequest[]
+        return requests.map(({ params: [{ data }] }) => {
+          const call = decodeFunctionData({ abi: multicall3Abi, data })
+          if (call.functionName !== 'aggregate3')
+            throw new Error(`Unexpected multicall: ${call.functionName}`)
+          return call.args[0]
+        })
+      })
+      expect(
+        calls
+          .flat()
+          .filter(
+            ({ callData }) =>
+              callData.startsWith('0x9061b923') &&
+              !callData.includes('ac9650d8'),
+          ),
+      ).toHaveLength(18)
+      expect(
+        Math.max(...calls.map((batch) => batch.length)),
+      ).toBeLessThanOrEqual(maxCalls)
+    },
+  )
 })

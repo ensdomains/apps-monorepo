@@ -147,10 +147,8 @@ export const ProfileAbout = ({
       asChild
       className={cn(
         profileTileClassName,
-        'wrap-anywhere flex min-h-0 min-w-0 flex-1',
-        primaryName
-          ? 'min-h-47 p-6 xl:min-h-45 xl:max-w-158.75'
-          : 'p-6 xl:min-h-45.5 xl:max-w-158.75',
+        'wrap-anywhere flex min-h-0 w-full min-w-0 flex-1',
+        primaryName ? 'min-h-47 p-6 xl:min-h-45' : 'p-6 xl:min-h-45.5',
         className,
       )}
     >
@@ -173,7 +171,7 @@ export const ProfileAbout = ({
               ) : (
                 <h2 className="min-w-0 text-base text-ens-quartz-700 leading-normal">
                   <span className="block">
-                    {fullName || <Trans>Profile Description</Trans>}
+                    {fullName || <Trans>About</Trans>}
                   </span>
                 </h2>
               )}
