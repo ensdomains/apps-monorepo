@@ -24,13 +24,13 @@ import { envConfig } from '@/config'
 import { invalidateDashboardNames } from '@/features/dashboard/service/queries/getDashboardNames'
 import { getExpiry } from '@/features/profile/service/profileExpiry'
 import { getL2FundingSource } from '@/features/register-v2/service/l2FundingSource'
+import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import {
   fundHcaRenewalsFromL2,
   type HcaRenewalL2Funding,
   submitHcaRenewal,
 } from '@/features/renew/service/hcaRenewal'
 import { chunkRenewalItems } from '@/features/renew/utils/chunks'
-import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
 import {
   useHcaFundingPrompt,
@@ -246,29 +246,24 @@ type SmartAccount = ReturnType<typeof useSmartAccountContext>
  * the same EOA that submits.
  */
 const resolveContext = (
-  account: SmartAccount,
+  signer: Signer | null,
   token: RENEWAL_TOKEN,
 ): Context | null => {
-  if (getRenewalPaymentRoute(account.signer) !== 'wallet') return null
-  const walletClient = account.walletClient
-  const ownerAddress = walletClient?.account?.address
-  if (!walletClient || !ownerAddress) return null
-  return {
-    signer: { type: 'eoa', walletClient: walletClient as WalletClient },
-    ownerAddress,
-    token,
-  }
+  if (signer?.type !== 'eoa') return null
+  const ownerAddress = signer.walletClient.account?.address
+  if (!ownerAddress) return null
+  return { signer, ownerAddress, token }
 }
 
 /**
  * Resolve the smart-account context, or `null` when the account has no HCA
- * (EOA-only mode) or is still initializing.
+ * (EOA-only mode or a Safe{Wallet}) or is still initializing.
  */
 const resolveHcaContext = (
-  account: SmartAccount,
+  { ownerAddress, walletClient }: SmartAccount,
+  signer: Signer | null,
   token: RENEWAL_TOKEN,
 ): HcaContext | null => {
-  const { signer, ownerAddress, walletClient } = account
   if (signer?.type !== 'rhinestone' || !ownerAddress || !walletClient) {
     return null
   }
@@ -351,6 +346,7 @@ export type UseBulkRenewSubmit = {
 export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const { referrer } = useSearch({ strict: false })
   const account = useSmartAccountContext()
+  const signer = useRenewalSigner()
   const {
     prompt: fundingPrompt,
     confirmFunding,
@@ -549,11 +545,11 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     const runId = runIdRef.current
     const isCurrent = () => runIdRef.current === runId
 
-    const hca = resolveHcaContext(account, token)
-    const ctx = resolveContext(account, token)
+    const hca = resolveHcaContext(account, signer, token)
+    const ctx = resolveContext(signer, token)
     if (!hca && !ctx) {
       setErrorMessage(
-        account.walletClient && !account.signer
+        account.walletClient && !signer
           ? ACCOUNT_LOADING_MESSAGE
           : WALLET_REQUIRED_MESSAGE,
       )
