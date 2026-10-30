@@ -9,6 +9,7 @@ import { getRegistryInfoQueryOptions } from '../hooks/useRegistry'
 import { getRegistryLabelsQueryOptions } from '../hooks/useRegistryLabels'
 import { getRegistryOccupantsQueryOptions } from '../hooks/useRegistryOccupants'
 import { getRegistryRoleHistoryForAccountQueryOptions } from '../hooks/useRegistryRoleHistoryForAccount'
+import { getRegistryRootRoleCountsQueryOptions } from '../queries/getRegistryRootRoleCounts'
 import {
   invalidateRegistryLabelQueries,
   invalidateRegistryQueries,
@@ -31,6 +32,7 @@ const ROLE_KEYS = [
     resource: ROOT_RESOURCE_ID,
     account: ACCOUNT,
   }).queryKey,
+  getRegistryRootRoleCountsQueryOptions({ registryAddress: REGISTRY }).queryKey,
 ]
 
 const BIGNAME_KEYS = [

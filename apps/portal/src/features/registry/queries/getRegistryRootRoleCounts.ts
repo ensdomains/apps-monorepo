@@ -38,7 +38,7 @@ const getRegistryRootRoleCounts = ResultFn(async function* ({
   return ok(decodeRoleCounts(counts, registryRoles))
 })
 
-const getRegistryRootRoleCountsQueryKey = createQueryKey<
+export const getRegistryRootRoleCountsQueryKey = createQueryKey<
   'registry-root-role-counts',
   GetRegistryRootRoleCountsParameters
 >('registry-root-role-counts')
