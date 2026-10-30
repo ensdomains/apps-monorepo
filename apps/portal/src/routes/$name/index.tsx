@@ -13,9 +13,9 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NameHeading } from '@/components/NameHeading'
 import { NonNormalizedNameWarning } from '@/components/NonNormalizedNameWarning'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { nameHeadingClassName, PageHeading } from '@/components/PageHeading'
 import { DnsClaimableMessage } from '@/features/dns-import/components/DnsClaimableMessage'
 import { DnsOutOfSyncBanner } from '@/features/dns-import/components/DnsOutOfSyncBanner'
 import { SyncManagerBanner } from '@/features/dns-import/components/SyncManagerBanner'
@@ -90,7 +90,7 @@ const OffchainNameProfile = ({
   readonly records?: GetRecordsReturnType
 }) => (
   <div className="flex flex-col gap-8">
-    <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
+    <NameHeading name={name} />
     <div className={profileGridClassName}>
       <NameProfileCard name={name} stacked />
       <div className="flex flex-col flex-1">
@@ -321,7 +321,7 @@ const Profile = ({
             canExtend={graceCanExtend}
           />
           <div className="flex flex-row justify-between items-center">
-            <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
+            <NameHeading name={name} />
             <ExtendNameButton name={name} protocolVersion="ENSv2" />
           </div>
         </div>
@@ -435,7 +435,7 @@ const Profile = ({
 
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
-        <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
+        <NameHeading name={name} />
         <ExtendNameButton
           name={name}
           protocolVersion={resolvedProtocolVersion}
