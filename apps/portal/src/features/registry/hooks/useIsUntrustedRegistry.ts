@@ -3,7 +3,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { getStorageAt } from 'viem/actions'
+import { type GetStorageAtErrorType, getStorageAt } from 'viem/actions'
 import { isUntrustedRegistryImplementation } from '@/features/registry/utils/untrustedRegistry'
 import {
   decodeImplementationAddress,
@@ -14,7 +14,7 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 class GetIsUntrustedRegistryError extends TaggedError(
   'GetIsUntrustedRegistryError',
 )<{
-  cause: unknown
+  cause: GetStorageAtErrorType
 }> {}
 
 type GetIsUntrustedRegistryParameters = {
@@ -29,7 +29,8 @@ const getIsUntrustedRegistry = ResultFn(async function* ({
 
   const slotValue = yield* fromPromise(
     getStorageAt(client, { address, slot: EIP1967_IMPLEMENTATION_SLOT }),
-    (cause) => new GetIsUntrustedRegistryError({ cause }),
+    (e) =>
+      new GetIsUntrustedRegistryError({ cause: e as GetStorageAtErrorType }),
   )
 
   return ok(
