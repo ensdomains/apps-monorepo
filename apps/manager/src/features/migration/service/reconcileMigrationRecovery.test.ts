@@ -91,6 +91,37 @@ describe('reconcileMigrationRecovery', () => {
     })
   })
 
+  it('keeps retrying a completed-only snapshot after checkpoint restoration fails once', async () => {
+    const test = setup()
+    await verifyAndPersistMigrationCompletionCheckpoint({
+      ...test,
+      transactionHash: test.hash,
+      operations,
+    })
+    const { recovery } = loadMigrationBatchJournal(test.scope)
+    if (!recovery) throw new Error('Missing test recovery')
+    persistMigrationRecoverySnapshot(test.scope, {
+      ...recovery,
+      remainingOperations: [],
+      completedOperations: operations,
+    })
+    removePendingAtomicMigrationIntent(test.scope, intent.id)
+    const before = loadMigrationBatchJournal(test.scope)
+    test.getReceipt.mockRejectedValueOnce(new Error('RPC unavailable'))
+
+    expect(await test.run()).toEqual({
+      hasUnresolvedAttempts: true,
+      journal: before,
+    })
+    expect(loadMigrationBatchJournal(test.scope)).toEqual(before)
+
+    expect(await test.run()).toEqual({
+      hasUnresolvedAttempts: false,
+      journal: { pending: [], submitted: [], recovery: null },
+    })
+    expect(loadMigrationBatchJournal(test.scope).recovery).toBeNull()
+  })
+
   it('discovers a missing hash from history and verifies it before settling the saved attempt', async () => {
     const test = setup()
     vi.mocked(bigname.nameHistory).mockReturnValue(

@@ -143,11 +143,13 @@ export const reconcileMigrationRecovery = async (params: RecoveryParams) => {
   const journal = params.journal ?? loadMigrationBatchJournal(params.scope)
   const helper = getDestinationContracts(params.scope.chainId).migrationHelper
   const attempts = getRecoveryAttempts(journal, helper)
-  if (attempts.length === 0)
+  if (attempts.length === 0) {
+    const settled = await settleCompletedRecovery(params, journal)
     return {
-      hasUnresolvedAttempts: false,
-      journal: await settleCompletedRecovery(params, journal),
+      hasUnresolvedAttempts: hasCompletedMigrationRecovery(settled),
+      journal: settled,
     }
+  }
   for (const attempt of attempts) {
     params.signal?.throwIfAborted()
     for (const hash of await getCandidateHashes(params, attempt)) {
