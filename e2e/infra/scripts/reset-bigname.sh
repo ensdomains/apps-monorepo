@@ -21,10 +21,15 @@ fork_block=$(curl -fsS -X POST -H 'content-type: application/json' \
   python3 -c "import sys,json; print(json.load(sys.stdin)['result']['forkConfig']['forkBlockNumber'])")
 
 echo "  Resetting bigname for Anvil's fork at block $fork_block"
+# Compose recreates any dependency whose resolved config differs, and Anvil's
+# fork block comes from SEPOLIA_FORK_BLOCK (start-local-env.sh reads it from
+# infra/fork-block). Pin it to the running fork, and start bigname with
+# --no-deps, so a reset can never recreate Anvil and drop the chain state.
+export SEPOLIA_FORK_BLOCK="$fork_block"
 "${COMPOSE[@]}" rm -sfv "${SERVICES[@]}" >/dev/null 2>&1 || true
 docker volume ls -q --filter label=com.docker.compose.volume=bigname-data |
   xargs -r docker volume rm >/dev/null
-"${COMPOSE[@]}" up -d "${SERVICES[@]}" >/dev/null 2>&1
+"${COMPOSE[@]}" up -d --no-deps "${SERVICES[@]}" >/dev/null 2>&1
 
 until "${COMPOSE[@]}" exec -T bigname-postgres pg_isready -U bigname -d bigname >/dev/null 2>&1; do
   sleep 1

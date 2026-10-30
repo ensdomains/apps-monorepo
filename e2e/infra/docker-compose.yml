@@ -413,6 +413,9 @@ services:
   # own fallback.test.ts / outage-taxonomy.test.ts — this is intended,
   # resilience-tested behaviour, not a workaround).
   metadata-service:
+    # Opt-in (`--profile metadata`): its image builds from a private repo with
+    # a GitHub token, so a default `up` must not need it.
+    profiles: ["metadata"]
     build:
       context: .
       dockerfile: Dockerfile.metadata-service

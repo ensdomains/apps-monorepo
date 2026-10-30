@@ -18,6 +18,12 @@ type ExtendNameButtonProps = {
   protocolVersion: ProtocolVersion
 }
 
+// V1 names use "Renew", the manager app's word for this action.
+const ACTION_LABELS = {
+  ENSv1: 'Renew',
+  ENSv2: 'Extend',
+} as const satisfies Record<ProtocolVersion, string>
+
 /**
  * Extend/renew entry point on the name page. v1 and v2 names share the same
  * ERC-20 renewal flow (approve + `renew(label,duration,token,referrer)`); they
@@ -65,7 +71,7 @@ export const ExtendNameButton = ({
         }}
       >
         <FastForward className="size-4" />
-        Extend
+        {ACTION_LABELS[protocolVersion]}
       </Button>
       <ExtendNameModal
         open={open && !isTransactionModalOpen}

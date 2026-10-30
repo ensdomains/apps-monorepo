@@ -100,6 +100,14 @@ test('immutable requests coalesce, state reads bypass history backlog fairly, an
       [60, 61].map((id) => request('eth_getBalance', ['moving', 'latest'], id)),
     )
     assert.equal(order.length, before + 3)
+    // No block parameter is not "pinned": the chain head moves.
+    await request('eth_blockNumber', [], 70)
+    await request('eth_blockNumber', [], 71)
+    assert.equal(order.length, before + 5)
+    // Nor is a range that runs to the head.
+    await request('eth_getLogs', [{ fromBlock: '0x1' }], 72)
+    await request('eth_getLogs', [{ fromBlock: '0x1' }], 73)
+    assert.equal(order.length, before + 7)
   } finally {
     releaseFirst()
     child.kill('SIGTERM')

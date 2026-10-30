@@ -455,7 +455,7 @@ export const assertLockedResolverReplacementRecordSafety = async (
       name: name.domain.name,
       resolver: v1Resolver,
     })),
-    { signal },
+    { signal, chainId: publicClient.chain?.id },
   )
   signal?.throwIfAborted()
   if (result.isErr()) {

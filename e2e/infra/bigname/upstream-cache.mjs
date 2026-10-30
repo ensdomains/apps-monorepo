@@ -64,10 +64,48 @@ const isEmptyValue = (method, result) => {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-const cacheable = ({ params = [] }) =>
-  !JSON.stringify(params)
-    .match(/"([a-z]+)"/g)
-    ?.some((m) => MOVING.has(m.slice(1, -1)))
+// A block reference that names one block for good: a number, or an EIP-1898
+// object carrying a hash or a number. Tags (latest, pending, safe, …) and an
+// omitted block both move.
+const pinned = (block) =>
+  typeof block === 'string'
+    ? /^0x[0-9a-f]+$/i.test(block) && !MOVING.has(block)
+    : typeof block?.blockHash === 'string' ||
+      (typeof block?.blockNumber === 'string' && pinned(block.blockNumber))
+const AT_BLOCK = new Set([
+  'eth_getStorageAt',
+  'eth_getBalance',
+  'eth_getTransactionCount',
+  'eth_getCode',
+  'eth_call',
+  'eth_getProof',
+])
+const BY_HASH = new Set([
+  'eth_getBlockByHash',
+  'eth_getTransactionByHash',
+  'eth_getTransactionReceipt',
+])
+
+/**
+ * Only reads whose answer can never change are cached: state at a named
+ * block, a block by number, lookups by hash, logs between two named blocks,
+ * and the chain id. Everything else (eth_blockNumber, gas prices, anything at
+ * a moving tag or none) goes upstream every time.
+ */
+const cacheable = ({ method, params = [] }) => {
+  if (method === 'eth_chainId') return true
+  if (BY_HASH.has(method)) return true
+  if (AT_BLOCK.has(method)) return pinned(params.at(-1))
+  if (method === 'eth_getBlockByNumber') return pinned(params[0])
+  if (method === 'eth_getLogs') {
+    const [filter] = params
+    return (
+      typeof filter?.blockHash === 'string' ||
+      (pinned(filter?.fromBlock) && pinned(filter?.toBlock))
+    )
+  }
+  return false
+}
 
 const cachePath = ({ method, params = [] }) =>
   path.join(
