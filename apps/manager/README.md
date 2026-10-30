@@ -51,8 +51,7 @@ select mainnet. See [app environment configuration](../../README.md#app-environm
 for env-file layering, local overrides and deployment behavior.
 
 On Sepolia every flow pays in Circle's testnet USDC
-([faucet.circle.com](https://faucet.circle.com)); the auto-fund faucet only runs
-against the local Anvil fork.
+([faucet.circle.com](https://faucet.circle.com)).
 
 `VITE_AVATAR_UPLOAD_URL` selects the avatar/header upload service independently
 of `VITE_ENS_NETWORK`. The committed `.env` and `.env.ci` use

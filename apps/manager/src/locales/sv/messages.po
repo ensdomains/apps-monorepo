@@ -1365,15 +1365,6 @@ msgstr ""
 msgid "Failed to add email"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx
-msgid "Failed to fund wallet"
-msgstr ""
-
-#. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx
-msgid "Failed to fund wallet: {0}"
-msgstr ""
-
 #: src/features/notifications/inbox/list.tsx
 msgid "Failed to load notifications"
 msgstr ""
@@ -1461,14 +1452,6 @@ msgstr "Vanliga frågor"
 
 #: src/components/HcaFundingConfirmDialog.tsx
 msgid "From your wallet"
-msgstr ""
-
-#: src/lib/smart-account/SmartAccountContext.tsx
-msgid "Funding wallet"
-msgstr ""
-
-#: src/lib/smart-account/SmartAccountContext.tsx
-msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx
@@ -3824,20 +3807,12 @@ msgstr ""
 msgid "Waiting for token approval"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx
-msgid "Wallet {address} funded successfully"
-msgstr ""
-
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Wallet account is not ready. Wait for your account to finish connecting, then try again."
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Wallet client missing, please reconnect your wallet and try again."
-msgstr ""
-
-#: src/lib/smart-account/SmartAccountContext.tsx
-msgid "Wallet funded successfully"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
