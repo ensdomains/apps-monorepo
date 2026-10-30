@@ -296,14 +296,14 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
 
     // Profile editing is a dialog on the profile page (#898 removed the old
     // /edit route). Description and the website field are on its General tab.
-    const description = 'Post-migration profile edit'
-    const website = 'https://post-migration.example.com'
-    const email = 'post-migration@example.com'
-    const github = 'ens-test-user'
+    const DESCRIPTION = 'Post-migration profile edit'
+    const WEBSITE = 'https://post-migration.example.com'
+    const EMAIL = 'post-migration@example.com'
+    const GITHUB = 'ens-test-user'
     const link = { name: 'Test Link', url: 'https://link.example.com/path' }
     await goToEditProfile(page, name)
-    await page.getByPlaceholder('Description').fill(description)
-    await page.getByPlaceholder('https://yourwebsite.com').fill(website)
+    await page.getByPlaceholder('Description').fill(DESCRIPTION)
+    await page.getByPlaceholder('https://yourwebsite.com').fill(WEBSITE)
 
     // Email and GitHub sit behind pills on the Contact tab. Match the field
     // exactly: the GitHub row's star button is labelled "Feature GitHub…".
@@ -312,12 +312,12 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
       pillName: /^E-mail\b/,
       fieldLabel: /^E-mail$/,
     })
-    await page.getByLabel(/^E-mail$/).fill(email)
+    await page.getByLabel(/^E-mail$/).fill(EMAIL)
     await ensureProfilePillField(page, {
       pillName: /^GitHub\b/,
       fieldLabel: /^GitHub$/,
     })
-    await page.getByLabel(/^GitHub$/).fill(github)
+    await page.getByLabel(/^GitHub$/).fill(GITHUB)
 
     // A name with no links opens the Links tab on one empty draft row.
     await page.getByRole('tab', { name: 'Links' }).click()
@@ -331,10 +331,10 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
     await v2Resolver(label)
     await expect
       .poll(() => readText(name, 'description'), { timeout: 30_000 })
-      .toBe(description)
-    expect(await readText(name, 'url')).toBe(website)
-    expect(await readText(name, 'email')).toBe(email)
-    expect(await readText(name, 'com.github')).toBe(github)
+      .toBe(DESCRIPTION)
+    expect(await readText(name, 'url')).toBe(WEBSITE)
+    expect(await readText(name, 'email')).toBe(EMAIL)
+    expect(await readText(name, 'com.github')).toBe(GITHUB)
     const links = await readText(name, 'links')
     expect(links && JSON.parse(links), 'links').toEqual([link])
   })

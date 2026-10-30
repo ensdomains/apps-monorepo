@@ -3407,7 +3407,7 @@ test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
     // Approvals (2) and the V2 renewBatch (a and c together) go through;
     // refuse the V1 renewBatch (b).
     const ids = stepIds(legs)
-    const refuseAt = 4
+    const REFUSE_AT = 4
     const tx = page.locator('[data-slot="dialog-content"]')
     const tryAgain = tx.getByRole('button', { name: 'Try again' })
     const pending = () =>
@@ -3416,7 +3416,7 @@ test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
     const deadline = Date.now() + 240_000
     while (Date.now() < deadline && !(await tryAgain.isVisible())) {
       if (pending() > 0) {
-        if (sent < refuseAt - 1) {
+        if (sent < REFUSE_AT - 1) {
           await wallet.authorize(Web3RequestKind.SendTransaction)
           sent++
         } else {
@@ -3444,7 +3444,7 @@ test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
     ).toEqual([true, false, true])
 
     await tryAgain.click()
-    await driveTransactionsToSuccess(page, wallet, ids.slice(refuseAt - 1))
+    await driveTransactionsToSuccess(page, wallet, ids.slice(REFUSE_AT - 1))
     await expectRenewedOnce(legs, before, usdcBefore, owner)
     // One year is measured from each name's own expiry: the longer of a
     // contract year (365.25 d) and the calendar year, which is 366 d across a
