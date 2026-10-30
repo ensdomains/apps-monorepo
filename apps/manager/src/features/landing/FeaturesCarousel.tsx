@@ -197,10 +197,10 @@ const CarouselCard = ({
       {...props}
     >
       <div className="space-y-4">
-        <h2 className="font-bold text-2xl leading-ens-none lg:text-temp-32px">
+        <h2 className="font-medium text-2xl leading-ens-none lg:text-temp-32px">
           {title}
         </h2>
-        <p className="max-w-87.5 font-normal font-serif text-sm leading-none lg:text-base">
+        <p className="max-w-87.5 font-normal text-sm leading-none lg:text-base">
           {description}
         </p>
       </div>

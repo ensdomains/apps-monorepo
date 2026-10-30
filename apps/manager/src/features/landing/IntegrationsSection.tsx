@@ -88,7 +88,7 @@ export const IntegrationsSection = () => {
           <h2 className="font-medium text-ens-lapis-core text-temp-32px leading-ens-none">
             <Trans>Your ENS name works across web3</Trans>
           </h2>
-          <p className="max-w-md font-serif text-lg leading-ens-normal">
+          <p className="max-w-md text-lg leading-ens-normal">
             <Trans>
               Use your ENS name in wallets, apps, blockchains, and browsers you
               already know - no setup required.
