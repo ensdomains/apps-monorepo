@@ -113,24 +113,20 @@ vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
   }),
 }))
 
-vi.mock('@/components/RegisterSidebar', () => ({ RegisterSidebar: () => null }))
+// The real SidebarProvider runs on a desktop viewport; the sidebar itself is
+// reduced to the state the provider gives it.
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
+vi.mock('@/components/RegisterSidebar', async () => {
+  const { useSidebar } = await import('@/components/ui/sidebar')
+  return {
+    RegisterSidebar: () => (
+      <div data-testid="sidebar" data-state={useSidebar().state} />
+    ),
+  }
+})
 vi.mock('@/components/MobileHeader', () => ({ MobileHeader: () => null }))
 vi.mock('@/components/NoticeBanner', () => ({
   NoticeBanner: () => null,
-}))
-vi.mock('@/components/ui/sidebar', () => ({
-  SidebarProvider: ({
-    children,
-    defaultOpen,
-  }: {
-    children: React.ReactNode
-    defaultOpen?: boolean
-  }) => (
-    <div data-testid="sidebar-provider" data-default-open={String(defaultOpen)}>
-      {children}
-    </div>
-  ),
-  SidebarInset: ({ children }: { children: React.ReactNode }) => children,
 }))
 
 // Only the registration flow matters here, so `RegisterName` is reduced to the
@@ -168,10 +164,7 @@ describe('/register', () => {
     search.name = undefined
     const { getByTestId } = render(<RegisterRoute />)
 
-    expect(getByTestId('sidebar-provider')).toHaveAttribute(
-      'data-default-open',
-      'false',
-    )
+    expect(getByTestId('sidebar')).toHaveAttribute('data-state', 'collapsed')
   })
 
   it('stops the flow for the old name when ?name= changes', async () => {
