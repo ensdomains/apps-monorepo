@@ -63,7 +63,11 @@ import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'
 import { resolveSessionActor } from './actors/session.actors'
-import { resolveVerifiedOwner, sessionHydrationKey } from './sessionGate'
+import {
+  isSessionAccessReset,
+  resolveVerifiedOwner,
+  sessionHydrationKey,
+} from './sessionGate'
 import {
   selectIsLoading,
   selectIsReady,
@@ -148,6 +152,13 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    * only once the receipt confirms and carries the HCA's `SessionsRevoked`.
    */
   readonly revokeSession: (options?: RevokeSessionOptions) => Promise<boolean>
+  /**
+   * True once this page has reset the current HCA's sessions and no session
+   * has been authorized since: there is nothing left to revoke. Page-lifetime
+   * only, so a fresh load (where an owner goes after a leak elsewhere) can
+   * always reset.
+   */
+  readonly isSessionAccessReset: boolean
   /** Why the last revocation failed, for UI that branches on the cause. */
   readonly revokeErrorReason: SessionRevokeReason | null
   /**
@@ -641,6 +652,9 @@ export const SmartAccountContextProvider = ({
   const [revokeError, setRevokeError] = useState<string | null>(null)
   const [revokeErrorReason, setRevokeErrorReason] =
     useState<SessionRevokeReason | null>(null)
+  // The HCA this page last revoked for. Kept in memory on purpose: another
+  // device can sign a session we never see, so a reload must offer reset again.
+  const [resetAccount, setResetAccount] = useState<Address | null>(null)
 
   // When the owner changes (incl. initial mount / reconnect), hydrate the
   // active session from localStorage: a valid, non-expired stored session for
@@ -760,6 +774,7 @@ export const SmartAccountContextProvider = ({
 
       // Update state so future renders/intents pick up the session…
       setActiveSession(result.value.session)
+      setResetAccount(null)
 
       // …AND return a signer with the session attached NOW, so the caller can
       // start registration in the same tick without waiting for a re-render
@@ -873,6 +888,7 @@ export const SmartAccountContextProvider = ({
           // `revokeSessionsOnChain` already dropped the stored row; clear the
           // in-memory one so the gate re-prompts on the next action.
           setActiveSession(null)
+          setResetAccount(revokedAccount)
           // The account machine still believes the HCA is counterfactual.
           if (deploymentTransactionHash) send({ type: 'REFRESH' })
           return true
@@ -1045,6 +1061,7 @@ export const SmartAccountContextProvider = ({
             revokeError: null,
             revokeErrorReason: null,
             revokeSession,
+            isSessionAccessReset: false,
             forgetLocalSession,
             activeStoredSession: null,
             getSessionEnablePayload,
@@ -1083,6 +1100,11 @@ export const SmartAccountContextProvider = ({
             revokeError,
             revokeErrorReason,
             revokeSession,
+            isSessionAccessReset: isSessionAccessReset({
+              resetAccount,
+              accountAddress: snapshot.context.accountAddress,
+              hasActiveSession: !!activeSession && !isActiveSessionRevoked,
+            }),
             forgetLocalSession,
             activeStoredSession: activeSession,
             getSessionEnablePayload,
@@ -1118,6 +1140,7 @@ export const SmartAccountContextProvider = ({
       revokeError,
       revokeErrorReason,
       revokeSession,
+      resetAccount,
       forgetLocalSession,
       getSessionEnablePayload,
       refreshAccount,
