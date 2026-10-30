@@ -14,7 +14,7 @@ export type UseHasSetSubregistryRoleResult = {
   parentRegistry: Address | null
   connectedAddress: Address | undefined
   /** The name's id in `parentRegistry`, `null` until it is known. */
-  resourceId: ResourceId | null
+  readonly resourceId: ResourceId | null
 }
 
 export const useHasSetSubregistryRole = (

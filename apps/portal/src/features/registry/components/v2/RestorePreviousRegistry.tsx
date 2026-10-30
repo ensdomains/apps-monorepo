@@ -53,6 +53,13 @@ export const RestorePreviousRegistry = ({
     parentRegistry: parentRegistry ?? zeroAddress,
     id: txId,
   })
+  // A landed restore swaps this view out before Done can be clicked, and the
+  // last step never auto-advances, so the shared modal is closed on success too.
+  const endRestore = () => {
+    closeModal()
+    clearTransaction()
+    attempt.end()
+  }
 
   if (isLoading) return <LoadingSpinner title="Checking permissions..." />
 
@@ -64,7 +71,13 @@ export const RestorePreviousRegistry = ({
       />
     )
 
-  if (!parentRegistry || parentRegistry === zeroAddress) return null
+  if (!parentRegistry || parentRegistry === zeroAddress)
+    return (
+      <ErrorMessage
+        compact
+        description="Couldn't find the registry this name is in, so it can't be restored here. Refresh the page to try again."
+      />
+    )
 
   return (
     <>
@@ -114,13 +127,10 @@ export const RestorePreviousRegistry = ({
                 : undefined,
             },
             onStart: async () => {
-              if (await assertUnset()) setSubregistry(previousRegistry)
+              if (await assertUnset())
+                setSubregistry(previousRegistry, { onSuccess: endRestore })
             },
-            onDone: () => {
-              closeModal()
-              clearTransaction()
-              attempt.end()
-            },
+            onDone: endRestore,
           },
         ]}
       />

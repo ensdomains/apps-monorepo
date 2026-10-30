@@ -16,10 +16,11 @@ vi.mock('wagmi', async (importOriginal) => {
   return { ...actual, useConnection: () => ({ address: CONNECTED }) }
 })
 
+const discoverRegistries = vi.fn()
 vi.mock('@/features/registry/hooks/useNameRegistryDiscovery', () => ({
   getNameRegistriesQueryOptions: ({ name }: { name: string }) => ({
     queryKey: ['nameRegistries', name] as const,
-    queryFn: () => [zeroAddress, PARENT_REGISTRY, PARENT_REGISTRY],
+    queryFn: () => discoverRegistries(),
   }),
 }))
 
@@ -46,10 +47,11 @@ vi.mock('@/features/registry/hooks/useSetSubregistry', () => ({
 }))
 
 const openModal = vi.fn()
+const closeModal = vi.fn()
 vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
   useTransactionModal: () => ({
     openModal,
-    closeModal: vi.fn(),
+    closeModal,
     clearTransaction: vi.fn(),
   }),
 }))
@@ -111,28 +113,47 @@ const run = () => {
 }
 
 beforeEach(() => {
+  discoverRegistries
+    .mockReset()
+    .mockResolvedValue([zeroAddress, PARENT_REGISTRY, PARENT_REGISTRY])
   toastWarning.mockReset()
   readSubregistry.mockReset()
   setSubregistry.mockReset()
   openModal.mockReset()
+  closeModal.mockReset()
 })
+
+/** Restore into an empty slot, up to the write. */
+const restoreIntoEmptySlot = async () => {
+  readSubregistry.mockResolvedValue(ok(zeroAddress))
+  const { restore, startWrite } = run()
+  await restore()
+  await waitFor(() => expect(openModal).toHaveBeenCalledOnce())
+  await startWrite()
+}
 
 describe('RestorePreviousRegistry', () => {
   it('points the name back at the previous registry while its slot is empty', async () => {
-    readSubregistry.mockResolvedValue(ok(zeroAddress))
-    const { restore, startWrite } = run()
+    await restoreIntoEmptySlot()
 
-    await restore()
-    await waitFor(() => expect(openModal).toHaveBeenCalledOnce())
-    await startWrite()
-
-    await waitFor(() =>
-      expect(setSubregistry).toHaveBeenCalledWith(PREVIOUS_REGISTRY),
-    )
+    await waitFor(() => expect(setSubregistry).toHaveBeenCalledOnce())
+    expect(setSubregistry.mock.calls[0]?.[0]).toBe(PREVIOUS_REGISTRY)
     expect(readSubregistry).toHaveBeenCalledWith({
       registryAddress: PARENT_REGISTRY,
       label: 'foo',
     })
+  })
+
+  // The refetch a landed restore triggers unmounts this view, and with it the
+  // modal's Done, so the shared modal must not be left open behind it.
+  it('closes the shared modal as soon as the restore lands', async () => {
+    setSubregistry.mockImplementation(
+      (_registry: Address, options?: { onSuccess?: () => void }) =>
+        options?.onSuccess?.(),
+    )
+    await restoreIntoEmptySlot()
+
+    await waitFor(() => expect(closeModal).toHaveBeenCalledOnce())
   })
 
   it('refuses to restore over a registry configured since the page loaded', async () => {
@@ -144,6 +165,20 @@ describe('RestorePreviousRegistry', () => {
     await waitFor(() => expect(toastWarning).toHaveBeenCalledOnce())
     expect(openModal).not.toHaveBeenCalled()
     expect(setSubregistry).not.toHaveBeenCalled()
+  })
+
+  it('explains, rather than going blank, when the parent registry is unknown', async () => {
+    discoverRegistries.mockResolvedValue([
+      zeroAddress,
+      zeroAddress,
+      zeroAddress,
+    ])
+    run()
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /restore previous registry/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('re-checks before the write, refusing a slot filled meanwhile', async () => {
