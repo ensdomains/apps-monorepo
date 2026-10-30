@@ -124,17 +124,30 @@ export function resolveSessionAfterRevocation<
   return stored
 }
 
+/** The session nonce a reset from this browser left on an HCA. */
+export interface SessionResetMarker {
+  readonly account: Address
+  readonly sessionNonce: bigint
+}
+
 /**
- * Whether this page already reset the current HCA's sessions and nothing has
- * been authorized since, so another reset would only spend the owner's gas.
- * `resetAccount` is the HCA last reset here; signing a new session clears it.
+ * Whether this browser already reset the current HCA's sessions and nothing
+ * has been authorized since, so another reset would only spend the owner's gas.
+ * Once the chain's nonce moves past the marker (a reset from another device),
+ * a session may have been signed there in between, so reset is offered again.
+ * An unknown on-chain nonce trusts the marker.
  */
 export function isSessionAccessReset(params: {
-  readonly resetAccount: Address | null
+  readonly resetMarker: SessionResetMarker | null
   readonly accountAddress: Address | null
+  readonly onChainNonce: bigint | null | undefined
   readonly hasActiveSession: boolean
 }): boolean {
-  const { resetAccount, accountAddress, hasActiveSession } = params
-  if (hasActiveSession || !resetAccount || !accountAddress) return false
-  return resetAccount.toLowerCase() === accountAddress.toLowerCase()
+  const { resetMarker, accountAddress, onChainNonce, hasActiveSession } = params
+  if (hasActiveSession || !resetMarker || !accountAddress) return false
+  if (resetMarker.account.toLowerCase() !== accountAddress.toLowerCase()) {
+    return false
+  }
+  if (onChainNonce === null || onChainNonce === undefined) return true
+  return onChainNonce <= resetMarker.sessionNonce
 }
