@@ -64,6 +64,7 @@ beforeEach(() => {
 })
 
 const { EntityBadge } = await import('./EntityBadge')
+const { AddressHighlightProvider } = await import('./AddressHighlight')
 
 const TEST_ADDRESS = '0x1234567890123456789012345678901234567890' as Address
 const TEST_TX_URL = 'https://etherscan.io/tx/0xabc'
@@ -357,5 +358,84 @@ describe('EntityBadge name display', () => {
     const name = `${'long'.repeat(40)}.eth`
     render(<EntityBadge variant="name" name={name} format="truncate" />)
     expect(screen.getByTitle(name)).toContainElement(screen.getByText(name))
+  })
+})
+
+describe('EntityBadge address highlight', () => {
+  const OWNER = '0xC28d000000000000000000000000000000AbC20D' as Address
+  const OTHER = '0xa708000000000000000000000000000000008AAa' as Address
+
+  const badge = (text: string) => {
+    const element = screen
+      .getByText(text)
+      .closest<HTMLElement>('[data-entity-badge]')
+    if (!element) throw new Error(`No badge around "${text}"`)
+    return element
+  }
+  const highlighted = () =>
+    ['owner', 'owner-lower', 'owner-name', 'other'].filter(
+      (text) => badge(text).dataset.addressHighlighted === 'true',
+    )
+
+  const renderBadges = () =>
+    render(
+      <AddressHighlightProvider>
+        <EntityBadge variant="address" address={OWNER}>
+          owner
+        </EntityBadge>
+        <EntityBadge variant="address" address={OWNER.toLowerCase() as Address}>
+          owner-lower
+        </EntityBadge>
+        <EntityBadge variant="name" name="owner.eth" address={OWNER}>
+          owner-name
+        </EntityBadge>
+        <EntityBadge variant="contract" address={OTHER}>
+          other
+        </EntityBadge>
+      </AddressHighlightProvider>,
+    )
+
+  it('highlights every copy of the hovered address and no other', () => {
+    renderBadges()
+    expect(highlighted()).toEqual([])
+
+    fireEvent.mouseEnter(badge('owner'))
+    expect(highlighted()).toEqual(['owner', 'owner-lower', 'owner-name'])
+
+    fireEvent.mouseLeave(badge('owner'))
+    expect(highlighted()).toEqual([])
+  })
+
+  it('highlights on keyboard focus too', () => {
+    renderBadges()
+    const link = screen.getByRole('link', { name: 'owner' })
+    fireEvent.focus(link)
+    expect(highlighted()).toEqual(['owner', 'owner-lower', 'owner-name'])
+
+    fireEvent.blur(link)
+    expect(highlighted()).toEqual([])
+  })
+
+  it('keeps the newly hovered address when the previous one leaves late', () => {
+    renderBadges()
+    fireEvent.mouseEnter(badge('owner'))
+    fireEvent.mouseEnter(badge('other'))
+    fireEvent.mouseLeave(badge('owner'))
+    expect(highlighted()).toEqual(['other'])
+  })
+
+  it('never highlights outside a provider', () => {
+    render(
+      <>
+        <EntityBadge variant="address" address={OWNER}>
+          a
+        </EntityBadge>
+        <EntityBadge variant="address" address={OWNER}>
+          b
+        </EntityBadge>
+      </>,
+    )
+    fireEvent.mouseEnter(badge('a'))
+    expect(badge('b')).not.toHaveAttribute('data-address-highlighted')
   })
 })
