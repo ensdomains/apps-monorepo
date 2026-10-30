@@ -5,6 +5,7 @@ import { walletConnect } from 'wagmi/connectors'
 import { envConfig, l2Sources } from '@/config'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 import { failover } from '@/lib/rpc'
+import { OATH_WALLET } from '@/lib/wallet/oathWallet'
 
 /**
  * wagmi wiring. The network, chain and RPC endpoints are resolved in
@@ -48,7 +49,12 @@ export const wagmiConfig = createConfig({
       projectId: WALLETCONNECT_PROJECT_ID,
       // The QR modal follows the OS theme by default; the manager app is
       // light-only, so pin it.
-      qrModalOptions: { themeMode: 'light' },
+      qrModalOptions: {
+        themeMode: 'light',
+        // Use Oath's published WalletConnect entry for native app/download
+        // links. Other wallets remain available through the standard picker.
+        explorerRecommendedWalletIds: [OATH_WALLET.walletConnectId],
+      },
     }),
     // Test-only: auto-signing wallet for Playwright/agents. Off in production.
     ...(isMockWalletEnabled ? [mockConnector] : []),

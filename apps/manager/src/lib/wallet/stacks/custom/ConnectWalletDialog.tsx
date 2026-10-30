@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
+import { OATH_WALLET } from '@/lib/wallet/oathWallet'
 import {
   connectOnSupportedChain,
   isCoinbase,
@@ -245,6 +246,13 @@ export const ConnectWalletDialog = ({
       : []),
     ...(walletConnect
       ? [
+          {
+            key: OATH_WALLET.id,
+            icon: <img alt="" className="size-8" src={OATH_WALLET.icon} />,
+            name: OATH_WALLET.name,
+            badge: 'iOS · WalletConnect',
+            connector: walletConnect,
+          },
           {
             key: 'walletconnect',
             icon: <WalletConnectIcon className="size-8" />,
