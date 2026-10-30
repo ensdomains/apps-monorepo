@@ -1,9 +1,12 @@
 import {
+  type HcaFundingApprovalCapability,
+  type HcaFundingApprovalState,
   HcaFundingDeclinedError,
   type HcaFundingPrompt,
   type RhinestoneSigner,
   type Signer,
 } from '@ens-apps/transaction-manager'
+import { HcaFundingApprovalDeclinedError } from '@ens-apps/transaction-manager/helpers/hca-funding-approval'
 import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
@@ -14,8 +17,8 @@ import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useSearch } from '@tanstack/react-router'
-import { ok, okAsync, ResultAsync } from 'neverthrow'
-import { useRef, useState } from 'react'
+import { err, ok, okAsync, ResultAsync } from 'neverthrow'
+import { useEffect, useRef, useState } from 'react'
 import type { Address, WalletClient } from 'viem'
 import { envConfig } from '@/config'
 import { invalidateDashboardNames } from '@/features/dashboard/service/queries/getDashboardNames'
@@ -172,9 +175,13 @@ const runHcaRenewals = ResultFn(async function* (
   remaining: readonly AttributedRenewItem[],
   reporters: RowReporters,
   confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean,
+  approvalFallback?: HcaFundingApprovalCapability,
+  signal?: AbortSignal,
 ) {
   const { onActive, onDone } = reporters
   for (const chunk of chunkItems(remaining)) {
+    if (signal?.aborted)
+      return err(new Error('The bulk renewal screen was closed.'))
     for (const item of chunk) onActive(item.label)
 
     yield* ResultAsync.fromPromise(
@@ -191,6 +198,8 @@ const runHcaRenewals = ResultFn(async function* (
         publicClient,
         chainId: envConfig.chain.id,
         ...(confirmFunding ? { confirmFunding } : {}),
+        ...(approvalFallback ? { approvalFallback } : {}),
+        ...(signal ? { signal } : {}),
       }),
       (error) => (error instanceof Error ? error : new Error(String(error))),
     )
@@ -315,6 +324,7 @@ export type UseBulkRenewSubmit = {
    * dialog from this: the intent submit is parked until it is answered, and no
    * wallet signature is requested before then.
    */
+  readonly approvalState: HcaFundingApprovalState
   readonly fundingPrompt: HcaFundingPrompt | null
   readonly approveFunding: () => void
   readonly declineFunding: () => void
@@ -334,12 +344,23 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const {
     prompt: fundingPrompt,
     confirmFunding,
+    confirmApproval,
+    approvalState = { kind: 'idle' },
+    onApprovalState,
     approve: approveFunding,
     decline: declineFunding,
   } = useHcaFundingPrompt()
   const [phase, setPhase] = useState<BulkRenewPhase>('idle')
   const [statuses, setStatuses] = useState<Record<string, RowStatus>>({})
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
+  const abortRef = useRef<AbortController | null>(null)
+  useEffect(
+    () => () => {
+      abortRef.current?.abort()
+      runIdRef.current += 1
+    },
+    [],
+  )
   const completedRef = useRef<Set<string>>(new Set())
   // Set by a failed run: the next submit re-reads expiries before paying.
   const failedRef = useRef(false)
@@ -349,6 +370,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const runIdRef = useRef(0)
 
   const reset = () => {
+    abortRef.current?.abort()
     runIdRef.current += 1
     completedRef.current = new Set()
     failedRef.current = false
@@ -429,7 +451,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
 
   /**
    * Smart-account route: one owner-signed intent per chunk of names, each
-   * submitted and awaited here — so no allowance transaction and no polling.
+   * submitted and awaited here, including any separately consented USDC approval.
    */
   const renewWithIntents = async (
     hca: HcaContext,
@@ -442,12 +464,17 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       remaining,
       rowReporters(isCurrent, markStatus, completedRef.current),
       confirmFunding,
+      { confirmApproval, onState: onApprovalState },
+      abortRef.current?.signal,
     )
     if (!isCurrent()) return
     if (renewed.isErr()) {
-      // A declined prompt is not a failure: nothing was signed and nothing was
-      // spent, so go back to the confirm step rather than showing an error.
-      if (renewed.error instanceof HcaFundingDeclinedError) {
+      // Either consent can be declined without submitting a renewal. The
+      // separate approval prompt may follow an already-signed funding permit.
+      if (
+        renewed.error instanceof HcaFundingDeclinedError ||
+        renewed.error instanceof HcaFundingApprovalDeclinedError
+      ) {
         abortRun()
         return
       }
@@ -490,6 +517,8 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       ...item,
       referrer: normalizeReferrer(referrer),
     }))
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
     // Claim this run; if `reset` (or another submit) bumps the id while we await,
     // `isCurrent()` turns false and we stop touching the now-stale UI state.
     runIdRef.current += 1
@@ -539,6 +568,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     statuses,
     errorMessage,
     fundingPrompt,
+    approvalState,
     approveFunding,
     declineFunding,
     submit,

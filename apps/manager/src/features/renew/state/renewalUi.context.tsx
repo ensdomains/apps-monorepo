@@ -1,6 +1,7 @@
 import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useRef } from 'react'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
+import { HcaFundingApprovalDialog } from '@/components/HcaFundingApprovalDialog'
 import { useHcaFundingPrompt } from '@/lib/smart-account'
 import { RenewalFundingDialog } from '../components/RenewalFundingDialog'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
@@ -33,12 +34,20 @@ export const RenewalUiProvider = ({
   const {
     prompt: fundingPrompt,
     confirmFunding,
+    confirmApproval,
+    approvalState,
+    onApprovalState,
     approve: approveFunding,
     decline: declineFunding,
   } = useHcaFundingPrompt()
 
   const uiActor = useActorRef(renewalUiMachine, {
-    input: { currentExpiry, protocol, confirmFunding },
+    input: {
+      currentExpiry,
+      protocol,
+      confirmFunding,
+      approvalFallback: { confirmApproval, onState: onApprovalState },
+    },
   })
   const previousLabel = useRef(label)
 
@@ -66,6 +75,11 @@ export const RenewalUiProvider = ({
       value={{ uiActor, label, currentExpiry, protocol }}
     >
       {children}
+      <HcaFundingApprovalDialog
+        onApprove={approveFunding}
+        onDecline={declineFunding}
+        state={approvalState}
+      />
       <RenewalFundingDialog
         onApprove={approveFunding}
         onDecline={declineFunding}

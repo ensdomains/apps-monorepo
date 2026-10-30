@@ -1,7 +1,13 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient } from 'viem'
-import { decodeFunctionData, getAddress, parseAbi } from 'viem'
-import { sepolia } from 'viem/chains'
+import {
+  createWalletClient,
+  custom,
+  decodeFunctionData,
+  getAddress,
+  parseAbi,
+} from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RhinestoneSigner, Signer } from '../types/signer.types'
 import type { Call } from '../types/transaction.types'
@@ -828,4 +834,118 @@ describe('planHcaIntentFunding for a spend in another token', () => {
       'action',
     ])
   })
+})
+
+describe('explicit renewal permit validation', () => {
+  it('stops at a failed permit preflight instead of returning a rejected permit', async () => {
+    prepareTransaction.mockResolvedValue({
+      intentRoute: {
+        intentCost: {
+          tokensSpent: {
+            '1': {
+              [getDestinationContracts(1).usdc.toLowerCase()]: {
+                locked: '0',
+                unlocked: '900000',
+              },
+            },
+          },
+        },
+      },
+    })
+    const failure = new Error('RPC disconnected during permit validation')
+    const simulateContract = vi.fn().mockRejectedValue(failure)
+    const confirmApproval = vi.fn(() => true)
+    await expect(
+      planHcaIntentFunding({
+        ...params,
+        chainId: 1,
+        publicClient: {
+          ...publicClient,
+          chain: mainnet,
+          simulateContract,
+          getBlockNumber: async () => 42n,
+        },
+        approvalFallback: {
+          confirmApproval,
+          environment: {
+            storage: {
+              getItem: () => null,
+              setItem: () => undefined,
+              removeItem: () => undefined,
+            },
+            locks: {
+              request: vi.fn(async (_name, _options, callback) =>
+                callback({ name: 'test', mode: 'exclusive' }),
+              ),
+            },
+          },
+        },
+      }),
+    ).rejects.toThrow('RPC disconnected during permit validation')
+    expect(confirmApproval).not.toHaveBeenCalled()
+  })
+})
+
+it('refreshes HCA balances after recovering a pending approval instead of pulling a stale shortfall', async () => {
+  prepareTransaction.mockResolvedValue({
+    intentRoute: {
+      intentCost: {
+        tokensSpent: {
+          '1': {
+            [getDestinationContracts(1).usdc.toLowerCase()]: {
+              locked: '0',
+              unlocked: '900000',
+            },
+          },
+        },
+      },
+    },
+  })
+  const pending = {
+    kind: 'submitted',
+    amount: '900000',
+    hash: `0x${'11'.repeat(32)}`,
+  }
+  const walletClient = {
+    ...createWalletClient({
+      chain: mainnet,
+      transport: custom({ request: async () => undefined }),
+    }),
+    getAddresses: vi.fn().mockResolvedValue([OWNER]),
+    getChainId: vi.fn().mockResolvedValue(1),
+  }
+  const client = {
+    ...publicClient,
+    chain: mainnet,
+    readContract: vi.fn().mockResolvedValue(900_000n),
+    waitForTransactionReceipt: vi.fn().mockImplementation(async () => {
+      mockReads({ hcaBalance: 900_000n, allowance: 900_000n })
+      return { status: 'success' }
+    }),
+  }
+  const funding = await planHcaIntentFunding({
+    ...params,
+    chainId: 1,
+    publicClient: client,
+    approvalSigner: { type: 'eoa', walletClient },
+    approvalFallback: {
+      confirmApproval: () => true,
+      environment: {
+        storage: {
+          getItem: () => JSON.stringify(pending),
+          setItem: () => undefined,
+          removeItem: () => undefined,
+        },
+        locks: {
+          request: vi.fn(
+            async (_name, _options, callback) =>
+              await callback({ name: 'test', mode: 'exclusive' }),
+          ),
+        },
+      },
+    },
+  })
+  expect(funding.calls).toEqual(actionCalls)
+  expect(funding.incomingUsdc).toBeUndefined()
+  expect(signFundingPermit).not.toHaveBeenCalled()
 })

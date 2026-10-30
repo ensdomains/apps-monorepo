@@ -1,6 +1,7 @@
 import {
   type Call,
   getSmartAccountAddress,
+  type HcaFundingApprovalCapability,
   type HcaFundingPrompt,
   hcaMaxIntentFeeUsdcFor,
   type PermitPurpose,
@@ -12,6 +13,7 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { assertPaymentTokenSupported } from '@ens-apps/transaction-manager/contracts/paymentToken'
+import { assertHcaFundingWallet } from '@ens-apps/transaction-manager/helpers/hca-funding-approval'
 import {
   authorizedPaymentAmount,
   encodeRenewBatchData,
@@ -113,6 +115,8 @@ export interface SubmitHcaRenewalParams {
    * accept it. Called only when the HCA cannot cover the renewal out of its own
    * balance, and always before the wallet is asked to sign anything.
    */
+  readonly approvalFallback?: HcaFundingApprovalCapability
+  readonly signal?: AbortSignal
   readonly confirmFunding?: (
     prompt: HcaFundingPrompt,
   ) => Promise<boolean> | boolean
@@ -287,9 +291,9 @@ export async function quoteHcaRenewalFee(
  * Renew one or more names as a single owner-signed HCA intent, with the rent in
  * the chosen stable and the intent's fee in USDC.
  *
- * There is no plain transaction and no gas token on this route: the wallet
- * signs typed data (the intent, plus a funding permit per token the HCA is
- * short of), and the HCA executes the calls out of its own balances.
+ * The wallet normally signs typed data for funding and the intent. A proven
+ * delegated-wallet USDC incompatibility can instead use a separately consented,
+ * bounded approval transaction, paid in ETH, before the owner signs the intent.
  *
  * `renew` charges `msg.sender`, so the payer is the HCA, and the intent is
  * owner-signed — `HCAOwnerAndSessionValidator` allowlists only `commit` and
@@ -370,7 +374,27 @@ export async function submitHcaRenewal(
     // only place they can be shown before a signature is requested.
     ...(confirmFunding ? { confirmFunding } : {}),
     purpose: RENEWAL_PERMIT_PURPOSE,
+    ...(params.approvalFallback
+      ? { approvalFallback: params.approvalFallback }
+      : {}),
+    ...(params.signal ? { signal: params.signal } : {}),
   })
+
+  // Cancellation never undoes an approval, but it must stop a detached screen from starting an intent.
+  if (params.signal?.aborted)
+    return Promise.reject(
+      new Error('The renewal screen was closed before submission.'),
+    )
+  if (params.approvalFallback) {
+    const identity = await assertHcaFundingWallet({
+      walletClient,
+      publicClient,
+      owner: ownerAddress,
+      chainId,
+      ...(params.signal ? { signal: params.signal } : {}),
+    })
+    if (identity.isErr()) return Promise.reject(identity.error)
+  }
 
   // Assigned by `startTransaction` below; the transport reports the submitted
   // intent only after that returns.

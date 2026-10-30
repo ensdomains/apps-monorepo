@@ -506,12 +506,24 @@ msgstr ""
 msgid "Approve this name in your wallet"
 msgstr ""
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Approve USDC"
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Approve USDC for your renewal?"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approve USDC on {l2ChainName} if your wallet asks, then sign the payment"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve your wrapped names"
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Approving"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -629,6 +641,7 @@ msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
 msgid "Can you share your order number?"
 msgstr ""
 
+#: src/components/HcaFundingApprovalDialog.tsx
 #: src/components/HcaFundingConfirmDialog.tsx
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -821,6 +834,10 @@ msgstr ""
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "Confirm renewal"
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Confirm the USDC approval transaction in your wallet. The renewal will continue after it confirms."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -1777,6 +1794,10 @@ msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Marking..."
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Maximum network fee"
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
@@ -3015,6 +3036,10 @@ msgstr ""
 msgid "Smart account access"
 msgstr ""
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Smart account receiving allowance"
+msgstr ""
+
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Smart sessions off"
 msgstr ""
@@ -3638,6 +3663,10 @@ msgstr ""
 msgid "USD"
 msgstr ""
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "USDC allowance"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
 msgid "Use a different wallet"
 msgstr ""
@@ -3760,6 +3789,10 @@ msgstr ""
 msgid "Waiting for commitment submission"
 msgstr ""
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Waiting for confirmation"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for ETH address record confirmation"
 msgstr ""
@@ -3812,8 +3845,16 @@ msgstr ""
 msgid "Waiting for the resolver deployment"
 msgstr ""
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Waiting for the USDC approval to confirm. Your renewal has not been submitted yet."
+msgstr ""
+
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Waiting for token approval"
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Waiting for your wallet"
 msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
@@ -4254,4 +4295,8 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Your wallet's delegation cannot use this USDC permit. You can approve your smart account with a separate transaction, then sign the renewal. This transaction costs ETH gas."
 msgstr ""

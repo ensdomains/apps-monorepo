@@ -1,52 +1,76 @@
-import type { HcaFundingPrompt } from '@ens-apps/transaction-manager'
-import { useCallback, useRef, useState } from 'react'
+import type {
+  HcaFundingApprovalPrompt,
+  HcaFundingApprovalState,
+  HcaFundingPrompt,
+} from '@ens-apps/transaction-manager'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+type FundingUiState =
+  | { readonly kind: 'funding'; readonly prompt: HcaFundingPrompt }
+  | HcaFundingApprovalState
 
 export interface UseHcaFundingPromptResult {
-  /**
-   * The amount waiting on the user's answer, or `null`. Render a dialog from
-   * this and nothing else will ask the user to approve a figure unseen.
-   */
   readonly prompt: HcaFundingPrompt | null
-  /** Pass as the submit call's `confirmFunding`. Parks it until answered. */
+  readonly approvalState: HcaFundingApprovalState
   readonly confirmFunding: (prompt: HcaFundingPrompt) => Promise<boolean>
+  readonly confirmApproval: (
+    prompt: HcaFundingApprovalPrompt,
+  ) => Promise<boolean>
+  readonly onApprovalState: (state: HcaFundingApprovalState) => void
   readonly approve: () => void
   readonly decline: () => void
 }
 
-/**
- * Consent for the USDC a standalone-HCA action pulls in from the owner's wallet.
- *
- * The funding amount is only known once the intent has been quoted, which
- * happens inside the submit call — so showing it means parking that call on a
- * promise the UI resolves, rather than gathering consent up front from a figure
- * we would have had to guess.
- */
+/** Framework adapter for consent. Transaction decisions and writes stay in the service actor. */
 export const useHcaFundingPrompt = (): UseHcaFundingPromptResult => {
-  const [prompt, setPrompt] = useState<HcaFundingPrompt | null>(null)
+  const [state, setState] = useState<FundingUiState>({ kind: 'idle' })
   const decideRef = useRef<((approved: boolean) => void) | null>(null)
-
-  const confirmFunding = useCallback(
-    (next: HcaFundingPrompt) =>
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      decideRef.current?.(false)
+      decideRef.current = null
+    }
+  }, [])
+  const request = useCallback(
+    (next: FundingUiState) =>
       new Promise<boolean>((resolve) => {
+        if (!mounted.current) {
+          resolve(false)
+          return
+        }
+        decideRef.current?.(false)
         decideRef.current = resolve
-        setPrompt(next)
+        setState(next)
       }),
     [],
   )
-
+  const confirmFunding = useCallback(
+    (prompt: HcaFundingPrompt) => request({ kind: 'funding', prompt }),
+    [request],
+  )
+  const confirmApproval = useCallback(
+    (prompt: HcaFundingApprovalPrompt) => request({ kind: 'approval', prompt }),
+    [request],
+  )
+  const onApprovalState = useCallback((next: HcaFundingApprovalState) => {
+    if (mounted.current) setState(next)
+  }, [])
   const settle = useCallback((approved: boolean) => {
     const decide = decideRef.current
     decideRef.current = null
-    setPrompt(null)
+    setState({ kind: 'idle' })
     decide?.(approved)
   }, [])
-
   return {
-    prompt,
+    prompt: state.kind === 'funding' ? state.prompt : null,
+    approvalState: state.kind === 'funding' ? { kind: 'idle' } : state,
     confirmFunding,
+    confirmApproval,
+    onApprovalState,
     approve: () => settle(true),
-    // Declining aborts the parked call with `HcaFundingDeclinedError`, which
-    // callers report as "no funding, no signature" rather than as a failure.
     decline: () => settle(false),
   }
 }

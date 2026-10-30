@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useState } from 'react'
 import { match } from 'ts-pattern'
+import { HcaFundingApprovalDialog } from '@/components/HcaFundingApprovalDialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -241,6 +242,11 @@ export const BulkRenewDialog = ({
           </AnimatePresence>
         </DialogContent>
       </Dialog>
+      <HcaFundingApprovalDialog
+        onApprove={submit.approveFunding}
+        onDecline={submit.declineFunding}
+        state={submit.approvalState ?? { kind: 'idle' }}
+      />
       <RenewalFundingDialog
         onApprove={submit.approveFunding}
         onDecline={submit.declineFunding}

@@ -318,3 +318,13 @@ describe('smart-account renewal state machine', () => {
     actor.stop()
   })
 })
+
+it('cancels the funding continuation when the renewal actor stops', async () => {
+  mocks.submitHcaRenewal.mockReturnValue(new Promise(() => undefined))
+  const actor = startRenewal('v2', 'smart-account')
+  await vi.waitFor(() => expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce())
+  const signal = mocks.submitHcaRenewal.mock.calls[0]?.[0].signal
+  expect(signal.aborted).toBe(false)
+  actor.stop()
+  expect(signal.aborted).toBe(true)
+})

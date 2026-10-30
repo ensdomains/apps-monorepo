@@ -369,3 +369,17 @@ it('carries the supplied referrer into the owner-signed HCA renewal', async () =
     '0x1234',
   )
 })
+
+it('does not start an intent after funding completes for a detached renewal screen', async () => {
+  const cancelled = new AbortController()
+  mocks.planHcaIntentFunding.mockImplementationOnce(
+    async ({ calls }: { readonly calls: readonly unknown[] }) => {
+      cancelled.abort()
+      return { calls, quotedFeeUsdc: 900_000n }
+    },
+  )
+  await expect(
+    submitHcaRenewal({ ...params, signal: cancelled.signal }),
+  ).rejects.toThrow('screen was closed')
+  expect(mocks.startTransaction).not.toHaveBeenCalled()
+})
