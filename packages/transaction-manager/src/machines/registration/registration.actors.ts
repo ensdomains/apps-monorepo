@@ -1594,13 +1594,13 @@ export function submitRenewBatchActor(input: {
   id?: string
 }): ResultAsync<string, Error> {
   const [first, ...rest] = input.renewals
+  if (!first) return errAsync(new Error('A renewal needs at least one name.'))
   const single = rest.length === 0 ? first : undefined
   // Renewal is NOT an HCA flow — it is a plain wallet transaction against the
   // selected canonical renewer. V2 callers keep the ETHRegistrar default;
   // unmigrated V1 names explicitly target ETHRenewerV1.
   return fromPromise(
     (async () => {
-      if (!first) throw new Error('A renewal needs at least one name.')
       const chainId = requireChainId(input.publicClient, 'registration')
       const renewerAddress =
         input.renewerAddress ??
