@@ -10,8 +10,10 @@ import { useConnection } from 'wagmi'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
+import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { useIsAwaitingRenewalApproval } from '@/features/renew/state/renewalUi.selectors'
+import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -20,9 +22,13 @@ import { useRenewalIntentFunding } from '../useRenewalIntentFunding'
 export const TokenPickerContent = () => {
   const { label, uiActor, protocol } = useRenewalUiContext()
   const account = useSmartAccountContext()
+  const signer = useRenewalSigner()
   const balances = useRenewalBalances()
   const { isConnected: isEoaConnected } = useConnection()
-  const isConnected = protocol === 'v1' ? isEoaConnected : account.isConnected
+  const isConnected =
+    protocol === 'v1' || getRenewalPaymentRoute(signer) === 'wallet'
+      ? isEoaConnected
+      : account.isConnected
   const [duration, selectedToken, renewerAddress] = useSelector(
     uiActor,
     (state) =>
@@ -58,7 +64,7 @@ export const TokenPickerContent = () => {
       token,
       protocol,
       renewerAddress,
-      account,
+      account: { ...account, signer },
       pricing: pricingQuery.data,
       accountCredit: balances.accountCredit,
     })
@@ -67,7 +73,6 @@ export const TokenPickerContent = () => {
   // cannot start until the account context has both.
   const walletClient = account.walletClient as WalletClient | undefined
   const ownerAddress = account.ownerAddress ?? null
-  const signer = account.signer ?? undefined
   const canStart = !!signer && !!ownerAddress && !!walletClient
 
   const onSelectCoin = (coin: RENEWAL_TOKEN) => {

@@ -10,6 +10,7 @@ import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
+import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import {
   MIN_RENEW_DURATION_SECONDS,
@@ -81,10 +82,10 @@ export const useBulkRenew = ({
   readonly open: boolean
 }): UseBulkRenewResult => {
   const count = names.length
-  const { isConnected, signer } = useSmartAccountContext()
+  const { isConnected } = useSmartAccountContext()
   // `null` while the signer initializes: nothing is confirmable until the
   // route is known, so a smart account never falls back to the wallet route.
-  const route = getRenewalPaymentRoute(signer)
+  const route = getRenewalPaymentRoute(useRenewalSigner())
   const {
     wallet: stablecoinBalances,
     accountCredit,

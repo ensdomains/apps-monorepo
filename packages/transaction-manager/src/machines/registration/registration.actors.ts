@@ -1559,7 +1559,12 @@ export function encodeRenewBatchData(
  * The renewal payer is the EOA — both because the EOA is `msg.sender` here and
  * because the registrar's HCA-aware `_msgSender()` resolves to the EOA anyway.
  */
-export function submitRenewActor(input: {
+export function submitRenewActor({
+  label,
+  duration,
+  referrer,
+  ...input
+}: {
   label: string
   duration: bigint
   readonly referrer?: Hex
@@ -1569,6 +1574,28 @@ export function submitRenewActor(input: {
   renewerAddress?: Address
   id?: string
 }): ResultAsync<string, Error> {
+  return submitRenewBatchActor({
+    ...input,
+    renewals: [{ label, duration, referrer }],
+  })
+}
+
+/**
+ * Submit the renewal of several names as one wallet transaction: one name
+ * renews directly, several go in one `renewBatch`, which pulls the summed rent
+ * once. The allowance must already cover the batch.
+ */
+export function submitRenewBatchActor(input: {
+  readonly renewals: readonly RenewDataEntry[]
+  selectedToken: TOKEN_SYMBOL
+  signer: import('../..').Signer
+  publicClient: PublicClient
+  renewerAddress?: Address
+  id?: string
+}): ResultAsync<string, Error> {
+  const [first, ...rest] = input.renewals
+  if (!first) return errAsync(new Error('A renewal needs at least one name.'))
+  const single = rest.length === 0 ? first : undefined
   // Renewal is NOT an HCA flow — it is a plain wallet transaction against the
   // selected canonical renewer. V2 callers keep the ETHRegistrar default;
   // unmigrated V1 names explicitly target ETHRenewerV1.
@@ -1599,12 +1626,14 @@ export function submitRenewActor(input: {
         normalizedPaymentToken,
       )
 
-      const renewData = encodeRenewData(
-        input.label,
-        input.duration,
-        normalizedPaymentToken,
-        input.referrer,
-      )
+      const renewData = single
+        ? encodeRenewData(
+            single.label,
+            single.duration,
+            normalizedPaymentToken,
+            single.referrer,
+          )
+        : encodeRenewBatchData(input.renewals, normalizedPaymentToken)
 
       const request = createTransactionRequest({
         signer: input.signer,
@@ -1618,7 +1647,9 @@ export function submitRenewActor(input: {
         input.signer,
         {
           id: input.id,
-          description: `Renew ${input.label}.eth`,
+          description: single
+            ? `Renew ${single.label}.eth`
+            : `Renew ${input.renewals.length} names`,
           publicClient: input.publicClient,
           timeout: 120_000,
         },
