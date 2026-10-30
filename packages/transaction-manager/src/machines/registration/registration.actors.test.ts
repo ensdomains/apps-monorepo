@@ -4,18 +4,39 @@ import {
   extendChainWithEns,
   supportedL1Chains,
 } from '@ensdomains/ensjs/chain'
-import type { Address, Hex, WalletClient } from 'viem'
-import { getChainContractAddress } from 'viem'
+import { ethRegistrarRegisterSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import type { Address, Hash, Hex, PublicClient, WalletClient } from 'viem'
+import { decodeFunctionData, getChainContractAddress } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { SignerAddressMismatchError } from '../../errors/transaction.errors'
-import type { RhinestoneSigner, Signer } from '../../types/signer.types'
+import type {
+  EOASigner,
+  RhinestoneSigner,
+  Signer,
+} from '../../types/signer.types'
 import { type Call, getPrimaryCall } from '../../types/transaction.types'
 import {
   createTransactionRequest,
   getSignerAddress,
   resolvePaymentTokenAddress,
+  submitRegistrationActor,
 } from './registration.actors'
+
+const mocks = vi.hoisted(() => ({
+  startTransaction: vi.fn(
+    (_intent: { readonly request: { readonly data: Hex } }) => 'tx-register',
+  ),
+}))
+
+vi.mock('../../providers/transactionManager', () => ({
+  transactionManager: { startTransaction: mocks.startTransaction },
+}))
+
+// The oracle's token whitelist is a chain read, outside the token choice.
+vi.mock('../../contracts/paymentToken', () => ({
+  assertPaymentTokenSupported: vi.fn(async () => {}),
+}))
 
 const FROM = '0xF00000000000000000000000000000000000000F' as Address
 const eoaSigner = { type: 'eoa' } as unknown as Signer
@@ -184,5 +205,38 @@ describe('resolvePaymentTokenAddress', () => {
     expect(
       resolvePaymentTokenAddress({ selectedToken: 'USDC' }, mainnetChain),
     ).toBe(shown)
+  })
+})
+
+describe('submitRegistrationActor', () => {
+  it('registers paying in the token the caller showed', async () => {
+    const owner = '0x1111111111111111111111111111111111111111' as Address
+    const chain = extendChainWithEns(sepolia)
+    const mockUsdc = getChainContractAddress({ chain, contract: 'usdc' })
+
+    await submitRegistrationActor({
+      name: 'alice',
+      commitment: {
+        commitment: `0x${'44'.repeat(32)}` as Hash,
+        secret: `0x${'55'.repeat(32)}` as Hex,
+      },
+      signer: {
+        type: 'eoa',
+        walletClient: { account: { address: owner } } as WalletClient,
+      } satisfies EOASigner,
+      duration: 31_536_000n,
+      selectedToken: 'USDC',
+      paymentTokenAddress: mockUsdc,
+      owner,
+      publicClient: { chain } as PublicClient,
+      resolverAddress: owner,
+    })
+
+    const [intent] = mocks.startTransaction.mock.calls[0] ?? []
+    const { args } = decodeFunctionData({
+      abi: ethRegistrarRegisterSnippet,
+      data: intent?.request.data ?? '0x',
+    })
+    expect(args?.[6]).toBe(mockUsdc)
   })
 })

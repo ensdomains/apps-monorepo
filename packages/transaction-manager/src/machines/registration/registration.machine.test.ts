@@ -1413,6 +1413,7 @@ describe('registrationMachine — RESUME', () => {
       },
       deps: {
         approveBeforeCommit: true,
+        // The payment actors are stubbed, so neither stand-in is called.
         signer: { type: 'eoa' } as unknown as Signer,
         publicClient: { chain: sepolia } as unknown as PublicClient,
       },
