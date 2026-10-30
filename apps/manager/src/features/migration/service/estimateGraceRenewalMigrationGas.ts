@@ -1,8 +1,4 @@
 import type { V1Domain } from '@ens-apps/migration'
-import {
-  SECONDS_PER_DAY,
-  V1_GRACE_PERIOD_DAYS,
-} from '@ens-apps/utils/gracePeriod'
 import type { Config } from '@wagmi/core'
 import {
   type Address,
@@ -21,9 +17,8 @@ import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { estimateGraceRenewalGas } from './estimateGraceRenewalGas'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type { GraceRenewalQuote } from './graceRenewal'
+import { projectRenewedDomain } from './projectRenewedDomain'
 import { discoverSubnameRecreation } from './subnameRecreation'
-
-const GRACE_PERIOD = BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 
 type Params = {
   readonly quote: GraceRenewalQuote
@@ -103,19 +98,8 @@ const projectSelectedDomains = ({
       throw new Error('The renewal quote expired. Refresh the estimate.')
     }
     if (item.duration === 0n) return item.domain
-    return {
-      ...item.domain,
-      // ETHRenewerV1 extends the ENSv2 reservation as well as the v1 lease.
-      // Only project this for a renewal; execution rechecks it on chain.
-      isUnreserved: undefined,
-      registration: { expiryDate: item.targetExpiry.toString() },
-      wrappedDomain: item.domain.wrappedDomain
-        ? {
-            ...item.domain.wrappedDomain,
-            expiryDate: (item.targetExpiry + GRACE_PERIOD).toString(),
-          }
-        : null,
-    }
+    // Only project this for a renewal; execution rechecks it on chain.
+    return projectRenewedDomain(item.domain, item.targetExpiry)
   })
 }
 
