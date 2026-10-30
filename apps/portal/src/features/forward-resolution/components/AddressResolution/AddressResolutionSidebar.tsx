@@ -401,7 +401,10 @@ const ResolutionDetails = ({
         <Alert variant="warning">
           <AlertTitle>{RECORD_EDIT_LOCK_TITLE}</AlertTitle>
           <AlertDescription>
-            <RecordEditLockReason lock={editLock} name={name} />
+            {/* The description is a grid: keep the inline copy in one block. */}
+            <p>
+              <RecordEditLockReason lock={editLock} name={name} />
+            </p>
           </AlertDescription>
         </Alert>
       )}
