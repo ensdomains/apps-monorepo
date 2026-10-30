@@ -42,7 +42,7 @@
     "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ens-apps/weave-loader": "workspace:*",
-    "@ensdomains/address-encoder": "^1.1.4",
+    "@ensdomains/address-encoder": "catalog:",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@ensdomains/etherloom": "0.1.0-alpha.4",

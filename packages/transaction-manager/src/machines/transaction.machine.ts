@@ -23,6 +23,7 @@ import {
   TransactionTimeoutError,
   type TransactionUserRejectedError,
 } from '../errors/transaction.errors'
+import { orSafeExecution } from '../helpers/safe-execution.helpers'
 import type { Signer } from '../types/signer.types'
 import type {
   EOATransactionRequest,
@@ -203,19 +204,24 @@ export const transactionMachine = setup({
      * Wait for Transaction Receipt
      */
     waitForReceipt: fromResultAsync(
-      ({
-        hash,
-        callsId,
-        signer,
-        options,
-        publicClient,
-      }: {
-        hash?: Hash
-        callsId?: string
-        signer?: Signer
-        options?: TransactionOptions
-        publicClient: PublicClient
-      }): ResultAsync<
+      (
+        {
+          hash,
+          callsId,
+          request,
+          signer,
+          options,
+          publicClient,
+        }: {
+          hash?: Hash
+          callsId?: string
+          request?: TransactionRequest
+          signer?: Signer
+          options?: TransactionOptions
+          publicClient: PublicClient
+        },
+        { signal },
+      ): ResultAsync<
         TransactionReceipt,
         | TransactionTimeoutError
         | CallsBundleTimeoutError
@@ -234,15 +240,39 @@ export const transactionMachine = setup({
             (_error) => new TransactionTimeoutError(txHash, timeout),
           )
 
-        if (hash) return waitForHash(hash)
+        // A Safe{Wallet} connection answers with the Safe's safeTxHash.
+        const connector = signer?.type === 'eoa' ? signer.connector : undefined
+        const account = request?.from
+
+        if (hash) {
+          return orSafeExecution({
+            publicClient,
+            connector,
+            account,
+            id: hash,
+            timeout,
+            direct: waitForHash(hash),
+            settle: waitForHash,
+            signal,
+          })
+        }
 
         // An EIP-5792 bundle has no hash until the wallet reports it landed.
         if (callsId && signer?.type === 'eoa') {
-          return waitForEOABatchHash({
-            walletClient: signer.walletClient,
+          return orSafeExecution({
+            publicClient,
+            connector,
+            account,
             id: callsId,
             timeout,
-          }).andThen(waitForHash)
+            direct: waitForEOABatchHash({
+              walletClient: signer.walletClient,
+              id: callsId,
+              timeout,
+            }).andThen(waitForHash),
+            settle: waitForHash,
+            signal,
+          })
         }
 
         return errAsync(
@@ -540,6 +570,7 @@ export const transactionMachine = setup({
         input: ({ context }) => ({
           hash: context.hash,
           callsId: context.callsId,
+          request: context.request,
           signer: context.signer,
           options: context.options,
           publicClient: context.publicClient,
@@ -548,8 +579,8 @@ export const transactionMachine = setup({
           target: 'confirming',
           actions: assign({
             receipt: ({ event }) => event.output,
-            hash: ({ context, event }) =>
-              context.hash ?? event.output.transactionHash,
+            // The wallet's hash can be a Safe's safeTxHash; the receipt's is on-chain.
+            hash: ({ event }) => event.output.transactionHash,
           }),
         },
         onError: [

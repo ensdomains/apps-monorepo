@@ -61,6 +61,34 @@ const showError = (options: {
 }
 afterEach(cleanup)
 
+it('links successful migrations to optional permission removal', () => {
+  const onOpenDashboard = vi.fn()
+  render(
+    createElement(
+      I18nProvider,
+      { i18n },
+      createElement(MigrationSuccessDialog, {
+        context: 'migration',
+        open: true,
+        state: { status: 'ineligible' },
+        migratedNameCount: 1,
+        canMint: false,
+        onClose: vi.fn(),
+        onRetry: vi.fn(),
+        onOpenDashboard,
+        onMint: vi.fn(),
+      }),
+    ),
+  )
+  expect(
+    screen
+      .getByRole('link', { name: 'Review and revoke upgrade permissions' })
+      .getAttribute('href'),
+  ).toBe('/upgrade-permissions')
+  fireEvent.click(screen.getByRole('button', { name: 'Go to dashboard' }))
+  expect(onOpenDashboard).toHaveBeenCalledOnce()
+})
+
 describe('MigrationSuccessDialog error actions', () => {
   it('offers Retry and Close for a claim error without artwork', () => {
     const callbacks = showError({ stage: 'claim' })

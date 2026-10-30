@@ -474,7 +474,7 @@ export const useRegistrationTransactions = ({
 
     transactionManager.clear()
 
-    const signer = createEOASigner(walletClient, connection.connector?.id)
+    const signer = createEOASigner(walletClient)
 
     actor.send({
       type: 'START_REGISTRATION',
@@ -482,6 +482,8 @@ export const useRegistrationTransactions = ({
       name,
       duration: BigInt(duration),
       token: savedParams.tokenSymbol,
+      // On Sepolia the symbol alone resolves to Circle USDC, not the shown MockUSDC.
+      paymentTokenAddress: savedParams.tokenAddress,
       price: savedParams.tokenPrice,
       signer,
       accountAddress: connection.address,

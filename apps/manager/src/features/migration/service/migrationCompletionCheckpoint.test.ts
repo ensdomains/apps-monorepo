@@ -13,6 +13,7 @@ import {
   persistMigrationCompletionCheckpoint,
   restoreMigrationCompletionCheckpoint,
   verifyAndPersistMigrationCompletionCheckpoint,
+  verifyMigrationRecoveryTransaction,
 } from './migrationCompletionCheckpoint'
 import {
   buildRegisterCopiedSubnameCall,
@@ -96,9 +97,56 @@ beforeEach(() => {
     return Promise.resolve(owner)
   })
 })
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
 
 describe('receipt-backed migration completion checkpoint', () => {
+  it('verifies a recorded earlier helper without writing a current-deployment checkpoint', async () => {
+    vi.stubGlobal('localStorage', storage)
+    getTransaction.mockResolvedValue({
+      ...transaction(),
+      input: outer({ ...directCall(), to: other }),
+    })
+
+    await expect(
+      verifyMigrationRecoveryTransaction({
+        scope,
+        publicClient,
+        transactionHash: hash,
+        operations: [operation],
+        migrationHelper: other,
+      }),
+    ).resolves.toBe('success')
+
+    expect(storage.length).toBe(0)
+    await expect(
+      verifyMigrationRecoveryTransaction({
+        scope,
+        publicClient,
+        transactionHash: hash,
+        operations: [operation],
+        migrationHelper: contracts.migrationHelper,
+      }),
+    ).rejects.toThrow('calldata does not upgrade')
+  })
+
+  it('recognizes a confirmed reverted recovery transaction without claiming completion', async () => {
+    getReceipt.mockResolvedValue({ ...receipt, status: 'reverted' })
+
+    await expect(
+      verifyMigrationRecoveryTransaction({
+        scope,
+        publicClient,
+        transactionHash: hash,
+        operations: [operation],
+        migrationHelper: contracts.migrationHelper,
+      }),
+    ).resolves.toBe('reverted')
+    expect(readContract).not.toHaveBeenCalled()
+  })
+
   it('stores only one operation and restores by verifying canonical historical state', async () => {
     persistMigrationCompletionCheckpoint({
       scope,

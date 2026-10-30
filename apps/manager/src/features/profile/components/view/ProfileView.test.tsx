@@ -1,4 +1,8 @@
-import { skipToken } from '@tanstack/react-query'
+import {
+  QueryClient,
+  QueryClientProvider,
+  skipToken,
+} from '@tanstack/react-query'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { Suspense } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -236,6 +240,44 @@ describe('ProfileView images', () => {
     expect(mocks.getProfileRecords).toHaveBeenCalledTimes(2)
     expectImages(updatedAvatar, updatedHeader, container)
   })
+
+  it.each([
+    { age: 0, reads: 1 },
+    { age: 31_000, reads: 2 },
+  ])(
+    'reuses loader records until stale (age: $age)',
+    async ({ age, reads }) => {
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      })
+      const queryKey = ['profile-records', 'example.eth']
+      const data = await client.fetchQuery({
+        queryKey,
+        queryFn: mocks.getProfileRecords,
+      })
+      client.setQueryData(queryKey, data, { updatedAt: Date.now() - age })
+      const { container, unmount } = render(
+        <QueryClientProvider client={client}>
+          <ProfileView name="example.eth" />
+        </QueryClientProvider>,
+      )
+
+      await loadImages(savedAvatar, savedHeader)
+      expectImages(savedAvatar, savedHeader, container)
+      expect(mocks.getProfileRecords).toHaveBeenCalledTimes(reads)
+
+      mocks.getProfileRecords.mockResolvedValue(
+        imageRecords(updatedAvatar, updatedHeader),
+      )
+      await act(() => client.invalidateQueries({ queryKey }))
+      await loadImages(updatedAvatar, updatedHeader)
+      expectImages(updatedAvatar, updatedHeader, container)
+      expect(mocks.getProfileRecords).toHaveBeenCalledTimes(reads + 1)
+
+      unmount()
+      client.clear()
+    },
+  )
 
   it('restores the fallbacks when saving clears previously loaded image records', async () => {
     const { container } = renderProfile()

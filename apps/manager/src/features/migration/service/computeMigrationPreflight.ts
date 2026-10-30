@@ -141,6 +141,7 @@ const computeApprovalPreflight = async (params: {
 const computeProfilePreflight = async (
   namesToOwnedPermRes: readonly ClassifiedName[],
   signal?: AbortSignal,
+  chainId?: number,
 ): Promise<{
   readonly skipFetchProfilesPhase: boolean
   readonly profileKeys?: readonly V1ProfileKeys[]
@@ -159,7 +160,7 @@ const computeProfilePreflight = async (
         ? [{ id: domain.id, name: domain.name, resolver: v1ResolverAddress }]
         : [],
     ),
-    { signal },
+    { signal, chainId },
   )
   signal?.throwIfAborted()
   if (keysResult.isErr()) {
@@ -254,7 +255,11 @@ export const computeMigrationPreflight = async (params: {
       requiresRegistryConfiguration,
       wagmiConfig,
     }),
-    computeProfilePreflight(namesToOwnedPermRes, signal),
+    computeProfilePreflight(
+      namesToOwnedPermRes,
+      signal,
+      params.publicClient.chain?.id,
+    ),
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
     hcaAddress
       ? (async () => {

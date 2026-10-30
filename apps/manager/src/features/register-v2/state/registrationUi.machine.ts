@@ -103,12 +103,16 @@ export type RegistrationConfirmedData = {
   premiumPriceNumber: number
 }
 
+export type FundingSourceOrigin = 'user' | 'fallback'
+
 type Context = {
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
   /** The L2 row picked to pay from; the registration still pays in `selectedToken`. */
   fundingSourceChainId?: number
+  /** A fallback pick gives way to the wallet once the wallet can pay again. */
+  fundingSourceOrigin?: FundingSourceOrigin
   lastErrorMessage?: string
   approvalOutcome: ApprovalOutcome
   /**
@@ -162,7 +166,11 @@ type Events =
   | { type: 'pricing.dialog.dismiss' }
   | { type: 'pricing.duration.set'; duration: number }
   | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
-  | { type: 'pricing.fundingSource.select'; chainId: number }
+  | {
+      type: 'pricing.fundingSource.select'
+      chainId: number
+      origin?: FundingSourceOrigin
+    }
   | {
       type: 'registration.start'
       label: string
@@ -417,10 +425,17 @@ const machineSetup = setup({
         event.type === 'pricing.fundingSource.select'
           ? event.chainId
           : context.fundingSourceChainId,
+      fundingSourceOrigin: ({ event }) =>
+        event.type === 'pricing.fundingSource.select'
+          ? (event.origin ?? 'user')
+          : undefined,
       // Every row ends up paying the registration in wallet USDC.
       selectedToken: () => 'USDC' as const,
     }),
-    clearFundingSource: assign({ fundingSourceChainId: () => undefined }),
+    clearFundingSource: assign({
+      fundingSourceChainId: () => undefined,
+      fundingSourceOrigin: () => undefined,
+    }),
     clearError: assign({
       lastErrorMessage: () => undefined,
       approvalOutcome: () => 'none' as const,

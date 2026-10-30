@@ -129,12 +129,13 @@ pnpm e2e:manager
 
 # Portal tests
 pnpm e2e:portal
+pnpm e2e:smoke:portal   # the per-PR @smoke subset (docs/smoke-suite.md)
 
 # Cross-app tests
 pnpm e2e:cross-app
 
 # Infrastructure
-pnpm e2e:infra:up    # Start Anvil + Alto + Paymaster
+pnpm e2e:infra:down && pnpm e2e:infra:up   # Start Anvil + Alto + Paymaster
 pnpm e2e:infra:down  # Stop the stack
 
 # Against a specific app URL

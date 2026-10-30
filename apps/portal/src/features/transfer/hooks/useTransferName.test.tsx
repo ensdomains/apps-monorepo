@@ -39,6 +39,7 @@ vi.mock('wagmi', async (importOriginal) => {
 
 vi.mock('@wagmi/core/actions', () => ({
   getWalletClient: vi.fn(async () => ({ account: { address: ACCOUNT } })),
+  getConnection: () => ({}),
 }))
 
 vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({

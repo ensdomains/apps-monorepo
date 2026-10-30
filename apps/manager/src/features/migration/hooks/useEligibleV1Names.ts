@@ -124,6 +124,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
 
   const {
     data: eligibility,
+    dataUpdatedAt: eligibilityUpdatedAt,
     isPending: isEligibilityPending,
     isError: isEligibilityError,
     refetch: refetchEligibility,
@@ -166,6 +167,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
 
   return {
     eligible,
+    eligibilityUpdatedAt,
     gracePeriodNames,
     unavailableNames,
     blockedSubnames,

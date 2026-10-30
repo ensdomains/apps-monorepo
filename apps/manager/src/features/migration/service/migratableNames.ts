@@ -1,15 +1,19 @@
+import type { BignameClient } from '@ens-apps/indexer/bigname'
 import { getSubnameMigrationImpact } from '@ens-apps/migration'
 import type { Address, PublicClient } from 'viem'
+import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import type {
   ClassifiedName,
   CopyClassifiedName,
   DirectClassifiedName,
 } from './classifyNames'
+import { coalesceLatestBlockReads } from './coalesceLatestBlockReads'
 import {
   DirectMigrationRouteError,
   resolveDirectMigrationRoutes,
 } from './directMigrationRoutes'
+import { getMigrationInventoryIndexer } from './migrationInventoryIndexer'
 import {
   applySubnameRecreation,
   discoverSubnameRecreation,
@@ -90,6 +94,7 @@ const checkSubnameCandidates = async (params: {
   readonly isSubnameImportEnabled: boolean
   readonly owner: Address
   readonly publicClient: PublicClient
+  readonly indexer: BignameClient
   readonly signal?: AbortSignal
 }): Promise<readonly SubnameCandidateResult[]> => {
   const results: SubnameCandidateResult[] = []
@@ -109,6 +114,7 @@ const checkSubnameCandidates = async (params: {
                 domains: [name.domain],
                 owner: params.owner,
                 publicClient: params.publicClient,
+                indexer: params.indexer,
                 signal: params.signal,
               })
               const verified = applySubnameRecreation({
@@ -124,7 +130,8 @@ const checkSubnameCandidates = async (params: {
               }
             }
             const impact = await getSubnameMigrationImpact({
-              indexer: bigname,
+              shouldSkipEmptySubtrees: true,
+              indexer: params.indexer,
               publicClient: params.publicClient,
               migratingNames: [name.domain.name],
               signal: params.signal,
@@ -269,7 +276,14 @@ export const resolveMigratableNames = async (params: {
     candidates: direct,
     isSubnameImportEnabled: params.isSubnameImportEnabled,
     owner: params.owner,
-    publicClient: params.publicClient,
+    publicClient: coalesceLatestBlockReads(params.publicClient),
+    indexer: await getMigrationInventoryIndexer({
+      indexer: bigname,
+      ownerAddress: params.owner,
+      names: direct.map(({ domain }) => domain.name),
+      chainId: envConfig.chain.id,
+      signal: params.signal,
+    }),
     signal: params.signal,
   })
   const blocked = checked.flatMap((result) =>

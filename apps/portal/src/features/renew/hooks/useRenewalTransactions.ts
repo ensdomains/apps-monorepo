@@ -457,7 +457,7 @@ export const useRenewalTransactions = ({
     return {
       from: connection.address,
       publicClient,
-      signer: createEOASigner(walletClient, connection.connector?.id),
+      signer: createEOASigner(walletClient),
     }
   }
 

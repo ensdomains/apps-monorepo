@@ -4,7 +4,11 @@ import {
   readAllEnvelopes,
   type Subname,
 } from '@ens-apps/indexer/bigname'
-import { readSubnameMigrationImpact, type V1Domain } from '@ens-apps/migration'
+import {
+  readSubnameMigrationImpact,
+  type SubnameMigrationImpact,
+  type V1Domain,
+} from '@ens-apps/migration'
 import {
   registryOwnerSnippet,
   registryResolverSnippet,
@@ -33,6 +37,7 @@ import {
   type CopyClassifiedName,
   classifyNames,
 } from './classifyNames'
+import { getMigrationInventoryIndexer } from './migrationInventoryIndexer'
 import {
   assertSubnameRecreationSnapshotCurrent,
   SubnameRecreationError,
@@ -422,7 +427,15 @@ export const discoverSubnameRecreation = async (params: {
   readonly snapshot: SubnameRecreationSnapshot
 }> => {
   const { publicClient, signal } = params
-  const indexer = params.indexer ?? bigname
+  const indexer =
+    params.indexer ??
+    (await getMigrationInventoryIndexer({
+      indexer: bigname,
+      ownerAddress: params.owner,
+      names: params.domains.map(({ name }) => name),
+      chainId: envConfig.chain.id,
+      signal,
+    }))
   const classified = classifyNames(
     [...params.domains],
     params.owner,
@@ -639,9 +652,10 @@ export const assertSubnameRecreationUnchanged = async (params: {
 /** Every omitted dependent name is a blocker, including when import rollout is disabled. */
 export const assertSupportedSubnameMigration = async (params: {
   readonly publicClient: PublicClient
+  readonly ownerAddress?: Address
   readonly classified: readonly ClassifiedName[]
   readonly signal?: AbortSignal
-}): Promise<void> => {
+}): Promise<SubnameMigrationImpact> => {
   const unreviewed = params.classified.find(
     (name) => name.action === 'copy' && !name.recreationRoot,
   )
@@ -650,12 +664,21 @@ export const assertSupportedSubnameMigration = async (params: {
       unreviewed.domain.name,
       'select its unwrapped or unlocked .eth parent and review the complete direct-child import first.',
     )
-  const impact = await readSubnameMigrationImpact({
+  const migratingNames = params.classified
+    .filter((name) => name.action === 'migrate')
+    .map(({ domain }) => domain.name)
+  const indexer = await getMigrationInventoryIndexer({
     indexer: bigname,
+    ownerAddress: params.ownerAddress,
+    names: migratingNames,
+    chainId: envConfig.chain.id,
+    signal: params.signal,
+  })
+  const impact = await readSubnameMigrationImpact({
+    shouldSkipEmptySubtrees: true,
+    indexer,
     publicClient: params.publicClient,
-    migratingNames: params.classified
-      .filter((name) => name.action === 'migrate')
-      .map(({ domain }) => domain.name),
+    migratingNames,
     copiedNames: params.classified
       .filter((name) => name.action === 'copy')
       .map(({ domain }) => domain.name),
@@ -666,4 +689,5 @@ export const assertSupportedSubnameMigration = async (params: {
       impact.parents[0]?.name ?? 'selection',
       'this upgrade would leave dependent subnames behind. Deeper trees and unsupported wrapped permissions must stay on ENSv1 for now.',
     )
+  return impact
 }

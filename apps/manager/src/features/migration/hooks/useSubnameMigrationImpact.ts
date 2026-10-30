@@ -1,17 +1,11 @@
-import {
-  type ClassifiedName,
-  getSubnameMigrationImpact,
-} from '@ens-apps/migration'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import type { ClassifiedName } from '@ens-apps/migration'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { match } from 'ts-pattern'
-import type { PublicClient } from 'viem'
-import { bigname } from '@/lib/bigname'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { publicClient } from '@/lib/wagmi'
+import { getSubnameMigrationImpactQueryOptions } from '../service/subnameMigrationImpactQuery'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
 type Parameters = {
@@ -24,45 +18,6 @@ type Parameters = {
   readonly isPrepared: boolean
   readonly isRefetchEnabled?: boolean
 }
-
-const FRESH_FOR_MS = 60_000
-
-export const getSubnameMigrationImpactQueryOptions = ({
-  selectionKey,
-  migratingNames,
-  copiedNames,
-  renewingNames,
-  isEnabled,
-  isPrepared,
-  hasSelectedNames,
-  isRefetchEnabled = true,
-}: {
-  readonly selectionKey: string
-  readonly migratingNames: readonly string[]
-  readonly copiedNames: readonly string[]
-  readonly renewingNames: readonly string[]
-  readonly isEnabled: boolean
-  readonly isPrepared: boolean
-  readonly hasSelectedNames: boolean
-  readonly isRefetchEnabled?: boolean
-}) =>
-  resultQueryOptions({
-    queryKey: qk('migration', 'subname_impact', { selectionKey }),
-    queryFn: ({ signal }) =>
-      getSubnameMigrationImpact({
-        indexer: bigname,
-        publicClient: publicClient as PublicClient,
-        migratingNames,
-        copiedNames,
-        renewingNames,
-        signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]),
-      }),
-    enabled: isEnabled && isPrepared && hasSelectedNames,
-    staleTime: FRESH_FOR_MS,
-    refetchInterval: isEnabled && isRefetchEnabled ? FRESH_FOR_MS : false,
-    refetchOnWindowFocus: isRefetchEnabled ? 'always' : false,
-    retry: false,
-  })
 
 export const useSubnameMigrationImpact = ({
   selectedNames,
@@ -136,7 +91,8 @@ export const useSubnameMigrationImpact = ({
   }
   const query = useQuery(
     getSubnameMigrationImpactQueryOptions({
-      selectionKey,
+      ownerAddress,
+      chainId: publicClient.chain.id,
       migratingNames,
       copiedNames,
       renewingNames,
