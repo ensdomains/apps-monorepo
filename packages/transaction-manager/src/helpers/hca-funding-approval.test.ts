@@ -275,6 +275,37 @@ describe('definite refusal and receipt recovery', () => {
     },
   )
 
+  it.each([
+    ['insufficient funds for gas * price + value', true],
+    ['already known', false],
+    ['nonce too low', false],
+    ['generic node failure', false],
+  ] as const)(
+    'keeps raw node refusal recovery bounded: %s',
+    async (message, canRetry) => {
+      const { input, records } = makeRun()
+      const send = vi
+        .fn()
+        .mockRejectedValueOnce({ code: -32000, message })
+        .mockImplementation(async () => {
+          input.publicClient.readContract.mockResolvedValue(4n)
+          return HASH
+        })
+      const walletClient = createWalletClient({
+        chain: mainnet,
+        transport: custom({ request: send }),
+      })
+      vi.spyOn(walletClient, 'getAddresses').mockResolvedValue([OWNER])
+      vi.spyOn(walletClient, 'getChainId').mockResolvedValue(1)
+      const run = () => approveHcaFunding({ ...input, walletClient })
+      expect((await run()).isErr()).toBe(true)
+      expect(records.size).toBe(canRetry ? 0 : 1)
+      // The user has refilled ETH and explicitly starts a fresh attempt.
+      expect((await run()).isOk()).toBe(canRetry)
+      expect(send).toHaveBeenCalledTimes(canRetry ? 2 : 1)
+    },
+  )
+
   it('does not re-estimate an approval when recovering an already broadcast hash', async () => {
     const { input, records } = makeRun()
     input.publicClient.waitForTransactionReceipt.mockRejectedValueOnce(

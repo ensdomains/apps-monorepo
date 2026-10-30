@@ -431,6 +431,8 @@ export async function submitHcaRenewal(
       publicClient,
       chainId,
       operation: 'renew-name',
+      // An accepted intent can still fill after its status request fails.
+      retryCount: 0,
     },
   )
   onTxId?.(txId)

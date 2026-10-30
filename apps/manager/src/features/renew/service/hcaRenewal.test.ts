@@ -1,12 +1,21 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: test fixtures use loose typing
+
+import type {
+  RhinestoneTransactionRequest,
+  TransactionOptions,
+} from '@ens-apps/transaction-manager'
+import { transactionMachine } from '@ens-apps/transaction-manager/machines/transaction.machine'
+import { createRhinestoneAccount } from '@rhinestone/sdk'
 import { err, ok } from 'neverthrow'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { decodeFunctionData, erc20Abi } from 'viem'
+import { toAccount } from 'viem/accounts'
+import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createActor, waitFor } from 'xstate'
 
-// The whole package is stubbed: this suite covers what the service DOES with
-// the funding rail, the live price read and the transaction manager, each of
-// which has its own coverage where it lives.
+// The root package API is stubbed to capture funding inputs and submission options.
+// The accepted-intent regression feeds those options into the actual machine and Warp transport.
 const mocks = vi.hoisted(() => ({
   getRenewPrice: vi.fn(),
   assertPaymentTokenSupported: vi.fn(),
@@ -257,6 +266,66 @@ describe('submitHcaRenewal', () => {
     })
   })
 
+  it('opts renewals out of automatic intent resubmission', async () => {
+    await submitHcaRenewal(params)
+    expect(mocks.startTransaction.mock.calls[0]?.[2]).toHaveProperty(
+      'retryCount',
+      0,
+    )
+  })
+
+  it('submits once through the actual machine and Warp transport when the accepted intent loses its fill response', async () => {
+    const onSubmitted = vi.fn()
+    readContract.mockResolvedValue(1_100_000n)
+    await submitHcaRenewal({ ...params, onSubmitted })
+    const started = mocks.startTransaction.mock.calls[0]
+    if (!started) throw new Error('Renewal did not start a transaction')
+    const request: RhinestoneTransactionRequest = started[0].request
+    const options: TransactionOptions = started[2]
+    const account = await createRhinestoneAccount({
+      owners: { type: 'ecdsa', accounts: [toAccount(OWNER)] },
+    })
+    vi.spyOn(account, 'getAddress').mockReturnValue(HCA)
+    const prepare = vi
+      .spyOn(account, 'prepareTransaction')
+      .mockImplementation(vi.fn().mockResolvedValue({ intentRoute: {} }))
+    const sign = vi
+      .spyOn(account, 'signTransaction')
+      .mockImplementation(vi.fn().mockResolvedValue({}))
+    const submit = vi
+      .spyOn(account, 'submitTransaction')
+      .mockImplementation(vi.fn().mockResolvedValue({ id: 1n }))
+    const fill = vi
+      .spyOn(account, 'waitForExecution')
+      .mockRejectedValue(new Error('fill status connection lost'))
+    const actor = createActor(transactionMachine, {
+      input: {
+        publicClient,
+        request,
+        signer: {
+          type: 'rhinestone',
+          account,
+          config: {
+            chain: sepolia,
+          },
+        },
+        options: { ...options, retryDelay: 1 },
+      },
+    }).start()
+    try {
+      await waitFor(actor, (snapshot) =>
+        snapshot.matches({ error: 'submission' }),
+      )
+      expect(onSubmitted).toHaveBeenCalledOnce()
+      expect(prepare).toHaveBeenCalledOnce()
+      expect(sign).toHaveBeenCalledOnce()
+      expect(submit).toHaveBeenCalledOnce()
+      expect(fill).toHaveBeenCalledOnce()
+    } finally {
+      actor.stop()
+    }
+  })
+
   it('spreads the declared inflow so the planner can price an empty account', async () => {
     mocks.planHcaIntentFunding.mockResolvedValue({
       calls: [{ to: USDC, value: 0n, data: '0xfunded' as Hex }],
@@ -383,8 +452,6 @@ it('does not start an intent after funding completes for a detached renewal scre
   ).rejects.toThrow('screen was closed')
   expect(mocks.startTransaction).not.toHaveBeenCalled()
 })
-
-import { sepolia } from 'viem/chains'
 
 it('does not start an intent when its screen detaches during the final live identity RPC', async () => {
   let release: (

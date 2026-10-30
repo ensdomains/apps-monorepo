@@ -68,7 +68,8 @@ export const RenewalUiProvider = ({
 
     previousLabel.current = label
     uiActor.send({ type: 'label.changed' })
-  }, [label, uiActor])
+    declineFunding()
+  }, [declineFunding, label, uiActor])
 
   return (
     <RenewalUiContext.Provider

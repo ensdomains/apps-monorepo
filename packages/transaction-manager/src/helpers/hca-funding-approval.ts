@@ -2,7 +2,14 @@ import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, errAsync, ok, Result, ResultAsync } from 'neverthrow'
 import * as v from 'valibot'
 import type { Address, Hash, PublicClient, WalletClient } from 'viem'
-import { encodeFunctionData, erc20Abi, isAddressEqual, numberToHex } from 'viem'
+import {
+  BaseError,
+  encodeFunctionData,
+  erc20Abi,
+  isAddressEqual,
+  numberToHex,
+} from 'viem'
+import { containsNodeError, getNodeError } from 'viem/utils'
 import { assign, createActor, fromPromise, setup, toPromise } from 'xstate'
 import { isCanonicalHcaUsdc } from './hca-usdc-permit'
 import { isTerminalWalletError } from './wallet-errors.helpers'
@@ -213,6 +220,12 @@ export const isDefiniteHcaApprovalRefusal = (error: unknown): boolean => {
       'code' in cause &&
       typeof cause.code === 'number' &&
       DEFINITE_REFUSAL_CODES.has(cause.code)
+    )
+      return true
+    if (
+      cause instanceof BaseError &&
+      containsNodeError(cause) &&
+      DEFINITE_REFUSAL_NAMES.has(getNodeError(cause, {}).name)
     )
       return true
     if (
