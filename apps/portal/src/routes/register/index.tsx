@@ -15,7 +15,7 @@ const RegisterPage = () => {
   const { name } = Route.useSearch()
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <RegisterSidebar />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />

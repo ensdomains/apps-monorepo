@@ -119,7 +119,17 @@ vi.mock('@/components/NoticeBanner', () => ({
   NoticeBanner: () => null,
 }))
 vi.mock('@/components/ui/sidebar', () => ({
-  SidebarProvider: ({ children }: { children: React.ReactNode }) => children,
+  SidebarProvider: ({
+    children,
+    defaultOpen,
+  }: {
+    children: React.ReactNode
+    defaultOpen?: boolean
+  }) => (
+    <div data-testid="sidebar-provider" data-default-open={String(defaultOpen)}>
+      {children}
+    </div>
+  ),
   SidebarInset: ({ children }: { children: React.ReactNode }) => children,
 }))
 
@@ -151,6 +161,17 @@ describe('/register', () => {
   afterEach(() => {
     walletResolverDeployed.mockReset()
     walletResolverReadFails.mockReset()
+  })
+
+  // WEB-1988: registration opens with the sidebar folded to its icon rail.
+  it('starts with the sidebar collapsed', () => {
+    search.name = undefined
+    const { getByTestId } = render(<RegisterRoute />)
+
+    expect(getByTestId('sidebar-provider')).toHaveAttribute(
+      'data-default-open',
+      'false',
+    )
   })
 
   it('stops the flow for the old name when ?name= changes', async () => {
