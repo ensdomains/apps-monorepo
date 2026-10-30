@@ -36,6 +36,7 @@ import {
 } from '@/features/transaction-manager/helpers/intents'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { ensChain } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 import { createRegistrationPersistenceAdapter } from '../utils/registrationPersistence'
@@ -478,7 +479,7 @@ export const useRegistrationTransactions = ({
 
     actor.send({
       type: 'START_REGISTRATION',
-      referrer: normalizeReferrer(referrer),
+      referrer: normalizeReferrer(referrer, ENS_LABS_REFERRER),
       name,
       duration: BigInt(duration),
       token: savedParams.tokenSymbol,

@@ -1,9 +1,19 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
-import { decodeFunctionData, getAddress, type PublicClient } from 'viem'
+import {
+  decodeFunctionData,
+  getAddress,
+  type PublicClient,
+  parseAbi,
+} from 'viem'
 import { describe, expect, it } from 'vitest'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { ensChain } from '@/lib/wagmi'
-import { buildRenewIntent, type RenewParams } from './buildRenewIntent'
+import {
+  buildRenewBatchIntent,
+  buildRenewIntent,
+  type RenewParams,
+} from './buildRenewIntent'
 
 const FROM = getAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
 const USDC = getAddress('0xcccccccccccccccccccccccccccccccccccccccc')
@@ -69,5 +79,45 @@ it.each([true, false])(
   (isV2) => {
     const { args } = renewCall({ name: 'alice.eth', isV2, referrer: '0x1234' })
     expect(args?.[0].referrer).toBe(`0x${'0'.repeat(60)}1234`)
+  },
+)
+
+it.each([
+  [true, undefined],
+  [false, undefined],
+  [true, '0xnot-hex'],
+])(
+  'sends the Explorer referrer on the v2=%s renewal path when the link gives %s',
+  (isV2, referrer) => {
+    const { args } = renewCall({ name: 'alice.eth', isV2, referrer })
+    expect(args?.[0].referrer).toBe(ENS_LABS_REFERRER)
+  },
+)
+
+it.each([
+  [undefined, ENS_LABS_REFERRER],
+  ['0x1234', `0x${'0'.repeat(60)}1234`],
+])(
+  'gives every bulk renewal entry the referrer for %s',
+  (referrer, expected) => {
+    const intent = buildRenewBatchIntent({
+      referrer,
+      renewals: [
+        { selectedName: { name: 'a.eth', isV2: true }, duration: 1 },
+        { selectedName: { name: 'b.eth', isV2: true }, duration: 2 },
+      ],
+      renewer: USDC,
+      tokenAddress: USDC,
+      from: FROM,
+    })
+    if (intent.request.type !== 'eoa' || !intent.request.data)
+      throw new Error('expected an EOA request with calldata')
+    const { args } = decodeFunctionData({
+      abi: parseAbi([
+        'function renewBatch((string label, uint64 duration, bytes32 referrer)[] rds, address paymentToken)',
+      ]),
+      data: intent.request.data,
+    })
+    expect(args[0].map((entry) => entry.referrer)).toEqual([expected, expected])
   },
 )
