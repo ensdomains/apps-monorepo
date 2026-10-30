@@ -4,10 +4,18 @@ import {
   readContract,
   writeContract,
 } from '@wagmi/core'
-import { type Address, type Hex, UserRejectedRequestError } from 'viem'
+import {
+  type Address,
+  type Hex,
+  toEventSelector,
+  UserRejectedRequestError,
+  WaitForTransactionReceiptTimeoutError,
+  zeroHash,
+} from 'viem'
 import { waitForTransactionReceipt } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
+import { SAFE_WALLET_CONNECTOR } from '@/test-utils/safeWallet.fixture'
 import {
   CommemorativeNftClaimError,
   claimCommemorativeNft,
@@ -307,6 +315,68 @@ describe('commemorative NFT contract', () => {
       ).resolves.toEqual({ status: 'pending', hash })
     },
   )
+  describe('with a Safe{Wallet}', () => {
+    const executionHash: Hex = `0x${'c'.repeat(64)}`
+    // The wallet returned the safeTxHash; a signer's execTransaction carried it.
+    const waitForSafeClaim = (
+      event: 'ExecutionSuccess' | 'ExecutionFailure',
+    ) => {
+      vi.mocked(getPublicClient).mockReturnValue({
+        pollingInterval: 1,
+        getBlockNumber: async () => 100n,
+        getLogs: async () => [
+          {
+            topics: [toEventSelector(`${event}(bytes32,uint256)`), hash],
+            data: zeroHash,
+            transactionHash: executionHash,
+          },
+        ],
+      } as unknown as NonNullable<ReturnType<typeof getPublicClient>>)
+      waitForTransactionReceiptMock.mockImplementation(
+        async (_client, { hash: waited }) => {
+          if (waited !== executionHash)
+            throw new WaitForTransactionReceiptTimeoutError({ hash: waited })
+          return receipt(executionHash)
+        },
+      )
+      getTransactionMock.mockResolvedValue(
+        transaction({
+          hash: executionHash,
+          from: '0x1111111111111111111111111111111111111111',
+          to: ownerAddress,
+          input: '0x6a761202',
+        }),
+      )
+      return waitForCommemorativeNftClaimReceipt({
+        wagmiConfig,
+        pendingClaim,
+        connector: SAFE_WALLET_CONNECTOR,
+      })
+    }
+
+    it('confirms a claim the Safe executed, at the executing block', async () => {
+      await expect(waitForSafeClaim('ExecutionSuccess')).resolves.toEqual({
+        status: 'confirmed',
+        hash: executionHash,
+      })
+      expect(readContractMock).toHaveBeenCalledWith(
+        wagmiConfig,
+        expect.objectContaining({
+          functionName: 'hasClaimed',
+          args: [ownerAddress],
+          blockNumber: 42n,
+        }),
+      )
+    })
+
+    it('reports a failed Safe execution as reverted without reading the claim', async () => {
+      await expect(waitForSafeClaim('ExecutionFailure')).resolves.toEqual({
+        status: 'reverted',
+        hash,
+      })
+      expect(readContractMock).not.toHaveBeenCalled()
+    })
+  })
   it('rejects persisted scope from another configured contract', async () => {
     await expect(
       waitForCommemorativeNftClaimReceipt({

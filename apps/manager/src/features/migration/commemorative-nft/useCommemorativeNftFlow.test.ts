@@ -63,7 +63,11 @@ vi.mock('@/config', async () => {
     },
   }
 })
-vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
+vi.mock('wagmi', () => ({
+  useChainId: vi.fn(),
+  useConfig: vi.fn(),
+  useConnection: () => ({}),
+}))
 vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
 vi.mock('@/lib/smart-account', () => ({ useSmartAccountContext: vi.fn() }))
 vi.mock('../service/userRegistryMigration', () => ({
