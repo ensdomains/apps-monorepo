@@ -51,6 +51,7 @@ describe('getSubregistryHistory', () => {
     expect(result._unsafeUnwrap()).toEqual({
       linkCount: 0,
       previousRegistry: undefined,
+      isRestorable: false,
     })
     expect(getNameHistory).toHaveBeenCalledWith('test.eth', {
       namespace: 'ens',
@@ -103,12 +104,15 @@ describe('getSubregistryHistory', () => {
 })
 
 describe('readSubregistryHistory', () => {
-  const link = (subregistry?: Address): NameHistoryRow => ({
+  const link = (
+    subregistry?: Address,
+    registrationId: string | null = null,
+  ): NameHistoryRow => ({
     id: 'a'.repeat(64),
     type: 'subregistry',
     name: 'test.eth',
     namespace: 'ens',
-    registration_id: null,
+    registration_id: registrationId,
     block_number: 1,
     timestamp: '1',
     transaction_hash: null,
@@ -130,6 +134,41 @@ describe('readSubregistryHistory', () => {
         hasMore: false,
         v1Registries: new Set(),
       }),
-    ).toEqual({ linkCount: 3, previousRegistry: V2_REGISTRY })
+    ).toEqual({
+      linkCount: 3,
+      previousRegistry: V2_REGISTRY,
+      isRestorable: false,
+    })
+  })
+
+  it.each([
+    {
+      case: 'a clear of that link, in its registration',
+      rows: [link(undefined, 'a'), link(V2_REGISTRY, 'a')],
+      isRestorable: true,
+    },
+    {
+      case: 'a clear made in a later registration',
+      rows: [link(undefined, 'b'), link(V2_REGISTRY, 'a')],
+      isRestorable: false,
+    },
+    {
+      case: 'a link with no clear after it',
+      rows: [link(V2_REGISTRY, 'a')],
+      isRestorable: false,
+    },
+    {
+      case: 'rows with no registration',
+      rows: [link(), link(V2_REGISTRY)],
+      isRestorable: false,
+    },
+  ])('$case: restorable $isRestorable', ({ rows, isRestorable }) => {
+    expect(
+      readSubregistryHistory({
+        rows,
+        hasMore: false,
+        v1Registries: new Set(),
+      })?.isRestorable,
+    ).toBe(isRestorable)
   })
 })

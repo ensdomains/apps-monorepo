@@ -46,6 +46,11 @@ export type SubregistryHistory = {
   readonly linkCount: number
   /** Where the newest write that set the slot pointed. */
   readonly previousRegistry: Address | undefined
+  /**
+   * Whether the newest write cleared `previousRegistry` within the registration
+   * that set it, so pointing the name back at it is an undo.
+   */
+  readonly isRestorable: boolean
 }
 
 /**
@@ -69,15 +74,29 @@ export const readSubregistryHistory = ({
       !v1Registries.has(row.contract_address.toLowerCase()),
   )
   if (links.length === 0 && hasMore) return null
+  const lastLink = links
+    .flatMap((row) =>
+      row.type === 'subregistry' && row.data?.subregistry
+        ? [
+            {
+              registry: row.data.subregistry.address,
+              registrationId: row.registration_id,
+            },
+          ]
+        : [],
+    )
+    .at(0)
+  const lastWrite = links.at(0)
   return {
     linkCount: links.length,
-    previousRegistry: links
-      .flatMap((row) =>
-        row.type === 'subregistry' && row.data?.subregistry
-          ? [row.data.subregistry.address]
-          : [],
-      )
-      .at(0),
+    previousRegistry: lastLink?.registry,
+    // Across a re-registration the old registry is a former holder's, and a
+    // row with no registration proves neither way.
+    isRestorable:
+      lastWrite?.type === 'subregistry' &&
+      !lastWrite.data?.subregistry &&
+      lastWrite.registration_id !== null &&
+      lastWrite.registration_id === lastLink?.registrationId,
   }
 }
 
@@ -145,6 +164,7 @@ export type SubregistrySlot =
   | {
       readonly status: 'detached'
       readonly previousRegistry: Address | undefined
+      readonly isRestorable: boolean
     }
 
 /**
@@ -177,6 +197,7 @@ export const useSubregistrySlot = (
           ({
             status: 'detached',
             previousRegistry: data.previousRegistry,
+            isRestorable: data.isRestorable,
           }) as const,
       )
       .otherwise(() => ({ status: 'never-configured' }) as const)

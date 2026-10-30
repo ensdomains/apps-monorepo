@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
-import { resourceIdForName } from '@/lib/resource/resourceId'
+import { type ResourceId, resourceIdForName } from '@/lib/resource/resourceId'
 import { getHasRolesQueryOptions } from './useHasRoles'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
 import { getNameResourceIdQueryOptions } from './useNameResourceId'
@@ -13,6 +13,8 @@ export type UseHasSetSubregistryRoleResult = {
   error: Error | null
   parentRegistry: Address | null
   connectedAddress: Address | undefined
+  /** The name's id in `parentRegistry`, `null` until it is known. */
+  resourceId: ResourceId | null
 }
 
 export const useHasSetSubregistryRole = (
@@ -78,5 +80,6 @@ export const useHasSetSubregistryRole = (
     error,
     parentRegistry,
     connectedAddress,
+    resourceId,
   }
 }
