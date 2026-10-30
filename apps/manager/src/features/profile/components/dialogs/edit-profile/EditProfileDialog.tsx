@@ -4,7 +4,12 @@ import { useActorRef, useSelector } from '@xstate/react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
+import {
+  actionLabelClassName,
+  barEditActionSymbolClassName,
+} from '@/features/profile/components/view/ProfileAction.styles'
 import type { ResolverCopySource } from '@/features/profile/service/resolverImport'
 import {
   importResolverRecords,
@@ -12,6 +17,7 @@ import {
 } from '@/features/profile/service/resolverImport'
 import { createResolverImportDraft } from '@/features/profile/service/resolverImportDraft'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
+import { cn } from '@/lib/utils'
 import { useAppForm } from '../../form'
 import { EditProfileDialogProvider } from './EditProfileDialog.context'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
@@ -219,10 +225,17 @@ export const EditProfileDialog = ({
                   <Trans>Importing records…</Trans>
                 ) : canEditNormal ? (
                   <>
-                    <span className="xl:hidden">
+                    <MSymbol
+                      aria-hidden="true"
+                      className={barEditActionSymbolClassName}
+                      symbol="edit"
+                    />
+                    <span className={cn(actionLabelClassName, 'xl:hidden')}>
                       <Trans>Edit</Trans>
                     </span>
-                    <span className="hidden xl:inline">
+                    <span
+                      className={cn(actionLabelClassName, 'hidden xl:inline')}
+                    >
                       <Trans>Edit Profile</Trans>
                     </span>
                   </>

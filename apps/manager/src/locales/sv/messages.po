@@ -319,6 +319,10 @@ msgstr ""
 msgid "A subname's owner or resolver could not be verified. Refresh and try again before upgrading."
 msgstr ""
 
+#: src/features/profile/components/view/ProfileAbout.tsx
+msgid "About"
+msgstr ""
+
 #. placeholder {0}: formatUsd(m.shortfall)
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 msgid "About {0} more needed on {chainName}."
@@ -1611,6 +1615,10 @@ msgstr ""
 msgid "its parent name, or one above it, was upgraded without it."
 msgstr ""
 
+#: src/features/migration/components/UnavailableMigrationNames.tsx
+msgid "its registration couldn't be read. Try again later."
+msgstr ""
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Join the community"
 msgstr ""
@@ -1927,10 +1935,6 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "No ENS v2 registry holds this name, so a resolver cannot be set up for it here. An imported DNS name keeps its records in DNS."
-msgstr ""
-
-#: src/features/migration/components/UnavailableMigrationNames.tsx
-msgid "no ENSv1 registration was found for it."
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx
