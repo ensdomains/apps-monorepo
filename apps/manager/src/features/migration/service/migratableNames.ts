@@ -20,6 +20,8 @@ import {
 } from './subnameRecreation'
 
 const DISCOVERY_CONCURRENCY = 4
+/** Product sign-off covers leaving up to this many unknown-label subnames behind per name. */
+export const MAX_UNRECOVERABLE_SUBNAMES = 5
 
 export type SubnameMigrationBlockReason =
   | 'imports-disabled'
@@ -28,6 +30,7 @@ export type SubnameMigrationBlockReason =
   | 'wrapped-protections'
   | 'too-large'
   | 'unknown-label'
+  | 'too-many-unknown-labels'
   | 'incomplete-inventory'
   | 'unverified-source'
   | 'requires-parent'
@@ -90,6 +93,15 @@ type SubnameCandidateResult =
     }
   | { readonly status: 'blocked'; readonly block: BlockedSubnameMigration }
 
+const verifiedCandidate = (
+  name: ClassifiedName,
+  subnames: readonly CopyClassifiedName[],
+  unrecoverable: readonly string[],
+): SubnameCandidateResult =>
+  unrecoverable.length > MAX_UNRECOVERABLE_SUBNAMES
+    ? { status: 'blocked', block: { name, reason: 'too-many-unknown-labels' } }
+    : { status: 'verified', subnames, unrecoverable }
+
 const checkSubnameCandidates = async (params: {
   readonly candidates: readonly ClassifiedName[]
   readonly isSubnameImportEnabled: boolean
@@ -123,13 +135,13 @@ const checkSubnameCandidates = async (params: {
                 classified: [name],
                 owner: params.owner,
               })
-              return {
-                status: 'verified',
-                subnames: verified.filter(
+              return verifiedCandidate(
+                name,
+                verified.filter(
                   (item): item is CopyClassifiedName => item.action === 'copy',
                 ),
-                unrecoverable: discovery.unrecoverable,
-              }
+                discovery.unrecoverable,
+              )
             }
             const impact = await getSubnameMigrationImpact({
               shouldSkipEmptySubtrees: true,
@@ -149,11 +161,7 @@ const checkSubnameCandidates = async (params: {
                       : 'unsupported-parent',
                   },
                 }
-              : {
-                  status: 'verified',
-                  subnames: [],
-                  unrecoverable: impact.value.unrecoverable,
-                }
+              : verifiedCandidate(name, [], impact.value.unrecoverable)
           } catch (error) {
             params.signal?.throwIfAborted()
             return {

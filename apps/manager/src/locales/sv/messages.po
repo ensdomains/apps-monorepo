@@ -3419,6 +3419,10 @@ msgid "This name has expired, but can be renewed for the previous owner until <0
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
+msgid "This name has more than {MAX_UNRECOVERABLE_SUBNAMES} subnames with unknown labels. Upgrading it would leave them all behind, so keep it on ENSv1 for now."
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx
 msgid "This name has subnames with further subnames below them. Upgrading the whole tree is not supported yet."
 msgstr ""
 

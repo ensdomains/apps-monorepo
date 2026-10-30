@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
 import type { BlockedSubnameMigration } from '../hooks/useMigrationEligibility'
+import { MAX_UNRECOVERABLE_SUBNAMES } from '../service/migratableNames'
 import { NameRow } from './NameRow'
 import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
@@ -87,6 +88,14 @@ const SubnameBlockReason = ({
         <Trans>
           A subname's complete name could not be verified. Keep this parent on
           ENSv1 until it can be recovered.
+        </Trans>
+      )
+    case 'too-many-unknown-labels':
+      return (
+        <Trans>
+          This name has more than {MAX_UNRECOVERABLE_SUBNAMES} subnames with
+          unknown labels. Upgrading it would leave them all behind, so keep it
+          on ENSv1 for now.
         </Trans>
       )
     case 'incomplete-inventory':

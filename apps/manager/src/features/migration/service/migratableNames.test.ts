@@ -80,6 +80,51 @@ describe('resolveMigratableNames', () => {
     },
   )
 
+  it.each([
+    { count: 5, isSubnameImportEnabled: true, isBlocked: false },
+    { count: 6, isSubnameImportEnabled: true, isBlocked: true },
+    { count: 5, isSubnameImportEnabled: false, isBlocked: false },
+    { count: 6, isSubnameImportEnabled: false, isBlocked: true },
+  ])(
+    'with $count unknown-label subnames (imports $isSubnameImportEnabled) blocks: $isBlocked',
+    async ({ count, isSubnameImportEnabled, isBlocked }) => {
+      const unrecoverable = Array.from(
+        { length: count },
+        (_, index) => `[${index.toString(16).padStart(64, '0')}].label.eth`,
+      )
+      if (isSubnameImportEnabled) {
+        mocks.discoverSubnameRecreation.mockResolvedValueOnce({
+          domains: [],
+          snapshot: {},
+          unrecoverable,
+        })
+      } else {
+        mocks.getSubnameMigrationImpact.mockResolvedValueOnce(
+          ok({ affectedCount: 0, unrecoverable }),
+        )
+      }
+      const name = makeClassified({
+        name: 'label.eth',
+        id: namehash('label.eth'),
+        label: 'label',
+      })
+
+      const result = await resolveMigratableNames({
+        eligible: [name],
+        isSubnameImportEnabled,
+        owner: OWNER,
+        publicClient: {} as PublicClient,
+      })
+
+      expect(result.blockedSubnames).toEqual(
+        isBlocked ? [{ name, reason: 'too-many-unknown-labels' }] : [],
+      )
+      expect(result.unrecoverableSubnames).toEqual(
+        isBlocked ? [] : unrecoverable,
+      )
+    },
+  )
+
   // The error message embeds the name, so only the fixed reason may decide.
   it.each([
     ['the indexed child inventory could not be read.', 'incomplete-inventory'],
@@ -150,7 +195,9 @@ describe('resolveMigratableNames', () => {
       tokenType: 'locked-child',
       parentName: 'rpc-failure.eth',
     })
-    mocks.getSubnameMigrationImpact.mockResolvedValue(ok({ affectedCount: 0 }))
+    mocks.getSubnameMigrationImpact.mockResolvedValue(
+      ok({ affectedCount: 0, unrecoverable: [] }),
+    )
     let parentReads = 0
     const publicClient = {
       getCode: vi.fn(async () => '0x01'),
