@@ -25,6 +25,7 @@ import {
 import { MigrateRegistryPrompt } from './MigrateRegistryPrompt'
 import { ReconfigureRegistryForm } from './ReconfigureRegistryForm'
 import { RegistryPanel } from './RegistryPanel'
+import { RestorePreviousRegistry } from './RestorePreviousRegistry'
 import { UnconfiguredRegistry } from './UnconfiguredRegistry'
 
 type RegistryTreeItemProps = {
@@ -328,8 +329,12 @@ const RegistryEmptyState = ({
 
   return (
     match(slot)
-      .with({ status: 'detached' }, ({ previousRegistry }) => (
-        <DetachedRegistryNotice previousRegistry={previousRegistry} />
+      .with({ status: 'detached' }, ({ previousRegistry, isRestorable }) => (
+        <DetachedRegistryNotice
+          name={name}
+          previousRegistry={previousRegistry}
+          isRestorable={isRestorable}
+        />
       ))
       .with({ status: 'error' }, () => (
         <div className="pt-4 pl-1 lg:pl-14 max-w-xl">
@@ -358,9 +363,13 @@ const RegistryEmptyState = ({
  * restoring the old pointer rather than creating a replacement.
  */
 const DetachedRegistryNotice = ({
+  name,
   previousRegistry,
+  isRestorable,
 }: {
+  readonly name: string
   readonly previousRegistry: Address | undefined
+  readonly isRestorable: boolean
 }) => (
   <RegistryPanel>
     <Alert className="p-5 gap-2" variant="warning">
@@ -390,6 +399,12 @@ const DetachedRegistryNotice = ({
         </p>
       </AlertDescription>
     </Alert>
+    {previousRegistry && isRestorable ? (
+      <RestorePreviousRegistry
+        name={name}
+        previousRegistry={previousRegistry}
+      />
+    ) : null}
   </RegistryPanel>
 )
 

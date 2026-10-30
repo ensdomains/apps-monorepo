@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
+import { useConnection } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { invalidateMigrationQueries } from '../pages/MigrationPage.helpers'
@@ -8,6 +9,7 @@ import { syncMigrationWrappers, WrapperSyncError } from '../service/wrapperSync'
 
 export const useWrapperSync = (names: readonly ClassifiedName[]) => {
   const { walletClient, ownerAddress } = useSmartAccountContext()
+  const { connector } = useConnection()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () => {
@@ -20,6 +22,7 @@ export const useWrapperSync = (names: readonly ClassifiedName[]) => {
         names,
         owner: ownerAddress as Address,
         walletClient,
+        connector,
         publicClient: publicClient as PublicClient,
       })
       await invalidateMigrationQueries(queryClient)

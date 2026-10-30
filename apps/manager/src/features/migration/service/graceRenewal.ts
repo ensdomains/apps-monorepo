@@ -1,4 +1,6 @@
 import type { V1Domain } from '@ens-apps/migration'
+import { orSafeExecution } from '@ens-apps/transaction-manager'
+import { TransactionRevertedError } from '@ens-apps/transaction-manager/errors/transaction.errors'
 import {
   SECONDS_PER_DAY,
   V1_GRACE_PERIOD_DAYS,
@@ -12,7 +14,7 @@ import {
   ethRegistrarIsRenewableSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { permissionedRegistryGetStatusSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import { fromPromise } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
 import {
   type Address,
   BaseError,
@@ -24,12 +26,15 @@ import {
   numberToHex,
   type PublicClient,
   parseAbi,
+  type TransactionReceipt,
+  type WaitForTransactionReceiptParameters,
   type WalletClient,
   zeroAddress,
   zeroHash,
 } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { containsNodeError, getNodeError } from 'viem/utils'
+import type { Connector } from 'wagmi'
 import { chain } from '@/config'
 import { resolveRenewalLabel } from '@/features/renew/utils/renewableName'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
@@ -368,6 +373,7 @@ type ExecuteGraceRenewalParameters = {
   readonly quote: GraceRenewalQuote
   readonly publicClient: PublicClient
   readonly walletClient: WalletClient
+  readonly connector?: Connector
   readonly renewalHash?: Hex
   readonly signal?: AbortSignal
   readonly onStatus?: (status: GraceRenewalStatus) => void
@@ -402,12 +408,45 @@ const assertWallet = async ({
   signal?.throwIfAborted()
 }
 
+/** viem's default, which the direct receipt wait keeps. */
+const RECEIPT_TIMEOUT_MS = 180_000
+
+/** A failed Safe execution reports `reverted`, as a reverted receipt does. */
+const waitForReceiptStatus = async (
+  { publicClient, connector, quote, signal }: ExecuteGraceRenewalParameters,
+  parameters: WaitForTransactionReceiptParameters,
+): Promise<TransactionReceipt['status']> => {
+  const receiptOf = (receipt: WaitForTransactionReceiptParameters) =>
+    fromPromise(
+      publicClient.waitForTransactionReceipt(receipt),
+      (cause) => cause,
+    )
+  const status = await orSafeExecution({
+    publicClient,
+    connector,
+    account: quote.ownerAddress,
+    id: parameters.hash,
+    timeout: RECEIPT_TIMEOUT_MS,
+    direct: receiptOf(parameters),
+    settle: (hash) => receiptOf({ hash }),
+    signal: signal ?? AbortSignal.timeout(RECEIPT_TIMEOUT_MS),
+  })
+    .map(({ status }) => status)
+    .orElse((error) =>
+      error instanceof TransactionRevertedError
+        ? ok('reverted' as const)
+        : err(error),
+    )
+  if (status.isErr()) throw status.error
+  return status.value
+}
+
 const waitForRenewal = async (
   params: ExecuteGraceRenewalParameters,
   pending: PendingGraceRenewal & { readonly hash: Hex },
 ): Promise<void> => {
   params.onStatus?.('confirming')
-  const receipt = await params.publicClient.waitForTransactionReceipt({
+  const status = await waitForReceiptStatus(params, {
     hash: pending.hash,
     onReplaced: ({ reason, transaction }) => {
       if (reason !== 'repriced') {
@@ -420,7 +459,7 @@ const waitForRenewal = async (
       params.onRenewalSubmitted?.(transaction.hash)
     },
   })
-  if (receipt.status !== 'success') {
+  if (status !== 'success') {
     clearPendingGraceRenewal(pending)
     throw new Error(
       'The renewal transaction reverted. Return to name selection to try again.',
@@ -657,10 +696,10 @@ export const executeGraceRenewal = (params: ExecuteGraceRenewalParameters) =>
             args: [quote.renewerAddress, quote.totalAmount],
           })
           params.onStatus?.('approval-confirming')
-          const receipt = await publicClient.waitForTransactionReceipt({
+          const status = await waitForReceiptStatus(params, {
             hash: approvalHash,
           })
-          if (receipt.status !== 'success')
+          if (status !== 'success')
             throw new Error('USDC approval reverted. Please try again.')
           params.onStatus?.('approval-complete')
           domains = await validateGraceRenewal(params, readParams)

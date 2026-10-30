@@ -23,6 +23,7 @@ import {
   waitForBignameRecordKeys,
 } from './bigname-sync.js'
 import type { MockDomain } from './mock-bigname.js'
+import { mockSubnameInventory } from './mock-subname-inventory.js'
 import { type MockV1Name, mockV1Names } from './mock-v1-names.js'
 import type {
   MockV1Node,
@@ -30,6 +31,7 @@ import type {
   MockV1Name as MockV1SubgraphName,
   MockV1Tree,
 } from './v1-name-tree.js'
+import { v1Expiry } from './v2-reads.js'
 
 type V1NamesInput = readonly MockV1SubgraphName[] | MockV1Tree
 
@@ -146,8 +148,28 @@ export async function serveV1Names(
     'Subname trees and orphans are not expressible in the bigname route mock; run against the local bigname',
   )
   if (!flat) return
-  await mockV1Names(page, flat)
-  for (const n of flat)
+  // The manager checks the indexed expiry of a .eth 2LD against the
+  // BaseRegistrar exactly, so serve the chain's value where the spec gave
+  // none; the mock's own default (a year from now) is off by seconds.
+  const served = await Promise.all(
+    flat.map(async (n) => {
+      const [label, tld, ...rest] = n.name.split('.')
+      if (n.expiryDate !== undefined || tld !== 'eth' || rest.length > 0)
+        return n
+      const expiry = await v1Expiry(label)
+      return expiry > 0 ? { ...n, expiryDate: expiry } : n
+    }),
+  )
+  await mockV1Names(page, served)
+  // The manager refuses to upgrade a name whose subnames it cannot verify,
+  // and the shared bigname mock answers the inventory routes with a 404. These
+  // names have no subnames, so say so; a spec that serves its own inventory
+  // registers it later, and Playwright tries the newest route first.
+  await mockSubnameInventory(
+    page,
+    served.map((n) => ({ name: n.name })),
+  )
+  for (const n of served)
     options.indexer?.addName({
       name: n.name,
       owner: n.ownerAddress,
