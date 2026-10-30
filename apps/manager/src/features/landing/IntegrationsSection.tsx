@@ -80,15 +80,30 @@ const INTEGRATIONS: {
     icon: rainbowIcon,
   },
 ]
-export const IntegrationsSection = () => {
+
+type IntegrationsSectionProps = {
+  /** Connected wallet theme. Missing keeps the Lapis heading. */
+  readonly themeColor?: string
+}
+
+export const IntegrationsSection = ({
+  themeColor,
+}: IntegrationsSectionProps) => {
   return (
     <div className="mt-20 bg-white">
       <div className="mx-auto w-full-[4rem] max-w-6xl py-20">
         <div className="space-y-6">
-          <h2 className="font-medium text-ens-lapis-core text-temp-32px leading-ens-none">
+          <h2
+            className={
+              themeColor
+                ? 'font-medium text-temp-32px leading-ens-none'
+                : 'font-medium text-ens-lapis-core text-temp-32px leading-ens-none'
+            }
+            style={themeColor ? { color: themeColor } : undefined}
+          >
             <Trans>Your ENS name works across web3</Trans>
           </h2>
-          <p className="max-w-md font-serif text-lg leading-ens-normal">
+          <p className="max-w-md text-lg leading-ens-normal">
             <Trans>
               Use your ENS name in wallets, apps, blockchains, and browsers you
               already know - no setup required.

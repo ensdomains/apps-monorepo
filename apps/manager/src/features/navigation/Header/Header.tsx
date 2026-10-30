@@ -1,6 +1,7 @@
 import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { useHydrated } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
+import { useConnectedAvatar } from '@/features/wallet/hooks/useConnectedAvatar'
 import { DesktopHeader } from './desktop/Desktop'
 import { MobileHeader } from './mobile/MobileHeader'
 
@@ -22,6 +23,9 @@ export const Header = ({
   )
   const isHydrated = useHydrated()
   const { isConnected, isConnecting, isReconnecting } = useConnection()
+  // Connected wallet's primary-name theme for the desktop mark on non-profile
+  // pages. The mobile mark stays dark. Profile pages keep profileThemeColor.
+  const { themeColor: connectedThemeColor } = useConnectedAvatar()
 
   // Show a loading placeholder (not "Connect") until hydrated and nothing is
   // mid-connect, so the slot doesn't flash during reconnection.
@@ -46,6 +50,9 @@ export const Header = ({
     <DesktopHeader
       connectionSettled={connectionSettled}
       isConnected={isConnected}
+      landingThemeColor={
+        transparentBackground ? undefined : connectedThemeColor
+      }
       profileThemeColor={profileThemeColor}
       transparentBackground={transparentBackground}
     />
