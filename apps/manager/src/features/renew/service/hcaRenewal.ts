@@ -422,6 +422,7 @@ export async function submitHcaRenewal(
     ? `Renew ${single.label}.eth`
     : `Renew ${items.length} names`
 
+  params.signal?.throwIfAborted()
   txId = transactionManager.startTransaction(
     { type: 'custom', request },
     ownerSigner,

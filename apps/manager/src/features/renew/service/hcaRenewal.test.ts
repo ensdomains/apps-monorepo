@@ -383,3 +383,60 @@ it('does not start an intent after funding completes for a detached renewal scre
   ).rejects.toThrow('screen was closed')
   expect(mocks.startTransaction).not.toHaveBeenCalled()
 })
+
+import { sepolia } from 'viem/chains'
+
+it('does not start an intent when its screen detaches during the final live identity RPC', async () => {
+  let release: (
+    addresses: Awaited<ReturnType<WalletClient['getAddresses']>>,
+  ) => void = () => undefined
+  const addresses = new Promise<
+    Awaited<ReturnType<WalletClient['getAddresses']>>
+  >((resolve) => {
+    release = resolve
+  })
+  const cancelled = new AbortController()
+  const getAddresses = vi.fn(() => addresses)
+  const running = submitHcaRenewal({
+    ...params,
+    publicClient: { ...publicClient, chain: sepolia },
+    walletClient: {
+      ...walletClient,
+      getAddresses,
+      getChainId: async () => params.chainId,
+    },
+    signal: cancelled.signal,
+    approvalFallback: { confirmApproval: () => true },
+  })
+  await vi.waitFor(() => expect(getAddresses).toHaveBeenCalledOnce())
+  cancelled.abort()
+  release([OWNER])
+  await expect(running).rejects.toThrow()
+  expect(mocks.startTransaction).not.toHaveBeenCalled()
+})
+
+it('checks cancellation at the synchronous intent handoff after identity validation returns', async () => {
+  const cancelled = new AbortController()
+  const addresses: Awaited<ReturnType<WalletClient['getAddresses']>> = [OWNER]
+  // Schedule the external cancellation after the helper reads its identity, before the caller resumes.
+  Object.defineProperty(addresses, 0, {
+    get: () => {
+      queueMicrotask(() => cancelled.abort())
+      return OWNER
+    },
+  })
+  await expect(
+    submitHcaRenewal({
+      ...params,
+      publicClient: { ...publicClient, chain: sepolia },
+      walletClient: {
+        ...walletClient,
+        getAddresses: async () => addresses,
+        getChainId: async () => params.chainId,
+      },
+      signal: cancelled.signal,
+      approvalFallback: { confirmApproval: () => true },
+    }),
+  ).rejects.toThrow()
+  expect(mocks.startTransaction).not.toHaveBeenCalled()
+})

@@ -447,3 +447,112 @@ it('keeps the persisted pending amount in the pure recovery plan', () => {
     ),
   ).toEqual({ kind: 'wait', hash: HASH, amount: 4n })
 })
+
+import { assertHcaFundingWallet } from './hca-funding-approval'
+
+it('cancels an identity read that was still awaiting the live provider', async () => {
+  const { input } = makeRun()
+  const addresses = deferred<readonly (typeof OWNER)[]>()
+  input.walletClient.getAddresses.mockReturnValueOnce(addresses.promise)
+  const cancelled = new AbortController()
+  const checking = assertHcaFundingWallet({
+    ...input,
+    signal: cancelled.signal,
+  })
+  await vi.waitFor(() =>
+    expect(input.walletClient.getAddresses).toHaveBeenCalledOnce(),
+  )
+  cancelled.abort()
+  addresses.resolve([OWNER])
+  expect((await checking).isErr()).toBe(true)
+})
+
+it('does not show obsolete approval consent after cancelled gas preparation completes', async () => {
+  const { input, records } = makeRun()
+  const fees = deferred<{
+    readonly maxFeePerGas: bigint
+    readonly maxPriorityFeePerGas: bigint
+  }>()
+  input.publicClient.estimateFeesPerGas.mockReturnValueOnce(fees.promise)
+  const cancelled = new AbortController()
+  const running = approveHcaFunding({ ...input, signal: cancelled.signal })
+  await vi.waitFor(() =>
+    expect(input.publicClient.estimateFeesPerGas).toHaveBeenCalledOnce(),
+  )
+  cancelled.abort()
+  fees.resolve({ maxFeePerGas: 3n, maxPriorityFeePerGas: 1n })
+  expect((await running).isErr()).toBe(true)
+  expect(input.confirmApproval).not.toHaveBeenCalled()
+  expect(input.walletClient.request).not.toHaveBeenCalled()
+  expect(records.size).toBe(0)
+})
+
+it('does not reserve or open the wallet after cancellation during the final approval identity read', async () => {
+  const { input, records } = makeRun()
+  const addresses = deferred<readonly (typeof OWNER)[]>()
+  input.walletClient.getAddresses
+    .mockResolvedValueOnce([OWNER])
+    .mockResolvedValueOnce([OWNER])
+    .mockReturnValueOnce(addresses.promise)
+  const cancelled = new AbortController()
+  const running = approveHcaFunding({ ...input, signal: cancelled.signal })
+  await vi.waitFor(() =>
+    expect(input.walletClient.getAddresses).toHaveBeenCalledTimes(3),
+  )
+  cancelled.abort()
+  addresses.resolve([OWNER])
+  expect((await running).isErr()).toBe(true)
+  expect(input.walletClient.request).not.toHaveBeenCalled()
+  expect(records.size).toBe(0)
+})
+
+it('checks cancellation at the synchronous reservation boundary after identity validation returns', async () => {
+  const { input, records } = makeRun()
+  const cancelled = new AbortController()
+  const addresses = [OWNER]
+  Object.defineProperty(addresses, 0, {
+    get: () => {
+      queueMicrotask(() => cancelled.abort())
+      return OWNER
+    },
+  })
+  input.walletClient.getAddresses
+    .mockResolvedValueOnce([OWNER])
+    .mockResolvedValueOnce([OWNER])
+    .mockResolvedValueOnce(addresses)
+  const write = vi.spyOn(input.environment.storage, 'setItem')
+  expect(
+    (await approveHcaFunding({ ...input, signal: cancelled.signal })).isErr(),
+  ).toBe(true)
+  expect(write).not.toHaveBeenCalled()
+  expect(input.walletClient.request).not.toHaveBeenCalled()
+  expect(records.size).toBe(0)
+})
+
+it('does not open the wallet when its final progress callback synchronously cancels the attempt', async () => {
+  const { input, records } = makeRun()
+  const cancelled = new AbortController()
+  input.onState.mockImplementation((state) => {
+    if (state.kind === 'approval-wallet') cancelled.abort()
+  })
+  expect(
+    (await approveHcaFunding({ ...input, signal: cancelled.signal })).isErr(),
+  ).toBe(true)
+  expect(input.walletClient.request).not.toHaveBeenCalled()
+  expect(records.size).toBe(0)
+})
+
+it('checks cancellation after approval consent before further wallet preparation', async () => {
+  const { input, records } = makeRun()
+  const cancelled = new AbortController()
+  input.confirmApproval.mockImplementation(() => {
+    cancelled.abort()
+    return true
+  })
+  expect(
+    (await approveHcaFunding({ ...input, signal: cancelled.signal })).isErr(),
+  ).toBe(true)
+  expect(input.walletClient.getAddresses).toHaveBeenCalledOnce()
+  expect(input.walletClient.request).not.toHaveBeenCalled()
+  expect(records.size).toBe(0)
+})

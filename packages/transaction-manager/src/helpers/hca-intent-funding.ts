@@ -544,6 +544,7 @@ async function legCalls(
   }
   if (!leg.requiresPermit) return { kind: 'calls', calls: [pull] }
 
+  signal?.throwIfAborted()
   const permit = await signFundingPermitForTokenActor({
     wallet: input.ownerAddress,
     hca: input.hca,
@@ -566,6 +567,7 @@ async function legCalls(
     },
   )
 
+  signal?.throwIfAborted()
   const data = encodeFundingPermit(permit)
 
   const permitCalls = {
@@ -965,6 +967,7 @@ async function fundShortfalls(
 
   // Show the amounts before anything is signed, permit or not: either way they
   // leave the wallet when the intent fills.
+  params.signal?.throwIfAborted()
   const approved = await (params.confirmFunding?.({
     permitValue: usdcShortfall,
     requiresPermit: usdcLeg?.requiresPermit ?? false,
@@ -975,6 +978,7 @@ async function fundShortfalls(
       ? { token: tokenPromptLeg(otherSpend, quoted, tokenLeg) }
       : {}),
   }) ?? true)
+  params.signal?.throwIfAborted()
   if (!approved) throw new HcaFundingDeclinedError()
 
   return buildFundingCalls(params, quoted, usdcLeg, tokenLeg)
@@ -997,6 +1001,8 @@ async function buildFundingCalls(
           signing,
           { displayedValue: quoted.tokenShortfall },
           purpose,
+          undefined,
+          params.signal,
         )
       : undefined
   const usdcResult = usdcLeg
@@ -1026,6 +1032,8 @@ async function buildFundingCalls(
           signing,
           { displayedValue: quoted.tokenShortfall },
           purpose,
+          undefined,
+          params.signal,
         )
       : { kind: 'calls' as const, calls: [] })
   // Approval fallback is USDC-only; the other token preserves its existing permit behavior.

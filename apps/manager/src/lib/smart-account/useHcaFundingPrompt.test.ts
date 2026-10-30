@@ -75,3 +75,84 @@ it.each(['funding', 'approval'] as const)(
     expect(await decision).toBe(false)
   },
 )
+
+import { approveHcaFunding } from '@ens-apps/transaction-manager/helpers/hca-funding-approval'
+import { createPublicClient, createWalletClient, custom } from 'viem'
+import { mainnet } from 'viem/chains'
+import { vi } from 'vitest'
+
+it('keeps a newer mounted funding consent when an aborted approval finishes its fee read', async () => {
+  const { result } = renderHook(() => useHcaFundingPrompt())
+  let release: (fees: {
+    readonly maxFeePerGas: bigint
+    readonly maxPriorityFeePerGas: bigint
+  }) => void = () => undefined
+  const feeRead = new Promise<{
+    readonly maxFeePerGas: bigint
+    readonly maxPriorityFeePerGas: bigint
+  }>((resolve) => {
+    release = resolve
+  })
+  const transport = custom({ request: async () => undefined })
+  const client = createPublicClient({ chain: mainnet, transport })
+  vi.spyOn(client, 'readContract').mockResolvedValue(0n)
+  vi.spyOn(client, 'estimateContractGas').mockResolvedValue(50_000n)
+  const estimateFeesPerGas = vi
+    .spyOn(client, 'estimateFeesPerGas')
+    .mockReturnValue(feeRead)
+  const wallet = createWalletClient({ chain: mainnet, transport })
+  vi.spyOn(wallet, 'getAddresses').mockResolvedValue([approval.owner])
+  vi.spyOn(wallet, 'getChainId').mockResolvedValue(1)
+  const request = vi.spyOn(wallet, 'request')
+  const cancelled = new AbortController()
+  const old = approveHcaFunding({
+    publicClient: client,
+    walletClient: wallet,
+    chainId: 1,
+    owner: approval.owner,
+    token: approval.token,
+    spender: approval.spender,
+    amount: approval.amount,
+    signal: cancelled.signal,
+    confirmApproval: result.current.confirmApproval,
+    environment: {
+      storage: {
+        getItem: () => null,
+        setItem: () => undefined,
+        removeItem: () => undefined,
+      },
+      locks: {
+        async request<T>(
+          name: string,
+          options: LockOptions | LockGrantedCallback<T>,
+          callback?: LockGrantedCallback<T>,
+        ) {
+          const granted = typeof options === 'function' ? options : callback
+          if (!granted) throw new Error('Missing lock callback')
+          return await granted({ name, mode: 'exclusive' })
+        },
+      },
+    },
+  })
+  await vi.waitFor(() => expect(estimateFeesPerGas).toHaveBeenCalledOnce())
+  cancelled.abort()
+  const decided = vi.fn()
+  let newer: Promise<boolean> = Promise.resolve(false)
+  act(() => {
+    newer = result.current.confirmFunding(funding)
+    void newer.then(decided)
+  })
+  await act(async () => {
+    release({ maxFeePerGas: 3n, maxPriorityFeePerGas: 1n })
+    for (let index = 0; index < 30; index += 1) await Promise.resolve()
+  })
+  try {
+    expect(result.current.prompt).toBe(funding)
+    expect(decided).not.toHaveBeenCalled()
+    expect(request).not.toHaveBeenCalled()
+  } finally {
+    act(() => result.current.decline())
+    await old
+    await newer
+  }
+})

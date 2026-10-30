@@ -149,6 +149,7 @@ export const assertHcaFundingWallet = ResultFn(async function* (input: {
       input.walletClient.getChainId(),
     ]),
   )
+  if (input.signal?.aborted) return err(approvalError(input.signal.reason))
   return validateHcaFundingWallet({
     owner: input.owner,
     connectedAddress: addresses[0],
@@ -388,9 +389,11 @@ const requestApproval = ResultFn(async function* (
   maxPriorityFeePerGas: bigint,
 ) {
   input.onState?.({ kind: 'approval', prompt })
+  if (input.signal?.aborted) return err(approvalError(input.signal.reason))
   const consent = yield* boundary(
     Promise.resolve(input.confirmApproval(prompt)),
   )
+  if (input.signal?.aborted) return err(approvalError(input.signal.reason))
   if (!consent) return err(new HcaFundingApprovalDeclinedError())
   yield* assertHcaFundingWallet(input)
   // An approval from another operation may have landed during the consent prompt.
@@ -418,12 +421,62 @@ const requestApproval = ResultFn(async function* (
     }),
   )
   yield* assertHcaFundingWallet(input)
+  const response = await submitReservedApproval({
+    input,
+    environment,
+    key,
+    prompt,
+    gas,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+  })
+  if (response.isErr()) {
+    if (isDefiniteHcaApprovalRefusal(response.error.cause))
+      yield* clearPending(environment.storage, key)
+    return err(response.error)
+  }
+  const hash = yield* fromSync(
+    () => v.parse(hashSchema, response.value),
+    approvalError,
+  )
   yield* savePending(environment.storage, key, {
+    kind: 'submitted',
+    amount: input.amount.toString(),
+    hash,
+  })
+  return ok(hash)
+})
+
+/** No await/yield may separate the final cancellation check, reservation and wallet invocation. */
+const submitReservedApproval = ({
+  input,
+  environment,
+  key,
+  prompt,
+  gas,
+  maxFeePerGas,
+  maxPriorityFeePerGas,
+}: {
+  readonly input: ApproveHcaFundingParams
+  readonly environment: HcaApprovalEnvironment
+  readonly key: string
+  readonly prompt: HcaFundingApprovalPrompt
+  readonly gas: bigint
+  readonly maxFeePerGas: bigint
+  readonly maxPriorityFeePerGas: bigint
+}): ResultAsync<Hash, HcaFundingApprovalError> => {
+  if (input.signal?.aborted) return errAsync(approvalError(input.signal.reason))
+  const reserved = savePending(environment.storage, key, {
     kind: 'reserved',
     amount: input.amount.toString(),
   })
+  if (reserved.isErr()) return errAsync(reserved.error)
   input.onState?.({ kind: 'approval-wallet', prompt })
-  const response = await boundary(
+  if (input.signal?.aborted)
+    return clearPending(environment.storage, key).asyncAndThen(() =>
+      errAsync(approvalError(input.signal?.reason)),
+    )
+  return boundary(
     input.walletClient.request(
       {
         method: 'eth_sendTransaction',
@@ -447,22 +500,7 @@ const requestApproval = ResultFn(async function* (
       { retryCount: 0 },
     ),
   )
-  if (response.isErr()) {
-    if (isDefiniteHcaApprovalRefusal(response.error.cause))
-      yield* clearPending(environment.storage, key)
-    return err(response.error)
-  }
-  const hash = yield* fromSync(
-    () => v.parse(hashSchema, response.value),
-    approvalError,
-  )
-  yield* savePending(environment.storage, key, {
-    kind: 'submitted',
-    amount: input.amount.toString(),
-    hash,
-  })
-  return ok(hash)
-})
+}
 
 /** Cross-document exclusion plus durable reservation survive actor/component cancellation. */
 const executeHcaFundingApproval = (input: ApproveHcaFundingParams) =>
@@ -494,11 +532,7 @@ const executeHcaFundingApproval = (input: ApproveHcaFundingParams) =>
           async (lock) =>
             lock
               ? await runApproval(input, environment)
-              : err(
-                  approvalError(
-                    'An approval is already running in another tab.',
-                  ),
-                ),
+              : err(approvalError('A USDC approval is already in progress.')),
         ),
       ).andThen((result) => result)
     })

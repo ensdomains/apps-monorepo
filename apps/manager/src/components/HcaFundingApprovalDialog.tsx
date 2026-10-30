@@ -1,5 +1,6 @@
 import type { HcaFundingApprovalState } from '@ens-apps/transaction-manager'
 import { Trans } from '@lingui/react/macro'
+import { useLayoutEffect, useRef } from 'react'
 import { match } from 'ts-pattern'
 import { formatUnits } from 'viem'
 import {
@@ -22,9 +23,14 @@ export const HcaFundingApprovalDialog = ({
   readonly onApprove: () => void
   readonly onDecline: () => void
 }) => {
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const invokerRef = useRef<HTMLElement | null>(null)
   const prompt = state.kind === 'idle' ? null : state.prompt
   const isPending =
     state.kind === 'approval-wallet' || state.kind === 'approval-receipt'
+  useLayoutEffect(() => {
+    if (isPending) contentRef.current?.focus({ preventScroll: true })
+  }, [isPending])
   const description = match(state.kind)
     .with('approval-wallet', () => (
       <Trans>
@@ -52,7 +58,24 @@ export const HcaFundingApprovalDialog = ({
       }}
       open={!!prompt}
     >
-      <AlertDialogContent>
+      <AlertDialogContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          if (invokerRef.current?.isConnected)
+            invokerRef.current.focus({ preventScroll: true })
+        }}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          const active = document.activeElement
+          if (
+            active instanceof HTMLElement &&
+            !contentRef.current?.contains(active)
+          )
+            invokerRef.current = active
+          contentRef.current?.focus({ preventScroll: true })
+        }}
+        ref={contentRef}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>
             <Trans>Approve USDC for your renewal?</Trans>

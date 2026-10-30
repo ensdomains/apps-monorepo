@@ -952,3 +952,42 @@ it.each([900_000n, 1_100_000n])(
     expect(signFundingPermit).not.toHaveBeenCalled()
   },
 )
+
+it('does not show obsolete funding consent after a cancelled quote finishes', async () => {
+  let release: (value: ReturnType<typeof quoteOf>) => void = () => undefined
+  const quote = new Promise<ReturnType<typeof quoteOf>>((resolve) => {
+    release = resolve
+  })
+  prepareTransaction.mockReturnValueOnce(quote)
+  const cancelled = new AbortController()
+  const confirmFunding = vi.fn(() => false)
+  const running = planHcaIntentFunding({
+    ...params,
+    signal: cancelled.signal,
+    confirmFunding,
+  })
+  await vi.waitFor(() => expect(prepareTransaction).toHaveBeenCalledOnce())
+  cancelled.abort()
+  release(quoteOf(900_000n))
+  await expect(running).rejects.toThrow()
+  expect(confirmFunding).not.toHaveBeenCalled()
+  expect(signFundingPermit).not.toHaveBeenCalled()
+})
+
+it.each([0n, 900_000n])(
+  'checks cancellation again after funding consent before asking for a permit (allowance %s)',
+  async (allowance) => {
+    mockReads({ allowance })
+    const cancelled = new AbortController()
+    const running = planHcaIntentFunding({
+      ...params,
+      signal: cancelled.signal,
+      confirmFunding: () => {
+        cancelled.abort()
+        return true
+      },
+    })
+    await expect(running).rejects.toThrow()
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  },
+)
