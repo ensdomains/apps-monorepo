@@ -123,18 +123,3 @@ export function resolveSessionAfterRevocation<
   if (!stored || isSessionRevokedOnChain(stored, onChainNonce)) return null
   return stored
 }
-
-/**
- * Whether this page already reset the current HCA's sessions and nothing has
- * been authorized since, so another reset would only spend the owner's gas.
- * `resetAccount` is the HCA last reset here; signing a new session clears it.
- */
-export function isSessionAccessReset(params: {
-  readonly resetAccount: Address | null
-  readonly accountAddress: Address | null
-  readonly hasActiveSession: boolean
-}): boolean {
-  const { resetAccount, accountAddress, hasActiveSession } = params
-  if (hasActiveSession || !resetAccount || !accountAddress) return false
-  return resetAccount.toLowerCase() === accountAddress.toLowerCase()
-}

@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
-import { ShieldAlert, ShieldCheck, WalletIcon } from 'lucide-react'
+import { ShieldAlert, WalletIcon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
@@ -32,7 +32,6 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
     revokeError,
     revokeErrorReason,
     revokeSession,
-    isSessionAccessReset,
   } = useSmartAccountContext()
   const [isRevokeOpen, setIsRevokeOpen] = useState(false)
   const { address: connectedAddress } = useAccount()
@@ -121,9 +120,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       )}
 
       {/* Reset is offered without a local session too: a leaked session lives on
-          another device, so a fresh browser is where its owner revokes it.
-          Right after a reset there is nothing left to revoke until a new
-          session is signed, so a second one would only spend gas. */}
+          another device, so a fresh browser is where its owner revokes it. */}
       {accountAddress && !isFeatureEnabled('USE_EOA') && (
         <>
           <AccountMenuItemStatus
@@ -154,21 +151,11 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
             </AccountMenuItemButton>
           )}
           <AccountMenuItemButton
-            disabled={isRevokingSession || isSessionAccessReset}
+            disabled={isRevokingSession}
             onClick={() => setIsRevokeOpen(true)}
-            prefix={
-              isSessionAccessReset ? (
-                <ShieldCheck className="size-5" />
-              ) : (
-                <ShieldAlert className="size-5" />
-              )
-            }
+            prefix={<ShieldAlert className="size-5" />}
           >
-            {isSessionAccessReset ? (
-              <Trans>Smart session access reset</Trans>
-            ) : (
-              <Trans>Reset smart session access</Trans>
-            )}
+            <Trans>Reset smart session access</Trans>
           </AccountMenuItemButton>
         </>
       )}

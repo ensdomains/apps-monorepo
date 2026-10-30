@@ -2,7 +2,6 @@ import { SESSION_REGISTRATION_HEADROOM_SECONDS } from '@ens-apps/smart-account'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
-  isSessionAccessReset,
   isSessionRevokedOnChain,
   needsSessionBeforeRegistration,
   resolveSessionAfterRevocation,
@@ -187,35 +186,4 @@ describe('resolveSessionAfterRevocation', () => {
     ).toBeNull()
     expect(resolveSessionAfterRevocation(null, 1n)).toBeNull()
   })
-})
-
-describe('isSessionAccessReset', () => {
-  const HCA = '0xabcdef0123456789abcdef0123456789abcdef01' as Address
-  const OTHER = '0x0000000000000000000000000000000000000002' as Address
-
-  it.each([
-    ['this HCA was reset and nothing signed since', HCA, HCA, false, true],
-    [
-      'checksum casing differs',
-      HCA,
-      '0xABCDEF0123456789ABCDEF0123456789ABCDEF01' as Address,
-      false,
-      true,
-    ],
-    ['a session was signed after the reset', HCA, HCA, true, false],
-    ['nothing was reset on this page', null, HCA, false, false],
-    ['a different HCA was reset', OTHER, HCA, false, false],
-    ['the HCA is not known yet', HCA, null, false, false],
-  ] as const)(
-    '%s',
-    (_, resetAccount, accountAddress, hasActiveSession, expected) => {
-      expect(
-        isSessionAccessReset({
-          resetAccount,
-          accountAddress,
-          hasActiveSession,
-        }),
-      ).toBe(expected)
-    },
-  )
 })

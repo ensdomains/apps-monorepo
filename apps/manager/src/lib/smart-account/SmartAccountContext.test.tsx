@@ -30,12 +30,6 @@ vi.mock('@ens-apps/smart-account', async (importOriginal) => {
   }
 })
 
-// Enabling a session would prompt the wallet; resolve it to a stored session.
-vi.mock('./actors/session.actors', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./actors/session.actors')>()),
-  resolveSessionActor: vi.fn(),
-}))
-
 // Auto-fund only runs against a local Anvil fork; enable that path but keep the
 // Anvil owner setup itself out of these tests.
 vi.mock('@ens-apps/dev-time-travel', async (importOriginal) => {
@@ -51,22 +45,14 @@ vi.mock('@ens-apps/dev-time-travel', async (importOriginal) => {
 import {
   buildHcaDeploymentCall,
   HcaDeploymentCallValidationError,
-  type RhinestoneStoredSession,
   removeSessionsByOwner,
   revokeSessionsOnChain,
   SessionRevokeError,
 } from '@ens-apps/smart-account'
-import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { errAsync, okAsync } from 'neverthrow'
-import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
-import { chain as appChain } from '@/config'
 import { backendClient } from '@/utils/backend-client'
-import { resolveSessionActor } from './actors/session.actors'
-import {
-  initializeRhinestoneAccount,
-  type RhinestoneInitResult,
-} from './rhinestone'
+import { initializeRhinestoneAccount } from './rhinestone'
 import {
   SmartAccountContextProvider,
   useSmartAccountContext,
@@ -420,108 +406,6 @@ describe('SmartAccountContext', () => {
       expect(result.current.activeStoredSession).toBeNull()
       expect(result.current.revokeError).toBeNull()
       expect(result.current.isRevokingSession).toBe(false)
-    })
-
-    it('marks access as reset only after a confirmed revoke, so it is not offered twice', async () => {
-      revokeSessionsOnChainMock
-        .mockReturnValueOnce(
-          errAsync(
-            new SessionRevokeError({
-              message: 'revokeSessions transaction reverted',
-              reason: 'transaction-failed',
-            }),
-          ),
-        )
-        .mockReturnValueOnce(
-          okAsync({
-            transactionHash: `0x${'ab'.repeat(32)}`,
-            sessionNonce: 1n,
-          }),
-        )
-      const result = await connectWallet()
-      expect(result.current.isSessionAccessReset).toBe(false)
-
-      await act(async () => {
-        await result.current.revokeSession()
-      })
-      expect(result.current.isSessionAccessReset).toBe(false)
-
-      await act(async () => {
-        await result.current.revokeSession()
-      })
-      expect(result.current.isSessionAccessReset).toBe(true)
-    })
-
-    it('offers reset again once a session is signed after it, even if this copy is forgotten', async () => {
-      // Valid addresses: enabling a session needs the machine owner and the
-      // connected wallet to agree.
-      const OWNER: Address = '0x1111111111111111111111111111111111111111'
-      const HCA: Address = '0x2222222222222222222222222222222222222222'
-      // Only the client methods the session path calls.
-      const client: Pick<RhinestoneAccount, 'getAddress' | 'isDeployed'> = {
-        getAddress: () => HCA,
-        isDeployed: async () => true,
-      }
-      vi.mocked(initializeRhinestoneAccount).mockResolvedValueOnce({
-        client,
-        address: HCA,
-        ownerAddress: OWNER,
-        alreadyDeployed: true,
-        config: { chain: appChain },
-      } as RhinestoneInitResult)
-      const walletClient: Pick<WalletClient, 'account'> = {
-        account: { address: OWNER, type: 'json-rpc' },
-      }
-      vi.mocked(useWalletClient).mockReturnValue({
-        data: walletClient,
-      } as ReturnType<typeof useWalletClient>)
-      const session = {
-        id: 'session-after-reset',
-        provider: 'rhinestone',
-        sessionKeyAddress: '0x9999999999999999999999999999999999999999',
-        smartAccountAddress: HCA,
-        ownerAddress: OWNER,
-        createdAt: Date.now(),
-        chainId: 11155111,
-        validUntil: Math.floor(Date.now() / 1000) + 3600,
-        sessionPrivateKey: `0x${'1'.repeat(64)}`,
-        permissionId: `0x${'2'.repeat(64)}`,
-        resolver: '0x3333333333333333333333333333333333333333',
-        hcaSessionNonce: '1',
-        authorization: `0x${'4'.repeat(130)}`,
-        hashesAndChainIds: [
-          { chainId: '11155111', sessionDigest: `0x${'5'.repeat(64)}` },
-        ],
-        sessionToEnableIndex: 0,
-      } satisfies RhinestoneStoredSession
-      vi.mocked(resolveSessionActor).mockReturnValue(okAsync({ session }))
-      revokeSessionsOnChainMock.mockReturnValue(
-        okAsync({ transactionHash: `0x${'ab'.repeat(32)}`, sessionNonce: 1n }),
-      )
-      const { result } = renderHook(() => useSmartAccountContext(), {
-        wrapper: createWrapper(),
-      })
-      await waitFor(() => expect(result.current.accountAddress).toBe(HCA))
-
-      await act(async () => {
-        await result.current.revokeSession()
-      })
-      expect(result.current.isSessionAccessReset).toBe(true)
-
-      let status: string | undefined
-      await act(async () => {
-        status = (await result.current.enableSession()).status
-      })
-      expect(status).toBe('enabled')
-      expect(result.current.hasActiveSession).toBe(true)
-
-      // The session signed after the reset may have been copied elsewhere, so
-      // dropping this browser's copy must not hide the reset.
-      await act(async () => {
-        result.current.forgetLocalSession()
-      })
-      expect(result.current.hasActiveSession).toBe(false)
-      expect(result.current.isSessionAccessReset).toBe(false)
     })
 
     it('deploys first when asked, with a deployment built for the connected wallet', async () => {
