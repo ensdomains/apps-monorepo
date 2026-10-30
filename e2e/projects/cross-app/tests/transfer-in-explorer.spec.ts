@@ -18,7 +18,10 @@ import {
   PORTAL_APP_URL,
   test,
 } from '../../../fixtures/playwright.cross-app.fixture.js'
-import { waitForBignameBlock } from '../../../helpers/bigname-sync.js'
+import {
+  isRealBigname,
+  waitForBignameBlock,
+} from '../../../helpers/bigname-sync.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
 import { readV2Holding } from '../../../helpers/v2-transfer.js'
 
@@ -27,12 +30,12 @@ const labelOf = (name: string) => name.replace(/\.eth$/, '')
 /** Transfer `name` to `recipient` through the explorer's transfer page. */
 async function transferInExplorer(
   explorer: {
-    page: Page
-    wallet: Parameters<typeof driveTransactionsToSuccess>[1]
+    readonly page: Page
+    readonly wallet: Parameters<typeof driveTransactionsToSuccess>[1]
   },
   name: string,
   recipient: Address,
-  options: { detachResolver: boolean },
+  options: { readonly detachResolver: boolean },
 ) {
   const { page, wallet } = explorer
   await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
@@ -65,6 +68,12 @@ async function myNamesRow(page: Page, name: string) {
   await page.getByPlaceholder('Search my names').fill(name)
   return page.getByRole('link', { name, exact: true })
 }
+
+// Both apps read bigname, and the cross-app fixture installs no route mock,
+// so a mocked run (nightly CI) cannot see the names these tests seed.
+test.beforeEach(() =>
+  test.skip(!isRealBigname, 'Cross-app transfer requires real bigname'),
+)
 
 test.describe('A transfer in the explorer, seen in the manager', () => {
   test.describe.configure({ timeout: 300_000 })

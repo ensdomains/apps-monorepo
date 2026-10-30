@@ -2143,13 +2143,13 @@ test.describe('Portal name transfer — subnames', () => {
       subnameOwner,
       roleBitmap = FULL_ROLE_BITMAP,
     }: {
-      parentLabel: string
-      subLabel?: string
-      subnameOwner?: Address
-      roleBitmap?: bigint
+      readonly parentLabel: string
+      readonly subLabel?: string
+      readonly subnameOwner?: Address
+      readonly roleBitmap?: bigint
     },
     deployerKey: Hash,
-  ): Promise<{ subregistry: Address }> {
+  ): Promise<{ readonly subregistry: Address }> {
     const deployer = privateKeyToAccount(deployerKey)
     const subregistry = await deployAndAttachSubregistry(
       { label: parentLabel },
@@ -3554,9 +3554,9 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
       const reclaimLine = new RegExp(
         `Transaction ${transferTxId(name, 'reclaim').replace(/\./g, '\\.')}(--\\S+)? state:`,
       )
-      let reclaimSeen = false
+      let hasSeenReclaim = false
       page.on('console', (msg) => {
-        if (reclaimLine.test(msg.text())) reclaimSeen = true
+        if (reclaimLine.test(msg.text())) hasSeenReclaim = true
       })
 
       await transferButton.click()
@@ -3574,7 +3574,7 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
         (await readController(name)).toLowerCase(),
         'with the handover off the registry controller must stay with the sender — a `reclaim` ran anyway',
       ).toBe(owner.toLowerCase())
-      expect(reclaimSeen, 'no reclaim step may be planned').toBe(false)
+      expect(hasSeenReclaim, 'no reclaim step may be planned').toBe(false)
 
       // The recovery the off-state warning promises, end to end: the new
       // registrant takes the manager role from the Ownership page.
@@ -4656,12 +4656,12 @@ test.describe('Portal name transfer — ETH address record ahead of the move (WE
       | { mode: 'revert'; beforeMine: () => Promise<void> },
   ) {
     const ethAddrId = transferTxId(name, 'set-eth-addr')
-    let ethAddrLanded = false
+    let hasEthAddrLanded = false
     const landedLine = new RegExp(
       `Transaction ${ethAddrId.replace(/\./g, '\\.')}(--\\S+)? state: success`,
     )
     const onConsole = (msg: { text(): string }) => {
-      ethAddrLanded ||= landedLine.test(msg.text())
+      hasEthAddrLanded ||= landedLine.test(msg.text())
     }
     page.on('console', onConsole)
 
@@ -4676,7 +4676,7 @@ test.describe('Portal name transfer — ETH address record ahead of the move (WE
     await dialog.getByRole('button', { name: /open wallet/i }).click()
     await authorizeTransaction(wallet, 60_000)
     await expect
-      .poll(() => ethAddrLanded, {
+      .poll(() => hasEthAddrLanded, {
         message: 'step 1 (set-eth-addr) must land before the move is failed',
         timeout: 60_000,
       })

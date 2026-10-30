@@ -122,11 +122,11 @@ test.describe('Portal ENS name registration', () => {
       },
     })
 
-    let registerTxSucceeded = false
+    let hasRegisterTxSucceeded = false
     page.on('console', (msg) => {
       const text = msg.text()
       if (text.includes('Transaction tx-reg-register state: success')) {
-        registerTxSucceeded = true
+        hasRegisterTxSucceeded = true
       }
     })
 
@@ -141,7 +141,7 @@ test.describe('Portal ENS name registration', () => {
     })
 
     const flowDeadline = Date.now() + 420_000
-    while (Date.now() < flowDeadline && !registerTxSucceeded) {
+    while (Date.now() < flowDeadline && !hasRegisterTxSucceeded) {
       const openWalletButton = transactionDialog.getByRole('button', {
         name: /open wallet/i,
       })
@@ -184,7 +184,7 @@ test.describe('Portal ENS name registration', () => {
       await page.waitForTimeout(1_000)
     }
 
-    expect(registerTxSucceeded).toBe(true)
+    expect(hasRegisterTxSucceeded).toBe(true)
 
     // ── 7. Assert success ──────────────────────────────────────────
     expect(monitor.getLastState()).toBe('success')
@@ -376,16 +376,16 @@ test.describe('Portal ENS name registration', () => {
     // No wallet prompt for A's register step should ever appear now that its
     // actor and transactions were torn down on unmount — the actual consumer
     // protection the fix provides.
-    let sawWalletPromptForA = false
+    let hasSeenWalletPromptForA = false
     for (let i = 0; i < 10; i++) {
       if (wallet.getPendingRequestCount(Web3RequestKind.SendTransaction) > 0) {
-        sawWalletPromptForA = true
+        hasSeenWalletPromptForA = true
         break
       }
       await page.waitForTimeout(1_000)
     }
     expect(
-      sawWalletPromptForA,
+      hasSeenWalletPromptForA,
       "name A's flow kept prompting the wallet after switching to B — the old actor is still alive",
     ).toBe(false)
     console.log('[switch-test] confirmed no wallet prompt for A after switch')
@@ -406,15 +406,15 @@ test.describe('Portal ENS name registration', () => {
       timeout: 30_000,
     })
 
-    let commitSucceededB = false
+    let hasCommitSucceededB = false
     page.on('console', (msg) => {
       if (msg.text().includes('Transaction tx-reg-commit state: success')) {
-        commitSucceededB = true
+        hasCommitSucceededB = true
       }
     })
 
     const bCommitted = await driveWalletLoop(
-      async () => commitSucceededB,
+      async () => hasCommitSucceededB,
       120_000,
     )
     expect(
@@ -533,10 +533,10 @@ async function registerThroughUi(
   const transactionDialog = page.locator('[data-slot="dialog-content"]')
   await expect(transactionDialog).toBeVisible({ timeout: 30_000 })
 
-  let registerTxSucceeded = false
+  let hasRegisterTxSucceeded = false
   page.on('console', (msg) => {
     if (msg.text().includes('Transaction tx-reg-register state: success')) {
-      registerTxSucceeded = true
+      hasRegisterTxSucceeded = true
     }
   })
 
@@ -546,7 +546,7 @@ async function registerThroughUi(
   })
 
   const deadline = Date.now() + 420_000
-  while (Date.now() < deadline && !registerTxSucceeded) {
+  while (Date.now() < deadline && !hasRegisterTxSucceeded) {
     const openWalletButton = transactionDialog.getByRole('button', {
       name: /open wallet/i,
     })
@@ -587,9 +587,10 @@ async function registerThroughUi(
     await page.waitForTimeout(1_000)
   }
 
-  expect(registerTxSucceeded, 'the register transaction should succeed').toBe(
-    true,
-  )
+  expect(
+    hasRegisterTxSucceeded,
+    'the register transaction should succeed',
+  ).toBe(true)
 }
 
 test.describe('Portal registration success banner — not forgeable from a link (WEB-1490)', () => {
@@ -2424,8 +2425,8 @@ test.describe('Portal checkout — a failed price read blocks checkout instead o
     tag: ['@smoke'],
   }, async ({ portalPage: page, wallet }) => {
     await connectWithHeadlessWallet(page, wallet)
-    let failing = true
-    const calls = await failPriceReads(page, () => failing)
+    let isFailing = true
+    const calls = await failPriceReads(page, () => isFailing)
     const name = `web1485-reg-${Date.now().toString(36)}.eth`
 
     await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
@@ -2455,7 +2456,7 @@ test.describe('Portal checkout — a failed price read blocks checkout instead o
     expect(pendingSends(wallet)).toBe(0)
 
     // ── Positive control: the same page prices and checks out once reads work ──
-    failing = false
+    isFailing = false
     await section.getByRole('button', { name: 'Try again' }).click()
     await expect(tokenRows(section).first()).toBeVisible({ timeout: 30_000 })
     await expect(section.getByText("Couldn't load price")).toHaveCount(0)
@@ -2495,8 +2496,8 @@ test.describe('Portal checkout — a failed price read blocks checkout instead o
     wallet,
   }) => {
     await connectWithHeadlessWallet(page, wallet)
-    let failing = false
-    const calls = await failPriceReads(page, () => failing)
+    let isFailing = false
+    const calls = await failPriceReads(page, () => isFailing)
     const name = `web1485-held-${Date.now().toString(36)}.eth`
 
     await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
@@ -2507,7 +2508,7 @@ test.describe('Portal checkout — a failed price read blocks checkout instead o
     await expect(register).toBeEnabled()
 
     // A new duration is a new price read — and this one fails.
-    failing = true
+    isFailing = true
     await content(page).getByText('2 years', { exact: true }).click()
     await expect
       .poll(() => calls.some((call) => call.failed), { timeout: 15_000 })
@@ -2528,7 +2529,7 @@ test.describe('Portal checkout — a failed price read blocks checkout instead o
     await expect(section.getByText("Couldn't load price")).toBeVisible()
 
     // Recovering does not resurrect the old pick: the visitor chooses again.
-    failing = false
+    isFailing = false
     await section.getByRole('button', { name: 'Try again' }).click()
     await expect(tokenRows(section).first()).toBeVisible({ timeout: 30_000 })
     await expect(register).toBeDisabled()
@@ -2589,8 +2590,8 @@ test.describe('Portal checkout — a failed price read blocks checkout instead o
       owner: 'user',
     })
     await waitForIndexedName(name)
-    let failing = true
-    const calls = await failPriceReads(page, () => failing)
+    let isFailing = true
+    const calls = await failPriceReads(page, () => isFailing)
 
     await page.goto(`${PORTAL_APP_URL}/${name}`)
     await expectNamePageLoaded(page, name, owner)
@@ -2615,7 +2616,7 @@ test.describe('Portal checkout — a failed price read blocks checkout instead o
     await expect(dialog.getByText(/^\$[\d,.]+$/)).toHaveCount(0)
 
     // Positive control: reopened with reads working, the modal prices and continues.
-    failing = false
+    isFailing = false
     await dialog.getByRole('button', { name: 'Close' }).first().click()
     await expect(dialog).toHaveCount(0)
     await content(page)
@@ -2794,8 +2795,8 @@ test.describe('Portal checkout — a failed price read blocks checkout instead o
     // Guard: the old code also showed the summary's error and asked a
     // disconnected visitor to connect, so this pins the fix's ordering (the
     // connect prompt comes before the price card) rather than the bug.
-    let failing = true
-    const calls = await failPriceReads(page, () => failing)
+    let isFailing = true
+    const calls = await failPriceReads(page, () => isFailing)
     const name = `web1485-anon-${Date.now().toString(36)}.eth`
 
     await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
@@ -2814,7 +2815,7 @@ test.describe('Portal checkout — a failed price read blocks checkout instead o
     ).toBeVisible()
 
     // Positive control: with reads working, the same visitor sees the price.
-    failing = false
+    isFailing = false
     await page.reload()
     await expect(
       content(page)
@@ -3427,7 +3428,8 @@ test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
     const dialog = await openExtend(page, owner, legs, run)
     await confirmExtendWith(page, dialog, 'USDC')
 
-    // Approvals (2) and the first renew go through; refuse the second renew.
+    // Approvals (2) and the V2 renewBatch (a and c together) go through;
+    // refuse the V1 renewBatch (b).
     const ids = stepIds(legs)
     const refuseAt = 4
     const tx = page.locator('[data-slot="dialog-content"]')
@@ -3462,18 +3464,24 @@ test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
     const mid = await leases(legs)
     expect(
       legs.map((_, i) => mid[i] > before[i]),
-      'only the renew before the refusal landed',
-    ).toEqual([true, false, false])
+      'both V2 names renewed in the batch before the V1 batch was refused',
+    ).toEqual([true, false, true])
 
     await tryAgain.click()
     await driveTransactionsToSuccess(page, wallet, ids.slice(refuseAt - 1))
     await expectRenewedOnce(legs, before, usdcBefore, owner)
+    // One year is measured from each name's own expiry: the longer of a
+    // contract year (365.25 d) and the calendar year, which is 366 d across a
+    // leap day. So spans differ between names; a second renewal doubles one.
     const after = await leases(legs)
-    for (const [i, leg] of legs.entries())
+    for (const [i, leg] of legs.entries()) {
+      const span = after[i] - before[i]
       expect(
-        after[i] - before[i],
-        `${leg.name} renewed once, by the same span as the others`,
-      ).toBe(after[0] - before[0])
+        span,
+        `${leg.name} renewed by at least one year`,
+      ).toBeGreaterThanOrEqual((DAY_S * 36_525n) / 100n)
+      expect(span, `${leg.name} renewed once`).toBeLessThanOrEqual(366n * DAY_S)
+    }
   })
 
   test('with neither USDC nor DAI to cover the total, no token is offered and nothing is sent', {

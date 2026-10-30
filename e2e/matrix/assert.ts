@@ -20,7 +20,7 @@ import { expect } from '../fixtures/playwright.portal.fixture.js'
 import type { ChainTruth, RecordTruth } from './chain.js'
 import type { AddressRef, TabExpectation } from './expectations.js'
 
-export type AddressRow = { label: string; address: string }
+export type AddressRow = { readonly label: string; readonly address: string }
 
 /**
  * Every labelled address row on the page.

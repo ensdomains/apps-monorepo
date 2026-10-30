@@ -172,6 +172,10 @@ test.describe('Portal subnames', () => {
     makeName,
     makeSubname,
   }) => {
+    // The delete button lives on the subnames list, which reads bigname. The
+    // route mock serves every list as empty and cannot learn a subname created
+    // during the test, so there is no row to act on without a real indexer.
+    test.skip(!isRealBigname, 'needs a real bigname to list the seeded subname')
     await connectWithHeadlessWallet(page, wallet)
 
     const parent = await makeName({ label: 'sub-d5', owner: 'user' })
@@ -208,6 +212,8 @@ test.describe('Portal subnames', () => {
   test('does not offer deletion without ROLE_UNREGISTER', {
     tag: ['@scenario:D6'],
   }, async ({ portalPage: page, wallet, makeName, makeSubname, wallets }) => {
+    // Same as D5: the row under test only exists in a real bigname index.
+    test.skip(!isRealBigname, 'needs a real bigname to list the seeded subname')
     await connectWithHeadlessWallet(page, wallet)
 
     const parent = await makeName({ label: 'sub-d6', owner: 'user' })

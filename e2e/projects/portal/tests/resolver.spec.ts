@@ -14,6 +14,7 @@ import {
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient } from '../../../helpers/anvil-client.js'
+import { isRealBigname } from '../../../helpers/bigname-sync.js'
 import { waitForIndexedName } from '../../../helpers/indexer-sync.js'
 import { ETH_REGISTRY } from '../../../helpers/role-assertions.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
@@ -195,6 +196,9 @@ test.describe('Portal resolver', () => {
   test('lists the names a resolver serves on its nodes page', {
     tag: ['@scenario:E11'],
   }, async ({ portalPage: page, wallet, makeName }) => {
+    // The nodes table reads bigname, and the route mock answers every resolver
+    // lookup with not_found, so the page stops at its empty state.
+    test.skip(!isRealBigname, 'needs a real bigname to list the resolver nodes')
     await connectWithHeadlessWallet(page, wallet)
 
     const name = await makeName({
@@ -223,6 +227,9 @@ test.describe('Portal resolver', () => {
   test('refuses link creation without ROLE_LINK', {
     tag: ['@scenario:E10'],
   }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    // Same as E11: the page checks ROLE_LINK only once the bigname-backed node
+    // list has the resolver's names.
+    test.skip(!isRealBigname, 'needs a real bigname to list the resolver nodes')
     await connectWithHeadlessWallet(page, wallet)
 
     const name = await makeName({

@@ -55,6 +55,7 @@ import {
   upgradeCountingPrompts,
 } from '../../../helpers/migration-flow.js'
 import {
+  ensureProfilePillField,
   goToEditProfile,
   saveProfileChanges,
   waitForProfileUpdated,
@@ -297,9 +298,32 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
     // /edit route). Description and the website field are on its General tab.
     const description = 'Post-migration profile edit'
     const website = 'https://post-migration.example.com'
+    const email = 'post-migration@example.com'
+    const github = 'ens-test-user'
+    const link = { name: 'Test Link', url: 'https://link.example.com/path' }
     await goToEditProfile(page, name)
     await page.getByPlaceholder('Description').fill(description)
     await page.getByPlaceholder('https://yourwebsite.com').fill(website)
+
+    // Email and GitHub sit behind pills on the Contact tab. Match the field
+    // exactly: the GitHub row's star button is labelled "Feature GitHub…".
+    await page.getByRole('tab', { name: 'Contact' }).click()
+    await ensureProfilePillField(page, {
+      pillName: /^E-mail\b/,
+      fieldLabel: /^E-mail$/,
+    })
+    await page.getByLabel(/^E-mail$/).fill(email)
+    await ensureProfilePillField(page, {
+      pillName: /^GitHub\b/,
+      fieldLabel: /^GitHub$/,
+    })
+    await page.getByLabel(/^GitHub$/).fill(github)
+
+    // A name with no links opens the Links tab on one empty draft row.
+    await page.getByRole('tab', { name: 'Links' }).click()
+    await page.getByLabel('Link 1 title', { exact: true }).fill(link.name)
+    await page.getByLabel('Link 1 URL', { exact: true }).fill(link.url)
+
     await saveProfileChanges(page, wallet)
     await waitForProfileUpdated(page)
 
@@ -309,6 +333,10 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
       .poll(() => readText(name, 'description'), { timeout: 30_000 })
       .toBe(description)
     expect(await readText(name, 'url')).toBe(website)
+    expect(await readText(name, 'email')).toBe(email)
+    expect(await readText(name, 'com.github')).toBe(github)
+    const links = await readText(name, 'links')
+    expect(links && JSON.parse(links), 'links').toEqual([link])
   })
 
   test('a reserved V1 name cannot be registered, and the search says it is taken', {
