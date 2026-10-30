@@ -16,7 +16,12 @@ const isDecimal = (value: unknown): value is string =>
 const keyFor = (chainId: number, account: Address) =>
   `${chainId}:${account.toLowerCase()}`
 
+// What this tab last tried to save, while storage refuses it (full or blocked),
+// so a confirmed reset still holds for the rest of the visit.
+let unsavedResets: SessionResets | null = null
+
 const readAll = (): SessionResets => {
+  if (unsavedResets) return unsavedResets
   if (typeof window === 'undefined') return {}
 
   try {
@@ -33,7 +38,7 @@ const readAll = (): SessionResets => {
 }
 
 // Writes in this tab; other tabs hear about them through the `storage` event.
-const listeners = new Set<() => void>()
+let listeners: ReadonlySet<() => void> = new Set()
 
 // Best-effort: without storage, a reload just offers the reset again.
 const writeAll = (resets: SessionResets): void => {
@@ -41,7 +46,10 @@ const writeAll = (resets: SessionResets): void => {
 
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(resets))
-  } catch {}
+    unsavedResets = null
+  } catch {
+    unsavedResets = resets
+  }
   for (const listener of listeners) listener()
 }
 
@@ -50,10 +58,12 @@ export const subscribeSessionResets = (onChange: () => void) => {
   const onStorage = (event: StorageEvent) => {
     if (event.key === STORAGE_KEY || event.key === null) onChange()
   }
-  listeners.add(onChange)
+  listeners = new Set([...listeners, onChange])
   window.addEventListener('storage', onStorage)
   return () => {
-    listeners.delete(onChange)
+    listeners = new Set(
+      [...listeners].filter((listener) => listener !== onChange),
+    )
     window.removeEventListener('storage', onStorage)
   }
 }

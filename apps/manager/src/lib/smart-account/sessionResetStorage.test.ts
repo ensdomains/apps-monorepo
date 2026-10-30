@@ -1,5 +1,5 @@
 import type { Address } from 'viem'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearSessionReset,
   readSessionResetNonce,
@@ -45,5 +45,25 @@ describe('sessionResetStorage', () => {
       JSON.stringify({ [`11155111:${HCA}`]: 'abc' }),
     )
     expect(readSessionResetNonce(11155111, HCA)).toBeNull()
+  })
+
+  it('keeps a reset for this visit when storage refuses the save', () => {
+    const setItem = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        throw new Error('QuotaExceededError')
+      })
+
+    saveSessionReset(11155111, HCA, 3n)
+    expect(readSessionResetNonce(11155111, HCA)).toBe(3n)
+
+    clearSessionReset(11155111, HCA)
+    expect(readSessionResetNonce(11155111, HCA)).toBeNull()
+
+    // Once storage works again, it is the source of truth.
+    setItem.mockRestore()
+    saveSessionReset(11155111, HCA, 4n)
+    expect(localStorage.getItem('ens-session-reset-v1')).toContain('"4"')
+    clearSessionReset(11155111, HCA)
   })
 })
