@@ -20,6 +20,7 @@ import { labelhash, namehash } from 'viem/ens'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Connector } from 'wagmi'
 import { chain } from '@/config'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { classifyNames } from './classifyNames'
 import {
@@ -520,8 +521,8 @@ describe('bulk grace renewal', () => {
       functionName: 'renewBatch',
       args: [
         [
-          { label: 'alice', duration: 37n * DAY, referrer: zeroHash },
-          { label: 'bob', duration: 8n * DAY, referrer: zeroHash },
+          { label: 'alice', duration: 37n * DAY, referrer: ENS_LABS_REFERRER },
+          { label: 'bob', duration: 8n * DAY, referrer: ENS_LABS_REFERRER },
         ],
         quote.paymentToken,
       ],
