@@ -1,4 +1,8 @@
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import {
+  decodeRoleCounts,
+  type Role,
+  registryRoles,
+} from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import type { RootRoleHolder } from '@/features/roles/hooks/useRegistryRootRoleHolders'
@@ -112,43 +116,51 @@ describe('getSoleAdminRoles', () => {
 })
 
 describe('isUpgradeRevokeBlocked', () => {
-  const blocked = (
-    overrides: Partial<Parameters<typeof isUpgradeRevokeBlocked>[0]> = {},
-  ) =>
+  type Params = Parameters<typeof isUpgradeRevokeBlocked>[0]
+  const counts = (upgrade: number, admin: number) => ({
+    ...decodeRoleCounts(0n, registryRoles),
+    ROLE_UPGRADE: upgrade,
+    ROLE_UPGRADE_ADMIN: admin,
+  })
+  const blocked = (overrides: Partial<Params> = {}) =>
     isUpgradeRevokeBlocked({
       isPendingUpgrade: true,
-      rootRoleCounts: { ROLE_UPGRADE: 1, ROLE_UPGRADE_ADMIN: 1 },
+      rootRoleCounts: counts(1, 1),
       accountRoles: ['ROLE_UPGRADE', 'ROLE_UPGRADE_ADMIN'],
       toGrant: [],
       toRevoke: ['ROLE_UPGRADE', 'ROLE_UPGRADE_ADMIN'],
       ...overrides,
     })
 
-  it.each([
+  it.each<{
+    readonly case: string
+    readonly overrides: Partial<Params>
+    readonly expected: boolean
+  }>([
     { case: 'the last holder revokes both', overrides: {}, expected: true },
     {
       case: 'the account keeps the admin role',
-      overrides: { toRevoke: ['ROLE_UPGRADE'] as Role[] },
+      overrides: { toRevoke: ['ROLE_UPGRADE'] },
       expected: false,
     },
     {
       case: 'another account holds it on-chain',
-      overrides: { rootRoleCounts: { ROLE_UPGRADE: 2, ROLE_UPGRADE_ADMIN: 1 } },
+      overrides: { rootRoleCounts: counts(2, 1) },
       expected: false,
     },
     {
       case: 'the admin role is swapped for the role in one edit',
       overrides: {
-        accountRoles: ['ROLE_UPGRADE_ADMIN'] as Role[],
-        rootRoleCounts: { ROLE_UPGRADE: 0, ROLE_UPGRADE_ADMIN: 1 },
-        toGrant: ['ROLE_UPGRADE'] as Role[],
-        toRevoke: ['ROLE_UPGRADE_ADMIN'] as Role[],
+        accountRoles: ['ROLE_UPGRADE_ADMIN'],
+        rootRoleCounts: counts(0, 1),
+        toGrant: ['ROLE_UPGRADE'],
+        toRevoke: ['ROLE_UPGRADE_ADMIN'],
       },
       expected: false,
     },
     {
       case: 'no upgrade role is revoked',
-      overrides: { toRevoke: ['ROLE_RENEW'] as Role[] },
+      overrides: { toRevoke: ['ROLE_RENEW'] },
       expected: false,
     },
     {

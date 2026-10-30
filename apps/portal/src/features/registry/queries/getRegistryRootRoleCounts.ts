@@ -6,7 +6,7 @@ import { permissionedRegistryRoleCountSnippet } from '@ensdomains/ensjs-abi/v2/p
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { readContract } from 'viem/actions'
-import { ROOT_RESOURCE } from '@/lib/roles/roleHistory'
+import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class GetRegistryRootRoleCountsError extends TaggedError(
@@ -30,7 +30,7 @@ const getRegistryRootRoleCounts = ResultFn(async function* ({
       address: registryAddress,
       abi: permissionedRegistryRoleCountSnippet,
       functionName: 'roleCount',
-      args: [ROOT_RESOURCE],
+      args: [ROOT_RESOURCE_ID],
     }),
     (cause) => new GetRegistryRootRoleCountsError({ cause }),
   )

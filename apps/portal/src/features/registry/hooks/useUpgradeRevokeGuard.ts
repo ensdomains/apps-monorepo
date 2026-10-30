@@ -26,7 +26,7 @@ export const useUpgradeRevokeGuard = ({
   )
   const { data: rootRoleCounts } = useQuery({
     ...getRegistryRootRoleCountsQueryOptions({ registryAddress }),
-    enabled: isPendingUpgrade !== false,
+    enabled: isPendingUpgrade === true,
   })
   const { data: accountRootRoles } = useQuery({
     ...getNameRolesForAccountQueryOptions({
@@ -34,7 +34,7 @@ export const useUpgradeRevokeGuard = ({
       resource: ROOT_RESOURCE_ID,
       account: account ?? zeroAddress,
     }),
-    enabled: account !== null && isPendingUpgrade !== false,
+    enabled: account !== null && isPendingUpgrade === true,
   })
   const isBlocked = (toGrant: readonly Role[], toRevoke: readonly Role[]) =>
     isUpgradeRevokeBlocked({
@@ -49,6 +49,8 @@ export const useUpgradeRevokeGuard = ({
   return {
     isSaveBlocked,
     isRemoveBlocked,
-    isAnyBlocked: isSaveBlocked || isRemoveBlocked,
+    // Unknown still blocks, but only a confirmed registry gets the explanation.
+    shouldShowNotice:
+      isPendingUpgrade === true && (isSaveBlocked || isRemoveBlocked),
   }
 }

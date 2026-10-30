@@ -328,7 +328,7 @@ export const RegistryEditUserSheet = ({
                 </Alert>
               )}
 
-              {upgradeGuard.isAnyBlocked && (
+              {upgradeGuard.shouldShowNotice && (
                 <Alert variant="warning">
                   <AlertDescription>
                     This registry needs an upgrade to its current version first.
