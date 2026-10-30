@@ -1,7 +1,8 @@
-import type {
-  BignameClient,
-  Envelope,
-  NameRecord,
+import {
+  type BignameClient,
+  type Envelope,
+  type NameRecord,
+  readAllEnvelopes,
 } from '@ens-apps/indexer/bigname'
 import { okAsync, ResultAsync } from 'neverthrow'
 import { lookupNameRecords } from './bignameLookup'
@@ -17,23 +18,28 @@ export const getMigrationInventoryIndexer = async (params: {
   readonly chainId: number
   readonly signal?: AbortSignal
 }): Promise<BignameClient> => {
-  const { indexer, signal } = params
+  const { indexer, signal, ownerAddress } = params
   signal?.throwIfAborted()
   const names = [...new Set(params.names.map((name) => name.toLowerCase()))]
-  if (!params.ownerAddress || names.length < 3) return indexer
-  // Bound the extra work to one counts page. Unlisted names keep their original reads.
+  if (!ownerAddress || names.length < 3) return indexer
+  // Keep each counts page's publication so later pages obey the same evidence checks.
   const batch = await ResultAsync.fromPromise(
     Promise.all([
-      indexer.addressNames(
-        params.ownerAddress,
-        {
-          namespace: 'ens',
-          relation: 'any',
-          authority: ['ens_v1', 'ens_v0'],
-          include: ['counts'],
-          sort: 'name',
-          page_size: 200,
-        },
+      readAllEnvelopes(
+        (cursor, requestSignal) =>
+          indexer.addressNames(
+            ownerAddress,
+            {
+              namespace: 'ens',
+              relation: 'any',
+              authority: ['ens_v1', 'ens_v0'],
+              include: ['counts'],
+              sort: 'name',
+              page_size: 200,
+              ...(cursor !== undefined && { cursor }),
+            },
+            { signal: requestSignal },
+          ),
         { signal },
       ),
       lookupNameRecords(indexer.lookup, names, { signal }),
@@ -50,16 +56,18 @@ export const getMigrationInventoryIndexer = async (params: {
     ),
   )
   const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
-  const entries = counts.value.data.flatMap((row) => {
-    const result = getNameRecordWithCount({
-      row,
-      meta: counts.value.meta,
-      lookup: records.get(row.name.toLowerCase()),
-      chainId: params.chainId,
-      nowSeconds,
-    })
-    return result ? [[row.name.toLowerCase(), result] as const] : []
-  })
+  const entries = counts.value.flatMap(({ data, meta }) =>
+    data.flatMap((row) => {
+      const result = getNameRecordWithCount({
+        row,
+        meta,
+        lookup: records.get(row.name.toLowerCase()),
+        chainId: params.chainId,
+        nowSeconds,
+      })
+      return result ? [[row.name.toLowerCase(), result] as const] : []
+    }),
+  )
   const inventories = new Map<string, Envelope<NameRecord>>(entries)
   return {
     ...indexer,

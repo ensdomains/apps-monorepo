@@ -13,6 +13,7 @@ import {
   DirectMigrationRouteError,
   resolveDirectMigrationRoutes,
 } from './directMigrationRoutes'
+import { hasVerifiedEmptyMigrationRoot } from './migrationBignameEvidence'
 import { getMigrationInventoryIndexer } from './migrationInventoryIndexer'
 import {
   applySubnameRecreation,
@@ -98,6 +99,7 @@ const checkSubnameCandidates = async (params: {
   readonly signal?: AbortSignal
 }): Promise<readonly SubnameCandidateResult[]> => {
   const results: SubnameCandidateResult[] = []
+  const selectedNames = params.candidates.map(({ domain }) => domain.name)
   for (
     let offset = 0;
     offset < params.candidates.length;
@@ -110,6 +112,24 @@ const checkSubnameCandidates = async (params: {
           try {
             const canImport = canImportDirectSubnames(name)
             if (params.isSubnameImportEnabled && canImport) {
+              const inventory = await params.indexer.name(
+                name.domain.name,
+                { namespace: 'ens', include: ['counts'] },
+                { signal: params.signal },
+              )
+              params.signal?.throwIfAborted()
+              if (
+                inventory.isOk() &&
+                hasVerifiedEmptyMigrationRoot({
+                  inventory: inventory.value,
+                  name: name.domain.name,
+                  node: name.domain.id,
+                  selectedNames,
+                  chainId: envConfig.chain.id,
+                  nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
+                })
+              )
+                return { status: 'verified', subnames: [] }
               const discovery = await discoverSubnameRecreation({
                 domains: [name.domain],
                 owner: params.owner,

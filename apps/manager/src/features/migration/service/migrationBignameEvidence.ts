@@ -5,9 +5,41 @@ import {
   type NameRecord,
   toUnixSeconds,
 } from '@ens-apps/indexer/bigname'
+import { canSkipEmptySubtree } from '@ens-apps/migration'
 import type { LookupNameRecord } from './bignameLookup'
 
 const MAX_INDEX_AGE_SECONDS = 300n
+
+export const hasVerifiedEmptyMigrationRoot = (params: {
+  readonly inventory: Envelope<NameRecord>
+  readonly name: string
+  readonly node: string
+  readonly selectedNames: readonly string[]
+  readonly chainId: number
+  readonly nowSeconds: bigint
+}): boolean => {
+  const { data, meta } = params.inventory
+  return (
+    data.read_status === 'ok' &&
+    data.namespace === 'ens' &&
+    data.authority === 'ens_v1' &&
+    data.name.toLowerCase() === params.name.toLowerCase() &&
+    data.namehash.toLowerCase() === params.node.toLowerCase() &&
+    hasFreshCompletePublication({
+      meta,
+      chainId: params.chainId,
+      nowSeconds: params.nowSeconds,
+    }) &&
+    canSkipEmptySubtree({
+      shouldSkipEmptySubtrees: true,
+      name: params.name,
+      count: data.subname_count,
+      meta,
+      chainId: params.chainId,
+      selectedNames: params.selectedNames,
+    })
+  )
+}
 
 export const hasFreshCompletePublication = (params: {
   readonly meta: Meta

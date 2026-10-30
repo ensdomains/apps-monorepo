@@ -1,6 +1,15 @@
-import { ok } from 'neverthrow'
-import { namehash, type PublicClient, zeroAddress } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { BignameError, createBignameClient } from '@ens-apps/indexer/bigname'
+import { errAsync, ok } from 'neverthrow'
+import {
+  createPublicClient,
+  custom,
+  namehash,
+  type PublicClient,
+  zeroAddress,
+  zeroHash,
+} from 'viem'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { envConfig } from '@/config'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { makeClassified, OWNER } from './_fixtures'
 import { computeExpectedWrapperRegistry } from './directMigrationRoutes'
@@ -9,9 +18,10 @@ import { SubnameRecreationError } from './subnameRecreationError'
 const mocks = vi.hoisted(() => ({
   discoverSubnameRecreation: vi.fn(),
   getSubnameMigrationImpact: vi.fn(),
+  name: vi.fn(),
 }))
 
-vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+vi.mock('@/lib/bigname', () => ({ bigname: { name: mocks.name } }))
 vi.mock('./migrationInventoryIndexer', () => ({
   getMigrationInventoryIndexer: async ({
     indexer,
@@ -32,6 +42,70 @@ vi.mock('./subnameRecreation', () => ({
 import { resolveMigratableNames } from './migratableNames'
 
 describe('resolveMigratableNames', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.name.mockReturnValue(
+      errAsync(
+        new BignameError({ code: 'network', message: 'Inventory unavailable' }),
+      ),
+    )
+  })
+
+  it('skips snapshot RPC for verified empty inventories', async () => {
+    const names = ['alice.eth', 'bob.eth', 'carol.eth'].map((name) =>
+      makeClassified({ name, id: namehash(name) }),
+    )
+    const indexer = createBignameClient('https://bigname.example', {
+      fetch: async (input) => {
+        const name = new URL(String(input)).pathname.slice('/v1/names/'.length)
+        return Response.json({
+          data: {
+            name,
+            namehash: namehash(name),
+            namespace: 'ens',
+            display_name: name,
+            read_status: 'ok',
+            authority: 'ens_v1',
+            status: 'active',
+            subname_count: 0,
+          },
+          meta: {
+            completeness: 'full',
+            as_of: {
+              [envConfig.chain.id]: {
+                block_number: 1,
+                block_hash: zeroHash,
+                timestamp: String(Math.floor(Date.now() / 1000)),
+              },
+            },
+          },
+        })
+      },
+    })
+    mocks.name.mockImplementation(indexer.name)
+    mocks.discoverSubnameRecreation.mockRejectedValue(
+      new Error('Full verification required'),
+    )
+    const rpc = vi.fn(async () => {
+      throw new Error('Empty trees do not need snapshot RPC')
+    })
+    const result = await resolveMigratableNames({
+      eligible: names,
+      owner: OWNER,
+      isSubnameImportEnabled: true,
+      publicClient: createPublicClient({
+        chain: envConfig.chain,
+        transport: custom({ request: rpc }),
+      }),
+    })
+
+    expect(result.eligible).toEqual(names)
+    expect(result.blockedSubnames).toEqual([])
+    expect(mocks.discoverSubnameRecreation).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalled()
+    mocks.discoverSubnameRecreation.mockReset()
+  })
+
   // The error message embeds the name, so only the fixed reason may decide.
   it.each([
     ['the indexed child inventory could not be read.', 'incomplete-inventory'],

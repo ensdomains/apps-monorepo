@@ -136,6 +136,28 @@ const run = async () => {
 }
 
 describe('fresh start checks with shared impact evidence', () => {
+  it('leaves an idle preview quiet and still verifies the wallet again before starting', async () => {
+    vi.useFakeTimers()
+    try {
+      mocks.hasZeroCount = true
+      const { result, unmount } = await run()
+      const rpcReads = mocks.rpc.mock.calls.length
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(180_000)
+      })
+
+      expect(mocks.fetch).not.toHaveBeenCalled()
+      expect(mocks.rpc).toHaveBeenCalledTimes(rpcReads)
+      await act(async () => {
+        expect(await result.current.checkBeforeStart()).toBe(true)
+      })
+      expect(mocks.fetch).toHaveBeenCalledTimes(1)
+      unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('still reads a fresh zero count before starting without fetching an empty child list', async () => {
     mocks.hasZeroCount = true
     const { result } = await run()

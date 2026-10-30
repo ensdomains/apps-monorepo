@@ -70,6 +70,7 @@ const fixture = (
     wrapped: [OTHER, 0, maxUint64] as [Address, number, bigint],
     head: 100n,
     parentEvents: [] as { args: { label: Hex } }[],
+    descendantEvents: [] as { args: { label: Hex } }[],
   }
   const indexer = createBignameClient('https://indexer.invalid', {
     fetch: async (input) => {
@@ -136,8 +137,11 @@ const fixture = (
       timestamp: 1000n + (blockNumber - 100n),
       hash: BLOCK_HASH,
     }),
-    getLogs: async ({ args }: { args: { node: Hex } }) =>
-      args.node === namehash(ROOT) ? state.parentEvents : [],
+    getLogs: vi.fn(async ({ args }: { args: { node: Hex } }) =>
+      args.node === namehash(ROOT)
+        ? state.parentEvents
+        : state.descendantEvents,
+    ),
     readContract,
   } as unknown as PublicClient
   const discover = () =>
@@ -147,10 +151,69 @@ const fixture = (
       publicClient: client,
       indexer,
     })
-  return { state, client, discover }
+  return { state, client, indexer, discover }
 }
 
 describe('direct subname source checks', () => {
+  it('verifies children in bounded parallel batches while preserving every source identity', async () => {
+    const rows = Array.from({ length: 9 }, (_, index) => {
+      const name = `child${index}.${ROOT}`
+      return { ...row, name, display_name: name, namehash: namehash(name) }
+    })
+    const context = fixture({ count: rows.length, rows })
+    let release = (): void => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const ownerReads = vi.fn(async () => {
+      await gate
+      return OTHER
+    })
+    const readContract = vi.fn(
+      async ({ functionName }: { functionName: string }) =>
+        functionName === 'owner' ? ownerReads() : DEFAULT_RESOLVER,
+    )
+    const discovery = discoverSubnameRecreation({
+      domains: [root],
+      owner: OWNER,
+      indexer: context.indexer,
+      publicClient: { ...context.client, readContract } as PublicClient,
+    })
+    try {
+      await vi.waitFor(() => expect(ownerReads).toHaveBeenCalledTimes(4))
+    } finally {
+      release()
+    }
+    const found = await discovery
+
+    expect(found.domains.map(({ name }) => name)).toEqual([
+      ROOT,
+      ...rows.map(({ name }) => name),
+    ])
+    expect(context.client.getLogs).toHaveBeenCalledTimes(2)
+    expect(context.client.getLogs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: { node: rows.map(({ namehash }) => namehash) },
+        fromBlock: 100n,
+        toBlock: 100n,
+      }),
+    )
+    expect(readContract.mock.calls.map(([request]) => request)).toEqual(
+      rows.flatMap((child) => [
+        expect.objectContaining({
+          functionName: 'owner',
+          args: [child.namehash],
+          blockNumber: 100n,
+        }),
+        expect.objectContaining({
+          functionName: 'resolver',
+          args: [child.namehash],
+          blockNumber: 100n,
+        }),
+      ]),
+    )
+  })
+
   it.each(['partial', 'stale'] as const)(
     'does not make a childless name a recreation root when its inventory is %s',
     async (kind) => {
@@ -245,6 +308,16 @@ describe('direct subname source checks', () => {
     context.state.parentEvents = [{ args: { label: labelhash('unindexed') } }]
     await expect(context.discover()).rejects.toThrow(
       /parent changed after indexing/,
+    )
+  })
+
+  it('rejects descendants created below any child in the batched log check', async () => {
+    const context = fixture()
+    context.state.descendantEvents = [
+      { args: { label: labelhash('new-leaf') } },
+    ]
+    await expect(context.discover()).rejects.toThrow(
+      /descendants changed after indexing/,
     )
   })
 

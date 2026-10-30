@@ -416,6 +416,8 @@ export const MigrationPage = () => {
     isEnabled: step === 'select' || shouldCheckImpactBeforeRetry,
     isPrepared:
       shouldCheckImpactBeforeRetry || networkEstimate.status === 'ready',
+    // Starting or retrying always rechecks; idle previews need no repeating wallet scan.
+    isRefetchEnabled: false,
   })
 
   useSyncRenewedV1Names()

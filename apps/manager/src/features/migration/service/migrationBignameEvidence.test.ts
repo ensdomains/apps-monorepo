@@ -1,7 +1,10 @@
 import type { AddressName, LookupRecord, Meta } from '@ens-apps/indexer/bigname'
 import { namehash, zeroHash } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { getNameRecordWithCount } from './migrationBignameEvidence'
+import {
+  getNameRecordWithCount,
+  hasVerifiedEmptyMigrationRoot,
+} from './migrationBignameEvidence'
 
 const NOW = 1_800_000_000n
 const row: AddressName = {
@@ -71,4 +74,71 @@ describe('getNameRecordWithCount', () => {
       expect(run(overrides)).toBeUndefined()
     },
   )
+})
+
+describe('hasVerifiedEmptyMigrationRoot', () => {
+  const runEmpty = (
+    overrides: Partial<
+      Parameters<typeof hasVerifiedEmptyMigrationRoot>[0]
+    > = {},
+  ) =>
+    hasVerifiedEmptyMigrationRoot({
+      inventory: { data: record, meta },
+      name: row.name,
+      node: row.namehash,
+      selectedNames: [row.name],
+      chainId: 1,
+      nowSeconds: NOW,
+      ...overrides,
+    })
+
+  it('accepts a fresh complete zero count for the selected root', () => {
+    expect(runEmpty()).toBe(true)
+  })
+
+  const cases: readonly {
+    readonly case: string
+    readonly overrides: Partial<
+      Parameters<typeof hasVerifiedEmptyMigrationRoot>[0]
+    >
+  }[] = [
+    {
+      case: 'nonempty',
+      overrides: { inventory: { data: { ...record, subname_count: 1 }, meta } },
+    },
+    {
+      case: 'unknown count',
+      overrides: {
+        inventory: { data: { ...record, subname_count: undefined }, meta },
+      },
+    },
+    { case: 'stale publication', overrides: { nowSeconds: NOW + 301n } },
+    {
+      case: 'partial publication',
+      overrides: {
+        inventory: { data: record, meta: { ...meta, completeness: 'partial' } },
+      },
+    },
+    { case: 'wrong node', overrides: { node: namehash('bob.eth') } },
+    { case: 'wrong name', overrides: { name: 'bob.eth' } },
+    {
+      case: 'unreadable record',
+      overrides: {
+        inventory: { data: { ...record, read_status: 'unsupported' }, meta },
+      },
+    },
+    {
+      case: 'upgraded record',
+      overrides: {
+        inventory: { data: { ...record, authority: 'ens_v2' }, meta },
+      },
+    },
+    {
+      case: 'contradicting selected child',
+      overrides: { selectedNames: [row.name, `sub.${row.name}`] },
+    },
+  ]
+  it.each(cases)('requires full verification for $case', ({ overrides }) => {
+    expect(runEmpty(overrides)).toBe(false)
+  })
 })

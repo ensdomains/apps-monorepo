@@ -57,6 +57,7 @@ export type SubnameRecreationSnapshot = {
 
 const SOURCE_MAX_AGE_SECONDS = 300n
 const MAX_DIRECT_CHILDREN = 200
+const SOURCE_READ_CONCURRENCY = 4
 const newOwnerEvent = parseAbi([
   'event NewOwner(bytes32 indexed node, bytes32 indexed label, address owner)',
 ])[0]
@@ -343,21 +344,8 @@ const readChildSource = async (
   publicClient: PublicClient,
   root: V1Domain,
   row: Subname,
-  oldestPublication: bigint,
   block: { number: bigint },
 ): Promise<V1Domain> => {
-  const descendants = await publicClient.getLogs({
-    address: V1_CONTRACTS.LegacyRegistry,
-    event: newOwnerEvent,
-    args: { node: row.namehash },
-    fromBlock: oldestPublication,
-    toBlock: block.number,
-  })
-  if (descendants.length)
-    fail(
-      row.name,
-      'its descendants changed after indexing. Refresh the complete tree before continuing.',
-    )
   const [registryOwner, resolver] = await Promise.all([
     publicClient.readContract({
       address: V1_CONTRACTS.LegacyRegistry,
@@ -413,6 +401,52 @@ const readChildSource = async (
     registrant: null,
     registration: null,
   }
+}
+
+const readChildSources = async (params: {
+  readonly publicClient: PublicClient
+  readonly root: V1Domain
+  readonly rows: readonly Subname[]
+  readonly oldestPublication: bigint
+  readonly block: { readonly number: bigint }
+  readonly signal?: AbortSignal
+}): Promise<readonly V1Domain[]> => {
+  const descendants = await params.publicClient.getLogs({
+    address: V1_CONTRACTS.LegacyRegistry,
+    event: newOwnerEvent,
+    args: { node: params.rows.map(({ namehash }) => namehash) },
+    fromBlock: params.oldestPublication,
+    toBlock: params.block.number,
+  })
+  if (descendants.length)
+    fail(
+      params.root.name,
+      'its descendants changed after indexing. Refresh the complete tree before continuing.',
+    )
+  let children: readonly V1Domain[] = []
+  for (
+    let offset = 0;
+    offset < params.rows.length;
+    offset += SOURCE_READ_CONCURRENCY
+  ) {
+    params.signal?.throwIfAborted()
+    children = [
+      ...children,
+      ...(await Promise.all(
+        params.rows
+          .slice(offset, offset + SOURCE_READ_CONCURRENCY)
+          .map((row) =>
+            readChildSource(
+              params.publicClient,
+              params.root,
+              row,
+              params.block,
+            ),
+          ),
+      )),
+    ]
+  }
+  return children
 }
 
 /** Reads labels from the index, but owner/resolver/permissions from a canonical RPC checkpoint. */
@@ -491,19 +525,15 @@ export const discoverSubnameRecreation = async (params: {
         name,
         'the parent changed after indexing. Refresh the full inventory before continuing.',
       )
-    for (const row of rows) {
-      signal?.throwIfAborted()
-      domains.set(
-        row.name,
-        await readChildSource(
-          publicClient,
-          root.domain,
-          row,
-          oldestPublication,
-          block,
-        ),
-      )
-    }
+    const children = await readChildSources({
+      publicClient,
+      root: root.domain,
+      rows,
+      oldestPublication,
+      block,
+      signal,
+    })
+    for (const child of children) domains.set(child.name, child)
   }
   const values = [...domains.values()]
   // Number-pinned reads can span an RPC reorg. Do not label a mixture of
