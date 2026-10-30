@@ -341,7 +341,7 @@ const ResolutionDetails = ({
   name: string
   address: string | null
   canEdit: boolean
-  editLock: RecordEditLock | undefined
+  readonly editLock: RecordEditLock | undefined
   addressInput: string
   setAddressInput: (v: string) => void
   isBusy: boolean
