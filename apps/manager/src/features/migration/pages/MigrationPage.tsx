@@ -483,6 +483,7 @@ export const MigrationPage = () => {
       type: 'eoa',
       walletClient: wagmiWalletClient as WalletClient,
       walletId: connector?.id,
+      connector,
     }
 
     try {

@@ -11,6 +11,12 @@ vi.mock('@/lib/bigname', () => ({
   },
 }))
 
+const getNameDetail = vi.fn()
+vi.mock('@/features/profile/hooks/useNameDetail', () => ({
+  readIndexedNameDetail: (...args: unknown[]) =>
+    ResultAsync.fromPromise(getNameDetail(...args), (e) => e),
+}))
+
 const { ensChain } = await import('@/lib/wagmi')
 const { getSubregistryHistory, readSubregistryHistory } = await import(
   './useSubregistrySlot'
@@ -39,10 +45,52 @@ const rows = (contracts: (string | null | undefined)[], hasMore = false) => ({
 const linkCount = async () =>
   (await getSubregistryHistory({ name: 'test.eth' }))._unsafeUnwrap()?.linkCount
 
+const link = (
+  subregistry?: Address,
+  registrationId: string | null = null,
+): NameHistoryRow => ({
+  id: 'a'.repeat(64),
+  type: 'subregistry',
+  name: 'test.eth',
+  namespace: 'ens',
+  registration_id: registrationId,
+  block_number: 1,
+  timestamp: '1',
+  transaction_hash: null,
+  log_index: null,
+  contract_address: '0x2222222222222222222222222222222222222222',
+  data: subregistry
+    ? { subregistry: { chain_id: 1, address: subregistry } }
+    : {},
+})
+
 describe('getSubregistryHistory', () => {
   beforeEach(() => {
     getNameHistory.mockReset()
     getNameHistory.mockResolvedValue(rows([]))
+    getNameDetail.mockReset()
+    getNameDetail.mockResolvedValue(null)
+  })
+
+  it("checks a restore against the name's current registration", async () => {
+    getNameHistory.mockResolvedValue({
+      ...rows([]),
+      data: [link(undefined, 'a'), link(V2_REGISTRY, 'a')],
+    })
+    getNameDetail.mockResolvedValue({ registrationId: 'a' })
+
+    const result = await getSubregistryHistory({ name: 'Test.eth' })
+
+    expect(result._unsafeUnwrap()?.isRestorable).toBe(true)
+    expect(getNameDetail).toHaveBeenCalledWith({ name: 'test.eth' })
+  })
+
+  it('fails rather than guessing when the current registration cannot be read', async () => {
+    getNameDetail.mockRejectedValue(new Error('bigname down'))
+
+    expect((await getSubregistryHistory({ name: 'test.eth' })).isErr()).toBe(
+      true,
+    )
   })
 
   it('reads the subregistry rows of the normalized name', async () => {
@@ -51,6 +99,7 @@ describe('getSubregistryHistory', () => {
     expect(result._unsafeUnwrap()).toEqual({
       linkCount: 0,
       previousRegistry: undefined,
+      isRestorable: false,
     })
     expect(getNameHistory).toHaveBeenCalledWith('test.eth', {
       namespace: 'ens',
@@ -103,22 +152,6 @@ describe('getSubregistryHistory', () => {
 })
 
 describe('readSubregistryHistory', () => {
-  const link = (subregistry?: Address): NameHistoryRow => ({
-    id: 'a'.repeat(64),
-    type: 'subregistry',
-    name: 'test.eth',
-    namespace: 'ens',
-    registration_id: null,
-    block_number: 1,
-    timestamp: '1',
-    transaction_hash: null,
-    log_index: null,
-    contract_address: '0x2222222222222222222222222222222222222222',
-    data: subregistry
-      ? { subregistry: { chain_id: 1, address: subregistry } }
-      : {},
-  })
-
   it('names the registry the newest link pointed at, past a later clear', () => {
     expect(
       readSubregistryHistory({
@@ -129,7 +162,59 @@ describe('readSubregistryHistory', () => {
         ],
         hasMore: false,
         v1Registries: new Set(),
+        currentRegistrationId: null,
       }),
-    ).toEqual({ linkCount: 3, previousRegistry: V2_REGISTRY })
+    ).toEqual({
+      linkCount: 3,
+      previousRegistry: V2_REGISTRY,
+      isRestorable: false,
+    })
   })
+
+  it.each([
+    {
+      case: 'a clear of that link, in the current registration',
+      rows: [link(undefined, 'a'), link(V2_REGISTRY, 'a')],
+      currentRegistrationId: 'a',
+      isRestorable: true,
+    },
+    {
+      // An expiry's clear is filed under the lapsed registration, and the
+      // re-registration that follows emits no subregistry row.
+      case: 'a clear in a registration the name was registered again since',
+      rows: [link(undefined, 'a'), link(V2_REGISTRY, 'a')],
+      currentRegistrationId: 'b',
+      isRestorable: false,
+    },
+    {
+      case: 'a clear made in a later registration',
+      rows: [link(undefined, 'b'), link(V2_REGISTRY, 'a')],
+      currentRegistrationId: 'b',
+      isRestorable: false,
+    },
+    {
+      case: 'a link with no clear after it',
+      rows: [link(V2_REGISTRY, 'a')],
+      currentRegistrationId: 'a',
+      isRestorable: false,
+    },
+    {
+      case: 'rows with no registration',
+      rows: [link(), link(V2_REGISTRY)],
+      currentRegistrationId: null,
+      isRestorable: false,
+    },
+  ])(
+    '$case: restorable $isRestorable',
+    ({ rows, currentRegistrationId, isRestorable }) => {
+      expect(
+        readSubregistryHistory({
+          rows,
+          hasMore: false,
+          v1Registries: new Set(),
+          currentRegistrationId,
+        })?.isRestorable,
+      ).toBe(isRestorable)
+    },
+  )
 })

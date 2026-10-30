@@ -29,6 +29,7 @@ const makeMerged = (overrides: Partial<MergedItem> = {}): MergedItem => ({
   sortCreated: 100n,
   name: makeName(),
   isMigrationEligible: false,
+  isMigrationUpgradeable: false,
   ...overrides,
 })
 
