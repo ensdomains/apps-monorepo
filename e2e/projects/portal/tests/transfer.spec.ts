@@ -56,6 +56,7 @@ import {
   testClient,
   walletClient,
 } from '../../../helpers/anvil-client.js'
+import { preserveWalletRpcErrors } from '../../../helpers/headless-wallet-errors.js'
 import { waitForIndexedRegistry } from '../../../helpers/indexer-sync.js'
 import {
   authorizeTransaction,
@@ -1376,6 +1377,8 @@ test.describe('Portal name transfer', () => {
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(300_000)
 
+    // Preserve the rejection code so the app does not automatically retry it.
+    preserveWalletRpcErrors(wallet)
     await connectWithHeadlessWallet(page, wallet)
 
     const name = await makeName({
@@ -2989,8 +2992,11 @@ test.describe('Portal name transfer — subnames, irreversible steps', () => {
     // differ — the ordinary case, and the one `getOwnResolver` exists for —
     // the record lands on a contract the name no longer references while the
     // user is told the update succeeded.
+    const setEthAddrId = transferTxId(name, 'set-eth-addr')
     expect(
-      succeeded.has(transferTxId(name, 'set-eth-addr')),
+      [...succeeded].some(
+        (id) => id === setEthAddrId || id.startsWith(`${setEthAddrId}--`),
+      ),
       'E2E-010: set-eth-addr must refuse once the name has no resolver of its ' +
         'own — the guard for exactly this is inert because fetchQuery is served ' +
         'from a 1-hour-stale cache, so the write lands on a stale resolver and ' +
