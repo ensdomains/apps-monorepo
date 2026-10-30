@@ -214,6 +214,47 @@ test.describe('Portal resolver records', () => {
     ).toBe('owner only')
   })
 
+  // WEB-1324: a resolver set to a plain account (the owner's own wallet, say)
+  // used to open the editor, and the save failed in the wallet with an opaque
+  // "external transactions to internal accounts cannot include data".
+  test('refuses record editing when the resolver is not a contract', {
+    tag: ['@scenario:E5'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({ label: 'rec-eoa', owner: 'user' })
+    await setResolver(
+      name.replace(/\.eth$/, ''),
+      wallets.address('owner'),
+      wallets.account('owner'),
+    )
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/edit-records`)
+    await expect(
+      page.getByText(/resolver .* is not a contract/i),
+      'the editor must say why it is refusing',
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(
+      page.getByRole('button', { name: 'Add record' }),
+      'no record transaction may be constructible',
+    ).toHaveCount(0)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/address`)
+    await page
+      .getByRole('row', { name: /Mainnet/ })
+      .getByRole('button', { name: 'More' })
+      .click()
+    const sidebar = page.getByRole('dialog')
+    await expect(
+      sidebar.getByText(/resolver .* is not a contract/i),
+      'the address sidebar must say why it is refusing',
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(
+      sidebar.getByRole('button', { name: 'Save' }),
+      'the address sidebar must not offer a save',
+    ).toHaveCount(0)
+  })
+
   test('sets address records for an EVM and a non-EVM coin', {
     tag: ['@scenario:E2'],
   }, async ({ portalPage: page, wallet, makeName, wallets }) => {

@@ -24,6 +24,7 @@ import { useConnection } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { EntityBadge } from '@/components/EntityBadge'
 import { InfoRow } from '@/components/InfoCard'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,6 +42,11 @@ import {
 } from '@/features/history/eventTypes'
 import { useIsNameOwner } from '@/features/ownership/hooks/useIsNameOwner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import {
+  RECORD_EDIT_LOCK_TITLE,
+  RecordEditLockReason,
+} from '@/features/records/components/RecordEditLockReason'
+import type { RecordEditLock } from '@/features/records/helpers/recordEditLock'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { DEFAULT_REVERSE_REGISTRAR_ADDRESS } from '@/features/reverse-resolution/config'
@@ -320,6 +326,7 @@ const ResolutionDetails = ({
   name,
   address,
   canEdit,
+  editLock,
   addressInput,
   setAddressInput,
   isBusy,
@@ -334,6 +341,7 @@ const ResolutionDetails = ({
   name: string
   address: string | null
   canEdit: boolean
+  editLock: RecordEditLock | undefined
   addressInput: string
   setAddressInput: (v: string) => void
   isBusy: boolean
@@ -387,6 +395,15 @@ const ResolutionDetails = ({
             ) : undefined
           }
         />
+      )}
+
+      {editLock && (
+        <Alert variant="warning">
+          <AlertTitle>{RECORD_EDIT_LOCK_TITLE}</AlertTitle>
+          <AlertDescription>
+            <RecordEditLockReason lock={editLock} name={name} />
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="flex flex-col gap-6">
@@ -481,7 +498,7 @@ const useAddressRecordEditor = (
   }
 
   // Root `ROLE_SET_ADDRESS`, or the role scoped to this row's coin type.
-  const { canEdit } = useCanEditRecords({
+  const { canEdit, editLock } = useCanEditRecords({
     name,
     roles: ['ROLE_SET_ADDRESS'],
     scope: data
@@ -655,6 +672,7 @@ const useAddressRecordEditor = (
 
   return {
     canEdit,
+    editLock,
     canSetPrimaryName,
     hasResolver: !!resolverAddress,
     addressInput,
@@ -717,6 +735,7 @@ export const AddressResolutionSidebar: FC<
               name={name}
               address={data.address}
               canEdit={editor.canEdit}
+              editLock={editor.editLock}
               addressInput={editor.addressInput}
               setAddressInput={editor.setAddressInput}
               isBusy={editor.isBusy}

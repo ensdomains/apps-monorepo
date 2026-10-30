@@ -88,7 +88,10 @@ type UseCanEditRecordsReturn = {
   hasOwnResolver: boolean | undefined
   resolverAddress: Address | null | undefined
   editableTypes: EditableTypes
-  /** Set when ownership alone would have allowed editing but the resolver refuses this wallet. */
+  /**
+   * Set when the resolver is not a contract, or when ownership alone would
+   * have allowed editing but the resolver refuses this wallet.
+   */
   readonly editLock: RecordEditLock | undefined
 }
 
@@ -107,6 +110,7 @@ type UseCanEditRecordsReturn = {
  *   delegates). Token ownership alone grants nothing there.
  * - V1 names on a non-permissioned resolver: falls back to token ownership,
  *   except where {@link useRecordEditLock} finds that locked out.
+ * - Never when the resolver is not a contract: nothing there can take a write.
  *
  * Either way the name must own its resolver. One inherited through ENSIP-10
  * wildcard resolution — a DNS name resolving through its TLD's
@@ -223,15 +227,12 @@ export function useCanEditRecords({
     !!ownerQuery.data?.owner &&
     isAddressEqual(connectedAddress, ownerQuery.data.owner)
 
-  // Scoped to the ownership fallback, the only branch that can be locked out.
   const { editLock, queries: lockQueries } = useRecordEditLock({
     name,
-    enabled:
-      enabled &&
-      isOwner &&
-      !isV2 &&
-      isPermissionedQuery.isSuccess &&
-      !isPermissioned,
+    enabled,
+    // The fuse lock applies only to the ownership fallback.
+    isOwnershipFallback:
+      isOwner && !isV2 && isPermissionedQuery.isSuccess && !isPermissioned,
     resolverAddress,
     account: connectedAddress,
   })
@@ -261,8 +262,11 @@ export function useCanEditRecords({
     !!resolverAddress &&
     hasOwnResolver === true
 
-  const canEdit = match({ isSettled, isPermissioned, isV2 })
+  const canEdit = match({ isSettled, isPermissioned, isV2, editLock })
     .with({ isSettled: false }, () => false)
+    // Every write probe "succeeds" against an account with no code, so this
+    // has to override the permissioned and V2 answers too.
+    .with({ editLock: 'resolver-not-contract' }, () => false)
     .with(
       { isPermissioned: true },
       () => grantedRoles.length + grantedScopes.length > 0,

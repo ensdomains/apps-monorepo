@@ -40,6 +40,7 @@ let isPermissionedQuery: QueryStub = idle()
 let roleQueries: QueryStub[] = []
 let resolverWriteQuery: QueryStub = idle()
 let grantsQuery: QueryStub = idle()
+let hasCodeQuery: QueryStub = idle()
 /** What the own-resolver check was asked, captured off its query key. */
 let ownResolverParams: unknown
 
@@ -88,6 +89,7 @@ vi.mock('@tanstack/react-query', async () => {
         })
         .with('is-permissioned-resolver', () => isPermissionedQuery)
         .with('can-modify-name-on-resolver', () => resolverWriteQuery)
+        .with('resolver-has-code', () => hasCodeQuery)
         .otherwise(idle)
 
       return enabled === false ? { ...stub, isLoading: false } : stub
@@ -129,6 +131,7 @@ describe('useCanEditRecords', () => {
     roleQueries = []
     resolverWriteQuery = idle()
     grantsQuery = idle()
+    hasCodeQuery = settled(true)
     ownResolverParams = undefined
   })
 
@@ -329,6 +332,43 @@ describe('useCanEditRecords', () => {
 
     const result = render()
     expect(result.isError).toBe(true)
+    expect(result.canEdit).toBe(false)
+  })
+
+  // WEB-1324: a resolver set to a wallet. Each branch below would otherwise
+  // say yes — ownership, a role read that answers, a write probe that
+  // "succeeds" — and send a record write the wallet then rejects.
+  it.each([
+    ['a v1 owner', () => {}],
+    [
+      'a v2 owner whose write probe passes',
+      () => {
+        ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv2' })
+        resolverWriteQuery = settled(true)
+      },
+    ],
+    [
+      'a granted resolver role',
+      () => {
+        isPermissionedQuery = settled(true)
+        roleQueries = [settled(true)]
+      },
+    ],
+  ] as const)('refuses %s when the resolver has no code', (_, arrange) => {
+    arrange()
+    hasCodeQuery = settled(false)
+
+    const result = render()
+
+    expect(result.canEdit).toBe(false)
+    expect(result.editLock).toBe('resolver-not-contract')
+  })
+
+  it('stays loading while the resolver code check is in flight', () => {
+    hasCodeQuery = loading()
+
+    const result = render()
+    expect(result.isLoading).toBe(true)
     expect(result.canEdit).toBe(false)
   })
 })
