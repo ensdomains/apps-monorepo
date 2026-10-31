@@ -55,7 +55,9 @@ import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { getLabelRegistrationError } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/create-subname')({
-  beforeLoad: ({ params: { name } }) => {
+  // Only ENSv2 subname creation is paused; an unknown protocol counts as ENSv2.
+  beforeLoad: ({ params: { name }, context: { protocolVersion } }) => {
+    if (protocolVersion === 'ENSv1') return
     throw redirect({
       to: '/$name/subnames',
       params: { name },

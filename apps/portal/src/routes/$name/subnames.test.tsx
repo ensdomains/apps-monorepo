@@ -359,23 +359,23 @@ describe('V1 subname creation', () => {
     },
     expiry: null,
   })
-  const createButton = () =>
-    screen.queryByRole('button', { name: /create subname/i })
+  const createLink = () =>
+    screen.queryByRole('link', { name: /create subname/i })
 
-  it('shows paused subname creation to the holder of an unwrapped name', async () => {
+  it('offers subname creation to the holder of an unwrapped name', async () => {
     v1({ kind: 'v1-registry', owner: CONNECTED })
     renderRoute()
 
     await screen.findByText(/no subnames yet/i)
-    expect(createButton()).toHaveAttribute('aria-disabled', 'true')
+    expect(createLink()).toBeInTheDocument()
   })
 
-  it('shows paused subname creation to the owner of a wrapped name', async () => {
+  it('offers subname creation to the owner of a wrapped name', async () => {
     v1(wrapped(false))
     renderRoute()
 
     await screen.findByText(/no subnames yet/i)
-    expect(createButton()).toHaveAttribute('aria-disabled', 'true')
+    expect(createLink()).toBeInTheDocument()
   })
 
   it('offers nothing when the wrapped name burned CANNOT_CREATE_SUBDOMAIN', async () => {
@@ -383,7 +383,7 @@ describe('V1 subname creation', () => {
     renderRoute()
 
     await screen.findByText(/no subnames yet/i)
-    expect(createButton()).not.toBeInTheDocument()
+    expect(createLink()).not.toBeInTheDocument()
   })
 
   it('offers nothing to an account that does not hold the name', async () => {
@@ -391,7 +391,7 @@ describe('V1 subname creation', () => {
     renderRoute()
 
     await screen.findByText(/no subnames yet/i)
-    expect(createButton()).not.toBeInTheDocument()
+    expect(createLink()).not.toBeInTheDocument()
   })
 
   it('says so when it could not check, rather than just hiding the link', async () => {
@@ -403,7 +403,7 @@ describe('V1 subname creation', () => {
         /couldn’t check whether you can create or delete subnames/i,
       ),
     ).toBeInTheDocument()
-    expect(createButton()).not.toBeInTheDocument()
+    expect(createLink()).not.toBeInTheDocument()
   })
 })
 

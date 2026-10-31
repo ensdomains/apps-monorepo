@@ -158,9 +158,18 @@ beforeEach(() => {
   rootRoleReads.mockReset()
 })
 
-it.each(['parent.eth', 'deep.parent.eth'])(
-  'redirects the direct creation URL for %s before the form can load',
-  async (name) => {
+it.each([
+  { name: 'parent.eth', protocol: 'ENSv2', path: '/parent.eth/subnames' },
+  {
+    name: 'deep.parent.eth',
+    protocol: 'ENSv2',
+    path: '/deep.parent.eth/subnames',
+  },
+  { name: 'parent.eth', protocol: undefined, path: '/parent.eth/subnames' },
+  { name: 'parent.eth', protocol: 'ENSv1', path: '/parent.eth/create-subname' },
+] as const)(
+  'sends the creation URL for $name ($protocol) to $path',
+  async ({ name, protocol, path }) => {
     const beforeLoad: unknown = Route.options.beforeLoad
     const root = createRootRoute()
     const subnames = createRoute({
@@ -171,7 +180,8 @@ it.each(['parent.eth', 'deep.parent.eth'])(
       getParentRoute: () => root,
       path: '/$name/create-subname',
       beforeLoad: ({ params }) => {
-        if (typeof beforeLoad === 'function') return beforeLoad({ params })
+        if (typeof beforeLoad === 'function')
+          return beforeLoad({ params, context: { protocolVersion: protocol } })
       },
     })
     const router = createRouter({
@@ -184,7 +194,7 @@ it.each(['parent.eth', 'deep.parent.eth'])(
 
     await router.load()
 
-    expect(router.state.location.pathname).toBe(`/${name}/subnames`)
+    expect(router.state.location.pathname).toBe(path)
     expect(router.state.matches.at(-1)?.status).toBe('success')
   },
 )

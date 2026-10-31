@@ -235,6 +235,21 @@ describe('SubnamesTable', () => {
     expect(screen.getByText('Create subname')).toBeInTheDocument()
   })
 
+  it('links to the creation form when creation is not paused', () => {
+    render(
+      <SubnamesTable
+        subnames={[]}
+        name="test.eth"
+        canCreateSubname
+        isCreationPaused={false}
+      />,
+    )
+
+    expect(
+      screen.getByRole('link', { name: 'Create subname' }),
+    ).toHaveAttribute('href', expect.stringContaining('create-subname'))
+  })
+
   it.each(['hover', 'focus'] as const)(
     'keeps creation inert and explains the temporary pause on %s',
     async (interaction) => {

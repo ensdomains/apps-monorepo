@@ -13,6 +13,20 @@ const ENCODED_NAME = `[${'ab'.repeat(32)}].sugh003.eth`
 const READ_RESOURCE_ID = 42n
 const CONNECTED: Address = '0x00000000000000000000000000000000000000cc'
 
+const isDeployPaused = vi.hoisted(() => vi.fn(() => false))
+vi.mock('@/features/registry/utils/registryDeployPause', () => ({
+  get IS_REGISTRY_DEPLOY_PAUSED() {
+    return isDeployPaused()
+  },
+}))
+
+const pastedRegistryCheck = vi.hoisted(() =>
+  vi.fn(() => ({ isBlocked: false, isPendingUpgrade: false })),
+)
+vi.mock('@/features/registry/hooks/usePastedRegistryCheck', () => ({
+  usePastedRegistryCheck: pastedRegistryCheck,
+}))
+
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return { ...actual, useConnection: () => ({ address: CONNECTED }) }
@@ -108,6 +122,11 @@ const deferred = <T,>() => {
 }
 
 beforeEach(() => {
+  isDeployPaused.mockReturnValue(false)
+  pastedRegistryCheck.mockReturnValue({
+    isBlocked: false,
+    isPendingUpgrade: false,
+  })
   discoverRegistries
     .mockReset()
     .mockResolvedValue([zeroAddress, PARENT_REGISTRY, PARENT_REGISTRY])
@@ -196,6 +215,56 @@ describe('SubregistryConfigurator', () => {
     for (const [params] of useSetSubregistryParams.mock.calls)
       expect(params).toMatchObject({ resourceId: READ_RESOURCE_ID })
   })
+
+  it.each([
+    { isPaused: true, isDeployEnabled: false },
+    { isPaused: false, isDeployEnabled: true },
+  ])(
+    'with deploying paused $isPaused, deploy is enabled: $isDeployEnabled',
+    async ({ isPaused, isDeployEnabled }) => {
+      isDeployPaused.mockReturnValue(isPaused)
+      renderConfigurator()
+
+      const deploy = await screen.findByRole('radio', {
+        name: /deploy a new permissioned registry/i,
+      })
+      expect(deploy.hasAttribute('disabled')).toBe(!isDeployEnabled)
+      expect(
+        screen.getByRole('radio', { name: /use a pre-existing registry/i }),
+      ).toHaveAttribute('aria-checked', String(!isDeployEnabled))
+    },
+  )
+
+  it.each([
+    { isPendingUpgrade: true, isRefused: true },
+    { isPendingUpgrade: false, isRefused: false },
+  ])(
+    'with a pasted registry pending an upgrade $isPendingUpgrade, it is refused: $isRefused',
+    async ({ isPendingUpgrade, isRefused }) => {
+      isDeployPaused.mockReturnValue(true)
+      pastedRegistryCheck.mockReturnValue({
+        isBlocked: isPendingUpgrade,
+        isPendingUpgrade,
+      })
+      renderConfigurator()
+
+      const setRegistry = await screen.findByRole('button', {
+        name: 'Set registry',
+      })
+      await userEvent.type(
+        screen.getByPlaceholderText('Paste contract address'),
+        PARENT_REGISTRY,
+      )
+      expect(
+        Boolean(
+          screen.queryByText(
+            'This registry has to be upgraded before a name can use it.',
+          ),
+        ),
+      ).toBe(isRefused)
+      expect(setRegistry.hasAttribute('disabled')).toBe(isRefused)
+    },
+  )
 
   it('skips the id read for a name whose id comes from its label', async () => {
     renderConfigurator('1.sugh003.eth')

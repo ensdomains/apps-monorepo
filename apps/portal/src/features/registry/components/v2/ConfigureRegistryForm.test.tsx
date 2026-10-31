@@ -11,6 +11,20 @@ const PARENT_REGISTRY: Address = '0x00000000000000000000000000000000000000aa'
 const LIVE_REGISTRY: Address = '0x00000000000000000000000000000000000000bb'
 const CUSTOM_REGISTRY: Address = '0x00000000000000000000000000000000000000cc'
 
+const isDeployPaused = vi.hoisted(() => vi.fn(() => false))
+vi.mock('@/features/registry/utils/registryDeployPause', () => ({
+  get IS_REGISTRY_DEPLOY_PAUSED() {
+    return isDeployPaused()
+  },
+}))
+
+const pastedRegistryCheck = vi.hoisted(() =>
+  vi.fn(() => ({ isBlocked: false, isPendingUpgrade: false })),
+)
+vi.mock('@/features/registry/hooks/usePastedRegistryCheck', () => ({
+  usePastedRegistryCheck: pastedRegistryCheck,
+}))
+
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return { ...actual, useConnection: () => ({ address: CONNECTED }) }
@@ -325,7 +339,7 @@ describe('ConfigureRegistryForm', () => {
       screen.getByPlaceholderText(/paste contract address/i),
       CUSTOM_REGISTRY,
     )
-    await user.click(screen.getByRole('button', { name: 'Deploy' }))
+    await user.click(screen.getByRole('button', { name: 'Set registry' }))
 
     expect(
       await screen.findByText(/registry already configured/i),
