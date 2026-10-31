@@ -927,6 +927,7 @@ msgstr ""
 msgid "Continue migration"
 msgstr ""
 
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Continue registration"
 msgstr ""
@@ -4003,6 +4004,10 @@ msgstr ""
 msgid "Where did this come from?"
 msgstr ""
 
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
+msgid "Withdraw"
+msgstr ""
+
 #: src/features/navigation/Header/account/WalletSection.tsx
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Withdraw leftover funds"
@@ -4176,6 +4181,7 @@ msgstr ""
 msgid "Your journey with ENS has given you these <0>traits</0>"
 msgstr ""
 
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Your leftover funds are back in your wallet."
 msgstr ""
@@ -4279,6 +4285,14 @@ msgstr ""
 
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Your smart account has no leftover funds."
+msgstr ""
+
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
+msgid "Your smart account holds {amount} left over from your payments."
+msgstr ""
+
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
+msgid "Your smart account holds {amount}, which your registration of {registrationName} still needs."
 msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx

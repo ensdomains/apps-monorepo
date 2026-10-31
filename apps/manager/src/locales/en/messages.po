@@ -922,6 +922,7 @@ msgstr "Continue in wallet"
 msgid "Continue migration"
 msgstr "Continue migration"
 
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Continue registration"
 msgstr "Continue registration"
@@ -3998,6 +3999,10 @@ msgstr "When a name expires, a temporary fee is added on top of its base price t
 msgid "Where did this come from?"
 msgstr "Where did this come from?"
 
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
+msgid "Withdraw"
+msgstr "Withdraw"
+
 #: src/features/navigation/Header/account/WalletSection.tsx
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Withdraw leftover funds"
@@ -4171,6 +4176,7 @@ msgstr "Your expired name is now in its {graceDays}-day grace period. Renew by <
 msgid "Your journey with ENS has given you these <0>traits</0>"
 msgstr "Your journey with ENS has given you these <0>traits</0>"
 
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Your leftover funds are back in your wallet."
 msgstr "Your leftover funds are back in your wallet."
@@ -4275,6 +4281,14 @@ msgstr "Your smart account also holds {leftoverFunds}, which your registration o
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Your smart account has no leftover funds."
 msgstr "Your smart account has no leftover funds."
+
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
+msgid "Your smart account holds {amount} left over from your payments."
+msgstr "Your smart account holds {amount} left over from your payments."
+
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
+msgid "Your smart account holds {amount}, which your registration of {registrationName} still needs."
+msgstr "Your smart account holds {amount}, which your registration of {registrationName} still needs."
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Your smart account isn't set up on-chain yet. Sessions you signed for it still work once anyone sets it up, so revoking needs a setup transaction first."
