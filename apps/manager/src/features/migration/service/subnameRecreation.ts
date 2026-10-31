@@ -16,6 +16,7 @@ import {
 import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import {
   type Address,
+  type GetLogsReturnType,
   type Hex,
   isAddress,
   isAddressEqual,
@@ -57,7 +58,9 @@ export type SubnameRecreationSnapshot = {
 
 const SOURCE_MAX_AGE_SECONDS = 300n
 const MAX_DIRECT_CHILDREN = 200
-const SOURCE_READ_CONCURRENCY = 4
+// Fits a full direct tree's owner/resolver reads; larger selections split at the same checkpoint.
+const SOURCE_MULTICALL_BATCH_BYTES = 24_576
+const SOURCE_LOG_BATCH_SIZE = 200
 const newOwnerEvent = parseAbi([
   'event NewOwner(bytes32 indexed node, bytes32 indexed label, address owner)',
 ])[0]
@@ -340,39 +343,120 @@ const assertCanonicalPublications = async (
   }
 }
 
-const readChildSource = async (
-  publicClient: PublicClient,
+type SubnameSource = {
+  readonly registryOwner: Address
+  readonly resolver: Address
+  readonly wrapper: readonly [Address, number, bigint] | null
+}
+
+const readSubnameSources = async (params: {
+  readonly publicClient: PublicClient
+  readonly nodes: readonly Hex[]
+  readonly blockNumber: bigint
+  readonly signal?: AbortSignal
+}): Promise<ReadonlyMap<Hex, SubnameSource>> => {
+  params.signal?.throwIfAborted()
+  if (params.nodes.length === 0) return new Map()
+  const records = await params.publicClient.multicall({
+    allowFailure: false,
+    blockNumber: params.blockNumber,
+    batchSize: SOURCE_MULTICALL_BATCH_BYTES,
+    contracts: params.nodes.flatMap((node) => [
+      {
+        address: V1_CONTRACTS.LegacyRegistry,
+        abi: registryOwnerSnippet,
+        functionName: 'owner' as const,
+        args: [node] as const,
+      },
+      {
+        address: V1_CONTRACTS.LegacyRegistry,
+        abi: registryResolverSnippet,
+        functionName: 'resolver' as const,
+        args: [node] as const,
+      },
+    ]),
+  })
+  params.signal?.throwIfAborted()
+  const sources = params.nodes.map((node, index) => {
+    const registryOwner = records[index * 2]
+    const resolver = records[index * 2 + 1]
+    if (registryOwner === undefined || resolver === undefined)
+      fail('selection', 'one or more source identities could not be read.')
+    return { node, registryOwner, resolver }
+  })
+  const wrapped = sources.filter(({ registryOwner }) =>
+    isAddressEqual(registryOwner, V1_CONTRACTS.NameWrapper),
+  )
+  const data =
+    wrapped.length > 0
+      ? await params.publicClient.multicall({
+          allowFailure: false,
+          blockNumber: params.blockNumber,
+          batchSize: SOURCE_MULTICALL_BATCH_BYTES,
+          contracts: wrapped.map(({ node }) => ({
+            address: V1_CONTRACTS.NameWrapper,
+            abi: nameWrapperGetDataSnippet,
+            functionName: 'getData' as const,
+            args: [BigInt(node)] as const,
+          })),
+        })
+      : []
+  params.signal?.throwIfAborted()
+  const wrappers = new Map(
+    wrapped.map(({ node }, index) => {
+      const wrapper = data[index]
+      if (wrapper === undefined)
+        fail(
+          'selection',
+          'one or more wrapped source identities could not be read.',
+        )
+      return [node, wrapper] as const
+    }),
+  )
+  return new Map(
+    sources.map(({ node, ...source }) => [
+      node,
+      { ...source, wrapper: wrappers.get(node) ?? null },
+    ]),
+  )
+}
+
+const readNewOwnerChanges = async (params: {
+  readonly publicClient: PublicClient
+  readonly nodes: readonly Hex[]
+  readonly fromBlock: bigint
+  readonly toBlock: bigint
+}): Promise<GetLogsReturnType<typeof newOwnerEvent>> => {
+  let events: GetLogsReturnType<typeof newOwnerEvent> = []
+  for (
+    let offset = 0;
+    offset < params.nodes.length;
+    offset += SOURCE_LOG_BATCH_SIZE
+  ) {
+    events = [
+      ...events,
+      ...(await params.publicClient.getLogs({
+        address: V1_CONTRACTS.LegacyRegistry,
+        event: newOwnerEvent,
+        args: {
+          node: params.nodes.slice(offset, offset + SOURCE_LOG_BATCH_SIZE),
+        },
+        fromBlock: params.fromBlock,
+        toBlock: params.toBlock,
+      })),
+    ]
+  }
+  return events
+}
+
+const childDomainFromSource = (
   root: V1Domain,
   row: Subname,
-  block: { number: bigint },
-): Promise<V1Domain> => {
-  const [registryOwner, resolver] = await Promise.all([
-    publicClient.readContract({
-      address: V1_CONTRACTS.LegacyRegistry,
-      abi: registryOwnerSnippet,
-      functionName: 'owner',
-      args: [row.namehash],
-      blockNumber: block.number,
-    }),
-    publicClient.readContract({
-      address: V1_CONTRACTS.LegacyRegistry,
-      abi: registryResolverSnippet,
-      functionName: 'resolver',
-      args: [row.namehash],
-      blockNumber: block.number,
-    }),
-  ])
+  source: SubnameSource,
+): V1Domain => {
+  const { registryOwner, resolver, wrapper } = source
   if (isAddressEqual(registryOwner, zeroAddress))
     fail(row.name, 'the child has no verifiable live controller.')
-  const wrapper = isAddressEqual(registryOwner, V1_CONTRACTS.NameWrapper)
-    ? await publicClient.readContract({
-        address: V1_CONTRACTS.NameWrapper,
-        abi: nameWrapperGetDataSnippet,
-        functionName: 'getData',
-        args: [BigInt(row.namehash)],
-        blockNumber: block.number,
-      })
-    : null
   if (wrapper && (wrapper[1] !== 0 || isAddressEqual(wrapper[0], zeroAddress)))
     fail(
       row.name,
@@ -411,10 +495,10 @@ const readChildSources = async (params: {
   readonly block: { readonly number: bigint }
   readonly signal?: AbortSignal
 }): Promise<readonly V1Domain[]> => {
-  const descendants = await params.publicClient.getLogs({
-    address: V1_CONTRACTS.LegacyRegistry,
-    event: newOwnerEvent,
-    args: { node: params.rows.map(({ namehash }) => namehash) },
+  const nodes = params.rows.map(({ namehash }) => namehash)
+  const descendants = await readNewOwnerChanges({
+    publicClient: params.publicClient,
+    nodes,
     fromBlock: params.oldestPublication,
     toBlock: params.block.number,
   })
@@ -423,30 +507,17 @@ const readChildSources = async (params: {
       params.root.name,
       'its descendants changed after indexing. Refresh the complete tree before continuing.',
     )
-  let children: readonly V1Domain[] = []
-  for (
-    let offset = 0;
-    offset < params.rows.length;
-    offset += SOURCE_READ_CONCURRENCY
-  ) {
-    params.signal?.throwIfAborted()
-    children = [
-      ...children,
-      ...(await Promise.all(
-        params.rows
-          .slice(offset, offset + SOURCE_READ_CONCURRENCY)
-          .map((row) =>
-            readChildSource(
-              params.publicClient,
-              params.root,
-              row,
-              params.block,
-            ),
-          ),
-      )),
-    ]
-  }
-  return children
+  const sources = await readSubnameSources({
+    publicClient: params.publicClient,
+    nodes,
+    blockNumber: params.block.number,
+    signal: params.signal,
+  })
+  return params.rows.map((row) => {
+    const source = sources.get(row.namehash)
+    if (!source) fail(row.name, 'the child source could not be verified.')
+    return childDomainFromSource(params.root, row, source)
+  })
 }
 
 /** Reads labels from the index, but owner/resolver/permissions from a canonical RPC checkpoint. */
@@ -557,6 +628,28 @@ export const discoverSubnameRecreation = async (params: {
   return { domains: values, snapshot }
 }
 
+const getSubnameSourceChange = (
+  domain: V1Domain,
+  source: SubnameSource,
+): 'controller-or-resolver' | 'wrapped-state' | null => {
+  if (
+    source.registryOwner.toLowerCase() !== domain.owner.id.toLowerCase() ||
+    source.resolver.toLowerCase() !==
+      (domain.resolver?.address ?? zeroAddress).toLowerCase()
+  )
+    return 'controller-or-resolver'
+  if (
+    domain.wrappedDomain &&
+    (!source.wrapper ||
+      source.wrapper[0].toLowerCase() !==
+        domain.wrappedOwner?.id.toLowerCase() ||
+      source.wrapper[1] !== domain.wrappedDomain.fuses ||
+      source.wrapper[2].toString() !== domain.wrappedDomain.expiryDate)
+  )
+    return 'wrapped-state'
+  return null
+}
+
 /** Revalidate source identities before signing. Receipt checks verify the reviewed import, not live V1 synchronisation. */
 export const assertSubnameRecreationUnchanged = async (params: {
   readonly publicClient: PublicClient
@@ -585,82 +678,62 @@ export const assertSubnameRecreationUnchanged = async (params: {
       (domain) => domain.name === root || domain.name.endsWith(`.${root}`),
     ),
   )
-  for (const root of relevantRoots) {
-    if (head.number <= BigInt(params.snapshot.blockNumber)) continue
-    const events = await params.publicClient.getLogs({
-      address: V1_CONTRACTS.LegacyRegistry,
-      event: newOwnerEvent,
-      args: { node: namehash(root) },
+  const children = params.domains.filter((domain) =>
+    relevantRoots.includes(parentOf(domain.name)),
+  )
+  if (head.number > BigInt(params.snapshot.blockNumber)) {
+    const events = await readNewOwnerChanges({
+      publicClient: params.publicClient,
+      nodes: relevantRoots.map((root) => namehash(root)),
       fromBlock: BigInt(params.snapshot.blockNumber) + 1n,
       toBlock: head.number,
     })
     if (events.length)
       fail(
-        root,
+        relevantRoots.find((root) =>
+          events.some(
+            ({ args }) =>
+              args.node?.toLowerCase() === namehash(root).toLowerCase(),
+          ),
+        ) ?? 'selection',
         'the child inventory changed after review. Prepare and review a fresh import.',
       )
-  }
-  for (const domain of params.domains) {
-    if (!relevantRoots.includes(parentOf(domain.name))) continue
-    if (head.number > BigInt(params.snapshot.blockNumber)) {
-      const descendants = await params.publicClient.getLogs({
-        address: V1_CONTRACTS.LegacyRegistry,
-        event: newOwnerEvent,
-        args: { node: namehash(domain.name) },
-        fromBlock: BigInt(params.snapshot.blockNumber) + 1n,
-        toBlock: head.number,
-      })
-      if (descendants.length)
-        fail(
-          domain.name,
-          'its descendants changed after review. Prepare a fresh import.',
-        )
-    }
-    const [owner, resolver] = await Promise.all([
-      params.publicClient.readContract({
-        address: V1_CONTRACTS.LegacyRegistry,
-        abi: registryOwnerSnippet,
-        functionName: 'owner',
-        args: [namehash(domain.name)],
-        blockNumber: head.number,
-      }),
-      params.publicClient.readContract({
-        address: V1_CONTRACTS.LegacyRegistry,
-        abi: registryResolverSnippet,
-        functionName: 'resolver',
-        args: [namehash(domain.name)],
-        blockNumber: head.number,
-      }),
-    ])
-    if (
-      !isAddressEqual(owner, domain.owner.id as Address) ||
-      !isAddressEqual(
-        resolver,
-        (domain.resolver?.address ?? zeroAddress) as Address,
+    const descendants = await readNewOwnerChanges({
+      publicClient: params.publicClient,
+      nodes: children.map(({ name }) => namehash(name)),
+      fromBlock: BigInt(params.snapshot.blockNumber) + 1n,
+      toBlock: head.number,
+    })
+    if (descendants.length)
+      fail(
+        children.find(({ name }) =>
+          descendants.some(
+            ({ args }) =>
+              args.node?.toLowerCase() === namehash(name).toLowerCase(),
+          ),
+        )?.name ?? 'selection',
+        'its descendants changed after review. Prepare a fresh import.',
       )
-    )
+  }
+  const sources = await readSubnameSources({
+    publicClient: params.publicClient,
+    nodes: children.map(({ name }) => namehash(name)),
+    blockNumber: head.number,
+  })
+  for (const domain of children) {
+    const source = sources.get(namehash(domain.name))
+    if (!source) fail(domain.name, 'the child source could not be verified.')
+    const change = getSubnameSourceChange(domain, source)
+    if (change === 'controller-or-resolver')
       fail(
         domain.name,
         'its V1 controller or resolver changed after review. Prepare a fresh import.',
       )
-    if (domain.wrappedDomain) {
-      const [holder, fuses, expiry] = await params.publicClient.readContract({
-        address: V1_CONTRACTS.NameWrapper,
-        abi: nameWrapperGetDataSnippet,
-        functionName: 'getData',
-        args: [BigInt(domain.id)],
-        blockNumber: head.number,
-      })
-      if (
-        !isAddressEqual(holder, domain.wrappedOwner?.id as Address) ||
-        fuses !== domain.wrappedDomain.fuses ||
-        expiry.toString() !== domain.wrappedDomain.expiryDate
+    if (change === 'wrapped-state')
+      fail(
+        domain.name,
+        'its wrapped owner or permissions changed after review. Prepare a fresh import.',
       )
-        fail(
-          domain.name,
-          'its wrapped owner or permissions changed after review. Prepare a fresh import.',
-        )
-    }
   }
   const [confirmedCutoff, confirmedHead] = await Promise.all([
     params.publicClient.getBlock({
