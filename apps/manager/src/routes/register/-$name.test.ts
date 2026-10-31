@@ -49,6 +49,16 @@ const runLoader = async (name: string, isAvailable = true) => {
 }
 
 describe('/register/$name loader', () => {
+  it.each(['alice.parent.eth', 'deeper.alice.parent.eth'])(
+    'refuses standalone subname registration for %s before checking availability',
+    async (name) => {
+      const { outcome, ensureQueryData } = await runLoader(name)
+
+      expect(outcome).toEqual(new Error('Subnames are not supported'))
+      expect(ensureQueryData).not.toHaveBeenCalled()
+    },
+  )
+
   it('registers the label it checked as available', async () => {
     const { outcome, ensureQueryData } = await runLoader('vitalik.eth')
 

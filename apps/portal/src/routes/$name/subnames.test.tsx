@@ -359,23 +359,23 @@ describe('V1 subname creation', () => {
     },
     expiry: null,
   })
-  const createLink = () =>
-    screen.queryByRole('link', { name: /create subname/i })
+  const createButton = () =>
+    screen.queryByRole('button', { name: /create subname/i })
 
-  it('offers subname creation to the holder of an unwrapped name', async () => {
+  it('shows paused subname creation to the holder of an unwrapped name', async () => {
     v1({ kind: 'v1-registry', owner: CONNECTED })
     renderRoute()
 
     await screen.findByText(/no subnames yet/i)
-    expect(createLink()).toBeInTheDocument()
+    expect(createButton()).toHaveAttribute('aria-disabled', 'true')
   })
 
-  it('offers subname creation to the owner of a wrapped name', async () => {
+  it('shows paused subname creation to the owner of a wrapped name', async () => {
     v1(wrapped(false))
     renderRoute()
 
     await screen.findByText(/no subnames yet/i)
-    expect(createLink()).toBeInTheDocument()
+    expect(createButton()).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('offers nothing when the wrapped name burned CANNOT_CREATE_SUBDOMAIN', async () => {
@@ -383,7 +383,7 @@ describe('V1 subname creation', () => {
     renderRoute()
 
     await screen.findByText(/no subnames yet/i)
-    expect(createLink()).not.toBeInTheDocument()
+    expect(createButton()).not.toBeInTheDocument()
   })
 
   it('offers nothing to an account that does not hold the name', async () => {
@@ -391,7 +391,7 @@ describe('V1 subname creation', () => {
     renderRoute()
 
     await screen.findByText(/no subnames yet/i)
-    expect(createLink()).not.toBeInTheDocument()
+    expect(createButton()).not.toBeInTheDocument()
   })
 
   it('says so when it could not check, rather than just hiding the link', async () => {
@@ -403,7 +403,7 @@ describe('V1 subname creation', () => {
         /couldn’t check whether you can create or delete subnames/i,
       ),
     ).toBeInTheDocument()
-    expect(createLink()).not.toBeInTheDocument()
+    expect(createButton()).not.toBeInTheDocument()
   })
 })
 
@@ -621,22 +621,22 @@ describe('subnames route role checks', () => {
     ).toBeInTheDocument()
   })
 
-  it('offers subname creation to a registry-wide role holder', async () => {
+  it('shows paused subname creation to a registry-wide role holder', async () => {
     renderRoute()
 
     expect(
-      await screen.findByRole('link', { name: /create subname/i }),
-    ).toBeInTheDocument()
+      await screen.findByRole('button', { name: /create subname/i }),
+    ).toHaveAttribute('aria-disabled', 'true')
   })
 
   // A reserved label is registered under ROLE_REGISTER_RESERVED alone.
-  it('offers subname creation to a reserved-registration holder', async () => {
+  it('shows paused subname creation to a reserved-registration holder', async () => {
     rootRoles = ['ROLE_REGISTER_RESERVED']
     renderRoute()
 
     expect(
-      await screen.findByRole('link', { name: /create subname/i }),
-    ).toBeInTheDocument()
+      await screen.findByRole('button', { name: /create subname/i }),
+    ).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('offers no subname creation without either registrar role', async () => {
@@ -654,7 +654,7 @@ describe('subnames route role checks', () => {
     await screen.findByRole('table')
     await waitFor(() => expect(rootRoleParams).toHaveBeenCalled())
     expect(
-      screen.queryByRole('link', { name: /create subname/i }),
+      screen.queryByRole('button', { name: /create subname/i }),
     ).not.toBeInTheDocument()
   })
 

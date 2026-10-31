@@ -1,4 +1,3 @@
-import { Link } from '@tanstack/react-router'
 import {
   type ColumnDef,
   flexRender,
@@ -289,12 +288,20 @@ export const SubnamesTable = ({
             {totalCount ? `Subnames (${totalCount})` : 'Subnames'}
           </PageHeading>
           {canCreateSubname && (
-            <Button variant="default" asChild>
-              <Link to="/$name/create-subname" params={{ name }}>
-                <Plus className="size-4" />
-                Create subname
-              </Link>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  aria-disabled="true"
+                  className="cursor-not-allowed opacity-50"
+                >
+                  <Plus className="size-4" />
+                  Create subname
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Subname creation temporarily disabled.
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
         {selectedCount > 0 && (
