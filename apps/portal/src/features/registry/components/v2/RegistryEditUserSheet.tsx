@@ -80,7 +80,7 @@ const UpgradeGuardNoticeAlert = ({
           .with(
             'upgrade',
             () =>
-              "This registry has to be upgraded to a newer version first. Someone needs to keep the Upgrade role until then, so it can't be removed yet.",
+              'This registry needs at least one user with the Upgrade role.',
           )
           .exhaustive()}
       </AlertDescription>
