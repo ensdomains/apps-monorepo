@@ -13,10 +13,10 @@ const ENCODED_NAME = `[${'ab'.repeat(32)}].sugh003.eth`
 const READ_RESOURCE_ID = 42n
 const CONNECTED: Address = '0x00000000000000000000000000000000000000cc'
 
-const deployPause = vi.hoisted(() => ({ isPaused: false }))
+const isDeployPaused = vi.hoisted(() => vi.fn(() => false))
 vi.mock('@/features/registry/utils/registryDeployPause', () => ({
   get IS_REGISTRY_DEPLOY_PAUSED() {
-    return deployPause.isPaused
+    return isDeployPaused()
   },
 }))
 
@@ -115,7 +115,7 @@ const deferred = <T,>() => {
 }
 
 beforeEach(() => {
-  deployPause.isPaused = false
+  isDeployPaused.mockReturnValue(false)
   discoverRegistries
     .mockReset()
     .mockResolvedValue([zeroAddress, PARENT_REGISTRY, PARENT_REGISTRY])
@@ -211,7 +211,7 @@ describe('SubregistryConfigurator', () => {
   ])(
     'with deploying paused $isPaused, deploy is enabled: $isDeployEnabled',
     async ({ isPaused, isDeployEnabled }) => {
-      deployPause.isPaused = isPaused
+      isDeployPaused.mockReturnValue(isPaused)
       renderConfigurator()
 
       const deploy = await screen.findByRole('radio', {

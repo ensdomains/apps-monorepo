@@ -11,10 +11,10 @@ const PARENT_REGISTRY: Address = '0x00000000000000000000000000000000000000aa'
 const LIVE_REGISTRY: Address = '0x00000000000000000000000000000000000000bb'
 const CUSTOM_REGISTRY: Address = '0x00000000000000000000000000000000000000cc'
 
-const deployPause = vi.hoisted(() => ({ isPaused: false }))
+const isDeployPaused = vi.hoisted(() => vi.fn(() => false))
 vi.mock('@/features/registry/utils/registryDeployPause', () => ({
   get IS_REGISTRY_DEPLOY_PAUSED() {
-    return deployPause.isPaused
+    return isDeployPaused()
   },
 }))
 
