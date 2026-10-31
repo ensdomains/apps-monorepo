@@ -2,6 +2,7 @@ import { useLingui } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
 import type React from 'react'
 import { useState } from 'react'
+import { match, P } from 'ts-pattern'
 import ensLogo from '@/assets/icons/ens.svg'
 import {
   Popover,
@@ -63,13 +64,19 @@ export const DesktopNavigation = ({
           to={isConnected ? '/dashboard' : '/'}
         >
           {/* Connected-wallet theme replaces the static mark. The chevron follows profileHeader. */}
-          {profileHeader ? (
-            <ProfileThemeEnsLogo color={profileThemeColor} />
-          ) : landingThemeColor ? (
-            <ProfileThemeEnsLogo color={landingThemeColor} />
-          ) : (
-            <img alt="ENS Logo" className="h-6.5 shrink-0" src={ensLogo} />
-          )}
+          {match({ profileHeader, landingThemeColor })
+            .with({ profileHeader: true }, () => (
+              <ProfileThemeEnsLogo color={profileThemeColor} />
+            ))
+            .with(
+              { landingThemeColor: P.string.minLength(1) },
+              ({ landingThemeColor }) => (
+                <ProfileThemeEnsLogo color={landingThemeColor} />
+              ),
+            )
+            .otherwise(() => (
+              <img alt="ENS Logo" className="h-6.5 shrink-0" src={ensLogo} />
+            ))}
         </Link>
         <PopoverTrigger
           aria-label={t`Open navigation`}
