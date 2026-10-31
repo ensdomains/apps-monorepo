@@ -89,5 +89,5 @@ export const NotConnected: Story = {
 }
 
 export const Mobile: Story = {
-  parameters: { viewport: { defaultViewport: 'mobile1' } },
+  globals: { viewport: { value: 'mobile1', isRotated: false } },
 }
