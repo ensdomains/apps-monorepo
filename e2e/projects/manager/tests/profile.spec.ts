@@ -1,8 +1,34 @@
-import { expect } from '@playwright/test'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { permissionedRegistryGetExpirySnippet } from '@ensdomains/ensjs-abi/v2'
+import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
+import { expect, type Page } from '@playwright/test'
+import {
+  type Address,
+  encodeAbiParameters,
+  encodeFunctionData,
+  keccak256,
+  parseAbi,
+  toHex,
+} from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
+import {
+  STANDALONE_HCA,
+  type V2NameConfig,
+} from '../../../fixtures/makeV2Name.js'
 import {
   authorizeTransaction,
   test,
 } from '../../../fixtures/playwright.manager.fixture.js'
+import {
+  publicClient,
+  testClient,
+  walletClient,
+} from '../../../helpers/anvil-client.js'
+import { waitForBignameBlock } from '../../../helpers/bigname-sync.js'
+import {
+  authorizeTransactionsWhile,
+  clickThroughEnableSessions,
+} from '../../../helpers/manager-auth.js'
 import {
   goToEditProfile,
   goToProfile,
@@ -12,6 +38,24 @@ import {
 } from '../../../helpers/profile-helpers.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
+
+const ETH_REGISTRY =
+  ensL1Contracts[supportedL1Chains.sepolia].ensRegistry.address
+const USDC = ensL1Contracts[supportedL1Chains.sepolia].usdc.address as Address
+const ERC20_ABI = parseAbi([
+  'function balanceOf(address) view returns (uint256)',
+  'function transfer(address to, uint256 amount) returns (bool)',
+])
+
+/** On-chain expiry (seconds) for a 2LD `label`, per the current V2 registry. */
+function readExpiry(label: string): Promise<bigint> {
+  return publicClient.readContract({
+    address: ETH_REGISTRY,
+    abi: permissionedRegistryGetExpirySnippet,
+    functionName: 'getExpiry',
+    args: [BigInt(keccak256(toHex(label)))],
+  })
+}
 
 test.describe('ENS profile', () => {
   test.describe.configure({ timeout: 300_000 })
@@ -156,7 +200,9 @@ test.describe('ENS profile', () => {
     console.log(`[profile] ✅ Validation errors correctly shown for ${name}`)
   })
 
-  test('add and remove name from favourites', async ({
+  test('add and remove name from favourites', {
+    tag: ['@scenario:H7'],
+  }, async ({
     // Favorites require backend auth — the FavoriteButton's
     // `disabled` prop is bound to `useAtom(isBackendAuthed)` and
     // the API mutations call the deployed worker. Use the
@@ -254,7 +300,9 @@ test.describe('ENS profile', () => {
     console.log(`[profile] ✅ Favourites add/remove succeeded for ${name}`)
   })
 
-  test('can favourite a name not owned by the user', async ({
+  test('can favourite a name not owned by the user', {
+    tag: ['@scenario:H7'],
+  }, async ({
     // Same backend-auth requirement as the owned-name favorites
     // test above — see comment there.
     profileAuthenticatedPageWithBackend: page,
@@ -321,13 +369,14 @@ test.describe('ENS profile', () => {
     )
   })
 
-  test('extend owned name by 28 days', async ({
-    profileConnectedPage: page,
-    makeV2Name,
-    wallet,
-  }) => {
+  test('extend owned name by 28 days', {
+    tag: ['@scenario:B1'],
+  }, async ({ profileConnectedPage: page, makeV2Name, wallet }) => {
     const name = await makeV2Name({ label: 'extendowned' })
+    const label = name.replace(/\.eth$/, '')
     console.log(`[profile] name for extend-owned test: ${name}`)
+
+    const expiryBefore = await readExpiry(label)
 
     await goToProfile(page, name)
     await page.getByRole('link', { name: /renew/i }).click()
@@ -348,9 +397,238 @@ test.describe('ENS profile', () => {
     console.log(
       `[profile] ✅ Extend owned name by 28 days succeeded for ${name}, expires ${expiry}`,
     )
+
+    // B1's oracle is the arithmetic itself — the UI showing the right date
+    // string is not proof the registrar actually moved the expiry.
+    const expiryAfter = await readExpiry(label)
+    const TWENTY_EIGHT_DAYS = 28n * 24n * 60n * 60n
+    expect(
+      expiryAfter - expiryBefore,
+      `expiry moved by ${expiryAfter - expiryBefore}s, expected exactly ${TWENTY_EIGHT_DAYS}s (28 days)`,
+    ).toBe(TWENTY_EIGHT_DAYS)
   })
 
-  test('extend unowned name by 28 days', async ({
+  test('renewing with no USDC: no payment can be made and the expiry does not move', {
+    tag: ['@scenario:B12'],
+  }, async ({ profileConnectedPage: page, makeV2Name, accounts }) => {
+    const name = await makeV2Name({ label: 'b12-broke' })
+    const label = name.replace(/\.eth$/, '')
+    const expiryBefore = await readExpiry(label)
+
+    // Stablecoin balances are read from the smart account's owner EOA
+    // (useSmartAccountBalances). Measured: which EOA that is varies between
+    // the headless wallet and the Para-embedded one, so park the USDC of
+    // both with a third account and bring it back whatever happens.
+    const payers = [
+      privateKeyToAccount(accounts.getPrivateKey('user')),
+      privateKeyToAccount(
+        (process.env.ANVIL_PARA_PRIVATE_KEY ??
+          '0x4d1cf5e322e2a7dbfc9e3eccde100ed93167879de7449d18872911ed3a957a81') as `0x${string}`,
+      ),
+    ]
+    const parking = accounts.getAddress('user2') as Address
+    const parkingAccount = privateKeyToAccount(accounts.getPrivateKey('user2'))
+    const balances = await Promise.all(
+      payers.map((p) =>
+        publicClient.readContract({
+          address: USDC,
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [p.address],
+        }),
+      ),
+    )
+    const move = async (
+      from: ReturnType<typeof privateKeyToAccount>,
+      to: Address,
+      amount: bigint,
+    ) => {
+      if (amount === 0n) return
+      const hash = await walletClient.sendTransaction({
+        account: from,
+        to: USDC,
+        data: encodeFunctionData({
+          abi: ERC20_ABI,
+          functionName: 'transfer',
+          args: [to, amount],
+        }),
+      })
+      await publicClient.waitForTransactionReceipt({ hash })
+    }
+    for (const [i, payer] of payers.entries())
+      await move(payer, parking, balances[i])
+    // A dev build with VITE_TIME_TRAVEL tops the owner up to 10,000 USDC on
+    // every load (anvilSetupOwner: ERC20 mint through the /rpc proxy) and may
+    // ask the backend to fund it. Refuse exactly those, so the empty wallet
+    // the test made is the wallet the page sees.
+    const MINT = '40c10f19' // mint(address,uint256)
+    await page.route('**/rpc', async (route) => {
+      const body = route.request().postData() ?? ''
+      if (!body.includes(MINT)) return route.fallback()
+      const calls = JSON.parse(body)
+      const reply = (c: { id: unknown }) => ({
+        jsonrpc: '2.0',
+        id: c.id,
+        error: { code: -32000, message: 'mint blocked by e2e (B12)' },
+      })
+      return route.fulfill({
+        json: Array.isArray(calls) ? calls.map(reply) : reply(calls),
+      })
+    })
+    await page.route('**/wallet/fund', (route) =>
+      route.fulfill({ json: { txHash: null } }),
+    )
+    // A previous renewal can leave spendable USDC in the HCA. The current
+    // picker correctly uses that balance as well as the wallet's balance.
+    const hcaSlot = keccak256(
+      encodeAbiParameters(
+        [{ type: 'address' }, { type: 'uint256' }],
+        [STANDALONE_HCA, 0n],
+      ),
+    )
+    const hcaStorage = await publicClient.getStorageAt({
+      address: USDC,
+      slot: hcaSlot,
+    })
+    await testClient.setStorageAt({
+      address: USDC,
+      index: hcaSlot,
+      value: toHex(0n, { size: 32 }),
+    })
+    try {
+      await goToProfile(page, name)
+      await page.getByRole('link', { name: /renew/i }).click()
+      await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+      await clickThroughEnableSessions(page)
+      // Measured: the picker shows the empty balance and the shortfall, and
+      // will not let USDC be chosen.
+      const fundingAddresses: Address[] = [
+        ...payers.map((payer) => payer.address),
+        STANDALONE_HCA,
+      ]
+      for (const address of fundingAddresses) {
+        expect(
+          await publicClient.readContract({
+            address: USDC,
+            abi: ERC20_ABI,
+            functionName: 'balanceOf',
+            args: [address],
+          }),
+          `empty funding precondition: ${address}`,
+        ).toBe(0n)
+      }
+      const usdc = page.getByRole('button', { name: 'Select USDC' })
+      await expect(usdc, 'USDC cannot be chosen').toBeDisabled({
+        timeout: 30_000,
+      })
+      await expect(usdc).toContainText('$0.00')
+      await expect(usdc, 'the shortfall is stated').toContainText(/Need \$\d/)
+      await expect(page.getByText('Renewal Complete!')).toHaveCount(0)
+      expect(await readExpiry(label), 'nothing was renewed').toBe(expiryBefore)
+    } finally {
+      await testClient.setStorageAt({
+        address: USDC,
+        index: hcaSlot,
+        value: hcaStorage ?? toHex(0n, { size: 32 }),
+      })
+      for (const [i, payer] of payers.entries())
+        await move(parkingAccount, payer.address, balances[i])
+    }
+  })
+
+  test('renewing from each entry point — profile, dashboard row, address page, deep link — lands on the same renewal and moves expiry the same', {
+    tag: ['@scenario:B18'],
+  }, async ({
+    profileConnectedPage: page,
+    makeV2Name,
+    wallet,
+    mockBigname,
+    accounts,
+  }) => {
+    test.setTimeout(600_000)
+    test.skip(
+      mockBigname.enabled,
+      'the mock row offers no "Renew name" (it lacks the role data canRenew reads); the entry points are checked against the real index',
+    )
+    const owner = accounts.getAddress('user')
+    // Stop browser dev-funding transactions while the fixture seeds names
+    // using that same account. Each entry-point check navigates back below.
+    await page.goto('about:blank')
+    const tag = `b18${Date.now().toString(36)}`
+    const routes = ['profile', 'dashboard', 'address', 'deeplink'] as const
+    const names: Record<(typeof routes)[number], string> = {} as never
+    for (const route of routes) {
+      names[route] = await makeV2Name({ label: `${tag}${route}` })
+    }
+    await waitForBignameBlock()
+
+    /** Open the row menu for `name` in a names list and choose "Renew name". */
+    const renewFromRow = async (name: string) => {
+      const search = page.getByPlaceholder(/Search/).last()
+      if (await search.isVisible().catch(() => false)) await search.fill(tag)
+      const more = page.getByRole('button', {
+        name: `More options for ${name}`,
+        exact: true,
+      })
+      await expect(more).toBeVisible({ timeout: 60_000 })
+      await more.click()
+      await page.getByRole('menuitem', { name: /Renew name/ }).click()
+    }
+
+    const enter: Record<
+      (typeof routes)[number],
+      (name: string) => Promise<void>
+    > = {
+      profile: async (name) => {
+        await goToProfile(page, name)
+        await page.getByRole('link', { name: /renew/i }).click()
+      },
+      dashboard: async (name) => {
+        await page.goto(`${MANAGER_APP_URL}/dashboard`)
+        await expect(
+          page.getByRole('button', { name: /^Select all names$/ }),
+        ).toBeVisible({ timeout: 60_000 })
+        await renewFromRow(name)
+      },
+      address: async (name) => {
+        await page.goto(`${MANAGER_APP_URL}/${owner}`)
+        await renewFromRow(name)
+      },
+      deeplink: async (name) => {
+        await page.goto(`${MANAGER_APP_URL}/renew/${name}`)
+      },
+    }
+
+    for (const route of routes) {
+      const name = names[route]
+      const label = name.replace(/\.eth$/, '')
+      const before = await readExpiry(label)
+      await enter[route](name)
+      await expect(
+        page,
+        `${route}: lands on the renewal for ${name}`,
+      ).toHaveURL(new RegExp(`/renew/${name.replace(/\./g, '\\.')}$`), {
+        timeout: 30_000,
+      })
+      await page.waitForLoadState('networkidle')
+      // Answer every send this renewal asks for (a USDC approve may precede
+      // the renew), and stop once it reports success.
+      let done = false
+      const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+      try {
+        await renewFor28Days(page)
+      } finally {
+        done = true
+        await authorizing
+      }
+      expect(
+        (await readExpiry(label)) - before,
+        `${route}: the expiry moved by exactly 28 days`,
+      ).toBe(28n * 24n * 60n * 60n)
+    }
+  })
+
+  test('extend unowned name by 28 days', { tag: ['@scenario:B2'] }, async ({
     profileConnectedPage: page,
     makeV2Name,
     wallet,
@@ -378,6 +656,208 @@ test.describe('ENS profile', () => {
     console.log(
       `[profile] ✅ Extend unowned name by 28 days succeeded for ${name}, expires ${expiry}`,
     )
+  })
+
+  /**
+   * B3 — V2's grace period is 28 days (`V2_GRACE_PERIOD_DAYS`,
+   * `apps/manager/src/features/grace/utils/gracePeriod.ts`). The oracle is
+   * specifically that a grace-period renewal extends from the name's own
+   * *stored* expiry, not from "now" — a real bug class, since "now" is always
+   * later than a stored expiry that's already in the past, and the two are
+   * easy to conflate when the UI computes a renewal window. Day 1 and day 27
+   * bracket the window on both ends, per the catalogue.
+   *
+   * If the app used "now" instead, the +28-day delta below would not hold —
+   * it would be inflated by however many days of grace had already elapsed —
+   * which is exactly the failure this asserts against.
+   *
+   * Two literal `test()` calls, not a loop over a template-literal title:
+   * `coverage/reconcile.ts`'s `scanSpec` reads titles statically from source
+   * text, so a title built from an interpolated loop variable never matches
+   * either concrete test playwright actually runs — both instances silently
+   * report `excluded` instead of `PASS`. Caught the same way as last
+   * iteration's apostrophe bug: a coverage-count mismatch, not an error.
+   */
+  async function extendsInGrace(
+    page: Page,
+    wallet: Web3ProviderBackend,
+    makeV2Name: (config: V2NameConfig) => Promise<string>,
+    daysSinceExpiry: number,
+  ) {
+    const name = await makeV2Name({
+      label: `graceday${daysSinceExpiry}`,
+      duration: -(daysSinceExpiry * 24 * 60 * 60),
+    })
+    const label = name.replace(/\.eth$/, '')
+    console.log(
+      `[profile] name for grace-day-${daysSinceExpiry} extend test: ${name}`,
+    )
+
+    const expiryBefore = await readExpiry(label)
+
+    // Direct to `/renew/$name` rather than through the profile page's
+    // "Renew" link: `apps/manager/src/routes/renew/$name.tsx`'s own loader
+    // reads expiry straight from chain and is grace-aware (redirects to
+    // `/register/$name` once past grace — that's B4's route, not B3's).
+    // The profile route (`/p/$name`) renders "doesn't exist" for a
+    // grace-period name — it isn't built to show one at all — so it isn't
+    // a route this scenario can go through.
+    await page.goto(`${MANAGER_APP_URL}/renew/${name}`)
+    await page.waitForLoadState('networkidle')
+    await page.waitForTimeout(2_000)
+
+    // Same HCA-permit-vs-EOA-transaction accommodation as the other two
+    // extend tests in this file.
+    void authorizeTransaction(wallet, 120_000).catch(() => {})
+    const expiry = await renewFor28Days(page)
+    console.log(
+      `[profile] ✅ Extend in grace (day ${daysSinceExpiry}) succeeded for ${name}, expires ${expiry}`,
+    )
+
+    const expiryAfter = await readExpiry(label)
+    const TWENTY_EIGHT_DAYS = 28n * 24n * 60n * 60n
+    expect(
+      expiryAfter - expiryBefore,
+      `expiry moved by ${expiryAfter - expiryBefore}s, expected exactly ${TWENTY_EIGHT_DAYS}s (28 days) from the ORIGINAL expiry — a renewal based on "now" instead would move it by a larger amount`,
+    ).toBe(TWENTY_EIGHT_DAYS)
+  }
+
+  test('extends a name in grace (day 1) from its original expiry, not from now', {
+    tag: ['@scenario:B3'],
+  }, async ({ profileConnectedPage: page, makeV2Name, wallet }) => {
+    await extendsInGrace(page, wallet, makeV2Name, 1)
+  })
+
+  test('extends a name in grace (day 27) from its original expiry, not from now', {
+    tag: ['@scenario:B3'],
+  }, async ({ profileConnectedPage: page, makeV2Name, wallet }) => {
+    await extendsInGrace(page, wallet, makeV2Name, 27)
+  })
+
+  /**
+   * B5 — the renewal calendar (`RenewToDatePopover`,
+   * `apps/manager/src/features/bulk-renew/components/RenewToDatePopover.tsx`
+   * — shared by bulk and single-name renewal) disables every day before
+   * `minSelectableDate` (current expiry + the minimum renewal period) via
+   * `disabled={(date) => date < minDate}`, which react-day-picker renders as
+   * a real HTML `disabled` button attribute. The calendar opens on whichever
+   * duration is already pre-selected (the default "1 year" tier), not on
+   * its own minimum, and its "previous month" control stays enabled well
+   * short of that boundary — so proving the boundary means navigating back
+   * into it (via the caption's month/year selects, not repeated clicks —
+   * `captionLayout="dropdown"`'s invisible overlay select intercepts the nav
+   * button after a few clicks), not just checking the initial screen.
+   */
+  test('never offers a renewal date before the current expiry', {
+    // Also B11's "connected" case: a connected user reaching this active
+    // name entirely via the /renew/$name deep link (not the profile page).
+    tag: ['@scenario:B5', '@scenario:B11'],
+  }, async ({ profileConnectedPage: page, makeV2Name }) => {
+    const name = await makeV2Name({ label: 'norollback' })
+    console.log(`[profile] name for no-rollback calendar test: ${name}`)
+
+    await page.goto(`${MANAGER_APP_URL}/renew/${name}`)
+    await page.waitForLoadState('networkidle')
+    await page.waitForTimeout(2_000)
+
+    await page.getByRole('button', { name: /renew to date/i }).click()
+    const calendar = page.locator('[data-slot="calendar"]')
+    await calendar.waitFor({ state: 'visible' })
+
+    // Earlier tests advance the local chain beyond wall time. Choose the
+    // earliest year/month the control actually offers, then compare every
+    // selectable date with this name's on-chain expiry.
+    const year = calendar.getByLabel('Choose the Year')
+    const firstYear = await year
+      .locator('option:not([disabled])')
+      .first()
+      .getAttribute('value')
+    expect(firstYear).not.toBeNull()
+    await year.selectOption(firstYear as string)
+    const month = calendar.getByLabel('Choose the Month')
+    const firstMonth = await month
+      .locator('option:not([disabled])')
+      .first()
+      .getAttribute('value')
+    expect(firstMonth).not.toBeNull()
+    await month.selectOption(firstMonth as string)
+    const days = await calendar
+      .locator('button[data-day]:enabled')
+      .evaluateAll((buttons) =>
+        buttons.map((button) => button.getAttribute('data-day')),
+      )
+    expect(days.length).toBeGreaterThan(0)
+    const expiry = new Date(
+      Number(await readExpiry(name.replace(/\.eth$/, ''))) * 1000,
+    )
+    const expiryDay = Date.UTC(
+      expiry.getUTCFullYear(),
+      expiry.getUTCMonth(),
+      expiry.getUTCDate(),
+    )
+    for (const day of days) {
+      const date = new Date(day as string)
+      expect(
+        Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+        `selectable date ${day} is not before expiry`,
+      ).toBeGreaterThanOrEqual(expiryDay)
+    }
+  })
+
+  /**
+   * B11 (unregistered case) — an available (never registered) name has no
+   * expiry, and `apps/manager/src/routes/renew/$name.tsx`'s loader redirects it
+   * to registration rather than offering a renewal of nothing.
+   */
+  test('sends an unregistered name from the renew deep link to registration', {
+    tag: ['@scenario:B11'],
+  }, async ({ profileConnectedPage: page }) => {
+    const unregisteredName = `b11-never-registered-${Date.now()}.eth`
+
+    await page.goto(`${MANAGER_APP_URL}/renew/${unregisteredName}`)
+
+    // The loader reads no expiry for a label that was never registered and
+    // redirects to /register/$name (`routes/renew/$name.tsx`) — B11's oracle,
+    // parity with ens-app-v3's renew deep link. This test used to expect the
+    // route's error page, which only happened because the pre-bigname indexer
+    // reported no v2 protocol for an available name.
+    await expect(page).toHaveURL(
+      new RegExp(`/register/${unregisteredName.replace(/\./g, '\\.')}$`),
+      // A cold dev server compiles the register route on first use.
+      { timeout: 30_000 },
+    )
+    await expect(
+      page.getByRole('heading', { name: unregisteredName }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: /can.t be renewed here/i }),
+    ).toHaveCount(0)
+  })
+
+  /**
+   * B11 (disconnected case) — the route's own loader reads expiry straight
+   * from chain and does not gate on wallet connection, so a disconnected
+   * visitor reaches the same renewal UI as a connected one; the gate is
+   * lower, inside the payment step (`useSmartAccountContext().isConnected`,
+   * same mechanism `TokenPickerContentBase` in registration checks).
+   */
+  test('offers a connect prompt, not a broken page, for a disconnected visitor', {
+    tag: ['@scenario:B11'],
+  }, async ({ page, makeV2Name }) => {
+    const name = await makeV2Name({ label: 'b11disconnected' })
+    console.log(`[profile] name for disconnected deep-link test: ${name}`)
+
+    await page.goto(`${MANAGER_APP_URL}/renew/${name}`)
+    await page.waitForLoadState('networkidle')
+
+    // The page itself renders — the loader doesn't require a connection —
+    // and the connect affordance appears where payment would otherwise be.
+    await expect(page.getByText(name, { exact: false }).first()).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(page.getByText(/connect/i).first()).toBeVisible({
+      timeout: 15_000,
+    })
   })
 
   test('displays an agent-registration record as a labelled, copyable card', async ({

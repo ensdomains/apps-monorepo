@@ -14,7 +14,34 @@
     "seed:name": "tsx scripts/seed-name.ts",
     "seed:premium": "tsx scripts/seed-temp-premium.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "biome check"
+    "lint": "biome check",
+    "test:manager-migration": "playwright test --config=projects/manager/playwright.migration.config.ts",
+    "test:portal:review": "playwright test --config=projects/portal/playwright.review.config.ts",
+    "test:manager-smoke": "playwright test --config=projects/manager/playwright.smoke.config.ts",
+    "test:smoke": "pnpm run test:portal-smoke && pnpm run test:manager-smoke",
+    "test:metadata": "playwright test --config=projects/metadata/playwright.config.ts",
+    "coverage": "tsx coverage/reconcile.ts",
+    "landing": "tsx scripts/landing-status.ts",
+    "seed:transfer-names": "tsx scripts/seed-transfer-names.ts",
+    "seed:subname-transfer": "tsx scripts/seed-subname-transfer.ts",
+    "seed:v1-transfer": "tsx scripts/seed-v1-transfer.ts",
+    "seed:grace-v1": "tsx scripts/seed-grace-v1-name.ts",
+    "seed:offchain-name": "tsx scripts/seed-offchain-name.ts",
+    "seed:offchain-v2": "tsx scripts/seed-offchain-v2.ts",
+    "clear-own-resolver": "tsx scripts/clear-own-resolver.ts",
+    "probe:subname-transfer": "tsx scripts/probe-subname-transfer.ts",
+    "matrix:generate": "tsx scripts/generate-v1-matrix.ts",
+    "matrix:check": "tsx scripts/generate-v1-matrix.ts --check",
+    "matrix:docs": "tsx matrix/render-docs.ts",
+    "matrix:docs:check": "tsx matrix/render-docs.ts --check",
+    "test:migration-matrix": "node scripts/run-migration-matrix.mjs",
+    "seed:g02-delete": "tsx scripts/seed-g02-delete.ts",
+    "seed:g05-roles": "tsx scripts/seed-g05-roles.ts",
+    "seed:g35-etc": "tsx scripts/seed-g35-etc.ts",
+    "serve:g35-etc": "tsx scripts/serve-g35-inventory.ts",
+    "test:replacement": "node scripts/run-replacement.mjs --suite=replacement",
+    "test:replacement:coverage": "node scripts/check-replacement-coverage.mjs",
+    "test:replacement:harness": "node --test projects/replacement/checks/*.test.mjs"
   },
   "postinstall": "playwright install --with-deps chromium",
   "dependencies": {
@@ -28,6 +55,7 @@
     "@playwright/test": "1.58.2",
     "@types/node": "^24.19.2",
     "tsx": "^4.23.15",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "@tenkeylabs/dappwright": "2.11.2"
   }
 }

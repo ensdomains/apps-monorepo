@@ -1,0 +1,1552 @@
+{
+  "source": "Legacy parity execution ledger, 23 October 2026",
+  "excludedCategories": ["DNS", "legacy stateful suites"],
+  "legacy": [
+    {
+      "id": "L022",
+      "title": "Address page error handling > should load address page without crashing when getName throws ContractFunctionExecutionError",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L023",
+      "title": "Address page error handling > should retry on non-ContractFunctionExecutionError and not return null early",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L024",
+      "title": "Address page error handling > should display no-profile-snippet when no primary name set with invalid resolver",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L025",
+      "title": "should be able to maintain state when returning from transaction modal when deleting records",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L026",
+      "title": "should maintain state and when returning from transaction modal when adding/updating records",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L027",
+      "title": "should not show add subname button when the connected wallet is the registrant but not the controller",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L028",
+      "title": "should not show add subname button when the connected wallet does not own the name",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L029",
+      "title": "should show add subname button when the connected wallet is the manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L030",
+      "title": "should not allow creating a subname with invalid characters",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L031",
+      "title": "should allow creating a subname",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L032",
+      "title": "should allow creating a subnames if the user is the wrapped owner",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L033",
+      "title": "should not allow adding a subname that already exists",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L034",
+      "title": "should allow creating an expired wrapped subname",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L035",
+      "title": "should allow creating an expired wrapped subname from the profile page",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L036",
+      "title": "should allow skipping records when creating a subname",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L037",
+      "title": "should persist referrer parameter after creating a subname and redirecting to subname profile",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L038",
+      "title": "unwrapped > allows deletion when parent owner but NOT child owner",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L039",
+      "title": "unwrapped > allows deletion when parent owner and child owner",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L040",
+      "title": "unwrapped > allows deletion when NOT parent owner, but child owner",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L041",
+      "title": "wrapped > allows deletion when parent owner but NOT child owner",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L042",
+      "title": "wrapped > allows deletion when parent owner and child owner",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L043",
+      "title": "wrapped > allows deletion when NOT parent owner, but child owner",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L044",
+      "title": "emancipated > does NOT allow deletion when parent owner but NOT child owner",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L045",
+      "title": "emancipated > allows deletion when parent owner and child owner",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L046",
+      "title": "emancipated > allows deletion when NOT parent owner, but child owner",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L047",
+      "title": "should not allow parent owner to delete if PCC is expired",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L048",
+      "title": "subgraph errors > should disable delete button for unwrapped subname",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L049",
+      "title": "subgraph errors > should disable delete button for wrapped subname",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L050",
+      "title": "Desynced Name Repair > should repair wrapped desynced name with referrer support",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L051",
+      "title": "Desynced Name Repair > Regular Desynced Name > should repair desynced-wrapped.eth successfully",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L052",
+      "title": "Desynced Name Repair > Grace Period Desynced Name > should repair desynced-wrapped-grace-period.eth via extend dialog",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L053",
+      "title": "Desynced Name Repair > Regular Desynced Name Extend Button > should repair desynced-normal-test.eth using the extend modal",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L054",
+      "title": "Desynced Name Repair > Grace Period Desynced Name Extend Button > should repair desynced-normal-test.eth using the extend modal",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L055",
+      "title": "Desynced Name Repair > Regular Desynced Name Extend Button 1 day > should repair desynced-normal-1-day-test.eth using the extend modal",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L056",
+      "title": "should be able to extend multiple names (including names in grace preiod) on the address page",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L057",
+      "title": "should be able to extend a single unwrapped name from profile",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L058",
+      "title": "should be able to extend a single unwrapped name in grace period from profile",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L059",
+      "title": "should be able to extend a single unwrapped name in grace period from profile 2",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L060",
+      "title": "should not show extend button on unwrapped subnames",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L061",
+      "title": "should be able to extend a name by a month",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L062",
+      "title": "should be able to extend a name by a day",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L063",
+      "title": "should be able to extend a name in grace period by a month",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L064",
+      "title": "should be able to extend a name in grace period by 1 day",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L065",
+      "title": "should be able to extend a single wrapped name using deep link",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L066",
+      "title": "should not be able to extend a name which is not registered",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L067",
+      "title": "renew deep link should redirect to registration when not logged in",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L068",
+      "title": "should handle URL-based renew parameter",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L069",
+      "title": "should handle URL-based renew for names in grace period",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L070",
+      "title": "should handle URL-based renew for disconnected users",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L071",
+      "title": "Legacy/Unwrapped Name Extension with Referrer > should extend unwrapped name with referrer",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L072",
+      "title": "Legacy/Unwrapped Name Extension with Referrer > should extend unwrapped name without referrer",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L073",
+      "title": "Legacy/Unwrapped Name Extension with Referrer > should extend unwrapped name in grace period with referrer",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L074",
+      "title": "Wrapped Name Renewal with Referrer > should renew wrapped name with referrer parameter from URL",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L075",
+      "title": "Wrapped Name Renewal with Referrer > should persist referrer across navigation to renewal flow",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L076",
+      "title": "Wrapped Name Renewal with Referrer > should handle wrapped name renewal without referrer",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L077",
+      "title": "Wrapped Name Renewal with Referrer > should use correct contract for wrapped vs unwrapped names",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L078",
+      "title": "Wrapped Name Renewal with Referrer > should handle bulk renewal with mixed wrapped and unwrapped names",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L079",
+      "title": "Wrapped Name Renewal with Referrer > should extend wrapped name in grace period with referrer",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L080",
+      "title": "myNames",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L081",
+      "title": "myNames > should display all names for expiry date ASC",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L082",
+      "title": "myNames > should display all names for expiry date DESC",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L083",
+      "title": "myNames > should display all names for createdAt ASC",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L084",
+      "title": "myNames > should display all names for createdAt DESC",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L085",
+      "title": "Unwrapped 2LD - Owner and Manager > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L086",
+      "title": "Unwrapped 2LD - Owner and Manager > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L087",
+      "title": "Unwrapped 2LD - Owner and Manager > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L088",
+      "title": "Unwrapped 2LD - Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L089",
+      "title": "Unwrapped 2LD - Owner Only > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L090",
+      "title": "Unwrapped 2LD - Owner Only > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L091",
+      "title": "Unwrapped 2LD - Owner Only > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L092",
+      "title": "Unwrapped 2LD - Owner Only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L093",
+      "title": "Unwrapped 2LD - Manager Only > Send Feature",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L094",
+      "title": "Unwrapped 2LD - Manager Only > Edit Roles",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L095",
+      "title": "Unwrapped 2LD - Manager Only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L096",
+      "title": "Wrapped and Emancipated 2LD - Owner > Send Feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L097",
+      "title": "Wrapped and Emancipated 2LD - Owner > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L098",
+      "title": "Wrapped and Emancipated 2LD - Owner > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L099",
+      "title": "Grace Period Unwrapped 2LD > Send feature",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L100",
+      "title": "Grace Period Unwrapped 2LD > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L101",
+      "title": "Grace Period Unwrapped 2LD > Edit Roles",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L102",
+      "title": "Grace Period Unwrapped 2LD > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L103",
+      "title": "Grace Period Wrapped 2LD > Send feature",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L104",
+      "title": "Grace Period Wrapped 2LD > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L105",
+      "title": "Grace Period Wrapped 2LD > Edit Roles",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L106",
+      "title": "Grace Period Wrapped 2LD > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L107",
+      "title": "Unwrapped 3LD, Unwrapped 2LD - Parent Owner and Manager > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L108",
+      "title": "Unwrapped 3LD, Unwrapped 2LD - Parent Owner and Manager > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L109",
+      "title": "Unwrapped 3LD, Unwrapped 2LD - Parent Owner and Manager > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L110",
+      "title": "Unwrapped 3LD, Unwrapped 2LD - Parent Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L111",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Manager only > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L112",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Manager only > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L113",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Manager only > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L114",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Manager only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L115",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Parent Owner only > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L116",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Parent Owner only > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L117",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Parent Owner only > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L118",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Parent Owner only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L119",
+      "title": "Wrapped 3LD, Wrapped 2LD - Parent Owner and Manager > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L120",
+      "title": "Wrapped 3LD, Wrapped 2LD - Parent Owner and Manager > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L121",
+      "title": "Wrapped 3LD, Wrapped 2LD - Parent Owner and Manager > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L122",
+      "title": "Wrapped 3LD, Wrapped 2LD - Parent Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L123",
+      "title": "Wrapped 3LD, Wrapped 2LD - Manager Only > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L124",
+      "title": "Wrapped 3LD, Wrapped 2LD - Manager Only > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L125",
+      "title": "Wrapped 3LD, Wrapped 2LD - Manager Only > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L126",
+      "title": "Wrapped 3LD, Wrapped 2LD - Manager Only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L127",
+      "title": "Wrapped 3LD - Wrapped 2LD - Parent Owner only > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L128",
+      "title": "Wrapped 3LD - Wrapped 2LD - Parent Owner only > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L129",
+      "title": "Wrapped 3LD - Wrapped 2LD - Parent Owner only > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L130",
+      "title": "Wrapped 3LD - Wrapped 2LD - Parent Owner only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L131",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Manager only > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L132",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Manager only > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L133",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Manager only > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L134",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Manager only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L135",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Parent only > Send, Edit Roles & Sync Manager feature",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L136",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Parent only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L137",
+      "title": "Wrapped & Emancipated 3LD, Wrapped 2LD - Parent Owner and Manager > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L138",
+      "title": "Wrapped & Emancipated 3LD, Wrapped 2LD - Parent Owner and Manager > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L139",
+      "title": "Wrapped & Emancipated 3LD, Wrapped 2LD - Parent Owner and Manager > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L140",
+      "title": "Wrapped & Emancipated 3LD, Wrapped 2LD - Parent Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L141",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Parent Owner and Manager > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L142",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Parent Owner and Manager > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L143",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Parent Owner and Manager > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L144",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Parent Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L145",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Manager Only > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L146",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Manager Only > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L147",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Manager Only > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L148",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Manager Only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L149",
+      "title": "Unwrapped 4LD - Unwrapped 3LD,2LD - Parent only > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L150",
+      "title": "Unwrapped 4LD - Unwrapped 3LD,2LD - Parent only > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L151",
+      "title": "Unwrapped 4LD - Unwrapped 3LD,2LD - Parent only > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L152",
+      "title": "Unwrapped 4LD - Unwrapped 3LD,2LD - Parent only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L153",
+      "title": "Unwrapped 4LD - Wrapped 3LD,2LD - Parent Owner only > Send feature",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L154",
+      "title": "Unwrapped 4LD - Wrapped 3LD,2LD - Parent Owner only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L155",
+      "title": "Unwrapped 4LD, Wrapped 3LD,2LD - Manager Only > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L156",
+      "title": "Unwrapped 4LD, Wrapped 3LD,2LD - Manager Only > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L157",
+      "title": "Unwrapped 4LD, Wrapped 3LD,2LD - Manager Only > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L158",
+      "title": "Unwrapped 4LD, Wrapped 3LD,2LD - Manager Only > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L159",
+      "title": "Wrapped & Emancipated 4LD, Wrapped 3LD,2LD - Parent Owner and Manager > Send feature",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L160",
+      "title": "Wrapped & Emancipated 4LD, Wrapped 3LD,2LD - Parent Owner and Manager > Sync Manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L161",
+      "title": "Wrapped & Emancipated 4LD, Wrapped 3LD,2LD - Parent Owner and Manager > Edit Roles",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L162",
+      "title": "Wrapped & Emancipated 4LD, Wrapped 3LD,2LD - Parent Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L163",
+      "title": "Send name > should be able to send owner, manager and eth-record of unwrapped 2ld name if you are the owner and manager on old resolver",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L164",
+      "title": "Send name > should be able to send owner and manager of an unwrapped 2ld name if you are the owner but not manager",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L165",
+      "title": "Send name > should not be able to send name if user is manager but not owner",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L166",
+      "title": "Send name > should be able to send owner, eth-record and reset profile of a wrapped 2ld name if you are the owner",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L167",
+      "title": "Send name > should be able to send manager, eth-record of a unwrapped subname name if you are the manager",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L168",
+      "title": "Send name > should be able to send manager if user is parent owner and not manager of unwrapped subname",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L169",
+      "title": "Send name > should be able to send manager and eth-record if user is manager and not parent owner of unwrapped subname",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L170",
+      "title": "Send name > should be able to send manager if user is parent owner and not manager of wrapped subname",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L171",
+      "title": "Send name > should be able to send manager and eth-record if user is manager and not parent owner of wrapped subname",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L172",
+      "title": "Send name > should be able to send owner and eth-record if user is owner and not parent owner of emancipated subname",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L173",
+      "title": "Edit roles: Happy  > Should allow owner to change manager",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L174",
+      "title": "Edit roles: Happy  > Should allow manager to change manager when they are not the owner",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L175",
+      "title": "Edit roles: Happy  > Should allow owner to change owner",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L176",
+      "title": "Edit roles: Happy  > Should allow owner to change manager if they are not the manager",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L177",
+      "title": "Edit roles: Happy  > Should allow owner to change owner and manager",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L178",
+      "title": "Edit roles: Unwrapped subnames > Should allow unwrapped subname to be sent by owner (setOwner)",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L179",
+      "title": "Edit roles: Unwrapped subnames > Should allow unwrapped subname to be sent by unwrapped parent owner (setSubnodeOwner)",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L180",
+      "title": "Edit roles: Unwrapped subnames > should NOT show send button when subname is wrapped and parent is unwrapped",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L181",
+      "title": "Edit roles: Unwrapped name > should NOT show send button when parent is owner and not manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L182",
+      "title": "Edit roles: Wrapped subnames > should allow namewrapper subname owner to send name",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L183",
+      "title": "Edit roles: Wrapped subnames > should allow parent owner to send name",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L184",
+      "title": "Edit roles: Wrapped subname with PCC burned > should NOT allow parent owner to transfer",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L185",
+      "title": "Edit roles: Wrapped subname with PCC burned > should allow name owner to transfer",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L186",
+      "title": "Edit roles: Wrapped name > Should allow namewrapper owner to send name",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L187",
+      "title": "Extend name > should be able to extend unwrapped name",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L188",
+      "title": "Sync manager > should be able to sync manager as owner of unwrapped 2ld",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L189",
+      "title": "Permissions > should show parent not locked warning",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L190",
+      "title": "Permissions > should allow owner to revoke permissions",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L191",
+      "title": "Permissions > should show correct buttons for managing subname (Parent owner settings)",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L192",
+      "title": "Permissions > should show correct buttons for managing subname (Name owner settings)",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L193",
+      "title": "Permissions > should allow parent owner to extend expiry",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L194",
+      "title": "Permissions > should allow parent owner to burn pcc",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L195",
+      "title": "Permissions > should allow name owner to revoke permissions",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L196",
+      "title": "Permissions > should allow name owner to revoke change fuses",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L197",
+      "title": "Permissions > should show correct buttons for managing an emancipated subname (Parent owner settings)",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L198",
+      "title": "Permissions > should show correct buttons for managing an emancipated subname (Name owner settings)",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L199",
+      "title": "profile > should display profile records",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L200",
+      "title": "profile > should redirect to profile tab if tab specified in query string does not exist",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L201",
+      "title": "timezone > should add, save, display and clear a timezone record via the picker",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L202",
+      "title": "legacy resolver > should be able to add/update profile records without migration",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L203",
+      "title": "legacy resolver > should be able to delete profile records without migration",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L204",
+      "title": "custom legacy resolver > should be able to add/update profile records without migration",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L205",
+      "title": "custom legacy resolver > should be able to delete profile records without migration",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L206",
+      "title": "namewrapper aware resolver > should be able to add/update profile records without migration",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L207",
+      "title": "namewrapper aware resolver > should be able to delete profile records without migration",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L208",
+      "title": "custom namewrapper aware resolver > should be able to add/update profile records without migration",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L209",
+      "title": "custom namewrapper aware resolver > should be able to delete profile records without migration",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L210",
+      "title": "outdated resolver > should force a name with an outdated resolver to upgrade",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L211",
+      "title": "outdated resolver > should be able to choose latest resolver if there is a profile on the latest resolver",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L212",
+      "title": "outdated resolver > should be able to reset latest resolver on migration",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L213",
+      "title": "custom outdated resolver > should force a name with an outdated resolver to upgrade",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L214",
+      "title": "legacy registryy > should force a name on the old registry to go to update registry",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L215",
+      "title": "no resolver > should force a name without a resolver to update their resolver",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L216",
+      "title": "unauthorised resolver > should force a name with an unauthorised resolver to update their resolver",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L217",
+      "title": "invalid resolver > should force a name with an invalid resolver to update their resolver",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L218",
+      "title": "wrapped name with legacy resolver > should force a wrapped name (with no profile) with a resolver that is not name wrapper aware to migrate update their resolver",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L219",
+      "title": "wrapped name with legacy resolver > should force a wrapped name (with a profile on latest resolver) with a resolver that is not name wrapper aware to migrate update their resolver",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L220",
+      "title": "wrapped name with legacy resolver > should be able to reset their profile during migration for a wrapped name with a profile on latest resolver",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L221",
+      "title": "wrapped name with legacy resolver > should be able to transfer profile when only current resolver has a profile",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L222",
+      "title": "wrapped name with legacy resolver > should be able to update resolver when only current resolver has a profile",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L223",
+      "title": "wrapped name with legacy resolver > should be able to only update resolver if records on current and latest resolver are equal",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L224",
+      "title": "wrapped name with legacy resolver > should be able to reset resolver if records on current and latest resolver are equal",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L225",
+      "title": "wrapped name with legacy resolver > should be able to migrate current profile if records on current and latest resolver are NOT equal",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L226",
+      "title": "wrapped name with legacy resolver > should be able to update resolver if records on current and latest resolver are NOT equal",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L227",
+      "title": "wrapped name with legacy resolver > should be able to reset profile if records on current and latest resolver are NOT equal",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L228",
+      "title": "subgraph errors > should disable edit profile button when there is a subgraph error",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L229",
+      "title": "edit profile button states > Should show edit profile button if user is manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L230",
+      "title": "edit profile button states > Should show disabled edit profile button if user is owner but not manager",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L231",
+      "title": "edit profile button states > Should show disabled edit profile button if name is wrapped but use for edit resolver is burned and resolver is unauthorised",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L232",
+      "title": "manual image url validation > avatar: shows an inline error and disables Confirm for a non-image URL, then accepts a valid image URL",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L233",
+      "title": "manual image url validation > header: shows an inline error and disables Save for a non-image URL, then accepts a valid image URL",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L264",
+      "title": "profile > should allow setting unmanaged name that has eth record set to address",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L265",
+      "title": "profile > should allow setting unwrapped name that user is manager of but whose resolved address is not the same as the user",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L266",
+      "title": "profile > should allow setting wrapped name that user is manager of but whose resolved address is not the same as the user with an owned resolver",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L267",
+      "title": "profile > should skip setting eth record if user is manager of name and resolver is not authorized if eth record is set on latest resolver",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L268",
+      "title": "profile > should skip setting primary name step if reverse registry name is already set to that name",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L269",
+      "title": "profile > should not show set primary name button for a wrapped name that has CSR burned, is not a resolved address, and an unauthorized resolver",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L270",
+      "title": "profile > should allow setting primary name from name with encrypted label",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L271",
+      "title": "profile > should not allow owner but not manager to set primary name for unwrapped name",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L272",
+      "title": "profile > should not show primary name when ETH address record points to different address",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L273",
+      "title": "profile > name-wrapper - should not show primary name when ETH address record points to different address",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L274",
+      "title": "Transactions > should show the correct transaction details for a transaction modal",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L275",
+      "title": "Transactions > should add a successful transaction to the transaction list, and show the corresponding notification",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L276",
+      "title": "Transactions > should add a failed transaction to the transaction list, and show the corresponding notification",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L277",
+      "title": "Transactions > should add a pending transaction to the transaction list, and show the corresponding notification once confirmed",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L278",
+      "title": "Transactions > should clear transactions when clear is pressed",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L279",
+      "title": "Select Primary Name > should allow setting unmanaged name that has eth record set to address",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L280",
+      "title": "Custom RPC endpoint > validates, probes, persists and resets a custom RPC endpoint",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L281",
+      "title": "Happy > When profile is updated to latest resolver > should disable the latest resolver button, have custom resolver checked, and allow user to change resolver address",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L282",
+      "title": "Happy > When profile is not updated to latest resolver > should allow user to update if they have chosen to use the latest resolver",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L283",
+      "title": "Unhappy > should not allow user to update if they enter an invalid address",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L284",
+      "title": "subgraph errors > should disable edit resolver button for wrapped name if there is a subgraph indexing error",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L285",
+      "title": "subgraph errors > should disable edit resolver button for unwrapped name if there is a subgraph indexing error",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L286",
+      "title": "should not show wrap button if the connected wallet is not the registrant",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L287",
+      "title": "should not show wrap notification if the name is already wrapped",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L288",
+      "title": "should show wrap button on unwrapped name",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L289",
+      "title": "should show resume state if wrap steps are incomplete",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L290",
+      "title": "should wrap name",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L291",
+      "title": "should allow wrapping a subdomain",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L292",
+      "title": "should allow wrapping a name with an unknown label",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L293",
+      "title": "should calculate needed steps without localstorage",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L294",
+      "title": "Wrapped, emancipated, 2LD",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L295",
+      "title": "Wrapped, locked, 2LD",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L296",
+      "title": "Wrapped, not-emancipated (PCC), 3LD",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L297",
+      "title": "Wrapped, emancipated(NPC), 3LD",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L298",
+      "title": "Wrapped, emancipated(NPC), Locked, 3LD",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L299",
+      "title": "Wrapped, emancipated(NPC), 3LD Manager",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L300",
+      "title": "Should not show wrap button on unwrapped name in Grace period",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L301",
+      "title": "should show wrap button on unwrapped subname in Grace period",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L302",
+      "title": "should not show unwrap button on wrapped name in Grace period",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L303",
+      "title": "should show unwrap button on wrapped subname in Grace period",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L304",
+      "title": "Wrapped, emancipated(NPC), 3LD Manager should be able to unwrap when parent is in Grace period",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L305",
+      "title": "ENS Sepolia Extend Name > Connect MetaMask to ENS localhost app",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L306",
+      "title": "ENS Sepolia Extend Name > Extend user owned ENS name",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L307",
+      "title": "ENS Sepolia Extend Name > Extend not user owned ENS name",
+      "priorResult": "Fail"
+    },
+    {
+      "id": "L308",
+      "title": "ENS Name Registration > Connect MetaMask to ENS localhost",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L313",
+      "title": "ENS Subname Checks > Connect MetaMask to ENS localhost",
+      "priorResult": "Pass"
+    },
+    {
+      "id": "L314",
+      "title": "ENS Subname Checks > Create new ENS subname",
+      "priorResult": "Pass with workaround"
+    },
+    {
+      "id": "L315",
+      "title": "ENS Subname Checks > Delete created ENS subname",
+      "priorResult": "Pass with workaround"
+    }
+  ],
+  "notExecuted": [
+    {
+      "id": "L001",
+      "reason": "Fixture utility"
+    },
+    {
+      "id": "L002",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L003",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L004",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L005",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L006",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L007",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L008",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L009",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L010",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L011",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L012",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L013",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L014",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L015",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L016",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L017",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L018",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L019",
+      "reason": "Excluded stateful"
+    },
+    {
+      "id": "L020",
+      "reason": "Deferred DNS"
+    },
+    {
+      "id": "L021",
+      "reason": "Deferred DNS"
+    },
+    {
+      "id": "L234",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L235",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L236",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L237",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L238",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L239",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L240",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L241",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L242",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L243",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L244",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L245",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L246",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L247",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L248",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L249",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L250",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L251",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L252",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L253",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L254",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L255",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L256",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L257",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L258",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L259",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L260",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L261",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L262",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L263",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L309",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L310",
+      "reason": "Not applicable"
+    },
+    {
+      "id": "L311",
+      "reason": "Blocked environment"
+    },
+    {
+      "id": "L312",
+      "reason": "Not applicable"
+    }
+  ],
+  "afterMigration": {
+    "scenarios": 21,
+    "checks": ["migration", "send", "edit", "roles", "sync", "dates"],
+    "gasRecoveryScenario": 10
+  },
+  "recordPreservation": [
+    "RP01: unwrapped root / registry descendants same wallet",
+    "RP02: wrapped root / wrapped descendants same wallet",
+    "RP03: locked root / locked descendants same wallet",
+    "RP04: locked root / emancipated descendants same wallet",
+    "RP05: unwrapped root / registry descendants split root manager",
+    "RP06: unwrapped root / registry descendants split child holder",
+    "RP07: unwrapped root / wrapped descendants same wallet",
+    "a contenthash and an ABI are carried to the new V2 resolver byte for byte",
+    "BTC and ETH addresses and a text key outside any default list are all carried",
+    "fifty records are all carried, none dropped where the replay is split",
+    "a name with a resolver but no records moves resolver and writes nothing",
+    "a name on a custom resolver keeps that resolver, nothing is replayed, and its records still resolve as the screen promised",
+    "records survive when the index has not listed their keys yet",
+    "a pubkey and an interface implementer survive migration",
+    "RP08: grace unwrapped root / registry descendants same wallet",
+    "RP09: grace wrapped root / wrapped descendants same wallet",
+    "RP10: unwrapped root / registry descendants same wallet"
+  ]
+}

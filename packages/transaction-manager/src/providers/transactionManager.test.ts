@@ -8,7 +8,8 @@ import {
   toHex,
 } from 'viem'
 import { sepolia } from 'viem/chains'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { getTransactionHistory } from '../helpers/transaction-persistence'
 import { waitForTransaction } from '../helpers/waitForTransaction'
 import type { EOASigner } from '../types/signer.types'
 import type { TransactionRequest } from '../types/transaction.types'
@@ -226,8 +227,8 @@ describe('retrying under the same transaction id', () => {
 describe('automatic submission retry', () => {
   const TX_HASH = `0x${'cd'.repeat(32)}` as Hash
 
-  // A wallet whose first eth_sendTransaction fails transiently.
-  const flakySigner = (): EOASigner => {
+  // A wallet whose first `failures` eth_sendTransaction calls fail transiently.
+  const flakySigner = (failures = 1): EOASigner => {
     let sends = 0
     return {
       type: 'eoa',
@@ -240,7 +241,7 @@ describe('automatic submission retry', () => {
               if (method === 'eth_chainId') return toHex(sepolia.id)
               if (method === 'eth_sendTransaction') {
                 sends += 1
-                if (sends === 1) throw new Error('socket hang up')
+                if (sends <= failures) throw new Error('socket hang up')
                 return TX_HASH
               }
               throw new Error(`unexpected RPC call: ${method}`)
@@ -286,5 +287,62 @@ describe('automatic submission retry', () => {
     expect(archived).toHaveLength(1)
     expect(archived[0]).toMatchObject({ txId, status: 'success' })
     expect(archived[0].error).toBeUndefined()
+  })
+
+  // WEB-1229: the local history record is written from the same snapshot as
+  // the archived payload, but through a separate store the test above does
+  // not read.
+  it('archives a local history record with no error for a retried success', async () => {
+    const txId = transactionManager.startTransaction(
+      customRequest,
+      flakySigner(),
+      { id: 'tx-auto-retry-history', publicClient, retryDelay: 0 },
+    )
+    await waitForTransaction(txId)
+
+    await vi.waitFor(async () => {
+      const record = (await getTransactionHistory()).find(
+        ({ id }) => id === txId,
+      )
+      expect(record).toMatchObject({ state: 'success', hash: TX_HASH })
+      expect(record?.context.error).toBeUndefined()
+    })
+  })
+
+  // Guard: the fix clears the error only once a hash arrives. A submission
+  // that runs out of retries still ends in `error` and keeps its message.
+  it('keeps the error of a submission that never lands', async () => {
+    const archived: ArchivedTransaction[] = []
+    const unsubscribe = transactionManager.onTransactionArchived((tx) => {
+      archived.push(tx)
+    })
+
+    const txId = transactionManager.startTransaction(
+      customRequest,
+      flakySigner(Number.POSITIVE_INFINITY),
+      {
+        id: 'tx-auto-retry-exhausted',
+        publicClient,
+        retryDelay: 0,
+        retryCount: 2,
+      },
+    )
+    await expect(waitForTransaction(txId)).rejects.toThrow()
+    unsubscribe()
+
+    const snapshot = transactionManager.getTransaction(txId)?.getSnapshot()
+    expect(snapshot?.matches('error')).toBe(true)
+    expect(snapshot?.context.retryCount).toBe(2)
+    expect(snapshot?.context.error?.message).toMatch(/socket hang up/)
+
+    expect(archived).toHaveLength(1)
+    expect(archived[0]).toMatchObject({ txId, status: 'error' })
+    expect(archived[0].error).toMatch(/socket hang up/)
+    await vi.waitFor(async () => {
+      const record = (await getTransactionHistory()).find(
+        ({ id }) => id === txId,
+      )
+      expect(record?.context.error).toMatch(/socket hang up/)
+    })
   })
 })
