@@ -161,7 +161,6 @@ describe('/register', () => {
 
   // WEB-1988: registration opens with the sidebar folded to its icon rail.
   it('starts with the sidebar collapsed', () => {
-    search.name = undefined
     const { getByTestId } = render(<RegisterRoute />)
 
     expect(getByTestId('sidebar')).toHaveAttribute('data-state', 'collapsed')
