@@ -1,8 +1,11 @@
 import { Trans } from '@lingui/react/macro'
 import { Card } from '@/components/ui/card'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { getProfileLinkPreviewUrl } from '@/features/profile/service/profileLinkPreview'
 import type { ProfileRecords } from '@/features/profile/types'
+import { getBackendApiBaseUrl } from '@/utils/backend-client'
 import { ProfileCard, profileTileClassName } from './ProfileCard'
+import { ProfileLinkImage } from './ProfileLinkImage'
 import {
   getSafeProfileLinks,
   type SafeProfileLink,
@@ -10,10 +13,15 @@ import {
 import { useLinkPreviewPattern } from './useLinkPreviewPattern'
 
 const linkPreviewClassName = `${profileTileClassName} group min-w-0 gap-0 overflow-hidden p-0 text-left transition hover:bg-ens-quartz-50`
-const linkPreviewPanelClassName = 'h-30 shrink-0 overflow-hidden bg-white'
+const linkPreviewPanelClassName =
+  'relative h-30 shrink-0 overflow-hidden bg-white'
 
 const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
   const { ref, pattern } = useLinkPreviewPattern(link.href)
+  const imageSrc = getProfileLinkPreviewUrl({
+    apiBaseUrl: getBackendApiBaseUrl(),
+    href: link.href,
+  })
 
   return (
     <Card asChild className={linkPreviewClassName}>
@@ -37,7 +45,9 @@ const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
             backgroundRepeat: 'repeat',
             backgroundSize: '80px 80px',
           }}
-        />
+        >
+          {pattern ? <ProfileLinkImage key={imageSrc} src={imageSrc} /> : null}
+        </div>
         <div className="min-w-0 p-6 pt-4">
           <div className="truncate text-ens-quartz-900 text-sm leading-[21px]">
             {link.name}
