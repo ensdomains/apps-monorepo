@@ -1,6 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Link, useHydrated } from '@tanstack/react-router'
 import type { Address } from 'viem'
+import { NameCopyButton } from '@/components/atoms/NameCopyButton/NameCopyButton'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn, truncateAddress } from '@/lib/utils'
@@ -32,10 +33,13 @@ const detailIconClassName =
   'ms-opsz-11 ms-wght-300 shrink-0 text-[11px] leading-[11px]'
 
 export const ProfileNameBadge = ({ name }: { readonly name: string }) => (
-  <div className="inline-flex max-w-full items-center rounded-[3px] bg-[var(--theme-color,var(--color-ens-lapis-500))] px-3 py-1.5 text-white">
-    <h1 className="truncate font-semi-mono text-[32px] leading-[1.12]">
-      {name}
-    </h1>
+  <div className="inline-flex max-w-full items-center gap-1">
+    <div className="inline-flex min-w-0 items-center rounded-[3px] bg-[var(--theme-color,var(--color-ens-lapis-500))] px-3 py-1.5 text-white">
+      <h1 className="truncate font-semi-mono text-[32px] leading-[1.12]">
+        {name}
+      </h1>
+    </div>
+    <NameCopyButton name={name} />
   </div>
 )
 
