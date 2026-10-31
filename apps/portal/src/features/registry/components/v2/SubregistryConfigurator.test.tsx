@@ -13,6 +13,13 @@ const ENCODED_NAME = `[${'ab'.repeat(32)}].sugh003.eth`
 const READ_RESOURCE_ID = 42n
 const CONNECTED: Address = '0x00000000000000000000000000000000000000cc'
 
+const deployPause = vi.hoisted(() => ({ isPaused: false }))
+vi.mock('@/features/registry/utils/registryDeployPause', () => ({
+  get IS_REGISTRY_DEPLOY_PAUSED() {
+    return deployPause.isPaused
+  },
+}))
+
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return { ...actual, useConnection: () => ({ address: CONNECTED }) }
@@ -108,6 +115,7 @@ const deferred = <T,>() => {
 }
 
 beforeEach(() => {
+  deployPause.isPaused = false
   discoverRegistries
     .mockReset()
     .mockResolvedValue([zeroAddress, PARENT_REGISTRY, PARENT_REGISTRY])
@@ -196,6 +204,25 @@ describe('SubregistryConfigurator', () => {
     for (const [params] of useSetSubregistryParams.mock.calls)
       expect(params).toMatchObject({ resourceId: READ_RESOURCE_ID })
   })
+
+  it.each([
+    { isPaused: true, isDeployEnabled: false },
+    { isPaused: false, isDeployEnabled: true },
+  ])(
+    'with deploying paused $isPaused, deploy is enabled: $isDeployEnabled',
+    async ({ isPaused, isDeployEnabled }) => {
+      deployPause.isPaused = isPaused
+      renderConfigurator()
+
+      const deploy = await screen.findByRole('radio', {
+        name: /deploy a new permissioned registry/i,
+      })
+      expect(deploy.hasAttribute('disabled')).toBe(!isDeployEnabled)
+      expect(
+        screen.getByRole('radio', { name: /use a pre-existing registry/i }),
+      ).toHaveAttribute('aria-checked', String(!isDeployEnabled))
+    },
+  )
 
   it('skips the id read for a name whose id comes from its label', async () => {
     renderConfigurator('1.sugh003.eth')

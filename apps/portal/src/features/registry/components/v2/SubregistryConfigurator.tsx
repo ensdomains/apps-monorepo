@@ -22,6 +22,7 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import { useRegistryParentMutation } from '@/features/registry/hooks/useRegistryParentMutation'
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
+import { IS_REGISTRY_DEPLOY_PAUSED } from '@/features/registry/utils/registryDeployPause'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -46,6 +47,31 @@ const implAddress = getChainContractAddress({
 })
 
 type RegistryOption = 'deploy' | 'use-existing'
+
+/** Off while new registries would deploy from an implementation pending an upgrade. */
+const DeployRegistryOption = () => (
+  <div className="flex items-center gap-3">
+    <RadioGroupItem
+      value="deploy"
+      id="registry-option-deploy"
+      disabled={IS_REGISTRY_DEPLOY_PAUSED}
+    />
+    <Label
+      htmlFor="registry-option-deploy"
+      className={
+        IS_REGISTRY_DEPLOY_PAUSED
+          ? 'text-muted-foreground'
+          : 'cursor-pointer text-foreground'
+      }
+    >
+      Deploy a new Permissioned Registry contract
+      {IS_REGISTRY_DEPLOY_PAUSED ? ' (temporarily disabled)' : null}
+    </Label>
+  </div>
+)
+
+const defaultRegistryOption = (): RegistryOption =>
+  IS_REGISTRY_DEPLOY_PAUSED ? 'use-existing' : 'deploy'
 
 export const getCustomRegistryAddressError = (value: string): string | null =>
   match(value)
@@ -109,7 +135,9 @@ const SubregistryConfiguratorForm = ({
   onComplete,
   assertWritable,
 }: SubregistryConfiguratorProps & { resourceId: ResourceId }) => {
-  const [registryOption, setRegistryOption] = useState<RegistryOption>('deploy')
+  const [registryOption, setRegistryOption] = useState<RegistryOption>(
+    defaultRegistryOption,
+  )
   const [contractAddress, setContractAddress] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
   // Drawn again at every submit, so a retry after a deploy that landed (but
@@ -223,7 +251,7 @@ const SubregistryConfiguratorForm = ({
     clearTransaction()
     attempt.end()
     setContractAddress('')
-    setRegistryOption('deploy')
+    setRegistryOption(defaultRegistryOption())
     deployedSubregistryAddressRef.current = null
     // Reconfigure closes/unmounts immediately; only show the success label
     // when this form stays mounted (initial configure flow).
@@ -295,15 +323,7 @@ const SubregistryConfiguratorForm = ({
             }
           }}
         >
-          <div className="flex items-center gap-3">
-            <RadioGroupItem value="deploy" id="registry-option-deploy" />
-            <Label
-              htmlFor="registry-option-deploy"
-              className="cursor-pointer text-foreground"
-            >
-              Deploy a new Permissioned Registry contract
-            </Label>
-          </div>
+          <DeployRegistryOption />
           <div className="flex items-center gap-3">
             <RadioGroupItem
               value="use-existing"
