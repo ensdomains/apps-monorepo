@@ -535,6 +535,10 @@ msgstr "At least {0} more needed on {chainName}."
 msgid "Auth address:"
 msgstr "Auth address:"
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Authenticate to continue"
+msgstr "Authenticate to continue"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Authorizing payment and registering your name"
 msgstr "Authorizing payment and registering your name"
@@ -902,6 +906,7 @@ msgid "Content hash"
 msgstr "Content hash"
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue"
 msgstr "Continue"
 
@@ -1151,10 +1156,6 @@ msgstr "Does not expire"
 msgid "doesn't exist"
 msgstr "doesn't exist"
 
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Domain transfer and expiry notifications"
-msgstr "Domain transfer and expiry notifications"
-
 #: src/features/bulk-renew/components/SuccessStep.tsx
 msgid "Done"
 msgstr "Done"
@@ -1394,7 +1395,6 @@ msgid "Failed to set primary name"
 msgstr "Failed to set primary name"
 
 #: src/features/notifications/RequireBackendAuth.tsx
-#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Failed to sign in. Please try again."
 msgstr "Failed to sign in. Please try again."
 
@@ -2178,6 +2178,10 @@ msgstr "Please connect your wallet first"
 msgid "Please finish connecting your wallet, then try again"
 msgstr "Please finish connecting your wallet, then try again"
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Please sign in with your connected wallet."
+msgstr "Please sign in with your connected wallet."
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "Preferences"
 msgstr "Preferences"
@@ -2744,10 +2748,6 @@ msgstr "Save and Continue"
 msgid "Save Preferences"
 msgstr "Save Preferences"
 
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Saved favorites and searches"
-msgstr "Saved favorites and searches"
-
 #: src/features/notifications/settings/preferences.tsx
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Saving..."
@@ -2956,18 +2956,17 @@ msgstr "Show more"
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Sign in"
+msgstr "Sign in"
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 
 #: src/features/notifications/RequireBackendAuth.tsx
-#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Sign in with Wallet"
 msgstr "Sign in with Wallet"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
-msgstr "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Sign once to enable gasless transactions for your ENS operations."
@@ -2996,6 +2995,14 @@ msgstr "Sign-in link copied. Open it in your browser, then return here."
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Signature cancelled. You can try again."
 msgstr "Signature cancelled. You can try again."
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Signing didn't go through. Please try again."
+msgstr "Signing didn't go through. Please try again."
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Signing in is the recommended way to use the ENS App. It enables notifications for transfers and expirations, and saved items like favorites and searches."
+msgstr "Signing in is the recommended way to use the ENS App. It enables notifications for transfers and expirations, and saved items like favorites and searches."
 
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -3456,10 +3463,6 @@ msgstr "Times shown in your local time zone ({timezoneLabel})"
 msgid "Tip: if your browser asks how long to allow notifications, pick the permanent option."
 msgstr "Tip: if your browser asks how long to allow notifications, pick the permanent option."
 
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "To enable these features later, open your wallet menu and select Verify wallet ownership."
-msgstr "To enable these features later, open your wallet menu and select Verify wallet ownership."
-
 #: src/features/notifications/settings/contact-methods/push.tsx
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
@@ -3503,6 +3506,7 @@ msgstr "Trademark Guidelines"
 #: src/features/profile/components/view/ProfileView.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
+#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Try again"
 msgstr "Try again"
 
@@ -3697,10 +3701,6 @@ msgstr "Verify Wallet"
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Verify wallet ownership"
 msgstr "Verify wallet ownership"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Verify your wallet"
-msgstr "Verify your wallet"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Verifying registration on-chain"
@@ -3993,8 +3993,8 @@ msgid "You can keep browsing, but registering or managing names needs a session.
 msgstr "You can keep browsing, but registering or managing names needs a session. Try again when you're ready."
 
 #: src/features/wallet/components/BackendAuthModal.tsx
-msgid "You can still use the manager, but these features won't be available:"
-msgstr "You can still use the manager, but these features won't be available:"
+msgid "You can sign in anytime from your wallet menu."
+msgstr "You can sign in anytime from your wallet menu."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "You cancelled the request."

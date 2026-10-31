@@ -1,11 +1,10 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { backendAuthStore } from '@/utils/backend-client'
 import { render } from '@/utils/test-utils'
 
 const wagmiMock = vi.hoisted(() => ({
   useConnection: vi.fn(),
-  useWalletClient: vi.fn(),
 }))
 
 const smartAccountMock = vi.hoisted(() => ({
@@ -24,7 +23,6 @@ vi.mock('wagmi', async (importOriginal) => {
   return {
     ...actual,
     useConnection: wagmiMock.useConnection,
-    useWalletClient: wagmiMock.useWalletClient,
   }
 })
 
@@ -62,10 +60,10 @@ const showModal = ({
   isPending?: boolean
 } = {}) => {
   wagmiMock.useConnection.mockReturnValue({ isConnected: true })
-  wagmiMock.useWalletClient.mockReturnValue({
-    data: { account: { address: '0xabc' } },
+  smartAccountMock.useSmartAccountContextSafe.mockReturnValue({
+    isAccountReady: true,
+    walletClient: { account: { address: '0xabc' } },
   })
-  smartAccountMock.useSmartAccountContextSafe.mockReturnValue(null)
   useMutationMock.mockReturnValue({
     isPending,
     isError,
@@ -87,7 +85,7 @@ describe('BackendAuthModal', () => {
     render(<BackendAuthModal />)
 
     expect(
-      screen.getByRole('alertdialog', { name: 'Verify your wallet' }),
+      screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
     ).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Skip for now' }),
@@ -101,14 +99,14 @@ describe('BackendAuthModal', () => {
     render(<BackendAuthModal />)
 
     expect(
-      screen.getByRole('alertdialog', { name: 'Verify your wallet' }),
+      screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
     ).toBeInTheDocument()
 
     pressKeys(['s', 'k', 'i', 'p'])
 
     await waitFor(() => {
       expect(
-        screen.queryByRole('alertdialog', { name: 'Verify your wallet' }),
+        screen.queryByRole('alertdialog', { name: 'Authenticate to continue' }),
       ).not.toBeInTheDocument()
     })
     expect(backendAuthStore.get().context.modalDismissed).toBe(true)
@@ -132,45 +130,101 @@ describe('BackendAuthModal', () => {
     render(<BackendAuthModal />)
 
     expect(
-      screen.getByRole('alertdialog', { name: 'Verify your wallet' }),
+      screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
     ).toBeInTheDocument()
 
     pressKeys(['s', 'k', 'i', 'p'])
 
     expect(
-      screen.getByRole('alertdialog', { name: 'Verify your wallet' }),
+      screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
     ).toBeInTheDocument()
     expect(backendAuthStore.get().context.modalDismissed).toBe(false)
   })
 
-  it('shows a dismiss action after sign-in fails', () => {
+  it('only offers to continue without signing in after sign-in fails', () => {
+    render(<BackendAuthModal />)
+
+    expect(
+      screen.queryByRole('button', { name: 'Continue without signing in' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows a retry and dismiss action after sign-in fails', () => {
     showModal({ isError: true })
 
     render(<BackendAuthModal />)
 
     expect(
-      screen.getByRole('button', { name: 'Continue without signing in' }),
+      screen.getByText("Signing didn't go through. Please try again."),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(
-        "You can still use the manager, but these features won't be available:",
-      ),
+      screen.getByRole('button', { name: 'Try again' }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByText('Domain transfer and expiry notifications'),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Saved favorites and searches')).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'To enable these features later, open your wallet menu and select Verify wallet ownership.',
-      ),
-    ).toBeInTheDocument()
+  })
+
+  it('confirms what is lost before continuing without signing in', () => {
+    showModal({ isError: true })
+
+    render(<BackendAuthModal />)
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue without signing in' }),
     )
 
+    expect(
+      screen.getByRole('alertdialog', { name: 'Continue without signing in?' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/enables notifications for transfers and expirations/),
+    ).toBeInTheDocument()
+    expect(backendAuthStore.get().context.modalDismissed).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
     expect(backendAuthStore.get().context.modalDismissed).toBe(true)
+  })
+
+  it('reopens at sign-in after SKIP closes the skip confirmation', async () => {
+    showModal({ isError: true })
+
+    render(<BackendAuthModal />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue without signing in' }),
+    )
+    pressKeys(['s', 'k', 'i', 'p'])
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    })
+
+    act(() => {
+      backendAuthStore.trigger.resetModal()
+    })
+
+    expect(
+      await screen.findByRole('alertdialog', {
+        name: 'Authenticate to continue',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('retries sign-in from the skip confirmation', () => {
+    showModal({ isError: true })
+    const { mutateAsync } = useMutationMock()
+
+    render(<BackendAuthModal />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue without signing in' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(mutateAsync).toHaveBeenCalledOnce()
+    expect(
+      screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
+    ).toBeInTheDocument()
+    expect(backendAuthStore.get().context.modalDismissed).toBe(false)
   })
 
   it('disconnects the wallet so the user can switch accounts', () => {
@@ -187,7 +241,7 @@ describe('BackendAuthModal', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
 
     expect(
-      screen.getByRole('alertdialog', { name: 'Verify your wallet' }),
+      screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
     ).toBeInTheDocument()
     expect(backendAuthStore.get().context.modalDismissed).toBe(false)
   })
