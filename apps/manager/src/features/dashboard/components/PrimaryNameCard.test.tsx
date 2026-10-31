@@ -68,11 +68,13 @@ describe('PrimaryNameCard', () => {
 
     const nameText = screen.getByText(longName)
     const nameplate = nameText.parentElement
-    const metadataColumn = nameplate?.parentElement
+    const nameRow = nameplate?.parentElement
+    const metadataColumn = nameRow?.parentElement
     const cardContent = metadataColumn?.parentElement
 
     expect(nameText).toHaveClass('min-w-0', 'wrap-anywhere')
     expect(nameplate).toHaveClass('max-w-full', 'self-start')
+    expect(nameRow).toHaveClass('min-w-0')
     expect(metadataColumn).toHaveClass('min-w-0')
     expect(cardContent).toHaveClass('min-w-0')
   })
