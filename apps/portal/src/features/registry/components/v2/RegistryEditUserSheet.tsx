@@ -27,7 +27,10 @@ import { prepareGrantRegistryRolesTransaction } from '@/features/registry/helper
 import { prepareRevokeRegistryRolesTransaction } from '@/features/registry/helpers/revokeRegistryRoles'
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
 import { useRevokeRegistryRolesMutation } from '@/features/registry/hooks/useRevokeRegistryRoles'
-import { useUpgradeRevokeGuard } from '@/features/registry/hooks/useUpgradeRevokeGuard'
+import {
+  type UpgradeGuardNotice,
+  useUpgradeRevokeGuard,
+} from '@/features/registry/hooks/useUpgradeRevokeGuard'
 import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -59,6 +62,30 @@ type RegistryEditUserSheetProps = {
   /** The user's currently held roles at the registry root resource. */
   currentRoles: readonly Role[]
 }
+
+const UpgradeGuardNoticeAlert = ({
+  notice,
+}: {
+  readonly notice: UpgradeGuardNotice
+}) =>
+  notice === null ? null : (
+    <Alert variant="warning">
+      <AlertDescription>
+        {match(notice)
+          .with(
+            'grant',
+            () =>
+              "The Registrar role can't be granted on this registry until it's upgraded to a newer version.",
+          )
+          .with(
+            'upgrade',
+            () =>
+              "This registry has to be upgraded to a newer version first. Someone needs to keep the Upgrade role until then, so it can't be removed yet.",
+          )
+          .exhaustive()}
+      </AlertDescription>
+    </Alert>
+  )
 
 export const RegistryEditUserSheet = ({
   open,
@@ -328,15 +355,7 @@ export const RegistryEditUserSheet = ({
                 </Alert>
               )}
 
-              {upgradeGuard.shouldShowNotice && (
-                <Alert variant="warning">
-                  <AlertDescription>
-                    This registry has to be upgraded to a newer version first.
-                    Someone needs to keep the Upgrade role until then, so it
-                    can't be removed yet.
-                  </AlertDescription>
-                </Alert>
-              )}
+              <UpgradeGuardNoticeAlert notice={upgradeGuard.notice} />
 
               <div className="flex justify-end">
                 <Button

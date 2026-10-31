@@ -11,6 +11,7 @@ import {
   getRemovableRoles,
   getSoleAdminRoles,
   isAdminRole,
+  isRestrictedGrantBlocked,
   isUpgradeRevokeBlocked,
   toAdminRole,
 } from './registryRoleAccess'
@@ -185,6 +186,50 @@ describe('isUpgradeRevokeBlocked', () => {
     },
   ])('$case: $expected', ({ overrides, expected }) => {
     expect(blocked(overrides)).toBe(expected)
+  })
+})
+
+describe('isRestrictedGrantBlocked', () => {
+  it.each<{
+    readonly case: string
+    readonly isPendingUpgrade: boolean | undefined
+    readonly toGrant: readonly Role[]
+    readonly expected: boolean
+  }>([
+    {
+      case: 'registrar on a registry pending an upgrade',
+      isPendingUpgrade: true,
+      toGrant: ['ROLE_RENEW', 'ROLE_REGISTRAR'],
+      expected: true,
+    },
+    {
+      case: 'the unregister admin role',
+      isPendingUpgrade: true,
+      toGrant: ['ROLE_UNREGISTER_ADMIN'],
+      expected: true,
+    },
+    {
+      case: 'registrar on an unchecked registry',
+      isPendingUpgrade: undefined,
+      toGrant: ['ROLE_REGISTRAR'],
+      expected: true,
+    },
+    {
+      case: 'registrar on a registry not pending an upgrade',
+      isPendingUpgrade: false,
+      toGrant: ['ROLE_REGISTRAR'],
+      expected: false,
+    },
+    {
+      case: 'other roles',
+      isPendingUpgrade: true,
+      toGrant: ['ROLE_RENEW', 'ROLE_SET_RESOLVER'],
+      expected: false,
+    },
+  ])('$case: $expected', ({ isPendingUpgrade, toGrant, expected }) => {
+    expect(isRestrictedGrantBlocked({ isPendingUpgrade, toGrant })).toBe(
+      expected,
+    )
   })
 })
 

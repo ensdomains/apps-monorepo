@@ -104,6 +104,24 @@ export const isUpgradeRevokeBlocked = ({
   return UPGRADE_ROLES.every((role) => remaining(role) === 0)
 }
 
+const RESTRICTED_GRANT_ROLES: readonly Role[] = [
+  'ROLE_REGISTRAR',
+  'ROLE_REGISTRAR_ADMIN',
+  'ROLE_UNREGISTER',
+  'ROLE_UNREGISTER_ADMIN',
+]
+
+/** On a UserRegistry pending an upgrade (or unverified), refuse granting registrar or unregister roles. */
+export const isRestrictedGrantBlocked = ({
+  isPendingUpgrade,
+  toGrant,
+}: {
+  readonly isPendingUpgrade: boolean | undefined
+  readonly toGrant: readonly Role[]
+}): boolean =>
+  isPendingUpgrade !== false &&
+  toGrant.some((role) => RESTRICTED_GRANT_ROLES.includes(role))
+
 /** Roles to grant/revoke to move a holder from `current` to `selected`. */
 export const computeRoleDiff = (
   current: ReadonlySet<Role>,
