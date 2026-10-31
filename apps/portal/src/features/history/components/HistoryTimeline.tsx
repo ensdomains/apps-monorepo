@@ -2,7 +2,6 @@ import type { EventKind } from '@ens-apps/indexer/bigname'
 import { Calendar, ChevronDown, ChevronUp, ListFilter } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { AddressHighlightProvider } from '@/components/AddressHighlight'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -172,27 +171,25 @@ export const HistoryTimelineView = ({
     <div className="flex w-full min-w-0 flex-col gap-4 sm:gap-6">
       {header}
 
-      <AddressHighlightProvider>
-        <TimelineFrame>
+      <TimelineFrame>
+        <ActionTimeline
+          actions={actions}
+          openIds={openIds}
+          onToggle={toggleAction}
+          showActor={showActor}
+          connectBelow={showBreak && 'dashed'}
+        />
+        {showBreak && breakRow}
+        {pinnedAction && (
           <ActionTimeline
-            actions={actions}
+            actions={[pinnedAction]}
             openIds={openIds}
             onToggle={toggleAction}
             showActor={showActor}
-            connectBelow={showBreak && 'dashed'}
+            connectAbove="dashed"
           />
-          {showBreak && breakRow}
-          {pinnedAction && (
-            <ActionTimeline
-              actions={[pinnedAction]}
-              openIds={openIds}
-              onToggle={toggleAction}
-              showActor={showActor}
-              connectAbove="dashed"
-            />
-          )}
-        </TimelineFrame>
-      </AddressHighlightProvider>
+        )}
+      </TimelineFrame>
 
       {disclosures}
     </div>
