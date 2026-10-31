@@ -7,8 +7,7 @@
  * carries the labelhash alone, so a registry-only V1 subname is listed as
  * `[<labelhash>].parent.eth` and its owner's upgrade list shows it that way.
  * The hosted bigname can fill such labels from a rainbow import; the local one
- * has none (e2e-defects.md, "Local bigname cannot name registry-only V1
- * subnames").
+ * has none, so it cannot name registry-only V1 subnames on its own.
  *
  * This writes the label into `bigname_phase.label_preimages`, the table both
  * sources feed. Names are rendered from it at read time, so the next lookup

@@ -8,7 +8,11 @@
  * in isolation.
  */
 
-import type { Role } from '@ensdomains/ensjs/utils/v2'
+import type {
+  DecodeRoleCountsReturnType,
+  Role,
+  registryRoles,
+} from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
 import type { RootRoleHolder } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { isRegistryRole } from '@/lib/roles/permissions'
@@ -65,6 +69,58 @@ export const getSoleAdminRoles = (
   }
   return result
 }
+
+const UPGRADE_ROLES: readonly Role[] = ['ROLE_UPGRADE', 'ROLE_UPGRADE_ADMIN']
+
+/** On a UserRegistry pending an upgrade (or unverified), refuse an edit after which no one could upgrade it. */
+export const isUpgradeRevokeBlocked = ({
+  isPendingUpgrade,
+  rootRoleCounts,
+  accountRoles,
+  toGrant,
+  toRevoke,
+}: {
+  readonly isPendingUpgrade: boolean | undefined
+  /** On-chain holder count per root role; undefined while unknown. */
+  readonly rootRoleCounts:
+    | Readonly<DecodeRoleCountsReturnType<typeof registryRoles>>
+    | undefined
+  /** The edited account's on-chain root roles; undefined while unknown. */
+  readonly accountRoles: readonly Role[] | undefined
+  readonly toGrant: readonly Role[]
+  readonly toRevoke: readonly Role[]
+}): boolean => {
+  if (
+    isPendingUpgrade === false ||
+    !toRevoke.some((role) => UPGRADE_ROLES.includes(role))
+  )
+    return false
+  if (!rootRoleCounts || !accountRoles) return true
+  const remaining = (role: Role) => {
+    const holds = accountRoles.includes(role)
+    const keeps = toGrant.includes(role) || (holds && !toRevoke.includes(role))
+    return rootRoleCounts[role] - (holds ? 1 : 0) + (keeps ? 1 : 0)
+  }
+  return UPGRADE_ROLES.every((role) => remaining(role) === 0)
+}
+
+const RESTRICTED_GRANT_ROLES: readonly Role[] = [
+  'ROLE_REGISTRAR',
+  'ROLE_REGISTRAR_ADMIN',
+  'ROLE_UNREGISTER',
+  'ROLE_UNREGISTER_ADMIN',
+]
+
+/** On a UserRegistry pending an upgrade (or unverified), refuse granting registrar or unregister roles. */
+export const isRestrictedGrantBlocked = ({
+  isPendingUpgrade,
+  toGrant,
+}: {
+  readonly isPendingUpgrade: boolean | undefined
+  readonly toGrant: readonly Role[]
+}): boolean =>
+  isPendingUpgrade !== false &&
+  toGrant.some((role) => RESTRICTED_GRANT_ROLES.includes(role))
 
 /** Roles to grant/revoke to move a holder from `current` to `selected`. */
 export const computeRoleDiff = (

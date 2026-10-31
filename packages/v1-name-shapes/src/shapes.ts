@@ -379,7 +379,7 @@ const SHAPE_LIST = [
 
   // ── Declared unseedable ───────────────────────────────────────────────
   // Present so the matrix states them as gaps rather than implying coverage by
-  // omission. Each becomes an EXEMPT row in the ledger.
+  // omission.
   {
     n: 60,
     id: '3ld-pcc-expired',
@@ -405,7 +405,7 @@ const SHAPE_LIST = [
     v3NameType: 'dns-unwrapped-2ld',
     unseedable: {
       reason:
-        'No DNSRegistrar seeding machinery exists anywhere in e2e/. Out of scope by decision; the portal surface is tracked by catalogue suite Z.',
+        'No DNSRegistrar seeding machinery exists anywhere in e2e/. Out of scope by decision; the portal surface is tracked separately.',
     },
   },
 ] as const satisfies readonly Shape[]

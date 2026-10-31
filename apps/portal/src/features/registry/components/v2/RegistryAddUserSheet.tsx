@@ -1,5 +1,6 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
+import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -16,6 +17,8 @@ import { AddressNameInput } from '@/features/address/components/AddressNameInput
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { prepareGrantRegistryRolesTransaction } from '@/features/registry/helpers/grantRegistryRoles'
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
+import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
+import { isRestrictedGrantBlocked } from '@/features/registry/utils/registryRoleAccess'
 import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
@@ -102,8 +105,20 @@ export const RegistryAddUserSheet = ({
     setFormError(null)
   }
 
+  const { data: isPendingUpgrade } = useQuery(
+    getIsRegistryPendingUpgradeQueryOptions({ registryAddress }),
+  )
+  const isGrantBlocked = isRestrictedGrantBlocked({
+    isPendingUpgrade,
+    toGrant: [...selectedRoles],
+  })
+
   const canSave =
-    !!address && !isResolvingAddress && selectedRoles.size > 0 && !isSuccess
+    !!address &&
+    !isResolvingAddress &&
+    selectedRoles.size > 0 &&
+    !isSuccess &&
+    !isGrantBlocked
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -180,6 +195,12 @@ export const RegistryAddUserSheet = ({
                 {formError?.field === 'roles' && (
                   <FieldError className="mt-1.5">
                     {formError.message}
+                  </FieldError>
+                )}
+                {isGrantBlocked && isPendingUpgrade === true && (
+                  <FieldError className="mt-1.5">
+                    The Registrar role can't be granted on this registry until
+                    it's upgraded to a newer version.
                   </FieldError>
                 )}
               </Field>

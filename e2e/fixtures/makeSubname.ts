@@ -1,9 +1,9 @@
 /**
- * makeSubname fixture — plan item H2.
+ * makeSubname fixture.
  *
  * Creates N-deep V2 subnames through `UserRegistry`, with a per-level owner
- * and role bitmap. §5.D is written entirely against this, and §5.C's
- * registry-level cases and §5.E's per-name resolver cases need it too.
+ * and role bitmap. Subname scenarios are written against this, and so are
+ * registry-level role cases and per-name resolver cases.
  *
  * A 2LD in the `.eth` registry has no subregistry until someone deploys one,
  * so creating `c.b.eth` means: give `b.eth` a subregistry, register `c` in it,

@@ -1,7 +1,7 @@
 /**
- * Role oracles for V2 names — plan item H1.
+ * Role oracles for V2 names.
  *
- * Every §5.C/§5.D/§5.E scenario decides pass/fail on "who holds which role",
+ * Every role, registry and subname scenario decides pass/fail on "who holds which role",
  * so this module is the single place that answers it. Reads go through the
  * same ensjs actions the apps use (`getNameRolesForAccount`, `hasRoles`,
  * `getNameRoleAccounts`) and writes through the same
@@ -125,11 +125,11 @@ export async function readRoleHolders({
 // ── assertions ───────────────────────────────────────────────────────────
 
 /**
- * The universal role oracle of plan §3.3 in its strictest form: `account`
+ * The universal role oracle in its strictest form: `account`
  * holds **exactly** `expected` on `label` — no more, no less.
  *
- * Prefer this over {@link assertHasRoles} wherever the plan states a complete
- * role set (the V1 fuse → V2 mapping of §3.4, post-migration bitmaps,
+ * Prefer this over {@link assertHasRoles} wherever a scenario states a complete
+ * role set (the V1 fuse → V2 mapping, post-migration bitmaps,
  * post-transfer bitmaps). A subset check cannot catch an over-grant, and an
  * over-grant is the failure that matters — it hands someone authority the
  * contract never meant them to have.

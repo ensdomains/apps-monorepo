@@ -1,5 +1,5 @@
 /**
- * Driver for the portal's shared `TransactionModal` — plan item H8.
+ * Driver for the portal's shared `TransactionModal`.
  *
  * Every portal write flow (transfer, change-resolver, save-records, grant and
  * revoke roles) funnels through the same modal, so the stepping logic belongs
@@ -73,6 +73,9 @@ export const transferTxId = (
  * console line (the format emitted by `transactionManager.ts`). Reused across
  * the transfer, change-resolver (2-step: deploy + set), and save-records flows.
  */
+/** How long one modal click may wait for its button before the loop re-reads the screen. */
+const CLICK_TIMEOUT_MS = 5_000
+
 export async function driveTransactionsToSuccess(
   page: Page,
   wallet: Web3ProviderBackend,
@@ -139,7 +142,12 @@ export async function driveTransactionsToSuccess(
         name: /open wallet/i,
       })
       if (await openWalletButton.isVisible().catch(() => false)) {
-        await openWalletButton.click()
+        // Short timeout: the modal may move on before the click lands, and a
+        // vanished button would otherwise hold this loop for the full action
+        // timeout. The next pass re-reads whatever is on screen.
+        await openWalletButton
+          .click({ timeout: CLICK_TIMEOUT_MS })
+          .catch(() => {})
         await page.waitForTimeout(500)
         continue
       }
@@ -153,9 +161,16 @@ export async function driveTransactionsToSuccess(
       })
       if (
         (await primaryButton.isVisible().catch(() => false)) &&
-        (await primaryButton.isEnabled().catch(() => false))
+        // isEnabled waits for the element (isVisible does not), so a Next that
+        // vanished after the visibility check would hold the loop for the
+        // full action timeout.
+        (await primaryButton
+          .isEnabled({ timeout: CLICK_TIMEOUT_MS })
+          .catch(() => false))
       ) {
-        await primaryButton.click()
+        // The modal now starts the next step itself once a step succeeds, so
+        // Next can disappear mid-click. See the Open wallet click above.
+        await primaryButton.click({ timeout: CLICK_TIMEOUT_MS }).catch(() => {})
         await page.waitForTimeout(500)
         continue
       }

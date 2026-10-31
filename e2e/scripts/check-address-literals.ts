@@ -1,5 +1,5 @@
 /**
- * Harness integrity gate — rule 7 of `e2e-build-goal.md` §5.
+ * Harness integrity gate: no contract address literals.
  *
  *     pnpm e2e:check:addresses
  *
@@ -17,7 +17,7 @@
  *      names. Fails the build. This is the drift incident itself: a literal
  *      cannot be `V1_PUBLIC_RESOLVER` in one file and `DEDICATED_RESOLVER` in
  *      another and be correct in both. An allowlist entry may waive it only
- *      with `conflictAcceptedUntil` — a named owner and a date, per §10.
+ *      with `conflictAcceptedUntil` — a named owner and a date.
  *
  * The regex is anchored with `\b` on both sides deliberately. Without the
  * trailing boundary it matches the first 40 characters of every 32-byte Anvil
@@ -74,7 +74,7 @@ interface Allowance {
  * lowercase. Adding an entry is a decision; make the reason carry it.
  */
 const ALLOWED: Record<string, Allowance> = {
-  // ── Anvil's well-known dev accounts. EOAs, not contracts — rule 7 is about
+  // ── Anvil's well-known dev accounts. EOAs, not contracts — this gate is about
   // contract addresses drifting between deployments. These are fixed by the
   // Anvil mnemonic and cannot drift.
   '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266': {
@@ -123,7 +123,7 @@ const ALLOWED: Record<string, Allowance> = {
 
   // ── The V1 deployment. `V1_ETH_REGISTRAR_CONTROLLER` / `V1_BASE_REGISTRAR`
   // / `V1_NAME_WRAPPER` / `V1_ENS_REGISTRY` in `makeV1Name.ts` are no longer
-  // literals here at all — as of iteration 23 they're imported from
+  // literals here at all — they're imported from
   // `v1-controller-auth.ts`'s `APP_V1_*` (themselves derived from
   // `ensL1Contracts`) or from `ensjsSepolia.ensLegacyRegistry`, the same
   // canonical addresses the apps read. `V1_PUBLIC_RESOLVER` is the one
@@ -275,7 +275,7 @@ for (const [address, names] of namesByAddress) {
 const fatal: string[] = []
 
 if (unaccounted.length > 0) {
-  console.error('✗ Address literals with no allowlist entry (rule 7):')
+  console.error('✗ Address literals with no allowlist entry:')
   for (const h of unaccounted) {
     console.error(`    ${h.file}:${h.line}  ${h.address}`)
   }
@@ -324,7 +324,7 @@ console.log(
 )
 
 if (fatal.length > 0) {
-  console.error(`\n✗ rule 7 gate failed: ${fatal.join('; ')}`)
+  console.error(`\n✗ address-literal gate failed: ${fatal.join('; ')}`)
   process.exit(1)
 }
-console.log('✓ rule 7 gate passed')
+console.log('✓ address-literal gate passed')

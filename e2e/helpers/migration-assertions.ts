@@ -42,7 +42,7 @@ const V2_ETH_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensRegistry
 /**
  * The two contracts the copy route certifies a `UserRegistry` against. Both are
  * in the ensjs Sepolia config, so the copy oracles need no address literals of
- * their own (rule 7).
+ * their own.
  */
 const V2_VERIFIABLE_FACTORY = ensL1Contracts[supportedL1Chains.sepolia]
   .ensVerifiableFactory.address as Address
@@ -196,7 +196,7 @@ export async function assertV2Resolver(
 }
 
 /**
- * Role assertions live in `role-assertions.ts` (plan item H1), which sources
+ * Role assertions live in `role-assertions.ts`, which sources
  * its constants from ensjs rather than restating them. An earlier version of
  * this file exported a `REGISTRY_ROLES` map with one bit per role — but V2
  * roles are nybble-packed, four bits each, so all but `ROLE_REGISTRAR` named

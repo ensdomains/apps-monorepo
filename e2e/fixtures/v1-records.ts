@@ -21,9 +21,9 @@ import { localReceipt } from '../helpers/local-receipt.js'
  *    nothing tries to re-point it. Checking before writing is what keeps that
  *    shape seedable instead of silently recorded as "no records".
  *
- * Everything is read back (ground rule 5). Records that fail to write and are
- * not noticed would turn every positive record cell into an assertion that the
- * page renders nothing, which is what B7 exists to stop doing.
+ * Everything is read back. Records that fail to write and are not noticed
+ * would turn every positive record cell into an assertion that the page
+ * renders nothing.
  */
 
 import {

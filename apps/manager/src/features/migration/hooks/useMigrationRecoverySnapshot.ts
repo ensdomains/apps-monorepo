@@ -6,9 +6,9 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 import {
   getMigrationBatchJournalRevision,
   getServerMigrationBatchJournalRevision,
-  loadMigrationRecoverySnapshot,
-  loadPendingAtomicMigrationIntents,
-  loadSubmittedAtomicMigrationBatches,
+  hasMigrationRecoveryAttempt,
+  loadMigrationBatchJournal,
+  type loadMigrationRecoverySnapshot,
   type MigrationBatchJournalScope,
   removeMigrationRecoverySnapshot,
   subscribeMigrationBatchJournal,
@@ -46,13 +46,11 @@ export const useMigrationRecoverySnapshot = () => {
       owner: ownerAddress as Address,
       hca: hcaAddress as Address,
     }
-    const snapshot = loadMigrationRecoverySnapshot(scope)
+    const journal = loadMigrationBatchJournal(scope)
+    const snapshot = journal.recovery
     if (!snapshot) return { snapshot: null, discardedScope: null }
 
-    const hasRecordedAttempt =
-      snapshot.completedOperations.length > 0 ||
-      loadPendingAtomicMigrationIntents(scope).length > 0 ||
-      loadSubmittedAtomicMigrationBatches(scope).length > 0
+    const hasRecordedAttempt = hasMigrationRecoveryAttempt(journal)
 
     return hasRecordedAttempt
       ? { snapshot, discardedScope: null }

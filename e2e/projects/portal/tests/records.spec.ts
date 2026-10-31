@@ -116,7 +116,7 @@ test.describe('Portal resolver records', () => {
   test.describe.configure({ timeout: 300_000 })
 
   test('saves several text records in one transaction and reads them back on-chain', {
-    tag: ['@scenario:E1'],
+    tag: ['@smoke', '@scenario:E1'],
   }, async ({ portalPage: page, wallet, makeName }) => {
     await connectWithHeadlessWallet(page, wallet)
 
@@ -224,12 +224,12 @@ test.describe('Portal resolver records', () => {
       owner: 'user',
       records: [{ key: 'seed', value: 'dedicated-resolver' }],
     })
-    const evm = wallets.address('manager')
-    const btc = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'
+    const EVM_ADDRESS = wallets.address('manager')
+    const BTC_ADDRESS = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'
 
     await page.goto(`${PORTAL_APP_URL}/${name}/edit-records`)
-    await addAddressRecord(page, 'ETH', evm)
-    await addAddressRecord(page, 'BTC', btc)
+    await addAddressRecord(page, 'ETH', EVM_ADDRESS)
+    await addAddressRecord(page, 'BTC', BTC_ADDRESS)
 
     await page
       .getByRole('button', { name: 'Save 2 changes' })
@@ -241,11 +241,11 @@ test.describe('Portal resolver records', () => {
     expect(
       (await readAddr(name, 'ETH'))?.value?.toLowerCase(),
       'addr(60) should hold the EVM address that was entered',
-    ).toBe(evm.toLowerCase())
+    ).toBe(EVM_ADDRESS.toLowerCase())
     expect(
       (await readAddr(name, 'BTC'))?.value,
       'addr(0) should hold the BTC address that was entered',
-    ).toBe(btc)
+    ).toBe(BTC_ADDRESS)
   })
 
   test('sets a contenthash record', { tag: ['@scenario:E4'] }, async ({
@@ -260,13 +260,13 @@ test.describe('Portal resolver records', () => {
       owner: 'user',
       records: [{ key: 'seed', value: 'dedicated-resolver' }],
     })
-    const ipfs =
+    const IPFS_CONTENT_HASH =
       'ipfs://bafybeico3uuyj3vphxpvbowchdwjlrlrh62awxscrnii7w7flu5z6fk77y'
 
     await page.goto(`${PORTAL_APP_URL}/${name}/edit-records`)
     // Contenthash is keyless — type and value only.
     await page.getByLabel('Type', { exact: true }).selectOption('contentHash')
-    await page.getByLabel('Value', { exact: true }).fill(ipfs)
+    await page.getByLabel('Value', { exact: true }).fill(IPFS_CONTENT_HASH)
     await page.getByRole('button', { name: 'Add record' }).click()
 
     await page
@@ -282,7 +282,7 @@ test.describe('Portal resolver records', () => {
     expect(
       `${(stored as { protocolType?: string; decoded?: string }).protocolType}://${(stored as { decoded?: string }).decoded}`,
       'contenthash should round-trip the IPFS CID that was entered',
-    ).toBe(ipfs)
+    ).toBe(IPFS_CONTENT_HASH)
   })
 
   test("a resolver contract shared by two names does not leak one name's text-record keys onto the other (E2E-008)", {

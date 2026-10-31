@@ -107,9 +107,9 @@ describe('the tab table', () => {
     expect(new Set(TABS.map((t) => t.prefix)).size).toBe(TABS.length)
   })
 
-  it('uses prefixes the coverage ledger can parse', () => {
-    // `TAG_RE` in reconcile.ts is /@scenario:([A-Za-z]+[0-9]+)/, and tierForId
-    // takes the longest alphabetic prefix — so a prefix must be letters only.
+  it('uses prefixes a scenario tag can carry', () => {
+    // A `@scenario:` id is letters then digits, and its tier comes from the
+    // longest alphabetic prefix — so a prefix must be letters only.
     for (const tab of TABS) expect(tab.prefix).toMatch(/^[A-Z]+$/)
   })
 

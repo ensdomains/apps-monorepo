@@ -15,6 +15,8 @@ import {
   serializeBigInts,
 } from './utils/ssr-bigint-transformer'
 
+const FOCUS_REFETCH_AFTER_MS = 30_000
+
 declare module '@tanstack/react-query' {
   interface Register {
     mutationMeta: {
@@ -34,6 +36,10 @@ export async function getRouter() {
     defaultOptions: {
       queries: {
         staleTime: 0,
+        // Quick tab switches skip refetching every query; mounts always refetch.
+        refetchOnWindowFocus: (query) =>
+          Date.now() - query.state.dataUpdatedAt > FOCUS_REFETCH_AFTER_MS,
+        retry: 1,
       },
       // Round-trip bigints through the SSR boundary. Without this, the
       // server's `JSON.stringify` on the dehydrated cache either throws

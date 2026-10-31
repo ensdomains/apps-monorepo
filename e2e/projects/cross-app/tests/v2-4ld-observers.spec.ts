@@ -30,7 +30,7 @@ test.beforeEach(() =>
 )
 
 test('manager sets a native 4LD primary name visible in explorer', {
-  tag: ['@scenario:Q57'],
+  tag: ['@smoke', '@scenario:Q57'],
 }, async ({ manager, explorer, accounts }) => {
   const account = privateKeyToAccount(accounts.getPrivateKey('user'))
   const tree = await makeV2FourLD(account)
@@ -43,8 +43,8 @@ test('manager sets a native 4LD primary name visible in explorer', {
       exact: true,
     })
     .click()
-  let done = false
-  const signing = authorizeTransactionsWhile(page, wallet, () => done)
+  let isDone = false
+  const signing = authorizeTransactionsWhile(page, wallet, () => isDone)
   try {
     // The forward address already matches: the ready path needs no ETH-update confirmation.
     await dialog
@@ -54,7 +54,7 @@ test('manager sets a native 4LD primary name visible in explorer', {
       .poll(() => readPrimaryName(account.address), { timeout: 120_000 })
       .toBe(tree.name)
   } finally {
-    done = true
+    isDone = true
     await signing
   }
   await expectRecordsResolve(tree.name, tree.records)

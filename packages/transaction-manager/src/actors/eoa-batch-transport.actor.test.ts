@@ -32,10 +32,10 @@ const CALLS_ID = `0x${'01'.repeat(32)}`
 
 type RpcHandler = (method: string, params: unknown) => unknown
 
-const signerWith = (handler: RpcHandler): EOASigner => ({
+const signerWith = (handler: RpcHandler, account = ACCOUNT): EOASigner => ({
   type: 'eoa',
   walletClient: createWalletClient({
-    account: ACCOUNT,
+    account,
     chain: sepolia,
     pollingInterval: 10,
     transport: custom(
@@ -105,19 +105,28 @@ describe('getAtomicBatchSupport', () => {
       throw new Error(`unexpected RPC call: ${method}`)
     }).walletClient
 
+  // `ready` makes our send upgrade the EOA through EIP-7702: only wallets whose
+  // delegate can own an HCA may do that.
   it.each([
-    ['supported', true],
-    // `ready` would make our send prompt an EIP-7702 upgrade of the EOA.
-    ['ready', false],
-    ['unsupported', false],
-  ])('reads atomic status %s as %s', async (status, expected) => {
-    await expect(
-      getAtomicBatchSupport({
-        walletClient: capabilitiesWith({ status }),
-        chainId: sepolia.id,
-      }),
-    ).resolves.toBe(expected)
-  })
+    ['supported', undefined, true],
+    ['ready', 'io.metamask', true],
+    ['ready', 'me.rainbow', true],
+    ['ready', 'org.uniswap.app', true],
+    ['ready', 'com.coinbase.wallet', false],
+    ['ready', undefined, false],
+    ['unsupported', 'io.metamask', false],
+  ])(
+    'reads atomic status %s from wallet %s as %s',
+    async (status, walletId, expected) => {
+      await expect(
+        getAtomicBatchSupport({
+          walletClient: capabilitiesWith({ status }),
+          chainId: sepolia.id,
+          walletId,
+        }),
+      ).resolves.toBe(expected)
+    },
+  )
 
   it('is false when the wallet reports no atomic capability', async () => {
     await expect(
@@ -177,8 +186,23 @@ describe('submitEOABatch', () => {
     expect(handler).not.toHaveBeenCalled()
   })
 
+  it('lets a wallet with an HCA-safe delegate upgrade through the send', async () => {
+    const handler = vi.fn((method: string) => {
+      if (method === 'wallet_getCapabilities') return capabilities('ready')
+      if (method === 'wallet_sendCalls') return { id: CALLS_ID }
+      throw new Error(`unexpected RPC call: ${method}`)
+    })
+
+    const result = await submitEOABatch({
+      request: batchRequest(),
+      signer: { ...signerWith(handler), walletId: 'io.metamask' },
+    })
+
+    expect(result._unsafeUnwrap()).toBe(CALLS_ID)
+  })
+
   // Planned while the wallet reported `supported`; sending now could prompt
-  // an EIP-7702 upgrade.
+  // an EIP-7702 upgrade to a delegate we haven't vetted.
   it.each(['ready', 'unsupported'])(
     'refuses to send once the wallet reports atomic %s',
     async (status) => {
@@ -301,6 +325,40 @@ describe('eoa-batch through the transaction machine', () => {
     await expect(waitForTransaction(txId)).resolves.toMatchObject({
       hash: TX_HASH,
     })
+  })
+
+  it('stops without resending when the user declines the account upgrade, and stops offering it', async () => {
+    // Its own account: the decline is remembered for the rest of the file.
+    const decliner = getAddress('0x000000000000000000000000000000000000dddd')
+    const sendCalls = vi.fn(() => {
+      throw Object.assign(new Error('Upgrade rejected'), { code: 5750 })
+    })
+    const signer: EOASigner = {
+      ...signerWith((method) => {
+        if (method === 'wallet_getCapabilities') return capabilities('ready')
+        if (method === 'wallet_sendCalls') return sendCalls()
+        throw new Error(`unexpected RPC call: ${method}`)
+      }, decliner),
+      walletId: 'io.metamask',
+    }
+    const txId = transactionManager.startTransaction(
+      batchRequest(decliner),
+      signer,
+      { id: 'tx-batch-upgrade-declined', publicClient, retryDelay: 1 },
+    )
+
+    await expect(waitForTransaction(txId)).rejects.toBeInstanceOf(
+      TransactionUserRejectedError,
+    )
+    expect(sendCalls).toHaveBeenCalledOnce()
+    // Flows now plan separate transactions instead of asking again.
+    await expect(
+      getAtomicBatchSupport({
+        walletClient: signer.walletClient,
+        chainId: sepolia.id,
+        walletId: 'io.metamask',
+      }),
+    ).resolves.toBe(false)
   })
 
   it('times out, keeping the bundle, when a success never brings a receipt', async () => {

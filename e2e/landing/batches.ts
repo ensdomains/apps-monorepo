@@ -46,11 +46,13 @@ export const batches: Batch[] = [
     id: 'B0',
     title: 'Infra: stack, helpers, fixtures, harness, address gate',
     pr: 1599,
+    merged: true,
   },
   {
     id: 'B1a',
     title: 'Smoke: Explorer specs + CI gate (smoke, nightly)',
     pr: 1601,
+    merged: true,
   },
   { id: 'B1b', title: 'Smoke: Manager specs' },
   { id: 'B2', title: 'CCIP / offchain: the rest' },

@@ -96,11 +96,9 @@ async function seedImportedDnsName(
 }
 
 test.describe('DNS manager sync banners', () => {
-  test('shows the Sync Manager banner to the DNS owner (not manager)', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-  }) => {
+  test('shows the Sync Manager banner to the DNS owner (not manager)', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
     const domain = `e2e-sync-owner-${Date.now()}.xyz`
     const user = accounts.getAddress('user')
     const manager = accounts.getAddress('user2')
@@ -133,7 +131,9 @@ test.describe('DNS manager sync banners', () => {
     })
   })
 
-  test('shows the out-of-sync warning to other viewers', async ({ page }) => {
+  test('shows the out-of-sync warning to other viewers', {
+    tag: ['@smoke'],
+  }, async ({ page }) => {
     const domain = `e2e-sync-viewer-${Date.now()}.xyz`
     const manager = '0x5eb3Bc0a489C5A8288765d2336659EbCA68FCd00' as Address
     const dnsOwner = '0x238A8F792dFA6033814B18618aD4100654aeef01'
@@ -163,9 +163,9 @@ test.describe('DNS manager sync banners', () => {
     await expect(page.getByText('Owner', { exact: true })).toBeHidden()
   })
 
-  test('shows no sync banner when the record matches the manager', async ({
-    page,
-  }) => {
+  test('shows no sync banner when the record matches the manager', {
+    tag: ['@smoke'],
+  }, async ({ page }) => {
     const domain = `e2e-sync-insync-${Date.now()}.xyz`
     const manager = '0x5eb3Bc0a489C5A8288765d2336659EbCA68FCd00' as Address
 
@@ -192,7 +192,9 @@ test.describe('DNS manager sync banners', () => {
     ).toBeHidden()
   })
 
-  test('never queries DNS for names without a v1 owner', async ({ page }) => {
+  test('never queries DNS for names without a v1 owner', {
+    tag: ['@smoke'],
+  }, async ({ page }) => {
     // Unowned DNS 2LD: the overview shows the import CTA and the sync-status
     // hook stays disabled — no `_ens` lookups fire.
     const domain = `e2e-sync-unowned-${Date.now()}.xyz`

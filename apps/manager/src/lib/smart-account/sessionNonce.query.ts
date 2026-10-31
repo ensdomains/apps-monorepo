@@ -41,4 +41,5 @@ export const getSessionNonceQueryOptions = (params: SessionNonceQueryParams) =>
     enabled: !!params.accountAddress && !!params.publicClient,
     staleTime: SESSION_NONCE_REFETCH_MS,
     refetchInterval: SESSION_NONCE_REFETCH_MS,
+    refetchOnWindowFocus: true,
   })

@@ -148,11 +148,13 @@ const PrimaryNameOption = ({
   domain,
   selectedName,
   isSubmitting,
+  isUnreachable,
   onSelectName,
 }: {
   readonly domain: PrimaryNameDomain
   readonly selectedName: string | null
   readonly isSubmitting: boolean
+  readonly isUnreachable: boolean
   readonly onSelectName: (name: string) => void
 }) => {
   const { t } = useLingui()
@@ -171,8 +173,8 @@ const PrimaryNameOption = ({
         isSelected
           ? 'border-ens-blue bg-ens-lapis-dust'
           : 'border-ens-gray-two hover:border-ens-blue/50 hover:bg-ens-white'
-      } ${isSubmitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-      disabled={isSubmitting}
+      } ${isSubmitting || isUnreachable ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+      disabled={isSubmitting || isUnreachable}
       key={domain.id}
       onClick={() => onSelectName(label)}
       type="button"
@@ -181,9 +183,18 @@ const PrimaryNameOption = ({
         <div className="relative size-8.5 shrink-0 overflow-hidden rounded-sm bg-ens-white">
           <PrimaryNameOptionAvatar avatarRecord={avatarRecord} label={label} />
         </div>
-        <span className="font-mono text-[16px] text-foreground leading-[0.96] tracking-[-0.32px]">
-          {label}
-        </span>
+        <div className="flex flex-col items-start gap-1 text-left">
+          <span className="font-mono text-[16px] text-foreground leading-[0.96] tracking-[-0.32px]">
+            {label}
+          </span>
+          {isUnreachable && (
+            <span className="font-sans text-muted-foreground text-xs">
+              <Trans>
+                No longer resolves, usually because its parent name has expired
+              </Trans>
+            </span>
+          )}
+        </div>
       </div>
       {isSelected && (
         <Check className="size-5 shrink-0 text-ens-blue" strokeWidth={2.5} />
@@ -229,6 +240,22 @@ const PrimaryNameErrorNotice = ({
     </Alert>
   )
 }
+
+const MissingResolvingNamesNotice = ({
+  hasFailed,
+  isLoading,
+}: {
+  readonly hasFailed: boolean
+  readonly isLoading: boolean
+}) =>
+  hasFailed && !isLoading ? (
+    <p className="font-sans text-muted-foreground text-sm">
+      <Trans>
+        Names that point to your wallet couldn’t be loaded, so some may be
+        missing.
+      </Trans>
+    </p>
+  ) : null
 
 const EthAddressUpdateNotice = ({
   id,
@@ -475,6 +502,7 @@ export const ChoosePrimaryNameDialog = ({
     domains,
     isLoading,
     hasForwardAddressError,
+    hasResolvingNamesError,
     isSelectedNameOffered,
     selectedProtocol,
   } = nameList
@@ -754,6 +782,9 @@ export const ChoosePrimaryNameDialog = ({
                     <PrimaryNameOption
                       domain={domain}
                       isSubmitting={isBusy}
+                      isUnreachable={nameList.unreachableNames.has(
+                        resolveDomainLabel(domain),
+                      )}
                       key={domain.id}
                       onSelectName={handleSelectName}
                       selectedName={selectedName}
@@ -761,6 +792,11 @@ export const ChoosePrimaryNameDialog = ({
                   )),
                 )}
             </div>
+
+            <MissingResolvingNamesNotice
+              hasFailed={hasResolvingNamesError}
+              isLoading={isLoading}
+            />
 
             <PrimaryNameListFooter
               disabled={isBusy}

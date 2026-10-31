@@ -34,6 +34,10 @@ export {
   quoteHcaIntentFeeUsdc,
 } from './helpers/hca-intent-funding'
 export { pollTransactionStatus } from './helpers/pollTransactionStatus.actor'
+export {
+  checkIsSafeWallet,
+  orSafeExecution,
+} from './helpers/safe-execution.helpers'
 // Persistence
 export {
   archiveTransaction,
@@ -55,7 +59,10 @@ export {
   waitForTransaction,
   waitForTransactionHash,
 } from './helpers/waitForTransaction'
-export { useAtomicBatchSupport } from './hooks/useAtomicBatchSupport'
+export {
+  useAtomicBatchSupport,
+  useHasDeclinedAtomicUpgrade,
+} from './hooks/useAtomicBatchSupport'
 export {
   computeDedicatedResolverAddress,
   encodeCommitCall,

@@ -13,7 +13,6 @@ import {
   ProfileCard,
   profileCardArrowClassName,
   profileCardCopyIconClassName,
-  profileCardTrailingIconStrokeWidth,
   profileFieldLabelClassName,
   profileFieldValueClassName,
   profileTileClassName,
@@ -23,7 +22,7 @@ import { getSecondarySocialRecords } from './ProfileView.helpers'
 const socialLabelClassName = `truncate ${profileFieldLabelClassName}`
 const socialValueClassName = `truncate ${profileFieldValueClassName}`
 const socialTrailingIconClassName = profileCardArrowClassName
-const socialCardPaddingClassName = 'p-6 has-[>svg]:px-6'
+const socialCardPaddingClassName = 'p-6'
 
 const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
   const recordDef = getRecordDef(record.key)
@@ -63,7 +62,6 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
     <Card asChild className={`${className} h-auto justify-start`}>
       <CopyableButton
         iconClassName={profileCardCopyIconClassName}
-        iconStrokeWidth={profileCardTrailingIconStrokeWidth}
         value={displayValue}
         variant="ghost"
       >

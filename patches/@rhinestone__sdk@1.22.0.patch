@@ -33,7 +33,7 @@ index d04976c5c50633fcd09d80af1896196111f0c9c4..1786c9ca561a423534c7abbcac7c5eac
  //# sourceMappingURL=hca.d.ts.map
 \ No newline at end of file
 diff --git a/dist/src/accounts/hca.js b/dist/src/accounts/hca.js
-index 00bdb68da2ee6dcbde9591810887ace4c3ab711f..0e936ec906140e7252debfb5e9eee467d8d0c8b2 100644
+index e3e7a15afc21c058d765d5ce12250e8c323016ff..128d31f4f06cecb3c05f8468ffda7d1978915d18 100644
 --- a/dist/src/accounts/hca.js
 +++ b/dist/src/accounts/hca.js
 @@ -4,6 +4,7 @@ exports.ENS_HCA_MODULE = void 0;
@@ -122,7 +122,7 @@ index 00bdb68da2ee6dcbde9591810887ace4c3ab711f..0e936ec906140e7252debfb5e9eee467
      // HCA accounts are locked to their initial configuration and block module
      // installation, so recovery, sessions, and extra modules can never be
      // installed. Reject them on every path (including externally-provided
-@@ -87,6 +156,35 @@ function getDeployArgs(config) {
+@@ -90,6 +159,35 @@ function getDeployArgs(config) {
      };
  }
  function getAddress(config) {
@@ -158,7 +158,7 @@ index 00bdb68da2ee6dcbde9591810887ace4c3ab711f..0e936ec906140e7252debfb5e9eee467
      const deployArgs = getDeployArgs(config);
      if (!deployArgs) {
          if (config.initData?.address) {
-@@ -134,7 +232,7 @@ function predictCreate3Address(factory, primaryOwner) {
+@@ -137,7 +235,7 @@ function predictCreate3Address(factory, primaryOwner) {
      return (0, viem_1.slice)(accountHash, 12, 32);
  }
  function getEip712Domain(config, chain) {
@@ -167,7 +167,7 @@ index 00bdb68da2ee6dcbde9591810887ace4c3ab711f..0e936ec906140e7252debfb5e9eee467
          throw new error_1.Eip712DomainNotAvailableError('Existing HCA accounts are not yet supported');
      }
      return {
-@@ -148,11 +246,11 @@ function getEip712Domain(config, chain) {
+@@ -151,11 +249,11 @@ function getEip712Domain(config, chain) {
  function getInstallData(module) {
      return (0, nexus_1.getInstallData)(module);
  }
@@ -184,22 +184,22 @@ index 00bdb68da2ee6dcbde9591810887ace4c3ab711f..0e936ec906140e7252debfb5e9eee467
  async function getGuardianSmartAccount(client, address, guardians, validatorAddress, sign) {
      return (0, nexus_1.getGuardianSmartAccount)(client, address, guardians, validatorAddress, sign, core_1.ENS_HCA_MODULE);
 diff --git a/dist/src/accounts/index.js b/dist/src/accounts/index.js
-index 509fb55cfa6e88cc28768bdb90ac2fe56bbbe1a8..ca4030a2be91e4dbd659c1920edf174181c17482 100644
+index 58d96bc86b71597411cd5832713d7a082a50896e..a5527dbf831090071cb061da4806587daeff63d7 100644
 --- a/dist/src/accounts/index.js
 +++ b/dist/src/accounts/index.js
-@@ -354,7 +354,10 @@ async function getEip1271Signature(config, signers, chain, validator, hash, tran
-         }
-         case 'hca': {
-             const signature = await signFn(hash);
+@@ -392,7 +392,10 @@ async function packEip1271Signature(config, signature, validator, transformSigna
+         case 'startale':
+             return (0, startale_1.packSignature)(signature, validator, transformSignature);
+         case 'hca':
 -            return (0, hca_1.packSignature)(signature, validator, transformSignature);
 +            const defaultValidatorAddress = (0, hca_1.isStandaloneHca)(config)
 +                ? config.account.validator
 +                : hca_1.ENS_HCA_MODULE;
 +            return (0, hca_1.packSignature)(signature, validator, transformSignature, defaultValidatorAddress);
-         }
-         default: {
+         default:
              throw new Error(`Unsupported account type: ${account.type}`);
-@@ -407,7 +410,10 @@ async function getTypedDataPackedSignature(config, signers, chain, validator, pa
+     }
+@@ -457,7 +460,10 @@ async function getTypedDataPackedSignature(config, signers, chain, validator, pa
          }
          case 'hca': {
              const signature = await signFn(parameters);
@@ -211,7 +211,7 @@ index 509fb55cfa6e88cc28768bdb90ac2fe56bbbe1a8..ca4030a2be91e4dbd659c1920edf1741
          }
          default: {
              throw new Error(`Unsupported account type: ${account.type}`);
-@@ -632,7 +638,13 @@ async function getSmartAccount(config, client, chain) {
+@@ -687,7 +693,13 @@ async function getSmartAccount(config, client, chain, selectedSigners) {
              return (0, startale_1.getSmartAccount)(client, address, config.owners, ownerValidator.address, signFn);
          }
          case 'hca': {
@@ -227,12 +227,12 @@ index 509fb55cfa6e88cc28768bdb90ac2fe56bbbe1a8..ca4030a2be91e4dbd659c1920edf1741
      }
  }
 diff --git a/dist/src/accounts/nexus.d.ts b/dist/src/accounts/nexus.d.ts
-index feb346dfd049f7287eb15094ff816d3d9cf95502..eaeaa77b672dd714312dab78fb02a507d15a63d0 100644
+index 6d4855fb633d820fba4b10bd5bdd9e89bdc09a7b..8a3655dc4d4172e797db7c44e991e52b897a6590 100644
 --- a/dist/src/accounts/nexus.d.ts
 +++ b/dist/src/accounts/nexus.d.ts
-@@ -22,7 +22,10 @@ declare function getEip712Domain(config: RhinestoneAccountConfig, chain: Chain):
- declare function getInstallData(module: Module): `0x${string}`;
- declare function getDefaultValidatorAddress(version: '1.0.2' | '1.2.0' | 'rhinestone-1.0.0-beta' | 'rhinestone-1.0.0' | undefined): Address;
+@@ -24,7 +24,10 @@ declare function getDefaultValidatorInitData(module: Module): Hex;
+ declare function isDefaultValidatorConfigured(config: RhinestoneAccountConfig): boolean;
+ declare function getDefaultValidatorAddress(version: NexusAccount['version']): Address;
  declare function packSignature(signature: Hex, validator: ValidatorConfig, transformSignature?: (signature: Hex) => Hex, defaultValidatorAddress?: Address): Promise<`0x${string}`>;
 -declare function getSmartAccount(client: PublicClient, address: Address, owners: OwnerSet, validatorAddress: Address, sign: (hash: Hex) => Promise<Hex>, defaultValidatorAddress?: Address): Promise<SmartAccount<SmartAccountImplementation<Abi, "0.7">>>;
 +declare function getSmartAccount(client: PublicClient, address: Address, owners: OwnerSet, validatorAddress: Address, sign: (hash: Hex) => Promise<Hex>, defaultValidatorAddress?: Address, factoryArgs?: {
@@ -243,10 +243,10 @@ index feb346dfd049f7287eb15094ff816d3d9cf95502..eaeaa77b672dd714312dab78fb02a507
  declare function signEip7702InitData(config: RhinestoneAccountConfig, eoa: Account): Promise<`0x${string}`>;
  declare function getEip7702InitCall(config: RhinestoneAccountConfig, signature: Hex): {
 diff --git a/dist/src/accounts/nexus.js b/dist/src/accounts/nexus.js
-index 8c484ef91f4457b88d830d3309f97c53a1e57370..3f2192bc2e0c9e3044bc9eec1ead9d80a02b92d1 100644
+index 3c5c364c1e921250478a8b7f9175f415681873ff..341a3d5447a0d378fea319d60ddaca7bbe41a4ba 100644
 --- a/dist/src/accounts/nexus.js
 +++ b/dist/src/accounts/nexus.js
-@@ -222,10 +222,10 @@ async function packSignature(signature, validator, transformSignature = (signatu
+@@ -293,10 +293,10 @@ async function packSignature(signature, validator, transformSignature = (signatu
      const packedSig = (0, viem_1.encodePacked)(['address', 'bytes'], [validatorAddress, transformSignature(signature)]);
      return packedSig;
  }
@@ -259,7 +259,7 @@ index 8c484ef91f4457b88d830d3309f97c53a1e57370..3f2192bc2e0c9e3044bc9eec1ead9d80
  }
  async function getGuardianSmartAccount(client, address, guardians, validatorAddress, sign, defaultValidatorAddress = NEXUS_DEFAULT_VALIDATOR_ADDRESS) {
      return await getBaseSmartAccount(address, client, validatorAddress, async () => {
-@@ -234,7 +234,7 @@ async function getGuardianSmartAccount(client, address, guardians, validatorAddr
+@@ -305,7 +305,7 @@ async function getGuardianSmartAccount(client, address, guardians, validatorAddr
          return await sign(hash);
      }, defaultValidatorAddress);
  }
@@ -268,7 +268,7 @@ index 8c484ef91f4457b88d830d3309f97c53a1e57370..3f2192bc2e0c9e3044bc9eec1ead9d80
      return await (0, account_abstraction_1.toSmartAccount)({
          client,
          entryPoint: {
-@@ -260,7 +260,7 @@ async function getBaseSmartAccount(address, client, nonceValidatorAddress, getSt
+@@ -331,7 +331,7 @@ async function getBaseSmartAccount(address, client, nonceValidatorAddress, getSt
              return address;
          },
          async getFactoryArgs() {
@@ -278,10 +278,10 @@ index 8c484ef91f4457b88d830d3309f97c53a1e57370..3f2192bc2e0c9e3044bc9eec1ead9d80
          async getNonce(args) {
              const validatorAddress = nonceValidatorAddress === defaultValidatorAddress
 diff --git a/dist/src/execution/index.js b/dist/src/execution/index.js
-index c556730c09a8b9771d7ff24820a592d96c0e3419..4ae9b7e90d03cfff2d54eb25061163903e1e39cd 100644
+index 6b28d8ff6dd85279a32f1e2c96575c03d10bf1e7..a428fb494b630175fd46e842d03b2c049f26f527 100644
 --- a/dist/src/execution/index.js
 +++ b/dist/src/execution/index.js
-@@ -99,7 +99,7 @@ async function sendTransactionAsIntent(config, sourceChains, targetChain, callIn
+@@ -104,7 +104,7 @@ async function sendTransactionAsIntent(config, sourceChains, targetChain, callIn
          throw new error_1.OrderPathRequiredForIntentsError();
      }
      const { intentRoute, intentInput } = prepared;
@@ -291,11 +291,11 @@ index c556730c09a8b9771d7ff24820a592d96c0e3419..4ae9b7e90d03cfff2d54eb2506116390
      const authorizations = config.eoa
          ? await (0, utils_2.signAuthorizationsInternal)(config, intentRoute)
 diff --git a/dist/src/execution/utils.d.ts b/dist/src/execution/utils.d.ts
-index f77a7c96e7e1a75c92653dc412283cf6883d45c7..578c774e0e539f224e2fa774605dd001069240bb 100644
+index 772e5ece362135faccd1c9e6695ef702e09e7966..6f776d62d9de775e372612d6c0de7a6f1b0be38c 100644
 --- a/dist/src/execution/utils.d.ts
 +++ b/dist/src/execution/utils.d.ts
-@@ -5,7 +5,7 @@ import { type IntentOp, type IntentRoute } from '../orchestrator';
- import { type AuxiliaryFunds, type OriginSignature, type SettlementLayer, type SignatureMode } from '../orchestrator/types';
+@@ -5,7 +5,7 @@ import { type IntentOp, type IntentRoute, type SignedIntentOp } from '../orchest
+ import { type AppFeeRate, type AuxiliaryFunds, type OriginSignature, type ProtocolFeeRate, type SettlementLayer, type SignatureMode, type SwapQuoterFilter } from '../orchestrator/types';
  import type { Call, CalldataInput, CallInput, RhinestoneAccountConfig, RhinestoneConfig, Session, SessionEnableData, SessionSignerSet, SignerSet, SourceAssetInput, Sponsorship, TokenRequest, TokenSymbol, Transaction, UserOperationTransaction } from '../types';
  type InternalSignerSet = Exclude<SignerSet, SessionSignerSet> | ResolvedSessionSignerSet;
 -declare function resolveSignatureMode(config: RhinestoneConfig, signers: SignerSet | undefined, sourceChains: Chain[] | undefined, targetChain: Chain): Promise<SignatureMode>;
@@ -303,7 +303,7 @@ index f77a7c96e7e1a75c92653dc412283cf6883d45c7..578c774e0e539f224e2fa774605dd001
  declare function resolveSessionForChain(signers: SessionSignerSet, chainId: number): {
      session: Session;
      enableData?: SessionEnableData;
-@@ -86,7 +86,7 @@ declare function prepareTransactionAsIntent(config: RhinestoneConfig, sourceChai
+@@ -88,7 +88,7 @@ declare function prepareTransactionAsIntent(config: RhinestoneConfig, sourceChai
      intentRoute: IntentRoute;
      intentInput: any;
  }>;
@@ -313,27 +313,27 @@ index f77a7c96e7e1a75c92653dc412283cf6883d45c7..578c774e0e539f224e2fa774605dd001
      destinationSignature: `0x${string}`;
  }>;
 diff --git a/dist/src/execution/utils.js b/dist/src/execution/utils.js
-index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78c89b75ff 100644
+index 5dba54cb87835bc5dc789d3fde7e963a9b400471..dd36b3c79330368c70026081b9b3b4b4ea95d64b 100644
 --- a/dist/src/execution/utils.js
 +++ b/dist/src/execution/utils.js
-@@ -27,6 +27,7 @@ const viem_1 = require("viem");
+@@ -28,6 +28,7 @@ const viem_1 = require("viem");
  const account_abstraction_1 = require("viem/account-abstraction");
  const erc7739_1 = require("viem/experimental/erc7739");
  const accounts_1 = require("../accounts");
 +const hca_1 = require("../accounts/hca");
+ const kernel_1 = require("../accounts/kernel");
  const common_1 = require("../accounts/signing/common");
  const startale_1 = require("../accounts/startale");
- const utils_1 = require("../accounts/utils");
-@@ -51,7 +52,7 @@ async function resolveSignersForChain(config, signers, chainId) {
+@@ -55,7 +56,7 @@ async function resolveSignersForChain(config, signers, chainId) {
          return signers;
      }
      const resolved = resolveSessionForChain(signers, chainId);
 -    const enabled = await (0, validators_1.isSessionEnabled)((0, accounts_1.getAddress)(config), config.provider, resolved.session, config.useDevContracts);
 +    const enabled = await (0, validators_1.isSessionEnabled)((0, accounts_1.getAddress)(config), config.provider, resolved.session, config.useDevContracts, (0, hca_1.isStandaloneHca)(config) ? config.account.validator : undefined);
      const enableData = enabled ? undefined : resolved.enableData;
-     const hasExplicitActions = !!resolved.session.actions?.length;
-     const verifyExecutions = resolved.verifyExecutions ?? signers.verifyExecutions ?? hasExplicitActions;
-@@ -65,18 +66,24 @@ async function resolveSignersForChain(config, signers, chainId) {
+     const restricted = resolved.session.restrictToActions === true ||
+         resolved.session.swap !== undefined;
+@@ -76,18 +77,24 @@ async function resolveSignersForChain(config, signers, chainId) {
  // Picks the single signature mode that matches the bytes shape the SDK will
  // actually sign, so the on-chain dispatcher hits the right validator on the
  // first try instead of falling through a hybrid.
@@ -359,7 +359,7 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
      for (const resolved of resolvedSet) {
          if (!isResolvedSessionSignerSet(resolved)) {
              return types_1.SIG_MODE_ERC1271;
-@@ -85,12 +92,21 @@ async function resolveSignatureMode(config, signers, sourceChains, targetChain)
+@@ -96,12 +103,21 @@ async function resolveSignatureMode(config, signers, sourceChains, targetChain)
          // all origin signatures — a single mode field can't describe divergence.
          if (resolved.verifyExecutions)
              anyVerifyExecutions = true;
@@ -382,17 +382,17 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
          : types_1.SIG_MODE_ERC1271;
  }
  function resolveSessionForChain(signers, chainId) {
-@@ -158,7 +174,7 @@ async function signTransaction(config, preparedTransaction) {
+@@ -169,7 +185,7 @@ async function signTransaction(config, preparedTransaction) {
      const targetChain = 'targetChain' in preparedTransaction.transaction
          ? preparedTransaction.transaction.targetChain
          : preparedTransaction.transaction.chain;
 -    const { originSignatures, destinationSignature } = await signIntent(config, intentRoute.intentOp, targetChain, signers, false);
 +    const { originSignatures, destinationSignature } = await signIntent(config, intentRoute.intentOp, targetChain, signers, false, preparedTransaction.transaction.recipient);
      const targetExecutionSignature = await getTargetExecutionSignature(config, intentRoute.intentOp, targetChain, signers);
+     const permitSignatures = await signPermits(config, intentRoute);
      return {
-         intentRoute,
-@@ -430,6 +446,14 @@ function getIntentAccount(config, eip7702InitSignature, account) {
- async function prepareTransactionAsIntent(config, sourceChains, targetChain, callInputs, gasLimit, tokenRequests, recipientInput, sponsored, eip7702InitSignature, settlementLayers, sourceAssets, feeAsset, lockFunds, auxiliaryFunds, account, signers, sourceCalls) {
+@@ -470,6 +486,14 @@ function getIntentAccount(config, eip7702InitSignature, account) {
+ async function prepareTransactionAsIntent(config, sourceChains, targetChain, callInputs, gasLimit, tokenRequests, recipientInput, sponsored, eip7702InitSignature, settlementLayers, sourceAssets, feeAsset, lockFunds, auxiliaryFunds, account, signers, sourceCalls, appFees, customDeadline, protocolFees, quoters) {
      const calls = parseCalls(callInputs, targetChain.id);
      const accountAccessList = createAccountAccessList(sourceChains, sourceAssets);
 +    const signatureMode = await resolveSignatureMode(config, signers, sourceChains, targetChain, recipientInput);
@@ -406,7 +406,7 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
      function getRecipient(recipient) {
          if (typeof recipient === 'string') {
              // Passed as an address, assume it's an EOA
-@@ -447,7 +471,7 @@ async function prepareTransactionAsIntent(config, sourceChains, targetChain, cal
+@@ -487,7 +511,7 @@ async function prepareTransactionAsIntent(config, sourceChains, targetChain, cal
      }
      const intentAccount = {
          ...getIntentAccount(config, eip7702InitSignature, account),
@@ -415,7 +415,7 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
              // Global fallback: target-chain sig for backward-compat with older orchestrators
              mockSignature: (0, validators_1.buildMockSignature)(resolveSessionForChain(signers, targetChain.id).session, config.useDevContracts, sourceChains?.length ?? 1),
              // Per-chain map: enables accurate per-chain session validation gas simulation
-@@ -463,7 +487,6 @@ async function prepareTransactionAsIntent(config, sourceChains, targetChain, cal
+@@ -503,7 +527,6 @@ async function prepareTransactionAsIntent(config, sourceChains, targetChain, cal
          }),
      };
      const recipient = getRecipient(recipientInput);
@@ -423,7 +423,7 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
      // For session signers that need enabling, pass a dummy preclaimop per source chain
      // so the orchestrator bakes it into the bundle before computing its HMAC. The filler
      // executes the op via verifyExecution in ENABLE mode, enabling the session on-chain
-@@ -481,6 +504,8 @@ async function prepareTransactionAsIntent(config, sourceChains, targetChain, cal
+@@ -521,6 +544,8 @@ async function prepareTransactionAsIntent(config, sourceChains, targetChain, cal
              const { enableData, verifyExecutions } = resolved;
              if (!verifyExecutions || !enableData)
                  continue;
@@ -432,7 +432,7 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
              preClaimExecutions[chainId] = [
                  {
                      to: validators_1.DUMMY_PRECLAIMOP_TARGET,
-@@ -554,8 +579,13 @@ async function prepareTransactionAsIntent(config, sourceChains, targetChain, cal
+@@ -605,8 +630,13 @@ async function prepareTransactionAsIntent(config, sourceChains, targetChain, cal
      const intentRoute = await orchestrator.getIntentRoute(metaIntent);
      return { intentRoute, intentInput: serializedIntent };
  }
@@ -447,7 +447,7 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
      if (config.account?.type === 'eoa') {
          const eoa = config.eoa;
          if (!eoa) {
-@@ -571,7 +601,13 @@ async function signIntent(config, intentOp, targetChain, signers, targetExecutio
+@@ -622,7 +652,13 @@ async function signIntent(config, intentOp, targetChain, signers, targetExecutio
                  throw new accounts_1.EoaSigningMethodNotConfiguredError('signTypedData');
              }
          }
@@ -462,7 +462,7 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
          return {
              originSignatures,
              destinationSignature,
-@@ -590,13 +626,53 @@ async function signIntent(config, intentOp, targetChain, signers, targetExecutio
+@@ -647,13 +683,53 @@ async function signIntent(config, intentOp, targetChain, signers, targetExecutio
          const signature = await signIntentTypedData(config, originSigners, validator, isRoot, typedData, chain, targetExecution ?? false);
          originSignatures.push(signature);
      }
@@ -515,10 +515,10 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
 +        (0, viem_1.slice)(lastOriginSignature, 0, 20).toLowerCase() ===
 +            viem_1.zeroAddress.toLowerCase());
 +}
- async function getDestinationSignature(config, signers, validator, isRoot, targetChain, destination, originSignatures, targetExecution) {
-     // Smart sessions require a separate destination signature because the
-     // session enable data differs per chain
-@@ -662,6 +738,32 @@ function getTargetExecutionMessage(config, intentOp) {
+ async function signQuorumIntentOrigins(config, origins, validator, isRoot, signers) {
+     if (config.owners?.type !== 'quorum') {
+         throw new Error('Quorum owner configuration is missing');
+@@ -753,6 +829,32 @@ function getTargetExecutionMessage(config, intentOp) {
      };
      return typedData;
  }
@@ -551,7 +551,7 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
  /** Computes claim policy calldata when parameters are Permit2 typed data with claim policies. */
  function resolveClaimPolicyData(signers, parameters) {
      if (parameters.primaryType !== 'PermitBatchWitnessTransferFrom' ||
-@@ -679,6 +781,45 @@ function resolveClaimPolicyData(signers, parameters) {
+@@ -770,6 +872,45 @@ function resolveClaimPolicyData(signers, parameters) {
      return (0, permit2_1.buildPermit2ClaimPolicyCalldata)(signers.session.claimPolicies[0], parameters.message);
  }
  async function signIntentTypedData(config, signers, validator, isRoot, parameters, chain, targetExecution) {
@@ -597,7 +597,7 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
      if ((0, core_1.supportsEip712)(validator)) {
          const isK1Validator = validator.address.toLowerCase() ===
              startale_1.K1_DEFAULT_VALIDATOR_ADDRESS.toLowerCase();
-@@ -738,6 +879,304 @@ async function signIntentTypedData(config, signers, validator, isRoot, parameter
+@@ -832,6 +973,304 @@ async function signIntentTypedData(config, signers, validator, isRoot, parameter
          isRoot,
      }, hash);
  }
@@ -903,31 +903,32 @@ index 8e43c7a314d93072c6ef9e74bcee7cc31aa60329..3fa080e46b35204e3f6a9d3ea35dca78
      const validator = getValidator(config, signers);
      if (!validator) {
 diff --git a/dist/src/index.d.ts b/dist/src/index.d.ts
-index 65670fb2f50b45a1f810414a1c4aad816958ef7e..fd598e6c86eb07cb35797fc0f78559c61955253d 100644
+index 537b37cc497f8246384d08ac55f888985be7943e..1932803c02d44a6e07caab773597946cf9cf719c 100644
 --- a/dist/src/index.d.ts
 +++ b/dist/src/index.d.ts
 @@ -8,7 +8,7 @@ import { type IntentRoute, type PreparedTransactionData, type PreparedUserOperat
  import { MULTI_FACTOR_VALIDATOR_ADDRESS, OWNABLE_VALIDATOR_ADDRESS, SMART_SESSION_EMISSARY_ADDRESS, WEBAUTHN_VALIDATOR_ADDRESS } from './modules';
  import { type SessionDetails } from './modules/validators/smart-sessions';
- import { type ApprovalRequired, type AuxiliaryFunds, getAllSupportedChainsAndTokens, getSupportedTokens, getTokenAddress, getTokenDecimals, type IntentInput, type IntentOp, type IntentOpStatus, type Portfolio, type SettlementLayer, type SignedIntentOp, type SplitIntentsInput, type SplitIntentsResult, type TokenRequirements, type WrapRequired } from './orchestrator';
--import type { AccountProviderConfig, AccountType, BundlerConfig, Call, CallInput, ChainSessionConfig, MultiFactorValidatorConfig, OwnableValidatorConfig, OwnerSet, PaymasterConfig, Permit2ClaimPolicy, Policy, ProviderConfig, Recovery, RhinestoneAccountConfig, RhinestoneConfig, RhinestoneSDKConfig, Session, SignerSet, TokenRequest, TokenSymbol, Transaction, UniversalActionPolicyParamCondition, UserOperationTransaction, WebauthnValidatorConfig } from './types';
-+import type { AccountProviderConfig, AccountType, BundlerConfig, Call, CallInput, ChainSessionConfig, MultiFactorValidatorConfig, OwnableValidatorConfig, OwnerSet, PaymasterConfig, Permit2ClaimPolicy, Policy, ProviderConfig, Recovery, RhinestoneAccountConfig, RhinestoneConfig, RhinestoneSDKConfig, Session, SignerSet, StandaloneHcaAccount, TokenRequest, TokenSymbol, Transaction, UniversalActionPolicyParamCondition, UserOperationTransaction, WebauthnValidatorConfig } from './types';
+ import { type AppFee, type AppFeeBalances, type AppFeeRate, type ApprovalRequired, type AuxiliaryFunds, getAllSupportedChainsAndTokens, getSupportedTokens, getTokenAddress, getTokenDecimals, type IntentInput, type IntentOp, type IntentOpStatus, type IntentRefund, type Portfolio, type SettlementLayer, type SignedIntentOp, type SplitIntentsInput, type SplitIntentsResult, type SwapQuoter, type SwapQuoterFilter, type TokenRequirements, type WrapRequired } from './orchestrator';
+-import type { AccountProviderConfig, AccountType, BundlerConfig, Call, CallInput, ChainSessionConfig, MultiFactorValidatorConfig, OwnableValidatorConfig, OwnerSet, PaymasterConfig, Permit2ClaimPolicy, Policy, ProviderConfig, QuorumOwner, QuorumValidatorConfig, Recovery, RhinestoneAccountConfig, RhinestoneConfig, RhinestoneSDKConfig, Session, SignerSet, SwapScope, TokenRequest, TokenSymbol, Transaction, UniversalActionPolicyParamCondition, UserOperationTransaction, WebauthnValidatorConfig } from './types';
++import type { AccountProviderConfig, AccountType, BundlerConfig, Call, CallInput, ChainSessionConfig, MultiFactorValidatorConfig, OwnableValidatorConfig, OwnerSet, PaymasterConfig, Permit2ClaimPolicy, Policy, ProviderConfig, QuorumOwner, QuorumValidatorConfig, Recovery, RhinestoneAccountConfig, RhinestoneConfig, RhinestoneSDKConfig, Session, SignerSet, StandaloneHcaAccount, SwapScope, TokenRequest, TokenSymbol, Transaction, UniversalActionPolicyParamCondition, UserOperationTransaction, WebauthnValidatorConfig } from './types';
  interface RhinestoneAccount {
      config: RhinestoneAccountConfig;
      deploy: (chain: Chain, params?: {
-@@ -75,5 +75,5 @@ declare class RhinestoneSDK {
-     splitIntents(input: SplitIntentsInput): Promise<SplitIntentsResult>;
+@@ -84,6 +84,6 @@ declare class RhinestoneSDK {
+      */
+     getAppFeeBalances(): Promise<AppFeeBalances>;
  }
- export { RhinestoneSDK, createRhinestoneAccount, deployAccountsForOwners, walletClientToAccount, wrapParaAccount, OWNABLE_VALIDATOR_ADDRESS, WEBAUTHN_VALIDATOR_ADDRESS, MULTI_FACTOR_VALIDATOR_ADDRESS, SMART_SESSION_EMISSARY_ADDRESS, getSupportedTokens, getTokenAddress, getTokenDecimals, getAllSupportedChainsAndTokens, checkERC20AllowanceDirect, getPermit2Address, signPermit2Batch, signPermit2Sequential, };
--export type { RhinestoneAccount, AccountType, RhinestoneAccountConfig, AccountProviderConfig, ProviderConfig, BundlerConfig, PaymasterConfig, Transaction, TokenSymbol, CallInput, Call, TokenRequest, OwnerSet, OwnableValidatorConfig, WebauthnValidatorConfig, MultiFactorValidatorConfig, SignerSet, ChainSessionConfig, Session, Recovery, Policy, Permit2ClaimPolicy, UniversalActionPolicyParamCondition, PreparedTransactionData, SignedTransactionData, TransactionResult, PreparedUserOperationData, SignedUserOperationData, UserOperationResult, AuxiliaryFunds, IntentInput, IntentOp, IntentOpStatus, IntentRoute, SettlementLayer, SignedIntentOp, SplitIntentsInput, SplitIntentsResult, Portfolio, TokenRequirements, WrapRequired, ApprovalRequired, MultiChainPermit2Config, MultiChainPermit2Result, BatchPermit2Result, };
-+export type { RhinestoneAccount, AccountType, RhinestoneAccountConfig, StandaloneHcaAccount, AccountProviderConfig, ProviderConfig, BundlerConfig, PaymasterConfig, Transaction, TokenSymbol, CallInput, Call, TokenRequest, OwnerSet, OwnableValidatorConfig, WebauthnValidatorConfig, MultiFactorValidatorConfig, SignerSet, ChainSessionConfig, Session, Recovery, Policy, Permit2ClaimPolicy, UniversalActionPolicyParamCondition, PreparedTransactionData, SignedTransactionData, TransactionResult, PreparedUserOperationData, SignedUserOperationData, UserOperationResult, AuxiliaryFunds, IntentInput, IntentOp, IntentOpStatus, IntentRoute, SettlementLayer, SignedIntentOp, SplitIntentsInput, SplitIntentsResult, Portfolio, TokenRequirements, WrapRequired, ApprovalRequired, MultiChainPermit2Config, MultiChainPermit2Result, BatchPermit2Result, };
+-export type { AccountProviderConfig, AccountType, AppFee, AppFeeBalances, AppFeeRate, ApprovalRequired, AuxiliaryFunds, BatchPermit2Result, BundlerConfig, Call, CallInput, ChainSessionConfig, IntentInput, IntentOp, IntentOpStatus, IntentRefund, IntentRoute, MultiChainPermit2Config, MultiChainPermit2Result, MultiFactorValidatorConfig, OwnableValidatorConfig, OwnerSet, PaymasterConfig, Permit2ClaimPolicy, Policy, Portfolio, PreparedTransactionData, PreparedUserOperationData, ProviderConfig, QuorumOwner, QuorumValidatorConfig, Recovery, RhinestoneAccount, RhinestoneAccountConfig, Session, SettlementLayer, SignedIntentOp, SignedTransactionData, SignedUserOperationData, SignerSet, SplitIntentsInput, SplitIntentsResult, SwapQuoter, SwapQuoterFilter, SwapScope, TokenRequest, TokenRequirements, TokenSymbol, Transaction, TransactionResult, UniversalActionPolicyParamCondition, UserOperationResult, WebauthnValidatorConfig, WrapRequired, };
++export type { AccountProviderConfig, AccountType, AppFee, StandaloneHcaAccount, AppFeeBalances, AppFeeRate, ApprovalRequired, AuxiliaryFunds, BatchPermit2Result, BundlerConfig, Call, CallInput, ChainSessionConfig, IntentInput, IntentOp, IntentOpStatus, IntentRefund, IntentRoute, MultiChainPermit2Config, MultiChainPermit2Result, MultiFactorValidatorConfig, OwnableValidatorConfig, OwnerSet, PaymasterConfig, Permit2ClaimPolicy, Policy, Portfolio, PreparedTransactionData, PreparedUserOperationData, ProviderConfig, QuorumOwner, QuorumValidatorConfig, Recovery, RhinestoneAccount, RhinestoneAccountConfig, Session, SettlementLayer, SignedIntentOp, SignedTransactionData, SignedUserOperationData, SignerSet, SplitIntentsInput, SplitIntentsResult, SwapQuoter, SwapQuoterFilter, SwapScope, TokenRequest, TokenRequirements, TokenSymbol, Transaction, TransactionResult, UniversalActionPolicyParamCondition, UserOperationResult, WebauthnValidatorConfig, WrapRequired, };
+ export { checkERC20AllowanceDirect, createRhinestoneAccount, deployAccountsForOwners, getAllSupportedChainsAndTokens, getPermit2Address, getSupportedTokens, getTokenAddress, getTokenDecimals, MULTI_FACTOR_VALIDATOR_ADDRESS, OWNABLE_VALIDATOR_ADDRESS, RhinestoneSDK, SMART_SESSION_EMISSARY_ADDRESS, signPermit2Batch, signPermit2Sequential, WEBAUTHN_VALIDATOR_ADDRESS, walletClientToAccount, wrapParaAccount, };
  //# sourceMappingURL=index.d.ts.map
 \ No newline at end of file
 diff --git a/dist/src/index.js b/dist/src/index.js
-index 8a656a1741ce6ddfcab2489e24624df42e0a0ddb..8af430c8350f6d092a55c8f94a7eadbfde242d42 100644
+index 14cfe15e03f27b6f8cb6a2ca75eab9f9fd8b981a..dab02edf79392ee272ab4fd85805c13496a5a424 100644
 --- a/dist/src/index.js
 +++ b/dist/src/index.js
-@@ -246,7 +246,11 @@ async function createRhinestoneAccount(config) {
+@@ -262,7 +262,11 @@ async function createRhinestoneAccount(config) {
      }
      function experimental_isSessionEnabled(session) {
          const account = getAddress();
@@ -941,10 +942,10 @@ index 8a656a1741ce6ddfcab2489e24624df42e0a0ddb..8af430c8350f6d092a55c8f94a7eadbf
      function experimental_signEnableSession(details) {
          return (0, modules_1.signEnableSession)(config, details);
 diff --git a/dist/src/modules/validators/smart-sessions.d.ts b/dist/src/modules/validators/smart-sessions.d.ts
-index 66f6604a74663ece0d782ce184022cfc302ac954..64bd95487d3774ac579baa8074bc82709b54ab46 100644
+index de410f99fdb3307145717da4e97ee4e4ff1d4eb9..6405a75684bf2826d592a6854a8b1fb81589861b 100644
 --- a/dist/src/modules/validators/smart-sessions.d.ts
 +++ b/dist/src/modules/validators/smart-sessions.d.ts
-@@ -182,7 +182,7 @@ interface ResolvedSessionSignerSet {
+@@ -188,7 +188,7 @@ interface ResolvedSessionSignerSet {
  }
  declare function packSignature(signers: ResolvedSessionSignerSet, validatorSignature: Hex): Hex;
  declare function getSessionDetails(account: Address, sessions: Session[], provider: ProviderConfig | undefined, useDevContracts?: boolean): Promise<SessionDetails>;
@@ -954,10 +955,10 @@ index 66f6604a74663ece0d782ce184022cfc302ac954..64bd95487d3774ac579baa8074bc8270
  declare function getEnableSessionCall(account: Address, session: Session, enableSessionSignature: Hex, hashesAndChainIds: {
      chainId: bigint;
 diff --git a/dist/src/modules/validators/smart-sessions.js b/dist/src/modules/validators/smart-sessions.js
-index 17a419494de4548b759a9a33df5fcff378c349ba..1694e42aa1a1100bbee07b26c2dac771ce5f688c 100644
+index a7a13d0f1f3861db73568eda6db16dd89a41f42b..f3984e3e6398ac955408eb767e995e9bc32f243c 100644
 --- a/dist/src/modules/validators/smart-sessions.js
 +++ b/dist/src/modules/validators/smart-sessions.js
-@@ -258,9 +258,9 @@ function packSignature(signers, validatorSignature) {
+@@ -270,9 +270,9 @@ function packSignature(signers, validatorSignature) {
  }
  async function getSessionDetails(account, sessions, provider, useDevContracts) {
      const lockTag = '0x000000000000000000000000';
@@ -969,7 +970,7 @@ index 17a419494de4548b759a9a33df5fcff378c349ba..1694e42aa1a1100bbee07b26c2dac771
      const chains = sessions.map((session) => session.chain);
      const hashesAndChainIds = signedSessions.map((session, index) => ({
          chainId: BigInt(chains[index].id),
-@@ -290,13 +290,13 @@ async function getSessionDetails(account, sessions, provider, useDevContracts) {
+@@ -302,13 +302,13 @@ async function getSessionDetails(account, sessions, provider, useDevContracts) {
          data,
      };
  }
@@ -985,16 +986,19 @@ index 17a419494de4548b759a9a33df5fcff378c349ba..1694e42aa1a1100bbee07b26c2dac771
          abi: [
              {
                  type: 'function',
-@@ -497,7 +497,7 @@ function getSessionData(session, useDevContracts) {
-         : [sudoAction];
+@@ -537,7 +537,10 @@ function getSessionData(session, useDevContracts) {
+     })) ?? [];
      return {
          sessionValidator: validator.address,
--        salt: viem_1.zeroHash,
-+        salt: session.salt ?? viem_1.zeroHash,
+-        salt: restricted ? getRestrictedSessionSalt(saltActions) : viem_1.zeroHash,
++        // A session may carry an explicit salt (the HCA session salt the validator
++        // re-derives its permission from); otherwise keep the upstream default.
++        salt: session.salt ??
++            (restricted ? getRestrictedSessionSalt(saltActions) : viem_1.zeroHash),
          sessionValidatorInitData: validator.initData,
          erc7739Policies: erc7739Data,
          actions,
-@@ -692,13 +692,13 @@ function getSmartSessionValidator(config) {
+@@ -833,13 +836,13 @@ function getSmartSessionValidator(config) {
      if (!config.experimental_sessions) {
          return null;
      }
@@ -1011,10 +1015,10 @@ index 17a419494de4548b759a9a33df5fcff378c349ba..1694e42aa1a1100bbee07b26c2dac771
          additionalContext: '0x',
          type: common_1.MODULE_TYPE_ID_VALIDATOR,
 diff --git a/dist/src/types.d.ts b/dist/src/types.d.ts
-index 6d4ec528d6c661a14fbf019b20855a7ff05cb94a..b1e8ca749397e99b9367b627a6f78c6c767a87c7 100644
+index 075adb30da7d0815c107f8bfda1989e10116d987..c389b5d2c1931ccb45f6ed7da44d35e41706cbd5 100644
 --- a/dist/src/types.d.ts
 +++ b/dist/src/types.d.ts
-@@ -26,9 +26,21 @@ interface StartaleAccount {
+@@ -27,10 +27,22 @@ interface StartaleAccount {
  interface PassportAccount {
      type: 'passport';
  }
@@ -1022,6 +1026,7 @@ index 6d4ec528d6c661a14fbf019b20855a7ff05cb94a..b1e8ca749397e99b9367b627a6f78c6c
 +interface LegacyHcaAccount {
      type: 'hca';
 +    version?: '1.2.0';
+     factory?: Address;
  }
 +interface StandaloneHcaAccount {
 +    type: 'hca';
@@ -1037,16 +1042,16 @@ index 6d4ec528d6c661a14fbf019b20855a7ff05cb94a..b1e8ca749397e99b9367b627a6f78c6c
  interface EoaAccount {
      type: 'eoa';
  }
-@@ -161,6 +173,8 @@ interface ScopedAction {
+@@ -234,6 +246,8 @@ interface SwapScope {
+     readonly via?: readonly SwapVenue[];
  }
- type Action = FallbackAction | ScopedAction;
  interface SessionInput {
 +    account?: Address;
 +    salt?: Hex;
      owners: OwnerSet;
      actions?: Action[];
      claimPolicies?: [Permit2ClaimPolicy];
-@@ -185,6 +199,7 @@ interface RhinestoneAccountConfig {
+@@ -262,6 +276,7 @@ interface RhinestoneAccountConfig {
      experimental_sessions?: {
          enabled: boolean;
          module?: Address;
@@ -1054,7 +1059,7 @@ index 6d4ec528d6c661a14fbf019b20855a7ff05cb94a..b1e8ca749397e99b9367b627a6f78c6c
          compatibilityFallback?: Address;
      };
      recovery?: Recovery;
-@@ -313,6 +328,16 @@ interface SessionEnableData {
+@@ -394,6 +409,16 @@ interface SessionEnableData {
          sessionDigest: Hex;
      }[];
      sessionToEnableIndex: number;
@@ -1071,11 +1076,10 @@ index 6d4ec528d6c661a14fbf019b20855a7ff05cb94a..b1e8ca749397e99b9367b627a6f78c6c
  }
  interface ChainSessionConfig {
      session: Session;
-@@ -388,5 +413,5 @@ interface UserOperationTransaction {
+@@ -482,5 +507,5 @@ interface UserOperationTransaction {
      chain: Chain;
  }
  type Transaction = SameChainTransaction | CrossChainTransaction;
--export type { AccountType, SafeAccount, NexusAccount, KernelAccount, StartaleAccount, PassportAccount, HcaAccount, EoaAccount, RhinestoneAccountConfig, RhinestoneSDKConfig, RhinestoneConfig, AccountProviderConfig, ProviderConfig, BundlerConfig, PaymasterConfig, Transaction, UserOperationTransaction, TokenSymbol, CalldataInput, LazyCallInput, CallInput, CallResolveContext, Call, Sponsorship, TokenRequest, TokenRequests, SourceAssetInput, OwnerSet, OwnableValidatorConfig, ENSValidatorConfig, WebauthnValidatorConfig, MultiFactorValidatorConfig, SignerSet, ChainSessionConfig, SingleSessionSignerSet, PerChainSessionSignerSet, SessionSignerSet, Action, SessionInput, SessionEnableData, Session, Recovery, ModuleType, ModuleInput, Policy, Permit2ClaimPolicy, UniversalActionPolicyParamCondition, ApiKeyAuth, JwtAuth, AuthConfig, };
-+export type { AccountType, SafeAccount, NexusAccount, KernelAccount, StartaleAccount, PassportAccount, LegacyHcaAccount, StandaloneHcaAccount, HcaAccount, EoaAccount, RhinestoneAccountConfig, RhinestoneSDKConfig, RhinestoneConfig, AccountProviderConfig, ProviderConfig, BundlerConfig, PaymasterConfig, Transaction, UserOperationTransaction, TokenSymbol, CalldataInput, LazyCallInput, CallInput, CallResolveContext, Call, Sponsorship, TokenRequest, TokenRequests, SourceAssetInput, OwnerSet, OwnableValidatorConfig, ENSValidatorConfig, WebauthnValidatorConfig, MultiFactorValidatorConfig, SignerSet, ChainSessionConfig, SingleSessionSignerSet, PerChainSessionSignerSet, SessionSignerSet, Action, SessionInput, SessionEnableData, Session, Recovery, ModuleType, ModuleInput, Policy, Permit2ClaimPolicy, UniversalActionPolicyParamCondition, ApiKeyAuth, JwtAuth, AuthConfig, };
+-export type { AccountProviderConfig, AccountType, Action, ArgPolicyExpression, ApiKeyAuth, AuthConfig, BundlerConfig, Call, CalldataInput, CallInput, CallResolveContext, ChainSessionConfig, ENSValidatorConfig, EoaAccount, HcaAccount, JwtAuth, KernelAccount, LazyCallInput, ModuleInput, ModuleType, MultiFactorValidatorConfig, NexusAccount, OwnableValidatorConfig, OwnerSet, PassportAccount, PaymasterConfig, PerChainSessionSignerSet, Permit2ClaimPolicy, Policy, ProviderConfig, QuorumOwner, QuorumValidatorConfig, ScopedAction, Recovery, RhinestoneAccountConfig, RhinestoneConfig, RhinestoneSDKConfig, RoutedRhinestoneSwapVenue, SafeAccount, Session, SessionEnableData, SessionInput, SessionSignerSet, SignerSet, SingleSessionSignerSet, SourceAssetInput, Sponsorship, StartaleAccount, SwapScope, SwapVenue, ZeroExVenue, FyndVenue, RhinestoneSwapVenue, TokenRequest, TokenRequests, TokenSymbol, Transaction, UniversalActionPolicyParamCondition, UniversalActionPolicyParamRule, UserOperationTransaction, WebauthnValidatorConfig, };
++export type { AccountProviderConfig, AccountType, Action, ArgPolicyExpression, ApiKeyAuth, AuthConfig, BundlerConfig, Call, CalldataInput, CallInput, CallResolveContext, ChainSessionConfig, ENSValidatorConfig, EoaAccount, HcaAccount, JwtAuth, KernelAccount, LegacyHcaAccount, StandaloneHcaAccount, LazyCallInput, ModuleInput, ModuleType, MultiFactorValidatorConfig, NexusAccount, OwnableValidatorConfig, OwnerSet, PassportAccount, PaymasterConfig, PerChainSessionSignerSet, Permit2ClaimPolicy, Policy, ProviderConfig, QuorumOwner, QuorumValidatorConfig, ScopedAction, Recovery, RhinestoneAccountConfig, RhinestoneConfig, RhinestoneSDKConfig, RoutedRhinestoneSwapVenue, SafeAccount, Session, SessionEnableData, SessionInput, SessionSignerSet, SignerSet, SingleSessionSignerSet, SourceAssetInput, Sponsorship, StartaleAccount, SwapScope, SwapVenue, ZeroExVenue, FyndVenue, RhinestoneSwapVenue, TokenRequest, TokenRequests, TokenSymbol, Transaction, UniversalActionPolicyParamCondition, UniversalActionPolicyParamRule, UserOperationTransaction, WebauthnValidatorConfig, };
  //# sourceMappingURL=types.d.ts.map
-\ No newline at end of file

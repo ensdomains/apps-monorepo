@@ -2,8 +2,7 @@
  * Cross-app fixture (HW7): the explorer (portal) and the manager side by
  * side, each in its own browser context with its own headless wallet, so a
  * test can change state in one app and observe it in the other — from the
- * actor's side and from the other people the change touches
- * (e2e-gap-analysis.md §5 rule 1).
+ * actor's side and from the other people the change touches.
  *
  * - `explorer` / `manager`: connected as `user` (Anvil account 0). Switch
  *   either to another account with `asAccount(app, 'user3')`.

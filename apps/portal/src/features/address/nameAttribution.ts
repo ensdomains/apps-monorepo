@@ -106,7 +106,8 @@ const holdsRegistrarName = ({ name, relations }: OwnableName) =>
  *
  * @param name - the name's provenance signals
  * @param address - the address whose history page is being rendered
- * @param senders - transaction hash to the EOA that sent it, as far as it is known.
+ * @param senders - transaction hash to the account that sent it (the EOA, or the
+ *   Safe whose `execTransaction` it was), as far as it is known.
  *   Transactions missing from the map simply do not contribute a signal.
  */
 const attributeName = (

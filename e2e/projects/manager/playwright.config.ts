@@ -11,7 +11,7 @@ export default defineConfig({
   },
   projects: [
     /**
-     * The fixtures' own self-tests (`e2e-build-goal.md` §6 B2), manager side.
+     * The fixtures' own self-tests, manager side.
      * Runs first; `manager-e2e` depends on it, so a broken fixture aborts the
      * run instead of producing confident wrong results underneath it.
      *

@@ -13,7 +13,7 @@ import {
   type PublicClient,
 } from 'viem'
 import { envConfig } from '@/config'
-import { V2_CONTRACTS } from '../contracts/addresses'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import {
   GAS_HEURISTIC,
   GRANT_ROLES_GAS,
@@ -57,10 +57,10 @@ import {
 import { resolverFor } from './encodeMigration'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
 import {
-  hasTemporaryMigrationHcaApproval,
+  type MigrationCleanupApproval,
+  type MigrationRegistrationApprovalStrategy,
   migrationApprovalForId,
-  requiresMigrationApprovalCleanup,
-  temporaryMigrationHcaApproval,
+  prepareMigrationApprovals,
 } from './migrationApprovals'
 import {
   loadPendingAtomicMigrationIntents,
@@ -68,6 +68,7 @@ import {
   type MigrationBatchJournalScope,
   type MigrationJournalOperation,
   type MigrationRecoverySnapshot,
+  type TemporaryRegistrationApproval,
 } from './migrationBatchJournal'
 import {
   assertRequiredMigrationContractCode,
@@ -87,8 +88,11 @@ import { SubnameRecreationError } from './subnameRecreationError'
 import { getV1ProfileKeys, type V1ProfileKeys } from './v1ProfileKeys'
 
 export type MigrationPlan = {
+  readonly registrationApprovalStrategy?: MigrationRegistrationApprovalStrategy
+  readonly temporaryRegistrationApproval?: TemporaryRegistrationApproval
+  readonly requiresFreshDeploymentPreview?: true
   readonly subnameRecreation?: SubnameRecreationSnapshot
-  /** Recovery may reconcile receipts and clean up even while rollout is off. */
+  /** Recovery may reconcile receipts even while rollout is off. */
   readonly isSubnameRecreationEnabled?: boolean
   readonly hcaAddress: Address
   readonly hcaDeploymentRequired: boolean
@@ -295,6 +299,7 @@ export class MigrationRecoveryPlanError extends TaggedError(
     | 'operation-mismatch'
     | 'resolver-mismatch'
     | 'profile-mismatch'
+    | 'approval-mismatch'
 }> {}
 
 type LockedResolverReplacement = {
@@ -450,7 +455,7 @@ export const assertLockedResolverReplacementRecordSafety = async (
       name: name.domain.name,
       resolver: v1Resolver,
     })),
-    { signal },
+    { signal, chainId: publicClient.chain?.id },
   )
   signal?.throwIfAborted()
   if (result.isErr()) {
@@ -637,7 +642,11 @@ export const buildMigrationPlan = async (params: {
   })
   signal?.throwIfAborted()
 
-  const approvals = preflight.migrationApprovals ?? []
+  const approvals = prepareMigrationApprovals({
+    approvals: preflight.migrationApprovals ?? [],
+    hcaAddress,
+    canBatchAtomically,
+  })
   const hcaDeploymentRequired =
     preflight.hcaReadiness?.status === 'deployment-required'
   const registrationApprovalTargets = groups.unwrapped.map(({ domain }) => ({
@@ -647,7 +656,6 @@ export const buildMigrationPlan = async (params: {
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired,
     approvals,
-    cleanupApprovals: preflight.migrationCleanupApprovals,
     atomicBatches: atomicPlan.batches,
     registrationApprovalTargets,
     canBatchAtomically,
@@ -658,11 +666,20 @@ export const buildMigrationPlan = async (params: {
     hcaDeploymentRequired,
     migrationOwner,
     subnameRecreation: params.subnameRecreation?.snapshot,
+    registrationApprovalStrategy: approvals.some(
+      ({ id }) => id === 'base-registrar:hca',
+    )
+      ? 'temporary-operator'
+      : 'per-token',
     classified,
     registryContext: classified,
     ineligible,
     groups,
-    preflight,
+    preflight: {
+      ...preflight,
+      migrationApprovals: approvals,
+      migrationCleanupApprovals: [],
+    },
     ownedPermRes,
     profiles,
     directRoutes,
@@ -811,6 +828,113 @@ export const classifyMigrationRecoverySnapshot = (params: {
   return { registryContext, classified }
 }
 
+const assertRegistrationRecoveryRegistrar = (params: {
+  readonly snapshot: MigrationRecoverySnapshot
+  readonly baseRegistrar: Address
+}): void => {
+  const approval = params.snapshot.temporaryRegistrationApproval
+  if (!approval) return
+  if (!isAddressEqual(approval.contractAddress, params.baseRegistrar)) {
+    throw new MigrationRecoveryPlanError({
+      message:
+        'The saved registration permission does not target the trusted registrar.',
+      reason: 'approval-mismatch',
+    })
+  }
+}
+
+const hasRegistrationHelperChanged = (params: {
+  readonly snapshot: MigrationRecoverySnapshot
+  readonly migrationHelper: Address
+}): boolean => {
+  const recordedHelper =
+    params.snapshot.migrationHelper ??
+    params.snapshot.temporaryRegistrationApproval?.operatorAddress
+  return (
+    recordedHelper !== undefined &&
+    !isAddressEqual(recordedHelper, params.migrationHelper)
+  )
+}
+
+const buildChangedHelperRecoveryPlan = (params: {
+  readonly snapshot: MigrationRecoverySnapshot
+  readonly hcaAddress: Address
+  readonly migrationOwner: Address
+  readonly registryContext: readonly ClassifiedName[]
+}): MigrationPlan => {
+  const { snapshot, hcaAddress, migrationOwner } = params
+  const migrationCleanupApprovals: readonly MigrationCleanupApproval[] = []
+  return {
+    hcaAddress,
+    hcaDeploymentRequired: false,
+    migrationOwner,
+    classified: [],
+    registryContext: params.registryContext,
+    ineligible: [],
+    groups: groupClassifiedNames([]),
+    preflight: {
+      skipFetchProfilesPhase: true,
+      migrationApprovals: [],
+      migrationCleanupApprovals,
+    },
+    ownedPermRes: snapshot.ownedPermRes,
+    profiles: snapshot.profiles,
+    directRoutes: new Map(),
+    atomicBatches: [],
+    stepDescriptors: buildStepDescriptors({
+      hcaDeploymentRequired: false,
+      approvals: [],
+      atomicBatches: [],
+      registrationApprovalTargets: [],
+    }),
+    priorCompletedOperations: snapshot.completedOperations,
+    subnameRecreation: snapshot.subnameRecreation,
+    requiresReconciliation: true,
+    canBatchAtomically: false,
+    registrationApprovalStrategy: snapshot.registrationApprovalStrategy,
+    temporaryRegistrationApproval: snapshot.temporaryRegistrationApproval,
+    requiresFreshDeploymentPreview: true,
+  }
+}
+
+const buildRecoveryApprovalPlan = (params: {
+  readonly snapshot: MigrationRecoverySnapshot
+  readonly hcaAddress: Address
+  readonly groups: GroupedNames
+  readonly hasRemainingNames: boolean
+}) => {
+  // No further grants are needed when every name has migrated.
+  const remainingApprovals = params.hasRemainingNames
+    ? params.snapshot.plannedApprovals
+    : []
+  const plannedApprovals = remainingApprovals.flatMap((approval) => {
+    // Older recovery snapshots may contain the collection-wide strategy. A
+    // resumed run must retain the legacy token-scoped strategy instead.
+    if (
+      approval.id === 'base-registrar:hca' &&
+      params.snapshot.registrationApprovalStrategy !== 'temporary-operator'
+    ) {
+      return params.groups.unwrapped.map(({ domain }) =>
+        migrationApprovalForId({
+          id: 'base-registrar:hca-token',
+          hcaAddress: params.hcaAddress,
+          tokenId: BigInt(domain.labelhash),
+        }),
+      )
+    }
+    return [
+      migrationApprovalForId({
+        id: approval.id,
+        hcaAddress: params.hcaAddress,
+        ...(approval.tokenId === undefined
+          ? {}
+          : { tokenId: approval.tokenId }),
+      }),
+    ]
+  })
+  return plannedApprovals
+}
+
 /**
  * Rebuild a migration plan from durable, data-only inputs after a page reload.
  * The old calldata is never trusted. Every action is reclassified, deployment
@@ -824,19 +948,33 @@ export const buildMigrationRecoveryPlan = async (params: {
   readonly canBatchAtomically?: boolean
   readonly signal?: AbortSignal
 }): Promise<MigrationPlan> => {
-  const {
-    snapshot,
-    hcaAddress,
-    migrationOwner,
-    publicClient,
-    canBatchAtomically = false,
-    signal,
-  } = params
+  const { snapshot, hcaAddress, migrationOwner, publicClient, signal } = params
+  const canBatchAtomically =
+    params.canBatchAtomically === true &&
+    snapshot.registrationApprovalStrategy !== 'temporary-operator'
   signal?.throwIfAborted()
   const recovered = classifyMigrationRecoverySnapshot({
     snapshot,
     migrationOwner,
   })
+  const temporaryRegistrationApproval = snapshot.temporaryRegistrationApproval
+  assertRegistrationRecoveryRegistrar({
+    snapshot,
+    baseRegistrar: V1_CONTRACTS.BaseRegistrar,
+  })
+  if (
+    hasRegistrationHelperChanged({
+      snapshot,
+      migrationHelper: V2_CONTRACTS.MigrationHelper,
+    })
+  ) {
+    return buildChangedHelperRecoveryPlan({
+      snapshot,
+      hcaAddress,
+      migrationOwner,
+      registryContext: recovered.registryContext,
+    })
+  }
   const classified = await resolveLockedMigrationResolvers({
     publicClient,
     names: recovered.classified,
@@ -996,49 +1134,17 @@ export const buildMigrationRecoveryPlan = async (params: {
   })
   signal?.throwIfAborted()
   const groups = groupClassifiedNames([...classified])
-  // With nothing left to migrate no grant runs, so cleanup follows live state.
-  const remainingApprovals =
-    classified.length > 0 ? snapshot.plannedApprovals : []
-  const plannedApprovals = remainingApprovals.flatMap((approval) => {
-    // Older recovery snapshots may contain the collection-wide strategy. A
-    // resumed run must use the current token-scoped strategy instead.
-    if (approval.id === 'base-registrar:hca') {
-      return groups.unwrapped.map(({ domain }) =>
-        migrationApprovalForId({
-          id: 'base-registrar:hca-token',
-          hcaAddress,
-          tokenId: BigInt(domain.labelhash),
-        }),
-      )
-    }
-    return [
-      migrationApprovalForId({
-        id: approval.id,
-        hcaAddress,
-        ...(approval.tokenId === undefined
-          ? {}
-          : { tokenId: approval.tokenId }),
-      }),
-    ]
+  const plannedApprovals = buildRecoveryApprovalPlan({
+    snapshot,
+    hcaAddress,
+    groups,
+    hasRemainingNames: classified.length > 0,
   })
-  const willGrantHcaApproval = plannedApprovals.some(
-    requiresMigrationApprovalCleanup,
-  )
-  const needsHcaCleanup =
-    willGrantHcaApproval ||
-    (await hasTemporaryMigrationHcaApproval({
-      publicClient,
-      eoa: migrationOwner,
-      hcaAddress,
-    }))
-  const migrationCleanupApprovals = needsHcaCleanup
-    ? [temporaryMigrationHcaApproval(hcaAddress)]
-    : []
+  const migrationCleanupApprovals: readonly MigrationCleanupApproval[] = []
   const hcaDeploymentRequired = hcaReadiness.status === 'deployment-required'
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired,
     approvals: plannedApprovals,
-    cleanupApprovals: migrationCleanupApprovals,
     atomicBatches: atomicPlan.batches,
     registrationApprovalTargets: groups.unwrapped.map(({ domain }) => ({
       name: domain.name,
@@ -1075,6 +1181,8 @@ export const buildMigrationRecoveryPlan = async (params: {
     subnameRecreation: snapshot.subnameRecreation,
     requiresReconciliation: true,
     canBatchAtomically,
+    registrationApprovalStrategy: snapshot.registrationApprovalStrategy,
+    temporaryRegistrationApproval,
   }
 }
 
@@ -1154,7 +1262,6 @@ export const adjustPlanForRetry = (
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired: plan.hcaDeploymentRequired,
     approvals: plan.preflight.migrationApprovals ?? [],
-    cleanupApprovals: plan.preflight.migrationCleanupApprovals,
     atomicBatches: remainingAtomicBatches,
     registrationApprovalTargets: groups.unwrapped.map(({ domain }) => ({
       name: domain.name,

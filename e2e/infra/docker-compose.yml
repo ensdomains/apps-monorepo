@@ -108,10 +108,13 @@ services:
       # ~/.foundry/cache/rpc/sepolia/<block>/storage.json, kept on the
       # anvil-fork-cache volume, so after one warm-up run Anvil answers from
       # disk; --fork-chain-id lets it start without asking the network.
-      # Through upstream-cache, which forwards to SEPOLIA_FORK_URL and keeps
-      # every answer at the pinned block on disk.
+      # start-local-env.sh routes it through upstream-cache, which forwards to
+      # SEPOLIA_FORK_URL and keeps every answer at the pinned block on disk.
+      # A bare `docker compose up` (CI) forks the upstream directly: from
+      # GitHub runners the cache's first upstream reads stalled past Anvil's
+      # health window, while a direct fork starts in seconds.
       - --fork-url
-      - http://upstream-cache:8548
+      - ${ANVIL_FORK_URL:-${SEPOLIA_FORK_URL:-https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j}}
       # --fork-chain-id needs an explicit block; -1 (latest - 1) when unpinned.
       - --fork-block-number
       - "${SEPOLIA_FORK_BLOCK:--1}"
@@ -410,6 +413,9 @@ services:
   # own fallback.test.ts / outage-taxonomy.test.ts — this is intended,
   # resilience-tested behaviour, not a workaround).
   metadata-service:
+    # Opt-in (`--profile metadata`): its image builds from a private repo with
+    # a GitHub token, so a default `up` must not need it.
+    profiles: ["metadata"]
     build:
       context: .
       dockerfile: Dockerfile.metadata-service

@@ -15,10 +15,7 @@ import {
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient } from '../../../helpers/anvil-client.js'
-import {
-  isRealBigname,
-  waitForBignameName,
-} from '../../../helpers/bigname-sync.js'
+import { isRealBigname } from '../../../helpers/bigname-sync.js'
 import { expectRecordsResolve } from '../../../helpers/resolve-records.js'
 import {
   accountHasRoles,
@@ -29,7 +26,7 @@ import {
   transferTxId,
 } from '../../../helpers/transaction-modal.js'
 
-const origin = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
+const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 const abi = parseAbi([
   'function getStatus(uint256 id) view returns (uint8)',
   'function getSubregistry(string label) view returns (address)',
@@ -49,25 +46,22 @@ test.beforeEach(async ({ portalPage: page, wallet }) => {
   await connectWithHeadlessWallet(page, wallet)
 })
 
-test('creates a native 4LD in its immediate parent registry', {
-  tag: ['@scenario:Q50', '@inv:INV5-native-4ld-writes'],
-}, async ({ portalPage: page, wallet, wallets }) => {
+test('redirects native 4LD creation and disables the action', {
+  tag: ['@smoke', '@scenario:Q50', '@inv:INV5-native-4ld-writes'],
+}, async ({ portalPage: page, wallets }) => {
   const tree = await makeV2FourLD(wallets.account('owner'))
-  const label = 'created'
-  const name = `${label}.${tree.parent.name}`
-  expect(await status(tree.leaf.registryAddress, label)).toBe(0)
-  await page.goto(`${origin}/${tree.parent.name}/create-subname`)
-  await page.locator('#label').fill(label)
-  await page.locator('#owner').fill(wallets.address('manager'))
-  await page.getByRole('button', { name: 'Create subname' }).click()
-  await driveTransactionsToSuccess(page, wallet, ['tx-create-ens-subname'])
-  expect(await status(tree.leaf.registryAddress, label)).toBe(2)
-  expect(await status(tree.parent.registryAddress, label)).toBe(0)
-  expect(await owner(name)).toBe(wallets.address('manager'))
-  await waitForBignameName(name)
-  await page.goto(`${origin}/${tree.parent.name}/subnames`)
+  const LABEL = 'created'
+  expect(await status(tree.leaf.registryAddress, LABEL)).toBe(0)
+  await page.goto(`${PORTAL_APP_URL}/${tree.parent.name}/create-subname`)
+  await expect(page).toHaveURL(`${PORTAL_APP_URL}/${tree.parent.name}/subnames`)
   await expect(
-    page.locator('table').getByText(name, { exact: true }),
+    page.getByRole('button', { name: 'Create subname' }),
+  ).toBeDisabled()
+  await expect(page.locator('#label')).toHaveCount(0)
+  expect(await status(tree.leaf.registryAddress, LABEL)).toBe(0)
+  expect(await status(tree.parent.registryAddress, LABEL)).toBe(0)
+  await expect(
+    page.locator('table').getByText(tree.name, { exact: true }),
   ).toBeVisible()
 })
 
@@ -76,7 +70,7 @@ test('deletes only the native 4LD token', {
 }, async ({ portalPage: page, wallet, wallets }) => {
   const tree = await makeV2FourLD(wallets.account('owner'))
   expect(await status(tree.leaf.registryAddress, tree.leaf.label)).toBe(2)
-  await page.goto(`${origin}/${tree.parent.name}/subnames`)
+  await page.goto(`${PORTAL_APP_URL}/${tree.parent.name}/subnames`)
   await page
     .locator('table')
     .getByRole('button', { name: `Delete ${tree.name}` })
@@ -114,7 +108,7 @@ test('transfers a native 4LD without moving ancestors or detaching records', {
   tag: ['@scenario:Q52', '@inv:INV5-native-4ld-writes'],
 }, async ({ portalPage: page, wallet, wallets }) => {
   const tree = await makeV2FourLD(wallets.account('owner'))
-  await page.goto(`${origin}/${tree.name}/ownership/transfer`)
+  await page.goto(`${PORTAL_APP_URL}/${tree.name}/ownership/transfer`)
   await page
     .getByPlaceholder('ENS name or address')
     .fill(wallets.address('manager'))
@@ -152,7 +146,7 @@ test('stranger cannot transfer a native 4LD', {
 }, async ({ portalPage: page, wallets }) => {
   const tree = await makeV2FourLD(wallets.account('owner'))
   await wallets.switchTo('stranger')
-  await page.goto(`${origin}/${tree.name}/ownership/transfer`)
+  await page.goto(`${PORTAL_APP_URL}/${tree.name}/ownership/transfer`)
   await expect(
     page.getByRole('heading', { name: 'Not authorized', exact: true }),
   ).toBeVisible()
@@ -177,7 +171,7 @@ test('edits native 4LD records without changing ancestor records', {
     name: tree.parent.name,
     key: 'description',
   })
-  await page.goto(`${origin}/${tree.name}/edit-records`)
+  await page.goto(`${PORTAL_APP_URL}/${tree.name}/edit-records`)
   await page.getByLabel('Type', { exact: true }).selectOption('text')
   await page.getByLabel('Key', { exact: true }).fill('description')
   await page
@@ -223,12 +217,12 @@ test('stranger cannot edit native 4LD records', {
     'a stranger cannot write the 4LD records',
   ).rejects.toThrow()
   // Positive control: the owner is offered the editor on the same page.
-  await page.goto(`${origin}/${tree.name}/edit-records`)
+  await page.goto(`${PORTAL_APP_URL}/${tree.name}/edit-records`)
   await expect(page.getByRole('button', { name: 'Add record' })).toBeVisible({
     timeout: 30_000,
   })
   await wallets.switchTo('stranger')
-  await page.goto(`${origin}/${tree.name}/edit-records`)
+  await page.goto(`${PORTAL_APP_URL}/${tree.name}/edit-records`)
   await expect(
     page.getByText(/don't have permission to edit records/i),
   ).toBeVisible()
@@ -245,7 +239,7 @@ test('native 4LD owner can open name role management', {
       'ROLE_SET_RESOLVER_ADMIN',
     ]),
   ).toBe(true)
-  await page.goto(`${origin}/${tree.name}/roles`)
+  await page.goto(`${PORTAL_APP_URL}/${tree.name}/roles`)
   const heading = page.getByRole('heading', { name: / Roles$/ })
   const refusal = page.getByText('Only 2LD and 3LD .eth names are supported', {
     exact: true,

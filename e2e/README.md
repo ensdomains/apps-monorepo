@@ -129,6 +129,7 @@ pnpm e2e:manager
 
 # Portal tests
 pnpm e2e:portal
+pnpm e2e:smoke:portal   # the per-PR @smoke subset (docs/smoke-suite.md)
 
 # Cross-app tests
 pnpm e2e:cross-app

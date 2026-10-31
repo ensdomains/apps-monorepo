@@ -46,21 +46,18 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 // ---------------------------------------------------------------------------
 // V1 Contract addresses (Sepolia fork)
 // ---------------------------------------------------------------------------
-// REPOINTED (iteration 23, ruling from iteration 14: all four constants at
-// once, not staged). Previously this fixture registered into a *different*,
+// REPOINTED (all four constants at once, not staged). Previously this fixture registered into a *different*,
 // fixture-only V1 deployment — same code, twice deployed — while the
 // migration UI resolves `ensBaseRegistrarImplementation` / `ensNameWrapper`
 // through ensjs. Every name the fixture made was therefore invisible to the
-// app under test, which was the root reason §5.G (59 rows) stayed untestable.
+// app under test, which kept every V1 migration scenario untestable.
 //
 // `V1_ETH_REGISTRAR_CONTROLLER` / `V1_BASE_REGISTRAR` / `V1_NAME_WRAPPER` are
 // now the exact same values `v1-controller-auth.ts` calls `APP_V1_*` — single
 // source, not a second copy of the same literals. `ensureV1ControllersAuthorised()`
-// (below, called once per `makeV1Name`) is the reproducible grant iteration 14
-// asked for: `base.addController(controller)` for `register`, and
+// (below, called once per `makeV1Name`) is the reproducible grant this needs: `base.addController(controller)` for `register`, and
 // `base.addController(nameWrapper)` for `wrapETH2LD` (the wrapper calls back
-// into the registrar). Proven in iteration 13 (`scripts/probe-v1-*.mts`) and
-// already exercised every harness run since as `v1-controller-auth: both
+// into the registrar). Exercised every harness run since as `v1-controller-auth: both
 // grants land on the canonical registrar, and are idempotent`.
 //
 // `V1_ENS_REGISTRY` moves to ensjs's `ensLegacyRegistry` — the fourth constant
@@ -334,8 +331,8 @@ export async function reserveInV2(
  * was missing: an intermittent revert in `register` (root cause not yet
  * pinned down) surfaced only minutes later, as `nameExpires` reading back 0
  * in a harness assertion several steps downstream, rather than here where
- * it actually happened. Same "read back and throw" discipline as rule 5
- * elsewhere in this fixture, applied to the write itself.
+ * it actually happened. Same "read back and throw" discipline as
+ * the rest of this fixture, applied to the write itself.
  */
 async function waitForTx(hash: Hash) {
   const receipt = await publicClient.waitForTransactionReceipt({ hash })
@@ -467,7 +464,7 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
       // 190k). register()'s cost is state-dependent — it walks nested
       // STATICCALLs into the price oracle for premium computation — so the
       // estimate isn't stable across runs. This was the standing
-      // intermittent V1 register revert (root-caused iteration 23).
+      // intermittent V1 register revert.
       gas: 500_000n,
     })
     await waitForTx(registerTx)

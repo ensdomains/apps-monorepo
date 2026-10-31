@@ -4,7 +4,7 @@ import type { Tab } from './types'
  * Every portal route that renders something about a name, with the scenario-id
  * prefix it owns.
  *
- * The prefix carries the tier (`e2e/coverage/scenarios.ts`'s `AREA_TIER`), so
+ * The prefix carries the tier, so
  * it is chosen by consequence, not by spelling: `VT`/`VF` are R0 because a
  * transfer and a fuse burn are irreversible, the authorization surfaces are R2,
  * and the read-only display surfaces are R3. A wrong Owner row is R2 rather

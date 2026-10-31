@@ -1,10 +1,10 @@
 /**
- * Harness integrity gate — rules 5 and 6 of `e2e-build-goal.md` §5.
+ * Harness integrity gate: fixtures prove their own postconditions.
  *
- * > 5. A fixture must verify its own postcondition by read-back, and throw.
+ * > A fixture must verify its own postcondition by read-back, and throw.
  * >    Not "the transaction succeeded" — "the state I claimed to create is
  * >    present."
- * > 6. And that the app can see it. Assert fixture state is visible through the
+ * > And that the app can see it. Assert fixture state is visible through the
  * >    same path the app reads.
  *
  * **The subject of this suite is the fixtures, not the apps.** Every other spec
@@ -43,6 +43,7 @@ import {
 } from '../fixtures/playwright.portal.fixture.js'
 import { discoverV1CompatResolver } from '../fixtures/premigration.js'
 import { publicClient, testClient } from '../helpers/anvil-client.js'
+import { expectAppOnLocalFork } from '../helpers/app-rpc.js'
 import { ETH_REGISTRY, readNameRoles } from '../helpers/role-assertions.js'
 import { readChainTruth } from '../matrix/chain.js'
 import { seedShape } from '../matrix/seed.js'
@@ -50,8 +51,8 @@ import { seedShape } from '../matrix/seed.js'
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 
 /**
- * Resolved from ensjs — the same config the apps read — per goal rule 7 (no
- * contract address literals under `e2e/`). Needed explicitly because the local
+ * Resolved from ensjs — the same config the apps read — because `e2e/`
+ * carries no contract address literals. Needed explicitly because the local
  * fork's chain object is a Sepolia override and does not carry it.
  */
 const UNIVERSAL_RESOLVER = (
@@ -137,7 +138,7 @@ test.describe('Harness integrity', () => {
     const name = await makeName({ label: 'harness-makename', owner: 'user' })
     const label = labelOf(name)
 
-    // ── rule 5: read the postcondition back off the chain ───────────────
+    // ── read the postcondition back off the chain ───────────────────────
     expect(
       await status(ETH_REGISTRY, label),
       `makeName returned ${name} but the .eth registry does not report it registered — every spec that builds on this fixture is asserting against a name that does not exist`,
@@ -157,13 +158,13 @@ test.describe('Harness integrity', () => {
       'makeName produced a name that is already expired at the current block',
     ).toBeGreaterThan(now)
 
-    // ── rule 6: and the app can see it, through the app's own read path ──
+    // ── and the app can see it, through the app's own read path ─────────
     await connectWithHeadlessWallet(page, wallet)
     await page.goto(`${PORTAL_APP_URL}/${name}`)
 
     // The name itself is NOT a valid oracle here: `/$name` echoes the route
     // param, so `getByText(name)` passes even when the app cannot resolve the
-    // name at all. That is a tautological oracle (§11) and it is exactly how
+    // name at all. That is a tautological oracle, and it is exactly how
     // this suite missed the portal running against public Sepolia for a whole
     // run — every fixture name was invisible to the app and this test was green.
     //
@@ -508,7 +509,7 @@ test.describe('Harness integrity', () => {
     //
     // Text is the right oracle *here*, unusually: which account the app
     // believes is connected is UI state, not chain state, so there is no higher
-    // oracle to prefer (§4).
+    // oracle to prefer.
     const connected = accounts.getAddress('user')
     const truncated = `${connected.slice(0, 5)}…${connected.slice(-3)}`
     await expect(
@@ -589,44 +590,18 @@ test.describe('Harness integrity', () => {
     ).toBeLessThan(120)
   })
 
-  test('the apps under test are pointed at this fork, not a public RPC', {
+  test('the portal under test is pointed at this fork, not a public RPC', {
     tag: ['@smoke'],
   }, async () => {
-    // B0's missing half, added 2026-08-12 after it cost a two-hour suite run
-    // and a confidently wrong diagnosis.
-    //
-    // Both apps returned HTTP 200 and both were "up". The portal was compiled
-    // against a public Sepolia endpoint, because `apps/portal/.env` had been
-    // reduced to its committed baseline and the local-dev values lived only in
-    // an untracked `.env.bak-loop`. Every fixture name was therefore invisible
-    // to the app: 41 tests failed, and the 7 that "passed" were all negative
-    // assertions passing for the wrong reason — a confident negative is exactly
-    // what an app looking at the wrong chain produces (INV4).
-    //
-    // "The app is serving" is not "the app is on the right chain". This asserts
-    // the second thing. Read from the dev server's own transformed module, so
-    // it reflects what the running app was actually built with, not what a file
-    // on disk currently says.
-    for (const [appName, baseUrl] of [
-      ['portal', PORTAL_APP_URL],
-      ['manager', process.env.MANAGER_APP_URL ?? 'http://localhost:3000'],
-    ] as const) {
-      // The RPC is inlined wherever a module reads `import.meta.env`: the
-      // portal's wagmi module does, the manager's reads it through config.ts.
-      let source = ''
-      for (const path of ['/src/lib/wagmi.ts', '/src/config.ts']) {
-        const res = await fetch(`${baseUrl}${path}`)
-        expect(
-          res.ok,
-          `could not read ${appName}'s ${path} from ${baseUrl} — is the dev server running?`,
-        ).toBe(true)
-        source += await res.text()
-      }
-      expect(
-        source,
-        `${appName} is not configured with the local Anvil RPC. It is serving, but against a different chain, so every fixture this suite creates is invisible to it and every "not found" it reports is a false negative. Check ${appName === 'portal' ? 'apps/portal' : 'apps/manager'}/.env{,.local} and restart the dev server.`,
-      ).toContain('127.0.0.1:8545')
-    }
+    // Added 2026-08-12 after it cost a two-hour suite run and a confidently
+    // wrong diagnosis. Both apps returned HTTP 200 and both were "up", but the
+    // portal was compiled against a public Sepolia endpoint, because
+    // `apps/portal/.env` had been reduced to its committed baseline and the
+    // local-dev values lived only in an untracked `.env.bak-loop`. 41 tests
+    // failed, and the 7 that "passed" were all negative assertions passing for
+    // the wrong reason. The manager's twin is in `harness-manager.spec.ts`:
+    // each config starts only its own app's dev server.
+    await expectAppOnLocalFork('portal', PORTAL_APP_URL)
   })
 
   // ── the chain itself ───────────────────────────────────────────────────

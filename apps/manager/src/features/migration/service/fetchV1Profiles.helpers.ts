@@ -1,8 +1,10 @@
 import {
   isAddressOnlyResolver,
+  isKnownPublicResolver,
   isLegacyContentPublicResolver,
 } from '@ens-apps/migration'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { type Address, type Hex, zeroAddress, zeroHash } from 'viem'
 import { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
 import type { Profile } from './fetchV1Profiles'
@@ -19,6 +21,20 @@ export type NameForFetch = {
   readonly name: string
   readonly nodeHex: Hex
   readonly v1ResolverAddress: Address
+}
+
+/** Inventory-only reads cannot certify that an unlisted singleton is empty. */
+export const hasKnownContentHashGetter = (params: {
+  readonly resolver: Address
+  readonly chainId: number | undefined
+}): boolean => {
+  const { resolver, chainId } = params
+  return (
+    (chainId === supportedL1Chains.mainnet ||
+      chainId === supportedL1Chains.sepolia) &&
+    isKnownPublicResolver(resolver, chainId) &&
+    !isLegacyContentPublicResolver(resolver, chainId)
+  )
 }
 
 export type ProfileKeyEntry = {
@@ -145,7 +161,10 @@ export const buildProfileMulticallPlan = (
         args: addressRecordArgs(name.nodeHex, coinType),
       })
     }
-    if (entry.hasContentHash) {
+    if (
+      entry.hasContentHash ||
+      hasKnownContentHashGetter({ resolver: name.v1ResolverAddress, chainId })
+    ) {
       calls.push({ name, kind: 'contenthash' })
       contracts.push({
         address: name.v1ResolverAddress,

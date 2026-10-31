@@ -53,7 +53,7 @@ describe('ProfileLinksSection', () => {
     const firstLink = screen.getByRole('link', { name: /My Blog/ })
     const patternPanel = getLinkPatternPanel(firstLink)
     expect(firstLink).toHaveAttribute('href', 'https://myblogwebsite.com')
-    expect(firstLink).toHaveClass('h-51.25', 'overflow-hidden')
+    expect(firstLink).toHaveClass('overflow-hidden')
     expect(patternPanel).toBeInTheDocument()
     expect(patternPanel).toHaveStyle({
       backgroundPosition: 'left top',

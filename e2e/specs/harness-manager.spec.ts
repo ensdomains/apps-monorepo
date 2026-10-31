@@ -1,29 +1,17 @@
 /**
  * Harness integrity gate — manager side. Companion to `harness.spec.ts`.
  *
- * Same contract as its portal sibling: the subject is the fixtures, rule 5 is
- * "read the postcondition back independently", rule 6 is "and the app can see
- * it through the path the app actually reads".
+ * Same contract as its portal sibling: the subject is the fixtures. Each one
+ * must read its postcondition back independently ("read-back"), and the app
+ * must be able to see it through the path the app actually reads
+ * ("app-visible").
  *
- * This file exists mainly for one fixture. `makeV1Name` is the reason rule 6 is
- * in the goal document at all — it registers names into a V1 deployment the
- * migration code never queries, so registration succeeds, nothing errors, and
- * every name it makes is invisible to the app under test. That was live for
- * weeks with a green suite over it, and it is the standing blocker on all 61
- * `G*` migration rows.
- *
- * The fault is not a mystery any more, so this file encodes it precisely rather
- * than describing it: `makeV1Name`'s rule-6 check is `test.fail()`. It passes
- * while the fixture is broken and **goes red the moment someone fixes it** —
- * exactly when a human needs to look, because that is when 61 scenarios unblock
- * and the annotation has to come off.
- *
- * Two annotations here, and they mean different things:
- *
- * - `test.fail()` — the assertion is correct and currently fails, deliberately.
- *   The test still *runs*, so it cannot rot.
- * `test.fail()` is not a weakened assertion — it keeps the original oracle and
- * records only that its current outcome is failure.
+ * This file exists mainly for one fixture. `makeV1Name` once registered names
+ * into a V1 deployment the migration code never queries, so registration
+ * succeeded, nothing errored, and every name it made was invisible to the app
+ * under test. That was live for weeks with a green suite over it, and it
+ * blocked every V1 migration scenario. The app-visible check below is what
+ * catches it if it comes back.
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
@@ -40,6 +28,7 @@ import {
   v1ControllerAuthState,
 } from '../fixtures/v1-controller-auth.js'
 import { publicClient } from '../helpers/anvil-client.js'
+import { expectAppOnLocalFork } from '../helpers/app-rpc.js'
 import { ETH_REGISTRY } from '../helpers/role-assertions.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -101,7 +90,13 @@ test.describe('Harness integrity — manager', () => {
 
   // ── makeV2Name ─────────────────────────────────────────────────────────
 
-  test('makeV2Name: rule 5 — the name it reports is registered in the .eth registry, owned by somebody', {
+  test('the manager under test is pointed at this fork, not a public RPC', async () => {
+    // The portal's twin is in `harness.spec.ts`. A manager built against a
+    // public RPC serves fine and sees none of this suite's names.
+    await expectAppOnLocalFork('manager', MANAGER_APP_URL)
+  })
+
+  test('makeV2Name: read-back — the name it reports is registered in the .eth registry, owned by somebody', {
     tag: ['@smoke'],
   }, async ({ makeV2Name }) => {
     const name = await makeV2Name({ label: 'harness-v2' })
@@ -132,7 +127,7 @@ test.describe('Harness integrity — manager', () => {
     ).not.toBe(zeroAddress)
   })
 
-  test('makeV2Name: rule 6 — the manager renders the name it made', {
+  test('makeV2Name: app-visible — the manager renders the name it made', {
     tag: ['@smoke'],
   }, async ({ connectedPage: page, makeV2Name, accounts }) => {
     // Un-skipped 2026-08-12. This was blocked-env: `connectWithHeadlessWallet`
@@ -173,7 +168,7 @@ test.describe('Harness integrity — manager', () => {
 
   // ── makeV1Name ─────────────────────────────────────────────────────────
 
-  test('makeV1Name: rule 5 — the name really is registered in the registrar the fixture targets', async ({
+  test('makeV1Name: read-back — the name really is registered in the registrar the fixture targets', async ({
     accounts,
   }) => {
     // Snapshotted: V1 registration is a permanent write to the shared fork, and
@@ -199,20 +194,17 @@ test.describe('Harness integrity — manager', () => {
     }
   })
 
-  test('makeV1Name: rule 6 — the name is visible in the registrar the app reads', async ({
+  test('makeV1Name: app-visible — the name is visible in the registrar the app reads', async ({
     accounts,
   }) => {
-    // FIXED — iteration 23. `makeV1Name` used to register into a fixture-only
+    // FIXED. `makeV1Name` used to register into a fixture-only
     // V1 deployment while the migration code resolved
     // `ensBaseRegistrarImplementation` through ensjs — same code, twice
     // deployed on the fork, so registration succeeded into a registrar the
     // app could never see. `V1_BASE_REGISTRAR` is now imported from
-    // `v1-controller-auth.ts`'s `APP_V1_BASE_REGISTRAR` (the ruling from
-    // iteration 14: repoint all four V1 constants at once), so this
-    // assertion — unchanged since it was written, per rule 1 — passes for
-    // real instead of via `test.fail()`. That flip ("expected to fail but
-    // passed") was the signal iteration 4 designed this test to produce; this
-    // is that moment, and the annotation is gone.
+    // `v1-controller-auth.ts`'s `APP_V1_BASE_REGISTRAR` (all four V1 constants
+    // were repointed at once), so this assertion — unchanged since it was
+    // written — passes for real instead of via `test.fail()`.
     const before = await takeSnapshot()
     try {
       const makeV1Name = createMakeV1Name({
@@ -268,12 +260,12 @@ test.describe('Harness integrity — manager', () => {
     // mismatch — it would have failed forever after the repoint, for a
     // reason with nothing to do with a regression. This guards the opposite,
     // current invariant: if `V1_BASE_REGISTRAR` and `APP_V1_BASE_REGISTRAR`
-    // ever diverge again (e.g. someone edits one without the other), rule 6
-    // above goes back to failing for the old reason, silently, unless
+    // ever diverge again (e.g. someone edits one without the other), the app-visible
+    // check above goes back to failing for the old reason, silently, unless
     // something here calls it out directly.
     expect(
       V1_BASE_REGISTRAR.toLowerCase(),
-      'makeV1Name and the app now point at different V1 registrars — the iteration 23 repoint has regressed, and rule 6 above will start failing for the pre-iteration-23 reason',
+      'makeV1Name and the app now point at different V1 registrars — the V1 repoint has regressed, and the app-visible check above will start failing for the old reason',
     ).toBe(APP_V1_BASE_REGISTRAR.toLowerCase())
 
     const code = await publicClient.getBytecode({ address: V1_BASE_REGISTRAR })

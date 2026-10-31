@@ -1,5 +1,5 @@
 /**
- * Per-test chain snapshot — plan item H5.
+ * Per-test chain snapshot.
  *
  * Today every suite runs with `workers: 1`, which is a correctness crutch: the
  * tests depend on each other's chain state and would break if run in any other
@@ -17,9 +17,8 @@
  *    longer exist, its reorg check asks the chain for one of them, gets
  *    `BlockNotFound`, and halts permanently — leaving every indexer-backed
  *    assertion in every LATER run red until the volume is wiped. Measured:
- *    644 consecutive failures over an hour. See "A chain-snapshot revert
- *    permanently breaks Panoptes" in docs/e2e-defects.md for the recovery
- *    steps. Within one run this hides, because the only caller sorts last.
+ *    644 consecutive failures over an hour. Within one run
+ *    this hides, because the only caller sorts last.
  * 3. Anvil discards a snapshot once it is reverted to, and reverting drops
  *    every snapshot taken after it. Nesting therefore only works
  *    innermost-first, which is what {@link withChainSnapshot} does.

@@ -167,9 +167,12 @@ catalogs:
     '@cloudflare/vite-plugin':
       specifier: ^1.64.0
       version: 1.64.0
+    '@ensdomains/address-encoder':
+      specifier: ^2.0.1
+      version: 2.0.1
     '@ensdomains/ensjs':
-      specifier: ^5.2.8
-      version: 5.2.8
+      specifier: ^5.2.10
+      version: 5.2.10
     '@ensdomains/ensjs-abi':
       specifier: ^5.0.5
       version: 5.0.5
@@ -177,8 +180,8 @@ catalogs:
       specifier: ^1.11.3
       version: 1.11.3
     '@rhinestone/sdk':
-      specifier: 1.8.0
-      version: 1.8.0
+      specifier: 1.22.0
+      version: 1.22.0
     '@vitest/coverage-v8':
       specifier: ^4.1.12
       version: 4.1.12
@@ -253,7 +256,7 @@ overrides:
   '@walletconnect/ethereum-provider': 2.21.8
 
 patchedDependencies:
-  '@rhinestone/sdk@1.8.0': 805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf
+  '@rhinestone/sdk@1.22.0': 012055188c0a748b8ad640f958a1d6f258040d3fc730539dc988de79e3396a9d
   class-variance-authority: ebe86d2b48ded23f6f7fdaac2701d1f2732a1a01bd27776367d7420a325783fd
   posthog-js@1.404.1: 4dd74f3f89898cb5d2ede434c6bb7f433ff3174d959dae30ecf8ab70ff98e3ee
   xstate: e93cf3ef96ce4349c3662071e9d49d95ca4d654a3d2cb90112d8abe588a5db38
@@ -323,11 +326,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/weave-loader
       '@ensdomains/address-encoder':
-        specifier: ^1.1.4
-        version: 1.1.4
+        specifier: 'catalog:'
+        version: 2.0.1
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -384,7 +387,7 @@ importers:
         version: 1.4.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 1.22.0(patch_hash=012055188c0a748b8ad640f958a1d6f258040d3fc730539dc988de79e3396a9d)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
@@ -633,14 +636,14 @@ importers:
         specifier: workspace:*
         version: link:../../packages/utils
       '@ensdomains/address-encoder':
-        specifier: ^1.1.4
-        version: 1.1.4
+        specifier: 'catalog:'
+        version: 2.0.1
       '@ensdomains/dnsprovejs':
         specifier: ^1.0.1
         version: 1.0.1
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -869,7 +872,7 @@ importers:
         version: link:../packages/v1-name-shapes
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -900,7 +903,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       viem:
         specifier: 'catalog:'
         version: 2.57.7(typescript@7.0.2)(zod@4.6.7)
@@ -937,7 +940,7 @@ importers:
         version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -1059,7 +1062,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       viem:
         specifier: 'catalog:'
         version: 2.57.7(typescript@7.0.2)(zod@4.6.7)
@@ -1083,7 +1086,7 @@ importers:
         version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -1137,13 +1140,13 @@ importers:
         version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 1.22.0(patch_hash=012055188c0a748b8ad640f958a1d6f258040d3fc730539dc988de79e3396a9d)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
@@ -1173,17 +1176,17 @@ importers:
         specifier: workspace:*
         version: link:../utils
       '@ensdomains/address-encoder':
-        specifier: ^1.1.4
-        version: 1.1.4
+        specifier: 'catalog:'
+        version: 2.0.1
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 1.22.0(patch_hash=012055188c0a748b8ad640f958a1d6f258040d3fc730539dc988de79e3396a9d)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       idb:
         specifier: ^8.0.4
         version: 8.0.4
@@ -1220,7 +1223,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@tanstack/react-query':
         specifier: ^5.104.4
         version: 5.104.4(@types/react@19.3.0)(react@19.3.1)
@@ -1306,7 +1309,7 @@ importers:
         version: link:../../packages/utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@hono/valibot-validator':
         specifier: ^0.5.3
         version: 0.5.3(hono@4.13.13)(valibot@1.5.0(typescript@7.0.2))
@@ -1702,9 +1705,6 @@ packages:
   '@ensdomains/address-encoder@1.0.0-rc.3':
     resolution: {integrity: sha512-8o6zH69rObIqDY4PusEWuN9jvVOct+9jj9AOPO7ifc3ev8nmsly0e8TE1sHkhk0iKFbd3DlSsUnJ+yuRWmdLCQ==}
 
-  '@ensdomains/address-encoder@1.1.4':
-    resolution: {integrity: sha512-hBY6VxVw9A1cMPOKDIvPB2nlmgaw2dvrrj/p/9tkGWmD+qdfKYZTdZuSdFcUGxhhzEB4HeLG/a98ytlTq84KcA==}
-
   '@ensdomains/address-encoder@2.0.1':
     resolution: {integrity: sha512-7aXfYgUfc3odGY9N6A3wvVZhEtv3gAwNfLzUdXX2TSkkuXZyZnpzAjKSijStnt0yhjzKyVNL7guhUg1ZX54bQw==}
 
@@ -1719,8 +1719,8 @@ packages:
     resolution: {integrity: sha512-vGRrWLVsrbA1Gi8aZejzZ2uz2KIdKva0bsICXjgklPg1NCSs7s3nD80hEc7TRux/qBqTSYhhS0vtrPu6eTQBvA==}
     engines: {node: '>=22'}
 
-  '@ensdomains/ensjs@5.2.8':
-    resolution: {integrity: sha512-vbTolXAcz2tY2L31kMABUdnDW1qTSUwi1U8flHTzAOuJYoyCI/KJfI7Xs1piFD3+cjCPg0acvyjFV8XzDcV75w==}
+  '@ensdomains/ensjs@5.2.10':
+    resolution: {integrity: sha512-Abo1Y8To0uVsbd6bcI1Z2HMt559Iycn8bsbYVOGaLxwSoH+vygnBP6R2SAwCzfMRl3tAXB5pQA4QwUhK/JrSFA==}
     engines: {node: '>=22'}
     peerDependencies:
       '@ensdomains/dnsprovejs': ^0.5.4 || ^1.0.0
@@ -4305,23 +4305,26 @@ packages:
     resolution: {integrity: sha512-C7c51Nn4yTxXFKvgh2txJFNweaVcfUPQxwEUFw4aWsCmfiBDJsTSwviIF8EcwjQ6k8bPyMWCl1vw4BdxE569Cg==}
     engines: {node: '>= 10'}
 
-  '@rhinestone/sdk@1.8.0':
-    resolution: {integrity: sha512-Y1YMbHBogNLjfCEI3jhjl4Q1fdEqfiyC13FZSUP/loTHPW2xCmcBBpMT9upefBkCIhRf4Mo04mozqtsqDN4dGQ==}
+  '@rhinestone/sdk@1.22.0':
+    resolution: {integrity: sha512-Gw0AWePktnw7OLgdYrUuQLohGLtpPRXzA8tGuvTMca1ZFkAU7NqZknJYG6v8ZsmOWVBAsT3kLe0ZHygEhCHBVw==}
     peerDependencies:
       express: '>=4'
       jose: '>=5.0.0'
-      viem: ^2.38.0
+      viem: ^2.55.0
     peerDependenciesMeta:
       express:
         optional: true
       jose:
         optional: true
 
-  '@rhinestone/shared-configs@1.6.10':
-    resolution: {integrity: sha512-rUSmn78bzXohGhwohuS39qCiDZlMgVrBpvoDb7ZRNi/fJ0Nb62EwtbdktCyB5ACl2vRaR2Or04TO7y+3tHBO0A==}
+  '@rhinestone/shared-configs@2.16.0':
+    resolution: {integrity: sha512-wOh6BxflNxMaY2KucCy5zHg6JnfknQ8IN7q/CiXd8R87yjf+NeqsZQ/JIv1y/Tt11BoJZtE2UU9cSu4NqRq+Dw==}
     peerDependencies:
-      typescript: ^5
-      viem: ^2.40.1
+      typescript: '>=5'
+      viem: ^2.55.0
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   '@rolldown/binding-android-arm-eabi@1.2.14':
     resolution: {integrity: sha512-aWR+XKH9+rW7m5fWq/5360J3mHycrx/o6xZM2DQFdJnTMdyP7/WzxPjhtLbVWdKo2y612/4U1bWqb3HQhiF7vg==}
@@ -8587,12 +8590,6 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
 
-  '@ensdomains/address-encoder@1.1.4':
-    dependencies:
-      '@noble/curves': 1.9.7
-      '@noble/hashes': 1.8.0
-      '@scure/base': 1.2.6
-
   '@ensdomains/address-encoder@2.0.1':
     dependencies:
       '@noble/curves': 1.9.7
@@ -8617,7 +8614,7 @@ snapshots:
 
   '@ensdomains/ensjs-abi@5.0.5': {}
 
-  '@ensdomains/ensjs@5.2.8(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
+  '@ensdomains/ensjs@5.2.10(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 2.0.1
@@ -10920,9 +10917,9 @@ snapshots:
 
   '@resvg/resvg-wasm@2.4.0': {}
 
-  '@rhinestone/sdk@1.8.0(patch_hash=805bf1463590449f22dea003cae7f68471945c029cb685406c54af47a18714bf)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
+  '@rhinestone/sdk@1.22.0(patch_hash=012055188c0a748b8ad640f958a1d6f258040d3fc730539dc988de79e3396a9d)(jose@6.2.12)(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
     dependencies:
-      '@rhinestone/shared-configs': 1.6.10(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+      '@rhinestone/shared-configs': 2.16.0(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       solady: 0.1.26
       viem: 2.57.7(typescript@7.0.2)(zod@4.6.7)
     optionalDependencies:
@@ -10930,10 +10927,11 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@rhinestone/shared-configs@1.6.10(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
+  '@rhinestone/shared-configs@2.16.0(typescript@7.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
     dependencies:
-      typescript: 7.0.2
       viem: 2.57.7(typescript@7.0.2)(zod@4.6.7)
+    optionalDependencies:
+      typescript: 7.0.2
 
   '@rolldown/binding-android-arm-eabi@1.2.14':
     optional: true

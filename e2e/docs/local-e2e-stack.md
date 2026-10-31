@@ -269,6 +269,5 @@ image is tagged `bigname:e2e-anvil-fork` (the old one is kept as
 (`5af31ea36`); the harness worktree is retired and the apps under test run
 from this checkout. The stack was assembled on 2026-10-10 on the branch
 `e2e/bigname-harness`
-(local), merged into `e2e-tests-coverage`; see
-[`bigname-harness-handoff.md`](./bigname-harness-handoff.md) for that snapshot.
+(local), merged into `e2e-tests-coverage`.
 The pinned fork, the caches and offline mode were added on 2026-10-12/13.

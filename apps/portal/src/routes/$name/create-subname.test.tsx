@@ -1,4 +1,10 @@
 import { QueryClientProvider } from '@tanstack/react-query'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+} from '@tanstack/react-router'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { match } from 'ts-pattern'
@@ -12,13 +18,15 @@ const CONNECTED: Address = '0x0000000000000000000000000000000000000011'
 const OTHER: Address = '0x0000000000000000000000000000000000000022'
 const SUBREGISTRY: Address = '0x00000000000000000000000000000000000000bb'
 
-vi.mock('@tanstack/react-router', () => ({
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
     <a href={to}>{children}</a>
   ),
   useNavigate: () => navigate,
   createFileRoute: () => (options: Record<string, unknown>) => ({
     ...options,
+    options,
     useParams: () => ({ name: NAME }),
   }),
 }))
@@ -149,6 +157,47 @@ beforeEach(() => {
   rootRoles = []
   rootRoleReads.mockReset()
 })
+
+it.each([
+  { name: 'parent.eth', protocol: 'ENSv2', path: '/parent.eth/subnames' },
+  {
+    name: 'deep.parent.eth',
+    protocol: 'ENSv2',
+    path: '/deep.parent.eth/subnames',
+  },
+  { name: 'parent.eth', protocol: undefined, path: '/parent.eth/subnames' },
+  { name: 'parent.eth', protocol: 'ENSv1', path: '/parent.eth/create-subname' },
+] as const)(
+  'sends the creation URL for $name ($protocol) to $path',
+  async ({ name, protocol, path }) => {
+    const beforeLoad: unknown = Route.options.beforeLoad
+    const root = createRootRoute()
+    const subnames = createRoute({
+      getParentRoute: () => root,
+      path: '/$name/subnames',
+    })
+    const create = createRoute({
+      getParentRoute: () => root,
+      path: '/$name/create-subname',
+      beforeLoad: ({ params }) => {
+        if (typeof beforeLoad === 'function')
+          return beforeLoad({ params, context: { protocolVersion: protocol } })
+      },
+    })
+    const router = createRouter({
+      routeTree: root.addChildren([subnames, create]),
+      history: createMemoryHistory({
+        initialEntries: [`/${name}/create-subname`],
+      }),
+      isServer: false,
+    })
+
+    await router.load()
+
+    expect(router.state.location.pathname).toBe(path)
+    expect(router.state.matches.at(-1)?.status).toBe('success')
+  },
+)
 
 describe('create subname under a V1 parent', () => {
   it.each([

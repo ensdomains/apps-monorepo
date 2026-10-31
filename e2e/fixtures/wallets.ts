@@ -1,5 +1,5 @@
 /**
- * Multi-wallet fixture — plan item H3.
+ * Multi-wallet fixture.
  *
  * Every authorization negative case needs at least two identities: one that
  * holds a role and one that does not. This turns the four Anvil accounts the
@@ -51,7 +51,7 @@ export const ROLES = {
   owner: 'user',
   /** Granted a specific role under test — never the owner. */
   manager: 'user2',
-  /** Holds nothing. The negative case in every §5.C/§5.D/§5.E scenario. */
+  /** Holds nothing. The negative case in every role and subname scenario. */
   stranger: 'user3',
 } as const satisfies Record<string, User>
 

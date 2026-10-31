@@ -63,7 +63,7 @@ const MOCK_USDC = ensjsSepolia.usdc.address
 // writable on behalf of a V2 name's owner, since its authorisation checks
 // ownership against the V1 registry, not the V2 one — which is exactly why
 // `hasRecords` below deploys a dedicated per-name PermissionedResolver proxy
-// instead of writing through this one. See coverage/handoff.md, iteration 15.
+// instead of writing through this one.
 const PERMISSIONED_RESOLVER_IMPL =
   ensjsSepolia.ensPermissionedResolverImpl.address
 const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address

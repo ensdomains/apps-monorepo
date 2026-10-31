@@ -1,5 +1,5 @@
 /**
- * Wait for the explorer's indexer (bigname) to catch up — part of plan item H6.
+ * Wait for the explorer's indexer (bigname) to catch up.
  *
  * Several portal views read bigname rather than the chain: the roles tables,
  * registry history, subnames and activity feeds. A test that writes on-chain

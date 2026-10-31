@@ -13,7 +13,7 @@ const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 
 test.describe('Offchain resolver name', () => {
   test('reads an offchain name and its wildcard subname in batches', {
-    tag: ['@scenario:H17'],
+    tag: ['@smoke', '@scenario:H17'],
   }, async ({ page, makeOffchainName, ccipGateway }) => {
     const { name, subname } = await makeOffchainName()
 

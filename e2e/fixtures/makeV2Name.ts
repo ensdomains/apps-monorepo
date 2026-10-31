@@ -152,7 +152,7 @@ export type V2NameConfig = {
    */
   owner?: 'user' | 'other'
   /**
-   * Registry roles to grant on the name once it is registered — plan item H1.
+   * Registry roles to grant on the name once it is registered.
    *
    * Signed by the owner, so the owner must hold the matching `_ADMIN` role.
    * A freshly registered name does **not** grant its owner everything —
@@ -415,7 +415,7 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
       console.log(`[makeV2Name] set ${records.length} record(s) on ${ethName}`)
     }
 
-    // ── 9b. Grant requested registry roles (plan item H1) ────────────
+    // ── 9b. Grant requested registry roles ───────────────────────────
     for (const grant of config.roles ?? []) {
       await grantNameRoles(
         { label: uniqueLabel },

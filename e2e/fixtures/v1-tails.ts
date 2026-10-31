@@ -9,7 +9,7 @@
  * `finishReassignPreset`; naming them here is what lets the drawer and the e2e
  * fixtures mean the same thing by "shape".
  *
- * Every tail reads its own postcondition back and throws (ground rule 5). A
+ * Every tail reads its own postcondition back and throws. A
  * tail that silently no-ops is the worst failure mode available here: the shape
  * degrades into a *different, valid* shape, so the seeding succeeds, the tests
  * run, and they assert the wrong cell's expectations.

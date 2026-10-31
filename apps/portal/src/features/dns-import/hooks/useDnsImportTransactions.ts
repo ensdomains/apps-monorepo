@@ -3,6 +3,7 @@ import {
   scopeTransactionId,
   transactionManager,
   useAtomicBatchSupport,
+  useHasDeclinedAtomicUpgrade,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
@@ -64,6 +65,16 @@ type ImportSteps = {
   readonly shouldBundle: boolean
 }
 
+/**
+ * A declined account upgrade sent nothing from the bundle, so the import
+ * continues as separate approve + claim steps.
+ */
+const withoutDeclinedBundle = (
+  steps: ImportSteps,
+  hasDeclinedUpgrade: boolean,
+): ImportSteps =>
+  hasDeclinedUpgrade ? { ...steps, shouldBundle: false } : steps
+
 type UseDnsImportTransactionsParams = {
   readonly name: string
   readonly mode: DnsImportMode
@@ -114,7 +125,11 @@ export const useDnsImportTransactions = ({
     shouldBundle: isApprovalMissing && canBatchAtomically,
   }
   const [stepsAtStart, setStepsAtStart] = useState<ImportSteps | null>(null)
-  const { shouldApprove, shouldBundle } = stepsAtStart ?? liveSteps
+  const hasDeclinedUpgrade = useHasDeclinedAtomicUpgrade(chainId)
+  const { shouldApprove, shouldBundle } = withoutDeclinedBundle(
+    stepsAtStart ?? liveSteps,
+    hasDeclinedUpgrade,
+  )
 
   const buildApproveIntent = (from: Address): CustomTransactionIntent =>
     toEoaCustomIntent({
@@ -155,7 +170,10 @@ export const useDnsImportTransactions = ({
       account: connectedAddress,
     })
     if (!walletClient || !publicClient) throw new Error('No connected wallet')
-    return { walletClient, signer: createEOASigner(walletClient) }
+    return {
+      walletClient,
+      signer: createEOASigner(walletClient),
+    }
   }
 
   const finishFlow = () => {

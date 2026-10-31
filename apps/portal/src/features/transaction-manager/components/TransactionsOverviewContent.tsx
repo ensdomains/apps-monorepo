@@ -1,5 +1,6 @@
 import type { TransactionMachineActor } from '@ens-apps/transaction-manager'
 import { formatGasEth } from '@ens-apps/utils/formatGasEth'
+import { useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle,
   ArrowRight,
@@ -11,19 +12,20 @@ import {
 } from 'lucide-react'
 import { Fragment } from 'react'
 import { match } from 'ts-pattern'
-import { useChainId } from 'wagmi'
+import { useChainId, useConnection } from 'wagmi'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DialogTitle } from '@/components/ui/dialog'
 import { MessageCard } from '@/components/ui/message-card'
+import { getIsSafeWalletQueryOptions } from '@/features/wallet/safe'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
-import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import { useFlowGasAffordability } from '../hooks/useFlowGasAffordability'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
+import { getStepTxUrl } from '../utils/getStepTxUrl'
 import { shouldShowWaitCountdown } from '../utils/shouldShowWaitCountdown'
 import { EstimatedGasCost } from './EstimatedGasCost'
 import { TransactionWaitCountdown } from './TransactionWaitCountdown'
@@ -44,6 +46,10 @@ export const TransactionsOverviewContent = ({
   setTransactionModalContentState,
 }: TransactionsOverviewContentProps) => {
   const chainId = useChainId()
+  const { connector, address } = useConnection()
+  const { data: isSafeWallet = false } = useQuery(
+    getIsSafeWalletQueryOptions({ connector, address }),
+  )
 
   // Every step here is EOA-paid, so a wallet that covers the first one but not
   // the rest strands the user mid-flow. Checked across the remaining steps
@@ -84,12 +90,15 @@ export const TransactionsOverviewContent = ({
           const activeTxSnapshot = activeTransactionsMap
             .get(transaction.id)
             ?.getSnapshot()
+          const status = getStatus(transaction.id, activeTransactionsMap)
 
-          const txHash = activeTxSnapshot?.context?.hash
-
-          const blockExplorerTxUrl = txHash
-            ? getBlockExplorerTxUrl(wagmiConfig.chains, chainId, txHash)
-            : undefined
+          const blockExplorerTxUrl = getStepTxUrl({
+            chains: wagmiConfig.chains,
+            chainId,
+            hash: activeTxSnapshot?.context?.hash,
+            status,
+            isSafeWallet,
+          })
 
           return (
             // biome-ignore lint/a11y/useSemanticElements: div required - contains nested Button, cannot use button
@@ -131,7 +140,7 @@ export const TransactionsOverviewContent = ({
                         waitUntil={transaction.waitUntil}
                       />
                     ) : null}
-                    {match(getStatus(transaction.id, activeTransactionsMap))
+                    {match(status)
                       .with(undefined, () => (
                         <Badge variant="ghost" className="font-normal">
                           <PlayCircle className="size-3 mr-0.5" /> Not Started
@@ -197,10 +206,7 @@ export const TransactionsOverviewContent = ({
                     </Fragment>
                   ))}
                   <dt className="text-p font-medium">
-                    {getStatus(transaction.id, activeTransactionsMap) ===
-                    'success'
-                      ? 'Actual Cost'
-                      : 'Est. Cost'}
+                    {status === 'success' ? 'Actual Cost' : 'Est. Cost'}
                   </dt>
                   <dd className="text-p">
                     <EstimatedGasCost

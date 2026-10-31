@@ -285,8 +285,10 @@ const verifyCheckpoint = async (params: {
   readonly scope: MigrationBatchJournalScope
   readonly checkpoint: MigrationCompletionCheckpoint
   readonly operations?: readonly MigrationJournalOperation[]
+  readonly migrationHelper?: Address
+  readonly allowReverted?: boolean
   readonly signal: AbortSignal
-}): Promise<MigrationJournalOperation> => {
+}): Promise<MigrationJournalOperation | null> => {
   const { publicClient, scope, checkpoint, signal } = params
   const contracts = getDestinationContracts(scope.chainId)
   const [receipt, transaction] = await Promise.all([
@@ -303,7 +305,7 @@ const verifyCheckpoint = async (params: {
     ),
   ])
   if (
-    receipt.status !== 'success' ||
+    (receipt.status !== 'success' && !params.allowReverted) ||
     !transaction.to ||
     !receipt.to ||
     transaction.hash.toLowerCase() !==
@@ -321,6 +323,7 @@ const verifyCheckpoint = async (params: {
       'Migration checkpoint transaction does not match this account',
     )
   }
+  if (receipt.status === 'reverted') return null
   const reads = new Map<string, Promise<Address>>()
   const read: ProofRead = (address, functionName, args) => {
     const key = `${address.toLowerCase()}:${functionName}:${args?.map(String).join(':') ?? ''}`
@@ -363,13 +366,50 @@ const verifyCheckpoint = async (params: {
       hca: scope.hca,
       factory: contracts.verifiableFactory,
       userRegistryImplementation: contracts.userRegistryImpl,
-      helper: contracts.migrationHelper,
+      helper: params.migrationHelper ?? contracts.migrationHelper,
       executions,
       read,
     })
   }
   signal.throwIfAborted()
   return checkpoint.operation
+}
+
+/** Verify old-helper retry evidence without storing it as proof for today's deployment. */
+export const verifyMigrationRecoveryTransaction = async (params: {
+  readonly scope: MigrationBatchJournalScope
+  readonly publicClient: PublicClient
+  readonly transactionHash: Hex
+  readonly operations: readonly MigrationJournalOperation[]
+  readonly migrationHelper: Address
+  readonly signal?: AbortSignal
+}): Promise<'success' | 'reverted'> => {
+  const operation = params.operations[0]
+  if (
+    !validScope(params.scope) ||
+    !operation ||
+    !params.operations.every(validOperation) ||
+    params.publicClient.chain?.id !== params.scope.chainId ||
+    !isAddress(params.migrationHelper) ||
+    isAddressEqual(params.migrationHelper, zeroAddress)
+  )
+    throw new Error('Migration recovery transaction scope is invalid')
+  const verified = await withRequestDeadline(
+    (signal) =>
+      verifyCheckpoint({
+        ...params,
+        signal,
+        allowReverted: true,
+        checkpoint: {
+          version: 1,
+          deployment: deploymentKey(params.scope.chainId),
+          transactionHash: params.transactionHash,
+          operation,
+        },
+      }),
+    { signal: params.signal, timeoutMs: 30_000 },
+  )
+  return verified ? 'success' : 'reverted'
 }
 
 /** Storage is untrusted: restore evidence only from the canonical receipt and its historical post-state. */

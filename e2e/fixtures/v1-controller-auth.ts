@@ -11,7 +11,7 @@
  * every name the fixture makes is invisible to the app under test. That is the
  * standing blocker on all 59 `G*` migration rows.
  *
- * Measured in iteration 13 (`scripts/probe-v1-*.mts`): the two controllers are
+ * Measured on the fork: the two controllers are
  * the same code twice deployed — identical bytecode size, `register` selector,
  * commitment ages and prices. The only difference is that
  * `base.controllers(canonicalController)` is `false`, so `register` dies in
@@ -37,7 +37,7 @@
  * wraps by calling `wrapETH2LD` as the owner after an unwrapped registration,
  * not by registering through the controller with the wrapper as owner.
  *
- * ## Idempotence and rule 5
+ * ## Idempotence and read-back
  *
  * Reads before writing, writes only what is missing, and **reads back after**,
  * throwing if the grant did not take. A silent no-op here would put every `G*`

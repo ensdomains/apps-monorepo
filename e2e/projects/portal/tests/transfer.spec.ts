@@ -56,6 +56,7 @@ import {
   testClient,
   walletClient,
 } from '../../../helpers/anvil-client.js'
+import { preserveWalletRpcErrors } from '../../../helpers/headless-wallet-errors.js'
 import { waitForIndexedRegistry } from '../../../helpers/indexer-sync.js'
 import {
   authorizeTransaction,
@@ -101,7 +102,7 @@ const truncateAddress = (address: string) =>
 function getOwnerClient(ownerPrivateKey: Hash) {
   return createWalletClient({
     account: privateKeyToAccount(ownerPrivateKey),
-    chain: walletClient.chain!,
+    chain: walletClient.chain,
     transport: http(ANVIL_RPC_URL),
   })
 }
@@ -287,12 +288,9 @@ test.describe('Portal name transfer', () => {
     await expectOwnerOnNamePages(page, name, recipient)
   })
 
-  test('transfers a name to wallet B with the resolver detached', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    makeName,
-  }) => {
+  test('transfers a name to wallet B with the resolver detached', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
     await connectWithHeadlessWallet(page, wallet)
@@ -344,7 +342,7 @@ test.describe('Portal name transfer', () => {
   })
 
   test('transfers a name from wallet A to an ENS name owned by wallet B', {
-    tag: ['@scenario:F10'],
+    tag: ['@smoke', '@scenario:F10'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
@@ -403,7 +401,7 @@ test.describe('Portal name transfer', () => {
   })
 
   test('cannot transfer a name to its own address or its own ENS name', {
-    tag: ['@scenario:F10'],
+    tag: ['@smoke', '@scenario:F10'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(120_000)
 
@@ -449,7 +447,7 @@ test.describe('Portal name transfer', () => {
   })
 
   test('cannot transfer to an invalid or unresolvable recipient', {
-    tag: ['@scenario:F10'],
+    tag: ['@smoke', '@scenario:F10'],
   }, async ({ portalPage: page, wallet, makeName }) => {
     test.setTimeout(120_000)
 
@@ -494,7 +492,7 @@ test.describe('Portal name transfer', () => {
   })
 
   test('lets the new owner edit records after a transfer', {
-    tag: ['@scenario:F11'],
+    tag: ['@smoke', '@scenario:F11'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
@@ -1379,6 +1377,8 @@ test.describe('Portal name transfer', () => {
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(300_000)
 
+    // Preserve the rejection code so the app does not automatically retry it.
+    preserveWalletRpcErrors(wallet)
     await connectWithHeadlessWallet(page, wallet)
 
     const name = await makeName({
@@ -2146,13 +2146,13 @@ test.describe('Portal name transfer — subnames', () => {
       subnameOwner,
       roleBitmap = FULL_ROLE_BITMAP,
     }: {
-      parentLabel: string
-      subLabel?: string
-      subnameOwner?: Address
-      roleBitmap?: bigint
+      readonly parentLabel: string
+      readonly subLabel?: string
+      readonly subnameOwner?: Address
+      readonly roleBitmap?: bigint
     },
     deployerKey: Hash,
-  ): Promise<{ subregistry: Address }> {
+  ): Promise<{ readonly subregistry: Address }> {
     const deployer = privateKeyToAccount(deployerKey)
     const subregistry = await deployAndAttachSubregistry(
       { label: parentLabel },
@@ -2179,7 +2179,7 @@ test.describe('Portal name transfer — subnames', () => {
     `${PORTAL_APP_URL}/${name}/ownership/transfer`
 
   test('transfers a subname, moving the token in the parent subregistry and leaving the parent untouched', {
-    tag: ['@scenario:F15'],
+    tag: ['@smoke', '@scenario:F15'],
   }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(300_000)
     await connectWithHeadlessWallet(page, wallet)
@@ -2992,8 +2992,11 @@ test.describe('Portal name transfer — subnames, irreversible steps', () => {
     // differ — the ordinary case, and the one `getOwnResolver` exists for —
     // the record lands on a contract the name no longer references while the
     // user is told the update succeeded.
+    const setEthAddrId = transferTxId(name, 'set-eth-addr')
     expect(
-      succeeded.has(transferTxId(name, 'set-eth-addr')),
+      [...succeeded].some(
+        (id) => id === setEthAddrId || id.startsWith(`${setEthAddrId}--`),
+      ),
       'E2E-010: set-eth-addr must refuse once the name has no resolver of its ' +
         'own — the guard for exactly this is inert because fetchQuery is served ' +
         'from a 1-hour-stale cache, so the write lands on a stale resolver and ' +
@@ -3058,7 +3061,7 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
     }) as Promise<Address>
 
   test('transfers an unwrapped V1 name, moving BOTH the registrant and the controller', {
-    tag: ['@scenario:F23'],
+    tag: ['@smoke', '@scenario:F23'],
   }, async ({ portalPage: page, wallet, accounts }) => {
     test.setTimeout(300_000)
     await connectWithHeadlessWallet(page, wallet)
@@ -3177,7 +3180,7 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
   })
 
   test('transfers a WRAPPED V1 name in a single ERC-1155 step', {
-    tag: ['@scenario:F26'],
+    tag: ['@smoke', '@scenario:F26'],
   }, async ({ portalPage: page, wallet, accounts }) => {
     test.setTimeout(300_000)
     await connectWithHeadlessWallet(page, wallet)
@@ -3231,7 +3234,7 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
   })
 
   test('transfers a V1 REGISTRY subname via setOwner alone', {
-    tag: ['@scenario:F27'],
+    tag: ['@smoke', '@scenario:F27'],
   }, async ({ portalPage: page, wallet, accounts }) => {
     test.setTimeout(300_000)
     await connectWithHeadlessWallet(page, wallet)
@@ -3557,9 +3560,9 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
       const reclaimLine = new RegExp(
         `Transaction ${transferTxId(name, 'reclaim').replace(/\./g, '\\.')}(--\\S+)? state:`,
       )
-      let reclaimSeen = false
+      let hasSeenReclaim = false
       page.on('console', (msg) => {
-        if (reclaimLine.test(msg.text())) reclaimSeen = true
+        if (reclaimLine.test(msg.text())) hasSeenReclaim = true
       })
 
       await transferButton.click()
@@ -3577,7 +3580,7 @@ test.describe('Portal name transfer — unmigrated V1 names', () => {
         (await readController(name)).toLowerCase(),
         'with the handover off the registry controller must stay with the sender — a `reclaim` ran anyway',
       ).toBe(owner.toLowerCase())
-      expect(reclaimSeen, 'no reclaim step may be planned').toBe(false)
+      expect(hasSeenReclaim, 'no reclaim step may be planned').toBe(false)
 
       // The recovery the off-state warning promises, end to end: the new
       // registrant takes the manager role from the Ownership page.
@@ -4659,12 +4662,12 @@ test.describe('Portal name transfer — ETH address record ahead of the move (WE
       | { mode: 'revert'; beforeMine: () => Promise<void> },
   ) {
     const ethAddrId = transferTxId(name, 'set-eth-addr')
-    let ethAddrLanded = false
+    let hasEthAddrLanded = false
     const landedLine = new RegExp(
       `Transaction ${ethAddrId.replace(/\./g, '\\.')}(--\\S+)? state: success`,
     )
     const onConsole = (msg: { text(): string }) => {
-      ethAddrLanded ||= landedLine.test(msg.text())
+      hasEthAddrLanded ||= landedLine.test(msg.text())
     }
     page.on('console', onConsole)
 
@@ -4679,7 +4682,7 @@ test.describe('Portal name transfer — ETH address record ahead of the move (WE
     await dialog.getByRole('button', { name: /open wallet/i }).click()
     await authorizeTransaction(wallet, 60_000)
     await expect
-      .poll(() => ethAddrLanded, {
+      .poll(() => hasEthAddrLanded, {
         message: 'step 1 (set-eth-addr) must land before the move is failed',
         timeout: 60_000,
       })

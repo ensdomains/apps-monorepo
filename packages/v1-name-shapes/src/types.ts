@@ -11,8 +11,7 @@
  * What we deliberately do not port is ens-app-v3's expected **abilities**.
  * Those are assertions about its own hooks, verified against its own mocks;
  * asserting that the portal agrees with them would be asserting one app's
- * rendering against another's, which is the bottom of the oracle hierarchy in
- * `e2e/docs/e2e-build-goal.md` §4. Contract-level rules are different — which
+ * rendering against another's, the weakest oracle there is. Contract-level rules are different — which
  * contract and method may legally move a name is a NameWrapper/BaseRegistrar
  * fact, independently checkable — and those we do port.
  */
@@ -125,7 +124,7 @@ export type Shape = {
 /** A portal route that renders something about a name. */
 export type Tab = {
   readonly id: string
-  /** Scenario-id prefix; also decides the tier in `e2e/coverage/scenarios.ts`. */
+  /** Scenario-id prefix; also decides the scenario's tier. */
   readonly prefix: string
   /** Route for a given name, relative to the portal origin. */
   readonly path: (name: string) => string

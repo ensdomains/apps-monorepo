@@ -86,9 +86,9 @@ function explainRevert(err: unknown): string {
 async function trySim(name: string, data: Hex): Promise<void> {
   try {
     await publicClient.call({ account: OWNER.address, to: REGISTRY, data })
-    console.log(`  ✅ ${name} — would succeed`)
+    console.log(`  PASS ${name} — would succeed`)
   } catch (err) {
-    console.log(`  ❌ ${name} — REVERTS: ${explainRevert(err)}`)
+    console.log(`  FAIL ${name} — REVERTS: ${explainRevert(err)}`)
   }
 }
 

@@ -281,7 +281,7 @@ test.describe('ENS V1 → V2 migration — locked 2LD fuses (§G.GW)', () => {
   test.describe.configure({ timeout: 300_000 })
 
   test('a locked 2LD keeps its wrapper in the Graveyard, gains a WrapperRegistry, and the exact base roles', {
-    tag: ['@scenario:GW3'],
+    tag: ['@smoke', '@scenario:GW3'],
   }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
     const { name, label, node } = await seedLocked(accounts, 'gw3-locked')
     await assertV2Reserved(label)

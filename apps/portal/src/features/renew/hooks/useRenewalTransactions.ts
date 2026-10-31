@@ -5,6 +5,7 @@ import {
   scopeTransactionId,
   transactionManager,
   useAtomicBatchSupport,
+  useHasDeclinedAtomicUpgrade,
 } from '@ens-apps/transaction-manager'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
@@ -109,6 +110,16 @@ type MultiFlow = {
 }
 
 type RenewalFlow = SingleFlow | MultiFlow
+
+/**
+ * A declined account upgrade sent nothing from the bundle, so the flow
+ * continues as separate steps.
+ */
+const withoutDeclinedBundle = (
+  flow: RenewalFlow | null,
+  hasDeclinedUpgrade: boolean,
+): RenewalFlow | null =>
+  flow && hasDeclinedUpgrade ? { ...flow, canBatchAtomically: false } : flow
 
 export type StartFlowConfig = {
   readonly duration: number
@@ -432,6 +443,7 @@ export const useRenewalTransactions = ({
   const attempt = useFlowAttempt()
   const [flow, setFlow] = useState<RenewalFlow | null>(null)
   const canBatchAtomically = useAtomicBatchSupport(ensChain.id)
+  const hasDeclinedUpgrade = useHasDeclinedAtomicUpgrade(ensChain.id)
 
   const getRuntime = async (): Promise<RenewalRuntime | null> => {
     if (!connection.address || !publicClient) return null
@@ -571,7 +583,9 @@ export const useRenewalTransactions = ({
     )
   }
 
-  const transactions: Transaction[] = match(flow)
+  const transactions: Transaction[] = match(
+    withoutDeclinedBundle(flow, hasDeclinedUpgrade),
+  )
     .with(P.nullish, () => [])
     .with({ kind: 'multi' }, (multiFlow) => {
       if (!connection.address || !publicClient) return []

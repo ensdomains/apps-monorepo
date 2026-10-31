@@ -58,7 +58,7 @@ test.beforeEach(async ({ manager }) => {
 })
 
 test('V1 4LD records edit in explorer resolves and manager requires upgrade', {
-  tag: ['@scenario:Q14'],
+  tag: ['@smoke', '@scenario:Q14'],
 }, async ({ explorer, manager, accounts }) => {
   const tree = await makeV1FourLD(
     {
@@ -286,7 +286,7 @@ test('manager primary picker excludes a V1 4LD despite an owned forward record',
 })
 
 test('explorer sets a V1 4LD primary name that survives migration', {
-  tag: ['@scenario:Q17', '@scenario:Q19'],
+  tag: ['@smoke', '@scenario:Q17', '@scenario:Q19'],
 }, async ({ explorer, manager, accounts }) => {
   const owner = accounts.getAddress('user')
   const records = { addresses: [{ coinType: 60, value: owner }] }

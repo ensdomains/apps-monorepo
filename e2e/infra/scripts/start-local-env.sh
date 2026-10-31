@@ -24,6 +24,9 @@ COMPOSE_FILE="$SCRIPT_DIR/../docker-compose.yml"
 if [[ "$SEPOLIA_FORK_BLOCK" == "latest" ]]; then SEPOLIA_FORK_BLOCK=""; fi
 export SEPOLIA_FORK_BLOCK
 echo "Anvil fork block: ${SEPOLIA_FORK_BLOCK:-latest}"
+# Fork through the on-disk upstream cache (docker-compose.yml's default is
+# the upstream itself).
+export ANVIL_FORK_URL="${ANVIL_FORK_URL:-http://upstream-cache:8548}"
 
 # ---------- tear-down shortcut ----------
 if [[ "${1:-}" == "--down" ]]; then

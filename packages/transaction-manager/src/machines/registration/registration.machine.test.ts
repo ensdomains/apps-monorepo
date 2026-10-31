@@ -963,6 +963,26 @@ describe('registrationMachine — pure-EOA setup bundle (EIP-5792)', () => {
     resumeTimedOutBundle.mockRestore()
   })
 
+  it('retries as separate steps once the user declines the account upgrade', async () => {
+    const upgradeDeclined = new TransactionUserRejectedError(
+      {} as TransactionRequest,
+      Object.assign(new Error('Upgrade rejected'), { code: 5750 }),
+    )
+    const { actor, deployResolver, submitCommitment, submitEoaSetupBundle } =
+      startEoaRegistration({
+        canBatchAtomically: true,
+        pollTransactionStatus: vi.fn().mockRejectedValueOnce(upgradeDeclined),
+      })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+    expect(submitEoaSetupBundle).toHaveBeenCalledOnce()
+    expect(deployResolver).toHaveBeenCalledOnce()
+    expect(submitCommitment).toHaveBeenCalledOnce()
+  })
+
   it('keeps the sequential steps when the wallet does not bundle', async () => {
     const { actor, deployResolver, submitEoaSetupBundle } =
       startEoaRegistration({ canBatchAtomically: false })
@@ -1349,6 +1369,65 @@ describe('registrationMachine — RESUME', () => {
       actor.stop()
     },
   )
+
+  it('pays a resumed run in the token it started with', async () => {
+    const SHOWN = '0x240b0316Df57887DBBE58b586508b19e633a14aa' as Address
+    const readPaymentAuthorization = vi.fn(async () => ({
+      allowance: 0n,
+      livePrice: 5_000_000n,
+    }))
+    const submitApproval = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          validateCommitment: fromPromise(async () => ({
+            registerReadyTimestamp: Date.now() + 60_000,
+          })) as never,
+          readPaymentAuthorization: fromPromise(
+            readPaymentAuthorization,
+          ) as never,
+          submitApproval: fromPromise(submitApproval) as never,
+          waitAfterCommitment: fromPromise(
+            () => new Promise(() => {}),
+          ) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      stage: 'commitmentCooldown',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        paymentTokenAddress: SHOWN,
+        tokenPrice: 5_000_000n,
+        signerType: 'eoa',
+        accountAddress: WALLET,
+        ownerAddress: WALLET,
+        resolverAddress: RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+      },
+      deps: {
+        approveBeforeCommit: true,
+        // The payment actors are stubbed, so neither stand-in is called.
+        signer: { type: 'eoa' } as unknown as Signer,
+        publicClient: { chain: sepolia } as unknown as PublicClient,
+      },
+    })
+
+    await vi.waitFor(() => expect(submitApproval).toHaveBeenCalled())
+    expect(readPaymentAuthorization.mock.calls[0]?.[0]).toMatchObject({
+      input: { paymentTokenAddress: SHOWN },
+    })
+    expect(submitApproval.mock.calls[0]?.[0]).toMatchObject({
+      input: { paymentTokenAddress: SHOWN },
+    })
+    actor.stop()
+  })
 
   it('routes a stored commitment straight to on-chain validation', async () => {
     const validateCommitment = vi.fn(() => new Promise(() => {}))

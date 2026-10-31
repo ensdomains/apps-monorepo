@@ -55,6 +55,7 @@ import {
   upgradeCountingPrompts,
 } from '../../../helpers/migration-flow.js'
 import {
+  ensureProfilePillField,
   goToEditProfile,
   saveProfileChanges,
   waitForProfileUpdated,
@@ -150,7 +151,7 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
   test.describe.configure({ timeout: 300_000 })
 
   test('an unwrapped 2LD lands in V2 with exactly the registration roles, its V1 token and registry slot in the Graveyard', {
-    tag: ['@scenario:GW1'],
+    tag: ['@smoke', '@scenario:GW1'],
   }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const makeV1Name = createMakeV1Name({ userAccount: owner })
@@ -169,7 +170,7 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
   })
 
   test('an emancipated 2LD is unwrapped into the Graveyard and lands in V2 with exactly the registration roles', {
-    tag: ['@scenario:GW2'],
+    tag: ['@smoke', '@scenario:GW2'],
   }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const makeV1Name = createMakeV1Name({ userAccount: owner })
@@ -189,7 +190,7 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
   })
 
   test('two wrapped names move to the controller in one batched transfer', {
-    tag: ['@scenario:GA4'],
+    tag: ['@smoke', '@scenario:GA4'],
   }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const makeV1Name = createMakeV1Name({ userAccount: owner })
@@ -240,7 +241,7 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
   })
 
   test('text records and the ETH address are replayed onto the new V2 resolver', {
-    tag: ['@scenario:GR1'],
+    tag: ['@smoke', '@scenario:GR1'],
   }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const makeV1Name = createMakeV1Name({ userAccount: owner })
@@ -295,11 +296,34 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
 
     // Profile editing is a dialog on the profile page (#898 removed the old
     // /edit route). Description and the website field are on its General tab.
-    const description = 'Post-migration profile edit'
-    const website = 'https://post-migration.example.com'
+    const DESCRIPTION = 'Post-migration profile edit'
+    const WEBSITE = 'https://post-migration.example.com'
+    const EMAIL = 'post-migration@example.com'
+    const GITHUB = 'ens-test-user'
+    const link = { name: 'Test Link', url: 'https://link.example.com/path' }
     await goToEditProfile(page, name)
-    await page.getByPlaceholder('Description').fill(description)
-    await page.getByPlaceholder('https://yourwebsite.com').fill(website)
+    await page.getByPlaceholder('Description').fill(DESCRIPTION)
+    await page.getByPlaceholder('https://yourwebsite.com').fill(WEBSITE)
+
+    // Email and GitHub sit behind pills on the Contact tab. Match the field
+    // exactly: the GitHub row's star button is labelled "Feature GitHub…".
+    await page.getByRole('tab', { name: 'Contact' }).click()
+    await ensureProfilePillField(page, {
+      pillName: /^E-mail\b/,
+      fieldLabel: /^E-mail$/,
+    })
+    await page.getByLabel(/^E-mail$/).fill(EMAIL)
+    await ensureProfilePillField(page, {
+      pillName: /^GitHub\b/,
+      fieldLabel: /^GitHub$/,
+    })
+    await page.getByLabel(/^GitHub$/).fill(GITHUB)
+
+    // A name with no links opens the Links tab on one empty draft row.
+    await page.getByRole('tab', { name: 'Links' }).click()
+    await page.getByLabel('Link 1 title', { exact: true }).fill(link.name)
+    await page.getByLabel('Link 1 URL', { exact: true }).fill(link.url)
+
     await saveProfileChanges(page, wallet)
     await waitForProfileUpdated(page)
 
@@ -307,8 +331,12 @@ test.describe('ENS V1 → V2 migration — unwrapped and emancipated 2LDs', () =
     await v2Resolver(label)
     await expect
       .poll(() => readText(name, 'description'), { timeout: 30_000 })
-      .toBe(description)
-    expect(await readText(name, 'url')).toBe(website)
+      .toBe(DESCRIPTION)
+    expect(await readText(name, 'url')).toBe(WEBSITE)
+    expect(await readText(name, 'email')).toBe(EMAIL)
+    expect(await readText(name, 'com.github')).toBe(GITHUB)
+    const links = await readText(name, 'links')
+    expect(links && JSON.parse(links), 'links').toEqual([link])
   })
 
   test('a reserved V1 name cannot be registered, and the search says it is taken', {

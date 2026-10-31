@@ -18,7 +18,10 @@ import {
   test,
 } from '../../../fixtures/playwright.cross-app.fixture.js'
 import { publicClient } from '../../../helpers/anvil-client.js'
-import { waitForBignameBlock } from '../../../helpers/bigname-sync.js'
+import {
+  isRealBigname,
+  waitForBignameBlock,
+} from '../../../helpers/bigname-sync.js'
 import { authorizeTransaction } from '../../../helpers/manager-auth.js'
 import { openPrimaryNamePicker } from '../../../helpers/primary-name.js'
 import {
@@ -50,6 +53,15 @@ async function expectManagerShows(page: Page, name: string, value: string) {
     `the manager does not show the record the explorer saved on ${name}`,
   ).toBeVisible({ timeout: 30_000 })
 }
+
+// Both apps read bigname, and the cross-app fixture installs no route mock,
+// so a mocked run (nightly CI) cannot see the names these tests seed.
+test.beforeEach(() =>
+  test.skip(
+    !isRealBigname,
+    'Cross-app records and primary name require real bigname',
+  ),
+)
 
 test.describe('Records written in one app, read in the other', () => {
   test.describe.configure({ timeout: 300_000 })

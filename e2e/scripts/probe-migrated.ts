@@ -85,7 +85,7 @@ async function main() {
       const name = await makeMigratedName({ label: `probe-${type}`, type })
       await dumpV2State(name, account)
     } catch (err) {
-      console.log(`  ✗ FAILED: ${(err as Error).message.split('\n')[0]}`)
+      console.log(`  FAILED: ${(err as Error).message.split('\n')[0]}`)
     }
   }
 }
