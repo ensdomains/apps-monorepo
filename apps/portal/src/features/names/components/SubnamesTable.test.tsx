@@ -1,5 +1,6 @@
 import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { type Address, type Hex, keccak256, labelhash, toHex } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import { rememberName } from '@/utils/ens/localLabels'
@@ -233,6 +234,29 @@ describe('SubnamesTable', () => {
 
     expect(screen.getByText('Create subname')).toBeInTheDocument()
   })
+
+  it.each(['hover', 'focus'] as const)(
+    'keeps creation inert and explains the temporary pause on %s',
+    async (interaction) => {
+      render(<SubnamesTable subnames={[]} name="test.eth" canCreateSubname />)
+
+      const button = screen.getByRole('button', { name: 'Create subname' })
+      expect(button).toHaveAttribute('aria-disabled', 'true')
+      expect(screen.queryByRole('link', { name: 'Create subname' })).toBeNull()
+
+      const user = userEvent.setup()
+      if (interaction === 'hover') await user.hover(button)
+      else {
+        await user.tab()
+        await user.tab()
+        expect(button).toHaveFocus()
+      }
+
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(
+        'Subname creation temporarily disabled.',
+      )
+    },
+  )
 
   it('does not render create button when canCreateSubname is false', () => {
     render(
