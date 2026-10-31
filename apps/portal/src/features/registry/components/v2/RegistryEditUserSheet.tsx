@@ -331,9 +331,9 @@ export const RegistryEditUserSheet = ({
               {upgradeGuard.shouldShowNotice && (
                 <Alert variant="warning">
                   <AlertDescription>
-                    This registry needs an upgrade to its current version first.
-                    Someone has to keep the Upgrade role until then, so it can't
-                    be removed yet.
+                    This registry has to be upgraded to a newer version first.
+                    Someone needs to keep the Upgrade role until then, so it
+                    can't be removed yet.
                   </AlertDescription>
                 </Alert>
               )}
