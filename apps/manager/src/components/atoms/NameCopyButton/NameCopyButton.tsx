@@ -18,7 +18,7 @@ export const NameCopyButton = ({
     <button
       aria-label={`${name} — ${t`Copy to clipboard`}`}
       className={cn(
-        'inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-sm text-ens-quartz-500 outline-none hover:text-ens-quartz-700 focus-visible:ring-2 focus-visible:ring-ens-lapis-500',
+        'inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-sm text-ens-quartz-500 outline-none hover:text-ens-quartz-700 focus-visible:ring-2 focus-visible:ring-ens-lapis-500 focus-visible:ring-inset',
         className,
       )}
       onClick={() => copy(name)}
