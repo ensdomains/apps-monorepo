@@ -16,7 +16,7 @@ export const NameCopyButton = ({
 
   return (
     <button
-      aria-label={t`Copy to clipboard`}
+      aria-label={`${name} — ${t`Copy to clipboard`}`}
       className={cn(
         'inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-sm text-ens-quartz-500 hover:text-ens-quartz-700 focus-visible:outline-2 focus-visible:outline-ens-lapis-core',
         className,

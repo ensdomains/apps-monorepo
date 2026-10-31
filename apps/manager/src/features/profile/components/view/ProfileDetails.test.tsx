@@ -89,7 +89,11 @@ describe('ProfileNameBadge', () => {
       screen.getByRole('heading', { level: 1, name: 'rustic-sparrow.eth' }),
     ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy to clipboard' }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'rustic-sparrow.eth — Copy to clipboard',
+      }),
+    )
 
     await waitFor(() =>
       expect(copyToClipboard).toHaveBeenCalledWith('rustic-sparrow.eth'),

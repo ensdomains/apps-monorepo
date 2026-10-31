@@ -80,7 +80,11 @@ describe('PrimaryNameCard', () => {
   it('copies the primary name from the button beside the nameplate', async () => {
     render(<PrimaryNameCard primaryName="alpha.eth" />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy to clipboard' }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'alpha.eth — Copy to clipboard',
+      }),
+    )
 
     await waitFor(() =>
       expect(copyToClipboard).toHaveBeenCalledWith('alpha.eth'),
@@ -91,7 +95,7 @@ describe('PrimaryNameCard', () => {
     render(<PrimaryNameCard primaryName={null} />)
 
     expect(
-      screen.queryByRole('button', { name: 'Copy to clipboard' }),
+      screen.queryByRole('button', { name: /Copy to clipboard/ }),
     ).not.toBeInTheDocument()
   })
 })
