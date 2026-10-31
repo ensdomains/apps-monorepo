@@ -44,11 +44,8 @@ export const useUpgradeRevokeGuard = ({
   const isBlocked = (toGrant: readonly Role[], toRevoke: readonly Role[]) =>
     isUpgradeRevokeBlocked({
       isPendingUpgrade,
-      // A refetch in flight means the cached value may be stale: treat it as unknown.
-      rootRoleCounts: counts.isFetching ? undefined : counts.data,
-      accountRoles: accountRoles.isFetching
-        ? undefined
-        : accountRoles.data?.decoded,
+      rootRoleCounts: settled(counts),
+      accountRoles: settled(accountRoles)?.decoded,
       toGrant,
       toRevoke,
     })
@@ -68,6 +65,14 @@ export const useUpgradeRevokeGuard = ({
     }),
   }
 }
+
+// Cached data from a read that is refetching or failed may be stale: treat it as unknown.
+const settled = <T>(query: {
+  readonly data: T | undefined
+  readonly isSuccess: boolean
+  readonly isFetching: boolean
+}): T | undefined =>
+  query.isSuccess && !query.isFetching ? query.data : undefined
 
 export type UpgradeGuardNotice = 'grant' | 'upgrade' | null
 
