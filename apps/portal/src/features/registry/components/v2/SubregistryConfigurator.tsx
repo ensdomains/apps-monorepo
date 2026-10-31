@@ -70,8 +70,8 @@ const DeployRegistryOption = () => (
   </div>
 )
 
-const defaultRegistryOption = (): RegistryOption =>
-  IS_REGISTRY_DEPLOY_PAUSED ? 'use-existing' : 'deploy'
+const defaultRegistryOption = (isDeployPaused: boolean): RegistryOption =>
+  isDeployPaused ? 'use-existing' : 'deploy'
 
 export const getCustomRegistryAddressError = (value: string): string | null =>
   match(value)
@@ -135,8 +135,8 @@ const SubregistryConfiguratorForm = ({
   onComplete,
   assertWritable,
 }: SubregistryConfiguratorProps & { resourceId: ResourceId }) => {
-  const [registryOption, setRegistryOption] = useState<RegistryOption>(
-    defaultRegistryOption,
+  const [registryOption, setRegistryOption] = useState<RegistryOption>(() =>
+    defaultRegistryOption(IS_REGISTRY_DEPLOY_PAUSED),
   )
   const [contractAddress, setContractAddress] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
@@ -251,7 +251,7 @@ const SubregistryConfiguratorForm = ({
     clearTransaction()
     attempt.end()
     setContractAddress('')
-    setRegistryOption(defaultRegistryOption())
+    setRegistryOption(defaultRegistryOption(IS_REGISTRY_DEPLOY_PAUSED))
     deployedSubregistryAddressRef.current = null
     // Reconfigure closes/unmounts immediately; only show the success label
     // when this form stays mounted (initial configure flow).

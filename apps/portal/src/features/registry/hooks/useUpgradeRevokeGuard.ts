@@ -35,6 +35,8 @@ export const useUpgradeRevokeGuard = ({
       account: account ?? zeroAddress,
     }),
     enabled: account !== null && isPendingUpgrade === true,
+    // Read as fresh as the counts it is subtracted from.
+    staleTime: 0,
   })
   const isBlocked = (toGrant: readonly Role[], toRevoke: readonly Role[]) =>
     isUpgradeRevokeBlocked({
