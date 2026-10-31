@@ -28,25 +28,27 @@ export const useUpgradeRevokeGuard = ({
   const { data: isPendingUpgrade } = useQuery(
     getIsRegistryPendingUpgradeQueryOptions({ registryAddress }),
   )
-  const { data: rootRoleCounts } = useQuery({
+  const counts = useQuery({
     ...getRegistryRootRoleCountsQueryOptions({ registryAddress }),
     enabled: isPendingUpgrade === true,
   })
-  const { data: accountRootRoles } = useQuery({
+  const accountRoles = useQuery({
     ...getNameRolesForAccountQueryOptions({
       registryAddress,
       resource: ROOT_RESOURCE_ID,
       account: account ?? zeroAddress,
     }),
     enabled: account !== null && isPendingUpgrade === true,
-    // Read as fresh as the counts it is subtracted from.
     staleTime: 0,
   })
   const isBlocked = (toGrant: readonly Role[], toRevoke: readonly Role[]) =>
     isUpgradeRevokeBlocked({
       isPendingUpgrade,
-      rootRoleCounts,
-      accountRoles: accountRootRoles?.decoded,
+      // A refetch in flight means the cached value may be stale: treat it as unknown.
+      rootRoleCounts: counts.isFetching ? undefined : counts.data,
+      accountRoles: accountRoles.isFetching
+        ? undefined
+        : accountRoles.data?.decoded,
       toGrant,
       toRevoke,
     })
