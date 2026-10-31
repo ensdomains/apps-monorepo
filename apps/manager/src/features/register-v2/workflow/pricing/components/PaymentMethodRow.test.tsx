@@ -39,6 +39,23 @@ describe('PaymentMethodRow', () => {
     expect(screen.getByText('$0.00')).toHaveClass('text-ens-signal-danger-800')
   })
 
+  // Shading alone was too faint to see, so the selection is a border.
+  it.each([
+    { isSelected: true, hasBorder: true },
+    { isSelected: false, hasBorder: false },
+  ])(
+    'borders the row only when selected (isSelected: $isSelected)',
+    ({ isSelected, hasBorder }) => {
+      renderRow({ isSelected })
+
+      const row = screen
+        .getByRole('button', { name: 'Select USDC' })
+        .closest('[data-slot="payment-method-row"]')
+
+      expect(row?.classList.contains('border-ens-lapis-900')).toBe(hasBorder)
+    },
+  )
+
   it('disables an unavailable method', () => {
     renderRow({ isAvailable: false })
 
