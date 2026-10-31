@@ -76,8 +76,8 @@ vi.mock('@/components/EntityBadge', async () => {
           data-testid="entity-badge"
           data-name={name}
           data-address-highlighted={highlight.isHighlighted || undefined}
-          onMouseEnter={highlight.onMouseEnter}
-          onMouseLeave={highlight.onMouseLeave}
+          onPointerEnter={highlight.onPointerEnter}
+          onPointerLeave={highlight.onPointerLeave}
         >
           {showAvatar && variant === 'name' && name ? (
             <span data-testid="name-avatar">{name}</span>
@@ -367,6 +367,8 @@ describe('SubnamesTable owner highlight', () => {
     createMockSubname('gov.onshow.eth', OTHER),
   ]
 
+  const MOUSE = { pointerType: 'mouse' }
+
   const ownerBadgeOf = (row: HTMLElement) => {
     const badge = within(row)
       .getAllByTestId('entity-badge')
@@ -388,12 +390,12 @@ describe('SubnamesTable owner highlight', () => {
       .find((el) => el !== null)
     if (!row) throw new Error('No table row for admin.onshow.eth')
 
-    fireEvent.mouseEnter(ownerBadgeOf(row))
+    fireEvent.pointerEnter(ownerBadgeOf(row), MOUSE)
     expect(highlightedRows()).toEqual(
       OWNED.map((label) => `${label}.onshow.eth`),
     )
 
-    fireEvent.mouseLeave(ownerBadgeOf(row))
+    fireEvent.pointerLeave(ownerBadgeOf(row), MOUSE)
     expect(highlightedRows()).toEqual([])
   })
 })

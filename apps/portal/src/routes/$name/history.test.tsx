@@ -22,7 +22,7 @@ const Copy = ({ label }: { readonly label: string }) => {
       type="button"
       data-testid={label}
       data-address-highlighted={highlight.isHighlighted || undefined}
-      onMouseEnter={highlight.onMouseEnter}
+      onPointerEnter={highlight.onPointerEnter}
     />
   )
 }
@@ -44,7 +44,9 @@ describe('name history route', () => {
     if (!Component) throw new Error('Route has no component')
     render(<Component />)
 
-    fireEvent.mouseEnter(screen.getByTestId('first'))
+    fireEvent.pointerEnter(screen.getByTestId('first'), {
+      pointerType: 'mouse',
+    })
     expect(screen.getByTestId('second')).toHaveAttribute(
       'data-address-highlighted',
     )

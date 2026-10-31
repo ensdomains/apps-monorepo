@@ -50,10 +50,14 @@ export const AddressHighlightProvider = ({
   )
 }
 
+interface PointerInput {
+  readonly pointerType: string
+}
+
 interface AddressHighlight {
   readonly isHighlighted: boolean
-  readonly onMouseEnter?: () => void
-  readonly onMouseLeave?: () => void
+  readonly onPointerEnter?: (event: PointerInput) => void
+  readonly onPointerLeave?: (event: PointerInput) => void
   readonly onFocus?: () => void
   readonly onBlur?: () => void
 }
@@ -78,10 +82,16 @@ export const useAddressHighlight = (
 
   return {
     isHighlighted: context.activeKey === key,
-    onMouseEnter: () =>
-      context.dispatch({ type: 'enter', input: 'hover', sourceId, key }),
-    onMouseLeave: () =>
-      context.dispatch({ type: 'leave', input: 'hover', sourceId }),
+    // A tap has no matching leave, so it would leave the highlight on. Touch
+    // still highlights through focus, which the next tap elsewhere clears.
+    onPointerEnter: ({ pointerType }) => {
+      if (pointerType === 'touch') return
+      context.dispatch({ type: 'enter', input: 'hover', sourceId, key })
+    },
+    onPointerLeave: ({ pointerType }) => {
+      if (pointerType === 'touch') return
+      context.dispatch({ type: 'leave', input: 'hover', sourceId })
+    },
     onFocus: () =>
       context.dispatch({ type: 'enter', input: 'focus', sourceId, key }),
     onBlur: () => context.dispatch({ type: 'leave', input: 'focus', sourceId }),

@@ -362,6 +362,7 @@ describe('EntityBadge name display', () => {
 })
 
 describe('EntityBadge address highlight', () => {
+  const MOUSE = { pointerType: 'mouse' }
   const OWNER = '0xC28d000000000000000000000000000000AbC20D' as Address
   const OTHER = '0xa708000000000000000000000000000000008AAa' as Address
 
@@ -399,10 +400,10 @@ describe('EntityBadge address highlight', () => {
     renderBadges()
     expect(highlighted()).toEqual([])
 
-    fireEvent.mouseEnter(badge('owner'))
+    fireEvent.pointerEnter(badge('owner'), MOUSE)
     expect(highlighted()).toEqual(['owner', 'owner-lower', 'owner-name'])
 
-    fireEvent.mouseLeave(badge('owner'))
+    fireEvent.pointerLeave(badge('owner'), MOUSE)
     expect(highlighted()).toEqual([])
   })
 
@@ -418,16 +419,16 @@ describe('EntityBadge address highlight', () => {
 
   it('keeps the newly hovered address when the previous one leaves late', () => {
     renderBadges()
-    fireEvent.mouseEnter(badge('owner'))
-    fireEvent.mouseEnter(badge('other'))
-    fireEvent.mouseLeave(badge('owner'))
+    fireEvent.pointerEnter(badge('owner'), MOUSE)
+    fireEvent.pointerEnter(badge('other'), MOUSE)
+    fireEvent.pointerLeave(badge('owner'), MOUSE)
     expect(highlighted()).toEqual(['other'])
   })
 
   it('keeps the highlight while the pointer stays after focus leaves', () => {
     renderBadges()
     const link = screen.getByRole('link', { name: 'owner' })
-    fireEvent.mouseEnter(badge('owner'))
+    fireEvent.pointerEnter(badge('owner'), MOUSE)
     fireEvent.focus(link)
     fireEvent.blur(link)
     expect(highlighted()).toEqual(['owner', 'owner-lower', 'owner-name'])
@@ -444,11 +445,17 @@ describe('EntityBadge address highlight', () => {
       </AddressHighlightProvider>
     )
     const view = render(rows(['hovered', 'kept']))
-    fireEvent.mouseEnter(badge('hovered'))
+    fireEvent.pointerEnter(badge('hovered'), MOUSE)
     expect(badge('kept')).toHaveAttribute('data-address-highlighted')
 
     view.rerender(rows(['kept']))
     expect(badge('kept')).not.toHaveAttribute('data-address-highlighted')
+  })
+
+  it('ignores touch, whose tap never sends a leave', () => {
+    renderBadges()
+    fireEvent.pointerEnter(badge('owner'), { pointerType: 'touch' })
+    expect(highlighted()).toEqual([])
   })
 
   it('never highlights outside a provider', () => {
@@ -462,7 +469,7 @@ describe('EntityBadge address highlight', () => {
         </EntityBadge>
       </>,
     )
-    fireEvent.mouseEnter(badge('a'))
+    fireEvent.pointerEnter(badge('a'), MOUSE)
     expect(badge('b')).not.toHaveAttribute('data-address-highlighted')
   })
 })

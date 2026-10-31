@@ -462,8 +462,8 @@ export const EntityBadge = ({
     <div
       data-entity-badge
       data-address-highlighted={highlight.isHighlighted || undefined}
-      onMouseEnter={highlight.onMouseEnter}
-      onMouseLeave={highlight.onMouseLeave}
+      onPointerEnter={highlight.onPointerEnter}
+      onPointerLeave={highlight.onPointerLeave}
       onFocus={highlight.onFocus}
       onBlur={highlight.onBlur}
       title={fullText}
