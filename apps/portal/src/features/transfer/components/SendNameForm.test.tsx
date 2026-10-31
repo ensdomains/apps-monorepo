@@ -570,35 +570,3 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
     ).toBeDisabled()
   })
 })
-
-describe('SendNameForm — a parent with no visible powers', () => {
-  it.each([
-    { isPendingUpgrade: true, isWarned: true },
-    { isPendingUpgrade: false, isWarned: false },
-  ])(
-    'with a registry pending an upgrade $isPendingUpgrade warns: $isWarned',
-    ({ isPendingUpgrade, isWarned }) => {
-      render(
-        <SendNameForm
-          owner={OWNER}
-          detachTargets={ALL_TARGETS}
-          parentWarning={{
-            parentName: 'parent.eth',
-            isLoading: false,
-            isError: false,
-            parentIsSelf: false,
-            powers: [],
-            isPendingUpgrade,
-          }}
-          registryDetachImpact={EMPTY_REGISTRY}
-          transfer={controls()}
-        />,
-        { wrapper: createTestWrapper() },
-      )
-
-      expect(Boolean(screen.queryByText(/pending a required upgrade/))).toBe(
-        isWarned,
-      )
-    },
-  )
-})

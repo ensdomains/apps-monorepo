@@ -76,7 +76,6 @@ export const V1SendName = ({
                 (address) => address && isAddressEqual(address, account),
               ),
               powers: getV1ParentPowers(name, subject, parent),
-              isPendingUpgrade: false,
             }
       }
       transfer={transfer}

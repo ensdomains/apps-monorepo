@@ -117,8 +117,6 @@ export type ParentWarning = {
   readonly isError: boolean
   readonly parentIsSelf: boolean
   readonly powers: readonly string[]
-  /** The name's registry is pending a required upgrade. */
-  readonly isPendingUpgrade: boolean
 }
 
 /**

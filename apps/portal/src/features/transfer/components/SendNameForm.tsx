@@ -131,14 +131,7 @@ const ParentWarningAlert = ({
 }: {
   readonly warning: ParentWarning
 }) => {
-  const {
-    parentName,
-    parentIsSelf,
-    powers,
-    isLoading,
-    isError,
-    isPendingUpgrade,
-  } = warning
+  const { parentName, parentIsSelf, powers, isLoading, isError } = warning
 
   // Nothing is claimed until the reads land: an alert that appears and then
   // rewrites itself is worse than one that arrives a beat late.
@@ -158,20 +151,6 @@ const ParentWarningAlert = ({
             still do to it, so treat this transfer as reversible by them: a
             parent can hold authority that lets them reclaim or re-issue a
             subname.
-          </p>
-        </AlertDescription>
-      </Alert>
-    )
-
-  if (powers.length === 0 && isPendingUpgrade)
-    return (
-      <Alert variant="warning">
-        <AlertTriangle className="size-4" />
-        <AlertDescription>
-          <p>
-            This is a subname of {parent}. Its registry is pending a required
-            upgrade, so whoever created that registry may still be able to take
-            this name back. Treat this transfer as reversible by them.
           </p>
         </AlertDescription>
       </Alert>
