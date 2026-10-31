@@ -6,11 +6,13 @@ import {
 } from '@/features/records/helpers/recordEditLock'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 import { getCanWriteRecordsOnResolverQueryOptions } from '@/features/resolver/queries/getCanWriteRecordsOnResolver'
+import { getResolverHasCodeQueryOptions } from '@/features/resolver/queries/getResolverHasCode'
 
 type UseRecordEditLockParams = {
   readonly name: string
-  /** Only the ownership fallback can be locked, so callers scope these reads to it. */
   readonly enabled: boolean
+  /** Only the ownership fallback can be fuse-locked, so callers scope the fuse reads to it. */
+  readonly isOwnershipFallback: boolean
   readonly resolverAddress: Address | null | undefined
   readonly account: Address | undefined
 }
@@ -21,16 +23,28 @@ type UseRecordEditLockReturn = {
   readonly queries: readonly UseQueryResult<unknown>[]
 }
 
-/** Whether burnt fuses leave a wrapped name's owner no way onto a resolver that takes their writes. */
+/**
+ * Whether the resolver cannot take record writes from anyone (it is not a
+ * contract), or burnt fuses leave a wrapped name's owner no way onto a
+ * resolver that takes their writes.
+ */
 export const useRecordEditLock = ({
   name,
   enabled,
+  isOwnershipFallback,
   resolverAddress,
   account,
 }: UseRecordEditLockParams): UseRecordEditLockReturn => {
+  const hasCodeQuery = useQuery({
+    ...getResolverHasCodeQueryOptions({
+      resolverAddress: resolverAddress ?? zeroAddress,
+    }),
+    enabled: enabled && !!resolverAddress,
+  })
+
   const wrapperDataQuery = useQuery({
     ...getWrapperDataQueryOptions({ name }),
-    enabled,
+    enabled: enabled && isOwnershipFallback,
   })
 
   const childFuses = wrapperDataQuery.data?.fuses?.child
@@ -48,14 +62,20 @@ export const useRecordEditLock = ({
       name,
       account: account ?? zeroAddress,
     }),
-    enabled: enabled && isRecoveryFused && !!resolverAddress && !!account,
+    enabled:
+      enabled &&
+      isOwnershipFallback &&
+      isRecoveryFused &&
+      !!resolverAddress &&
+      !!account,
   })
 
   return {
     editLock: getRecordEditLock({
+      hasResolverCode: hasCodeQuery.data,
       fuses,
       canWriteOnResolver: canWriteQuery.data,
     }),
-    queries: [wrapperDataQuery, canWriteQuery],
+    queries: [hasCodeQuery, wrapperDataQuery, canWriteQuery],
   }
 }

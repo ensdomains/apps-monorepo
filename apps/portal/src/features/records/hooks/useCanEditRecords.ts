@@ -5,6 +5,7 @@ import { match } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { canEditRecords } from '@/features/records/helpers/canEditRecords'
 import type { RecordEditLock } from '@/features/records/helpers/recordEditLock'
 import { useNameHasOwnResolver } from '@/features/records/hooks/useNameHasOwnResolver'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
@@ -88,7 +89,10 @@ type UseCanEditRecordsReturn = {
   hasOwnResolver: boolean | undefined
   resolverAddress: Address | null | undefined
   editableTypes: EditableTypes
-  /** Set when ownership alone would have allowed editing but the resolver refuses this wallet. */
+  /**
+   * Set when the resolver is not a contract, or when ownership alone would
+   * have allowed editing but the resolver refuses this wallet.
+   */
   readonly editLock: RecordEditLock | undefined
 }
 
@@ -107,6 +111,7 @@ type UseCanEditRecordsReturn = {
  *   delegates). Token ownership alone grants nothing there.
  * - V1 names on a non-permissioned resolver: falls back to token ownership,
  *   except where {@link useRecordEditLock} finds that locked out.
+ * - Never when the resolver is not a contract: nothing there can take a write.
  *
  * Either way the name must own its resolver. One inherited through ENSIP-10
  * wildcard resolution — a DNS name resolving through its TLD's
@@ -223,15 +228,12 @@ export function useCanEditRecords({
     !!ownerQuery.data?.owner &&
     isAddressEqual(connectedAddress, ownerQuery.data.owner)
 
-  // Scoped to the ownership fallback, the only branch that can be locked out.
   const { editLock, queries: lockQueries } = useRecordEditLock({
     name,
-    enabled:
-      enabled &&
-      isOwner &&
-      !isV2 &&
-      isPermissionedQuery.isSuccess &&
-      !isPermissioned,
+    enabled,
+    // The fuse lock applies only to the ownership fallback.
+    isOwnershipFallback:
+      isOwner && !isV2 && isPermissionedQuery.isSuccess && !isPermissioned,
     resolverAddress,
     account: connectedAddress,
   })
@@ -261,14 +263,15 @@ export function useCanEditRecords({
     !!resolverAddress &&
     hasOwnResolver === true
 
-  const canEdit = match({ isSettled, isPermissioned, isV2 })
-    .with({ isSettled: false }, () => false)
-    .with(
-      { isPermissioned: true },
-      () => grantedRoles.length + grantedScopes.length > 0,
-    )
-    .with({ isV2: true }, () => resolverWriteQuery.data === true)
-    .otherwise(() => isOwner && !editLock)
+  const canEdit = canEditRecords({
+    isSettled,
+    isPermissioned,
+    isV2,
+    hasGrant: grantedRoles.length + grantedScopes.length > 0,
+    canWriteOnResolver: resolverWriteQuery.data,
+    isOwner,
+    editLock,
+  })
 
   return {
     canEdit,
