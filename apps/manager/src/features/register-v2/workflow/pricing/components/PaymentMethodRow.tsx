@@ -47,7 +47,7 @@ export const PaymentMethodRow = ({
     <div
       className={cn(
         'relative flex w-full items-start justify-between gap-3 rounded border border-transparent p-3 text-left',
-        isSelected && 'border-ens-lapis-900',
+        isSelected && 'border-ens-lapis-hover',
       )}
       data-slot="payment-method-row"
     >

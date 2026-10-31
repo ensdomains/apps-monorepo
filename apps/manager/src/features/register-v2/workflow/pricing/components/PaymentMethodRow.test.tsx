@@ -39,7 +39,8 @@ describe('PaymentMethodRow', () => {
     expect(screen.getByText('$0.00')).toHaveClass('text-ens-signal-danger-800')
   })
 
-  // Shading alone was too faint to see, so the selection is a border.
+  // Shading alone was too faint to see, so the selection is a border. Its
+  // colour keeps 3:1 contrast in light mode and under browser-forced dark mode.
   it.each([
     { isSelected: true, hasBorder: true },
     { isSelected: false, hasBorder: false },
@@ -52,7 +53,7 @@ describe('PaymentMethodRow', () => {
         .getByRole('button', { name: 'Select USDC' })
         .closest('[data-slot="payment-method-row"]')
 
-      expect(row?.classList.contains('border-ens-lapis-900')).toBe(hasBorder)
+      expect(row?.classList.contains('border-ens-lapis-hover')).toBe(hasBorder)
     },
   )
 
