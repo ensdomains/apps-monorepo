@@ -6,7 +6,6 @@ import { Alert } from '@/components/ui/alert'
 import { envConfig } from '@/config'
 import { UpgradeActions } from '@/features/migration/components/UpgradeActions'
 import { getSubnameImpactPreviewQueryOptions } from '@/features/migration/hooks/subnameImpactPreview.query'
-import { MANAGER_UPGRADE_URL } from '@/lib/constants/domain'
 
 type SubnameImpact =
   | { readonly status: 'pending' | 'error' }
@@ -50,10 +49,9 @@ export const UpgradeBanner = ({
   readonly isWrapped?: boolean
 }) => {
   const publicClient = usePublicClient({ chainId: envConfig.chain.id })
-  const impactQuery = useQuery({
-    ...getSubnameImpactPreviewQueryOptions({ name, publicClient }),
-    enabled: !!publicClient && !!MANAGER_UPGRADE_URL,
-  })
+  const impactQuery = useQuery(
+    getSubnameImpactPreviewQueryOptions({ name, publicClient }),
+  )
   const impact = match(impactQuery)
     .returnType<SubnameImpact>()
     .with({ isError: true }, () => ({ status: 'error' }))
