@@ -2,6 +2,7 @@
 
 import { Trans } from '@lingui/react/macro'
 import { Loader2, ShieldOff } from 'lucide-react'
+import { match, P } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -25,14 +26,43 @@ type RevokeSessionsModalProps = {
   errorMessage?: string | null
   /** True when the last attempt failed because the account is undeployed. */
   isUndeployed?: boolean
+  /** Formatted balance sent back to the wallet after the reset, if any. */
+  readonly leftoverFunds?: string | null
+  /** True while that follow-up withdrawal is in flight. */
+  readonly isWithdrawing?: boolean
+  /** A pending registration that needs the balance, so it stays put. */
+  readonly leftoverFundsHeldFor?: string | null
 }
+
+const LeftoverFundsNote = ({
+  leftoverFunds,
+  heldFor,
+}: {
+  readonly leftoverFunds: string
+  readonly heldFor: string | null
+}) => (
+  <p className="mt-2 text-ens-gray text-sm">
+    {heldFor ? (
+      <Trans>
+        Your smart account also holds {leftoverFunds}, which your registration
+        of {heldFor} needs to complete. It stays there, and you can withdraw
+        what's left once the registration is done.
+      </Trans>
+    ) : (
+      <Trans>
+        Your smart account also holds {leftoverFunds} left over from earlier
+        payments. It will be sent back to your wallet in one more transaction.
+      </Trans>
+    )}
+  </p>
+)
 
 /**
  * Confirm the owner-signed on-chain session revocation.
  *
- * A confirm step rather than a one-click menu action, because this is the one
- * account operation the app cannot sponsor: it is a direct owner transaction
- * and costs gas. The copy has to say so before the wallet opens, and has to be
+ * A confirm step rather than a one-click menu action, because the app cannot
+ * sponsor it: it is a direct owner transaction and costs gas. Any leftover
+ * balance follows in a second one, so the reset never strands funds. The copy has to say so before the wallet opens, and has to be
  * clear that it applies to every session signed for the account rather than
  * just this browser's.
  */
@@ -43,9 +73,13 @@ export const RevokeSessionsModal = ({
   isRevoking = false,
   errorMessage = null,
   isUndeployed = false,
+  leftoverFunds = null,
+  isWithdrawing = false,
+  leftoverFundsHeldFor = null,
 }: RevokeSessionsModalProps) => {
+  const isBusy = isRevoking || isWithdrawing
   const handleRevoke = async () => {
-    if (isRevoking) return
+    if (isBusy) return
     const revoked = await onRevokeSessions(
       isUndeployed ? { deployFirst: true } : undefined,
     )
@@ -54,7 +88,7 @@ export const RevokeSessionsModal = ({
   }
 
   return (
-    <Dialog onOpenChange={isRevoking ? () => {} : onOpenChange} open={open}>
+    <Dialog onOpenChange={isBusy ? () => {} : onOpenChange} open={open}>
       <DialogContent className="max-w-md border-ens-gray-two p-6">
         <DialogHeader>
           <DialogTitle asChild>
@@ -66,7 +100,7 @@ export const RevokeSessionsModal = ({
 
         <div className="flex flex-col items-center gap-4 py-2">
           <div className="flex size-16 items-center justify-center rounded-full bg-ens-gray-one">
-            {isRevoking ? (
+            {isBusy ? (
               <Loader2 className="size-8 animate-spin text-ens-blue" />
             ) : (
               <ShieldOff className="size-8 text-ens-blue" />
@@ -95,6 +129,12 @@ export const RevokeSessionsModal = ({
                 </Trans>
               )}
             </p>
+            {leftoverFunds && (
+              <LeftoverFundsNote
+                heldFor={leftoverFundsHeldFor}
+                leftoverFunds={leftoverFunds}
+              />
+            )}
           </div>
 
           {errorMessage && (
@@ -109,23 +149,30 @@ export const RevokeSessionsModal = ({
               'hover:bg-ens-blue-hover',
               'disabled:cursor-not-allowed disabled:opacity-50',
             )}
-            disabled={isRevoking}
+            disabled={isBusy}
             onClick={() => void handleRevoke()}
             type="button"
           >
-            {isRevoking ? (
-              <Trans>Resetting access…</Trans>
-            ) : isUndeployed ? (
-              <Trans>Set up and reset access</Trans>
-            ) : errorMessage ? (
-              <Trans>Try Again</Trans>
-            ) : (
-              <Trans>Reset access</Trans>
-            )}
+            {match({ isWithdrawing, isRevoking, isUndeployed, errorMessage })
+              .with({ isWithdrawing: true }, () => (
+                <Trans>Returning leftover funds…</Trans>
+              ))
+              .with({ isRevoking: true }, () => (
+                <Trans>Resetting access…</Trans>
+              ))
+              .with({ isUndeployed: true }, () => (
+                <Trans>Set up and reset access</Trans>
+              ))
+              .with({ errorMessage: P.string.minLength(1) }, () => (
+                <Trans>Try Again</Trans>
+              ))
+              .otherwise(() => (
+                <Trans>Reset access</Trans>
+              ))}
           </Button>
           <Button
             className="h-11 w-full rounded font-medium font-mono text-sm uppercase tracking-wider"
-            disabled={isRevoking}
+            disabled={isBusy}
             onClick={() => onOpenChange(false)}
             type="button"
             variant="ghost"
