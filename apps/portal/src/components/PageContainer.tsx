@@ -11,8 +11,9 @@ import { cn } from '@/lib/utils'
  * `SidebarInset` so the inset background, mobile header and banners stay
  * full-bleed while only the content is constrained.
  *
- * `isolate` keeps the z-indexes inside the page (entity badges, sticky table
- * headers) from stacking above the sticky mobile header as it scrolls past.
+ * `max-md:isolate` keeps the z-indexes inside the page (entity badges, sticky
+ * table headers) from stacking above the sticky mobile header as it scrolls
+ * past. Desktop has no mobile header, so its stacking is left as it was.
  */
 export function PageContainer({
   children,
@@ -24,7 +25,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        'isolate w-full max-w-360 mx-auto p-4 lg:p-10 flex flex-col gap-8',
+        'max-md:isolate w-full max-w-360 mx-auto p-4 lg:p-10 flex flex-col gap-8',
         className,
       )}
     >
