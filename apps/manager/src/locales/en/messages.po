@@ -3268,6 +3268,14 @@ msgstr "The eligibility proof could not be verified."
 msgid "The ENS domain has been successfully renewed."
 msgstr "The ENS domain has been successfully renewed."
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "The estimated gas for {ensName} and its subnames exceeds the per-transaction limit. Deselect this name to upgrade the rest."
+msgstr "The estimated gas for {ensName} and its subnames exceeds the per-transaction limit. Deselect this name to upgrade the rest."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "The estimated gas for a name and its subnames exceeds the per-transaction limit. Deselect the name to upgrade the rest."
+msgstr "The estimated gas for a name and its subnames exceeds the per-transaction limit. Deselect the name to upgrade the rest."
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "The fee hits $0 on"
 msgstr "The fee hits $0 on"

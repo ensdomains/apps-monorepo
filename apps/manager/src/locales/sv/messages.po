@@ -3273,6 +3273,14 @@ msgstr ""
 msgid "The ENS domain has been successfully renewed."
 msgstr ""
 
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "The estimated gas for {ensName} and its subnames exceeds the per-transaction limit. Deselect this name to upgrade the rest."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "The estimated gas for a name and its subnames exceeds the per-transaction limit. Deselect the name to upgrade the rest."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "The fee hits $0 on"
 msgstr ""
