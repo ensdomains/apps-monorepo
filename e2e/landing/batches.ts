@@ -450,25 +450,27 @@ export const smoke: SmokeEntry[] = [
 
   // Subnames
   {
-    flow: 'Add 3LD',
+    // Creation is paused in the app (WEB-2097, #1654); until it returns the
+    // smoke test asserts the redirect and the disabled action.
+    flow: 'Add 3LD (paused, WEB-2097)',
     app: 'Explorer',
     version: 'V2',
     spec: `${P}subnames.spec.ts`,
-    title: 'creates a 3LD in the parent registry',
+    title: 'redirects 3LD creation and disables the action on its parent',
   },
   {
-    flow: 'Add 4LD',
+    flow: 'Add 4LD (paused, WEB-2097)',
     app: 'Explorer',
     version: 'V2',
     spec: `${P}subnames.spec.ts`,
-    title: 'creates a 4LD under a 3LD that owns its own registry',
+    title: 'redirects 4LD creation and disables the action on its 3LD parent',
   },
   {
-    flow: 'Add 4LD',
+    flow: 'Add 4LD (paused, WEB-2097)',
     app: 'Explorer',
     version: 'V2',
     spec: `${P}v2-4ld.spec.ts`,
-    title: 'creates a native 4LD in its immediate parent registry',
+    title: 'redirects native 4LD creation and disables the action',
   },
   {
     flow: 'Add 3LD / 4LD',
@@ -522,7 +524,8 @@ export const smoke: SmokeEntry[] = [
     app: 'Explorer',
     version: 'V1+V2',
     spec: `${P}registration.spec.ts`,
-    title: 'two V1 and two V2 names: one approval per renewer',
+    title:
+      'two V1 and two V2 names: one approval and one renewBatch per renewer',
   },
   {
     flow: 'Bulk renew',

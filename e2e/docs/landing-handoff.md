@@ -4,29 +4,23 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Now
 
-- **B0**: PR #1599 (`e2e-land/b0-infra`), CI green. The user approved it ("B0 is good") on 2026-10-28; not merged yet. The user merged main into it from GitHub (`fd7c91b48`), so **no more force-pushes on B0**: fixes go on as plain commits.
-- **B0 CI fixes (2026-10-28)**:
-  - Anvil's fork URL is `${ANVIL_FORK_URL:-${SEPOLIA_FORK_URL:-<drpc>}}`. A bare `docker compose up` (CI) forks drpc directly, as main does. `start-local-env.sh` and `reset-bigname.sh` set it to the upstream cache. In CI the cache's first upstream reads stalled past Anvil's health window. The cache now logs each failed upstream attempt.
-  - The harness's "pointed at this fork" check is split per app (`helpers/app-rpc.ts`): the portal harness checks the portal, the manager harness the manager. A CI job starts only its own app.
-  - drpc DNS flakes still fail an occasional stack start; a re-run passes. Fix proposed: an owned archive RPC in a `SEPOLIA_FORK_URL` secret, plus pinning `SEPOLIA_FORK_BLOCK` in CI (the user is weighing it).
-- **B1a**: PR #1601 (`e2e-land/b1a-explorer-smoke`, worktree `/Users/sg/ens/worktrees/e2e-land-b1a`), stacked on B0. The user merges main into B0 and B0 into B1a from GitHub: **never force-push**, rebase local commits on top. State on 2026-10-29:
-  - **Per-PR portal:** the smoke config, now including main's 17 existing portal tests (tagged `@smoke` so nothing main gates on today drops to nightly-only). 45 tests in 2 shards.
-  - **Per-PR migration (pulled from B1b at the user's request):** `manager-migration` CI job runs `playwright.migration.config.ts --grep @smoke`: unwrapped 2LD, emancipated 2LD, wrapped batch, records replayed, locked 2LD. 12 tests with the harness, ~4 min locally. Main's old migration specs (6/6 failing, excluded everywhere) were replaced by the branch rewrites.
-  - **`serveV1Names` mock mode** now serves the real BaseRegistrar expiry and an empty subname inventory. Without them the manager refused every mocked name ("subname could not be verified", "expiry changed").
-  - **Nightly** runs both migration files in full. 4 of their 20 tests fail and are not triaged: GW uncertified-resolver refusal (expected text never shown), GU4 profile edit after migration and GS11 24-name flow (both time out in `migrate()`), and the gas-budget split (click timeout).
-  - **Known failures (`test.fixme`):** WEB-1229 and WEB-1572, an app bug on main since #1395 (portal pays Circle USDC but shows/checks MockUSDC). The user parked the app fix.
-  - **Still red per PR:** "creates a 3LD in the parent registry" (its subnames-list check needs real bigname). Proposed: run that check only with real bigname.
-  - Helper fix: `transaction-modal.ts` bounds `isEnabled()` and clicks at 5 s (the modal auto-advances; an unbounded wait cost a minute per step).
+- **B0 merged** as #1599 (squash, 2026-10-29) and **B1a merged** as #1601 (squash, 2026-10-30). Main was merged into this branch afterwards (`d150d9fe7`): main's version wins in every landed file; the two `package.json` files keep main's content plus the branch-only scripts and the `@tenkeylabs/dappwright` dev dependency.
+- **The freeze is on.** New tests are written against main; this branch only takes `merge origin/main` and tracker commits. The `pr-verify` and `e2e-goal` skills still need pointing at main.
+- **Squash merges:** each stacked batch PR conflicts once its base lands, because the squash commit shares no history. Resolve by taking the batch's side in files the previous batch landed (main's tree equals the previous batch's head), as done on #1601.
+- **#1637 merged** (portal pays in the token its checkout shows; the registration USDC mismatch from #1395). The two `test.fixme` markers on WEB-1229 and WEB-1572 in `portal/tests/registration.spec.ts` can now come off, in a small PR to main.
+- **#1654 (WEB-2097)** paused subname creation in the app and rewrote the three Add 3LD/4LD smoke tests to assert the redirect and the disabled action. The checklist points at the new titles and marks those flows paused. Real creation coverage comes back when WEB-2097 is reverted.
+- **Per-PR CI on main now:** portal `@smoke` (46 tests, 2 shards), `manager-migration` (`playwright.migration.config.ts --grep @smoke`, the five migration flows), the manager's full suite (3 shards) and the address-literal gate. Nightly runs every manager, migration, portal and cross-app spec.
 
 ## Next action
 
-1. Wait for the user's decisions on the open B1a items above; then make #1601 green and mark it ready for review.
-3. Prepare B1b (`e2e-land/b1b-manager-smoke`) from the B1a branch: manager smoke config, `@smoke` tags per the checklist, `e2e.yml` manager job → smoke config, `test:smoke` / `e2e:smoke:manager` scripts.
+1. PR to main: remove the two `test.fixme` markers (WEB-1229, WEB-1572) and their rows under "Known failures" in `smoke-suite.md`; check both pass in CI.
+2. Point the `pr-verify` and `e2e-goal` skills at main.
+3. Prepare **B1b** (Manager smoke) from main: `playwright.smoke.config.ts`, the remaining manager specs and `@smoke` tags for the Manager rows (registration, renew, bulk renew, primary name, records, My Names, migration of a registry subname and a name in grace, CCIP), then switch the manager's per-PR job to its smoke config.
+4. Triage the four nightly migration failures (GW uncertified-resolver refusal, GU4, GS11, gas-budget split).
 
 ## Waiting on
 
-- B0 (#1599): peer review and merge by the user.
-- B1a (#1601): CI.
+- Nothing from the user right now.
 
 ## Open questions for the user
 
@@ -72,8 +66,8 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 | Batch | Scope | Status |
 |---|---|---|
-| B0 | Infra: stack, helpers, fixtures, harness, matrix seeding libs, address gate (95 files, ~13.6k lines) | PR #1599, CI green, approved by the user, awaiting merge |
-| B1a | Smoke: Explorer specs + CI (sharded `@smoke` gate, nightly) (35 files, ~15.2k lines) | draft PR #1601 into B0, CI running |
+| B0 | Infra: stack, helpers, fixtures, harness, matrix seeding libs, address gate (95 files, ~13.6k lines) | merged (#1599), ledger synced |
+| B1a | Smoke: Explorer specs + CI (sharded `@smoke` gate, nightly) + migration smoke | merged (#1601), ledger synced |
 | B1b | Smoke: Manager specs | not started |
 | B1c | Smoke gaps, written on main (see below) | not started |
 | B2 | CCIP rest. `e2e/offchain-main` is merged into this branch. Fold in what's left on `e2e/offchain-ccip` (8 orphaned) and `e2e/offchain-1577` (3 orphaned) first | not started |
@@ -118,6 +112,7 @@ When one is written, replace its `gap` entry in `landing/batches.ts` with `spec`
 - **2026-10-28**: B1 is split as planned: B1a → B0 (#1601), B1b → B1a, so both reach B0 as the user asked while staying reviewable (~15k and ~10k lines).
 - **2026-10-28**: B1a builds `e2e.yml` from main's file (Node 24 pin, path filter, sharding) rather than the branch's, and drops the branch's coverage/matrix-check steps (B10/B7 not landed). `e2e-land/**` is a PR base so stacked PRs get e2e CI; drop it after the landing.
 - **2026-10-28**: Cross-app `@smoke` tests skip unless bigname is real, so the per-PR gate has no cross-app job; nightly runs cross-app (two of its specs work with mocked bigname).
+- **2026-10-31**: B0 and B1a merged; main merged into this branch with main winning every landed file. The freeze starts. #1637 (the USDC mismatch) merged, so the two registration `fixme` markers can be removed.
 
 ## Worktree triage (2026-10-28)
 
