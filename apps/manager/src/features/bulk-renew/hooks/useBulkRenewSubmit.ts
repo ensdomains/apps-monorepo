@@ -26,6 +26,7 @@ import {
 } from '@/features/renew/service/hcaRenewal'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import {
   useHcaFundingPrompt,
   useSmartAccountContext,
@@ -488,7 +489,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   }: SubmitArgs) => {
     const items = inputItems.map((item) => ({
       ...item,
-      referrer: normalizeReferrer(referrer),
+      referrer: normalizeReferrer(referrer, ENS_LABS_REFERRER),
     }))
     // Claim this run; if `reset` (or another submit) bumps the id while we await,
     // `isCurrent()` turns false and we stop touching the now-stale UI state.

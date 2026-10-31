@@ -12,6 +12,7 @@ import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalance
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { useIsAwaitingRenewalApproval } from '@/features/renew/state/renewalUi.selectors'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -105,7 +106,7 @@ export const TokenPickerContent = () => {
     }
     uiActor.send({
       type: 'renewal.start',
-      referrer: normalizeReferrer(referrer),
+      referrer: normalizeReferrer(referrer, ENS_LABS_REFERRER),
       label,
       signer,
       ownerAddress,

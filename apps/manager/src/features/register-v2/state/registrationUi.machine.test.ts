@@ -206,6 +206,7 @@ vi.mock('../service/registrationPersistence', () => ({
 }))
 
 import { waitForTransaction } from '@ens-apps/transaction-manager'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import {
   submitPrimaryNameForward,
@@ -1459,8 +1460,8 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
 describe('registration referrer boundary', () => {
   it.each([
     ['0x1234', `0x${'0'.repeat(60)}1234`],
-    ['0xgg', `0x${'0'.repeat(64)}`],
-    [undefined, `0x${'0'.repeat(64)}`],
+    ['0xgg', ENS_LABS_REFERRER],
+    [undefined, ENS_LABS_REFERRER],
   ])(
     'normalizes %s before saving confirmed data and starting the child',
     (referrer, expected) => {

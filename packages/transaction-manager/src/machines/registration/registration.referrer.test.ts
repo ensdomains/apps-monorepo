@@ -30,6 +30,7 @@ const OWNER = '0x1111111111111111111111111111111111111111'
 const RESOLVER = '0x2222222222222222222222222222222222222222'
 const SUPPLIED_REFERRER = '0x1234567890123456789012345678901234567890'
 const EXPECTED_REFERRER = `0x${'0'.repeat(24)}1234567890123456789012345678901234567890`
+const FALLBACK_REFERRER = `0x${'ef'.repeat(32)}` as const
 const DURATION = 31_536_000n
 const chain = extendChainWithEns(sepolia)
 const contracts = getDestinationContracts(sepolia.id)
@@ -54,6 +55,19 @@ describe('referrer validation', () => {
       `0x${'ab'.repeat(32)}`,
     )
     expect(normalizeReferrer('0x1')).toBe(`0x${'0'.repeat(63)}1`)
+  })
+  it.each([undefined, '0xgg', '0x0', zeroHash])(
+    'uses the caller fallback for %j',
+    (value) => {
+      expect(normalizeReferrer(value, FALLBACK_REFERRER)).toBe(
+        FALLBACK_REFERRER,
+      )
+    },
+  )
+  it('prefers a supplied referrer over the caller fallback', () => {
+    expect(normalizeReferrer(SUPPLIED_REFERRER, FALLBACK_REFERRER)).toBe(
+      EXPECTED_REFERRER,
+    )
   })
 })
 
