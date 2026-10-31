@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import {
   type ColumnDef,
   flexRender,
@@ -112,6 +113,8 @@ interface SubnamesTableProps {
   readonly isLoadMoreError?: boolean
   readonly name: string
   readonly canCreateSubname?: boolean
+  /** Shows the create action disabled instead of linking to the form. */
+  readonly isCreationPaused?: boolean
   /** Called when user confirms delete on a single subname. */
   readonly onDeleteSubname?: (subname: SubnameRow) => void
   /** Called when user clicks Clear with selection. */
@@ -210,6 +213,32 @@ function buildColumns(
   ]
 }
 
+const CreateSubnameAction = ({
+  name,
+  isPaused,
+}: {
+  readonly name: string
+  readonly isPaused: boolean
+}) =>
+  isPaused ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button aria-disabled="true" className="cursor-not-allowed opacity-50">
+          <Plus className="size-4" />
+          Create subname
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Subname creation temporarily disabled.</TooltipContent>
+    </Tooltip>
+  ) : (
+    <Button variant="default" asChild>
+      <Link to="/$name/create-subname" params={{ name }}>
+        <Plus className="size-4" />
+        Create subname
+      </Link>
+    </Button>
+  )
+
 export const SubnamesTable = ({
   subnames,
   totalCount: servedTotal,
@@ -218,6 +247,7 @@ export const SubnamesTable = ({
   isLoadMoreError = false,
   name,
   canCreateSubname,
+  isCreationPaused = true,
   onDeleteSubname,
   onClearSelected,
   isDeleting,
@@ -288,20 +318,7 @@ export const SubnamesTable = ({
             {totalCount ? `Subnames (${totalCount})` : 'Subnames'}
           </PageHeading>
           {canCreateSubname && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  aria-disabled="true"
-                  className="cursor-not-allowed opacity-50"
-                >
-                  <Plus className="size-4" />
-                  Create subname
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Subname creation temporarily disabled.
-              </TooltipContent>
-            </Tooltip>
+            <CreateSubnameAction name={name} isPaused={isCreationPaused} />
           )}
         </div>
         {selectedCount > 0 && (
