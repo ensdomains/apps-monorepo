@@ -104,6 +104,8 @@ const createWrapper = () => {
 describe('SmartAccountContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // The reset marker persists, so one test's reset must not leak into the next.
+    localStorage.clear()
   })
 
   describe('useSmartAccountContext', () => {
@@ -450,6 +452,23 @@ describe('SmartAccountContext', () => {
         await result.current.revokeSession()
       })
       expect(result.current.isSessionAccessReset).toBe(true)
+    })
+
+    it('keeps access marked as reset after a reload', async () => {
+      revokeSessionsOnChainMock.mockReturnValue(
+        okAsync({ transactionHash: `0x${'ab'.repeat(32)}`, sessionNonce: 1n }),
+      )
+      const result = await connectWallet()
+      await act(async () => {
+        await result.current.revokeSession()
+      })
+      expect(result.current.isSessionAccessReset).toBe(true)
+
+      // A fresh provider is what a page reload gets.
+      const reloaded = await connectWallet()
+      await waitFor(() =>
+        expect(reloaded.current.isSessionAccessReset).toBe(true),
+      )
     })
 
     it('offers reset again once a session is signed after it, even if this copy is forgotten', async () => {
