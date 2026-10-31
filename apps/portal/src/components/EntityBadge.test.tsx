@@ -424,6 +424,33 @@ describe('EntityBadge address highlight', () => {
     expect(highlighted()).toEqual(['other'])
   })
 
+  it('keeps the highlight while the pointer stays after focus leaves', () => {
+    renderBadges()
+    const link = screen.getByRole('link', { name: 'owner' })
+    fireEvent.mouseEnter(badge('owner'))
+    fireEvent.focus(link)
+    fireEvent.blur(link)
+    expect(highlighted()).toEqual(['owner', 'owner-lower', 'owner-name'])
+  })
+
+  it('clears the highlight when the hovered badge is removed', () => {
+    const rows = (texts: readonly string[]) => (
+      <AddressHighlightProvider>
+        {texts.map((text) => (
+          <EntityBadge key={text} variant="address" address={OWNER}>
+            {text}
+          </EntityBadge>
+        ))}
+      </AddressHighlightProvider>
+    )
+    const view = render(rows(['hovered', 'kept']))
+    fireEvent.mouseEnter(badge('hovered'))
+    expect(badge('kept')).toHaveAttribute('data-address-highlighted')
+
+    view.rerender(rows(['kept']))
+    expect(badge('kept')).not.toHaveAttribute('data-address-highlighted')
+  })
+
   it('never highlights outside a provider', () => {
     render(
       <>

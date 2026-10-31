@@ -1,17 +1,24 @@
 import {
   createContext,
+  type Dispatch,
   type ReactNode,
   useContext,
+  useEffect,
+  useId,
   useMemo,
-  useState,
+  useReducer,
 } from 'react'
 import type { Address } from 'viem'
+import {
+  type AddressHighlightEvent,
+  activeHighlightKey,
+  NO_ADDRESS_HIGHLIGHT,
+  nextAddressHighlight,
+} from './addressHighlightState'
 
 interface AddressHighlightContextValue {
-  readonly hoveredKey: string | undefined
-  readonly setHoveredKey: (
-    update: (current: string | undefined) => string | undefined,
-  ) => void
+  readonly activeKey: string | undefined
+  readonly dispatch: Dispatch<AddressHighlightEvent>
 }
 
 const AddressHighlightContext =
@@ -29,8 +36,12 @@ export const AddressHighlightProvider = ({
 }: {
   readonly children: ReactNode
 }) => {
-  const [hoveredKey, setHoveredKey] = useState<string>()
-  const value = useMemo(() => ({ hoveredKey, setHoveredKey }), [hoveredKey])
+  const [state, dispatch] = useReducer(
+    nextAddressHighlight,
+    NO_ADDRESS_HIGHLIGHT,
+  )
+  const activeKey = activeHighlightKey(state)
+  const value = useMemo(() => ({ activeKey, dispatch }), [activeKey])
 
   return (
     <AddressHighlightContext.Provider value={value}>
@@ -41,8 +52,10 @@ export const AddressHighlightProvider = ({
 
 interface AddressHighlight {
   readonly isHighlighted: boolean
-  readonly onEnter?: () => void
-  readonly onLeave?: () => void
+  readonly onMouseEnter?: () => void
+  readonly onMouseLeave?: () => void
+  readonly onFocus?: () => void
+  readonly onBlur?: () => void
 }
 
 const NO_HIGHLIGHT: AddressHighlight = { isHighlighted: false }
@@ -51,16 +64,26 @@ export const useAddressHighlight = (
   address: Address | undefined,
 ): AddressHighlight => {
   const context = useContext(AddressHighlightContext)
-  if (!context || !address) return NO_HIGHLIGHT
+  const sourceId = useId()
+  const key = address ? toHighlightKey(address) : undefined
+  const dispatch = context?.dispatch
 
-  const key = toHighlightKey(address)
+  // A badge removed while hovered (e.g. filtered out) gets no leave event.
+  useEffect(() => {
+    if (!dispatch || !key) return
+    return () => dispatch({ type: 'remove', sourceId })
+  }, [dispatch, sourceId, key])
+
+  if (!context || !key) return NO_HIGHLIGHT
+
   return {
-    isHighlighted: context.hoveredKey === key,
-    onEnter: () => context.setHoveredKey(() => key),
-    // Only clear our own key: the next badge may already have taken over.
-    onLeave: () =>
-      context.setHoveredKey((current) =>
-        current === key ? undefined : current,
-      ),
+    isHighlighted: context.activeKey === key,
+    onMouseEnter: () =>
+      context.dispatch({ type: 'enter', input: 'hover', sourceId, key }),
+    onMouseLeave: () =>
+      context.dispatch({ type: 'leave', input: 'hover', sourceId }),
+    onFocus: () =>
+      context.dispatch({ type: 'enter', input: 'focus', sourceId, key }),
+    onBlur: () => context.dispatch({ type: 'leave', input: 'focus', sourceId }),
   }
 }

@@ -462,10 +462,10 @@ export const EntityBadge = ({
     <div
       data-entity-badge
       data-address-highlighted={highlight.isHighlighted || undefined}
-      onMouseEnter={highlight.onEnter}
-      onMouseLeave={highlight.onLeave}
-      onFocus={highlight.onEnter}
-      onBlur={highlight.onLeave}
+      onMouseEnter={highlight.onMouseEnter}
+      onMouseLeave={highlight.onMouseLeave}
+      onFocus={highlight.onFocus}
+      onBlur={highlight.onBlur}
       title={fullText}
       className={cn(
         'relative group/entity inline-flex',
