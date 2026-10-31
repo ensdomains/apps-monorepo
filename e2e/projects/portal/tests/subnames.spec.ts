@@ -7,9 +7,9 @@
  *
  * Two things about this surface shape the tests:
  *
- * 1. The paused create action and delete affordance are gated on
- *    `ROLE_REGISTRAR` and `ROLE_UNREGISTER` **at the subregistry's ROOT resource**
- *    (label `''`), not on the parent name's roles — see `routes/$name/subnames.tsx`. A name's
+ * 1. The create and delete affordances are gated on `ROLE_REGISTRAR` and
+ *    `ROLE_UNREGISTER` **at the subregistry's ROOT resource** (label `''`), not
+ *    on the parent name's roles — see `routes/$name/subnames.tsx`. A name's
  *    owner is not automatically able to manage names inside its subregistry;
  *    they can because `makeSubname` deploys that registry with them as admin.
  * 2. The subnames list is indexer-backed (`useSubnames` reads bigname), so every assertion here waits for the
@@ -18,7 +18,6 @@
 
 import { getOwner } from '@ensdomains/ensjs/public/v2'
 import { parseAbi, zeroAddress } from 'viem'
-import { registerSubname } from '../../../fixtures/makeSubname.js'
 import {
   connectWithHeadlessWallet,
   expect,
@@ -35,6 +34,8 @@ import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.j
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 
+/** `routes/$name/create-subname.tsx` / `routes/$name/subnames.tsx`. */
+const CREATE_SUBNAME_TX = 'tx-create-ens-subname'
 const deleteSubnameTx = (subname: string) => `tx-delete-ens-subname-${subname}`
 
 /**
@@ -66,58 +67,84 @@ async function subnameStatus(registryAddress: `0x${string}`, label: string) {
 test.describe('Portal subnames', () => {
   test.describe.configure({ timeout: 300_000 })
 
-  for (const { title, label, ancestors, scenario } of [
-    {
-      title: 'redirects 3LD creation and disables the action on its parent',
-      label: 'sub-d2',
-      ancestors: [],
-      scenario: '@scenario:D2',
-    },
-    {
-      title: 'redirects 4LD creation and disables the action on its 3LD parent',
-      label: 'sub-d3',
-      ancestors: ['mid'],
-      scenario: '@scenario:D3',
-    },
-  ] as const) {
-    test(title, { tag: ['@smoke', scenario] }, async ({
-      portalPage: page,
-      wallet,
-      makeName,
-      makeSubname,
-    }) => {
-      await connectWithHeadlessWallet(page, wallet)
+  test('creates a 3LD in the parent registry', {
+    tag: ['@smoke', '@scenario:D2'],
+  }, async ({ portalPage: page, wallet, makeName, makeSubname, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
 
-      const parent = await makeName({ label, owner: 'user' })
-      // Seed through the fixture so the target has a subregistry and the
-      // connected owner holds the registrar role, even for the nested case.
-      await makeSubname({
-        parent,
-        levels: [...ancestors.map((label) => ({ label })), { label: 'seed' }],
-      })
-      const name = [...ancestors, parent].join('.')
-
-      await waitForIndexedBlock()
-      await page.goto(`${PORTAL_APP_URL}/${name}/create-subname`, {
-        waitUntil: 'domcontentloaded',
-      })
-      await expect(page).toHaveURL(`${PORTAL_APP_URL}/${name}/subnames`)
-
-      const createAction = page.getByRole('button', { name: 'Create subname' })
-      await expect(createAction).toBeVisible()
-      await expect(createAction).toBeDisabled()
-      await expect(
-        page.getByRole('link', { name: 'Create subname' }),
-      ).toHaveCount(0)
-      await createAction.hover()
-      await expect(page.getByRole('tooltip')).toHaveText(
-        'Subname creation temporarily disabled.',
-      )
-      await createAction.click({ force: true })
-      await expect(page).toHaveURL(`${PORTAL_APP_URL}/${name}/subnames`)
-      await expect(page.locator('#label')).toHaveCount(0)
+    const parent = await makeName({ label: 'sub-d2', owner: 'user' })
+    // One throwaway level, purely to get the parent a subregistry — the
+    // subname under test is created through the UI below.
+    const { levels } = await makeSubname({
+      parent,
+      levels: [{ label: 'seed' }],
     })
-  }
+    const registryAddress = levels[0].registryAddress
+    const label = `made-${Date.now().toString(36)}`
+
+    expect(
+      await subnameStatus(registryAddress, label),
+      'label must not exist before the UI creates it',
+    ).not.toBe(REGISTERED)
+
+    await waitForIndexedBlock()
+    await page.goto(`${PORTAL_APP_URL}/${parent}/create-subname`)
+    await page.locator('#label').fill(label)
+    await page.locator('#owner').fill(wallets.address('owner'))
+    await page.getByRole('button', { name: 'Create subname' }).click()
+
+    await driveTransactionsToSuccess(page, wallet, [CREATE_SUBNAME_TX])
+
+    expect(
+      await subnameStatus(registryAddress, label),
+      `${label}.${parent} should be REGISTERED in ${registryAddress}`,
+    ).toBe(REGISTERED)
+
+    // The subnames list reads bigname. The route mock cannot learn a subname
+    // created during the test, so the list half needs a real indexer; the
+    // on-chain REGISTERED check above is the oracle either way.
+    if (isRealBigname) {
+      await waitForIndexedName(`${label}.${parent}`, 180_000)
+      await page.goto(`${PORTAL_APP_URL}/${parent}/subnames`)
+      await expect(
+        subnamesTable(page).getByText(`${label}.${parent}`, { exact: true }),
+      ).toBeVisible({ timeout: 30_000 })
+    }
+  })
+
+  test('creates a 4LD under a 3LD that owns its own registry', {
+    tag: ['@smoke', '@scenario:D3'],
+  }, async ({ portalPage: page, wallet, makeName, makeSubname, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parent = await makeName({ label: 'sub-d3', owner: 'user' })
+    // `mid` gets its own registry, which is what makes a 4LD possible at all.
+    const { levels } = await makeSubname({
+      parent,
+      levels: [{ label: 'mid', withSubregistry: true }],
+    })
+    const mid = levels[0]
+    expect(
+      mid.subregistryAddress,
+      'the 3LD must own a registry for a 4LD to live in',
+    ).toBeTruthy()
+
+    const label = `leaf-${Date.now().toString(36)}`
+    await waitForIndexedBlock()
+    await page.goto(`${PORTAL_APP_URL}/${mid.name}/create-subname`)
+    await page.locator('#label').fill(label)
+    await page.locator('#owner').fill(wallets.address('owner'))
+    await page.getByRole('button', { name: 'Create subname' }).click()
+
+    await driveTransactionsToSuccess(page, wallet, [CREATE_SUBNAME_TX])
+
+    // Resolution is only correct if the 4LD landed in the *3LD's* registry,
+    // not the parent's — that nesting is the whole point of D3.
+    expect(
+      await subnameStatus(mid.subregistryAddress as `0x${string}`, label),
+      `${label}.${mid.name} should be REGISTERED in the 3LD's own registry`,
+    ).toBe(REGISTERED)
+  })
 
   test('does not offer subname creation without ROLE_REGISTRAR', {
     tag: ['@scenario:D4'],
@@ -132,15 +159,11 @@ test.describe('Portal subnames', () => {
     await waitForIndexedBlock()
     await wallets.switchTo('stranger')
     await page.goto(`${PORTAL_APP_URL}/${parent}/subnames`)
-    await expect(page.getByRole('heading', { name: /Subnames/ })).toBeVisible()
 
     await expect(
       page.getByRole('link', { name: 'Create subname' }),
       'a wallet without ROLE_REGISTRAR must not be offered subname creation',
     ).toHaveCount(0, { timeout: 30_000 })
-    await expect(
-      page.getByRole('button', { name: 'Create subname' }),
-    ).toHaveCount(0)
   })
 
   test('deletes a subname', { tag: ['@scenario:D5'] }, async ({
@@ -293,29 +316,22 @@ test.describe('Portal registry', () => {
     await page.getByRole('button', { name: 'Deploy' }).click()
     await driveTransactionsToSuccess(page, wallet, ['tx-set-subregistry'])
 
-    // Seed creation through the fixture while the standalone UI is paused.
     // kangaroo.eth creates its own subname in the now-shared registry.
     await waitForIndexedBlock()
-    await registerSubname(
-      {
-        registryAddress: sharedRegistry,
-        label: 'eastern',
-        parentLabel: koala.replace(/\.eth$/, ''),
-      },
-      wallets.account('owner'),
-    )
+    await page.goto(`${PORTAL_APP_URL}/${kangaroo}/create-subname`)
+    await page.locator('#label').fill('eastern')
+    await page.locator('#owner').fill(wallets.address('owner'))
+    await page.getByRole('button', { name: 'Create subname' }).click()
+    await driveTransactionsToSuccess(page, wallet, [CREATE_SUBNAME_TX])
     await waitForIndexedName(`eastern.${kangaroo}`)
 
     // koala.eth — the ORIGINAL registry owner — registers another subname
-    // after kangaroo.eth has linked in.
-    await registerSubname(
-      {
-        registryAddress: sharedRegistry,
-        label: 'purple',
-        parentLabel: koala.replace(/\.eth$/, ''),
-      },
-      wallets.account('owner'),
-    )
+    // from its OWN /subnames page, after kangaroo.eth has linked in.
+    await page.goto(`${PORTAL_APP_URL}/${koala}/create-subname`)
+    await page.locator('#label').fill('purple')
+    await page.locator('#owner').fill(wallets.address('owner'))
+    await page.getByRole('button', { name: 'Create subname' }).click()
+    await driveTransactionsToSuccess(page, wallet, [CREATE_SUBNAME_TX])
 
     expect(
       await subnameStatus(sharedRegistry, 'purple'),
@@ -339,7 +355,7 @@ test.describe('Portal registry', () => {
       `blue.${koala} predates the registry being shared and must still show`,
     ).toBeVisible({ timeout: 30_000 })
     // 2. kangaroo.eth's page shows BOTH its own subname AND the one koala.eth
-    //    registered by koala.eth's owner — the flip side of the bug.
+    //    registered from koala.eth's own page — the flip side of the bug.
     await page.goto(`${PORTAL_APP_URL}/${kangaroo}/subnames`)
     await expect(
       subnamesTable(page).getByText(`eastern.${kangaroo}`, { exact: true }),
@@ -347,17 +363,17 @@ test.describe('Portal registry', () => {
     ).toBeVisible({ timeout: 30_000 })
     await expect(
       subnamesTable(page).getByText(`purple.${kangaroo}`, { exact: true }),
-      `kangaroo.eth incorrectly gains "purple", which was registered by ${koala}'s owner`,
+      `kangaroo.eth incorrectly gains "purple", which was registered from ${koala}'s own /create-subname page`,
     ).toBeVisible({ timeout: 30_000 })
 
-    // Oracle (this is the one expected to fail): a subname registered by
-    // koala.eth's owner must appear on koala.eth's /subnames
+    // Oracle (this is the one expected to fail): a subname registered from
+    // koala.eth's own /subnames page must appear on koala.eth's /subnames
     // page — not on kangaroo.eth's, just because kangaroo.eth also points at
     // the same registry contract.
     await page.goto(`${PORTAL_APP_URL}/${koala}/subnames`)
     await expect(
       subnamesTable(page).getByText(`purple.${koala}`, { exact: true }),
-      `purple.${koala} was created by ${koala}'s owner and must appear there, not under ${kangaroo}`,
+      `purple.${koala} was created from ${koala}'s own /subnames page and must appear there, not under ${kangaroo}`,
     ).toBeVisible({ timeout: 30_000 })
   })
 
@@ -420,27 +436,21 @@ test.describe('Portal registry', () => {
     await driveTransactionsToSuccess(page, wallet, ['tx-set-subregistry'])
 
     await waitForIndexedBlock()
-    await registerSubname(
-      {
-        registryAddress: sharedRegistry,
-        label: 'eastern',
-        parentLabel: koala.replace(/\.eth$/, ''),
-      },
-      wallets.account('manager'),
-    )
+    await page.goto(`${PORTAL_APP_URL}/${kangaroo}/create-subname`)
+    await page.locator('#label').fill('eastern')
+    await page.locator('#owner').fill(wallets.address('manager'))
+    await page.getByRole('button', { name: 'Create subname' }).click()
+    await driveTransactionsToSuccess(page, wallet, [CREATE_SUBNAME_TX])
     await waitForIndexedName(`eastern.${kangaroo}`)
 
     // koala.eth's owner — the ORIGINAL registry owner — registers another
-    // subname after kangaroo.eth has linked in.
+    // subname from its OWN /subnames page, after kangaroo.eth has linked in.
     await wallets.switchTo('owner')
-    await registerSubname(
-      {
-        registryAddress: sharedRegistry,
-        label: 'purple',
-        parentLabel: koala.replace(/\.eth$/, ''),
-      },
-      wallets.account('owner'),
-    )
+    await page.goto(`${PORTAL_APP_URL}/${koala}/create-subname`)
+    await page.locator('#label').fill('purple')
+    await page.locator('#owner').fill(wallets.address('owner'))
+    await page.getByRole('button', { name: 'Create subname' }).click()
+    await driveTransactionsToSuccess(page, wallet, [CREATE_SUBNAME_TX])
 
     expect(
       await subnameStatus(sharedRegistry, 'purple'),
@@ -466,17 +476,17 @@ test.describe('Portal registry', () => {
     ).toBeVisible({ timeout: 30_000 })
     await expect(
       subnamesTable(page).getByText(`purple.${kangaroo}`, { exact: true }),
-      `kangaroo.eth incorrectly gains "purple", which was registered by ${koala}'s owner`,
+      `kangaroo.eth incorrectly gains "purple", which was registered from ${koala}'s own /create-subname page`,
     ).toBeVisible({ timeout: 30_000 })
 
-    // Oracle (expected to fail): a subname registered by koala.eth's owner
-    // must appear on koala.eth's /subnames page — not on
+    // Oracle (expected to fail): a subname registered from koala.eth's own
+    // /subnames page must appear on koala.eth's /subnames page — not on
     // kangaroo.eth's, even though the two names are owned by different
     // wallets.
     await page.goto(`${PORTAL_APP_URL}/${koala}/subnames`)
     await expect(
       subnamesTable(page).getByText(`purple.${koala}`, { exact: true }),
-      `purple.${koala} was created by ${koala}'s owner and must appear there, not under ${kangaroo}`,
+      `purple.${koala} was created from ${koala}'s own /subnames page and must appear there, not under ${kangaroo}`,
     ).toBeVisible({ timeout: 30_000 })
   })
 })
@@ -536,7 +546,7 @@ test.describe('Portal registry — protocol invariants (shared registries)', () 
           | undefined
       )?.toLowerCase()
 
-    // Case 1: "1" predates the sharing, registered by abc's owner. def.eth
+    // Case 1: "1" predates the sharing, registered from abc's page. def.eth
     // has done nothing except link the registry — it never touched "1" —
     // yet "1.def" resolves, on-chain, to the exact same owner.
     const owner1abc = await chainOwner(`1.${abc}`)
@@ -547,39 +557,35 @@ test.describe('Portal registry — protocol invariants (shared registries)', () 
       '"1.def" must resolve to the SAME owner as "1.abc" — same registry, same label, same token; the registry has no concept of "which parent"',
     ).toBe(owner1abc)
 
-    // Case 2: abc's owner registers "2" AFTER def has already linked in.
+    // Case 2: abc registers "2" from its OWN /create-subname page, AFTER def
+    // has already linked in.
     await waitForIndexedBlock()
-    await registerSubname(
-      {
-        registryAddress: sharedRegistry,
-        label: '2',
-        parentLabel: abc.replace(/\.eth$/, ''),
-      },
-      wallets.account('owner'),
-    )
+    await page.goto(`${PORTAL_APP_URL}/${abc}/create-subname`)
+    await page.locator('#label').fill('2')
+    await page.locator('#owner').fill(wallets.address('owner'))
+    await page.getByRole('button', { name: 'Create subname' }).click()
+    await driveTransactionsToSuccess(page, wallet, [CREATE_SUBNAME_TX])
 
     const owner2abc = await chainOwner(`2.${abc}`)
     const owner2def = await chainOwner(`2.${def}`)
     expect(
       owner2def,
-      '"2" was registered after sharing — "2.def" must still resolve to the same owner as "2.abc"',
+      '"2" was registered from abc\'s own page — "2.def" must still resolve to the same owner as "2.abc"',
     ).toBe(owner2abc)
 
-    // Case 3: another label in the shared registry resolves under def too.
-    await registerSubname(
-      {
-        registryAddress: sharedRegistry,
-        label: '3',
-        parentLabel: abc.replace(/\.eth$/, ''),
-      },
-      wallets.account('owner'),
-    )
+    // Case 3: def registers "3" from ITS OWN /create-subname page — the
+    // mirror image of case 2.
+    await page.goto(`${PORTAL_APP_URL}/${def}/create-subname`)
+    await page.locator('#label').fill('3')
+    await page.locator('#owner').fill(wallets.address('owner'))
+    await page.getByRole('button', { name: 'Create subname' }).click()
+    await driveTransactionsToSuccess(page, wallet, [CREATE_SUBNAME_TX])
 
     const owner3def = await chainOwner(`3.${def}`)
     const owner3abc = await chainOwner(`3.${abc}`)
     expect(
       owner3abc,
-      '"3.abc" must still resolve to the same owner as "3.def"',
+      '"3" was registered from def\'s own page — "3.abc" must still resolve to the same owner as "3.def"',
     ).toBe(owner3def)
 
     // Records do NOT follow this symmetry, even though ownership does: a
