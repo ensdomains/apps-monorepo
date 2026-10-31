@@ -1,5 +1,5 @@
 import { encodeLabelhash } from '@ensdomains/ensjs/utils'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { type Address, type Hex, keccak256, labelhash, toHex } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import { rememberName } from '@/utils/ens/localLabels'
@@ -49,26 +49,45 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   ),
 }))
 
-vi.mock('@/components/EntityBadge', () => ({
-  EntityBadge: ({
-    children,
-    name,
-    variant,
-    showAvatar,
-  }: {
-    children: React.ReactNode
-    name?: string
-    variant?: string
-    showAvatar?: boolean
-  }) => (
-    <span data-testid="entity-badge" data-name={name}>
-      {showAvatar && variant === 'name' && name ? (
-        <span data-testid="name-avatar">{name}</span>
-      ) : null}
-      {children}
-    </span>
-  ),
-}))
+// The real highlight hook, so the tests below see whether the table mounts its
+// provider.
+vi.mock('@/components/EntityBadge', async () => {
+  const { useAddressHighlight } = await vi.importActual<
+    typeof import('@/components/AddressHighlight')
+  >('@/components/AddressHighlight')
+  return {
+    EntityBadge: ({
+      children,
+      name,
+      address,
+      variant,
+      showAvatar,
+    }: {
+      children: React.ReactNode
+      name?: string
+      address?: Address
+      variant?: string
+      showAvatar?: boolean
+    }) => {
+      const highlight = useAddressHighlight(address)
+      return (
+        <button
+          type="button"
+          data-testid="entity-badge"
+          data-name={name}
+          data-address-highlighted={highlight.isHighlighted || undefined}
+          onMouseEnter={highlight.onMouseEnter}
+          onMouseLeave={highlight.onMouseLeave}
+        >
+          {showAvatar && variant === 'name' && name ? (
+            <span data-testid="name-avatar">{name}</span>
+          ) : null}
+          {children}
+        </button>
+      )
+    },
+  }
+})
 
 vi.mock('@/utils/formatting/truncateAddress', () => ({
   truncateAddress: (address: string) => `${address.slice(0, 6)}...`,
@@ -325,5 +344,56 @@ describe('SubnamesTable', () => {
         screen.queryByRole('button', { name: 'Load more subnames' }),
       ).not.toBeInTheDocument()
     })
+  })
+})
+
+describe('SubnamesTable owner highlight', () => {
+  // onshow.eth as the ticket saw it: seven subnames under one owner, delegate
+  // and gov under another.
+  const OWNER: Address = '0xC28d000000000000000000000000000000Abc20D'
+  const OTHER: Address = '0xA708000000000000000000000000000000008AAa'
+  const OWNED = [
+    'admin',
+    'art',
+    'contract',
+    'fire',
+    'namechain',
+    'team',
+    'vault',
+  ]
+  const subnames = [
+    ...OWNED.map((label) => createMockSubname(`${label}.onshow.eth`, OWNER)),
+    createMockSubname('delegate.onshow.eth', OTHER),
+    createMockSubname('gov.onshow.eth', OTHER),
+  ]
+
+  const ownerBadgeOf = (row: HTMLElement) => {
+    const badge = within(row)
+      .getAllByTestId('entity-badge')
+      .find((el) => el.dataset.name === undefined)
+    if (!badge) throw new Error('Row has no owner badge')
+    return badge
+  }
+  const highlightedRows = () =>
+    within(screen.getByRole('table'))
+      .getAllByRole('row')
+      .filter((row) => row.querySelector('[data-address-highlighted]'))
+      .map((row) => row.querySelector('[data-name]')?.getAttribute('data-name'))
+
+  it('lights up every row the hovered owner holds, and no other', () => {
+    render(<SubnamesTable subnames={subnames} name="onshow.eth" />)
+    const row = screen
+      .getAllByText('admin.onshow.eth')
+      .map((el) => el.closest('tr'))
+      .find((el) => el !== null)
+    if (!row) throw new Error('No table row for admin.onshow.eth')
+
+    fireEvent.mouseEnter(ownerBadgeOf(row))
+    expect(highlightedRows()).toEqual(
+      OWNED.map((label) => `${label}.onshow.eth`),
+    )
+
+    fireEvent.mouseLeave(ownerBadgeOf(row))
+    expect(highlightedRows()).toEqual([])
   })
 })
