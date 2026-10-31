@@ -1,7 +1,10 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
-import { isPendingUpgradeImplementation } from './pendingUpgradeRegistry'
+import {
+  isPastedRegistryBlocked,
+  isPendingUpgradeImplementation,
+} from './pendingUpgradeRegistry'
 
 describe('isPendingUpgradeImplementation', () => {
   it.each([mainnet.id, sepolia.id])(
@@ -36,4 +39,20 @@ describe('isPendingUpgradeImplementation', () => {
       }),
     ).toBe(false)
   })
+})
+
+describe('isPastedRegistryBlocked', () => {
+  it.each([
+    { isPasted: true, isPendingUpgrade: true, expected: true },
+    { isPasted: true, isPendingUpgrade: undefined, expected: true },
+    { isPasted: true, isPendingUpgrade: false, expected: false },
+    { isPasted: false, isPendingUpgrade: undefined, expected: false },
+  ])(
+    'pasted $isPasted, pending $isPendingUpgrade: blocked $expected',
+    ({ isPasted, isPendingUpgrade, expected }) => {
+      expect(isPastedRegistryBlocked({ isPasted, isPendingUpgrade })).toBe(
+        expected,
+      )
+    },
+  )
 })

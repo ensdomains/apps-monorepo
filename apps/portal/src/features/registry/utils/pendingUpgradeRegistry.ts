@@ -33,3 +33,12 @@ export const isPendingUpgradeImplementation = ({
   (PENDING_UPGRADE_IMPLEMENTATIONS[chainId] ?? []).some((listed) =>
     isAddressEqual(listed, implementation),
   )
+
+/** A pasted registry can't be used until it is confirmed not to be pending an upgrade. */
+export const isPastedRegistryBlocked = ({
+  isPasted,
+  isPendingUpgrade,
+}: {
+  readonly isPasted: boolean
+  readonly isPendingUpgrade: boolean | undefined
+}): boolean => isPasted && isPendingUpgrade !== false

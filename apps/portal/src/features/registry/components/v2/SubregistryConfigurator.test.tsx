@@ -20,6 +20,13 @@ vi.mock('@/features/registry/utils/registryDeployPause', () => ({
   },
 }))
 
+const pastedRegistryCheck = vi.hoisted(() =>
+  vi.fn(() => ({ isBlocked: false, isPendingUpgrade: false })),
+)
+vi.mock('@/features/registry/hooks/usePastedRegistryCheck', () => ({
+  usePastedRegistryCheck: pastedRegistryCheck,
+}))
+
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return { ...actual, useConnection: () => ({ address: CONNECTED }) }
@@ -116,6 +123,10 @@ const deferred = <T,>() => {
 
 beforeEach(() => {
   isDeployPaused.mockReturnValue(false)
+  pastedRegistryCheck.mockReturnValue({
+    isBlocked: false,
+    isPendingUpgrade: false,
+  })
   discoverRegistries
     .mockReset()
     .mockResolvedValue([zeroAddress, PARENT_REGISTRY, PARENT_REGISTRY])
@@ -221,6 +232,37 @@ describe('SubregistryConfigurator', () => {
       expect(
         screen.getByRole('radio', { name: /use a pre-existing registry/i }),
       ).toHaveAttribute('aria-checked', String(!isDeployEnabled))
+    },
+  )
+
+  it.each([
+    { isPendingUpgrade: true, isRefused: true },
+    { isPendingUpgrade: false, isRefused: false },
+  ])(
+    'with a pasted registry pending an upgrade $isPendingUpgrade, it is refused: $isRefused',
+    async ({ isPendingUpgrade, isRefused }) => {
+      isDeployPaused.mockReturnValue(true)
+      pastedRegistryCheck.mockReturnValue({
+        isBlocked: isPendingUpgrade,
+        isPendingUpgrade,
+      })
+      renderConfigurator()
+
+      const setRegistry = await screen.findByRole('button', {
+        name: 'Set registry',
+      })
+      await userEvent.type(
+        screen.getByPlaceholderText('Paste contract address'),
+        PARENT_REGISTRY,
+      )
+      expect(
+        Boolean(
+          screen.queryByText(
+            'This registry has to be upgraded before a name can use it.',
+          ),
+        ),
+      ).toBe(isRefused)
+      expect(setRegistry.hasAttribute('disabled')).toBe(isRefused)
     },
   )
 

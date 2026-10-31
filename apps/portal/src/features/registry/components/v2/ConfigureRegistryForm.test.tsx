@@ -18,6 +18,13 @@ vi.mock('@/features/registry/utils/registryDeployPause', () => ({
   },
 }))
 
+const pastedRegistryCheck = vi.hoisted(() =>
+  vi.fn(() => ({ isBlocked: false, isPendingUpgrade: false })),
+)
+vi.mock('@/features/registry/hooks/usePastedRegistryCheck', () => ({
+  usePastedRegistryCheck: pastedRegistryCheck,
+}))
+
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return { ...actual, useConnection: () => ({ address: CONNECTED }) }
@@ -332,7 +339,7 @@ describe('ConfigureRegistryForm', () => {
       screen.getByPlaceholderText(/paste contract address/i),
       CUSTOM_REGISTRY,
     )
-    await user.click(screen.getByRole('button', { name: 'Deploy' }))
+    await user.click(screen.getByRole('button', { name: 'Set registry' }))
 
     expect(
       await screen.findByText(/registry already configured/i),

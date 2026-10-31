@@ -20,6 +20,7 @@ import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/se
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
+import { usePastedRegistryCheck } from '@/features/registry/hooks/usePastedRegistryCheck'
 import { useRegistryParentMutation } from '@/features/registry/hooks/useRegistryParentMutation'
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { IS_REGISTRY_DEPLOY_PAUSED } from '@/features/registry/utils/registryDeployPause'
@@ -88,12 +89,19 @@ export const getCustomRegistryAddressError = (value: string): string | null =>
 const CustomRegistryAddressField = ({
   value,
   onChange,
+  isPendingUpgrade,
 }: {
   readonly value: string
   readonly onChange: (value: string) => void
+  /** The pasted registry has to be upgraded before a name can use it. */
+  readonly isPendingUpgrade: boolean
 }) => {
   const [touched, setTouched] = useState(false)
-  const error = touched ? getCustomRegistryAddressError(value) : null
+  const error =
+    (touched ? getCustomRegistryAddressError(value) : null) ??
+    (isPendingUpgrade
+      ? 'This registry has to be upgraded before a name can use it.'
+      : null)
 
   return (
     <div>
@@ -276,10 +284,18 @@ const SubregistryConfiguratorForm = ({
     attempt.start(connectedAddress)
   }
 
+  const pastedRegistryCheck = usePastedRegistryCheck({
+    isUsed: useCustomRegistry,
+    value: contractAddress,
+  })
+
   const isSubmitDisabled =
-    (useCustomRegistry && !isAddress(contractAddress)) || !walletOk
+    (useCustomRegistry && !isAddress(contractAddress)) ||
+    pastedRegistryCheck.isBlocked ||
+    !walletOk
 
   const buttonText = match({
+    useCustomRegistry,
     isDeployConfirming,
     isSetRegistryParentPending: registryParent.isPending,
     isSetSubregistryPending,
@@ -289,6 +305,7 @@ const SubregistryConfiguratorForm = ({
     .with({ isSetRegistryParentPending: true }, () => 'Setting parent...')
     .with({ isSetSubregistryPending: true }, () => 'Setting subregistry...')
     .with({ showSuccessButtonLabel: true }, () => 'Complete!')
+    .with({ useCustomRegistry: true }, () => 'Set registry')
     .otherwise(() => 'Deploy')
 
   if (isLoading) {
@@ -341,6 +358,7 @@ const SubregistryConfiguratorForm = ({
           <CustomRegistryAddressField
             value={contractAddress}
             onChange={setContractAddress}
+            isPendingUpgrade={pastedRegistryCheck.isPendingUpgrade}
           />
         ) : null}
         <div className="grid grid-cols-3 gap-2">
