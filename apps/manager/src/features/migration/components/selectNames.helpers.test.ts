@@ -8,6 +8,7 @@ import {
   filterGroupsBySearch,
   shouldShowBulkSelection,
   shouldShowNameSearch,
+  shouldShowSmartTransactionsNotice,
   shouldUseCompactSelectionLayout,
   shouldUseSmallSelectionCard,
   toggleRootSubtree,
@@ -166,4 +167,49 @@ describe('selection layout thresholds', () => {
     expect(shouldUseSmallSelectionCard(6)).toBe(true)
     expect(shouldUseSmallSelectionCard(7)).toBe(false)
   })
+})
+
+describe('shouldShowSmartTransactionsNotice', () => {
+  it.each([
+    {
+      isMetaMaskWallet: true,
+      totalSelected: 1,
+      isFinishingRecovery: false,
+      hasWrapperSyncNames: false,
+      expected: true,
+    },
+    {
+      isMetaMaskWallet: true,
+      totalSelected: 0,
+      isFinishingRecovery: true,
+      hasWrapperSyncNames: false,
+      expected: true,
+    },
+    {
+      isMetaMaskWallet: true,
+      totalSelected: 0,
+      isFinishingRecovery: false,
+      hasWrapperSyncNames: true,
+      expected: true,
+    },
+    {
+      isMetaMaskWallet: true,
+      totalSelected: 0,
+      isFinishingRecovery: false,
+      hasWrapperSyncNames: false,
+      expected: false,
+    },
+    {
+      isMetaMaskWallet: false,
+      totalSelected: 3,
+      isFinishingRecovery: true,
+      hasWrapperSyncNames: true,
+      expected: false,
+    },
+  ])(
+    'is $expected for MetaMask $isMetaMaskWallet, $totalSelected selected, finishing recovery $isFinishingRecovery, wrapper sync $hasWrapperSyncNames',
+    ({ expected, ...input }) => {
+      expect(shouldShowSmartTransactionsNotice(input)).toBe(expected)
+    },
+  )
 })

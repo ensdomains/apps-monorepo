@@ -54,6 +54,7 @@ import {
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
+import { isMetaMask } from '@/lib/wallet/stacks/custom/connect.helpers'
 import { invalidateMigrationQueries } from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
@@ -574,6 +575,7 @@ export const MigrationPage = () => {
             gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
             gasFundingStatus={gasFundingStatus}
+            isMetaMaskWallet={connector !== undefined && isMetaMask(connector)}
             onManagerRestorationChange={handleManagerRestorationChange}
             onNamesChange={handleNamesChange}
             onNext={() => confirmation.request('start')}
