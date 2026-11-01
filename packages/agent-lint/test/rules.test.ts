@@ -63,6 +63,25 @@ ruleTester.run('no-number-on-bigint', noNumberOnBigint, {
     'export const b = Number(1)',
     'declare const text: string; export const c = Number(text)',
     'declare const wei: bigint; export const d = wei / 2n',
+    // Times, ids, codes and counts, judged by the name of the argument.
+    'declare const domain: { expiryDate: bigint }; export const e = Number(domain.expiryDate)',
+    'declare const graceEndsAt: bigint; export const f = Number(graceEndsAt)',
+    'declare const details: { duration: bigint } | undefined; export const g = Number(details?.duration ?? 0n)',
+    'declare const domain: { chainId?: bigint } | undefined; export const h = Number(domain?.chainId)',
+    // ... of the variable, property or function that keeps the number.
+    'declare const coinType: bigint; export const chainId = Number(coinType & 0x7fffffffn)',
+    'declare const value: bigint | number; export const timestamp = typeof value === "bigint" ? Number(value) : value',
+    'declare const raw: bigint; export const domain = { chainId: Number(raw) }',
+    'declare const parity: bigint; export const signature = { v: Number(parity) }',
+    'export function decodeNameStatus(raw: string): number { return Number(BigInt(raw)) }',
+    'export const decodeNameStatus = (raw: string): number => { return Number(BigInt(raw)) }',
+    // ... or of the function the number is handed to.
+    'declare function formatUtc(seconds: number): string; declare const value: bigint; export const label = formatUtc(Number(value))',
+    // An amount scaled into the unit a person reads, once, at the edge.
+    'declare const premium: bigint; declare const decimals: number; export const usd = Number(premium) / 10 ** decimals',
+    'declare const price: bigint; export const whole = Number(price / 10n ** 8n)',
+    // Already formatted: a string, not a bigint.
+    'declare const formatEther: (wei: bigint) => string; declare const wei: bigint; export const eth = Number(formatEther(wei))',
   ],
   invalid: [
     {
@@ -75,6 +94,52 @@ ruleTester.run('no-number-on-bigint', noNumberOnBigint, {
     },
     {
       code: 'export const n = Number(10n ** 18n)',
+      errors: [{ messageId: 'converted' }],
+    },
+    // Converted back into a bigint after float arithmetic.
+    {
+      code: 'declare const price: bigint; export const buffered = BigInt(Math.round(Number(price) * 1.05))',
+      errors: [{ messageId: 'converted' }],
+    },
+    // Raw units added or compared as floats.
+    {
+      code: 'declare const a: bigint; declare const b: bigint; export const sum = Number(a) + Number(b)',
+      errors: [{ messageId: 'converted' }, { messageId: 'converted' }],
+    },
+    {
+      code: 'declare const balance: bigint; declare const limit: bigint; export const over = Number(balance) > Number(limit)',
+      errors: [{ messageId: 'converted' }, { messageId: 'converted' }],
+    },
+    // A division that is not a scale by a power of ten.
+    {
+      code: 'declare const price: bigint; export const third = Number(price) / 3',
+      errors: [{ messageId: 'converted' }],
+    },
+    {
+      code: 'declare const price: bigint; export const eighth = Number(price) / 2 ** 3',
+      errors: [{ messageId: 'converted' }],
+    },
+    {
+      code: 'declare const price: bigint; declare const decimals: number; export const wrong = Number(price) * 10 ** decimals',
+      errors: [{ messageId: 'converted' }],
+    },
+    // Reading through ?. and ?? does not make an amount a time.
+    {
+      code: 'declare const token: { amount: bigint } | undefined; export const amount = Number(token?.amount ?? 0n)',
+      errors: [{ messageId: 'converted' }],
+    },
+    // A token id is 256 bits, and the names `update` and `price` are not times.
+    {
+      code: 'declare const tokenId: bigint; export const id = Number(tokenId)',
+      errors: [{ messageId: 'converted' }],
+    },
+    {
+      code: 'declare const update: bigint; export const u = Number(update)',
+      errors: [{ messageId: 'converted' }],
+    },
+    // Handed to a function whose name says nothing about a time.
+    {
+      code: 'declare const amount: bigint; export const rounded = Math.round(Number(amount))',
       errors: [{ messageId: 'converted' }],
     },
   ],

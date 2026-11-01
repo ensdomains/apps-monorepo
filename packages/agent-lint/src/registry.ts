@@ -673,7 +673,7 @@ export const RULES: ReadonlyArray<RuleEntry> = [
   ),
   rule(
     'agent/no-number-on-bigint',
-    'Chain quantities stay bigint; no `Number()` on a bigint.',
+    'Chain quantities stay bigint; no `Number()` on a bigint amount. A time, id, code or count (judged by its name), a difference, and an amount scaled by `10 ** decimals` into the unit a person reads pass.',
     {
       wiki: [
         'libraries/web3.md › Use BigInt for every blockchain numeric value',
