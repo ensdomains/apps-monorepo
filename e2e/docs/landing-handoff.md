@@ -13,7 +13,8 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Next action
 
-1. Prepare **B1b** (Manager smoke) from main: `playwright.smoke.config.ts`, the remaining manager specs and `@smoke` tags for the Manager rows (registration, renew, bulk renew, primary name, records, My Names, migration of a registry subname and a name in grace, CCIP), then switch the manager's per-PR job to its smoke config.
+0. **B1b is prepared locally**: branch `e2e-land/b1b-manager-smoke` (worktree `/Users/sg/ens/worktrees/e2e-land-b1b`, 2 commits off main, unpushed). Waiting for the user's go to push and open the PR to main; then watch CI (manager smoke ×2 shards, manager-migration with the portal started).
+1. (done locally) Prepare **B1b** (Manager smoke) from main: `playwright.smoke.config.ts`, the remaining manager specs and `@smoke` tags for the Manager rows (registration, renew, bulk renew, primary name, records, My Names, migration of a registry subname and a name in grace, CCIP), then switch the manager's per-PR job to its smoke config.
 2. Triage the four nightly migration failures (GW uncertified-resolver refusal, GU4, GS11, gas-budget split).
 
 ## Waiting on
@@ -111,6 +112,9 @@ When one is written, replace its `gap` entry in `landing/batches.ts` with `spec`
 - **2026-10-28**: B1a builds `e2e.yml` from main's file (Node 24 pin, path filter, sharding) rather than the branch's, and drops the branch's coverage/matrix-check steps (B10/B7 not landed). `e2e-land/**` is a PR base so stacked PRs get e2e CI; drop it after the landing.
 - **2026-10-28**: Cross-app `@smoke` tests skip unless bigname is real, so the per-PR gate has no cross-app job; nightly runs cross-app (two of its specs work with mocked bigname).
 - **2026-10-31**: B0 and B1a merged; main merged into this branch with main winning every landed file. The freeze starts. #1637 (the USDC mismatch) merged, so the two registration `fixme` markers can be removed.
+- **2026-11-01**: B1b prepared. Manager per-PR job switches from the full suite (3 shards) to `playwright.smoke.config.ts` (2 shards); nightly keeps the full suite. The migration jobs (per PR and nightly) now also start the portal, because `offchain-migration.spec.ts` checks the migrated name in the explorer.
+- **2026-11-01**: `migration-time.spec.ts` stays untagged: `manager-migration-time` depends on `manager-migration`, and Playwright runs a dependency project in full when any test in a dependent project is selected, so one `@smoke` there pulls all 62 migration tests into the per-PR job. The two Manager V1-renew checklist rows run nightly.
+- **2026-11-01**: Branch specs that main's app changes left behind (test-side, not app defects): `renewFor28Days` renewed one day since #1498 made the picker's minimum one day (fixed: picks expiry + 28); grace names start unselected since #1556 (fixed: the spec opts in). Still stale and held out of `@smoke` (nightly only, need a rewrite): the grace flow (connected embedded-wallet account holds no USDC, #1556 funding copy), WEB-1506 budget guard (#1513 replaced its copy and the "up to" hedge), WEB-1483 leftover and WEB-674 revoke (both assume an HCA short of the total; CI funds it 10,000 USDC).
 - **2026-11-01**: No unskip PR needed: main never carried the `fixme` markers. `pr-verify` pointed at main (worktree off `origin/main`, Phase 7 is a tests PR to main, no attribution line). `e2e-goal` paused with a freeze note rather than repointed, since its state files are B10.
 
 ## Worktree triage (2026-10-28)
