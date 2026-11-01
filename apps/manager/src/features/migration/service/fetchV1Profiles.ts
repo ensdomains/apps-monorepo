@@ -11,6 +11,7 @@ import type { V1_RESOLVER_PROFILE_ABI } from '../contracts/abis'
 import { cleanResolverTextRecords } from './cleanResolverTextRecords'
 import {
   buildProfileMulticallPlan,
+  completedProfileNames,
   indexNamesByNode,
   initEmptyProfileBuckets,
   type MulticallContract,
@@ -18,6 +19,7 @@ import {
   mergeMulticallResultsIntoProfiles,
   type NameForFetch,
   profileMapKey,
+  type ResolverCall,
 } from './fetchV1Profiles.helpers'
 import { getV1ProfileKeys, type V1ProfileKeys } from './v1ProfileKeys'
 
@@ -53,6 +55,11 @@ const executeMulticallChunks = async (
   publicClient: PublicClient,
   contracts: readonly MulticallContract[],
   signal?: AbortSignal,
+  progress?: {
+    readonly names: readonly NameForFetch[]
+    readonly calls: readonly ResolverCall[]
+    readonly onNamesRead: (names: readonly string[]) => void | Promise<void>
+  },
 ): Promise<MulticallResult[]> => {
   const chunks: (typeof contracts)[] = []
   for (let i = 0; i < contracts.length; i += PROFILE_MULTICALL_CHUNK) {
@@ -60,6 +67,7 @@ const executeMulticallChunks = async (
   }
   const chunkResults: MulticallResult[][] = new Array(chunks.length)
   let cursor = 0
+  let completedChunks: ReadonlySet<number> = new Set()
   const runWorker = async (): Promise<void> => {
     while (true) {
       signal?.throwIfAborted()
@@ -94,6 +102,15 @@ const executeMulticallChunks = async (
         )
       }
       chunkResults[index] = results
+      completedChunks = new Set([...completedChunks, index])
+      if (progress)
+        await progress.onNamesRead(
+          completedProfileNames({
+            ...progress,
+            completedChunks,
+            chunkSize: PROFILE_MULTICALL_CHUNK,
+          }),
+        )
     }
   }
   try {
@@ -111,6 +128,7 @@ export const fetchV1Profiles = async (params: {
   publicClient: PublicClient
   profileKeys?: readonly V1ProfileKeys[]
   signal?: AbortSignal
+  readonly onNamesRead?: (names: readonly string[]) => void | Promise<void>
 }): Promise<Map<Hex, Profile>> => {
   const { names, publicClient, profileKeys, signal } = params
   signal?.throwIfAborted()
@@ -126,7 +144,7 @@ export const fetchV1Profiles = async (params: {
           name,
           resolver: v1ResolverAddress,
         })),
-        { signal, chainId: publicClient.chain?.id },
+        { signal, chainId: publicClient.chain?.id, publicClient },
       )
   signal?.throwIfAborted()
   const keyEntries =
@@ -160,9 +178,19 @@ export const fetchV1Profiles = async (params: {
     publicClient.chain?.id,
   )
   const buckets = initEmptyProfileBuckets(byNode)
-  if (contracts.length === 0) return buckets
+  if (contracts.length === 0) {
+    await params.onNamesRead?.(names.map(({ name }) => name))
+    return buckets
+  }
 
-  const results = await executeMulticallChunks(publicClient, contracts, signal)
+  const results = await executeMulticallChunks(
+    publicClient,
+    contracts,
+    signal,
+    params.onNamesRead
+      ? { names, calls, onNamesRead: params.onNamesRead }
+      : undefined,
+  )
   signal?.throwIfAborted()
   const profiles = mergeMulticallResultsIntoProfiles({
     buckets,

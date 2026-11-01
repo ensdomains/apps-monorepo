@@ -714,6 +714,10 @@ msgstr ""
 msgid "Checking allowance"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking everything is ready..."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/ResumeCheckPlaceholder.tsx
 msgid "Checking for an unfinished registration"
 msgstr ""
@@ -742,6 +746,10 @@ msgstr ""
 msgid "Checking the latest name state before you continue."
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking the network fee..."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking token allowance"
 msgstr ""
@@ -768,6 +776,14 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking your earlier payment"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking your name details..."
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking your names..."
 msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
@@ -1336,14 +1352,6 @@ msgstr ""
 msgid "Estimated renewal cost"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Estimating the network fee..."
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Estimating..."
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Existing balance"
 msgstr ""
@@ -1482,6 +1490,10 @@ msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Gathering your name details..."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx
@@ -2234,6 +2246,18 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing your registration"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Preparing your upgrade"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Preparing your upgrade..."
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Preparing..."
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx

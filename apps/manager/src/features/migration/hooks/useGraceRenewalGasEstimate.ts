@@ -15,6 +15,7 @@ import {
 } from '../service/estimateGraceRenewalMigrationGas'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
 import type { GraceRenewalQuoteState } from './useGraceRenewalQuote'
+import { useMigrationEstimateProgress } from './useMigrationEstimateProgress'
 import type { MigrationGasEstimateState } from './useMigrationGasEstimate'
 
 export type GraceRenewalGasEstimateState =
@@ -114,26 +115,31 @@ export const useGraceRenewalGasEstimate = ({
       })),
     },
   }
+  const queryKey = graceRenewalGasEstimateQueryKey({
+    estimateIdentity,
+    quote: {
+      quotedAtMs: quote?.quotedAtMs,
+      expiresAt: quote?.expiresAt.toString(),
+      totalAmount: quote?.totalAmount.toString(),
+      items: quote?.items.map((item) => ({
+        duration: item.duration.toString(),
+        targetExpiry: item.targetExpiry.toString(),
+        registrationExpiry: item.registrationExpiry.toString(),
+        amount: item.amount.toString(),
+      })),
+    },
+  })
+  const { progress, start: startProgress } = useMigrationEstimateProgress(
+    queryKey,
+    selectedNames,
+  )
   const query = useQuery<
     GraceRenewalMigrationGasEstimate,
     Error,
     GraceRenewalMigrationGasEstimate,
     ReturnType<typeof graceRenewalGasEstimateQueryKey>
   >({
-    queryKey: graceRenewalGasEstimateQueryKey({
-      estimateIdentity,
-      quote: {
-        quotedAtMs: quote?.quotedAtMs,
-        expiresAt: quote?.expiresAt.toString(),
-        totalAmount: quote?.totalAmount.toString(),
-        items: quote?.items.map((item) => ({
-          duration: item.duration.toString(),
-          targetExpiry: item.targetExpiry.toString(),
-          registrationExpiry: item.registrationExpiry.toString(),
-          amount: item.amount.toString(),
-        })),
-      },
-    }),
+    queryKey,
     // Keep the requests dialog open while this selection's quote refreshes.
     // Prices and durations may drift; another wallet, selection, or renewal
     // route must never inherit the previous estimate or request descriptors.
@@ -155,6 +161,7 @@ export const useGraceRenewalGasEstimate = ({
         )
       }
       return estimateGraceRenewalMigrationGas({
+        ...startProgress(signal),
         quote,
         domains,
         hcaAddress,
@@ -172,7 +179,7 @@ export const useGraceRenewalGasEstimate = ({
     return { status: 'idle' }
   }
   if (!quote || !hcaAddress) {
-    return { status: 'loading' }
+    return { status: 'loading', ...(progress && { progress }) }
   }
   if (query.isError) {
     return {
@@ -180,7 +187,7 @@ export const useGraceRenewalGasEstimate = ({
       ...migrationPreparationFailure(query.error, 'fee'),
     }
   }
-  if (!query.data) return { status: 'loading' }
+  if (!query.data) return { status: 'loading', ...(progress && { progress }) }
   return {
     status: 'ready',
     ...query.data,

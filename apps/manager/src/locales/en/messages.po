@@ -709,6 +709,10 @@ msgstr "Checking"
 msgid "Checking allowance"
 msgstr "Checking allowance"
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking everything is ready..."
+msgstr "Checking everything is ready..."
+
 #: src/features/register-v2/workflow/pricing/components/ResumeCheckPlaceholder.tsx
 msgid "Checking for an unfinished registration"
 msgstr "Checking for an unfinished registration"
@@ -737,6 +741,10 @@ msgstr "Checking the last attempt"
 msgid "Checking the latest name state before you continue."
 msgstr "Checking the latest name state before you continue."
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking the network fee..."
+msgstr "Checking the network fee..."
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking token allowance"
 msgstr "Checking token allowance"
@@ -764,6 +772,14 @@ msgstr "Checking your account…"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking your earlier payment"
 msgstr "Checking your earlier payment"
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking your name details..."
+msgstr "Checking your name details..."
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking your names..."
+msgstr "Checking your names..."
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Checking your subnames"
@@ -1331,14 +1347,6 @@ msgstr "Estimated network fee"
 msgid "Estimated renewal cost"
 msgstr "Estimated renewal cost"
 
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Estimating the network fee..."
-msgstr "Estimating the network fee..."
-
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Estimating..."
-msgstr "Estimating..."
-
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Existing balance"
 msgstr "Existing balance"
@@ -1478,6 +1486,10 @@ msgstr "Funding wallet"
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr "Funding wallet {address} with mock USDC & DAI tokens"
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Gathering your name details..."
+msgstr "Gathering your name details..."
 
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Get instant push notifications in your browser"
@@ -2230,6 +2242,18 @@ msgstr "Preparing your newly registered name"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing your registration"
 msgstr "Preparing your registration"
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Preparing your upgrade"
+msgstr "Preparing your upgrade"
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Preparing your upgrade..."
+msgstr "Preparing your upgrade..."
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Preparing..."
+msgstr "Preparing..."
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 msgid "Preview"

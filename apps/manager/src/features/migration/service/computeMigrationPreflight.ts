@@ -37,6 +37,7 @@ import {
   getV1ProfileKeys,
   type V1ProfileKeys,
 } from '@/features/migration/service/v1ProfileKeys'
+import { namesNotRequiringProfileRead } from './migrationEstimateProgress'
 
 export type MigrationPreflight = {
   skipFetchProfilesPhase: boolean
@@ -140,8 +141,9 @@ const computeApprovalPreflight = async (params: {
 
 const computeProfilePreflight = async (
   namesToOwnedPermRes: readonly ClassifiedName[],
+  publicClient: PublicClient,
   signal?: AbortSignal,
-  chainId?: number,
+  onNamesRead?: (names: readonly string[]) => void | Promise<void>,
 ): Promise<{
   readonly skipFetchProfilesPhase: boolean
   readonly profileKeys?: readonly V1ProfileKeys[]
@@ -160,7 +162,7 @@ const computeProfilePreflight = async (
         ? [{ id: domain.id, name: domain.name, resolver: v1ResolverAddress }]
         : [],
     ),
-    { signal, chainId },
+    { signal, chainId: publicClient.chain?.id, publicClient, onNamesRead },
   )
   signal?.throwIfAborted()
   if (keysResult.isErr()) {
@@ -205,6 +207,7 @@ export const computeMigrationPreflight = async (params: {
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
   signal?: AbortSignal
+  readonly onNamesRead?: (names: readonly string[]) => void | Promise<void>
 }): Promise<MigrationPreflight> => {
   const {
     eoa,
@@ -233,6 +236,8 @@ export const computeMigrationPreflight = async (params: {
     (n) => n.resolverStrategy === 'to-owned-permres',
   )
   const needsOwnedPermRes = namesToOwnedPermRes.length > 0
+  const noProfileRead = namesNotRequiringProfileRead(classified)
+  await params.onNamesRead?.(noProfileRead)
 
   const [
     resolverPreflight,
@@ -257,8 +262,13 @@ export const computeMigrationPreflight = async (params: {
     }),
     computeProfilePreflight(
       namesToOwnedPermRes,
+      publicClient,
       signal,
-      params.publicClient.chain?.id,
+      params.onNamesRead
+        ? async (names) => {
+            await params.onNamesRead?.([...noProfileRead, ...names])
+          }
+        : undefined,
     ),
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
     hcaAddress

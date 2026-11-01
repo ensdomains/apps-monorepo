@@ -1,5 +1,4 @@
 import {
-  getSubnameMigrationImpact,
   type SubnameMigrationImpact,
   SubnameMigrationImpactError,
 } from '@ens-apps/migration'
@@ -8,9 +7,8 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { QueryClient } from '@tanstack/react-query'
 import { fromPromise } from 'neverthrow'
 import type { PublicClient } from 'viem'
-import { bigname } from '@/lib/bigname'
 import { publicClient } from '@/lib/wagmi'
-import { getMigrationInventoryIndexer } from './migrationInventoryIndexer'
+import { readRpcSubnameMigrationImpact } from './readRpcSubnameMigrationImpact'
 
 type Scope = {
   readonly ownerAddress?: string | null
@@ -58,22 +56,12 @@ export const getSubnameMigrationImpactQueryOptions = (
       ])
       const inputs = getImpactInputs(params)
       return fromPromise(
-        getMigrationInventoryIndexer({
-          indexer: bigname,
-          ownerAddress: params.ownerAddress,
-          names: inputs.migratingNames,
-          chainId: params.chainId,
-          signal: requestSignal,
-        }),
-        (cause) => new SubnameMigrationImpactError({ cause }),
-      ).andThen((indexer) =>
-        getSubnameMigrationImpact({
-          indexer,
+        readRpcSubnameMigrationImpact({
           publicClient: publicClient as PublicClient,
-          shouldSkipEmptySubtrees: true,
           ...inputs,
           signal: requestSignal,
         }),
+        (cause) => new SubnameMigrationImpactError({ cause }),
       )
     },
     enabled: isEnabled && isPrepared && hasSelectedNames,

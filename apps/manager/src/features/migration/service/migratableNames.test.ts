@@ -1,8 +1,6 @@
-import { BignameError, createBignameClient } from '@ens-apps/indexer/bigname'
-import { errAsync, ok } from 'neverthrow'
 import {
   createPublicClient,
-  custom,
+  http,
   namehash,
   type PublicClient,
   zeroAddress,
@@ -11,27 +9,25 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { envConfig } from '@/config'
 import { V2_CONTRACTS } from '../contracts/addresses'
-import { makeClassified, OWNER } from './_fixtures'
+import { makeClassified, makeDomain, OWNER } from './_fixtures'
+import { makeRpcSubnameInventory } from './_fixtures/rpcSubnameInventory'
 import { computeExpectedWrapperRegistry } from './directMigrationRoutes'
+import { RpcSubnameInventoryError } from './readRpcSubnameInventory'
 import { SubnameRecreationError } from './subnameRecreationError'
 
 const mocks = vi.hoisted(() => ({
   discoverSubnameRecreation: vi.fn(),
   getSubnameMigrationImpact: vi.fn(),
-  name: vi.fn(),
+  readRpcSubnameInventory: vi.fn(),
 }))
 
-vi.mock('@/lib/bigname', () => ({ bigname: { name: mocks.name } }))
-vi.mock('./migrationInventoryIndexer', () => ({
-  getMigrationInventoryIndexer: async ({
-    indexer,
-  }: {
-    readonly indexer: unknown
-  }) => indexer,
+vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+vi.mock('./readRpcSubnameInventory', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./readRpcSubnameInventory')>()),
+  readRpcSubnameInventory: mocks.readRpcSubnameInventory,
 }))
-vi.mock('@ens-apps/migration', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@ens-apps/migration')>()),
-  getSubnameMigrationImpact: mocks.getSubnameMigrationImpact,
+vi.mock('./readRpcSubnameMigrationImpact', () => ({
+  readRpcSubnameMigrationImpacts: mocks.getSubnameMigrationImpact,
 }))
 vi.mock('./subnameRecreation', () => ({
   discoverSubnameRecreation: mocks.discoverSubnameRecreation,
@@ -42,68 +38,194 @@ vi.mock('./subnameRecreation', () => ({
 import { resolveMigratableNames } from './migratableNames'
 
 describe('resolveMigratableNames', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mocks.name.mockReturnValue(
-      errAsync(
-        new BignameError({ code: 'network', message: 'Inventory unavailable' }),
-      ),
-    )
-  })
-
-  it('skips snapshot RPC for verified empty inventories', async () => {
-    const names = ['alice.eth', 'bob.eth', 'carol.eth'].map((name) =>
+  it('partitions a resource-limited root batch without blocking individually supported trees', async () => {
+    const names = ['alice.eth', 'bob.eth'].map((name) =>
       makeClassified({ name, id: namehash(name) }),
     )
-    const indexer = createBignameClient('https://bigname.example', {
-      fetch: async (input) => {
-        const name = new URL(String(input)).pathname.slice('/v1/names/'.length)
-        return Response.json({
-          data: {
-            name,
-            namehash: namehash(name),
-            namespace: 'ens',
-            display_name: name,
-            read_status: 'ok',
-            authority: 'ens_v1',
-            status: 'active',
-            subname_count: 0,
-          },
-          meta: {
-            completeness: 'full',
-            as_of: {
-              [envConfig.chain.id]: {
-                block_number: 1,
-                block_hash: zeroHash,
-                timestamp: String(Math.floor(Date.now() / 1000)),
-              },
-            },
-          },
-        })
-      },
-    })
-    mocks.name.mockImplementation(indexer.name)
-    mocks.discoverSubnameRecreation.mockRejectedValue(
-      new Error('Full verification required'),
+    mocks.readRpcSubnameInventory.mockRejectedValueOnce(
+      new RpcSubnameInventoryError({
+        reason: 'node-limit',
+        cause: new Error('Budget exceeded'),
+      }),
     )
-    const rpc = vi.fn(async () => {
-      throw new Error('Empty trees do not need snapshot RPC')
-    })
     const result = await resolveMigratableNames({
       eligible: names,
       owner: OWNER,
       isSubnameImportEnabled: true,
       publicClient: createPublicClient({
         chain: envConfig.chain,
-        transport: custom({ request: rpc }),
+        transport: http(),
       }),
     })
-
     expect(result.eligible).toEqual(names)
     expect(result.blockedSubnames).toEqual([])
+    expect(
+      mocks.readRpcSubnameInventory.mock.calls.map(
+        ([params]) => params.roots.length,
+      ),
+    ).toEqual([2, 1, 1])
+  })
+
+  it('discards an unrelated cached superset after a resource limit and checks only the selected root', async () => {
+    const names = ['alice.eth', 'bob.eth'].map((name) =>
+      makeClassified({ name, id: namehash(name) }),
+    )
+    const selected = names.slice(1)
+    const previousInventory = makeRpcSubnameInventory({
+      domains: names.map(({ domain }) =>
+        makeDomain({ name: domain.name, id: domain.id }),
+      ),
+      rootNames: names.map(({ domain }) => domain.name),
+    })
+    mocks.readRpcSubnameInventory.mockRejectedValueOnce(
+      new RpcSubnameInventoryError({
+        reason: 'history-limit',
+        cause: new Error('Budget exceeded'),
+      }),
+    )
+    const result = await resolveMigratableNames({
+      eligible: selected,
+      previousInventory,
+      owner: OWNER,
+      isSubnameImportEnabled: true,
+      publicClient: createPublicClient({
+        chain: envConfig.chain,
+        transport: http(),
+      }),
+    })
+    expect(result.eligible).toEqual(selected)
+    expect(
+      mocks.readRpcSubnameInventory.mock.calls.map(
+        ([params]) => params.roots.length,
+      ),
+    ).toEqual([2, 1])
+  })
+
+  it.each(['node-limit', 'read-failed'] as const)(
+    'does not repeatedly retry a single root after %s',
+    async (reason) => {
+      const name = makeClassified({
+        name: 'alice.eth',
+        id: namehash('alice.eth'),
+      })
+      mocks.readRpcSubnameInventory.mockRejectedValueOnce(
+        new RpcSubnameInventoryError({
+          reason,
+          cause: new Error('Inventory failed'),
+        }),
+      )
+      const result = await resolveMigratableNames({
+        eligible: [name],
+        owner: OWNER,
+        isSubnameImportEnabled: true,
+        publicClient: createPublicClient({
+          chain: envConfig.chain,
+          transport: http(),
+        }),
+      })
+      expect(result.blockedSubnames).toEqual([
+        {
+          name,
+          reason: reason === 'node-limit' ? 'too-large' : 'unverified-source',
+        },
+      ])
+      expect(mocks.readRpcSubnameInventory).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.readRpcSubnameInventory.mockImplementation(
+      async ({
+        roots,
+      }: {
+        roots: readonly { node: string; name: string }[]
+      }) => ({
+        roots,
+        rootSources: [],
+        nodes: [],
+        unscannedParentNodes: [],
+        checkpoint: { number: 1n, hash: zeroHash, timestamp: 1000n },
+      }),
+    )
+    mocks.getSubnameMigrationImpact.mockImplementation(
+      async ({ migratingNames }: { migratingNames: readonly string[] }) =>
+        migratingNames.map((name) => ({
+          name,
+          result: {
+            status: 'complete',
+            impact: { affectedCount: 0, parents: [] },
+          },
+        })),
+    )
+  })
+
+  it('checks a selection with one RPC inventory and no per-parent indexed counts', async () => {
+    const names = ['alice.eth', 'bob.eth', 'carol.eth'].map((name) =>
+      makeClassified({ name, id: namehash(name) }),
+    )
+    const result = await resolveMigratableNames({
+      eligible: names,
+      owner: OWNER,
+      isSubnameImportEnabled: true,
+      publicClient: createPublicClient({
+        chain: envConfig.chain,
+        transport: http(),
+      }),
+    })
+    expect(result.eligible).toEqual(names)
+    expect(result.blockedSubnames).toEqual([])
+    expect(mocks.readRpcSubnameInventory).toHaveBeenCalledTimes(1)
+    expect(
+      mocks.readRpcSubnameInventory.mock.calls[0]?.[0].roots.map(
+        ({ name }: { name: string }) => name,
+      ),
+    ).toEqual(names.map(({ domain }) => domain.name))
     expect(mocks.discoverSubnameRecreation).not.toHaveBeenCalled()
-    expect(rpc).not.toHaveBeenCalled()
-    mocks.discoverSubnameRecreation.mockReset()
+  })
+
+  it('keeps an unrelated empty root eligible when another root has unverifiable descendants', async () => {
+    const bad = makeClassified({
+      name: 'bad.eth',
+      id: namehash('bad.eth'),
+      tokenType: 'locked-2ld',
+    })
+    const good = makeClassified({
+      name: 'good.eth',
+      id: namehash('good.eth'),
+      tokenType: 'locked-2ld',
+    })
+    mocks.getSubnameMigrationImpact.mockResolvedValueOnce([
+      {
+        name: 'bad.eth',
+        result: {
+          status: 'incomplete',
+          reason: 'Ownership is unknown for its resolver-bearing child.',
+        },
+      },
+      {
+        name: 'good.eth',
+        result: {
+          status: 'complete',
+          impact: { affectedCount: 0, parents: [] },
+        },
+      },
+    ])
+    const result = await resolveMigratableNames({
+      eligible: [bad, good],
+      owner: OWNER,
+      isSubnameImportEnabled: true,
+      publicClient: createPublicClient({
+        chain: envConfig.chain,
+        transport: http(),
+      }),
+    })
+    expect(result.eligible).toEqual([good])
+    expect(result.blockedSubnames).toEqual([
+      { name: bad, reason: 'unverified-source' },
+    ])
+    expect(mocks.readRpcSubnameInventory).toHaveBeenCalledTimes(1)
+    expect(mocks.getSubnameMigrationImpact).toHaveBeenCalledTimes(1)
   })
 
   // The error message embeds the name, so only the fixed reason may decide.
@@ -114,6 +236,15 @@ describe('resolveMigratableNames', () => {
       'unknown-label',
     ],
   ] as const)('classifies "%s" for label.eth as %s', async (detail, reason) => {
+    mocks.readRpcSubnameInventory.mockResolvedValueOnce({
+      roots: [{ node: namehash('label.eth'), name: 'label.eth' }],
+      nodes: [
+        {
+          parentNode: namehash('label.eth'),
+          node: namehash('child.label.eth'),
+        },
+      ],
+    })
     mocks.discoverSubnameRecreation.mockRejectedValueOnce(
       new SubnameRecreationError({
         ensName: 'label.eth',
@@ -176,7 +307,16 @@ describe('resolveMigratableNames', () => {
       tokenType: 'locked-child',
       parentName: 'rpc-failure.eth',
     })
-    mocks.getSubnameMigrationImpact.mockResolvedValue(ok({ affectedCount: 0 }))
+    mocks.getSubnameMigrationImpact.mockImplementation(
+      async ({ migratingNames }: { migratingNames: readonly string[] }) =>
+        migratingNames.map((name) => ({
+          name,
+          result: {
+            status: 'complete',
+            impact: { affectedCount: 0, parents: [] },
+          },
+        })),
+    )
     let parentReads = 0
     const publicClient = {
       getCode: vi.fn(async () => '0x01'),

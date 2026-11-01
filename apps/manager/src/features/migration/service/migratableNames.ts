@@ -1,8 +1,6 @@
-import type { BignameClient } from '@ens-apps/indexer/bigname'
-import { getSubnameMigrationImpact } from '@ens-apps/migration'
-import type { Address, PublicClient } from 'viem'
+import { type Address, namehash, type PublicClient } from 'viem'
 import { envConfig } from '@/config'
-import { bigname } from '@/lib/bigname'
+import { V1_CONTRACTS } from '../contracts/addresses'
 import type {
   ClassifiedName,
   CopyClassifiedName,
@@ -13,8 +11,14 @@ import {
   DirectMigrationRouteError,
   resolveDirectMigrationRoutes,
 } from './directMigrationRoutes'
-import { hasVerifiedEmptyMigrationRoot } from './migrationBignameEvidence'
-import { getMigrationInventoryIndexer } from './migrationInventoryIndexer'
+import {
+  type RpcSubnameInventory,
+  RpcSubnameInventoryError,
+  readRpcSubnameInventory,
+} from './readRpcSubnameInventory'
+import { readRpcSubnameMigrationImpacts } from './readRpcSubnameMigrationImpact'
+import { getReusableRpcSubnameInventory } from './rpcSubnameInventoryCache'
+import { getRpcMigrationScanPolicy } from './rpcSubnameMigrationImpact'
 import {
   applySubnameRecreation,
   discoverSubnameRecreation,
@@ -61,6 +65,7 @@ export const isTransientSubnameBlock = (
 const discoveryFailureReason = (
   error: unknown,
 ): Exclude<SubnameMigrationBlockReason, 'parent-not-upgraded'> => {
+  if (isInventoryLimitError(error)) return 'too-large'
   const message =
     error instanceof Error &&
     '_tag' in error &&
@@ -79,6 +84,10 @@ const discoveryFailureReason = (
   return 'unverified-source'
 }
 
+const isInventoryLimitError = (error: unknown): boolean =>
+  error instanceof RpcSubnameInventoryError &&
+  (error.reason === 'node-limit' || error.reason === 'history-limit')
+
 const canImportDirectSubnames = (name: ClassifiedName): boolean =>
   name.parentName === 'eth' &&
   (name.tokenType === 'unwrapped' || name.tokenType === 'unlocked')
@@ -95,11 +104,90 @@ const checkSubnameCandidates = async (params: {
   readonly isSubnameImportEnabled: boolean
   readonly owner: Address
   readonly publicClient: PublicClient
-  readonly indexer: BignameClient
+  readonly previousInventory?: RpcSubnameInventory
+  readonly onInventory?: (
+    inventory: RpcSubnameInventory,
+  ) => void | Promise<void>
   readonly signal?: AbortSignal
 }): Promise<readonly SubnameCandidateResult[]> => {
+  if (params.candidates.length === 0) return []
   const results: SubnameCandidateResult[] = []
   const selectedNames = params.candidates.map(({ domain }) => domain.name)
+  const previous = getReusableRpcSubnameInventory({
+    inventory: params.previousInventory,
+    chainId: envConfig.chain.id,
+    registryAddress: V1_CONTRACTS.LegacyRegistry,
+    nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+    names: selectedNames,
+  })
+  const inventory = await readRpcSubnameInventory({
+    publicClient: params.publicClient,
+    chainId: envConfig.chain.id,
+    registryAddress: V1_CONTRACTS.LegacyRegistry,
+    nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+    roots:
+      previous?.roots ??
+      selectedNames.map((name) => ({ node: namehash(name), name })),
+    previousInventory: previous,
+    knownNames: selectedNames,
+    scanDescendants: getRpcMigrationScanPolicy({
+      migratingNames: selectedNames,
+      nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+    }),
+    signal: params.signal,
+  }).then(
+    (value) => ({ status: 'verified' as const, value }),
+    (cause: unknown) => ({ status: 'failed' as const, cause }),
+  )
+  params.signal?.throwIfAborted()
+  if (inventory.status === 'failed') {
+    if (isInventoryLimitError(inventory.cause)) {
+      if (previous)
+        return checkSubnameCandidates({
+          ...params,
+          previousInventory: undefined,
+        })
+      if (params.candidates.length > 1) {
+        const middle = Math.ceil(params.candidates.length / 2)
+        const first = await checkSubnameCandidates({
+          ...params,
+          candidates: params.candidates.slice(0, middle),
+          previousInventory: undefined,
+        })
+        params.signal?.throwIfAborted()
+        const second = await checkSubnameCandidates({
+          ...params,
+          candidates: params.candidates.slice(middle),
+          previousInventory: undefined,
+        })
+        return [...first, ...second]
+      }
+    }
+    return params.candidates.map((name) => ({
+      status: 'blocked',
+      block: { name, reason: discoveryFailureReason(inventory.cause) },
+    }))
+  }
+  await params.onInventory?.(inventory.value)
+  const nonemptyNodes = new Set(
+    inventory.value.nodes.map(({ parentNode }) => parentNode),
+  )
+  const unsupportedNames = params.candidates.filter(
+    (name) => !params.isSubnameImportEnabled || !canImportDirectSubnames(name),
+  )
+  const impact =
+    unsupportedNames.length === 0
+      ? null
+      : await readRpcSubnameMigrationImpacts({
+          publicClient: params.publicClient,
+          migratingNames: unsupportedNames.map(({ domain }) => domain.name),
+          inventory: inventory.value,
+          signal: params.signal,
+        }).then(
+          (value) => ({ status: 'verified' as const, value }),
+          (cause: unknown) => ({ status: 'failed' as const, cause }),
+        )
+  params.signal?.throwIfAborted()
   for (
     let offset = 0;
     offset < params.candidates.length;
@@ -112,29 +200,13 @@ const checkSubnameCandidates = async (params: {
           try {
             const canImport = canImportDirectSubnames(name)
             if (params.isSubnameImportEnabled && canImport) {
-              const inventory = await params.indexer.name(
-                name.domain.name,
-                { namespace: 'ens', include: ['counts'] },
-                { signal: params.signal },
-              )
-              params.signal?.throwIfAborted()
-              if (
-                inventory.isOk() &&
-                hasVerifiedEmptyMigrationRoot({
-                  inventory: inventory.value,
-                  name: name.domain.name,
-                  node: name.domain.id,
-                  selectedNames,
-                  chainId: envConfig.chain.id,
-                  nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
-                })
-              )
+              if (!nonemptyNodes.has(namehash(name.domain.name)))
                 return { status: 'verified', subnames: [] }
               const discovery = await discoverSubnameRecreation({
                 domains: [name.domain],
                 owner: params.owner,
                 publicClient: params.publicClient,
-                indexer: params.indexer,
+                inventory: inventory.value,
                 signal: params.signal,
               })
               const verified = applySubnameRecreation({
@@ -149,15 +221,19 @@ const checkSubnameCandidates = async (params: {
                 ),
               }
             }
-            const impact = await getSubnameMigrationImpact({
-              shouldSkipEmptySubtrees: true,
-              indexer: params.indexer,
-              publicClient: params.publicClient,
-              migratingNames: [name.domain.name],
-              signal: params.signal,
-            })
-            if (impact.isErr()) throw impact.error
-            return impact.value.affectedCount > 0
+            if (impact?.status !== 'verified')
+              throw new Error('The subname impact could not be verified.', {
+                cause: impact?.cause,
+              })
+            const tree = impact.value.find(
+              (entry) => entry.name === name.domain.name,
+            )
+            if (!tree)
+              throw new Error('The subname impact is missing for this name.')
+            if (tree.result.status === 'incomplete')
+              throw new Error(tree.result.reason)
+            const affectedCount = tree.result.impact.affectedCount
+            return affectedCount > 0
               ? {
                   status: 'blocked',
                   block: {
@@ -281,6 +357,10 @@ export const resolveMigratableNames = async (params: {
   readonly isSubnameImportEnabled: boolean
   readonly owner: Address
   readonly publicClient: PublicClient
+  readonly previousInventory?: RpcSubnameInventory
+  readonly onInventory?: (
+    inventory: RpcSubnameInventory,
+  ) => void | Promise<void>
   readonly signal?: AbortSignal
 }): Promise<{
   readonly eligible: readonly ClassifiedName[]
@@ -297,13 +377,8 @@ export const resolveMigratableNames = async (params: {
     isSubnameImportEnabled: params.isSubnameImportEnabled,
     owner: params.owner,
     publicClient: coalesceLatestBlockReads(params.publicClient),
-    indexer: await getMigrationInventoryIndexer({
-      indexer: bigname,
-      ownerAddress: params.owner,
-      names: direct.map(({ domain }) => domain.name),
-      chainId: envConfig.chain.id,
-      signal: params.signal,
-    }),
+    previousInventory: params.previousInventory,
+    onInventory: params.onInventory,
     signal: params.signal,
   })
   const blocked = checked.flatMap((result) =>

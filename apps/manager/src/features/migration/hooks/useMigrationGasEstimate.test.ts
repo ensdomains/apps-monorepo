@@ -16,7 +16,11 @@ const mocks = vi.hoisted(() => ({
   estimate: vi.fn(),
   recovery: vi.fn(),
   impactCheck: vi.fn(),
-  queryClient: { getQueryState: vi.fn(), setQueryData: vi.fn() },
+  queryClient: {
+    getQueryState: vi.fn(),
+    getQueryData: vi.fn(),
+    setQueryData: vi.fn(),
+  },
   isRecreationEnabled: false,
 }))
 vi.mock('@posthog/react', () => ({
@@ -31,7 +35,10 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
   useQuery: mocks.query,
   useQueryClient: () => mocks.queryClient,
 }))
-vi.mock('@/lib/wagmi', () => ({ publicClient: {} }))
+vi.mock('@/lib/wagmi', async () => ({
+  publicClient: {},
+  sepoliaWithEns: (await import('@/config')).chain,
+}))
 vi.mock('wagmi', () => ({
   usePublicClient: mocks.client,
   useCapabilities: () => ({ data: undefined }),

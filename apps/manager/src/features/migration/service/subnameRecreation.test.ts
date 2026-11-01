@@ -7,20 +7,29 @@ import {
   registryOwnerSnippet,
   registryResolverSnippet,
 } from '@ensdomains/ensjs-abi/registry'
-import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
+import {
+  nameWrapperGetDataSnippet,
+  nameWrapperNamesSnippet,
+} from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import {
   type Address,
+  concat,
   createPublicClient,
   custom,
   decodeFunctionData,
+  encodeAbiParameters,
+  encodeEventTopics,
   encodeFunctionResult,
+  getAddress,
   type Hex,
   isHex,
+  keccak256,
   labelhash,
   maxUint64,
   multicall3Abi,
   namehash,
   type PublicClient,
+  toHex,
   zeroAddress,
   zeroHash,
 } from 'viem'
@@ -29,6 +38,7 @@ import { envConfig } from '@/config'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { DEFAULT_RESOLVER, makeDomain, OTHER, OWNER } from './_fixtures'
 import { classifyNames } from './classifyNames'
+import { NEW_OWNER_ABI } from './rpcSubnameInventory'
 import {
   applySubnameRecreation,
   assertSubnameRecreationUnchanged,
@@ -84,6 +94,7 @@ const fixture = (
     rows?: readonly Subname[]
     total?: number
     metadata?: Meta
+    rpcFault?: 'duplicate' | 'removed' | 'missing-checkpoint'
   } = {},
 ) => {
   const state = {
@@ -91,6 +102,7 @@ const fixture = (
     resolver: DEFAULT_RESOLVER as Address,
     wrapped: [OTHER, 0, maxUint64] as [Address, number, bigint],
     head: 100n,
+    eventRegistry: V1_CONTRACTS.LegacyRegistry as Address,
     parentEvents: [] as { args: { label: Hex } }[],
     descendantEvents: [] as { args: { label: Hex } }[],
   }
@@ -129,42 +141,168 @@ const fixture = (
     async ({ functionName, args, blockNumber }: SourceRead) => {
       if (
         blockNumber !== state.head ||
-        (args[0] !== namehash(CHILD) && args[0] !== BigInt(namehash(CHILD)))
+        ![
+          namehash(ROOT),
+          ...(options.rows ?? [row]).map(({ namehash }) => namehash),
+          ...state.parentEvents.map(({ args }) =>
+            keccak256(concat([namehash(ROOT), args.label])),
+          ),
+          ...state.descendantEvents.map(({ args }) =>
+            keccak256(concat([namehash(CHILD), args.label])),
+          ),
+        ].some((node) => args[0] === node || args[0] === BigInt(node))
       )
         throw new Error('Unexpected source identity or checkpoint')
       switch (functionName) {
         case 'owner':
-          return state.owner
+          return args[0] === namehash(ROOT) ? OWNER : state.owner
         case 'resolver':
           return state.resolver
         case 'getData':
           return state.wrapped
+        case 'names':
+          return '0x'
         default:
           throw new Error(`Unexpected read: ${functionName}`)
       }
     },
   )
-  const client = {
-    chain: envConfig.chain,
-    getBlock: async ({ blockNumber = state.head } = {}) => ({
-      number: blockNumber,
-      timestamp: 1000n + (blockNumber - 100n),
-      hash: BLOCK_HASH,
-    }),
-    getLogs: vi.fn(
-      async ({ args }: { args: { node: Hex | readonly Hex[] } }) =>
-        (typeof args.node === 'string' ? [args.node] : args.node).includes(
-          namehash(ROOT),
+  const sourceAbi = [
+    ...registryOwnerSnippet,
+    ...registryResolverSnippet,
+    ...nameWrapperGetDataSnippet,
+    ...nameWrapperNamesSnippet,
+  ] as const
+  const answerSource = async (data: Hex, blockNumber: bigint): Promise<Hex> => {
+    const call = decodeFunctionData({ abi: sourceAbi, data })
+    const result = await readContract({
+      functionName: call.functionName,
+      args: call.args,
+      blockNumber,
+    })
+    return encodeFunctionResult({
+      abi: sourceAbi,
+      functionName: call.functionName,
+      result,
+    })
+  }
+  const answerCall = async (
+    input: unknown,
+    blockTag: unknown,
+  ): Promise<Hex> => {
+    const call = input as { readonly data: Hex }
+    if (call.data === '0xb83f8663') return '0x'
+    const blockNumber = BigInt(String(blockTag))
+    if (!call.data.startsWith('0x82ad56cb'))
+      return answerSource(call.data, blockNumber)
+    const aggregate = decodeFunctionData({
+      abi: multicall3Abi,
+      data: call.data,
+    })
+    if (aggregate.functionName !== 'aggregate3')
+      throw new Error('Expected aggregate3')
+    const result = await Promise.all(
+      aggregate.args[0].map(async ({ callData }) => ({
+        success: true,
+        returnData: await answerSource(callData, blockNumber),
+      })),
+    )
+    return encodeFunctionResult({
+      abi: multicall3Abi,
+      functionName: 'aggregate3',
+      result,
+    })
+  }
+  const request = vi.fn(
+    async ({
+      method,
+      params,
+    }: {
+      readonly method: string
+      readonly params?: readonly unknown[]
+    }) => {
+      if (method === 'eth_chainId') return toHex(envConfig.chain.id)
+      if (method === 'eth_getCode') return '0x6000'
+      if (method === 'eth_call') return answerCall(params?.[0], params?.[1])
+      if (method === 'eth_getBlockByNumber') {
+        const number =
+          params?.[0] === 'latest' ? state.head : BigInt(String(params?.[0]))
+        return {
+          number: toHex(number),
+          timestamp: toHex(1000n + number - 100n),
+          hash: options.rpcFault === 'missing-checkpoint' ? null : BLOCK_HASH,
+        }
+      }
+      if (method !== 'eth_getLogs') throw new Error(`Unexpected RPC ${method}`)
+      const filter = params?.[0] as {
+        readonly address: Address | readonly Address[]
+        readonly topics: readonly [string, readonly Hex[]]
+        readonly fromBlock: Hex
+        readonly toBlock: Hex
+      }
+      const entries = [
+        ...(filter.topics[1].includes(namehash(ROOT))
+          ? [
+              ...(options.rows ?? [row]).map((child) => ({
+                parent: namehash(ROOT),
+                label: labelhash(child.name.split('.')[0] ?? ''),
+                blockNumber: 100n,
+                address: V1_CONTRACTS.LegacyRegistry,
+              })),
+              ...state.parentEvents.map(({ args }) => ({
+                parent: namehash(ROOT),
+                label: args.label,
+                blockNumber: state.head,
+                address: state.eventRegistry,
+              })),
+            ]
+          : []),
+        ...(filter.topics[1].includes(namehash(CHILD))
+          ? state.descendantEvents.map(({ args }) => ({
+              parent: namehash(CHILD),
+              label: args.label,
+              blockNumber: state.head,
+              address: state.eventRegistry,
+            }))
+          : []),
+      ]
+      const logs = entries
+        .filter(
+          ({ address, blockNumber }) =>
+            [filter.address].flat().includes(address) &&
+            blockNumber >= BigInt(filter.fromBlock) &&
+            blockNumber <= BigInt(filter.toBlock),
         )
-          ? state.parentEvents
-          : state.descendantEvents,
-    ),
-    readContract,
-    multicall: async ({ contracts, blockNumber }: SourceMulticall) =>
-      Promise.all(
-        contracts.map((contract) => readContract({ ...contract, blockNumber })),
-      ),
-  } as unknown as PublicClient
+        .map(({ parent, label, address, blockNumber }, index) => ({
+          address,
+          blockNumber: toHex(blockNumber),
+          blockHash: BLOCK_HASH,
+          transactionHash: BLOCK_HASH,
+          logIndex: toHex(index),
+          removed: options.rpcFault === 'removed',
+          topics: encodeEventTopics({
+            abi: NEW_OWNER_ABI,
+            eventName: 'NewOwner',
+            args: { node: parent, label },
+          }),
+          data: encodeAbiParameters([{ type: 'address' }], [OTHER]),
+        }))
+      return options.rpcFault === 'duplicate' ? [...logs, ...logs] : logs
+    },
+  )
+  const client = createPublicClient({
+    chain: {
+      ...envConfig.chain,
+      contracts: {
+        ...envConfig.chain.contracts,
+        multicall3: {
+          ...envConfig.chain.contracts.multicall3,
+          blockCreated: 0,
+        },
+      },
+    },
+    transport: custom({ request }, { retryCount: 0 }),
+  })
   const discover = () =>
     discoverSubnameRecreation({
       domains: [root],
@@ -172,10 +310,37 @@ const fixture = (
       publicClient: client,
       indexer,
     })
-  return { state, client, indexer, discover }
+  return { state, client, indexer, discover, request, readContract }
 }
 
 describe('direct subname source checks', () => {
+  it('uses indexed data only for missing labels, never for child counts or authority', async () => {
+    const context = fixture()
+    const countRead = vi
+      .spyOn(context.indexer, 'name')
+      .mockImplementation(() => {
+        throw new Error(
+          'A count read must not establish RPC inventory completeness',
+        )
+      })
+    const found = await context.discover()
+    expect(found.domains.map(({ name }) => name)).toEqual([ROOT, CHILD])
+    expect(countRead).not.toHaveBeenCalled()
+  })
+  it('reports each selected root after its inventory and live children are checked', async () => {
+    const { client, indexer } = fixture()
+    const onNamesChecked = vi.fn()
+    const options = {
+      domains: [root],
+      owner: OWNER,
+      publicClient: client,
+      indexer,
+      onNamesChecked,
+    }
+    await discoverSubnameRecreation(options)
+    expect(onNamesChecked).toHaveBeenLastCalledWith([ROOT])
+  })
+
   const rpcCases = [
     { phase: 'discovery', failure: 'none' },
     { phase: 'validation', failure: 'none' },
@@ -217,6 +382,7 @@ describe('direct subname source checks', () => {
         ...registryOwnerSnippet,
         ...registryResolverSnippet,
         ...nameWrapperGetDataSnippet,
+        ...nameWrapperNamesSnippet,
       ] as const
       const answer = (data: Hex): Hex => {
         const call = decodeFunctionData({ abi, data })
@@ -225,13 +391,22 @@ describe('direct subname source checks', () => {
             return encodeFunctionResult({
               abi,
               functionName: 'owner',
-              result: V1_CONTRACTS.NameWrapper,
+              result:
+                call.args[0] === namehash(ROOT)
+                  ? OWNER
+                  : V1_CONTRACTS.NameWrapper,
             })
           case 'resolver':
             return encodeFunctionResult({
               abi,
               functionName: 'resolver',
               result: DEFAULT_RESOLVER,
+            })
+          case 'names':
+            return encodeFunctionResult({
+              abi,
+              functionName: 'names',
+              result: '0x',
             })
           case 'getData':
             return encodeFunctionResult({
@@ -309,12 +484,42 @@ describe('direct subname source checks', () => {
           readonly method: string
           readonly params?: readonly unknown[]
         }) => {
+          if (method === 'eth_chainId') return toHex(envConfig.chain.id)
+          if (method === 'eth_getCode') return '0x6000'
           if (method === 'eth_getBlockByNumber') return answerBlock(params?.[0])
           if (method === 'eth_getLogs') {
             recordLogFilter(params?.[0])
-            return []
+            const filter = params?.[0] as {
+              readonly topics: readonly [string, readonly Hex[]]
+              readonly fromBlock: Hex
+              readonly toBlock: Hex
+            }
+            if (
+              !filter.topics[1].includes(namehash(ROOT)) ||
+              BigInt(filter.fromBlock) > checkpoint ||
+              BigInt(filter.toBlock) < checkpoint
+            )
+              return []
+            return rows.map((child, index) => ({
+              address: V1_CONTRACTS.LegacyRegistry,
+              blockNumber: toHex(checkpoint),
+              blockHash: BLOCK_HASH,
+              transactionHash: BLOCK_HASH,
+              logIndex: toHex(index),
+              removed: false,
+              topics: encodeEventTopics({
+                abi: NEW_OWNER_ABI,
+                eventName: 'NewOwner',
+                args: {
+                  node: namehash(ROOT),
+                  label: labelhash(child.name.split('.')[0] ?? ''),
+                },
+              }),
+              data: encodeAbiParameters([{ type: 'address' }], [OTHER]),
+            }))
           }
           const data = readCallData(method, params)
+          if (data === '0xb83f8663') return '0x'
           if (state.failure === 'rpc') throw new Error('RPC unavailable')
           if (data.startsWith('0x82ad56cb')) return answerAggregate(data)
           return answer(data)
@@ -357,15 +562,30 @@ describe('direct subname source checks', () => {
       }
       expect(
         request.mock.calls.filter(([call]) => call.method === 'eth_call'),
-      ).toHaveLength(2)
-      expect(logNodes.map((nodes) => [nodes].flat())).toEqual([
-        [namehash(ROOT)],
-        rows.map(({ namehash }) => namehash),
-      ])
-      expect(aggregates).toEqual([254, 127])
+      ).toHaveLength(phase === 'discovery' ? 4 : 2)
+      expect([
+        ...new Map(
+          logNodes.map((nodes) => [
+            JSON.stringify([nodes].flat()),
+            [nodes].flat(),
+          ]),
+        ).values(),
+      ]).toEqual([[namehash(ROOT)], rows.map(({ namehash }) => namehash)])
+      expect(aggregates).toEqual(
+        phase === 'discovery' ? [2, 381, 127] : [254, 127],
+      )
       expect(
-        request.mock.calls.filter(([call]) => call.method === 'eth_getLogs'),
-      ).toHaveLength(2)
+        request.mock.calls
+          .filter(([call]) => call.method === 'eth_getLogs')
+          .map(([call]) => call.params?.[0])
+          .every(
+            (filter) =>
+              typeof filter === 'object' &&
+              filter !== null &&
+              'toBlock' in filter &&
+              BigInt(String(filter.toBlock)) <= state.head,
+          ),
+      ).toBe(true)
     },
   )
 
@@ -384,7 +604,11 @@ describe('direct subname source checks', () => {
       return OTHER
     })
     const readContract = vi.fn(async ({ functionName }: SourceRead) =>
-      functionName === 'owner' ? ownerReads() : DEFAULT_RESOLVER,
+      functionName === 'owner'
+        ? ownerReads()
+        : functionName === 'names'
+          ? '0x'
+          : DEFAULT_RESOLVER,
     )
     const discovery = discoverSubnameRecreation({
       domains: [root],
@@ -403,7 +627,7 @@ describe('direct subname source checks', () => {
     })
     try {
       await vi.waitFor(() =>
-        expect(ownerReads).toHaveBeenCalledTimes(rows.length),
+        expect(ownerReads).toHaveBeenCalledTimes(rows.length + 1),
       )
     } finally {
       release()
@@ -414,16 +638,13 @@ describe('direct subname source checks', () => {
       ROOT,
       ...rows.map(({ name }) => name),
     ])
-    expect(context.client.getLogs).toHaveBeenCalledTimes(2)
-    expect(context.client.getLogs).toHaveBeenCalledWith(
-      expect.objectContaining({
-        args: { node: rows.map(({ namehash }) => namehash) },
-        fromBlock: 100n,
-        toBlock: 100n,
-      }),
-    )
-    expect(readContract.mock.calls.map(([request]) => request)).toEqual(
-      rows.flatMap((child) => [
+    expect(
+      context.request.mock.calls.filter(
+        ([call]) => call.method === 'eth_getLogs',
+      ),
+    ).toHaveLength(2)
+    expect(readContract.mock.calls.map(([request]) => request)).toEqual([
+      ...[{ namehash: namehash(ROOT) }, ...rows].flatMap((child) => [
         expect.objectContaining({
           functionName: 'owner',
           args: [child.namehash],
@@ -435,7 +656,14 @@ describe('direct subname source checks', () => {
           blockNumber: 100n,
         }),
       ]),
-    )
+      ...rows.map((child) =>
+        expect.objectContaining({
+          functionName: 'names',
+          args: [child.namehash],
+          blockNumber: 100n,
+        }),
+      ),
+    ])
   })
 
   it.each(['partial', 'stale'] as const)(
@@ -452,7 +680,9 @@ describe('direct subname source checks', () => {
       const discovered = await context.discover()
       expect(discovered.snapshot.roots).toEqual([])
       expect(discovered.domains.map(({ name }) => name)).toEqual([ROOT])
-      expect(context.client.readContract).not.toHaveBeenCalled()
+      expect(
+        context.readContract.mock.calls.map(([call]) => call.args[0]),
+      ).toEqual([namehash(ROOT), namehash(ROOT)])
     },
   )
   it.each([false, true])(
@@ -479,7 +709,7 @@ describe('direct subname source checks', () => {
         tokenHolder: OTHER,
         sourceExpiry: maxUint64,
         resolverStrategy: 'keep-v1',
-        v1ResolverAddress: DEFAULT_RESOLVER,
+        v1ResolverAddress: getAddress(DEFAULT_RESOLVER),
         recreationRoot: ROOT,
       })
       await expect(
@@ -492,46 +722,193 @@ describe('direct subname source checks', () => {
   )
 
   it.each([
-    { case: 'missing count', options: { count: null }, reason: /incomplete/ },
+    { case: 'missing count', options: { count: null } },
+    { case: 'incorrect count', options: { count: 2 } },
     {
-      case: 'missing child',
-      options: { count: 2 },
-      reason: /missing or duplicated/,
-    },
-    {
-      case: 'duplicate child',
+      case: 'duplicate indexed label',
       options: { count: 2, rows: [row, row] },
-      reason: /missing or duplicated/,
     },
-    { case: 'changing count', options: { total: 2 }, reason: /count changed/ },
+    { case: 'changing count', options: { total: 2 } },
     {
-      case: 'partial inventory',
+      case: 'partial publication',
       options: { metadata: { ...meta, completeness: 'partial' as const } },
-      reason: /complete indexed inventory/,
     },
     {
-      case: 'missing checkpoint',
+      case: 'missing publication',
       options: { metadata: { completeness: 'full' as const } },
-      reason: /canonical checkpoint/,
     },
     {
-      case: 'dependent deeper child',
+      case: 'incorrect descendant count',
       options: { rows: [{ ...row, subname_count: 1 }] },
-      reason: /deeper subnames/,
     },
-  ])(
-    'rejects $case instead of importing a partial tree',
-    async ({ options, reason }) => {
-      await expect(fixture(options).discover()).rejects.toThrow(reason)
+  ])('does not let $case override the RPC tree', async ({ options }) => {
+    const found = await fixture(options).discover()
+    expect(found.domains.map(({ name }) => name)).toEqual([ROOT, CHILD])
+  })
+
+  it.each(['duplicate', 'removed', 'missing-checkpoint'] as const)(
+    'rejects %s RPC evidence rather than importing a partial tree',
+    async (rpcFault) => {
+      await expect(fixture({ rpcFault }).discover()).rejects.toThrow()
     },
   )
+
+  it('fully rereads required recreation branches omitted by an earlier pruning policy', async () => {
+    const context = fixture()
+    const found = await context.discover()
+    const unrelated = { node: namehash('unrelated.eth'), name: 'unrelated.eth' }
+    context.request.mockClear()
+    const reread = await discoverSubnameRecreation({
+      domains: [root],
+      owner: OWNER,
+      publicClient: context.client,
+      indexer: context.indexer,
+      inventory: {
+        ...found.inventory,
+        roots: [...found.inventory.roots, unrelated],
+        rootSources: [
+          ...found.inventory.rootSources,
+          {
+            ...unrelated,
+            registryOwner: OWNER,
+            resolver: zeroAddress,
+            wrappedData: null,
+          },
+        ],
+        scannedParentNodes: [namehash(ROOT), unrelated.node],
+        unscannedParentNodes: [namehash(CHILD)],
+      },
+    })
+    expect(reread.domains).toEqual(found.domains)
+    expect(reread.inventory.roots).toEqual([
+      { node: namehash(ROOT), name: ROOT },
+    ])
+    expect(reread.inventory.scannedParentNodes).toEqual([
+      namehash(ROOT),
+      namehash(CHILD),
+    ])
+    expect(
+      context.request.mock.calls.filter(
+        ([call]) => call.method === 'eth_getLogs',
+      ),
+    ).toHaveLength(2)
+  })
+
+  it('reuses complete recreation branches when only an unrelated frontier is pruned', async () => {
+    const context = fixture()
+    const found = await context.discover()
+    context.request.mockClear()
+    const reused = await discoverSubnameRecreation({
+      domains: [root],
+      owner: OWNER,
+      publicClient: context.client,
+      indexer: context.indexer,
+      inventory: {
+        ...found.inventory,
+        roots: [
+          ...found.inventory.roots,
+          { node: namehash('other.eth'), name: 'other.eth' },
+        ],
+        rootSources: [
+          ...found.inventory.rootSources,
+          {
+            node: namehash('other.eth'),
+            name: 'other.eth',
+            registryOwner: OWNER,
+            resolver: zeroAddress,
+            wrappedData: null,
+          },
+        ],
+        nodes: [
+          ...found.inventory.nodes,
+          {
+            node: namehash('independent.other.eth'),
+            parentNode: namehash('other.eth'),
+            labelhash: labelhash('independent'),
+            depth: 1,
+            registryOwner: V1_CONTRACTS.NameWrapper,
+            resolver: zeroAddress,
+            wrappedData: [OTHER, 65536, maxUint64],
+            name: 'independent.other.eth',
+          },
+        ],
+        scannedParentNodes: [
+          ...found.inventory.scannedParentNodes,
+          namehash('other.eth'),
+        ],
+        unscannedParentNodes: [namehash('independent.other.eth')],
+      },
+    })
+    expect(reused.domains).toEqual(found.domains)
+    expect(
+      context.request.mock.calls.filter(
+        ([call]) => call.method === 'eth_getLogs',
+      ),
+    ).toEqual([])
+  })
+
+  it('rejects a supplied same-head inventory after the RPC connection changes chain', async () => {
+    const context = fixture()
+    const found = await context.discover()
+    const request = context.request.getMockImplementation()
+    if (!request) throw new Error('Missing fixture transport')
+    context.request.mockImplementation((input) =>
+      input.method === 'eth_chainId'
+        ? Promise.resolve(toHex(envConfig.chain.id + 1))
+        : request(input),
+    )
+    await expect(
+      discoverSubnameRecreation({
+        domains: [root],
+        owner: OWNER,
+        publicClient: context.client,
+        indexer: context.indexer,
+        inventory: found.inventory,
+      }),
+    ).rejects.toThrow(/another chain/)
+  })
+
+  it('retains validated labels through a delta refresh without another indexer read', async () => {
+    const context = fixture()
+    const labels = vi.spyOn(context.indexer, 'subnames')
+    const found = await context.discover()
+    expect(labels).toHaveBeenCalledTimes(1)
+    labels.mockClear()
+    context.state.head = 101n
+    const refreshed = await discoverSubnameRecreation({
+      domains: [root],
+      owner: OWNER,
+      publicClient: context.client,
+      indexer: context.indexer,
+      inventory: found.inventory,
+    })
+    expect(labels).not.toHaveBeenCalled()
+    expect(refreshed.domains).toEqual(found.domains)
+    expect(refreshed.inventory.nodes.map(({ name }) => name)).toEqual([CHILD])
+  })
+
+  it('refreshes the supplied inventory delta before reusing reviewed child imports', async () => {
+    const context = fixture()
+    const found = await context.discover()
+    context.state.head = 101n
+    context.state.parentEvents = [{ args: { label: labelhash('unindexed') } }]
+    await expect(
+      discoverSubnameRecreation({
+        domains: [root],
+        owner: OWNER,
+        publicClient: context.client,
+        indexer: context.indexer,
+        inventory: found.inventory,
+      }),
+    ).rejects.toThrow(/exact, valid subname label/)
+  })
 
   it('rejects an unindexed child created after the published checkpoint', async () => {
     const context = fixture()
     context.state.head = 101n
     context.state.parentEvents = [{ args: { label: labelhash('unindexed') } }]
     await expect(context.discover()).rejects.toThrow(
-      /parent changed after indexing/,
+      /exact, valid subname label/,
     )
   })
 
@@ -540,9 +917,7 @@ describe('direct subname source checks', () => {
     context.state.descendantEvents = [
       { args: { label: labelhash('new-leaf') } },
     ]
-    await expect(context.discover()).rejects.toThrow(
-      /descendants changed after indexing/,
-    )
+    await expect(context.discover()).rejects.toThrow(/deeper subnames/)
   })
 
   it.each(['parent', 'descendant'] as const)(
@@ -566,6 +941,27 @@ describe('direct subname source checks', () => {
       )
     },
   )
+
+  it('checks every saved fallback registry for new children before signing', async () => {
+    const context = fixture()
+    const found = await context.discover()
+    const oldRegistry = '0x94f523b8261B815b87EFfCf4d18E6aBeF18d6e4b'
+    context.state.head = 101n
+    context.state.eventRegistry = oldRegistry
+    context.state.parentEvents = [
+      { args: { label: labelhash('new-old-child') } },
+    ]
+    await expect(
+      assertSubnameRecreationUnchanged({
+        ...found,
+        snapshot: {
+          ...found.snapshot,
+          registryAddresses: [V1_CONTRACTS.LegacyRegistry, oldRegistry],
+        },
+        publicClient: context.client,
+      }),
+    ).rejects.toThrow(/child inventory changed after review/)
+  })
 
   it.each(['owner', 'resolver'] as const)(
     'blocks signing when the child %s changed after review',

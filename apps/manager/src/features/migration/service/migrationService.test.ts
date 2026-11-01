@@ -110,6 +110,7 @@ vi.mock('./verifyAtomicMigrationBatch', async (importOriginal) => ({
 }))
 
 import type { V1Domain } from '@ens-apps/migration'
+import { makeRpcSubnameInventory } from './_fixtures/rpcSubnameInventory'
 import type {
   AtomicMigrationBatch,
   AtomicMigrationNameExecution,
@@ -716,6 +717,67 @@ beforeEach(() => {
 })
 
 describe('executeMigration HCA orchestration', () => {
+  it('revalidates each batch using the inventory confirmed by the previous batch', async () => {
+    const parent = classifiedFor('alice')
+    const copy = copyClassifiedFor()
+    const plan = planFromClassified([parent, copy], [parent, copy])
+    const inventory = makeRpcSubnameInventory({
+      domains: [parent.domain, copy.domain],
+      rootNames: [parent.domain.name],
+    })
+    const observations: unknown[] = []
+    mocks.assertSupportedSubnameMigration.mockImplementation(
+      async (params: {
+        readonly inventory?: unknown
+        readonly onInventory?: (value: typeof inventory) => void
+      }) => {
+        observations.push(params.inventory)
+        params.onInventory?.(inventory)
+      },
+    )
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({
+        hca,
+        classified,
+        estimateBatchGas,
+      }: BuildAtomicMigrationBatchesParams) => {
+        const first = classified.slice(0, 1)
+        const names = first.map(({ domain }) => domain.name)
+        const outerCall = { to: hca, data: OUTER_DATA, value: 0n }
+        const { outerGas } = await estimateBatchGas({
+          call: outerCall,
+          names,
+          innerExecutions: [],
+          walletCall: null,
+          walletExecutions: [],
+        })
+        return {
+          resolver: RESOLVER,
+          batches: [
+            {
+              index: 0,
+              names,
+              operations: first.map(({ domain, action }) => ({
+                name: domain.name,
+                action,
+              })),
+              nameExecutions: [],
+              innerExecutions: [],
+              outerCall,
+              walletCall: null,
+              estimatedGas: outerGas,
+              walletEstimatedGas: 0n,
+              verificationExpectations: [],
+            },
+          ],
+        }
+      },
+    )
+    const { result } = await runExecute({ plan })
+    expect(result.completed).toBe(2)
+    expect(observations).toEqual([undefined, inventory])
+  })
+
   it.each([false, true])(
     'leaves bulk permission for manual removal when migration fails: %s',
     async (hasMigrationFailed) => {

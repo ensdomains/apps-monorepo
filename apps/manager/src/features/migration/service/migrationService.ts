@@ -104,7 +104,7 @@ import {
   describeUpgradeOperations,
   nameCount,
 } from './migrationProgressCopy'
-
+import type { RpcSubnameInventory } from './readRpcSubnameInventory'
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
 import {
   assertSubnameRecreationUnchanged,
@@ -2339,6 +2339,7 @@ const executeRemainingAtomicBatches = async (params: {
   let remaining = [...params.plan.classified]
   const journalScope = batchJournalScope(params.ctx)
   let retryPermissionHeadLag = params.retryPermissionHeadLag
+  let subnameInventory: RpcSubnameInventory | undefined
 
   while (remaining.length > 0) {
     assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
@@ -2363,6 +2364,10 @@ const executeRemainingAtomicBatches = async (params: {
       publicClient: params.publicClient,
       ownerAddress: params.plan.migrationOwner,
       classified: remaining,
+      inventory: subnameInventory,
+      onInventory: (inventory) => {
+        subnameInventory = inventory
+      },
     })
     assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const description = describeUpgradeOperations(batch.operations)
