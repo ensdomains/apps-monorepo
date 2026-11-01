@@ -246,9 +246,11 @@ const connectFreshOwner = async (
 }
 
 test.describe('revoke smart sessions on-chain (WEB-674)', () => {
-  test('revoking a deployed account bumps the nonce, kills a copied session, and clears this browser', {
-    tag: ['@smoke'],
-  }, async ({ connectedPage: page, wallet, accounts }) => {
+  test('revoking a deployed account bumps the nonce, kills a copied session, and clears this browser', async ({
+    connectedPage: page,
+    wallet,
+    accounts,
+  }) => {
     const owner = accounts.getAddress('user') as Address
     // A copy of the record, as an attacker would take it off the device.
     const copied = await enableSessionViaGate(page, owner)

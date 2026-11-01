@@ -80,7 +80,7 @@ Nightly runs every manager and migration spec.
 | Migration: records replayed | Manager | V1→V2 | `migration.spec.ts`: text records and the ETH address are replayed onto the new V2 resolver | per PR |
 | Migration: locked 2LD | Manager | V1→V2 | `migration-fuses.spec.ts`: a locked 2LD keeps its wrapper in the Graveyard | per PR |
 | Migration: registry subname | Manager | V1→V2 | `migration-subname.spec.ts`: copies a registry-only subname into a UserRegistry under its parent | per PR |
-| Migration: name in grace | Manager | V1→V2 | `migration-grace.spec.ts`: renews then upgrades a grace-period name, charging the USDC the dialog quoted | per PR |
+| Migration: name in grace | Manager | V1→V2 | `migration-grace.spec.ts`: renews then upgrades a grace-period name, charging the USDC the dialog quoted (untagged until the spec follows #1556's opt-in selection and renewal funding) | nightly |
 | CCIP through migration | Manager | V1→V2 | `offchain-migration.spec.ts`: a V1 name on a CCIP-Read resolver keeps it (unwrapped, wrapped, locked) | per PR |
 
 The gaps are new tests still to be written.
@@ -108,12 +108,8 @@ They are cheap: most need one seeded name and no indexer.
 | lets the user opt out of the ETH repoint when the resolver detach is not on offer | `transfer.spec.ts` | #1217 (WEB-1508), see [the test plan](./transfer-eth-addr-strand-web1508-test-plan.md) |
 | offers the handover on by default for an unwrapped 2LD, warning when it is switched off | `transfer.spec.ts` | #1559, see [the test plan](./transfer-manager-handover-1559-test-plan.md) |
 | registers a name after connecting from the pricing page | manager `registration.spec.ts` | the connect-from-pricing registration path |
-| blocks checkout and keeps the "up to" hedge when the budget quote fails | `registration-rhinestone.spec.ts` | WEB-1506, see [the test plan](./hca-budget-web1506-test-plan.md) |
 | a duplicated tab does not free the original’s claim, and is told to wait for it | `registration-rhinestone.spec.ts` | WEB-1702, see [the test plan](./registration-tab-lock-web1702-test-plan.md) |
-| names what the last attempt left and makes the headline what the wallet pays now | `registration-rhinestone.spec.ts` | WEB-1483, see [the test plan](./payment-sheet-leftover-web1483-test-plan.md) |
 | switching accounts clears active records but keeps the archive (the report repro) | `transaction-history.spec.ts` | WEB-1223, see [the test plan](./transaction-history-web1223-test-plan.md) |
-| revoking a deployed account bumps the nonce, kills a copied session, and clears this browser | `hca-session-revoke.spec.ts` | WEB-674, see [the test plan](./session-revoke-web674-test-plan.md) |
-| a grace-period name is offered for renewal from the dashboard and listed on /upgrade | `migration-grace.spec.ts` | WEB-424, see [the test plan](./migration-grace-web424-test-plan.md) |
 
 ## Known failures
 

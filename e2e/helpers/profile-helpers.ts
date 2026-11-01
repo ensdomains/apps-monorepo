@@ -86,12 +86,21 @@ export async function renewFor28Days(page: Page): Promise<string> {
   await page.getByRole('button', { name: /renew to date/i }).click()
   const calendar = page.locator('[data-slot="calendar"]')
   await calendar.waitFor({ state: 'visible' })
-  // It opens on the expiry's month, which has no selectable day when the
-  // name expires on its last day.
-  const enabledDays = calendar.locator('button[data-day]:enabled')
-  if ((await enabledDays.count()) === 0)
-    await calendar.getByRole('button', { name: /next month/i }).click()
-  const earliest = await enabledDays.first().getAttribute('data-day')
+  // It opens on the currently selected date, not the earliest one, so go to
+  // the first year and month the control still offers.
+  for (const label of ['Choose the Year', 'Choose the Month']) {
+    const select = calendar.getByLabel(label)
+    const first = await select
+      .locator('option:not([disabled])')
+      .first()
+      .getAttribute('value')
+    if (first === null) throw new Error(`${label} offers no option`)
+    await select.selectOption(first)
+  }
+  const earliest = await calendar
+    .locator('button[data-day]:enabled')
+    .first()
+    .getAttribute('data-day')
   if (!earliest) throw new Error('The renewal calendar offers no date')
   // `data-day` is the browser's toLocaleDateString(), so do the date maths there.
   const target = await page.evaluate((day) => {

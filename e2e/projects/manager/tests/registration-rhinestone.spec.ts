@@ -673,9 +673,9 @@ test.describe('HCA registration budget (WEB-1506)', () => {
     })
   }
 
-  test('blocks checkout and keeps the "up to" hedge when the budget quote fails', {
-    tag: ['@smoke'],
-  }, async ({ connectedPage: page }) => {
+  test('blocks checkout and keeps the "up to" hedge when the budget quote fails', async ({
+    connectedPage: page,
+  }) => {
     const label = `budget-fail-${Date.now().toString(36)}`
 
     await page.route('**/orchestrator/intents/route', failRegistrationQuotes)
@@ -1359,9 +1359,10 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
     }
   }
 
-  test('names what the last attempt left and makes the headline what the wallet pays now', {
-    tag: ['@smoke'],
-  }, async ({ connectedPage: page, accounts }) => {
+  test('names what the last attempt left and makes the headline what the wallet pays now', async ({
+    connectedPage: page,
+    accounts,
+  }) => {
     const label = `leftover-${Date.now().toString(36)}`
     const wallet = accounts.getAddress('user')
 
