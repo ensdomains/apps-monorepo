@@ -5,18 +5,16 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 ## Now
 
 - **B0 merged** as #1599 (squash, 2026-10-29) and **B1a merged** as #1601 (squash, 2026-10-30). Main was merged into this branch afterwards (`d150d9fe7`): main's version wins in every landed file; the two `package.json` files keep main's content plus the branch-only scripts and the `@tenkeylabs/dappwright` dev dependency.
-- **The freeze is on.** New tests are written against main; this branch only takes `merge origin/main` and tracker commits. The `pr-verify` and `e2e-goal` skills still need pointing at main.
+- **The freeze is on.** New tests are written against main; this branch only takes `merge origin/main` and tracker commits. `pr-verify` now bases on `origin/main` and lands tests as a PR to main. `e2e-goal` is paused (status-only), because its ledger is B10 and lives only on this branch. Both skills are untracked files in the main checkout's `.claude/skills/`.
 - **Squash merges:** each stacked batch PR conflicts once its base lands, because the squash commit shares no history. Resolve by taking the batch's side in files the previous batch landed (main's tree equals the previous batch's head), as done on #1601.
-- **#1637 merged** (portal pays in the token its checkout shows; the registration USDC mismatch from #1395). The two `test.fixme` markers on WEB-1229 and WEB-1572 in `portal/tests/registration.spec.ts` can now come off, in a small PR to main.
+- **#1637 merged** (portal pays in the token its checkout shows; the registration USDC mismatch from #1395). The `test.fixme` markers on WEB-1229 and WEB-1572 never reached main (removed on #1601 before the squash). Both run per PR and pass.
 - **#1654 (WEB-2097)** paused subname creation in the app and rewrote the three Add 3LD/4LD smoke tests to assert the redirect and the disabled action. The checklist points at the new titles and marks those flows paused. Real creation coverage comes back when WEB-2097 is reverted.
 - **Per-PR CI on main now:** portal `@smoke` (46 tests, 2 shards), `manager-migration` (`playwright.migration.config.ts --grep @smoke`, the five migration flows), the manager's full suite (3 shards) and the address-literal gate. Nightly runs every manager, migration, portal and cross-app spec.
 
 ## Next action
 
-1. PR to main: remove the two `test.fixme` markers (WEB-1229, WEB-1572) and their rows under "Known failures" in `smoke-suite.md`; check both pass in CI.
-2. Point the `pr-verify` and `e2e-goal` skills at main.
-3. Prepare **B1b** (Manager smoke) from main: `playwright.smoke.config.ts`, the remaining manager specs and `@smoke` tags for the Manager rows (registration, renew, bulk renew, primary name, records, My Names, migration of a registry subname and a name in grace, CCIP), then switch the manager's per-PR job to its smoke config.
-4. Triage the four nightly migration failures (GW uncertified-resolver refusal, GU4, GS11, gas-budget split).
+1. Prepare **B1b** (Manager smoke) from main: `playwright.smoke.config.ts`, the remaining manager specs and `@smoke` tags for the Manager rows (registration, renew, bulk renew, primary name, records, My Names, migration of a registry subname and a name in grace, CCIP), then switch the manager's per-PR job to its smoke config.
+2. Triage the four nightly migration failures (GW uncertified-resolver refusal, GU4, GS11, gas-budget split).
 
 ## Waiting on
 
@@ -34,7 +32,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 - **Push, open a PR or comment on GitHub only after the user says go.**
 - **Never remove a worktree or delete a branch without the user confirming that specific one.**
 - **Main wins on every conflict.** When merging main back into this branch, take main's version of a landed file.
-- **Freeze after B0 merges.** New tests are written on main, and this branch only receives `merge origin/main` plus tracker commits. Point the `pr-verify` and `e2e-goal` skills at main at that point.
+- **Freeze after B0 merges.** New tests are written on main, and this branch only receives `merge origin/main` plus tracker commits. `pr-verify` targets main; `e2e-goal` stays paused until B10 lands.
 - **Keep PRs reviewable**: under ~5k lines each. Split a batch if a peer can't review it in one sitting.
 
 ## Per-batch procedure
@@ -113,6 +111,7 @@ When one is written, replace its `gap` entry in `landing/batches.ts` with `spec`
 - **2026-10-28**: B1a builds `e2e.yml` from main's file (Node 24 pin, path filter, sharding) rather than the branch's, and drops the branch's coverage/matrix-check steps (B10/B7 not landed). `e2e-land/**` is a PR base so stacked PRs get e2e CI; drop it after the landing.
 - **2026-10-28**: Cross-app `@smoke` tests skip unless bigname is real, so the per-PR gate has no cross-app job; nightly runs cross-app (two of its specs work with mocked bigname).
 - **2026-10-31**: B0 and B1a merged; main merged into this branch with main winning every landed file. The freeze starts. #1637 (the USDC mismatch) merged, so the two registration `fixme` markers can be removed.
+- **2026-11-01**: No unskip PR needed: main never carried the `fixme` markers. `pr-verify` pointed at main (worktree off `origin/main`, Phase 7 is a tests PR to main, no attribution line). `e2e-goal` paused with a freeze note rather than repointed, since its state files are B10.
 
 ## Worktree triage (2026-10-28)
 
