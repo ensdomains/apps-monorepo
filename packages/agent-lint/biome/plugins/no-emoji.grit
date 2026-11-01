@@ -1,14 +1,20 @@
 engine biome(1.0)
 language js(typescript, jsx)
 
-// Rule: Greptile no-emojis-in-code: no emojis in source code. Text glyphs such as a check mark are not emoji.
+// Rule: Greptile no-emojis-in-code: no emojis in source code. Flags emoji in the arguments of
+// console.* and logger.* calls, the developer log text. Text a user reads (a Telegram message,
+// interface copy in JSX text or an attribute) may carry emoji, so strings elsewhere are left
+// alone. Text glyphs such as a check mark are not emoji. Comments are checked by
+// text/no-emoji-in-comments, because Biome plugins cannot see them.
 
 or {
   JsStringLiteralExpression(),
-  JsxText(),
-  JsTemplateChunkElement(),
-  JsxString()
+  JsTemplateChunkElement()
 } as $bad where {
+  $bad <: within or {
+    `console.$method($...)`,
+    `logger.$method($...)`
+  },
   $bad <: r"(?s).*(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}\x{FE0F}).*",
-  register_diagnostic(span=$bad, message="[no-emoji] No emojis in source code.", severity="error")
+  register_diagnostic(span=$bad, message="[no-emoji] No emojis in log messages.", severity="error")
 }

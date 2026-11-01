@@ -545,9 +545,14 @@ export const RULES: ReadonlyArray<RuleEntry> = [
       greptile: ['focus-visible-rings'],
     },
   ),
-  rule('plugin/no-emoji', 'No emojis in source code.', {
-    greptile: ['no-emojis-in-code'],
-  }),
+  rule(
+    'plugin/no-emoji',
+    'No emojis in the arguments of console and logger calls; text a user reads (a Telegram message, interface copy) may keep them.',
+    {
+      greptile: ['no-emojis-in-code'],
+      scope: 'non-test files',
+    },
+  ),
 
   rule(
     'plugin/no-arbitrary-tailwind',
@@ -712,6 +717,10 @@ export const RULES: ReadonlyArray<RuleEntry> = [
       wiki: ['core.md › Documenting deviations'],
     },
   ),
+  rule('text/no-emoji-in-comments', 'No emojis in comments.', {
+    greptile: ['no-emojis-in-code'],
+    scope: 'non-test files',
+  }),
 
   // Compiler.
   rule(

@@ -10,7 +10,7 @@ describe('parseBiomeReport', () => {
       report([
         {
           category: 'plugin',
-          message: '[no-emoji] No emojis in source code.',
+          message: '[no-emoji] No emojis in log messages.',
           location: { path: 'a.tsx', start: { line: 3 }, end: { line: 4 } },
         },
       ]),
@@ -22,7 +22,7 @@ describe('parseBiomeReport', () => {
         path: 'a.tsx',
         line: 3,
         endLine: 4,
-        message: 'No emojis in source code.',
+        message: 'No emojis in log messages.',
       },
     ])
   })

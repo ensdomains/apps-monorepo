@@ -102,7 +102,7 @@ Besides Biome's recommended set, which the repo's gate already enforces:
 | `plugin/readonly-members` | Fields of interfaces and object types are readonly; array parameters take readonly arrays. Applies to files other than .d.ts. | wiki: typescript/README.md › Immutability constructs<br>wiki: libraries/react.md › Name and co-locate props types (Default)<br>STYLEGUIDE.md: TypeScript Usage › Use Readonly for Immutability<br>Greptile: `readonly-immutable-types` |
 | `plugin/constants-upper-snake` | Name a module-level number, bigint or address constant in UPPER_SNAKE_CASE. Applies to non-test files. | wiki: typescript/README.md › Naming conventions<br>STYLEGUIDE.md: Naming Conventions › Constants<br>Greptile: `constants-upper-snake` |
 | `plugin/no-bare-outline-none` | Pair `outline-none` with a `focus-visible:` style. | wiki: libraries/react.md › Build accessible, semantic, keyboard-operable UI (Default)<br>STYLEGUIDE.md: Accessibility › WCAG 2 Examples<br>Greptile: `focus-visible-rings` |
-| `plugin/no-emoji` | No emojis in source code. | Greptile: `no-emojis-in-code` |
+| `plugin/no-emoji` | No emojis in the arguments of console and logger calls; text a user reads (a Telegram message, interface copy) may keep them. Applies to non-test files. | Greptile: `no-emojis-in-code` |
 | `plugin/no-arbitrary-tailwind` | Use a design token, not a bracketed pixel or hex value; calc(), var(), grids and [property:value] are allowed. Applies to non-test files. | wiki: libraries/styling.md › Design tokens over arbitrary values<br>STYLEGUIDE.md: Styling with Tailwind CSS › Avoid Arbitrary Values<br>Greptile: `no-arbitrary-tailwind` |
 | `plugin/no-skipped-tests` | No skipped test or suite in committed code; a runtime guard with a reason is fine. Applies to test files. | wiki: libraries/testing.md › Tool-enforced |
 | `agent/no-unchecked-cast` | No cast that narrows a type without a check; error mappers, type placeholders and widening casts are fine. Applies to non-test files. | wiki: core.md › Type-safety first<br>wiki: typescript/README.md › Type-safety: strict and no holes |
@@ -119,5 +119,6 @@ Besides Biome's recommended set, which the repo's gate already enforces:
 | `testing-library/prefer-find-by` | Wait with findBy, not waitFor around a getBy. Applies to test files. | wiki: libraries/testing.md › Test from the user's perspective |
 | `text/no-a11y-suppression` | Never suppress an accessibility rule; fix the markup. | STYLEGUIDE.md: Code Formatting & Linting with Biome › Ignoring Biome Rules |
 | `text/eslint-disable-reason` | Every eslint-disable carries its reason after `--`. | wiki: core.md › Documenting deviations |
+| `text/no-emoji-in-comments` | No emojis in comments. Applies to non-test files. | Greptile: `no-emojis-in-code` |
 | `tsc/noUncheckedIndexedAccess` | Index access may be undefined; handle it. | wiki: typescript/README.md › Type-safety: strict and no holes |
 <!-- agent-lint:rules:end -->

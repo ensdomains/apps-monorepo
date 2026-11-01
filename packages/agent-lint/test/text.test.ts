@@ -50,4 +50,44 @@ describe('checkText', () => {
       [],
     )
   })
+
+  it('flags an emoji in a line comment, a trailing comment and a block comment, on the line that holds it', () => {
+    expect(
+      rulesOn(
+        [
+          '// Done ✅',
+          'const a = 1 // trailing 🚀',
+          '/** 👇 one-line block */',
+          '/*',
+          ' * plain line',
+          ' * 📊 second line',
+          ' */',
+        ].join('\n'),
+      ),
+    ).toEqual([
+      '1 text/no-emoji-in-comments',
+      '2 text/no-emoji-in-comments',
+      '3 text/no-emoji-in-comments',
+      '6 text/no-emoji-in-comments',
+    ])
+  })
+
+  it('leaves an emoji in a string, a template, a URL or JSX text alone, and a check mark in a comment', () => {
+    expect(
+      rulesOn(
+        [
+          "const a = '👋 hello // not a comment'",
+          'const b = `Done ✅ /* nor this */`',
+          'const url = "http://example.com/🙂"',
+          'const c = <p>See https://ens.domains 🎉</p>',
+          '// Saved ✓ (a check mark is no emoji)',
+          "const d = 'it\\'s fine' // plain",
+        ].join('\n'),
+      ),
+    ).toEqual([])
+  })
+
+  it('skips test-like files, whose comments may quote emoji test data', () => {
+    expect(checkText('a.test.ts', '// Done ✅')).toEqual([])
+  })
 })
