@@ -84,7 +84,7 @@
               {
                 "object": "ResultAsync",
                 "property": "fromPromise",
-                "message": "Import fromPromise from neverthrow directly instead of ResultAsync.fromPromise. In a file that also needs XState's fromPromise, import XState's as fromPromiseXState."
+                "message": "Import fromPromise from neverthrow directly instead of ResultAsync.fromPromise. Always import XState's fromPromise as fromPromiseXState, so a bare fromPromise means neverthrow's."
               }
             ]
           }
