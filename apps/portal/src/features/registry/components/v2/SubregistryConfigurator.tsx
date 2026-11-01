@@ -20,8 +20,10 @@ import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/se
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
+import { usePastedRegistryCheck } from '@/features/registry/hooks/usePastedRegistryCheck'
 import { useRegistryParentMutation } from '@/features/registry/hooks/useRegistryParentMutation'
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
+import { IS_REGISTRY_DEPLOY_PAUSED } from '@/features/registry/utils/registryDeployPause'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -47,6 +49,31 @@ const implAddress = getChainContractAddress({
 
 type RegistryOption = 'deploy' | 'use-existing'
 
+/** Off while new registries would deploy from an implementation pending an upgrade. */
+const DeployRegistryOption = () => (
+  <div className="flex items-center gap-3">
+    <RadioGroupItem
+      value="deploy"
+      id="registry-option-deploy"
+      disabled={IS_REGISTRY_DEPLOY_PAUSED}
+    />
+    <Label
+      htmlFor="registry-option-deploy"
+      className={
+        IS_REGISTRY_DEPLOY_PAUSED
+          ? 'text-muted-foreground'
+          : 'cursor-pointer text-foreground'
+      }
+    >
+      Deploy a new Permissioned Registry contract
+      {IS_REGISTRY_DEPLOY_PAUSED ? ' (temporarily disabled)' : null}
+    </Label>
+  </div>
+)
+
+const defaultRegistryOption = (isDeployPaused: boolean): RegistryOption =>
+  isDeployPaused ? 'use-existing' : 'deploy'
+
 export const getCustomRegistryAddressError = (value: string): string | null =>
   match(value)
     .when(
@@ -62,12 +89,19 @@ export const getCustomRegistryAddressError = (value: string): string | null =>
 const CustomRegistryAddressField = ({
   value,
   onChange,
+  isPendingUpgrade,
 }: {
   readonly value: string
   readonly onChange: (value: string) => void
+  /** The pasted registry has to be upgraded before a name can use it. */
+  readonly isPendingUpgrade: boolean
 }) => {
   const [touched, setTouched] = useState(false)
-  const error = touched ? getCustomRegistryAddressError(value) : null
+  const error =
+    (touched ? getCustomRegistryAddressError(value) : null) ??
+    (isPendingUpgrade
+      ? 'This registry has to be upgraded before a name can use it.'
+      : null)
 
   return (
     <div>
@@ -109,7 +143,9 @@ const SubregistryConfiguratorForm = ({
   onComplete,
   assertWritable,
 }: SubregistryConfiguratorProps & { resourceId: ResourceId }) => {
-  const [registryOption, setRegistryOption] = useState<RegistryOption>('deploy')
+  const [registryOption, setRegistryOption] = useState<RegistryOption>(() =>
+    defaultRegistryOption(IS_REGISTRY_DEPLOY_PAUSED),
+  )
   const [contractAddress, setContractAddress] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
   // Drawn again at every submit, so a retry after a deploy that landed (but
@@ -223,7 +259,7 @@ const SubregistryConfiguratorForm = ({
     clearTransaction()
     attempt.end()
     setContractAddress('')
-    setRegistryOption('deploy')
+    setRegistryOption(defaultRegistryOption(IS_REGISTRY_DEPLOY_PAUSED))
     deployedSubregistryAddressRef.current = null
     // Reconfigure closes/unmounts immediately; only show the success label
     // when this form stays mounted (initial configure flow).
@@ -248,10 +284,18 @@ const SubregistryConfiguratorForm = ({
     attempt.start(connectedAddress)
   }
 
+  const pastedRegistryCheck = usePastedRegistryCheck({
+    isUsed: useCustomRegistry,
+    value: contractAddress,
+  })
+
   const isSubmitDisabled =
-    (useCustomRegistry && !isAddress(contractAddress)) || !walletOk
+    (useCustomRegistry && !isAddress(contractAddress)) ||
+    pastedRegistryCheck.isBlocked ||
+    !walletOk
 
   const buttonText = match({
+    useCustomRegistry,
     isDeployConfirming,
     isSetRegistryParentPending: registryParent.isPending,
     isSetSubregistryPending,
@@ -261,6 +305,7 @@ const SubregistryConfiguratorForm = ({
     .with({ isSetRegistryParentPending: true }, () => 'Setting parent...')
     .with({ isSetSubregistryPending: true }, () => 'Setting subregistry...')
     .with({ showSuccessButtonLabel: true }, () => 'Complete!')
+    .with({ useCustomRegistry: true }, () => 'Set registry')
     .otherwise(() => 'Deploy')
 
   if (isLoading) {
@@ -295,15 +340,7 @@ const SubregistryConfiguratorForm = ({
             }
           }}
         >
-          <div className="flex items-center gap-3">
-            <RadioGroupItem value="deploy" id="registry-option-deploy" />
-            <Label
-              htmlFor="registry-option-deploy"
-              className="cursor-pointer text-foreground"
-            >
-              Deploy a new Permissioned Registry contract
-            </Label>
-          </div>
+          <DeployRegistryOption />
           <div className="flex items-center gap-3">
             <RadioGroupItem
               value="use-existing"
@@ -321,6 +358,7 @@ const SubregistryConfiguratorForm = ({
           <CustomRegistryAddressField
             value={contractAddress}
             onChange={setContractAddress}
+            isPendingUpgrade={pastedRegistryCheck.isPendingUpgrade}
           />
         ) : null}
         <div className="grid grid-cols-3 gap-2">

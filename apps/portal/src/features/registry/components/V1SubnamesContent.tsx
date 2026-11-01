@@ -174,6 +174,7 @@ export const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
         isLoadMoreError={isFetchNextPageError}
         name={name}
         canCreateSubname={canCreateSubname}
+        isCreationPaused={false}
         onDeleteSubname={
           canDeleteSubname ? (row) => void handleDelete([row]) : undefined
         }
