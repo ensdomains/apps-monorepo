@@ -73,14 +73,39 @@ export async function waitForProfileUpdated(page: Page, timeout = 90_000) {
 }
 
 /**
- * On the renew page, selects the minimum 28-day duration via the custom date
- * picker, completes the USDC payment flow, and asserts the success screen shows
- * the correct expiry date. Returns the formatted expiry string (e.g. "June 29, 2026").
+ * On the renew page, picks the day 28 days after the current expiry in the
+ * custom date picker, completes the USDC payment flow, and asserts the success
+ * screen shows the correct expiry date. Returns the formatted expiry string
+ * (e.g. "June 29, 2026").
+ *
+ * The picker's earliest day is the minimum renewal (one day since #1498), and
+ * the duration is the whole calendar days from the current expiry, so the
+ * target is that earliest day plus 27.
  */
 export async function renewFor28Days(page: Page): Promise<string> {
   await page.getByRole('button', { name: /renew to date/i }).click()
-  await page.locator('[data-slot="calendar"]').waitFor({ state: 'visible' })
-  await page.keyboard.type('min', { delay: 50 })
+  const calendar = page.locator('[data-slot="calendar"]')
+  await calendar.waitFor({ state: 'visible' })
+  // It opens on the expiry's month, which has no selectable day when the
+  // name expires on its last day.
+  const enabledDays = calendar.locator('button[data-day]:enabled')
+  if ((await enabledDays.count()) === 0)
+    await calendar.getByRole('button', { name: /next month/i }).click()
+  const earliest = await enabledDays.first().getAttribute('data-day')
+  if (!earliest) throw new Error('The renewal calendar offers no date')
+  // `data-day` is the browser's toLocaleDateString(), so do the date maths there.
+  const target = await page.evaluate((day) => {
+    const date = new Date(day)
+    date.setDate(date.getDate() + 27)
+    return {
+      day: date.toLocaleDateString(),
+      month: String(date.getMonth()),
+      year: String(date.getFullYear()),
+    }
+  }, earliest)
+  await calendar.getByLabel('Choose the Year').selectOption(target.year)
+  await calendar.getByLabel('Choose the Month').selectOption(target.month)
+  await calendar.locator(`button[data-day="${target.day}"]`).click()
   await page.locator('body').click({ position: { x: 10, y: 10 } })
   await page.waitForTimeout(500)
 
