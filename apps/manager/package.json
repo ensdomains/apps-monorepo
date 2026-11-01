@@ -62,6 +62,7 @@
     "@radix-ui/react-tabs": "^1.2.1",
     "@radix-ui/react-toggle": "^1.2.1",
     "@radix-ui/react-tooltip": "^1.4.1",
+    "@reown/appkit-controllers": "1.7.8",
     "@rhinestone/sdk": "catalog:",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-form": "^1.33.5",

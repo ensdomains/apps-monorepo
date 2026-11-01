@@ -1,6 +1,6 @@
 import { logger } from '@ens-apps/utils/logger'
 import { Wallet } from 'lucide-react'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import type { Connector } from 'wagmi'
 import { useConnect, useConnectors, useSwitchChain } from 'wagmi'
 import {
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
-import { OATH_WALLET } from '@/lib/wallet/oathWallet'
+import { OATH_WALLET, prepareOathConnectionView } from '@/lib/wallet/oathWallet'
 import {
   connectOnSupportedChain,
   isCoinbase,
@@ -111,6 +111,8 @@ export const ConnectWalletDialog = ({
   const connectors = useConnectors()
   const { mutateAsync: connectAsync } = useConnect()
   const { switchChainAsync } = useSwitchChain()
+  const presentation = useRef<AbortController | null>(null)
+  useEffect(() => () => presentation.current?.abort(), [])
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -179,10 +181,12 @@ export const ConnectWalletDialog = ({
     if (usesOwnModal) onOpenChange(true)
   }
 
-  const connect = async (connector: Connector) => {
+  const connect = async (connector: Connector, isOath: boolean) => {
     // Guard against a second concurrent attempt: two in-flight connects would
     // let each one's `finally` clear the other's pending indicator.
-    if (isConnecting) return
+    if (isConnecting || presentation.current) return
+    const attempt = new AbortController()
+    presentation.current = attempt
     setError(null)
     // Set pending first so the guard above holds for the whole attempt. For
     // WalletConnect this stays set while its own QR modal is open (our dialog
@@ -199,6 +203,8 @@ export const ConnectWalletDialog = ({
     }
 
     try {
+      if (isOath) await prepareOathConnectionView(attempt.signal)
+      if (attempt.signal.aborted) return
       // Leaves the wallet on a chain the app supports, without handing
       // WalletConnect a target chain up front — that deadlocks wagmi's
       // connector. See `connectOnSupportedChain`.
@@ -212,6 +218,8 @@ export const ConnectWalletDialog = ({
     } catch (e) {
       handleConnectError(e, usesOwnModal)
     } finally {
+      attempt.abort()
+      if (presentation.current === attempt) presentation.current = null
       setPendingId(null)
     }
   }
@@ -296,7 +304,7 @@ export const ConnectWalletDialog = ({
         isPending={pendingId === connector.uid}
         key={option.key}
         name={option.name}
-        onClick={() => connect(connector)}
+        onClick={() => connect(connector, option.key === OATH_WALLET.id)}
       />
     )
   }

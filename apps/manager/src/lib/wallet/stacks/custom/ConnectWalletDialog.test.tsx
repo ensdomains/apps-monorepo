@@ -1,5 +1,14 @@
+import { setImmediate } from 'node:timers/promises'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
+import {
+  ApiController,
+  CoreHelperUtil,
+  EventsController,
+  ModalController,
+  OptionsController,
+  RouterController,
+} from '@reown/appkit-controllers'
 import {
   cleanup,
   fireEvent,
@@ -11,6 +20,7 @@ import { mainnet } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Connector, createConfig, http } from 'wagmi'
 import { injected } from 'wagmi/connectors'
+import { prepareOathConnectionView } from '@/lib/wallet/oathWallet'
 import { ConnectWalletDialog } from './ConnectWalletDialog'
 
 const mocks = vi.hoisted(() => ({
@@ -67,7 +77,10 @@ beforeEach(() => {
   mocks.connect.mockResolvedValue(undefined)
   mocks.getChainId.mockResolvedValue(1)
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 describe('Oath Wallet entry', () => {
   it('starts the existing QR connector directly and closes the list before pairing', async () => {
@@ -101,4 +114,77 @@ describe('Oath Wallet entry', () => {
     await waitFor(() => expect(mocks.connect).toHaveBeenCalledTimes(1))
     expect(generic.hasAttribute('disabled')).toBe(true)
   })
+})
+
+describe('Oath presentation with installed AppKit controllers', () => {
+  it.each([false, true])(
+    'opens Oath directly, retains it on reopening and releases generic routing (mobile=%s)',
+    async (mobile) => {
+      vi.spyOn(ApiController, 'prefetch').mockResolvedValue([])
+      vi.spyOn(CoreHelperUtil, 'isMobile').mockReturnValue(mobile)
+      vi.spyOn(EventsController, 'sendEvent').mockImplementation(
+        () => undefined,
+      )
+      const originalManualControl = OptionsController.state.manualWCControl
+      OptionsController.setManualWCControl(true)
+      const routes: { view: string; wallet: string | undefined }[] = []
+      mocks.connect.mockImplementationOnce(async () => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          await ModalController.open()
+          await setImmediate()
+          routes.push({
+            view: RouterController.state.view,
+            wallet: RouterController.state.data?.wallet?.name,
+          })
+        }
+        ModalController.close()
+        throw new Error('User rejected the request')
+      })
+      try {
+        renderDialog()
+        fireEvent.click(screen.getByRole('button', { name: /Oath Wallet/ }))
+        await waitFor(() => {
+          expect(routes).toHaveLength(2)
+          expect(
+            screen
+              .getByRole('button', { name: /Oath Wallet/ })
+              .hasAttribute('disabled'),
+          ).toBe(false)
+        })
+        expect(routes).toEqual([
+          { view: 'ConnectingWalletConnect', wallet: 'Oath Wallet' },
+          { view: 'ConnectingWalletConnect', wallet: 'Oath Wallet' },
+        ])
+        await ModalController.open()
+        await setImmediate()
+        expect(RouterController.state.view).toBe(
+          mobile ? 'AllWallets' : 'ConnectingWalletConnectBasic',
+        )
+        expect(RouterController.state.data).toBeUndefined()
+      } finally {
+        ModalController.close()
+        OptionsController.setManualWCControl(originalManualControl)
+      }
+    },
+  )
+})
+
+it('does not install a presentation after its owner has already unmounted', async () => {
+  vi.spyOn(ApiController, 'prefetch').mockResolvedValue([])
+  vi.spyOn(CoreHelperUtil, 'isMobile').mockReturnValue(true)
+  vi.spyOn(EventsController, 'sendEvent').mockImplementation(() => undefined)
+  const originalManualControl = OptionsController.state.manualWCControl
+  OptionsController.setManualWCControl(true)
+  const attempt = new AbortController()
+  attempt.abort()
+  try {
+    await prepareOathConnectionView(attempt.signal)
+    await ModalController.open()
+    await setImmediate()
+    expect(RouterController.state.view).toBe('AllWallets')
+    expect(RouterController.state.data).toBeUndefined()
+  } finally {
+    ModalController.close()
+    OptionsController.setManualWCControl(originalManualControl)
+  }
 })
