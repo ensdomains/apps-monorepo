@@ -270,14 +270,14 @@ export const prepareDeleteV1SubnameTransactions = ({
       // Unwrapped and wrapped back by the same label, so a wrong one fails
       // at the unwrap, before anything changes.
       const [parentLabel = ''] = parentName.split('.')
-      const parentTokenId = BigInt(hashLabel(parentLabel))
+      const parentLabelhash = hashLabel(parentLabel)
       return [
         toEoaIntent(walletClient, {
           to: NAME_WRAPPER,
           data: encodeFunctionData({
             abi: nameWrapperUnwrapEth2ldSnippet,
             functionName: 'unwrapETH2LD',
-            args: [hashLabel(parentLabel), account, account],
+            args: [parentLabelhash, account, account],
           }),
           chainId,
         }),
@@ -292,7 +292,7 @@ export const prepareDeleteV1SubnameTransactions = ({
             args: [
               account,
               NAME_WRAPPER,
-              parentTokenId,
+              BigInt(parentLabelhash),
               encodeAbiParameters(
                 [
                   { name: 'label', type: 'string' },
