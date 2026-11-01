@@ -1,5 +1,5 @@
 {
-  "ignorePatterns": "**/*.gen.ts\n**/*.gen.d.ts\n**/worker-configuration.d.ts\n**/routeTree.gen.ts\n**/*.po\n**/translations/**\n**/locales/**\n**/dist/**\n**/.wrangler/**",
+  "ignorePatterns": "**/*.gen.ts\n**/*.gen.d.ts\n**/worker-configuration.d.ts\n**/routeTree.gen.ts\n**/*.po\n**/translations/**\n**/locales/**\n**/dist/**\n**/.wrangler/**\npackages/agent-lint/fixtures/**\npackages/agent-lint/test/rule-fixtures/**",
   "rules": [
     {
       "id": "no-weakened-tests",
