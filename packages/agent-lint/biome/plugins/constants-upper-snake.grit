@@ -1,0 +1,24 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: TypeScript README "Naming conventions" (true constants UPPER_SNAKE), STYLEGUIDE.md
+// "Constants", Greptile constants-upper-snake: a module-level const holding a number, bigint
+// or address literal is a true constant.
+
+JsVariableDeclarator(id=$name, initializer=JsInitializerClause(expression=$value)) as $bad where {
+  $bad <: within JsVariableDeclaration() as $declaration ,
+  $declaration <: r"(?s)^const\b.*",
+  $bad <: not within or {
+    JsFunctionBody(),
+    JsArrowFunctionExpression(),
+    JsClassDeclaration()
+  } ,
+  $value <: or {
+    JsNumberLiteralExpression(),
+    JsBigintLiteralExpression(),
+    r"(?s)^['\x22]0x[0-9a-fA-F]{40}['\x22](?:\s+as\s+\w+)?$",
+    r"(?s)^-?[0-9][0-9_.]*n?(?:\s+as\s+const)?$"
+  },
+  $name <: not r"^[A-Z][A-Z0-9_]*$",
+  register_diagnostic(span=$bad, message="[constants-upper-snake] Name a true constant in UPPER_SNAKE_CASE.", severity="error")
+}

@@ -1,0 +1,20 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: neverthrow.md "Lift throwing code in with fromSync, fromThrowable, fromPromise"
+// (Default): "Code that throws (a third-party call, JSON.parse, an async API) enters the
+// Result world through a conversion helper, not through a hand-written try/catch". Greptile
+// fromSync-not-trycatch. Flags JSON.parse inside a try block whose catch carries on instead
+// of rethrowing: that turns a parse failure into a value by hand. A catch that rethrows, say
+// with more context, is not this rule's concern.
+
+`JSON.parse($...)` as $bad where {
+  $bad <: within or {
+    JsTryStatement(body=$body, catch_clause=$catch),
+    JsTryFinallyStatement(body=$body, catch_clause=$catch)
+  },
+  $body <: contains $bad,
+  $catch <: JsCatchClause(),
+  $catch <: not contains JsThrowStatement(),
+  register_diagnostic(span=$bad, message="[no-json-parse-in-try] Parse JSON with fromThrowable or fromSync and handle the failure as a value, not with a try/catch that carries on.", severity="error")
+}

@@ -1,0 +1,14 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: tanstack-query.md "Handle each query's loading and error states independently",
+// STYLEGUIDE.md "Handle Query States Independently", Greptile independent-query-states.
+// Only errors are checked: an all-or-nothing loading gate is the wiki's named exception,
+// and mutations are not query states.
+
+`$a.$prop || $b.$prop` as $bad where {
+  $prop <: r"^(?:isError|error)$",
+  $a <: not r".*[Mm]utation.*",
+  $b <: not r".*[Mm]utation.*",
+  register_diagnostic(span=$bad, message="[no-or-grouped-query-states] Render each query's error on its own; do not combine query errors with ||.", severity="error")
+}

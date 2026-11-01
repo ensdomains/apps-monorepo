@@ -1,0 +1,16 @@
+{
+  "$schema": "../../node_modules/@biomejs/biome/configuration_schema.json",
+  "root": false,
+  "extends": "//",
+  "files": {
+    "includes": [
+      "./**",
+      "!**/node_modules",
+      // Deliberate violations that agent-lint's tests expect its rules to find.
+      "!**/fixtures"
+    ]
+  },
+  // The repo's Biome and the one pinned here format GritQL differently, so
+  // neither formats the plugins.
+  "formatter": { "includes": ["**", "!**/*.grit"] }
+}

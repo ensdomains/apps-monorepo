@@ -1,0 +1,17 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: styling.md "Design tokens over arbitrary values", STYLEGUIDE.md "Avoid Arbitrary
+// Values", Greptile no-arbitrary-tailwind. Flags a single literal (a number with a unit,
+// or a hex colour) in brackets after a utility; calc(), var(), grids, transitions and
+// [property:value] have no token to use instead. Replaces Biome's noTailwindArbitraryValue,
+// whose class parser fails on complex variants.
+
+or {
+  JsStringLiteralExpression(),
+  JsTemplateChunkElement(),
+  JsxString()
+} as $bad where {
+  $bad <: r"(?s).*(?:^|[\s'\x22`:])-?(?:w|h|size|min-w|min-h|max-w|max-h|p[xytblrse]?|m[xytblrse]?|gap(?:-[xy])?|space-[xy]|inset(?:-[xy])?|top|right|bottom|left|rounded(?:-[a-z]{1,2})?|text|leading|tracking|font|ring|border(?:-[xytblr])?|bg|fill|stroke|accent|outline|shadow|opacity|z|translate-[xy]|scale|rotate|basis|aspect|order|indent|decoration|ring-offset|divide|caret|from|via|to)-\[(?:-?[0-9]*\.?[0-9]+(?:px|rem|em|ch|%|vw|vh|svh|dvh)?|#[0-9a-fA-F]{3,8})\](?:$|[\s'\x22`/]).*",
+  register_diagnostic(span=$bad, message="[no-arbitrary-tailwind] Use a design token, not an arbitrary value; if no token fits, say why in a biome-ignore reason.", severity="error")
+}

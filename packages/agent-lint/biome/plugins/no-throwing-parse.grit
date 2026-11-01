@@ -1,0 +1,17 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: valibot.md "Lift parse failures into a Result, never let them throw at non-HTTP
+// boundaries" (Must). A parse already lifted with fromSync or fromThrowable is a value.
+
+or {
+  `v.parse($...)`,
+  `v.parseAsync($...)`
+} as $bad where {
+  $bad <: not within or {
+    `fromSync($...)`,
+    `fromThrowable($...)`,
+    `Result.fromThrowable($...)`
+  } ,
+  register_diagnostic(span=$bad, message="[no-throwing-parse] v.parse throws a ValiError. At non-HTTP boundaries use v.safeParse or parseIntoResult and handle the failure as a value.", severity="error")
+}

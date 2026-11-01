@@ -1,0 +1,526 @@
+{
+  // The Biome half of agent-lint, which checks the lines agents add or change;
+  // humans' hooks and CI keep using the repo's own biome.jsonc files.
+  //
+  // agent-lint hands Biome a copy of this file from outside the checked repo
+  // (src/runtimeConfig.ts): the repo's root and nested configs never apply.
+  // Everything they enforce at error is repeated here (test/config.test.ts
+  // checks that), and every glob starts with **/ so it matches in any
+  // checkout. "Test-like files" below are tests, specs, e2e code, test
+  // utilities, fixtures, mocks and stories; rules that only make tests harder
+  // to write are switched off there.
+  "$schema": "../node_modules/@biomejs/biome/configuration_schema.json",
+  "root": true,
+  "vcs": { "enabled": false },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/*.svg",
+      "!**/*.gen.ts",
+      "!**/*.gen.d.ts",
+      "!**/worker-configuration.d.ts",
+      "!**/vendor",
+      "!**/*.min.js",
+      "!**/dist",
+      "!**/.wrangler",
+      "!**/.tools",
+      "!**/.tanstack",
+      "!**/.output",
+      "!**/.nitro",
+      "!**/apps/manager/public",
+      "!**/walk-animations/*.json",
+      // Deliberate violations used by agent-lint's own tests.
+      "!**/packages/agent-lint/fixtures"
+    ]
+  },
+  "formatter": { "enabled": false },
+  "assist": { "enabled": false },
+  "css": { "parser": { "tailwindDirectives": true } },
+  "linter": {
+    "enabled": true,
+    "domains": {
+      "react": "recommended",
+      // The repo declares vitest as `catalog:`, which stops Biome detecting
+      // it, so the test rules are switched on by name.
+      "test": "recommended"
+    },
+    "rules": {
+      "preset": "recommended",
+      "a11y": {
+        "noLabelWithoutControl": {
+          "level": "error",
+          "options": {
+            "inputComponents": [
+              "Input",
+              "Textarea",
+              "Checkbox",
+              "Switch",
+              "RadioGroupItem"
+            ]
+          }
+        },
+        "noStaticElementInteractions": "error",
+        "useButtonType": "error",
+        "useKeyWithClickEvents": "error"
+      },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "error",
+        "noForEach": "error",
+        "noUselessFragments": "error",
+        "noUselessSwitchCase": "off"
+      },
+      "correctness": {
+        "noNestedComponentDefinitions": "error",
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      },
+      "nursery": {
+        "noJsRestrictedProperties": {
+          "level": "error",
+          "options": {
+            "entries": [
+              {
+                "object": "ResultAsync",
+                "property": "fromPromise",
+                "message": "Import fromPromise from neverthrow directly instead of ResultAsync.fromPromise. In a file that also needs XState's fromPromise, import XState's as fromPromiseXState."
+              }
+            ]
+          }
+        },
+        "noRestrictedDependencies": "error",
+        "useReactFunctionComponentDefinition": {
+          "level": "error",
+          "options": { "namedComponents": "arrowFunction" }
+        },
+        "useSortedClasses": {
+          "level": "error",
+          "fix": "safe",
+          "options": { "functions": ["cn", "cva", "clsx", "tw", "twm"] }
+        }
+      },
+      "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "@tanstack/react-query": {
+                "importNames": ["queryOptions"],
+                "message": "Build query options with resultQueryOptions from @ens-apps/utils around a ResultFn fetcher."
+              },
+              "styled-components": "Style with Tailwind utilities.",
+              "@emotion/styled": "Style with Tailwind utilities.",
+              "@emotion/react": "Style with Tailwind utilities."
+            },
+            "patterns": [
+              {
+                "group": ["**/*.module.css"],
+                "message": "Style with Tailwind utilities, not CSS Modules."
+              }
+            ]
+          }
+        },
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": {
+            "strictCase": false,
+            "requireAscii": true,
+            "filenameCases": ["camelCase", "PascalCase", "export"]
+          }
+        },
+        "noNegationElse": "error",
+        "noNestedTernary": "error",
+        "noNonNullAssertion": "error",
+        "noUnusedTemplateLiteral": "error",
+        "noUselessElse": "error",
+        "useConst": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        // Replaced by the no-skipped-tests plugin, which spares Playwright's
+        // runtime guard test.skip(condition, reason).
+        "noSkippedTests": "off",
+        "noUnknownAtRules": "off"
+      }
+    }
+  },
+  "plugins": [
+    {
+      "path": "./plugins/no-empty-catch.grit",
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.js",
+        "**/*.mjs",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/test-utils/**",
+        "!**/__tests__/**",
+        "!**/_fixtures/**",
+        "!**/*.mock.ts",
+        "!**/*.mock.tsx",
+        "!**/*.stories.tsx",
+        "!**/.storybook/**"
+      ]
+    },
+    "./plugins/no-yield-await.grit",
+    {
+      "path": "./plugins/no-throw-result-error.grit",
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/test-utils/**",
+        "!**/__tests__/**",
+        "!**/_fixtures/**",
+        "!**/*.mock.ts",
+        "!**/*.mock.tsx",
+        "!**/*.stories.tsx",
+        "!**/.storybook/**"
+      ]
+    },
+    "./plugins/no-effect-data-fetching.grit",
+    "./plugins/no-effect-transactions.grit",
+    "./plugins/no-try-in-resultfn.grit",
+    {
+      "path": "./plugins/jsonb-needs-type.grit",
+      "includes": ["**/*.ts", "!**/*.test.*", "!**/*.spec.*"]
+    },
+    {
+      "path": "./plugins/no-raw-request-reads.grit",
+      "includes": [
+        "**/workers/api-worker/src/app/**/*.ts",
+        "!**/*.test.*",
+        "!**/*.spec.*"
+      ]
+    },
+    {
+      "path": "./plugins/no-throwing-parse.grit",
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/test-utils/**",
+        "!**/__tests__/**",
+        "!**/_fixtures/**",
+        "!**/*.mock.ts",
+        "!**/*.mock.tsx",
+        "!**/*.stories.tsx",
+        "!**/.storybook/**"
+      ]
+    },
+    {
+      "path": "./plugins/readonly-members.grit",
+      // Tests, mocks and stories too: Greptile's readonly-immutable-types
+      // reviews every TypeScript file.
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "!**/*.d.ts",
+        "!**/_fixtures/**",
+        "!**/.storybook/**"
+      ]
+    },
+    "./plugins/no-copied-mutation-state.grit",
+    {
+      "path": "./plugins/no-or-grouped-query-states.grit",
+      "includes": [
+        "**/*.tsx",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/*.stories.tsx"
+      ]
+    },
+    {
+      "path": "./plugins/no-literal-query-keys.grit",
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/test-utils/**",
+        "!**/__tests__/**",
+        "!**/_fixtures/**",
+        "!**/*.mock.ts",
+        "!**/*.mock.tsx",
+        "!**/*.stories.tsx",
+        "!**/.storybook/**"
+      ]
+    },
+    {
+      "path": "./plugins/no-client-in-function.grit",
+      "includes": [
+        "**/*.tsx",
+        "**/use*.ts",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/test-utils/**",
+        "!**/*.stories.tsx",
+        "!**/rhinestone-browser-debug/**"
+      ]
+    },
+    {
+      "path": "./plugins/effect-in-named-hook.grit",
+      "includes": ["**/*.tsx", "!**/*.test.*", "!**/*.stories.tsx"]
+    },
+    {
+      "path": "./plugins/no-try-catch-into-result.grit",
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/test-utils/**",
+        "!**/packages/utils/src/neverthrow/**"
+      ]
+    },
+    {
+      "path": "./plugins/tagged-errors.grit",
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/test-utils/**",
+        "!**/*.mock.ts"
+      ]
+    },
+    "./plugins/no-try-in-query-fn.grit",
+    "./plugins/picklist-over-literal-union.grit",
+    {
+      "path": "./plugins/no-getdatabase-in-routes.grit",
+      "includes": [
+        "**/workers/api-worker/src/app/routes/**",
+        "!**/*.test.*",
+        "!**/*.spec.*"
+      ]
+    },
+    {
+      "path": "./plugins/tables-with-relations.grit",
+      "includes": ["**/database/schema/*.ts", "**/database/schema/**/*.ts"]
+    },
+    {
+      "path": "./plugins/no-vite-secret-env.grit",
+      "includes": ["**", "!**/rhinestone-browser-debug/**"]
+    },
+    {
+      "path": "./plugins/no-bare-error-value.grit",
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/__tests__/**",
+        "!**/_fixtures/**",
+        "!**/*.mock.ts",
+        "!**/*.mock.tsx",
+        "!**/*.stories.tsx",
+        "!**/.storybook/**",
+        "!**/packages/utils/src/neverthrow/**",
+        "!**/*.config.*"
+      ]
+    },
+    {
+      // Test helpers such as e2e stand-ins are held to this one and to the
+      // value rule above: a dropped failure there hides a broken test. Tests
+      // and specs are not.
+      "path": "./plugins/no-json-parse-in-try.grit",
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/__tests__/**",
+        "!**/_fixtures/**",
+        "!**/*.mock.ts",
+        "!**/*.mock.tsx",
+        "!**/*.stories.tsx",
+        "!**/.storybook/**"
+      ]
+    },
+    {
+      "path": "./plugins/constants-upper-snake.grit",
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/test-utils/**",
+        "!**/*.mock.ts"
+      ]
+    },
+    {
+      "path": "./plugins/no-emoji.grit",
+      "includes": [
+        "**",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/*.stories.tsx"
+      ]
+    },
+    {
+      "path": "./plugins/address-type.grit",
+      "includes": [
+        "**/*.ts",
+        "**/*.tsx",
+        "!**/*.d.ts",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/test-utils/**",
+        "!**/*.mock.ts"
+      ]
+    },
+    {
+      "path": "./plugins/no-bare-outline-none.grit",
+      "includes": [
+        "**/*.tsx",
+        "**/*.ts",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/*.stories.tsx"
+      ]
+    },
+    {
+      "path": "./plugins/no-arbitrary-tailwind.grit",
+      "includes": [
+        "**/*.tsx",
+        "**/*.ts",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/e2e/**",
+        "!**/*.stories.tsx"
+      ]
+    },
+    {
+      "path": "./plugins/no-skipped-tests.grit",
+      "includes": ["**/*.test.*", "**/*.spec.*", "**/e2e/**"]
+    }
+  ],
+  "overrides": [
+    {
+      // Playwright requires `async ({}, use) => ...` for a fixture with no
+      // dependencies, and lists fixtures it must set up before the page even
+      // when the body does not read them.
+      "includes": ["**/e2e/fixtures/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noEmptyPattern": "off",
+            "noUnusedFunctionParameters": "off"
+          }
+        }
+      }
+    },
+    {
+      // A manifest cannot hold a suppression comment, so a deliberate
+      // dependency (uuid v7 in the api-worker) could never pass.
+      "includes": ["**/package.json"],
+      "linter": {
+        "rules": { "nursery": { "noRestrictedDependencies": "off" } }
+      }
+    },
+    {
+      // TanStack Router route components and vendored shadcn primitives are
+      // function declarations by convention; in .ts files Biome mistakes any
+      // PascalCase function (ResultFn) for a component.
+      "includes": ["**/src/routes/**", "**/components/ui/**", "**/*.ts"],
+      "linter": {
+        "rules": {
+          "nursery": { "useReactFunctionComponentDefinition": "off" }
+        }
+      }
+    },
+    {
+      // The result-aware wrapper itself builds on TanStack's queryOptions.
+      "includes": ["**/packages/utils/src/tanstack-query/**"],
+      "linter": { "rules": { "style": { "noRestrictedImports": "off" } } }
+    },
+    {
+      // Route files are URLs, declarations and Vitest type tests follow
+      // their tools' names, e2e and worker code follow their own convention.
+      "includes": [
+        "**/src/routes/**",
+        "**/*.d.ts",
+        "**/*.test-d.ts",
+        "**/MOCK.ts",
+        "**/e2e/**",
+        "**/workers/**",
+        "**/.github/**"
+      ],
+      "linter": { "rules": { "style": { "useFilenamingConvention": "off" } } }
+    },
+    {
+      // The shadcn CLI writes kebab-case files, and these packages use
+      // kebab-case by convention.
+      "includes": [
+        "**/components/ui/**",
+        "**/packages/transaction-manager/**",
+        "**/packages/smart-account/**",
+        "**/packages/shared-schema/**",
+        "**/packages/utils/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useFilenamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false,
+                "requireAscii": true,
+                "filenameCases": [
+                  "camelCase",
+                  "PascalCase",
+                  "kebab-case",
+                  "export"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // Test-like files: these rules make tests harder to write, not better.
+      "includes": [
+        "**/*.test.*",
+        "**/*.spec.*",
+        "**/e2e/**",
+        "**/test-utils/**",
+        "**/__tests__/**",
+        "**/_fixtures/**",
+        "**/*.mock.ts",
+        "**/*.mock.tsx",
+        "**/*.stories.tsx",
+        "**/.storybook/**"
+      ],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noLabelWithoutControl": "off",
+            "noStaticElementInteractions": "off",
+            "useKeyWithClickEvents": "off"
+          },
+          "complexity": { "noExcessiveCognitiveComplexity": "off" },
+          "correctness": { "noUnsafeOptionalChaining": "off" },
+          "nursery": { "noJsRestrictedProperties": "off" },
+          "style": { "useFilenamingConvention": "off" }
+        }
+      }
+    }
+  ]
+}

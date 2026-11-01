@@ -1,0 +1,12 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: neverthrow.md "Compose with ResultFn generators and yield*" (Must): inside a
+// ResultFn generator `yield*` already unwraps async Results, so `yield* await x` is
+// redundant and wrong. The finding sits on the awaited call's name, so editing a long
+// call's arguments does not report it again.
+
+JsYieldExpression(argument=JsYieldArgument(expression=JsAwaitExpression(argument=JsCallExpression(callee=$callee)))) as $yield where {
+  $yield <: r"(?s)yield\*.*",
+  register_diagnostic(span=$callee, message="[no-yield-await] Never write yield* await in a ResultFn generator: yield* already unwraps async Results.", severity="error")
+}

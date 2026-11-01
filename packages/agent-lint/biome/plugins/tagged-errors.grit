@@ -1,0 +1,15 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: neverthrow.md "Specific error classes built from TaggedError", STYLEGUIDE.md
+// "Core Principles", Greptile tagged-error-classes.
+
+or {
+  `err(new Error($...))`,
+  `errAsync(new Error($...))`,
+  TsReferenceType() as $type where {
+    $type <: r"(?s)^(?:Result|ResultAsync)<.+,\s*(?:Error|string)\s*>$"
+  }
+} as $bad where {
+  register_diagnostic(span=$bad, message="[tagged-errors] Give a Result a specific TaggedError class as its error, not a bare Error or string.", severity="error")
+}

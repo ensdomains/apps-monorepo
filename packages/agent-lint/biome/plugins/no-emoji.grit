@@ -1,0 +1,14 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: Greptile no-emojis-in-code: no emojis in source code. Text glyphs such as a check mark are not emoji.
+
+or {
+  JsStringLiteralExpression(),
+  JsxText(),
+  JsTemplateChunkElement(),
+  JsxString()
+} as $bad where {
+  $bad <: r"(?s).*(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}\x{FE0F}).*",
+  register_diagnostic(span=$bad, message="[no-emoji] No emojis in source code.", severity="error")
+}

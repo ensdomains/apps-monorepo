@@ -1,0 +1,31 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: core.md "Errors as values" (Must): no empty catch. Flags an empty catch block
+// and a `.catch` whose handler returns nothing while its result is thrown away. A
+// comment of 15 characters or more inside says why, which is the wiki's documented
+// deviation, so it passes. Biome's noEmptyBlockStatements would also flag no-op
+// functions such as `accept: () => {}`, which are not error handling.
+
+or {
+  JsCatchClause(body=JsBlockStatement(statements=[]) as $block) where {
+    $block <: not r"(?s)^\{\s*(?:(?://[^\n]{15,}\s*)+|/[*].{15,}[*]/\s*)\}$"
+  },
+  JsExpressionStatement(expression=or {
+    `$promise.catch($handler)`,
+    `await $promise.catch($handler)`,
+    `void $promise.catch($handler)`
+  }) where {
+    $handler <: or {
+      `() => {}`,
+      `($error) => {}`,
+      `() => undefined`,
+      `($error) => undefined`,
+      `() => null`,
+      `($error) => null`
+    },
+    $handler <: not r"(?s).*/[/*].{15,}.*"
+  }
+} as $bad where {
+  register_diagnostic(span=$bad, message="[no-empty-catch] Do not swallow an error. Handle it, return it as a value, or let it propagate; if ignoring it is right, say why in a comment inside the block.", severity="error")
+}

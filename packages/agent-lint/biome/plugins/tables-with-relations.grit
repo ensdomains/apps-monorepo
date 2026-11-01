@@ -1,0 +1,14 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: drizzle.md "Express identity and relations on the table, not in queries": a schema
+// file whose tables reference other tables declares their relations(). A standalone table
+// with no foreign key has none to declare. Biome 2.5.15 never matches JsModule() as the
+// target, so the rule anchors on the pgTable call and looks at the enclosing module.
+
+`pgTable($...)` as $bad where {
+  $bad <: within JsModule() as $module ,
+  $module <: contains `$_.references($...)`,
+  $module <: not contains `relations($...)`,
+  register_diagnostic(span=$bad, message="[tables-with-relations] This schema file references other tables; declare the relations() for them too.", severity="error")
+}

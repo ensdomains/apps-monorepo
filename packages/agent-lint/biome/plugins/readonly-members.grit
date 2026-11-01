@@ -1,0 +1,32 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: TypeScript README "Immutability constructs" (readonly, Default), react.md "Name and
+// co-locate props types", STYLEGUIDE.md "Use Readonly for Immutability", Greptile
+// readonly-immutable-types. Fields of interfaces and object type aliases are readonly, and
+// array parameters take readonly arrays. Fields already inside Readonly<...> (and other
+// type filters), global augmentations and type constraints are left alone.
+
+or {
+  TsPropertySignatureTypeMember() as $bad where {
+    $bad <: or {
+      within TsInterfaceDeclaration() ,
+      within TsTypeAliasDeclaration()
+    },
+    $bad <: not within TsGlobalDeclaration() ,
+    $bad <: not within TsExternalModuleDeclaration() ,
+    $bad <: not within TsTypeConstraintClause() ,
+    $bad <: not within TsReferenceType() as $wrapper where {
+      $wrapper <: r"(?s)^(?:Readonly|DeepReadonly|Extract|Exclude|Pick|Omit|Equals|Expect)\s*<.*"
+    } ,
+    $bad <: not r"(?s)^readonly\b.*",
+    register_diagnostic(span=$bad, message="[readonly-members] Mark this field readonly: write `readonly name: T` and copy the object to change it.", severity="error")
+  },
+  JsFormalParameter(type_annotation=TsTypeAnnotation(ty=$type)) as $bad where {
+    $type <: or {
+      TsArrayType(),
+      r"(?s)^Array<.*"
+    },
+    register_diagnostic(span=$bad, message="[readonly-members] Take array inputs as ReadonlyArray<T> or readonly T[].", severity="error")
+  }
+}
