@@ -1,0 +1,21 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: STYLEGUIDE.md "Working with ENS" (neverthrow's fromPromise is the bare one): XState's
+// fromPromise is always imported as fromPromiseXState, so a bare fromPromise means neverthrow's.
+// Flags a fromPromise import from xstate or xstate/actors under any other local name, the bare
+// import included. Imports from neverthrow and `fromPromise as fromPromiseXState` pass.
+
+or {
+  JsShorthandNamedImportSpecifier() as $bad where {
+    $bad <: r"(?s)^(?:type\s+)?fromPromise$"
+  },
+  JsNamedImportSpecifier() as $bad where {
+    $bad <: r"(?s)^(?:type\s+)?fromPromise\s+as\s+\S+$",
+    $bad <: not r"(?s)^(?:type\s+)?fromPromise\s+as\s+fromPromiseXState$"
+  }
+} where {
+  $bad <: within JsImportNamedClause(source=$source),
+  $source <: r"^['\x22]xstate(?:/actors)?['\x22]$",
+  register_diagnostic(span=$bad, message="[alias-xstate-from-promise] Import XState's fromPromise as fromPromiseXState, so a bare fromPromise means neverthrow's.", severity="error")
+}

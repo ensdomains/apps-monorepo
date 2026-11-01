@@ -256,6 +256,13 @@ export const RULES: ReadonlyArray<RuleEntry> = [
     },
   ),
   rule(
+    'plugin/alias-xstate-from-promise',
+    "Import XState's `fromPromise` as `fromPromiseXState`, so a bare `fromPromise` means neverthrow's.",
+    {
+      styleguide: ['Web3 & Blockchain Patterns › Working with ENS'],
+    },
+  ),
+  rule(
     'plugin/no-throw-result-error',
     'Never `throw result.error` to bridge a Result into a throwing channel.',
     {

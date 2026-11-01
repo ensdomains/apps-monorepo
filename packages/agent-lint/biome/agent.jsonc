@@ -166,6 +166,7 @@
       ]
     },
     "./plugins/no-yield-await.grit",
+    "./plugins/alias-xstate-from-promise.grit",
     {
       "path": "./plugins/no-throw-result-error.grit",
       "includes": [
