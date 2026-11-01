@@ -17,6 +17,9 @@ import { SubnameRecreationError } from './subnameRecreationError'
 
 const mocks = vi.hoisted(() => ({
   discoverSubnameRecreation: vi.fn(),
+  applySubnameRecreation: vi.fn(
+    ({ classified }: { readonly classified: readonly unknown[] }) => classified,
+  ),
   getSubnameMigrationImpact: vi.fn(),
   readRpcSubnameInventory: vi.fn(),
 }))
@@ -31,8 +34,7 @@ vi.mock('./readRpcSubnameMigrationImpact', () => ({
 }))
 vi.mock('./subnameRecreation', () => ({
   discoverSubnameRecreation: mocks.discoverSubnameRecreation,
-  applySubnameRecreation: ({ classified }: { classified: unknown[] }) =>
-    classified,
+  applySubnameRecreation: mocks.applySubnameRecreation,
 }))
 
 import { resolveMigratableNames } from './migratableNames'
@@ -135,6 +137,9 @@ describe('resolveMigratableNames', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.applySubnameRecreation.mockImplementation(
+      ({ classified }) => classified,
+    )
     mocks.readRpcSubnameInventory.mockImplementation(
       async ({
         roots,
@@ -182,6 +187,130 @@ describe('resolveMigratableNames', () => {
       ),
     ).toEqual(names.map(({ domain }) => domain.name))
     expect(mocks.discoverSubnameRecreation).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])(
+    'prepares sparse nonempty roots together and isolates an unsupported tree: %s',
+    async (hasUnsupportedTree) => {
+      const names = Array.from({ length: 20 }, (_, index) =>
+        makeClassified({
+          name: `root${index}.eth`,
+          id: namehash(`root${index}.eth`),
+        }),
+      )
+      const nonempty = names.filter((_, index) => index === 1 || index === 18)
+      const preparedInventory = makeRpcSubnameInventory({
+        domains: names.map(({ domain }) =>
+          makeDomain({ name: domain.name, id: domain.id }),
+        ),
+        rootNames: names.map(({ domain }) => domain.name),
+      })
+      const onInventory = vi.fn()
+      const children = nonempty.map(({ domain }) =>
+        makeClassified({
+          action: 'copy',
+          tokenType: 'registry-child',
+          name: `child.${domain.name}`,
+          id: namehash(`child.${domain.name}`),
+          parentName: domain.name,
+        }),
+      )
+      mocks.applySubnameRecreation.mockReturnValue([...names, ...children])
+      mocks.readRpcSubnameInventory.mockResolvedValueOnce({
+        roots: names.map(({ domain }) => ({
+          node: domain.id,
+          name: domain.name,
+        })),
+        nodes: nonempty.map(({ domain }) => ({
+          parentNode: domain.id,
+          node: namehash(`child.${domain.name}`),
+        })),
+      })
+      mocks.discoverSubnameRecreation.mockImplementation(
+        async ({
+          domains,
+        }: {
+          readonly domains: readonly { readonly name: string }[]
+        }) => {
+          if (
+            hasUnsupportedTree &&
+            domains.some(({ name }) => name === 'root1.eth')
+          )
+            throw new SubnameRecreationError({
+              ensName: 'root1.eth',
+              message: 'The child label cannot be recovered.',
+              detail:
+                'an exact, valid subname label is required before migration.',
+            })
+          return { domains, inventory: preparedInventory }
+        },
+      )
+      const result = await resolveMigratableNames({
+        eligible: names,
+        owner: OWNER,
+        isSubnameImportEnabled: true,
+        onInventory,
+        publicClient: createPublicClient({
+          chain: envConfig.chain,
+          transport: http(),
+        }),
+      })
+      expect(result.eligible).toEqual(
+        hasUnsupportedTree
+          ? names.filter(({ domain }) => domain.name !== 'root1.eth')
+          : names,
+      )
+      expect(result.blockedSubnames).toEqual(
+        hasUnsupportedTree ? [{ name: names[1], reason: 'unknown-label' }] : [],
+      )
+      expect(result.verifiedSubnames).toEqual(
+        hasUnsupportedTree
+          ? children.filter(({ parentName }) => parentName !== 'root1.eth')
+          : children,
+      )
+      expect(
+        onInventory.mock.calls.map(([value]) => value === preparedInventory),
+      ).toEqual(hasUnsupportedTree ? [false] : [false, true])
+      expect(
+        mocks.discoverSubnameRecreation.mock.calls.map(([params]) =>
+          params.domains.map(({ name }: { readonly name: string }) => name),
+        ),
+      ).toEqual(
+        hasUnsupportedTree
+          ? [['root1.eth', 'root18.eth'], ['root1.eth'], ['root18.eth']]
+          : [['root1.eth', 'root18.eth']],
+      )
+    },
+  )
+
+  it('does not retry grouped discovery or publish its inventory after cancellation', async () => {
+    const names = ['alice.eth', 'bob.eth'].map((name) =>
+      makeClassified({ name, id: namehash(name) }),
+    )
+    const controller = new AbortController()
+    const onInventory = vi.fn()
+    mocks.readRpcSubnameInventory.mockResolvedValueOnce({
+      nodes: names.map(({ domain }) => ({ parentNode: domain.id })),
+    })
+    mocks.discoverSubnameRecreation.mockImplementationOnce(async () => {
+      controller.abort(new Error('Cancelled preparation'))
+      throw controller.signal.reason
+    })
+    await expect(
+      resolveMigratableNames({
+        eligible: names,
+        owner: OWNER,
+        isSubnameImportEnabled: true,
+        publicClient: createPublicClient({
+          chain: envConfig.chain,
+          transport: http(),
+        }),
+        signal: controller.signal,
+        onInventory,
+      }),
+    ).rejects.toThrow('Cancelled preparation')
+    expect(mocks.discoverSubnameRecreation).toHaveBeenCalledTimes(1)
+    expect(onInventory).toHaveBeenCalledTimes(1)
   })
 
   it('keeps an unrelated empty root eligible when another root has unverifiable descendants', async () => {

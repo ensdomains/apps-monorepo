@@ -99,6 +99,54 @@ type SubnameCandidateResult =
     }
   | { readonly status: 'blocked'; readonly block: BlockedSubnameMigration }
 
+const getImportCandidates = (params: {
+  readonly candidates: readonly ClassifiedName[]
+  readonly nonemptyNodes: ReadonlySet<string>
+  readonly isSubnameImportEnabled: boolean
+}): readonly ClassifiedName[] =>
+  params.candidates.filter(
+    (name) =>
+      params.isSubnameImportEnabled &&
+      canImportDirectSubnames(name) &&
+      params.nonemptyNodes.has(namehash(name.domain.name)),
+  )
+
+const readRecreatedCandidates = async (params: {
+  readonly candidates: readonly ClassifiedName[]
+  readonly owner: Address
+  readonly publicClient: PublicClient
+  readonly inventory: RpcSubnameInventory
+  readonly signal?: AbortSignal
+}): Promise<{
+  readonly classified: readonly ClassifiedName[]
+  readonly inventory: RpcSubnameInventory
+}> => {
+  const discovery = await discoverSubnameRecreation({
+    domains: params.candidates.map(({ domain }) => domain),
+    owner: params.owner,
+    publicClient: params.publicClient,
+    inventory: params.inventory,
+    signal: params.signal,
+  })
+  return {
+    classified: applySubnameRecreation({
+      ...discovery,
+      classified: params.candidates,
+      owner: params.owner,
+    }),
+    inventory: discovery.inventory,
+  }
+}
+
+const copiedChildrenOf = (
+  classified: readonly ClassifiedName[],
+  parentName: string,
+): readonly CopyClassifiedName[] =>
+  classified.filter(
+    (item): item is CopyClassifiedName =>
+      item.action === 'copy' && item.parentName === parentName,
+  )
+
 const checkSubnameCandidates = async (params: {
   readonly candidates: readonly ClassifiedName[]
   readonly isSubnameImportEnabled: boolean
@@ -172,6 +220,32 @@ const checkSubnameCandidates = async (params: {
   const nonemptyNodes = new Set(
     inventory.value.nodes.map(({ parentNode }) => parentNode),
   )
+  const importCandidates = getImportCandidates({
+    candidates: params.candidates,
+    nonemptyNodes,
+    isSubnameImportEnabled: params.isSubnameImportEnabled,
+  })
+  const recreated =
+    importCandidates.length > 1
+      ? await readRecreatedCandidates({
+          ...params,
+          candidates: importCandidates,
+          inventory: inventory.value,
+        }).catch(() => {
+          params.signal?.throwIfAborted()
+          // Isolate unsupported trees through the same per-name validation below.
+          return undefined
+        })
+      : undefined
+  params.signal?.throwIfAborted()
+  const preparedInventory = getReusableRpcSubnameInventory({
+    inventory: recreated?.inventory,
+    chainId: envConfig.chain.id,
+    registryAddress: V1_CONTRACTS.LegacyRegistry,
+    nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+    names: selectedNames,
+  })
+  if (preparedInventory) await params.onInventory?.(preparedInventory)
   const unsupportedNames = params.candidates.filter(
     (name) => !params.isSubnameImportEnabled || !canImportDirectSubnames(name),
   )
@@ -202,22 +276,18 @@ const checkSubnameCandidates = async (params: {
             if (params.isSubnameImportEnabled && canImport) {
               if (!nonemptyNodes.has(namehash(name.domain.name)))
                 return { status: 'verified', subnames: [] }
-              const discovery = await discoverSubnameRecreation({
-                domains: [name.domain],
-                owner: params.owner,
-                publicClient: params.publicClient,
-                inventory: inventory.value,
-                signal: params.signal,
-              })
-              const verified = applySubnameRecreation({
-                ...discovery,
-                classified: [name],
-                owner: params.owner,
-              })
+              const verified =
+                recreated ??
+                (await readRecreatedCandidates({
+                  ...params,
+                  candidates: [name],
+                  inventory: inventory.value,
+                }))
               return {
                 status: 'verified',
-                subnames: verified.filter(
-                  (item): item is CopyClassifiedName => item.action === 'copy',
+                subnames: copiedChildrenOf(
+                  verified.classified,
+                  name.domain.name,
                 ),
               }
             }
