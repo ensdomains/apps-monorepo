@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isPastedRegistryBlocked,
   isPendingUpgradeImplementation,
+  isSubnameCreationPaused,
 } from './pendingUpgradeRegistry'
 
 describe('isPendingUpgradeImplementation', () => {
@@ -53,6 +54,19 @@ describe('isPastedRegistryBlocked', () => {
       expect(isPastedRegistryBlocked({ isPasted, isPendingUpgrade })).toBe(
         expected,
       )
+    },
+  )
+})
+
+describe('isSubnameCreationPaused', () => {
+  it.each([
+    { isPendingUpgrade: true, expected: true },
+    { isPendingUpgrade: undefined, expected: true },
+    { isPendingUpgrade: false, expected: false },
+  ])(
+    'pending $isPendingUpgrade: paused $expected',
+    ({ isPendingUpgrade, expected }) => {
+      expect(isSubnameCreationPaused(isPendingUpgrade)).toBe(expected)
     },
   )
 })

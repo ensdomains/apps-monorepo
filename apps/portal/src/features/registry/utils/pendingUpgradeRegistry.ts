@@ -42,3 +42,8 @@ export const isPastedRegistryBlocked = ({
   readonly isPasted: boolean
   readonly isPendingUpgrade: boolean | undefined
 }): boolean => isPasted && isPendingUpgrade !== false
+
+/** Subnames can't be created in a registry until it is confirmed not to be pending an upgrade. */
+export const isSubnameCreationPaused = (
+  isPendingUpgrade: boolean | undefined,
+): boolean => isPendingUpgrade !== false

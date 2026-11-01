@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   createFileRoute,
   Link,
+  Navigate,
   redirect,
   useNavigate,
 } from '@tanstack/react-router'
@@ -35,6 +36,7 @@ import { getSubnameLabelStatusQueryOptions } from '@/features/profile/hooks/useS
 import { prepareCreateSubnameSubmit } from '@/features/registry/helpers/prepareCreateSubnameSubmit'
 import { useCreateSubname } from '@/features/registry/hooks/useCreateSubname'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
 import {
   type CreateSubnameTarget,
   type CreateSubnameWrite,
@@ -44,6 +46,7 @@ import {
   prepareCreateSubnameTransaction,
   type RegistrarAccess,
 } from '@/features/registry/utils/create-subname.helpers'
+import { isSubnameCreationPaused } from '@/features/registry/utils/pendingUpgradeRegistry'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
@@ -55,9 +58,9 @@ import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { getLabelRegistrationError } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/create-subname')({
-  // Only ENSv2 subname creation is paused; an unknown protocol counts as ENSv2.
+  // ENSv2 is checked per registry below; an unknown protocol can't be.
   beforeLoad: ({ params: { name }, context: { protocolVersion } }) => {
-    if (protocolVersion === 'ENSv1') return
+    if (protocolVersion !== undefined) return
     throw redirect({
       to: '/$name/subnames',
       params: { name },
@@ -445,7 +448,29 @@ const V2CreateSubname = ({ name }: CreateSubnameContentProps) => {
     )
   }
 
-  return <V2RegistrarGate name={name} registryAddress={subregistryAddress} />
+  return (
+    <V2PendingUpgradeGate name={name} registryAddress={subregistryAddress} />
+  )
+}
+
+/** Back to the subnames list until the registry is confirmed not to be pending an upgrade. */
+const V2PendingUpgradeGate = ({
+  name,
+  registryAddress,
+}: {
+  readonly name: string
+  readonly registryAddress: Address
+}) => {
+  const { data: isPendingUpgrade, isPending } = useQuery(
+    getIsRegistryPendingUpgradeQueryOptions({ registryAddress }),
+  )
+
+  if (isPending) return <LoadingMessage />
+
+  if (isSubnameCreationPaused(isPendingUpgrade))
+    return <Navigate to="/$name/subnames" params={{ name }} replace />
+
+  return <V2RegistrarGate name={name} registryAddress={registryAddress} />
 }
 
 interface V2RegistrarGateProps {
