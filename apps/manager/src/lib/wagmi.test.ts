@@ -16,17 +16,15 @@ describe('wagmiConfig', () => {
       payloads = [...payloads, messages]
       return new Response(
         JSON.stringify(
-          messages.reduce<readonly unknown[]>(
-            (responses, { id, method }) => [
-              {
-                jsonrpc: '2.0',
-                id,
-                result: method === 'eth_getLogs' ? [] : '0x64',
-              },
-              ...responses,
-            ],
-            [],
-          ),
+          Array.from({ length: messages.length }, (_, index) => {
+            const message = messages.at(-1 - index)
+            if (!message) throw new Error('Missing batch request')
+            return {
+              jsonrpc: '2.0',
+              id: message.id,
+              result: message.method === 'eth_getLogs' ? [] : '0x64',
+            }
+          }),
         ),
         { headers: { 'Content-Type': 'application/json' } },
       )
