@@ -13,6 +13,7 @@ const session = vi.hoisted(() => ({
   enableSession: vi.fn(),
   forgetLocalSession: vi.fn(),
   revokeSession: vi.fn(),
+  isSessionAccessReset: false,
   useEoa: false,
 }))
 
@@ -46,6 +47,7 @@ describe('WalletSection smart session safety controls', () => {
     session.isRevokingSession = false
     session.revokeError = null
     session.revokeErrorReason = null
+    session.isSessionAccessReset = false
     session.useEoa = false
     session.enableSession.mockResolvedValue({ status: 'enabled' })
     session.revokeSession.mockResolvedValue(true)
@@ -171,6 +173,21 @@ describe('WalletSection smart session safety controls', () => {
     expect(session.enableSession).toHaveBeenCalledOnce()
     expect(session.forgetLocalSession).not.toHaveBeenCalled()
     expect(session.revokeSession).not.toHaveBeenCalled()
+  })
+
+  it('does not offer a second reset until a new session is signed', () => {
+    session.isSessionAccessReset = true
+    render(<WalletSection onAction={vi.fn()} />)
+
+    const reset = screen.getByRole('button', {
+      name: 'Smart session access reset',
+    })
+    expect(reset).toBeDisabled()
+    fireEvent.click(reset)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Enable smart sessions' }),
+    ).toBeEnabled()
   })
 
   it('disables enable while its signature is pending', () => {

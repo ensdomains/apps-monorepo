@@ -621,22 +621,22 @@ describe('subnames route role checks', () => {
     ).toBeInTheDocument()
   })
 
-  it('offers subname creation to a registry-wide role holder', async () => {
+  it('shows paused subname creation to a registry-wide role holder', async () => {
     renderRoute()
 
     expect(
-      await screen.findByRole('link', { name: /create subname/i }),
-    ).toBeInTheDocument()
+      await screen.findByRole('button', { name: /create subname/i }),
+    ).toHaveAttribute('aria-disabled', 'true')
   })
 
   // A reserved label is registered under ROLE_REGISTER_RESERVED alone.
-  it('offers subname creation to a reserved-registration holder', async () => {
+  it('shows paused subname creation to a reserved-registration holder', async () => {
     rootRoles = ['ROLE_REGISTER_RESERVED']
     renderRoute()
 
     expect(
-      await screen.findByRole('link', { name: /create subname/i }),
-    ).toBeInTheDocument()
+      await screen.findByRole('button', { name: /create subname/i }),
+    ).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('offers no subname creation without either registrar role', async () => {
@@ -654,7 +654,7 @@ describe('subnames route role checks', () => {
     await screen.findByRole('table')
     await waitFor(() => expect(rootRoleParams).toHaveBeenCalled())
     expect(
-      screen.queryByRole('link', { name: /create subname/i }),
+      screen.queryByRole('button', { name: /create subname/i }),
     ).not.toBeInTheDocument()
   })
 

@@ -32,12 +32,9 @@ test.describe
     /**
      * Full test: register → expire → verify premium UI elements.
      */
-    test('should display temporary premium alert, price breakdown, and drawer', async ({
-      portalPage: page,
-      wallet,
-      makeName,
-      time,
-    }) => {
+    test('should display temporary premium alert, price breakdown, and drawer', {
+      tag: ['@smoke'],
+    }, async ({ portalPage: page, wallet, makeName, time }) => {
       test.setTimeout(180_000)
 
       // ── 1. Create an expired name (~5 days ago) ───────────────────
@@ -118,12 +115,9 @@ test.describe
      * Verify a name expired 18 days ago (near end of 21-day window)
      * still shows the temporary premium UI.
      */
-    test('should show temporary premium for a name near the end of the premium window', async ({
-      portalPage: page,
-      wallet,
-      makeName,
-      time,
-    }) => {
+    test('should show temporary premium for a name near the end of the premium window', {
+      tag: ['@smoke'],
+    }, async ({ portalPage: page, wallet, makeName, time }) => {
       test.setTimeout(180_000)
 
       console.log('[test:1] Creating expired name (18 days past expiry)...')
@@ -163,12 +157,9 @@ test.describe
      * Verify a name expired past the 21-day window does NOT show
      * temporary premium UI.
      */
-    test('should not show temporary premium for a name past the 21-day window', async ({
-      portalPage: page,
-      wallet,
-      makeName,
-      time,
-    }) => {
+    test('should not show temporary premium for a name past the 21-day window', {
+      tag: ['@smoke'],
+    }, async ({ portalPage: page, wallet, makeName, time }) => {
       test.setTimeout(180_000)
 
       console.log(

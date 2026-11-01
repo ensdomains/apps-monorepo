@@ -7,6 +7,7 @@ import { getRegistryInfoQueryKey } from '../hooks/useRegistry'
 import { getRegistryLabelsQueryKey } from '../hooks/useRegistryLabels'
 import { getRegistryOccupantsQueryKey } from '../hooks/useRegistryOccupants'
 import { getRegistryRoleHistoryForAccountQueryKey } from '../hooks/useRegistryRoleHistoryForAccount'
+import { getRegistryRootRoleCountsQueryKey } from '../queries/getRegistryRootRoleCounts'
 
 /** Root role reads, from BigName and on-chain. */
 const ROOT_ROLE_KEYS: ReadonlySet<unknown> = new Set([
@@ -16,6 +17,8 @@ const ROOT_ROLE_KEYS: ReadonlySet<unknown> = new Set([
   getRegistryRoleHistoryForAccountQueryKey.key,
   // The caller's own root roles, which gate the add/edit sheets (on-chain).
   getNameRolesForAccountQueryKey.key,
+  // Holder counts that keep the last Upgrade holder in the edit sheet (on-chain).
+  getRegistryRootRoleCountsQueryKey.key,
 ])
 
 /** Read from bigname: needs polling until it has indexed the transaction. */
