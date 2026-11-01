@@ -5,10 +5,11 @@ import {
   namehash,
   type PublicClient,
   stringToHex,
+  TimeoutError,
   zeroAddress,
   zeroHash,
 } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   type RpcSubnameInventory,
   type RpcSubnameInventoryParameters,
@@ -43,7 +44,11 @@ const event = (parent: `0x${string}`, label: string, address: string) => ({
 })
 
 const setup = (
-  options: { readonly reorg?: boolean; readonly abort?: AbortController } = {},
+  options: {
+    readonly reorg?: boolean
+    readonly abort?: AbortController
+    readonly retry?: 'until-success'
+  } = {},
 ) => {
   const state = { head: 100n, owner: OWNER, hasNewChild: false }
   let blockReads = 0
@@ -152,11 +157,107 @@ const setup = (
       previousInventory,
       scanDescendants,
       signal: options.abort?.signal,
+      retry: options.retry,
     })
   return { run, request, multicall, state }
 }
 
 describe('readRpcSubnameInventory', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it.each(['logs', 'sources'] as const)(
+    'keeps retrying failed %s with backoff and publishes the complete pinned inventory',
+    async (stage) => {
+      vi.useFakeTimers()
+      const context = setup({ retry: 'until-success' })
+      let failures = 0
+      if (stage === 'logs') {
+        const original = context.request.getMockImplementation()
+        if (!original) throw new Error('Missing inventory transport')
+        context.request.mockImplementation(async (call) => {
+          if (call.method === 'eth_getLogs' && failures < 3) {
+            failures += 1
+            throw new TimeoutError({ url: 'https://rpc.example', body: {} })
+          }
+          return original(call)
+        })
+      } else {
+        const original = context.multicall.getMockImplementation()
+        if (!original) throw new Error('Missing inventory transport')
+        context.multicall.mockImplementation(async (call) => {
+          if (
+            call.contracts.some(({ args }) => args[0] === ROOT) &&
+            failures < 3
+          ) {
+            failures += 1
+            throw new TimeoutError({ url: 'https://rpc.example', body: {} })
+          }
+          return original(call)
+        })
+      }
+      const pending = context.run().then(
+        (inventory) => ({ status: 'ok' as const, inventory }),
+        (cause: unknown) => ({ status: 'failed' as const, cause }),
+      )
+      await vi.advanceTimersByTimeAsync(999)
+      expect(failures).toBe(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(failures).toBe(2)
+      await vi.advanceTimersByTimeAsync(1_999)
+      expect(failures).toBe(2)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(failures).toBe(3)
+      await vi.advanceTimersByTimeAsync(4_000)
+      const result = await pending
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') throw result.cause
+      expect(result.inventory.nodes.map(({ node }) => node)).toEqual([
+        CHILD,
+        GRANDCHILD,
+      ])
+      expect(result.inventory.unscannedParentNodes).toEqual([])
+      const reads =
+        stage === 'logs'
+          ? context.request.mock.calls.filter(
+              ([call]) => call.method === 'eth_getLogs',
+            )
+          : context.multicall.mock.calls.filter(([call]) =>
+              call.contracts.some(({ args }) => args[0] === ROOT),
+            )
+      expect(reads.slice(0, 4)).toEqual(
+        Array.from({ length: 4 }, () => reads[0]),
+      )
+      expect(
+        context.request.mock.calls.filter(
+          ([call]) => call.method === 'eth_getBlockByNumber',
+        ),
+      ).toHaveLength(2)
+    },
+  )
+
+  it('stops a pending RPC retry when the caller cancels without publishing an inventory', async () => {
+    vi.useFakeTimers()
+    const abort = new AbortController()
+    const context = setup({ abort, retry: 'until-success' })
+    const original = context.request.getMockImplementation()
+    if (!original) throw new Error('Missing inventory transport')
+    context.request.mockImplementation(async (call) => {
+      if (call.method === 'eth_getLogs')
+        throw new TimeoutError({ url: 'https://rpc.example', body: {} })
+      return original(call)
+    })
+    const pending = context.run().catch((cause: unknown) => cause)
+    await vi.advanceTimersByTimeAsync(999)
+    abort.abort(new Error('Wallet changed'))
+    await expect(pending).resolves.toMatchObject({ message: 'Wallet changed' })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(
+      context.request.mock.calls.filter(
+        ([call]) => call.method === 'eth_getLogs',
+      ),
+    ).toHaveLength(1)
+  })
+
   it('reads both registry layers in one request per complete parent frontier', async () => {
     const context = setup()
     const inventory = await context.run()

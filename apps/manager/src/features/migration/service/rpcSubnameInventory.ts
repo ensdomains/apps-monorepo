@@ -1,15 +1,21 @@
 import { bytesToPacket } from '@ensdomains/ensjs/utils'
 import { Result } from 'neverthrow'
+import { match, P } from 'ts-pattern'
 import * as v from 'valibot'
 import {
   type Address,
+  BaseError,
   concat,
   type Hex,
+  HttpRequestError,
   hexToBytes,
   keccak256,
   labelhash,
   namehash,
   parseAbi,
+  RpcError,
+  RpcRequestError,
+  TimeoutError,
   toEventSelector,
 } from 'viem'
 import { normalize } from 'viem/ens'
@@ -133,6 +139,52 @@ const rpcFailureMessages = (cause: unknown, depth = 0): readonly string[] => {
     ...details,
     ...('cause' in cause ? rpcFailureMessages(cause.cause, depth + 1) : []),
   ]
+}
+
+export const hasSubnameLogRangeLimit = (cause: unknown): boolean =>
+  rpcFailureMessages(cause).some((message) =>
+    /block range|too many results|query returned more than|response.{0,30}(too large|size limit)|maximum.{0,20}results/i.test(
+      message,
+    ),
+  )
+
+/** Retry transport outages, never invalid evidence or a contract rejection. */
+export const shouldRetrySubnameInventoryRead = (cause: unknown): boolean => {
+  if (!(cause instanceof BaseError) || hasSubnameLogRangeLimit(cause))
+    return false
+  if (
+    rpcFailureMessages(cause).some((message) =>
+      /execution reverted|EVM error/i.test(message),
+    )
+  )
+    return false
+  const error = cause.walk(
+    (error) =>
+      error instanceof TimeoutError ||
+      error instanceof HttpRequestError ||
+      error instanceof RpcError ||
+      error instanceof RpcRequestError,
+  )
+  return match(error)
+    .with(P.instanceOf(TimeoutError), () => true)
+    .with(
+      P.instanceOf(HttpRequestError),
+      ({ status }) =>
+        status === undefined ||
+        [403, 408, 429, 500, 502, 503, 504].includes(status),
+    )
+    .with(
+      P.union(P.instanceOf(RpcError), P.instanceOf(RpcRequestError)),
+      (error) =>
+        [-1, -32603, -32002, -32005, -32007, 429].includes(error.code) ||
+        // An archive-limited fallback can mask the primary's timeout.
+        // A new attempt starts at the attributed primary again.
+        (error.code === -32602 &&
+          rpcFailureMessages(error).some((message) =>
+            /archive requests require a personal token/i.test(message),
+          )),
+    )
+    .otherwise(() => false)
 }
 
 /** The original mainnet registry's pre-REVERT compiler traps on a missing selector. */

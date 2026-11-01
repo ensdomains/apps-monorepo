@@ -1,9 +1,15 @@
 import {
+  BaseError,
   encodeAbiParameters,
   encodeEventTopics,
+  HttpRequestError,
+  InvalidParamsRpcError,
   labelhash,
   namehash,
+  RpcRequestError,
   stringToHex,
+  TimeoutError,
+  UnknownRpcError,
   zeroAddress,
   zeroHash,
 } from 'viem'
@@ -15,6 +21,7 @@ import {
   NEW_OWNER_ABI,
   parseSubnameLogs,
   planSubnameLogReads,
+  shouldRetrySubnameInventoryRead,
 } from './rpcSubnameInventory'
 
 const REGISTRY = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e'
@@ -43,6 +50,90 @@ const log = {
 }
 
 describe('RPC subname inventory', () => {
+  it.each([
+    {
+      label: 'uncorrelated provider batch error',
+      cause: new UnknownRpcError(
+        new TypeError("Cannot read properties of undefined (reading 'error')"),
+      ),
+      expected: true,
+    },
+    {
+      label: 'timeout',
+      cause: new TimeoutError({ url: 'https://rpc.example', body: {} }),
+      expected: true,
+    },
+    {
+      label: 'nested connection failure',
+      cause: new BaseError('Contract read failed', {
+        cause: new HttpRequestError({
+          url: 'https://rpc.example',
+          cause: new TypeError('Failed to fetch'),
+        }),
+      }),
+      expected: true,
+    },
+    {
+      label: 'archive fallback denied after a primary failure',
+      cause: new HttpRequestError({ url: 'https://rpc.example', status: 403 }),
+      expected: true,
+    },
+    {
+      label: 'archive fallback RPC denial',
+      cause: new InvalidParamsRpcError(
+        new Error('Archive requests require a personal token'),
+      ),
+      expected: true,
+    },
+    {
+      label: 'rate limit',
+      cause: new RpcRequestError({
+        url: 'https://rpc.example',
+        body: {},
+        error: { code: -32005, message: 'Rate limit exceeded' },
+      }),
+      expected: true,
+    },
+    {
+      label: 'range limit that needs partitioning',
+      cause: new RpcRequestError({
+        url: 'https://rpc.example',
+        body: {},
+        error: {
+          code: -32005,
+          message: 'query returned more than 10000 results',
+        },
+      }),
+      expected: false,
+    },
+    {
+      label: 'contract rejection',
+      cause: new RpcRequestError({
+        url: 'https://rpc.example',
+        body: {},
+        error: { code: -32603, message: 'execution reverted' },
+      }),
+      expected: false,
+    },
+    {
+      label: 'invalid request parameters',
+      cause: new InvalidParamsRpcError(new Error('Invalid topic')),
+      expected: false,
+    },
+    {
+      label: 'invalid evidence',
+      cause: new Error('Malformed registry log'),
+      expected: false,
+    },
+    {
+      label: 'cancelled request',
+      cause: new DOMException('Aborted', 'AbortError'),
+      expected: false,
+    },
+  ])('retries $label only when recovery is possible', ({ cause, expected }) => {
+    expect(shouldRetrySubnameInventoryRead(cause)).toBe(expected)
+  })
+
   it('combines registry emitters with the same history bounds without dropping a parent or block', () => {
     expect(
       planSubnameLogReads({

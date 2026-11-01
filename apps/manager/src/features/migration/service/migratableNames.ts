@@ -178,6 +178,7 @@ const checkSubnameCandidates = async (params: {
       selectedNames.map((name) => ({ node: namehash(name), name })),
     previousInventory: previous,
     knownNames: selectedNames,
+    retry: 'until-success',
     scanDescendants: getRpcMigrationScanPolicy({
       migratingNames: selectedNames,
       nameWrapperAddress: V1_CONTRACTS.NameWrapper,

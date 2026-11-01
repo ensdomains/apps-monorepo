@@ -19,18 +19,21 @@ import {
   type PublicClient,
   parseAbi,
   toHex,
+  withRetry,
   zeroAddress,
 } from 'viem'
 import {
   getKnownSubnamePreimages,
   getProvenSubnameName,
   getSubnameInventoryLimit,
+  hasSubnameLogRangeLimit,
   isMissingRegistryFallbackGetter,
   NEW_OWNER_TOPIC,
   parseSubnameLogs,
   planSubnameLogReads,
   type RpcSubnameEdge,
   type SubnameLogRequest,
+  shouldRetrySubnameInventoryRead,
 } from './rpcSubnameInventory'
 
 export class RpcSubnameInventoryError extends TaggedError(
@@ -87,6 +90,8 @@ export type RpcSubnameInventoryParameters = {
     checkpoint: RpcSubnameInventory['checkpoint'],
   ) => boolean
   readonly signal?: AbortSignal
+  /** Loading can wait for RPC recovery; final signing checks keep immediate failure. */
+  readonly retry?: 'until-success'
   readonly onProgress?: (progress: {
     readonly scannedParentNodes: readonly Hex[]
     readonly discoveredNodeCount: number
@@ -118,11 +123,16 @@ const fail = (
 ): never => {
   throw new RpcSubnameInventoryError({ message, reason })
 }
-const hasLogRangeLimit = (error: unknown): boolean =>
-  error instanceof Error &&
-  /block range|too many results|query returned more than|response.{0,30}(too large|size limit)|maximum.{0,20}results/i.test(
-    error.message,
-  )
+const retryInventoryRpcRead = <T>(
+  params: Pick<RpcSubnameInventoryParameters, 'signal' | 'retry'>,
+  read: () => Promise<T>,
+): Promise<T> =>
+  withRetry(read, {
+    retryCount: params.retry === 'until-success' ? Number.POSITIVE_INFINITY : 0,
+    delay: ({ count }) => Math.min(1_000 * 2 ** Math.min(count, 5), 30_000),
+    shouldRetry: ({ error }) => shouldRetrySubnameInventoryRead(error),
+    signal: params.signal,
+  })
 
 /** Discover fallback registries at the same checkpoint. Genesis is always a safe lower bound. */
 const readRegistries = async (
@@ -141,38 +151,42 @@ const readRegistries = async (
     )
       fail('The registry fallback chain is cyclic or unsupported')
     const [code, response] = await Promise.all([
-      params.publicClient.request(
-        { method: 'eth_getCode', params: [address, toHex(blockNumber)] },
-        { signal: params.signal },
-      ),
-      params.publicClient
-        .request(
-          {
-            method: 'eth_call',
-            params: [
-              {
-                to: address,
-                data: encodeFunctionData({
-                  abi: OLD_REGISTRY_ABI,
-                  functionName: 'old',
-                }),
-              },
-              toHex(blockNumber),
-            ],
-          },
+      retryInventoryRpcRead(params, () =>
+        params.publicClient.request(
+          { method: 'eth_getCode', params: [address, toHex(blockNumber)] },
           { signal: params.signal },
-        )
-        .catch((cause: unknown) => {
-          if (
-            isMissingRegistryFallbackGetter({
-              chainId: params.chainId,
-              address,
-              cause,
-            })
+        ),
+      ),
+      retryInventoryRpcRead(params, () =>
+        params.publicClient
+          .request(
+            {
+              method: 'eth_call',
+              params: [
+                {
+                  to: address,
+                  data: encodeFunctionData({
+                    abi: OLD_REGISTRY_ABI,
+                    functionName: 'old',
+                  }),
+                },
+                toHex(blockNumber),
+              ],
+            },
+            { signal: params.signal },
           )
-            return '0x' as const
-          throw cause
-        }),
+          .catch((cause: unknown) => {
+            if (
+              isMissingRegistryFallbackGetter({
+                chainId: params.chainId,
+                address,
+                cause,
+              })
+            )
+              return '0x' as const
+            throw cause
+          }),
+      ),
     ])
     if (!code || code === '0x')
       fail('A source registry has no code at the inventory checkpoint')
@@ -189,8 +203,8 @@ const readLogRange = async (
   request: SubnameLogRequest,
 ): Promise<readonly RpcSubnameEdge[]> => {
   params.signal?.throwIfAborted()
-  const response = await params.publicClient
-    .request(
+  const response = await retryInventoryRpcRead(params, () =>
+    params.publicClient.request(
       {
         method: 'eth_getLogs',
         params: [
@@ -206,14 +220,14 @@ const readLogRange = async (
         ],
       },
       { signal: params.signal },
-    )
-    .then(
-      (logs) => ({ status: 'read', logs }) as const,
-      (cause: unknown) => ({ status: 'failed', cause }) as const,
-    )
+    ),
+  ).then(
+    (logs) => ({ status: 'read', logs }) as const,
+    (cause: unknown) => ({ status: 'failed', cause }) as const,
+  )
   params.signal?.throwIfAborted()
   if (response.status === 'failed') {
-    if (!hasLogRangeLimit(response.cause)) throw response.cause
+    if (!hasSubnameLogRangeLimit(response.cause)) throw response.cause
     if (request.fromBlock < request.toBlock) {
       const midpoint = (request.fromBlock + request.toBlock) / 2n
       const first = await readLogRange(params, {
@@ -272,33 +286,35 @@ const readSourceBatch = async (
 ): Promise<readonly ReadSource[]> => {
   params.signal?.throwIfAborted()
   const unknownNames = batch.filter((node) => !knownNames.has(node))
-  const records = await params.publicClient.multicall({
-    allowFailure: false,
-    blockNumber,
-    batchSize: SOURCE_BATCH_BYTES,
-    contracts: [
-      ...batch.flatMap((node) => [
-        {
-          address: params.registryAddress,
-          abi: registryOwnerSnippet,
-          functionName: 'owner' as const,
+  const records = await retryInventoryRpcRead(params, () =>
+    params.publicClient.multicall({
+      allowFailure: false,
+      blockNumber,
+      batchSize: SOURCE_BATCH_BYTES,
+      contracts: [
+        ...batch.flatMap((node) => [
+          {
+            address: params.registryAddress,
+            abi: registryOwnerSnippet,
+            functionName: 'owner' as const,
+            args: [node] as const,
+          },
+          {
+            address: params.registryAddress,
+            abi: registryResolverSnippet,
+            functionName: 'resolver' as const,
+            args: [node] as const,
+          },
+        ]),
+        ...unknownNames.map((node) => ({
+          address: params.nameWrapperAddress,
+          abi: nameWrapperNamesSnippet,
+          functionName: 'names' as const,
           args: [node] as const,
-        },
-        {
-          address: params.registryAddress,
-          abi: registryResolverSnippet,
-          functionName: 'resolver' as const,
-          args: [node] as const,
-        },
-      ]),
-      ...unknownNames.map((node) => ({
-        address: params.nameWrapperAddress,
-        abi: nameWrapperNamesSnippet,
-        functionName: 'names' as const,
-        args: [node] as const,
-      })),
-    ],
-  })
+        })),
+      ],
+    }),
+  )
   params.signal?.throwIfAborted()
   const wrapperNames = new Map(
     unknownNames.map((node, index) => {
@@ -332,17 +348,19 @@ const readSourceBatch = async (
   const wrapperData =
     wrapped.length === 0
       ? []
-      : await params.publicClient.multicall({
-          allowFailure: false,
-          blockNumber,
-          batchSize: SOURCE_BATCH_BYTES,
-          contracts: wrapped.map(({ node }) => ({
-            address: params.nameWrapperAddress,
-            abi: nameWrapperGetDataSnippet,
-            functionName: 'getData' as const,
-            args: [BigInt(node)] as const,
-          })),
-        })
+      : await retryInventoryRpcRead(params, () =>
+          params.publicClient.multicall({
+            allowFailure: false,
+            blockNumber,
+            batchSize: SOURCE_BATCH_BYTES,
+            contracts: wrapped.map(({ node }) => ({
+              address: params.nameWrapperAddress,
+              abi: nameWrapperGetDataSnippet,
+              functionName: 'getData' as const,
+              args: [BigInt(node)] as const,
+            })),
+          }),
+        )
   params.signal?.throwIfAborted()
   const wrappers = new Map(
     wrapped.map(({ node }, index) => {
@@ -570,9 +588,11 @@ const readInventory = async (
   )
     fail('The subname discovery depth must be a positive integer')
   const readBlock = async (number: Hex | 'latest') => {
-    const response = await params.publicClient.request(
-      { method: 'eth_getBlockByNumber', params: [number, false] },
-      { signal: params.signal },
+    const response = await retryInventoryRpcRead(params, () =>
+      params.publicClient.request(
+        { method: 'eth_getBlockByNumber', params: [number, false] },
+        { signal: params.signal },
+      ),
     )
     const block = v.safeParse(BLOCK_SCHEMA, response)
     if (!block.success)
@@ -580,9 +600,11 @@ const readInventory = async (
     return block.output
   }
   const [chainId, checkpoint] = await Promise.all([
-    params.publicClient.request(
-      { method: 'eth_chainId' },
-      { signal: params.signal },
+    retryInventoryRpcRead(params, () =>
+      params.publicClient.request(
+        { method: 'eth_chainId' },
+        { signal: params.signal },
+      ),
     ),
     readBlock('latest'),
   ])
