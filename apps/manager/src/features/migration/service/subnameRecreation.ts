@@ -544,15 +544,16 @@ export const discoverSubnameRecreation = async (params: {
     )
   )
     fail('selection', 'the complete parent inventory has not been checked.')
-  const block = await publicClient.getBlock({
-    blockNumber: inventory.checkpoint.number,
-  })
+  const [block, head] = await Promise.all([
+    publicClient.getBlock({ blockNumber: inventory.checkpoint.number }),
+    publicClient.getBlock({ blockTag: 'latest' }),
+  ])
+  signal?.throwIfAborted()
   if (block.hash?.toLowerCase() !== inventory.checkpoint.hash.toLowerCase())
     fail(
       'selection',
       'the source checkpoint is no longer canonical. Please refresh.',
     )
-  const head = await publicClient.getBlock({ blockTag: 'latest' })
   if (
     head.timestamp < block.timestamp ||
     head.timestamp - block.timestamp > SOURCE_MAX_AGE_SECONDS

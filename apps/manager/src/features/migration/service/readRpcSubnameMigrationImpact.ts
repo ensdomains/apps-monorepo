@@ -158,17 +158,17 @@ const readCurrentInventory = async (params: {
       return fail(
         'The supplied inventory belongs to another migration source or selection.',
       )
-    const actualChainId = await params.publicClient.request(
-      { method: 'eth_chainId' },
-      { signal: params.signal },
-    )
-    if (BigInt(actualChainId) !== BigInt(params.chainId))
-      return fail('The inventory RPC is connected to another chain.')
-    const [canonical, head] = await Promise.all([
+    const [actualChainId, canonical, head] = await Promise.all([
+      params.publicClient.request(
+        { method: 'eth_chainId' },
+        { signal: params.signal },
+      ),
       params.publicClient.getBlock({ blockNumber: previous.checkpoint.number }),
       params.publicClient.getBlock(),
     ])
     params.signal?.throwIfAborted()
+    if (BigInt(actualChainId) !== BigInt(params.chainId))
+      return fail('The inventory RPC is connected to another chain.')
     if (
       !matchesCheckpoint(canonical, previous.checkpoint) ||
       head.number < previous.checkpoint.number ||
@@ -318,26 +318,28 @@ const readImpactContext = async (
   })
   signal?.throwIfAborted()
   const blockNumber = inventory.checkpoint.number
-  const graveyard = await publicClient.readContract({
-    address: destination.unlockedMigrationController,
-    abi: GRAVEYARD_ABI,
-    functionName: 'GRAVEYARD',
-    blockNumber,
-  })
   const ethRoots = names.filter(isDotEthRoot)
-  const expiries = await publicClient.multicall({
-    allowFailure: false,
-    blockNumber,
-    contracts: ethRoots.map((name) => ({
-      address: getChainContractAddress({
-        chain,
-        contract: 'ensBaseRegistrarImplementation',
-      }),
-      abi: baseRegistrarNameExpiresSnippet,
-      functionName: 'nameExpires' as const,
-      args: [BigInt(labelhash(name.split('.')[0] ?? ''))] as const,
-    })),
-  })
+  const [graveyard, expiries] = await Promise.all([
+    publicClient.readContract({
+      address: destination.unlockedMigrationController,
+      abi: GRAVEYARD_ABI,
+      functionName: 'GRAVEYARD',
+      blockNumber,
+    }),
+    publicClient.multicall({
+      allowFailure: false,
+      blockNumber,
+      contracts: ethRoots.map((name) => ({
+        address: getChainContractAddress({
+          chain,
+          contract: 'ensBaseRegistrarImplementation',
+        }),
+        abi: baseRegistrarNameExpiresSnippet,
+        functionName: 'nameExpires' as const,
+        args: [BigInt(labelhash(name.split('.')[0] ?? ''))] as const,
+      })),
+    }),
+  ])
   const expiredRootNodes = new Set(
     ethRoots.flatMap((name, index) => {
       const expiry = expiries[index]

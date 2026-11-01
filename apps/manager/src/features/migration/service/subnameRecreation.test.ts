@@ -314,6 +314,42 @@ const fixture = (
 }
 
 describe('direct subname source checks', () => {
+  it('queues the current head while its canonical inventory check is pending', async () => {
+    const context = fixture()
+    const original = context.client.getBlock
+    let release = () => {}
+    let markStarted = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve
+    })
+    const getBlock = vi
+      .spyOn(context.client, 'getBlock')
+      .mockImplementation(async (args) => {
+        if (args?.blockNumber !== undefined) {
+          markStarted()
+          await gate
+        }
+        return original(args)
+      })
+    const pending = context.discover()
+    await started
+    try {
+      expect(getBlock.mock.calls.slice()).toEqual([
+        [{ blockNumber: 100n }],
+        [{ blockTag: 'latest' }],
+      ])
+    } finally {
+      release()
+      expect((await pending).domains.map(({ name }) => name)).toEqual([
+        ROOT,
+        CHILD,
+      ])
+    }
+  })
+
   it('uses indexed data only for missing labels, never for child counts or authority', async () => {
     const context = fixture()
     const countRead = vi

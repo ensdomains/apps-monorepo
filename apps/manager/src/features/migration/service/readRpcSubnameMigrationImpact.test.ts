@@ -33,6 +33,13 @@ const destination = getDestinationContracts(chain.id)
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
 const GRAVEYARD: Address = '0x000000000000000000000000000000000000dead'
 const ROOT = 'parent.eth'
+const deferred = () => {
+  let resolve = () => {}
+  const promise = new Promise<void>((onResolve) => {
+    resolve = onResolve
+  })
+  return { promise, resolve }
+}
 const snapshot = (): RpcSubnameInventory => ({
   chainId: chain.id,
   registryAddress: getChainContractAddress({
@@ -155,6 +162,60 @@ beforeEach(() => {
 })
 
 describe('readRpcSubnameMigrationImpact', () => {
+  it('queues canonical and head checks while the cached inventory chain check is pending', async () => {
+    const client = clientFor()
+    const started = deferred()
+    const gate = deferred()
+    vi.spyOn(client.publicClient, 'request').mockImplementation(async () => {
+      started.resolve()
+      await gate.promise
+      return `0x${chain.id.toString(16)}`
+    })
+    const pending = readRpcSubnameMigrationImpact({
+      ...client,
+      migratingNames: [ROOT],
+      inventory: snapshot(),
+    })
+    await started.promise
+    try {
+      expect(client.getBlock.mock.calls.slice()).toEqual([
+        [{ blockNumber: 100n }],
+        [],
+      ])
+      expect(client.readContract).not.toHaveBeenCalled()
+    } finally {
+      gate.resolve()
+      expect((await pending).affectedCount).toBe(0)
+    }
+  })
+
+  it('queues registrar expiries alongside the graveyard read at the same checkpoint', async () => {
+    const client = clientFor()
+    const original = client.readContract.getMockImplementation()
+    if (!original) throw new Error('Missing contract reader')
+    const started = deferred()
+    const gate = deferred()
+    client.readContract.mockImplementation(async (args) => {
+      if (args.functionName === 'GRAVEYARD') {
+        started.resolve()
+        await gate.promise
+      }
+      return original(args)
+    })
+    const pending = readRpcSubnameMigrationImpact({
+      ...client,
+      migratingNames: [ROOT],
+    })
+    await started.promise
+    try {
+      expect(client.multicall).toHaveBeenCalledTimes(1)
+      expect(client.multicall.mock.calls[0]?.[0].blockNumber).toBe(100n)
+    } finally {
+      gate.resolve()
+      expect((await pending).affectedCount).toBe(0)
+    }
+  })
+
   it('refreshes same-head coverage when selection needs a pruned intermediate ancestor', async () => {
     const intermediate = `independent.${ROOT}`
     const selected = `deep.${intermediate}`

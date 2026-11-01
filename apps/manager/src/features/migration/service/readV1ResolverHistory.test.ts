@@ -60,6 +60,36 @@ const makeClient = ({
 }
 
 describe('readV1ResolverHistory', () => {
+  it('queues the checkpoint while the chain check is still pending, without starting history early', async () => {
+    const { publicClient, request } = makeClient()
+    const original = request.getMockImplementation()
+    if (!original) throw new Error('Missing resolver history transport')
+    const started = deferred()
+    const gate = deferred()
+    request.mockImplementation(async (args) => {
+      if (args.method === 'eth_chainId') {
+        started.resolve()
+        await gate.promise
+      }
+      return original(args)
+    })
+    const pending = readV1ResolverHistory({
+      sources: [source],
+      publicClient,
+      chainId: 1,
+    })
+    await started.promise
+    try {
+      expect(request.mock.calls.map(([args]) => args.method)).toEqual([
+        'eth_chainId',
+        'eth_getBlockByNumber',
+      ])
+    } finally {
+      gate.resolve()
+      expect((await pending)._unsafeUnwrap()).toEqual([])
+    }
+  })
+
   it('requests and rejects legacy DNSZoneCleared history', async () => {
     const abi = parseAbi(['event DNSZoneCleared(bytes32 indexed node)'])
     const topics = encodeEventTopics({

@@ -45,22 +45,6 @@ export const readV1ResolverHistory = ResultFn(async function* ({
   const toError = (cause: unknown) => new ReadV1ResolverHistoryError({ cause })
   yield* checkNotAborted(signal, toError)
   if (sources.length === 0) return ok<readonly ResolverHistoryRecord[]>([])
-  const actualChainId = yield* ResultAsync.fromPromise(
-    publicClient.request({ method: 'eth_chainId' }, { signal }),
-    toError,
-  )
-  const parsedChainId = v.safeParse(
-    v.pipe(
-      v.string(),
-      v.regex(/^0x[0-9a-fA-F]+$/),
-      v.transform((value: string) => BigInt(value)),
-    ),
-    actualChainId,
-  )
-  if (!parsedChainId.success || parsedChainId.output !== BigInt(chainId))
-    return err(
-      toError(new Error('Resolver history RPC is connected to another chain')),
-    )
   const readBlock = (block: Hex | 'latest') =>
     ResultAsync.fromPromise(
       publicClient.request(
@@ -74,7 +58,26 @@ export const readV1ResolverHistory = ResultFn(async function* ({
         ? ok(parsed.output)
         : err(toError(new Error('Missing resolver history checkpoint')))
     })
-  const checkpoint = yield* readBlock('latest')
+  const [actualChainId, checkpoint] = yield* ResultAsync.combine([
+    ResultAsync.fromPromise(
+      publicClient.request({ method: 'eth_chainId' }, { signal }),
+      toError,
+    ),
+    readBlock('latest'),
+  ] as const)
+  yield* checkNotAborted(signal, toError)
+  const parsedChainId = v.safeParse(
+    v.pipe(
+      v.string(),
+      v.regex(/^0x[0-9a-fA-F]+$/),
+      v.transform((value: string) => BigInt(value)),
+    ),
+    actualChainId,
+  )
+  if (!parsedChainId.success || parsedChainId.output !== BigInt(chainId))
+    return err(
+      toError(new Error('Resolver history RPC is connected to another chain')),
+    )
   const requests = planResolverHistory({
     sources,
     chainId,
