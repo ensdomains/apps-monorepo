@@ -54,7 +54,7 @@ export const batches: Batch[] = [
     pr: 1601,
     merged: true,
   },
-  { id: 'B1b', title: 'Smoke: Manager specs' },
+  { id: 'B1b', title: 'Smoke: Manager specs', pr: 1658 },
   { id: 'B2', title: 'CCIP / offchain: the rest' },
   { id: 'B3', title: 'Migration: the rest' },
   { id: 'B4', title: 'Transfer, fuses, 4LD: the rest' },
