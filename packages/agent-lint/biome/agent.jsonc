@@ -97,7 +97,7 @@
         "useSortedClasses": {
           "level": "error",
           "fix": "safe",
-          "options": { "functions": ["cn", "cva", "clsx", "tw", "twm"] }
+          "options": { "functions": ["cn", "cva", "clsx"] }
         }
       },
       "style": {
