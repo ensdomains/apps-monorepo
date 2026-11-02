@@ -8,6 +8,7 @@ import {
 import { useSelector } from '@xstate/react'
 import { useState } from 'react'
 import { useConnection } from 'wagmi'
+import ethereumIcon from '@/assets/icons/ethereum-color.svg'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { Card } from '@/components/ui/card'
@@ -25,6 +26,7 @@ import { warmRegistrationCheckout } from '../../../service/checkoutWarmup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useCheckoutWarmup } from '../useCheckoutWarmup'
 import { AnimatedPrice } from './AnimatedPrice'
+import { EthPaymentDialog } from './EthPaymentDialog'
 import {
   PaymentCardBaseLine,
   PaymentCardPremiumLine,
@@ -74,7 +76,7 @@ export const PaymentCard = () => {
     token: TOKENS.USDC.symbol,
     account,
   }
-  useCheckoutWarmup(checkout)
+  const { budgetQuery, isDefaultKnown } = useCheckoutWarmup(checkout)
   const openTokenPicker = useMutation({
     mutationFn: () => warmRegistrationCheckout(queryClient, checkout),
     onSettled: () => uiActor.send({ type: 'pricing.step.next' }),
@@ -88,10 +90,11 @@ export const PaymentCard = () => {
   })
   useQuery({ ...isSafeWalletOptions, enabled: !!connector })
   const [isSafeDialogOpen, setIsSafeDialogOpen] = useState(false)
+  const [isEthDialogOpen, setIsEthDialogOpen] = useState(false)
   const { disconnect } = useWalletDisconnect()
   const { openConnectModal } = useConnectModal()
 
-  const onNext = async () => {
+  const choosePayment = async (next: () => void) => {
     const isSafeWallet = await queryClient
       .ensureQueryData(isSafeWalletOptions)
       .catch(() => false)
@@ -99,8 +102,14 @@ export const PaymentCard = () => {
       setIsSafeDialogOpen(true)
       return
     }
-    gate(() => openTokenPicker.mutate())
+    gate(next)
   }
+
+  const ethUsdcAmount = budgetQuery.data
+    ? budgetQuery.data.total > budgetQuery.data.hcaBalance
+      ? budgetQuery.data.total - budgetQuery.data.hcaBalance
+      : 0n
+    : undefined
 
   return (
     <>
@@ -111,11 +120,26 @@ export const PaymentCard = () => {
         discountAmount={discountAmount}
         isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
         isPreparing={openTokenPicker.isPending}
-        onNext={() => void onNext()}
+        onEth={() => void choosePayment(() => setIsEthDialogOpen(true))}
+        onNext={() => void choosePayment(() => openTokenPicker.mutate())}
         premiumAmount={pricingQuery.data?.premiumPrice}
         type="register"
       />
       {sessionModal}
+      <EthPaymentDialog
+        amountError={
+          budgetQuery.isError
+            ? "We couldn't calculate the total. Try again."
+            : undefined
+        }
+        amountOut={ethUsdcAmount}
+        isLoadingAmount={!isDefaultKnown || budgetQuery.isPending}
+        onFunded={() => uiActor.send({ type: 'pricing.step.next' })}
+        onOpenChange={setIsEthDialogOpen}
+        onRetryAmount={() => void budgetQuery.refetch()}
+        open={isEthDialogOpen}
+        owner={account.ownerAddress}
+      />
       <SafeWalletDialog
         isOpen={isSafeDialogOpen}
         label={label}
@@ -130,9 +154,51 @@ export const PaymentCard = () => {
   )
 }
 
+const ConnectedPaymentButtons = ({
+  canNext,
+  isPreparing,
+  onNext,
+  onEth,
+}: {
+  readonly canNext: boolean
+  readonly isPreparing: boolean
+  readonly onNext: () => void
+  readonly onEth?: () => void
+}) => (
+  <>
+    <Button
+      className="w-full font-medium font-mono uppercase tracking-widest"
+      color="blue"
+      disabled={!canNext && !isPreparing}
+      loading={isPreparing}
+      onClick={isPreparing ? undefined : onNext}
+      size="lg"
+    >
+      {isPreparing ? (
+        <Trans>Preparing checkout...</Trans>
+      ) : (
+        <Trans>Pay with stablecoins</Trans>
+      )}
+    </Button>
+    {onEth && (
+      <Button
+        className="w-full gap-2 border-ens-lapis-core bg-white font-medium font-mono text-ens-lapis-core uppercase tracking-widest hover:bg-ens-quartz-50 disabled:opacity-50"
+        color="none"
+        disabled={!canNext || isPreparing}
+        onClick={onEth}
+        size="lg"
+      >
+        <img alt="" className="h-5 w-5" src={ethereumIcon} />
+        <Trans>Pay with ETH</Trans>
+      </Button>
+    )}
+  </>
+)
+
 export const PaymentCardBase = ({
   canNext,
   onNext,
+  onEth,
   amount,
   isLoading,
   discountAmount,
@@ -144,6 +210,7 @@ export const PaymentCardBase = ({
 }: {
   canNext: boolean
   onNext: () => void
+  readonly onEth?: () => void
   /** The chooser's figures are being fetched; the button shows it and waits. */
   readonly isPreparing?: boolean
   amount: number | undefined
@@ -223,20 +290,12 @@ export const PaymentCardBase = ({
         </div>
 
         {isConnected ? (
-          <Button
-            className="w-full font-medium font-mono uppercase tracking-widest"
-            color="blue"
-            disabled={!canNext && !isPreparing}
-            loading={isPreparing}
-            onClick={isPreparing ? undefined : onNext}
-            size="lg"
-          >
-            {isPreparing ? (
-              <Trans>Preparing checkout...</Trans>
-            ) : (
-              <Trans>Pay with stablecoins</Trans>
-            )}
-          </Button>
+          <ConnectedPaymentButtons
+            canNext={canNext}
+            isPreparing={isPreparing}
+            onEth={onEth}
+            onNext={onNext}
+          />
         ) : (
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"

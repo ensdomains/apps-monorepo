@@ -38,8 +38,9 @@ export const useCheckoutWarmup = (params: CheckoutWarmupParams) => {
     (existingPrimaryName.isFetched && ownedNamesCount.isFetched)
   const budgetParams = buildCheckoutBudgetParams(params, setAsPrimary)
 
-  useQuery({
+  const budgetQuery = useQuery({
     ...getHcaBudgetQueryOptions(budgetParams),
     enabled: isHcaBudgetQuoteRequired(budgetParams) && isDefaultKnown,
   })
+  return { budgetQuery, isDefaultKnown }
 }
