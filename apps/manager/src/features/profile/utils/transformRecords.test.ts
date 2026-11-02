@@ -33,20 +33,6 @@ describe('profile transformRecords utils', () => {
     })
   })
 
-  it('carries the decoded content hash protocol to the profile', () => {
-    const records = transformProfileRecords({
-      texts: [],
-      coins: [],
-      contentHash: 'bzz://d1de9994b4d0',
-      contentHashProtocol: 'bzz',
-    })
-
-    expect(records).toMatchObject({
-      contentHash: 'bzz://d1de9994b4d0',
-      contentHashProtocol: 'bzz',
-    })
-  })
-
   describe('primary contacts record limits', () => {
     const transformPrimaryContacts = (value: string) =>
       transformProfileRecords({

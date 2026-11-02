@@ -113,31 +113,16 @@ const toSafeHttpHref = (value: string): string | undefined => {
 
 export const getSafeProfileHref = toSafeHttpHref
 
-// The content-hash codecs eth.limo serves for .eth names: IPFS, IPNS, Swarm and Arweave.
-const ETH_LIMO_PROTOCOLS: ReadonlySet<string> = new Set([
-  'ipfs',
-  'ipns',
-  'bzz',
-  'ar',
-])
-
-/** The name's site on eth.limo, for a mainnet .eth name whose decoded content hash eth.limo can serve. */
+/** The name's site on eth.limo, which shows its own error page for a content hash it can't serve. */
 export const getContentHashHref = ({
   name,
-  protocol,
   chainId,
 }: {
   readonly name: string
-  readonly protocol: string | undefined
   readonly chainId: number
 }): string | undefined => {
-  if (
-    chainId !== mainnet.id ||
-    !name.endsWith('.eth') ||
-    !protocol ||
-    !ETH_LIMO_PROTOCOLS.has(protocol)
-  )
-    return undefined
+  // eth.limo serves mainnet .eth names; any other name would point at a different site.
+  if (chainId !== mainnet.id || !name.endsWith('.eth')) return undefined
   const href = safeHttpHref(`https://${name}.limo`)
   if (!href) return undefined
   const { hostname, pathname, search, hash } = new URL(href)

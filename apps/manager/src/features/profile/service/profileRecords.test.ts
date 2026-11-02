@@ -201,12 +201,6 @@ describe('profile records', () => {
     },
   )
 
-  it('keeps the protocol the content-hash library decodes', async () => {
-    const profile = (await getProfileRecords('gift.eth'))._unsafeUnwrap()
-
-    expect(profile).toMatchObject({ contentHash, contentHashProtocol: 'ipfs' })
-  })
-
   it('uses ENSIP-10 for an extended resolver with node-based setters', async () => {
     mocks.resolveNameRegistry.mockResolvedValue({
       label: 'child',

@@ -29,11 +29,7 @@ export const ProfileContentHashSection = ({
   const contentHash = records.contentHash?.trim()
   if (!contentHash || contentHash === '0x') return null
 
-  const href = getContentHashHref({
-    name,
-    protocol: records.contentHashProtocol,
-    chainId: chain.id,
-  })
+  const href = getContentHashHref({ name, chainId: chain.id })
   const value = (
     <span className={cn(profileFieldValueClassName, 'min-w-0 truncate')}>
       {contentHash}

@@ -22,16 +22,11 @@ const IPFS = 'ipfs://QmYwAPJzv5CZsnAzt8auVZRnGiRAz9LxqD9H9tGZpWZHYB'
 const renderSection = (
   contentHash: string | undefined,
   name = 'docs.ens.eth',
-  contentHashProtocol?: string,
 ) =>
   render(
     <ProfileContentHashSection
       name={name}
-      records={{
-        ...newEmptyProfileRecords(),
-        contentHash,
-        contentHashProtocol,
-      }}
+      records={{ ...newEmptyProfileRecords(), contentHash }}
     />,
   )
 
@@ -51,11 +46,7 @@ describe('ProfileContentHashSection', () => {
     render(
       <ProfileCards
         name="docs.ens.eth"
-        records={{
-          ...newEmptyProfileRecords(),
-          contentHash: IPFS,
-          contentHashProtocol: 'ipfs',
-        }}
+        records={{ ...newEmptyProfileRecords(), contentHash: IPFS }}
       />,
     )
 
@@ -70,7 +61,7 @@ describe('ProfileContentHashSection', () => {
 
   it('shows a record it cannot link as copyable text', async () => {
     currentChain.mockReturnValue(sepolia)
-    renderSection(IPFS, 'bright-lemur.eth', 'ipfs')
+    renderSection(IPFS, 'bright-lemur.eth')
 
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: IPFS }))
@@ -78,13 +69,16 @@ describe('ProfileContentHashSection', () => {
   })
 
   it.each(['javascript:alert(1)', '<img src=x onerror=alert(1)>'])(
-    'renders %s as plain text',
+    'renders %s as text and only links to the name',
     (contentHash) => {
       currentChain.mockReturnValue(mainnet)
       const { container } = renderSection(contentHash)
 
       expect(screen.getByText(contentHash)).toBeInTheDocument()
-      expect(screen.queryByRole('link')).not.toBeInTheDocument()
+      expect(screen.getByRole('link')).toHaveAttribute(
+        'href',
+        'https://docs.ens.eth.limo',
+      )
       expect(container.querySelector('img')).toBeNull()
     },
   )
