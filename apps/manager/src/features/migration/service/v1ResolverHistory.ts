@@ -30,7 +30,7 @@ export const RESOLVER_HISTORY_ABI = parseAbi([
 ])
 
 export const RESOLVER_HISTORY_TOPICS = RESOLVER_HISTORY_ABI.map(toEventSelector)
-// Match an exact topic before single-event decoding, which skips signature lookup.
+// Select one event by exact topic; viem still validates its signature when decoding.
 const RESOLVER_EVENTS_BY_TOPIC = new Map(
   RESOLVER_HISTORY_ABI.map(
     (event) => [toEventSelector(event).toLowerCase(), [event]] as const,
