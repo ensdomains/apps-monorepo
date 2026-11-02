@@ -8,7 +8,8 @@ import { baseConfig } from '../../playwright.config.base.js'
  * here; nightly runs both configs in full.
  *
  * Same shape as `playwright.config.ts`: `harness-manager` gates the suite,
- * thinned by `grep` to the two `makeV2Name` fixture checks.
+ * thinned by `grep` to the fork check (so a run cannot pass against another
+ * chain) and the two `makeV2Name` fixture checks.
  */
 export default defineConfig({
   ...baseConfig,
