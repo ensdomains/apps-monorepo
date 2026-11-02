@@ -12,7 +12,6 @@ import {
   type GetContentHashReturnType,
   getAbiParameters,
   getAddressParameters,
-  getCoderFromCoin,
   getContentHashParameters,
   getTextParameters,
 } from '@ensdomains/ensjs/utils'
@@ -29,14 +28,6 @@ import {
 import { bigname } from '@/lib/bigname'
 import { publicClient, type sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import {
-  addressRecords,
-  alwaysProbeAddressRecords,
-  forceFetchRecords,
-  offchainProfileRecords,
-  staticTextRecords,
-  textRecords,
-} from '../data/records'
 import { getDebugProfileRecords } from '../MOCK'
 import {
   hasV2NameEntry,
@@ -45,26 +36,16 @@ import {
   resolveNameRegistry,
 } from './changeResolver'
 import { decodeCoinResult } from './decodeCoinRecord'
+import {
+  selectProfileRecordKeys,
+  shouldCheckOffchain,
+} from './profileRecordKeys'
 import { readResolverRecords } from './resolverImport'
 import { isOffchainName } from './resolverRecordCalls'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
 }> {}
-
-const parseKnownKeys = (keys: readonly string[]) => ({
-  texts: keys.flatMap((key) =>
-    key.startsWith('text:') ? [key.slice('text:'.length)] : [],
-  ),
-  coins: keys.flatMap((key) => {
-    const coinType = key.startsWith('addr:')
-      ? Number(key.slice('addr:'.length))
-      : Number.NaN
-    return Number.isSafeInteger(coinType) ? [coinType] : []
-  }),
-})
-
-const unique = <T>(values: readonly T[]): T[] => Array.from(new Set(values))
 
 const normalizeResolverAddress = (address: Address): Address | undefined =>
   address.toLowerCase() === zeroAddress ? undefined : address
@@ -76,11 +57,6 @@ const normalizeContentHash = (
   if (!contentHash.protocolType) return contentHash.decoded
   return `${contentHash.protocolType}://${contentHash.decoded}`
 }
-
-const safeGetCoderFromCoin = fromThrowable(getCoderFromCoin, () => undefined)
-
-const isSupportedCoinType = (coinType: number): boolean =>
-  safeGetCoderFromCoin(coinType).isOk()
 
 const MAX_RESOLVER_SPLIT_DEPTH = 1
 const MAX_CONCURRENT_PROFILE_READS = 64
@@ -106,42 +82,19 @@ const getRecordKeys = ResultFn(async function* (
   client: Client<Transport, typeof sepoliaWithEns>,
   name: string,
 ) {
-  // A name bigname has not indexed has no indexed keys; the static ones still apply.
+  // Viewing/editing commonly used fields remains possible while the index
+  // is unavailable. Resolver replacement performs a separate warned import.
   const inventory = yield* bigname
     .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
     .map(({ data }) => data.inventory)
-    // Viewing/editing commonly used fields remains possible while the index
-    // is unavailable. Resolver replacement performs a separate warned import.
     .orElse(() => okAsync(undefined))
-  // The indexer never sees an offchain name's records, though it may still
-  // index the name with no keys. ensjs asks its gateway for them in one
-  // request, which a URL-length limit caps well below every key.
-  if (
-    !inventory?.known_keys.length &&
-    (yield* fromPromise(
-      isOffchainName(client, name),
-      (error) => new GetProfileRecordsError({ cause: error }),
-    ))
-  )
-    return ok(offchainProfileRecords)
-
-  const recordKeys = parseKnownKeys(inventory?.known_keys ?? [])
-  return ok({
-    texts: unique([
-      ...staticTextRecords,
-      ...textRecords.map((record) => record.key),
-      ...forceFetchRecords.always,
-      ...forceFetchRecords.whenNotIndexed,
-      // Newly saved links must be readable before the indexer discovers the key.
-      'links',
-      ...recordKeys.texts,
-    ]),
-    coins: unique([
-      ...alwaysProbeAddressRecords.map(Number),
-      ...addressRecords.map((record) => record.coinType),
-      ...recordKeys.coins,
-    ]).filter(isSupportedCoinType),
-  })
+  const isOffchain = shouldCheckOffchain(inventory)
+    ? yield* fromPromise(
+        isOffchainName(client, name),
+        (error) => new GetProfileRecordsError({ cause: error }),
+      )
+    : false
+  return ok(selectProfileRecordKeys({ inventory, isOffchain }))
 })
 
 export const getProfileRecords = ResultFn(async function* (name: string) {

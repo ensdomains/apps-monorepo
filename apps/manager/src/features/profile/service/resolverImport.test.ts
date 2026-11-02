@@ -1,5 +1,5 @@
 import { BignameError } from '@ens-apps/indexer/bigname'
-import { encodeContentHash } from '@ensdomains/ensjs/utils'
+import { encodeContentHash, getTextParameters } from '@ensdomains/ensjs/utils'
 import {
   publicResolverAbiSnippet,
   publicResolverContenthashSnippet,
@@ -16,6 +16,7 @@ import {
   decodeFunctionData,
   ExecutionRevertedError,
   encodeAbiParameters,
+  encodeFunctionData,
   encodeFunctionResult,
   type Hex,
   HttpRequestError,
@@ -441,7 +442,9 @@ describe('offchain resolver records', () => {
     'function multicall(bytes[] data) returns (bytes[] results)',
   ])
   // A CCIP-Read resolver: extended resolution without name-based setters.
-  const offchain = (multicallFailure?: Error) => {
+  const offchain = (
+    multicallFailure?: Error | ((calls: readonly Hex[]) => Error | undefined),
+  ) => {
     fixture()
     const single = mocks.readContract.getMockImplementation()
     mocks.multicall.mockImplementation(
@@ -463,8 +466,12 @@ describe('offchain resolver records', () => {
           !data.startsWith('0xac9650d8')
         )
           return single?.(request)
-        if (multicallFailure) throw multicallFailure
         const { args } = decodeFunctionData({ abi: multicallAbi, data })
+        const failure =
+          typeof multicallFailure === 'function'
+            ? multicallFailure(args[0])
+            : multicallFailure
+        if (failure) throw failure
         const results = await Promise.all(
           args[0].map((call) =>
             single?.({ ...request, args: [dnsName, call] }),
@@ -502,6 +509,57 @@ describe('offchain resolver records', () => {
       expect.objectContaining({ coinType: 60, value: WALLET }),
     ])
     expect(resolveCalls()).toHaveLength(1)
+  })
+
+  const batchSizes = () =>
+    resolveCalls().flatMap(([request]) =>
+      request.args[1].startsWith('0xac9650d8')
+        ? [
+            decodeFunctionData({ abi: multicallAbi, data: request.args[1] })
+              .args[0].length,
+          ]
+        : [],
+    )
+  const manyKeys = Array.from({ length: 40 }, (_, index) => `key.${index}`)
+  const readMany = () =>
+    readResolverRecords({
+      name: NAME,
+      resolver: RESOLVER,
+      texts: ['description', ...manyKeys],
+      coins: [60],
+      publicClient: publicClient as PublicClient,
+    })
+
+  it('splits a long read into gateway requests of at most 23 records', async () => {
+    offchain()
+
+    const { records, readErrors } = await readMany()
+
+    expect(readErrors).toEqual([])
+    expect(records.texts).toEqual([expected.texts[0]])
+    expect(batchSizes()).toEqual([23, 21])
+  })
+
+  it('falls back to one request per record only within a rejected gateway batch', async () => {
+    const description = encodeFunctionData(
+      getTextParameters({ name: NAME, key: 'description' }),
+    )
+    offchain((calls) =>
+      calls.includes(description)
+        ? new BaseError('Gateway failed', {
+            cause: new HttpRequestError({
+              url: 'https://gateway.invalid',
+              status: 400,
+            }),
+          })
+        : undefined,
+    )
+
+    const { records, readErrors } = await readMany()
+
+    expect(readErrors).toEqual([])
+    expect(records.texts).toEqual([expected.texts[0]])
+    expect(resolveCalls()).toHaveLength(2 + 23)
   })
 
   it('does not fall back to one request per record when the gateway rate limits', async () => {
