@@ -19,6 +19,7 @@ export { getSmartAccountAddress } from './helpers/getSmartAccountAddress'
 export type {
   HcaFundingApprovalCapability,
   HcaFundingApprovalPrompt,
+  HcaFundingApprovalRecoveryPrompt,
   HcaFundingApprovalState,
 } from './helpers/hca-funding-approval'
 export {

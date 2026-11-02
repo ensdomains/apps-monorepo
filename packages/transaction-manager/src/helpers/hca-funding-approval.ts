@@ -53,9 +53,21 @@ export interface HcaFundingApprovalPrompt {
   readonly maxGasCost: bigint
 }
 
+export type HcaFundingApprovalRecoveryPrompt = Omit<
+  HcaFundingApprovalPrompt,
+  'kind'
+> & {
+  readonly kind: 'approval-recovery'
+  readonly reservedAmount: bigint
+}
+
 export type HcaFundingApprovalState =
   | { readonly kind: 'idle' }
   | { readonly kind: 'approval'; readonly prompt: HcaFundingApprovalPrompt }
+  | {
+      readonly kind: 'approval-recovery'
+      readonly prompt: HcaFundingApprovalRecoveryPrompt
+    }
   | {
       readonly kind: 'approval-wallet'
       readonly prompt: HcaFundingApprovalPrompt
@@ -69,6 +81,10 @@ export type HcaFundingApprovalState =
 export interface HcaFundingApprovalCapability {
   readonly confirmApproval: (
     prompt: HcaFundingApprovalPrompt,
+  ) => Promise<boolean> | boolean
+  /** Explicit attestation that earlier requests were rejected and sent transactions settled. */
+  readonly confirmApprovalRecovery?: (
+    prompt: HcaFundingApprovalRecoveryPrompt,
   ) => Promise<boolean> | boolean
   readonly onState?: (state: HcaFundingApprovalState) => void
 }
@@ -97,16 +113,21 @@ type PendingApproval = v.InferOutput<typeof pendingSchema>
 type ApprovalRecovery =
   | { readonly kind: 'ready' }
   | { readonly kind: 'approve' }
-  | { readonly kind: 'blocked' }
+  | { readonly kind: 'blocked'; readonly reservedAmount: bigint }
   | { readonly kind: 'wait'; readonly hash: Hash; readonly amount: bigint }
 
-/** An outstanding set-allowance may still land even when today's allowance covers a new run. */
+/** Both possible allowance values must cover the pull; keep uncertain reservations durable. */
 export const getHcaApprovalRecovery = (
   pending: PendingApproval | null,
   allowance: bigint,
   required: bigint,
 ): ApprovalRecovery => {
-  if (pending?.kind === 'reserved') return { kind: 'blocked' }
+  if (pending?.kind === 'reserved') {
+    const reservedAmount = BigInt(pending.amount)
+    return allowance >= required && reservedAmount >= required
+      ? { kind: 'ready' }
+      : { kind: 'blocked', reservedAmount }
+  }
   if (pending?.kind === 'submitted')
     return { kind: 'wait', hash: pending.hash, amount: BigInt(pending.amount) }
   return { kind: allowance >= required ? 'ready' : 'approve' }
@@ -289,13 +310,19 @@ const runApproval = ResultFn(async function* (
     }),
   )
   const recovery = getHcaApprovalRecovery(pending, allowance, amount)
-  if (recovery.kind === 'blocked')
-    return err(
-      approvalError(
-        'An earlier approval may still be waiting in the wallet. Resolve it before trying again.',
-      ),
+  if (recovery.kind === 'blocked') {
+    const restored = yield* requestApprovalRecovery(
+      input,
+      environment,
+      key,
+      recovery.reservedAmount,
     )
-  if (recovery.kind === 'ready') return ok({ kind: 'none' as const })
+    return ok(restored)
+  }
+  if (recovery.kind === 'ready')
+    return pending?.kind === 'reserved'
+      ? ok({ kind: 'covered' as const, maxAmount: BigInt(pending.amount) })
+      : ok({ kind: 'none' as const })
   const prepared = yield* recovery.kind === 'wait'
     ? ok({
         hash: recovery.hash,
@@ -371,6 +398,83 @@ const approvalPrompt = (
   decimals: 6,
   nativeSymbol: input.publicClient.chain?.nativeCurrency.symbol ?? 'ETH',
   maxGasCost,
+})
+
+/** The lock stays held through consent. Clearing is a user-attested reset, not cancellation proof. */
+const requestApprovalRecovery = ResultFn(async function* (
+  input: ApproveHcaFundingParams,
+  environment: HcaApprovalEnvironment,
+  key: string,
+  reservedAmount: bigint,
+) {
+  if (!input.confirmApprovalRecovery)
+    return err(
+      approvalError(
+        'An earlier approval may still be waiting in the wallet. Resolve it before trying again.',
+      ),
+    )
+  const prompt: HcaFundingApprovalRecoveryPrompt = {
+    ...approvalPrompt(input, 0n),
+    kind: 'approval-recovery',
+    reservedAmount,
+  }
+  input.onState?.({ kind: 'approval-recovery', prompt })
+  if (input.signal?.aborted) return err(approvalError(input.signal.reason))
+  const confirmed = yield* boundary(
+    Promise.resolve(input.confirmApprovalRecovery(prompt)),
+  )
+  if (input.signal?.aborted) return err(approvalError(input.signal.reason))
+  if (!confirmed)
+    return err(
+      approvalError(
+        'The earlier approval was not cleared. Your renewal was not submitted.',
+      ),
+    )
+  const allowance = yield* boundary(
+    input.publicClient.readContract({
+      address: input.token,
+      abi: erc20Abi,
+      functionName: 'allowance',
+      args: [input.owner, input.spender],
+    }),
+  )
+  // Identity and cancellation are checked after the last RPC, before touching storage.
+  yield* assertHcaFundingWallet(input)
+  // This synchronous storage boundary has no suspension between the final abort check and clear.
+  return readPending(environment.storage, key).andThen((pending) => {
+    if (input.signal?.aborted) return err(approvalError(input.signal.reason))
+    if (
+      pending?.kind !== 'reserved' ||
+      BigInt(pending.amount) !== reservedAmount
+    )
+      return err(
+        approvalError(
+          'The saved approval changed. Start a new attempt to review it.',
+        ),
+      )
+    if (
+      getHcaApprovalRecovery(pending, allowance, input.amount).kind === 'ready'
+    )
+      return ok({ kind: 'covered' as const, maxAmount: reservedAmount })
+    return clearPending(environment.storage, key)
+      .andThen(() => readPending(environment.storage, key))
+      .andThen((remaining) => {
+        if (remaining)
+          return err(
+            approvalError(
+              'Could not clear the earlier approval. Your renewal was not submitted.',
+            ),
+          )
+        // A cleared preflight returns for a fresh quote; it never silently opens the wallet.
+        return input.existingOnly
+          ? ok({ kind: 'settled' as const })
+          : err(
+              approvalError(
+                'The earlier approval was cleared. Start a new attempt to review funding.',
+              ),
+            )
+      })
+  })
 })
 
 const prepareApproval = ResultFn(async function* (

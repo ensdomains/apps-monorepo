@@ -803,6 +803,10 @@ msgstr ""
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Clear and retry"
+msgstr ""
+
 #: src/components/molecules/SearchField/SearchField.tsx
 #: src/features/navigation/Header/search/SearchInput.tsx
 msgid "Clear search"
@@ -1234,6 +1238,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.helpers.ts
 msgid "Each text record needs a unique key. Remove the duplicate custom record to edit it in its existing field."
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Earlier requested allowance"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
@@ -2505,6 +2513,10 @@ msgstr ""
 msgid "Registry"
 msgstr ""
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Reject any waiting USDC approval request in your wallet. If a transaction was already sent, wait for that transaction or its cancellation to confirm before clearing. Clearing the app record does not cancel a wallet transaction. Any new approval will ask for your consent separately."
+msgstr ""
+
 #: src/features/dashboard/components/NameRow.tsx
 msgid "Remind me"
 msgstr ""
@@ -2741,6 +2753,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 msgid "Resolve errors before previewing changes."
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Resolve your earlier USDC approval"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
@@ -3334,6 +3350,10 @@ msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "The connected wallet doesn't own this smart account."
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "The earlier USDC approval is no longer pending."
 msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts

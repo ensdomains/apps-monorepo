@@ -967,6 +967,63 @@ it.each(['reserved', 'submitted'] as const)(
   },
 )
 
+it('does not grow a refreshed shortfall beyond an uncertain late approval even when standing allowance is larger', async () => {
+  const usdc = getDestinationContracts(1).usdc
+  prepareTransaction.mockResolvedValue({
+    intentRoute: {
+      intentCost: {
+        tokensSpent: {
+          '1': { [usdc.toLowerCase()]: { locked: '0', unlocked: '900000' } },
+        },
+      },
+    },
+  })
+  mockReads({ hcaBalance: 1_900_000n, allowance: 4_000_000n })
+  const pending = JSON.stringify({ kind: 'reserved', amount: '1000000' })
+  const removeItem = vi.fn()
+  const walletClient = {
+    ...createWalletClient({
+      chain: mainnet,
+      transport: custom({ request: async () => undefined }),
+    }),
+    getAddresses: vi.fn().mockResolvedValue([OWNER]),
+    getChainId: vi.fn().mockResolvedValue(1),
+  }
+  const planning = planHcaIntentFunding({
+    ...params,
+    chainId: 1,
+    requiredUsdc: 2_000_000n,
+    publicClient: {
+      ...publicClient,
+      chain: mainnet,
+      readContract: vi.fn().mockImplementation(async () => {
+        mockReads({ hcaBalance: 0n, allowance: 4_000_000n })
+        return 4_000_000n
+      }),
+    },
+    approvalSigner: { type: 'eoa', walletClient },
+    approvalFallback: {
+      confirmApproval: () => true,
+      environment: {
+        storage: {
+          getItem: () => pending,
+          setItem: () => undefined,
+          removeItem,
+        },
+        locks: {
+          request: vi.fn(
+            async (_name, _options, callback) =>
+              await callback({ name: 'test', mode: 'exclusive' }),
+          ),
+        },
+      },
+    },
+  })
+  await expect(planning).rejects.toThrow('The required funding increased')
+  expect(signFundingPermit).not.toHaveBeenCalled()
+  expect(removeItem).not.toHaveBeenCalled()
+})
+
 it.each([900_000n, 1_100_000n])(
   'refreshes HCA balances after recovering a pending approval instead of pulling a stale shortfall (fresh quote %s)',
   async (freshFee) => {

@@ -35,6 +35,7 @@ export const RenewalUiProvider = ({
     prompt: fundingPrompt,
     confirmFunding,
     confirmApproval,
+    confirmApprovalRecovery,
     approvalState,
     onApprovalState,
     approve: approveFunding,
@@ -46,7 +47,11 @@ export const RenewalUiProvider = ({
       currentExpiry,
       protocol,
       confirmFunding,
-      approvalFallback: { confirmApproval, onState: onApprovalState },
+      approvalFallback: {
+        confirmApproval,
+        confirmApprovalRecovery,
+        onState: onApprovalState,
+      },
     },
   })
   const previousLabel = useRef(label)

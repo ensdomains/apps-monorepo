@@ -61,6 +61,7 @@ import {
   type HcaFundingApprovalCapability,
   reconcileHcaFundingBalances,
   recoverHcaFundingApproval,
+  validateHcaFundingBounds,
 } from './hca-funding-approval'
 import { isCanonicalHcaUsdc, validateHcaUsdcPermit } from './hca-usdc-permit'
 
@@ -910,9 +911,23 @@ async function recoverQuotedFunding(
     ...(params.signal ? { signal: params.signal } : {}),
   })
   if (recovered.isErr()) return Promise.reject(recovered.error)
-  return recovered.value.kind === 'settled'
-    ? { ...quoted, ...(await readFundingBalances(params.publicClient, quoted)) }
-    : quoted
+  if (recovered.value.kind === 'none') return quoted
+  const refreshed = {
+    ...quoted,
+    ...(await readFundingBalances(params.publicClient, quoted)),
+  }
+  if (recovered.value.kind === 'covered')
+    return validateHcaFundingBounds(
+      bigintMax(
+        quoted.requiredUsdc + quoted.quotedFeeUsdc - refreshed.balance,
+        0n,
+      ),
+      recovered.value.maxAmount,
+    ).match(
+      () => refreshed,
+      (error) => Promise.reject(error),
+    )
+  return refreshed
 }
 
 /** Re-read settlement against the original quote, then reuse the existing allowance route. */

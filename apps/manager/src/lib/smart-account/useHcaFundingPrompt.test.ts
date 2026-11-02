@@ -1,5 +1,6 @@
 import type {
   HcaFundingApprovalPrompt,
+  HcaFundingApprovalRecoveryPrompt,
   HcaFundingPrompt,
 } from '@ens-apps/transaction-manager'
 import { act, renderHook } from '@testing-library/react'
@@ -25,6 +26,26 @@ const approval: HcaFundingApprovalPrompt = {
   nativeSymbol: 'ETH',
   maxGasCost: 150000n,
 }
+
+it('declines unresolved approval recovery when its screen unmounts', async () => {
+  const recovery: HcaFundingApprovalRecoveryPrompt = {
+    ...approval,
+    kind: 'approval-recovery',
+    reservedAmount: 7n,
+  }
+  const { result, unmount } = renderHook(() => useHcaFundingPrompt())
+  let decision: Promise<boolean> = Promise.resolve(true)
+  act(() => {
+    decision = result.current.confirmApprovalRecovery(recovery)
+  })
+  expect(result.current.prompt).toBeNull()
+  expect(result.current.approvalState).toEqual({
+    kind: 'approval-recovery',
+    prompt: recovery,
+  })
+  unmount()
+  expect(await decision).toBe(false)
+})
 
 it('keeps the existing funding consent separate from the approval wallet and receipt states', async () => {
   const { result } = renderHook(() => useHcaFundingPrompt())

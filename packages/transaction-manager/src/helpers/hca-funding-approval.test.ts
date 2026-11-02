@@ -9,11 +9,29 @@ const HASH =
 
 describe('approval recovery and funding bounds', () => {
   it.each([
+    ['4', 4n, 4n, 'ready'],
+    ['9', 8n, 4n, 'ready'],
+    ['3', 8n, 4n, 'blocked'],
+    ['4', 3n, 4n, 'blocked'],
+  ] as const)(
+    'reuses a reserved allowance only when a late approval cannot undercut funding',
+    (amount, allowance, required, kind) => {
+      expect(
+        getHcaApprovalRecovery(
+          { kind: 'reserved', amount },
+          allowance,
+          required,
+        ).kind,
+      ).toBe(kind)
+    },
+  )
+
+  it.each([
     [null, 4n, 4n, 'ready'],
     [null, 3n, 4n, 'approve'],
     [{ kind: 'preparing', amount: '4' }, 4n, 4n, 'ready'],
     [{ kind: 'preparing', amount: '4' }, 3n, 4n, 'approve'],
-    [{ kind: 'reserved', amount: '4' }, 4n, 4n, 'blocked'],
+    [{ kind: 'reserved', amount: '4' }, 4n, 4n, 'ready'],
     [{ kind: 'submitted', amount: '4', hash: HASH }, 4n, 4n, 'wait'],
   ] as const)(
     'preserves reservations before using standing allowance',
@@ -121,6 +139,130 @@ const makeRun = () => {
   }
   return { input, records }
 }
+
+const makeReservedRun = () => {
+  const run = makeRun()
+  const pending = JSON.stringify({ kind: 'reserved', amount: '4' })
+  run.records.set(APPROVAL_KEY, pending)
+  return {
+    ...run,
+    pending,
+    input: { ...run.input, confirmApprovalRecovery: vi.fn(() => true) },
+  }
+}
+
+describe('stranded approval recovery', () => {
+  it('uses a safely covered allowance without another wallet request or clearing the uncertain reservation', async () => {
+    const { input, records, pending } = makeReservedRun()
+    input.publicClient.readContract.mockResolvedValue(4n)
+    expect((await recoverHcaFundingApproval(input))._unsafeUnwrap()).toEqual({
+      kind: 'covered',
+      maxAmount: 4n,
+    })
+    expect([...records.values()]).toEqual([pending])
+    expect(input.confirmApprovalRecovery).not.toHaveBeenCalled()
+    expect(input.walletClient.request).not.toHaveBeenCalled()
+  })
+
+  it('clears the same abandoned reservation after separate confirmation without sending an approval', async () => {
+    const { input, records } = makeReservedRun()
+    expect((await recoverHcaFundingApproval(input))._unsafeUnwrap()).toEqual({
+      kind: 'settled',
+    })
+    expect(input.confirmApprovalRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'approval-recovery',
+        reservedAmount: 4n,
+        amount: 4n,
+        spender: SPENDER,
+      }),
+    )
+    expect(records.size).toBe(0)
+    expect(input.confirmApproval).not.toHaveBeenCalled()
+    expect(input.walletClient.request).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'decline',
+    'abort',
+    'account switch',
+    'network switch',
+    'storage failure',
+  ] as const)(
+    'preserves the reservation after recovery %s',
+    async (failure) => {
+      const { input, records, pending } = makeReservedRun()
+      const controller = new AbortController()
+      input.confirmApprovalRecovery.mockImplementation(() => {
+        if (failure === 'abort') controller.abort()
+        if (failure === 'account switch')
+          input.walletClient.getAddresses.mockResolvedValue([SPENDER])
+        if (failure === 'network switch')
+          input.walletClient.getChainId.mockResolvedValue(11155111)
+        if (failure === 'storage failure')
+          input.environment.storage.removeItem = () => {
+            throw new Error('storage unavailable')
+          }
+        return failure !== 'decline'
+      })
+      expect(
+        (
+          await recoverHcaFundingApproval({
+            ...input,
+            signal: controller.signal,
+          })
+        ).isErr(),
+      ).toBe(true)
+      expect([...records.values()]).toEqual([pending])
+      expect(input.walletClient.request).not.toHaveBeenCalled()
+    },
+  )
+
+  it('does not clear a replacement record after the prompt', async () => {
+    const { input, records } = makeReservedRun()
+    const replacement = JSON.stringify({
+      kind: 'submitted',
+      amount: '4',
+      hash: HASH,
+    })
+    input.confirmApprovalRecovery.mockImplementation(() => {
+      records.set(APPROVAL_KEY, replacement)
+      return true
+    })
+    expect((await recoverHcaFundingApproval(input)).isErr()).toBe(true)
+    expect([...records.values()]).toEqual([replacement])
+    expect(input.walletClient.request).not.toHaveBeenCalled()
+  })
+
+  it('rechecks wallet identity after the final allowance read', async () => {
+    const { input, records, pending } = makeReservedRun()
+    input.publicClient.readContract
+      .mockResolvedValueOnce(0n)
+      .mockImplementationOnce(async () => {
+        input.walletClient.getAddresses.mockResolvedValue([SPENDER])
+        return 0n
+      })
+    expect((await recoverHcaFundingApproval(input)).isErr()).toBe(true)
+    expect([...records.values()]).toEqual([pending])
+  })
+
+  it('does not report recovery when storage silently refuses to clear', async () => {
+    const { input, records, pending } = makeReservedRun()
+    input.environment.storage.removeItem = () => undefined
+    expect((await recoverHcaFundingApproval(input)).isErr()).toBe(true)
+    expect([...records.values()]).toEqual([pending])
+  })
+
+  it('cannot reset a reservation while another operation holds its lock', async () => {
+    const { input, records, pending } = makeReservedRun()
+    input.environment.locks.request.mockImplementationOnce(
+      async (_key, _options, callback) => callback(null),
+    )
+    expect((await recoverHcaFundingApproval(input)).isErr()).toBe(true)
+    expect(input.confirmApprovalRecovery).not.toHaveBeenCalled()
+    expect([...records.values()]).toEqual([pending])
+  })
+})
 
 describe('approval wallet and persistence boundaries', () => {
   it.each([0n, 4n])(
@@ -266,7 +408,7 @@ describe('approval wallet and persistence boundaries', () => {
     },
   )
 
-  it('retains an ambiguous hashless write and blocks another send even if allowance later appears sufficient', async () => {
+  it('retains an ambiguous hashless write and reuses safe allowance without another send', async () => {
     const { input, records } = makeRun()
     input.walletClient.request.mockRejectedValue(
       new Error('Connection dropped'),
@@ -276,7 +418,11 @@ describe('approval wallet and persistence boundaries', () => {
       JSON.stringify({ kind: 'reserved', amount: '4' }),
     ])
     input.publicClient.readContract.mockResolvedValue(4n)
-    expect((await approveHcaFunding(input)).isErr()).toBe(true)
+    expect((await approveHcaFunding(input)).isOk()).toBe(true)
+    expect(input.walletClient.request).toHaveBeenCalledTimes(1)
+    expect((await approveHcaFunding({ ...input, amount: 5n })).isErr()).toBe(
+      true,
+    )
     expect(input.walletClient.request).toHaveBeenCalledTimes(1)
   })
 

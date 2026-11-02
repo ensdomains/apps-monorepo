@@ -1,5 +1,6 @@
 import type {
   HcaFundingApprovalPrompt,
+  HcaFundingApprovalRecoveryPrompt,
   HcaFundingApprovalState,
   HcaFundingPrompt,
 } from '@ens-apps/transaction-manager'
@@ -15,6 +16,9 @@ export interface UseHcaFundingPromptResult {
   readonly confirmFunding: (prompt: HcaFundingPrompt) => Promise<boolean>
   readonly confirmApproval: (
     prompt: HcaFundingApprovalPrompt,
+  ) => Promise<boolean>
+  readonly confirmApprovalRecovery: (
+    prompt: HcaFundingApprovalRecoveryPrompt,
   ) => Promise<boolean>
   readonly onApprovalState: (state: HcaFundingApprovalState) => void
   readonly approve: () => void
@@ -55,6 +59,11 @@ export const useHcaFundingPrompt = (): UseHcaFundingPromptResult => {
     (prompt: HcaFundingApprovalPrompt) => request({ kind: 'approval', prompt }),
     [request],
   )
+  const confirmApprovalRecovery = useCallback(
+    (prompt: HcaFundingApprovalRecoveryPrompt) =>
+      request({ kind: 'approval-recovery', prompt }),
+    [request],
+  )
   const onApprovalState = useCallback((next: HcaFundingApprovalState) => {
     if (mounted.current) setState(next)
   }, [])
@@ -69,6 +78,7 @@ export const useHcaFundingPrompt = (): UseHcaFundingPromptResult => {
     approvalState: state.kind === 'funding' ? { kind: 'idle' } : state,
     confirmFunding,
     confirmApproval,
+    confirmApprovalRecovery,
     onApprovalState,
     approve: () => settle(true),
     decline: () => settle(false),

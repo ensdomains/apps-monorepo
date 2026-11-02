@@ -345,6 +345,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     prompt: fundingPrompt,
     confirmFunding,
     confirmApproval,
+    confirmApprovalRecovery,
     approvalState,
     onApprovalState,
     approve: approveFunding,
@@ -464,7 +465,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       remaining,
       rowReporters(isCurrent, markStatus, completedRef.current),
       confirmFunding,
-      { confirmApproval, onState: onApprovalState },
+      { confirmApproval, confirmApprovalRecovery, onState: onApprovalState },
       abortRef.current?.signal,
     )
     if (!isCurrent()) return
