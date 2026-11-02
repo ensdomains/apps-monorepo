@@ -286,7 +286,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               onRetry={() => void refetchRecords()}
             />
             <div className="space-y-0">
-              <ProfileCards records={displayRecords} />
+              <ProfileCards name={name} records={displayRecords} />
               <ProfileCommemorativeNftSection
                 enabled={commemorativeNftEnabled}
                 isOwner={resolvedIsOwner}
