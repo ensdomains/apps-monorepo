@@ -1,14 +1,17 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, ok, ResultAsync } from 'neverthrow'
 import * as v from 'valibot'
-import { type Hex, type PublicClient, toHex } from 'viem'
+import { type Hex, type PublicClient, toHex, withRetry } from 'viem'
 import { checkNotAborted } from './bignameLookup'
+import { hasSubnameLogRangeLimit } from './rpcSubnameInventory'
 import type { V1ProfileSource } from './v1ProfileKeys'
 import {
   parseResolverHistory,
   planResolverHistory,
   RESOLVER_HISTORY_TOPICS,
   type ResolverHistoryRecord,
+  shouldRetryResolverHistoryRead,
+  splitResolverHistoryRequest,
 } from './v1ResolverHistory'
 
 class ReadV1ResolverHistoryError extends TaggedError(
@@ -18,6 +21,7 @@ class ReadV1ResolverHistoryError extends TaggedError(
 }> {}
 
 const CONCURRENT_REQUESTS = 8
+const LOG_RETRY_COUNT = 2
 const hashSchema = v.custom<Hex>(
   (value) => typeof value === 'string' && /^0x[0-9a-fA-F]{64}$/.test(value),
 )
@@ -86,40 +90,73 @@ export const readV1ResolverHistory = ResultFn(async function* ({
     toBlock: checkpoint.number,
   })
   const queue = requests.values()
-  let hasFailed = false
+  let failure: ReadV1ResolverHistoryError | undefined
+  // Split children run in their parent's slot, so caps never increase concurrency.
+  const readRange: (
+    request: (typeof requests)[number],
+  ) => ResultAsync<
+    readonly ResolverHistoryRecord[],
+    ReadV1ResolverHistoryError
+  > = ResultFn(async function* (request) {
+    yield* checkNotAborted(signal, toError)
+    if (failure) return err(failure)
+    const nodes = v.safeParse(
+      v.array(hashSchema),
+      request.sources.map(({ id }) => id),
+    )
+    if (!nodes.success)
+      return err(toError(new Error('Invalid resolver history node')))
+    const response = await ResultAsync.fromPromise(
+      withRetry(
+        () =>
+          failure
+            ? Promise.reject(failure)
+            : publicClient.request(
+                {
+                  method: 'eth_getLogs',
+                  params: [
+                    {
+                      address: request.resolver,
+                      fromBlock: toHex(request.fromBlock),
+                      toBlock: toHex(request.toBlock),
+                      topics: [RESOLVER_HISTORY_TOPICS, nodes.output],
+                    },
+                  ],
+                },
+                { signal },
+              ),
+        {
+          retryCount: LOG_RETRY_COUNT,
+          delay: ({ count }) => 250 * 2 ** count,
+          shouldRetry: ({ error }) =>
+            !failure && shouldRetryResolverHistoryRead(error),
+          signal,
+        },
+      ),
+      toError,
+    )
+    yield* checkNotAborted(signal, toError)
+    if (response.isOk())
+      return parseResolverHistory(response.value, request).mapErr(toError)
+    if (!hasSubnameLogRangeLimit(response.error.cause))
+      return err(response.error)
+    const partitions = splitResolverHistoryRequest(request)
+    if (partitions.length === 0) return err(response.error)
+    let records: readonly ResolverHistoryRecord[] = []
+    for (const partition of partitions) {
+      const page = yield* readRange(partition)
+      records = [...records, ...page]
+    }
+    return ok(records)
+  })
   const readNext = ResultFn(async function* () {
     let records: readonly ResolverHistoryRecord[] = []
-    while (!hasFailed) {
+    while (!failure) {
       yield* checkNotAborted(signal, toError)
       const next = queue.next()
       if (next.done) break
-      const request = next.value
-      const nodes = v.safeParse(
-        v.array(hashSchema),
-        request.sources.map(({ id }) => id),
-      )
-      if (!nodes.success)
-        return err(toError(new Error('Invalid resolver history node')))
-      const result = await ResultAsync.fromPromise(
-        publicClient.request(
-          {
-            method: 'eth_getLogs',
-            params: [
-              {
-                address: request.resolver,
-                fromBlock: toHex(request.fromBlock),
-                toBlock: toHex(request.toBlock),
-                topics: [RESOLVER_HISTORY_TOPICS, nodes.output],
-              },
-            ],
-          },
-          { signal },
-        ),
-        toError,
-      ).andThen((response) =>
-        parseResolverHistory(response, request).mapErr(toError),
-      )
-      if (result.isErr()) hasFailed = true
+      const result = await readRange(next.value)
+      if (result.isErr()) failure = result.error
       const page = yield* result
       yield* checkNotAborted(signal, toError)
       records = [...records, ...page]

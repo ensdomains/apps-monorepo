@@ -1,7 +1,10 @@
+import * as v from 'valibot'
 import {
   createPublicClient,
   custom,
+  encodeAbiParameters,
   encodeEventTopics,
+  HttpRequestError,
   namehash,
   parseAbi,
   toHex,
@@ -60,6 +63,190 @@ const makeClient = ({
 }
 
 describe('readV1ResolverHistory', () => {
+  it.each([
+    { head: 15n, limit: 'range' },
+    { head: 0n, limit: 'single-block results' },
+  ] as const)(
+    'splits capped $limit queries without losing either source history',
+    async ({ head, limit }) => {
+      const other = { ...source, id: namehash('bob.eth'), name: 'bob.eth' }
+      const writes = [source, other].map((item, index) => ({
+        address: item.resolver,
+        blockNumber: toHex(index === 0 ? 0n : head),
+        blockHash: zeroHash,
+        transactionHash: zeroHash,
+        logIndex: toHex(index),
+        removed: false,
+        topics: encodeEventTopics({
+          abi: parseAbi([
+            'event AddressChanged(bytes32 indexed node, uint256 coinType, bytes newAddress)',
+          ]),
+          eventName: 'AddressChanged',
+          args: { node: item.id },
+        }),
+        data: encodeAbiParameters(
+          [{ type: 'uint256' }, { type: 'bytes' }],
+          [60n, '0x'],
+        ),
+      }))
+      const { publicClient } = makeClient({
+        head,
+        logs: async (params) => {
+          const [filter] = v.parse(
+            v.tuple([
+              v.object({
+                fromBlock: v.string(),
+                toBlock: v.string(),
+                topics: v.tuple([v.array(v.string()), v.array(v.string())]),
+              }),
+            ]),
+            params,
+          )
+          if (
+            (limit === 'range' &&
+              BigInt(filter.toBlock) - BigInt(filter.fromBlock) >= 8n) ||
+            (limit === 'single-block results' && filter.topics[1].length > 1)
+          )
+            throw new Error('query returned more than the maximum results')
+          return writes.filter(
+            (log) =>
+              BigInt(log.blockNumber) >= BigInt(filter.fromBlock) &&
+              BigInt(log.blockNumber) <= BigInt(filter.toBlock) &&
+              typeof log.topics[1] === 'string' &&
+              filter.topics[1].includes(log.topics[1]),
+          )
+        },
+      })
+      const result = await readV1ResolverHistory({
+        sources: [source, other],
+        publicClient,
+        chainId: 1,
+      })
+      expect(result._unsafeUnwrap()).toEqual(
+        [source, other].map(({ id, resolver }) => ({
+          node: id,
+          resolver,
+          kind: 'address',
+          coinType: 60n,
+        })),
+      )
+    },
+  )
+
+  it('retries a rate-limited range without duplicating returned history', async () => {
+    const logs = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new HttpRequestError({ url: 'https://rpc.invalid', status: 429 }),
+      )
+      .mockResolvedValue([])
+    const { publicClient } = makeClient({ logs })
+    const result = await readV1ResolverHistory({
+      sources: [source],
+      publicClient,
+      chainId: 1,
+    })
+    expect(result._unsafeUnwrap()).toEqual([])
+    expect(logs).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops retrying an unavailable range after three attempts', async () => {
+    const logs = vi
+      .fn()
+      .mockRejectedValue(
+        new HttpRequestError({ url: 'https://rpc.invalid', status: 429 }),
+      )
+    const { publicClient } = makeClient({ logs })
+    const result = await readV1ResolverHistory({
+      sources: [source],
+      publicClient,
+      chainId: 1,
+    })
+    expect(result.isErr()).toBe(true)
+    expect(logs).toHaveBeenCalledTimes(3)
+  })
+
+  it('cancels during rate-limit backoff without sending another request', async () => {
+    const controller = new AbortController()
+    const logs = vi
+      .fn()
+      .mockRejectedValue(
+        new HttpRequestError({ url: 'https://rpc.invalid', status: 429 }),
+      )
+    const { publicClient } = makeClient({ logs })
+    const read = readV1ResolverHistory({
+      sources: [source],
+      publicClient,
+      chainId: 1,
+      signal: controller.signal,
+    })
+    await vi.waitFor(() => expect(logs).toHaveBeenCalledTimes(1))
+    controller.abort()
+    expect((await read).isErr()).toBe(true)
+    expect(logs).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects an indivisible provider limit without retrying it', async () => {
+    const logs = vi.fn().mockRejectedValue(new Error('block range limit'))
+    const { publicClient } = makeClient({ head: 0n, logs })
+    const result = await readV1ResolverHistory({
+      sources: [source],
+      publicClient,
+      chainId: 1,
+    })
+    expect(result.isErr()).toBe(true)
+    expect(logs).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects malformed split results without returning the valid half or retrying malformed evidence', async () => {
+    const logs = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('block range limit'))
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(null)
+    const { publicClient } = makeClient({ head: 1n, logs })
+    const result = await readV1ResolverHistory({
+      sources: [source],
+      publicClient,
+      chainId: 1,
+    })
+    expect(result.isErr()).toBe(true)
+    expect(logs).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not start split children after another worker has failed', async () => {
+    const capped = deferred()
+    const invalid = deferred()
+    const logs = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        await capped.promise
+        throw new Error('block range limit')
+      })
+      .mockImplementationOnce(async () => {
+        await invalid.promise
+        return null
+      })
+      .mockResolvedValue([])
+    const { publicClient } = makeClient({ head: 1_000_000n, logs })
+    const read = readV1ResolverHistory({
+      sources: [source],
+      publicClient,
+      chainId: 1,
+    })
+    await vi.waitFor(() => expect(logs).toHaveBeenCalledTimes(2))
+    invalid.resolve()
+    await vi.waitFor(() =>
+      expect(logs.mock.settledResults[1]).toEqual({
+        type: 'fulfilled',
+        value: null,
+      }),
+    )
+    capped.resolve()
+    expect((await read).isErr()).toBe(true)
+    expect(logs).toHaveBeenCalledTimes(2)
+  })
+
   it('confirms history through the fresh verification client and rejects its changed checkpoint', async () => {
     const { publicClient } = makeClient()
     const verification = makeClient({ confirmedHash: namehash('changed.eth') })

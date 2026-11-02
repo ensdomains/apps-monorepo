@@ -1,9 +1,11 @@
 import {
   encodeAbiParameters,
   encodeEventTopics,
+  HttpRequestError,
   namehash,
   parseAbi,
   toHex,
+  UnknownRpcError,
   zeroAddress,
   zeroHash,
 } from 'viem'
@@ -13,6 +15,8 @@ import {
   planResolverHistory,
   profileKeysForSource,
   RESOLVER_HISTORY_ABI,
+  shouldRetryResolverHistoryRead,
+  splitResolverHistoryRequest,
 } from './v1ResolverHistory'
 
 const source = {
@@ -45,6 +49,53 @@ const interfaceLog = {
 }
 
 describe('resolver history', () => {
+  it.each([
+    [new HttpRequestError({ url: 'https://rpc.invalid', status: 429 }), true],
+    [new HttpRequestError({ url: 'https://rpc.invalid', status: 401 }), false],
+    [new UnknownRpcError(new Error('Provider failure')), false],
+  ] as const)(
+    'retries only attributed transient provider failures: %s',
+    (cause, expected) => {
+      expect(shouldRetryResolverHistoryRead(cause)).toBe(expected)
+    },
+  )
+
+  it('bisects inclusive block ranges without losing either source', () => {
+    const range = {
+      ...request,
+      fromBlock: 10n,
+      toBlock: 20n,
+      sources: [
+        source,
+        { ...source, id: namehash('bob.eth'), name: 'bob.eth' },
+      ],
+    }
+    expect(splitResolverHistoryRequest(range)).toEqual([
+      { ...range, toBlock: 15n },
+      { ...range, fromBlock: 16n },
+    ])
+  })
+
+  it('bisects sources at one block and stops at an indivisible request', () => {
+    const range = {
+      ...request,
+      fromBlock: 5n,
+      toBlock: 5n,
+      sources: [
+        source,
+        { ...source, id: namehash('bob.eth'), name: 'bob.eth' },
+        { ...source, id: namehash('carol.eth'), name: 'carol.eth' },
+      ],
+    }
+    expect(splitResolverHistoryRequest(range)).toEqual([
+      { ...range, sources: range.sources.slice(0, 2) },
+      { ...range, sources: range.sources.slice(2) },
+    ])
+    expect(
+      splitResolverHistoryRequest({ ...range, sources: [source] }),
+    ).toEqual([])
+  })
+
   it('preserves 10,000 historical writes in order before deduplicating their keys', () => {
     const topics = encodeEventTopics({
       abi: RESOLVER_HISTORY_ABI,

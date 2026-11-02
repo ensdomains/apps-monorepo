@@ -3,15 +3,21 @@ import { match } from 'ts-pattern'
 import * as v from 'valibot'
 import {
   type Address,
+  BaseError,
   decodeEventLog,
   encodeAbiParameters,
   type Hex,
+  HttpRequestError,
   keccak256,
   parseAbi,
+  RpcError,
+  RpcRequestError,
+  TimeoutError,
   toBytes,
   toEventSelector,
 } from 'viem'
 import { UnsupportedResolverRecordsError } from './fetchV1Profiles.helpers'
+import { shouldRetrySubnameInventoryRead } from './rpcSubnameInventory'
 import type { V1ProfileKeys, V1ProfileSource } from './v1ProfileKeys'
 
 export const RESOLVER_HISTORY_ABI = parseAbi([
@@ -145,6 +151,41 @@ export const planResolverHistory = ({
       )
     },
   )
+
+/** Retry attributed transport/provider failures, not unclassified RPC exceptions. */
+export const shouldRetryResolverHistoryRead = (cause: unknown): boolean =>
+  cause instanceof BaseError &&
+  shouldRetrySubnameInventoryRead(cause) &&
+  shouldRetrySubnameInventoryRead(
+    cause.walk(
+      (error) =>
+        error instanceof TimeoutError ||
+        error instanceof HttpRequestError ||
+        ((error instanceof RpcError || error instanceof RpcRequestError) &&
+          error.code !== -1),
+    ),
+  )
+
+/** Divide a rejected query without gaps, retaining all requested sources. */
+export const splitResolverHistoryRequest = (
+  request: ResolverHistoryRequest,
+): readonly ResolverHistoryRequest[] => {
+  if (request.fromBlock < request.toBlock) {
+    const midpoint = (request.fromBlock + request.toBlock) / 2n
+    return [
+      { ...request, toBlock: midpoint },
+      { ...request, fromBlock: midpoint + 1n },
+    ]
+  }
+  if (request.sources.length > 1) {
+    const midpoint = Math.ceil(request.sources.length / 2)
+    return [
+      { ...request, sources: request.sources.slice(0, midpoint) },
+      { ...request, sources: request.sources.slice(midpoint) },
+    ]
+  }
+  return []
+}
 
 const isHex = (value: unknown): value is Hex =>
   typeof value === 'string' && /^0x(?:[0-9a-fA-F]{2})*$/.test(value)
