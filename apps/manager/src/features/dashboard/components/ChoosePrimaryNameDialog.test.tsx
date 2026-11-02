@@ -60,12 +60,12 @@ vi.mock('viem/actions', async (original) => ({
   getEnsName: () => chain.read(),
 }))
 vi.mock('@/lib/wagmi/helpers', () => ({ safeGetClient: () => ok({}) }))
-vi.mock('@wagmi/core', async (original) => {
-  const core = await original<typeof import('@wagmi/core')>()
+vi.mock('wagmi', async (original) => {
+  const wagmi = await original<typeof import('wagmi')>()
   return {
-    ...core,
-    getConnection: (config: Parameters<typeof core.getConnection>[0]) => ({
-      ...core.getConnection(config),
+    ...wagmi,
+    useConnection: () => ({
+      ...wagmi.useConnection(),
       connector: chain.connector,
     }),
   }
