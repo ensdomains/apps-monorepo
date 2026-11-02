@@ -16,7 +16,7 @@ import {
   getTextParameters,
 } from '@ensdomains/ensjs/utils'
 import { err, fromPromise, fromThrowable, ok, okAsync } from 'neverthrow'
-import type { Client, PublicClient, Transport } from 'viem'
+import type { PublicClient } from 'viem'
 import {
   type Address,
   decodeErrorResult,
@@ -26,7 +26,7 @@ import {
   zeroAddress,
 } from 'viem'
 import { bigname } from '@/lib/bigname'
-import { publicClient, type sepoliaWithEns } from '@/lib/wagmi'
+import { publicClient } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getDebugProfileRecords } from '../MOCK'
 import {
@@ -36,12 +36,8 @@ import {
   resolveNameRegistry,
 } from './changeResolver'
 import { decodeCoinResult } from './decodeCoinRecord'
-import {
-  selectProfileRecordKeys,
-  shouldCheckOffchain,
-} from './profileRecordKeys'
+import { selectProfileRecordKeys } from './profileRecordKeys'
 import { readResolverRecords } from './resolverImport'
-import { isOffchainName } from './resolverRecordCalls'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
@@ -78,31 +74,20 @@ const isNameRejection = (returnData: Hex): boolean =>
     .map(({ args: [status] }) => UNKNOWN_NAME_STATUSES.has(status))
     .unwrapOr(false)
 
-const getRecordKeys = ResultFn(async function* (
-  client: Client<Transport, typeof sepoliaWithEns>,
-  name: string,
-) {
-  // Viewing/editing commonly used fields remains possible while the index
-  // is unavailable. Resolver replacement performs a separate warned import.
-  const inventory = yield* bigname
+// Viewing/editing commonly used fields remains possible while the index
+// is unavailable. Resolver replacement performs a separate warned import.
+const getRecordKeys = (name: string) =>
+  bigname
     .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
-    .map(({ data }) => data.inventory)
-    .orElse(() => okAsync(undefined))
-  const isOffchain = shouldCheckOffchain(inventory)
-    ? yield* fromPromise(
-        isOffchainName(client, name),
-        (error) => new GetProfileRecordsError({ cause: error }),
-      )
-    : false
-  return ok(selectProfileRecordKeys({ inventory, isOffchain }))
-})
+    .map(({ data }) => selectProfileRecordKeys(data.inventory))
+    .orElse(() => okAsync(selectProfileRecordKeys(undefined)))
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
   const debugProfile = getDebugProfileRecords(name)
   if (debugProfile) return ok(debugProfile)
 
   const client = yield* safeGetClient()
-  const { texts, coins } = yield* getRecordKeys(client, name)
+  const { texts, coins } = yield* getRecordKeys(name)
 
   const v2Source = yield* fromPromise(
     (async () => {
