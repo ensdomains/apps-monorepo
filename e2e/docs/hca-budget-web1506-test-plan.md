@@ -152,3 +152,7 @@ pnpm --filter manager dev -- --port 3000
 | F3 | Low | The EOA route (`VITE_FF_USE_EOA=true`) has no e2e coverage, because CI builds the HCA route. The PR's unit tests cover it, and M6 checks it by hand |
 | F4 | Info | The PR description names `resolverDeployed` and `hcaBudgetQuoteRequired`, but the code uses `isResolverDeployed` and `isHcaBudgetQuoteRequired` |
 | F5 | Info | `pnpm test:manager-smoke` fails locally without `MAILINATOR_API_KEY`, because `notification.spec.ts` throws at import. That isn't new with this PR |
+
+## Note (landing on main, 2026-11-02)
+
+"blocks checkout and keeps the “up to” hedge when the budget quote fails" and "a quote that fails at the click does not start the registration" are not on main yet. They assume the payment sheet before #1513/#1514 and an HCA short of the total, and stay on `e2e-tests-coverage` until rewritten (WEB-2110).
