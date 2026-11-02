@@ -396,6 +396,18 @@ export const readResolverRecords = async ({
           args: [dnsEncodeName(name), data],
         })
       : (await client.call({ to: resolver, data })).data
+  const failedRead = (key: string, error: unknown, isDecoding: boolean) => {
+    // Any further request would only deepen a gateway's rate limit.
+    if (isGatewayRead && isRateLimited(error)) throw error
+    return {
+      failedKeys: [key],
+      unsupportedKeys: isContractRevert(error) ? [key] : [],
+      readErrors:
+        isContractRevert(error) || (isDecoding && !shouldDecodeStrictly)
+          ? []
+          : [error],
+    }
+  }
   const read = async (
     request: RecordRead,
     batched?: Hex,
@@ -424,15 +436,7 @@ export const readResolverRecords = async ({
         readErrors: [],
       }
     } catch (error) {
-      if (isGatewayRead && isRateLimited(error)) throw error
-      return {
-        failedKeys: [request.key],
-        unsupportedKeys: isContractRevert(error) ? [request.key] : [],
-        readErrors:
-          isContractRevert(error) || (isDecoding && !shouldDecodeStrictly)
-            ? []
-            : [error],
-      }
+      return failedRead(request.key, error, isDecoding)
     }
   }
   type ReadResult = Awaited<ReturnType<typeof read>>
