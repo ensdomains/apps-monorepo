@@ -2,16 +2,17 @@ import {
   type HcaFundingPrompt,
   transactionManager,
 } from '@ens-apps/transaction-manager'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useState } from 'react'
 import type { Address, Hex, PublicClient } from 'viem'
-import { useChainId } from 'wagmi'
+import { useChainId, useConnection } from 'wagmi'
 import {
   useHcaFundingPrompt,
   useSmartAccountContext,
 } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
+import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
 import {
   setPrimaryName,
   setPrimaryNameWithHca,
@@ -61,6 +62,8 @@ export function useSetPrimaryName(
 ): UseSetPrimaryNameResult {
   const account = useSmartAccountContext()
   const chainId = useChainId()
+  const queryClient = useQueryClient()
+  const { connector, address } = useConnection()
   const [txId, setTxId] = useState<string | undefined>()
 
   const txActor = txId ? transactionManager.getTransaction(txId) : undefined
@@ -81,11 +84,20 @@ export function useSetPrimaryName(
       }
 
       const { signer, walletClient, ownerAddress } = account
+      // A Safe can't sign the HCA's owner intent; an unreadable session is not a Safe, as at registration.
+      const isSafeWallet = await queryClient
+        .ensureQueryData(getIsSafeWalletQueryOptions({ connector, address }))
+        .catch(() => false)
 
       // HCA path: one owner-signed, user-paid intent via the reverse adapters.
       // The wallet client is required even here — it signs the intent and, when
       // the HCA cannot cover its own USDC fee, the funding permit as well.
-      if (signer?.type === 'rhinestone' && ownerAddress && walletClient) {
+      if (
+        signer?.type === 'rhinestone' &&
+        !isSafeWallet &&
+        ownerAddress &&
+        walletClient
+      ) {
         await setPrimaryNameWithHca({
           name,
           signer,
@@ -99,7 +111,7 @@ export function useSetPrimaryName(
         return
       }
 
-      // EOA fallback: the owner wallet sends the two transactions directly.
+      // EOA fallback: the owner wallet, or a Safe, sends the two transactions directly.
       if (!walletClient || !ownerAddress) {
         throw new Error(
           'Cannot set primary name - account not ready. Please wait for wallet to connect.',
@@ -112,6 +124,7 @@ export function useSetPrimaryName(
         walletClient,
         publicClient: publicClient as PublicClient,
         chainId,
+        connector,
         onTxId: setTxId,
       })
     },
