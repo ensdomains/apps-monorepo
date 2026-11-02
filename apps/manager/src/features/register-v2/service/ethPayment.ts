@@ -35,7 +35,7 @@ const quoterAbi = parseAbi([
 const routerAbi = parseAbi([
   'function exactOutputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountOut, uint256 amountInMaximum, uint160 sqrtPriceLimitX96) params) payable returns (uint256 amountIn)',
   'function refundETH() payable',
-  'function multicall(bytes[] data) payable returns (bytes[] results)',
+  'function multicall(uint256 deadline, bytes[] data) payable returns (bytes[] results)',
 ])
 const feedAbi = parseAbi([
   'function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)',
@@ -46,6 +46,7 @@ const SLIPPAGE_BPS = 200n
 const MAX_MARKET_PREMIUM_BPS = 1000n
 const BPS = 10_000n
 const QUOTE_LIFETIME_MS = 30_000
+const SWAP_DEADLINE_SECONDS = 20 * 60
 const FEED_MAX_AGE_SECONDS = Number(chain.id) === 1 ? 7_200n : 86_400n
 
 export type EthSwapQuote = Readonly<{
@@ -150,6 +151,7 @@ export const getEthSwapQuote = async (
 export const buildEthSwapCall = (
   quote: EthSwapQuote,
   recipient: Address,
+  now = Date.now(),
 ): {
   to: Address
   data: Hex
@@ -185,7 +187,10 @@ export const buildEthSwapCall = (
     data: encodeFunctionData({
       abi: routerAbi,
       functionName: 'multicall',
-      args: [[swap, refund]],
+      args: [
+        BigInt(Math.floor(now / 1000) + SWAP_DEADLINE_SECONDS),
+        [swap, refund],
+      ],
     }),
     value: quote.maximumEth,
   }

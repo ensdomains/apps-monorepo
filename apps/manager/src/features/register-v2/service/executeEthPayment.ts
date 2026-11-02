@@ -1,5 +1,6 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import { getConnectorClient } from '@wagmi/core'
-import { type Address, type Hash, isHex } from 'viem'
+import { type Address, erc20Abi, type Hash, isHex } from 'viem'
 import { chain } from '@/config'
 import { publicClient, wagmiConfig } from '@/lib/wagmi'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
@@ -15,20 +16,34 @@ const pendingKey = (owner: Address) =>
 
 const readPendingSwap = (owner: Address): Hash | null => {
   if (typeof localStorage === 'undefined') return null
-  const stored = localStorage.getItem(pendingKey(owner))
-  if (!stored || !isHex(stored) || stored.length !== 66) return null
-  return stored
+  try {
+    const stored = localStorage.getItem(pendingKey(owner))
+    if (!stored || !isHex(stored) || stored.length !== 66) return null
+    return stored
+  } catch {
+    return null
+  }
 }
 
 export const hasPendingEthPayment = (owner: Address): boolean =>
   readPendingSwap(owner) !== null
 
-const confirmSwap = async (owner: Address, hash: Hash): Promise<void> => {
+const confirmSwap = async (
+  owner: Address,
+  hash: Hash,
+  amountOut: bigint,
+): Promise<void> => {
+  let replacementReason: 'cancelled' | 'replaced' | 'repriced' | undefined
   let receipt: Awaited<
     ReturnType<typeof publicClient.waitForTransactionReceipt>
   >
   try {
-    receipt = await publicClient.waitForTransactionReceipt({ hash })
+    receipt = await publicClient.waitForTransactionReceipt({
+      hash,
+      onReplaced: ({ reason }) => {
+        replacementReason = reason
+      },
+    })
   } catch {
     // The submitted transaction may still land. Keep its hash and make a retry
     // wait for it instead of prompting for another ETH payment.
@@ -36,9 +51,31 @@ const confirmSwap = async (owner: Address, hash: Hash): Promise<void> => {
       'The ETH swap is still pending. Wait for it to confirm, then try again.',
     )
   }
-  localStorage.removeItem(pendingKey(owner))
-  if (receipt.status !== 'success')
+  if (replacementReason === 'cancelled') {
+    localStorage.removeItem(pendingKey(owner))
+    throw new Error('The ETH swap was cancelled. You can try again.')
+  }
+  if (receipt.status !== 'success') {
+    localStorage.removeItem(pendingKey(owner))
     throw new Error('The ETH swap failed on-chain.')
+  }
+  if (replacementReason === 'replaced') {
+    // A different transaction only counts if the wallet actually has the USDC
+    // needed to continue. If this read fails, retain the hash for a safe retry.
+    const balance = await publicClient.readContract({
+      address: getDestinationContracts(chain.id).usdc,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [owner],
+    })
+    if (balance < amountOut) {
+      localStorage.removeItem(pendingKey(owner))
+      throw new Error(
+        'The wallet replaced the ETH swap without funding enough USDC. Try again.',
+      )
+    }
+  }
+  localStorage.removeItem(pendingKey(owner))
 }
 
 /** Convert native ETH into the exact USDC amount the existing registration needs. */
@@ -48,7 +85,7 @@ export const executeEthPayment = async (
   displayedMaximumEth?: bigint,
 ): Promise<void> => {
   const pending = readPendingSwap(owner)
-  if (pending) return confirmSwap(owner, pending)
+  if (pending) return confirmSwap(owner, pending, amountOut)
   if (displayedMaximumEth === undefined) {
     throw new Error('The ETH quote is unavailable. Refresh it and try again.')
   }
@@ -89,11 +126,23 @@ export const executeEthPayment = async (
     throw new Error('Not enough ETH for the swap and network fees.')
   }
 
+  // A submitted swap must be resumable after a reload or RPC interruption.
+  // Verify that storage accepts writes before asking the wallet to send ETH.
+  const storageProbe = `${pendingKey(owner)}:probe`
+  try {
+    localStorage.setItem(storageProbe, '1')
+    if (localStorage.getItem(storageProbe) !== '1')
+      throw new Error('Storage read failed')
+    localStorage.removeItem(storageProbe)
+  } catch {
+    throw new Error('Browser storage is unavailable. Enable it and try again.')
+  }
+
   const hash = await wallet.sendTransaction({
     ...call,
     account: wallet.account,
     chain,
   })
   localStorage.setItem(pendingKey(owner), hash)
-  await confirmSwap(owner, hash)
+  await confirmSwap(owner, hash, amountOut)
 }

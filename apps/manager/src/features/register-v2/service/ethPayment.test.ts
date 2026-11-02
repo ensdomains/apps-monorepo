@@ -75,18 +75,19 @@ describe('Uniswap ETH to USDC call', () => {
   const routerAbi = parseAbi([
     'function exactOutputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountOut, uint256 amountInMaximum, uint160 sqrtPriceLimitX96) params) payable returns (uint256 amountIn)',
     'function refundETH() payable',
-    'function multicall(bytes[] data) payable returns (bytes[] results)',
+    'function multicall(uint256 deadline, bytes[] data) payable returns (bytes[] results)',
   ])
   const owner = '0x1111111111111111111111111111111111111111'
 
   it('buys the exact USDC amount for the owner and refunds unused ETH atomically', () => {
-    const call = buildEthSwapCall(quote(), owner)
+    const call = buildEthSwapCall(quote(), owner, now)
     const outer = decodeFunctionData({ abi: routerAbi, data: call.data })
     expect(outer.functionName).toBe('multicall')
     expect(call.value).toBe(quote().maximumEth)
     if (outer.functionName !== 'multicall')
       throw new Error('Expected multicall')
-    const [swap, refund] = outer.args[0]
+    expect(outer.args[0]).toBe(BigInt(now / 1000 + 20 * 60))
+    const [swap, refund] = outer.args[1]
     if (!swap || !refund) throw new Error('Missing swap or refund call')
     const inner = decodeFunctionData({ abi: routerAbi, data: swap })
     expect(inner.functionName).toBe('exactOutputSingle')
