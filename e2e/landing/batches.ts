@@ -18,6 +18,7 @@ export type BatchId =
   | 'B0'
   | 'B1a'
   | 'B1b'
+  | 'B1d'
   | 'B2'
   | 'B3'
   | 'B4'
@@ -54,7 +55,11 @@ export const batches: Batch[] = [
     pr: 1601,
     merged: true,
   },
-  { id: 'B1b', title: 'Smoke: Manager specs', pr: 1658 },
+  { id: 'B1b', title: 'Smoke: Manager specs', pr: 1658, merged: true },
+  {
+    id: 'B1d',
+    title: 'WEB-2110: the stale HCA guards B1b deferred, rewritten for main',
+  },
   { id: 'B2', title: 'CCIP / offchain: the rest' },
   { id: 'B3', title: 'Migration: the rest' },
   { id: 'B4', title: 'Transfer, fuses, 4LD: the rest' },
@@ -274,6 +279,21 @@ export const rules: Rule[] = [
     ],
   },
 
+  // ── B1d WEB-2110 rewrites (branch linear/WEB-2110) ──────────────────────
+  {
+    target: 'B1d',
+    globs: [
+      'e2e/docs/{session-revoke-web674,payment-sheet-leftover-web1483}-test-plan.md',
+    ],
+  },
+  {
+    // Lands without its two wrong-chain guards, which fail on an app bug
+    // that has no ticket yet. When merging main back, keep those two tests.
+    target: 'B1d',
+    incremental: true,
+    globs: ['e2e/projects/manager/tests/hca-session-revoke.spec.ts'],
+  },
+
   // ── B2 CCIP / offchain ───────────────────────────────────────────────────
   {
     target: 'B2',
@@ -313,9 +333,6 @@ export const rules: Rule[] = [
   {
     target: 'B5',
     globs: [
-      // Held out of B1b: all-fixme until rewritten (WEB-2110).
-      'e2e/projects/manager/tests/hca-session-revoke.spec.ts',
-      'e2e/docs/{session-revoke-web674,payment-sheet-leftover-web1483}-test-plan.md',
       'e2e/projects/portal/tests/{roles,recreated-subnames,temporaryPremium}.spec.ts',
       'e2e/projects/manager/tests/{registration-resume,temporaryPremium}.spec.ts',
       'e2e/projects/manager/playwright.premium.config.ts',

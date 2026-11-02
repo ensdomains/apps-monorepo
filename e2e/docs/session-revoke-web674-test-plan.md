@@ -181,3 +181,21 @@ The HCA address is shown in the revoke dialog (truncated), and in full in
 - Replaying a revoked session against the real validator (the mockestrator skips signature checks for a deployed HCA; the nonce mismatch is the oracle instead).
 - The not-owner path (the HCA is derived from the connected wallet, so the UI can't reach it; the PR's unit tests cover it).
 - EOA mode, where the entry should be hidden (needs a `VITE_FF_USE_EOA=true` build).
+
+## Since this plan (2026-11-02, WEB-2110)
+
+The e2e tests were rewritten for the feature as #1480, #1586 and #1631 left it:
+
+- **Copy.**
+  - The menu entry and the dialog are **Reset smart session access**.
+  - The buttons are **Reset access**, **Set up and reset access** (undeployed) and **Try Again**.
+  - The scope copy reads "across every browser and device" and "requires a wallet transaction and ETH for gas".
+  - After a reset, the entry reads **Smart session access reset** and is disabled until a new session is signed. E1 now checks this, and then checks that the entry is enabled again afterwards.
+- **Sessions are signed from the menu.** The menu has an **Enable smart sessions** entry when no session is live, so the tests sign there instead of opening a registration.
+- **The storage key** is `ens-sessions-v10`. The spec reads the newest `ens-sessions-v<N>` key, so a future bump doesn't silently empty its reads, as v9 → v10 did here.
+- **Leftover funds (#1586).** A reset also returns the HCA's USDC to the wallet, in a second owner transaction. CI funds the shared HCA with 10,000 USDC, so the tests run each reset on an emptied HCA and restore the balance afterwards. That keeps the revoke as the only transaction.
+- **E6 was removed.** #1480 took "Remove saved session" out of the dialog, so the feature E6 tested no longer exists.
+- **E3 and E4 now fail on the app, not the test.**
+  - E3: loaded on an undeclared chain, the menu still offers the reset.
+  - E4: switched live to an undeclared chain with the dialog open, **Reset access** sends an `eth_sendTransaction` to the wallet on that chain. The dialog then spins on "Resetting access…" indefinitely.
+  - Both stay on `e2e-tests-coverage` until a bug is filed, and land with its ID.

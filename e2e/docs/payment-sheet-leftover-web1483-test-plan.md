@@ -148,3 +148,15 @@ pnpm --filter manager dev -- --port 3000
 | F5 | Info (test infra) | The mockestrator quotes at zero fee, so the Network fee line is always `$0.00` locally, and the e2e arithmetic never exercises a non-zero fee. M6 on Sepolia covers that |
 | F6 | Info | With the leftover covering everything, the headline reads "You pay now **up to** $0.00". The hedge is accurate (the machine re-quotes), but "up to $0.00" reads oddly. Design may want to drop the hedge when the debit is zero |
 | F7 | Info (test infra, not this PR) | The local V1 subgraph shim (`packages/v1-subgraph-shim/server/abis.ts`) decodes the controller's `NameRegistered`/`NameRenewed` without the trailing `bytes32 referrer` that the fork's controller emits (topic `0xc2240194…` on chain vs `0x69e37f15…` in the ABI). It never learns a `.eth` label, so every V1 name reads `[labelhash].eth` and a manual `/upgrade` run lists nothing. The e2e migration specs mock the subgraph, so they aren't affected. Found while trying to check F4 by hand |
+
+## 6. Since this plan (2026-11-02, WEB-2110)
+
+The four e2e tests were rewritten for the sheet as #1513, #1514 and #1604 left it. They had stopped running: they read ensjs's MockUSDC (the apps pay with Circle's USDC since #1395), and they waited for a "Mainnet est. fee" row.
+
+- With a leftover, the summary now reads **Registration total**, **Existing balance** (−$x, with a "Where did this come from?" info button) and **You pay**. Without one, it reads **Total**. The tests check these rows, not "Name price", "Left from your last attempt" or "You pay now".
+- The fee row reads **Sepolia est. fee**.
+- A leftover that covers everything says "No additional payment needed. Your available balance covers the total." It no longer quotes the figure, so test 2 checks that the existing-balance line equals the registration total and that **You pay** is $0.00.
+- Registrations no longer hedge with "up to", so F6 no longer applies.
+- CI funds the shared HCA with 10,000 USDC, which covers any name and hides the payment rows. Every test seeds the HCA's balance itself, and test 4 seeds a partial leftover so that the fee row shows.
+- The short-wallet test (3) blocks the dev build's top-up of the wallet (the `/rpc` mint and `/wallet/fund`), as B12 in `profile.spec.ts` does. With a short wallet, the payment action is disabled.
+- While the flipped quote loads, the summary shows its loading state, and only the fee row keeps its figure. That is how #1513 designed the receipt, so test 4 holds the fee and the disabled action, not the summary figures.

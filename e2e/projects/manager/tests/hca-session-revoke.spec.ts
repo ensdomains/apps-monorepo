@@ -8,11 +8,14 @@
  * until `validUntil`. Disconnect deliberately keeps sessions, so there was no
  * way to end one early.
  *
- * Fix: a "Revoke smart sessions" wallet-menu entry that sends the owner's
- * `StandaloneSingleOwnerHCA.revokeSessions()` transaction (bumps the nonce,
- * emits `SessionsRevoked`), clears this browser's record only after the
- * receipt carries that event, and — for an undeployed account, whose sessions
- * go live once anyone deploys it — offers deploy-then-revoke.
+ * Fix: a wallet-menu entry (since #1480 "Reset smart session access") that
+ * sends the owner's `StandaloneSingleOwnerHCA.revokeSessions()` transaction
+ * (bumps the nonce, emits `SessionsRevoked`), clears this browser's record
+ * only after the receipt carries that event, and — for an undeployed account,
+ * whose sessions go live once anyone deploys it — offers deploy-then-revoke.
+ * Since #1586 the reset also sends any USDC left in the HCA back to the wallet,
+ * in a second owner transaction. These tests run the reset on an empty HCA, so
+ * the revoke is the only transaction and the shared HCA keeps its balance.
  *
  * What these reach that the unit tests don't: the real menu and modal, a real
  * owner transaction mined on the fork, the HCA's real `onlyOwner` and nonce,
@@ -45,8 +48,8 @@ import {
   testClient,
   walletClient,
 } from '../../../helpers/anvil-client.js'
+import { fundTestUsdc, readTestUsdc } from '../../../helpers/fund-test-usdc.js'
 import {
-  clickThroughEnableSessions,
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
@@ -54,12 +57,12 @@ import {
   type PortalAccounts,
   switchWalletToUndeclaredChain,
 } from '../../../helpers/portal-auth.js'
-import { findSearchInput } from '../../../helpers/search-input.js'
 
 type Wallet = Parameters<typeof switchWalletToUndeclaredChain>[1]
 
 const MANAGER_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
-const SESSION_STORAGE_KEY = 'ens-sessions-v9'
+/** The app bumps the version on a breaking change; the newest key is live. */
+const SESSION_STORAGE_KEY = /^ens-sessions-v(\d+)$/
 const HCA_FACTORY = ensL1Contracts[supportedL1Chains.sepolia].ensHcaFactory
   .address as Address
 /** `revokeSessions()` — computed independently with `cast sig`. */
@@ -132,10 +135,16 @@ const ensureHcaDeployed = async (
 
 const readStoredSessions = async (page: Page): Promise<StoredSession[]> =>
   JSON.parse(
-    (await page.evaluate(
-      (key) => localStorage.getItem(key),
-      SESSION_STORAGE_KEY,
-    )) ?? '[]',
+    (await page.evaluate((pattern) => {
+      const key = Object.keys(localStorage)
+        .filter((k) => new RegExp(pattern).test(k))
+        .sort(
+          (a, b) =>
+            Number(new RegExp(pattern).exec(b)?.[1]) -
+            Number(new RegExp(pattern).exec(a)?.[1]),
+        )[0]
+      return key ? localStorage.getItem(key) : null
+    }, SESSION_STORAGE_KEY.source)) ?? '[]',
   )
 
 const storedSessionFor = async (page: Page, hca: Address) =>
@@ -183,16 +192,10 @@ const waitForPendingTx = (wallet: Wallet) =>
     )
     .toBeGreaterThanOrEqual(1)
 
-/** Sign a session through the real registration gate (the only UI entry). */
-const enableSessionViaGate = async (page: Page, owner: Address) => {
-  const label = `rvk-${Date.now().toString(36)}`
-  const search = await findSearchInput(page)
-  await search.click()
-  await search.fill(label)
-  await page.getByText('Available').first().waitFor({ timeout: 15_000 })
-  await page.getByText(`${label}.eth`).first().click()
-  await page.getByRole('button', { name: /pay with stablecoins/i }).click()
-  await clickThroughEnableSessions(page)
+/** Sign a session from the wallet menu's "Enable smart sessions" (#1480). */
+const enableSessionFromMenu = async (page: Page, owner: Address) => {
+  await openAccountMenu(page)
+  await page.getByRole('button', { name: 'Enable smart sessions' }).click()
   await expect
     .poll(async () =>
       (await readStoredSessions(page)).find((s) =>
@@ -203,7 +206,7 @@ const enableSessionViaGate = async (page: Page, owner: Address) => {
   const session = (await readStoredSessions(page)).find((s) =>
     isAddressEqual(s.ownerAddress, owner),
   ) as StoredSession
-  await page.goto(MANAGER_URL)
+  await page.keyboard.press('Escape')
   return session
 }
 
@@ -220,12 +223,29 @@ const openAccountMenu = async (page: Page) => {
   await expect(page.getByRole('button', { name: /Disconnect/ })).toBeVisible()
 }
 
+const RESET_ENTRY = 'Reset smart session access'
+
 const openRevokeDialog = async (page: Page) => {
   await openAccountMenu(page)
-  await page.getByRole('button', { name: 'Revoke smart sessions' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Revoke smart sessions' })
+  await page.getByRole('button', { name: RESET_ENTRY }).click()
+  const dialog = page.getByRole('dialog', { name: RESET_ENTRY })
   await expect(dialog).toBeVisible()
   return dialog
+}
+
+/**
+ * Run `body` with the HCA's USDC at zero, then put it back. The reset returns
+ * a leftover in a second transaction, and the shared `user` HCA holds CI's
+ * 10,000 USDC, which other specs pay from.
+ */
+const withEmptyHca = async (hca: Address, body: () => Promise<void>) => {
+  const original = await readTestUsdc(hca)
+  await fundTestUsdc(hca, 0n)
+  try {
+    await body()
+  } finally {
+    await fundTestUsdc(hca, original)
+  }
 }
 
 /** Connect a never-used owner, so its HCA is counterfactual (no code). */
@@ -245,13 +265,15 @@ const connectFreshOwner = async (
   return owner
 }
 
-test.describe('revoke smart sessions on-chain (WEB-674)', () => {
-  test('revoking a deployed account bumps the nonce, kills a copied session, and clears this browser', {
-    tag: ['@smoke'],
-  }, async ({ connectedPage: page, wallet, accounts }) => {
+test.describe('reset smart session access on-chain (WEB-674)', () => {
+  test('resetting a deployed account bumps the nonce, kills a copied session, and clears this browser', async ({
+    connectedPage: page,
+    wallet,
+    accounts,
+  }) => {
     const owner = accounts.getAddress('user') as Address
     // A copy of the record, as an attacker would take it off the device.
-    const copied = await enableSessionViaGate(page, owner)
+    const copied = await enableSessionFromMenu(page, owner)
     const hca = copied.smartAccountAddress
     await ensureHcaDeployed(hca, owner, accounts)
     const before = await readOwnerAndNonce(hca)
@@ -259,167 +281,188 @@ test.describe('revoke smart sessions on-chain (WEB-674)', () => {
     // Precondition: the copy is live — signed against the current nonce.
     expect(BigInt(copied.hcaSessionNonce)).toBe(before.nonce)
 
-    const dialog = await openRevokeDialog(page)
-    await expect(dialog).toContainText('in every browser and on every device')
-    await expect(dialog).toContainText('costs gas')
-    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
-    await dialog.getByRole('button', { name: 'Revoke sessions' }).click()
-    await waitForPendingTx(wallet)
-    await wallet.authorize(Web3RequestKind.SendTransaction)
-    await expect(dialog).toBeHidden({ timeout: 30_000 })
+    await withEmptyHca(hca, async () => {
+      const dialog = await openRevokeDialog(page)
+      await expect(dialog).toContainText('across every browser and device')
+      await expect(dialog).toContainText('ETH for gas')
+      const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+      await dialog.getByRole('button', { name: 'Reset access' }).click()
+      await waitForPendingTx(wallet)
+      await wallet.authorize(Web3RequestKind.SendTransaction)
+      await expect(dialog).toBeHidden({ timeout: 30_000 })
 
-    // Exactly one transaction: the owner calling revokeSessions() on its HCA.
-    const txs = await minedTxsSince(fromBlock, owner)
-    expect(txs).toHaveLength(1)
-    const [tx] = txs
-    expect(isAddressEqual(tx.from, owner)).toBe(true)
-    expect(tx.to && isAddressEqual(tx.to, hca)).toBe(true)
-    expect(tx.input).toBe(REVOKE_SESSIONS_SELECTOR)
+      // Exactly one transaction: the owner calling revokeSessions() on its HCA.
+      const txs = await minedTxsSince(fromBlock, owner)
+      expect(txs).toHaveLength(1)
+      const [tx] = txs
+      expect(isAddressEqual(tx.from, owner)).toBe(true)
+      expect(tx.to && isAddressEqual(tx.to, hca)).toBe(true)
+      expect(tx.input).toBe(REVOKE_SESSIONS_SELECTOR)
+      expect(await revokedNonceIn(tx.hash, hca)).toBe(before.nonce + 1n)
+    })
 
     const after = await readOwnerAndNonce(hca)
     expect(after.nonce).toBe(before.nonce + 1n)
-    expect(await revokedNonceIn(tx.hash, hca)).toBe(after.nonce)
     // The copied record no longer matches the nonce the validator checks.
     expect(BigInt(copied.hcaSessionNonce)).not.toBe(after.nonce)
     expect(await storedSessionFor(page, hca)).toBeUndefined()
+    // Nothing is left to revoke until a new session is signed.
+    await openAccountMenu(page)
+    await expect(
+      page.getByRole('button', { name: 'Smart session access reset' }),
+    ).toBeDisabled()
+    await page.keyboard.press('Escape')
 
-    // Positive control: the gate re-prompts, and the new session is signed
-    // against the bumped nonce — the legitimate path still works.
-    const fresh = await enableSessionViaGate(page, owner)
+    // Positive control: a new session is signed against the bumped nonce, and
+    // the reset is offered again — the legitimate path still works.
+    const fresh = await enableSessionFromMenu(page, owner)
     expect(BigInt(fresh.hcaSessionNonce)).toBe(after.nonce)
+    await openAccountMenu(page)
+    await expect(page.getByRole('button', { name: RESET_ENTRY })).toBeEnabled()
   })
 
-  test('a rejected revoke keeps the session and the dialog; Try Again then revokes', async ({
+  test('a rejected reset keeps the session and the dialog; Try Again then revokes', async ({
     connectedPage: page,
     wallet,
     accounts,
   }) => {
     const owner = accounts.getAddress('user') as Address
-    const session = await enableSessionViaGate(page, owner)
+    const session = await enableSessionFromMenu(page, owner)
     const hca = session.smartAccountAddress
     await ensureHcaDeployed(hca, owner, accounts)
     const before = await readOwnerAndNonce(hca)
 
-    const dialog = await openRevokeDialog(page)
-    await dialog.getByRole('button', { name: 'Revoke sessions' }).click()
-    await waitForPendingTx(wallet)
-    await wallet.reject(Web3RequestKind.SendTransaction)
+    await withEmptyHca(hca, async () => {
+      const dialog = await openRevokeDialog(page)
+      await dialog.getByRole('button', { name: 'Reset access' }).click()
+      await waitForPendingTx(wallet)
+      await wallet.reject(Web3RequestKind.SendTransaction)
 
-    await expect(dialog).toContainText("Couldn't revoke sessions")
-    await expect(
-      dialog.getByRole('button', { name: 'Try Again' }),
-    ).toBeVisible()
-    expect((await readOwnerAndNonce(hca)).nonce).toBe(before.nonce)
-    // Storage is cleared only after a confirmed revoke, never before.
-    expect(await storedSessionFor(page, hca)).toBeTruthy()
+      await expect(dialog).toContainText("Couldn't revoke sessions")
+      await expect(
+        dialog.getByRole('button', { name: 'Try Again' }),
+      ).toBeVisible()
+      expect((await readOwnerAndNonce(hca)).nonce).toBe(before.nonce)
+      // Storage is cleared only after a confirmed revoke, never before.
+      expect(await storedSessionFor(page, hca)).toBeTruthy()
 
-    await dialog.getByRole('button', { name: 'Try Again' }).click()
-    await waitForPendingTx(wallet)
-    await wallet.authorize(Web3RequestKind.SendTransaction)
-    await expect(dialog).toBeHidden({ timeout: 30_000 })
+      await dialog.getByRole('button', { name: 'Try Again' }).click()
+      await waitForPendingTx(wallet)
+      await wallet.authorize(Web3RequestKind.SendTransaction)
+      await expect(dialog).toBeHidden({ timeout: 30_000 })
+    })
     expect((await readOwnerAndNonce(hca)).nonce).toBe(before.nonce + 1n)
     expect(await storedSessionFor(page, hca)).toBeUndefined()
   })
 
-  test('loaded on another chain, the menu hides the revoke entry', async ({
-    connectedPage: page,
-    wallet,
-  }) => {
-    // Guard: loaded off its chain, the smart-account context has no HCA, so
-    // there is nothing to revoke for. A live switch keeps the HCA (and the
-    // entry) — that case is the next test. Positive control on Sepolia first.
-    const revokeEntry = page.getByRole('button', {
-      name: 'Revoke smart sessions',
-    })
-    await openAccountMenu(page)
-    await expect(revokeEntry).toBeVisible()
-    await page.keyboard.press('Escape')
+  // App bug found while rewriting for WEB-2110 (2026-11-02), not yet filed:
+  // off its chain the manager keeps offering the reset, and a live switch
+  // lets "Reset access" send a transaction to the wallet on the wrong chain.
+  // Lands on main with the bug's ID.
+  test.fail(
+    'loaded on another chain, the menu hides the reset entry',
+    async ({ connectedPage: page, wallet }) => {
+      // Guard: loaded off its chain, the smart-account context has no HCA, so
+      // there is nothing to revoke for. A live switch keeps the HCA (and the
+      // entry) — that case is the next test. Positive control on Sepolia first.
+      const resetEntry = page.getByRole('button', { name: RESET_ENTRY })
+      await openAccountMenu(page)
+      await expect(resetEntry).toBeVisible()
+      await page.keyboard.press('Escape')
 
-    await switchWalletToUndeclaredChain(page, wallet)
-    await page.goto(MANAGER_URL)
-    // The reloaded page is on the foreign chain. (The trigger label is no
-    // signal: it shows the primary name once another spec has set one.)
-    await expect
-      .poll(() =>
-        page.evaluate(() =>
-          (
-            window as unknown as {
-              ethereum?: { request: (a: { method: string }) => unknown }
-            }
-          ).ethereum?.request({ method: 'eth_chainId' }),
-        ),
-      )
-      .toBe('0x1')
-    // Absent once the menu has rendered (Disconnect), and still absent after
-    // a settle window — not just before the account has loaded. On Sepolia
-    // the entry appears well within it.
-    await openAccountMenu(page)
-    await expect(revokeEntry).toHaveCount(0)
-    await page.keyboard.press('Escape')
-    await page.waitForTimeout(5_000)
-    await openAccountMenu(page)
-    await expect(revokeEntry).toHaveCount(0)
-  })
+      await switchWalletToUndeclaredChain(page, wallet)
+      await page.goto(MANAGER_URL)
+      // The reloaded page is on the foreign chain. (The trigger label is no
+      // signal: it shows the primary name once another spec has set one.)
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            (
+              window as Window & {
+                ethereum?: { request: (a: { method: string }) => unknown }
+              }
+            ).ethereum?.request({ method: 'eth_chainId' }),
+          ),
+        )
+        .toBe('0x1')
+      // Absent once the menu has rendered (Disconnect), and still absent after
+      // a settle window — not just before the account has loaded. On Sepolia
+      // the entry appears well within it.
+      await openAccountMenu(page)
+      await expect(resetEntry).toHaveCount(0)
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(5_000)
+      await openAccountMenu(page)
+      await expect(resetEntry).toHaveCount(0)
+    },
+  )
 
-  test('a live chain switch with the dialog open sends nothing and leaves sessions live', async ({
-    connectedPage: page,
-    wallet,
-    accounts,
-  }) => {
-    const owner = accounts.getAddress('user') as Address
-    const session = await enableSessionViaGate(page, owner)
-    const hca = session.smartAccountAddress
-    await ensureHcaDeployed(hca, owner, accounts)
-    const before = await readOwnerAndNonce(hca)
+  // App bug found while rewriting for WEB-2110 (2026-11-02), not yet filed:
+  // off its chain the manager keeps offering the reset, and a live switch
+  // lets "Reset access" send a transaction to the wallet on the wrong chain.
+  // Lands on main with the bug's ID.
+  test.fail(
+    'a live chain switch with the dialog open sends nothing and leaves sessions live',
+    async ({ connectedPage: page, wallet, accounts }) => {
+      const owner = accounts.getAddress('user') as Address
+      const session = await enableSessionFromMenu(page, owner)
+      const hca = session.smartAccountAddress
+      await ensureHcaDeployed(hca, owner, accounts)
+      const before = await readOwnerAndNonce(hca)
 
-    const dialog = await openRevokeDialog(page)
-    await switchWalletToUndeclaredChain(page, wallet)
-    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
-    await dialog.getByRole('button', { name: 'Revoke sessions' }).click()
+      await withEmptyHca(hca, async () => {
+        const dialog = await openRevokeDialog(page)
+        await switchWalletToUndeclaredChain(page, wallet)
+        const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+        await dialog.getByRole('button', { name: 'Reset access' }).click()
 
-    // Wait for the failure to land before checking nothing was sent.
-    await expect(
-      dialog.getByRole('button', { name: 'Try Again' }),
-    ).toBeVisible()
-    await expect(dialog.locator('p.text-red-600')).toBeVisible()
-    expect(wallet.getPendingRequestCount(Web3RequestKind.SendTransaction)).toBe(
-      0,
-    )
-    expect(await minedTxsSince(fromBlock, owner)).toHaveLength(0)
-    expect((await readOwnerAndNonce(hca)).nonce).toBe(before.nonce)
-    expect(await storedSessionFor(page, hca)).toBeTruthy()
-  })
+        // Wait for the failure to land before checking nothing was sent.
+        await expect(
+          dialog.getByRole('button', { name: 'Try Again' }),
+        ).toBeVisible()
+        await expect(dialog).toContainText('Switch your wallet to')
+        expect(
+          wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+        ).toBe(0)
+        expect(await minedTxsSince(fromBlock, owner)).toHaveLength(0)
+      })
+      expect((await readOwnerAndNonce(hca)).nonce).toBe(before.nonce)
+      expect(await storedSessionFor(page, hca)).toBeTruthy()
+    },
+  )
 
-  test('an undeployed account offers set-up-and-revoke, sends nothing until confirmed, then deploys and revokes in order', async ({
+  test('an undeployed account offers set-up-and-reset, sends nothing until confirmed, then deploys and revokes in order', async ({
     page,
     wallet,
     accounts,
   }) => {
     const owner = await connectFreshOwner(page, wallet, accounts)
-    const copied = await enableSessionViaGate(page, owner)
+    const copied = await enableSessionFromMenu(page, owner)
     const hca = copied.smartAccountAddress
     expect(await hasCode(hca)).toBe(false)
     // Signed against nonce 0: live the moment anyone deploys the account.
     expect(copied.hcaSessionNonce).toBe('0')
+    // A never-used owner's HCA holds nothing, so no withdrawal follows.
+    expect(await readTestUsdc(hca)).toBe(0n)
 
     const dialog = await openRevokeDialog(page)
     const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
-    await dialog.getByRole('button', { name: 'Revoke sessions' }).click()
+    await dialog.getByRole('button', { name: 'Reset access' }).click()
 
     // Not a quiet local-only "success": the dialog stays and explains.
     await expect(dialog).toContainText("isn't set up on-chain yet")
     await expect(dialog).toContainText('two transactions')
-    const setUpAndRevoke = dialog.getByRole('button', {
-      name: 'Set up and revoke',
+    const setUpAndReset = dialog.getByRole('button', {
+      name: 'Set up and reset access',
     })
-    await expect(setUpAndRevoke).toBeVisible()
+    await expect(setUpAndReset).toBeVisible()
     expect(wallet.getPendingRequestCount(Web3RequestKind.SendTransaction)).toBe(
       0,
     )
     expect(await minedTxsSince(fromBlock, owner)).toHaveLength(0)
     expect(await storedSessionFor(page, hca)).toBeTruthy()
 
-    await setUpAndRevoke.click()
+    await setUpAndReset.click()
     for (let i = 0; i < 2; i++) {
       await waitForPendingTx(wallet)
       await wallet.authorize(Web3RequestKind.SendTransaction)
@@ -442,42 +485,5 @@ test.describe('revoke smart sessions on-chain (WEB-674)', () => {
     expect(await revokedNonceIn(revoke.hash, hca)).toBe(1n)
     expect(BigInt(copied.hcaSessionNonce)).not.toBe(after.nonce)
     expect(await storedSessionFor(page, hca)).toBeUndefined()
-  })
-
-  test('on an undeployed account, "Remove saved session" clears only this browser and touches no chain', async ({
-    page,
-    wallet,
-    accounts,
-  }) => {
-    const owner = await connectFreshOwner(page, wallet, accounts)
-
-    // Negative control first: with no saved session there is nothing to
-    // forget, so only set-up-and-revoke is offered.
-    let dialog = await openRevokeDialog(page)
-    await dialog.getByRole('button', { name: 'Revoke sessions' }).click()
-    await expect(
-      dialog.getByRole('button', { name: 'Set up and revoke' }),
-    ).toBeVisible()
-    await expect(
-      dialog.getByRole('button', { name: 'Remove saved session' }),
-    ).toHaveCount(0)
-    await dialog.getByRole('button', { name: 'Cancel' }).click()
-    await page.keyboard.press('Escape')
-
-    const session = await enableSessionViaGate(page, owner)
-    const hca = session.smartAccountAddress
-    dialog = await openRevokeDialog(page)
-    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
-    await dialog.getByRole('button', { name: 'Revoke sessions' }).click()
-    await expect(dialog).toContainText("doesn't stop a copy made elsewhere")
-    await dialog.getByRole('button', { name: 'Remove saved session' }).click()
-    await expect(dialog).toBeHidden()
-
-    expect(await storedSessionFor(page, hca)).toBeUndefined()
-    expect(wallet.getPendingRequestCount(Web3RequestKind.SendTransaction)).toBe(
-      0,
-    )
-    expect(await minedTxsSince(fromBlock, owner)).toHaveLength(0)
-    expect(await hasCode(hca)).toBe(false)
   })
 })

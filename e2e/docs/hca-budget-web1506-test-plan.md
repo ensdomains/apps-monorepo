@@ -27,7 +27,7 @@ unhedged, and let checkout start.
 | `smart-account/.../budget.ts` | `registerLegGasLimit` takes a `RegisterLegShape` and adds `HCA_RESOLVER_DEPLOY_GAS` (210,000) when the resolver has no code. `isResolverDeployed` is required on `HcaBudgetParams`, with no default |
 | `transaction-manager/.../registration.hca.actors.ts` | One shared `isResolverDeployed` read feeds both the quoted batch and its gas limit. `submitRevealBatchActor` uses the same helper |
 | `manager/.../hcaBudget.query.ts` | New exported `isHcaBudgetQuoteRequired`, now also the query's `enabled` |
-| `manager/.../TokenPickerContent.tsx` | A failed quote blocks checkout, keeps the "up to" hedge and shows an error, on both the render path and the click path. The EOA route, which has no budget, is not gated |
+| `manager/.../TokenPickerContent.tsx` | A failed quote blocks checkout and shows an error, on both the render path and the click path. The EOA route, which has no budget, is not gated |
 | `manager/src/locales/*/messages.po` | The new error string |
 
 **Out of scope, by design:** a funding pair on the reveal leg. The reveal is
@@ -64,7 +64,7 @@ suite runs with `workers: 1`, so nothing else sees the window.
 |---|---|---|---|---|
 | 1 | funds the resolver deploy in the register leg of a first registration (primary name on) | Same batch shape quoted with the resolver absent and present. The deploy is in the batch exactly when the resolver has no code (guard), and the gas limit with it exceeds the one without by at least the deploy's measured cost | FAIL: +0 gas against 162,346 measured | pass: 450,000 → 660,000 (+210,000) without the primary-name call; 700,000 with it |
 | 2 | same, primary name off | The toggle is switched off, so the batch carries no `setNameWithHCA`. Same assertions | FAIL: +0 against 162,346 | pass: +210,000 |
-| 3 | blocks checkout and keeps the "up to" hedge when the budget quote fails (`@smoke`) | Only the registration's own quotes return 500. The picker shows the refusal, Register is disabled, the hedge stays. Positive control: with the orchestrator back, the same name checks out | FAIL: no error, "$16.52" unhedged, Register enabled | pass |
+| 3 | blocks checkout when the budget quote fails, and Try again re-quotes | Only the registration's own quotes return 500. The picker shows the refusal, the summary shows no figure, and the only action is **Try again**. Positive control: with the orchestrator back, Try again re-quotes and the same sheet checks out | FAIL: no error, "$16.52" unhedged, Register enabled | pass |
 | 4 | a quote that fails at the click does not start the registration | The picker shows a healthy quote, the 60s cache lapses, then the click's re-quote fails. The flow must not start: no "Registration Failed" screen, nothing persisted to resume, then the refusal is shown | FAIL: the flow started and ended on "Registration Failed — HCA budget could not be quoted (source: fallback)" | pass |
 
 The session-enable intent in front of the picker also goes through
@@ -135,7 +135,7 @@ pnpm --filter manager dev -- --port 3000
 |---|---|---|
 | M1 | First registration. Open `/register/<new label>`, click **Pay with stablecoins**, enable sessions, and pick **USDC**. Find the `intents/route` request whose executions include `0xcff3e7c2…` (register) | The batch starts with a call to `0xDa70…2991` (`0x5d84121a…`, `deployProxy`). `destinationGasUnits` is **660000** with the primary-name toggle off, and 660000 + the primary-name gas with it on (700000 for any name up to 31 bytes) |
 | M2 | Complete that registration, then repeat M1 with another new label | No `deployProxy` call. `destinationGasUnits` is **450000** (+ the primary-name gas when on) |
-| M3 | Failed quote. Open the picker as in M1, so sessions are already enabled. Right-click any `intents/route` request → **Block request URL**, then reopen the picker by navigating to the same `/register/<label>`. Blocking before enabling sessions blocks the session-enable intent too | "We couldn't work out the full cost of this registration right now…" is shown, **Register name** is disabled, and the total reads **up to $…** |
+| M3 | Failed quote. Open the picker as in M1, so sessions are already enabled. Right-click any `intents/route` request → **Block request URL**, then reopen the picker by navigating to the same `/register/<label>`. Blocking before enabling sessions blocks the session-enable intent too | "We couldn't calculate the total. Please try again." is shown, the total reads **—**, and the action is **Try again** |
 | M4 | Unblock the URL and reopen the picker | No error. Register is enabled |
 | M5 | Click path. Open the picker with a healthy quote and wait **70s**. Block `intents/route`, then click **Register name** | The picker stays open with the M3 message. No "Registration Failed" screen, and nothing to resume after a reload |
 | M6 | EOA route. Set `VITE_FF_USE_EOA=true` (and `VITE_USE_MOCK_WALLET=true`), restart, block `intents/route`, open the picker | Register is enabled on the rent alone. No quote error, because this route never quotes a budget |
@@ -152,3 +152,7 @@ pnpm --filter manager dev -- --port 3000
 | F3 | Low | The EOA route (`VITE_FF_USE_EOA=true`) has no e2e coverage, because CI builds the HCA route. The PR's unit tests cover it, and M6 checks it by hand |
 | F4 | Info | The PR description names `resolverDeployed` and `hcaBudgetQuoteRequired`, but the code uses `isResolverDeployed` and `isHcaBudgetQuoteRequired` |
 | F5 | Info | `pnpm test:manager-smoke` fails locally without `MAILINATOR_API_KEY`, because `notification.spec.ts` throws at import. That isn't new with this PR |
+
+## Note (2026-11-02)
+
+Tests 3 and 4 were rewritten for the payment sheet of #1513/#1514 (WEB-2110): the failure copy is "We couldn't calculate the total. Please try again.", the action turns into **Try again**, and registrations no longer show an "up to" hedge.
