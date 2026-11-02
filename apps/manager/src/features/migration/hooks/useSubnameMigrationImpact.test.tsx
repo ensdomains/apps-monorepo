@@ -20,9 +20,14 @@ import {
 } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { envConfig } from '@/config'
-import { makeClassified, OWNER } from '../service/_fixtures'
+import { publicClient } from '@/lib/wagmi'
+import { V1_CONTRACTS } from '../contracts/addresses'
+import { makeClassified, makeDomain, OWNER } from '../service/_fixtures'
+import { makeRpcSubnameInventory } from '../service/_fixtures/rpcSubnameInventory'
 import { NEW_OWNER_ABI } from '../service/rpcSubnameInventory'
+import { getRpcSubnameInventoryCacheKey } from '../service/rpcSubnameInventoryCache'
 import { getSubnameMigrationImpactQueryOptions } from '../service/subnameMigrationImpactQuery'
+import { createUpgradeReadCoordinator } from '../service/upgradeReadCoordinator'
 import { useSubnameMigrationImpact } from './useSubnameMigrationImpact'
 
 const NOW = Math.floor(Date.now() / 1000)
@@ -75,6 +80,7 @@ vi.mock('@/lib/wagmi', async () => {
   const { createPublicClient, custom } = await import('viem')
   const { envConfig } = await import('@/config')
   return {
+    sepoliaWithEns: envConfig.chain,
     publicClient: createPublicClient({
       chain: envConfig.chain,
       transport: custom(
@@ -208,6 +214,56 @@ afterEach(() => expect(mocks.fetch).not.toHaveBeenCalled())
 
 const requestCount = (method: string) =>
   mocks.rpc.mock.calls.filter(([request]) => request.method === method).length
+
+it('uses prepared inventory only for initial display, then re-reads history before another decision', async () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  const coordinator = createUpgradeReadCoordinator({ publicClient })
+  const domain = makeDomain({ name: 'alice.eth', id: ROOT })
+  queryClient.setQueryData(
+    getRpcSubnameInventoryCacheKey({
+      ownerAddress: OWNER,
+      chainId: envConfig.chain.id,
+      registryAddress: V1_CONTRACTS.LegacyRegistry,
+      nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+    }),
+    {
+      ...makeRpcSubnameInventory({
+        domains: [domain],
+        rootNames: [domain.name],
+      }),
+      checkpoint: {
+        number: BLOCK_NUMBER,
+        hash: BLOCK_HASH,
+        timestamp: BigInt(NOW),
+      },
+    },
+  )
+  const options = getSubnameMigrationImpactQueryOptions({
+    coordinator,
+    ownerAddress: OWNER,
+    chainId: envConfig.chain.id,
+    migratingNames: ['alice.eth'],
+    copiedNames: [],
+    renewingNames: [],
+    isEnabled: true,
+    isPrepared: true,
+    hasSelectedNames: true,
+    isRefetchEnabled: false,
+  })
+  try {
+    const initial = await queryClient.fetchQuery(options)
+    expect(initial.affectedCount).toBe(0)
+    expect(requestCount('eth_getLogs')).toBe(0)
+    mocks.hasChild = true
+    const refreshed = await queryClient.fetchQuery({ ...options, staleTime: 0 })
+    expect(refreshed.affectedCount).toBe(1)
+  } finally {
+    coordinator.dispose()
+    queryClient.clear()
+  }
+})
 
 const run = async () => {
   const queryClient = new QueryClient({

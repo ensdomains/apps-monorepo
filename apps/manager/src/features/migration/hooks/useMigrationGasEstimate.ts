@@ -8,36 +8,22 @@ import { useMemo } from 'react'
 import { type Address, formatEther, type PublicClient } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { chain } from '@/config'
-import {
-  buildMigrationPlan,
-  buildMigrationRecoveryPlan,
-  type MigrationPlan,
-  MigrationRecoveryPlanError,
-} from '@/features/migration/service/buildMigrationPlan'
-import type { MigrationPreflight } from '@/features/migration/service/computeMigrationPreflight'
-import { estimateMigrationGasCost } from '@/features/migration/service/estimateMigrationGasCost'
-import type { MigrationRecoverySnapshot } from '@/features/migration/service/migrationBatchJournal'
+import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import {
   type MigrationPreparationFailure,
   migrationPreparationFailure,
-  runMigrationPreparationStage,
 } from '@/features/migration/service/migrationPreparationError'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { V1_CONTRACTS } from '../contracts/addresses'
-import type {
-  MigrationEstimateObserver,
-  MigrationEstimateProgress,
-} from '../service/migrationEstimateProgress'
+import type { MigrationEstimateProgress } from '../service/migrationEstimateProgress'
+import { prepareUpgrade } from '../service/prepareUpgrade'
 import type { RpcSubnameInventory } from '../service/readRpcSubnameInventory'
 import {
   getReusableRpcSubnameInventory,
   getRpcSubnameInventoryCacheKey,
 } from '../service/rpcSubnameInventoryCache'
 import { publishPreparedSubnameImpact } from '../service/subnameMigrationImpactQuery'
-import {
-  assertSupportedSubnameMigration,
-  discoverSubnameRecreation,
-} from '../service/subnameRecreation'
+import { useUpgradeReadCoordinator } from '../state/upgradeReadCoordinator.context'
 import { useMigrationEstimateProgress } from './useMigrationEstimateProgress'
 import { useMigrationPreflight } from './useMigrationPreflight'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
@@ -102,163 +88,6 @@ const formatEstimatedEth = (wei: bigint): string => {
   return trimmedFraction.length > 0 ? `${whole}.${trimmedFraction}` : whole
 }
 
-const buildEstimate = async (params: {
-  readonly ownerAddress: Address | undefined
-  readonly hcaAddress: Address | undefined
-  readonly publicClient: PublicClient | undefined
-  readonly recoverySnapshot: MigrationRecoverySnapshot | null
-  readonly recoverySelectionMatches: boolean
-  readonly domains: readonly V1Domain[]
-  readonly shouldRecreateSubnames: boolean
-  readonly managerRestorationNames: readonly string[]
-  readonly canBatchAtomically: boolean
-  readonly signal: AbortSignal
-  readonly onProgress: MigrationEstimateObserver
-  readonly inventory?: RpcSubnameInventory
-  readonly onInventory?: (
-    inventory: RpcSubnameInventory,
-  ) => void | Promise<void>
-  readonly ensurePreflight: (
-    domains: readonly V1Domain[],
-    options: {
-      readonly signal: AbortSignal
-      readonly staleTime: number
-      readonly requiresManagerRestoration: boolean
-      readonly requiresRegistryConfiguration: boolean
-      readonly onNamesRead?: (names: readonly string[]) => void | Promise<void>
-    },
-  ) => Promise<MigrationPreflight>
-}) => {
-  const { ownerAddress, hcaAddress, publicClient } = params
-  const selectedNames = params.domains.map(({ name }) => name)
-  const report = async (
-    stage: Parameters<MigrationEstimateObserver>[0]['stage'],
-    names: readonly string[] = [],
-  ) => {
-    params.signal.throwIfAborted()
-    await params.onProgress({ stage, names })
-    params.signal.throwIfAborted()
-  }
-  params.signal.throwIfAborted()
-  if (!ownerAddress || !hcaAddress || !publicClient) {
-    return runMigrationPreparationStage('account', () =>
-      Promise.reject(new Error('Account setup incomplete')),
-    )
-  }
-  const recoverySnapshot = params.recoverySnapshot
-  if (recoverySnapshot) {
-    if (!params.recoverySelectionMatches) {
-      return runMigrationPreparationStage('recovery', () =>
-        Promise.reject(
-          new MigrationRecoveryPlanError({
-            message: 'Select every remaining name to continue your upgrade.',
-            reason: 'operation-mismatch',
-          }),
-        ),
-      )
-    }
-    const plan = await runMigrationPreparationStage('recovery', () =>
-      buildMigrationRecoveryPlan({
-        snapshot: recoverySnapshot,
-        hcaAddress,
-        migrationOwner: ownerAddress,
-        publicClient,
-        canBatchAtomically: params.canBatchAtomically,
-        signal: params.signal,
-        onProgress: params.onProgress,
-      }),
-    )
-    params.signal.throwIfAborted()
-    await report('checking-fee')
-    const estimate = await runMigrationPreparationStage('fee', async () => {
-      const result = await estimateMigrationGasCost({ plan, publicClient })
-      if (result.status === 'error') throw result.error
-      return result
-    })
-    params.signal.throwIfAborted()
-    await report('checking-fee', selectedNames)
-    return {
-      estimate,
-      plan: {
-        ...plan,
-        isSubnameRecreationEnabled: params.shouldRecreateSubnames,
-      },
-    }
-  }
-  const discovery = params.shouldRecreateSubnames
-    ? await runMigrationPreparationStage('plan', () =>
-        discoverSubnameRecreation({
-          onNamesChecked: (names) => report('checking-names', names),
-          domains: params.domains,
-          owner: ownerAddress,
-          publicClient,
-          inventory: params.inventory,
-          signal: params.signal,
-        }),
-      )
-    : undefined
-  params.signal.throwIfAborted()
-  if (discovery) await params.onInventory?.(discovery.inventory)
-  const recreation = discovery?.snapshot.roots.length ? discovery : undefined
-  await report('checking-names', selectedNames)
-  await report('finding-records')
-  const preflight = await runMigrationPreparationStage('preflight', () =>
-    params.ensurePreflight(params.domains, {
-      signal: params.signal,
-      staleTime: 0,
-      onNamesRead: (names) => report('finding-records', names),
-      requiresManagerRestoration: params.managerRestorationNames.length > 0,
-      requiresRegistryConfiguration: false,
-    }),
-  )
-  params.signal.throwIfAborted()
-  await report('finding-records', selectedNames)
-  const plan = await runMigrationPreparationStage('plan', () =>
-    buildMigrationPlan({
-      domains: recreation?.domains ?? params.domains,
-      subnameRecreation: recreation
-        ? { snapshot: recreation.snapshot }
-        : undefined,
-      hcaAddress,
-      migrationOwner: ownerAddress,
-      managerRestorationNames: params.managerRestorationNames,
-      publicClient,
-      preflight,
-      onProgress: params.onProgress,
-      canBatchAtomically: params.canBatchAtomically,
-      signal: params.signal,
-    }),
-  )
-  params.signal.throwIfAborted()
-  await report('checking-upgrade')
-  const subnameImpact = await runMigrationPreparationStage('plan', () =>
-    assertSupportedSubnameMigration({
-      publicClient,
-      ownerAddress,
-      classified: plan.classified,
-      inventory: discovery?.inventory,
-      signal: params.signal,
-    }),
-  )
-  await report('checking-upgrade', selectedNames)
-  await report('checking-fee')
-  const estimate = await runMigrationPreparationStage('fee', async () => {
-    const result = await estimateMigrationGasCost({ plan, publicClient })
-    if (result.status === 'error') throw result.error
-    return result
-  })
-  params.signal.throwIfAborted()
-  await report('checking-fee', selectedNames)
-  return {
-    estimate,
-    subnameImpact,
-    plan: {
-      ...plan,
-      isSubnameRecreationEnabled: params.shouldRecreateSubnames,
-    },
-  }
-}
-
 export const useMigrationGasEstimate = ({
   ownerAddress,
   hcaAddress,
@@ -276,6 +105,7 @@ export const useMigrationGasEstimate = ({
   )
   const shouldRecreateSubnames = helperFlag === true
   const publicClient = usePublicClient({ chainId: chain.id })
+  const coordinator = useUpgradeReadCoordinator()
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress,
     hcaAddress,
@@ -378,7 +208,8 @@ export const useMigrationGasEstimate = ({
         nameWrapperAddress: V1_CONTRACTS.NameWrapper,
         names: domains.map(({ name }) => name),
       })
-      const prepared = await buildEstimate({
+      const prepared = await prepareUpgrade({
+        coordinator: coordinator ?? undefined,
         ...progressHandlers,
         ownerAddress,
         hcaAddress,

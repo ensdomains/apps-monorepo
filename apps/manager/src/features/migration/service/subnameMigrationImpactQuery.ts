@@ -6,9 +6,16 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { QueryClient } from '@tanstack/react-query'
 import { fromPromise } from 'neverthrow'
-import type { PublicClient } from 'viem'
+import type { Address, PublicClient } from 'viem'
 import { publicClient } from '@/lib/wagmi'
+import { V1_CONTRACTS } from '../contracts/addresses'
+import type { RpcSubnameInventory } from './readRpcSubnameInventory'
 import { readRpcSubnameMigrationImpact } from './readRpcSubnameMigrationImpact'
+import {
+  getReusableRpcSubnameInventory,
+  getRpcSubnameInventoryCacheKey,
+} from './rpcSubnameInventoryCache'
+import type { UpgradeReadCoordinator } from './upgradeReadCoordinator'
 
 type Scope = {
   readonly ownerAddress?: string | null
@@ -35,6 +42,7 @@ const getImpactQueryKey = (scope: Scope) =>
 
 export const getSubnameMigrationImpactQueryOptions = (
   params: Scope & {
+    readonly coordinator?: UpgradeReadCoordinator
     readonly isEnabled: boolean
     readonly isPrepared: boolean
     readonly hasSelectedNames: boolean
@@ -49,18 +57,50 @@ export const getSubnameMigrationImpactQueryOptions = (
   } = params
   return resultQueryOptions({
     queryKey: getImpactQueryKey(params),
-    queryFn: ({ signal }) => {
+    queryFn: ({ signal, client: queryClient }) => {
       const requestSignal = AbortSignal.any([
         signal,
         AbortSignal.timeout(120_000),
       ])
       const inputs = getImpactInputs(params)
-      return fromPromise(
+      const state = queryClient.getQueryState(getImpactQueryKey(params))
+      // Only initial display may reuse preparation. Every subsequent decision
+      // refetches without inventory, preserving the strict pre-start checks.
+      const inventory =
+        params.coordinator &&
+        params.ownerAddress &&
+        state?.dataUpdatedAt === 0 &&
+        state.errorUpdatedAt === 0
+          ? getReusableRpcSubnameInventory({
+              inventory: queryClient.getQueryData<RpcSubnameInventory>(
+                getRpcSubnameInventoryCacheKey({
+                  ownerAddress: params.ownerAddress,
+                  chainId: params.chainId,
+                  registryAddress: V1_CONTRACTS.LegacyRegistry,
+                  nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+                }),
+              ),
+              chainId: params.chainId,
+              registryAddress: V1_CONTRACTS.LegacyRegistry,
+              nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+              names: inputs.migratingNames,
+            })
+          : undefined
+      const read = (client: PublicClient) =>
         readRpcSubnameMigrationImpact({
-          publicClient: publicClient as PublicClient,
+          publicClient: client,
+          verificationClient: client,
+          inventory,
           ...inputs,
           signal: requestSignal,
-        }),
+        })
+      return fromPromise(
+        params.coordinator && params.ownerAddress
+          ? params.coordinator.run(
+              { owner: params.ownerAddress as Address, signal: requestSignal },
+              ({ verificationClient }) => read(verificationClient),
+            )
+          : read(publicClient as PublicClient),
         (cause) => new SubnameMigrationImpactError({ cause }),
       )
     },

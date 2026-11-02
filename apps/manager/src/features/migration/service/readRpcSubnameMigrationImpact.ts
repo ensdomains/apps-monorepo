@@ -144,6 +144,7 @@ const hasStrictSupersetRoots = (
 
 const readCurrentInventory = async (params: {
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly names: readonly string[]
   readonly copiedNames: readonly string[]
   readonly chainId: number
@@ -163,7 +164,9 @@ const readCurrentInventory = async (params: {
         { method: 'eth_chainId' },
         { signal: params.signal },
       ),
-      params.publicClient.getBlock({ blockNumber: previous.checkpoint.number }),
+      (params.verificationClient ?? params.publicClient).getBlock({
+        blockNumber: previous.checkpoint.number,
+      }),
       params.publicClient.getBlock(),
     ])
     params.signal?.throwIfAborted()
@@ -186,6 +189,7 @@ const readCurrentInventory = async (params: {
   }))
   const request: Parameters<typeof readRpcSubnameInventory>[0] = {
     publicClient: params.publicClient,
+    verificationClient: params.verificationClient,
     chainId: params.chainId,
     registryAddress: params.registryAddress,
     nameWrapperAddress: params.nameWrapperAddress,
@@ -223,6 +227,7 @@ const readCurrentInventory = async (params: {
 
 const hasCompletedMigration = async (params: {
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly source: RpcSubnameSource & { readonly name: string }
   readonly destination: ReturnType<typeof getDestinationContracts>
   readonly blockNumber: bigint
@@ -280,6 +285,7 @@ const hasCompletedMigration = async (params: {
 
 type ReadImpactParameters = {
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly migratingNames: readonly string[]
   readonly copiedNames?: readonly string[]
   readonly renewingNames?: readonly string[]
@@ -305,6 +311,7 @@ const readImpactContext = async (
   const wrapper = getChainContractAddress({ chain, contract: 'ensNameWrapper' })
   const inventory = await readCurrentInventory({
     publicClient,
+    verificationClient: params.verificationClient,
     names,
     copiedNames: params.copiedNames ?? [],
     chainId: chain.id,
@@ -386,7 +393,9 @@ const confirmImpactCheckpoint = async (
   params: ReadImpactParameters,
   inventory: RpcSubnameInventory,
 ): Promise<void> => {
-  const confirmed = await params.publicClient.getBlock({
+  const confirmed = await (
+    params.verificationClient ?? params.publicClient
+  ).getBlock({
     blockNumber: inventory.checkpoint.number,
   })
   params.signal?.throwIfAborted()

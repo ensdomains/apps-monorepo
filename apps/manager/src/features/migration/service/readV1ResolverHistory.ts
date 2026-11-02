@@ -36,18 +36,20 @@ export const readV1ResolverHistory = ResultFn(async function* ({
   publicClient,
   chainId,
   signal,
+  verificationClient = publicClient,
 }: {
   readonly sources: readonly V1ProfileSource[]
   readonly publicClient: Pick<PublicClient, 'request'>
+  readonly verificationClient?: Pick<PublicClient, 'request'>
   readonly chainId: number
   readonly signal?: AbortSignal
 }) {
   const toError = (cause: unknown) => new ReadV1ResolverHistoryError({ cause })
   yield* checkNotAborted(signal, toError)
   if (sources.length === 0) return ok<readonly ResolverHistoryRecord[]>([])
-  const readBlock = (block: Hex | 'latest') =>
+  const readBlock = (block: Hex | 'latest', client = publicClient) =>
     ResultAsync.fromPromise(
-      publicClient.request(
+      client.request(
         { method: 'eth_getBlockByNumber', params: [block, false] },
         { signal },
       ),
@@ -130,7 +132,10 @@ export const readV1ResolverHistory = ResultFn(async function* ({
     ),
   )
   yield* checkNotAborted(signal, toError)
-  const confirmed = yield* readBlock(toHex(checkpoint.number))
+  const confirmed = yield* readBlock(
+    toHex(checkpoint.number),
+    verificationClient,
+  )
   yield* checkNotAborted(signal, toError)
   if (
     confirmed.hash !== checkpoint.hash ||

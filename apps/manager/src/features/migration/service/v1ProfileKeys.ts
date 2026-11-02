@@ -38,6 +38,7 @@ export const getV1ProfileKeys = ResultFn(async function* (
   sources: readonly V1ProfileSource[],
   options: {
     readonly publicClient: Pick<PublicClient, 'request'>
+    readonly verificationClient?: Pick<PublicClient, 'request'>
     readonly signal?: AbortSignal
     readonly onNamesRead?: (names: readonly string[]) => void | Promise<void>
     readonly chainId?: number
@@ -70,6 +71,7 @@ export const getV1ProfileKeys = ResultFn(async function* (
       ({ resolver }) => !isAddressOnlyResolver(resolver, chainId),
     ),
     publicClient: options.publicClient,
+    verificationClient: options.verificationClient,
     chainId,
     signal: options.signal,
   }).mapErr(({ cause }) => toError(cause))

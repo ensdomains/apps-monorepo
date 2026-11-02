@@ -26,6 +26,7 @@ type Params = {
   readonly domains: readonly V1Domain[]
   readonly hcaAddress: Address
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly wagmiConfig: Config
   /** Names whose ENSv1 controller the owner chose to keep as an ENSv2 manager. */
   readonly managerRestorationNames?: readonly string[]
@@ -120,6 +121,7 @@ const estimateProjectedMigration = async (
         domains,
         owner: quote.ownerAddress,
         publicClient,
+        verificationClient: params.verificationClient,
         signal,
       })
     : undefined
@@ -137,6 +139,8 @@ const estimateProjectedMigration = async (
     domains,
     requiresManagerRestoration: managerRestorationNames.length > 0,
     publicClient,
+    verificationClient: params.verificationClient,
+    approvalReadClient: params.verificationClient ? publicClient : undefined,
     wagmiConfig,
     signal,
   })
@@ -152,6 +156,7 @@ const estimateProjectedMigration = async (
     migrationOwner: quote.ownerAddress,
     managerRestorationNames,
     publicClient,
+    verificationClient: params.verificationClient,
     preflight,
     canBatchAtomically: params.canBatchAtomically,
     projectedExpiryNames: new Set(

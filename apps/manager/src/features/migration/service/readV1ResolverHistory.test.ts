@@ -60,6 +60,23 @@ const makeClient = ({
 }
 
 describe('readV1ResolverHistory', () => {
+  it('confirms history through the fresh verification client and rejects its changed checkpoint', async () => {
+    const { publicClient } = makeClient()
+    const verification = makeClient({ confirmedHash: namehash('changed.eth') })
+    const result = await readV1ResolverHistory({
+      sources: [source],
+      publicClient,
+      verificationClient: verification.publicClient,
+      chainId: 1,
+    })
+    expect(result._unsafeUnwrapErr().cause).toMatchObject({
+      message: 'Resolver history checkpoint changed during the read',
+    })
+    expect(verification.request.mock.calls.map(([request]) => request)).toEqual(
+      [{ method: 'eth_getBlockByNumber', params: ['0x7b', false] }],
+    )
+  })
+
   it('queues the checkpoint while the chain check is still pending, without starting history early', async () => {
     const { publicClient, request } = makeClient()
     const original = request.getMockImplementation()

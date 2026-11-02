@@ -136,6 +136,7 @@ const fetchProfilesForNames = async (params: {
   namesToOwnedPermRes: readonly ClassifiedName[]
   preflight: MigrationPreflight
   publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   signal?: AbortSignal
   readonly onNamesRead?: (names: readonly string[]) => void | Promise<void>
 }): Promise<Map<Hex, Profile>> => {
@@ -154,6 +155,7 @@ const fetchProfilesForNames = async (params: {
       })),
     publicClient,
     profileKeys: preflight.profileKeys,
+    verificationClient: params.verificationClient,
     ...(params.onNamesRead && { onNamesRead: params.onNamesRead }),
     signal,
   })
@@ -370,6 +372,7 @@ const fetchLockedResolverProfiles = async (params: {
   readonly candidates: readonly LockedResolverReplacement[]
   readonly profileKeys: readonly V1ProfileKeys[]
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly signal?: AbortSignal
 }): Promise<ReadonlyMap<Hex, Profile>> => {
   try {
@@ -380,6 +383,7 @@ const fetchLockedResolverProfiles = async (params: {
         v1ResolverAddress: v1Resolver,
       })),
       publicClient: params.publicClient,
+      verificationClient: params.verificationClient,
       profileKeys: params.profileKeys,
       signal: params.signal,
     })
@@ -450,6 +454,7 @@ export const assertLockedResolverReplacementRecordSafety = async (
   classified: readonly ClassifiedName[],
   publicClient: PublicClient,
   signal?: AbortSignal,
+  verificationClient?: PublicClient,
 ): Promise<void> => {
   signal?.throwIfAborted()
   const candidates = lockedResolverReplacementsWithoutAtomicReplay(classified)
@@ -461,7 +466,12 @@ export const assertLockedResolverReplacementRecordSafety = async (
       name: name.domain.name,
       resolver: v1Resolver,
     })),
-    { signal, chainId: publicClient.chain?.id, publicClient },
+    {
+      signal,
+      chainId: publicClient.chain?.id,
+      publicClient,
+      verificationClient,
+    },
   )
   signal?.throwIfAborted()
   if (result.isErr()) {
@@ -482,6 +492,7 @@ export const assertLockedResolverReplacementRecordSafety = async (
     candidates,
     profileKeys: result.value,
     publicClient,
+    verificationClient,
     signal,
   })
   signal?.throwIfAborted()
@@ -498,6 +509,7 @@ export const buildMigrationPlan = async (params: {
   /** Names whose ENSv1 registry controller the owner chose to keep as manager. */
   managerRestorationNames?: readonly string[]
   publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   preflight: MigrationPreflight
   /** The owner wallet bundles calls atomically (EIP-5792). */
   canBatchAtomically?: boolean
@@ -545,6 +557,7 @@ export const buildMigrationPlan = async (params: {
   if (params.subnameRecreation)
     await assertSubnameRecreationUnchanged({
       publicClient,
+      verificationClient: params.verificationClient,
       snapshot: params.subnameRecreation.snapshot,
       domains,
     })
@@ -555,6 +568,7 @@ export const buildMigrationPlan = async (params: {
     classified,
     publicClient,
     signal,
+    params.verificationClient,
   )
   signal?.throwIfAborted()
   const directRoutes =
@@ -615,6 +629,7 @@ export const buildMigrationPlan = async (params: {
     namesToOwnedPermRes,
     preflight,
     publicClient,
+    verificationClient: params.verificationClient,
     signal,
   })
   signal?.throwIfAborted()

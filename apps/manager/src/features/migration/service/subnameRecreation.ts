@@ -411,6 +411,7 @@ const hasRecreationCoverage = (
 
 const readRecreationInventory = async (params: {
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly inventory?: RpcSubnameInventory
   readonly names: readonly string[]
   readonly candidates: readonly V1Domain[]
@@ -434,7 +435,9 @@ const readRecreationInventory = async (params: {
     ? await Promise.all([
         publicClient.request({ method: 'eth_chainId' }, { signal }),
         publicClient.getBlock({ blockTag: 'latest' }),
-        publicClient.getBlock({ blockNumber: supplied.checkpoint.number }),
+        (params.verificationClient ?? publicClient).getBlock({
+          blockNumber: supplied.checkpoint.number,
+        }),
       ])
     : [null, null, null]
   signal?.throwIfAborted()
@@ -472,6 +475,7 @@ const readRecreationInventory = async (params: {
     ? supplied
     : await readRpcSubnameInventory({
         publicClient,
+        verificationClient: params.verificationClient,
         chainId: envConfig.chain.id,
         registryAddress: V1_CONTRACTS.LegacyRegistry,
         nameWrapperAddress: V1_CONTRACTS.NameWrapper,
@@ -501,6 +505,7 @@ export const discoverSubnameRecreation = async (params: {
   readonly domains: readonly V1Domain[]
   readonly owner: Address
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly indexer?: BignameClient
   readonly inventory?: RpcSubnameInventory
   readonly signal?: AbortSignal
@@ -525,6 +530,7 @@ export const discoverSubnameRecreation = async (params: {
   )
   const inventory = await readRecreationInventory({
     publicClient,
+    verificationClient: params.verificationClient,
     inventory: params.inventory,
     names: params.domains.map(({ name }) => name),
     candidates: candidates.map(({ domain }) => domain),
@@ -638,7 +644,9 @@ export const discoverSubnameRecreation = async (params: {
       [...params.domains, ...imports].map((domain) => [domain.name, domain]),
     ).values(),
   ]
-  const confirmed = await publicClient.getBlock({ blockNumber: block.number })
+  const confirmed = await (params.verificationClient ?? publicClient).getBlock({
+    blockNumber: block.number,
+  })
   signal?.throwIfAborted()
   if (confirmed.hash?.toLowerCase() !== inventory.checkpoint.hash.toLowerCase())
     fail(
@@ -711,6 +719,7 @@ const withValidatedInventoryLabels = (
 /** Revalidate source identities before signing. Receipt checks verify the reviewed import, not live V1 synchronisation. */
 export const assertSubnameRecreationUnchanged = async (params: {
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly snapshot: SubnameRecreationSnapshot
   readonly domains: readonly V1Domain[]
   readonly toBlock?: bigint
@@ -796,10 +805,12 @@ export const assertSubnameRecreationUnchanged = async (params: {
       )
   }
   const [confirmedCutoff, confirmedHead] = await Promise.all([
-    params.publicClient.getBlock({
+    (params.verificationClient ?? params.publicClient).getBlock({
       blockNumber: BigInt(params.snapshot.blockNumber),
     }),
-    params.publicClient.getBlock({ blockNumber: head.number }),
+    (params.verificationClient ?? params.publicClient).getBlock({
+      blockNumber: head.number,
+    }),
   ])
   if (
     confirmedCutoff.hash?.toLowerCase() !==
@@ -815,6 +826,7 @@ export const assertSubnameRecreationUnchanged = async (params: {
 /** Every omitted dependent name is a blocker, including when import rollout is disabled. */
 export const assertSupportedSubnameMigration = async (params: {
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly ownerAddress?: Address
   readonly classified: readonly ClassifiedName[]
   readonly inventory?: RpcSubnameInventory
@@ -838,6 +850,7 @@ export const assertSupportedSubnameMigration = async (params: {
     inventory: params.inventory,
     onInventory: params.onInventory,
     publicClient: params.publicClient,
+    verificationClient: params.verificationClient,
     migratingNames,
     copiedNames: params.classified
       .filter((name) => name.action === 'copy')

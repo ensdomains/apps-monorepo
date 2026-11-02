@@ -76,6 +76,7 @@ export type RpcSubnameInventory = {
 }
 export type RpcSubnameInventoryParameters = {
   readonly publicClient: Pick<PublicClient, 'request' | 'multicall'>
+  readonly verificationClient?: Pick<PublicClient, 'request' | 'multicall'>
   readonly chainId: number
   readonly registryAddress: Address
   readonly nameWrapperAddress: Address
@@ -587,9 +588,12 @@ const readInventory = async (
     (!Number.isSafeInteger(params.maxDepth) || params.maxDepth < 1)
   )
     fail('The subname discovery depth must be a positive integer')
-  const readBlock = async (number: Hex | 'latest') => {
+  const readBlock = async (
+    number: Hex | 'latest',
+    client = params.publicClient,
+  ) => {
     const response = await retryInventoryRpcRead(params, () =>
-      params.publicClient.request(
+      client.request(
         { method: 'eth_getBlockByNumber', params: [number, false] },
         { signal: params.signal },
       ),
@@ -665,7 +669,10 @@ const readInventory = async (
       ? suppliedPrevious
       : undefined
   if (previous) {
-    const oldCheckpoint = await readBlock(toHex(previous.checkpoint.number))
+    const oldCheckpoint = await readBlock(
+      toHex(previous.checkpoint.number),
+      params.verificationClient,
+    )
     if (
       oldCheckpoint.hash.toLowerCase() !==
       previous.checkpoint.hash.toLowerCase()
@@ -746,7 +753,10 @@ const readInventory = async (
       name: verifiedName,
     }
   })
-  const confirmed = await readBlock(toHex(checkpoint.number))
+  const confirmed = await readBlock(
+    toHex(checkpoint.number),
+    params.verificationClient,
+  )
   params.signal?.throwIfAborted()
   if (
     confirmed.number !== checkpoint.number ||

@@ -14,6 +14,8 @@ import {
   type GraceRenewalMigrationGasEstimate,
 } from '../service/estimateGraceRenewalMigrationGas'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
+import type { UpgradeReadClients } from '../service/upgradeReadCoordinator'
+import { useUpgradeReadCoordinator } from '../state/upgradeReadCoordinator.context'
 import type { GraceRenewalQuoteState } from './useGraceRenewalQuote'
 import { useMigrationEstimateProgress } from './useMigrationEstimateProgress'
 import type { MigrationGasEstimateState } from './useMigrationGasEstimate'
@@ -133,6 +135,7 @@ export const useGraceRenewalGasEstimate = ({
     queryKey,
     selectedNames,
   )
+  const coordinator = useUpgradeReadCoordinator()
   const query = useQuery<
     GraceRenewalMigrationGasEstimate,
     Error,
@@ -160,18 +163,26 @@ export const useGraceRenewalGasEstimate = ({
           'Could not estimate the network fee for every selected name.',
         )
       }
-      return estimateGraceRenewalMigrationGas({
-        ...startProgress(signal),
-        quote,
-        domains,
-        hcaAddress,
-        publicClient,
-        wagmiConfig,
-        managerRestorationNames,
-        canBatchAtomically,
-        isSubnameRecreationEnabled,
-        signal,
-      })
+      const read = (clients?: UpgradeReadClients) =>
+        estimateGraceRenewalMigrationGas({
+          ...startProgress(signal),
+          quote,
+          domains,
+          hcaAddress,
+          publicClient,
+          ...clients,
+          wagmiConfig,
+          managerRestorationNames,
+          canBatchAtomically,
+          isSubnameRecreationEnabled,
+          signal,
+        })
+      return coordinator
+        ? coordinator.run(
+            { owner: quote.ownerAddress, signal, mode: 'after-renewal' },
+            read,
+          )
+        : read()
     },
   })
 

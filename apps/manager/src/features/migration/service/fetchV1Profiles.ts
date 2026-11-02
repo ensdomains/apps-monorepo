@@ -126,6 +126,7 @@ const executeMulticallChunks = async (
 export const fetchV1Profiles = async (params: {
   names: readonly NameForFetch[]
   publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   profileKeys?: readonly V1ProfileKeys[]
   signal?: AbortSignal
   readonly onNamesRead?: (names: readonly string[]) => void | Promise<void>
@@ -144,7 +145,12 @@ export const fetchV1Profiles = async (params: {
           name,
           resolver: v1ResolverAddress,
         })),
-        { signal, chainId: publicClient.chain?.id, publicClient },
+        {
+          signal,
+          chainId: publicClient.chain?.id,
+          publicClient,
+          verificationClient: params.verificationClient,
+        },
       )
   signal?.throwIfAborted()
   const keyEntries =

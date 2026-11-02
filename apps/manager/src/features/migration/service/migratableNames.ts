@@ -115,6 +115,7 @@ const readRecreatedCandidates = async (params: {
   readonly candidates: readonly ClassifiedName[]
   readonly owner: Address
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly inventory: RpcSubnameInventory
   readonly signal?: AbortSignal
 }): Promise<{
@@ -125,6 +126,7 @@ const readRecreatedCandidates = async (params: {
     domains: params.candidates.map(({ domain }) => domain),
     owner: params.owner,
     publicClient: params.publicClient,
+    verificationClient: params.verificationClient,
     inventory: params.inventory,
     signal: params.signal,
   })
@@ -152,6 +154,7 @@ const checkSubnameCandidates = async (params: {
   readonly isSubnameImportEnabled: boolean
   readonly owner: Address
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly previousInventory?: RpcSubnameInventory
   readonly onInventory?: (
     inventory: RpcSubnameInventory,
@@ -170,6 +173,7 @@ const checkSubnameCandidates = async (params: {
   })
   const inventory = await readRpcSubnameInventory({
     publicClient: params.publicClient,
+    verificationClient: params.verificationClient,
     chainId: envConfig.chain.id,
     registryAddress: V1_CONTRACTS.LegacyRegistry,
     nameWrapperAddress: V1_CONTRACTS.NameWrapper,
@@ -255,6 +259,7 @@ const checkSubnameCandidates = async (params: {
       ? null
       : await readRpcSubnameMigrationImpacts({
           publicClient: params.publicClient,
+          verificationClient: params.verificationClient,
           migratingNames: unsupportedNames.map(({ domain }) => domain.name),
           inventory: inventory.value,
           signal: params.signal,
@@ -428,6 +433,7 @@ export const resolveMigratableNames = async (params: {
   readonly isSubnameImportEnabled: boolean
   readonly owner: Address
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly previousInventory?: RpcSubnameInventory
   readonly onInventory?: (
     inventory: RpcSubnameInventory,
@@ -448,6 +454,7 @@ export const resolveMigratableNames = async (params: {
     isSubnameImportEnabled: params.isSubnameImportEnabled,
     owner: params.owner,
     publicClient: coalesceLatestBlockReads(params.publicClient),
+    verificationClient: params.verificationClient,
     previousInventory: params.previousInventory,
     onInventory: params.onInventory,
     signal: params.signal,
