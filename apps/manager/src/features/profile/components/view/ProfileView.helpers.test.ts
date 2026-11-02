@@ -7,6 +7,7 @@ import {
   formatProfileDetailDate,
   getChainSpecificAddresses,
   getContactItems,
+  getContentHashHref,
   getFeaturedSocialItems,
   getMainReceivingAddress,
   getReceivingAddressChains,
@@ -451,5 +452,35 @@ describe('ProfileView helpers', () => {
     expect(getMainReceivingAddress(records)).toBeUndefined()
     expect(getReceivingAddressChains(records)).toEqual([])
     expect(getChainSpecificAddresses(records)).toEqual([])
+  })
+})
+
+describe('getContentHashHref', () => {
+  const IPFS =
+    'ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi'
+
+  it.each([
+    [
+      'an IPFS site on mainnet',
+      'docs.ens.eth',
+      IPFS,
+      1,
+      'https://docs.ens.eth.limo',
+    ],
+    [
+      'an IPNS site on mainnet',
+      'site.eth',
+      'ipns://k51qzi5uqu5d',
+      1,
+      'https://site.eth.limo',
+    ],
+    ['a unicode name', '💩.eth', IPFS, 1, 'https://💩.eth.limo'],
+    ['a Sepolia name', 'bright-lemur.eth', IPFS, 11155111, undefined],
+    ['a Swarm site', 'site.eth', 'bzz://d1de9994b4d0', 1, undefined],
+    ['an Arweave site', 'site.eth', 'ar://abc', 1, undefined],
+    ['a DNS name', 'example.com', IPFS, 1, undefined],
+    ['a name that would change the path', 'a/b.eth', IPFS, 1, undefined],
+  ])('links %s', (_, name, contentHash, chainId, expected) => {
+    expect(getContentHashHref({ name, contentHash, chainId })).toBe(expected)
   })
 })

@@ -912,6 +912,7 @@ msgid "Contact methods"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
+#: src/features/profile/components/view/ProfileContentHashSection.tsx
 msgid "Content hash"
 msgstr ""
 

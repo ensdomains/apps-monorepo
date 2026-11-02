@@ -1,4 +1,5 @@
 import { isEvmCoinType } from '@ensdomains/address-encoder/utils'
+import { mainnet } from 'viem/chains'
 import {
   getAddressPresentation,
   getRecordDef,
@@ -111,6 +112,32 @@ const toSafeHttpHref = (value: string): string | undefined => {
 }
 
 export const getSafeProfileHref = toSafeHttpHref
+
+const ETH_LIMO_PROTOCOLS = ['ipfs://', 'ipns://'] as const
+
+/** The name's site on eth.limo, which serves mainnet .eth names with an IPFS or IPNS content hash. */
+export const getContentHashHref = ({
+  name,
+  contentHash,
+  chainId,
+}: {
+  readonly name: string
+  readonly contentHash: string
+  readonly chainId: number
+}): string | undefined => {
+  if (
+    chainId !== mainnet.id ||
+    !name.endsWith('.eth') ||
+    !ETH_LIMO_PROTOCOLS.some((protocol) => contentHash.startsWith(protocol))
+  )
+    return undefined
+  const href = safeHttpHref(`https://${name}.limo`)
+  if (!href) return undefined
+  const { hostname, pathname, search, hash } = new URL(href)
+  return hostname.endsWith('.eth.limo') && pathname === '/' && !search && !hash
+    ? href
+    : undefined
+}
 
 export const getDisplayHost = (href: string): string => {
   try {
