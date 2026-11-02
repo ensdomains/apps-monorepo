@@ -236,7 +236,7 @@ export const useEditProfileDialogSave = ({
   canSave,
 }: UseEditProfileDialogSaveParams) => {
   const account = useSmartAccountContext()
-  const { address, isConnected } = useAccount()
+  const { address, isConnected, connector } = useAccount()
   const chainId = useChainId()
   const queryClient = useQueryClient()
   const { signTypedDataAsync } = useSignTypedData()
@@ -491,6 +491,7 @@ export const useEditProfileDialogSave = ({
           publicClient: publicClient as PublicClient,
           retryCount: 0,
           walletClient: account.walletClient,
+          connector,
           sourceResolver: resolverCopySource?.resolver,
           assertCurrentIdentity,
           recordReview,
@@ -515,6 +516,7 @@ export const useEditProfileDialogSave = ({
     [
       account.walletClient,
       chainId,
+      connector,
       dialogActor,
       isResolverAccessPending,
       name,
