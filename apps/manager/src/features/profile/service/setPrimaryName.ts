@@ -43,7 +43,7 @@ export interface SetPrimaryNameParams {
   publicClient: PublicClient
   chainId: number
   /** The wallet's wagmi connector. A Safe{Wallet} one answers with safeTxHashes. */
-  connector?: Connector
+  readonly connector?: Connector
   /** Called with each submitted txId so the UI can track it via a selector */
   onTxId?: (txId: string) => void
 }
