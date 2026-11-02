@@ -140,6 +140,7 @@ describe('revokeMigrationApproval', () => {
     getConnectionMock.mockReturnValue({
       connector: SAFE_CONNECTOR,
     } as ReturnType<typeof getConnection>)
+    // Only what the Safe execution watch reads: the latest block and the Safe's logs.
     getPublicClientMock.mockReturnValue({
       pollingInterval: 1,
       getBlockNumber: async () => 100n,
