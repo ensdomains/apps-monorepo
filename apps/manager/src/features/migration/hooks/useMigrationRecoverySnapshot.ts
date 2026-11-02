@@ -1,7 +1,9 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { chain } from '@/config'
+import { bigname } from '@/lib/bigname'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import {
   getMigrationBatchJournalRevision,
@@ -13,6 +15,7 @@ import {
   removeMigrationRecoverySnapshot,
   subscribeMigrationBatchJournal,
 } from '../service/migrationBatchJournal'
+import { getMigrationRecoveryQueryOptions } from '../service/reconcileMigrationRecovery'
 
 type RecoveryState = {
   readonly snapshot: ReturnType<typeof loadMigrationRecoverySnapshot>
@@ -27,6 +30,26 @@ export const useMigrationRecoverySnapshot = () => {
     subscribeMigrationBatchJournal,
     getMigrationBatchJournalRevision,
     getServerMigrationBatchJournalRevision,
+  )
+
+  const scope = useMemo(
+    () =>
+      chainId && ownerAddress && hcaAddress
+        ? {
+            chainId,
+            owner: ownerAddress as Address,
+            hca: hcaAddress as Address,
+          }
+        : undefined,
+    [chainId, ownerAddress, hcaAddress],
+  )
+  useQuery(
+    getMigrationRecoveryQueryOptions({
+      scope,
+      publicClient,
+      historyClient: bigname,
+      journalRevision,
+    }),
   )
 
   const recoveryState = useMemo<RecoveryState>(() => {

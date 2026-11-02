@@ -43,22 +43,18 @@ const RESOURCES: readonly { title: string; description: ReactNode }[] = [
       </>
     ),
   },
-  ...(MANAGER_APP_BASE_URL
-    ? [
-        {
-          title: 'ENS App',
-          description: (
-            <>
-              Use the{' '}
-              <InlineLink href={`${MANAGER_APP_BASE_URL}/dashboard`}>
-                ENS App
-              </InlineLink>{' '}
-              to upgrade names to v2
-            </>
-          ),
-        },
-      ]
-    : []),
+  {
+    title: 'ENS App',
+    description: (
+      <>
+        Use the{' '}
+        <InlineLink href={`${MANAGER_APP_BASE_URL}/dashboard`}>
+          ENS App
+        </InlineLink>{' '}
+        to upgrade names to v2
+      </>
+    ),
+  },
   {
     title: 'ENS Labs',
     description: (
