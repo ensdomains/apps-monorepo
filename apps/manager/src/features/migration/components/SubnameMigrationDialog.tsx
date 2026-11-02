@@ -77,8 +77,8 @@ const ImpactSummary = ({
           <div className="rounded-xl border border-ens-garnet-900/10 bg-white/60 p-4">
             <p className="mb-3 font-medium text-ens-garnet-900/65 text-xs uppercase tracking-wider">
               <Plural
-                one="# subname left on ENSv1"
-                other="# subnames left on ENSv1"
+                one="# subname won't be upgraded"
+                other="# subnames won't be upgraded"
                 value={unrecoverable.length}
               />
             </p>
@@ -191,10 +191,11 @@ export const SubnameMigrationDialog = ({
             ))
             .with({ hasUnrecoverable: true }, () => (
               <Trans>
-                These subnames were created without publishing their names
-                onchain, so they can&apos;t be recreated on ENSv2. They stop
-                working once their parent is upgraded. Every other subname is
-                upgraded with it.
+                We can&apos;t read the full names of these subnames, because
+                only a hashed form was ever saved onchain. Without the name we
+                can&apos;t recreate them on ENSv2, so they stop working once
+                their parent is upgraded and can&apos;t be upgraded later. Every
+                other subname is upgraded with it.
               </Trans>
             ))
             .otherwise(() => (

@@ -35,8 +35,8 @@ msgstr "{0, plural, one {# step} other {# steps}}"
 
 #. placeholder {0}: unrecoverable.length
 #: src/features/migration/components/SubnameMigrationDialog.tsx
-msgid "{0, plural, one {# subname left on ENSv1} other {# subnames left on ENSv1}}"
-msgstr "{0, plural, one {# subname left on ENSv1} other {# subnames left on ENSv1}}"
+msgid "{0, plural, one {# subname won't be upgraded} other {# subnames won't be upgraded}}"
+msgstr "{0, plural, one {# subname won't be upgraded} other {# subnames won't be upgraded}}"
 
 #. placeholder {0}: data.years
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
@@ -3365,17 +3365,9 @@ msgstr "These names need to stay on ENSv1 for now"
 msgid "These subnames can't be preserved yet"
 msgstr "These subnames can't be preserved yet"
 
-#: src/features/migration/components/SubnameMigrationDialog.tsx
-msgid "These subnames were created without publishing their names onchain, so they can't be recreated on ENSv2. They stop working once their parent is upgraded. Every other subname is upgraded with it."
-msgstr "These subnames were created without publishing their names onchain, so they can't be recreated on ENSv2. They stop working once their parent is upgraded. Every other subname is upgraded with it."
-
 #: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
 msgid "These subnames won't be upgraded"
 msgstr "These subnames won't be upgraded"
-
-#: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
-msgid "They were created without publishing their names onchain, so they can't be recreated on ENSv2 and stop working once their parent is upgraded. Every other subname is upgraded with it."
-msgstr "They were created without publishing their names onchain, so they can't be recreated on ENSv2 and stop working once their parent is upgraded. Every other subname is upgraded with it."
 
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."
@@ -3859,6 +3851,14 @@ msgstr "Wallet funded successfully"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Wallet isn’t ready yet. Try again in a moment."
 msgstr "Wallet isn’t ready yet. Try again in a moment."
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "We can't read the full names of these subnames, because only a hashed form was ever saved onchain. Without the name we can't recreate them on ENSv2, so they stop working once their parent is upgraded and can't be upgraded later. Every other subname is upgraded with it."
+msgstr "We can't read the full names of these subnames, because only a hashed form was ever saved onchain. Without the name we can't recreate them on ENSv2, so they stop working once their parent is upgraded and can't be upgraded later. Every other subname is upgraded with it."
+
+#: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
+msgid "We can't read their full names, because only a hashed form was ever saved onchain. They stop working once their parent is upgraded and can't be upgraded later. Every other subname is upgraded with it."
+msgstr "We can't read their full names, because only a hashed form was ever saved onchain. They stop working once their parent is upgraded and can't be upgraded later. Every other subname is upgraded with it."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "We could not check whether your names and subnames can be safely upgraded. Try again before continuing."

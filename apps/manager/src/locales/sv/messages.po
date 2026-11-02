@@ -40,7 +40,7 @@ msgstr ""
 
 #. placeholder {0}: unrecoverable.length
 #: src/features/migration/components/SubnameMigrationDialog.tsx
-msgid "{0, plural, one {# subname left on ENSv1} other {# subnames left on ENSv1}}"
+msgid "{0, plural, one {# subname won't be upgraded} other {# subnames won't be upgraded}}"
 msgstr ""
 
 #. placeholder {0}: data.years
@@ -3370,16 +3370,8 @@ msgstr ""
 msgid "These subnames can't be preserved yet"
 msgstr ""
 
-#: src/features/migration/components/SubnameMigrationDialog.tsx
-msgid "These subnames were created without publishing their names onchain, so they can't be recreated on ENSv2. They stop working once their parent is upgraded. Every other subname is upgraded with it."
-msgstr ""
-
 #: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
 msgid "These subnames won't be upgraded"
-msgstr ""
-
-#: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
-msgid "They were created without publishing their names onchain, so they can't be recreated on ENSv2 and stop working once their parent is upgraded. Every other subname is upgraded with it."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
@@ -3863,6 +3855,14 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Wallet isn’t ready yet. Try again in a moment."
+msgstr ""
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "We can't read the full names of these subnames, because only a hashed form was ever saved onchain. Without the name we can't recreate them on ENSv2, so they stop working once their parent is upgraded and can't be upgraded later. Every other subname is upgraded with it."
+msgstr ""
+
+#: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
+msgid "We can't read their full names, because only a hashed form was ever saved onchain. They stop working once their parent is upgraded and can't be upgraded later. Every other subname is upgraded with it."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx

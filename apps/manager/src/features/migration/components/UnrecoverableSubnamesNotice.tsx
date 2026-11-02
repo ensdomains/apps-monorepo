@@ -16,9 +16,10 @@ export const UnrecoverableSubnamesNotice = ({
       </h2>
       <p className="mt-2 text-ens-garnet-900/75">
         <Trans>
-          They were created without publishing their names onchain, so they
-          can&apos;t be recreated on ENSv2 and stop working once their parent is
-          upgraded. Every other subname is upgraded with it.
+          We can&apos;t read their full names, because only a hashed form was
+          ever saved onchain. They stop working once their parent is upgraded
+          and can&apos;t be upgraded later. Every other subname is upgraded with
+          it.
         </Trans>
       </p>
       <ul className="mt-3 flex flex-col gap-1">
