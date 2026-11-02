@@ -171,7 +171,7 @@ export const resolverCopySourceQuery = (name: string, wallet?: Address) => ({
 })
 
 const DEFAULT_MAX_CONCURRENT_READS = 8
-// The offchain profile key set's size, which fits one gateway request (Coinbase rejects 60).
+// Gateways are known to accept the 23 reads of the old offchain key set; Coinbase rejects 60.
 const GATEWAY_BATCH_SIZE = 23
 
 const chunk = <T>(items: readonly T[], size: number): readonly T[][] =>
