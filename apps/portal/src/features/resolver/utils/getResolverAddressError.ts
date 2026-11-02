@@ -31,8 +31,9 @@ export const getResolverAddressError = ({
       (v) => isAddress(v, { strict: false }),
       () => "This address's checksum doesn't match. Check it for a typo.",
     )
+    // A lone "0" may still become "0x", so it waits for blur like "too short".
     .when(
-      (v) => !v.startsWith('0x'),
+      (v) => !v.startsWith('0x') && (isTouched || v !== '0'),
       () => 'A contract address starts with 0x.',
     )
     .when(

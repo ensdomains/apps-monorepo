@@ -29,6 +29,13 @@ describe('getResolverAddressError', () => {
     expect(run('e'.repeat(50))).toBe('A contract address starts with 0x.')
   })
 
+  // A lone "0" is the first keystroke of "0x...", so it isn't missing the
+  // prefix yet.
+  it('holds back "starts with 0x" for a lone 0 until the field is touched', () => {
+    expect(run('0')).toBeNull()
+    expect(run('0', true)).toBe('A contract address starts with 0x.')
+  })
+
   it('flags characters that are not hex straight away', () => {
     expect(run('0x12g4')).toBe(
       'A contract address only contains the characters 0-9 and a-f after 0x.',
