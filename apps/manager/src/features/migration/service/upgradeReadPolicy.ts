@@ -40,8 +40,8 @@ const HEADER_METHODS: ReadonlySet<string> = new Set([
 ])
 
 export type UpgradeReadRequest = Readonly<v.InferOutput<typeof REQUEST>>
-export type UpgradeReadHeader = Readonly<v.InferOutput<typeof HEADER>>
-export type UpgradeReadPlan =
+type UpgradeReadHeader = Readonly<v.InferOutput<typeof HEADER>>
+type UpgradeReadPlan =
   | { readonly status: 'unsupported' }
   | {
       readonly status: 'read'

@@ -24,7 +24,7 @@ export type NameForFetch = {
 }
 
 /** Inventory-only reads cannot certify that an unlisted singleton is empty. */
-export const hasKnownContentHashGetter = (params: {
+const hasKnownContentHashGetter = (params: {
   readonly resolver: Address
   readonly chainId: number | undefined
 }): boolean => {

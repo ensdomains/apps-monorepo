@@ -54,7 +54,7 @@ export type RpcSubnameNode = RpcSubnameSource &
   RpcSubnameEdge & {
     readonly depth: number
   }
-type RegistrySource = { readonly address: Address; readonly fromBlock: bigint }
+type RegistrySource = { readonly address: Address }
 type Root = { readonly node: Hex; readonly name?: string }
 export type RpcSubnameInventory = {
   readonly chainId: number
@@ -93,10 +93,6 @@ export type RpcSubnameInventoryParameters = {
   readonly signal?: AbortSignal
   /** Loading can wait for RPC recovery; final signing checks keep immediate failure. */
   readonly retry?: 'until-success'
-  readonly onProgress?: (progress: {
-    readonly scannedParentNodes: readonly Hex[]
-    readonly discoveredNodeCount: number
-  }) => void | Promise<void>
 }
 
 const REQUEST_CONCURRENCY = 8
@@ -191,7 +187,7 @@ const readRegistries = async (
     ])
     if (!code || code === '0x')
       fail('A source registry has no code at the inventory checkpoint')
-    sources = [...sources, { address, fromBlock: 0n }]
+    sources = [...sources, { address }]
     if (response === '0x') break
     const [old] = decodeAbiParameters([{ type: 'address' }], response)
     address = old
@@ -534,15 +530,6 @@ const readNodeGraph = async (
         if (historyLimit)
           fail('The historical subname inventory is too large', historyLimit)
       }
-      await params.onProgress?.({
-        scannedParentNodes: [
-          ...scannedParentNodes,
-          ...frontier.slice(0, parentOffset + parentBatch.length),
-        ],
-        discoveredNodeCount: new Set(
-          [...edges, ...discovered].map(({ node }) => node),
-        ).size,
-      })
     }
     const newEdges = [
       ...new Map(discovered.map((edge) => [edge.node, edge])).values(),

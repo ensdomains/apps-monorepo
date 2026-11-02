@@ -173,19 +173,3 @@ export const getGraceRenewalEligibilityQueryOptions = ({
     refetchOnWindowFocus: false,
     retry: false,
   })
-
-export const useGraceRenewalEligibility = (
-  renewedNames: readonly ClassifiedName[],
-  ownerAddress?: string | null,
-) => {
-  const isSubnameImportEnabled = useIsSubnameImportEnabled()
-  const coordinator = useUpgradeReadCoordinator()
-  return useQuery(
-    getGraceRenewalEligibilityQueryOptions({
-      names: renewedNames,
-      ownerAddress,
-      isSubnameImportEnabled,
-      coordinator: coordinator ?? undefined,
-    }),
-  )
-}

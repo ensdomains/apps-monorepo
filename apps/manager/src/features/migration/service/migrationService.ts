@@ -1501,7 +1501,6 @@ const reconcileSubmittedAtomicBatch = async (params: {
         domains: params.plan.registryContext
           .filter(({ domain }) => submission.names.includes(domain.name))
           .map(({ domain }) => domain),
-        toBlock: receipt.blockNumber,
         ownTransactionHash: submission.hash,
       })
     await verifyAtomicMigrationBatch({
@@ -2377,7 +2376,6 @@ const executeRemainingAtomicBatches = async (params: {
     })
     await assertSupportedSubnameMigration({
       publicClient: params.publicClient,
-      ownerAddress: params.plan.migrationOwner,
       classified: remaining,
       inventory: subnameInventory,
       onInventory: (inventory) => {
@@ -2452,7 +2450,6 @@ const executeRemainingAtomicBatches = async (params: {
           domains: params.plan.registryContext
             .filter(({ domain }) => batch.names.includes(domain.name))
             .map(({ domain }) => domain),
-          toBlock: receipt.blockNumber,
           ownTransactionHash: hash,
         })
       await verifyAtomicMigrationBatch({

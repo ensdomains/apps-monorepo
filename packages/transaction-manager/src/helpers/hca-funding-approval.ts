@@ -592,8 +592,6 @@ const approvalMachine = setup({
   output: ({ context }) => context.result,
   states: {
     running: {
-      initial: 'checking',
-      states: { checking: {}, consent: {}, wallet: {}, receipt: {} },
       invoke: {
         src: 'execute',
         input: ({ context, self }) => ({
@@ -612,24 +610,7 @@ const approvalMachine = setup({
         },
       },
       on: {
-        progress: [
-          {
-            guard: ({ event }) => event.state.kind === 'approval',
-            target: '.consent',
-            actions: 'publish',
-          },
-          {
-            guard: ({ event }) => event.state.kind === 'approval-wallet',
-            target: '.wallet',
-            actions: 'publish',
-          },
-          {
-            guard: ({ event }) => event.state.kind === 'approval-receipt',
-            target: '.receipt',
-            actions: 'publish',
-          },
-          { target: '.checking', actions: 'publish' },
-        ],
+        progress: { actions: 'publish' },
       },
     },
     finished: { type: 'final' },

@@ -604,7 +604,6 @@ export const migrationUiMachine = setup({
                 renewalDiscardConfirmation: ({ event }) => event.confirmation,
               }),
             },
-            'migration.progress': { actions: 'setProgress' },
             'renewal.approvalRequired': {
               actions: 'setRenewalApprovalRequired',
             },

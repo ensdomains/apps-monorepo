@@ -41,7 +41,7 @@ export const makeRpcSubnameInventory = (params: {
       hash: namehash('rpc-fixture-block'),
       timestamp: params.timestamp ?? 1000n,
     },
-    registries: [{ address: V1_CONTRACTS.LegacyRegistry, fromBlock: 0n }],
+    registries: [{ address: V1_CONTRACTS.LegacyRegistry }],
     roots: params.rootNames.map((name) => ({ node: namehash(name), name })),
     rootSources: params.domains
       .filter(({ name }) => roots.has(name))

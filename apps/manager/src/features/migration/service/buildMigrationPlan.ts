@@ -372,7 +372,6 @@ const fetchLockedResolverProfiles = async (params: {
   readonly candidates: readonly LockedResolverReplacement[]
   readonly profileKeys: readonly V1ProfileKeys[]
   readonly publicClient: PublicClient
-  readonly verificationClient?: PublicClient
   readonly signal?: AbortSignal
 }): Promise<ReadonlyMap<Hex, Profile>> => {
   try {
@@ -383,7 +382,6 @@ const fetchLockedResolverProfiles = async (params: {
         v1ResolverAddress: v1Resolver,
       })),
       publicClient: params.publicClient,
-      verificationClient: params.verificationClient,
       profileKeys: params.profileKeys,
       signal: params.signal,
     })
@@ -492,7 +490,6 @@ export const assertLockedResolverReplacementRecordSafety = async (
     candidates,
     profileKeys: result.value,
     publicClient,
-    verificationClient,
     signal,
   })
   signal?.throwIfAborted()

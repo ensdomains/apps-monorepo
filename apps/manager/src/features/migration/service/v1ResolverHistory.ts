@@ -53,7 +53,7 @@ const MAINNET_RESOLVER_STARTS: Readonly<Record<string, bigint>> = {
   '0xf29100983e058b709f3d539b0c765937b804ac15': 22_764_828n,
 }
 
-export type ResolverHistoryRequest = {
+type ResolverHistoryRequest = {
   readonly resolver: Address
   readonly sources: readonly V1ProfileSource[]
   readonly fromBlock: bigint
@@ -286,27 +286,6 @@ export const parseResolverHistory = (
   return result.map(() => records)
 }
 
-export const supplementalKeysForSource = (
-  source: V1ProfileSource,
-  records: readonly ResolverHistoryRecord[],
-) => {
-  const matching = records.filter(
-    ({ node, resolver }) =>
-      node.toLowerCase() === source.id.toLowerCase() &&
-      resolver.toLowerCase() === source.resolver.toLowerCase(),
-  )
-  return {
-    interfaceIds: [
-      ...new Set(
-        matching.flatMap((record) =>
-          record.kind === 'interface' ? [record.interfaceId] : [],
-        ),
-      ),
-    ],
-    hasName: matching.some(({ kind }) => kind === 'name'),
-  }
-}
-
 /** History discovers keys, including cleared ones; current contract reads supply values. */
 export const profileKeysForSource = (
   source: V1ProfileSource,
@@ -317,7 +296,6 @@ export const profileKeysForSource = (
       node.toLowerCase() === source.id.toLowerCase() &&
       resolver.toLowerCase() === source.resolver.toLowerCase(),
   )
-  const supplemental = supplementalKeysForSource(source, matching)
   return {
     id: source.id.toLowerCase(),
     texts: [
@@ -342,7 +320,13 @@ export const profileKeysForSource = (
         ),
       ),
     ],
-    interfaceIds: supplemental.interfaceIds,
-    ...(supplemental.hasName && { hasName: true }),
+    interfaceIds: [
+      ...new Set(
+        matching.flatMap((record) =>
+          record.kind === 'interface' ? [record.interfaceId] : [],
+        ),
+      ),
+    ],
+    ...(matching.some(({ kind }) => kind === 'name') && { hasName: true }),
   }
 }

@@ -345,7 +345,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     prompt: fundingPrompt,
     confirmFunding,
     confirmApproval,
-    approvalState = { kind: 'idle' },
+    approvalState,
     onApprovalState,
     approve: approveFunding,
     decline: declineFunding,

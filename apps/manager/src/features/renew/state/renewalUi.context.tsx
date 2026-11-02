@@ -105,11 +105,3 @@ export const createRenewalUiSelector =
   ) =>
   (uiActor: Actor<typeof renewalUiMachine>) =>
     useSelector(uiActor, selector, compare)
-
-export const useRenewalUiSelector = <T,>(
-  selector: (snapshot: RenewalUiSnapshot) => T,
-  compare?: (a: T, b: T) => boolean,
-) => {
-  const { uiActor } = useRenewalUiContext()
-  return useSelector(uiActor, selector, compare)
-}

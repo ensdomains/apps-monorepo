@@ -731,7 +731,6 @@ export const assertSubnameRecreationUnchanged = async (params: {
   readonly verificationClient?: PublicClient
   readonly snapshot: SubnameRecreationSnapshot
   readonly domains: readonly V1Domain[]
-  readonly toBlock?: bigint
   readonly ownTransactionHash?: Hex
 }): Promise<void> => {
   assertSubnameRecreationSnapshotCurrent(params.snapshot)
@@ -836,7 +835,6 @@ export const assertSubnameRecreationUnchanged = async (params: {
 export const assertSupportedSubnameMigration = async (params: {
   readonly publicClient: PublicClient
   readonly verificationClient?: PublicClient
-  readonly ownerAddress?: Address
   readonly classified: readonly ClassifiedName[]
   readonly inventory?: RpcSubnameInventory
   readonly onInventory?: (

@@ -53,7 +53,7 @@ export const getMigrationEstimateProgress = ({
   return { stage, percentage: Math.max(previous?.percentage ?? 0, percentage) }
 }
 
-export type MigrationEstimateUpdate = {
+type MigrationEstimateUpdate = {
   readonly stage: MigrationEstimateStage
   readonly names: readonly string[]
 }

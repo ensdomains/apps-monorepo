@@ -17,7 +17,7 @@ import {
 } from './subnameRecreation'
 import type { UpgradeReadCoordinator } from './upgradeReadCoordinator'
 
-export type PrepareUpgradeParameters = {
+type PrepareUpgradeParameters = {
   readonly ownerAddress: Address | undefined
   readonly hcaAddress: Address | undefined
   readonly publicClient: PublicClient | undefined
@@ -164,7 +164,6 @@ const prepareWithReads = async (params: PrepareUpgradeParameters) => {
       const impact = await assertSupportedSubnameMigration({
         publicClient,
         verificationClient: params.verificationClient,
-        ownerAddress,
         classified: plan.classified,
         inventory: discovery?.inventory,
         signal: params.signal,

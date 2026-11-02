@@ -136,6 +136,9 @@ beforeEach(() => {
   mocks.useHcaFundingPrompt.mockReturnValue({
     prompt: null,
     confirmFunding: vi.fn(),
+    confirmApproval: vi.fn(),
+    approvalState: { kind: 'idle' },
+    onApprovalState: vi.fn(),
     approve: vi.fn(),
     decline: vi.fn(),
   })

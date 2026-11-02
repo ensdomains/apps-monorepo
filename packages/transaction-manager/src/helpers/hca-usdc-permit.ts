@@ -40,9 +40,7 @@ const PERMIT_ABI = parseAbi([
   'function nonces(address owner) view returns (uint256)',
 ])
 
-export class HcaPermitValidationError extends TaggedError(
-  'HcaPermitValidationError',
-)<{
+class HcaPermitValidationError extends TaggedError('HcaPermitValidationError')<{
   readonly cause: unknown
 }> {
   constructor(input: { readonly cause: unknown }) {

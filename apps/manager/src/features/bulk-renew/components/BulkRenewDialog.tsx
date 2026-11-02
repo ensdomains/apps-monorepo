@@ -245,7 +245,7 @@ export const BulkRenewDialog = ({
       <HcaFundingApprovalDialog
         onApprove={submit.approveFunding}
         onDecline={submit.declineFunding}
-        state={submit.approvalState ?? { kind: 'idle' }}
+        state={submit.approvalState}
       />
       <RenewalFundingDialog
         onApprove={submit.approveFunding}

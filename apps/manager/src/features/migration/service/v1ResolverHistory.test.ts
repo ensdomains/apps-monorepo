@@ -13,7 +13,6 @@ import {
   planResolverHistory,
   profileKeysForSource,
   RESOLVER_HISTORY_ABI,
-  supplementalKeysForSource,
 } from './v1ResolverHistory'
 
 const source = {
@@ -346,13 +345,25 @@ describe('resolver history', () => {
       [interfaceLog, interfaceLog, nameLog],
       request,
     )._unsafeUnwrap()
-    expect(supplementalKeysForSource(source, records)).toEqual({
+    expect(profileKeysForSource(source, records)).toEqual({
+      id: source.id,
+      texts: [],
+      coinTypes: [],
+      hasContentHash: false,
+      abiContentTypes: [],
       interfaceIds: ['0x12345678'],
       hasName: true,
     })
     expect(
-      supplementalKeysForSource({ ...source, resolver: zeroAddress }, records),
-    ).toEqual({ interfaceIds: [], hasName: false })
+      profileKeysForSource({ ...source, resolver: zeroAddress }, records),
+    ).toEqual({
+      id: source.id,
+      texts: [],
+      coinTypes: [],
+      hasContentHash: false,
+      abiContentTypes: [],
+      interfaceIds: [],
+    })
   })
 
   it.each([

@@ -11,7 +11,7 @@ import {
   type ResolverHistoryRecord,
 } from './v1ResolverHistory'
 
-export class ReadV1ResolverHistoryError extends TaggedError(
+class ReadV1ResolverHistoryError extends TaggedError(
   'ReadV1ResolverHistoryError',
 )<{
   readonly cause: unknown
