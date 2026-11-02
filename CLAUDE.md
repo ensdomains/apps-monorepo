@@ -61,6 +61,20 @@ unknown }>` per operation, `ResultFn` for multi-step async `Result`s,
 
 Inside `packages/transaction-manager/`, also follow its `CLAUDE.md`.
 
+## Creating Linear tickets
+
+Before creating, drafting, splitting or refining a Linear ticket, follow the
+latest `ens-linear-tickets` skill from the ens-labs-wiki (onboarding clones it to
+`~/ens/ens-labs-wiki`; it changes often):
+
+1. Run `git -C <wiki> fetch origin main`. On a clean `main` checkout, also run
+   `git -C <wiki> pull --ff-only`. Never reset, stash or switch branches.
+2. If `skills/ens-linear-tickets/` still differs from `origin/main` (local
+   edits), read it from `origin/main` with `git show`, not the local copy.
+3. Load `skills/ens-linear-tickets/SKILL.md` and follow it.
+4. If there is no wiki clone, the fetch fails, or the skill is missing, say so,
+   use whatever copy exists (noting its commit), and don't block the task.
+
 ## PR Conventions when working from Linear tickets
 
 This is a monorepo with multiple apps under `apps/`. When working on a ticket,

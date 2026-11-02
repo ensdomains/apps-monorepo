@@ -10,12 +10,16 @@ import {
   InvalidInputRpcError,
   NonceTooLowError,
   type PublicClient,
+  TransactionReceiptNotFoundError,
+  toEventSelector,
+  WaitForTransactionReceiptTimeoutError,
   type WalletClient,
   zeroAddress,
   zeroHash,
 } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Connector } from 'wagmi'
 import { chain } from '@/config'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { classifyNames } from './classifyNames'
@@ -38,6 +42,17 @@ const OWNER = '0x1111111111111111111111111111111111111111' as const
 const OTHER = '0x2222222222222222222222222222222222222222' as const
 const APPROVAL_HASH = `0x${'a'.repeat(64)}` as Hex
 const RENEWAL_HASH = `0x${'b'.repeat(64)}` as Hex
+// checkIsSafeWallet reads only `type` and the WalletConnect session's peer.
+const SAFE_CONNECTOR = {
+  type: 'walletConnect',
+  getProvider: async () => ({
+    session: {
+      peer: {
+        metadata: { name: 'Safe{Wallet}', url: 'https://app.safe.global' },
+      },
+    },
+  }),
+} as unknown as Connector
 const DAY = 86_400n
 const NOW = 2_000_000_000n
 
@@ -143,10 +158,20 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     }
     return { status: state.renewalStatus }
   })
+  // Only the hashes the wallet returned were mined; a safeTxHash never is.
+  const getTransactionReceipt = vi.fn(async ({ hash }: { hash: Hex }) => {
+    if (hash !== APPROVAL_HASH && hash !== RENEWAL_HASH)
+      throw new TransactionReceiptNotFoundError({ hash })
+    return {}
+  })
+  const getLogs = vi.fn(async (): Promise<readonly unknown[]> => [])
   const publicClient = {
     chain,
     getBlock: vi.fn(async () => ({ number: 100n, timestamp: state.now })),
+    getBlockNumber: vi.fn(async () => 100n),
+    getLogs,
     readContract,
+    getTransactionReceipt,
     waitForTransactionReceipt,
     simulateContract: vi.fn(async () => ({})),
   } as unknown as PublicClient
@@ -199,6 +224,7 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     writeContract,
     readContract,
     waitForTransactionReceipt,
+    getLogs,
   }
 }
 
@@ -697,6 +723,79 @@ describe('bulk grace renewal', () => {
       'approving',
       'approval-confirming',
     ])
+  })
+
+  const renewFromSafe = async (renewalExecution: 'Success' | 'Failure') => {
+    const s = setup()
+    const quote = await s.quote()
+    const executed = new Map<Hex, Hex>([
+      [`0x${'c'.repeat(64)}`, APPROVAL_HASH],
+      [`0x${'d'.repeat(64)}`, RENEWAL_HASH],
+    ])
+    const receiptOf = s.waitForTransactionReceipt.getMockImplementation()
+    s.waitForTransactionReceipt.mockImplementation(async ({ hash }) => {
+      const safeTxHash = executed.get(hash)
+      if (!safeTxHash || !receiptOf)
+        throw new WaitForTransactionReceiptTimeoutError({ hash })
+      return receiptOf({ hash: safeTxHash })
+    })
+    s.getLogs.mockResolvedValue(
+      [...executed].map(([transactionHash, safeTxHash]) => ({
+        topics: [
+          toEventSelector(
+            `Execution${safeTxHash === RENEWAL_HASH ? renewalExecution : 'Success'}(bytes32,uint256)`,
+          ),
+          safeTxHash,
+        ],
+        data: zeroHash,
+        transactionHash,
+      })),
+    )
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      connector: SAFE_CONNECTOR,
+    })
+    return { quote, result }
+  }
+
+  it('settles a Safe{Wallet} approval and renewal from their executions', async () => {
+    const { result } = await renewFromSafe('Success')
+
+    expect(result._unsafeUnwrap()[0]?.registration?.expiryDate).toBe(
+      (NOW + 7n * DAY).toString(),
+    )
+  })
+
+  it('clears a Safe{Wallet} renewal whose execution failed so it can be retried', async () => {
+    const { quote, result } = await renewFromSafe('Failure')
+
+    expect(result.isErr()).toBe(true)
+    expect(readPendingGraceRenewal(quote)).toBeNull()
+  })
+
+  it('confirms a Safe{Wallet} renewal that executed before the log lookback', async () => {
+    const s = setup()
+    const quote = await s.quote()
+    const safeTxHash: Hex = `0x${'d'.repeat(64)}`
+    writePendingGraceRenewal(pendingGraceRenewalForQuote(quote, safeTxHash))
+    for (const item of quote.items)
+      s.state.expiry.set(item.domain.labelhash, item.targetExpiry)
+    s.waitForTransactionReceipt.mockRejectedValue(
+      new WaitForTransactionReceiptTimeoutError({ hash: safeTxHash }),
+    )
+
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      connector: SAFE_CONNECTOR,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(readPendingGraceRenewal(quote)).toBeNull()
+    expect(s.writeContract).not.toHaveBeenCalled()
   })
 
   it('resumes a known transaction after a timeout without submitting again', async () => {

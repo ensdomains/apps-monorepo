@@ -21,6 +21,7 @@ import {
   type WalletClient,
 } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
+import type { Connector } from 'wagmi'
 import { envConfig } from '@/config'
 import { resolveRenewalLabel } from '@/features/renew/utils/renewableName'
 import { V1_CONTRACTS } from '../contracts/addresses'
@@ -122,9 +123,10 @@ export const syncMigrationWrappers = async (params: {
   readonly names: readonly ClassifiedName[]
   readonly owner: Address
   readonly walletClient: WalletClient
+  readonly connector?: Connector
   readonly publicClient: PublicClient
 }): Promise<void> => {
-  const { names, owner, walletClient, publicClient } = params
+  const { names, owner, walletClient, connector, publicClient } = params
   if (names.length === 0) return
   const chainId = envConfig.chain.id
   const [walletChainId, addresses] = await Promise.all([
@@ -174,7 +176,7 @@ export const syncMigrationWrappers = async (params: {
         }),
       },
     },
-    { type: 'eoa', walletClient },
+    { type: 'eoa', walletClient, connector },
     {
       description: 'Sync names before upgrading',
       publicClient,

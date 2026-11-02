@@ -9,13 +9,20 @@
  */
 import type { Page, Route } from '@playwright/test'
 import { namehash } from 'viem'
-import type {
-  V1AddressRecord,
-  V1NameType,
-  V1TextRecord,
+import {
+  V1_PUBLIC_RESOLVER as FIXTURE_V1_RESOLVER,
+  type V1AddressRecord,
+  type V1NameType,
+  type V1TextRecord,
 } from '../fixtures/makeV1Name.js'
+import { publicClient } from './anvil-client.js'
 
-const V1_PUBLIC_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
+/**
+ * The resolver `makeV1Name` writes records to. The app takes record keys from
+ * bigname and reads their values on chain from the resolver bigname reports, so
+ * a different default here replays nothing (GR1 read back null in mock mode).
+ */
+const V1_PUBLIC_RESOLVER = FIXTURE_V1_RESOLVER
 const CHAIN_ID = 11155111
 const META = { as_of: {} }
 const CORS_HEADERS = {
@@ -50,12 +57,30 @@ export type MockV1Name = {
    * does for .eth 2LDs. When omitted, the fuses follow `type`.
    */
   readonly fuses?: number
-  /** Registration expiry timestamp (Unix seconds). Defaults to now + 1 year. */
+  /**
+   * Registration expiry timestamp (Unix seconds). Defaults to one year after
+   * the chain's clock when the mock is installed — not the wall clock: time
+   * specs warp the shared fork months ahead, and a wall-clock year then reads
+   * as long expired.
+   */
   readonly expiryDate?: number
+  /** The V1 resolver to report. Defaults to a known public resolver. */
+  readonly resolver?: string
+  /**
+   * The BaseRegistrar holder when it differs from the registry controller
+   * (`ownerAddress`): the name is listed for, and owned by, the registrant,
+   * and `ownerAddress` is its manager.
+   */
+  readonly registrantAddress?: string
+  /** No live ENSv2 entry: bigname's `unresolvable_reason` says so (GA12). */
+  readonly unreserved?: boolean
   /** V1 records set on this name; only their keys are served. */
   readonly records?: {
     readonly texts?: readonly V1TextRecord[]
     readonly addresses?: readonly V1AddressRecord[]
+    /** Presence, not value: served as the `contenthash` singleton key. */
+    readonly contentHash?: string | null
+    readonly abiContentTypes?: readonly number[]
   }
 }
 
@@ -78,20 +103,23 @@ const fuseFlags = (fuses: number) => ({
 
 const isWrapped = (n: MockV1Name) => n.type === 'wrapped' || n.type === 'locked'
 
-const hasResolver = (n: MockV1Name) => Boolean(n.records) || isWrapped(n)
+const hasResolver = (n: MockV1Name) =>
+  Boolean(n.resolver) || Boolean(n.records) || isWrapped(n)
+const resolverOf = (n: MockV1Name) =>
+  (n.resolver ?? V1_PUBLIC_RESOLVER).toLowerCase()
 
 /** The bigname record for a mock ENSv1 .eth 2LD, as a detail lookup returns it. */
-function v1Record(n: MockV1Name) {
-  const now = Math.floor(Date.now() / 1000)
+function v1Record(n: MockV1Name, now: number) {
   const expiry = String(n.expiryDate ?? now + 365 * 24 * 60 * 60)
-  const owner = n.ownerAddress.toLowerCase()
+  const owner = (n.registrantAddress ?? n.ownerAddress).toLowerCase()
+  const manager = n.ownerAddress.toLowerCase()
   return {
     name: n.name,
     display_name: n.name,
     namespace: 'ens',
     namehash: namehash(n.name),
     owner,
-    manager: owner,
+    manager,
     registered_at: String(now),
     created_at: String(now),
     expires_at: expiry,
@@ -106,18 +134,19 @@ function v1Record(n: MockV1Name) {
         }
       : { expires_at: expiry, wrapper_state: 'unwrapped' },
     ...(hasResolver(n) && {
-      resolver: { chain_id: CHAIN_ID, address: V1_PUBLIC_RESOLVER },
+      resolver: { chain_id: CHAIN_ID, address: resolverOf(n) },
       records: {
         seen_addresses:
           n.records?.addresses?.map(({ coinType }) => String(coinType)) ?? [],
         addresses: {},
         seen_texts: n.records?.texts?.map(({ key }) => key) ?? [],
         texts: {},
-        seen_abis: [],
+        seen_abis: n.records?.abiContentTypes?.map(String) ?? [],
         abis: {},
-        seen_singletons: [],
+        seen_singletons: n.records?.contentHash ? ['contenthash'] : [],
       },
     }),
+    ...(n.unreserved && { unresolvable_reason: 'no_live_ens_v2_entry' }),
     read_status: 'ok',
   }
 }
@@ -127,17 +156,18 @@ function v1ResolverRecords(n: MockV1Name) {
   return {
     data: {
       namespace: 'ens',
-      resolver: { chain_id: CHAIN_ID, address: V1_PUBLIC_RESOLVER },
+      resolver: { chain_id: CHAIN_ID, address: resolverOf(n) },
       records: {},
       inventory: {
         known_keys: [
+          ...(n.records?.contentHash ? ['contenthash'] : []),
           ...(n.records?.texts?.map(({ key }) => `text:${key}`) ?? []),
           ...(n.records?.addresses?.map(({ coinType }) => `addr:${coinType}`) ??
             []),
         ],
         unset_keys: [],
         unsupported_keys: [],
-        abi_content_types: [],
+        abi_content_types: n.records?.abiContentTypes?.map(String) ?? [],
       },
     },
     meta: META,
@@ -145,7 +175,7 @@ function v1ResolverRecords(n: MockV1Name) {
 }
 
 /** The ENSv1 names page for an `authority=ens_v1` address names request. */
-function v1Listing(url: URL, mockNames: readonly MockV1Name[]) {
+function v1Listing(url: URL, mockNames: readonly MockV1Name[], now: number) {
   const address = url.pathname
     .match(/^\/v1\/addresses\/([^/]+)\/names$/)?.[1]
     ?.toLowerCase()
@@ -153,8 +183,14 @@ function v1Listing(url: URL, mockNames: readonly MockV1Name[]) {
     url.searchParams.get('authority')?.split(',').includes('ens_v1') ?? false
   if (!address || !isV1Listing) return undefined
   const rows = mockNames
-    .filter((n) => n.ownerAddress.toLowerCase() === address)
-    .map((n) => ({ ...v1Record(n), relations: ['owner'], is_primary: false }))
+    .filter(
+      (n) => (n.registrantAddress ?? n.ownerAddress).toLowerCase() === address,
+    )
+    .map((n) => ({
+      ...v1Record(n, now),
+      relations: ['owner'],
+      is_primary: false,
+    }))
   console.log(`[mock-v1-names] serving ${rows.length} V1 names for ${address}`)
   return {
     data: rows,
@@ -175,7 +211,7 @@ function nameAtResolver(url: URL, byName: ReadonlyMap<string, MockV1Name>) {
     /^\/v1\/resolvers\/\d+\/([^/]+)\/records$/,
   )?.[1]
   const n = byName.get(url.searchParams.get('name')?.toLowerCase() ?? '')
-  return resolver?.toLowerCase() === V1_PUBLIC_RESOLVER && n && hasResolver(n)
+  return n && hasResolver(n) && resolver?.toLowerCase() === resolverOf(n)
     ? n
     : undefined
 }
@@ -194,44 +230,58 @@ export async function mockV1Names(
 ): Promise<{ readonly markMigrated: (bignameMock: BignameMock) => void }> {
   const byName = new Map(mockNames.map((n) => [n.name.toLowerCase(), n]))
   let isMigrated = false
+  const chainNow = Number(
+    (await publicClient.getBlock({ blockTag: 'latest' })).timestamp,
+  )
 
   const fulfill = (route: Route, json: unknown) =>
     route.fulfill({ status: 200, json, headers: CORS_HEADERS })
 
-  await page.route(/bigname\.sh\/v1\//, async (route) => {
-    const request = route.request()
-    const url = new URL(request.url())
-    if (isMigrated) return route.fallback()
-    if (request.method() === 'OPTIONS') {
-      return route.fulfill({ status: 204, headers: CORS_HEADERS })
-    }
-
-    const listing = v1Listing(url, mockNames)
-    if (listing) return fulfill(route, listing)
-
-    const atResolver = nameAtResolver(url, byName)
-    if (atResolver) return fulfill(route, v1ResolverRecords(atResolver))
-
-    if (request.method() === 'POST' && url.pathname === '/v1/lookup') {
-      const inputs: { name?: string }[] = request.postDataJSON()?.inputs ?? []
-      const known = inputs.map((input) =>
-        input.name ? byName.get(input.name.toLowerCase()) : undefined,
-      )
-      if (inputs.length > 0 && known.every((n) => n !== undefined)) {
-        return fulfill(route, {
-          data: inputs.map((input, index) => {
-            const n = known[index]
-            return n
-              ? { input, kind: 'name', status: 'ok', record: v1Record(n) }
-              : { input, kind: 'name', status: 'not_found' }
-          }),
-          meta: META,
-        })
+  // Hosted bigname in CI, and the local one (:5660) when a dev server reads it
+  // — the same match as mock-bigname.ts. Missing :5660 sent mock-mode runs to
+  // the real local index, which nothing had waited on.
+  await page.route(
+    /(?:bigname\.sh|(?:localhost|127\.0\.0\.1):\d+)\/v1\//,
+    async (route) => {
+      const request = route.request()
+      const url = new URL(request.url())
+      if (isMigrated) return route.fallback()
+      if (request.method() === 'OPTIONS') {
+        return route.fulfill({ status: 204, headers: CORS_HEADERS })
       }
-    }
 
-    return route.fallback()
-  })
+      const listing = v1Listing(url, mockNames, chainNow)
+      if (listing) return fulfill(route, listing)
+
+      const atResolver = nameAtResolver(url, byName)
+      if (atResolver) return fulfill(route, v1ResolverRecords(atResolver))
+
+      if (request.method() === 'POST' && url.pathname === '/v1/lookup') {
+        const inputs: { name?: string }[] = request.postDataJSON()?.inputs ?? []
+        const known = inputs.map((input) =>
+          input.name ? byName.get(input.name.toLowerCase()) : undefined,
+        )
+        if (inputs.length > 0 && known.every((n) => n !== undefined)) {
+          return fulfill(route, {
+            data: inputs.map((input, index) => {
+              const n = known[index]
+              return n
+                ? {
+                    input,
+                    kind: 'name',
+                    status: 'ok',
+                    record: v1Record(n, chainNow),
+                  }
+                : { input, kind: 'name', status: 'not_found' }
+            }),
+            meta: META,
+          })
+        }
+      }
+
+      return route.fallback()
+    },
+  )
 
   return {
     /** After a migration, the names are ENSv2 names served by the shared mock. */

@@ -2,7 +2,7 @@ import {
   type Web3ProviderBackend,
   Web3RequestKind,
 } from '@ensdomains/headless-web3-provider'
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import type { Hash } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
@@ -89,7 +89,10 @@ export async function connectWithHeadlessWallet(
   const connectButton = page.getByRole('button', {
     name: /^connect( login)?$/i,
   })
-  await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
+  await connectButton.waitFor({
+    state: 'visible',
+    timeout: process.env.MATRIX_LOCAL_RPC_ONLY === '1' ? 60_000 : 15_000,
+  })
 
   // The manager is an SSR app: the server-rendered Connect button can be
   // clickable before the wallet layer hydrates `openConnectModal`, so the
@@ -136,6 +139,11 @@ export async function clickThroughEnableSessions(page: Page): Promise<void> {
 // Backend auth modal (SIWE) — app-level, independent of the connect method
 // ---------------------------------------------------------------------------
 
+/** The app's BackendAuthModal (SIWE prompt), located by its title. */
+export function getBackendAuthDialog(page: Page): Locator {
+  return page.getByRole('alertdialog', { name: 'Authenticate to continue' })
+}
+
 /**
  * Dismiss the app's BackendAuthModal (SIWE prompt) by typing the hidden
  * `SKIP` key sequence. Idempotent: if the modal doesn't appear within the
@@ -161,7 +169,7 @@ export async function dismissBackendAuthModal(
 ): Promise<void> {
   const timeout = options.timeout ?? 60_000
 
-  const dialog = page.getByRole('alertdialog', { name: 'Verify your wallet' })
+  const dialog = getBackendAuthDialog(page)
 
   try {
     await dialog.waitFor({ state: 'visible', timeout })
@@ -204,7 +212,10 @@ export async function signInBackendAuthModal(
   // The button stays disabled until the wagmi walletClient is ready,
   // so we explicitly wait for the enabled state rather than just
   // visible.
-  const signInBtn = page.getByRole('button', { name: 'Sign in with Wallet' })
+  const signInBtn = getBackendAuthDialog(page).getByRole('button', {
+    name: 'Sign in',
+    exact: true,
+  })
 
   try {
     await signInBtn.waitFor({ state: 'visible', timeout })
@@ -222,9 +233,7 @@ export async function signInBackendAuthModal(
     await page.waitForTimeout(500)
   }
 
-  console.log(
-    '[manager-auth] BackendAuthModal visible — clicking "Sign in with Wallet"',
-  )
+  console.log('[manager-auth] BackendAuthModal visible — clicking "Sign in"')
   await signInBtn.click()
 
   // The modal closes once `backendAuthStore.authKey` is populated.
@@ -389,4 +398,32 @@ export function fixRawHashPersonalSign(
     }
     return originalRequest(req)
   }) as typeof wallet.request
+}
+
+/** Focus the dialog so its input-ignoring hotkey is received, then verify dismissal. */
+export async function dismissMatrixBackendOverlay(page: Page): Promise<void> {
+  const dialog = getBackendAuthDialog(page)
+  try {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      // A locator handler may still be running when its read-only session
+      // closes. Cleanup must not reject an unrelated configuration checkpoint.
+      if (page.isClosed() || !(await dialog.isVisible())) return
+      try {
+        await dialog.focus({ timeout: 2000 })
+        // The app's four-key sequence expires after one second. Avoid adding
+        // artificial delays while several independent browser fixtures load.
+        await page.keyboard.type('skip')
+        await expect(dialog).toBeHidden({ timeout: 1200 })
+        return
+      } catch {
+        /* retry after hydration, within the caller's assertion deadline */
+      }
+    }
+    await expect(
+      dialog,
+      'Local test auth overlay must be dismissed before app assertions',
+    ).toBeHidden({ timeout: 1000 })
+  } catch (error) {
+    if (!page.isClosed()) throw error
+  }
 }

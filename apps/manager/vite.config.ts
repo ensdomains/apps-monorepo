@@ -23,29 +23,29 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       proxy: {
         '/api': {
-          target: 'http://localhost:2999',
+          target: process.env.E2E_BACKEND_URL ?? 'http://localhost:2999',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
         // Local E2E: proxy RPC to Anvil fork.
         '/rpc': {
-          target: 'http://127.0.0.1:8545',
+          target: process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/rpc/, ''),
         },
         // Local E2E: proxy bundler + paymaster to avoid CORS.
         '/bundler': {
-          target: 'http://127.0.0.1:4337',
+          target: process.env.E2E_BUNDLER_URL ?? 'http://127.0.0.1:4337',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/bundler/, ''),
         },
         '/paymaster': {
-          target: 'http://127.0.0.1:3002',
+          target: process.env.E2E_PAYMASTER_URL ?? 'http://127.0.0.1:3002',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/paymaster/, ''),
         },
         '/orchestrator': {
-          target: 'http://127.0.0.1:3007',
+          target: process.env.E2E_ORCHESTRATOR_URL ?? 'http://127.0.0.1:3007',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/orchestrator/, ''),
         },

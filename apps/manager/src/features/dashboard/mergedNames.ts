@@ -25,6 +25,8 @@ export type MergedItem = {
   readonly sortCreated: bigint | null
   readonly name: DashboardName
   readonly isMigrationEligible: boolean
+  /** Whoever holds it can upgrade it, whether or not that is the viewer. */
+  readonly isMigrationUpgradeable: boolean
 }
 
 export type ExpiryCta = 'renew' | 'remindMe'
@@ -45,6 +47,7 @@ const formatMergedExpiryDate = (
 const toMergedItem = (
   name: DashboardName,
   eligibleKeys: ReadonlySet<string>,
+  upgradeableKeys: ReadonlySet<string>,
 ): MergedItem => ({
   kind: name.protocol,
   key: name.key,
@@ -54,13 +57,17 @@ const toMergedItem = (
   name,
   isMigrationEligible:
     name.protocol === 'v1' && eligibleKeys.has(name.key.toLowerCase()),
+  isMigrationUpgradeable:
+    name.protocol === 'v1' && upgradeableKeys.has(name.key.toLowerCase()),
 })
 
 /** Rows for names already in bigname's order. */
 export const toMergedItems = (
   names: readonly DashboardName[],
   eligibleKeys: ReadonlySet<string> = new Set(),
-): MergedItem[] => names.map((name) => toMergedItem(name, eligibleKeys))
+  upgradeableKeys: ReadonlySet<string> = new Set(),
+): MergedItem[] =>
+  names.map((name) => toMergedItem(name, eligibleKeys, upgradeableKeys))
 
 export type MergedRowMetadata = {
   readonly label: string
@@ -79,6 +86,7 @@ export type MergedRowMetadata = {
   readonly useDefaultAvatar: boolean
   readonly avatarUrl: string | undefined
   readonly isMigrationEligible: boolean
+  readonly isMigrationUpgradeable: boolean
 }
 
 export const mergedRowMetadata = (
@@ -98,7 +106,7 @@ export const mergedRowMetadata = (
       graceEndsAt === null ? null : toDateFromSeconds(Number(graceEndsAt)),
       now,
     )
-  const { isMigrationEligible } = item
+  const { isMigrationEligible, isMigrationUpgradeable } = item
   const daysUntilExpiry = getDaysUntil(expiryDate)
   const expiringSoon = isExpiringSoon(expiryDate, 30, daysUntilExpiry)
   const expiryCta =
@@ -135,5 +143,6 @@ export const mergedRowMetadata = (
     useDefaultAvatar: isInGrace,
     avatarUrl,
     isMigrationEligible,
+    isMigrationUpgradeable,
   }
 }

@@ -9,7 +9,6 @@ import {
  * Learn more plus Upgrade to v2, the pair every migration prompt offers.
  * `learnMore` drops the first button where there is only room for one;
  * `isWrapped` relabels the upgrade for a name that is unwrapped on the way.
- * The upgrade is left out when the build has no manager to link to.
  */
 export const UpgradeActions = ({
   name,
@@ -34,13 +33,11 @@ export const UpgradeActions = ({
         </a>
       </Button>
     )}
-    {MANAGER_UPGRADE_URL && (
-      <Button className="rounded-xs" asChild variant="entity" size="xs">
-        <a href={MANAGER_UPGRADE_URL} target="_blank" rel="noopener noreferrer">
-          <ArrowUpCircle className="size-4 shrink-0" />
-          {isWrapped ? 'Unwrap and upgrade' : 'Upgrade to v2'}
-        </a>
-      </Button>
-    )}
+    <Button className="rounded-xs" asChild variant="entity" size="xs">
+      <a href={MANAGER_UPGRADE_URL} target="_blank" rel="noopener noreferrer">
+        <ArrowUpCircle className="size-4 shrink-0" />
+        {isWrapped ? 'Unwrap and upgrade' : 'Upgrade to v2'}
+      </a>
+    </Button>
   </div>
 )

@@ -27,13 +27,22 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import { type CcipGateway, startCcipGateway } from '../helpers/ccip-gateway.js'
 import { createBignameMock } from '../helpers/mock-bigname.js'
 import {
   connectWithHeadlessWallet,
   type PortalAccounts,
 } from '../helpers/portal-auth.js'
+import { createMakeMigratedName } from './makeMigratedName.js'
 import { createMakeName } from './makeName.js'
+import { createMakeSubname, type MakeSubname } from './makeSubname.js'
+import {
+  createMakeOffchainName,
+  type OffchainName,
+  type OffchainNameConfig,
+} from './offchainName.js'
 import { createTime, type Time } from './time.js'
+import { createWallets, type Wallets } from './wallets.js'
 
 // Override Sepolia chain to point at the local Anvil fork.
 // The headless provider's internal walletClient uses this RPC URL
@@ -76,6 +85,16 @@ const ERC20_ABI = parseAbi([
   'function mint(address to, uint256 amount)',
   'function balanceOf(address owner) view returns (uint256)',
 ])
+
+// Shared indexer mock. Always constructed, but only installed on a page when
+// `E2E_MOCK_BIGNAME=true` globally OR the test opts in via
+// `mockBignameEnabled` (see the `page` fixture override below).
+const bignameMock = createBignameMock()
+
+/** The shared mock, for helpers that register names outside a fixture. */
+export const portalBignameMock: {
+  readonly addName: typeof bignameMock.addName
+} = bignameMock
 
 const users = ['user', 'user2', 'user3', 'user4'] as const
 export type User = (typeof users)[number]
@@ -132,7 +151,7 @@ async function waitForTx(hash: Hash) {
 // transfer.spec.ts sending to `user2`). Wiping the code restores a plain EOA
 // on the fork. Clear it for every test account, since any of them can end up
 // as a transfer recipient or registration owner.
-async function clearAnvilSquattedCode(address: Address) {
+export async function clearAnvilSquattedCode(address: Address) {
   await testClient.setCode({ address, bytecode: '0x' })
 }
 
@@ -184,7 +203,7 @@ async function ensurePortalStablecoinBalances(address: Address) {
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
-type PortalFixtures = {
+export type PortalFixtures = {
   /** Headless web3 wallet backend — use to authorize transactions. */
   wallet: Web3ProviderBackend
   /** Test accounts derived from the Anvil mnemonic. */
@@ -195,18 +214,57 @@ type PortalFixtures = {
   time: Time
   /** Register names on the anvil fork (supports expired / premium states). */
   makeName: ReturnType<typeof createMakeName>
+  /** Register a V1 name and migrate it to V2 (unwrapped / unlocked / locked). */
+  makeMigratedName: ReturnType<typeof createMakeMigratedName>
+  /**
+   * Named participants (owner / manager / stranger) with mid-test switching.
+   * Every authorization negative case needs this — see `fixtures/wallets.ts`.
+   */
+  wallets: Wallets
+  /** Create N-deep V2 subnames through UserRegistry — see `makeSubname.ts`. */
+  makeSubname: MakeSubname
+  /** A local CCIP-Read gateway, started per test (helpers/ccip-gateway.ts). */
+  ccipGateway: CcipGateway
+  /**
+   * Register a V1 name owned by `user` whose resolver answers only through
+   * `ccipGateway`, plus an ownerless wildcard subname under it.
+   */
+  makeOffchainName: (config?: OffchainNameConfig) => Promise<OffchainName>
+  /**
+   * Per-test/per-file opt-in for the mock indexer (an "option" fixture — set
+   * with `test.use({ mockBignameEnabled: true })`, not overridden directly).
+   * Off by default: the portal suite exercises the real local bigname end to
+   * end. A test opts in when it needs deterministic control over an
+   * indexer-backed count instead of waiting on real indexing — see
+   * transfer.spec.ts's registry-detach tests.
+   */
+  mockBignameEnabled: boolean
+  /**
+   * Mock indexer control, for tests running with `mockBignameEnabled: true`.
+   * Configuring a response with these has no effect if the mock was never
+   * installed on the page.
+   */
+  mockBigname: {
+    setRegistryOccupants: typeof bignameMock.setRegistryOccupants
+    setSubregistryHistory: typeof bignameMock.setSubregistryHistory
+    enabled: boolean
+  }
 }
 
-// Shared bigname mock, active only when E2E_MOCK_BIGNAME=true.
-const bignameMock = createBignameMock()
-
 export const test = base.extend<PortalFixtures>({
-  page: async ({ page, baseURL }, use) => {
+  mockBignameEnabled: [false, { option: true }],
+
+  // The portal reads bigname like the manager (#1354), so the shared bigname
+  // mock goes in whenever `E2E_MOCK_BIGNAME=true` (CI). A test can still opt
+  // in on its own with `mockBignameEnabled` while the rest of a run uses the
+  // local bigname.
+  page: async ({ page, baseURL, mockBignameEnabled }, use) => {
     // Answer the analytics banner up front so it never covers a control.
     await page
       .context()
       .addCookies([{ name: 'ens_analytics_consent', value: '0', url: baseURL }])
-    await bignameMock.installIfEnabled(page)
+    if (mockBignameEnabled) await bignameMock.install(page)
+    else await bignameMock.installIfEnabled(page)
     await use(page)
   },
 
@@ -260,6 +318,50 @@ export const test = base.extend<PortalFixtures>({
           }),
         })
       return name
+    })
+  },
+
+  makeMigratedName: async ({ accounts }, use) => {
+    await use(createMakeMigratedName({ accounts }))
+  },
+
+  wallets: async ({ page, wallet, accounts }, use) => {
+    await use(createWallets({ page, wallet, accounts }))
+  },
+
+  makeSubname: async ({ wallets }, use) => {
+    await use(createMakeSubname({ account: wallets.account('owner') }))
+  },
+
+  ccipGateway: async ({}, use) => {
+    const gateway = await startCcipGateway()
+    await use(gateway)
+    await gateway.close()
+  },
+
+  makeOffchainName: async ({ accounts, ccipGateway }, use) => {
+    const inner = createMakeOffchainName({
+      gateway: ccipGateway,
+      userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
+    })
+    await use(async (config) => {
+      const offchainName = await inner(config)
+      if (bignameMock.enabled)
+        bignameMock.addName({
+          name: offchainName.name,
+          owner: accounts.getAddress('user'),
+          resolver: offchainName.resolver,
+          protocol: 'v1',
+        })
+      return offchainName
+    })
+  },
+
+  mockBigname: async ({ mockBignameEnabled }, use) => {
+    await use({
+      setRegistryOccupants: bignameMock.setRegistryOccupants,
+      setSubregistryHistory: bignameMock.setSubregistryHistory,
+      enabled: mockBignameEnabled,
     })
   },
 })
