@@ -34,7 +34,10 @@ import {
   readRpcSubnameInventory,
 } from './readRpcSubnameInventory'
 import { readRpcSubnameMigrationImpact } from './readRpcSubnameMigrationImpact'
-import { getProvenSubnameName } from './rpcSubnameInventory'
+import {
+  getKnownSubnamePreimages,
+  getProvenSubnameName,
+} from './rpcSubnameInventory'
 import { isEmptyRpcSubnameTombstone } from './rpcSubnameMigrationImpact'
 import {
   assertSubnameRecreationSnapshotCurrent,
@@ -609,10 +612,16 @@ export const discoverSubnameRecreation = async (params: {
           signal,
         )
       : []
+    const hintPreimages = getKnownSubnamePreimages(hints)
     const imported = children.map((child) => {
+      const hint = hintPreimages.get(child.node)
       const name =
         child.name ??
-        getProvenSubnameName({ ...child, knownNames: hints, wrapperName: '0x' })
+        getProvenSubnameName({
+          ...child,
+          knownNames: hint ? [hint] : [],
+          wrapperName: '0x',
+        })
       if (!name)
         return fail(
           root.domain.name,

@@ -30,6 +30,12 @@ export const RESOLVER_HISTORY_ABI = parseAbi([
 ])
 
 export const RESOLVER_HISTORY_TOPICS = RESOLVER_HISTORY_ABI.map(toEventSelector)
+// Match an exact topic before single-event decoding, which skips signature lookup.
+const RESOLVER_EVENTS_BY_TOPIC = new Map(
+  RESOLVER_HISTORY_ABI.map(
+    (event) => [toEventSelector(event).toLowerCase(), [event]] as const,
+  ),
+)
 const UNINDEXED_TEXT_CHANGED_ABI = parseAbi([
   'event TextChanged(bytes32 indexed node, string indexedKey, string key)',
 ])
@@ -198,7 +204,8 @@ export const parseResolverHistory = (
             decodeEventLog({
               abi: isUnindexedText
                 ? UNINDEXED_TEXT_CHANGED_ABI
-                : RESOLVER_HISTORY_ABI,
+                : (RESOLVER_EVENTS_BY_TOPIC.get(log.topics[0]) ??
+                  RESOLVER_HISTORY_ABI),
               topics: log.topics,
               data: log.data,
               strict: true,
