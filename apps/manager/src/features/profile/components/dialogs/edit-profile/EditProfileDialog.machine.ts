@@ -1,5 +1,6 @@
 import type { EOASigner } from '@ens-apps/transaction-manager'
 import type { Address, PublicClient, WalletClient } from 'viem'
+import type { Connector } from 'wagmi'
 import { assign, type SnapshotFrom, setup } from 'xstate'
 import type {
   SaveRecordsParams,
@@ -26,6 +27,8 @@ export interface SaveDeps {
   readonly retryCount?: number
   /** Connected owner wallet; the sender for every profile write. */
   readonly walletClient?: WalletClient | null
+  /** The wallet's wagmi connector. A Safe{Wallet} one answers with safeTxHashes. */
+  readonly connector?: Connector
   /**
    * When true, deploy/assign a controlled resolver and apply the before→after
    * record diff instead of writing in place.
@@ -116,7 +119,11 @@ const getPendingSave = (
       name: deps.name,
       chainId: deps.chainId,
       ownerAddress: deps.walletClient.account.address,
-      signer: { type: 'eoa', walletClient: deps.walletClient },
+      signer: {
+        type: 'eoa',
+        walletClient: deps.walletClient,
+        connector: deps.connector,
+      },
       publicClient: deps.publicClient,
       sourceResolver: deps.sourceResolver,
       assertCurrentIdentity: deps.assertCurrentIdentity,
@@ -151,7 +158,11 @@ const getPendingSave = (
       name: deps.name,
       before,
       after,
-      signer: { type: 'eoa', walletClient: deps.walletClient },
+      signer: {
+        type: 'eoa',
+        walletClient: deps.walletClient,
+        connector: deps.connector,
+      },
       accountAddress: deps.walletClient.account.address,
       publicClient: deps.publicClient,
       chainId: deps.chainId,

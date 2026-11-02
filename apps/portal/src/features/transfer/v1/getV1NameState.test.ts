@@ -1,4 +1,9 @@
-import { ChildFuses, decodeFuses, ParentFuses } from '@ensdomains/ensjs/utils'
+import {
+  ChildFuses,
+  decodeFuses,
+  FullParentFuses,
+  ParentFuses,
+} from '@ensdomains/ensjs/utils'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { deriveV1NameState, type V1NameReads } from './getV1NameState'
@@ -230,5 +235,33 @@ describe('deriveV1NameState — the parent', () => {
       }),
     )
     expect(state?.ancestorRegistration).toBe('expired')
+  })
+})
+
+describe('deriveV1NameState — whether it can be wrapped back', () => {
+  const WRAP_DEFAULTS =
+    FullParentFuses.PARENT_CANNOT_CONTROL | FullParentFuses.IS_DOT_ETH
+
+  it.each([
+    ['a wrapped .eth 2LD with only the wrap’s own fuses', WRAP_DEFAULTS, true],
+    [
+      'a wrapped .eth 2LD that burned CANNOT_UNWRAP',
+      WRAP_DEFAULTS | ChildFuses.CANNOT_UNWRAP,
+      false,
+    ],
+    // Wrapped back with `wrap`, a subname would lose PARENT_CANNOT_CONTROL.
+    ['a wrapped subname', ParentFuses.PARENT_CANNOT_CONTROL, false],
+  ])('%s: %s', (_, fuses, expected) => {
+    const state = deriveV1NameState(
+      reads({ owner: wrappedOwner(ME), wrapped: wrapperData(ME, fuses) }),
+    )
+    expect(state?.isRewrappable).toBe(expected)
+  })
+
+  it('is no for an unwrapped name', () => {
+    const state = deriveV1NameState(
+      reads({ owner: { owner: ME, ownershipLevel: 'registry' } }),
+    )
+    expect(state?.isRewrappable).toBe(false)
   })
 })

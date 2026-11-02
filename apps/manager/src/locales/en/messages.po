@@ -323,6 +323,10 @@ msgstr "About"
 msgid "About {0} more needed on {chainName}."
 msgstr "About {0} more needed on {chainName}."
 
+#: src/features/migration/components/SmartTransactionsNotice.tsx
+msgid "About Smart Transactions"
+msgstr "About Smart Transactions"
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr "Account address:"
@@ -535,6 +539,10 @@ msgstr "At least {0} more needed on {chainName}."
 msgid "Auth address:"
 msgstr "Auth address:"
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Authenticate to continue"
+msgstr "Authenticate to continue"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Authorizing payment and registering your name"
 msgstr "Authorizing payment and registering your name"
@@ -632,6 +640,7 @@ msgstr "Can you share your order number?"
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -751,6 +760,10 @@ msgstr "Checking your account…"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking your earlier payment"
 msgstr "Checking your earlier payment"
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Checking your smart account balance…"
+msgstr "Checking your smart account balance…"
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Checking your subnames"
@@ -880,6 +893,10 @@ msgstr "Connect your wallet"
 msgid "Connect your wallet to revoke sessions."
 msgstr "Connect your wallet to revoke sessions."
 
+#: src/features/wallet/hooks/useLeftoverFunds.ts
+msgid "Connect your wallet to withdraw."
+msgstr "Connect your wallet to withdraw."
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Connected"
 msgstr "Connected"
@@ -898,10 +915,12 @@ msgid "Contact methods"
 msgstr "Contact methods"
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
+#: src/features/profile/components/view/ProfileContentHashSection.tsx
 msgid "Content hash"
 msgstr "Content hash"
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue"
 msgstr "Continue"
 
@@ -912,6 +931,11 @@ msgstr "Continue in wallet"
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Continue migration"
 msgstr "Continue migration"
+
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Continue registration"
+msgstr "Continue registration"
 
 #: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Continue to Telegram"
@@ -1026,6 +1050,10 @@ msgstr "Couldn’t load this name’s records, so they’re hidden and editing i
 msgid "Couldn’t load this name’s records. Please try again in a moment."
 msgstr "Couldn’t load this name’s records. Please try again in a moment."
 
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Couldn't load your smart account balance."
+msgstr "Couldn't load your smart account balance."
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't prepare your account. Reconnect your wallet and try again."
 msgstr "Couldn't prepare your account. Reconnect your wallet and try again."
@@ -1053,6 +1081,10 @@ msgstr "Couldn't revoke sessions. Please try again."
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't verify your name records. Please try again."
 msgstr "Couldn't verify your name records. Please try again."
+
+#: src/features/wallet/hooks/useLeftoverFunds.ts
+msgid "Couldn't withdraw your leftover funds. Please try again."
+msgstr "Couldn't withdraw your leftover funds. Please try again."
 
 #: src/components/HcaFundingConfirmDialog.tsx
 msgid "Covered by your account balance"
@@ -1151,10 +1183,6 @@ msgstr "Does not expire"
 #: src/components/NameFallbackCard.tsx
 msgid "doesn't exist"
 msgstr "doesn't exist"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Domain transfer and expiry notifications"
-msgstr "Domain transfer and expiry notifications"
 
 #: src/features/bulk-renew/components/SuccessStep.tsx
 msgid "Done"
@@ -1395,7 +1423,6 @@ msgid "Failed to set primary name"
 msgstr "Failed to set primary name"
 
 #: src/features/notifications/RequireBackendAuth.tsx
-#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Failed to sign in. Please try again."
 msgstr "Failed to sign in. Please try again."
 
@@ -1610,6 +1637,10 @@ msgstr "it has no ENSv2 reservation."
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "It takes two transactions from your wallet, one to set up the account and one to reset access. Both require ETH for gas. You will need to enable a new smart session afterwards."
 msgstr "It takes two transactions from your wallet, one to set up the account and one to reset access. Both require ETH for gas. You will need to enable a new smart session afterwards."
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "It takes two transactions from your wallet, one to set up the account and one to withdraw. Both require ETH for gas."
+msgstr "It takes two transactions from your wallet, one to set up the account and one to withdraw. Both require ETH for gas."
 
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "its parent name, or one above it, was upgraded without it."
@@ -2179,6 +2210,10 @@ msgstr "Please connect your wallet first"
 msgid "Please finish connecting your wallet, then try again"
 msgstr "Please finish connecting your wallet, then try again"
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Please sign in with your connected wallet."
+msgstr "Please sign in with your connected wallet."
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "Preferences"
 msgstr "Preferences"
@@ -2703,6 +2738,10 @@ msgstr "Retrying will attempt the renewal again from where it left off."
 msgid "Return to Dashboard"
 msgstr "Return to Dashboard"
 
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Returning leftover funds…"
+msgstr "Returning leftover funds…"
+
 #. placeholder {0}: truncateAddress(address)
 #: src/features/profile/components/view/ReverseNameView.tsx
 msgid "Reverse record for {0}"
@@ -2744,10 +2783,6 @@ msgstr "Save and Continue"
 #: src/features/notifications/settings/preferences.tsx
 msgid "Save Preferences"
 msgstr "Save Preferences"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Saved favorites and searches"
-msgstr "Saved favorites and searches"
 
 #: src/features/notifications/settings/preferences.tsx
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -2957,18 +2992,17 @@ msgstr "Show more"
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Sign in"
+msgstr "Sign in"
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 
 #: src/features/notifications/RequireBackendAuth.tsx
-#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Sign in with Wallet"
 msgstr "Sign in with Wallet"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
-msgstr "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Sign once to enable gasless transactions for your ENS operations."
@@ -2998,6 +3032,14 @@ msgstr "Sign-in link copied. Open it in your browser, then return here."
 msgid "Signature cancelled. You can try again."
 msgstr "Signature cancelled. You can try again."
 
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Signing didn't go through. Please try again."
+msgstr "Signing didn't go through. Please try again."
+
+#: src/features/wallet/components/BackendAuthModal.tsx
+msgid "Signing in is the recommended way to use the ENS App. It enables notifications for transfers and expirations, and saved items like favorites and searches."
+msgstr "Signing in is the recommended way to use the ENS App. It enables notifications for transfers and expirations, and saved items like favorites and searches."
+
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
@@ -3018,6 +3060,14 @@ msgstr "Smart account access"
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Smart session access reset"
 msgstr "Smart session access reset"
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart session access was reset, but your leftover funds are still in your smart account. Use \"Withdraw leftover funds\" to get them back."
+msgstr "Smart session access was reset, but your leftover funds are still in your smart account. Use \"Withdraw leftover funds\" to get them back."
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart session access was reset. Your smart account's funds stay there until your registration of {registrationName} completes."
+msgstr "Smart session access was reset. Your smart account's funds stay there until your registration of {registrationName} completes."
 
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Smart sessions off"
@@ -3457,10 +3507,6 @@ msgstr "Times shown in your local time zone ({timezoneLabel})"
 msgid "Tip: if your browser asks how long to allow notifications, pick the permanent option."
 msgstr "Tip: if your browser asks how long to allow notifications, pick the permanent option."
 
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "To enable these features later, open your wallet menu and select Verify wallet ownership."
-msgstr "To enable these features later, open your wallet menu and select Verify wallet ownership."
-
 #: src/features/notifications/settings/contact-methods/push.tsx
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
@@ -3504,6 +3550,7 @@ msgstr "Trademark Guidelines"
 #: src/features/profile/components/view/ProfileView.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
+#: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Try again"
 msgstr "Try again"
 
@@ -3511,6 +3558,7 @@ msgstr "Try again"
 #: src/features/renew/workflow/result/FailureStep.tsx
 #: src/features/wallet/components/EnableSessionModal.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Try Again"
 msgstr "Try Again"
 
@@ -3654,6 +3702,10 @@ msgstr "Use your ENS name in wallets, apps, blockchains, and browsers you alread
 msgid "uses an unsupported TLD"
 msgstr "uses an unsupported TLD"
 
+#: src/features/migration/components/SmartTransactionsNotice.tsx
+msgid "Using MetaMask? Turn off Smart Transactions in its settings before you start, or this page can lose track of your upgrade."
+msgstr "Using MetaMask? Turn off Smart Transactions in its settings before you start, or this page can lose track of your upgrade."
+
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "V1"
 msgstr "V1"
@@ -3698,10 +3750,6 @@ msgstr "Verify Wallet"
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Verify wallet ownership"
 msgstr "Verify wallet ownership"
-
-#: src/features/wallet/components/BackendAuthModal.tsx
-msgid "Verify your wallet"
-msgstr "Verify your wallet"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Verifying registration on-chain"
@@ -3961,6 +4009,27 @@ msgstr "When a name expires, a temporary fee is added on top of its base price t
 msgid "Where did this come from?"
 msgstr "Where did this come from?"
 
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
+msgid "Withdraw"
+msgstr "Withdraw"
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Withdraw leftover funds"
+msgstr "Withdraw leftover funds"
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Withdraw to wallet"
+msgstr "Withdraw to wallet"
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Withdrawing requires a wallet transaction and ETH for gas."
+msgstr "Withdrawing requires a wallet transaction and ETH for gas."
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Withdrawing…"
+msgstr "Withdrawing…"
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Wrapped name access"
 msgstr "Wrapped name access"
@@ -3994,8 +4063,8 @@ msgid "You can keep browsing, but registering or managing names needs a session.
 msgstr "You can keep browsing, but registering or managing names needs a session. Try again when you're ready."
 
 #: src/features/wallet/components/BackendAuthModal.tsx
-msgid "You can still use the manager, but these features won't be available:"
-msgstr "You can still use the manager, but these features won't be available:"
+msgid "You can sign in anytime from your wallet menu."
+msgstr "You can sign in anytime from your wallet menu."
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "You cancelled the request."
@@ -4117,6 +4186,11 @@ msgstr "Your expired name is now in its {graceDays}-day grace period. Renew by <
 msgid "Your journey with ENS has given you these <0>traits</0>"
 msgstr "Your journey with ENS has given you these <0>traits</0>"
 
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Your leftover funds are back in your wallet."
+msgstr "Your leftover funds are back in your wallet."
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "Your mint was submitted. Check its status before trying another mint."
 msgstr "Your mint was submitted. Check its status before trying another mint."
@@ -4162,6 +4236,10 @@ msgstr "Your new profile is ready."
 msgid "Your own USDC, left in your ENS account by a payment you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
 msgstr "Your own USDC, left in your ENS account by a payment you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
 
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Your payments go through your smart account, which is topped up for the highest quoted cost. Anything that isn't spent stays there. You can send it back to your wallet at any time."
+msgstr "Your payments go through your smart account, which is topped up for the highest quoted cost. Anything that isn't spent stays there. You can send it back to your wallet at any time."
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Your permissions changed. Go back to check the updated estimate."
 msgstr "Your permissions changed. Go back to check the updated estimate."
@@ -4190,6 +4268,10 @@ msgstr "Your registration completed while you were away."
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Your registration of {heldForRegistration} is waiting to complete and needs these funds. You can withdraw what's left once it's done."
+msgstr "Your registration of {heldForRegistration} is waiting to complete and needs these funds. You can withdraw what's left once it's done."
+
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
@@ -4197,6 +4279,26 @@ msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your saved upgrade needs attention"
 msgstr "Your saved upgrade needs attention"
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Your smart account also holds {leftoverFunds} left over from earlier payments. It will be sent back to your wallet in one more transaction."
+msgstr "Your smart account also holds {leftoverFunds} left over from earlier payments. It will be sent back to your wallet in one more transaction."
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Your smart account also holds {leftoverFunds}, which your registration of {heldFor} needs to complete. It stays there, and you can withdraw what's left once the registration is done."
+msgstr "Your smart account also holds {leftoverFunds}, which your registration of {heldFor} needs to complete. It stays there, and you can withdraw what's left once the registration is done."
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Your smart account has no leftover funds."
+msgstr "Your smart account has no leftover funds."
+
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
+msgid "Your smart account holds {amount} left over from your payments."
+msgstr "Your smart account holds {amount} left over from your payments."
+
+#: src/features/dashboard/components/LeftoverFundsNotice.tsx
+msgid "Your smart account holds {amount}, which your registration of {registrationName} still needs."
+msgstr "Your smart account holds {amount}, which your registration of {registrationName} still needs."
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Your smart account isn't set up on-chain yet. Sessions you signed for it still work once anyone sets it up, so revoking needs a setup transaction first."

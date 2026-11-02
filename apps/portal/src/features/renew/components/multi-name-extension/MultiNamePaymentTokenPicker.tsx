@@ -5,12 +5,14 @@ import { type Address, erc20Abi } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
 import { MessageCard } from '@/components/ui/message-card'
+import { isSepoliaBuild } from '@/config'
 import {
   type PaymentTokenDisplay,
   PaymentTokenList,
 } from '@/features/register/components/PaymentTokenList'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
+import { getPaymentHeading } from '@/features/register/utils/paymentHeading'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import type {
   MultiRenewalEntry,
@@ -203,7 +205,9 @@ export const MultiNamePaymentTokenPicker = ({
 
   return (
     <>
-      <h2 className="text-base font-medium">Select payment method</h2>
+      <h2 className="text-base font-medium">
+        {getPaymentHeading('renew', isSepoliaBuild)}
+      </h2>
       {noSupportedTokenHasSufficientBalance ? (
         <MessageCard
           variant="warning"
