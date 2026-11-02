@@ -315,6 +315,20 @@ function getPaymentTokenAddress(token: TOKEN_SYMBOL, chain: Chain): Address {
   })
 }
 
+/** The caller's token if given, else the symbol's default; every step uses this. */
+export function resolvePaymentTokenAddress(
+  input: {
+    readonly selectedToken: TOKEN_SYMBOL
+    readonly paymentTokenAddress?: Address
+  },
+  chain: Chain,
+): Address {
+  return (
+    input.paymentTokenAddress ??
+    getPaymentTokenAddress(input.selectedToken, chain)
+  )
+}
+
 export function getSignerAddress(signer: Signer): Address {
   if (signer.type === 'eoa') {
     const account = signer.walletClient.account
@@ -709,7 +723,7 @@ export function readPaymentTokenAllowanceActor(input: {
   /** Spender to read the allowance for. Defaults to the legacy registrar. */
   registrarAddress?: Address
   /** Payment token to read. Defaults to the symbol's payment token. */
-  paymentTokenAddress?: Address
+  readonly paymentTokenAddress?: Address
 }): ResultAsync<bigint, Error> {
   const registrarAddress =
     input.registrarAddress ??
@@ -717,12 +731,10 @@ export function readPaymentTokenAllowanceActor(input: {
       chain: requireEnsChain(input.publicClient, 'registration'),
       contract: 'ensEthRegistrar',
     })
-  const tokenAddress =
-    input.paymentTokenAddress ??
-    getPaymentTokenAddress(
-      input.selectedToken,
-      requireEnsChain(input.publicClient, 'registration'),
-    )
+  const tokenAddress = resolvePaymentTokenAddress(
+    input,
+    requireEnsChain(input.publicClient, 'registration'),
+  )
   return fromPromise(
     readContract(input.publicClient, {
       address: tokenAddress,
@@ -750,7 +762,7 @@ export function readPaymentAuthorizationActor(input: {
   /** Spender/pricer to read. Defaults to the legacy registrar. */
   registrarAddress?: Address
   /** Payment token to read. Defaults to the symbol's payment token. */
-  paymentTokenAddress?: Address
+  readonly paymentTokenAddress?: Address
 }): ResultAsync<{ allowance: bigint; livePrice: bigint }, MulticallErrorType> {
   const registrarAddress =
     input.registrarAddress ??
@@ -758,12 +770,10 @@ export function readPaymentAuthorizationActor(input: {
       chain: requireEnsChain(input.publicClient, 'registration'),
       contract: 'ensEthRegistrar',
     })
-  const tokenAddress =
-    input.paymentTokenAddress ??
-    getPaymentTokenAddress(
-      input.selectedToken,
-      requireEnsChain(input.publicClient, 'registration'),
-    )
+  const tokenAddress = resolvePaymentTokenAddress(
+    input,
+    requireEnsChain(input.publicClient, 'registration'),
+  )
   const label = input.name.replace('.eth', '')
   return fromPromise(
     (async () => {
@@ -1175,7 +1185,7 @@ export function submitApprovalActor(input: {
   /** Spender to approve. Defaults to the legacy registrar. */
   registrarAddress?: Address
   /** Token to approve. Defaults to the symbol's payment token. */
-  paymentTokenAddress?: Address
+  readonly paymentTokenAddress?: Address
 }): ResultAsync<string, Error> {
   const registrarAddress =
     input.registrarAddress ??
@@ -1188,12 +1198,10 @@ export function submitApprovalActor(input: {
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
 
-      const tokenAddress =
-        input.paymentTokenAddress ??
-        getPaymentTokenAddress(
-          input.selectedToken,
-          requireEnsChain(input.publicClient, 'registration'),
-        )
+      const tokenAddress = resolvePaymentTokenAddress(
+        input,
+        requireEnsChain(input.publicClient, 'registration'),
+      )
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
       console.log(
@@ -1256,6 +1264,8 @@ export function submitEoaSetupBundleActor(input: {
   readonly owner: Address
   readonly duration: bigint
   readonly selectedToken: TOKEN_SYMBOL
+  /** The token the caller chose to pay with; see `RegistrationContext`. */
+  readonly paymentTokenAddress?: Address
   /** Approved when the live price can't be read. */
   readonly tokenPrice: bigint
   readonly signer: Signer
@@ -1272,6 +1282,7 @@ export function submitEoaSetupBundleActor(input: {
     name: input.name,
     duration: input.duration,
     selectedToken: input.selectedToken,
+    paymentTokenAddress: input.paymentTokenAddress,
     publicClient: input.publicClient,
   })
     .map(({ allowance, livePrice }) =>
@@ -1302,7 +1313,7 @@ export function submitEoaSetupBundleActor(input: {
             ? []
             : [
                 {
-                  to: getPaymentTokenAddress(input.selectedToken, chain),
+                  to: resolvePaymentTokenAddress(input, chain),
                   data: encodeTokenApprovalData(
                     registrarAddress,
                     authorizedPaymentAmount(approvedPrice),
@@ -1351,6 +1362,8 @@ export function submitRegistrationActor(input: {
   duration: bigint
   readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
+  /** The token the caller chose to pay with; see `RegistrationContext`. */
+  readonly paymentTokenAddress?: Address
   owner: Address
   publicClient: PublicClient
   resolverAddress: Address
@@ -1365,8 +1378,8 @@ export function submitRegistrationActor(input: {
     (async () => {
       const accountAddress = getSignerAddress(input.signer)
 
-      const paymentToken = getPaymentTokenAddress(
-        input.selectedToken,
+      const paymentToken = resolvePaymentTokenAddress(
+        input,
         requireEnsChain(input.publicClient, 'registration'),
       )
       // Normalize to lowercase to avoid Rhinestone SDK validation issues

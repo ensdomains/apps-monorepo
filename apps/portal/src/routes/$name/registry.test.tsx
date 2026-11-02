@@ -60,6 +60,19 @@ vi.mock('@/features/registry/components/v2/ConfigureRegistryForm', () => ({
   ),
 }))
 
+vi.mock('@/features/registry/components/v2/RestorePreviousRegistry', () => ({
+  RestorePreviousRegistry: ({
+    previousRegistry,
+  }: {
+    previousRegistry: string
+  }) => (
+    <div
+      data-testid="restore-previous-registry"
+      data-registry={previousRegistry}
+    />
+  ),
+}))
+
 vi.mock('@/features/registry/components/v2/ReconfigureRegistryForm', () => ({
   ReconfigureRegistryForm: ({ name }: { name: string }) => (
     <div data-testid="reconfigure-registry-form" data-name={name} />
@@ -122,6 +135,7 @@ type SubregistryHistoryResult = {
 const NEVER_LINKED: SubregistryHistory = {
   linkCount: 0,
   previousRegistry: undefined,
+  isRestorable: false,
 }
 
 // Replaced wholesale per test rather than mutated field-by-field, so no case
@@ -259,16 +273,41 @@ describe('V2RegistryInfo', () => {
 
   describe('a subregistry slot that was zeroed, not never set (immunefi #93026)', () => {
     const PREVIOUS_REGISTRY = '0x3333333333333333333333333333333333333333'
-    const detachedLeaf = () => {
+    const detachedLeaf = ({ isRestorable = false } = {}) => {
       setRegistries([
         zeroAddress, // foo.eth's subregistry — detached, not virgin
         '0x1111111111111111111111111111111111111111', // .eth registry
         '0x0000000000000000000000000000000000000000', // root
       ])
       setSubregistryHistory({
-        data: { linkCount: 1, previousRegistry: PREVIOUS_REGISTRY },
+        data: {
+          linkCount: 1,
+          previousRegistry: PREVIOUS_REGISTRY,
+          isRestorable,
+        },
       })
     }
+
+    it('offers to point the name back at the previous registry', () => {
+      detachedLeaf({ isRestorable: true })
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(screen.getByTestId('restore-previous-registry')).toHaveAttribute(
+        'data-registry',
+        PREVIOUS_REGISTRY,
+      )
+    })
+
+    it('does not offer the restore when the clear is not an undo', () => {
+      detachedLeaf({ isRestorable: false })
+
+      render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+      expect(
+        screen.queryByTestId('restore-previous-registry'),
+      ).not.toBeInTheDocument()
+    })
 
     it('does not offer the configure form on a detached slot', () => {
       detachedLeaf()

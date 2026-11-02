@@ -4,14 +4,17 @@ import {
   registrySetRecordSnippet,
   registrySetSubnodeRecordSnippet,
 } from '@ensdomains/ensjs-abi/registry'
+import { baseRegistrarSafeTransferFromWithDataSnippet } from '@ensdomains/ensjs-abi/v1/baseRegistrar'
 import {
   nameWrapperSetRecordSnippet,
   nameWrapperSetSubnodeOwnerSnippet,
   nameWrapperSetSubnodeRecordSnippet,
+  nameWrapperUnwrapEth2ldSnippet,
 } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import {
   type Address,
   concatHex,
+  decodeAbiParameters,
   decodeFunctionData,
   isAddressEqual,
   keccak256,
@@ -80,6 +83,12 @@ describe('getV1SubnameDeleteGate', () => {
       child(),
       'wrap-then-delete',
     ],
+    [
+      'an unknown label under a wrapped parent that can be wrapped back',
+      parent({ isWrapped: true, isRewrappable: true }),
+      child({ labelName: null }),
+      'unwrap-parent-then-delete',
+    ],
   ])('deletes %s', (_, parentState, childState, target) => {
     expect(getV1SubnameDeleteGate(parentState, childState)).toEqual({
       reason: 'ok',
@@ -125,6 +134,19 @@ describe('getV1SubnameDeleteGate', () => {
       'unknown-label',
     ],
     [
+      'an unknown label under a wrapped parent that can’t be wrapped back',
+      parent({ isWrapped: true }),
+      child({ labelName: null }),
+      'unknown-label',
+    ],
+    // Zeroing it in the registry would strand its wrapper token.
+    [
+      'a wrapped unknown label under a parent that can be wrapped back',
+      parent({ isWrapped: true, isRewrappable: true }),
+      child({ labelName: null, wrapping: WRAPPED }),
+      'unknown-label',
+    ],
+    [
       'the wrap step under a parent that burned CANNOT_CREATE_SUBDOMAIN',
       parent({ isWrapped: true, cannotCreateSubdomain: true }),
       child(),
@@ -152,8 +174,12 @@ const calls = (intents: readonly CustomTransactionIntent[]) =>
     }
     return { to: request.to, data: request.data }
   })
-const contract = (name: 'ensLegacyRegistry' | 'ensNameWrapper') =>
-  getChainContractAddress({ chain: ensChain, contract: name })
+const contract = (
+  name:
+    | 'ensLegacyRegistry'
+    | 'ensNameWrapper'
+    | 'ensBaseRegistrarImplementation',
+) => getChainContractAddress({ chain: ensChain, contract: name })
 
 // WEB-1909: a subname's own holder can delete it, the way the legacy app lets
 // them, whether or not they also hold the parent.
@@ -202,6 +228,16 @@ describe('getV1SubnameDeleteAccess', () => {
     })
   })
 
+  it('deletes an unknown-label subname as its holder rather than unwrapping the parent', () => {
+    expect(
+      getV1SubnameDeleteAccess(
+        parent({ isWrapped: true, isRewrappable: true }),
+        asHolder({ labelName: null }),
+        ACCOUNT,
+      ),
+    ).toEqual({ reason: 'ok', target: 'registry-as-holder' })
+  })
+
   it('still refuses the parent holder an emancipated subname they do not hold', () => {
     expect(
       getV1SubnameDeleteAccess(
@@ -235,7 +271,11 @@ describe('getV1SubnameDeleteAccess', () => {
 
 describe('prepareDeleteV1SubnameTransactions', () => {
   const prepare = (
-    target: 'registry' | 'wrapper' | 'wrap-then-delete',
+    target:
+      | 'registry'
+      | 'wrapper'
+      | 'wrap-then-delete'
+      | 'unwrap-parent-then-delete',
     labelName: string | null = 'sub',
   ) =>
     calls(
@@ -311,6 +351,69 @@ describe('prepareDeleteV1SubnameTransactions', () => {
           data: remove.data,
         }).functionName,
     ).toBe('setSubnodeRecord')
+  })
+
+  it('unwraps the parent, zeroes the subname by its labelhash, then wraps the parent back', () => {
+    const [unwrap, remove, rewrap, ...rest] = prepare(
+      'unwrap-parent-then-delete',
+      null,
+    )
+
+    expect(rest).toEqual([])
+    expect(
+      unwrap && isAddressEqual(unwrap.to, contract('ensNameWrapper')),
+    ).toBe(true)
+    expect(
+      unwrap &&
+        decodeFunctionData({
+          abi: nameWrapperUnwrapEth2ldSnippet,
+          data: unwrap.data,
+        }).args,
+    ).toEqual([labelhash('parent'), ACCOUNT, ACCOUNT])
+    expect(
+      remove && isAddressEqual(remove.to, contract('ensLegacyRegistry')),
+    ).toBe(true)
+    expect(
+      remove &&
+        decodeFunctionData({
+          abi: registrySetSubnodeRecordSnippet,
+          data: remove.data,
+        }).args,
+    ).toEqual([
+      namehash('parent.eth'),
+      labelhash('sub'),
+      zeroAddress,
+      zeroAddress,
+      0n,
+    ])
+    expect(
+      rewrap &&
+        isAddressEqual(rewrap.to, contract('ensBaseRegistrarImplementation')),
+    ).toBe(true)
+    const [from, to, tokenId, data] = rewrap
+      ? decodeFunctionData({
+          abi: baseRegistrarSafeTransferFromWithDataSnippet,
+          data: rewrap.data,
+        }).args
+      : []
+    expect([from, to, tokenId]).toEqual([
+      ACCOUNT,
+      contract('ensNameWrapper'),
+      BigInt(labelhash('parent')),
+    ])
+    // No owner fuses, and a zero resolver keeps the parent's resolver.
+    expect(
+      data &&
+        decodeAbiParameters(
+          [
+            { type: 'string' },
+            { type: 'address' },
+            { type: 'uint16' },
+            { type: 'address' },
+          ],
+          data,
+        ),
+    ).toEqual(['parent', ACCOUNT, 0, zeroAddress])
   })
 
   // WEB-1458: the wrapper hashes the label it is given, so it must be the row's.
