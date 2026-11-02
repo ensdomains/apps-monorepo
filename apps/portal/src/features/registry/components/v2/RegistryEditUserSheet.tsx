@@ -27,6 +27,10 @@ import { prepareGrantRegistryRolesTransaction } from '@/features/registry/helper
 import { prepareRevokeRegistryRolesTransaction } from '@/features/registry/helpers/revokeRegistryRoles'
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
 import { useRevokeRegistryRolesMutation } from '@/features/registry/hooks/useRevokeRegistryRoles'
+import {
+  type UpgradeGuardNotice,
+  useUpgradeRevokeGuard,
+} from '@/features/registry/hooks/useUpgradeRevokeGuard'
 import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -58,6 +62,30 @@ type RegistryEditUserSheetProps = {
   /** The user's currently held roles at the registry root resource. */
   currentRoles: readonly Role[]
 }
+
+const UpgradeGuardNoticeAlert = ({
+  notice,
+}: {
+  readonly notice: UpgradeGuardNotice
+}) =>
+  notice === null ? null : (
+    <Alert variant="warning">
+      <AlertDescription>
+        {match(notice)
+          .with(
+            'grant',
+            () =>
+              "The Registrar role can't be granted on this registry until it's upgraded to a newer version.",
+          )
+          .with(
+            'upgrade',
+            () =>
+              'This registry needs at least one user with the Upgrade role.',
+          )
+          .exhaustive()}
+      </AlertDescription>
+    </Alert>
+  )
 
 export const RegistryEditUserSheet = ({
   open,
@@ -171,6 +199,13 @@ export const RegistryEditUserSheet = ({
   }
 
   const removableRoles = getRemovableRoles(currentRoles, callerAdminRoles)
+  const upgradeGuard = useUpgradeRevokeGuard({
+    registryAddress,
+    account,
+    saveGrants: diff.toGrant,
+    saveRevokes: diff.toRevoke,
+    removeRevokes: removableRoles,
+  })
 
   const removeAdminLockoutRoles = removableRoles.filter((role) =>
     selfSoleAdminRoles.has(role),
@@ -284,7 +319,11 @@ export const RegistryEditUserSheet = ({
                 type="button"
                 variant="outline"
                 onClick={handleRemove}
-                disabled={removableRoles.length === 0 || isPending}
+                disabled={
+                  removableRoles.length === 0 ||
+                  upgradeGuard.isRemoveBlocked ||
+                  isPending
+                }
               >
                 <Trash2 className="size-4" />
                 Remove user
@@ -316,8 +355,14 @@ export const RegistryEditUserSheet = ({
                 </Alert>
               )}
 
+              <UpgradeGuardNoticeAlert notice={upgradeGuard.notice} />
+
               <div className="flex justify-end">
-                <Button type="submit" variant="default" disabled={!hasChanges}>
+                <Button
+                  type="submit"
+                  variant="default"
+                  disabled={!hasChanges || upgradeGuard.isSaveBlocked}
+                >
                   {match({ isPending })
                     .with({ isPending: true }, () => 'Saving...')
                     .otherwise(() => 'Save')}

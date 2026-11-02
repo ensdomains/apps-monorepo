@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-router'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { ok } from 'neverthrow'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { NavSection } from '@/features/navigation/Header/account/NavSection'
 import type { PrimaryNamePreparation } from '@/features/profile/service/primaryNamePreparation'
 import { render } from '@/utils/test-utils'
@@ -29,6 +29,7 @@ const rowRecordsQueryKey = createQueryKey<'row-records', NameQueryParams>(
 const PROBED_RESOLVER = '0x00000000000000000000000000000000000000a1'
 /** What a URv1 reports resolving a v2 name through: the read-only `.eth` ENSV2Resolver. */
 const BRIDGE_RESOLVER = '0x00000000000000000000000000000000000000b2'
+const WALLET_CONNECTOR = { id: 'walletConnect' }
 
 const chain = vi.hoisted(() => ({
   primaryName: 'alpha.eth' as string | null,
@@ -40,6 +41,8 @@ const chain = vi.hoisted(() => ({
   read: vi.fn(),
   submit: vi.fn(),
   saveRecords: vi.fn(),
+  setupResolver: vi.fn(),
+  connector: undefined as typeof WALLET_CONNECTOR | undefined,
 }))
 
 const dashboardNamesMock = vi.hoisted(() => ({
@@ -57,6 +60,16 @@ vi.mock('viem/actions', async (original) => ({
   getEnsName: () => chain.read(),
 }))
 vi.mock('@/lib/wagmi/helpers', () => ({ safeGetClient: () => ok({}) }))
+vi.mock('wagmi', async (original) => {
+  const wagmi = await original<typeof import('wagmi')>()
+  return {
+    ...wagmi,
+    useConnection: () => ({
+      ...wagmi.useConnection(),
+      connector: chain.connector,
+    }),
+  }
+})
 vi.mock('@/lib/smart-account', () => ({
   useSmartAccountContext: () => ({
     ownerAddress: chain.owner,
@@ -86,6 +99,15 @@ vi.mock(
       typeof import('@/features/profile/service/profileRecordTransactions')
     >()),
     saveRecords: (args: unknown) => chain.saveRecords(args),
+  }),
+)
+vi.mock(
+  '@/features/profile/service/setupControlledResolver',
+  async (original) => ({
+    ...(await original<
+      typeof import('@/features/profile/service/setupControlledResolver')
+    >()),
+    setupControlledResolver: (args: unknown) => chain.setupResolver(args),
   }),
 )
 vi.mock('@/features/profile/service/profileEthAddress', () => ({
@@ -252,6 +274,8 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
     chain.unreachableNames = new Set()
     chain.registryRead.mockReset().mockResolvedValue(false)
     chain.saveRecords.mockReset().mockResolvedValue({})
+    chain.setupResolver.mockReset().mockResolvedValue(undefined)
+    chain.connector = undefined
     chain.read.mockReset().mockImplementation(async () => chain.primaryName)
     chain.submit
       .mockReset()
@@ -408,6 +432,70 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
       }),
     )
   })
+
+  it.each<{
+    readonly preparation: PrimaryNamePreparation
+    readonly confirmLabel: string
+    readonly write: Mock
+  }>([
+    {
+      preparation: {
+        kind: 'update-eth-address',
+        existingEthAddress: null,
+        resolverAddress: PROBED_RESOLVER,
+      },
+      confirmLabel: 'Confirm',
+      write: chain.saveRecords,
+    },
+    {
+      preparation: {
+        kind: 'setup-resolver',
+        existingEthAddress: null,
+        hasResolver: false,
+        hasOffchainResolver: false,
+      },
+      confirmLabel: 'Continue',
+      write: chain.setupResolver,
+    },
+  ])(
+    'signs the $preparation.kind transactions with the wallet connector, so a Safe{Wallet} settles',
+    async ({ preparation, confirmLabel, write }) => {
+      chain.preparation = preparation
+      chain.connector = WALLET_CONNECTOR
+      await renderDashboard()
+      await expectPrimary('alpha.eth')
+      const list = screen.getByRole('region', { name: 'My Names' })
+      fireEvent.click(
+        within(list).getByRole('button', { name: 'Primary Name' }),
+      )
+      const dialog = await screen.findByRole('dialog', {
+        name: 'Choose Primary Name',
+      })
+      fireEvent.click(
+        within(dialog).getByRole('button', {
+          name: 'Select beta.eth as primary name',
+        }),
+      )
+      const confirm = within(dialog).getByRole('button', {
+        name: 'Set as Primary',
+      })
+      await waitFor(() => expect(confirm).toBeEnabled())
+      fireEvent.click(confirm)
+      const warning = await screen.findByRole('alertdialog', {
+        name: 'Set this as your primary name?',
+      })
+      fireEvent.click(
+        within(warning).getByRole('button', { name: confirmLabel }),
+      )
+
+      await waitFor(() => expect(chain.submit).toHaveBeenCalledOnce())
+      expect(write).toHaveBeenCalledWith(
+        expect.objectContaining({
+          signer: expect.objectContaining({ connector: WALLET_CONNECTOR }),
+        }),
+      )
+    },
+  )
 
   it.each([
     {
