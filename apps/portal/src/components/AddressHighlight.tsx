@@ -1,28 +1,29 @@
+import { type Atom, createAtom, useAtom } from '@xstate/store-react'
 import {
   createContext,
-  type Dispatch,
   type ReactNode,
   useContext,
   useEffect,
   useId,
-  useMemo,
-  useReducer,
+  useState,
 } from 'react'
 import type { Address } from 'viem'
 import {
   type AddressHighlightEvent,
+  type AddressHighlightState,
   activeHighlightKey,
   NO_ADDRESS_HIGHLIGHT,
   nextAddressHighlight,
 } from './addressHighlightState'
 
-interface AddressHighlightContextValue {
-  readonly activeKey: string | undefined
-  readonly dispatch: Dispatch<AddressHighlightEvent>
-}
+type AddressHighlightAtom = Atom<AddressHighlightState>
 
-const AddressHighlightContext =
-  createContext<AddressHighlightContextValue | null>(null)
+// The atom itself never changes, so the context never re-renders its
+// consumers; each badge subscribes to whether its own address is active.
+const AddressHighlightContext = createContext<AddressHighlightAtom | null>(null)
+
+// Read by badges outside a provider (hooks can't be skipped); never set.
+const NO_PROVIDER_ATOM: AddressHighlightAtom = createAtom(NO_ADDRESS_HIGHLIGHT)
 
 /** Checksummed and lower-case copies of one address are the same account. */
 const toHighlightKey = (address: Address) => address.toLowerCase()
@@ -36,15 +37,10 @@ export const AddressHighlightProvider = ({
 }: {
   readonly children: ReactNode
 }) => {
-  const [state, dispatch] = useReducer(
-    nextAddressHighlight,
-    NO_ADDRESS_HIGHLIGHT,
-  )
-  const activeKey = activeHighlightKey(state)
-  const value = useMemo(() => ({ activeKey, dispatch }), [activeKey])
+  const [atom] = useState(() => createAtom(NO_ADDRESS_HIGHLIGHT))
 
   return (
-    <AddressHighlightContext.Provider value={value}>
+    <AddressHighlightContext.Provider value={atom}>
       {children}
     </AddressHighlightContext.Provider>
   )
@@ -64,36 +60,43 @@ interface AddressHighlight {
 
 const NO_HIGHLIGHT: AddressHighlight = { isHighlighted: false }
 
+const dispatch = (atom: AddressHighlightAtom, event: AddressHighlightEvent) =>
+  atom.set((state) => nextAddressHighlight(state, event))
+
 export const useAddressHighlight = (
   address: Address | undefined,
 ): AddressHighlight => {
-  const context = useContext(AddressHighlightContext)
+  const atom = useContext(AddressHighlightContext)
   const sourceId = useId()
   const key = address ? toHighlightKey(address) : undefined
-  const dispatch = context?.dispatch
+  // A boolean, so only badges whose highlight flips re-render.
+  const isHighlighted = useAtom(
+    atom ?? NO_PROVIDER_ATOM,
+    (state) => key !== undefined && activeHighlightKey(state) === key,
+  )
 
   // A badge removed while hovered (e.g. filtered out) gets no leave event.
   useEffect(() => {
-    if (!dispatch || !key) return
-    return () => dispatch({ type: 'remove', sourceId })
-  }, [dispatch, sourceId, key])
+    if (!atom || !key) return
+    return () => dispatch(atom, { type: 'remove', sourceId })
+  }, [atom, sourceId, key])
 
-  if (!context || !key) return NO_HIGHLIGHT
+  if (!atom || !key) return NO_HIGHLIGHT
 
   return {
-    isHighlighted: context.activeKey === key,
+    isHighlighted,
     // A tap has no matching leave, so it would leave the highlight on. Touch
     // still highlights through focus, which the next tap elsewhere clears.
     onPointerEnter: ({ pointerType }) => {
       if (pointerType === 'touch') return
-      context.dispatch({ type: 'enter', input: 'hover', sourceId, key })
+      dispatch(atom, { type: 'enter', input: 'hover', sourceId, key })
     },
     onPointerLeave: ({ pointerType }) => {
       if (pointerType === 'touch') return
-      context.dispatch({ type: 'leave', input: 'hover', sourceId })
+      dispatch(atom, { type: 'leave', input: 'hover', sourceId })
     },
     onFocus: () =>
-      context.dispatch({ type: 'enter', input: 'focus', sourceId, key }),
-    onBlur: () => context.dispatch({ type: 'leave', input: 'focus', sourceId }),
+      dispatch(atom, { type: 'enter', input: 'focus', sourceId, key }),
+    onBlur: () => dispatch(atom, { type: 'leave', input: 'focus', sourceId }),
   }
 }
