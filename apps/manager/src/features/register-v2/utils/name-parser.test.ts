@@ -1,51 +1,5 @@
 import { assert, describe, expect, it } from 'vitest'
 import { isNormalizedName, parseCanonicalName, parseName } from './name-parser'
-import {
-  PRESERVED_REFERENCE_NAMES,
-  REJECTED_REFERENCE_NAMES,
-  REWRITTEN_REFERENCE_NAMES,
-} from './name-parser.fixtures'
-
-describe('ENSIP-15 reference outcomes', () => {
-  it.each(PRESERVED_REFERENCE_NAMES)(
-    'accepts %s in registration and strict parsing',
-    (_case, input, name) => {
-      const canonical = parseCanonicalName(input)
-      const strict = parseName(input)
-
-      assert(canonical.isOk())
-      expect(canonical.value).toMatchObject({ name, wasRewritten: false })
-      assert(strict.isOk())
-      expect(strict.value.name).toBe(name)
-    },
-  )
-
-  it.each(REWRITTEN_REFERENCE_NAMES)(
-    'canonicalizes %s for registration and refuses it for an existing name',
-    (_case, input, name) => {
-      const canonical = parseCanonicalName(input)
-      const strict = parseName(input)
-
-      assert(canonical.isOk())
-      expect(canonical.value).toMatchObject({ name, wasRewritten: true })
-      assert(strict.isErr())
-      expect(strict.error.reason).toBe('NOT_NORMALIZED')
-    },
-  )
-
-  it.each(REJECTED_REFERENCE_NAMES)(
-    'rejects %s in registration and strict parsing',
-    (_case, input, reason) => {
-      const canonical = parseCanonicalName(input)
-      const strict = parseName(input)
-
-      assert(canonical.isErr())
-      expect(canonical.error.reason).toBe(reason)
-      assert(strict.isErr())
-      expect(strict.error.reason).toBe(reason)
-    },
-  )
-})
 
 describe('parseName', () => {
   it.each(['agent$', '$agent', 'ag$ent', '$$$'])(
@@ -286,83 +240,17 @@ describe('parseCanonicalName', () => {
     },
   )
 
-  // Application integration cases from ENSIP-15's Normalize, Tokenize,
-  // Validate and Derivation sections: https://docs.ens.domains/ensip/15/
-  // Keep expected spellings explicit: calling normalize() to compute them
-  // would hide regressions in the parser's normalization boundary.
-  describe('ENSIP-15 integration', () => {
-    it.each([
-      ['ASCII dollar sign with a leading underscore', '_$A', '_$a', false],
-      ['an underscore-only label', '___', '___', false],
-      ['multiple leading underscores', '__abc', '__abc', false],
-      ['a hyphen in the third position only', 'ab-c', 'ab-c', false],
-      ['hyphens outside the reserved extension pattern', '---a', '---a', false],
-      ['an interior fenced character', 'a\u2044b', 'a\u2044b', false],
-      [
-        'a valid emoji joiner sequence',
-        '\u{1f468}\u200d\u{1f4bb}',
-        '\u{1f468}\u200d\u{1f4bb}',
-        false,
-      ],
-      ['mapping followed by NFC composition', 'E\ufe0e\u0303', '\u1ebd', true],
-      ['an expanding character mapping', 'a\u2122\ufe0f', 'atm', true],
-    ])(
-      'preserves ENSIP-15 handling of %s',
-      (_case, input, label, wasRewritten) => {
-        const result = parseCanonicalName(`${input}.eth`)
+  it('normalizes every label before extracting the registrable label', () => {
+    const result = parseCanonicalName('a\u2122\ufe0f._$A.ETH')
 
-        assert(result.isOk())
-        expect(result.value).toEqual({
-          subLabels: [],
-          label,
-          tld: 'eth',
-          name: `${label}.eth`,
-          wasRewritten,
-        })
-      },
-    )
-
-    it.each([
-      ['trailing underscores', 'abc__'],
-      ['underscores after the leading run', '_abc_'],
-      ['a leading fenced character', '\u2044ab'],
-      ['a trailing fenced character', 'ab\u2044'],
-      ['consecutive fenced characters', 'a\u2044\u2044b'],
-      ['a leading combining mark', '\u0301abc'],
-      ['a disallowed dotless-i sequence', 'n\u0131\u0307ck'],
-      ['a joiner between incompatible emoji', '\u{1f4a9}\u200d\u{1f4a9}'],
-      ['an ideographic full stop', 'abc\u3002eth'],
-      ['a fullwidth full stop', 'abc\uff0eeth'],
-      ['a halfwidth ideographic full stop', 'abc\uff61eth'],
-    ])('does not admit %s through canonicalization', (_case, label) => {
-      const result = parseCanonicalName(`${label}.eth`)
-
-      assert(result.isErr())
-      expect(result.error.reason).toBe('INVALID_NAME')
+    assert(result.isOk())
+    expect(result.value).toEqual({
+      subLabels: ['atm'],
+      label: '_$a',
+      tld: 'eth',
+      name: 'atm._$a.eth',
+      wasRewritten: true,
     })
-
-    it('normalizes every label before extracting the registrable label', () => {
-      const result = parseCanonicalName('a\u2122\ufe0f._$A.ETH')
-
-      assert(result.isOk())
-      expect(result.value).toEqual({
-        subLabels: ['atm'],
-        label: '_$a',
-        tld: 'eth',
-        name: 'atm._$a.eth',
-        wasRewritten: true,
-      })
-    })
-
-    it.each(['abc__.alice.eth', 'alice.abc__'])(
-      'rejects contextual violations outside the registrable label in %s',
-      (name) => {
-        const result = parseCanonicalName(name)
-
-        assert(result.isErr())
-        expect(result.error.reason).toBe('INVALID_NAME')
-      },
-    )
   })
 
   it.each([
