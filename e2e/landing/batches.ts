@@ -255,10 +255,22 @@ export const rules: Rule[] = [
       // Only the migration config runs it; the reconciler fails on a spec no
       // config runs.
       'e2e/specs/harness-manager-4ld.spec.ts',
-      'e2e/projects/manager/tests/{registration,registration-rhinestone,profile,bulk-renew,primaryName,dashboard-names,hca-session-revoke,transaction-history}.spec.ts',
-      'e2e/projects/manager/tests/migration{-subname,-grace,-time}.spec.ts',
+      'e2e/projects/manager/tests/{profile,bulk-renew,primaryName,dashboard-names,transaction-history}.spec.ts',
+      'e2e/projects/manager/tests/migration-grace.spec.ts',
       'e2e/projects/manager/tests/offchain-{resolver,migration}.spec.ts',
-      'e2e/docs/{hca-budget-web1506,migration-grace-web424,payment-sheet-leftover-web1483,registration-lost-race-web1148,registration-tab-lock-web1702,session-revoke-web674,transaction-history-web1223}-test-plan.md',
+      'e2e/docs/{migration-grace-web424,registration-lost-race-web1148,registration-tab-lock-web1702,transaction-history-web1223}-test-plan.md',
+    ],
+  },
+  {
+    // Landed without their fixme/test.fail tests (no skipped or known-failing
+    // tests on main): the WEB-2110 stale guards and the tests of open bugs
+    // stay here for a later batch. When merging main back, keep these tests.
+    target: 'B1b',
+    incremental: true,
+    globs: [
+      'e2e/projects/manager/tests/{registration,registration-rhinestone}.spec.ts',
+      'e2e/projects/manager/tests/migration{-subname,-time}.spec.ts',
+      'e2e/docs/hca-budget-web1506-test-plan.md',
     ],
   },
 
@@ -301,6 +313,9 @@ export const rules: Rule[] = [
   {
     target: 'B5',
     globs: [
+      // Held out of B1b: all-fixme until rewritten (WEB-2110).
+      'e2e/projects/manager/tests/hca-session-revoke.spec.ts',
+      'e2e/docs/{session-revoke-web674,payment-sheet-leftover-web1483}-test-plan.md',
       'e2e/projects/portal/tests/{roles,recreated-subnames,temporaryPremium}.spec.ts',
       'e2e/projects/manager/tests/{registration-resume,temporaryPremium}.spec.ts',
       'e2e/projects/manager/playwright.premium.config.ts',
