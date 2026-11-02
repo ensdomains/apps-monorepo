@@ -12,6 +12,7 @@ import {
   quoteHcaRenewalFee,
 } from '../../service/hcaRenewal'
 import { chunkRenewalItems } from '../../utils/chunks'
+import { sumRenewalFees } from '../../utils/renewalFees'
 import type { RenewalProtocol } from '../../utils/renewalProtocol'
 
 /** The rail refused to price the intent; the dialog then shows the rent alone. */
@@ -52,12 +53,7 @@ const getRenewalFee = ResultFn(async function* (params: RenewalFeeQueryParams) {
       ),
     ),
   )
-  return ok(
-    fees.reduce<bigint | null>(
-      (sum, fee) => (sum === null || fee === null ? null : sum + fee),
-      0n,
-    ),
-  )
+  return ok(sumRenewalFees(fees))
 })
 
 /** USDC (6dp) the renewal intents' fees are quoted at; only the smart-account route has them. */
