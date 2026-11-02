@@ -39,7 +39,7 @@ import {
 import { cn } from '@/lib/utils'
 import {
   EligibleForUpgradePill,
-  Ensv1OnlyPill,
+  Ensv1Pill,
   ExpiringPill,
   type NameRole,
   RolePill,
@@ -47,7 +47,7 @@ import {
 import { NamePill } from './NamePill'
 import { PrimaryBadge } from './PrimaryBadge'
 
-export type NameStatus = 'eligibleUpgrade' | 'ensv1Only'
+export type NameStatus = 'eligibleUpgrade' | 'ensv1' | 'ensv1Only'
 export type NameRowCta = 'renew' | 'remindMe' | 'manageExplorer'
 
 interface NameRowProps {
@@ -278,7 +278,9 @@ const NameRowTop = ({
             ))
           : null}
         {status === 'eligibleUpgrade' && <EligibleForUpgradePill />}
-        {status === 'ensv1Only' && <Ensv1OnlyPill />}
+        {(status === 'ensv1' || status === 'ensv1Only') && (
+          <Ensv1Pill isOnly={status === 'ensv1Only'} />
+        )}
         {nameRoles.map((role) => (
           <RolePill key={role} role={role} />
         ))}

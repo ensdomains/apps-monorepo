@@ -120,7 +120,9 @@ async function seedCustomTld(
 }
 
 test.describe('DNS import flow', () => {
-  test('overview shows the import CTA and opens the flow', async ({ page }) => {
+  test('overview shows the import CTA and opens the flow', {
+    tag: ['@smoke'],
+  }, async ({ page }) => {
     const domain = `e2e-dns-cta-${Date.now()}.xyz`
     await mockDnsOverHttps(
       page,
@@ -140,11 +142,9 @@ test.describe('DNS import flow', () => {
     await expect(page).toHaveURL(/type=onchain/)
   })
 
-  test('onchain path: combined setup step, record states, and reload resume', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-  }) => {
+  test('onchain path: combined setup step, record states, and reload resume', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
     const domain = `e2e-dns-onchain-${Date.now()}.xyz`
     const user = accounts.getAddress('user')
     const stranger = accounts.getAddress('user2')
@@ -212,9 +212,9 @@ test.describe('DNS import flow', () => {
     })
   })
 
-  test('legacy step links land on the combined setup step', async ({
-    page,
-  }) => {
+  test('legacy step links land on the combined setup step', {
+    tag: ['@smoke'],
+  }, async ({ page }) => {
     const domain = `e2e-dns-legacy-${Date.now()}.xyz`
     await mockDnsOverHttps(
       page,
@@ -232,7 +232,9 @@ test.describe('DNS import flow', () => {
     })
   })
 
-  test('custom TLDs are blocked from importing', async ({ page }) => {
+  test('custom TLDs are blocked from importing', { tag: ['@smoke'] }, async ({
+    page,
+  }) => {
     // A TLD whose operator claimed the TLD node in the registry (like
     // .hiphop) runs a custom ENS integration — no import CTA, no flow.
     const tld = `e2ecustom${Date.now() % 1_000_000}`
@@ -259,11 +261,9 @@ test.describe('DNS import flow', () => {
     await expect(page.getByRole('button', { name: 'Begin' })).toBeHidden()
   })
 
-  test('offchain path shows the ENS1 record with the official resolver', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-  }) => {
+  test('offchain path shows the ENS1 record with the official resolver', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
     const domain = `e2e-dns-offchain-${Date.now()}.xyz`
     const user = accounts.getAddress('user')
     await mockDnsOverHttps(
@@ -289,9 +289,9 @@ test.describe('DNS import flow', () => {
     await expect(page.getByRole('button', { name: 'Claim' })).toBeDisabled()
   })
 
-  test('the setup step shows a sample record before a wallet is connected', async ({
-    page,
-  }) => {
+  test('the setup step shows a sample record before a wallet is connected', {
+    tag: ['@smoke'],
+  }, async ({ page }) => {
     const domain = `e2e-dns-sample-${Date.now()}.xyz`
     await mockDnsOverHttps(
       page,

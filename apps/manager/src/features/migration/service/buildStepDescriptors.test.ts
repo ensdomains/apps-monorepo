@@ -216,6 +216,32 @@ describe('buildStepDescriptors', () => {
     expect(descriptors[2]).toMatchObject({ type: 'atomic-batch', index: 1 })
   })
 
+  it('splits setup into bundles of at most ten calls', () => {
+    const tokenIds = Array.from({ length: 12 }, (_, index) => BigInt(index + 1))
+    const descriptors = buildStepDescriptors({
+      hcaDeploymentRequired: true,
+      approvals: [
+        ...tokenIds.map(tokenApproval),
+        operatorApproval('eth-registry:hca'),
+      ],
+      atomicBatches: batches(['alice.eth']),
+      registrationApprovalTargets: [],
+      canBatchAtomically: true,
+    })
+
+    expect(
+      descriptors.map((descriptor) =>
+        descriptor.type === 'bundle'
+          ? descriptor.steps.map(({ type }) => type)
+          : descriptor.type,
+      ),
+    ).toEqual([
+      ['deploy-hca', ...Array<string>(9).fill('approval')],
+      Array<string>(4).fill('approval'),
+      'atomic-batch',
+    ])
+  })
+
   it('leaves a lone step unwrapped when the wallet bundles', () => {
     expect(
       buildStepDescriptors({

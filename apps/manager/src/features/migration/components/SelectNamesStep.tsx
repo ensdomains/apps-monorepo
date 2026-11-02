@@ -127,6 +127,7 @@ type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
   readonly gasAffordability: GasAffordability
   readonly gasFundingStatus: MigrationGasFundingStatus
+  readonly isMetaMaskWallet?: boolean
   readonly onNamesChange: (names: string[]) => void
   readonly onManagerRestorationChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
@@ -171,6 +172,7 @@ export const SelectNamesStep = ({
   gasEstimate,
   gasAffordability,
   gasFundingStatus,
+  isMetaMaskWallet = false,
   onNamesChange,
   onManagerRestorationChange,
   onNext,
@@ -322,7 +324,8 @@ export const SelectNamesStep = ({
     <div className="relative z-10 flex min-h-0 w-full flex-1 flex-col self-stretch">
       <div
         className={cn(
-          'flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-5 pt-6 pb-6 md:pb-5',
+          // Below md the title is left-aligned, so clear the absolute Back button.
+          'flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-5 pt-16 pb-6 md:pb-5',
           isContentHeightCard
             ? 'md:justify-center md:pt-0 md:pb-0'
             : isCompactOuterSpacing
@@ -475,8 +478,10 @@ export const SelectNamesStep = ({
         gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
         hasUnselectedEligibleNames={hasUnselectedEligibleNames}
+        hasWrapperSyncNames={wrapperSyncNames.length > 0}
         isEstimatingGas={isEstimatingGas}
         isFinishingRecovery={isFinishingRecovery}
+        isMetaMaskWallet={isMetaMaskWallet}
         isStarting={isStarting}
         isUpgradeDisabled={isUpgradeDisabled}
         isWaitingForGasFunding={isWaitingForGasFunding}
