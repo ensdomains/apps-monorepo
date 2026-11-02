@@ -2,7 +2,7 @@ import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
@@ -60,6 +60,7 @@ const CustomResolverAddressInput = ({
   readonly onChange: (value: string) => void
 }) => {
   const [isTouched, setIsTouched] = useState(false)
+  const errorId = useId()
   const error = getResolverAddressError({ value, isTouched })
 
   return (
@@ -69,15 +70,12 @@ const CustomResolverAddressInput = ({
         placeholder="0x..."
         value={value}
         aria-invalid={error !== null}
-        aria-describedby={error ? 'resolver-address-error' : undefined}
+        aria-describedby={error ? errorId : undefined}
         onChange={(event) => onChange(event.target.value)}
         onBlur={() => setIsTouched(true)}
       />
       {error ? (
-        <p
-          id="resolver-address-error"
-          className="text-p mt-1.5 text-destructive"
-        >
+        <p id={errorId} className="text-p mt-1.5 text-destructive">
           {error}
         </p>
       ) : null}
