@@ -5,10 +5,11 @@
  * release tag, one line per merged PR (or direct commit).
  * Usage: node scripts/release-notes.mjs <tag> [<out dir>]
  *
- * Writes <out dir>/release-notes.md (full, for the GitHub release) and
+ * Writes <out dir>/release-notes.md (full, for the GitHub release),
  * <out dir>/release-message.txt (the same notes cut to whole lines within
- * 1000 bytes, Cloudflare's limit for a Worker version message). Default out
- * dir: the current directory.
+ * 1000 bytes, Cloudflare's limit for a Worker version message) and
+ * <out dir>/release-notes.json (the same changes as data, for the Slack post).
+ * Default out dir: the current directory.
  *
  * Release tags are <app>-YYYY-MM-DD, then <app>-YYYY-MM-DD.2, .3, ... the same
  * day; the previous release is the highest such tag for the same app below
@@ -90,9 +91,11 @@ const changes = (
     const pr = subject.match(/^Merge pull request #(\d+) from /);
     if (pr) {
       const title = body.split('\n').map(l => l.trim()).find(Boolean) ?? subject;
-      return `- ${title} (#${pr[1]})`;
+      return { line: `- ${title} (#${pr[1]})`, title, pr: Number(pr[1]), sha };
     }
-    return `- ${subject} (${sha})`;
+    // A squash merge ends its subject with the PR number.
+    const squash = subject.match(/^(.*) \(#(\d+)\)$/);
+    return { line: `- ${subject} (${sha})`, title: squash?.[1] ?? subject, pr: squash ? Number(squash[2]) : null, sha };
   });
 
 const header = previous
@@ -101,13 +104,12 @@ const header = previous
 const lines = !previous
   ? ['- No previous release to compare with.']
   : changes.length
-    ? changes
+    ? changes.map(c => c.line)
     : [`- No changes to ${appDir} or shared code since the previous release (redeploy).`];
 
 const repo = process.env.GITHUB_REPOSITORY;
-const compare = repo && previous
-  ? `\n\nFull diff: https://github.com/${repo}/compare/${previous}...${tag}`
-  : '';
+const compareUrl = repo && previous ? `https://github.com/${repo}/compare/${previous}...${tag}` : null;
+const compare = compareUrl ? `\n\nFull diff: ${compareUrl}` : '';
 const notes = `${header}\n\n${lines.join('\n')}${compare}\n`;
 
 // The version message: as many whole lines as fit, then how many were left out.
@@ -125,4 +127,8 @@ if (included < lines.length) message += `\n…and ${lines.length - included} mor
 
 writeFileSync(resolve(outDir, 'release-notes.md'), notes);
 writeFileSync(resolve(outDir, 'release-message.txt'), message);
+writeFileSync(
+  resolve(outDir, 'release-notes.json'),
+  JSON.stringify({ app, tag, previous: previous ?? null, compareUrl, changes: changes.map(({ line, ...c }) => c) }, null, 2),
+);
 console.log(notes);

@@ -3,7 +3,7 @@
 import type { V1Domain } from '@ens-apps/migration'
 import { useAtomicBatchSupport } from '@ens-apps/transaction-manager'
 import { useFeatureFlagEnabled } from '@posthog/react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, formatEther, type PublicClient } from 'viem'
 import { usePublicClient } from 'wagmi'
@@ -23,6 +23,7 @@ import {
   runMigrationPreparationStage,
 } from '@/features/migration/service/migrationPreparationError'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import { publishPreparedSubnameImpact } from '../service/subnameMigrationImpactQuery'
 import {
   assertSupportedSubnameMigration,
   discoverSubnameRecreation,
@@ -188,9 +189,10 @@ const buildEstimate = async (params: {
     }),
   )
   params.signal.throwIfAborted()
-  await runMigrationPreparationStage('plan', () =>
+  const subnameImpact = await runMigrationPreparationStage('plan', () =>
     assertSupportedSubnameMigration({
       publicClient,
+      ownerAddress,
       classified: plan.classified,
       signal: params.signal,
     }),
@@ -203,6 +205,7 @@ const buildEstimate = async (params: {
   params.signal.throwIfAborted()
   return {
     estimate,
+    subnameImpact,
     plan: {
       ...plan,
       isSubnameRecreationEnabled: params.shouldRecreateSubnames,
@@ -220,6 +223,7 @@ export const useMigrationGasEstimate = ({
   enabled: estimateEnabled = true,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
   // Roll out the reviewed-snapshot import independently of ordinary migration.
+  const queryClient = useQueryClient()
   const helperFlag = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
     false,
@@ -305,7 +309,7 @@ export const useMigrationGasEstimate = ({
     refetchOnReconnect: false,
     queryFn: async ({ signal }) => {
       await waitForStableSelection(signal)
-      return buildEstimate({
+      const prepared = await buildEstimate({
         ownerAddress,
         hcaAddress,
         publicClient: publicClient as unknown as PublicClient | undefined,
@@ -318,6 +322,26 @@ export const useMigrationGasEstimate = ({
         ensurePreflight,
         signal,
       })
+      if (
+        'subnameImpact' in prepared &&
+        prepared.subnameImpact &&
+        ownerAddress
+      ) {
+        publishPreparedSubnameImpact({
+          queryClient,
+          ownerAddress,
+          chainId: chain.id,
+          migratingNames: prepared.plan.classified
+            .filter((name) => name.action === 'migrate')
+            .map(({ domain }) => domain.name),
+          copiedNames: prepared.plan.classified
+            .filter((name) => name.action === 'copy')
+            .map(({ domain }) => domain.name),
+          renewingNames: [],
+          impact: prepared.subnameImpact,
+        })
+      }
+      return prepared
     },
   })
 

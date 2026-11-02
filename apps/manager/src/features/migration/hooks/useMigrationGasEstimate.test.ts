@@ -1,8 +1,10 @@
 import { renderHook } from '@testing-library/react'
 import type { Address } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { makeDomain } from '../service/_fixtures'
+import { chain } from '@/config'
+import { makeClassified, makeDomain } from '../service/_fixtures'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
+import { getSubnameMigrationImpactQueryOptions } from '../service/subnameMigrationImpactQuery'
 import { useMigrationGasEstimate } from './useMigrationGasEstimate'
 
 const mocks = vi.hoisted(() => ({
@@ -13,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   recoveryPlan: vi.fn(),
   estimate: vi.fn(),
   recovery: vi.fn(),
+  impactCheck: vi.fn(),
+  queryClient: { getQueryState: vi.fn(), setQueryData: vi.fn() },
   isRecreationEnabled: false,
 }))
 vi.mock('@posthog/react', () => ({
@@ -20,9 +24,14 @@ vi.mock('@posthog/react', () => ({
 }))
 vi.mock('../service/subnameRecreation', () => ({
   discoverSubnameRecreation: vi.fn(),
-  assertSupportedSubnameMigration: vi.fn().mockResolvedValue(undefined),
+  assertSupportedSubnameMigration: mocks.impactCheck,
 }))
-vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.query }))
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQuery: mocks.query,
+  useQueryClient: () => mocks.queryClient,
+}))
+vi.mock('@/lib/wagmi', () => ({ publicClient: {} }))
 vi.mock('wagmi', () => ({
   usePublicClient: mocks.client,
   useCapabilities: () => ({ data: undefined }),
@@ -71,6 +80,7 @@ beforeEach(() => {
   mocks.query.mockReturnValue({ isPending: true })
   mocks.recovery.mockReturnValue(null)
   mocks.preflight.mockResolvedValue({})
+  mocks.impactCheck.mockResolvedValue(undefined)
   mocks.plan.mockResolvedValue({})
   mocks.recoveryPlan.mockResolvedValue({})
   mocks.estimate.mockResolvedValue({
@@ -81,6 +91,36 @@ beforeEach(() => {
   })
 })
 afterEach(() => vi.restoreAllMocks())
+
+it('publishes the actual verified plan impact before displaying the gas estimate', async () => {
+  const classified = [makeClassified({ name: domain.name })]
+  const checkedAt = Date.now()
+  const impact = {
+    parents: [],
+    affectedCount: 0,
+    fingerprint: 'verified-plan',
+    checkedAt,
+  }
+  mocks.plan.mockResolvedValue({ classified })
+  mocks.impactCheck.mockResolvedValue(impact)
+  renderHook(() => useMigrationGasEstimate(params))
+  await invokeQuery()
+  const expectedKey = getSubnameMigrationImpactQueryOptions({
+    ownerAddress: OWNER,
+    chainId: chain.id,
+    migratingNames: [domain.name],
+    copiedNames: [],
+    renewingNames: [],
+    isEnabled: true,
+    isPrepared: true,
+    hasSelectedNames: true,
+  }).queryKey
+  expect(mocks.queryClient.setQueryData).toHaveBeenCalledExactlyOnceWith(
+    expectedKey,
+    impact,
+    { updatedAt: checkedAt },
+  )
+})
 
 it('marks fresh plans with the rollout state and refreshes it when the flag changes', async () => {
   mocks.isRecreationEnabled = true

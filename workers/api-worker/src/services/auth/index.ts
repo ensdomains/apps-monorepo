@@ -14,6 +14,7 @@ const ALLOWED_SIWE_DOMAINS = [
   'sepolia.app.ens.domains',
   'app.ens.dev',
   'app.ens.domains',
+  'devcon.ens.domains',
 ] as const
 type AllowedSiweDomain = (typeof ALLOWED_SIWE_DOMAINS)[number]
 

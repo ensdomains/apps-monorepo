@@ -5,6 +5,7 @@ import {
   type LookupRecord,
   type LookupResponse,
   type LookupResult,
+  type Meta,
   retryStale,
 } from '@ens-apps/indexer/bigname'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
@@ -52,33 +53,49 @@ const recordsInOrder = (
   return ok(records)
 }
 
-/** Detail records for every name, in order; a missing, repeated or failed answer fails the read rather than leaving a gap. */
-export const lookupNames = ResultFn(async function* (
+export type LookupNameRecord = {
+  readonly record: LookupRecord
+  readonly meta: Meta
+}
+
+/** Preserve the publication beside every correlated, successfully read name. */
+export const lookupNameRecords = ResultFn(async function* (
   lookup: BignameClient['lookup'],
   names: readonly string[],
   options: LookupOptions = {},
 ) {
-  let records: readonly LookupRecord[] = []
+  let records: readonly LookupNameRecord[] = []
   for (let start = 0; start < names.length; start += LOOKUP_BATCH_SIZE) {
-    yield* checkNotAborted(options.signal, toError)
     const batch = names.slice(start, start + LOOKUP_BATCH_SIZE)
-    const response: LookupResponse = yield* retryStale(
-      (signal) =>
-        lookup(
-          {
-            namespace: 'ens',
-            profile: 'detail',
-            inputs: batch.map((name, index) => ({ id: String(index), name })),
-          },
-          { signal },
-        ),
-      isStale,
-      { signal: options.signal },
-    ).mapErr(toError)
+    const response: LookupResponse = yield* checkNotAborted(
+      options.signal,
+      toError,
+    ).asyncAndThen(() =>
+      retryStale(
+        (signal) =>
+          lookup(
+            {
+              namespace: 'ens',
+              profile: 'detail',
+              inputs: batch.map((name, index) => ({ id: String(index), name })),
+            },
+            { signal },
+          ),
+        isStale,
+        { signal: options.signal },
+      ).mapErr(toError),
+    )
     const batchRecords = yield* recordsInOrder(batch, response.data).mapErr(
       (failure) => toError(new Error(`bigname lookup failed for ${failure}`)),
     )
-    records = [...records, ...batchRecords]
+    records = [
+      ...records,
+      ...batchRecords.map((record) => ({ record, meta: response.meta })),
+    ]
   }
   return ok(records)
 })
+
+/** Detail records for every name, in order; missing or failed answers fail the read. */
+export const lookupNames = (...params: Parameters<typeof lookupNameRecords>) =>
+  lookupNameRecords(...params).map((rows) => rows.map(({ record }) => record))

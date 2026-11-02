@@ -41,6 +41,14 @@ const mockEnvConfig = vi.hoisted((): { network: EnsNetwork } => ({
 }))
 
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+vi.mock('../hooks/useEligibleV1Names', () => ({
+  useEligibleV1Names: () => ({
+    eligible: [],
+    isPending: false,
+    isEligibilityError: false,
+    recoveryState: { status: 'none' },
+  }),
+}))
 
 vi.mock('@/config', async () => {
   const { extendChainWithEns } = await import('@ensdomains/ensjs/chain')

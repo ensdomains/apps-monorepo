@@ -436,12 +436,24 @@ export const assertNoLiveSubregistryOverwrite = async ({
     .map((name) => subregistryWriteFor({ name, selectedNames, copyParents }))
     .filter((write): write is SubregistryWrite => write !== null)
 
+  const registries = new Map(
+    writes.map(({ registry }) => [registry.toLowerCase(), registry] as const),
+  )
+  const deployedRegistries = new Set(
+    (
+      await Promise.all(
+        [...registries].map(async ([key, address]) =>
+          hasCode(await publicClient.getCode({ address })) ? [key] : [],
+        ),
+      )
+    ).flat(),
+  )
+
   await Promise.all(
     writes.map(async (write) => {
       // An undeployed destination has no entries. Missing parent wrappers are
       // reported by `resolveDirectMigrationRoutes`, which knows the route.
-      const code = await publicClient.getCode({ address: write.registry })
-      if (!hasCode(code)) return
+      if (!deployedRegistries.has(write.registry.toLowerCase())) return
 
       let current: Address
       try {

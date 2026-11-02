@@ -126,7 +126,7 @@ export const fetchV1Profiles = async (params: {
           name,
           resolver: v1ResolverAddress,
         })),
-        { signal },
+        { signal, chainId: publicClient.chain?.id },
       )
   signal?.throwIfAborted()
   const keyEntries =

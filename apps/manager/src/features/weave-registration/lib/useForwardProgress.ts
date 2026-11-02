@@ -40,6 +40,8 @@ export function useForwardProgress(
       resetGeneration,
     },
     resetGeneration,
+    // Let `advanceForwardProgress` see the time a hidden tab spent away.
+    maxDtSeconds: Number.POSITIVE_INFINITY,
   })
 
   return {

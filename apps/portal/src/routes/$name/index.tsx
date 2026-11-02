@@ -436,12 +436,10 @@ const Profile = ({
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
         <PageHeading className={nameHeadingClassName}>{name}</PageHeading>
-        {resolvedProtocolVersion !== 'ENSv1' && (
-          <ExtendNameButton
-            name={name}
-            protocolVersion={resolvedProtocolVersion}
-          />
-        )}
+        <ExtendNameButton
+          name={name}
+          protocolVersion={resolvedProtocolVersion}
+        />
       </div>
 
       {/* Profile | metadata | counters at xl; counters wrap to their own row below that */}

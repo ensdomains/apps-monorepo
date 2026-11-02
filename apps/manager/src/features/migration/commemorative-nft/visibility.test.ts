@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
 import type { CommemorativeNftEligibility } from './types'
-import { getVisibleCommemorativeNftEligibility } from './visibility'
+import {
+  getAutomaticNftCompletionMode,
+  getVisibleCommemorativeNftEligibility,
+} from './visibility'
 
 const ownerAddress = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 const eligibility: CommemorativeNftEligibility = {
@@ -18,6 +21,31 @@ const defaults = {
   hasFreshEligibilityResult: true,
   minted: false,
 } as const
+
+describe('automatic migration completion display', () => {
+  it.each([
+    [{ isPending: true }, 'wait'],
+    [{}, 'known-incomplete'],
+    [{ isError: true }, 'verify'],
+    [{ hasEligibleNames: false }, 'verify'],
+    [{ isSameChain: false }, 'verify'],
+    [{ isRecovering: true }, 'verify'],
+  ] as const)(
+    'chooses %s without authorizing minting',
+    (overrides, expected) => {
+      expect(
+        getAutomaticNftCompletionMode({
+          isSameChain: true,
+          isRecovering: false,
+          isPending: false,
+          isError: false,
+          hasEligibleNames: true,
+          ...overrides,
+        }),
+      ).toBe(expected)
+    },
+  )
+})
 
 describe('commemorative NFT visibility', () => {
   it.each([false, true])(

@@ -260,6 +260,33 @@ describe('assertNoLiveSubregistryOverwrite', () => {
     })
   })
 
+  it('reads code once per registry while still rejecting a conflict on another label', async () => {
+    const publicClient = makeRegistryClient({})
+    vi.mocked(publicClient.readContract).mockImplementation(async ({ args }) =>
+      args?.[0] === 'bob' ? LIVE_REGISTRY : ZERO_ADDRESS,
+    )
+    await expect(
+      assertNoLiveSubregistryOverwrite({
+        publicClient,
+        names: [
+          makeClassified({ tokenType: 'unwrapped', label: 'alice' }),
+          makeClassified({
+            tokenType: 'unwrapped',
+            label: 'bob',
+            name: 'bob.eth',
+          }),
+        ],
+      }),
+    ).rejects.toMatchObject({
+      invariant: 'live-subregistry-overwrite',
+      ensName: 'bob.eth',
+    })
+    expect(publicClient.getCode).toHaveBeenCalledExactlyOnceWith({
+      address: V2_CONTRACTS.ETHRegistry,
+    })
+    expect(publicClient.readContract).toHaveBeenCalledTimes(2)
+  })
+
   it('fails closed when the entry already points at a live child registry', async () => {
     const publicClient = makeRegistryClient({ subregistry: LIVE_REGISTRY })
 

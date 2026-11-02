@@ -2,8 +2,9 @@
 export const iconActionClassName =
   'inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-[#e2e8f0] p-0.5 text-ens-lapis-500 transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50'
 
+// With the 2px outer padding this gives the bar's 14px (12px on desktop) inset
 export const iconActionInnerClassName =
-  'flex h-full items-center justify-center gap-2.5 rounded-[10px] px-4 max-xs:px-2'
+  'flex h-full items-center justify-center gap-2.5 rounded-[10px] px-3 max-xs:px-2 xl:px-2.5'
 
 export const iconActionIconInnerClassName =
   'flex size-full items-center justify-center rounded-[10px]'
@@ -14,7 +15,7 @@ export const iconActionSymbolClassName =
 export const favoriteActionClassName = 'bg-ens-magenta-light text-ens-magenta'
 
 export const renewActionClassName =
-  'inline-flex h-11 min-h-11 w-auto max-h-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-[#e2e8f0] p-0.5 font-medium font-mono text-[13px] text-ens-lapis-500 uppercase leading-none tracking-[1.56px] transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60'
+  'inline-flex h-11 min-h-11 w-auto max-h-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border-0 bg-[#e2e8f0] p-0.5 font-medium font-mono text-ens-lapis-500 text-sm uppercase leading-none tracking-[1.56px] transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60'
 
 export const renewActionSymbolClassName =
   'ms-opsz-12 ms-wght-500 text-[12px] leading-none max-xs:hidden'
@@ -24,6 +25,18 @@ export const editActionClassName =
 
 // Sizes the shared Button to the 42px / 4px spec; colors come from its variants
 export const profileButtonClassName = 'h-10.5 rounded-sm text-xs uppercase'
+
+// The floating bar's Edit button, sized and set like the Renew action beside it
+export const barEditActionClassName =
+  'h-11 gap-2 rounded-sm px-3.5 font-medium text-sm uppercase leading-none tracking-[1.56px] max-xs:px-2.5 xl:px-3'
+
+// Below 352px the icon no longer fits beside the Renew action, so it drops
+export const barEditActionSymbolClassName =
+  'ms-opsz-20 ms-wght-500 text-sm leading-none max-[22rem]:hidden'
+
+// Trims the label box to the cap height so it centres on the caps, as in Figma
+export const actionLabelClassName =
+  '[text-box-edge:cap_alphabetic] [text-box-trim:trim-both]'
 
 // Figma-spec bar sizes, offsets and shadows below have no matching tokens; the
 // calc() values add the device safe area

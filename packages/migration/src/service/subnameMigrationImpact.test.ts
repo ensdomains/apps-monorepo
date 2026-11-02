@@ -128,7 +128,11 @@ const fixture = (
     options: Partial<
       Pick<
         Parameters<typeof readSubnameMigrationImpact>[0],
-        'migratingNames' | 'copiedNames' | 'renewingNames' | 'signal'
+        | 'migratingNames'
+        | 'copiedNames'
+        | 'renewingNames'
+        | 'signal'
+        | 'shouldSkipEmptySubtrees'
       >
     > = {},
   ) =>
@@ -142,6 +146,87 @@ const fixture = (
 }
 
 describe('readSubnameMigrationImpact', () => {
+  it('can prove an empty subtree from a fresh root count without fetching its children', async () => {
+    const { read, fetch } = fixture()
+    const options = {
+      migratingNames: ['parent.eth'],
+      shouldSkipEmptySubtrees: true,
+    }
+
+    expect(await read(options)).toMatchObject({ affectedCount: 0, parents: [] })
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the independent child read for callers that do not opt in', async () => {
+    const { read, fetch } = fixture()
+
+    await read()
+
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([undefined, 1])(
+    'retains the child walk for count %j and still detects dependent names',
+    async (subname_count) => {
+      const { read, roots, fetch } = fixture({
+        'parent.eth': [subname('child.parent.eth')],
+      })
+      roots.set('parent.eth', envelope(root('parent.eth', { subname_count })))
+
+      expect(await read({ shouldSkipEmptySubtrees: true })).toMatchObject({
+        affectedCount: 1,
+      })
+      expect(fetch).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it.each([
+    { ...freshMeta, completeness: 'partial' as const },
+    {
+      ...freshMeta,
+      as_of: {
+        [chain.id]: {
+          ...freshMeta.as_of[chain.id],
+          timestamp: String(NOW - 301),
+        },
+      },
+    },
+  ])(
+    'does not let a zero count bypass failed root verification: %j',
+    async (meta) => {
+      const { read, roots, fetch } = fixture()
+      roots.set('parent.eth', envelope(root(), meta))
+
+      await expect(
+        read({ shouldSkipEmptySubtrees: true }),
+      ).rejects.toMatchObject({ _tag: 'SubnameMigrationImpactError' })
+      expect(fetch).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it('does not skip an explicitly selected descendant hidden by a zero parent count', async () => {
+    const { read, fetch } = fixture({
+      'parent.eth': [subname('child.parent.eth')],
+    })
+
+    await read({
+      shouldSkipEmptySubtrees: true,
+      migratingNames: ['parent.eth', 'child.parent.eth'],
+    })
+
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('still requires ownership RPC evidence before trusting a zero count', async () => {
+    const { read, roots, readContract } = fixture()
+    roots.set('parent.eth', envelope(root('parent.eth', { owner: undefined })))
+
+    await expect(read({ shouldSkipEmptySubtrees: true })).rejects.toThrow(
+      'Unexpected RPC read',
+    )
+    expect(readContract).toHaveBeenCalledTimes(1)
+  })
+
   it('returns zero only after a complete, fresh empty subtree read', async () => {
     const { read } = fixture()
     expect(await read()).toMatchObject({ affectedCount: 0, parents: [] })
