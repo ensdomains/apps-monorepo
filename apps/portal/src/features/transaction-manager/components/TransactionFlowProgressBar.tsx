@@ -34,17 +34,18 @@ export const TransactionFlowProgressBar = ({
         `calc(${fraction * 100}% + ${ICON_CENTER_INSET_REM * (1 - fraction * 2)}rem)`,
     )
 
+  // Fills must differ from the bg-accent track in both themes.
   const fillColor = match({ hasError, allSuccess })
-    .with({ hasError: true }, () => 'bg-garnet-100')
-    .with({ allSuccess: true }, () => 'bg-peridot-100')
-    .otherwise(() => 'bg-muted')
+    .with({ hasError: true }, () => 'bg-garnet-200 dark:bg-danger-fill')
+    .with({ allSuccess: true }, () => 'bg-success-fill')
+    .otherwise(() => 'bg-neutral-3')
 
   return (
     <div
       className={cn(
         'relative flex justify-between gap-1 rounded-full w-full h-8 p-1 items-center overflow-hidden',
         'bg-accent',
-        allSuccess && 'text-peridot-900',
+        allSuccess && 'text-success-text',
       )}
     >
       <div
