@@ -10,6 +10,7 @@ import {
   InvalidInputRpcError,
   NonceTooLowError,
   type PublicClient,
+  TransactionReceiptNotFoundError,
   toEventSelector,
   WaitForTransactionReceiptTimeoutError,
   type WalletClient,
@@ -158,6 +159,12 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     }
     return { status: state.renewalStatus }
   })
+  // Only the hashes the wallet returned were mined; a safeTxHash never is.
+  const getTransactionReceipt = vi.fn(async ({ hash }: { hash: Hex }) => {
+    if (hash !== APPROVAL_HASH && hash !== RENEWAL_HASH)
+      throw new TransactionReceiptNotFoundError({ hash })
+    return {}
+  })
   const getLogs = vi.fn(async (): Promise<readonly unknown[]> => [])
   const publicClient = {
     chain,
@@ -165,6 +172,7 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     getBlockNumber: vi.fn(async () => 100n),
     getLogs,
     readContract,
+    getTransactionReceipt,
     waitForTransactionReceipt,
     simulateContract: vi.fn(async () => ({})),
   } as unknown as PublicClient
@@ -766,6 +774,29 @@ describe('bulk grace renewal', () => {
 
     expect(result.isErr()).toBe(true)
     expect(readPendingGraceRenewal(quote)).toBeNull()
+  })
+
+  it('confirms a Safe{Wallet} renewal that executed before the log lookback', async () => {
+    const s = setup()
+    const quote = await s.quote()
+    const safeTxHash: Hex = `0x${'d'.repeat(64)}`
+    writePendingGraceRenewal(pendingGraceRenewalForQuote(quote, safeTxHash))
+    for (const item of quote.items)
+      s.state.expiry.set(item.domain.labelhash, item.targetExpiry)
+    s.waitForTransactionReceipt.mockRejectedValue(
+      new WaitForTransactionReceiptTimeoutError({ hash: safeTxHash }),
+    )
+
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      connector: SAFE_CONNECTOR,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(readPendingGraceRenewal(quote)).toBeNull()
+    expect(s.writeContract).not.toHaveBeenCalled()
   })
 
   it('resumes a known transaction after a timeout without submitting again', async () => {

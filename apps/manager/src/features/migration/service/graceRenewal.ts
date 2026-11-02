@@ -27,6 +27,7 @@ import {
   type PublicClient,
   parseAbi,
   type TransactionReceipt,
+  TransactionReceiptNotFoundError,
   type WaitForTransactionReceiptParameters,
   type WalletClient,
   zeroAddress,
@@ -496,7 +497,17 @@ const reconcilePendingRenewal = async (
 ): Promise<readonly V1Domain[]> => {
   if (pending.hash) {
     params.onRenewalSubmitted?.(pending.hash)
-    await waitForRenewal(params, { ...pending, hash: pending.hash })
+    // A Safe's safeTxHash has no receipt, and its execution can predate the log lookback.
+    const isSettled =
+      (await pendingTargetsReached(params.publicClient, pending)) &&
+      (await params.publicClient
+        .getTransactionReceipt({ hash: pending.hash })
+        .then(
+          () => false,
+          (error: unknown) => error instanceof TransactionReceiptNotFoundError,
+        ))
+    if (!isSettled)
+      await waitForRenewal(params, { ...pending, hash: pending.hash })
   }
   if (!(await pendingTargetsReached(params.publicClient, pending))) {
     if (

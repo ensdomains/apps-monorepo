@@ -4,6 +4,7 @@ import { getPublicClient, type Config as WagmiConfig } from '@wagmi/core'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { type Address, isAddress, type PublicClient, zeroAddress } from 'viem'
 import { envConfig } from '@/config'
+import { bigname } from '@/lib/bigname'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { abortablePublicClient } from '../service/abortablePublicClient'
 import { classifyNames } from '../service/classifyNames'
@@ -21,6 +22,7 @@ import {
   restoreMigrationCompletionCheckpoint,
 } from '../service/migrationCompletionCheckpoint'
 import { runEligibilityChecks } from '../service/preflightChecks'
+import { reconcileMigrationRecovery } from '../service/reconcileMigrationRecovery'
 import { withRequestDeadline } from '../service/requestDeadline'
 import { getV1NamesForAddress } from '../service/v1Names'
 import { getCommemorativeNftContractAddress } from './config'
@@ -47,9 +49,9 @@ type CommemorativeNftMigrationCompletion = {
 }
 
 const loadRemainingJournalNames = (
-  scope: MigrationBatchJournalScope,
+  journal: ReturnType<typeof loadMigrationBatchJournal>,
 ): readonly string[] => {
-  const { recovery, pending, submitted } = loadMigrationBatchJournal(scope)
+  const { recovery, pending, submitted } = journal
 
   return [
     ...(recovery?.remainingOperations ?? []),
@@ -110,7 +112,14 @@ const checkMigrationCompletion = async (
     owner: params.ownerAddress,
     hca: params.hcaAddress,
   }
-  const remainingNames = new Set(loadRemainingJournalNames(scope))
+  const reconciled = await reconcileMigrationRecovery({
+    scope,
+    publicClient: publicClient as PublicClient,
+    historyClient: bigname,
+    signal: params.signal,
+    journal: loadMigrationBatchJournal(scope),
+  })
+  const remainingNames = new Set(loadRemainingJournalNames(reconciled.journal))
   const verifiedMigratedCount = getVerifiedNftMigrationCount(
     params.verifiedMigration,
     params,
@@ -177,7 +186,10 @@ const checkMigrationCompletion = async (
   }
   // An in-flight migration can add recovery work while the network reads run.
   // Work seen at either boundary blocks this result until a fresh check.
-  for (const name of loadRemainingJournalNames(scope)) remainingNames.add(name)
+  for (const name of loadRemainingJournalNames(
+    loadMigrationBatchJournal(scope),
+  ))
+    remainingNames.add(name)
 
   params.signal?.throwIfAborted()
   const status =
