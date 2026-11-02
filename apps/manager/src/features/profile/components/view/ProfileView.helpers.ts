@@ -1,4 +1,5 @@
 import { isEvmCoinType } from '@ensdomains/address-encoder/utils'
+import { getProtocolType } from '@ensdomains/ensjs/utils'
 import { mainnet } from 'viem/chains'
 import {
   getAddressPresentation,
@@ -113,9 +114,16 @@ const toSafeHttpHref = (value: string): string | undefined => {
 
 export const getSafeProfileHref = toSafeHttpHref
 
-const ETH_LIMO_PROTOCOLS = ['ipfs://', 'ipns://'] as const
+// eth.limo serves .eth sites from IPFS, IPNS, Swarm and Arweave; `ar` and `arweave` are both Arweave.
+const ETH_LIMO_PROTOCOLS: ReadonlySet<string> = new Set([
+  'ipfs',
+  'ipns',
+  'bzz',
+  'ar',
+  'arweave',
+])
 
-/** The name's site on eth.limo, which serves mainnet .eth names with an IPFS or IPNS content hash. */
+/** The name's site on eth.limo, for a mainnet .eth name whose content hash eth.limo can serve. */
 export const getContentHashHref = ({
   name,
   contentHash,
@@ -125,10 +133,12 @@ export const getContentHashHref = ({
   readonly contentHash: string
   readonly chainId: number
 }): string | undefined => {
+  const protocol = getProtocolType(contentHash)?.protocolType
   if (
     chainId !== mainnet.id ||
     !name.endsWith('.eth') ||
-    !ETH_LIMO_PROTOCOLS.some((protocol) => contentHash.startsWith(protocol))
+    !protocol ||
+    !ETH_LIMO_PROTOCOLS.has(protocol)
   )
     return undefined
   const href = safeHttpHref(`https://${name}.limo`)

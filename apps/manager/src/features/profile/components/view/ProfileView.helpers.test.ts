@@ -476,8 +476,15 @@ describe('getContentHashHref', () => {
     ],
     ['a unicode name', '💩.eth', IPFS, 1, 'https://💩.eth.limo'],
     ['a Sepolia name', 'bright-lemur.eth', IPFS, 11155111, undefined],
-    ['a Swarm site', 'site.eth', 'bzz://d1de9994b4d0', 1, undefined],
-    ['an Arweave site', 'site.eth', 'ar://abc', 1, undefined],
+    [
+      'a Swarm site',
+      'site.eth',
+      'bzz://d1de9994b4d0',
+      1,
+      'https://site.eth.limo',
+    ],
+    ['an Arweave site', 'site.eth', 'ar://abc', 1, 'https://site.eth.limo'],
+    ['an onion site', 'site.eth', 'onion3://abc', 1, undefined],
     ['a DNS name', 'example.com', IPFS, 1, undefined],
     ['a name that would change the path', 'a/b.eth', IPFS, 1, undefined],
   ])('links %s', (_, name, contentHash, chainId, expected) => {
