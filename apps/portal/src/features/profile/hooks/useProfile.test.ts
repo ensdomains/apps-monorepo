@@ -3,15 +3,13 @@ import { errAsync, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
-import { getLinkedRecordKeys } from '@/utils/ens/getLinkedRecordKeys'
 import { getProfile, isUnindexedResolver, parseRecordKeys } from './useProfile'
 import { getRecords } from './useRecords'
 
-vi.mock('@/lib/bigname', () => ({ bigname: { nameRecords: vi.fn() } }))
-vi.mock('./useRecords', () => ({ getRecords: vi.fn() }))
-vi.mock('@/utils/ens/getLinkedRecordKeys', () => ({
-  getLinkedRecordKeys: vi.fn(),
+vi.mock('@/lib/bigname', () => ({
+  bigname: { nameRecords: vi.fn(), resolverRecords: vi.fn() },
 }))
+vi.mock('./useRecords', () => ({ getRecords: vi.fn() }))
 
 const OWN_RESOLVER: Address = '0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63'
 const PARENT_RESOLVER: Address = '0x6C9Fb0A64dcE231A971ba3407D058F23E97Acad0'
@@ -31,6 +29,27 @@ const inventory = (
           known_keys: knownKeys,
           unset_keys: [],
           unsupported_keys: unsupportedKeys,
+          abi_content_types: [],
+        },
+      },
+      meta: { as_of: {} },
+    }),
+  )
+
+const resolverInventory = (knownKeys: readonly string[]) =>
+  vi.mocked(bigname.resolverRecords).mockReturnValue(
+    okAsync({
+      data: {
+        namespace: 'ens',
+        resolver: {
+          chain_id: 1,
+          address: PARENT_RESOLVER.toLowerCase() as Address,
+        },
+        records: {},
+        inventory: {
+          known_keys: knownKeys,
+          unset_keys: [],
+          unsupported_keys: [],
           abi_content_types: [],
         },
       },
@@ -160,17 +179,14 @@ describe('getProfile with a resolver bigname does not attribute', () => {
         okAsync({ resolverAddress: PARENT_RESOLVER }) as never,
       )
       .mockReturnValueOnce(okAsync(linkedRecords) as never)
-    vi.mocked(getLinkedRecordKeys).mockResolvedValue({
-      texts: ['test'],
-      coins: [60],
-    })
+    resolverInventory(['text:test', 'addr:60'])
 
     const profile = await getProfile({ name: '1.dragonsy.eth' })
 
-    expect(getLinkedRecordKeys).toHaveBeenCalledWith(
-      expect.anything(),
-      PARENT_RESOLVER,
-      '1.dragonsy.eth',
+    expect(bigname.resolverRecords).toHaveBeenCalledWith(
+      expect.any(Number),
+      PARENT_RESOLVER.toLowerCase(),
+      { name: '1.dragonsy.eth', values: false, include: ['inventory'] },
     )
     const reread = vi.mocked(getRecords).mock.calls[1]?.[0]
     expect(reread?.texts).toEqual(
@@ -188,7 +204,7 @@ describe('getProfile with a resolver bigname does not attribute', () => {
 
     await getProfile({ name: 'alice.eth' })
 
-    expect(getLinkedRecordKeys).not.toHaveBeenCalled()
+    expect(bigname.resolverRecords).not.toHaveBeenCalled()
     expect(getRecords).toHaveBeenCalledOnce()
   })
 
@@ -198,21 +214,20 @@ describe('getProfile with a resolver bigname does not attribute', () => {
     vi.mocked(getRecords)
       .mockReturnValueOnce(okAsync(records) as never)
       .mockReturnValueOnce(errAsync(new Error('timed out')) as never)
-    vi.mocked(getLinkedRecordKeys).mockResolvedValue({
-      texts: ['test'],
-      coins: [],
-    })
+    resolverInventory(['text:test'])
 
     const profile = await getProfile({ name: '1.dragonsy.eth' })
 
     expect(profile._unsafeUnwrap()).toEqual({ records })
   })
 
-  it('keeps the records it has when the resolver events cannot be read', async () => {
+  it('keeps the records it has when bigname has no keys for the resolver', async () => {
     inventory([])
     const records = { resolverAddress: PARENT_RESOLVER }
     vi.mocked(getRecords).mockReturnValue(okAsync(records) as never)
-    vi.mocked(getLinkedRecordKeys).mockRejectedValue(new Error('archive'))
+    vi.mocked(bigname.resolverRecords).mockReturnValue(
+      errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
+    )
 
     const profile = await getProfile({ name: '1.dragonsy.eth' })
 

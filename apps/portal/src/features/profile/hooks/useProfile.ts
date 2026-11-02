@@ -7,13 +7,10 @@ import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { errAsync, fromPromise, ok, okAsync } from 'neverthrow'
 import { match } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
+import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLegacyRegistryResolver } from '@/utils/ens/getLegacyRegistryResolver'
-import {
-  getLinkedRecordKeys,
-  type LinkedRecordKeys,
-} from '@/utils/ens/getLinkedRecordKeys'
 import { getRecords } from './useRecords'
 
 class GetProfileError extends TaggedError('GetProfileError')<{
@@ -114,7 +111,53 @@ export const isUnindexedResolver = ({
   (indexedResolver === null ||
     !isAddressEqual(indexedResolver, answeringResolver))
 
-const NO_LINKED_KEYS: LinkedRecordKeys = { texts: [], coins: [] }
+/** Keys a wildcard resolver (e.g. an upgraded parent's) holds for the name; bigname serves them per resolver. */
+const getWildcardRecordKeys = ({
+  name,
+  indexedResolver,
+  answeringResolver,
+}: {
+  readonly name: string
+  readonly indexedResolver: Address | null | undefined
+  readonly answeringResolver: Address | undefined
+}) =>
+  answeringResolver &&
+  isUnindexedResolver({ indexedResolver, answeringResolver })
+    ? bigname
+        .resolverRecords(envConfig.chain.id, answeringResolver.toLowerCase(), {
+          name,
+          values: false,
+          include: ['inventory'],
+        })
+        .map(({ data }) =>
+          parseRecordKeys([
+            ...(data.inventory ?? NO_KEYS).known_keys,
+            ...(data.inventory ?? NO_KEYS).unsupported_keys,
+          ]),
+        )
+        .orElse(() => okAsync(parseRecordKeys([])))
+    : okAsync(parseRecordKeys([]))
+
+/** The request with the extra keys added, or `undefined` when they add none. */
+const withExtraKeys = <
+  T extends {
+    readonly texts: readonly string[]
+    readonly coins: readonly number[]
+  },
+>(
+  request: T,
+  extra: {
+    readonly texts: readonly string[]
+    readonly coins: readonly number[]
+  },
+): T | undefined => {
+  const texts = unique([...request.texts, ...extra.texts])
+  const coins = unique([...request.coins, ...extra.coins])
+  return texts.length === request.texts.length &&
+    coins.length === request.coins.length
+    ? undefined
+    : { ...request, texts, coins }
+}
 
 export const getProfile = ResultFn(async function* ({
   name,
@@ -132,38 +175,20 @@ export const getProfile = ResultFn(async function* ({
 
   const records = yield* getRecords(request)
   if (records.resolverAddress && records.resolverAddress !== zeroAddress) {
-    if (
-      !isUnindexedResolver({
+    const wildcardRequest = withExtraKeys(
+      request,
+      yield* getWildcardRecordKeys({
+        name,
         indexedResolver: keys.indexedResolver,
         answeringResolver: records.resolverAddress,
-      })
-    ) {
-      return ok({ records })
-    }
-    const answeringResolver = records.resolverAddress
-    const client = yield* safeGetClient()
-    // Best effort: a slow or refused log read, or a failed re-read, leaves the
-    // records already read.
-    const linked = yield* fromPromise(
-      getLinkedRecordKeys(client, answeringResolver, name),
-      (cause) => cause,
-    ).orElse(() => okAsync(NO_LINKED_KEYS))
-    const texts = unique([...request.texts, ...linked.texts])
-    const coins = unique([...request.coins, ...linked.coins])
-    if (
-      texts.length === request.texts.length &&
-      coins.length === request.coins.length
-    ) {
-      return ok({ records })
-    }
-    // Through resolution, as the first read: an ENSv2 resolver answers only
-    // `resolve()`, so a read pinned to it directly comes back empty.
-    const linkedRecords = yield* getRecords({
-      ...request,
-      texts,
-      coins,
-    }).orElse(() => okAsync(records))
-    return ok({ records: linkedRecords })
+      }),
+    )
+    if (!wildcardRequest) return ok({ records })
+    // Through resolution: an ENSv2 resolver answers only `resolve()`.
+    const wildcardRecords = yield* getRecords(wildcardRequest).orElse(() =>
+      okAsync(records),
+    )
+    return ok({ records: wildcardRecords })
   }
 
   // No resolver answered, which a lapsed ENSv1 name hits for the 28 days
