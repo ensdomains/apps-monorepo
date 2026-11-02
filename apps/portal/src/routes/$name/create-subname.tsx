@@ -1,7 +1,12 @@
 import { isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useNavigate,
+} from '@tanstack/react-router'
 import {
   AlertTriangle,
   ArrowLeftIcon,
@@ -50,6 +55,15 @@ import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { getLabelRegistrationError } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/create-subname')({
+  // Only ENSv2 subname creation is paused; an unknown protocol counts as ENSv2.
+  beforeLoad: ({ params: { name }, context: { protocolVersion } }) => {
+    if (protocolVersion === 'ENSv1') return
+    throw redirect({
+      to: '/$name/subnames',
+      params: { name },
+      replace: true,
+    })
+  },
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })
