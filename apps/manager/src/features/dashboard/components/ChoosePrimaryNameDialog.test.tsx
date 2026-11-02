@@ -453,6 +453,7 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
         existingEthAddress: null,
         hasResolver: false,
         hasOffchainResolver: false,
+        isResolverInvalid: false,
       },
       confirmLabel: 'Continue',
       write: chain.setupResolver,
