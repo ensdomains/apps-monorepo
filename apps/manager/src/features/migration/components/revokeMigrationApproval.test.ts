@@ -64,6 +64,32 @@ const SAFE_CONNECTOR = {
     },
   }),
 } as unknown as Connector
+const executionHash: Hex = `0x${'c'.repeat(64)}`
+
+const connectSafe = (event: 'ExecutionSuccess' | 'ExecutionFailure') => {
+  getConnectionMock.mockReturnValue({
+    connector: SAFE_CONNECTOR,
+  } as ReturnType<typeof getConnection>)
+  // Only what the Safe execution watch reads: the latest block and the Safe's logs.
+  getPublicClientMock.mockReturnValue({
+    pollingInterval: 1,
+    getBlockNumber: async () => 100n,
+    getLogs: async () => [
+      {
+        topics: [toEventSelector(`${event}(bytes32,uint256)`), hash],
+        data: zeroHash,
+        transactionHash: executionHash,
+      },
+    ],
+  } as unknown as ReturnType<typeof getPublicClient>)
+  waitForTransactionReceiptMock.mockImplementation(
+    async (_config, { hash: waited }) => {
+      if (waited !== executionHash)
+        throw new WaitForTransactionReceiptTimeoutError({ hash: waited })
+      return receipt('success')
+    },
+  )
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -136,29 +162,7 @@ describe('revokeMigrationApproval', () => {
   })
 
   it('settles a Safe{Wallet} revocation from its execution', async () => {
-    const executionHash: Hex = `0x${'c'.repeat(64)}`
-    getConnectionMock.mockReturnValue({
-      connector: SAFE_CONNECTOR,
-    } as ReturnType<typeof getConnection>)
-    // Only what the Safe execution watch reads: the latest block and the Safe's logs.
-    getPublicClientMock.mockReturnValue({
-      pollingInterval: 1,
-      getBlockNumber: async () => 100n,
-      getLogs: async () => [
-        {
-          topics: [toEventSelector('ExecutionSuccess(bytes32,uint256)'), hash],
-          data: zeroHash,
-          transactionHash: executionHash,
-        },
-      ],
-    } as unknown as ReturnType<typeof getPublicClient>)
-    waitForTransactionReceiptMock.mockImplementation(
-      async (_config, { hash: waited }) => {
-        if (waited !== executionHash)
-          throw new WaitForTransactionReceiptTimeoutError({ hash: waited })
-        return receipt('success')
-      },
-    )
+    connectSafe('ExecutionSuccess')
     const queryClient = new QueryClient()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
 
@@ -175,6 +179,25 @@ describe('revokeMigrationApproval', () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: migrationOperatorApprovalsQueryKey({ owner, hca, chainId }),
     })
+  })
+
+  it('reports a failed Safe{Wallet} execution as a failed revocation', async () => {
+    connectSafe('ExecutionFailure')
+    const queryClient = new QueryClient()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+
+    await expect(
+      revokeMigrationApproval({
+        approval,
+        owner,
+        hca,
+        walletAddress: owner,
+        chainId,
+        wagmiConfig,
+        queryClient,
+      }),
+    ).rejects.toThrow('The revocation failed')
+    expect(invalidate).not.toHaveBeenCalled()
   })
 
   it('refuses a different wallet before submitting', async () => {
