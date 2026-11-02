@@ -637,6 +637,7 @@ msgstr ""
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Cancel"
 msgstr "Avbryt"
 
@@ -755,6 +756,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking your earlier payment"
+msgstr ""
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Checking your smart account balance…"
 msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
@@ -885,6 +890,10 @@ msgstr ""
 msgid "Connect your wallet to revoke sessions."
 msgstr ""
 
+#: src/features/wallet/hooks/useLeftoverFunds.ts
+msgid "Connect your wallet to withdraw."
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Connected"
 msgstr ""
@@ -916,6 +925,10 @@ msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Continue migration"
+msgstr ""
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Continue registration"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
@@ -1030,6 +1043,10 @@ msgstr ""
 msgid "Couldn’t load this name’s records. Please try again in a moment."
 msgstr ""
 
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Couldn't load your smart account balance."
+msgstr ""
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't prepare your account. Reconnect your wallet and try again."
 msgstr ""
@@ -1056,6 +1073,10 @@ msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't verify your name records. Please try again."
+msgstr ""
+
+#: src/features/wallet/hooks/useLeftoverFunds.ts
+msgid "Couldn't withdraw your leftover funds. Please try again."
 msgstr ""
 
 #: src/components/HcaFundingConfirmDialog.tsx
@@ -1613,6 +1634,10 @@ msgstr ""
 
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "It takes two transactions from your wallet, one to set up the account and one to reset access. Both require ETH for gas. You will need to enable a new smart session afterwards."
+msgstr ""
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "It takes two transactions from your wallet, one to set up the account and one to withdraw. Both require ETH for gas."
 msgstr ""
 
 #: src/features/migration/components/UnavailableMigrationNames.tsx
@@ -2707,6 +2732,10 @@ msgstr ""
 msgid "Return to Dashboard"
 msgstr ""
 
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Returning leftover funds…"
+msgstr ""
+
 #. placeholder {0}: truncateAddress(address)
 #: src/features/profile/components/view/ReverseNameView.tsx
 msgid "Reverse record for {0}"
@@ -3021,6 +3050,14 @@ msgstr ""
 
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Smart session access reset"
+msgstr ""
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart session access was reset, but your leftover funds are still in your smart account. Use \"Withdraw leftover funds\" to get them back."
+msgstr ""
+
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Smart session access was reset. Your smart account's funds stay there until your registration of {registrationName} completes."
 msgstr ""
 
 #: src/features/navigation/Header/account/WalletSection.tsx
@@ -3515,6 +3552,7 @@ msgstr ""
 #: src/features/renew/workflow/result/FailureStep.tsx
 #: src/features/wallet/components/EnableSessionModal.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Try Again"
 msgstr ""
 
@@ -3965,6 +4003,23 @@ msgstr ""
 msgid "Where did this come from?"
 msgstr ""
 
+#: src/features/navigation/Header/account/WalletSection.tsx
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Withdraw leftover funds"
+msgstr ""
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Withdraw to wallet"
+msgstr ""
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Withdrawing requires a wallet transaction and ETH for gas."
+msgstr ""
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Withdrawing…"
+msgstr ""
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Wrapped name access"
 msgstr ""
@@ -4121,6 +4176,10 @@ msgstr ""
 msgid "Your journey with ENS has given you these <0>traits</0>"
 msgstr ""
 
+#: src/features/navigation/Header/account/WalletSection.tsx
+msgid "Your leftover funds are back in your wallet."
+msgstr ""
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "Your mint was submitted. Check its status before trying another mint."
 msgstr ""
@@ -4166,6 +4225,10 @@ msgstr ""
 msgid "Your own USDC, left in your ENS account by a payment you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
 msgstr ""
 
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Your payments go through your smart account, which is topped up for the highest quoted cost. Anything that isn't spent stays there. You can send it back to your wallet at any time."
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Your permissions changed. Go back to check the updated estimate."
 msgstr ""
@@ -4194,12 +4257,28 @@ msgstr ""
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
 
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Your registration of {heldForRegistration} is waiting to complete and needs these funds. You can withdraw what's left once it's done."
+msgstr ""
+
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your saved upgrade needs attention"
+msgstr ""
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Your smart account also holds {leftoverFunds} left over from earlier payments. It will be sent back to your wallet in one more transaction."
+msgstr ""
+
+#: src/features/wallet/components/RevokeSessionsModal.tsx
+msgid "Your smart account also holds {leftoverFunds}, which your registration of {heldFor} needs to complete. It stays there, and you can withdraw what's left once the registration is done."
+msgstr ""
+
+#: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
+msgid "Your smart account has no leftover funds."
 msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
