@@ -341,9 +341,11 @@ test.describe('Portal ENS name registration', () => {
     console.log('[switch-test] closed the dialog for A; flow keeps running')
 
     // ── 3. Switch to a different name via the real sidebar search control,
-    //    the same one a user would use mid-flow — not a raw page.goto(). ──
+    //    the same one a user would use mid-flow — not a raw page.goto().
+    //    /register opens with the sidebar folded (WEB-1988), so the search
+    //    is the rail's icon button, which opens the search dialog. ─────────
+    await page.getByRole('button', { name: 'Search', exact: true }).click()
     const searchInput = page.getByRole('combobox')
-    await searchInput.click()
     await searchInput.fill(NAME_B)
 
     const searchOption = page.getByRole('option', { name: NAME_B })
