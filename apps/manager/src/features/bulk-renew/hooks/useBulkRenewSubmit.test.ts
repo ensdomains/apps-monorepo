@@ -3,7 +3,7 @@ import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager'
 import { act, renderHook } from '@testing-library/react'
 import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { envConfig } from '@/config'
+import { envConfig, l2Sources } from '@/config'
 import type { RenewItem } from '../types'
 
 // Mocked transaction-manager actors, the renew intent service, and app
@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   submitApprovalActor: vi.fn(),
   submitRenewActor: vi.fn(),
   submitHcaRenewal: vi.fn(),
+  fundHcaRenewalsFromL2: vi.fn(),
   getExpiry: vi.fn(),
   useSmartAccountContext: vi.fn(),
   useHcaFundingPrompt: vi.fn(),
@@ -46,6 +47,7 @@ vi.mock(
 // funds and submits, and resolves once the fill has landed.
 vi.mock('@/features/renew/service/hcaRenewal', () => ({
   HCA_RENEWAL_INTENT_MAX_ITEMS: 25,
+  fundHcaRenewalsFromL2: mocks.fundHcaRenewalsFromL2,
   submitHcaRenewal: mocks.submitHcaRenewal,
 }))
 vi.mock('@/features/profile/service/profileExpiry', () => ({
@@ -271,6 +273,37 @@ describe('useBulkRenewSubmit (smart account)', () => {
 
     expect(result.current.phase).toBe('success')
     expect(intentLabels().map((labels) => labels.length)).toEqual([25, 1])
+  })
+
+  it('pays a whole selection from an L2 with one bridge, then renews each chunk from the account', async () => {
+    mocks.fundHcaRenewalsFromL2.mockResolvedValue(undefined)
+    const chainId = l2Sources[0]?.chain.id ?? 0
+    const many = items(Array.from({ length: 26 }, (_, i) => `name${i}`))
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit({
+        ...args,
+        items: many,
+        l2Payment: { chainId, displayedCharge: 30_000_000n },
+      })
+    })
+
+    expect(result.current.phase).toBe('success')
+    expect(mocks.fundHcaRenewalsFromL2).toHaveBeenCalledOnce()
+    const funding = mocks.fundHcaRenewalsFromL2.mock.calls[0]?.[0]
+    expect(funding.batches.map((batch: unknown[]) => batch.length)).toEqual([
+      25, 1,
+    ])
+    expect(funding.l2Funding).toMatchObject({
+      source: { chain: { id: chainId } },
+      displayedCharge: 30_000_000n,
+    })
+    // The bridge funded the account, so no chunk pays from the L2 again.
+    expect(intentLabels().map((labels) => labels.length)).toEqual([25, 1])
+    for (const [input] of mocks.submitHcaRenewal.mock.calls) {
+      expect(input).not.toHaveProperty('l2Funding')
+    }
   })
 
   it('surfaces a failed intent and resumes after the chunks that landed', async () => {

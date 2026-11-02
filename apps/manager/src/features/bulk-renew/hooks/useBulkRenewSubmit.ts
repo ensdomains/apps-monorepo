@@ -22,6 +22,7 @@ import { invalidateDashboardNames } from '@/features/dashboard/service/queries/g
 import { getExpiry } from '@/features/profile/service/profileExpiry'
 import { getL2FundingSource } from '@/features/register-v2/service/l2FundingSource'
 import {
+  fundHcaRenewalsFromL2,
   type HcaRenewalL2Funding,
   submitHcaRenewal,
 } from '@/features/renew/service/hcaRenewal'
@@ -159,30 +160,44 @@ const runHcaRenewals = ResultFn(async function* (
   remaining: readonly AttributedRenewItem[],
   reporters: RowReporters,
   confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean,
-  // Each chunk bridges what the account is short of it in from this L2.
+  // Bridges what the account is short of every chunk in from this L2, once.
   l2Funding?: HcaRenewalL2Funding,
 ) {
   const { onActive, onDone } = reporters
-  for (const chunk of chunkRenewalItems(remaining)) {
+  const chunks = chunkRenewalItems(remaining)
+  const toError = (error: unknown) =>
+    error instanceof Error ? error : new Error(String(error))
+  const intentParams = {
+    // Bulk renewal is offered for v2 2LD `.eth` names only, so the
+    // canonical v2 registrar is always the right renewer.
+    renewerAddress: getRenewerAddress('v2'),
+    protocol: 'v2',
+    token: ctx.token,
+    signer: ctx.signer,
+    ownerAddress: ctx.ownerAddress,
+    publicClient,
+    chainId: envConfig.chain.id,
+  } as const
+
+  if (l2Funding) {
+    for (const item of remaining) onActive(item.label)
+    yield* ResultAsync.fromPromise(
+      fundHcaRenewalsFromL2({ ...intentParams, batches: chunks, l2Funding }),
+      toError,
+    )
+  }
+
+  for (const chunk of chunks) {
     for (const item of chunk) onActive(item.label)
 
     yield* ResultAsync.fromPromise(
       submitHcaRenewal({
+        ...intentParams,
         items: chunk,
-        // Bulk renewal is offered for v2 2LD `.eth` names only, so the
-        // canonical v2 registrar is always the right renewer.
-        renewerAddress: getRenewerAddress('v2'),
-        protocol: 'v2',
-        token: ctx.token,
-        signer: ctx.signer,
-        ownerAddress: ctx.ownerAddress,
         walletClient: ctx.walletClient,
-        publicClient,
-        chainId: envConfig.chain.id,
         ...(confirmFunding ? { confirmFunding } : {}),
-        ...(l2Funding ? { l2Funding } : {}),
       }),
-      (error) => (error instanceof Error ? error : new Error(String(error))),
+      toError,
     )
 
     for (const item of chunk) onDone(item.label)

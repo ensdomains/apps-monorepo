@@ -1953,10 +1953,6 @@ msgstr "NFT traits"
 msgid "NFT video downloaded"
 msgstr "NFT video downloaded"
 
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "No additional payment needed. You'll still need to sign the renewal."
-msgstr "No additional payment needed. You'll still need to sign the renewal."
-
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No additional payment needed. Your available balance covers the total."
 msgstr "No additional payment needed. Your available balance covers the total."

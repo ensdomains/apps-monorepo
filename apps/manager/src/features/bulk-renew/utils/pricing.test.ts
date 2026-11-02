@@ -5,6 +5,7 @@ import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time
 import { MIN_RENEW_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import type { Selection } from '../types'
 import {
+  canPayBulkRenewal,
   durationForName,
   durationSecondsForName,
   formatUsdAmount,
@@ -93,4 +94,52 @@ describe('newExpiryDateForName', () => {
     expect(end.getMonth()).toBe(1)
     expect(end.getDate()).toBe(1)
   })
+})
+
+describe('canPayBulkRenewal', () => {
+  const l2Row = (balanceRaw: bigint, amountInRaw: bigint) =>
+    ({
+      option: { status: 'available', balanceRaw },
+      amountInRaw,
+      isQuoteLoading: false,
+      isQuoteStale: false,
+      hasQuoteFailed: false,
+    }) as Parameters<typeof canPayBulkRenewal>[0]['selectedL2']
+
+  it.each([
+    { walletBalance: 10, accountCredit: 0, expected: true },
+    // The account's credit pays first.
+    { walletBalance: 4, accountCredit: 6, expected: true },
+    { walletBalance: 4, accountCredit: 5, expected: false },
+  ])(
+    'the wallet pays $walletBalance with $accountCredit credit: $expected',
+    ({ walletBalance, accountCredit, expected }) => {
+      expect(
+        canPayBulkRenewal({
+          selectedL2: undefined,
+          walletBalance,
+          accountCredit,
+          fundedTotal: 10,
+        }),
+      ).toBe(expected)
+    },
+  )
+
+  it.each([
+    { balanceRaw: 12_000_000n, expected: true },
+    { balanceRaw: 11_000_000n, expected: false },
+  ])(
+    'a chosen L2 holding $balanceRaw pays on its own quote: $expected',
+    ({ balanceRaw, expected }) => {
+      // The wallet's balance no longer counts once an L2 is chosen.
+      expect(
+        canPayBulkRenewal({
+          selectedL2: l2Row(balanceRaw, 11_500_000n),
+          walletBalance: 100,
+          accountCredit: 0,
+          fundedTotal: 10,
+        }),
+      ).toBe(expected)
+    },
+  )
 })
