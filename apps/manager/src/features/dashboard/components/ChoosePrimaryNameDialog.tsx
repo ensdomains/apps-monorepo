@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { getAddress } from 'viem'
-import { type Connector, useChainId, useConnection } from 'wagmi'
+import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { HcaFundingConfirmDialog } from '@/components/HcaFundingConfirmDialog'
@@ -53,6 +53,7 @@ import {
 } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { hasOwnerWallet } from '@/lib/wallet'
+import { createEOASigner } from '@/lib/wallet/createEOASigner'
 import { usePrimaryNameDomains } from '../hooks/usePrimaryNameDomains'
 import type { PrimaryNameDomain } from '../service/queries/getPrimaryNameDomains'
 import { resolveDomainLabel } from '../utils'
@@ -337,12 +338,10 @@ const EthAddressConfirmDialog = ({
 const useUpdateEthAddressMutation = ({
   account,
   chainId,
-  connector,
   selectedName,
 }: {
   readonly account: SmartAccountContextValue
   readonly chainId: number
-  readonly connector: Connector | undefined
   readonly selectedName: string | null
 }) =>
   useMutation({
@@ -377,7 +376,7 @@ const useUpdateEthAddressMutation = ({
           texts: [],
           coins: [{ coinType: 60, value: getAddress(walletAddress) }],
         },
-        signer: { type: 'eoa', walletClient, connector },
+        signer: createEOASigner(walletClient),
         accountAddress: walletClient.account.address,
         publicClient: publicClient as PublicClient,
         chainId,
@@ -396,12 +395,10 @@ const useUpdateEthAddressMutation = ({
 const useSetupResolverMutation = ({
   account,
   chainId,
-  connector,
   selectedName,
 }: {
   readonly account: SmartAccountContextValue
   readonly chainId: number
-  readonly connector: Connector | undefined
   readonly selectedName: string | null
 }) => {
   const { t } = useLingui()
@@ -417,7 +414,7 @@ const useSetupResolverMutation = ({
 
       await setupControlledResolver({
         name: selectedName,
-        signer: { type: 'eoa', walletClient, connector },
+        signer: createEOASigner(walletClient),
         ownerAddress: account.ownerAddress,
         publicClient: publicClient as PublicClient,
         chainId,
@@ -453,7 +450,7 @@ export const ChoosePrimaryNameDialog = ({
     useState<PrimaryNameConfirmation | null>(null)
   const [isCheckingPreparation, setIsCheckingPreparation] = useState(false)
   const [preparationError, setPreparationError] = useState<Error | null>(null)
-  const { address, connector } = useConnection()
+  const { address } = useConnection()
   const account = useSmartAccountContext()
   const queryClient = useQueryClient()
   const chainId = useChainId()
@@ -518,13 +515,11 @@ export const ChoosePrimaryNameDialog = ({
   const updateEthAddressMutation = useUpdateEthAddressMutation({
     account,
     chainId,
-    connector,
     selectedName,
   })
   const setupResolverMutation = useSetupResolverMutation({
     account,
     chainId,
-    connector,
     selectedName,
   })
 
