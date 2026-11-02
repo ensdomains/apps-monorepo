@@ -4,6 +4,7 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
+import { getRecordKeys as getResolverRecordKeys } from '@ensdomains/ensjs/public/v2'
 import { errAsync, fromPromise, ok, okAsync } from 'neverthrow'
 import { match } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
@@ -111,6 +112,25 @@ export const isUnindexedResolver = ({
   (indexedResolver === null ||
     !isAddressEqual(indexedResolver, answeringResolver))
 
+const NO_RECORD_KEYS = parseRecordKeys([])
+
+/** The keys read from the resolver's own logs, for when bigname can't answer. */
+const getRecordKeysOnChain = (name: string, resolver: Address) =>
+  safeGetClient()
+    .asyncAndThen((client) =>
+      fromPromise(
+        getResolverRecordKeys(client, { resolverAddress: resolver, name }),
+        (cause) => cause,
+      ),
+    )
+    .map(({ texts, coinTypes }) =>
+      parseRecordKeys([
+        ...texts.map((key) => `text:${key}`),
+        ...coinTypes.map((coinType) => `addr:${coinType}`),
+      ]),
+    )
+    .orElse(() => okAsync(NO_RECORD_KEYS))
+
 /** Keys a wildcard resolver (e.g. an upgraded parent's) holds for the name; bigname serves them per resolver. */
 const getWildcardRecordKeys = ({
   name,
@@ -135,8 +155,8 @@ const getWildcardRecordKeys = ({
             ...(data.inventory ?? NO_KEYS).unsupported_keys,
           ]),
         )
-        .orElse(() => okAsync(parseRecordKeys([])))
-    : okAsync(parseRecordKeys([]))
+        .orElse(() => getRecordKeysOnChain(name, answeringResolver))
+    : okAsync(NO_RECORD_KEYS)
 
 /** The request with the extra keys added, or `undefined` when they add none. */
 const withExtraKeys = <

@@ -1,4 +1,5 @@
 import { BignameError } from '@ens-apps/indexer/bigname'
+import { getRecordKeys } from '@ensdomains/ensjs/public/v2'
 import { errAsync, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,6 +11,7 @@ vi.mock('@/lib/bigname', () => ({
   bigname: { nameRecords: vi.fn(), resolverRecords: vi.fn() },
 }))
 vi.mock('./useRecords', () => ({ getRecords: vi.fn() }))
+vi.mock('@ensdomains/ensjs/public/v2', () => ({ getRecordKeys: vi.fn() }))
 
 const OWN_RESOLVER: Address = '0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63'
 const PARENT_RESOLVER: Address = '0x6C9Fb0A64dcE231A971ba3407D058F23E97Acad0'
@@ -221,13 +223,38 @@ describe('getProfile with a resolver bigname does not attribute', () => {
     expect(profile._unsafeUnwrap()).toEqual({ records })
   })
 
-  it('keeps the records it has when bigname has no keys for the resolver', async () => {
+  it('reads the keys on-chain when bigname has none for the resolver', async () => {
+    inventory([])
+    vi.mocked(getRecords)
+      .mockReturnValueOnce(
+        okAsync({ resolverAddress: PARENT_RESOLVER }) as never,
+      )
+      .mockReturnValueOnce(okAsync({}) as never)
+    vi.mocked(bigname.resolverRecords).mockReturnValue(
+      errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
+    )
+    vi.mocked(getRecordKeys).mockResolvedValue({
+      texts: ['test'],
+      coinTypes: [60n],
+    })
+
+    await getProfile({ name: '1.dragonsy.eth' })
+
+    expect(getRecordKeys).toHaveBeenCalledWith(expect.anything(), {
+      resolverAddress: PARENT_RESOLVER,
+      name: '1.dragonsy.eth',
+    })
+    expect(vi.mocked(getRecords).mock.calls[1]?.[0]?.texts).toContain('test')
+  })
+
+  it('keeps the records it has when neither bigname nor the logs have keys', async () => {
     inventory([])
     const records = { resolverAddress: PARENT_RESOLVER }
     vi.mocked(getRecords).mockReturnValue(okAsync(records) as never)
     vi.mocked(bigname.resolverRecords).mockReturnValue(
       errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
     )
+    vi.mocked(getRecordKeys).mockRejectedValue(new Error('range too large'))
 
     const profile = await getProfile({ name: '1.dragonsy.eth' })
 
