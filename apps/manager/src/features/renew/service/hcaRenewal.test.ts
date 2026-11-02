@@ -496,6 +496,24 @@ describe('submitHcaRenewal paid from an L2', () => {
     })
   })
 
+  it('settles an earlier payment whose USDC was spent since, as registration does', async () => {
+    savePendingL2Bridge(params.chainId, HCA, {
+      intentId: 10n,
+      claimableUntil: Date.now() + 60_000,
+      fundsHcaTo: 3_000_000n,
+    })
+    mocks.awaitL2BridgeActor.mockReturnValue(okAsync('landed'))
+    // It landed, but an L1 retry spent it, so the balance never gets back there.
+    mocks.readHcaUsdcBalanceAtLeastActor.mockReturnValueOnce(okAsync(200_000n))
+
+    await run()
+
+    expect(readPendingL2Bridge(params.chainId, HCA)).toBeUndefined()
+    // Sized on what the account holds now, not on the spent payment.
+    expect(bridged()).toMatchObject({ payment: { amount: 2_025_000n } })
+    expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
+  })
+
   it('pays nothing while an earlier payment is still unsettled', async () => {
     savePendingL2Bridge(params.chainId, HCA, {
       intentId: 9n,

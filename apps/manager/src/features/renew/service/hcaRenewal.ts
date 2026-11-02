@@ -337,9 +337,11 @@ const awaitHcaBalance = ResultFn(async function* (params: {
 
 /**
  * Settle a bridge an earlier attempt (or a registration) sent into this HCA
- * before paying again: wait for its verdict and, once it landed, for a read
- * that shows it. One still unsettled after the wait is an error, not a reason
- * to pay a second time.
+ * before paying again: wait for its verdict and, once it landed, give the read
+ * time to show it. One still unsettled after the wait is an error, not a reason
+ * to pay a second time. A landed one is cleared whatever the read shows, as
+ * registration does: its USDC may have been spent since, and waiting on it
+ * would block every later payment.
  */
 const settlePendingL2Bridge = ResultFn(async function* (params: {
   readonly hca: Address
@@ -356,7 +358,7 @@ const settlePendingL2Bridge = ResultFn(async function* (params: {
     fetchIntentStatus: buildIntentStatusFetcher(),
   })
   if (verdict === 'landed') {
-    yield* awaitHcaBalance({
+    yield* readHcaUsdcBalanceAtLeastActor({
       hca,
       publicClient,
       chainId,
