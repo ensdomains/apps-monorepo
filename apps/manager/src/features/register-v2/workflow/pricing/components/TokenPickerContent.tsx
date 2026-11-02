@@ -734,10 +734,7 @@ export const getL2MethodItems = (
     .filter(
       (row) =>
         row === selectedL2 ||
-        (row.amountInRaw !== undefined &&
-          !isL2ShortOfFunds(row) &&
-          // An empty L2 pays nothing, even when nothing is owed.
-          (row.option.balanceRaw ?? 0n) > 0n),
+        (row.amountInRaw !== undefined && !isL2ShortOfFunds(row)),
     )
     .sort(byBalanceDescending)
     .map((row) => {
@@ -834,7 +831,6 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   walletDebitFor,
   l2Payment,
   l2FeeTooltip,
-  listMethodsWhenCovered = false,
 }: {
   readonly label: string
   readonly pricingLoading: boolean
@@ -893,8 +889,6 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly l2Payment?: L2PaymentProps
   /** What an L2 row's fee info explains; the registration's wording by default. */
   readonly l2FeeTooltip?: (chainName: string) => ReactNode
-  /** Keep every payment method on screen when the account already covers the total. */
-  readonly listMethodsWhenCovered?: boolean
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -980,10 +974,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   })
   // Unrounded, so a sub-cent debit keeps the methods.
   const isFullyCovered =
-    !listMethodsWhenCovered &&
-    receiptState.status === 'ready' &&
-    selectedShare === 0 &&
-    !!walletSelection
+    receiptState.status === 'ready' && selectedShare === 0 && !!walletSelection
 
   const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances.flatMap(
     (stablecoin) => {
