@@ -17,7 +17,6 @@ import {
   setPrimaryName,
   setPrimaryNameWithHca,
 } from '../service/setPrimaryName'
-import { resolvePrimaryNameHcaSigner } from '../utils/primaryNameSigner'
 
 export interface SetPrimaryNameArgs {
   name: string
@@ -85,19 +84,23 @@ export function useSetPrimaryName(
       }
 
       const { signer, walletClient, ownerAddress } = account
-      // An unreadable WalletConnect session is not a Safe, as at registration.
+      // A Safe can't sign the HCA's owner intent; an unreadable session is not a Safe, as at registration.
       const isSafeWallet = await queryClient
         .ensureQueryData(getIsSafeWalletQueryOptions({ connector, address }))
         .catch(() => false)
-      const hcaSigner = resolvePrimaryNameHcaSigner({ signer, isSafeWallet })
 
       // HCA path: one owner-signed, user-paid intent via the reverse adapters.
       // The wallet client is required even here — it signs the intent and, when
       // the HCA cannot cover its own USDC fee, the funding permit as well.
-      if (hcaSigner && ownerAddress && walletClient) {
+      if (
+        signer?.type === 'rhinestone' &&
+        !isSafeWallet &&
+        ownerAddress &&
+        walletClient
+      ) {
         await setPrimaryNameWithHca({
           name,
-          signer: hcaSigner,
+          signer,
           ownerAddress: ownerAddress as Address,
           walletClient,
           publicClient: publicClient as PublicClient,
@@ -121,6 +124,7 @@ export function useSetPrimaryName(
         walletClient,
         publicClient: publicClient as PublicClient,
         chainId,
+        connector,
         onTxId: setTxId,
       })
     },

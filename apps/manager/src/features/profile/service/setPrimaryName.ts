@@ -25,8 +25,8 @@ import {
   type WalletClient,
   zeroAddress,
 } from 'viem'
+import type { Connector } from 'wagmi'
 import { envConfig } from '@/config'
-import { createEOASigner } from '@/lib/wallet/createEOASigner'
 import { assertPrimaryNameForwardResolution } from './primaryNameForwardAddress'
 import { requireCanonicalPrimaryName } from './profileName'
 
@@ -42,6 +42,8 @@ export interface SetPrimaryNameParams {
   walletClient: WalletClient
   publicClient: PublicClient
   chainId: number
+  /** The wallet's wagmi connector. A Safe{Wallet} one answers with safeTxHashes. */
+  connector?: Connector
   /** Called with each submitted txId so the UI can track it via a selector */
   onTxId?: (txId: string) => void
 }
@@ -327,6 +329,7 @@ export async function setPrimaryName({
   walletClient,
   publicClient,
   chainId,
+  connector,
   onTxId,
 }: SetPrimaryNameParams): Promise<void> {
   // The wallet client and the owner address come from the account context
@@ -343,7 +346,7 @@ export async function setPrimaryName({
     )
   }
 
-  const signer = createEOASigner(walletClient)
+  const signer: Signer = { type: 'eoa', walletClient, connector }
 
   const forwardTxId = await submitPrimaryNameForward({
     name,
