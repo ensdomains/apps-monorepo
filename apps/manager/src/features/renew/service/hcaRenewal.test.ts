@@ -34,7 +34,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@ens-apps/transaction-manager', () => ({
   getSmartAccountAddress: mocks.getSmartAccountAddress,
-  HcaIntentFeeExceedsMaximumError: class extends Error {},
   // A stand-in ceiling that scales with the limit; the real curve is covered in
   // the transaction-manager suite.
   hcaMaxIntentFeeUsdcFor: (gasLimit: bigint) =>

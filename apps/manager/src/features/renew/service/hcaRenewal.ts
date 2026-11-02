@@ -4,7 +4,6 @@ import {
   type HcaDisplayedDebit,
   type HcaFundingApprovalCapability,
   type HcaFundingPrompt,
-  HcaIntentFeeExceedsMaximumError,
   hcaMaxIntentFeeUsdcFor,
   type L2FundingSource,
   type PermitPurpose,
@@ -42,6 +41,7 @@ import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { getRenewPrice } from '../data/queries/renewPricing.query'
 import { getL2RenewalAmountOut } from '../utils/l2RenewalAmount'
+import { checkRenewalFees, RenewalFeeUnpricedError } from '../utils/renewalFees'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 
 /**
@@ -419,25 +419,18 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
       ),
     ),
   )
-  const priced = fees.filter((fee): fee is bigint => fee !== null)
-  if (priced.length < fees.length) {
-    return err(
-      new Error(
-        `Could not quote the renewal, so the payment from ${source.chain.name} cannot be sized.`,
-      ),
-    )
-  }
-  // The amount grows with the fee, so each intent's cap bounds the bridge too.
-  const overCap = intents
-    .map((intent, index) => ({
-      fee: priced[index] ?? 0n,
-      max: hcaMaxIntentFeeUsdcFor(intent.gasLimit),
-    }))
-    .find(({ fee, max }) => fee > max)
-  if (overCap) {
-    return err(new HcaIntentFeeExceedsMaximumError(overCap.fee, overCap.max))
-  }
-  const quotedFeeUsdc = priced.reduce((sum, fee) => sum + fee, 0n)
+  const quotedFeeUsdc = yield* checkRenewalFees(
+    intents.map((intent, index) => ({
+      fee: fees[index] ?? null,
+      maxFee: hcaMaxIntentFeeUsdcFor(intent.gasLimit),
+    })),
+  ).mapErr((error) =>
+    error instanceof RenewalFeeUnpricedError
+      ? new Error(
+          `Could not quote the renewal, so the payment from ${source.chain.name} cannot be sized.`,
+        )
+      : error,
+  )
 
   const hcaBalance = yield* readHcaUsdcBalanceActor({
     hca,
