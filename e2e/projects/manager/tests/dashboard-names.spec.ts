@@ -83,11 +83,9 @@ test.describe('Names read from bigname', () => {
     for (const name of added.splice(0)) mockBigname.removeName(name)
   })
 
-  test('the dashboard pages and sorts the names bigname lists', async ({
-    connectedPage: page,
-    mockBigname,
-    accounts,
-  }) => {
+  test('the dashboard pages and sorts the names bigname lists', {
+    tag: ['@smoke'],
+  }, async ({ connectedPage: page, mockBigname, accounts }) => {
     const prefix = uniquePrefix('pg')
     const names = numberedNames(prefix)
     // The later the name, the sooner it expires.
@@ -110,11 +108,9 @@ test.describe('Names read from bigname', () => {
     await expectRows(page, prefix, names.slice(50).reverse())
   })
 
-  test('the version chips list only ENSv1 or only ENSv2 names', async ({
-    connectedPage: page,
-    mockBigname,
-    accounts,
-  }) => {
+  test('the version chips list only ENSv1 or only ENSv2 names', {
+    tag: ['@smoke'],
+  }, async ({ connectedPage: page, mockBigname, accounts }) => {
     const prefix = uniquePrefix('ver')
     const v1Name = `${prefix}one.eth`
     const v2Name = `${prefix}two.eth`

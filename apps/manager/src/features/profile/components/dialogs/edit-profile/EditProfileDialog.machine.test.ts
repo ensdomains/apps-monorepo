@@ -1,5 +1,6 @@
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { describe, expect, it } from 'vitest'
+import type { Connector } from 'wagmi'
 import { createActor } from 'xstate'
 import { defaultProfileRecords } from '@/features/profile/utils/transformRecords'
 import {
@@ -8,6 +9,7 @@ import {
 } from './EditProfileDialog.machine'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
+const CONNECTOR = { id: 'walletConnect' } as Connector
 const OTHER_ACCOUNT = '0x2222222222222222222222222222222222222222' as Address
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
 
@@ -253,6 +255,31 @@ describe('editProfileDialogMachine', () => {
 
     return actor.getSnapshot()
   }
+
+  it.each([
+    {
+      needsResolverSetup: false,
+      expected: {
+        kind: 'update',
+        params: { signer: { connector: CONNECTOR } },
+      },
+    },
+    {
+      needsResolverSetup: true,
+      expected: { kind: 'setup', signer: { connector: CONNECTOR } },
+    },
+  ])(
+    'signs the $expected.kind save with the wallet connector, so a Safe{Wallet} settles it',
+    ({ needsResolverSetup, expected }) => {
+      const snapshot = startWritableUpdate({
+        walletClient,
+        connector: CONNECTOR,
+        needsResolverSetup,
+      })
+
+      expect(snapshot.context.pendingSave).toMatchObject(expected)
+    },
+  )
 
   it('queues an in-place update as an owner-EOA transaction', () => {
     const snapshot = startWritableUpdate({ walletClient })

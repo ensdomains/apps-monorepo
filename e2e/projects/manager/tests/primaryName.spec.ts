@@ -10,10 +10,7 @@ import { publicClient, testClient } from '../../../helpers/anvil-client.js'
 import { expectFlowSuccess } from '../../../helpers/flow-completion.js'
 import { fundTestUsdc } from '../../../helpers/fund-test-usdc.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
-import {
-  clickRegistrationPaymentAction,
-  selectUsdcIfNeeded,
-} from '../../../helpers/payment-picker.js'
+import { selectUsdcIfNeeded } from '../../../helpers/payment-picker.js'
 import { readPrimaryName } from '../../../helpers/primary-name.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -103,11 +100,11 @@ firstRegistrationTest.describe(
         // for completion. The completion banner is gated on the WHOLE flow
         // (including these legs), so once it shows, the setup has finished and
         // the polling stops without a dangling authorize.
-        let registrationComplete = false
+        let isRegistrationComplete = false
         const authorizeSetupTxs = authorizeTransactionsWhile(
           page,
           wallet,
-          () => registrationComplete,
+          () => isRegistrationComplete,
         )
 
         const successBanner = page.getByRole('status')
@@ -116,7 +113,7 @@ firstRegistrationTest.describe(
           failureTitle: 'Registration Failed',
           timeout: 240_000,
         })
-        registrationComplete = true
+        isRegistrationComplete = true
         await authorizeSetupTxs
 
         await expect(
@@ -155,7 +152,9 @@ test.describe
   .skip('ENS primary name', () => {
     test.describe.configure({ timeout: 300_000 })
 
-    test('Set primary name', async ({ connectedPage: page, makeV2Name }) => {
+    test('Set primary name', {
+      tag: ['@smoke'],
+    }, async ({ connectedPage: page, makeV2Name }) => {
       const name = await makeV2Name({ label: 'primetest' })
       console.log(`[primaryName] name for set-primary test: ${name}`)
 

@@ -32,7 +32,7 @@ const expectBatchedReads = (gateway: CcipGateway) => {
 
 test.describe('Offchain resolver profile', () => {
   test('reads an offchain name in batched gateway requests', {
-    tag: ['@scenario:H12'],
+    tag: ['@scenario:H12', '@smoke'],
   }, async ({ page, makeOffchainName, ccipGateway }) => {
     const { name } = await makeOffchainName()
     ccipGateway.reset()

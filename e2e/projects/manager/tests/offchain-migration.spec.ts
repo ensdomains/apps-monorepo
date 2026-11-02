@@ -50,7 +50,7 @@ test.describe('ENS V1 → V2 migration — offchain resolver', () => {
 
   for (const type of ['unwrapped', 'wrapped', 'locked'] as const)
     test(`a ${type} V1 name on a CCIP-Read resolver keeps it, reads nothing through the gateway, and it and its wildcard subname still resolve`, {
-      tag: ['@scenario:GR14'],
+      tag: ['@scenario:GR14', '@smoke'],
     }, async ({
       migrationConnectedPage: page,
       wallet,

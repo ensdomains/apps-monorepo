@@ -126,13 +126,13 @@ export const TransactionStateContent = ({
                     <ArrowRight className="size-4 text-muted-foreground" />
                   ))
                   .with('success', () => (
-                    <CheckCircle2 className="size-4 text-peridot-600" />
+                    <CheckCircle2 className="size-4 text-success-text" />
                   ))
                   .with('error', () => (
-                    <XCircle className="size-4 text-garnet-600" />
+                    <XCircle className="size-4 text-danger-text" />
                   ))
                   .otherwise(() => (
-                    <Hourglass className="size-4 text-quartz-600 animate-spin" />
+                    <Hourglass className="size-4 text-muted-foreground animate-spin" />
                   ))}
               </div>
               <div className="space-y-2 flex-1 min-w-0">
@@ -172,6 +172,7 @@ export const TransactionStateContent = ({
                 {status === 'error' && txError && (
                   <TransactionErrorAlert
                     title="Transaction Error"
+                    titleClassName="font-sans text-p font-medium leading-snug tracking-normal"
                     summary={txError?.message || 'An unknown error occurred.'}
                     details={txError?.stack || 'No stack trace available.'}
                     txHash={txHash}

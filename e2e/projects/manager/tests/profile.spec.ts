@@ -11,6 +11,7 @@ import {
   toHex,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+import { getDestinationContracts } from '../../../../packages/smart-account/src/providers/rhinestone/manifest.ts'
 import {
   STANDALONE_HCA,
   type V2NameConfig,
@@ -41,7 +42,10 @@ const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
 const ETH_REGISTRY =
   ensL1Contracts[supportedL1Chains.sepolia].ensRegistry.address
-const USDC = ensL1Contracts[supportedL1Chains.sepolia].usdc.address as Address
+// The USDC the app pays with (Circle's on Sepolia since #1395), not ensjs's
+// MockUSDC. Circle's FiatToken keeps balances at slot 9.
+const USDC = getDestinationContracts(supportedL1Chains.sepolia).usdc
+const USDC_BALANCE_SLOT = 9n
 const ERC20_ABI = parseAbi([
   'function balanceOf(address) view returns (uint256)',
   'function transfer(address to, uint256 amount) returns (bool)',
@@ -60,11 +64,9 @@ function readExpiry(label: string): Promise<bigint> {
 test.describe('ENS profile', () => {
   test.describe.configure({ timeout: 300_000 })
 
-  test('add lots of records to profile', async ({
-    profileConnectedPage: page,
-    makeV2Name,
-    wallet,
-  }) => {
+  test('add lots of records to profile', {
+    tag: ['@smoke'],
+  }, async ({ profileConnectedPage: page, makeV2Name, wallet }) => {
     const name = await makeV2Name({ label: 'profileadd' })
     console.log(`[profile] name for add-records test: ${name}`)
 
@@ -370,7 +372,7 @@ test.describe('ENS profile', () => {
   })
 
   test('extend owned name by 28 days', {
-    tag: ['@scenario:B1'],
+    tag: ['@scenario:B1', '@smoke'],
   }, async ({ profileConnectedPage: page, makeV2Name, wallet }) => {
     const name = await makeV2Name({ label: 'extendowned' })
     const label = name.replace(/\.eth$/, '')
@@ -458,13 +460,15 @@ test.describe('ENS profile', () => {
     for (const [i, payer] of payers.entries())
       await move(payer, parking, balances[i])
     // A dev build with VITE_TIME_TRAVEL tops the owner up to 10,000 USDC on
-    // every load (anvilSetupOwner: ERC20 mint through the /rpc proxy) and may
+    // every load (anvilSetupOwner, through the /rpc proxy: an ERC20 mint, or
+    // for Circle's USDC an anvil_setStorageAt of its balance slot) and may
     // ask the backend to fund it. Refuse exactly those, so the empty wallet
     // the test made is the wallet the page sees.
     const MINT = '40c10f19' // mint(address,uint256)
     await page.route('**/rpc', async (route) => {
       const body = route.request().postData() ?? ''
-      if (!body.includes(MINT)) return route.fallback()
+      if (!body.includes(MINT) && !body.includes('anvil_setStorageAt'))
+        return route.fallback()
       const calls = JSON.parse(body)
       const reply = (c: { id: unknown }) => ({
         jsonrpc: '2.0',
@@ -483,7 +487,7 @@ test.describe('ENS profile', () => {
     const hcaSlot = keccak256(
       encodeAbiParameters(
         [{ type: 'address' }, { type: 'uint256' }],
-        [STANDALONE_HCA, 0n],
+        [STANDALONE_HCA, USDC_BALANCE_SLOT],
       ),
     )
     const hcaStorage = await publicClient.getStorageAt({
@@ -500,8 +504,7 @@ test.describe('ENS profile', () => {
       await page.getByRole('link', { name: /renew/i }).click()
       await page.getByRole('button', { name: /pay with stablecoins/i }).click()
       await clickThroughEnableSessions(page)
-      // Measured: the picker shows the empty balance and the shortfall, and
-      // will not let USDC be chosen.
+      // Every source the picker could pay from is empty.
       const fundingAddresses: Address[] = [
         ...payers.map((payer) => payer.address),
         STANDALONE_HCA,
@@ -517,12 +520,21 @@ test.describe('ENS profile', () => {
           `empty funding precondition: ${address}`,
         ).toBe(0n)
       }
-      const usdc = page.getByRole('button', { name: 'Select USDC' })
-      await expect(usdc, 'USDC cannot be chosen').toBeDisabled({
-        timeout: 30_000,
-      })
-      await expect(usdc).toContainText('$0.00')
-      await expect(usdc, 'the shortfall is stated').toContainText(/Need \$\d/)
+      // Since #1514 the picker drops the token row when nothing can pay, and
+      // says so instead.
+      const picker = page.getByRole('dialog')
+      await expect(
+        picker.getByText(
+          'You do not have enough USDC to complete this transaction.',
+        ),
+        'the shortfall is stated',
+      ).toBeVisible({ timeout: 30_000 })
+      await expect(
+        picker.getByRole('button', {
+          name: /^(renew name|continue in wallet|sign renewal)$/i,
+        }),
+        'no payment can be started',
+      ).toBeDisabled()
       await expect(page.getByText('Renewal Complete!')).toHaveCount(0)
       expect(await readExpiry(label), 'nothing was renewed').toBe(expiryBefore)
     } finally {
@@ -613,12 +625,12 @@ test.describe('ENS profile', () => {
       await page.waitForLoadState('networkidle')
       // Answer every send this renewal asks for (a USDC approve may precede
       // the renew), and stop once it reports success.
-      let done = false
-      const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+      let isDone = false
+      const authorizing = authorizeTransactionsWhile(page, wallet, () => isDone)
       try {
         await renewFor28Days(page)
       } finally {
-        done = true
+        isDone = true
         await authorizing
       }
       expect(

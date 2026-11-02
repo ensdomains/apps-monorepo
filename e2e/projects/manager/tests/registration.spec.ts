@@ -30,6 +30,13 @@ const REGISTER_PRICE_ABI = parseAbi([
   'function getRegisterPrice(string label, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)',
 ])
 
+/** What the fill-progress sampler leaves on `window` between evaluates. */
+type FillProbe = {
+  readonly fill: { readonly t: number; readonly p: number }[]
+  doneAt: number | null
+  timer: number
+}
+
 test.describe('ENS name registration', () => {
   test('user is unable to register a name when disconnected', {
     tag: ['@scenario:A16'],
@@ -256,16 +263,15 @@ test.describe('Registration progress (A25)', () => {
     // name), so progress = 100 − X. The fill unmounts once success shows, so
     // the moment "Registration Complete" appears is noted separately.
     await page.evaluate(() => {
-      const w = window as unknown as Record<string, unknown>
-      const fill: { t: number; p: number }[] = []
-      w.__fill = fill
-      w.__doneAt = null
-      w.__fillTimer = window.setInterval(() => {
+      const probe: FillProbe = { fill: [], doneAt: null, timer: 0 }
+      Reflect.set(window, '__fillProbe', probe)
+      const { fill } = probe
+      probe.timer = window.setInterval(() => {
         if (
-          w.__doneAt === null &&
+          probe.doneAt === null &&
           document.body.innerText.includes('Registration Complete')
         )
-          w.__doneAt = Date.now()
+          probe.doneAt = Date.now()
         const line = [
           ...document.querySelectorAll<HTMLElement>('[style*="clip-path"]'),
         ].find((el) => el.style.clipPath.startsWith('inset('))
@@ -278,8 +284,12 @@ test.describe('Registration progress (A25)', () => {
 
     await page.getByRole('button', { name: /register name/i }).click()
     await page.getByRole('button', { name: 'Set up later' }).click()
-    let complete = false
-    const authorizing = authorizeTransactionsWhile(page, wallet, () => complete)
+    let isComplete = false
+    const authorizing = authorizeTransactionsWhile(
+      page,
+      wallet,
+      () => isComplete,
+    )
     await expectFlowSuccess(page, {
       success: page
         .locator('p.text-ens-peridot-text-dark')
@@ -287,16 +297,13 @@ test.describe('Registration progress (A25)', () => {
       failureTitle: 'Registration Failed',
       timeout: 180_000,
     })
-    complete = true
+    isComplete = true
     await authorizing
 
     const { fill, doneAt } = await page.evaluate(() => {
-      const w = window as unknown as Record<string, unknown>
-      window.clearInterval(w.__fillTimer as number)
-      return {
-        fill: w.__fill as { t: number; p: number }[],
-        doneAt: w.__doneAt as number | null,
-      }
+      const probe: FillProbe = Reflect.get(window, '__fillProbe')
+      window.clearInterval(probe.timer)
+      return { fill: probe.fill, doneAt: probe.doneAt }
     })
     console.log(
       `[A25] ${fill.length} samples, ${fill[0]?.p.toFixed(1)}% → ${fill.at(-1)?.p.toFixed(1)}%`,
@@ -362,8 +369,12 @@ test.describe('Two registrations of one label (A22)', () => {
       .getByRole('button', { name: 'Set up later' })
       .click({ timeout: 10_000 })
       .catch(() => undefined)
-    let settled = false
-    const authorizing = authorizeTransactionsWhile(page, wallet, () => settled)
+    let isSettled = false
+    const authorizing = authorizeTransactionsWhile(
+      page,
+      wallet,
+      () => isSettled,
+    )
     const outcome = await firstOutcome(
       page,
       {
@@ -378,7 +389,7 @@ test.describe('Two registrations of one label (A22)', () => {
       },
       240_000,
     )
-    settled = true
+    isSettled = true
     await Promise.race([authorizing, page.waitForTimeout(5_000)])
     console.log(
       `[A22] outcome: ${outcome} after ${Date.now() - clickedAt} ms; url ${page.url()}`,

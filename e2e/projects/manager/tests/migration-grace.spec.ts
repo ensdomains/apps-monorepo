@@ -9,7 +9,7 @@
  *
  * The fix: `useEligibleV1Names` now returns `gracePeriodNames` alongside the
  * eligible list. The dashboard banner offers "Renew Names", /migration lists
- * grace names with a "Renew before upgrade" badge, and starting the upgrade
+ * grace names in their own "names in grace" section, and starting the upgrade
  * quotes the renewal in USDC, asks for a USDC approval only when the allowance
  * is short, calls `ETHRenewerV1.renewBatch`, re-reads the renewed names, then
  * rebuilds and runs the normal migration plan. A wallet without enough USDC is
@@ -30,6 +30,7 @@ import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import { type Address, erc20Abi, labelhash, parseAbi, parseUnits } from 'viem'
 import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts'
+import { getDestinationContracts } from '../../../../packages/smart-account/src/providers/rhinestone/manifest.ts'
 import {
   type GraceV1Name,
   makeGraceV1Name,
@@ -75,7 +76,8 @@ const test = baseTest.extend({
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
-const USDC = ensjsSepolia.usdc.address as Address
+// The token the app renews with (Circle's on Sepolia), not ensjs's MockUSDC.
+const USDC = getDestinationContracts(supportedL1Chains.sepolia).usdc
 const RENEWER = ensjsSepolia.ensEthRenewerV1.address as Address
 const BASE_REGISTRAR = ensjsSepolia.ensBaseRegistrarImplementation
   .address as Address
@@ -149,7 +151,7 @@ const graceMock = (
 })
 
 /** Mock the subgraph, align the browser clock with the chain, and open /upgrade. */
-async function openMigration(page: Page, names: MockV1Name[]) {
+async function openMigration(page: Page, names: readonly MockV1Name[]) {
   await serveV1Names(page, names)
   await syncBrowserToChain(page)
   await page.goto(`${MANAGER_APP_URL}/upgrade`)
@@ -202,17 +204,46 @@ async function activeMock(
 }
 
 /** Tick or untick a name on /migration (the input itself is visually hidden). */
-async function setNameSelected(page: Page, name: string, selected: boolean) {
+async function setNameSelected(
+  page: Page,
+  name: string,
+  shouldBeSelected: boolean,
+) {
   const checkbox = nameCheckbox(page, name)
-  if ((await checkbox.isChecked()) !== selected) {
+  if ((await checkbox.isChecked()) !== shouldBeSelected) {
     await checkbox.locator('xpath=..').click()
   }
-  await expect(checkbox).toBeChecked({ checked: selected })
+  await expect(checkbox).toBeChecked({ checked: shouldBeSelected })
+}
+
+/**
+ * Grace-period names start unselected (#1556): renewing one costs money, so
+ * the user opts in. Waits for the list to seed its selection, checks the name
+ * was left out, then ticks it.
+ */
+async function optInGrace(page: Page, name: string) {
+  const checkbox = nameCheckbox(page, name)
+  await expect(checkbox).toBeAttached({ timeout: 60_000 })
+  await expect(
+    page.locator('main').getByRole('button', { name: /^Upgrade \d+ names?$/ }),
+  ).toBeVisible({ timeout: 60_000 })
+  await expect(checkbox).not.toBeChecked()
+  await setNameSelected(page, name, true)
 }
 
 /** The checkbox for a name on /migration, once the list has rendered. */
 const nameCheckbox = (page: Page, name: string) =>
   page.getByRole('checkbox', { name, exact: true })
+
+/**
+ * A name's checkbox inside the "N names in grace" section: since #1556 that
+ * section, not a per-row badge, is what says a name is renewed first.
+ */
+const graceRow = (page: Page, name: string) =>
+  page
+    .locator('main section')
+    .filter({ has: page.getByRole('heading', { name: /names? in grace$/i }) })
+    .getByRole('checkbox', { name, exact: true })
 
 /**
  * Open "What you'll approve", return the ordered step titles and the renewal
@@ -250,15 +281,15 @@ async function runUpgrade(
 ) {
   const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/i })
   await expect(upgrade).toBeEnabled({ timeout: 60_000 })
-  let done = false
-  const authorizeAll = authorizeTransactionsWhile(page, wallet, () => done)
+  let isDone = false
+  const authorizeAll = authorizeTransactionsWhile(page, wallet, () => isDone)
   await upgrade.click()
   await expect(
     page.getByRole('heading', {
       name: /your names? (has|have) been upgraded/i,
     }),
   ).toBeVisible({ timeout: 180_000 })
-  done = true
+  isDone = true
   await authorizeAll
   if (shot) await qaShot(page, shot)
 }
@@ -335,7 +366,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     await qaShot(page, 'list-1-dashboard')
     await renew.click()
 
-    // ── /upgrade: the grace name is listed, selected, and badged ──
+    // ── /upgrade: the grace name is listed in the grace section and opts in ──
     // #1307 renamed /migration to /upgrade (the old path redirects).
     await expect(page).toHaveURL(/\/upgrade$/)
     await expect(
@@ -344,9 +375,8 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
         name: 'Renew your names before upgrading',
       }),
     ).toBeVisible({ timeout: 60_000 })
-    const checkbox = nameCheckbox(page, grace.name)
-    await expect(checkbox).toBeChecked()
-    await expect(checkbox).toHaveAccessibleDescription(/Renew before upgrade/)
+    await optInGrace(page, grace.name)
+    await expect(graceRow(page, grace.name)).toBeAttached()
     await expect(
       main.getByRole('button', { name: 'Upgrade 1 name' }),
     ).toBeVisible()
@@ -354,16 +384,14 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
   })
 
   test('renews then upgrades a grace-period name, charging the USDC the dialog quoted', {
-    tag: ['@scenario:GA6', '@scenario:B17'],
+    tag: ['@scenario:GA6', '@scenario:B17', '@smoke'],
   }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
     await expectFailureWhileRenewerDeauthorised()
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const grace = await makeGraceV1Name({ label: 'mg-renew', owner })
     await openMigration(page, [graceMock(grace, owner.address)])
 
-    await expect(nameCheckbox(page, grace.name)).toBeChecked({
-      timeout: 60_000,
-    })
+    await optInGrace(page, grace.name)
 
     // The renewal steps come before every migration step.
     const { steps, quotedUsdc } = await readRequestsDialog(
@@ -414,16 +442,21 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     try {
       await openMigration(page, [graceMock(grace, owner.address)])
 
-      // Loaded: the name is listed and selected …
-      await expect(nameCheckbox(page, grace.name)).toBeChecked({
-        timeout: 60_000,
-      })
-      // … the shortfall is called out, and the action is disabled.
+      // Loaded: the name is listed, and once selected …
+      await optInGrace(page, grace.name)
+      // … the shortfall is called out on the row and by the action, which is
+      // disabled.
       await expect(
         page.getByRole('alert').filter({
-          hasText: 'Not enough USDC to renew these names.',
+          hasText:
+            'Not enough USDC to renew the selected names. Add USDC or deselect this name.',
         }),
       ).toBeVisible({ timeout: 60_000 })
+      await expect(
+        page
+          .getByRole('alert')
+          .filter({ hasText: /^Not enough USDC to renew$/ }),
+      ).toBeVisible()
       const blocked = page.getByRole('button', { name: 'Insufficient USDC' })
       await expect(blocked).toBeDisabled()
       await qaShot(page, 'nousdc-1-blocked')
@@ -485,14 +518,10 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
         name: 'Your names are ready to upgrade',
       }),
     ).toBeVisible({ timeout: 60_000 })
-    await expect(nameCheckbox(page, grace.name)).toBeChecked()
     await expect(nameCheckbox(page, active)).toBeChecked()
-    await expect(nameCheckbox(page, grace.name)).toHaveAccessibleDescription(
-      /Renew before upgrade/,
-    )
-    await expect(nameCheckbox(page, active)).not.toHaveAccessibleDescription(
-      /Renew before upgrade/,
-    )
+    await optInGrace(page, grace.name)
+    await expect(graceRow(page, grace.name)).toBeAttached()
+    await expect(graceRow(page, active)).toHaveCount(0)
 
     await qaShot(page, 'mixed-2-migration')
     const { steps } = await readRequestsDialog(page, 'mixed-3-dialog')
@@ -554,7 +583,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
       await expect(nameCheckbox(page, name)).toBeChecked({ timeout: 60_000 })
     }
     await qaShot(page, 'bulk-1-migration')
-    // … and all five are selectable, with the badge on exactly the grace three.
+    // … and all five are selectable, with exactly the grace three in the grace section.
     await expect(
       main.getByRole('heading', {
         level: 1,
@@ -562,15 +591,11 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
       }),
     ).toBeVisible()
     for (const { name } of graces) {
-      await expect(nameCheckbox(page, name)).toBeChecked()
-      await expect(nameCheckbox(page, name)).toHaveAccessibleDescription(
-        /Renew before upgrade/,
-      )
+      await optInGrace(page, name)
+      await expect(graceRow(page, name)).toBeAttached()
     }
     for (const name of actives) {
-      await expect(nameCheckbox(page, name)).not.toHaveAccessibleDescription(
-        /Renew before upgrade/,
-      )
+      await expect(graceRow(page, name)).toHaveCount(0)
     }
 
     // One batched renewal for the three grace names, before any migration.
@@ -627,8 +652,8 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     ])
 
     await expect(nameCheckbox(page, active)).toBeChecked({ timeout: 60_000 })
-    // Positive control: the grace name is offered and selected by default.
-    await expect(nameCheckbox(page, grace.name)).toBeChecked()
+    // Positive control: the grace name is offered and can be selected.
+    await optInGrace(page, grace.name)
     await setNameSelected(page, grace.name, false)
 
     // No renewal in the plan once the grace name is out of the selection.
@@ -658,7 +683,7 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
         name: 'Renew your names before upgrading',
       }),
     ).toBeVisible({ timeout: 60_000 })
-    await expect(nameCheckbox(page, grace.name)).toBeChecked()
+    await optInGrace(page, grace.name)
     await qaShot(page, 'desel-2-after')
   })
 
@@ -704,8 +729,8 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
         name: 'Renew your names before upgrading',
       }),
     ).toBeVisible({ timeout: 60_000 })
-    await expect(nameCheckbox(page, first.name)).toBeChecked()
-    await expect(nameCheckbox(page, second.name)).toBeChecked()
+    await optInGrace(page, first.name)
+    await optInGrace(page, second.name)
     const { steps, quotedUsdc } = await readRequestsDialog(
       page,
       'multi-2-dialog',

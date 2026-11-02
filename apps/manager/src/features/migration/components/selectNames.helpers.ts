@@ -19,6 +19,22 @@ export const shouldUseCompactSelectionLayout = (
 export const shouldUseSmallSelectionCard = (eligibleCount: number): boolean =>
   eligibleCount > 0 && eligibleCount <= SMALL_SELECTION_LAYOUT_THRESHOLD
 
+// Shown once this step has a wallet transaction to send: the upgrade (names
+// selected, or a cleanup-only recovery) or the wrapper sync that precedes it.
+export const shouldShowSmartTransactionsNotice = ({
+  isMetaMaskWallet,
+  totalSelected,
+  isFinishingRecovery,
+  hasWrapperSyncNames,
+}: {
+  readonly isMetaMaskWallet: boolean
+  readonly totalSelected: number
+  readonly isFinishingRecovery: boolean
+  readonly hasWrapperSyncNames: boolean
+}): boolean =>
+  isMetaMaskWallet &&
+  (totalSelected > 0 || isFinishingRecovery || hasWrapperSyncNames)
+
 export const collectAllSelectable = (
   groups: readonly NameTreeNode[],
   orphans: readonly NameTreeNode[],

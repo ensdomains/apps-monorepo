@@ -144,7 +144,7 @@ test.describe('ENS V1 → V2 subname migration', () => {
   // -------------------------------------------------------------------------
 
   test('copies a registry-only subname into a UserRegistry under its parent', {
-    tag: ['@scenario:GS4'],
+    tag: ['@scenario:GS4', '@smoke'],
   }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
     const userAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
     const makeV1Name = createMakeV1Name({ userAccount })

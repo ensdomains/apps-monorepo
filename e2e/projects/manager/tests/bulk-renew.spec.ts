@@ -75,7 +75,7 @@ test.describe('Manager bulk renew — V1 and V2 names', () => {
   test.describe.configure({ timeout: 300_000 })
 
   test('a wallet holding a V1 and a V2 name can bulk-renew only the V2 one', {
-    tag: ['@scenario:B25'],
+    tag: ['@scenario:B25', '@smoke'],
   }, async ({
     migrationConnectedPage: page,
     makeV2Name,
@@ -208,11 +208,11 @@ test.describe('Manager bulk renew — V1 and V2 names', () => {
     const dialog = page.getByRole('dialog')
     await dialog.getByRole('button', { name: 'Next', exact: true }).click()
     await dialog.getByRole('button', { name: /USDC/ }).first().click()
-    let done = false
-    const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+    let isDone = false
+    const authorizing = authorizeTransactionsWhile(page, wallet, () => isDone)
     await dialog.getByRole('button', { name: 'Confirm', exact: true }).click()
     await approveFundingUntil(page, page.getByText('Renewal Complete'))
-    done = true
+    isDone = true
     await authorizing
 
     const after = await Promise.all(labels.map(expiryOf))

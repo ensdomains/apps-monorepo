@@ -2,19 +2,14 @@ import { defineConfig } from '@playwright/test'
 import { baseConfig } from '../../playwright.config.base.js'
 
 /**
- * The curated smoke subset of the manager suite — see
- * `e2e/docs/smoke-suite.md`. Manager's presence in the smoke gate is
- * deliberately thin: the wider manager project has a known, separately
- * tracked connect-flow instability (`e2e/coverage/handoff.md`, iteration 4),
- * and `profile.spec.ts` mixes 19 reliable passes with 3 real, unrelated
- * failures in a single 25-minute file — not something a fast trust-worthy
- * gate can afford. `registration.spec.ts`'s happy path is the one manager
- * area verified fast (~70s) and fully reliable in a fresh same-day run, so
- * it is the only manager slice in scope here.
+ * The manager's per-PR smoke gate: every `@smoke` test outside the migration
+ * family (see `e2e/docs/smoke-suite.md`). Migration specs run their own
+ * `@smoke` slice through `playwright.migration.config.ts`, so they are ignored
+ * here; nightly runs both configs in full.
  *
  * Same shape as `playwright.config.ts`: `harness-manager` gates the suite,
- * thinned by `grep` to just the two `makeV2Name` fixture checks the
- * registration path actually touches.
+ * thinned by `grep` to the fork check (so a run cannot pass against another
+ * chain) and the two `makeV2Name` fixture checks.
  */
 export default defineConfig({
   ...baseConfig,
@@ -34,6 +29,7 @@ export default defineConfig({
     {
       name: 'manager-smoke',
       testMatch: /\.spec\.ts$/,
+      testIgnore: /temporaryPremium|migration|notification/,
       dependencies: ['harness-manager'],
     },
   ],

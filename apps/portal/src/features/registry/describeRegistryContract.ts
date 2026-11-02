@@ -12,6 +12,7 @@ const ETH_REGISTRY = getChainContractAddress({
 
 export type RegistryContractDescription = {
   readonly type: string
+  readonly isVerified: boolean
   readonly docsHref: string
 }
 
@@ -19,11 +20,18 @@ export type RegistryContractDescription = {
 export const describeRegistryContract = ({
   address,
   rootAddress,
+  isUntrusted,
 }: {
   readonly address: Address
   readonly rootAddress: Address | null
+  /** Runs an untrusted UserRegistry implementation (WEB-2028); `undefined` while the check is pending or failed. */
+  readonly isUntrusted: boolean | undefined
 }): RegistryContractDescription => ({
   type: match(address)
+    .when(
+      () => isUntrusted === true,
+      () => 'Untrusted ENS V2 permissioned registry',
+    )
     .when(
       (candidate) => isAddressEqual(candidate, ETH_REGISTRY),
       () => 'Official ENS V2 .eth registry',
@@ -33,6 +41,11 @@ export const describeRegistryContract = ({
         rootAddress !== null && isAddressEqual(candidate, rootAddress),
       () => 'Official ENS V2 root registry',
     )
-    .otherwise(() => 'Verified ENS V2 permissioned registry'),
+    .when(
+      () => isUntrusted === false,
+      () => 'Verified ENS V2 permissioned registry',
+    )
+    .otherwise(() => 'ENS V2 permissioned registry'),
+  isVerified: isUntrusted === false,
   docsHref: CONTRACT_DOCS.registry,
 })
