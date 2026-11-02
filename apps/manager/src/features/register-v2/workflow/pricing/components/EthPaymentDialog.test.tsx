@@ -5,7 +5,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getEthSwapQuote } from '../../../service/ethPayment'
-import { executeEthPayment } from '../../../service/executeEthPayment'
+import {
+  executeEthPayment,
+  hasPendingEthPayment,
+} from '../../../service/executeEthPayment'
 import { EthPaymentDialog } from './EthPaymentDialog'
 
 vi.mock('../../../service/ethPayment', () => ({
@@ -14,6 +17,7 @@ vi.mock('../../../service/ethPayment', () => ({
 }))
 vi.mock('../../../service/executeEthPayment', () => ({
   executeEthPayment: vi.fn(),
+  hasPendingEthPayment: vi.fn(() => false),
 }))
 
 const owner = '0x1111111111111111111111111111111111111111'
@@ -49,6 +53,7 @@ const renderDialog = (
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(hasPendingEthPayment).mockReturnValue(false)
   vi.mocked(getEthSwapQuote).mockResolvedValue({
     amountOut,
     amountIn: 10_000_000_000_000_000n,
@@ -75,7 +80,11 @@ describe('ETH checkout dialog', () => {
     await waitFor(() => expect(button).toBeEnabled())
     fireEvent.click(button)
     await waitFor(() =>
-      expect(executeEthPayment).toHaveBeenCalledWith(owner, amountOut),
+      expect(executeEthPayment).toHaveBeenCalledWith(
+        owner,
+        amountOut,
+        10_200_000_000_000_000n,
+      ),
     )
     await waitFor(() => expect(onFunded).toHaveBeenCalledOnce())
     expect(onOpenChange).toHaveBeenCalledWith(false)
@@ -109,5 +118,15 @@ describe('ETH checkout dialog', () => {
     )
     expect(onFunded).toHaveBeenCalledOnce()
     expect(executeEthPayment).not.toHaveBeenCalled()
+  })
+
+  it('resumes a pending swap without requesting a new quote', async () => {
+    vi.mocked(hasPendingEthPayment).mockReturnValue(true)
+    const { onFunded } = renderDialog()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirm previous ETH swap' }),
+    )
+    await waitFor(() => expect(onFunded).toHaveBeenCalledOnce())
+    expect(getEthSwapQuote).not.toHaveBeenCalled()
   })
 })

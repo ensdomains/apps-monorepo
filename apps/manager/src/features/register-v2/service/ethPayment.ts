@@ -2,7 +2,6 @@ import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
   type Address,
   encodeFunctionData,
-  erc20Abi,
   formatEther,
   type Hex,
   isAddressEqual,
@@ -203,11 +202,3 @@ export const assertFreshEthQuote = (
 
 export const formatEthQuote = (quote: EthSwapQuote): string =>
   `${formatEther(quote.amountIn)} ETH (up to ${formatEther(quote.maximumEth)} ETH)`
-
-export const readWalletUsdc = (owner: Address) =>
-  publicClient.readContract({
-    address: getDestinationContracts(chain.id).usdc,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: [owner],
-  })
