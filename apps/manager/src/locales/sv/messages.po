@@ -1212,6 +1212,10 @@ msgstr ""
 msgid "Edit Profile"
 msgstr ""
 
+#: src/features/migration/components/SubnameUpgradeExplanation.tsx
+msgid "Editing those records depends on that resolver. If it stops accepting changes, the subname owner can switch to a new resolver and set the records again."
+msgstr ""
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "Eligibility could not be loaded. Please try again."
 msgstr ""
@@ -1641,6 +1645,10 @@ msgstr ""
 msgid "It takes two transactions from your wallet, one to set up the account and one to withdraw. Both require ETH for gas."
 msgstr ""
 
+#: src/features/migration/components/SubnameUpgradeExplanation.tsx
+msgid "Its direct subnames move to ENSv2 with their current owners, including subnames held by other wallets. Those owners don't need to do anything."
+msgstr ""
+
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "its parent name, or one above it, was upgraded without it."
 msgstr ""
@@ -1891,6 +1899,10 @@ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Names with deeper subnames, wrapped protections we cannot preserve, an incomplete subname list, or too many subnames for one safe upgrade must stay on ENSv1 for now. If subname copying is unavailable, the parent upgrade is blocked. There is no option to acknowledge the loss and continue. Your names keep working on ENSv1 while you wait."
+msgstr ""
+
+#: src/features/migration/components/SubnameUpgradeExplanation.tsx
+msgid "Names you don't select stay on ENSv1, and their subnames keep working there."
 msgstr ""
 
 #. placeholder {0}: formatUsd(priceUSD)
@@ -3189,6 +3201,14 @@ msgstr ""
 msgid "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
 msgstr ""
 
+#: src/features/migration/components/SubnameUpgradeExplanation.tsx
+msgid "Subname records aren't copied. Each subname keeps its current resolver, so its addresses, avatar and other records keep working."
+msgstr ""
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "Subnames included"
+msgstr ""
+
 #: src/features/bulk-renew/components/NamesBreakdown.tsx
 msgid "Subtotal:"
 msgstr ""
@@ -3198,7 +3218,11 @@ msgid "Support"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
-msgid "Supported direct subnames, such as alice.example.eth, can be included when you upgrade an unwrapped or unlocked example.eth. Each keeps the owner and resolver shown in your review. Existing subname records stay on that resolver, and you keep control of the parent name."
+#~ msgid "Supported direct subnames, such as alice.example.eth, can be included when you upgrade an unwrapped or unlocked example.eth. Each keeps the owner and resolver shown in your review. Existing subname records stay on that resolver, and you keep control of the parent name."
+#~ msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx
+msgid "Supported direct subnames, such as alice.example.eth, upgrade with an unwrapped or unlocked example.eth:"
 msgstr ""
 
 #. placeholder {0}: appChain.name
@@ -3393,6 +3417,10 @@ msgstr ""
 
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "These names can't be upgraded"
+msgstr ""
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "These names have subnames that upgrade with them. For each name:"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
@@ -3975,6 +4003,10 @@ msgstr ""
 msgid "What happens to subnames when I upgrade?"
 msgstr ""
 
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "What happens to your subnames"
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "What is a primary name?"
 msgstr ""
@@ -4079,6 +4111,10 @@ msgstr ""
 
 #: src/features/dashboard/pages/DashboardPage.tsx
 msgid "You haven't set a primary name yet."
+msgstr ""
+
+#: src/features/migration/components/SubnameUpgradeExplanation.tsx
+msgid "You keep control of the subnames as the parent's owner. They stay active for as long as the parent name does."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
