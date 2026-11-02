@@ -104,6 +104,7 @@ interface ServiceProfileRecords {
   readonly texts: TextRecordInput[]
   readonly coins: AddressRecordInput[]
   readonly contentHash?: string
+  readonly contentHashProtocol?: string
   readonly abi?: string
 }
 
@@ -177,6 +178,7 @@ export const transformProfileRecords = (
     ...baseRecords,
     addresses: profile.coins,
     contentHash: profile.contentHash,
+    contentHashProtocol: profile.contentHashProtocol,
     abi: profile.abi,
     resolverAddress: profile.resolverAddress,
   }

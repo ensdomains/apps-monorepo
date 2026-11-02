@@ -272,13 +272,15 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   }
 
   const contentHashData = rawResult(texts.length + coins.length)
-  const contentHash = normalizeContentHash(
-    contentHashData
-      ? decodeContentHashResult(contentHashData, { strict: false })
-      : null,
-  )
+  const decodedContentHash = contentHashData
+    ? decodeContentHashResult(contentHashData, { strict: false })
+    : null
+  const contentHash = normalizeContentHash(decodedContentHash)
   if (contentHash) {
     result.contentHash = contentHash
+  }
+  if (decodedContentHash?.protocolType) {
+    result.contentHashProtocol = decodedContentHash.protocolType
   }
 
   const abiData = rawResult(texts.length + coins.length + 1)
@@ -299,6 +301,8 @@ export type ProfileRecordsResult = {
   texts: Array<{ key: string; value: string }>
   coins: Array<{ coinType: number; value: string; symbol?: string }>
   contentHash?: string
+  /** The content-hash codec's display name (`ipfs`, `ipns`, `bzz`, `ar`, ...), as decoded. */
+  contentHashProtocol?: string
   abi?: string
   resolverAddress?: Address
 }

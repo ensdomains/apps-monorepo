@@ -35,6 +35,7 @@ export type ProfileRecords = Prettify<
     addresses: AddressRecordValue[]
     links: LinkItem[]
     contentHash?: string
+    contentHashProtocol?: string
     abi?: string
     unknown: TextRecordValue[] // For any custom records
     // ENSIP-25 agent-registration records, detected by the `agent-registration`

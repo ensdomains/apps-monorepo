@@ -22,11 +22,16 @@ const IPFS = 'ipfs://QmYwAPJzv5CZsnAzt8auVZRnGiRAz9LxqD9H9tGZpWZHYB'
 const renderSection = (
   contentHash: string | undefined,
   name = 'docs.ens.eth',
+  contentHashProtocol?: string,
 ) =>
   render(
     <ProfileContentHashSection
       name={name}
-      records={{ ...newEmptyProfileRecords(), contentHash }}
+      records={{
+        ...newEmptyProfileRecords(),
+        contentHash,
+        contentHashProtocol,
+      }}
     />,
   )
 
@@ -46,7 +51,11 @@ describe('ProfileContentHashSection', () => {
     render(
       <ProfileCards
         name="docs.ens.eth"
-        records={{ ...newEmptyProfileRecords(), contentHash: IPFS }}
+        records={{
+          ...newEmptyProfileRecords(),
+          contentHash: IPFS,
+          contentHashProtocol: 'ipfs',
+        }}
       />,
     )
 
@@ -61,7 +70,7 @@ describe('ProfileContentHashSection', () => {
 
   it('shows a record it cannot link as copyable text', async () => {
     currentChain.mockReturnValue(sepolia)
-    renderSection(IPFS, 'bright-lemur.eth')
+    renderSection(IPFS, 'bright-lemur.eth', 'ipfs')
 
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: IPFS }))
