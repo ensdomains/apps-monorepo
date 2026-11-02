@@ -13,6 +13,7 @@ import {
   getOwner,
   getWrapperData,
 } from '@ensdomains/ensjs/public/v1'
+import { FullParentFuses } from '@ensdomains/ensjs/utils'
 import { registryResolverSnippet } from '@ensdomains/ensjs-abi/registry'
 import { fromPromise, ok } from 'neverthrow'
 import { match, P } from 'ts-pattern'
@@ -82,7 +83,16 @@ export type V1NameState = {
    * every name below. Null for a 2LD itself or a non-`.eth` name.
    */
   readonly ancestorRegistration: V1RegistrationStatus | null
+  /**
+   * Wrapped `.eth` 2LD with only the fuses wrapping always burns: unwrapping
+   * and wrapping it back leaves it as it was. Absent reads as no.
+   */
+  readonly isRewrappable?: boolean
 }
+
+/** What `wrapETH2LD` burns with no owner-controlled fuses. */
+const REWRAPPABLE_FUSES =
+  FullParentFuses.PARENT_CANNOT_CONTROL | FullParentFuses.IS_DOT_ETH
 
 export type V1NameReads = {
   readonly nameWrapper: Address
@@ -205,6 +215,10 @@ export const deriveV1NameState = ({
     resolverAddress: nonZero(resolver),
     parent: deriveParent(parentOwner, parentWrapped, nameWrapper),
     ancestorRegistration: ancestorExpiry?.status ?? null,
+    isRewrappable:
+      owner.ownershipLevel === 'nameWrapper' &&
+      wrapped !== null &&
+      BigInt(wrapped.fuses.value) === REWRAPPABLE_FUSES,
   }
 }
 

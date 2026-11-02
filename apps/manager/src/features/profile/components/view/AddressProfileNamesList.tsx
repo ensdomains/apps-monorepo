@@ -20,10 +20,12 @@ import {
   SortMenu,
   type SortOption,
 } from '@/features/dashboard/components/SortMenu'
+import { getV1NameStatus } from '@/features/dashboard/dashboardMigrationEligibility'
 import type { SortDir, SortField } from '@/features/dashboard/mergedNames'
 import { addFavoriteMutationOptions } from '@/features/dashboard/service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '@/features/dashboard/service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '@/features/dashboard/service/queries/getFavorites'
+import { useDashboardMigrationEligibility } from '@/features/dashboard/useDashboardMigrationEligibility'
 import {
   formatDashboardDate,
   NON_EXPIRING_DATE_LABEL,
@@ -83,6 +85,7 @@ const AddressNameRow = ({
   isFavorite,
   isConnectedView,
   shouldReduceMotion,
+  status,
   onToggleFavorite,
 }: {
   readonly name: ProfileAddressName
@@ -94,10 +97,11 @@ const AddressNameRow = ({
   readonly isFavorite: boolean
   readonly isConnectedView: boolean
   readonly shouldReduceMotion: boolean | null
+  /** The ENSv1 label, or null for an ENSv2 name or while it is checked. */
+  readonly status: NameStatus | null
   readonly onToggleFavorite: () => void
 }) => {
   const isPrimary = primaryName?.toLowerCase() === name.label.toLowerCase()
-  const status: NameStatus | null = name.protocol === 'v1' ? 'ensv1Only' : null
   const canRenew =
     name.protocol === 'v1'
       ? isV1Renewable
@@ -227,6 +231,18 @@ export const AddressProfileNamesList = ({
         isLoading: result.isLoading,
       })),
   })
+  const {
+    eligibleKeys,
+    upgradeableKeys,
+    isPending: isEligibilityPending,
+  } = useDashboardMigrationEligibility({ address })
+  const statusOf = (name: ProfileAddressName): NameStatus | null =>
+    name.protocol === 'v1' && !isEligibilityPending
+      ? getV1NameStatus({
+          isEligible: eligibleKeys.has(name.key.toLowerCase()),
+          isUpgradeable: upgradeableKeys.has(name.key.toLowerCase()),
+        })
+      : null
   const { isRenewable: isV1Renewable } = useV1Renewable(
     pageItems
       .filter((name) => name.protocol === 'v1')
@@ -309,6 +325,7 @@ export const AddressProfileNamesList = ({
             isLoading: pageProfileRecords[index]?.isLoading,
           })}
           shouldReduceMotion={shouldReduceMotion}
+          status={statusOf(name)}
         />
       )),
     )

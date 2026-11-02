@@ -29,10 +29,10 @@ export const EligibleForUpgradePill = () => (
   </span>
 )
 
-export const Ensv1OnlyPill = () => (
+export const Ensv1Pill = ({ isOnly }: { readonly isOnly: boolean }) => (
   <span className={pillVariants({ tone: 'ensv1Only' })}>
     <EnsMark />
-    <Trans>ENSv1 only</Trans>
+    {isOnly ? <Trans>ENSv1 only</Trans> : <Trans>ENSv1</Trans>}
   </span>
 )
 

@@ -203,6 +203,7 @@ export const migrationUiMachine = setup({
       void executeGraceRenewal({
         quote: input.renewal.quote,
         walletClient: input.signer.walletClient,
+        connector: input.signer.connector,
         publicClient: defaultPublicClient as PublicClient,
         renewalHash: input.renewalHash,
         signal: controller.signal,

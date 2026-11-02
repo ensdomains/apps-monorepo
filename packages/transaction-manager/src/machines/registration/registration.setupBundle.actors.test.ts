@@ -1,3 +1,4 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import type { Address, Hash, Hex, PublicClient, WalletClient } from 'viem'
 import { decodeFunctionData, erc20Abi, getChainContractAddress } from 'viem'
@@ -42,8 +43,9 @@ const COMMITMENT = {
   secret: `0x${'55'.repeat(32)}` as Hex,
 }
 
-const submit = (shouldDeployResolver: boolean) =>
+const submit = (shouldDeployResolver: boolean, paymentTokenAddress?: Address) =>
   submitEoaSetupBundleActor({
+    paymentTokenAddress,
     name: 'myname',
     commitment: COMMITMENT,
     resolverOwner: WALLET,
@@ -112,5 +114,25 @@ describe('submitEoaSetupBundleActor', () => {
 
     expect(result._unsafeUnwrap().approvedPrice).toBe(5_000_000n)
     expect(submittedRequest()).toMatchObject({ type: 'eoa-batch' })
+  })
+
+  it.each([
+    [
+      'the token the caller showed (MockUSDC)',
+      getChainContractAddress({ chain, contract: 'usdc' }),
+      getChainContractAddress({ chain, contract: 'usdc' }),
+    ],
+    [
+      "the manifest's USDC when none is given",
+      undefined,
+      getDestinationContracts(sepolia.id).usdc,
+    ],
+  ] as const)('approves %s', async (_, paymentTokenAddress, expected) => {
+    mocks.multicall.mockResolvedValueOnce([0n, [6_000_000n, 0n]])
+
+    await submit(false, paymentTokenAddress)
+
+    const request = submittedRequest() as { calls: { to: Address }[] }
+    expect(request.calls.at(-1)?.to).toBe(expected)
   })
 })
