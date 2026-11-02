@@ -84,10 +84,55 @@ export const useL2Payment = ({
   readonly isEnabled: boolean
   readonly fundingSourceChainId: number | undefined
   readonly fundingSourceOrigin: FundingSourceOrigin | undefined
+}): L2PaymentProps | undefined =>
+  useL2PaymentRows({
+    owner,
+    hca,
+    amountRaw: getShortfall(budget, isQuoteStale),
+    // Statuses keep the previous quote through a re-quote, so rows don't blink out and back.
+    statusAmountRaw: getShortfall(budget, false),
+    isEnabled,
+    selectedChainId: fundingSourceChainId,
+    selectedOrigin: fundingSourceOrigin,
+    onSelect: (chainId) =>
+      uiActor.send({ type: 'pricing.fundingSource.select', chainId }),
+    onFallbackSelect: (chainId) =>
+      uiActor.send({
+        type: 'pricing.fundingSource.select',
+        chainId,
+        origin: 'fallback',
+      }),
+  })
+
+/**
+ * A row per L2 that can pay `amountRaw` of USDC into the HCA, each quoted once
+ * its balance covers that. Shared by registration and renewal.
+ */
+export const useL2PaymentRows = ({
+  owner,
+  hca,
+  amountRaw,
+  statusAmountRaw,
+  isEnabled,
+  selectedChainId,
+  selectedOrigin,
+  onSelect,
+  onFallbackSelect,
+}: {
+  readonly owner: Address | null
+  readonly hca:
+    | Readonly<{ address: Address; config: RhinestoneAccountConfig }>
+    | undefined
+  /** What an L2 payment sends the HCA: `null` until priced, or while the price on screen is stale. */
+  readonly amountRaw: bigint | null
+  /** What the rows' statuses compare balances with; may be the last price while a new one loads. */
+  readonly statusAmountRaw: bigint | null
+  readonly isEnabled: boolean
+  readonly selectedChainId: number | undefined
+  readonly selectedOrigin: FundingSourceOrigin | undefined
+  readonly onSelect: (chainId: number) => void
+  readonly onFallbackSelect: (chainId: number) => void
 }): L2PaymentProps | undefined => {
-  const amountRaw = getShortfall(budget, isQuoteStale)
-  // Statuses keep the previous quote through a re-quote, so rows don't blink out and back.
-  const statusAmountRaw = getShortfall(budget, false)
   const wallets = useQuery(
     getL2BalancesQueryOptions(isEnabled && owner ? owner : undefined),
   ).data
@@ -139,16 +184,10 @@ export const useL2Payment = ({
   return {
     rows,
     selectedChainId: rows.find(
-      ({ option }) => option.source.chain.id === fundingSourceChainId,
+      ({ option }) => option.source.chain.id === selectedChainId,
     )?.option.source.chain.id,
-    selectedOrigin: fundingSourceOrigin,
-    onSelect: (chainId) =>
-      uiActor.send({ type: 'pricing.fundingSource.select', chainId }),
-    onFallbackSelect: (chainId) =>
-      uiActor.send({
-        type: 'pricing.fundingSource.select',
-        chainId,
-        origin: 'fallback',
-      }),
+    selectedOrigin,
+    onSelect,
+    onFallbackSelect,
   }
 }
