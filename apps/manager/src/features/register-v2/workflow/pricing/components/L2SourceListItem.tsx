@@ -1,4 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import type { ReactNode } from 'react'
 import { match, P } from 'ts-pattern'
 import {
   arbitrum,
@@ -120,6 +121,7 @@ export const L2SourceListItem = ({
   isFeeEstimated,
   isSelected,
   onSelect,
+  feeTooltip = getL2FeeExplanation(row),
 }: {
   readonly row: L2PaymentRow
   /** What the registration costs on top of the name, paid from here, once quoted. */
@@ -128,6 +130,8 @@ export const L2SourceListItem = ({
   readonly isFeeEstimated: boolean
   readonly isSelected: boolean
   readonly onSelect: () => void
+  /** What the fee info explains; the registration's wording by default. */
+  readonly feeTooltip?: ReactNode
 }) => {
   const { t } = useLingui()
   const { option } = row
@@ -153,7 +157,7 @@ export const L2SourceListItem = ({
           </Trans>
         )
       }
-      feeTooltip={getL2FeeExplanation(row)}
+      feeTooltip={feeTooltip}
       icon={
         <PaymentMethodIcon
           icon={<USDCIcon className="size-full" />}

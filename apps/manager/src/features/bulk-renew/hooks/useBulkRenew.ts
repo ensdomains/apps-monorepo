@@ -9,8 +9,16 @@ import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/p
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
+import {
+  canPayFromL2,
+  type L2PaymentProps,
+  type L2PaymentRow,
+} from '@/features/register-v2/workflow/pricing/hooks/useL2Payment'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
+import { getRenewalFeeQueryOptions } from '@/features/renew/data/queries/renewalFee.query'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
+import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
+import { useRenewalL2Payment } from '@/features/renew/workflow/pricing/useRenewalL2Payment'
 import {
   MIN_RENEW_DURATION_SECONDS,
   SECONDS_PER_DAY,
@@ -47,8 +55,12 @@ type BulkRenewPayment = {
    * approval's headroom on the intent route, which moves into the account too.
    */
   readonly fundedTotal: number
-  /** True when the wallet is connected and the selected coin covers the total. */
+  /** True when the wallet is connected and the selected coin, or L2, covers the total. */
   readonly canConfirm: boolean
+  /** Rows that pay from the wallet's USDC on an L2; intent route only. */
+  readonly l2Payment: L2PaymentProps | undefined
+  /** The L2 row chosen to pay, in place of the wallet's coin. */
+  readonly selectedL2: L2PaymentRow | undefined
 }
 
 export type UseBulkRenewResult = {
@@ -74,20 +86,29 @@ export const useBulkRenew = ({
   selection,
   selectedToken,
   open,
+  isPaying = false,
+  fundingSourceChainId,
+  onSelectL2 = () => {},
 }: {
   readonly names: readonly BulkRenewName[]
   readonly selection: Selection
   readonly selectedToken: RENEWAL_TOKEN
   readonly open: boolean
+  /** On the confirm step, where the L2 rows are quoted. */
+  readonly isPaying?: boolean
+  /** The L2 row chosen to pay from. */
+  readonly fundingSourceChainId?: number
+  readonly onSelectL2?: (chainId: number) => void
 }): UseBulkRenewResult => {
   const count = names.length
-  const { isConnected, signer } = useSmartAccountContext()
+  const { isConnected, signer, ownerAddress } = useSmartAccountContext()
   // `null` while the signer initializes: nothing is confirmable until the
   // route is known, so a smart account never falls back to the wallet route.
   const route = getRenewalPaymentRoute(signer)
   const {
     wallet: stablecoinBalances,
     accountCredit,
+    accountUsdcRaw,
     isLoading: isLoadingBalances,
   } = useRenewalBalances({ enabled: open })
 
@@ -235,6 +256,34 @@ export const useBulkRenew = ({
         )
       : grandTotal
 
+  // An L2 bridges USDC into the account, so it pays a USDC renewal on the intent route.
+  const isL2Enabled =
+    open && isPaying && route === 'intent' && selectedToken === USDC.symbol
+  const feeQuery = useQuery(
+    getRenewalFeeQueryOptions({
+      items: renewItems,
+      token: USDC.symbol,
+      protocol: 'v2',
+      renewerAddress: getRenewerAddress('v2'),
+      signer: isL2Enabled && signer?.type === 'rhinestone' ? signer : null,
+      ownerAddress: ownerAddress ?? null,
+    }),
+  )
+  const l2Payment = useRenewalL2Payment({
+    rentTotalRaw: pricesReady
+      ? authorizedPaymentAmount(sumPriceRaw)
+      : undefined,
+    feeRaw: feeQuery.data ?? undefined,
+    hcaBalanceRaw: accountUsdcRaw,
+    // Sized on the fee, so a failed fee quote leaves the wallet alone.
+    isEnabled: isL2Enabled && (feeQuery.isLoading || feeQuery.data != null),
+    selectedChainId: fundingSourceChainId,
+    onSelect: onSelectL2,
+  })
+  const selectedL2 = l2Payment?.rows.find(
+    ({ option }) => option.source.chain.id === l2Payment.selectedChainId,
+  )
+
   const selectedBalance = stablecoinBalances.find(
     (b) => b.symbol === selectedToken,
   )
@@ -264,11 +313,16 @@ export const useBulkRenew = ({
         !isLoadingBalances &&
         pricesReady &&
         grandTotal > 0 &&
-        // The account's own balance pays first; the wallet covers the rest.
-        !hasInsufficientBalance(
-          selectedBalanceUsd + (accountCredit[selectedToken] ?? 0),
-          fundedTotal,
-        ),
+        (selectedL2
+          ? // A chosen L2 pays in place of the wallet, so only its quote must cover it.
+            canPayFromL2(selectedL2)
+          : // The account's own balance pays first; the wallet covers the rest.
+            !hasInsufficientBalance(
+              selectedBalanceUsd + (accountCredit[selectedToken] ?? 0),
+              fundedTotal,
+            )),
+      l2Payment,
+      selectedL2,
     },
   }
 }

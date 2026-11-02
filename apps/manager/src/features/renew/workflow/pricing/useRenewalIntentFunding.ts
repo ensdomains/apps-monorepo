@@ -22,6 +22,8 @@ export type RenewalIntentFunding = {
     | (RenewalFunding['summary'] & { readonly isLoading: boolean })
     | undefined
   readonly walletDebitFor: RenewalFunding['walletDebitFor'] | undefined
+  /** The quoted fee in USDC units; absent until quoted, or when the quote failed. */
+  readonly feeRaw: bigint | undefined
 }
 
 /** The renewal intent's fee, folded with the rent and the account's balance into what the wallet pays. */
@@ -35,12 +37,13 @@ export const useRenewalIntentFunding = (params: {
   readonly pricing: { readonly funded: number } | undefined
   readonly accountCredit: Partial<Record<TOKEN_SYMBOL, number>>
 }): RenewalIntentFunding => {
-  const { account, pricing, accountCredit, ...quote } = params
+  const { account, pricing, accountCredit, label, duration, ...quote } = params
   const isIntentRoute = getRenewalPaymentRoute(account.signer) === 'intent'
 
   const feeQuery = useQuery(
     getRenewalFeeQueryOptions({
       ...quote,
+      items: [{ label, duration }],
       signer:
         isIntentRoute && account.signer?.type === 'rhinestone'
           ? account.signer
@@ -74,5 +77,6 @@ export const useRenewalIntentFunding = (params: {
       ? { ...renewalFunding.summary, isLoading: feeQuery.isFetching }
       : undefined,
     walletDebitFor: renewalFunding?.walletDebitFor,
+    feeRaw: feeQuery.data ?? undefined,
   }
 }

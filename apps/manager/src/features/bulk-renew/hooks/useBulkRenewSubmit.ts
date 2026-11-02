@@ -20,10 +20,12 @@ import type { Address, WalletClient } from 'viem'
 import { envConfig } from '@/config'
 import { invalidateDashboardNames } from '@/features/dashboard/service/queries/getDashboardNames'
 import { getExpiry } from '@/features/profile/service/profileExpiry'
+import { getL2FundingSource } from '@/features/register-v2/service/l2FundingSource'
 import {
-  HCA_RENEWAL_INTENT_MAX_ITEMS,
+  type HcaRenewalL2Funding,
   submitHcaRenewal,
 } from '@/features/renew/service/hcaRenewal'
+import { chunkRenewalItems } from '@/features/renew/utils/chunks'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
 import {
@@ -144,21 +146,6 @@ type HcaContext = {
   readonly token: RENEWAL_TOKEN
 }
 
-/** Split the selection into the batches an intent can carry. */
-const chunkItems = (
-  items: readonly AttributedRenewItem[],
-): AttributedRenewItem[][] => {
-  const chunks: AttributedRenewItem[][] = []
-  for (
-    let index = 0;
-    index < items.length;
-    index += HCA_RENEWAL_INTENT_MAX_ITEMS
-  ) {
-    chunks.push(items.slice(index, index + HCA_RENEWAL_INTENT_MAX_ITEMS))
-  }
-  return chunks
-}
-
 /**
  * Renew the selection one intent at a time.
  *
@@ -172,9 +159,11 @@ const runHcaRenewals = ResultFn(async function* (
   remaining: readonly AttributedRenewItem[],
   reporters: RowReporters,
   confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean,
+  // Each chunk bridges what the account is short of it in from this L2.
+  l2Funding?: HcaRenewalL2Funding,
 ) {
   const { onActive, onDone } = reporters
-  for (const chunk of chunkItems(remaining)) {
+  for (const chunk of chunkRenewalItems(remaining)) {
     for (const item of chunk) onActive(item.label)
 
     yield* ResultAsync.fromPromise(
@@ -191,6 +180,7 @@ const runHcaRenewals = ResultFn(async function* (
         publicClient,
         chainId: envConfig.chain.id,
         ...(confirmFunding ? { confirmFunding } : {}),
+        ...(l2Funding ? { l2Funding } : {}),
       }),
       (error) => (error instanceof Error ? error : new Error(String(error))),
     )
@@ -304,6 +294,11 @@ type SubmitArgs = {
   readonly token: RENEWAL_TOKEN
   /** Summed quoted price in token units, used to size the allowance. */
   readonly sumPriceRaw: bigint
+  /** Intent route: pay from the wallet's USDC on this L2, bounded by the charge shown. */
+  readonly l2Payment?: {
+    readonly chainId: number
+    readonly displayedCharge?: bigint
+  }
 }
 
 export type UseBulkRenewSubmit = {
@@ -435,13 +430,25 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     hca: HcaContext,
     remaining: readonly AttributedRenewItem[],
     isCurrent: () => boolean,
+    l2Payment: SubmitArgs['l2Payment'],
   ) => {
+    const source =
+      l2Payment && getL2FundingSource(hca.ownerAddress, l2Payment.chainId)
+    // Refused rather than paid from the wallet instead.
+    if (l2Payment && !source) {
+      return failWith(
+        new Error('Cannot renew: paying from that network is not supported.'),
+      )
+    }
     setPhase('renewing')
     const renewed = await runHcaRenewals(
       hca,
       remaining,
       rowReporters(isCurrent, markStatus, completedRef.current),
       confirmFunding,
+      source
+        ? { source, displayedCharge: l2Payment?.displayedCharge }
+        : undefined,
     )
     if (!isCurrent()) return
     if (renewed.isErr()) {
@@ -485,6 +492,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     items: inputItems,
     token,
     sumPriceRaw,
+    l2Payment,
   }: SubmitArgs) => {
     const items = inputItems.map((item) => ({
       ...item,
@@ -528,7 +536,9 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       ),
     )
 
-    if (hca) return renewWithIntents(hca, remaining, isCurrent)
+    if (hca) return renewWithIntents(hca, remaining, isCurrent, l2Payment)
+    // Only the account can be paid from an L2: never the wallet in its place.
+    if (l2Payment) return failWith(new Error(ACCOUNT_LOADING_MESSAGE))
     // `ctx` exists wherever `hca` does not — the guard above rejected the
     // no-context case.
     if (ctx) return renewWithWallet(ctx, remaining, sumPriceRaw, isCurrent)

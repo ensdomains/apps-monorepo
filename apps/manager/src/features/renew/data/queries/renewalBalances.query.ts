@@ -17,6 +17,8 @@ export type RenewalBalances = {
   readonly wallet: readonly StablecoinBalance[]
   /** What the smart account already holds of each; empty off the HCA route. */
   readonly accountCredit: Partial<Record<RENEWAL_TOKEN, number>>
+  /** The account's USDC in token units, for sizing an L2 payment. */
+  readonly accountUsdcRaw?: bigint
 }
 
 const NO_BALANCES: RenewalBalances = { wallet: [], accountCredit: {} }
@@ -41,6 +43,7 @@ const readRenewalBalances = async (
     readBalances(owner),
     hca ? readBalances(hca) : Promise.resolve([]),
   ])
+  const usdcRead = account[RENEWAL_SYMBOLS.indexOf('USDC')]
 
   return {
     wallet: RENEWAL_SYMBOLS.flatMap((symbol, index) => {
@@ -71,6 +74,9 @@ const readRenewalBalances = async (
           : []
       }),
     ),
+    ...(usdcRead?.status === 'fulfilled'
+      ? { accountUsdcRaw: usdcRead.value }
+      : {}),
   }
 }
 

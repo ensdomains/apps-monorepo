@@ -49,6 +49,19 @@ export const BulkRenewDialog = ({
     years: 1,
   })
   const [selectedToken, setSelectedToken] = useState<RENEWAL_TOKEN>('USDC')
+  // The L2 row paying instead of the wallet's coin; a coin pick clears it.
+  const [fundingSourceChainId, setFundingSourceChainId] = useState<
+    number | undefined
+  >()
+  const selectCoin = (coin: RENEWAL_TOKEN) => {
+    setSelectedToken(coin)
+    setFundingSourceChainId(undefined)
+  }
+  // Bridged in as USDC, so the rent is paid in USDC.
+  const selectL2 = (chainId: number) => {
+    setSelectedToken('USDC')
+    setFundingSourceChainId(chainId)
+  }
 
   const [receipt, setReceipt] = useState<{
     readonly rows: readonly SummaryRow[]
@@ -63,7 +76,15 @@ export const BulkRenewDialog = ({
     renewItems,
     presetSummaries,
     payment,
-  } = useBulkRenew({ names, selection, selectedToken, open })
+  } = useBulkRenew({
+    names,
+    selection,
+    selectedToken,
+    open,
+    isPaying: step === 'confirm',
+    fundingSourceChainId,
+    onSelectL2: selectL2,
+  })
 
   const submit = useBulkRenewSubmit()
 
@@ -95,14 +116,30 @@ export const BulkRenewDialog = ({
     if (!next && !isSubmitting) {
       setStep('summary')
       setReceipt(null)
+      setFundingSourceChainId(undefined)
       submit.reset()
     }
     onOpenChange(next)
   }
 
+  const { selectedL2 } = payment
   const handleConfirm = () => {
     setReceipt({ rows: summaryRows, total: grandTotal })
-    submit.submit({ items: renewItems, token: selectedToken, sumPriceRaw })
+    submit.submit({
+      items: renewItems,
+      token: selectedToken,
+      sumPriceRaw,
+      // Paid from an L2, each intent's shortfall is bridged in from there,
+      // bounded by the charge this screen showed.
+      ...(selectedL2
+        ? {
+            l2Payment: {
+              chainId: selectedL2.option.source.chain.id,
+              displayedCharge: selectedL2.amountInRaw,
+            },
+          }
+        : {}),
+    })
   }
 
   const receiptSummary = receipt ?? { rows: summaryRows, total: grandTotal }
@@ -158,8 +195,10 @@ export const BulkRenewDialog = ({
             accountCredit={payment.accountCredit}
             isConnected={payment.isConnected}
             isLoadingBalances={payment.isLoadingBalances}
-            onSelectCoin={setSelectedToken}
+            l2Payment={payment.l2Payment}
+            onSelectCoin={selectCoin}
             priceUSD={payment.fundedTotal}
+            selectedL2={selectedL2}
             selectedToken={selectedToken}
             stablecoinBalances={payment.stablecoinBalances}
           />

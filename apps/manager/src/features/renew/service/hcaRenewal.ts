@@ -2,7 +2,9 @@ import {
   type Call,
   getSmartAccountAddress,
   type HcaFundingPrompt,
+  HcaIntentFeeExceedsMaximumError,
   hcaMaxIntentFeeUsdcFor,
+  type L2FundingSource,
   type PermitPurpose,
   planHcaIntentFunding,
   quoteHcaIntentFeeUsdc,
@@ -17,12 +19,26 @@ import {
   encodeRenewBatchData,
   encodeRenewData,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
+import {
+  awaitL2BridgeActor,
+  L2_BRIDGE_CLAIMABLE_MS,
+  readHcaUsdcBalanceActor,
+  readHcaUsdcBalanceAtLeastActor,
+  submitL2BridgeActor,
+} from '@ens-apps/transaction-manager/machines/registration/registration.hca.actors'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
-import { ok, ResultAsync } from 'neverthrow'
+import { err, fromPromise, ok, ResultAsync } from 'neverthrow'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData, erc20Abi, isAddressEqual } from 'viem'
+import {
+  clearPendingL2Bridge,
+  readPendingL2Bridge,
+  savePendingL2Bridge,
+} from '@/features/register-v2/service/pendingL2Bridge'
+import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { getRenewPrice } from '../data/queries/renewPricing.query'
+import { getL2RenewalAmountOut } from '../utils/l2RenewalAmount'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 
 /**
@@ -84,6 +100,13 @@ export interface HcaRenewalResult {
   readonly incomingUsdc?: bigint
 }
 
+/** Pays a USDC renewal from the wallet's USDC on an L2. */
+export interface HcaRenewalL2Funding {
+  readonly source: L2FundingSource
+  /** USDC (6dp) checkout showed the L2 being charged, fee included. */
+  readonly displayedCharge?: bigint
+}
+
 export interface SubmitHcaRenewalParams {
   /** The names to renew. One renews directly; several go in one `renewBatch`. */
   readonly items: readonly HcaRenewalItem[]
@@ -116,6 +139,11 @@ export interface SubmitHcaRenewalParams {
   readonly confirmFunding?: (
     prompt: HcaFundingPrompt,
   ) => Promise<boolean> | boolean
+  /**
+   * Bridge what the HCA is short in from an L2 before the renewal, so the
+   * renewal pays from the HCA with no permit.
+   */
+  readonly l2Funding?: HcaRenewalL2Funding
 }
 
 /**
@@ -283,6 +311,130 @@ export async function quoteHcaRenewalFee(
   })
 }
 
+const toError = (error: unknown): Error =>
+  error instanceof Error ? error : new Error(String(error))
+
+/**
+ * Settle a bridge an earlier attempt (or a registration) sent into this HCA
+ * before paying again: wait for its verdict and, once it landed, for a read
+ * that shows it. One still unsettled after the wait is an error, not a reason
+ * to pay a second time.
+ */
+const settlePendingL2Bridge = ResultFn(async function* (params: {
+  readonly hca: Address
+  readonly publicClient: PublicClient
+  readonly chainId: number
+}) {
+  const { hca, publicClient, chainId } = params
+  const pending = readPendingL2Bridge(chainId, hca)
+  if (!pending) return ok(undefined)
+
+  const verdict = yield* awaitL2BridgeActor({
+    intentId: pending.intentId,
+    claimableUntil: pending.claimableUntil,
+    fetchIntentStatus: buildIntentStatusFetcher(),
+  })
+  if (verdict === 'landed') {
+    yield* readHcaUsdcBalanceAtLeastActor({
+      hca,
+      publicClient,
+      chainId,
+      atLeast: pending.fundsHcaTo,
+    })
+  }
+  clearPendingL2Bridge(chainId, hca)
+  return ok(undefined)
+})
+
+/**
+ * Bridge what the HCA is short of `intent` in from an L2, then wait for a read
+ * that shows it, so the renewal pays from the HCA with no permit. The bridge is
+ * recorded once accepted and cleared once it lands, so a retry waits for it
+ * rather than paying twice.
+ */
+const fundRenewalFromL2 = ResultFn(async function* (params: {
+  readonly l2Funding: HcaRenewalL2Funding
+  readonly intent: RenewalIntent
+  readonly token: RENEWAL_TOKEN
+  readonly signer: RhinestoneSigner
+  readonly ownerAddress: Address
+  readonly publicClient: PublicClient
+  readonly chainId: number
+}) {
+  const { l2Funding, intent, signer, publicClient, chainId } = params
+  const { source } = l2Funding
+  if (params.token !== 'USDC') {
+    return err(
+      new Error(`Paying from ${source.chain.name} renews in USDC only.`),
+    )
+  }
+
+  const hca = getSmartAccountAddress(signer)
+  yield* settlePendingL2Bridge({ hca, publicClient, chainId })
+
+  const quotedFeeUsdc = yield* fromPromise(
+    quoteHcaIntentFeeUsdc({
+      signer,
+      ownerAddress: params.ownerAddress,
+      publicClient,
+      chainId,
+      calls: intent.actionCalls,
+      requiredUsdc: intent.rentTotal,
+      gasLimit: intent.gasLimit,
+    }),
+    toError,
+  )
+  if (quotedFeeUsdc === null) {
+    return err(
+      new Error(
+        `Could not quote the renewal, so the payment from ${source.chain.name} cannot be sized.`,
+      ),
+    )
+  }
+  // The amount grows with the fee, so this cap bounds the bridge as well.
+  const maxFeeUsdc = hcaMaxIntentFeeUsdcFor(intent.gasLimit)
+  if (quotedFeeUsdc > maxFeeUsdc) {
+    return err(new HcaIntentFeeExceedsMaximumError(quotedFeeUsdc, maxFeeUsdc))
+  }
+
+  const hcaBalance = yield* readHcaUsdcBalanceActor({
+    hca,
+    publicClient,
+    chainId,
+  })
+  const amount = getL2RenewalAmountOut({
+    rentTotal: intent.rentTotal,
+    quotedFeeUsdc,
+    hcaBalance,
+  })
+  if (amount === 0n) return ok(undefined)
+
+  const fundsHcaTo = hcaBalance + amount
+  const txId = yield* submitL2BridgeActor({
+    hca,
+    payment: { source, amount, displayedCharge: l2Funding.displayedCharge },
+    signer,
+    publicClient,
+    onIntentSubmitted: (intentId) => {
+      savePendingL2Bridge(chainId, hca, {
+        intentId,
+        claimableUntil: Date.now() + L2_BRIDGE_CLAIMABLE_MS,
+        fundsHcaTo,
+      })
+    },
+  })
+  yield* fromPromise(waitForTransaction(txId), toError)
+  // A lagging read would otherwise ask the wallet to fund it all over again.
+  yield* readHcaUsdcBalanceAtLeastActor({
+    hca,
+    publicClient,
+    chainId,
+    atLeast: fundsHcaTo,
+  })
+  clearPendingL2Bridge(chainId, hca)
+  return ok(undefined)
+})
+
 /**
  * Renew one or more names as a single owner-signed HCA intent, with the rent in
  * the chosen stable and the intent's fee in USDC.
@@ -314,6 +466,7 @@ export async function submitHcaRenewal(
     onTxId,
     onSubmitted,
     confirmFunding,
+    l2Funding,
   } = params
 
   const single = items.length === 1 ? items[0] : undefined
@@ -347,6 +500,26 @@ export async function submitHcaRenewal(
   // to come from the owner key — which is also what makes the funding permit
   // legal in the same batch.
   const ownerSigner: RhinestoneSigner = { ...signer, session: undefined }
+
+  if (l2Funding) {
+    // Unwrapped at this promise boundary, like the rent read.
+    ;(
+      await fundRenewalFromL2({
+        l2Funding,
+        intent: { tokenAddress, rentTotal, actionCalls, gasLimit },
+        token,
+        signer: ownerSigner,
+        ownerAddress,
+        publicClient,
+        chainId,
+      })
+    ).match(
+      () => undefined,
+      (error) => {
+        throw error
+      },
+    )
+  }
 
   const funding = await planHcaIntentFunding({
     signer: ownerSigner,
