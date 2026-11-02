@@ -17,11 +17,13 @@ const image = (headers?: HeadersInit) =>
 describe('GET /link-preview/image', () => {
   const upstream = vi.fn<typeof fetch>()
   let pageUrl: string
+  let clientIp: string
 
   const request = async (
     url = pageUrl,
     bindings: Partial<CloudflareBindings> = {},
     origin = 'https://api.ens.domains',
+    headers: Readonly<Record<string, string>> = {},
   ) => {
     const ctx = createExecutionContext()
     const response = await app.request(
@@ -31,6 +33,8 @@ describe('GET /link-preview/image', () => {
           Authorization: 'Bearer visitor-secret',
           Cookie: 'visitor=secret',
           Referer: 'https://app.ens.domains/private-profile',
+          'CF-Connecting-IP': clientIp,
+          ...headers,
         },
       },
       { ...env, ...bindings },
@@ -41,7 +45,9 @@ describe('GET /link-preview/image', () => {
   }
 
   beforeEach(() => {
-    pageUrl = `https://example.com/${crypto.randomUUID()}`
+    const id = crypto.randomUUID()
+    pageUrl = `https://example.com/${id}`
+    clientIp = `2001:db8:${id.slice(0, 4)}:${id.slice(4, 8)}::1`
     upstream.mockReset()
     vi.stubGlobal('fetch', upstream)
   })
@@ -49,6 +55,75 @@ describe('GET /link-preview/image', () => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     vi.useRealTimers()
+  })
+
+  it.each([
+    {
+      name: 'the IP quota is exhausted',
+      limiter: { limit: async () => ({ success: false }) },
+      status: 429,
+    },
+    {
+      name: 'the rate limiter fails',
+      limiter: {
+        limit: () => Promise.reject(new Error('rate limiter unavailable')),
+      },
+      status: 503,
+    },
+    {
+      name: 'the rate limiter binding is missing',
+      limiter: undefined,
+      status: 503,
+    },
+  ])('blocks preview work when $name', async ({ limiter, status }) => {
+    upstream.mockResolvedValue(html('<title>No image</title>'))
+    const metadataRead = vi.spyOn(env.KV, 'get')
+    const metadataWrite = vi.spyOn(env.KV, 'put')
+    const imageRead = vi.spyOn(caches.default, 'match')
+    const imageWrite = vi.spyOn(caches.default, 'put')
+
+    const response = await request(pageUrl, {
+      LINK_PREVIEW_RATE_LIMITER: limiter,
+    })
+
+    expect(response.status).toBe(status)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(response.headers.get('Retry-After')).toBe('60')
+    expect(upstream).not.toHaveBeenCalled()
+    expect(metadataRead).not.toHaveBeenCalled()
+    expect(metadataWrite).not.toHaveBeenCalled()
+    expect(imageRead).not.toHaveBeenCalled()
+    expect(imageWrite).not.toHaveBeenCalled()
+  })
+
+  it('limits one IP across distinct URLs without consuming another IP quota', async () => {
+    upstream.mockImplementation(async () => html('<title>No image</title>'))
+    for (let index = 0; index < 60; index += 1) {
+      const response = await request(`${pageUrl}?v=${index}`)
+      expect(response.status).toBe(404)
+    }
+    const metadataRead = vi.spyOn(env.KV, 'get')
+    const metadataWrite = vi.spyOn(env.KV, 'put')
+    const response = await request(
+      `${pageUrl}?v=60`,
+      {},
+      'https://api.ens.domains',
+      { 'X-Forwarded-For': '192.0.2.2' },
+    )
+
+    expect(response.status).toBe(429)
+    expect(upstream).toHaveBeenCalledTimes(60)
+    expect(metadataRead).not.toHaveBeenCalled()
+    expect(metadataWrite).not.toHaveBeenCalled()
+
+    const otherIpResponse = await request(
+      `${pageUrl}?v=61`,
+      {},
+      'https://api.ens.domains',
+      { 'CF-Connecting-IP': `${clientIp}1` },
+    )
+    expect(otherIpResponse.status).toBe(404)
+    expect(upstream).toHaveBeenCalledTimes(61)
   })
 
   it('serves the OG image without forwarding visitor credentials or referrers', async () => {
@@ -410,7 +485,7 @@ describe('GET /link-preview/image', () => {
     expect(response.headers.get('Cache-Control')).toBe('no-store')
   })
 
-  it('serves uncached previews with only the KV environment binding', async () => {
+  it('serves uncached previews with only KV and the rate limiter bindings', async () => {
     upstream
       .mockResolvedValueOnce(
         html('<meta property="og:image" content="/og.png">'),
@@ -419,7 +494,7 @@ describe('GET /link-preview/image', () => {
     const ctx = createExecutionContext()
     const bindings = new Proxy(env, {
       get(target, key, receiver) {
-        if (key !== 'KV')
+        if (key !== 'KV' && key !== 'LINK_PREVIEW_RATE_LIMITER')
           throw new Error(`Unexpected environment binding: ${String(key)}`)
         return Reflect.get(target, key, receiver)
       },
