@@ -525,7 +525,7 @@ describe('offchain resolver records', () => {
     readResolverRecords({
       name: NAME,
       resolver: RESOLVER,
-      texts: ['description', ...manyKeys],
+      texts: ['description', ...manyKeys, CUSTOM_KEY],
       coins: [60],
       publicClient: publicClient as PublicClient,
     })
@@ -536,8 +536,8 @@ describe('offchain resolver records', () => {
     const { records, readErrors } = await readMany()
 
     expect(readErrors).toEqual([])
-    expect(records.texts).toEqual([expected.texts[0]])
-    expect(batchSizes()).toEqual([23, 21])
+    expect(records.texts).toEqual(expected.texts)
+    expect(batchSizes()).toEqual([23, 22])
   })
 
   it('falls back to one request per record only within a rejected gateway batch', async () => {
@@ -558,8 +558,31 @@ describe('offchain resolver records', () => {
     const { records, readErrors } = await readMany()
 
     expect(readErrors).toEqual([])
-    expect(records.texts).toEqual([expected.texts[0]])
+    expect(records.texts).toEqual(expected.texts)
     expect(resolveCalls()).toHaveLength(2 + 23)
+  })
+
+  it('stops reading when the gateway rate limits a fallback read', async () => {
+    const gatewayError = (status: number) =>
+      new BaseError('Gateway failed', {
+        cause: new HttpRequestError({ url: 'https://gateway.invalid', status }),
+      })
+    offchain(() => gatewayError(400))
+    const batched = mocks.readContract.getMockImplementation()
+    mocks.readContract.mockImplementation(
+      async (request: { functionName: string; args: readonly [Hex, Hex] }) => {
+        if (
+          request.functionName === 'resolve' &&
+          !request.args[1].startsWith('0xac9650d8')
+        )
+          throw gatewayError(429)
+        return batched?.(request)
+      },
+    )
+
+    await expect(readMany()).rejects.toThrow('Gateway failed')
+    expect(batchSizes()).toEqual([23])
+    expect(resolveCalls().length).toBeLessThanOrEqual(1 + 8)
   })
 
   it('does not fall back to one request per record when the gateway rate limits', async () => {

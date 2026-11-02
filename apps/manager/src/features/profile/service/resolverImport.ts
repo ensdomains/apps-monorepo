@@ -424,6 +424,7 @@ export const readResolverRecords = async ({
         readErrors: [],
       }
     } catch (error) {
+      if (isGatewayRead && isRateLimited(error)) throw error
       return {
         failedKeys: [request.key],
         unsupportedKeys: isContractRevert(error) ? [request.key] : [],
