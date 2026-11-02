@@ -61,6 +61,13 @@ unknown }>` per operation, `ResultFn` for multi-step async `Result`s,
 
 Inside `packages/transaction-manager/`, also follow its `CLAUDE.md`.
 
+## Creating Linear tickets
+
+Before creating, drafting, splitting or refining a Linear ticket, load the
+`ens-linear-tickets` skill and follow it. It lives in the ens-labs-wiki
+(`skills/ens-linear-tickets/`) and its onboarding installer adds it to
+Claude Code and Codex.
+
 ## PR Conventions when working from Linear tickets
 
 This is a monorepo with multiple apps under `apps/`. When working on a ticket,
