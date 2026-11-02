@@ -121,7 +121,6 @@ export function useSetPrimaryName(
         walletClient,
         publicClient: publicClient as PublicClient,
         chainId,
-        connector,
         onTxId: setTxId,
       })
     },

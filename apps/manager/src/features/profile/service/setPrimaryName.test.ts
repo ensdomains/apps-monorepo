@@ -28,6 +28,12 @@ vi.mock('@/config', () => ({
   },
 }))
 
+const connection = vi.hoisted(() => ({
+  connector: undefined as Connector | undefined,
+}))
+vi.mock('@/lib/wagmi', () => ({ wagmiConfig: {} }))
+vi.mock('@wagmi/core', () => ({ getConnection: () => connection }))
+
 vi.mock('@ens-apps/transaction-manager', () => ({
   getSmartAccountAddress: vi.fn(
     () => '0x1111111111111111111111111111111111111111',
@@ -108,6 +114,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks()
+  connection.connector = undefined
 })
 
 describe('setPrimaryName', () => {
@@ -214,6 +221,7 @@ describe('setPrimaryName', () => {
 
   it('signs both legs with the wallet connector, so a Safe{Wallet} settles each from its execution', async () => {
     const connector = { id: 'walletConnect' } as Connector
+    connection.connector = connector
 
     await setPrimaryName({
       name: 'leon.eth',
@@ -221,12 +229,17 @@ describe('setPrimaryName', () => {
       walletClient: ownerWalletClient,
       publicClient,
       chainId: CHAIN_ID,
-      connector,
     })
 
+    const signer = {
+      type: 'eoa',
+      walletClient: ownerWalletClient,
+      walletId: 'walletConnect',
+      connector,
+    }
     expect(start.mock.calls.map(([, signer]) => signer)).toEqual([
-      { type: 'eoa', walletClient: ownerWalletClient, connector },
-      { type: 'eoa', walletClient: ownerWalletClient, connector },
+      signer,
+      signer,
     ])
   })
 })

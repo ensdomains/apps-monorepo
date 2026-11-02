@@ -4,21 +4,11 @@ import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import type { Connector } from 'wagmi'
+import { SAFE_WALLET_CONNECTOR } from '@/test-utils/safeWallet.fixture'
 import { useSetPrimaryName } from './useSetPrimaryName'
 
 const OWNER = '0x3333333333333333333333333333333333333333'
 const HCA_SIGNER = { type: 'rhinestone' } as RhinestoneSigner
-// checkIsSafeWallet reads only `type` and the WalletConnect session's peer.
-const SAFE_CONNECTOR = {
-  type: 'walletConnect',
-  getProvider: async () => ({
-    session: {
-      peer: {
-        metadata: { name: 'Safe{Wallet}', url: 'https://app.safe.global' },
-      },
-    },
-  }),
-} as unknown as Connector
 const INJECTED_CONNECTOR = { type: 'injected' } as Connector
 
 const mocks = vi.hoisted(() => ({
@@ -71,9 +61,9 @@ describe('useSetPrimaryName', () => {
   }>([
     {
       wallet: 'a Safe{Wallet} sends both transactions itself',
-      connector: SAFE_CONNECTOR,
+      connector: SAFE_WALLET_CONNECTOR,
       sent: mocks.setPrimaryName,
-      sentWith: { connector: SAFE_CONNECTOR },
+      sentWith: {},
       skipped: mocks.setPrimaryNameWithHca,
     },
     {
