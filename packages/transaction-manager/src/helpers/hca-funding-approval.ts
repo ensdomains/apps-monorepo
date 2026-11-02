@@ -78,6 +78,11 @@ const hashSchema = v.custom<Hash>(
 )
 const pendingSchema = v.variant('kind', [
   v.object({
+    kind: v.literal('preparing'),
+    amount: v.pipe(v.string(), v.regex(/^\d+$/)),
+  }),
+  v.object({
+    // Legacy reservations also mean a wallet send may have started.
     kind: v.literal('reserved'),
     amount: v.pipe(v.string(), v.regex(/^\d+$/)),
   }),
@@ -269,7 +274,11 @@ const runApproval = ResultFn(async function* (
   } = input
   const key = approvalKey(input)
   const pending = yield* readPending(environment.storage, key)
-  if (!pending && input.existingOnly) return ok({ kind: 'none' as const })
+  // The exclusive Web Lock proves the previous pre-wallet owner can no longer send.
+  if (pending?.kind === 'preparing')
+    yield* clearPending(environment.storage, key)
+  if (input.existingOnly && (!pending || pending.kind === 'preparing'))
+    return ok({ kind: 'none' as const })
   yield* assertHcaFundingWallet({ ...input, owner })
   const allowance = yield* boundary(
     publicClient.readContract({
@@ -479,16 +488,22 @@ const submitReservedApproval = ({
   readonly maxPriorityFeePerGas: bigint
 }): ResultAsync<Hash, HcaFundingApprovalError> => {
   if (input.signal?.aborted) return errAsync(approvalError(input.signal.reason))
-  const reserved = savePending(environment.storage, key, {
-    kind: 'reserved',
+  const preparing = savePending(environment.storage, key, {
+    kind: 'preparing',
     amount: input.amount.toString(),
   })
-  if (reserved.isErr()) return errAsync(reserved.error)
+  if (preparing.isErr()) return errAsync(preparing.error)
   input.onState?.({ kind: 'approval-wallet', prompt })
   if (input.signal?.aborted)
     return clearPending(environment.storage, key).asyncAndThen(() =>
       errAsync(approvalError(input.signal?.reason)),
     )
+  // Persist uncertainty before calling the wallet; neither age nor allowance can release it.
+  const reserved = savePending(environment.storage, key, {
+    kind: 'reserved',
+    amount: input.amount.toString(),
+  })
+  if (reserved.isErr()) return errAsync(reserved.error)
   return boundary(
     input.walletClient.request(
       {

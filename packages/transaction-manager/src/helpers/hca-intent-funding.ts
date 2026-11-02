@@ -874,6 +874,12 @@ async function readFundingBalances(
   return { balance, tokenBalance }
 }
 
+const hasUsdcFundingShortfall = (
+  quoted: Pick<QuotedIntent, 'requiredUsdc' | 'quotedFeeUsdc' | 'balance'>,
+) =>
+  quoted.quotedFeeUsdc !== null &&
+  quoted.balance < quoted.requiredUsdc + quoted.quotedFeeUsdc
+
 /** A recovered receipt may have waited across balance changes; keep the original fee quote. */
 async function recoverQuotedFunding(
   params: PlanHcaIntentFundingParams,
@@ -883,8 +889,11 @@ async function recoverQuotedFunding(
     !params.approvalFallback ||
     !isCanonicalHcaUsdc(params.chainId, quoted.usdc) ||
     params.approvalSigner.type !== 'eoa' ||
-    quoted.quotedFeeUsdc === null
+    quoted.quotedFeeUsdc === null ||
+    !hasUsdcFundingShortfall(quoted)
   )
+    // An HCA paying its own USDC cost never uses the wallet's allowance. Leave
+    // unresolved approvals durable for any later attempt that needs wallet funds.
     return quoted
   const recovered = await recoverHcaFundingApproval({
     ...params.approvalFallback,

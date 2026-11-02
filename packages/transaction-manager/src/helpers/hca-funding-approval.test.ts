@@ -11,6 +11,8 @@ describe('approval recovery and funding bounds', () => {
   it.each([
     [null, 4n, 4n, 'ready'],
     [null, 3n, 4n, 'approve'],
+    [{ kind: 'preparing', amount: '4' }, 4n, 4n, 'ready'],
+    [{ kind: 'preparing', amount: '4' }, 3n, 4n, 'approve'],
     [{ kind: 'reserved', amount: '4' }, 4n, 4n, 'blocked'],
     [{ kind: 'submitted', amount: '4', hash: HASH }, 4n, 4n, 'wait'],
   ] as const)(
@@ -52,6 +54,7 @@ import {
 const OWNER = '0x3333333333333333333333333333333333333333' as const
 const TOKEN = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as const
 const SPENDER = '0x1111111111111111111111111111111111111111' as const
+const APPROVAL_KEY = `ens-hca-funding-approval:1:${OWNER.toLowerCase()}:${TOKEN.toLowerCase()}:${SPENDER.toLowerCase()}`
 const deferred = <T>() => {
   let resolve: (value: T) => void = () => undefined
   const promise = new Promise<T>((done) => {
@@ -120,6 +123,91 @@ const makeRun = () => {
 }
 
 describe('approval wallet and persistence boundaries', () => {
+  it.each([0n, 4n])(
+    'releases an abandoned pre-wallet reservation before recovery of a %s shortfall',
+    async (amount) => {
+      const { input, records } = makeRun()
+      records.set(
+        APPROVAL_KEY,
+        JSON.stringify({ kind: 'preparing', amount: '4' }),
+      )
+
+      const result = await recoverHcaFundingApproval({ ...input, amount })
+
+      expect(result.isOk() ? result.value : result.error).toEqual({
+        kind: 'none',
+      })
+      expect(records.size).toBe(0)
+      expect(input.confirmApproval).not.toHaveBeenCalled()
+      expect(input.walletClient.request).not.toHaveBeenCalled()
+    },
+  )
+
+  it('leaves a pre-wallet reservation untouched while its operation still holds the Web Lock', async () => {
+    const { input, records } = makeRun()
+    const pending = JSON.stringify({ kind: 'preparing', amount: '4' })
+    records.set(APPROVAL_KEY, pending)
+    input.environment.locks.request.mockImplementationOnce(
+      async (_key, _options, callback) => callback(null),
+    )
+
+    expect((await recoverHcaFundingApproval(input)).isErr()).toBe(true)
+    expect([...records.values()]).toEqual([pending])
+    expect(input.walletClient.request).not.toHaveBeenCalled()
+  })
+
+  it('requires a durable uncertain-send reservation before opening the wallet', async () => {
+    const { input, records } = makeRun()
+    input.onState.mockImplementation((state) => {
+      if (state.kind === 'approval-wallet')
+        expect([...records.values()]).toEqual([
+          JSON.stringify({ kind: 'preparing', amount: '4' }),
+        ])
+    })
+    input.walletClient.request.mockImplementationOnce(async () => {
+      expect([...records.values()]).toEqual([
+        JSON.stringify({ kind: 'reserved', amount: '4' }),
+      ])
+      input.publicClient.readContract.mockResolvedValue(4n)
+      return HASH
+    })
+
+    expect((await approveHcaFunding(input)).isOk()).toBe(true)
+  })
+
+  it('recovers preparation after persisting the uncertain-send reservation failed before the wallet opened', async () => {
+    const { input, records } = makeRun()
+    const save = input.environment.storage.setItem
+    input.environment.storage.setItem = (key, value) => {
+      if (value === JSON.stringify({ kind: 'reserved', amount: '4' }))
+        throw new Error('Storage unavailable before wallet invocation')
+      save(key, value)
+    }
+
+    expect((await approveHcaFunding(input)).isErr()).toBe(true)
+    expect(input.walletClient.request).not.toHaveBeenCalled()
+    expect([...records.values()]).toEqual([
+      JSON.stringify({ kind: 'preparing', amount: '4' }),
+    ])
+    expect((await recoverHcaFundingApproval(input)).isOk()).toBe(true)
+    expect(records.size).toBe(0)
+  })
+
+  it('allows a fresh consented approval after reclaiming abandoned preparation', async () => {
+    const { input, records } = makeRun()
+    records.set(
+      APPROVAL_KEY,
+      JSON.stringify({ kind: 'preparing', amount: '9' }),
+    )
+
+    expect((await approveHcaFunding(input)).isOk()).toBe(true)
+    expect(input.confirmApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 4n }),
+    )
+    expect(input.walletClient.request).toHaveBeenCalledOnce()
+    expect(records.size).toBe(0)
+  })
+
   it('asks separately for exact set-allowance and capped ETH gas, then writes once without retries', async () => {
     const { input, records } = makeRun()
     expect((await approveHcaFunding(input)).isOk()).toBe(true)

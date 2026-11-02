@@ -886,6 +886,87 @@ describe('explicit renewal permit validation', () => {
   })
 })
 
+it.each(['reserved', 'submitted'] as const)(
+  'uses a fully funded HCA without disturbing an unresolved %s USDC approval',
+  async (kind) => {
+    const usdc = getDestinationContracts(1).usdc
+    prepareTransaction.mockResolvedValue({
+      intentRoute: {
+        intentCost: {
+          tokensSpent: {
+            '1': {
+              [usdc.toLowerCase()]: { locked: '0', unlocked: '900000' },
+            },
+          },
+        },
+      },
+    })
+    mockReads({ hcaBalance: 2_900_000n })
+    const pending = JSON.stringify({
+      kind,
+      amount: '900000',
+      ...(kind === 'submitted' ? { hash: `0x${'11'.repeat(32)}` } : {}),
+    })
+    const records = new Map([['pending', pending]])
+    const walletClient = {
+      ...createWalletClient({
+        chain: mainnet,
+        transport: custom({ request: async () => undefined }),
+      }),
+      getAddresses: vi.fn().mockResolvedValue([OWNER]),
+      getChainId: vi.fn().mockResolvedValue(1),
+    }
+    const waitForTransactionReceipt = vi
+      .fn()
+      .mockRejectedValue(new Error('Approval still pending'))
+    const plan = () =>
+      planHcaIntentFunding({
+        ...params,
+        chainId: 1,
+        requiredUsdc: 2_000_000n,
+        publicClient: {
+          ...publicClient,
+          chain: mainnet,
+          readContract: vi.fn().mockResolvedValue(0n),
+          waitForTransactionReceipt,
+        },
+        approvalSigner: { type: 'eoa', walletClient },
+        approvalFallback: {
+          confirmApproval: () => true,
+          environment: {
+            storage: {
+              getItem: () => records.get('pending') ?? null,
+              setItem: (_key, value) => {
+                records.set('pending', value)
+              },
+              removeItem: () => {
+                records.delete('pending')
+              },
+            },
+            locks: {
+              request: vi.fn(async (_name, _options, callback) =>
+                callback({ name: 'test', mode: 'exclusive' }),
+              ),
+            },
+          },
+        },
+      })
+    const funding = await plan()
+
+    expect(funding.calls).toEqual(actionCalls)
+    expect(funding.incomingUsdc).toBeUndefined()
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    expect(waitForTransactionReceipt).not.toHaveBeenCalled()
+    expect([...records.values()]).toEqual([pending])
+
+    mockReads({ hcaBalance: 2_899_999n })
+    await expect(plan()).rejects.toThrow(
+      kind === 'reserved' ? 'An earlier approval' : 'Approval still pending',
+    )
+    expect([...records.values()]).toEqual([pending])
+  },
+)
+
 it.each([900_000n, 1_100_000n])(
   'refreshes HCA balances after recovering a pending approval instead of pulling a stale shortfall (fresh quote %s)',
   async (freshFee) => {
