@@ -106,7 +106,7 @@ const main = async (): Promise<number> => {
   )
   const [eslint, strict] = await Promise.all([
     runEslint({ root, files: paths }),
-    runStrictTsc({ root, files: paths }),
+    runStrictTsc({ root, changed }),
   ])
 
   const exists = (path: string): boolean => existsSync(join(root, path))

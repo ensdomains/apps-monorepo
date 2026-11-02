@@ -24,7 +24,7 @@ A problem counts as the change's own when:
 
 1. **Biome** with [biome/agent.jsonc](./biome/agent.jsonc): every rule the repo's own Biome configs enforce, raised to error everywhere, plus the rules below and the GritQL plugins in [biome/plugins](./biome/plugins). Biome takes every rule it can express.
 2. **ESLint**, only for rules Biome cannot express because they need type information or scope analysis ([src/eslintConfig.ts](./src/eslintConfig.ts), custom rules in [rules](./rules)). It reads types with TypeScript 6.0, because typescript-eslint does not support the repo's TypeScript 7 yet. A file that no `tsconfig.json` covers (its include lists do not name it and no listed file imports it) has no types to read, and the project service rebuilds every program it holds before it gives up on such a file, so ESLint lints it in a second pass without type information: the rules that read types do not run on it, the others do (`untypedEslintConfig` in [src/eslintConfig.ts](./src/eslintConfig.ts)). The run reports how many files it linted that way and in which folders (`untyped` in the `--json` output).
-3. **The TypeScript compiler** with stricter settings for every touched package, keeping only the errors those settings add ([src/tsc.ts](./src/tsc.ts)).
+3. **The TypeScript compiler** with stricter settings for every touched package, keeping only the errors those settings add ([src/tsc.ts](./src/tsc.ts)). It compiles with the strict flags first, and a second time with the package's own settings only when the first finds an error on a changed line. A package whose tsconfig already sets the flags is not compiled.
 
 ## Suppressing a finding
 
