@@ -230,7 +230,10 @@ export const waitForCommemorativeNftClaimReceipt = async (params: {
   let replacementReason: 'cancelled' | 'replaced' | 'repriced' | undefined
   const receiptOf = (receipt: WaitForTransactionReceiptParameters) =>
     fromPromise(
-      waitForTransactionReceipt(publicClient, receipt),
+      waitForTransactionReceipt(publicClient, {
+        pollingInterval: 2_000,
+        ...receipt,
+      }),
       (cause) => cause,
     )
   try {
@@ -244,7 +247,6 @@ export const waitForCommemorativeNftClaimReceipt = async (params: {
           timeout: CLAIM_RECEIPT_TIMEOUT_MS,
           direct: receiptOf({
             hash,
-            pollingInterval: 2_000,
             timeout: CLAIM_RECEIPT_TIMEOUT_MS,
             onReplaced: (replacement) => {
               hash = replacement.transactionReceipt.transactionHash
@@ -253,15 +255,15 @@ export const waitForCommemorativeNftClaimReceipt = async (params: {
             },
           }).map((receipt) => ({ receipt, isSafeExecution: false })),
           settle: (transactionHash) =>
-            receiptOf({ hash: transactionHash, pollingInterval: 2_000 }).map(
-              (receipt) => ({ receipt, isSafeExecution: true }),
-            ),
+            receiptOf({ hash: transactionHash }).map((receipt) => ({
+              receipt,
+              isSafeExecution: true,
+            })),
           signal,
         }),
       { signal: params.signal, timeoutMs: CLAIM_RECEIPT_TIMEOUT_MS },
     )
-    // Only a Safe's ExecutionFailure is a decided revert; any other failure to
-    // read the receipt proves nothing, so the claim stays pending.
+    // Only a Safe's ExecutionFailure is a decided revert; anything else stays pending.
     if (settled.isErr())
       return {
         status:
@@ -278,8 +280,7 @@ export const waitForCommemorativeNftClaimReceipt = async (params: {
 
     // A successful same-nonce replacement can be an unrelated transfer. Check
     // the transaction itself as persisted data and replacement events are not
-    // proof that this owner called the configured NFT claim. A Safe's claim
-    // runs inside its execTransaction, which `orSafeExecution` already matched.
+    // proof that this owner called the configured NFT claim.
     if (!isSafeExecution) {
       const transaction = await withRequestDeadline(
         () =>

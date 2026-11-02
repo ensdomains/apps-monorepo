@@ -331,7 +331,7 @@ describe('commemorative NFT contract', () => {
             transactionHash: executionHash,
           },
         ],
-      } as unknown as NonNullable<ReturnType<typeof getPublicClient>>)
+      } as NonNullable<ReturnType<typeof getPublicClient>>)
       waitForTransactionReceiptMock.mockImplementation(
         async (_client, { hash: waited }) => {
           if (waited !== executionHash)
