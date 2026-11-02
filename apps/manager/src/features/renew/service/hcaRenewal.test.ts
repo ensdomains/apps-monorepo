@@ -84,6 +84,7 @@ import {
 } from '@/features/register-v2/service/pendingL2Bridge'
 import { TOKENS } from '@/lib/tokens'
 import {
+  fundHcaRenewalsFromL2,
   HCA_RENEWAL_INTENT_GAS_LIMIT_BASE,
   HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM,
   HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS,
@@ -537,6 +538,40 @@ describe('submitHcaRenewal paid from an L2', () => {
     )
     expect(mocks.submitL2BridgeActor).toHaveBeenCalledOnce()
     expect(readPendingL2Bridge(params.chainId, HCA)).toBeUndefined()
+  })
+
+  it('keeps the payment pending and stops when the bridged USDC never reads back', async () => {
+    mocks.submitL2BridgeActor.mockImplementationOnce(
+      ({ onIntentSubmitted }: any) => {
+        onIntentSubmitted(8n)
+        return okAsync('bridge-tx')
+      },
+    )
+    // The read runs out of time still showing the balance from before.
+    mocks.readHcaUsdcBalanceAtLeastActor.mockReturnValue(okAsync(200_000n))
+
+    await expect(run()).rejects.toThrow(/hasn't shown up/)
+    expect(readPendingL2Bridge(params.chainId, HCA)).toMatchObject({
+      intentId: 8n,
+    })
+    expect(mocks.planHcaIntentFunding).not.toHaveBeenCalled()
+  })
+
+  it('bridges a bulk selection once, sized over every batch', async () => {
+    await fundHcaRenewalsFromL2({
+      ...params,
+      batches: [
+        [{ label: 'alice', duration: 31_536_000n }],
+        [{ label: 'bob', duration: 31_536_000n }],
+      ],
+      l2Funding: { source, displayedCharge: 4_300_000n },
+    })
+
+    // 2 × 1.10 rent + 2 × 0.90 fee widened by 25%, less the 0.20 held.
+    expect(mocks.submitL2BridgeActor).toHaveBeenCalledOnce()
+    expect(bridged()).toMatchObject({
+      payment: { amount: 4_250_000n, displayedCharge: 4_300_000n },
+    })
   })
 
   it('pays nothing while an earlier payment is still unsettled', async () => {

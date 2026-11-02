@@ -9,10 +9,9 @@ import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/p
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
-import {
-  canPayFromL2,
-  type L2PaymentProps,
-  type L2PaymentRow,
+import type {
+  L2PaymentProps,
+  L2PaymentRow,
 } from '@/features/register-v2/workflow/pricing/hooks/useL2Payment'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { getRenewalFeeQueryOptions } from '@/features/renew/data/queries/renewalFee.query'
@@ -29,7 +28,6 @@ import {
 } from '@/lib/smart-account'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
-import { hasInsufficientBalance } from '@/utils/payment'
 import type {
   BulkRenewName,
   PresetSummary,
@@ -38,6 +36,7 @@ import type {
   SummaryRow,
 } from '../types'
 import {
+  canPayBulkRenewal,
   durationForName,
   newExpiryDateForName,
   PRESETS,
@@ -313,14 +312,12 @@ export const useBulkRenew = ({
         !isLoadingBalances &&
         pricesReady &&
         grandTotal > 0 &&
-        (selectedL2
-          ? // A chosen L2 pays in place of the wallet, so only its quote must cover it.
-            canPayFromL2(selectedL2)
-          : // The account's own balance pays first; the wallet covers the rest.
-            !hasInsufficientBalance(
-              selectedBalanceUsd + (accountCredit[selectedToken] ?? 0),
-              fundedTotal,
-            )),
+        canPayBulkRenewal({
+          selectedL2,
+          walletBalance: selectedBalanceUsd,
+          accountCredit: accountCredit[selectedToken] ?? 0,
+          fundedTotal,
+        }),
       l2Payment,
       selectedL2,
     },
