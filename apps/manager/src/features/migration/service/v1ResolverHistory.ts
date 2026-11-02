@@ -169,9 +169,10 @@ export const parseResolverHistory = (
 ): Result<readonly ResolverHistoryRecord[], Error> => {
   const parsed = v.safeParse(v.array(logSchema), response)
   if (!parsed.success) return err(new Error('Malformed resolver history logs'))
-  return parsed.output.reduce<Result<readonly ResolverHistoryRecord[], Error>>(
+  const records: ResolverHistoryRecord[] = []
+  const result = parsed.output.reduce<Result<void, Error>>(
     (result, log) =>
-      result.andThen((records) => {
+      result.andThen(() => {
         const source = request.sources.find(
           ({ id }) => id.toLowerCase() === log.topics[1]?.toLowerCase(),
         )
@@ -267,11 +268,15 @@ export const parseResolverHistory = (
             .otherwise(() =>
               err(new Error('Unsupported resolver history event')),
             )
-            .map((record) => [...records, record])
+            .map((record) => {
+              records.push(record)
+              return undefined
+            })
         })
       }),
-    ok([]),
+    ok(undefined),
   )
+  return result.map(() => records)
 }
 
 export const supplementalKeysForSource = (

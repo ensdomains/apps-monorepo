@@ -3,6 +3,7 @@ import {
   encodeEventTopics,
   namehash,
   parseAbi,
+  toHex,
   zeroAddress,
   zeroHash,
 } from 'viem'
@@ -45,6 +46,58 @@ const interfaceLog = {
 }
 
 describe('resolver history', () => {
+  it('preserves 10,000 historical writes in order before deduplicating their keys', () => {
+    const topics = encodeEventTopics({
+      abi: RESOLVER_HISTORY_ABI,
+      eventName: 'AddressChanged',
+      args: { node: source.id },
+    })
+    const writes = Array.from({ length: 10_000 }, (_, index) => ({
+      ...baseLog,
+      topics,
+      logIndex: toHex(index),
+      data: encodeAbiParameters(
+        [{ type: 'uint256' }, { type: 'bytes' }],
+        [BigInt(index % 100), '0x'],
+      ),
+    }))
+    const records = parseResolverHistory(writes, request)._unsafeUnwrap()
+
+    expect(records).toEqual(
+      writes.map((_, index) => ({
+        resolver: source.resolver,
+        node: source.id,
+        kind: 'address',
+        coinType: BigInt(index % 100),
+      })),
+    )
+    expect(profileKeysForSource(source, records).coinTypes).toEqual(
+      Array.from({ length: 100 }, (_, index) => BigInt(index)),
+    )
+  })
+
+  it('rejects unsupported history after a large valid prefix without returning partial records', () => {
+    const dns = {
+      ...baseLog,
+      topics: encodeEventTopics({
+        abi: RESOLVER_HISTORY_ABI,
+        eventName: 'DNSZoneCleared',
+        args: { node: source.id },
+      }),
+      data: '0x',
+    }
+    expect(
+      parseResolverHistory(
+        [...Array.from({ length: 10_000 }, () => interfaceLog), dns],
+        request,
+      )._unsafeUnwrapErr(),
+    ).toMatchObject({
+      name: 'UnsupportedResolverRecordsError',
+      ensName: source.name,
+      recordType: 'dns',
+    })
+  })
+
   it('reads historical text events whose duplicated key is stored entirely in data', () => {
     const unindexedText = parseAbi([
       'event TextChanged(bytes32 indexed node, string indexedKey, string key)',
