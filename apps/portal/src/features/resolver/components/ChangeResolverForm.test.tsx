@@ -207,6 +207,26 @@ describe('ChangeResolverForm', () => {
     expect(screen.getByRole('button', { name: /Save changes/i })).toBeDisabled()
   })
 
+  // WEB-1326: save was blocked with no hint as to why.
+  it('explains why save is disabled for a malformed custom resolver', async () => {
+    const user = userEvent.setup()
+
+    render(<ChangeResolverForm name={name} target={target} />)
+
+    await user.click(
+      screen.getByRole('switch', { name: /Use custom resolver/i }),
+    )
+    const input = screen.getByLabelText(/Contract address/i)
+    await user.type(input, '0x1111')
+    await user.tab()
+
+    expect(input).toHaveAccessibleDescription(
+      'A contract address is 42 characters long, including 0x. This one is 6.',
+    )
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('button', { name: /Save changes/i })).toBeDisabled()
+  })
+
   it('opens transaction modal when valid custom resolver is submitted', async () => {
     const user = userEvent.setup()
 

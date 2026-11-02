@@ -24,6 +24,7 @@ import {
 } from '@/features/resolver/hooks/useDeployPermissionedResolver'
 import { useUserPermissionedResolvers } from '@/features/resolver/hooks/useUserPermissionedResolvers'
 import { getIsSubmitDisabled } from '@/features/resolver/utils/getIsSubmitDisabled'
+import { getResolverAddressError } from '@/features/resolver/utils/getResolverAddressError'
 import { generateResolverSalt } from '@/features/resolver/utils/permissionedResolver'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
@@ -49,6 +50,39 @@ function useAutoSelectFirstResolver(
     existingResolvers,
     setSelectedExistingResolver,
   ])
+}
+
+const CustomResolverAddressInput = ({
+  value,
+  onChange,
+}: {
+  readonly value: string
+  readonly onChange: (value: string) => void
+}) => {
+  const [isTouched, setIsTouched] = useState(false)
+  const error = getResolverAddressError({ value, isTouched })
+
+  return (
+    <div>
+      <Input
+        id="resolver-address"
+        placeholder="0x..."
+        value={value}
+        aria-invalid={error !== null}
+        aria-describedby={error ? 'resolver-address-error' : undefined}
+        onChange={(event) => onChange(event.target.value)}
+        onBlur={() => setIsTouched(true)}
+      />
+      {error ? (
+        <p
+          id="resolver-address-error"
+          className="text-p mt-1.5 text-destructive"
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
+  )
 }
 
 interface ChangeResolverFormProps {
@@ -263,11 +297,9 @@ export const ChangeResolverForm = ({
           >
             Contract address
           </Label>
-          <Input
-            id="resolver-address"
-            placeholder="0x..."
+          <CustomResolverAddressInput
             value={resolverAddress}
-            onChange={(event) => setResolverAddress(event.target.value)}
+            onChange={setResolverAddress}
           />
         </div>
       ) : (
