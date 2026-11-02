@@ -28,30 +28,6 @@ const actionLabel = (
   return <Trans>Swap ETH and continue</Trans>
 }
 
-const canSubmit = ({
-  owner,
-  isLoadingAmount,
-  isReady,
-  amountError,
-  hasPendingSwap,
-  quoteError,
-  isPending,
-}: {
-  owner: Address | null
-  isLoadingAmount: boolean
-  isReady: boolean
-  amountError?: string
-  hasPendingSwap: boolean
-  quoteError: Error | null
-  isPending: boolean
-}) =>
-  !!owner &&
-  !isLoadingAmount &&
-  isReady &&
-  !amountError &&
-  (hasPendingSwap || !quoteError) &&
-  !isPending
-
 export const EthPaymentDialog = ({
   open,
   onOpenChange,
@@ -109,6 +85,13 @@ export const EthPaymentDialog = ({
   const canContinue = amountOut === 0n
   const isReady =
     canContinue || hasPendingSwap || (!!quote.data && !quote.isFetching)
+  const isSubmitDisabled =
+    !owner ||
+    isLoadingAmount ||
+    !isReady ||
+    !!amountError ||
+    (!!quote.error && !hasPendingSwap) ||
+    payment.isPending
   const error =
     payment.error ?? (hasPendingSwap ? null : quote.error) ?? amountError
 
@@ -174,17 +157,7 @@ export const EthPaymentDialog = ({
         )}
         <Button
           className="w-full"
-          disabled={
-            !canSubmit({
-              owner,
-              isLoadingAmount,
-              isReady,
-              amountError,
-              hasPendingSwap,
-              quoteError: quote.error,
-              isPending: payment.isPending,
-            })
-          }
+          disabled={isSubmitDisabled}
           onClick={() => {
             if (canContinue) {
               onOpenChange(false)
