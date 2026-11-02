@@ -100,11 +100,11 @@ firstRegistrationTest.describe(
         // for completion. The completion banner is gated on the WHOLE flow
         // (including these legs), so once it shows, the setup has finished and
         // the polling stops without a dangling authorize.
-        let registrationComplete = false
+        let isRegistrationComplete = false
         const authorizeSetupTxs = authorizeTransactionsWhile(
           page,
           wallet,
-          () => registrationComplete,
+          () => isRegistrationComplete,
         )
 
         const successBanner = page.getByRole('status')
@@ -113,7 +113,7 @@ firstRegistrationTest.describe(
           failureTitle: 'Registration Failed',
           timeout: 240_000,
         })
-        registrationComplete = true
+        isRegistrationComplete = true
         await authorizeSetupTxs
 
         await expect(

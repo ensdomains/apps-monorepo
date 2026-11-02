@@ -49,12 +49,12 @@ const STORAGE_TYPE_KEY = 'ens-tx-storage-type'
 const BACKEND_AUTH_KEY = '@manager-v4/backend_auth'
 
 type StoredTransaction = {
-  id: string
-  hash?: Hash
-  state: string
-  context: unknown
-  timestamp: number
-  updatedAt: number
+  readonly id: string
+  readonly hash?: Hash
+  readonly state: string
+  readonly context: unknown
+  readonly timestamp: number
+  readonly updatedAt: number
 }
 
 /** Make the transaction manager's IndexedDB fail to open, on every load. */

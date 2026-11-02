@@ -189,6 +189,12 @@ async function hcaOf(owner: Address): Promise<Address> {
  * Move `amount` of `token` (default: all of it) from `holder` to `to`,
  * impersonating the holder; returns what moved.
  */
+/**
+ * The USDC the app pays with: the manifest's (Circle's on Sepolia since #1395),
+ * not ensjs's MockUSDC.
+ */
+const PAYMENT_USDC = getDestinationContracts(supportedL1Chains.sepolia).usdc
+
 async function moveToken(
   token: Address,
   holder: Address,
@@ -337,13 +343,13 @@ test.describe('Migration deep into and after the V1 grace period', () => {
 
     const upgrade = page.getByRole('button', { name: /^Upgrade 2 names$/ })
     await expect(upgrade).toBeEnabled({ timeout: 90_000 })
-    let done = false
-    const authorizeAll = authorizeTransactionsWhile(page, wallet, () => done)
+    let isDone = false
+    const authorizeAll = authorizeTransactionsWhile(page, wallet, () => isDone)
     await upgrade.click()
     await expect(
       page.getByRole('heading', { name: /your names have been upgraded/i }),
     ).toBeVisible({ timeout: 240_000 })
-    done = true
+    isDone = true
     await authorizeAll
 
     const now = await chainNow()
@@ -593,12 +599,12 @@ async function renewV1(
     page.getByRole('button', { name: /pay with stablecoins/i }),
   ).toBeVisible({ timeout: 60_000 })
   await page.waitForLoadState('networkidle')
-  let done = false
-  const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+  let isDone = false
+  const authorizing = authorizeTransactionsWhile(page, wallet, () => isDone)
   try {
     await renewFor28Days(page)
   } finally {
-    done = true
+    isDone = true
     await authorizing
   }
 }
@@ -863,11 +869,11 @@ test.describe('Grace on the dashboard (§5.B)', () => {
     await dialog.getByRole('button', { name: 'Next', exact: true }).click()
     await expect(dialog.getByText('Select payment')).toBeVisible()
     await dialog.getByRole('button', { name: /USDC/ }).first().click()
-    let done = false
-    const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+    let isDone = false
+    const authorizing = authorizeTransactionsWhile(page, wallet, () => isDone)
     await dialog.getByRole('button', { name: 'Confirm', exact: true }).click()
     await approveRenewalFundingUntil(page, page.getByText('Renewal Complete'))
-    done = true
+    isDone = true
     await authorizing
 
     // B8: every lease advanced, by its own calendar year.
@@ -889,11 +895,7 @@ test.describe('Grace on the dashboard (§5.B)', () => {
           address: ETH_REGISTRAR,
           abi: RENEW_PRICE_ABI,
           functionName: 'getRenewPrice',
-          args: [
-            label,
-            durations[i],
-            ensL1Contracts[supportedL1Chains.sepolia].usdc.address as Address,
-          ],
+          args: [label, durations[i], PAYMENT_USDC],
         }),
       ),
     )
@@ -923,11 +925,7 @@ test.describe('Grace on the dashboard (§5.B)', () => {
         address: ETH_REGISTRAR,
         abi: RENEW_PRICE_ABI,
         functionName: 'getRenewPrice',
-        args: [
-          label,
-          BigInt(28 * DAY),
-          ensL1Contracts[supportedL1Chains.sepolia].usdc.address as Address,
-        ],
+        args: [label, BigInt(28 * DAY), PAYMENT_USDC],
       }),
       'the registrar will not price a renewal',
     ).rejects.toThrow()
@@ -1043,13 +1041,13 @@ test.describe('Grace on the dashboard (§5.B)', () => {
     )
 
     // Retry: it resumes from the refused name and does not pay for the first again.
-    let done = false
-    const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+    let isDone = false
+    const authorizing = authorizeTransactionsWhile(page, wallet, () => isDone)
     await dialog.getByRole('button', { name: 'Try again' }).click()
     await expect(page.getByText('Renewal Complete')).toBeVisible({
       timeout: 120_000,
     })
-    done = true
+    isDone = true
     await authorizing
 
     const final = await expiries()
@@ -1085,8 +1083,7 @@ test.describe('Grace on the dashboard (§5.B)', () => {
     const expiries = async () =>
       Promise.all(labels.map(async (l) => (await v2State(l)).expiry))
     const before = await expiries()
-    const usdc = ensL1Contracts[supportedL1Chains.sepolia].usdc
-      .address as Address
+    const usdc = PAYMENT_USDC
     const owner = accounts.getAddress('user') as Address
     const usdcOf = () =>
       publicClient.readContract({
@@ -1141,11 +1138,11 @@ test.describe('Grace on the dashboard (§5.B)', () => {
       expect(await usdcOf(), 'nothing charged').toBe(usdcBefore)
 
       // ── Confirm again: one batch, every name renewed exactly once ──
-      let done = false
-      const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+      let isDone = false
+      const authorizing = authorizeTransactionsWhile(page, wallet, () => isDone)
       await confirm.click()
       await approveRenewalFundingUntil(page, page.getByText('Renewal Complete'))
-      done = true
+      isDone = true
       await authorizing
       const final = await expiries()
       for (const [i, label] of labels.entries()) {
@@ -1187,11 +1184,7 @@ test.describe('Temporary premium on registration (A24)', () => {
         address: ETH_REGISTRAR,
         abi: REGISTER_PRICE_ABI_A24,
         functionName: 'getRegisterPrice',
-        args: [
-          label,
-          BigInt(365 * DAY),
-          ensL1Contracts[supportedL1Chains.sepolia].usdc.address as Address,
-        ],
+        args: [label, BigInt(365 * DAY), PAYMENT_USDC],
       })
       return Number(premium) / 1e6
     }

@@ -114,18 +114,18 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     // the auto primary-name setup, the post-registration step sends two
     // owner-EOA transactions (forward + reverse) that must be authorized —
     // and the completion banner is gated on the whole flow finishing.
-    let registrationComplete = false
+    let isRegistrationComplete = false
     const authorizeSetupTxs = authorizeTransactionsWhile(
       page,
       wallet,
-      () => registrationComplete,
+      () => isRegistrationComplete,
     )
     await expectFlowSuccess(page, {
       success: successBanner.filter({ hasText: 'Registration Complete' }),
       failureTitle: 'Registration Failed',
       timeout: 240_000,
     })
-    registrationComplete = true
+    isRegistrationComplete = true
     await authorizeSetupTxs
 
     // The completion banner is app-rendered text; the registry is the
@@ -302,10 +302,10 @@ test.describe('lost same-name registration race (WEB-1148)', () => {
     const monitor = await registerUntilCommitConfirmed(page, label)
 
     // Fail the reveal's price re-read at the RPC layer until we say otherwise.
-    let flaky = true
+    let isFlaky = true
     await page.route('**/*', async (route) => {
       const body = route.request().postData() ?? ''
-      if (flaky && body.includes(GET_REGISTER_PRICE_SELECTOR)) {
+      if (isFlaky && body.includes(GET_REGISTER_PRICE_SELECTOR)) {
         return route.fulfill({ status: 503, body: 'injected flake' })
       }
       return route.fallback()
@@ -331,15 +331,15 @@ test.describe('lost same-name registration race (WEB-1148)', () => {
     ).toHaveCount(0)
     expect((await readRegistryState(label)).status).toBe(V2Status.AVAILABLE)
 
-    flaky = false
+    isFlaky = false
     monitor.reset()
     await main.getByRole('button', { name: 'Try Again' }).click()
 
-    let registrationComplete = false
+    let isRegistrationComplete = false
     const authorizeSetupTxs = authorizeTransactionsWhile(
       page,
       wallet,
-      () => registrationComplete,
+      () => isRegistrationComplete,
     )
     await expectFlowSuccess(page, {
       success: page
@@ -348,7 +348,7 @@ test.describe('lost same-name registration race (WEB-1148)', () => {
       failureTitle: 'Registration Failed',
       timeout: 180_000,
     })
-    registrationComplete = true
+    isRegistrationComplete = true
     await authorizeSetupTxs
 
     await assertV2Registered(label)
@@ -460,9 +460,12 @@ test.describe('HCA registration budget (WEB-1506)', () => {
     "We couldn't work out the full cost of this registration right now, so we can't start it safely. Please try again in a moment."
 
   interface RouteRequest {
-    account: { address: Address }
-    destinationExecutions: { to: Address; data: Hex }[]
-    destinationGasUnits: string
+    readonly account: { readonly address: Address }
+    readonly destinationExecutions: readonly {
+      readonly to: Address
+      readonly data: Hex
+    }[]
+    readonly destinationGasUnits: string
   }
 
   const parseRoute = (req: Request): RouteRequest | null => {
@@ -521,12 +524,14 @@ test.describe('HCA registration budget (WEB-1506)', () => {
 
   /** Register-leg quotes sent after index `from` for the given opt-in. */
   const quotesAfter = async (
-    quotes: RouteRequest[],
+    quotes: readonly RouteRequest[],
     from: number,
-    primaryName: boolean,
+    shouldSetPrimaryName: boolean,
   ) => {
     const matching = () =>
-      quotes.slice(from).filter((q) => setsPrimaryName(q) === primaryName)
+      quotes
+        .slice(from)
+        .filter((q) => setsPrimaryName(q) === shouldSetPrimaryName)
     await expect
       .poll(() => matching().length, { timeout: 30_000 })
       .toBeGreaterThan(0)
@@ -538,7 +543,7 @@ test.describe('HCA registration budget (WEB-1506)', () => {
    * one (on mount, then again after the toggle), and a late one must not be
    * counted against the next phase's chain state.
    */
-  async function quotesSettled(page: Page, quotes: RouteRequest[]) {
+  async function quotesSettled(page: Page, quotes: readonly RouteRequest[]) {
     for (let last = -1; last !== quotes.length; ) {
       last = quotes.length
       await page.waitForTimeout(3_000)
@@ -549,12 +554,13 @@ test.describe('HCA registration budget (WEB-1506)', () => {
   async function openPickerFor(
     page: Page,
     label: string,
-    primaryName: boolean,
+    shouldSetPrimaryName: boolean,
   ) {
     const picker = await openTokenPicker(page, label)
     const toggle = picker.getByRole('switch', { name: /as your primary name/i })
-    if ((await toggle.isChecked()) !== primaryName) await toggle.click()
-    await expect(toggle).toBeChecked({ checked: primaryName })
+    if ((await toggle.isChecked()) !== shouldSetPrimaryName)
+      await toggle.click()
+    await expect(toggle).toBeChecked({ checked: shouldSetPrimaryName })
     return picker
   }
 
@@ -578,15 +584,15 @@ test.describe('HCA registration budget (WEB-1506)', () => {
 
   // Both opt-ins: the primary-name call changes the batch and its own gas, so
   // the deploy must be funded on top of either shape.
-  for (const primaryName of [true, false]) {
-    test(`funds the resolver deploy in the register leg of a first registration (primary name ${primaryName ? 'on' : 'off'})`, async ({
+  for (const shouldSetPrimaryName of [true, false]) {
+    test(`funds the resolver deploy in the register leg of a first registration (primary name ${shouldSetPrimaryName ? 'on' : 'off'})`, async ({
       connectedPage: page,
     }) => {
       const label = `budget-${Date.now().toString(36)}`
       const quotes = captureRegisterQuotes(page)
 
-      await openPickerFor(page, label, primaryName)
-      const [sample] = await quotesAfter(quotes, 0, primaryName)
+      await openPickerFor(page, label, shouldSetPrimaryName)
+      const [sample] = await quotesAfter(quotes, 0, shouldSetPrimaryName)
       await quotesSettled(page, quotes)
       // The resolver is the setters' target in every register batch.
       const resolver = findCall(
@@ -603,10 +609,14 @@ test.describe('HCA registration budget (WEB-1506)', () => {
         // A first registration: the HCA's resolver has no code yet.
         await testClient.setCode({ address: resolver, bytecode: '0x' })
         let seen = quotes.length
-        await openPickerFor(page, label, primaryName)
-        await quotesAfter(quotes, seen, primaryName)
+        await openPickerFor(page, label, shouldSetPrimaryName)
+        await quotesAfter(quotes, seen, shouldSetPrimaryName)
         await quotesSettled(page, quotes)
-        firstRegistration = await quotesAfter(quotes, seen, primaryName)
+        firstRegistration = await quotesAfter(
+          quotes,
+          seen,
+          shouldSetPrimaryName,
+        )
 
         // A later registration: the resolver exists. Any code reads as deployed.
         await testClient.setCode({
@@ -614,10 +624,10 @@ test.describe('HCA registration budget (WEB-1506)', () => {
           bytecode: originalCode !== '0x' ? originalCode : '0xfe',
         })
         seen = quotes.length
-        await openPickerFor(page, label, primaryName)
-        await quotesAfter(quotes, seen, primaryName)
+        await openPickerFor(page, label, shouldSetPrimaryName)
+        await quotesAfter(quotes, seen, shouldSetPrimaryName)
         await quotesSettled(page, quotes)
-        existingResolver = await quotesAfter(quotes, seen, primaryName)
+        existingResolver = await quotesAfter(quotes, seen, shouldSetPrimaryName)
       } finally {
         await testClient.setCode({ address: resolver, bytecode: originalCode })
       }
@@ -804,7 +814,7 @@ const readClaim = (page: Page, owner: Address) =>
 async function openSecondTab(
   original: Page,
   accounts: PortalAccounts,
-  options: { duplicate: boolean },
+  options: { isDuplicate: boolean },
 ) {
   const page = await original.context().newPage()
   await createBignameMock().installIfEnabled(page)
@@ -824,7 +834,7 @@ async function openSecondTab(
     permitted: [...PERMITTED_SIGN_KINDS],
   })
 
-  if (options.duplicate) {
+  if (options.isDuplicate) {
     const inherited = await original.evaluate(() =>
       Object.entries(window.sessionStorage),
     )
@@ -986,7 +996,7 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
     const { page: clone, wallet: cloneWallet } = await openSecondTab(
       page,
       accounts,
-      { duplicate: true },
+      { isDuplicate: true },
     )
     await clone.goto(page.url())
     expect(await readHolderId(clone)).toBeTruthy()
@@ -1018,11 +1028,11 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
     })
 
     // The original is undisturbed and finishes on chain.
-    let registrationComplete = false
+    let isRegistrationComplete = false
     const authorizeSetupTxs = authorizeTransactionsWhile(
       page,
       wallet,
-      () => registrationComplete,
+      () => isRegistrationComplete,
     )
     await expectFlowSuccess(page, {
       success: page
@@ -1031,7 +1041,7 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
       failureTitle: 'Registration Failed',
       timeout: 240_000,
     })
-    registrationComplete = true
+    isRegistrationComplete = true
     await authorizeSetupTxs
     await assertV2Registered(label)
     const registered = await readRegistryState(label)
@@ -1093,7 +1103,7 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
     const { page: clone, wallet: cloneWallet } = await openSecondTab(
       page,
       accounts,
-      { duplicate: true },
+      { isDuplicate: true },
     )
     await openRegisterPageAndConnect(clone, cloneWallet, cloneLabel)
 
@@ -1147,7 +1157,7 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
     const { page: other, wallet: otherWallet } = await openSecondTab(
       page,
       accounts,
-      { duplicate: false },
+      { isDuplicate: false },
     )
     await openRegisterPageAndConnect(other, otherWallet, otherLabel)
     await pressRegister(other)
@@ -1188,7 +1198,7 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
     const { page: clone, wallet: cloneWallet } = await openSecondTab(
       page,
       accounts,
-      { duplicate: true },
+      { isDuplicate: true },
     )
     await openRegisterPageAndConnect(clone, cloneWallet, label)
 

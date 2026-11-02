@@ -151,7 +151,7 @@ const graceMock = (
 })
 
 /** Mock the subgraph, align the browser clock with the chain, and open /upgrade. */
-async function openMigration(page: Page, names: MockV1Name[]) {
+async function openMigration(page: Page, names: readonly MockV1Name[]) {
   await serveV1Names(page, names)
   await syncBrowserToChain(page)
   await page.goto(`${MANAGER_APP_URL}/upgrade`)
@@ -204,12 +204,16 @@ async function activeMock(
 }
 
 /** Tick or untick a name on /migration (the input itself is visually hidden). */
-async function setNameSelected(page: Page, name: string, selected: boolean) {
+async function setNameSelected(
+  page: Page,
+  name: string,
+  shouldBeSelected: boolean,
+) {
   const checkbox = nameCheckbox(page, name)
-  if ((await checkbox.isChecked()) !== selected) {
+  if ((await checkbox.isChecked()) !== shouldBeSelected) {
     await checkbox.locator('xpath=..').click()
   }
-  await expect(checkbox).toBeChecked({ checked: selected })
+  await expect(checkbox).toBeChecked({ checked: shouldBeSelected })
 }
 
 /**
@@ -277,15 +281,15 @@ async function runUpgrade(
 ) {
   const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/i })
   await expect(upgrade).toBeEnabled({ timeout: 60_000 })
-  let done = false
-  const authorizeAll = authorizeTransactionsWhile(page, wallet, () => done)
+  let isDone = false
+  const authorizeAll = authorizeTransactionsWhile(page, wallet, () => isDone)
   await upgrade.click()
   await expect(
     page.getByRole('heading', {
       name: /your names? (has|have) been upgraded/i,
     }),
   ).toBeVisible({ timeout: 180_000 })
-  done = true
+  isDone = true
   await authorizeAll
   if (shot) await qaShot(page, shot)
 }

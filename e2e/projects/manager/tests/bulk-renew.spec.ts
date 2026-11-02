@@ -208,11 +208,11 @@ test.describe('Manager bulk renew — V1 and V2 names', () => {
     const dialog = page.getByRole('dialog')
     await dialog.getByRole('button', { name: 'Next', exact: true }).click()
     await dialog.getByRole('button', { name: /USDC/ }).first().click()
-    let done = false
-    const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+    let isDone = false
+    const authorizing = authorizeTransactionsWhile(page, wallet, () => isDone)
     await dialog.getByRole('button', { name: 'Confirm', exact: true }).click()
     await approveFundingUntil(page, page.getByText('Renewal Complete'))
-    done = true
+    isDone = true
     await authorizing
 
     const after = await Promise.all(labels.map(expiryOf))
