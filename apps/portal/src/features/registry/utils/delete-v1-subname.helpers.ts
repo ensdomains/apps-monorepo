@@ -176,10 +176,18 @@ export const getV1SubnameDeleteAccess = (
   account: Address,
 ): V1SubnameDeleteGate | null => {
   const asParent = parent ? getV1SubnameDeleteGate(parent, child) : null
-  if (asParent?.reason === 'ok') return asParent
   const isHolder =
     child.holder !== null && isAddressEqual(child.holder, account)
-  return isHolder ? getV1SubnameHolderDeleteGate(child) : asParent
+  const asHolder = isHolder ? getV1SubnameHolderDeleteGate(child) : null
+  // Its own holder zeroes it in one write, without unwrapping the parent.
+  if (
+    asParent?.reason === 'ok' &&
+    asParent.target === 'unwrap-parent-then-delete' &&
+    asHolder?.reason === 'ok'
+  )
+    return asHolder
+  if (asParent?.reason === 'ok') return asParent
+  return asHolder ?? asParent
 }
 
 export interface V1SubnameDelete {

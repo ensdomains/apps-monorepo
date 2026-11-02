@@ -228,6 +228,16 @@ describe('getV1SubnameDeleteAccess', () => {
     })
   })
 
+  it('deletes an unknown-label subname as its holder rather than unwrapping the parent', () => {
+    expect(
+      getV1SubnameDeleteAccess(
+        parent({ isWrapped: true, isRewrappable: true }),
+        asHolder({ labelName: null }),
+        ACCOUNT,
+      ),
+    ).toEqual({ reason: 'ok', target: 'registry-as-holder' })
+  })
+
   it('still refuses the parent holder an emancipated subname they do not hold', () => {
     expect(
       getV1SubnameDeleteAccess(
