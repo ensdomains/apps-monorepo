@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
+import { match } from 'ts-pattern'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -97,8 +98,9 @@ export const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
         title: 'Delete subname',
         transactionName: `Delete ${row.name}`,
       }
-      return entry.target === 'wrap-then-delete'
-        ? [
+      return (
+        match(entry.target)
+          .with('wrap-then-delete', () => [
             {
               ...step(0),
               title: 'Wrap subname',
@@ -106,8 +108,23 @@ export const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
             },
             // Estimated once it starts: it reverts until the wrap has landed.
             { ...remove, send: step(1).send },
-          ]
-        : [{ ...step(0), ...remove }]
+          ])
+          // Each step after the unwrap reverts until the one before has landed.
+          .with('unwrap-parent-then-delete', () => [
+            {
+              ...step(0),
+              title: 'Unwrap parent',
+              transactionName: `Unwrap ${name} to delete ${row.name}`,
+            },
+            { ...remove, send: step(1).send },
+            {
+              title: 'Wrap parent again',
+              transactionName: `Wrap ${name} again`,
+              send: step(2).send,
+            },
+          ])
+          .otherwise(() => [{ ...step(0), ...remove }])
+      )
     },
     [deletes, name, deleteStepAsync],
   )
@@ -174,6 +191,7 @@ export const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
         isLoadMoreError={isFetchNextPageError}
         name={name}
         canCreateSubname={canCreateSubname}
+        isCreationPaused={false}
         onDeleteSubname={
           canDeleteSubname ? (row) => void handleDelete([row]) : undefined
         }
