@@ -1,0 +1,21 @@
+{
+  "name": "@ens-apps/test-utils",
+  "version": "1.0.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./arbitraries/names": "./src/arbitraries/names.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check"
+  },
+  "dependencies": {
+    "fast-check": "catalog:",
+    "viem": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

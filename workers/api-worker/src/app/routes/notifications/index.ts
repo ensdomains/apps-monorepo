@@ -1,6 +1,5 @@
 import type {
   BroadcastNotificationPayloads,
-  PersonalNotificationKind,
   PersonalNotificationPayloads,
 } from '@ens-apps/shared-schema/notifications'
 import { vValidator } from '@hono/valibot-validator'
@@ -14,6 +13,7 @@ import { createNotification } from '#services/notifications/create.js'
 import type { DiscriminatedPayloadMapper } from '#types/helpers.js'
 import channels from './channels/index.js'
 import preferences from './preferences.js'
+import { testNotificationBodySchema } from './test-notification.schema.js'
 
 const PAGE_SIZE = 20
 
@@ -351,13 +351,7 @@ export default createApp()
     '/test',
     ...requireAuth,
     injectDb,
-    vValidator(
-      'json',
-      v.object({
-        kind: v.string(),
-        payload: v.any(),
-      }),
-    ),
+    vValidator('json', testNotificationBodySchema),
     async (c) => {
       if (!import.meta.env.DEV) {
         return c.notFound()
@@ -370,9 +364,8 @@ export default createApp()
         db: c.var.db,
         env: c.env,
         userId,
-        kind: kind as PersonalNotificationKind,
-        payload:
-          payload as PersonalNotificationPayloads[PersonalNotificationKind],
+        kind,
+        payload,
         idempotencyKey: `test-${kind}-${userId}-${Date.now()}`,
       })
 
