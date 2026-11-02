@@ -188,11 +188,6 @@ export const TokenPickerContent = () => {
       {...(isIntentRoute && pricingQuery.data
         ? { fundedAmount: pricingQuery.data.funded }
         : {})}
-      fullyCoveredMessage={
-        <Trans>
-          No additional payment needed. You'll still need to sign the renewal.
-        </Trans>
-      }
       funding={funding}
       helpMessage={match({ isIntentRoute, l2ChainName })
         .with({ l2ChainName: P.string }, ({ l2ChainName }) => (
@@ -227,6 +222,8 @@ export const TokenPickerContent = () => {
       )}
       l2Payment={l2Payment}
       label={label}
+      // Every method the user holds a balance in stays listed, as in registration.
+      listMethodsWhenCovered
       networkFeeTooltip={
         <Trans>
           An estimate of what the transaction that renews your name will cost.
