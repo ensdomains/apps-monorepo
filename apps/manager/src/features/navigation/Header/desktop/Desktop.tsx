@@ -9,6 +9,8 @@ import { DisconnectedRightBlock } from './DisconnectedRightBlock'
 type DesktopHeaderProps = {
   readonly isConnected: boolean
   readonly connectionSettled: boolean
+  /** Connected wallet theme. Recolors the ENS mark and leaves the chevron alone. */
+  readonly landingThemeColor?: string
   readonly profileThemeColor?: string
   readonly transparentBackground?: boolean
 }
@@ -16,6 +18,7 @@ type DesktopHeaderProps = {
 export const DesktopHeader = ({
   isConnected,
   connectionSettled,
+  landingThemeColor,
   profileThemeColor,
   transparentBackground = false,
 }: DesktopHeaderProps) => {
@@ -32,6 +35,7 @@ export const DesktopHeader = ({
         <DesktopNavigation
           anchorRef={leftBlockRef}
           isConnected={isConnected}
+          landingThemeColor={landingThemeColor}
           profileHeader={transparentBackground}
           profileThemeColor={profileThemeColor}
         />

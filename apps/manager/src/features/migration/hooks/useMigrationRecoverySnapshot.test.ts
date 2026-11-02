@@ -1,4 +1,12 @@
-import { act, renderHook } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  act,
+  renderHook as renderTestingHook,
+  waitFor,
+} from '@testing-library/react'
+import { Storage } from 'happy-dom'
+import { okAsync } from 'neverthrow'
+import { createElement, type ReactNode } from 'react'
 import { type Address, namehash } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -8,14 +16,20 @@ const smartAccountMock = vi.hoisted(() => ({
 const wagmiMock = vi.hoisted(() => ({ usePublicClient: vi.fn() }))
 
 vi.mock('@/lib/smart-account', () => smartAccountMock)
-vi.mock('wagmi', () => wagmiMock)
+vi.mock('wagmi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('wagmi')>()),
+  ...wagmiMock,
+}))
 
+import { bigname } from '@/lib/bigname'
 import { makeDomain } from '../service/_fixtures'
+import { makeConfirmedMigration } from '../service/_fixtures/confirmedMigration'
 import {
   loadMigrationRecoverySnapshot,
   type MigrationRecoverySnapshot,
   persistMigrationRecoverySnapshot,
   persistPendingAtomicMigrationAttempt,
+  persistSubmittedAtomicMigrationBatch,
   removePendingAtomicMigrationIntent,
 } from '../service/migrationBatchJournal'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
@@ -25,6 +39,16 @@ const HCA = '0x0000000000000000000000000000000000000002' as Address
 const RESOLVER = '0x0000000000000000000000000000000000000003' as Address
 const CHAIN_ID = 11155111
 const scope = { chainId: CHAIN_ID, owner: OWNER, hca: HCA }
+
+const renderHook = <T>(hook: () => T) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return renderTestingHook(hook, {
+    wrapper: ({ children }: { readonly children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children),
+  })
+}
 
 type StorageEventTarget = {
   addEventListener: (
@@ -81,7 +105,10 @@ const makeRecoverySnapshot = (): MigrationRecoverySnapshot => {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  localStorage.clear()
+  vi.stubGlobal('localStorage', new Storage())
+  vi.spyOn(bigname, 'nameHistory').mockReturnValue(
+    okAsync({ data: [], meta: { as_of: {} } }),
+  )
   smartAccountMock.useSmartAccountContext.mockReturnValue({
     ownerAddress: OWNER,
     accountAddress: HCA,
@@ -89,9 +116,43 @@ beforeEach(() => {
   wagmiMock.usePublicClient.mockReturnValue({ chain: { id: CHAIN_ID } })
 })
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 describe('useMigrationRecoverySnapshot', () => {
+  it('settles an upgrade confirmed while unmounted when the app is reopened', async () => {
+    const confirmed = makeConfirmedMigration()
+    wagmiMock.usePublicClient.mockReturnValue(confirmed.publicClient)
+    const recovery = makeRecoverySnapshot()
+    const operations = [{ name: 'alice.eth', action: 'migrate' as const }]
+    persistMigrationRecoverySnapshot(scope, {
+      ...recovery,
+      registryDomains: [makeDomain({ id: namehash('alice.eth') })],
+      registryOperations: operations,
+      remainingOperations: operations,
+      completedOperations: [],
+      profiles: new Map(),
+    })
+    persistSubmittedAtomicMigrationBatch(scope, {
+      intentId: 'closed-tab',
+      hash: confirmed.hash,
+      names: ['alice.eth'],
+      operations,
+    })
+    confirmed.getReceipt.mockRejectedValueOnce(new Error('Still pending'))
+    const firstMount = renderHook(() => useMigrationRecoverySnapshot())
+    await waitFor(() => expect(confirmed.getReceipt).toHaveBeenCalledOnce())
+    expect(firstMount.result.current?.remainingOperations).toEqual(operations)
+    firstMount.unmount()
+
+    const reopened = renderHook(() => useMigrationRecoverySnapshot())
+    await waitFor(() => expect(reopened.result.current).toBeNull())
+    expect(loadMigrationRecoverySnapshot(scope)).toBeNull()
+    reopened.unmount()
+  })
+
   it('keeps an uncertain registration grant before any migration batch was submitted', () => {
     const recovery = makeRecoverySnapshot()
     const temporaryRegistrationApproval = {
