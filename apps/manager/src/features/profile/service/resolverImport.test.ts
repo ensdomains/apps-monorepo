@@ -582,7 +582,7 @@ describe('offchain resolver records', () => {
 
     await expect(readMany()).rejects.toThrow('Gateway failed')
     expect(batchSizes()).toEqual([23])
-    expect(resolveCalls().length).toBeLessThanOrEqual(1 + 8)
+    expect(resolveCalls()).toHaveLength(1 + 8)
   })
 
   it('does not fall back to one request per record when the gateway rate limits', async () => {

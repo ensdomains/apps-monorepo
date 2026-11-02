@@ -359,34 +359,6 @@ export const readResolverRecords = async ({
       : []),
   ]
   const isGatewayRead = hasExtendedResolution && kind === 'node'
-  // A CCIP-Read gateway answers every record call separately, so ask in batches.
-  const readGatewayBatch = (requests: readonly RecordRead[]) =>
-    client
-      .readContract({
-        address: resolver,
-        abi: permissionedResolverResolveSnippet,
-        functionName: 'resolve',
-        args: [
-          dnsEncodeName(name),
-          encodeFunctionData({
-            abi: multicallAbi,
-            functionName: 'multicall',
-            args: [requests.map(({ data }) => data)],
-          }),
-        ],
-      })
-      .then((data) =>
-        decodeFunctionResult({
-          abi: multicallAbi,
-          functionName: 'multicall',
-          data,
-        }),
-      )
-      .catch((error: unknown) => {
-        // Falling back to one call per record would only deepen a rate limit.
-        if (isRateLimited(error)) throw error
-        return null
-      })
   const readOne = async (data: Hex) =>
     kind === 'name' || hasExtendedResolution
       ? await client.readContract({
@@ -446,15 +418,41 @@ export const readResolverRecords = async ({
     ? DEFAULT_MAX_CONCURRENT_READS
     : maxConcurrentReads
   const readSeparately = (requests: readonly RecordRead[]) =>
-    chunk(requests, readConcurrency).reduce(
+    chunk(requests, readConcurrency).reduce<Promise<ReadResult[]>>(
       async (pending, part) => [
         ...(await pending),
         ...(await Promise.all(part.map((request) => read(request)))),
       ],
-      Promise.resolve([] as ReadResult[]),
+      Promise.resolve([]),
     )
   const readBatched = async (requests: readonly RecordRead[]) => {
-    const batch = await readGatewayBatch(requests)
+    // A CCIP-Read gateway answers every record call separately, so ask in batches.
+    const batch = await client
+      .readContract({
+        address: resolver,
+        abi: permissionedResolverResolveSnippet,
+        functionName: 'resolve',
+        args: [
+          dnsEncodeName(name),
+          encodeFunctionData({
+            abi: multicallAbi,
+            functionName: 'multicall',
+            args: [requests.map(({ data }) => data)],
+          }),
+        ],
+      })
+      .then((data) =>
+        decodeFunctionResult({
+          abi: multicallAbi,
+          functionName: 'multicall',
+          data,
+        }),
+      )
+      .catch((error: unknown) => {
+        // Falling back to one call per record would only deepen a rate limit.
+        if (isRateLimited(error)) throw error
+        return null
+      })
     return batch?.length === requests.length
       ? Promise.all(
           requests.map((request, index) => read(request, batch[index])),
@@ -462,12 +460,12 @@ export const readResolverRecords = async ({
       : readSeparately(requests)
   }
   const results = isGatewayRead
-    ? await chunk(reads, GATEWAY_BATCH_SIZE).reduce(
+    ? await chunk(reads, GATEWAY_BATCH_SIZE).reduce<Promise<ReadResult[]>>(
         async (pending, part) => [
           ...(await pending),
           ...(await readBatched(part)),
         ],
-        Promise.resolve([] as ReadResult[]),
+        Promise.resolve([]),
       )
     : await readSeparately(reads)
   return {

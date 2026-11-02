@@ -17,15 +17,6 @@ describe('selectProfileRecordKeys', () => {
   it.each([
     { state: 'no inventory', value: undefined, isRead: false },
     {
-      state: 'inventory_not_available',
-      value: inventory({
-        known_keys: [],
-        abi_content_types: null,
-        abi_unsupported_reason: 'inventory_not_available',
-      }),
-      isRead: false,
-    },
-    {
       state: 'inventory_not_authoritative',
       value: inventory({
         known_keys: [],
@@ -36,14 +27,6 @@ describe('selectProfileRecordKeys', () => {
       isRead: false,
     },
     { state: 'an authoritative inventory', value: inventory(), isRead: true },
-    {
-      state: 'keys whose ABI types cannot be listed',
-      value: inventory({
-        abi_content_types: null,
-        abi_unsupported_reason: 'abi_observations_stale',
-      }),
-      isRead: true,
-    },
   ])(
     'reads the main keys, and indexed keys: $isRead, for $state',
     ({ value, isRead }) => {

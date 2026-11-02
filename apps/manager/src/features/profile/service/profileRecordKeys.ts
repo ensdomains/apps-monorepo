@@ -3,7 +3,7 @@ import { getCoderFromCoin } from '@ensdomains/ensjs/utils'
 import { fromThrowable } from 'neverthrow'
 import { mainProfileRecords } from '../data/records'
 
-export type ProfileRecordKeys = {
+type ProfileRecordKeys = {
   readonly texts: readonly string[]
   readonly coins: readonly number[]
 }
@@ -27,21 +27,12 @@ const safeGetCoderFromCoin = fromThrowable(getCoderFromCoin, () => undefined)
 const isSupportedCoinType = (coinType: number): boolean =>
   safeGetCoderFromCoin(coinType).isOk()
 
-/** Whether bigname's inventory can say which keys the resolver stores; ABI-only reasons still can. */
-const isAuthoritative = (
-  inventory: RecordInventory | undefined,
-): inventory is RecordInventory =>
-  inventory !== undefined &&
-  inventory.abi_unsupported_reason !== 'inventory_not_available' &&
-  inventory.abi_unsupported_reason !== 'inventory_not_authoritative'
-
 /** The main profile keys, plus the keys bigname vouches for. */
 export const selectProfileRecordKeys = (
   inventory: RecordInventory | undefined,
 ): ProfileRecordKeys => {
-  const knownKeys = parseKnownKeys(
-    isAuthoritative(inventory) ? inventory.known_keys : [],
-  )
+  // bigname leaves known_keys empty when it can't vouch for the resolver's keys.
+  const knownKeys = parseKnownKeys(inventory?.known_keys ?? [])
   return {
     texts: unique([...mainProfileRecords.texts, ...knownKeys.texts]),
     coins: unique([...mainProfileRecords.coins, ...knownKeys.coins]).filter(
