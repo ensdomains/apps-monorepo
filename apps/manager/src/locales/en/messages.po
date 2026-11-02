@@ -414,8 +414,16 @@ msgid "An estimate of what the on-chain transactions that register your name cos
 msgstr "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, with no separate approval transaction."
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "An estimate of what the transaction that renews your name costs, including moving the USDC from {chainName}. It is paid there with the renewal price."
+msgstr "An estimate of what the transaction that renews your name costs, including moving the USDC from {chainName}. It is paid there with the renewal price."
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
 msgstr "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
+
+#: src/features/bulk-renew/components/PaymentMethodSection.tsx
+msgid "An estimate of what the transactions that renew your names cost, including moving the USDC from {chainName}. It is paid there with the renewal price."
+msgstr "An estimate of what the transactions that renew your names cost, including moving the USDC from {chainName}. It is paid there with the renewal price."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
@@ -2221,6 +2229,10 @@ msgstr "Paying from {chainName} isn't available right now."
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Paying from {l2ChainName}"
 msgstr "Paying from {l2ChainName}"
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Paying from {l2ChainName}…"
+msgstr "Paying from {l2ChainName}…"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Payment summary"
@@ -4465,6 +4477,10 @@ msgstr "Your wallet asks you to approve the payment if needed, then to confirm t
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
 msgstr "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your wallet first asks you to sign a payment of the amount shown on {l2ChainName}. Once it arrives, you sign the renewal itself."
+msgstr "Your wallet first asks you to sign a payment of the amount shown on {l2ChainName}. Once it arrives, you sign the renewal itself."
 
 #: src/components/HcaFundingConfirmDialog.tsx
 msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."

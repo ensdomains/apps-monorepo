@@ -419,7 +419,15 @@ msgid "An estimate of what the on-chain transactions that register your name cos
 msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "An estimate of what the transaction that renews your name costs, including moving the USDC from {chainName}. It is paid there with the renewal price."
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
+msgstr ""
+
+#: src/features/bulk-renew/components/PaymentMethodSection.tsx
+msgid "An estimate of what the transactions that renew your names cost, including moving the USDC from {chainName}. It is paid there with the renewal price."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -2225,6 +2233,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Paying from {l2ChainName}"
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Paying from {l2ChainName}…"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
@@ -4469,6 +4481,10 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your wallet first asks you to sign a payment of the amount shown on {l2ChainName}. Once it arrives, you sign the renewal itself."
 msgstr ""
 
 #: src/components/HcaFundingConfirmDialog.tsx

@@ -721,10 +721,11 @@ const getPayableMethods = (
   ),
 ]
 
-const getL2MethodItems = (
+export const getL2MethodItems = (
   l2Payment: L2PaymentProps | undefined,
   selectedL2: L2PaymentRow | undefined,
   funding: RegistrationFundingSummary | undefined,
+  l2FeeTooltip: ((chainName: string) => ReactNode) | undefined,
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
@@ -743,6 +744,9 @@ const getL2MethodItems = (
         isSelected: row === selectedL2,
         content: (
           <L2SourceListItem
+            {...(l2FeeTooltip
+              ? { feeTooltip: l2FeeTooltip(row.option.source.chain.name) }
+              : {})}
             isFeeEstimated={
               row.amountInRaw === undefined && estimatedAmountIn !== undefined
             }
@@ -826,6 +830,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   isEstimate = false,
   walletDebitFor,
   l2Payment,
+  l2FeeTooltip,
 }: {
   readonly label: string
   readonly pricingLoading: boolean
@@ -880,8 +885,10 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly isEstimate?: boolean
   /** Per-coin override of what the wallet must cover, for a fee paid in one coin and rent in another. */
   readonly walletDebitFor?: (symbol: TOKEN_SYMBOL) => number
-  /** Registration only: rows that pay the registration from an L2. */
+  /** Rows that pay from the wallet's USDC on an L2. */
   readonly l2Payment?: L2PaymentProps
+  /** What an L2 row's fee info explains; the registration's wording by default. */
+  readonly l2FeeTooltip?: (chainName: string) => ReactNode
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -943,7 +950,12 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
       hasBalances && hasSufficientBalanceForSelectedCoin,
     )
   const walletSelection = selectedL2 ? undefined : selectedToken
-  const l2MethodItems = getL2MethodItems(l2Payment, selectedL2, funding)
+  const l2MethodItems = getL2MethodItems(
+    l2Payment,
+    selectedL2,
+    funding,
+    l2FeeTooltip,
+  )
 
   const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
   const isSettling = isCheckoutSettling(isBusy, isRequoting)
@@ -1006,7 +1018,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     paymentMethodItems.length > 0 &&
     !walletMethodItems.some((item) => item.isSelected)
 
-  // Registration only: when the chosen method can't pay, switch to the one holding the most
+  // With L2 rows: when the chosen method can't pay, switch to the one holding the most
   const fallbackChoice = l2Payment
     ? getFallbackPaymentChoice({
         current: getCurrentMethodState(
