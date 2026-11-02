@@ -6,10 +6,12 @@ import { type Address, erc20Abi } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
 import { MessageCard } from '@/components/ui/message-card'
+import { isSepoliaBuild } from '@/config'
 import { PaymentTokenList } from '@/features/register/components/PaymentTokenList'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
+import { getPaymentHeading } from '@/features/register/utils/paymentHeading'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { getRenewerAddress } from '@/features/renew/utils/renewer'
 import { ensChain } from '@/lib/wagmi'
@@ -223,7 +225,7 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
   return (
     <>
       <h2 id="payment-heading" className="text-h3 leading-7 font-medium">
-        Select payment method
+        {getPaymentHeading(props.mode, isSepoliaBuild)}
       </h2>
       {noSupportedTokenHasSufficientBalance ? (
         <MessageCard

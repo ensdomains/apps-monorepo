@@ -7,6 +7,7 @@ import {
   formatProfileDetailDate,
   getChainSpecificAddresses,
   getContactItems,
+  getContentHashHref,
   getFeaturedSocialItems,
   getMainReceivingAddress,
   getReceivingAddressChains,
@@ -451,5 +452,17 @@ describe('ProfileView helpers', () => {
     expect(getMainReceivingAddress(records)).toBeUndefined()
     expect(getReceivingAddressChains(records)).toEqual([])
     expect(getChainSpecificAddresses(records)).toEqual([])
+  })
+})
+
+describe('getContentHashHref', () => {
+  it.each([
+    ['a mainnet .eth name', 'docs.ens.eth', 1, 'https://docs.ens.eth.limo'],
+    ['a unicode name', '💩.eth', 1, 'https://💩.eth.limo'],
+    ['a Sepolia name', 'bright-lemur.eth', 11155111, undefined],
+    ['a DNS name', 'example.com', 1, undefined],
+    ['a name that would change the path', 'a/b.eth', 1, undefined],
+  ])('links %s', (_, name, chainId, expected) => {
+    expect(getContentHashHref({ name, chainId })).toBe(expected)
   })
 })

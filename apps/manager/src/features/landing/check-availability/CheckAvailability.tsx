@@ -69,7 +69,7 @@ const SearchStatusResult = ({
     </>
   )
   const className =
-    'flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg'
+    'flex w-full items-center gap-4 rounded-lg bg-ens-white px-5 py-5 shadow-md'
 
   return (
     <motion.div {...dropdownAnimation}>
@@ -90,7 +90,7 @@ const SearchStatusResult = ({
 }
 
 export type CheckAvailabilityProps = {
-  onRegistrationComplete?: (name: string) => void
+  readonly onRegistrationComplete?: (name: string) => void
 }
 
 export const CheckAvailability = ({
@@ -167,7 +167,7 @@ export const CheckAvailability = ({
         />
 
         <div
-          className="absolute top-full z-10 mt-2 w-full space-y-4 drop-shadow-lg"
+          className="absolute top-full z-10 mt-2 w-full space-y-4 drop-shadow-md"
           ref={resultsContainerRef}
         >
           <AnimatePresence mode="wait">
@@ -303,9 +303,10 @@ export const CheckAvailability = ({
           </AnimatePresence>
         </div>
       </div>
-      <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-sm leading-normal tracking-wide">
-        <Trans>Start typing to check if your perfect name is available</Trans>{' '}
-        🕵️‍♀️
+      <p className="pl-1 font-sans text-ens-quartz-400 text-sm leading-normal">
+        <Trans>
+          Start typing to check if your perfect name is available
+        </Trans>{' '}
       </p>
     </div>
   )

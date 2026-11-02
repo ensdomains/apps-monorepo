@@ -25,6 +25,7 @@ import { expect } from '@playwright/test'
 import {
   authorizeTransactionsWhile,
   dismissBackendAuthModal,
+  getBackendAuthDialog,
 } from './manager-auth.js'
 import { findSearchInput } from './search-input.js'
 
@@ -97,11 +98,7 @@ export async function openMigrationFlow(page: Page): Promise<void> {
         async () => {
           // Locator handlers run before actions, not visibility reads. A delayed
           // optional sign-in overlay otherwise hides an already loaded heading.
-          if (
-            await page
-              .getByRole('alertdialog', { name: 'Verify your wallet' })
-              .isVisible()
-          )
+          if (await getBackendAuthDialog(page).isVisible())
             await dismissBackendAuthModal(page, { timeout: 1000 })
           landed = await heading.isVisible()
           return landed || /\/dashboard(\?|$)/.test(page.url())

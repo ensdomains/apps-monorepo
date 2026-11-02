@@ -7,6 +7,7 @@ import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChooseP
 import { DashboardGraceBanner } from '@/features/dashboard/components/DashboardGraceBanner'
 import { EducationCarousel } from '@/features/dashboard/components/EducationCarousel'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
+import { LeftoverFundsNotice } from '@/features/dashboard/components/LeftoverFundsNotice'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
 import { TemporaryMigrationAccessNotice } from '@/features/dashboard/components/TemporaryMigrationAccessNotice'
@@ -100,8 +101,14 @@ export const DashboardPage = () => {
         >
           <DashboardGraceBanner primaryLabel={defaultName} />
         </motion.div>
+        <motion.div
+          className="w-full px-4 xs:px-0 empty:hidden"
+          {...stagger(2, shouldReduceMotion)}
+        >
+          <LeftoverFundsNotice />
+        </motion.div>
         {defaultName ? (
-          <motion.div {...stagger(2, shouldReduceMotion)}>
+          <motion.div {...stagger(3, shouldReduceMotion)}>
             <PrimaryNameCardWithRecords primaryName={defaultName} />
           </motion.div>
         ) : (
@@ -109,7 +116,7 @@ export const DashboardPage = () => {
             asChild
             className="flex flex-col items-start gap-3 rounded-none xs:rounded-xl px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:px-6 md:py-8"
           >
-            <motion.div {...stagger(2, shouldReduceMotion)}>
+            <motion.div {...stagger(3, shouldReduceMotion)}>
               <span className="font-sans text-[16px] text-foreground">
                 <Trans>You haven't set a primary name yet.</Trans>
               </span>
@@ -135,7 +142,7 @@ export const DashboardPage = () => {
           asChild
           className="block rounded-none xs:rounded-xl px-4 py-6 md:px-6 md:py-8"
         >
-          <motion.div {...stagger(3, shouldReduceMotion)}>
+          <motion.div {...stagger(4, shouldReduceMotion)}>
             <NamesTable primaryLabel={defaultName} />
           </motion.div>
         </Card>
@@ -146,11 +153,11 @@ export const DashboardPage = () => {
           asChild
           className="block rounded-none xs:rounded-xl px-4 py-6 md:px-6 md:py-8"
         >
-          <motion.div {...stagger(4, shouldReduceMotion)}>
+          <motion.div {...stagger(5, shouldReduceMotion)}>
             <EducationCarousel />
           </motion.div>
         </Card>
-        <motion.div {...stagger(5, shouldReduceMotion)}>
+        <motion.div {...stagger(6, shouldReduceMotion)}>
           <FaqSection />
         </motion.div>
       </div>
