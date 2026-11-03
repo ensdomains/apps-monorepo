@@ -207,7 +207,6 @@ describe('ChangeResolverForm', () => {
     expect(screen.getByRole('button', { name: /Save changes/i })).toBeDisabled()
   })
 
-  // WEB-1326: save was blocked with no hint as to why.
   it('explains why save is disabled for a malformed custom resolver', async () => {
     const user = userEvent.setup()
 
