@@ -166,31 +166,57 @@ describe('getAddressNames', () => {
     ])
   })
 
-  it('keeps an ENSv1 name through its price cooldown, and drops it after', async () => {
+  it('lists a lapsed name for 30 days after its expiry, in either era', async () => {
     const DAY = 86_400n
-    const released = (name: string, graceEndedDaysAgo: bigint) =>
+    const lapsed = (
+      name: string,
+      authority: AddressName['authority'],
+      expiredDaysAgo: bigint,
+      graceDays: bigint,
+    ) =>
       row(name, {
         owner: undefined,
-        authority: 'ens_v1',
-        status: 'released',
+        authority,
+        status: expiredDaysAgo < graceDays ? 'expired' : 'released',
         relations: ['former_owner'],
-        expires_at: String(NOW_SECONDS - (90n + graceEndedDaysAgo) * DAY),
-        grace_ends_at: String(NOW_SECONDS - graceEndedDaysAgo * DAY),
+        expires_at: String(NOW_SECONDS - expiredDaysAgo * DAY),
+        grace_ends_at: String(NOW_SECONDS - (expiredDaysAgo - graceDays) * DAY),
         lapsed_registration: { owner: ADDRESS, release_kind: 'expired' },
       })
-    answer([[]], [released('cooling.eth', 5n), released('gone.eth', 25n)])
+    answer(
+      [[]],
+      [
+        lapsed('released-recently.eth', 'ens_v2', 29n, 28n),
+        lapsed('released-long-ago.eth', 'ens_v2', 30n, 28n),
+        lapsed('released-v1.eth', 'ens_v1', 95n, 90n),
+      ],
+    )
 
     const names = (
       await getAddressNames({ address: ADDRESS }, { now: NOW })
     )._unsafeUnwrap()
 
-    expect(names).toEqual([
-      expect.objectContaining({
-        name: 'cooling.eth',
-        status: 'released',
-        protocolVersion: 'ENSv1',
-      }),
-    ])
+    expect(names.map(({ name }) => name)).toEqual(['released-recently.eth'])
+  })
+
+  it('drops a lapsed name once it is registered again', async () => {
+    answer(
+      [[]],
+      [
+        row('taken.eth', {
+          owner: '0x2222222222222222222222222222222222222222',
+          relations: ['former_owner'],
+          grace_ends_at: String(NOW_SECONDS + 86_400n * 328n),
+          lapsed_registration: { owner: ADDRESS, release_kind: 'expired' },
+        }),
+      ],
+    )
+
+    const names = (
+      await getAddressNames({ address: ADDRESS }, { now: NOW })
+    )._unsafeUnwrap()
+
+    expect(names).toEqual([])
   })
 
   it('gives ENSv1 subnames the expiry of their .eth parent', async () => {
