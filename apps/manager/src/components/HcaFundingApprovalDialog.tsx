@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { useLastShown } from '@/hooks/useLastShown'
 
 /** Recovery and approval consent stay separate from the funding permit prompt. */
 export const HcaFundingApprovalDialog = ({
@@ -27,17 +28,20 @@ export const HcaFundingApprovalDialog = ({
   const cancelRef = useRef<HTMLButtonElement | null>(null)
   const invokerRef = useRef<HTMLElement | null>(null)
   const [isRecoveryConfirmed, setIsRecoveryConfirmed] = useState(false)
-  const prompt = state.kind === 'idle' ? null : state.prompt
-  const isRecovery = state.kind === 'approval-recovery'
+  // The state turns idle once the approval lands (or is answered) while the
+  // dialog is still closing; keep showing the last one until it is gone.
+  const shown = useLastShown(state, (value) => value.kind !== 'idle')
+  const prompt = shown.kind === 'idle' ? null : shown.prompt
+  const isRecovery = shown.kind === 'approval-recovery'
   const isPending =
-    state.kind === 'approval-wallet' || state.kind === 'approval-receipt'
+    shown.kind === 'approval-wallet' || shown.kind === 'approval-receipt'
   useLayoutEffect(() => {
     if (isPending) contentRef.current?.focus({ preventScroll: true })
   }, [isPending])
   useLayoutEffect(() => {
     if (state.kind === 'approval-recovery') setIsRecoveryConfirmed(false)
   }, [state])
-  const description = match(state.kind)
+  const description = match(shown.kind)
     .with('approval-recovery', () => (
       <Trans>
         Reject any waiting USDC approval request in your wallet. If a
@@ -71,7 +75,7 @@ export const HcaFundingApprovalDialog = ({
       onOpenChange={(open) => {
         if (!open && !isPending) onDecline()
       }}
-      open={!!prompt}
+      open={state.kind !== 'idle'}
     >
       <AlertDialogContent
         onCloseAutoFocus={(event) => {
@@ -114,8 +118,8 @@ export const HcaFundingApprovalDialog = ({
               </dt>
               <dd className="font-mono">
                 {formatUnits(
-                  state.kind === 'approval-recovery'
-                    ? state.prompt.reservedAmount
+                  shown.kind === 'approval-recovery'
+                    ? shown.prompt.reservedAmount
                     : prompt.amount,
                   prompt.decimals,
                 )}{' '}
@@ -142,7 +146,7 @@ export const HcaFundingApprovalDialog = ({
         )}
         {isPending && (
           <p className="font-sans text-muted-foreground text-sm" role="status">
-            {state.kind === 'approval-wallet' ? (
+            {shown.kind === 'approval-wallet' ? (
               <Trans>Waiting for your wallet</Trans>
             ) : (
               <Trans>Waiting for confirmation</Trans>
@@ -181,7 +185,7 @@ export const HcaFundingApprovalDialog = ({
             size="lg"
             type="button"
           >
-            {match(state.kind)
+            {match(shown.kind)
               .with('approval-recovery', () => <Trans>Clear and retry</Trans>)
               .with('approval-wallet', 'approval-receipt', () => (
                 <Trans>Approving</Trans>

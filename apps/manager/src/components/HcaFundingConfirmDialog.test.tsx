@@ -2,26 +2,32 @@ import '@testing-library/jest-dom'
 import type { HcaFundingPrompt } from '@ens-apps/transaction-manager'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { keepClosingDialogsMounted } from '@/test-utils/exitAnimation'
 import { HcaFundingConfirmDialog } from './HcaFundingConfirmDialog'
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
 
-const renderDialog = (prompt: HcaFundingPrompt) =>
-  render(
-    <I18nProvider i18n={i18n}>
-      <HcaFundingConfirmDialog
-        description="Paid out of your smart account."
-        onApprove={() => {}}
-        onDecline={() => {}}
-        prompt={prompt}
-        title="Approve the payment?"
-      />
-    </I18nProvider>,
-  )
+const dialog = (prompt: HcaFundingPrompt | null) => (
+  <I18nProvider i18n={i18n}>
+    <HcaFundingConfirmDialog
+      description={() => 'Paid out of your smart account.'}
+      onApprove={() => {}}
+      onDecline={() => {}}
+      prompt={prompt}
+      title="Approve the payment?"
+    />
+  </I18nProvider>
+)
+
+const renderDialog = (prompt: HcaFundingPrompt) => render(dialog(prompt))
 
 const ONE_DAI = 10n ** 18n
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe('HcaFundingConfirmDialog', () => {
   it('shows what each token takes from the account and the wallet', () => {
@@ -90,5 +96,28 @@ describe('HcaFundingConfirmDialog', () => {
     expect(screen.getByText('2.5 USDC')).toBeInTheDocument()
     expect(screen.queryByText('You approve')).not.toBeInTheDocument()
     expect(screen.getByText(/won't be asked to approve it/)).toBeInTheDocument()
+  })
+
+  it('keeps the amounts on screen while it closes for the wallet', () => {
+    keepClosingDialogsMounted()
+    const prompt: HcaFundingPrompt = {
+      permitValue: 2_500_000n,
+      requiresPermit: true,
+      quotedFeeUsdc: 900_000n,
+      hcaBalanceUsdc: 400_000n,
+      requiredUsdc: 2_000_000n,
+    }
+    const view = render(dialog(prompt))
+
+    // Approving clears the prompt and opens the wallet, but the dialog is
+    // still on screen until its exit animation ends.
+    view.rerender(dialog(null))
+
+    expect(screen.getByText('−0.4 USDC')).toBeInTheDocument()
+    expect(screen.getByText('2.5 USDC')).toBeInTheDocument()
+    expect(screen.getByText(/approve this exact amount/)).toBeInTheDocument()
+
+    fireEvent.animationEnd(screen.getByRole('alertdialog'))
+    expect(screen.queryByText('2.5 USDC')).not.toBeInTheDocument()
   })
 })
