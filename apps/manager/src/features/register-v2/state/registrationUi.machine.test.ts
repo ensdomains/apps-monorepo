@@ -1464,6 +1464,7 @@ describe('signature rejection on failure', () => {
     accountAddress: EOA_ADDRESS,
     ownerAddress: EOA_ADDRESS,
     walletClient: { account: { address: EOA_ADDRESS } },
+    // Only the fields the start reads; the full context value isn't needed.
   } as unknown as SmartAccountContextValue
 
   const failWith = async (error: Error) => {
