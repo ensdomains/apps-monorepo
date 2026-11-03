@@ -9,7 +9,11 @@ export {
   TransactionStoppedError,
   TransactionSubmissionError,
 } from './errors/transaction.errors'
-export type { EthSwapQuote } from './helpers/eth-usdc-swap'
+export {
+  type EthSwapQuote,
+  ethToUsdcRaw,
+  readEthUsdPrice,
+} from './helpers/eth-usdc-swap'
 // Helpers
 export {
   createFlowScope,

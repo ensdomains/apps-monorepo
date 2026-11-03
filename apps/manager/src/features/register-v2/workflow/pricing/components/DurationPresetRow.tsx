@@ -1,5 +1,6 @@
 import { useLingui } from '@lingui/react'
 import { Plural, Trans } from '@lingui/react/macro'
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { tw } from '@/utils/tailwind'
@@ -16,12 +17,15 @@ export const DurationPresetRow = ({
   isSelected,
   price,
   onSelect,
+  priceLabel = <Trans>base price</Trans>,
 }: {
   data: DurationPresetData
   isLoading: boolean
   price: number | undefined
   isSelected: boolean
   onSelect: () => void
+  /** The word after the price. */
+  readonly priceLabel?: ReactNode
 }) => {
   const { _ } = useLingui()
 
@@ -69,7 +73,7 @@ export const DurationPresetRow = ({
             )}
           </span>
           <span className="font-normal text-[#A0A4A6] text-xs leading-none tracking-tight md:text-base">
-            <Trans>base price</Trans>
+            {priceLabel}
           </span>
         </div>
       </div>

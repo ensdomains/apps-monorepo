@@ -327,7 +327,7 @@ msgstr "About {0} more needed on {chainName}."
 msgid "About Smart Transactions"
 msgstr "About Smart Transactions"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+#: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
 msgid "Accepted"
 msgstr "Accepted"
 
@@ -914,6 +914,7 @@ msgstr "Connect Telegram"
 msgid "Connect to favorite name"
 msgstr "Connect to favorite name"
 
+#: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Connect to register"
 msgstr "Connect to register"
@@ -982,6 +983,10 @@ msgstr "Continue migration"
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Continue registration"
 msgstr "Continue registration"
+
+#: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
+msgid "Continue to payment"
+msgstr "Continue to payment"
 
 #: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Continue to Telegram"
@@ -1400,7 +1405,7 @@ msgstr "Estimated network fee"
 msgid "Estimated renewal cost"
 msgstr "Estimated renewal cost"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+#: src/features/register-v2/workflow/pricing/components/ExistingBalanceLabel.tsx
 msgid "Existing balance"
 msgstr "Existing balance"
 
@@ -1663,6 +1668,10 @@ msgstr "in your wallet"
 msgid "In-app notifications are always enabled"
 msgstr "In-app notifications are always enabled"
 
+#: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
+msgid "Insufficient balance"
+msgstr "Insufficient balance"
+
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Insufficient USDC"
 msgstr "Insufficient USDC"
@@ -1913,6 +1922,10 @@ msgstr "name"
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Name"
 msgstr "Name"
+
+#: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
+msgid "Name cost"
+msgstr "Name cost"
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "Name Expiry"
@@ -2336,6 +2349,7 @@ msgid "Preparing your upgrade..."
 msgstr "Preparing your upgrade..."
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
+#: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
 msgid "Preparing..."
 msgstr "Preparing..."
 
@@ -2869,6 +2883,7 @@ msgstr "Review resolver replacement"
 msgid "Save {0}"
 msgstr "Save {0}"
 
+#: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Save <0/>"
 msgstr "Save <0/>"
@@ -3662,6 +3677,11 @@ msgstr "To use this as your primary name, we’ll set a resolver your wallet con
 msgid "To use this as your primary name, we’ll set a resolver your wallet controls."
 msgstr "To use this as your primary name, we’ll set a resolver your wallet controls."
 
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+msgid "total"
+msgstr "total"
+
+#: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Total"
@@ -3671,6 +3691,10 @@ msgstr "Total"
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
 msgid "Total Paid"
 msgstr "Total Paid"
+
+#: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
+msgid "Total USD"
+msgstr "Total USD"
 
 #: src/features/bulk-renew/components/NamesBreakdown.tsx
 msgid "Total:"
@@ -4171,7 +4195,7 @@ msgstr "What you'll approve"
 msgid "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
 msgstr "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
 
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+#: src/features/register-v2/workflow/pricing/components/ExistingBalanceLabel.tsx
 msgid "Where did this come from?"
 msgstr "Where did this come from?"
 
@@ -4406,7 +4430,7 @@ msgstr "Your names, text records, and addresses will be carried over during the 
 msgid "Your new profile is ready."
 msgstr "Your new profile is ready."
 
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+#: src/features/register-v2/workflow/pricing/components/ExistingBalanceLabel.tsx
 msgid "Your own USDC, left in your ENS account by a payment you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
 msgstr "Your own USDC, left in your ENS account by a payment you started earlier. It is spent first, so your wallet pays the rest. Nothing extra is charged for it."
 

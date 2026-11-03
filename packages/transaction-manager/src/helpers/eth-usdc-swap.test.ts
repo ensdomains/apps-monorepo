@@ -7,6 +7,7 @@ import {
   EthSwapRejectedError,
   EthSwapUnavailableError,
   ethSwapMaxFee,
+  ethToUsdcRaw,
   maxEthSwapInput,
   selectEthSwapQuote,
   validateEthUsdRound,
@@ -43,6 +44,16 @@ describe('validateEthUsdRound', () => {
     expect(
       validateEthUsdRound({ ...round, ...override }, NOW, 3_600n).isErr(),
     ).toBe(true)
+  })
+})
+
+describe('ethToUsdcRaw', () => {
+  it.each([
+    ['one ETH', 10n ** 18n, 2_000_000_000n],
+    ['a fraction, rounded down', 1_234_567_890_123n, 2_469n],
+    ['nothing', 0n, 0n],
+  ])('values %s at the feed price', (_case, wei, usdc) => {
+    expect(ethToUsdcRaw(wei, ETH_USD)).toBe(usdc)
   })
 })
 

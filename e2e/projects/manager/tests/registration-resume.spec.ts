@@ -79,8 +79,8 @@ async function registerUntilCommitConfirmed(page: Page, label: string) {
     .waitFor({ state: 'visible', timeout: 15_000 })
   await page.getByText(`${label}.eth`).click()
 
-  await page.getByRole('button', { name: 'Pay', exact: true }).click()
-  // HCA path: the EnableSessions modal gates "Pay", before the
+  await page.getByRole('button', { name: 'Continue to payment' }).click()
+  // HCA path: the EnableSessions modal gates "Continue to payment", before the
   // token picker. No-op in EOA mode.
   await clickThroughEnableSessions(page)
   await selectUsdcIfNeeded(page)
@@ -218,7 +218,7 @@ test.describe('registration resume after reload (Rhinestone HCA)', () => {
     // MAX_COMMITMENT_AGE check the run would validate, sit through a cooldown,
     // and then revert `CommitmentTooOld` with nothing on screen to explain it.
     await expect(
-      page.getByRole('button', { name: 'Pay', exact: true }),
+      page.getByRole('button', { name: 'Continue to payment' }),
     ).toBeVisible({ timeout: 30_000 })
 
     // The expired record is discarded, not left to be retried on every mount.

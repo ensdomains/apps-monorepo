@@ -153,6 +153,43 @@ export function validateEthUsdRound(
       )
 }
 
+/** The Chainlink ETH/USD price (8 decimals), refused when stale or unusable. */
+export const readEthUsdPrice = ResultFn(async function* (params: {
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly nowSeconds: bigint
+}) {
+  const feed = ETH_USD_FEEDS[params.chainId]
+  if (!feed) {
+    return err(
+      new EthSwapUnavailableError({
+        message: 'Paying with ETH is not available on this network.',
+      }),
+    )
+  }
+  const [roundId, answer, , updatedAt, answeredInRound] = yield* fromPromise(
+    readContract(params.publicClient, {
+      address: feed.address,
+      abi: ethUsdFeedAbi,
+      functionName: 'latestRoundData',
+    }),
+    (cause) =>
+      new EthSwapUnavailableError({
+        message: 'The ETH price feed is unavailable. Try again later.',
+        cause,
+      }),
+  )
+  return validateEthUsdRound(
+    { roundId, answer, updatedAt, answeredInRound },
+    params.nowSeconds,
+    feed.maxAgeSeconds,
+  )
+})
+
+/** What `wei` is worth in USDC (6 decimals) at `ethUsd` (8 decimals), rounded down. */
+export const ethToUsdcRaw = (wei: bigint, ethUsd: bigint): bigint =>
+  (wei * ethUsd) / USDC_TO_WEI_AT_FEED_SCALE
+
 /** A swap of ETH for exactly `amountOut` USDC through one Uniswap v3 pool. */
 export type EthSwapQuote = Readonly<{
   amountOut: bigint
@@ -210,31 +247,14 @@ export const quoteEthSwap = ResultFn(async function* (params: {
   readonly nowSeconds: bigint
 }) {
   const uniswap = UNISWAP_V3[params.chainId]
-  const feed = ETH_USD_FEEDS[params.chainId]
-  if (!uniswap || !feed) {
+  if (!uniswap) {
     return err(
       new EthSwapUnavailableError({
         message: 'Paying with ETH is not available on this network.',
       }),
     )
   }
-  const [roundId, answer, , updatedAt, answeredInRound] = yield* fromPromise(
-    readContract(params.publicClient, {
-      address: feed.address,
-      abi: ethUsdFeedAbi,
-      functionName: 'latestRoundData',
-    }),
-    (cause) =>
-      new EthSwapUnavailableError({
-        message: 'The ETH price feed is unavailable. Try again later.',
-        cause,
-      }),
-  )
-  const ethUsd = yield* validateEthUsdRound(
-    { roundId, answer, updatedAt, answeredInRound },
-    params.nowSeconds,
-    feed.maxAgeSeconds,
-  )
+  const ethUsd = yield* readEthUsdPrice(params)
 
   const usdc = getDestinationContracts(params.chainId).usdc
   // A pool that does not exist or cannot fill reverts; that pool is skipped.
