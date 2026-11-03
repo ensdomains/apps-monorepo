@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
+import {
+  type ConfirmationAction,
+  canSkipSubnameDialog,
+} from './useSubnameMigrationConfirmation.helpers'
 import type { SubnameMigrationImpactState } from './useSubnameMigrationImpact'
 
-type Action = 'start' | 'retry'
+type Action = ConfirmationAction
 
 const focusedElement = () =>
   document.activeElement instanceof HTMLElement ? document.activeElement : null
 
 export const useSubnameMigrationConfirmation = ({
   impact,
+  hasIncludedSubnames,
   onConfirm,
 }: {
   readonly impact: SubnameMigrationImpactState
+  /** Subnames upgrade with the selection: explain that before a fresh start. */
+  readonly hasIncludedSubnames: boolean
   readonly onConfirm: (action: Action) => boolean | Promise<boolean>
 }) => {
   const [action, setAction] = useState<Action | null>(null)
@@ -57,9 +64,13 @@ export const useSubnameMigrationConfirmation = ({
     const revision = ++requestRevision.current
     const selectionKey = impact.selectionKey
     if (
-      impact.status === 'ready' &&
-      impact.impact?.affectedCount === 0 &&
-      impact.impact.unrecoverable.length === 0
+      canSkipSubnameDialog({
+        action: requestedAction,
+        isReady: impact.status === 'ready',
+        affectedCount: impact.impact?.affectedCount,
+        unrecoverableCount: impact.impact?.unrecoverable.length,
+        hasIncludedSubnames,
+      })
     ) {
       isBusy.current = true
       setIsChecking(true)

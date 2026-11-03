@@ -41,6 +41,7 @@ import {
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
+import { getIncludedSubnameParents } from '@/features/migration/service/includedSubnameParents'
 import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
 import { recordRecentlyMigratedNames } from '@/features/migration/service/recentlyMigratedNames'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
@@ -285,7 +286,7 @@ export const MigrationPage = () => {
   const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
   const dialogNames = isMigrationSuccess ? completedNames : selectedNames
-  const { gracePeriodNames } = useEligibleV1Names()
+  const { gracePeriodNames, unrecoverableSubnames } = useEligibleV1Names()
   const graceDomains = useMemo(() => {
     const selected = new Set(selectedNames)
     return gracePeriodNames
@@ -412,11 +413,14 @@ export const MigrationPage = () => {
       retryRenewal?.quote.items.map(({ domain }) => domain.name),
       graceDomains.map(({ name }) => name),
     ),
+    unknownLabelNames: unrecoverableSubnames,
     ownerAddress,
     managerRestorationNames,
     isEnabled: step === 'select' || shouldCheckImpactBeforeRetry,
     isPrepared:
       shouldCheckImpactBeforeRetry || networkEstimate.status === 'ready',
+    // Starting or retrying always rechecks; idle previews need no repeating wallet scan.
+    isRefetchEnabled: false,
   })
 
   useSyncRenewedV1Names()
@@ -542,8 +546,13 @@ export const MigrationPage = () => {
     uiActor,
   ])
 
+  const includedSubnameParents = useMemo(
+    () => getIncludedSubnameParents(impactNames),
+    [impactNames],
+  )
   const confirmation = useSubnameMigrationConfirmation({
     impact: subnameImpact,
+    hasIncludedSubnames: includedSubnameParents.length > 0,
     onConfirm: (action) => {
       if (action === 'start') return handleBeginUpgrade()
       uiActor.send({ type: 'retry' })
@@ -657,6 +666,7 @@ export const MigrationPage = () => {
 
       <SubnameMigrationDialog
         hasAcknowledgedImpact={confirmation.hasAcknowledgedImpact}
+        includedParents={includedSubnameParents}
         isChecking={confirmation.isChecking}
         isOpen={confirmation.isOpen}
         onAcknowledgeImpact={confirmation.acknowledgeImpact}

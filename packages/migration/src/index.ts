@@ -38,6 +38,7 @@ export {
   SubnameMigrationImpactError,
   unknownLabelhashOf,
 } from './service/subnameMigrationImpact'
+export { canSkipEmptySubtree } from './service/subnameMigrationImpact.helpers'
 export type { V1Domain } from './service/v1Domain'
 export {
   needsParentFuses,

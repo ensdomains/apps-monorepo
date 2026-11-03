@@ -14,7 +14,10 @@ import {
   type GraceRenewalMigrationGasEstimate,
 } from '../service/estimateGraceRenewalMigrationGas'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
+import type { UpgradeReadClients } from '../service/upgradeReadCoordinator'
+import { useUpgradeReadCoordinator } from '../state/upgradeReadCoordinator.context'
 import type { GraceRenewalQuoteState } from './useGraceRenewalQuote'
+import { useMigrationEstimateProgress } from './useMigrationEstimateProgress'
 import type { MigrationGasEstimateState } from './useMigrationGasEstimate'
 
 export type GraceRenewalGasEstimateState =
@@ -114,26 +117,32 @@ export const useGraceRenewalGasEstimate = ({
       })),
     },
   }
+  const queryKey = graceRenewalGasEstimateQueryKey({
+    estimateIdentity,
+    quote: {
+      quotedAtMs: quote?.quotedAtMs,
+      expiresAt: quote?.expiresAt.toString(),
+      totalAmount: quote?.totalAmount.toString(),
+      items: quote?.items.map((item) => ({
+        duration: item.duration.toString(),
+        targetExpiry: item.targetExpiry.toString(),
+        registrationExpiry: item.registrationExpiry.toString(),
+        amount: item.amount.toString(),
+      })),
+    },
+  })
+  const { progress, start: startProgress } = useMigrationEstimateProgress(
+    queryKey,
+    selectedNames,
+  )
+  const coordinator = useUpgradeReadCoordinator()
   const query = useQuery<
     GraceRenewalMigrationGasEstimate,
     Error,
     GraceRenewalMigrationGasEstimate,
     ReturnType<typeof graceRenewalGasEstimateQueryKey>
   >({
-    queryKey: graceRenewalGasEstimateQueryKey({
-      estimateIdentity,
-      quote: {
-        quotedAtMs: quote?.quotedAtMs,
-        expiresAt: quote?.expiresAt.toString(),
-        totalAmount: quote?.totalAmount.toString(),
-        items: quote?.items.map((item) => ({
-          duration: item.duration.toString(),
-          targetExpiry: item.targetExpiry.toString(),
-          registrationExpiry: item.registrationExpiry.toString(),
-          amount: item.amount.toString(),
-        })),
-      },
-    }),
+    queryKey,
     // Keep the requests dialog open while this selection's quote refreshes.
     // Prices and durations may drift; another wallet, selection, or renewal
     // route must never inherit the previous estimate or request descriptors.
@@ -154,17 +163,26 @@ export const useGraceRenewalGasEstimate = ({
           'Could not estimate the network fee for every selected name.',
         )
       }
-      return estimateGraceRenewalMigrationGas({
-        quote,
-        domains,
-        hcaAddress,
-        publicClient,
-        wagmiConfig,
-        managerRestorationNames,
-        canBatchAtomically,
-        isSubnameRecreationEnabled,
-        signal,
-      })
+      const read = (clients?: UpgradeReadClients) =>
+        estimateGraceRenewalMigrationGas({
+          ...startProgress(signal),
+          quote,
+          domains,
+          hcaAddress,
+          publicClient,
+          ...clients,
+          wagmiConfig,
+          managerRestorationNames,
+          canBatchAtomically,
+          isSubnameRecreationEnabled,
+          signal,
+        })
+      return coordinator
+        ? coordinator.run(
+            { owner: quote.ownerAddress, signal, mode: 'after-renewal' },
+            read,
+          )
+        : read()
     },
   })
 
@@ -172,7 +190,7 @@ export const useGraceRenewalGasEstimate = ({
     return { status: 'idle' }
   }
   if (!quote || !hcaAddress) {
-    return { status: 'loading' }
+    return { status: 'loading', ...(progress && { progress }) }
   }
   if (query.isError) {
     return {
@@ -180,7 +198,7 @@ export const useGraceRenewalGasEstimate = ({
       ...migrationPreparationFailure(query.error, 'fee'),
     }
   }
-  if (!query.data) return { status: 'loading' }
+  if (!query.data) return { status: 'loading', ...(progress && { progress }) }
   return {
     status: 'ready',
     ...query.data,

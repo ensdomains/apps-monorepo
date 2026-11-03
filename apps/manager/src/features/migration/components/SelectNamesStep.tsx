@@ -199,6 +199,7 @@ export const SelectNamesStep = ({
   const { isPending, excludedNames } = useDefaultMigrationSelection({
     eligible,
     gracePeriodNames,
+    unknownLabelNames: unrecoverableSubnames,
     ownerAddress,
     isPending: isEligibilityPending,
     shouldSkip: recoveryState.status !== 'none',

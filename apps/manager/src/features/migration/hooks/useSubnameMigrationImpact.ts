@@ -6,12 +6,14 @@ import { match } from 'ts-pattern'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { publicClient } from '@/lib/wagmi'
 import { getSubnameMigrationImpactQueryOptions } from '../service/subnameMigrationImpactQuery'
+import { useUpgradeReadCoordinator } from '../state/upgradeReadCoordinator.context'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
 type Parameters = {
   readonly selectedNames: readonly string[]
   readonly classified: readonly ClassifiedName[]
   readonly renewingNames: readonly string[]
+  readonly unknownLabelNames?: readonly string[]
   readonly ownerAddress?: string | null
   readonly managerRestorationNames?: readonly string[]
   readonly isEnabled: boolean
@@ -23,6 +25,7 @@ export const useSubnameMigrationImpact = ({
   selectedNames,
   classified,
   renewingNames,
+  unknownLabelNames,
   ownerAddress,
   managerRestorationNames = [],
   isEnabled,
@@ -30,6 +33,7 @@ export const useSubnameMigrationImpact = ({
   isRefetchEnabled = true,
 }: Parameters) => {
   const recoverySnapshot = useMigrationRecoverySnapshot()
+  const coordinator = useUpgradeReadCoordinator()
   const isCleanupRecovery =
     !!recoverySnapshot && recoverySnapshot.remainingOperations.length === 0
   const isSubnameImportEnabled =
@@ -91,11 +95,13 @@ export const useSubnameMigrationImpact = ({
   }
   const query = useQuery(
     getSubnameMigrationImpactQueryOptions({
+      coordinator: coordinator ?? undefined,
       ownerAddress,
       chainId: publicClient.chain.id,
       migratingNames,
       copiedNames,
       renewingNames,
+      unknownLabelNames,
       isEnabled: isEnabled && !recoverySnapshot,
       isPrepared,
       hasSelectedNames: selected.size > 0,

@@ -1,10 +1,12 @@
 import { renderHook } from '@testing-library/react'
-import type { Address } from 'viem'
+import { type Address, zeroHash } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chain } from '@/config'
 import { makeClassified, makeDomain } from '../service/_fixtures'
+import { makeRpcSubnameInventory } from '../service/_fixtures/rpcSubnameInventory'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
 import { getSubnameMigrationImpactQueryOptions } from '../service/subnameMigrationImpactQuery'
+import { discoverSubnameRecreation } from '../service/subnameRecreation'
 import { useMigrationGasEstimate } from './useMigrationGasEstimate'
 
 const mocks = vi.hoisted(() => ({
@@ -16,7 +18,11 @@ const mocks = vi.hoisted(() => ({
   estimate: vi.fn(),
   recovery: vi.fn(),
   impactCheck: vi.fn(),
-  queryClient: { getQueryState: vi.fn(), setQueryData: vi.fn() },
+  queryClient: {
+    getQueryState: vi.fn(),
+    getQueryData: vi.fn(),
+    setQueryData: vi.fn(),
+  },
   isRecreationEnabled: false,
 }))
 vi.mock('@posthog/react', () => ({
@@ -31,7 +37,10 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
   useQuery: mocks.query,
   useQueryClient: () => mocks.queryClient,
 }))
-vi.mock('@/lib/wagmi', () => ({ publicClient: {} }))
+vi.mock('@/lib/wagmi', async () => ({
+  publicClient: {},
+  sepoliaWithEns: (await import('@/config')).chain,
+}))
 vi.mock('wagmi', () => ({
   usePublicClient: mocks.client,
   useCapabilities: () => ({ data: undefined }),
@@ -91,6 +100,62 @@ beforeEach(() => {
   })
 })
 afterEach(() => vi.restoreAllMocks())
+
+it('starts parent preflight while independent child discovery is still pending', async () => {
+  mocks.isRecreationEnabled = true
+  let release = (
+    _value: Awaited<ReturnType<typeof discoverSubnameRecreation>>,
+  ): void => {}
+  const discovery = new Promise<
+    Awaited<ReturnType<typeof discoverSubnameRecreation>>
+  >((resolve) => {
+    release = resolve
+  })
+  vi.mocked(discoverSubnameRecreation).mockReturnValueOnce(discovery)
+  renderHook(() => useMigrationGasEstimate(params))
+  const pending = invokeQuery()
+  await vi.waitFor(() =>
+    expect(discoverSubnameRecreation).toHaveBeenCalledTimes(1),
+  )
+  try {
+    expect(mocks.preflight).toHaveBeenCalledTimes(1)
+  } finally {
+    release({
+      domains: [domain],
+      inventory: makeRpcSubnameInventory({
+        domains: [domain],
+        rootNames: [domain.name],
+      }),
+      snapshot: {
+        version: 5,
+        roots: [],
+        names: [domain.name],
+        blockNumber: '1',
+        blockHash: zeroHash,
+        timestamp: '1',
+      },
+      unrecoverable: [],
+    })
+    await pending
+  }
+})
+
+it('starts the fee lookup while the independent final impact check is pending', async () => {
+  let release = (): void => {}
+  const impact = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  mocks.impactCheck.mockReturnValueOnce(impact)
+  renderHook(() => useMigrationGasEstimate(params))
+  const pending = invokeQuery()
+  await vi.waitFor(() => expect(mocks.impactCheck).toHaveBeenCalledTimes(1))
+  try {
+    expect(mocks.estimate).toHaveBeenCalledTimes(1)
+  } finally {
+    release()
+    await pending
+  }
+})
 
 it('publishes the actual verified plan impact before displaying the gas estimate', async () => {
   const classified = [makeClassified({ name: domain.name })]

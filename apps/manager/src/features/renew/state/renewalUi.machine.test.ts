@@ -1,4 +1,7 @@
-import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager/helpers/hca-intent-funding'
+import {
+  type HcaDisplayedDebit,
+  HcaFundingDeclinedError,
+} from '@ens-apps/transaction-manager/helpers/hca-intent-funding'
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createActor, waitFor } from 'xstate'
@@ -47,6 +50,7 @@ const expiryOnChain = (expiry: bigint) =>
 const startRenewal = (
   protocol: 'v1' | 'v2' = 'v1',
   route: 'eoa' | 'smart-account' = 'eoa',
+  shown: { readonly displayedDebit?: HcaDisplayedDebit } = {},
 ) => {
   const actor = createActor(renewalUiMachine, {
     input: { currentExpiry: CURRENT_EXPIRY, protocol },
@@ -64,6 +68,7 @@ const startRenewal = (
     signer: { type: route === 'eoa' ? 'eoa' : 'rhinestone' } as never,
     ownerAddress: OWNER,
     walletClient: {} as never,
+    ...shown,
   })
 
   return actor
@@ -230,6 +235,18 @@ describe('smart-account renewal state machine', () => {
     actor.stop()
   })
 
+  it('checks the funding against the debit the payment screen showed', async () => {
+    const displayedDebit = { usdc: 8_853_810n, token: 0n }
+
+    const actor = startRenewal('v2', 'smart-account', { displayedDebit })
+    await waitForState(actor, 'success')
+
+    expect(mocks.submitHcaRenewal.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ displayedDebit }),
+    )
+    actor.stop()
+  })
+
   it('surfaces a failed intent and retries it through the intent route', async () => {
     mocks.submitHcaRenewal
       .mockRejectedValueOnce(new Error('The intent could not be filled'))
@@ -317,4 +334,14 @@ describe('smart-account renewal state machine', () => {
     expect(snapshot.context.lastErrorMessage).toBeUndefined()
     actor.stop()
   })
+})
+
+it('cancels the funding continuation when the renewal actor stops', async () => {
+  mocks.submitHcaRenewal.mockReturnValue(new Promise(() => undefined))
+  const actor = startRenewal('v2', 'smart-account')
+  await vi.waitFor(() => expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce())
+  const signal = mocks.submitHcaRenewal.mock.calls[0]?.[0].signal
+  expect(signal.aborted).toBe(false)
+  actor.stop()
+  expect(signal.aborted).toBe(true)
 })

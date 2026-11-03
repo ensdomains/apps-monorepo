@@ -1,6 +1,6 @@
 import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert, LoaderCircle } from 'lucide-react'
-import { useRef } from 'react'
+import { type ReactNode, useRef } from 'react'
 import { match } from 'ts-pattern'
 import {
   Dialog,
@@ -9,9 +9,74 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import type { SubnameMigrationImpactState } from '../hooks/useSubnameMigrationImpact'
+import type { IncludedSubnameParent } from '../service/includedSubnameParents'
+import { SubnameUpgradeExplanation } from './SubnameUpgradeExplanation'
 
 const linkClassName =
   'rounded-sm font-medium text-ens-garnet-900 underline decoration-ens-garnet-900/30 underline-offset-4 hover:decoration-ens-garnet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900 focus-visible:ring-offset-2 focus-visible:ring-offset-ens-quartz-100'
+
+const ParentCounts = ({
+  heading,
+  parents,
+}: {
+  readonly heading: ReactNode
+  readonly parents: readonly { readonly name: string; readonly count: number }[]
+}) => (
+  <div className="rounded-xl border border-ens-garnet-900/10 bg-white/60 p-4">
+    <p className="mb-3 font-medium text-ens-garnet-900/65 text-xs uppercase tracking-wider">
+      {heading}
+    </p>
+    <ul className="space-y-3">
+      {parents.map(({ name, count }) => (
+        <li
+          className="flex items-baseline justify-between gap-4 text-sm"
+          key={name}
+        >
+          <span className="min-w-0 break-all font-medium">{name}</span>
+          <span className="shrink-0 text-ens-garnet-900/65 tabular-nums">
+            <Plural one="# subname" other="# subnames" value={count} />
+          </span>
+        </li>
+      ))}
+    </ul>
+  </div>
+)
+
+/** Unknown-label subnames the upgrade drops. */
+const UnrecoverableList = ({
+  names,
+  isExplained,
+}: {
+  readonly names: readonly string[]
+  readonly isExplained: boolean
+}) => (
+  <div className="mt-4 shrink-0 rounded-xl border border-ens-garnet-900/10 bg-white/60 p-4">
+    <p className="mb-3 font-medium text-ens-garnet-900/65 text-xs uppercase tracking-wider">
+      <Plural
+        one="# subname won't be upgraded"
+        other="# subnames won't be upgraded"
+        value={names.length}
+      />
+    </p>
+    {!isExplained && (
+      <p className="mb-3 text-ens-garnet-900/75 text-sm leading-relaxed">
+        <Trans>
+          We can&apos;t read their full names, because only a hashed form was
+          ever saved onchain. They stop working once their parent is upgraded
+          and can&apos;t be upgraded later. Every other subname is upgraded with
+          it.
+        </Trans>
+      </p>
+    )}
+    <ul className="space-y-3">
+      {names.map((name) => (
+        <li className="break-all font-medium text-sm" key={name}>
+          {name}
+        </li>
+      ))}
+    </ul>
+  </div>
+)
 
 const ImpactSummary = ({
   state,
@@ -23,11 +88,9 @@ const ImpactSummary = ({
   const isError = state.status === 'error'
   const affectedCount = state.impact?.affectedCount ?? 0
   const hasImpact = affectedCount > 0
-  const unrecoverable = state.impact?.unrecoverable ?? []
-  const hasUnrecoverable = unrecoverable.length > 0
   return (
     <div aria-live="polite" className="mt-5 shrink-0">
-      {match({ isLoading, isError, hasImpact, hasUnrecoverable })
+      {match({ isLoading, isError, hasImpact })
         .with({ isLoading: true }, () => (
           <div
             className="flex items-center gap-2 py-3 text-ens-garnet-900/65 text-sm"
@@ -50,46 +113,18 @@ const ImpactSummary = ({
           </button>
         ))
         .with({ hasImpact: true }, () => (
-          <div className="rounded-xl border border-ens-garnet-900/10 bg-white/60 p-4">
-            <p className="mb-3 font-medium text-ens-garnet-900/65 text-xs uppercase tracking-wider">
+          <ParentCounts
+            heading={
               <Plural
                 one="# affected subname"
                 other="# affected subnames"
                 value={affectedCount}
               />
-            </p>
-            <ul className="space-y-3">
-              {state.impact?.parents.map(({ name, affectedCount: count }) => (
-                <li
-                  className="flex items-baseline justify-between gap-4 text-sm"
-                  key={name}
-                >
-                  <span className="min-w-0 break-all font-medium">{name}</span>
-                  <span className="shrink-0 text-ens-garnet-900/65 tabular-nums">
-                    <Plural one="# subname" other="# subnames" value={count} />
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))
-        .with({ hasUnrecoverable: true }, () => (
-          <div className="rounded-xl border border-ens-garnet-900/10 bg-white/60 p-4">
-            <p className="mb-3 font-medium text-ens-garnet-900/65 text-xs uppercase tracking-wider">
-              <Plural
-                one="# subname won't be upgraded"
-                other="# subnames won't be upgraded"
-                value={unrecoverable.length}
-              />
-            </p>
-            <ul className="space-y-3">
-              {unrecoverable.map((name) => (
-                <li className="break-all font-medium text-sm" key={name}>
-                  {name}
-                </li>
-              ))}
-            </ul>
-          </div>
+            }
+            parents={(state.impact?.parents ?? []).map(
+              ({ name, affectedCount: count }) => ({ name, count }),
+            )}
+          />
         ))
         .otherwise(() => null)}
     </div>
@@ -99,6 +134,7 @@ const ImpactSummary = ({
 export const SubnameMigrationDialog = ({
   isOpen,
   state,
+  includedParents,
   isChecking,
   hasAcknowledgedImpact,
   onAcknowledgeImpact,
@@ -109,6 +145,8 @@ export const SubnameMigrationDialog = ({
   readonly isOpen: boolean
   readonly selectedNameCount: number
   readonly state: SubnameMigrationImpactState
+  /** Parents whose direct subnames this upgrade recreates; explained before it starts. */
+  readonly includedParents: readonly IncludedSubnameParent[]
   readonly isChecking: boolean
   readonly hasAcknowledgedImpact: boolean
   readonly onAcknowledgeImpact: (isAcknowledged: boolean) => void
@@ -121,7 +159,11 @@ export const SubnameMigrationDialog = ({
   const isError = state.status === 'error'
   const affectedCount = state.impact?.affectedCount ?? 0
   const hasImpact = affectedCount > 0
-  const hasUnrecoverable = (state.impact?.unrecoverable.length ?? 0) > 0
+  const hasIncluded = includedParents.length > 0
+  const isReviewing = !isLoading && !isError && !hasImpact
+  const isExplaining = hasIncluded && isReviewing
+  const unrecoverable = state.impact?.unrecoverable ?? []
+  const hasUnrecoverable = unrecoverable.length > 0
 
   return (
     <Dialog
@@ -145,7 +187,13 @@ export const SubnameMigrationDialog = ({
           <CircleAlert aria-hidden="true" className="size-5" />
         </div>
         <DialogTitle className="text-balance font-normal text-2xl leading-tight tracking-tight sm:text-3xl">
-          {match({ isError, isLoading, hasImpact, hasUnrecoverable })
+          {match({
+            isError,
+            isLoading,
+            hasImpact,
+            hasIncluded,
+            hasUnrecoverable,
+          })
             .with({ isError: true }, () => (
               <Trans>We couldn&apos;t check your subnames</Trans>
             ))
@@ -155,6 +203,9 @@ export const SubnameMigrationDialog = ({
             .with({ hasImpact: true }, () => (
               <Trans>These subnames can&apos;t be preserved yet</Trans>
             ))
+            .with({ hasIncluded: true }, () => (
+              <Trans>What happens to your subnames</Trans>
+            ))
             .with({ hasUnrecoverable: true }, () => (
               <Trans>Some subnames will be left behind</Trans>
             ))
@@ -163,7 +214,13 @@ export const SubnameMigrationDialog = ({
             ))}
         </DialogTitle>
         <DialogDescription className="mt-3 shrink-0 text-pretty text-base text-ens-garnet-900/75 leading-relaxed">
-          {match({ isError, isLoading, hasImpact, hasUnrecoverable })
+          {match({
+            isError,
+            isLoading,
+            hasImpact,
+            hasIncluded,
+            hasUnrecoverable,
+          })
             .with({ isError: true }, () => (
               <Trans>
                 The impact is unknown. Try again or contact{' '}
@@ -189,6 +246,11 @@ export const SubnameMigrationDialog = ({
                 affected parents before continuing.
               </Trans>
             ))
+            .with({ hasIncluded: true }, () => (
+              <Trans>
+                These names have subnames that upgrade with them. For each name:
+              </Trans>
+            ))
             .with({ hasUnrecoverable: true }, () => (
               <Trans>
                 We can&apos;t read the full names of these subnames, because
@@ -206,20 +268,39 @@ export const SubnameMigrationDialog = ({
             ))}
         </DialogDescription>
         <ImpactSummary isLoading={isLoading} state={state} />
-        {hasUnrecoverable && !hasImpact && !isLoading && !isError && (
-          <label className="mt-4 flex min-h-11 cursor-pointer items-center gap-3 text-sm">
-            <input
-              checked={hasAcknowledgedImpact}
-              className="size-4 shrink-0 accent-ens-garnet-900"
-              onChange={(event) => onAcknowledgeImpact(event.target.checked)}
-              type="checkbox"
+        {isExplaining && (
+          <div className="shrink-0 space-y-4 text-ens-garnet-900/75 text-sm leading-relaxed">
+            <SubnameUpgradeExplanation />
+            <ParentCounts
+              heading={<Trans>Subnames included</Trans>}
+              parents={includedParents.map(({ name, subnameCount }) => ({
+                name,
+                count: subnameCount,
+              }))}
             />
-            <span>
-              <Trans>
-                I understand these subnames will stop working after the upgrade.
-              </Trans>
-            </span>
-          </label>
+          </div>
+        )}
+        {hasUnrecoverable && isReviewing && (
+          <>
+            <UnrecoverableList
+              isExplained={!hasIncluded}
+              names={unrecoverable}
+            />
+            <label className="mt-4 flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+              <input
+                checked={hasAcknowledgedImpact}
+                className="size-4 shrink-0 accent-ens-garnet-900"
+                onChange={(event) => onAcknowledgeImpact(event.target.checked)}
+                type="checkbox"
+              />
+              <span>
+                <Trans>
+                  I understand these subnames will stop working after the
+                  upgrade.
+                </Trans>
+              </span>
+            </label>
+          </>
         )}
         {hasImpact && !isLoading && (
           <a

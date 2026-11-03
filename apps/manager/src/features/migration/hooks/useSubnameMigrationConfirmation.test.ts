@@ -28,7 +28,11 @@ const run = (impact: SubnameMigrationImpactState) => {
   const onConfirm = vi.fn().mockResolvedValue(true)
   const hook = renderHook(
     ({ state }) =>
-      useSubnameMigrationConfirmation({ impact: state, onConfirm }),
+      useSubnameMigrationConfirmation({
+        impact: state,
+        hasIncludedSubnames: false,
+        onConfirm,
+      }),
     { initialProps: { state: impact } },
   )
   return { hook, onConfirm }

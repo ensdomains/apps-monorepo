@@ -179,8 +179,16 @@ async function post(body) {
           body: JSON.stringify(body),
           signal: AbortSignal.timeout(30000),
         })
-        if (!res.ok) throw new Error(`upstream answered ${res.status}`)
-        const reply = await res.json()
+        const reply = await res.json().catch(() => null)
+        // A 4xx carrying a JSON-RPC error is a final answer, not a hiccup:
+        // drpc rejects `eth_getAccountInfo` (Anvil 1.7 tries it first, then
+        // falls back to the plain reads) with a 400. Retried, it held every
+        // read queued behind it for minutes.
+        const isFinalHttpError =
+          res.status >= 400 && res.status < 500 && res.status !== 429
+        if (!res.ok && !(isFinalHttpError && reply?.error))
+          throw new Error(`upstream answered ${res.status}`)
+        if (!reply) throw new Error('upstream answered no JSON')
         if (
           reply.error &&
           /rate|limit|timeout|temporar/i.test(reply.error.message ?? '')

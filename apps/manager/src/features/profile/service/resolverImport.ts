@@ -171,6 +171,13 @@ export const resolverCopySourceQuery = (name: string, wallet?: Address) => ({
 })
 
 const DEFAULT_MAX_CONCURRENT_READS = 8
+// Gateways are known to accept the 23 reads of the old offchain key set; Coinbase rejects 60.
+const GATEWAY_BATCH_SIZE = 23
+
+const chunk = <T>(items: readonly T[], size: number): readonly T[][] =>
+  Array.from({ length: Math.ceil(items.length / size) }, (_, index) =>
+    items.slice(index * size, (index + 1) * size),
+  )
 
 type RecordRead = { readonly key: string; readonly data: Hex }
 
@@ -351,36 +358,7 @@ export const readResolverRecords = async ({
         ]
       : []),
   ]
-  // A CCIP-Read gateway answers every record call separately, so ask once.
-  const batch =
-    hasExtendedResolution && kind === 'node'
-      ? await client
-          .readContract({
-            address: resolver,
-            abi: permissionedResolverResolveSnippet,
-            functionName: 'resolve',
-            args: [
-              dnsEncodeName(name),
-              encodeFunctionData({
-                abi: multicallAbi,
-                functionName: 'multicall',
-                args: [reads.map(({ data }) => data)],
-              }),
-            ],
-          })
-          .then((data) =>
-            decodeFunctionResult({
-              abi: multicallAbi,
-              functionName: 'multicall',
-              data,
-            }),
-          )
-          .catch((error: unknown) => {
-            // Falling back to one call per record would only deepen a rate limit.
-            if (isRateLimited(error)) throw error
-            return null
-          })
-      : null
+  const isGatewayRead = hasExtendedResolution && kind === 'node'
   const readOne = async (data: Hex) =>
     kind === 'name' || hasExtendedResolution
       ? await client.readContract({
@@ -390,6 +368,18 @@ export const readResolverRecords = async ({
           args: [dnsEncodeName(name), data],
         })
       : (await client.call({ to: resolver, data })).data
+  const failedRead = (key: string, error: unknown, isDecoding: boolean) => {
+    // Any further request would only deepen a gateway's rate limit.
+    if (isGatewayRead && isRateLimited(error)) throw error
+    return {
+      failedKeys: [key],
+      unsupportedKeys: isContractRevert(error) ? [key] : [],
+      readErrors:
+        isContractRevert(error) || (isDecoding && !shouldDecodeStrictly)
+          ? []
+          : [error],
+    }
+  }
   const read = async (
     request: RecordRead,
     batched?: Hex,
@@ -418,39 +408,66 @@ export const readResolverRecords = async ({
         readErrors: [],
       }
     } catch (error) {
-      return {
-        failedKeys: [request.key],
-        unsupportedKeys: isContractRevert(error) ? [request.key] : [],
-        readErrors:
-          isContractRevert(error) || (isDecoding && !shouldDecodeStrictly)
-            ? []
-            : [error],
-      }
+      return failedRead(request.key, error, isDecoding)
     }
   }
+  type ReadResult = Awaited<ReturnType<typeof read>>
   // Bound RPC concurrency without losing successful reads to a failed batch.
   // A rejected gateway multicall keeps the existing conservative fallback.
-  const readConcurrency =
-    hasExtendedResolution && kind === 'node'
-      ? DEFAULT_MAX_CONCURRENT_READS
-      : maxConcurrentReads
-  const readChunks = Array.from(
-    { length: Math.ceil(reads.length / readConcurrency) },
-    (_, index) =>
-      reads.slice(index * readConcurrency, (index + 1) * readConcurrency),
-  )
-  const results =
-    batch?.length === reads.length
-      ? await Promise.all(
-          reads.map((request, index) => read(request, batch[index])),
+  const readConcurrency = isGatewayRead
+    ? DEFAULT_MAX_CONCURRENT_READS
+    : maxConcurrentReads
+  const readSeparately = (requests: readonly RecordRead[]) =>
+    chunk(requests, readConcurrency).reduce<Promise<ReadResult[]>>(
+      async (pending, part) => [
+        ...(await pending),
+        ...(await Promise.all(part.map((request) => read(request)))),
+      ],
+      Promise.resolve([]),
+    )
+  const readBatched = async (requests: readonly RecordRead[]) => {
+    // A CCIP-Read gateway answers every record call separately, so ask in batches.
+    const batch = await client
+      .readContract({
+        address: resolver,
+        abi: permissionedResolverResolveSnippet,
+        functionName: 'resolve',
+        args: [
+          dnsEncodeName(name),
+          encodeFunctionData({
+            abi: multicallAbi,
+            functionName: 'multicall',
+            args: [requests.map(({ data }) => data)],
+          }),
+        ],
+      })
+      .then((data) =>
+        decodeFunctionResult({
+          abi: multicallAbi,
+          functionName: 'multicall',
+          data,
+        }),
+      )
+      .catch((error: unknown) => {
+        // Falling back to one call per record would only deepen a rate limit.
+        if (isRateLimited(error)) throw error
+        return null
+      })
+    return batch?.length === requests.length
+      ? Promise.all(
+          requests.map((request, index) => read(request, batch[index])),
         )
-      : await readChunks.reduce(
-          async (pending, chunk) => [
-            ...(await pending),
-            ...(await Promise.all(chunk.map((request) => read(request)))),
-          ],
-          Promise.resolve([] as Awaited<ReturnType<typeof read>>[]),
-        )
+      : readSeparately(requests)
+  }
+  const results = isGatewayRead
+    ? await chunk(reads, GATEWAY_BATCH_SIZE).reduce<Promise<ReadResult[]>>(
+        async (pending, part) => [
+          ...(await pending),
+          ...(await readBatched(part)),
+        ],
+        Promise.resolve([]),
+      )
+    : await readSeparately(reads)
   return {
     records: {
       texts: results.flatMap((record) => record.texts ?? []),
