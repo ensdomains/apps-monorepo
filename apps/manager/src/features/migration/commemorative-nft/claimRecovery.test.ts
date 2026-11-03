@@ -161,6 +161,25 @@ describe('commemorative NFT claim submission coordination', () => {
     expect(claimCommemorativeNft).toHaveBeenCalledTimes(1)
   })
 
+  it('clears a confirmed Safe claim by its persisted id before returning the carrier hash', async () => {
+    const claim = await submitPendingNftClaim(params)
+    const carrierHash: Hex = `0x${'c'.repeat(64)}`
+    vi.mocked(waitForCommemorativeNftClaimReceipt).mockResolvedValue({
+      status: 'confirmed',
+      hash: carrierHash,
+    })
+
+    const reconciled = await reconcilePendingNftClaim({
+      wagmiConfig: params.wagmiConfig,
+      claim,
+      connector: SAFE_WALLET_CONNECTOR,
+      onHash: vi.fn(),
+    })
+
+    expect(reconciled.claim.hash).toBe(carrierHash)
+    expect(readPendingNftClaim(claim).status).toBe('empty')
+  })
+
   it('captures an onchain history bound before requesting a Safe claim', async () => {
     const publicClient = createSafeExecutionPublicClient({
       ownerAddress,

@@ -187,10 +187,11 @@ export const reconcilePendingNftClaim = async (params: {
       params.onHash(hash)
     },
   })
-  claim = { ...claim, hash: outcome.hash }
-  if (outcome.status === 'pending') keepSubmittedClaim(claim)
+  const reconciledClaim = { ...claim, hash: outcome.hash }
+  if (outcome.status === 'pending') keepSubmittedClaim(reconciledClaim)
   else {
     try {
+      // The persisted id can still be a Safe id while the outcome has its carrier hash.
       clearPendingNftClaim(claim)
     } catch {
       /* Safely reconcile a retained record again if removal fails. */
@@ -208,5 +209,5 @@ export const reconcilePendingNftClaim = async (params: {
       outcome.status,
       'Mint transaction did not complete',
     )
-  return { claim, outcome }
+  return { claim: reconciledClaim, outcome }
 }
