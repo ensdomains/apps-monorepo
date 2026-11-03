@@ -50,7 +50,7 @@ const withExpiry = <T>(
       }),
   )
 
-const loadPreview = ResultFn(async function* ({
+const loadPreviewMetadata = ResultFn(async function* ({
   url,
   cached,
   fetcher,
@@ -63,59 +63,73 @@ const loadPreview = ResultFn(async function* ({
   readonly now: () => number
   readonly signal: AbortSignal
 }) {
-  const metadata = yield* ResultFn(async function* () {
-    if (cached) return ok(cached)
-    const page = yield* fetchPreviewResource({
-      url,
-      fetcher,
+  if (cached) return ok(cached)
+  const page = yield* fetchPreviewResource({
+    url,
+    fetcher,
+    signal,
+    now,
+    accept: 'text/html,application/xhtml+xml',
+  })
+  const contentType = page.response.headers
+    .get('Content-Type')
+    ?.split(';')[0]
+    ?.trim()
+    .toLowerCase()
+  if (!['text/html', 'application/xhtml+xml'].includes(contentType ?? '')) {
+    void page.response.body?.cancel().catch(() => undefined)
+    return ok({
+      kind: 'missing',
+      expiresAt: Math.min(page.expiresAt, now() + MISSING_TTL_SECONDS * 1000),
+    } satisfies PreviewEntry)
+  }
+  const html = yield* withExpiry(
+    readPreviewBody({
+      response: page.response,
+      maxBytes: MAX_HTML_BYTES,
       signal,
-      now,
-      accept: 'text/html,application/xhtml+xml',
-    })
-    const contentType = page.response.headers
-      .get('Content-Type')
-      ?.split(';')[0]
-      ?.trim()
-      .toLowerCase()
-    if (!['text/html', 'application/xhtml+xml'].includes(contentType ?? '')) {
-      void page.response.body?.cancel().catch(() => undefined)
-      return ok({
-        kind: 'missing',
-        expiresAt: Math.min(page.expiresAt, now() + MISSING_TTL_SECONDS * 1000),
-      } satisfies PreviewEntry)
-    }
-    const html = yield* withExpiry(
-      readPreviewBody({
-        response: page.response,
-        maxBytes: MAX_HTML_BYTES,
-        signal,
-      }),
-      page.expiresAt,
-    )
-    const extracted = yield* withExpiry(
-      extractPreviewMetadata(html),
-      page.expiresAt,
-    )
-    const imageUrl = selectPreviewImage({
-      metadata: extracted,
-      pageUrl: page.url,
-    })
-    return ok(
-      imageUrl
-        ? ({
-            kind: 'image',
-            imageUrl,
-            expiresAt: page.expiresAt,
-          } satisfies ImageEntry)
-        : ({
-            kind: 'missing',
-            expiresAt: Math.min(
-              page.expiresAt,
-              now() + MISSING_TTL_SECONDS * 1000,
-            ),
-          } satisfies PreviewEntry),
-    )
-  })()
+    }),
+    page.expiresAt,
+  )
+  const extracted = yield* withExpiry(
+    extractPreviewMetadata(html),
+    page.expiresAt,
+  )
+  const imageUrl = selectPreviewImage({
+    metadata: extracted,
+    pageUrl: page.url,
+  })
+  return ok(
+    imageUrl
+      ? ({
+          kind: 'image',
+          imageUrl,
+          expiresAt: page.expiresAt,
+        } satisfies ImageEntry)
+      : ({
+          kind: 'missing',
+          expiresAt: Math.min(
+            page.expiresAt,
+            now() + MISSING_TTL_SECONDS * 1000,
+          ),
+        } satisfies PreviewEntry),
+  )
+})
+
+const loadPreview = ResultFn(async function* ({
+  url,
+  cached,
+  fetcher,
+  now,
+  signal,
+}: Parameters<typeof loadPreviewMetadata>[0]) {
+  const metadata = yield* loadPreviewMetadata({
+    url,
+    cached,
+    fetcher,
+    now,
+    signal,
+  })
   if (metadata.kind === 'missing') return ok(metadata)
 
   const image = yield* withExpiry(
