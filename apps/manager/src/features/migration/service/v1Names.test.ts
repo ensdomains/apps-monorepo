@@ -159,7 +159,12 @@ describe('readV1NamesForAddress', () => {
         USER,
       ),
     )
-    const { classified } = classifyNames(result._unsafeUnwrap(), USER, SEPOLIA)
+    const { classified } = classifyNames(
+      result._unsafeUnwrap(),
+      USER,
+      SEPOLIA,
+      { now: BigInt(Math.floor(Date.now() / 1000)) },
+    )
 
     expect(
       classified.map(({ action, tokenType }) => [action, tokenType]),
@@ -249,7 +254,11 @@ describe('readV1NamesForAddress', () => {
     expect(lookup.mock.calls[1]?.[0].inputs).toEqual([
       { id: '0', name: 'carol.eth' },
     ])
-    expect(classifyNames(domains, USER, SEPOLIA)).toMatchObject({
+    expect(
+      classifyNames(domains, USER, SEPOLIA, {
+        now: BigInt(Math.floor(Date.now() / 1000)),
+      }),
+    ).toMatchObject({
       classified: [
         { domain: { name: 'alice.eth' } },
         { domain: { name: 'sub.alice.eth' } },

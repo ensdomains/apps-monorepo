@@ -79,6 +79,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
               ...classifyMigrationRecoverySnapshot({
                 snapshot: recoverySnapshot,
                 migrationOwner: resolvedOwnerAddress as Address,
+                clock: { now: nowSeconds },
               }).classified,
             ],
             gracePeriodNames: [],
@@ -107,6 +108,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
         v1NamesRaw,
         resolvedOwnerAddress as Address,
         envConfig.chain.id,
+        { now: nowSeconds },
       )
       return {
         classified,

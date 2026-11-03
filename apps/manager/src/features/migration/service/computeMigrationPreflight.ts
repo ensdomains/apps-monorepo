@@ -234,7 +234,9 @@ export const computeMigrationPreflight = async (params: {
 
   const classified = await resolveLockedMigrationResolvers({
     publicClient,
-    names: classifyNames([...domains], eoa, envConfig.chain.id).classified,
+    names: classifyNames([...domains], eoa, envConfig.chain.id, {
+      now: BigInt(Math.floor(Date.now() / 1000)),
+    }).classified,
   })
   signal?.throwIfAborted()
   const directNames = classified.filter(

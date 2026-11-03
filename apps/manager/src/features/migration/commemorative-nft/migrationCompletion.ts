@@ -144,6 +144,7 @@ const checkMigrationCompletion = async (
     namesResult.value,
     params.ownerAddress,
     envConfig.chain.id,
+    { now: BigInt(Math.floor(Date.now() / 1000)) },
   )
   params.signal?.throwIfAborted()
   // Count what the upgrade screen offers: a name it refuses (an orphan

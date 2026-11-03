@@ -122,7 +122,12 @@ const getMigrationStatus = ResultFn(async function* ({
     return ok<MigrationStatus>({ migratable: false })
   const evaluationAddress = holderCandidate
 
-  const classified = classifyName(domain, evaluationAddress, envConfig.chain.id)
+  const classified = classifyName(
+    domain,
+    evaluationAddress,
+    envConfig.chain.id,
+    { now: BigInt(Math.floor(Date.now() / 1000)) },
+  )
   if (classified?.type !== 'classified')
     return ok<MigrationStatus>({ migratable: false })
 

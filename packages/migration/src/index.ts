@@ -8,6 +8,7 @@ export {
 export {
   type ClassifiedName,
   type ClassifyNamesResult,
+  type Clock,
   type CopyClassifiedName,
   type CopySource,
   type CopyTokenType,

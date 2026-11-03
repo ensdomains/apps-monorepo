@@ -117,7 +117,9 @@ describe('prepareGraceRenewalMigration', () => {
       vi.mocked(buildMigrationPlan).mockImplementation(
         async ({ domains }) =>
           ({
-            ...classifyNames([...domains], ownerAddress, chain.id),
+            ...classifyNames([...domains], ownerAddress, chain.id, {
+              now: BigInt(Math.floor(Date.now() / 1000)),
+            }),
           }) as unknown as Awaited<ReturnType<typeof buildMigrationPlan>>,
       )
 

@@ -524,6 +524,7 @@ export const discoverSubnameRecreation = async (params: {
     [...params.domains],
     params.owner,
     envConfig.chain.id,
+    { now: BigInt(Math.floor(Date.now() / 1000)) },
   ).classified
   const candidates = classified.filter(
     (name) =>

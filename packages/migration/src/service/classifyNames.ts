@@ -103,6 +103,11 @@ export type CopyClassifiedName = ClassifiedNameBase & {
 
 export type ClassifiedName = DirectClassifiedName | CopyClassifiedName
 
+/** Unix seconds captured by the caller for the entire classification. */
+export type Clock = {
+  readonly now: bigint
+}
+
 const nameKey = (name: string): string => name.toLowerCase()
 
 /**
@@ -519,6 +524,7 @@ export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
   chainId: SupportedL1ChainId,
+  clock: Clock,
 ): ClassifyResult => {
   if (hasUnknownLabel(domain)) return ineligible(domain, 'unknown-label')
   const label = domain.labelName
@@ -528,7 +534,7 @@ export const classifyName = (
   }
 
   const ownerAddressLower = ownerAddress.toLowerCase()
-  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+  const nowSeconds = clock.now
   const context: ClassificationContext = {
     chainId,
     domain,
@@ -566,9 +572,10 @@ export const classifyNames = (
   domains: readonly V1Domain[],
   ownerAddress: Address,
   chainId: SupportedL1ChainId,
+  clock: Clock,
 ): ClassifyNamesResult => {
   const results = domains.map((domain) =>
-    classifyName(domain, ownerAddress, chainId),
+    classifyName(domain, ownerAddress, chainId, clock),
   )
   const classifiedByName = new Map<string, ClassifiedName>()
 

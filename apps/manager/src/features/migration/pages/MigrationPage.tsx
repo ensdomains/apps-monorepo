@@ -378,6 +378,7 @@ export const MigrationPage = () => {
                 retryDomains,
                 ownerAddress as Address,
                 migrationExecutionClient.chain.id,
+                { now: BigInt(Math.floor(Date.now() / 1000)) },
               ).classified
             : []),
       )

@@ -113,7 +113,12 @@ beforeEach(() => {
   vi.mocked(buildMigrationPlan)
     .mockReset()
     .mockImplementation(async ({ domains }) => {
-      const { classified, ineligible } = classifyNames(domains, OWNER, chain.id)
+      const { classified, ineligible } = classifyNames(
+        domains,
+        OWNER,
+        chain.id,
+        { now: BigInt(Math.floor(Date.now() / 1000)) },
+      )
       return {
         classified,
         ineligible,
@@ -205,6 +210,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
           [...domains],
           OWNER,
           chain.id,
+          { now: BigInt(Math.floor(Date.now() / 1000)) },
         )
         return {
           classified,

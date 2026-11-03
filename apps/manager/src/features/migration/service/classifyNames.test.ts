@@ -21,7 +21,9 @@ import {
 } from './classifyNames'
 
 const classify = (o: Parameters<typeof makeDomain>[0] = {}) =>
-  classifyName(makeDomain(o), OWNER, sepolia.id)
+  classifyName(makeDomain(o), OWNER, sepolia.id, {
+    now: BigInt(Math.floor(Date.now() / 1000)),
+  })
 
 const classified = (r: ReturnType<typeof classifyName>): ClassifiedName => {
   if (r?.type !== 'classified') throw new Error('not classified')
@@ -120,6 +122,26 @@ describe('classifyName — expired wrap', () => {
 })
 
 describe('classifyName — grace period registrations', () => {
+  it.each([
+    [1_699_999_999n, { type: 'classified', name: { action: 'migrate' } }],
+    [
+      1_700_000_000n,
+      { type: 'ineligible', name: { reason: 'expired-registration' } },
+    ],
+  ] as const)(
+    'evaluates registration expiry at the supplied clock %s',
+    (now, expected) => {
+      const result = classifyName(
+        makeDomain({ registrationExpiry: '1700000000' }),
+        OWNER,
+        sepolia.id,
+        { now },
+      )
+
+      expect(result).toMatchObject(expected)
+    },
+  )
+
   it('marks wrapped .eth 2LD in registration grace as ineligible', () => {
     expect(
       ineligibleReason(
@@ -157,7 +179,10 @@ describe('classifyName — migration availability', () => {
   const classifyWith = (
     o: Parameters<typeof makeDomain>[0],
     flags: Pick<V1Domain, 'isLeaseMissing' | 'isUnreserved'>,
-  ) => classifyName({ ...makeDomain(o), ...flags }, OWNER, sepolia.id)
+  ) =>
+    classifyName({ ...makeDomain(o), ...flags }, OWNER, sepolia.id, {
+      now: BigInt(Math.floor(Date.now() / 1000)),
+    })
 
   it.each([
     { case: 'unwrapped', o: { registrationExpiry: LIVE_LEASE } },
@@ -444,6 +469,31 @@ describe('classifyName — resolver strategy for locked', () => {
 })
 
 describe('classifyNames', () => {
+  it('uses the supplied clock for every name in the selection', () => {
+    const domains = [
+      makeDomain({
+        name: 'alice.eth',
+        labelName: 'alice',
+        registrationExpiry: '1700000000',
+      }),
+      makeDomain({
+        name: 'bob.eth',
+        labelName: 'bob',
+        registrationExpiry: '1700000000',
+      }),
+    ]
+
+    const result = classifyNames(domains, OWNER, sepolia.id, {
+      now: 1_699_999_999n,
+    })
+
+    expect(result.classified.map(({ domain }) => domain.name)).toEqual([
+      'alice.eth',
+      'bob.eth',
+    ])
+    expect(result.ineligible).toEqual([])
+  })
+
   it('keeps WEB-390 zero-expiry wrapped children under a selected unlocked 2LD', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-06-04T16:50:36Z'))
@@ -476,6 +526,7 @@ describe('classifyNames', () => {
         domains,
         OWNER,
         envConfig.chain.id,
+        { now: BigInt(Math.floor(Date.now() / 1000)) },
       )
 
       expect(
@@ -520,6 +571,7 @@ describe('classifyNames', () => {
       domains,
       OWNER,
       envConfig.chain.id,
+      { now: BigInt(Math.floor(Date.now() / 1000)) },
     )
 
     expect(
@@ -573,6 +625,7 @@ describe('classifyNames', () => {
       domains,
       OWNER,
       envConfig.chain.id,
+      { now: BigInt(Math.floor(Date.now() / 1000)) },
     )
     expect(classified.map((c) => c.domain.id)).toEqual(['0x1'])
     expect(ineligible.map((i) => [i.domain.id, i.reason])).toEqual([
@@ -607,6 +660,7 @@ describe('classifyNames', () => {
       domains,
       OWNER,
       envConfig.chain.id,
+      { now: BigInt(Math.floor(Date.now() / 1000)) },
     )
 
     expect(names.map((name) => [name.domain.name, name.action])).toEqual([
@@ -636,7 +690,9 @@ describe('classifyNames', () => {
       }),
     ]
 
-    const result = classifyNames(domains, OWNER, envConfig.chain.id)
+    const result = classifyNames(domains, OWNER, envConfig.chain.id, {
+      now: BigInt(Math.floor(Date.now() / 1000)),
+    })
 
     expect(result.classified.map((name) => name.domain.name)).toEqual([
       'raffy.eth',
@@ -678,7 +734,9 @@ describe('classifyNames', () => {
       }),
     ]
 
-    const result = classifyNames(domains, OWNER, envConfig.chain.id)
+    const result = classifyNames(domains, OWNER, envConfig.chain.id, {
+      now: BigInt(Math.floor(Date.now() / 1000)),
+    })
 
     expect(result.classified).toEqual([])
     expect(

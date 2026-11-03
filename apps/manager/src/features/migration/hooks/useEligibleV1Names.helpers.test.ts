@@ -186,6 +186,7 @@ describe('getGracePeriodNames', () => {
       [owned, unowned, unknownLabel, invalidLabel],
       OWNER,
       sepolia.id,
+      { now: BigInt(Math.floor(Date.now() / 1000)) },
     )
 
     expect(getGracePeriodNames(ineligible)).toEqual([

@@ -351,8 +351,16 @@ describe('bulk grace renewal', () => {
       })
       const renewed = result._unsafeUnwrap()
 
-      expect(classifyNames(renewed, OWNER, chain.id).ineligible).toEqual([])
-      expect(classifyNames(renewed, OWNER, chain.id).classified).toHaveLength(1)
+      expect(
+        classifyNames(renewed, OWNER, chain.id, {
+          now: BigInt(Math.floor(Date.now() / 1000)),
+        }).ineligible,
+      ).toEqual([])
+      expect(
+        classifyNames(renewed, OWNER, chain.id, {
+          now: BigInt(Math.floor(Date.now() / 1000)),
+        }).classified,
+      ).toHaveLength(1)
       expect(lateGrace.isUnreserved).toBe(true)
       expect(s.readContract).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -385,7 +393,9 @@ describe('bulk grace renewal', () => {
       })
 
       expect(
-        classifyNames(result._unsafeUnwrap(), OWNER, chain.id).classified,
+        classifyNames(result._unsafeUnwrap(), OWNER, chain.id, {
+          now: BigInt(Math.floor(Date.now() / 1000)),
+        }).classified,
       ).toHaveLength(1)
       expect(s.writeContract).not.toHaveBeenCalled()
     },
@@ -404,7 +414,9 @@ describe('bulk grace renewal', () => {
     })
 
     expect(
-      classifyNames(result._unsafeUnwrap(), OWNER, chain.id).ineligible,
+      classifyNames(result._unsafeUnwrap(), OWNER, chain.id, {
+        now: BigInt(Math.floor(Date.now() / 1000)),
+      }).ineligible,
     ).toMatchObject([{ reason: 'not-reserved' }])
     expect(s.writeContract).not.toHaveBeenCalled()
   })

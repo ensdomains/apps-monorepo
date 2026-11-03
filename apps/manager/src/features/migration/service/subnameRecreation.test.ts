@@ -731,6 +731,7 @@ describe('direct subname source checks', () => {
         [...found.domains],
         OWNER,
         envConfig.chain.id,
+        { now: BigInt(Math.floor(Date.now() / 1000)) },
       ).classified
       const imported = applySubnameRecreation({
         ...found,
@@ -1051,8 +1052,9 @@ describe('direct subname source checks', () => {
         ...found,
         domains,
         owner: OWNER,
-        classified: classifyNames(domains, OWNER, envConfig.chain.id)
-          .classified,
+        classified: classifyNames(domains, OWNER, envConfig.chain.id, {
+          now: BigInt(Math.floor(Date.now() / 1000)),
+        }).classified,
       }),
     ).toThrow(/identity does not match/)
   })

@@ -77,11 +77,9 @@ const domain = makeDomain({
   name: 'alice.eth',
   labelName: 'alice',
 })
-const classified = classifyNames(
-  [domain],
-  ownerAddress,
-  envConfig.chain.id,
-).classified
+const classified = classifyNames([domain], ownerAddress, envConfig.chain.id, {
+  now: BigInt(Math.floor(Date.now() / 1000)),
+}).classified
 const emptyEligibility = () => ({
   eligible: [] as ClassifiedName[],
   frozen: [] as ClassifiedName[],

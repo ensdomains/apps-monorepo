@@ -68,6 +68,7 @@ const classify = (records: readonly LookupRecord[], parentFuses = NO_PARENTS) =>
     records.map((row) => toV1Domain(row, parentFuses, NAME_WRAPPER)),
     USER,
     SEPOLIA,
+    { now: BigInt(Math.floor(Date.now() / 1000)) },
   )
 
 describe('toV1Domain', () => {

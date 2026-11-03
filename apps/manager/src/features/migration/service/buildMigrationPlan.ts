@@ -1,5 +1,5 @@
 import { requireChainId } from '@ens-apps/config'
-import type { V1Domain } from '@ens-apps/migration'
+import type { Clock, V1Domain } from '@ens-apps/migration'
 import {
   buildHcaOwnerExecutionCall,
   computeResolverAddress,
@@ -531,6 +531,7 @@ export const buildMigrationPlan = async (params: {
     [...domains],
     migrationOwner,
     envConfig.chain.id,
+    { now: BigInt(Math.floor(Date.now() / 1000)) },
   )
   // Classification never appoints a manager on its own: a v1 registry
   // controller that differs from the registrant is only carried across for the
@@ -776,6 +777,7 @@ const assertRecoveryProfilesComplete = (params: {
 export const classifyMigrationRecoverySnapshot = (params: {
   readonly snapshot: MigrationRecoverySnapshot
   readonly migrationOwner: Address
+  readonly clock: Clock
 }): {
   readonly registryContext: readonly ClassifiedName[]
   readonly classified: readonly ClassifiedName[]
@@ -794,6 +796,7 @@ export const classifyMigrationRecoverySnapshot = (params: {
     [...ordinaryDomains],
     params.migrationOwner,
     envConfig.chain.id,
+    params.clock,
   )
   const withOptIn = withManagerRestorationOptIn(
     result.classified,
@@ -994,6 +997,7 @@ export const buildMigrationRecoveryPlan = async (params: {
   const recovered = classifyMigrationRecoverySnapshot({
     snapshot,
     migrationOwner,
+    clock: { now: BigInt(Math.floor(Date.now() / 1000)) },
   })
   const temporaryRegistrationApproval = snapshot.temporaryRegistrationApproval
   assertRegistrationRecoveryRegistrar({

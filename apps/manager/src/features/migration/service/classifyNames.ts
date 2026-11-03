@@ -2,6 +2,7 @@ import type { ClassifiedName } from '@ens-apps/migration'
 
 export {
   type ClassifiedName,
+  type Clock,
   type CopyClassifiedName,
   type CopyTokenType,
   classifyName,

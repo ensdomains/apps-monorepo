@@ -1,5 +1,5 @@
 import { sepolia } from 'viem/chains'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   makeClassified,
   makeDomain,
@@ -18,10 +18,6 @@ import {
 
 const NOW = 1_780_000_000n
 const DAY = 86_400n
-
-// classifyNames reads Date.now(), so pin it to NOW.
-beforeAll(() => vi.useFakeTimers({ now: Number(NOW) * 1000, toFake: ['Date'] }))
-afterAll(() => vi.useRealTimers())
 
 const parent = makeClassified({ id: '0xAA', name: 'parent.eth' })
 const subname = makeClassified({
@@ -55,6 +51,7 @@ describe('classifyRenewedGraceNames', () => {
         [domain],
         OWNER,
         sepolia.id,
+        { now: NOW },
       )
       expect(classified).toEqual([])
 
