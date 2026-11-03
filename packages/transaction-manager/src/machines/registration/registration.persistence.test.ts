@@ -229,22 +229,18 @@ describe('registration record serialization', () => {
     )
   })
 
-  it('round-trips an ETH payment still settling, so a resume waits for it', () => {
+  it('round-trips an ETH swap still confirming, so a resume counts it', () => {
     const context = baseContext({
       ethFunding: { displayedCharge: 10n ** 16n },
-      pendingEthDeposit: `0x${'de'.repeat(32)}`,
-      unsettledEthSwap: {
-        intentId: 2n ** 249n + 9n,
-        claimableUntil: 1_800_000_600_000,
-      },
+      pendingEthSwap: `0x${'de'.repeat(32)}`,
     })
 
     const record = buildRegistrationRecord('swappingEth', context, 42)
     const result = parseRegistrationRecord(serializeRegistrationRecord(record))
 
     expect(result._unsafeUnwrap()).toEqual(record)
-    expect(result._unsafeUnwrap().context.unsettledEthSwap?.intentId).toBe(
-      2n ** 249n + 9n,
+    expect(result._unsafeUnwrap().context.ethFunding?.displayedCharge).toBe(
+      10n ** 16n,
     )
   })
 

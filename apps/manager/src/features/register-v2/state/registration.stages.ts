@@ -31,9 +31,8 @@ export const REGISTRATION_STAGE_PROGRESS = {
   waitingForL2Bridge: 29,
   awaitingL2Bridge: 29,
   awaitingPriorL2BridgeTx: 29,
-  // Paid with ETH: deposit it into the HCA, then swap it into USDC.
-  depositingEth: 28,
-  swappingEth: 29,
+  // Paid with ETH: the wallet buys the USDC the permit then moves.
+  swappingEth: 28,
   signingFundingPermit: 29,
   submittingSetupBundle: 31,
   // A leg's quoted fee outgrew the session: one more wallet signature.

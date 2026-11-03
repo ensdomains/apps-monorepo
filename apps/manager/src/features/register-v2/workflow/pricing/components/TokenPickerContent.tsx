@@ -186,8 +186,7 @@ export const TokenPickerContent = () => {
       state?.matches('approvingToken') ||
       // Paid from an L2, the wallet signs that payment instead.
       state?.matches('bridgingFromL2') ||
-      // Paid with ETH, the wallet sends it and then signs the swap.
-      state?.matches('depositingEth') ||
+      // Paid with ETH, the wallet swaps it for the USDC first.
       state?.matches('swappingEth'),
   )
   useRegistrationLockHeartbeat(
@@ -333,17 +332,16 @@ export const TokenPickerContent = () => {
   const isPaidFromL2 = l2FundingChainId !== undefined
   const displayedL2Charge = getSelectedL2(l2Payment)?.amountInRaw
 
-  // Paying with ETH is the HCA's own swap, so only the HCA route offers it.
+  // The swapped USDC funds the HCA's permit, so only the HCA route offers ETH.
   const isEthOffered = isBudgetRequired && account.signer?.type === 'rhinestone'
   const ethQuoteQuery = useQuery(
     getEthPaymentQuoteQueryOptions({
-      signer: isEthOffered ? account.signer : undefined,
-      hca: account.accountAddress,
       owner: account.ownerAddress,
-      amountOut:
+      permitValue:
         funding && !budgetQuery.isPlaceholderData
           ? funding.walletDebitRaw
           : undefined,
+      isEnabled: isEthOffered,
     }),
   )
   const ethPayment = isEthOffered
@@ -355,11 +353,11 @@ export const TokenPickerContent = () => {
       }
     : undefined
   const isPaidWithEth = ethPayment?.isSelected === true
-  // An intent funds the HCA, rather than a permit on the wallet's USDC.
-  const isPaidByIntent = isPaidFromL2 || isPaidWithEth
-  // Paid with ETH, the funding is swapped in, bounded by the ETH shown.
+  // Something other than the wallet's USDC pays, so that balance is no gate.
+  const isPaidFromElsewhere = isPaidFromL2 || isPaidWithEth
+  // Paid with ETH, the swap is bounded by the ETH shown.
   const ethFunding = isPaidWithEth
-    ? { displayedCharge: ethPayment?.row.depositRaw }
+    ? { displayedCharge: ethPayment?.row.chargeRaw }
     : undefined
 
   // An explicit toggle choice always wins. Otherwise resolve the eligibility
@@ -460,7 +458,7 @@ export const TokenPickerContent = () => {
 
       // A chosen L2 or ETH pays instead, so the wallet's USDC is no gate.
       if (
-        !isPaidByIntent &&
+        !isPaidFromElsewhere &&
         walletDebitRaw !== null &&
         usdcBalanceRaw !== null &&
         usdcBalanceRaw < walletDebitRaw
@@ -515,7 +513,7 @@ export const TokenPickerContent = () => {
 
   const globalErrorMessage = match({
     approvalState,
-    isPaidByIntent,
+    isPaidFromElsewhere,
     hasBudgetQuoteFailed,
     mutationError: availabilityMutation.error,
     isAvailabilityError: availabilityMutation.isError,
@@ -528,7 +526,7 @@ export const TokenPickerContent = () => {
     // settling or a price that moved.
     .with(
       {
-        isPaidByIntent: true,
+        isPaidFromElsewhere: true,
         approvalState: { approvalOutcome: 'failed', errorMessage: P.string },
       },
       ({ approvalState }) => approvalState.errorMessage,
@@ -572,7 +570,7 @@ export const TokenPickerContent = () => {
     .with(
       { isPaidWithEth: true },
       () =>
-        t`Your wallet will ask you to send the ETH shown to your ENS account, then to sign a swap of it for USDC. Registration starts once the swap completes.`,
+        t`Your wallet will ask you to swap up to the ETH shown for USDC, then to sign a payment approval for that USDC. Registration starts after you sign.`,
     )
     .with(
       { l2Chain: P.string },
@@ -690,7 +688,10 @@ export const TokenPickerContent = () => {
 /** The ETH row, from its quote. With the HCA already funded, nothing is sent. */
 const getEthPaymentRow = (
   quote: {
-    readonly data?: { readonly deposit: bigint; readonly walletBalance: bigint }
+    readonly data?: {
+      readonly swap?: { readonly maximumEth: bigint }
+      readonly walletBalance: bigint
+    }
     readonly isPending: boolean
     readonly isPlaceholderData: boolean
     readonly isError: boolean
@@ -699,13 +700,17 @@ const getEthPaymentRow = (
 ): EthPaymentRow =>
   walletDebitRaw === 0n
     ? {
-        depositRaw: 0n,
+        chargeRaw: 0n,
         balanceRaw: undefined,
         isQuoteLoading: false,
         hasQuoteFailed: false,
       }
     : {
-        depositRaw: quote.data?.deposit,
+        // No swap: the wallet already holds the USDC.
+        chargeRaw:
+          quote.data === undefined
+            ? undefined
+            : (quote.data.swap?.maximumEth ?? 0n),
         balanceRaw: quote.data?.walletBalance,
         // A placeholder belongs to another amount: shown, never paid on.
         isQuoteLoading: quote.isPending || quote.isPlaceholderData,
@@ -870,7 +875,7 @@ const getEthMethodItems = (
 ): PaymentMethodListItem[] =>
   ethPayment &&
   (ethPayment.isSelected ||
-    (ethPayment.row.depositRaw !== undefined &&
+    (ethPayment.row.chargeRaw !== undefined &&
       !isEthShortOfFunds(ethPayment.row)))
     ? [
         {

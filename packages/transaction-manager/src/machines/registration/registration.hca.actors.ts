@@ -1147,13 +1147,11 @@ export function awaitL2BridgeActor(input: {
   readonly signal?: AbortSignal
   readonly pollIntervalMs?: number
   readonly timeoutMs?: number
-  /** What the intent paid, in the errors' words. */
-  readonly payment?: string
 }): ResultAsync<'landed' | 'dead', Error> {
-  const { fetchIntentStatus, signal, payment = 'L2 payment' } = input
+  const { fetchIntentStatus, signal } = input
   if (!fetchIntentStatus) {
     return errAsync(
-      new Error(`Cannot check the earlier ${payment}, so not paying again.`),
+      new Error('Cannot check the earlier L2 payment, so not paying again.'),
     )
   }
   const deadline = Date.now() + (input.timeoutMs ?? L2_BRIDGE_WAIT_MS)
@@ -1171,7 +1169,7 @@ export function awaitL2BridgeActor(input: {
         )
       }
       throw new Error(
-        `The earlier ${payment} has not settled yet, so not paying again. ` +
+        'The earlier L2 payment has not settled yet, so not paying again. ' +
           'Try again in a few minutes.',
       )
     })(),

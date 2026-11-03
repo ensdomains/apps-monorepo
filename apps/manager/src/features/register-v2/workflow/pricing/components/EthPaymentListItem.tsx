@@ -7,22 +7,23 @@ import { PaymentMethodRow } from './PaymentMethodRow'
 
 /** Paying the registration with the wallet's ETH, swapped into USDC. */
 export type EthPaymentRow = Readonly<{
-  /** The ETH (wei) the wallet would send, once quoted. */
-  depositRaw: bigint | undefined
+  /**
+   * The most ETH (wei) the swap would send, once quoted; unused ETH comes
+   * back. `0n` when the wallet already holds the USDC.
+   */
+  chargeRaw: bigint | undefined
   /** The wallet's ETH (wei), once read. */
   balanceRaw: bigint | undefined
   isQuoteLoading: boolean
   hasQuoteFailed: boolean
 }>
 
-export const isEthShortOfFunds = ({ depositRaw, balanceRaw }: EthPaymentRow) =>
-  depositRaw !== undefined &&
-  balanceRaw !== undefined &&
-  balanceRaw < depositRaw
+export const isEthShortOfFunds = ({ chargeRaw, balanceRaw }: EthPaymentRow) =>
+  chargeRaw !== undefined && balanceRaw !== undefined && balanceRaw < chargeRaw
 
 /** The row can pay: quoted, and the wallet holds what it would send. */
 export const canPayWithEth = (row: EthPaymentRow) =>
-  row.depositRaw !== undefined &&
+  row.chargeRaw !== undefined &&
   !row.isQuoteLoading &&
   !row.hasQuoteFailed &&
   !isEthShortOfFunds(row)
@@ -56,15 +57,15 @@ export const EthPaymentListItem = ({
       }
       amountLabel={<Trans>balance</Trans>}
       fee={
-        row.depositRaw === undefined ? undefined : (
-          <Trans>Sends ~{formatGasEth(row.depositRaw)} ETH</Trans>
+        row.chargeRaw === undefined ? undefined : (
+          <Trans>Swaps up to {formatGasEth(row.chargeRaw)} ETH</Trans>
         )
       }
       feeTooltip={
         <Trans>
-          Your wallet sends this ETH to your ENS account, which swaps it for the
-          USDC that pays for the name and network fees. Any USDC left over stays
-          in your account for your next registration.
+          Your wallet swaps ETH for the USDC this registration needs on Uniswap,
+          and gets back any ETH the swap does not use. You then approve that
+          USDC for the name and network fees as usual.
         </Trans>
       }
       icon={

@@ -51,25 +51,6 @@ export {
   withBudgetDrift,
 } from './budget'
 export {
-  ETH_SWAP_DISPLAYED_DRIFT_BPS,
-  ETH_USD_FEEDS,
-  type EthSwapQuote,
-  EthSwapRejectedError,
-  type EthSwapRoute,
-  EthSwapSubmitError,
-  EthSwapUnavailableError,
-  EthSwapUnconfirmedError,
-  EthUsdPriceUnavailableError,
-  ethSwapAmountIn,
-  maxEthSwapInput,
-  NATIVE_ETH,
-  planEthDeposit,
-  quoteEthSwap,
-  readEthUsdPrice,
-  submitEthSwap,
-  withBps,
-} from './eth-swap'
-export {
   type BuildHcaDeploymentCallParams,
   buildHcaDeploymentCall,
   buildStandaloneAccountConfig,

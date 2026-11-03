@@ -1650,7 +1650,7 @@ describe('paying with ETH', () => {
       input: { chainId: 11155111 },
     })
     actor.start()
-    const event = resumeEvent(smartAccount, { stage: 'depositingEth' })
+    const event = resumeEvent(smartAccount, { stage: 'swappingEth' })
     actor.send({
       ...event,
       record: {

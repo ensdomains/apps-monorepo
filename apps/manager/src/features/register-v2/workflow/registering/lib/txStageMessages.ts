@@ -46,13 +46,9 @@ export const getRegistrationStageMessages = (
         stageDescription: msg`Waiting for the payment you already signed to arrive`,
       }),
     )
-    .with({ stage: 'depositingEth' }, () => ({
-      stageLabel: msg`Sending ETH to your account`,
-      stageDescription: msg`Confirm the ETH transfer in your wallet`,
-    }))
     .with({ stage: 'swappingEth' }, () => ({
       stageLabel: msg`Swapping ETH for USDC`,
-      stageDescription: msg`Sign the swap in your wallet, then wait for it to complete`,
+      stageDescription: msg`Confirm the swap in your wallet, then wait for it to complete`,
     }))
     .with({ stage: 'idle' }, () => ({
       stageLabel: msg`Idle`,

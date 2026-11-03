@@ -1220,7 +1220,7 @@ describe('TokenPickerContentBase ETH row', () => {
     isSelected = false,
   ) => ({
     row: {
-      depositRaw: 2_600_000_000_000_000n,
+      chargeRaw: 2_600_000_000_000_000n,
       balanceRaw: 10n ** 18n,
       isQuoteLoading: false,
       hasQuoteFailed: false,
@@ -1239,7 +1239,7 @@ describe('TokenPickerContentBase ETH row', () => {
       ethPayment,
     })
 
-    expect(screen.getByText('Sends ~0.0026 ETH')).toBeVisible()
+    expect(screen.getByText('Swaps up to 0.0026 ETH')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Pay with ETH' }))
     expect(ethPayment.onSelect).toHaveBeenCalledOnce()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
@@ -1258,7 +1258,7 @@ describe('TokenPickerContentBase ETH row', () => {
 
   it.each([
     ['still being quoted', { isQuoteLoading: true }],
-    ['quoted on a stale amount', { isQuoteLoading: true, depositRaw: 1n }],
+    ['quoted on a stale amount', { isQuoteLoading: true, chargeRaw: 1n }],
     ['unavailable', { hasQuoteFailed: true }],
   ])('holds checkout while the ETH payment is %s', (_case, row) => {
     renderPicker({

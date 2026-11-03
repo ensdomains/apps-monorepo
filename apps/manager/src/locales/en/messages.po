@@ -866,8 +866,8 @@ msgid "Confirm renewal"
 msgstr "Confirm renewal"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-msgid "Confirm the ETH transfer in your wallet"
-msgstr "Confirm the ETH transfer in your wallet"
+msgid "Confirm the swap in your wallet, then wait for it to complete"
+msgstr "Confirm the swap in your wallet, then wait for it to complete"
 
 #: src/components/HcaFundingApprovalDialog.tsx
 msgid "Confirm the USDC approval transaction in your wallet. The renewal will continue after it confirms."
@@ -2946,18 +2946,9 @@ msgstr "Selected: {selectedName}"
 msgid "Send Verification"
 msgstr "Send Verification"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-msgid "Sending ETH to your account"
-msgstr "Sending ETH to your account"
-
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Sending..."
 msgstr "Sending..."
-
-#. placeholder {0}: formatGasEth(row.depositRaw)
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "Sends ~{0} ETH"
-msgstr "Sends ~{0} ETH"
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Set {domainName} as your primary name"
@@ -3127,10 +3118,6 @@ msgstr "Sign renewal"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Sign the gasless payment approval in your wallet"
 msgstr "Sign the gasless payment approval in your wallet"
-
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-msgid "Sign the swap in your wallet, then wait for it to complete"
-msgstr "Sign the swap in your wallet, then wait for it to complete"
 
 #: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
 msgid "Sign-in link copied. Open it in your browser, then return here."
@@ -3332,6 +3319,11 @@ msgstr "Supported direct subnames, such as alice.example.eth, upgrade with an un
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Swapping ETH for USDC"
 msgstr "Swapping ETH for USDC"
+
+#. placeholder {0}: formatGasEth(row.chargeRaw)
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "Swaps up to {0} ETH"
+msgstr "Swaps up to {0} ETH"
 
 #. placeholder {0}: appChain.name
 #: src/lib/smart-account/SmartAccountContext.tsx
@@ -4514,10 +4506,6 @@ msgstr "Your wallet has already given your smart account an allowance that cover
 msgid "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, you can sign the renewal."
 msgstr "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, you can sign the renewal."
 
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "Your wallet sends this ETH to your ENS account, which swaps it for the USDC that pays for the name and network fees. Any USDC left over stays in your account for your next registration."
-msgstr "Your wallet sends this ETH to your ENS account, which swaps it for the USDC that pays for the name and network fees. Any USDC left over stays in your account for your next registration."
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Your wallet sends this one, because your temporary account no longer has permission to update these records."
 msgstr "Your wallet sends this one, because your temporary account no longer has permission to update these records."
@@ -4526,9 +4514,9 @@ msgstr "Your wallet sends this one, because your temporary account no longer has
 msgid "Your wallet shows the final fee before you approve."
 msgstr "Your wallet shows the final fee before you approve."
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Your wallet will ask you to send the ETH shown to your ENS account, then to sign a swap of it for USDC. Registration starts once the swap completes."
-msgstr "Your wallet will ask you to send the ETH shown to your ENS account, then to sign a swap of it for USDC. Registration starts once the swap completes."
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use. You then approve that USDC for the name and network fees as usual."
+msgstr "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use. You then approve that USDC for the name and network fees as usual."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment approval for the amount shown. This allows that USDC to pay for registration and network fees. Registration starts after you sign."
@@ -4537,3 +4525,7 @@ msgstr "Your wallet will ask you to sign a payment approval for the amount shown
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
 msgstr "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your wallet will ask you to swap up to the ETH shown for USDC, then to sign a payment approval for that USDC. Registration starts after you sign."
+msgstr "Your wallet will ask you to swap up to the ETH shown for USDC, then to sign a payment approval for that USDC. Registration starts after you sign."

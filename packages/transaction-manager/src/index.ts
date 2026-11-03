@@ -9,6 +9,7 @@ export {
   TransactionStoppedError,
   TransactionSubmissionError,
 } from './errors/transaction.errors'
+export type { EthSwapQuote } from './helpers/eth-usdc-swap'
 // Helpers
 export {
   createFlowScope,
@@ -81,10 +82,9 @@ export {
   VERIFY_POLL_INTERVAL_MS,
 } from './machines/registration/registration.actors'
 export {
-  type EthDepositQuote,
   type EthFunding,
-  quoteEthDepositActor,
-  type UnsettledEthSwap,
+  type EthPaymentQuote,
+  quoteEthPaymentActor,
 } from './machines/registration/registration.eth.actors'
 export type {
   ReauthorizeSession,
