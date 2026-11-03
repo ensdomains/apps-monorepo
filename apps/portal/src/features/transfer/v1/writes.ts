@@ -60,11 +60,14 @@ export const prepareTransferV1NameTransaction = ({
   shouldReclaim = false,
   walletClient,
   chainId,
+  holder = walletClient.account.address,
 }: IntentContext & {
   readonly name: string
   readonly recipient: Address
   readonly contract: 'registrar' | 'nameWrapper'
   readonly shouldReclaim?: boolean
+  /** Whose token moves, when the sender is the holder's NameWrapper operator. */
+  readonly holder?: Address
 }): CustomTransactionIntent => {
   const from = walletClient.account.address
   // The registrar's token id is the 2LD's labelhash; the wrapper's is the
@@ -95,7 +98,7 @@ export const prepareTransferV1NameTransaction = ({
       data: encodeFunctionData({
         abi: nameWrapperSafeTransferFromSnippet,
         functionName: 'safeTransferFrom',
-        args: [from, recipient, BigInt(namehash(name)), 1n, '0x'],
+        args: [holder, recipient, BigInt(namehash(name)), 1n, '0x'],
       }),
     }))
     .exhaustive()

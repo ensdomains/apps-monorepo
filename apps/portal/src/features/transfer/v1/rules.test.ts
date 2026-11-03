@@ -4,6 +4,7 @@ import type { V1ParentState, V1TransferSubject } from '../types'
 import type { V1NameState } from './getV1NameState'
 import {
   canReclaimV1Manager,
+  canSetV1Resolver,
   getV1DetachTargets,
   getV1Holder,
   getV1ParentPowers,
@@ -299,6 +300,57 @@ describe('getV1TransferGate — as the parent', () => {
   })
 })
 
+describe('getV1TransferGate — as a NameWrapper operator', () => {
+  it('lets the holder’s operator move a wrapped name as its owner', () => {
+    const subject = wrapped({}, null, OTHER)
+    expect(
+      getV1TransferGate(state(subject), ME, {
+        canModifyName: true,
+        canModifyParent: false,
+      }),
+    ).toEqual({ reason: 'ok', subject, actor: 'owner' })
+  })
+
+  it('lets the wrapped parent’s operator reassign a wrapped subname', () => {
+    const subject = wrapped({}, null, OTHER)
+    expect(
+      getV1TransferGate(state(subject, { parent: wrappedParent(OTHER) }), ME, {
+        canModifyName: false,
+        canModifyParent: true,
+      }),
+    ).toEqual({ reason: 'ok', subject, actor: 'parent' })
+  })
+
+  // `ENSRegistry.setSubnodeOwner` checks the registry's own approvals.
+  it('ignores wrapper access over a parent held in the registry', () => {
+    expect(
+      getV1TransferGate(
+        state(registry(OTHER), { parent: unwrappedParent(OTHER) }),
+        ME,
+        { canModifyName: false, canModifyParent: true },
+      ),
+    ).toEqual({ reason: 'not-owner' })
+  })
+})
+
+describe('canSetV1Resolver — NameWrapper access', () => {
+  it.each([
+    ['a wrapped name', wrapped({}, null, OTHER), true],
+    ['a registry name', registry(OTHER), false],
+  ])(
+    'on %s, lets the operator set the resolver: %s',
+    (_, subject, expected) => {
+      expect(
+        canSetV1Resolver({
+          subject,
+          account: ME,
+          wrapperAccess: { canModifyName: true, canModifyParent: false },
+        }),
+      ).toBe(expected)
+    },
+  )
+})
+
 describe('getV1DetachTargets', () => {
   const targets = (
     subject: V1TransferSubject,
@@ -362,6 +414,15 @@ describe('getV1DetachTargets', () => {
     expect(
       targets({ kind: 'v1-registrar', registrant: ME, controller: ME }),
     ).toMatchObject({ setEthAddress: true, detachResolver: true })
+  })
+
+  // The wrapper takes `setResolver` from the holder's operator; PublicResolver
+  // checks approvals of its own, so the records stay out of reach.
+  it('offers a wrapped holder’s operator the detach but not the ETH step', () => {
+    expect(targets(wrapped({}, null, OTHER))).toMatchObject({
+      setEthAddress: false,
+      detachResolver: true,
+    })
   })
 
   // PublicResolver authorises the subname's registry owner (or wrapper owner);

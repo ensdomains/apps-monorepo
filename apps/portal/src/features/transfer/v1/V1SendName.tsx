@@ -114,7 +114,7 @@ const V1Notices = ({
           <AlertTriangle className="size-4" />
           <AlertDescription>
             <p>
-              You’re reassigning this subname as the owner of{' '}
+              You’re reassigning this subname from{' '}
               <span className="font-medium">{getParentName(name)}</span>. Its
               current owner ({truncateAddress(getV1Holder(subject))}) loses it
               the moment this lands, and its records stay as they are.

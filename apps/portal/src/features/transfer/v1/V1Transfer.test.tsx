@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LEGACY_APP_BASE_URL } from '@/lib/constants/domain'
 import { createTestWrapper } from '@/test-utils/providers'
 import { deriveV1NameState, type V1NameReads } from './getV1NameState'
+import type { V1WrapperAccess } from './getV1WrapperAccess'
 import { V1Transfer } from './V1Transfer'
 
 // The component reads its state through this query; everything downstream of
@@ -14,8 +15,13 @@ vi.mock('./getV1NameState', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./getV1NameState')>()),
   getV1NameStateQueryOptions: vi.fn(),
 }))
+vi.mock('./getV1WrapperAccess', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./getV1WrapperAccess')>()),
+  getV1WrapperAccessQueryOptions: vi.fn(),
+}))
 
 const { getV1NameStateQueryOptions } = await import('./getV1NameState')
+const { getV1WrapperAccessQueryOptions } = await import('./getV1WrapperAccess')
 
 const PARENT_CANNOT_CONTROL = Number(ParentFuses.PARENT_CANNOT_CONTROL)
 const CANNOT_CREATE_SUBDOMAIN = Number(ChildFuses.CANNOT_CREATE_SUBDOMAIN)
@@ -44,10 +50,21 @@ const reads = (overrides: Partial<V1NameReads>): V1NameReads => ({
   ...overrides,
 })
 
-const renderAs = (account: Address, nameReads: V1NameReads) => {
+const renderAs = (
+  account: Address,
+  nameReads: V1NameReads,
+  wrapperAccess: V1WrapperAccess = {
+    canModifyName: false,
+    canModifyParent: false,
+  },
+) => {
   vi.mocked(getV1NameStateQueryOptions).mockReturnValue({
     queryKey: ['v1-name-state-test'],
     queryFn: () => deriveV1NameState(nameReads),
+  } as never)
+  vi.mocked(getV1WrapperAccessQueryOptions).mockReturnValue({
+    queryKey: ['v1-wrapper-access-test'],
+    queryFn: () => wrapperAccess,
   } as never)
   return render(<V1Transfer name="other.label.eth" account={account} />, {
     wrapper: createTestWrapper(),
@@ -144,5 +161,17 @@ describe('V1Transfer — an emancipated subname, seen by the parent’s owner', 
     expect(await screen.findByText(/while that fuse holds/)).toBeInTheDocument()
     expect(screen.queryByText(/issue the label again/)).not.toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('answers the parent holder’s NameWrapper operator as the parent', async () => {
+    renderAs(
+      '0xcccccccccccccccccccccccccccccccccccccccc',
+      reads(emancipatedUnder(PARENT_CANNOT_CONTROL)),
+      { canModifyName: false, canModifyParent: true },
+    )
+
+    expect(
+      await screen.findByText('This subname is out of the parent’s control'),
+    ).toBeInTheDocument()
   })
 })
