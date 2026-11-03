@@ -73,7 +73,7 @@ const CustomResolverAddressInput = ({
         value={value}
         aria-invalid={error !== null}
         aria-describedby={error ? errorId : undefined}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => onChange(event.target.value.trim())}
         onBlur={() => setIsTouched(true)}
       />
       {error ? (

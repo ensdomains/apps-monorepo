@@ -227,6 +227,42 @@ describe('ChangeResolverForm', () => {
     expect(screen.getByRole('button', { name: /Save changes/i })).toBeDisabled()
   })
 
+  it('keeps explaining a malformed address after custom resolver is toggled off and on', async () => {
+    const user = userEvent.setup()
+
+    render(<ChangeResolverForm name={name} target={target} />)
+
+    const toggle = screen.getByRole('switch', { name: /Use custom resolver/i })
+    await user.click(toggle)
+    await user.type(screen.getByLabelText(/Contract address/i), '0x1111')
+    await user.tab()
+    await user.click(toggle)
+    await user.click(toggle)
+
+    expect(
+      screen.getByLabelText(/Contract address/i),
+    ).toHaveAccessibleDescription(
+      'A contract address is 42 characters long, including 0x. This one is 6.',
+    )
+  })
+
+  it('accepts a valid address pasted with surrounding spaces', async () => {
+    const user = userEvent.setup()
+
+    render(<ChangeResolverForm name={name} target={target} />)
+
+    await user.click(
+      screen.getByRole('switch', { name: /Use custom resolver/i }),
+    )
+    const input = screen.getByLabelText(/Contract address/i)
+    await user.click(input)
+    await user.paste(' 0xabcdef123456789012345678901234567890abcd ')
+
+    expect(input).toHaveValue('0xabcdef123456789012345678901234567890abcd')
+    expect(input).not.toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('button', { name: /Save changes/i })).toBeEnabled()
+  })
+
   it('opens transaction modal when valid custom resolver is submitted', async () => {
     const user = userEvent.setup()
 
