@@ -13,6 +13,7 @@ import {
   hasPrimaryNameForwardAddress,
 } from './primaryNameForwardAddress'
 import {
+  answersAsResolver,
   classifyV1Reachability,
   getPrimaryNamePreparation,
   isUnreachableV1Name,
@@ -234,6 +235,33 @@ describe('getPrimaryNamePreparation', () => {
     await expect(
       getPrimaryNamePreparation(clientAnswering(true), name, owner),
     ).rejects.toBe(rpcDown)
+  })
+})
+
+describe('answersAsResolver', () => {
+  const yes = { status: 'success', result: true } as const
+  const no = { status: 'success', result: false } as const
+  const reverted = { status: 'failure' } as const
+
+  it.each([
+    {
+      case: 'an EOA or non-ERC-165 contract (every probe reverts)',
+      results: [reverted, reverted],
+      want: false,
+    },
+    {
+      case: 'a contract that supports none of the ids',
+      results: [no, no, no],
+      want: false,
+    },
+    {
+      case: 'a resolver that supports one id',
+      results: [no, reverted, yes],
+      want: true,
+    },
+    { case: 'no answers at all', results: [], want: false },
+  ] as const)('$case is $want', ({ results, want }) => {
+    expect(answersAsResolver(results)).toBe(want)
   })
 })
 

@@ -163,6 +163,21 @@ const RESOLVER_INTERFACE_IDS = [
   '0x9061b923',
 ] as const
 
+/** One `supportsInterface` answer from the multicall; a revert is a failure. */
+export type InterfaceProbeResult =
+  | { readonly status: 'success'; readonly result: boolean }
+  | { readonly status: 'failure' }
+
+/**
+ * Whether the ERC-165 answers come from a resolver: at least one of the
+ * resolver ids answered `true`. An EOA or a contract that is not a resolver
+ * answers none, whether it reverts or returns false.
+ */
+export const answersAsResolver = (
+  results: readonly InterfaceProbeResult[],
+): boolean =>
+  results.some((result) => result.status === 'success' && result.result)
+
 /**
  * Whether `address` answers as a resolver. An EOA, or a contract that is not a
  * resolver, answers none of the ids; an RPC failure throws.
@@ -180,9 +195,7 @@ const isWorkingResolver = async (
     })),
     allowFailure: true,
   })
-  return results.some(
-    (result) => result.status === 'success' && result.result === true,
-  )
+  return answersAsResolver(results)
 }
 
 type ResolverPointerClient = Parameters<typeof getResolver>[0]
