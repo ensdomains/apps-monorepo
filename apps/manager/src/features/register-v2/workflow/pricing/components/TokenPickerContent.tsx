@@ -32,6 +32,7 @@ import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { useFallbackPaymentChoice } from '../hooks/useFallbackPaymentChoice'
 import {
   canPayFromL2,
+  isL2Empty,
   type L2PaymentProps,
   type L2PaymentRow,
   useL2Payment,
@@ -729,12 +730,14 @@ export const getL2MethodItems = (
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
-  // A chain appears once its full quote covers it; a chosen one stays through refreshes.
+  // A chain appears once its full quote covers it; a chosen one stays through
+  // refreshes, unless it has nothing in it.
   return l2Payment.rows
     .filter(
       (row) =>
-        row === selectedL2 ||
-        (row.amountInRaw !== undefined && !isL2ShortOfFunds(row)),
+        !isL2Empty(row) &&
+        (row === selectedL2 ||
+          (row.amountInRaw !== undefined && !isL2ShortOfFunds(row))),
     )
     .sort(byBalanceDescending)
     .map((row) => {

@@ -36,6 +36,13 @@ export type L2PaymentProps = Readonly<{
   onFallbackSelect: (chainId: number) => void
 }>
 
+/**
+ * The wallet holds no USDC there. With nothing to bridge such a row still
+ * reads as `available` and its quote as `0n`, which it would otherwise cover.
+ */
+export const isL2Empty = (row: L2PaymentRow): boolean =>
+  row.option.balanceRaw === 0n
+
 /** Quoted, and the balance there covers the quote. */
 export const canPayFromL2 = (row: L2PaymentRow): boolean =>
   row.option.status === 'available' &&
@@ -43,6 +50,7 @@ export const canPayFromL2 = (row: L2PaymentRow): boolean =>
   row.amountInRaw !== undefined &&
   row.option.balanceRaw !== null &&
   row.option.balanceRaw >= row.amountInRaw &&
+  !isL2Empty(row) &&
   !row.isQuoteStale
 
 /** What the permit would carry: the budget less what the account holds. */

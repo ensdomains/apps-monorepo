@@ -1203,4 +1203,41 @@ describe('TokenPickerContentBase L2 rows', () => {
     ).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
+
+  describe('an empty L2, with nothing left to bridge', () => {
+    const covered = { ...underfunded, walletDebit: 0, hcaCredit: 5 }
+    const emptyRow = () => {
+      const row = baseSepoliaRow('available', { amountInRaw: 0n })
+      return { ...row, option: { ...row.option, balanceRaw: 0n } }
+    }
+
+    it('is not listed', () => {
+      renderPicker({
+        funding: covered,
+        selectedToken: undefined,
+        l2Payment: l2Payment(emptyRow()),
+      })
+
+      expect(
+        screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('is not listed or paid from once chosen, and the wallet takes over', () => {
+      const payment = l2Payment(emptyRow(), baseSepolia.id)
+      const onSelectCoin = renderPicker({
+        funding: covered,
+        selectedToken: 'USDC',
+        l2Payment: payment,
+      })
+
+      expect(
+        screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'Register name' }),
+      ).toBeDisabled()
+      expect(onSelectCoin).toHaveBeenCalledWith('USDC')
+    })
+  })
 })

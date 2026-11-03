@@ -13,7 +13,7 @@ import { coinIcons } from '@/assets/coins'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import type { L2PaymentRow } from '../hooks/useL2Payment'
+import { isL2Empty, type L2PaymentRow } from '../hooks/useL2Payment'
 import { getWalletShortfall } from '../lib/paymentReceiptFigures'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
@@ -36,7 +36,7 @@ const isShortOfQuote = ({ option, amountInRaw }: L2PaymentRow) =>
   option.balanceRaw < amountInRaw
 
 export const isL2ShortOfFunds = (row: L2PaymentRow) =>
-  row.option.status === 'insufficient' || isShortOfQuote(row)
+  row.option.status === 'insufficient' || isShortOfQuote(row) || isL2Empty(row)
 
 /** The highest quoted L2 charge, standing in for chains that cannot be quoted. */
 export const getEstimatedL2AmountIn = (rows: readonly L2PaymentRow[]) =>
