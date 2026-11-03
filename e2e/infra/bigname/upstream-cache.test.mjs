@@ -116,3 +116,75 @@ test('immutable requests coalesce, state reads bypass history backlog fairly, an
     await rm(cache, { recursive: true, force: true })
   }
 })
+
+test('a 4xx carrying a JSON-RPC error is answered at once, not retried ahead of the queue', async () => {
+  const seen = []
+  const upstream = http.createServer(async (req, res) => {
+    let body = ''
+    for await (const chunk of req) body += chunk
+    const q = JSON.parse(body)
+    seen.push(q.method)
+    res.setHeader('content-type', 'application/json')
+    if (q.method === 'eth_getAccountInfo') {
+      // What drpc sends for a method it does not serve.
+      res.statusCode = 400
+      res.end(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: q.id,
+          error: { code: -32601, message: 'the method does not exist' },
+        }),
+      )
+      return
+    }
+    res.end(JSON.stringify({ jsonrpc: '2.0', id: q.id, result: '0x1' }))
+  })
+  const upstreamPort = await listen(upstream)
+  const reserve = http.createServer()
+  const port = await listen(reserve)
+  await new Promise((resolve) => reserve.close(resolve))
+  const cache = await mkdtemp(path.join(tmpdir(), 'matrix-upstream-test-'))
+  const child = spawn(
+    process.execPath,
+    [new URL('./upstream-cache.mjs', import.meta.url).pathname],
+    {
+      env: {
+        ...process.env,
+        PORT: String(port),
+        UPSTREAM_RPC_URL: `http://127.0.0.1:${upstreamPort}`,
+        CACHE_DIR: cache,
+        UPSTREAM_MIN_INTERVAL_MS: '0',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  )
+  const request = async (method, params, id) =>
+    (
+      await fetch(`http://127.0.0.1:${port}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+        // A retry backs off a second or more; an answer comes back at once.
+        signal: AbortSignal.timeout(800),
+      })
+    ).json()
+  try {
+    await new Promise((resolve, reject) => {
+      child.stdout.once('data', resolve)
+      child.once('error', reject)
+    })
+    const [unsupported, next] = await Promise.all([
+      request('eth_getAccountInfo', ['0xabc', '0x123'], 1),
+      request('eth_getCode', ['0xabc', '0x123'], 2),
+    ])
+    assert.equal(unsupported.error.code, -32601)
+    assert.equal(unsupported.id, 1)
+    assert.equal(next.result, '0x1')
+    assert.deepEqual(seen, ['eth_getAccountInfo', 'eth_getCode'])
+  } finally {
+    child.kill('SIGTERM')
+    await new Promise((resolve) => child.once('exit', resolve))
+    await new Promise((resolve) => upstream.close(resolve))
+    await rm(cache, { recursive: true, force: true })
+  }
+})

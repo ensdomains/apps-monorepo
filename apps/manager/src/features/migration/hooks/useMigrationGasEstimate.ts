@@ -8,32 +8,32 @@ import { useMemo } from 'react'
 import { type Address, formatEther, type PublicClient } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { chain } from '@/config'
-import {
-  buildMigrationPlan,
-  buildMigrationRecoveryPlan,
-  type MigrationPlan,
-  MigrationRecoveryPlanError,
-} from '@/features/migration/service/buildMigrationPlan'
-import type { MigrationPreflight } from '@/features/migration/service/computeMigrationPreflight'
-import { estimateMigrationGasCost } from '@/features/migration/service/estimateMigrationGasCost'
-import type { MigrationRecoverySnapshot } from '@/features/migration/service/migrationBatchJournal'
+import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import {
   type MigrationPreparationFailure,
   migrationPreparationFailure,
-  runMigrationPreparationStage,
 } from '@/features/migration/service/migrationPreparationError'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
-import { publishPreparedSubnameImpact } from '../service/subnameMigrationImpactQuery'
+import { V1_CONTRACTS } from '../contracts/addresses'
+import type { MigrationEstimateProgress } from '../service/migrationEstimateProgress'
+import { prepareUpgrade } from '../service/prepareUpgrade'
+import type { RpcSubnameInventory } from '../service/readRpcSubnameInventory'
 import {
-  assertSupportedSubnameMigration,
-  discoverSubnameRecreation,
-} from '../service/subnameRecreation'
+  getReusableRpcSubnameInventory,
+  getRpcSubnameInventoryCacheKey,
+} from '../service/rpcSubnameInventoryCache'
+import { publishPreparedSubnameImpact } from '../service/subnameMigrationImpactQuery'
+import { useUpgradeReadCoordinator } from '../state/upgradeReadCoordinator.context'
+import { useMigrationEstimateProgress } from './useMigrationEstimateProgress'
 import { useMigrationPreflight } from './useMigrationPreflight'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
 export type MigrationGasEstimateState =
   | { readonly status: 'idle' }
-  | { readonly status: 'loading' }
+  | {
+      readonly status: 'loading'
+      readonly progress?: MigrationEstimateProgress
+    }
   | {
       readonly status: 'ready'
       readonly formattedEth: string
@@ -88,131 +88,6 @@ const formatEstimatedEth = (wei: bigint): string => {
   return trimmedFraction.length > 0 ? `${whole}.${trimmedFraction}` : whole
 }
 
-const buildEstimate = async (params: {
-  readonly ownerAddress: Address | undefined
-  readonly hcaAddress: Address | undefined
-  readonly publicClient: PublicClient | undefined
-  readonly recoverySnapshot: MigrationRecoverySnapshot | null
-  readonly recoverySelectionMatches: boolean
-  readonly domains: readonly V1Domain[]
-  readonly shouldRecreateSubnames: boolean
-  readonly managerRestorationNames: readonly string[]
-  readonly canBatchAtomically: boolean
-  readonly signal: AbortSignal
-  readonly ensurePreflight: (
-    domains: readonly V1Domain[],
-    options: {
-      readonly signal: AbortSignal
-      readonly staleTime: number
-      readonly requiresManagerRestoration: boolean
-      readonly requiresRegistryConfiguration: boolean
-    },
-  ) => Promise<MigrationPreflight>
-}) => {
-  const { ownerAddress, hcaAddress, publicClient } = params
-  params.signal.throwIfAborted()
-  if (!ownerAddress || !hcaAddress || !publicClient) {
-    return runMigrationPreparationStage('account', () =>
-      Promise.reject(new Error('Account setup incomplete')),
-    )
-  }
-  const recoverySnapshot = params.recoverySnapshot
-  if (recoverySnapshot) {
-    if (!params.recoverySelectionMatches) {
-      return runMigrationPreparationStage('recovery', () =>
-        Promise.reject(
-          new MigrationRecoveryPlanError({
-            message: 'Select every remaining name to continue your upgrade.',
-            reason: 'operation-mismatch',
-          }),
-        ),
-      )
-    }
-    const plan = await runMigrationPreparationStage('recovery', () =>
-      buildMigrationRecoveryPlan({
-        snapshot: recoverySnapshot,
-        hcaAddress,
-        migrationOwner: ownerAddress,
-        publicClient,
-        canBatchAtomically: params.canBatchAtomically,
-        signal: params.signal,
-      }),
-    )
-    params.signal.throwIfAborted()
-    const estimate = await runMigrationPreparationStage('fee', async () => {
-      const result = await estimateMigrationGasCost({ plan, publicClient })
-      if (result.status === 'error') throw result.error
-      return result
-    })
-    params.signal.throwIfAborted()
-    return {
-      estimate,
-      plan: {
-        ...plan,
-        isSubnameRecreationEnabled: params.shouldRecreateSubnames,
-      },
-    }
-  }
-  const discovery = params.shouldRecreateSubnames
-    ? await runMigrationPreparationStage('plan', () =>
-        discoverSubnameRecreation({
-          domains: params.domains,
-          owner: ownerAddress,
-          publicClient,
-          signal: params.signal,
-        }),
-      )
-    : undefined
-  const recreation = discovery?.snapshot.roots.length ? discovery : undefined
-  const preflight = await runMigrationPreparationStage('preflight', () =>
-    params.ensurePreflight(params.domains, {
-      signal: params.signal,
-      staleTime: 0,
-      requiresManagerRestoration: params.managerRestorationNames.length > 0,
-      requiresRegistryConfiguration: false,
-    }),
-  )
-  params.signal.throwIfAborted()
-  const plan = await runMigrationPreparationStage('plan', () =>
-    buildMigrationPlan({
-      domains: recreation?.domains ?? params.domains,
-      subnameRecreation: recreation
-        ? { snapshot: recreation.snapshot }
-        : undefined,
-      hcaAddress,
-      migrationOwner: ownerAddress,
-      managerRestorationNames: params.managerRestorationNames,
-      publicClient,
-      preflight,
-      canBatchAtomically: params.canBatchAtomically,
-      signal: params.signal,
-    }),
-  )
-  params.signal.throwIfAborted()
-  const subnameImpact = await runMigrationPreparationStage('plan', () =>
-    assertSupportedSubnameMigration({
-      publicClient,
-      ownerAddress,
-      classified: plan.classified,
-      signal: params.signal,
-    }),
-  )
-  const estimate = await runMigrationPreparationStage('fee', async () => {
-    const result = await estimateMigrationGasCost({ plan, publicClient })
-    if (result.status === 'error') throw result.error
-    return result
-  })
-  params.signal.throwIfAborted()
-  return {
-    estimate,
-    subnameImpact,
-    plan: {
-      ...plan,
-      isSubnameRecreationEnabled: params.shouldRecreateSubnames,
-    },
-  }
-}
-
 export const useMigrationGasEstimate = ({
   ownerAddress,
   hcaAddress,
@@ -230,6 +105,7 @@ export const useMigrationGasEstimate = ({
   )
   const shouldRecreateSubnames = helperFlag === true
   const publicClient = usePublicClient({ chainId: chain.id })
+  const coordinator = useUpgradeReadCoordinator()
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress,
     hcaAddress,
@@ -288,20 +164,25 @@ export const useMigrationGasEstimate = ({
         ),
       ))
 
+  const queryKey = [
+    'migration-gas-estimate',
+    {
+      shouldRecreateSubnames,
+      ownerAddress: ownerAddress?.toLowerCase() ?? '',
+      hcaAddress: hcaAddress?.toLowerCase() ?? '',
+      domainIds,
+      selectedNames: selectedNamesKey,
+      managerRestorationNames: managerRestorationKey,
+      recoveryOperations,
+      canBatchAtomically,
+    },
+  ] as const
+  const { progress, start: startProgress } = useMigrationEstimateProgress(
+    queryKey,
+    selectedNamesKey,
+  )
   const query = useQuery({
-    queryKey: [
-      'migration-gas-estimate',
-      {
-        shouldRecreateSubnames,
-        ownerAddress: ownerAddress?.toLowerCase() ?? '',
-        hcaAddress: hcaAddress?.toLowerCase() ?? '',
-        domainIds,
-        selectedNames: selectedNamesKey,
-        managerRestorationNames: managerRestorationKey,
-        recoveryOperations,
-        canBatchAtomically,
-      },
-    ] as const,
+    queryKey,
     enabled,
     gcTime: 0,
     staleTime: 0,
@@ -309,7 +190,27 @@ export const useMigrationGasEstimate = ({
     refetchOnReconnect: false,
     queryFn: async ({ signal }) => {
       await waitForStableSelection(signal)
-      const prepared = await buildEstimate({
+      const progressHandlers = startProgress(signal)
+      const inventoryKey = ownerAddress
+        ? getRpcSubnameInventoryCacheKey({
+            ownerAddress,
+            chainId: chain.id,
+            registryAddress: V1_CONTRACTS.LegacyRegistry,
+            nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+          })
+        : undefined
+      const inventory = getReusableRpcSubnameInventory({
+        inventory: inventoryKey
+          ? queryClient.getQueryData<RpcSubnameInventory>(inventoryKey)
+          : undefined,
+        chainId: chain.id,
+        registryAddress: V1_CONTRACTS.LegacyRegistry,
+        nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+        names: domains.map(({ name }) => name),
+      })
+      const prepared = await prepareUpgrade({
+        coordinator: coordinator ?? undefined,
+        ...progressHandlers,
         ownerAddress,
         hcaAddress,
         publicClient: publicClient as unknown as PublicClient | undefined,
@@ -320,6 +221,13 @@ export const useMigrationGasEstimate = ({
         managerRestorationNames: managerRestorationKey,
         canBatchAtomically,
         ensurePreflight,
+        inventory,
+        onInventory: inventoryKey
+          ? (value) => {
+              signal.throwIfAborted()
+              queryClient.setQueryData(inventoryKey, value)
+            }
+          : undefined,
         signal,
       })
       if (
@@ -359,11 +267,12 @@ export const useMigrationGasEstimate = ({
       publicClient &&
       !hcaAddress
     ) {
-      return { status: 'loading' }
+      return { status: 'loading', ...(progress && { progress }) }
     }
     return { status: 'idle' }
   }
-  if (query.isPending || query.isFetching) return { status: 'loading' }
+  if (query.isPending || query.isFetching)
+    return { status: 'loading', ...(progress && { progress }) }
   if (query.isError)
     return { status: 'error', ...migrationPreparationFailure(query.error) }
   if (!query.data) return { status: 'idle' }
