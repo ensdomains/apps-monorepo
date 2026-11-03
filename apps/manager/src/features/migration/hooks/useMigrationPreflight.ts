@@ -15,8 +15,11 @@ type HookParams = {
 }
 
 type EnsureOptions = {
+  readonly publicClient?: PublicClient
+  readonly verificationClient?: PublicClient
   readonly signal?: AbortSignal
   readonly staleTime?: number
+  readonly onNamesRead?: (names: readonly string[]) => void | Promise<void>
   /** Whether any name was opted in to manager restoration. */
   readonly requiresManagerRestoration?: boolean
   readonly requiresRegistryConfiguration?: boolean
@@ -65,12 +68,16 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
           requiresManagerRestoration,
           requiresRegistryConfiguration,
           wagmiConfig,
-          publicClient: publicClient as unknown as PublicClient,
+          publicClient: options.publicClient ?? publicClient,
+          verificationClient: options.verificationClient,
+          approvalReadClient: options.publicClient,
           signal: options.signal,
+          onNamesRead: options.onNamesRead,
         }),
       staleTime: options.staleTime ?? 60_000,
     })
     options.signal?.throwIfAborted()
+    await options.onNamesRead?.(domains.map(({ name }) => name))
     return preflight
   }
 

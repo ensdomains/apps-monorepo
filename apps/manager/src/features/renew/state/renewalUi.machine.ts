@@ -1,4 +1,9 @@
-import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
+import type {
+  HcaFundingApprovalCapability,
+  RhinestoneSigner,
+  Signer,
+} from '@ens-apps/transaction-manager'
+import { HcaFundingApprovalDeclinedError } from '@ens-apps/transaction-manager/helpers/hca-funding-approval'
 import {
   HcaFundingDeclinedError,
   type HcaFundingPrompt,
@@ -27,7 +32,7 @@ import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 
 // Two routes pay for a renewal. A smart-account signer renews as an
-// owner-signed HCA intent: no plain transactions, no gas token, and the rent
+// owner-signed HCA intent: rent
 // (in the chosen stable) and fee (in USDC) come out of the account, funded in
 // the same intent when short. An EOA signer keeps the direct-wallet route:
 // allowance check, approve and renew as plain wagmi transactions. `renew`
@@ -94,11 +99,13 @@ export const renewalUiMachine = setup({
        * Parks the HCA funding on the user's answer. Lives in context so the
        * invoked intent submit can reach the component that renders the prompt.
        */
+      approvalFallback?: HcaFundingApprovalCapability
       confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
     },
     input: {} as {
       currentExpiry: bigint
       protocol: RenewalProtocol
+      approvalFallback?: HcaFundingApprovalCapability
       confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
     },
     events: {} as
@@ -147,8 +154,13 @@ export const renewalUiMachine = setup({
     // The intent route submits and WAITS for the fill here, so there is nothing
     // left to poll afterwards.
     submitHcaRenewalIntent: fromPromise(
-      async ({ input }: { input: Parameters<typeof submitHcaRenewal>[0] }) =>
-        (await submitHcaRenewal(input)).txId,
+      async ({
+        input,
+        signal,
+      }: {
+        input: Parameters<typeof submitHcaRenewal>[0]
+        signal: AbortSignal
+      }) => (await submitHcaRenewal({ ...input, signal })).txId,
     ),
     readExpiry: fromResultAsync(
       (input: { name: string; protocol: RenewalProtocol }) =>
@@ -250,6 +262,7 @@ export const renewalUiMachine = setup({
     selectedToken: undefined,
     lastErrorMessage: undefined,
     confirmFunding: input.confirmFunding,
+    approvalFallback: input.approvalFallback,
   }),
   initial: 'pricing',
   states: {
@@ -297,7 +310,8 @@ export const renewalUiMachine = setup({
     },
     // Smart-account route: ONE owner-signed intent renews the name and moves
     // the USDC to pay for it (rent plus fee), so there is no approve
-    // transaction and no gas token. `submitHcaRenewal` resolves only once the
+    // intent, with a separately consented USDC approval fallback when needed.
+    // `submitHcaRenewal` resolves only once the
     // intent has filled, so success needs no polling step of its own.
     submittingHcaRenewal: {
       tags: 'renewing',
@@ -332,6 +346,9 @@ export const renewalUiMachine = setup({
             walletClient: submission.walletClient,
             publicClient,
             chainId: envConfig.chain.id,
+            ...(context.approvalFallback
+              ? { approvalFallback: context.approvalFallback }
+              : {}),
             ...(context.confirmFunding
               ? { confirmFunding: context.confirmFunding }
               : {}),
@@ -346,11 +363,11 @@ export const renewalUiMachine = setup({
         },
         onError: [
           {
-            // Declining the funding prompt is a cancel, not a failure: nothing
-            // was signed and nothing was spent, so hand the user back to the
-            // payment step instead of a failure screen (as the bulk route does).
+            // Either consent can be declined without submitting a renewal.
+            // A permit may already be signed before the separate approval consent.
             guard: ({ event }) =>
-              event.error instanceof HcaFundingDeclinedError,
+              event.error instanceof HcaFundingDeclinedError ||
+              event.error instanceof HcaFundingApprovalDeclinedError,
             target: '#renewalUi.pricing.tokens',
           },
           {

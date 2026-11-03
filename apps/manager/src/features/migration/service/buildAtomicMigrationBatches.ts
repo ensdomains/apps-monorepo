@@ -451,6 +451,8 @@ export type BuildAtomicMigrationBatchesParams = {
   readonly estimateBatchGas: EstimateAtomicMigrationBatchGas
   /** Execution only: return once the leading executable batch is known. */
   readonly firstBatchOnly?: boolean
+  /** Preview only: cumulative names whose groups have a usable gas estimate. */
+  readonly onNamesEstimated?: (names: readonly string[]) => void | Promise<void>
   /** Preview-derived leading batch size used to seed live gas discovery. */
   readonly initialBatchSize?: number
 }
@@ -1671,12 +1673,14 @@ export const buildAtomicMigrationBatches = async (
       estimateBatchGas: params.estimateBatchGas,
       initialBatchSize: params.initialBatchSize,
     })
+    if (batch) await params.onNamesEstimated?.(batch.names)
     return { resolver, batches: batch ? [batch] : [] }
   }
 
   const batches: AtomicMigrationBatch[] = []
   let currentNameExecutions: readonly AtomicMigrationNameExecution[] = []
   let currentBatch: AtomicMigrationBatch | null = null
+  let estimatedNames: readonly string[] = []
 
   for (const nameGroup of grouped.values()) {
     const nameExecution = nameGroup[0]
@@ -1705,6 +1709,11 @@ export const buildAtomicMigrationBatches = async (
     if (maxBatchGas(candidate) <= params.maxOuterGas) {
       currentNameExecutions = candidateNameExecutions
       currentBatch = candidate
+      estimatedNames = [
+        ...estimatedNames,
+        ...nameGroup.map(({ classified }) => classified.domain.name),
+      ]
+      await params.onNamesEstimated?.(estimatedNames)
       continue
     }
 
@@ -1735,6 +1744,11 @@ export const buildAtomicMigrationBatches = async (
     }
     currentNameExecutions = nameGroup
     currentBatch = singleNameBatch
+    estimatedNames = [
+      ...estimatedNames,
+      ...nameGroup.map(({ classified }) => classified.domain.name),
+    ]
+    await params.onNamesEstimated?.(estimatedNames)
   }
 
   if (currentBatch) batches.push(currentBatch)
