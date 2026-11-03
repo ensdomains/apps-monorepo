@@ -188,7 +188,12 @@ describe('getAddressNames', () => {
       [
         lapsed('released-recently.eth', 'ens_v2', 29n, 28n),
         lapsed('released-long-ago.eth', 'ens_v2', 30n, 28n),
-        lapsed('released-v1.eth', 'ens_v1', 95n, 90n),
+        // A reserved ENSv1 lease: the reservation is the top-level expiry,
+        // 62 days after the lease, and grace ends 90 days after the lease.
+        {
+          ...lapsed('released-v1.eth', 'ens_v1', 29n, 28n),
+          ens_v1: { expires_at: String(NOW_SECONDS - 91n * DAY) },
+        },
       ],
     )
 
