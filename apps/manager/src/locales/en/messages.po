@@ -3290,6 +3290,10 @@ msgid "Support"
 msgstr "Support"
 
 #: src/features/dashboard/components/FaqSection.tsx
+#~ msgid "Supported direct subnames, such as alice.example.eth, can be included when you upgrade an unwrapped or unlocked example.eth. Each keeps the owner and resolver shown in your review. Existing subname records stay on that resolver, and you keep control of the parent name."
+#~ msgstr "Supported direct subnames, such as alice.example.eth, can be included when you upgrade an unwrapped or unlocked example.eth. Each keeps the owner and resolver shown in your review. Existing subname records stay on that resolver, and you keep control of the parent name."
+
+#: src/features/dashboard/components/FaqSection.tsx
 msgid "Supported direct subnames, such as alice.example.eth, upgrade with an unwrapped or unlocked example.eth:"
 msgstr "Supported direct subnames, such as alice.example.eth, upgrade with an unwrapped or unlocked example.eth:"
 
