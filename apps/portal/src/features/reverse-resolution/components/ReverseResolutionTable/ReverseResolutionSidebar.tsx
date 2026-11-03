@@ -1,8 +1,10 @@
 import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import { ArrowLeftRight, CheckCircle2, Clock, XCircle } from 'lucide-react'
+import { Result } from 'neverthrow'
 import {
   type FC,
   type PropsWithChildren,
@@ -13,6 +15,7 @@ import {
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
+import { normalize } from 'viem/ens'
 import { useConnection } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { InfoRow } from '@/components/InfoCard'
@@ -28,6 +31,10 @@ import {
 import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
 import { AddressRecordHistory } from '@/features/records/components/AddressRecordHistory'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
+import {
+  getNameResolver,
+  getNameResolverQueryOptions,
+} from '@/features/records/hooks/useNameResolverAddress'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -162,13 +169,17 @@ const ReverseNameField = ({
   )
 }
 
+const unreachableReason = (name: string) =>
+  `${name} no longer resolves, usually because it or its parent name has expired`
+
 /**
  * Why the row isn't a primary name, and — when the viewer can't fix it — what
- * stands in the way. Three cases:
+ * stands in the way. Four cases:
  *
  * - an inherited `default.reverse` name: the record exists and is displayed,
  *   but anyone can point `default.reverse` at any name, so without a matching
  *   forward record it is a claim rather than a resolution that failed.
+ * - a name lookups no longer reach: no `setAddr` can make it resolve.
  * - a name this wallet has no authority over: pointing it back is a `setAddr`
  *   on *that name's* resolver, so only its owner can close the mismatch. Say
  *   so, since the action above is visible but disabled.
@@ -178,20 +189,32 @@ const mismatchReason = ({
   displayName,
   label,
   isUnverifiedDefault,
+  isUnreachable,
   lacksNameAuthority,
   isNameAuthorityUnknown,
 }: {
   displayName: string
   label: string
   isUnverifiedDefault: boolean
+  isUnreachable: boolean
   lacksNameAuthority: boolean
   isNameAuthorityUnknown: boolean
 }) =>
-  match({ isUnverifiedDefault, lacksNameAuthority, isNameAuthorityUnknown })
+  match({
+    isUnverifiedDefault,
+    isUnreachable,
+    lacksNameAuthority,
+    isNameAuthorityUnknown,
+  })
     .with(
       { isUnverifiedDefault: true },
       () =>
         `${displayName} is claimed as the default reverse name but does not resolve back to this address — it is unverified`,
+    )
+    .with(
+      { isUnreachable: true },
+      () =>
+        `The set address does not resolve back to this name on ${label}. ${unreachableReason(displayName)}.`,
     )
     .with(
       { lacksNameAuthority: true },
@@ -219,6 +242,7 @@ const mismatchReason = ({
  *   own call to action, so a button that disappears reads as a bug rather than
  *   an explanation. Disabled while the permission read is in flight, so it never
  *   flashes enabled for a name that turns out to belong to someone else.
+ *   Disabled too unless lookups reach the resolver it writes.
  */
 const primaryActionState = ({
   isForwardRecordMissing,
@@ -227,6 +251,7 @@ const primaryActionState = ({
   canSetAddress,
   isNameAuthorityLoading,
   isNameAuthorityError,
+  reach,
 }: {
   isForwardRecordMissing: boolean
   isDefaultRow: boolean
@@ -234,6 +259,7 @@ const primaryActionState = ({
   canSetAddress: boolean
   isNameAuthorityLoading: boolean
   isNameAuthorityError: boolean
+  reach: NameReach
 }) => {
   const isOffered = isForwardRecordMissing && !isDefaultRow && isOwnAddress
   const isSettled = !isNameAuthorityLoading && !isNameAuthorityError
@@ -241,11 +267,17 @@ const primaryActionState = ({
   return {
     isOffered,
     isDisabledByNameAuthority: !canSetAddress || !isSettled,
+    isDisabledByReach: reach !== 'reachable',
     /** Offered, settled, and refused — the only case worth explaining. */
     isBlockedByNameAuthority: isOffered && isSettled && !canSetAddress,
-    isNameAuthorityUnknown: isOffered && isNameAuthorityError,
+    // Either read failing leaves "can you point it back" unanswered.
+    isNameAuthorityUnknown:
+      isOffered && (isNameAuthorityError || reach === 'unknown'),
   }
 }
+
+/** Whether lookups reach the resolver "Set primary name" writes. */
+type NameReach = 'checking' | 'reachable' | 'unreachable' | 'unknown'
 
 interface ReverseResolutionSidebarProps extends PropsWithChildren {
   row: Row<ReverseResolutionResult> | null
@@ -318,6 +350,8 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     reverseRegistrarChainId,
   })
 
+  const forwardName = displayName ?? ''
+
   // "Set primary name" here writes the *forward* record (`setAddr` /
   // `setAddress` on the name's own resolver), so it needs the same authority
   // as editing that address record, not name ownership.
@@ -326,15 +360,29 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     isLoading: isNameAuthorityLoading,
     isError: isNameAuthorityError,
   } = useCanEditRecords({
-    name: displayName ?? '',
+    name: forwardName,
     roles: ['ROLE_SET_ADDRESS'],
     scope: { kind: 'address', coinType: BigInt(coinType) },
   })
+
+  // An ENSv1 name under an expired parent keeps its resolver in the ENSv1
+  // registry, but lookups no longer reach it.
+  const nameResolverQuery = useQuery({
+    ...getNameResolverQueryOptions({ name: forwardName }),
+    enabled: isForwardRecordMissing,
+  })
+  const reach = match(nameResolverQuery)
+    .returnType<NameReach>()
+    .with({ status: 'pending' }, () => 'checking')
+    .with({ status: 'error' }, () => 'unknown')
+    .with({ data: { source: 'v1-registry' } }, () => 'unreachable')
+    .otherwise(() => 'reachable')
 
   const {
     isOffered: canSetAsPrimary,
     isBlockedByNameAuthority,
     isDisabledByNameAuthority,
+    isDisabledByReach,
     isNameAuthorityUnknown,
   } = primaryActionState({
     isForwardRecordMissing,
@@ -343,6 +391,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     canSetAddress,
     isNameAuthorityLoading,
     isNameAuthorityError,
+    reach,
   })
 
   const [nameInput, setNameInput] = useState('')
@@ -548,6 +597,20 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     // user proceed (WEB-382).
     void warnIfNameNotRegistered(nameInput)
 
+    // Also non-blocking: the reverse record is still valid, it just won't verify.
+    void Result.fromThrowable(normalize)(nameInput)
+      .asyncAndThen((name) => getNameResolver({ name }))
+      .match(
+        (resolver) => {
+          if (resolver?.source === 'v1-registry') {
+            toast.warning(
+              `${unreachableReason(nameInput)} — it won't work as your primary name until it resolves again.`,
+            )
+          }
+        },
+        () => {},
+      )
+
     // Switch first if the wallet is on the wrong chain; only continue with
     // the actual write once the switch is complete. Doing this fire-and-
     // forget previously meant the first click only switched chains and the
@@ -635,6 +698,18 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       )
       return
     }
+    // A `setAddr` on a resolver lookups don't reach succeeds and changes nothing.
+    if (reach !== 'reachable') {
+      toast.error(
+        match(reach)
+          .with('unreachable', () => `${unreachableReason(displayName)}.`)
+          .otherwise(
+            () =>
+              `We couldn't check whether ${displayName} resolves. Refresh and try again.`,
+          ),
+      )
+      return
+    }
     try {
       // Target the signer, not the address in the route: `setAddr` writes the
       // record that decides which address the name resolves to.
@@ -676,6 +751,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     disabled={
                       !isConnected ||
                       isDisabledByNameAuthority ||
+                      isDisabledByReach ||
                       isEnsOwnerLoading ||
                       isResolverKindLoading ||
                       isForwardResolutionPending ||
@@ -714,6 +790,8 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     displayName,
                     label,
                     isUnverifiedDefault,
+                    // A property of the name, so visitors see it too.
+                    isUnreachable: reach === 'unreachable',
                     lacksNameAuthority: isBlockedByNameAuthority,
                     isNameAuthorityUnknown,
                   })}
@@ -833,9 +911,12 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   transactionName: `Set primary name to ${displayName}`,
                   intent: {
                     prepare:
-                      // No gas estimate for a `setAddr` this wallet has no
-                      // authority to make — it would only simulate a revert.
-                      isConnected && displayName && canSetAddress
+                      // No gas estimate for a `setAddr` that would revert or
+                      // that lookups wouldn't read.
+                      isConnected &&
+                      displayName &&
+                      canSetAddress &&
+                      reach === 'reachable'
                         ? ({ walletClient, chainId }) => {
                             // `walletClient.account.address` is the account that
                             // will actually sign — the only correct `setAddr`
