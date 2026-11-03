@@ -6,7 +6,7 @@ const meta = {
   component: PaymentAction,
   decorators: [
     (Story) => (
-      <div className="max-w-[420px] bg-white p-6">
+      <div className="max-w-105 bg-white p-6">
         <Story />
       </div>
     ),

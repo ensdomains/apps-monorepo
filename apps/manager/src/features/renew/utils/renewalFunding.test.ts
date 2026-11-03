@@ -133,7 +133,7 @@ describe('getRenewalPaymentScreen', () => {
       quote: failedQuote,
     })
 
-    expect(screen).toEqual({ ...failedQuote, needsApproval: false })
+    expect(screen).toEqual({ ...failedQuote, isApprovalRequired: false })
   })
 
   it.each([
@@ -150,7 +150,7 @@ describe('getRenewalPaymentScreen', () => {
 
       expect(screen.hasQuoteFailed).toBe(false)
       expect(screen.isQuoting).toBe(false)
-      expect(screen.needsApproval).toBe(true)
+      expect(screen.isApprovalRequired).toBe(true)
       expect(screen.funding?.registration).toBeCloseTo(8.8)
       expect(screen.funding?.networkFee).toBeCloseTo(0.9)
       expect(screen.funding?.total).toBeCloseTo(9.7)
@@ -194,6 +194,6 @@ describe('getRenewalPaymentScreen', () => {
     expect(screen.funding?.hcaCredit).toBeCloseTo(1)
     expect(screen.walletDebitFor?.('DAI')).toBeCloseTo(7)
     // The rent token's permit is still a payment approval.
-    expect(screen.needsApproval).toBe(true)
+    expect(screen.isApprovalRequired).toBe(true)
   })
 })

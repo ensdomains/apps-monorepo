@@ -87,23 +87,28 @@ export const TokenPickerContent = () => {
 
   // An increased payment replaces the receipt with the figures the wallet
   // would actually be asked for.
-  const { funding, walletDebitFor, isQuoting, hasQuoteFailed, needsApproval } =
-    getRenewalPaymentScreen({
-      prompt: paymentUpdate?.prompt,
-      selectedToken: token,
-      quote,
-    })
+  const {
+    funding,
+    walletDebitFor,
+    isQuoting,
+    hasQuoteFailed,
+    isApprovalRequired,
+  } = getRenewalPaymentScreen({
+    prompt: paymentUpdate?.prompt,
+    selectedToken: token,
+    quote,
+  })
 
   const isFullyCovered = funding?.walletDebit === 0
   const nextMessage = match({
     isReviewingPayment,
-    needsApproval,
+    isApprovalRequired,
     isAwaitingApproval,
     isIntentRoute,
     isQuoting,
     isFullyCovered,
   })
-    .with({ isReviewingPayment: true, needsApproval: true }, () => (
+    .with({ isReviewingPayment: true, isApprovalRequired: true }, () => (
       <Trans>Sign payment approval</Trans>
     ))
     .with({ isReviewingPayment: true }, () => <Trans>Sign renewal</Trans>)
@@ -210,7 +215,7 @@ export const TokenPickerContent = () => {
       receiptNotice={
         paymentUpdate && (
           <PaymentUpdateNotice
-            needsApproval={needsApproval}
+            isApprovalRequired={isApprovalRequired}
             status={paymentUpdate.status}
           />
         )

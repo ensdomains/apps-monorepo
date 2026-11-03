@@ -141,7 +141,7 @@ const getUpdatedRenewalFunding = ({
   readonly selectedToken: RENEWAL_TOKEN
   /** The earlier quote's per-coin debit, kept for the coins not chosen. */
   readonly quotedWalletDebitFor: ((symbol: TOKEN_SYMBOL) => number) | undefined
-}): RenewalFunding & { readonly needsApproval: boolean } => {
+}): RenewalFunding & { readonly isApprovalRequired: boolean } => {
   const usdc = (value: bigint) => decimalBigintToNumber(value, USDC_DECIMALS)
   const { token } = prompt
   const tokenOf = (value: bigint) =>
@@ -170,7 +170,7 @@ const getUpdatedRenewalFunding = ({
       symbol === selectedToken
         ? selectedCoinDebit
         : (quotedWalletDebitFor?.(symbol) ?? walletDebit),
-    needsApproval: prompt.requiresPermit || !!token?.requiresPermit,
+    isApprovalRequired: prompt.requiresPermit || !!token?.requiresPermit,
   }
 }
 
@@ -196,8 +196,8 @@ export const getRenewalPaymentScreen = ({
   readonly prompt: HcaFundingPrompt | undefined
   readonly selectedToken: RENEWAL_TOKEN
   readonly quote: ScreenQuote
-}): ScreenQuote & { readonly needsApproval: boolean } => {
-  if (!prompt) return { ...quote, needsApproval: false }
+}): ScreenQuote & { readonly isApprovalRequired: boolean } => {
+  if (!prompt) return { ...quote, isApprovalRequired: false }
   const updated = getUpdatedRenewalFunding({
     prompt,
     selectedToken,
@@ -208,6 +208,6 @@ export const getRenewalPaymentScreen = ({
     walletDebitFor: updated.walletDebitFor,
     isQuoting: false,
     hasQuoteFailed: false,
-    needsApproval: updated.needsApproval,
+    isApprovalRequired: updated.isApprovalRequired,
   }
 }

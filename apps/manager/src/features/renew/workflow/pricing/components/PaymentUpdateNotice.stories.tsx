@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
+import { match } from 'ts-pattern'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
 import { PaymentDialogBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerDialog'
 import type { StablecoinBalance } from '@/lib/smart-account'
@@ -9,12 +10,12 @@ const meta = {
   component: PaymentUpdateNotice,
   decorators: [
     (Story) => (
-      <div className="max-w-[420px] bg-white p-6">
+      <div className="max-w-105 bg-white p-6">
         <Story />
       </div>
     ),
   ],
-  args: { status: 'reviewing', needsApproval: true },
+  args: { status: 'reviewing', isApprovalRequired: true },
 } satisfies Meta<typeof PaymentUpdateNotice>
 
 export default meta
@@ -27,7 +28,7 @@ export const SigningWithApproval: Story = {
 }
 
 export const SigningRenewalOnly: Story = {
-  args: { status: 'accepted', needsApproval: false },
+  args: { status: 'accepted', isApprovalRequired: false },
 }
 
 const WALLET_USDC: StablecoinBalance = {
@@ -41,10 +42,10 @@ const WALLET_USDC: StablecoinBalance = {
 /** The updated receipt as the renewal payment dialog shows it (screens 06 and 07). */
 const RenewalReceipt = ({
   status,
-  needsApproval,
+  isApprovalRequired,
 }: {
   readonly status: 'reviewing' | 'accepted'
-  readonly needsApproval: boolean
+  readonly isApprovalRequired: boolean
 }) => (
   <PaymentDialogBase
     isDismissible={false}
@@ -67,19 +68,22 @@ const RenewalReceipt = ({
       isEstimate
       isLoadingBalances={false}
       label="erni"
-      nextMessage={
-        status === 'reviewing'
-          ? needsApproval
-            ? 'Sign payment approval'
-            : 'Sign renewal'
-          : 'Signing renewal…'
-      }
+      nextMessage={match({ status, isApprovalRequired })
+        .with(
+          { status: 'reviewing', isApprovalRequired: true },
+          () => 'Sign payment approval',
+        )
+        .with({ status: 'reviewing' }, () => 'Sign renewal')
+        .otherwise(() => 'Signing renewal…')}
       onNext={() => {}}
       onSelectCoin={() => {}}
       pricingData={8}
       pricingLoading={false}
       receiptNotice={
-        <PaymentUpdateNotice needsApproval={needsApproval} status={status} />
+        <PaymentUpdateNotice
+          isApprovalRequired={isApprovalRequired}
+          status={status}
+        />
       }
       selectedToken="USDC"
       showNetworkFeeDetails
