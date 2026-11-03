@@ -9,6 +9,8 @@ import {
   getV1Holder,
   getV1ParentPowers,
   getV1TransferGate,
+  isV1TransferGateFinal,
+  type V1TransferGate,
 } from './rules'
 
 const ME = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
@@ -297,6 +299,22 @@ describe('getV1TransferGate — as the parent', () => {
         ME,
       ),
     ).toEqual({ reason: 'not-owner' })
+  })
+})
+
+describe('isV1TransferGateFinal', () => {
+  const subject = wrapped()
+  it.each<[V1TransferGate, boolean]>([
+    [{ reason: 'ok', subject, actor: 'owner' }, true],
+    [{ reason: 'grace' }, true],
+    [{ reason: 'cannot-transfer' }, true],
+    [{ reason: 'manager-only', registrant: OTHER }, true],
+    // An approval over the subname's holder would make it the owner's move.
+    [{ reason: 'ok', subject, actor: 'parent' }, false],
+    [{ reason: 'parent-cannot-reassign', why: 'emancipated' }, false],
+    [{ reason: 'not-owner' }, false],
+  ])('%o stands without the access read: %s', (gate, expected) => {
+    expect(isV1TransferGateFinal(gate)).toBe(expected)
   })
 })
 

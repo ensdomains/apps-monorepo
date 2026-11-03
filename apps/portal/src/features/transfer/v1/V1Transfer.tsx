@@ -10,7 +10,11 @@ import { LEGACY_APP_BASE_URL } from '@/lib/constants/domain'
 import { getEth2LDAncestor, getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { getV1NameStateQueryOptions } from './getV1NameState'
 import { getV1WrapperAccessQueryOptions } from './getV1WrapperAccess'
-import { canParentReissueV1Subname, getV1TransferGate } from './rules'
+import {
+  canParentReissueV1Subname,
+  getV1TransferGate,
+  isV1TransferGateFinal,
+} from './rules'
 import { V1SendName } from './V1SendName'
 
 const Name = ({ children }: { readonly children: ReactNode }) => (
@@ -50,22 +54,22 @@ export const V1Transfer = ({
     staleTime: 0,
   })
 
-  if (stateQuery.isLoading || wrapperAccessQuery.isLoading)
-    return <LoadingMessage />
+  const cantCheck = (
+    <MessageCard
+      icon={<AlertTriangle className="size-8" />}
+      title="Couldn’t check this name"
+      description={
+        <p>
+          We couldn’t read how this name is held, so we can’t tell whether it
+          can be transferred. Refresh and try again.
+        </p>
+      }
+    />
+  )
 
-  if (stateQuery.isError || wrapperAccessQuery.isError)
-    return (
-      <MessageCard
-        icon={<AlertTriangle className="size-8" />}
-        title="Couldn’t check this name"
-        description={
-          <p>
-            We couldn’t read how this name is held, so we can’t tell whether it
-            can be transferred. Refresh and try again.
-          </p>
-        }
-      />
-    )
+  if (stateQuery.isLoading) return <LoadingMessage />
+
+  if (stateQuery.isError) return cantCheck
 
   // Can't throw: the query already normalised the same input. The name helpers
   // below are case-sensitive, so `sub.Florin.ETH` must not reach them raw.
@@ -96,7 +100,12 @@ export const V1Transfer = ({
   // parent), and a burned CANNOT_CREATE_SUBDOMAIN closes even that door.
   const canReissue = canParentReissueV1Subname(state.parent)
 
-  return match(getV1TransferGate(state, account, wrapperAccessQuery.data))
+  const gate = getV1TransferGate(state, account, wrapperAccessQuery.data)
+  // Wait for the access read only when an approval could change the answer.
+  if (!wrapperAccessQuery.data && !isV1TransferGateFinal(gate))
+    return wrapperAccessQuery.isError ? cantCheck : <LoadingMessage />
+
+  return match(gate)
     .with({ reason: 'ok' }, ({ subject, actor }) => (
       <V1SendName
         name={name}

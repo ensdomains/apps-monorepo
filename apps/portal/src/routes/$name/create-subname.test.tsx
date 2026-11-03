@@ -61,11 +61,16 @@ vi.mock('@/features/transfer/v1/getV1NameState', () => ({
     queryFn: () => v1State,
   }),
 }))
-let wrapperAccess = { canModifyName: false, canModifyParent: false }
+let wrapperAccess:
+  | { canModifyName: boolean; canModifyParent: boolean }
+  | Error = { canModifyName: false, canModifyParent: false }
 vi.mock('@/features/transfer/v1/getV1WrapperAccess', () => ({
   getV1WrapperAccessQueryOptions: () => ({
     queryKey: ['v1WrapperAccess', NAME],
-    queryFn: () => wrapperAccess,
+    queryFn: async () => {
+      if (wrapperAccess instanceof Error) throw wrapperAccess
+      return wrapperAccess
+    },
   }),
 }))
 
@@ -267,6 +272,18 @@ describe('create subname under a V1 parent', () => {
 
     await screen.findByLabelText('Subname')
     expect(screen.queryByText('Only its owner can create subnames')).toBeNull()
+  })
+
+  // Only `not-holder` waits on the access read: an approval can't lift anything else.
+  it.each([
+    ['offers the holder the form', CONNECTED, 'Subname'],
+    ['can’t answer a non-holder', OTHER, 'Couldn’t check this name'],
+  ])('when the access read fails, %s', async (_, owner, text) => {
+    wrapperAccess = new Error('rpc down')
+    v1({ subject: { kind: 'v1-registry', owner } })
+    renderRoute()
+
+    expect(await screen.findByText(text)).toBeInTheDocument()
   })
 
   // Protocol terminology: the V1 registry and NameWrapper both call it owner.
