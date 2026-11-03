@@ -159,7 +159,6 @@ describe('/register', () => {
     walletResolverReadFails.mockReset()
   })
 
-  // WEB-1988: registration opens with the sidebar folded to its icon rail.
   it('starts with the sidebar collapsed', () => {
     const { getByTestId } = render(<RegisterRoute />)
 
