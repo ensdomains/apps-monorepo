@@ -1281,7 +1281,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
                 () => (
                   <p className="text-ens-signal-danger-800 text-lg">
                     <Trans>
-                      You do not have enough USDC to complete this transaction.
+                      You do not have enough funds to complete this transaction.
                     </Trans>
                   </p>
                 ),

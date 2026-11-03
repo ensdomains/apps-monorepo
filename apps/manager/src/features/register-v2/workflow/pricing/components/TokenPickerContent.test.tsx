@@ -871,7 +871,7 @@ describe('TokenPickerContentBase', () => {
 
     expect(
       screen.getByText(
-        'You do not have enough USDC to complete this transaction.',
+        'You do not have enough funds to complete this transaction.',
       ),
     ).toBeVisible()
     expect(

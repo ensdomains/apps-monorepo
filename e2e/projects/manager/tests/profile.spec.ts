@@ -525,7 +525,7 @@ test.describe('ENS profile', () => {
       const picker = page.getByRole('dialog')
       await expect(
         picker.getByText(
-          'You do not have enough USDC to complete this transaction.',
+          'You do not have enough funds to complete this transaction.',
         ),
         'the shortfall is stated',
       ).toBeVisible({ timeout: 30_000 })

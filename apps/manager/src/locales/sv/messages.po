@@ -4242,7 +4242,7 @@ msgid "You cancelled the request."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "You do not have enough USDC to complete this transaction."
+msgid "You do not have enough funds to complete this transaction."
 msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx
