@@ -6,6 +6,7 @@ import { match } from 'ts-pattern'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { publicClient } from '@/lib/wagmi'
 import { getSubnameMigrationImpactQueryOptions } from '../service/subnameMigrationImpactQuery'
+import { useUpgradeReadCoordinator } from '../state/upgradeReadCoordinator.context'
 import { useMigrationRecoverySnapshot } from './useMigrationRecoverySnapshot'
 
 type Parameters = {
@@ -30,6 +31,7 @@ export const useSubnameMigrationImpact = ({
   isRefetchEnabled = true,
 }: Parameters) => {
   const recoverySnapshot = useMigrationRecoverySnapshot()
+  const coordinator = useUpgradeReadCoordinator()
   const isCleanupRecovery =
     !!recoverySnapshot && recoverySnapshot.remainingOperations.length === 0
   const isSubnameImportEnabled =
@@ -91,6 +93,7 @@ export const useSubnameMigrationImpact = ({
   }
   const query = useQuery(
     getSubnameMigrationImpactQueryOptions({
+      coordinator: coordinator ?? undefined,
       ownerAddress,
       chainId: publicClient.chain.id,
       migratingNames,
