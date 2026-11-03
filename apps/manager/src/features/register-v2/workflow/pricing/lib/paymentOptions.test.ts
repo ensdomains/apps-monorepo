@@ -1,7 +1,7 @@
 import { baseSepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import type { L2Source } from '@/l2Sources'
-import { getL2PaymentOptions } from './paymentOptions'
+import { getL2PaymentOptions, getSelectedL2ChainId } from './paymentOptions'
 
 const source = {
   chain: baseSepolia,
@@ -44,5 +44,28 @@ describe('getL2PaymentOptions', () => {
         ({ id, status }) => [id, status],
       ),
     ).toEqual([[`l2:${baseSepolia.id}:usdc`, status]])
+  })
+})
+
+describe('getSelectedL2ChainId', () => {
+  const optionsWith = (balance: bigint | null) =>
+    getL2PaymentOptions({
+      sources: [source],
+      balances: { [baseSepolia.id]: balance },
+      amountRaw: 0n,
+    })
+
+  it.each([
+    ['keeps a chosen L2 the wallet holds USDC on', 1n, baseSepolia.id],
+    ['keeps a chosen L2 whose balance could not be read', null, baseSepolia.id],
+    ['drops a chosen L2 the wallet holds nothing on', 0n, undefined],
+  ] as const)('%s', (_, balance, expected) => {
+    expect(getSelectedL2ChainId(optionsWith(balance), baseSepolia.id)).toBe(
+      expected,
+    )
+  })
+
+  it('selects nothing for a chain with no row', () => {
+    expect(getSelectedL2ChainId(optionsWith(1n), 1)).toBeUndefined()
   })
 })
