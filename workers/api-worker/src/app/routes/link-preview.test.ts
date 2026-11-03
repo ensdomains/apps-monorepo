@@ -210,6 +210,7 @@ describe('GET /link-preview/image', () => {
     'http://[::1]',
     'http://2130706433',
     'http://localhost',
+    'http://localhost../',
     'https://service.internal',
     'https://example.com:8443',
     'https://api.ens.domains/link-preview/image?url=x',
@@ -220,9 +221,18 @@ describe('GET /link-preview/image', () => {
     expect(upstream).not.toHaveBeenCalled()
   })
 
-  it.each(['page', 'image'])(
-    'rejects a %s redirect to a local target',
-    async (resource) => {
+  it.each(
+    ['page', 'image'].flatMap((resource) =>
+      [
+        'http://169.254.169.254/latest/meta-data/',
+        'http://localhost../',
+        'http://169.254.169.254../latest/meta-data/',
+        'https://service.internal.../',
+      ].map((location) => ({ resource, location })),
+    ),
+  )(
+    'rejects a $resource redirect to a local target $location',
+    async ({ resource, location }) => {
       if (resource === 'image')
         upstream.mockResolvedValueOnce(
           html('<meta property="og:image" content="/og.png">'),
@@ -230,7 +240,7 @@ describe('GET /link-preview/image', () => {
       upstream.mockResolvedValueOnce(
         new Response(null, {
           status: 302,
-          headers: { Location: 'http://169.254.169.254/latest/meta-data/' },
+          headers: { Location: location },
         }),
       )
       expect((await request()).status).toBe(404)

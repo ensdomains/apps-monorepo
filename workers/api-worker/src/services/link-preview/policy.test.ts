@@ -94,6 +94,24 @@ describe('link preview cache policy', () => {
 })
 
 describe('link preview URL policy', () => {
+  it.each([
+    'http://localhost../',
+    'https://localhost.../',
+    'https://service.internal../',
+    'http://127.0.0.1../',
+    'http://169.254.169.254../latest/meta-data/',
+  ])('rejects the local or IP target %s with repeated trailing dots', (url) => {
+    expect(normalizePreviewUrl(url).isErr()).toBe(true)
+  })
+
+  it('allows public hostnames with a trailing dot', () => {
+    expect(
+      normalizePreviewUrl('https://example.com./blog?a=1#section').unwrapOr(
+        undefined,
+      ),
+    ).toBe('https://example.com./blog?a=1')
+  })
+
   it('shares cache entries across fragments while preserving the full path and query', () => {
     expect(
       normalizePreviewUrl(

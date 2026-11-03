@@ -28,7 +28,7 @@ const IPV4_HOST = /^\d+(?:\.\d+){3}$/
 
 export const normalizePreviewUrl = (value: string, base?: string) =>
   parseUrl(value, base).andThen(({ url, pathname }) => {
-    const hostname = url.hostname.replace(/\.$/, '')
+    const hostname = url.hostname.replace(/\.+$/, '')
     if (
       value.length > 4096 ||
       !['http:', 'https:'].includes(url.protocol) ||
