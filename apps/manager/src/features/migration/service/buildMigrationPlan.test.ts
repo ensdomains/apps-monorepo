@@ -214,7 +214,7 @@ describe('assertLockedResolverReplacementRecordSafety', () => {
         {
           id: name.domain.id,
           texts: ['email'],
-          coinTypes: ['60'],
+          coinTypes: [60n],
           hasContentHash: false,
           abiContentTypes: [],
           interfaceIds: [],

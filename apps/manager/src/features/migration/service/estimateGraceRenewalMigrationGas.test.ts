@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chain } from '@/config'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { makeDomain } from './_fixtures'
+import { makeRpcSubnameInventory } from './_fixtures/rpcSubnameInventory'
 import { buildMigrationPlan } from './buildMigrationPlan'
 import {
   buildStepDescriptors,
@@ -182,6 +183,10 @@ describe('estimateGraceRenewalMigrationGas', () => {
         resolverAddress: null,
       })
       const discovery = {
+        inventory: makeRpcSubnameInventory({
+          domains: [...projected, child],
+          rootNames: projected.map(({ name }) => name),
+        }),
         domains: [...projected, child],
         snapshot: {
           version: 5,
