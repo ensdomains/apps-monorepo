@@ -297,6 +297,11 @@ describe('isConfirmBlocked', () => {
         { hasResolver: true, isResolverInvalid: true },
         'invalid-resolver',
       ],
+      [
+        'a resolver pointer resolution cannot reach',
+        { isResolverInvalid: true },
+        'invalid-resolver',
+      ],
     ] as const)('classifies a name with %s', (_, override, expected) => {
       expect(getResolverSetupReplacement({ ...setup, ...override })).toBe(
         expected,
