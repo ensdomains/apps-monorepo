@@ -105,12 +105,15 @@ const isDestructive = (target: ResolverSetupTarget): boolean =>
     ? target.replaces === 'resolver'
     : target.isReplacing
 
-export const ResolverSetupConfirmDialog = (
-  props: ResolverSetupConfirmDialogProps,
-) => {
-  const { intent, open, onOpenChange, onConfirm, children, recordWrites } =
-    props
-  const { title, description, confirmLabel } = getCopy(props)
+export const ResolverSetupConfirmDialog = ({
+  open,
+  onOpenChange,
+  onConfirm,
+  children,
+  recordWrites,
+  ...target
+}: ResolverSetupConfirmDialogProps) => {
+  const { title, description, confirmLabel } = getCopy(target)
 
   return (
     <AlertDialog onOpenChange={onOpenChange} open={open}>
@@ -120,7 +123,7 @@ export const ResolverSetupConfirmDialog = (
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         {children}
-        {intent === 'edit-profile' && recordWrites?.length === 0 ? (
+        {target.intent === 'edit-profile' && recordWrites?.length === 0 ? (
           <p className="rounded-md border p-3 text-sm" role="status">
             <Trans>
               No profile records will be kept. The replacement resolver will
@@ -128,7 +131,7 @@ export const ResolverSetupConfirmDialog = (
             </Trans>
           </p>
         ) : null}
-        {intent === 'edit-profile' && recordWrites?.length ? (
+        {target.intent === 'edit-profile' && recordWrites?.length ? (
           <section
             aria-label="Reviewed record values"
             className="max-h-60 min-w-0 overflow-y-auto rounded-md border p-3 text-sm"
@@ -158,7 +161,9 @@ export const ResolverSetupConfirmDialog = (
           </Button>
           <Button
             className="flex-2/3 uppercase"
-            disabled={intent === 'edit-profile' && recordWrites === undefined}
+            disabled={
+              target.intent === 'edit-profile' && recordWrites === undefined
+            }
             onClick={() => {
               // Confirm before close — edit-profile clears the deferred save
               // when the dialog closes, so reversing this no-ops Replace & Save.
@@ -166,7 +171,7 @@ export const ResolverSetupConfirmDialog = (
               onOpenChange(false)
             }}
             size="lg"
-            variant={isDestructive(props) ? 'destructive' : 'default'}
+            variant={isDestructive(target) ? 'destructive' : 'default'}
           >
             {confirmLabel}
           </Button>
