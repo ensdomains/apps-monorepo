@@ -60,6 +60,7 @@ export const batches: Batch[] = [
     id: 'B1d',
     title: 'WEB-2110: the stale HCA guards B1b deferred, rewritten for main',
     pr: 1680,
+    merged: true,
   },
   { id: 'B2', title: 'CCIP / offchain: the rest' },
   { id: 'B3', title: 'Migration: the rest' },

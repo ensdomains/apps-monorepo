@@ -5,9 +5,9 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 ## Now
 
 - **B1b merged** as #1658 (squash, 2026-11-02). Main merged back (`64964e9ad`): main won every conflict, then `git show 8529e189f | git apply -R` on the four partial files restored the deferred tests. The merge commit's lingui hook pruned the manager locale catalogs; a follow-up commit restores main's copies (commit the merge with care: `LEFTHOOK=0` for merges and pushes to this branch, since the hooks lint the whole branch).
-- **B1d (WEB-2110) is open as #1680** (2026-11-02). Branch `linear/WEB-2110`, worktree `/Users/sg/ens/worktrees/web-2110`, commit `5ad5974b7`. It rewrites the stale guards for main: the WEB-674 reset spec (4 tests; E6 dropped because #1480 removed "Remove saved session"), the WEB-1483 leftover describe (4) and the two WEB-1506 budget tests. The same files are on this branch, so they read `landed` once it merges.
+- **B1d (WEB-2110) merged** as #1680 (2026-11-03); main merged back (`2dc6155cd`), keeping E3/E4 in `hca-session-revoke.spec.ts` (main's copy imports `switchWalletToUndeclaredChain` as a type only; the branch needs the value import). Branch `linear/WEB-2110`, worktree `/Users/sg/ens/worktrees/web-2110`, commit `5ad5974b7`. It rewrites the stale guards for main: the WEB-674 reset spec (4 tests; E6 dropped because #1480 removed "Remove saved session"), the WEB-1483 leftover describe (4) and the two WEB-1506 budget tests. The same files are on this branch, so they read `landed` once it merges.
 - **Two WEB-674 guards fail on the app** and are held on this branch as `test.fail` until the user files a bug: loaded on an undeclared chain the menu still offers the reset (E3), and after a live switch "Reset access" sends `eth_sendTransaction` to the wallet on the wrong chain and spins forever (E4).
-- **Infra fix open as #1681:** `fix/e2e-upstream-cache-final-4xx` (worktree `/Users/sg/ens/worktrees/upstream-cache-4xx`, `7556f7278`). `upstream-cache.mjs` retried drpc's HTTP 400 for Anvil 1.7's `eth_getAccountInfo` 20 times serially, which stalled the local fork. The running `infra-upstream-cache-1` now mounts that worktree's file.
+- **Infra fix merged as #1681** (2026-11-03): `fix/e2e-upstream-cache-final-4xx` (worktree `/Users/sg/ens/worktrees/upstream-cache-4xx`, `7556f7278`). `upstream-cache.mjs` retried drpc's HTTP 400 for Anvil 1.7's `eth_getAccountInfo` 20 times serially, which stalled the local fork. The running `infra-upstream-cache-1` now mounts that worktree's file.
 - **B0 merged** as #1599 (squash, 2026-10-29) and **B1a merged** as #1601 (squash, 2026-10-30). Main was merged into this branch afterwards (`d150d9fe7`): main's version wins in every landed file; the two `package.json` files keep main's content plus the branch-only scripts and the `@tenkeylabs/dappwright` dev dependency.
 - **The freeze is on.** New tests are written against main; this branch only takes `merge origin/main` and tracker commits. `pr-verify` now bases on `origin/main` and lands tests as a PR to main. `e2e-goal` is paused (status-only), because its ledger is B10 and lives only on this branch. Both skills are untracked files in the main checkout's `.claude/skills/`.
 - **Squash merges:** each stacked batch PR conflicts once its base lands, because the squash commit shares no history. Resolve by taking the batch's side in files the previous batch landed (main's tree equals the previous batch's head), as done on #1601.
@@ -17,7 +17,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Next action
 
-- Watch CI on #1680 (WEB-2110) and #1681 (upstream-cache) and fix test-side failures on their branches; the user merges. After #1680 merges: set B1d `merged: true`, merge main back, and keep E3/E4 in `hca-session-revoke.spec.ts`.
+- **B2 (CCIP rest)**: branch `e2e-land/b2-ccip` from `origin/main`; land `offchain-subname-migration.spec.ts`, `offchain-v2.spec.ts`, `seed-offchain-name.ts`, `seed-offchain-v2.ts`; run them on the local stack. Worktree fold-in (2026-11-03 check): the app commits in `offchain-ccip` / `offchain-1577` are superseded on main (#1571, #1578, #1603, #1611, #1674, ensjs 5.2.8 refactor), and their untracked e2e files are copies of landed ones. Only `offchain-main` holds new work: an uncommitted H21 test in `offchain-v2.spec.ts` (wildcard subname shows no expiry, not 1970); `zz-hybrid-probe.spec.ts` there is a throwaway probe.
 - Once the user files the wrong-chain reset bug: land E3/E4 on main with its ID (as tests that pass once it's fixed, or with the fix).
 
 0. **B1b is open as #1658** (branch `e2e-land/b1b-manager-smoke`, worktree `/Users/sg/ens/worktrees/e2e-land-b1b`). Watch CI (manager smoke ×2 shards, manager-migration with the portal started) and fix test-side failures on the branch; the user merges. Then merge main back here and regenerate the ledger.
@@ -26,7 +26,6 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Waiting on
 
-- Review and merge of #1680 and #1681.
 - The user filing the wrong-chain session reset bug (E3/E4).
 
 ## Open questions for the user
@@ -78,7 +77,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 | B0 | Infra: stack, helpers, fixtures, harness, matrix seeding libs, address gate (95 files, ~13.6k lines) | merged (#1599), ledger synced |
 | B1a | Smoke: Explorer specs + CI (sharded `@smoke` gate, nightly) + migration smoke | merged (#1601), ledger synced |
 | B1b | Smoke: Manager specs | merged (#1658), ledger synced |
-| B1d | WEB-2110: stale HCA guards rewritten for main | PR open (#1680) |
+| B1d | WEB-2110: stale HCA guards rewritten for main | merged (#1680) |
 | B1c | Smoke gaps, written on main (see below) | not started |
 | B2 | CCIP rest. `e2e/offchain-main` is merged into this branch. Fold in what's left on `e2e/offchain-ccip` (8 orphaned) and `e2e/offchain-1577` (3 orphaned) first | not started |
 | B3 | Migration rest. Fold in `test/migration-scenario-seeder` (23) if the user keeps it | not started |
@@ -148,6 +147,7 @@ Run `pnpm --filter @ens-apps/e2e landing --worktrees` for the live table.
   - The remaining `test/verify-pr-*` and `retrofit/*` worktrees.
 
 ## Gotchas
+- **Quality checks need `test:coverage` in every changed package** (no `--if-present`, on purpose). `e2e/package.json` has it since #1680/#1681; it runs the `infra/bigname/*.test.mjs` node tests. Don't remove it, or e2e-only PRs fail with `ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT`.
 - **Local fork stalls with anvil unhealthy** and state reads timing out: `upstream-cache` retrying a 400 (see Now). Check `docker logs infra-upstream-cache-1` for `giving up: upstream answered 400`, and `docker inspect` its mount: the `infra-*` stack was started from `.claude/worktrees/offchain-main`, whose stale cache script even caches `eth_blockNumber`. Recreate only that service from a fixed worktree (`docker compose -p infra -f <worktree>/e2e/infra/docker-compose.yml up -d --no-deps --force-recreate upstream-cache`), then restart anvil, alto, mockestrator and paymaster and rerun `fund-rhinestone-account.sh`.
 
 - `--paths` and the ledger compare `origin/*` refs, so run `git fetch origin` first. A local-only commit on this branch doesn't count until it's pushed.
