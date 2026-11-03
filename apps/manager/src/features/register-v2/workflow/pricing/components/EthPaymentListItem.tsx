@@ -5,6 +5,7 @@ import {
 import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { match } from 'ts-pattern'
+import { formatUnits } from 'viem'
 import ethCoinIcon from '@/assets/icons/eth-coin.svg'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
@@ -12,7 +13,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
@@ -53,7 +53,7 @@ export const canPayWithEth = (row: EthPaymentRow) =>
   !isEthShortOfFunds(row)
 
 const weiToUsd = (wei: bigint, ethUsd: bigint) =>
-  decimalBigintToNumber(ethToUsdcRaw(wei, ethUsd), USDC_DECIMALS)
+  Number(formatUnits(ethToUsdcRaw(wei, ethUsd), USDC_DECIMALS))
 
 /** The swap's own gas in USDC: one estimate, not the doubled reserve kept back for it. */
 export const getEthSwapGasUsdcRaw = (row: EthPaymentRow | undefined) =>
@@ -65,7 +65,7 @@ export const getEthSwapGasUsdcRaw = (row: EthPaymentRow | undefined) =>
       )
 
 export const getEthSwapGasUsd = (row: EthPaymentRow | undefined) =>
-  decimalBigintToNumber(getEthSwapGasUsdcRaw(row), USDC_DECIMALS)
+  Number(formatUnits(getEthSwapGasUsdcRaw(row), USDC_DECIMALS))
 
 export const getEthSelectionMessage = (row: EthPaymentRow) =>
   match(row)

@@ -1,11 +1,11 @@
 import { Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
+import { formatUnits } from 'viem'
 import ethCoinIcon from '@/assets/icons/eth-coin.svg'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { Card } from '@/components/ui/card'
-import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { tw } from '@/utils/tailwind'
 import type { CheckoutAction } from '../lib/checkoutAvailability'
@@ -16,7 +16,7 @@ import { RECEIPT_AMOUNT, RECEIPT_LABEL } from './receiptTypography'
 
 const USDC_DECIMALS = 6
 
-const toUsd = (raw: bigint) => decimalBigintToNumber(raw, USDC_DECIMALS)
+const toUsd = (raw: bigint) => Number(formatUnits(raw, USDC_DECIMALS))
 
 const SavePill = ({ amount }: { readonly amount: number }) => (
   // Figma's pill sets 15px, between the theme's text-sm and text-base.

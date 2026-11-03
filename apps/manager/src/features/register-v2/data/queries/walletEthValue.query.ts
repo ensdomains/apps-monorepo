@@ -1,16 +1,21 @@
-import { ethToUsdcRaw, readEthUsdPrice } from '@ens-apps/transaction-manager'
+import {
+  type EthSwapUnavailableError,
+  ethToUsdcRaw,
+  readEthUsdPrice,
+} from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { errAsync, ResultAsync } from 'neverthrow'
-import type { Address } from 'viem'
+import { skipToken } from '@tanstack/react-query'
+import { ResultAsync } from 'neverthrow'
+import type { Address, GetBalanceErrorType } from 'viem'
 import { chain } from '@/config'
 import { publicClient } from '@/lib/wagmi'
 
 /** The wallet's ETH, or the ETH price, could not be read. */
 export class ReadWalletEthValueError extends TaggedError(
   'ReadWalletEthValueError',
-)<{ cause: Error }> {}
+)<{ cause: GetBalanceErrorType | EthSwapUnavailableError }> {}
 
 /** The wallet's ETH (wei) and what it is worth in USDC (6 decimals). */
 export type WalletEthValue = Readonly<{ weiRaw: bigint; usdcRaw: bigint }>
@@ -21,7 +26,7 @@ const getWalletEthValue = (
   ResultAsync.combine([
     ResultAsync.fromPromise(
       publicClient.getBalance({ address: owner }),
-      (cause) => (cause instanceof Error ? cause : new Error(String(cause))),
+      (cause) => cause as GetBalanceErrorType,
     ),
     readEthUsdPrice({
       publicClient,
@@ -35,7 +40,10 @@ const getWalletEthValue = (
     }))
     .mapErr((cause) => new ReadWalletEthValueError({ cause }))
 
-export const getWalletEthValueQueryOptions = (params: {
+export const getWalletEthValueQueryOptions = ({
+  owner,
+  isEnabled,
+}: {
   readonly owner: Address | null | undefined
   readonly isEnabled: boolean
 }) =>
@@ -43,14 +51,8 @@ export const getWalletEthValueQueryOptions = (params: {
     queryKey: $qk({
       $scope: 'wallet',
       $action: 'eth-value',
-      owner: params.owner ?? undefined,
+      owner: owner ?? undefined,
     }),
-    queryFn: () =>
-      params.owner
-        ? getWalletEthValue(params.owner)
-        : errAsync(
-            new ReadWalletEthValueError({ cause: new Error('No wallet.') }),
-          ),
-    enabled: params.isEnabled && !!params.owner,
+    queryFn: isEnabled && owner ? () => getWalletEthValue(owner) : skipToken,
     refetchInterval: 30_000,
   })

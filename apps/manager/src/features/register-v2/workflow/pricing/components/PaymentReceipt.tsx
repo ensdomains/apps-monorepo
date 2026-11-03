@@ -1,13 +1,12 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
-import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
+import { formatUnits, parseUnits } from 'viem'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import {
   getNetworkFeeReceiptFigures,
   type PaymentReceiptFigures,
   type PaymentReceiptState,
-  usdToUsdcRaw,
 } from '../lib/paymentReceiptFigures'
 import { ExistingBalanceLabel } from './ExistingBalanceLabel'
 import { RECEIPT_AMOUNT, RECEIPT_LABEL } from './receiptTypography'
@@ -137,7 +136,10 @@ export const PaymentReceipt = ({
 }
 
 /** Registration's receipt: the page's total, the selected method's fee, and what the wallet pays. */
-const toUsd = (raw: bigint) => decimalBigintToNumber(raw, USDC_DECIMALS)
+const toUsd = (raw: bigint) => Number(formatUnits(raw, USDC_DECIMALS))
+
+const toUsdcRaw = (usd: number) =>
+  parseUnits(usd.toFixed(USDC_DECIMALS), USDC_DECIMALS)
 
 export const NetworkFeeReceipt = ({
   state,
@@ -161,8 +163,8 @@ export const NetworkFeeReceipt = ({
     networkFee !== undefined
       ? getNetworkFeeReceiptFigures({
           registrationTotalRaw,
-          networkFeeRaw: usdToUsdcRaw(networkFee),
-          walletDebitRaw: usdToUsdcRaw(state.figures.due),
+          networkFeeRaw: toUsdcRaw(networkFee),
+          walletDebitRaw: toUsdcRaw(state.figures.due),
           extraFeeRaw,
         })
       : undefined

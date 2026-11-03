@@ -2,15 +2,15 @@ import { readHcaUsdcBalanceActor } from '@ens-apps/transaction-manager/machines/
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { errAsync } from 'neverthrow'
-import type { Address } from 'viem'
+import { skipToken } from '@tanstack/react-query'
+import type { Address, ReadContractErrorType } from 'viem'
 import { chain } from '@/config'
 import { publicClient } from '@/lib/wagmi'
 
 /** The smart account's USDC could not be read. */
 export class ReadHcaUsdcBalanceError extends TaggedError(
   'ReadHcaUsdcBalanceError',
-)<{ cause: Error }> {}
+)<{ cause: ReadContractErrorType }> {}
 
 /** The USDC already in the smart account, which a registration spends first. */
 export const getHcaUsdcBalanceQueryOptions = (
@@ -22,18 +22,18 @@ export const getHcaUsdcBalanceQueryOptions = (
       $action: 'hca-usdc-balance',
       hca: hca ?? undefined,
     }),
-    queryFn: () =>
-      hca
-        ? readHcaUsdcBalanceActor({
+    queryFn: hca
+      ? () =>
+          readHcaUsdcBalanceActor({
             hca,
             publicClient,
             chainId: chain.id,
-          }).mapErr((cause) => new ReadHcaUsdcBalanceError({ cause }))
-        : errAsync(
-            new ReadHcaUsdcBalanceError({
-              cause: new Error('No smart account.'),
-            }),
-          ),
-    enabled: !!hca,
+          }).mapErr(
+            (cause) =>
+              new ReadHcaUsdcBalanceError({
+                cause: cause as ReadContractErrorType,
+              }),
+          )
+      : skipToken,
     refetchInterval: 30_000,
   })

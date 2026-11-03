@@ -82,9 +82,6 @@ const CENT_RAW = 10_000n
 const roundToCentRaw = (raw: bigint): bigint =>
   ((raw + CENT_RAW / 2n) / CENT_RAW) * CENT_RAW
 
-/** A USD figure the sheet holds as a number, back in USDC's 6 decimals. */
-export const usdToUsdcRaw = (usd: number): bigint => BigInt(toMicros(usd))
-
 /** All in USDC's 6 decimals, rounded to cents. */
 export type NetworkFeeReceiptFigures = {
   readonly registrationTotalRaw: bigint

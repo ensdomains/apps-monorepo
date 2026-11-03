@@ -11,6 +11,7 @@ export {
 } from './errors/transaction.errors'
 export {
   type EthSwapQuote,
+  EthSwapUnavailableError,
   ethToUsdcRaw,
   readEthUsdPrice,
 } from './helpers/eth-usdc-swap'
