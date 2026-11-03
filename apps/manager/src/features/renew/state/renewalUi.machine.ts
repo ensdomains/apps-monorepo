@@ -19,9 +19,13 @@ import type { Address, WalletClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import { envConfig } from '@/config'
 import { getExpiry } from '@/features/profile/service/profileExpiry'
+import type { FundingSourceOrigin } from '@/features/register-v2/state/registrationUi.machine'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import { getV1RenewableQueryOptions } from '@/features/renew/data/queries/v1Renewable.query'
-import { submitHcaRenewal } from '@/features/renew/service/hcaRenewal'
+import {
+  type HcaRenewalL2Funding,
+  submitHcaRenewal,
+} from '@/features/renew/service/hcaRenewal'
 import {
   getRenewerAddress,
   type RenewalProtocol,
@@ -33,7 +37,8 @@ import { getQueryClient } from '@/utils/router/root-context'
 // Two routes pay for a renewal. A smart-account signer renews as an
 // owner-signed HCA intent: rent
 // (in the chosen stable) and fee (in USDC) come out of the account, funded in
-// the same intent when short. An EOA signer keeps the direct-wallet route:
+// the same intent when short, or bridged in from an L2 first when the user
+// pays from one. An EOA signer keeps the direct-wallet route:
 // allowance check, approve and renew as plain wagmi transactions. `renew`
 // charges `msg.sender`, so each route pays as itself.
 
@@ -69,6 +74,9 @@ type SubmissionData = {
    * unused on the direct route, where the signer is this wallet itself.
    */
   walletClient: WalletClient
+
+  /** HCA route: bridge the account's shortfall in from an L2 instead. */
+  l2Funding?: HcaRenewalL2Funding
 }
 
 const requireSubmissionData = (
@@ -118,6 +126,10 @@ export const renewalUiMachine = setup({
       renewerAddress: Address
       duration: bigint
       selectedToken: RENEWAL_TOKEN | undefined
+      /** The L2 row picked to pay from; the renewal then pays in USDC. */
+      fundingSourceChainId?: number
+      /** A fallback pick gives way to the wallet once the wallet can pay again. */
+      fundingSourceOrigin?: FundingSourceOrigin
       lastErrorMessage?: string
       submissionData?: SubmissionData
       approvalTxId?: string
@@ -147,6 +159,11 @@ export const renewalUiMachine = setup({
       | { type: 'pricing.duration.set'; duration: bigint }
       | { type: 'pricing.token.select'; token: RENEWAL_TOKEN | undefined }
       | {
+          type: 'pricing.fundingSource.select'
+          chainId: number
+          origin?: FundingSourceOrigin
+        }
+      | {
           type: 'renewal.start'
           label: string
           duration: bigint
@@ -161,6 +178,8 @@ export const renewalUiMachine = setup({
           /** Formatted base price */
           priceNumber: number
           readonly displayedDebit?: HcaDisplayedDebit
+          /** HCA route: pay from the wallet's USDC on an L2. */
+          l2Funding?: HcaRenewalL2Funding
         }
       | { type: 'renewal.submitted'; txId: string }
       | {
@@ -257,6 +276,21 @@ export const renewalUiMachine = setup({
         event.type === 'pricing.token.select'
           ? event.token
           : context.selectedToken,
+      // A wallet coin replaces the L2 row.
+      fundingSourceChainId: () => undefined,
+      fundingSourceOrigin: () => undefined,
+    }),
+    setFundingSource: assign({
+      fundingSourceChainId: ({ event, context }) =>
+        event.type === 'pricing.fundingSource.select'
+          ? event.chainId
+          : context.fundingSourceChainId,
+      fundingSourceOrigin: ({ event }) =>
+        event.type === 'pricing.fundingSource.select'
+          ? (event.origin ?? 'user')
+          : undefined,
+      // Bridged in as USDC, so the rent is paid in USDC.
+      selectedToken: () => 'USDC' as const,
     }),
     beginIntentAttempt: assign({
       intentAttempt: ({ context }) => context.intentAttempt + 1,
@@ -313,6 +347,7 @@ export const renewalUiMachine = setup({
               displayedDebit: event.displayedDebit,
               ownerAddress: event.ownerAddress,
               walletClient: event.walletClient,
+              l2Funding: event.l2Funding,
             }
           : undefined,
     }),
@@ -380,6 +415,9 @@ export const renewalUiMachine = setup({
             'pricing.token.select': {
               actions: 'setToken',
             },
+            'pricing.fundingSource.select': {
+              actions: 'setFundingSource',
+            },
             'pricing.dialog.dismiss': {
               target: 'duration',
             },
@@ -392,6 +430,9 @@ export const renewalUiMachine = setup({
                 actions: 'startRenewal',
               },
               {
+                // Only the account can be paid from an L2, so a wallet start
+                // naming one is refused rather than paid from the wallet.
+                guard: ({ event }) => event.l2Funding === undefined,
                 target: '#renewalUi.checkingAllowance',
                 actions: 'startRenewal',
               },
@@ -466,6 +507,9 @@ export const renewalUiMachine = setup({
                   decide,
                 }),
               ),
+            ...(submission.l2Funding
+              ? { l2Funding: submission.l2Funding }
+              : {}),
             items: [
               {
                 label: submission.label,

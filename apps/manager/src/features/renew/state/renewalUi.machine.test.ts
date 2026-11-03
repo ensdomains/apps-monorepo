@@ -5,6 +5,7 @@ import {
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createActor, waitFor } from 'xstate'
+import type { HcaRenewalL2Funding } from '@/features/renew/service/hcaRenewal'
 import { renewalUiMachine } from './renewalUi.machine'
 
 const mocks = vi.hoisted(() => ({
@@ -47,10 +48,16 @@ const CURRENT_EXPIRY = 1_800_000_000n
 const expiryOnChain = (expiry: bigint) =>
   okAsync({ expiry, isNonExpiring: false, protocol: 'v2' })
 
+/** What the payment screen hands the renewal: the debit it showed, or the L2 it pays from. */
+type Shown = {
+  readonly displayedDebit?: HcaDisplayedDebit
+  readonly l2Funding?: HcaRenewalL2Funding
+}
+
 const startRenewal = (
   protocol: 'v1' | 'v2' = 'v1',
   route: 'eoa' | 'smart-account' = 'eoa',
-  shown: { readonly displayedDebit?: HcaDisplayedDebit } = {},
+  shown: Shown = {},
 ) => {
   const actor = createActor(renewalUiMachine, {
     input: { currentExpiry: CURRENT_EXPIRY, protocol },
@@ -63,10 +70,7 @@ const startRenewal = (
   return actor
 }
 
-const renewalStartEvent = (
-  route: 'eoa' | 'smart-account',
-  shown: { readonly displayedDebit?: HcaDisplayedDebit },
-) =>
+const renewalStartEvent = (route: 'eoa' | 'smart-account', shown: Shown) =>
   ({
     type: 'renewal.start',
     label: 'alice',
@@ -509,6 +513,48 @@ describe('increased payment on the smart-account route', () => {
     void inputs[1]?.confirmIncreasedPayment(UPDATED)
     const review = await waitForReview(actor)
     expect(review.context.paymentUpdate?.prompt).toBe(UPDATED)
+    actor.stop()
+  })
+})
+
+describe('renewal paid from an L2', () => {
+  const l2ChainId = 84_532
+  const l2Funding = {
+    source: { chain: { id: l2ChainId } } as never,
+    displayedCharge: 2_100_000n,
+  }
+
+  it('pays a USDC renewal from the chosen L2 until a wallet coin replaces it', () => {
+    const actor = createActor(renewalUiMachine, {
+      input: { currentExpiry: CURRENT_EXPIRY, protocol: 'v2' },
+    }).start()
+    actor.send({ type: 'pricing.step.next' })
+
+    actor.send({ type: 'pricing.fundingSource.select', chainId: l2ChainId })
+    expect(actor.getSnapshot().context).toMatchObject({
+      fundingSourceChainId: l2ChainId,
+      fundingSourceOrigin: 'user',
+      selectedToken: 'USDC',
+    })
+
+    actor.send({ type: 'pricing.token.select', token: 'USDC' })
+    expect(actor.getSnapshot().context.fundingSourceChainId).toBeUndefined()
+    actor.stop()
+  })
+
+  it('hands the L2 and the charge shown to the renewal', async () => {
+    const actor = startRenewal('v2', 'smart-account', { l2Funding })
+    await waitForState(actor, 'success')
+
+    expect(mocks.submitHcaRenewal.mock.calls[0]?.[0].l2Funding).toBe(l2Funding)
+    actor.stop()
+  })
+
+  it('never starts a wallet-route renewal that names an L2', () => {
+    const actor = startRenewal('v2', 'eoa', { l2Funding })
+
+    expect(actor.getSnapshot().matches({ pricing: 'tokens' })).toBe(true)
+    expect(mocks.readPaymentTokenAllowanceActor).not.toHaveBeenCalled()
     actor.stop()
   })
 })
