@@ -136,7 +136,7 @@ describe('getAddressNames', () => {
     expect(names.map(({ name }) => name)).toEqual(['kept.eth'])
   })
 
-  // Which rows count as in grace is tested with the shared grace read.
+  // Which rows count as lapsed is tested with isLapsedName.
   it('merges the names still renewable in grace into the list', async () => {
     answer(
       [[row('held.eth')]],
@@ -159,75 +159,12 @@ describe('getAddressNames', () => {
     expect(names).toEqual([
       expect.objectContaining({
         name: 'lapsed.eth',
+        status: 'expired',
         relations: ['former_owner'],
         protocolVersion: 'ENSv2',
       }),
       expect.objectContaining({ name: 'held.eth' }),
     ])
-  })
-
-  it('lists a lapsed name for 30 days after its expiry, in either era', async () => {
-    const DAY = 86_400n
-    const lapsed = (
-      name: string,
-      authority: AddressName['authority'],
-      expiredDaysAgo: bigint,
-      graceDays: bigint,
-    ) =>
-      row(name, {
-        owner: undefined,
-        authority,
-        status: expiredDaysAgo < graceDays ? 'expired' : 'released',
-        relations: ['former_owner'],
-        expires_at: String(NOW_SECONDS - expiredDaysAgo * DAY),
-        grace_ends_at: String(NOW_SECONDS - (expiredDaysAgo - graceDays) * DAY),
-        lapsed_registration: { owner: ADDRESS, release_kind: 'expired' },
-      })
-    answer(
-      [[]],
-      [
-        lapsed('released-recently.eth', 'ens_v2', 29n, 28n),
-        lapsed('released-long-ago.eth', 'ens_v2', 30n, 28n),
-        // A reserved ENSv1 lease: the reservation is the top-level expiry,
-        // 62 days after the lease, and grace ends 90 days after the lease.
-        {
-          ...lapsed('released-v1.eth', 'ens_v1', 29n, 28n),
-          ens_v1: { expires_at: String(NOW_SECONDS - 91n * DAY) },
-        },
-      ],
-    )
-
-    const names = (
-      await getAddressNames({ address: ADDRESS }, { now: NOW })
-    )._unsafeUnwrap()
-
-    expect(names).toEqual([
-      expect.objectContaining({
-        name: 'released-recently.eth',
-        status: 'released',
-        protocolVersion: 'ENSv2',
-      }),
-    ])
-  })
-
-  it('drops a lapsed name once it is registered again', async () => {
-    answer(
-      [[]],
-      [
-        row('taken.eth', {
-          owner: '0x2222222222222222222222222222222222222222',
-          relations: ['former_owner'],
-          grace_ends_at: String(NOW_SECONDS + 86_400n * 328n),
-          lapsed_registration: { owner: ADDRESS, release_kind: 'expired' },
-        }),
-      ],
-    )
-
-    const names = (
-      await getAddressNames({ address: ADDRESS }, { now: NOW })
-    )._unsafeUnwrap()
-
-    expect(names).toEqual([])
   })
 
   it('gives ENSv1 subnames the expiry of their .eth parent', async () => {
