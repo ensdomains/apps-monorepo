@@ -376,7 +376,25 @@ reaches the HCA in two steps before the usual session-signed commit:
    rejects any execution with value and any target outside the registration
    allowlist. A 65-byte owner signature skips the policy entirely
    (`isValidSignatureWithSender`), so `validateEthSwapQuote` is what holds the
-   intent to "only the HCA's ETH in, only USDC out, to the HCA, no calls".
+   intent to "only the HCA's ETH in, only USDC out, to the HCA, and nothing
+   run but the swap".
+
+What a live quote looks like (mainnet, 2026-11-03): one `INTENT_EXECUTOR`
+element (`fundingMethod: NO_FUNDING`) delivering to the HCA, with the gas
+refund in native ETH (`token` zero, `exchangeRate` 1e18). The swap itself is
+the HCA's **destination op**: a call to the venue's router carrying the ETH as
+value, with the HCA as recipient in its calldata. `preClaimOps` holds the
+orchestrator's Permit2 approval of the input token, which for native ETH is an
+`approve` sent to the zero address and does nothing. `tokenRequirements` lists
+a `wrap` for the ETH; the SDK only acts on requirements for EOA accounts, and
+the swap op spends the ETH directly. Exact input is honoured: `tokensSpent` is
+the full amount, and the swap op's value is that less the ETH gas fee.
+
+**Ethereum Sepolia has no swap route.** Every venue (`1inch`, `0x`, `velora`,
+`kyberswap`, `fynd`, `fynd-hosted`, `bebop`, `relay`) answers
+`SWAP_INPUTS_REJECTED` / `chain_not_available` for ETH → USDC there, although
+`/chains` lists both tokens. Bridging (the L2 payment) is a different path and
+works; it proves nothing about swaps.
 
 Every quote is bounded by the Chainlink ETH/USD feed (`maxEthSwapInput`: the
 USDC plus 3%, at least 2 USDC). A swap refused as "exchange rate is too high"

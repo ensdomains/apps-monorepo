@@ -25,6 +25,7 @@ const HCA: Address = '0xcD5d6F82dbFDfAdf0f944EE7c0AD9eD9c8e4961d'
 const OTHER: Address = '0x6666666666666666666666666666666666666666'
 const USDC: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 const WETH: Address = '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14'
+const ROUTER: Address = '0x6A000F20005980200259B80c5102003040001068'
 const NOW = 1_800_000_000n
 const ETH_USD = 2_000_00000000n // $2,000 with the feed's 8 decimals
 const ONE_CENTI_ETH = 10_000_000_000_000_000n
@@ -38,15 +39,40 @@ const route: EthSwapRoute = {
   amountIn: 10_200_000_000_000_000n,
 }
 
-// Shaped like the orchestrator's JSON: lowercased addresses, decimal strings.
+type Op = { to: string; value: string; data: string }
+
+// Shaped like a live mainnet quote (2026-11-03): lowercased addresses, decimal
+// strings; the swap is the HCA's destination call, paid in ETH, and Permit2 is
+// "approved" for native ETH by a call to the zero address.
 const baseQuote = () => {
+  const swap: Op = {
+    to: ROUTER.toLowerCase(),
+    value: '10159157871865497',
+    data: `0xe3ead59e${HCA.slice(2).toLowerCase().padStart(64, '0')}`,
+  }
   const element = {
     chainId: String(sepolia.id),
     mandate: {
       recipient: HCA.toLowerCase(),
       destinationChainId: String(sepolia.id),
-      destinationOps: { vt: '0x', ops: [] as unknown[] },
-      preClaimOps: { vt: '0x', ops: [] as unknown[] },
+      destinationOps: { vt: '0x', ops: [swap] as Op[] },
+      preClaimOps: {
+        vt: '0x',
+        ops: [
+          {
+            to: NATIVE_ETH,
+            value: '0',
+            data: '0x095ea7b3000000000000000000000000000000000022d473030f116ddee9f6b43ac78ba3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+          },
+        ] as Op[],
+      },
+      qualifier: {
+        settlementContext: {
+          settlementLayer: 'INTENT_EXECUTOR',
+          fundingMethod: 'NO_FUNDING',
+          using7579: true,
+        },
+      },
     },
   }
   const spent: Record<string, Record<string, object>> = {
@@ -213,16 +239,71 @@ describe('validateEthSwapQuote', () => {
       'another account or chain',
     ],
     [
-      'destination calls',
+      'another settlement layer',
       (q) => {
-        q.element.mandate.destinationOps.ops = [{ to: OTHER }]
+        q.element.mandate.qualifier.settlementContext.settlementLayer = 'ACROSS'
+      },
+      'settles another way',
+    ],
+    [
+      'a call to the HCA itself',
+      (q) => {
+        q.element.mandate.destinationOps.ops.push({
+          to: HCA,
+          value: '0',
+          data: '0x',
+        })
       },
       'other operations',
     ],
     [
-      'calls before the claim',
+      'a call to its USDC',
       (q) => {
-        q.element.mandate.preClaimOps.ops = [{ to: OTHER }]
+        q.element.mandate.destinationOps.ops.push({
+          to: USDC,
+          value: '0',
+          data: '0x12345678',
+        })
+      },
+      'other operations',
+    ],
+    [
+      'a call that moves tokens',
+      (q) => {
+        q.element.mandate.destinationOps.ops.push({
+          to: OTHER,
+          value: '0',
+          data: `0xa9059cbb${'00'.repeat(64)}`,
+        })
+      },
+      'other operations',
+    ],
+    [
+      'calls paying out more ETH than it spends',
+      (q) => {
+        q.element.mandate.destinationOps.ops.push({
+          to: OTHER,
+          value: '40842128134504',
+          data: '0x',
+        })
+      },
+      'more ETH than quoted',
+    ],
+    [
+      'a contract call before the claim',
+      (q) => {
+        q.element.mandate.preClaimOps.ops = [
+          { to: OTHER, value: '0', data: '0x' },
+        ]
+      },
+      'other operations',
+    ],
+    [
+      'ETH sent before the claim',
+      (q) => {
+        q.element.mandate.preClaimOps.ops = [
+          { to: NATIVE_ETH, value: '1', data: '0x' },
+        ]
       },
       'other operations',
     ],

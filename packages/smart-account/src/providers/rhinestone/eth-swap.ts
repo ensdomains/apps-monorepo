@@ -332,12 +332,17 @@ const toBigInt = (value: unknown): bigint | undefined => {
  * the HCA's ETH on the app chain and pays the USDC to the HCA there:
  *
  * 1. the intent is the HCA's;
- * 2. every element is on the app chain, delivers to the HCA there, and runs no
- *    calls of its own before or after the swap;
+ * 2. every element is on the app chain, delivers to the HCA there, and settles
+ *    through the IntentExecutor;
  * 3. it can still be filled for a while;
  * 4. it spends only native ETH on the app chain, no more than the Chainlink
  *    bound, and exactly the route's `amountIn` when that is set;
- * 5. it delivers only USDC, at least `amountOut`.
+ * 5. it delivers only USDC, at least `amountOut`;
+ * 6. what the HCA runs is the swap and nothing else: no call to the HCA or its
+ *    USDC, nothing that moves a token, and no more ETH than it spends.
+ *
+ * The owner signs this, and an owner signature skips the session policy, so
+ * these rules are all that stands between the quote and the HCA.
  */
 export function validateEthSwapQuote(params: {
   readonly route: EthSwapRoute
@@ -367,6 +372,9 @@ export function validateEthSwapQuote(params: {
     return reject('The swap spends more ETH than was sent.')
   }
 
+  const opsRejection = rejectOps(route, intentOp, amountIn)
+  if (opsRejection !== undefined) return reject(opsRejection)
+
   const amountOut = readUsdcReceived(route, intentCost)
   if (amountOut === undefined || amountOut < route.amountOut) {
     return reject('The swap delivers less USDC than needed.')
@@ -391,12 +399,79 @@ function rejectIntent(
       sameAddress(mandate.recipient, route.hca),
   )
   if (!isLocal) return 'The swap pays another account or chain.'
-  const runsCalls = intentOp.elements.some(
+  const isIntentExecutor = intentOp.elements.every(
     ({ mandate }) =>
-      (mandate.destinationOps?.ops.length ?? 0) > 0 ||
-      (mandate.preClaimOps?.ops.length ?? 0) > 0,
+      mandate.qualifier?.settlementContext?.settlementLayer ===
+      'INTENT_EXECUTOR',
   )
-  return runsCalls ? 'The swap runs other operations.' : undefined
+  return isIntentExecutor ? undefined : 'The swap settles another way.'
+}
+
+/**
+ * ERC-20 and Permit2 calls that move or authorise tokens. No swap call needs
+ * one on this route: the swap is paid in native ETH as the call's value.
+ */
+const TOKEN_MOVING_SELECTORS: ReadonlySet<string> = new Set([
+  '0x095ea7b3', // approve(address,uint256)
+  '0xa9059cbb', // transfer(address,uint256)
+  '0x23b872dd', // transferFrom(address,address,uint256)
+  '0xd505accf', // permit(address,address,uint256,uint256,uint8,bytes32,bytes32)
+  '0x39509351', // increaseAllowance(address,uint256)
+  '0x87517c45', // Permit2 approve(address,address,uint160,uint48)
+  '0x36c78516', // Permit2 transferFrom(address,address,uint160,address)
+])
+
+type QuotedOp = Readonly<{ to: unknown; value: unknown; data: unknown }>
+
+const selectorOf = (data: unknown): string | undefined =>
+  typeof data === 'string' && data.length >= 10
+    ? data.slice(0, 10).toLowerCase()
+    : undefined
+
+/** An op to the native token's address: a call that reaches no contract. */
+const isNativeTokenNoOp = (op: QuotedOp) =>
+  sameAddress(op.to, NATIVE_ETH) && toBigInt(op.value) === 0n
+
+/**
+ * A swap call: it may spend ETH, but cannot reach the HCA or its USDC, or move
+ * any token, so the most it can take is the ETH being swapped.
+ */
+const isSwapCall = (route: EthSwapRoute) => (op: QuotedOp) =>
+  typeof op.to === 'string' &&
+  isAddress(op.to, { strict: false }) &&
+  !sameAddress(op.to, route.hca) &&
+  !sameAddress(op.to, route.usdc) &&
+  !sameAddress(op.to, NATIVE_ETH) &&
+  toBigInt(op.value) !== undefined &&
+  !TOKEN_MOVING_SELECTORS.has(selectorOf(op.data) ?? '')
+
+/**
+ * Rule 6, on what the HCA executes. A quoted swap runs the swap itself as the
+ * HCA's destination calls, and approves Permit2 for the input token before the
+ * claim, which for native ETH is a call to the zero address that does nothing.
+ */
+function rejectOps(
+  route: EthSwapRoute,
+  intentOp: IntentRoute['intentOp'],
+  amountIn: bigint,
+): string | undefined {
+  const preClaim = intentOp.elements.flatMap(
+    ({ mandate }) => mandate.preClaimOps?.ops ?? [],
+  )
+  const destination = intentOp.elements.flatMap(
+    ({ mandate }) => mandate.destinationOps?.ops ?? [],
+  )
+  if (!preClaim.every(isNativeTokenNoOp)) {
+    return 'The swap runs other operations.'
+  }
+  if (!destination.every(isSwapCall(route))) {
+    return 'The swap runs other operations.'
+  }
+  const spent = destination.reduce(
+    (total, op) => total + (toBigInt(op.value) ?? 0n),
+    0n,
+  )
+  return spent > amountIn ? 'The swap spends more ETH than quoted.' : undefined
 }
 
 /** Rule 4: the ETH spent, or undefined when anything else is spent too. */

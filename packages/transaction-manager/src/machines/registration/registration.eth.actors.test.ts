@@ -28,6 +28,7 @@ vi.mock('viem/actions', async (importOriginal) => ({
 
 const WALLET: Address = '0x1111111111111111111111111111111111111111'
 const HCA: Address = '0xaaaa000000000000000000000000000000000001'
+const ROUTER: Address = '0x6A000F20005980200259B80c5102003040001068'
 const USDC = getDestinationContracts(sepolia.id).usdc
 const DEPOSIT_HASH: Hash = `0x${'de'.repeat(32)}`
 const PENDING_HASH: Hash = `0x${'aa'.repeat(32)}`
@@ -61,8 +62,14 @@ const quoteFor = (args: PrepareArgs) => {
             mandate: {
               recipient: HCA,
               destinationChainId: String(sepolia.id),
-              destinationOps: { ops: [] },
+              // The swap itself, paid in ETH, as a live quote carries it.
+              destinationOps: {
+                ops: [{ to: ROUTER, value: amountIn.toString(), data: '0x' }],
+              },
               preClaimOps: { ops: [] },
+              qualifier: {
+                settlementContext: { settlementLayer: 'INTENT_EXECUTOR' },
+              },
             },
           },
         ],
