@@ -11,6 +11,8 @@ export interface UseRafProgressOptions<TContext> {
   resetGeneration?: number
   initial?: number
   snap?: (value: number) => number
+  /** See `CreateRafProgressStoreOptions.maxDtSeconds`. Read once, on mount. */
+  readonly maxDtSeconds?: number
 }
 
 /**
@@ -23,6 +25,7 @@ export function useRafProgress<TContext>({
   resetGeneration = 0,
   initial = 0,
   snap,
+  maxDtSeconds,
 }: UseRafProgressOptions<TContext>): number {
   const advanceRef = useRef(advance)
   advanceRef.current = advance
@@ -36,6 +39,7 @@ export function useRafProgress<TContext>({
       initial,
       advance: (ctx, current, dt) => advanceRef.current(ctx, current, dt),
       snap: (value) => snapRef.current?.(value) ?? value,
+      maxDtSeconds,
     })
   }
 

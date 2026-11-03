@@ -7,13 +7,13 @@ import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import { useIntercomClearance } from '@/hooks/useIntercomClearance'
 import { cn } from '@/lib/utils'
 import {
+  barEditActionClassName,
   desktopActionClusterClassName,
   editActionClassName,
   editBottomBarContentClassName,
   editBottomNavClassName,
   editBottomNavContentClassName,
   profileBarActionsClassName,
-  profileButtonClassName,
   profileStickyBarClassName,
   renewActionClassName,
 } from './ProfileAction.styles'
@@ -98,7 +98,7 @@ export const ProfileActions = ({
     return (
       <ProfileEditAction
         canEdit={canEdit}
-        className={profileButtonClassName}
+        className={barEditActionClassName}
         isInGrace={isInGrace}
         isUpgradeRequired={isUpgradeRequired}
         keepMounted

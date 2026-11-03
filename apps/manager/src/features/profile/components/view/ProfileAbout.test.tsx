@@ -36,12 +36,24 @@ describe('ProfileAbout', () => {
       />,
     )
 
-    expect(
-      screen.getByRole('heading', { name: 'Profile Description' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'About' })).toBeInTheDocument()
     expect(
       screen.getByText('Share a fun fact about this name'),
     ).toBeInTheDocument()
+  })
+
+  it('heads the card with the nickname alone when one is set', () => {
+    render(
+      <ProfileAbout
+        records={{
+          ...newEmptyProfileRecords(),
+          base: { description: 'Builder of things', name: 'Ali' },
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Ali' })).toBeInTheDocument()
+    expect(screen.queryByText('About')).not.toBeInTheDocument()
   })
 
   it('renders when only a meta record is set', () => {
@@ -54,9 +66,7 @@ describe('ProfileAbout', () => {
       />,
     )
 
-    expect(
-      screen.getByRole('heading', { name: 'Profile Description' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'About' })).toBeInTheDocument()
     expect(screen.getByText('UTC+2')).toBeInTheDocument()
   })
 

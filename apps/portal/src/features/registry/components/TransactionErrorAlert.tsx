@@ -7,6 +7,7 @@ import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl
 
 interface TransactionErrorAlertProps {
   readonly title: string
+  readonly titleClassName?: string
   readonly summary: string
   readonly details?: string
   readonly txHash?: Hash
@@ -17,6 +18,7 @@ interface TransactionErrorAlertProps {
 
 export const TransactionErrorAlert = ({
   title,
+  titleClassName,
   summary,
   details,
   txHash,
@@ -28,7 +30,7 @@ export const TransactionErrorAlert = ({
   return (
     <Alert variant="destructive" className="max-w-full">
       {showIcon && <AlertCircle />}
-      <AlertTitle>{title}</AlertTitle>
+      <AlertTitle className={titleClassName}>{title}</AlertTitle>
       <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
         <div className="flex flex-col gap-2">
           <span>{summary}</span>

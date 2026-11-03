@@ -219,6 +219,7 @@ export type V1SubnameParentGate =
 const toHeldParent = ({
   subject,
   registration,
+  isRewrappable,
 }: V1NameState): Exclude<V1SubnameParentGate, { reason: 'not-holder' }> =>
   match({ subject, registration })
     .with({ registration: 'gracePeriod' }, () => ({ reason: 'grace' }) as const)
@@ -230,7 +231,10 @@ const toHeldParent = ({
     .with(
       { subject: P.nonNullable },
       ({ subject }) =>
-        ({ reason: 'ok', parent: toV1ParentState(subject) }) as const,
+        ({
+          reason: 'ok',
+          parent: { ...toV1ParentState(subject), isRewrappable },
+        }) as const,
     )
     .exhaustive()
 

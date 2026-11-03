@@ -1,0 +1,12 @@
+{
+  "purpose": "ABI and bytecode for e2e-only contracts compiled from e2e/contracts. No deployment credentials or state included.",
+  "artifacts": [
+    {
+      "artifact": "TestOffchainResolver.json",
+      "source": "e2e/contracts/TestOffchainResolver.sol",
+      "compiler": "solc 0.8.26, optimizer on, 200 runs (forge build --use 0.8.26 --optimize --optimizer-runs 200)",
+      "fields": ["abi", "bytecode"],
+      "bytecode_sha256": "3744db2ea30683b983bb54c57a7e7cd7ce605fe7d7aca5ca825992e37216530b"
+    }
+  ]
+}
