@@ -1,6 +1,8 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getResolver } from '@ensdomains/ensjs/public'
+import { erc165SupportsInterfaceSnippet } from '@ensdomains/ensjs-abi/erc165'
 import { fromPromise } from 'neverthrow'
 import { match } from 'ts-pattern'
 import {
@@ -161,10 +163,6 @@ const RESOLVER_INTERFACE_IDS = [
   '0x9061b923',
 ] as const
 
-const supportsInterfaceAbi = parseAbi([
-  'function supportsInterface(bytes4 interfaceId) view returns (bool)',
-])
-
 /**
  * Whether `address` answers as a resolver. An EOA, or a contract that is not a
  * resolver, answers none of the ids; an RPC failure throws.
@@ -176,7 +174,7 @@ const isWorkingResolver = async (
   const results = await publicClient.multicall({
     contracts: RESOLVER_INTERFACE_IDS.map((interfaceId) => ({
       address,
-      abi: supportsInterfaceAbi,
+      abi: erc165SupportsInterfaceSnippet,
       functionName: 'supportsInterface' as const,
       args: [interfaceId] as const,
     })),
@@ -185,6 +183,27 @@ const isWorkingResolver = async (
   return results.some(
     (result) => result.status === 'success' && result.result === true,
   )
+}
+
+type ResolverPointerClient = Parameters<typeof getResolver>[0]
+
+/** ensjs reads the pointer through the UniversalResolver, so the chain must name it. */
+const hasUniversalResolver = (
+  client: PublicClient,
+): client is PublicClient & ResolverPointerClient =>
+  client.chain?.contracts?.ensUniversalResolver !== undefined
+
+/**
+ * The name's resolver pointer, past ENSv2's mirror of an ENSv1 name, even when
+ * it is not a contract the UniversalResolver can call.
+ */
+const readResolverPointer = async (
+  publicClient: PublicClient,
+  name: string,
+): Promise<Address | undefined> => {
+  if (!hasUniversalResolver(publicClient))
+    throw new Error('No ENS UniversalResolver is configured for this network')
+  return (await getResolver(publicClient, { name })) ?? undefined
 }
 
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
@@ -211,10 +230,13 @@ export async function getPrimaryNamePreparation(
     return { kind: 'update-eth-address', existingEthAddress, resolverAddress }
   }
 
-  // Only a resolver the wallet cannot write needs telling apart from a non-resolver.
+  // Only a resolver the wallet cannot write needs telling apart from a
+  // non-resolver. With none reached, the pointer may still be set: the
+  // UniversalResolver reports no resolver when it is not a contract.
+  const pointer =
+    resolverAddress ?? (await readResolverPointer(publicClient, name))
   const isResolverInvalid =
-    resolverAddress !== undefined &&
-    !(await isWorkingResolver(publicClient, resolverAddress))
+    pointer !== undefined && !(await isWorkingResolver(publicClient, pointer))
 
   return {
     kind: 'setup-resolver',

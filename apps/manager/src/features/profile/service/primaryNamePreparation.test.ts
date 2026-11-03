@@ -1,3 +1,4 @@
+import { getResolver } from '@ensdomains/ensjs/public'
 import { err, ok } from 'neverthrow'
 import {
   ContractFunctionRevertedError,
@@ -33,8 +34,10 @@ vi.mock('viem/actions', () => ({ getEnsResolver: vi.fn() }))
 vi.mock('./resolverRecordCalls', () => ({
   isOffchainResolver: vi.fn(async () => false),
 }))
+vi.mock('@ensdomains/ensjs/public', () => ({ getResolver: vi.fn() }))
 
-const client = {} as PublicClient
+// The chain carries the UniversalResolver the resolver-pointer read needs.
+const client: PublicClient = { ...({} as PublicClient), chain: envConfig.chain }
 const owner = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const
 const name = 'pookie.eth'
 const RESOLVER = '0x1234567890123456789012345678901234567890' as const
@@ -141,6 +144,7 @@ describe('getPrimaryNamePreparation', () => {
   // Only `multicall` (the ERC-165 probe) is read off the client.
   const clientAnswering = (isResolver: boolean) =>
     ({
+      chain: envConfig.chain,
       multicall: vi.fn(async () => [
         { status: 'failure', error: new Error('reverted') },
         { status: 'success', result: false },
@@ -188,6 +192,47 @@ describe('getPrimaryNamePreparation', () => {
 
     await expect(
       getPrimaryNamePreparation(failingClient, name, owner),
+    ).rejects.toBe(rpcDown)
+  })
+
+  // The UniversalResolver reports no resolver when the pointer is not a
+  // contract (an ENSv1 name pointing at an EOA), so the raw pointer decides.
+  it.each([
+    { label: 'an EOA pointer', pointer: owner, isResolverInvalid: true },
+    { label: 'no pointer', pointer: null, isResolverInvalid: false },
+  ])(
+    'reads the resolver pointer behind no reachable resolver: $label',
+    async ({ pointer, isResolverInvalid }) => {
+      vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
+      vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
+      vi.mocked(getResolverWriteState).mockResolvedValue(
+        ok({ resolverAddress: undefined, canWrite: false }),
+      )
+      vi.mocked(getResolver).mockResolvedValue(pointer)
+
+      await expect(
+        getPrimaryNamePreparation(clientAnswering(false), name, owner),
+      ).resolves.toEqual({
+        kind: 'setup-resolver',
+        existingEthAddress: null,
+        hasResolver: false,
+        hasOffchainResolver: false,
+        isResolverInvalid,
+      })
+    },
+  )
+
+  it('stops on a failed resolver-pointer read instead of guessing', async () => {
+    vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
+    vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
+    vi.mocked(getResolverWriteState).mockResolvedValue(
+      ok({ resolverAddress: undefined, canWrite: false }),
+    )
+    const rpcDown = new Error('rpc down')
+    vi.mocked(getResolver).mockRejectedValue(rpcDown)
+
+    await expect(
+      getPrimaryNamePreparation(clientAnswering(true), name, owner),
     ).rejects.toBe(rpcDown)
   })
 })
