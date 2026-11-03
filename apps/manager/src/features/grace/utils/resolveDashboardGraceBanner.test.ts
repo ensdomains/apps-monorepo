@@ -44,7 +44,6 @@ describe('resolveDashboardGraceBanner', () => {
         graceEndDate: graceEnd,
         daysSinceExpiry: 12,
         expiryDate: new Date(expired * 1000),
-        displayExpiryDate: graceEnd,
         isPastGrace: false,
       },
       names: [],
@@ -72,7 +71,6 @@ describe('resolveDashboardGraceBanner', () => {
         graceEndDate: null,
         daysSinceExpiry: null,
         expiryDate: new Date('2025-01-01T00:00:00Z'),
-        displayExpiryDate: new Date('2025-01-01T00:00:00Z'),
         isPastGrace: false,
       },
       names: [dashboardName('legacy.eth', expired, 'v1')],
@@ -94,7 +92,6 @@ describe('resolveDashboardGraceBanner', () => {
         graceEndDate: null,
         daysSinceExpiry: null,
         expiryDate: new Date('2025-01-01T00:00:00Z'),
-        displayExpiryDate: new Date('2025-01-01T00:00:00Z'),
         isPastGrace: false,
       },
       names: [
@@ -124,7 +121,6 @@ describe('resolveDashboardGraceBanner', () => {
         graceEndDate: null,
         daysSinceExpiry: null,
         expiryDate: new Date('2025-01-01T00:00:00Z'),
-        displayExpiryDate: new Date('2025-01-01T00:00:00Z'),
         isPastGrace: false,
       },
       names: [

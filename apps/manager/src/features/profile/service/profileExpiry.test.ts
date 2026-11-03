@@ -253,6 +253,6 @@ describe('subnames', () => {
     expect(status.isInGrace).toBe(false)
     expect(status.graceEndDate).toBeNull()
     expect(status.isPastGrace).toBe(true)
-    expect(status.displayExpiryDate).toEqual(new Date(1_600_000_000 * 1000))
+    expect(status.expiryDate).toEqual(new Date(1_600_000_000 * 1000))
   })
 })

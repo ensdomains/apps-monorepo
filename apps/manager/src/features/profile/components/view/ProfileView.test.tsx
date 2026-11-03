@@ -7,6 +7,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { Suspense } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EditProfileDialog } from '@/features/profile/components/dialogs/edit-profile/EditProfileDialog'
+import type { ProfileExpiryResult } from '@/features/profile/service/profileExpiry'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import type { ProfileRecords } from '@/features/profile/types'
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
@@ -16,6 +17,7 @@ import { ProfileView } from './ProfileView'
 const mocks = vi.hoisted(() => ({
   getProfileRecords: vi.fn<() => Promise<ProfileRecordsResult>>(),
   expiryFails: false,
+  expiry: null as ProfileExpiryResult | null,
   includeEditor: false,
 }))
 
@@ -70,7 +72,7 @@ vi.mock('@/features/profile/service/profileExpiry', async (importOriginal) => ({
       : {
           queryKey: ['profile-expiry', name],
           queryFn: skipToken,
-          initialData: null,
+          initialData: mocks.expiry,
         },
 }))
 vi.mock('@/features/profile/service/profileRegistration', () => ({
@@ -347,6 +349,47 @@ describe('ProfileView expiry read failure', () => {
     expect(
       screen.queryByText('Failed to load registration data for this name.'),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('ProfileView expiry details', () => {
+  const expiresAt = new Date('2026-08-29T12:00:00Z')
+
+  const detailValue = (label: string) =>
+    screen.getByText(label).parentElement?.nextElementSibling
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    mocks.expiry = {
+      expiry: BigInt(expiresAt.getTime() / 1000),
+      isNonExpiring: false,
+      protocol: 'v1',
+    }
+    mocks.getProfileRecords.mockReset()
+    mocks.getProfileRecords.mockResolvedValue({ texts: [], coins: [] })
+  })
+
+  afterEach(() => {
+    mocks.expiry = null
+    vi.useRealTimers()
+  })
+
+  it('shows when a name in grace expired, and beside it when grace ends', async () => {
+    vi.setSystemTime(new Date('2026-11-03T12:00:00Z'))
+    renderProfile()
+    await profileLoaded()
+
+    expect(detailValue('Expires')).toHaveTextContent('Aug 29, 2026')
+    expect(detailValue('Grace period ends')).toHaveTextContent('Nov 27, 2026')
+  })
+
+  it('shows only the expiry for an active name', async () => {
+    vi.setSystemTime(new Date('2026-08-01T12:00:00Z'))
+    renderProfile()
+    await profileLoaded()
+
+    expect(detailValue('Expires')).toHaveTextContent('Aug 29, 2026')
+    expect(screen.queryByText('Grace period ends')).not.toBeInTheDocument()
   })
 })
 
