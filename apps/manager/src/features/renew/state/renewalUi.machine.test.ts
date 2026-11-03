@@ -395,13 +395,16 @@ describe('increased payment on the smart-account route', () => {
     })
     const review = await waitForReview(actor)
 
-    expect(review.context.paymentReview?.prompt).toBe(UPDATED)
+    expect(review.context.paymentUpdate?.prompt).toBe(UPDATED)
     expect(sign).not.toHaveBeenCalled()
 
     actor.send({ type: 'renewal.payment.accept' })
     const accepted = actor.getSnapshot()
     expect(accepted.matches({ submittingHcaRenewal: 'signing' })).toBe(true)
-    expect(accepted.context.acceptedPayment).toBe(UPDATED)
+    expect(accepted.context.paymentUpdate).toEqual({
+      status: 'accepted',
+      prompt: UPDATED,
+    })
 
     await waitForState(actor, 'success')
     expect(sign).toHaveBeenCalledOnce()
@@ -426,7 +429,7 @@ describe('increased payment on the smart-account route', () => {
 
     const snapshot = actor.getSnapshot()
     expect(snapshot.matches({ pricing: 'tokens' })).toBe(true)
-    expect(snapshot.context.paymentReview).toBeUndefined()
+    expect(snapshot.context.paymentUpdate).toBeUndefined()
     await expect(answer).resolves.toBe(false)
     expect(sign).not.toHaveBeenCalled()
     actor.stop()
@@ -446,12 +449,11 @@ describe('increased payment on the smart-account route', () => {
     actor.send({ type: 'renewal.payment.accept' })
     const failed = await waitForState(actor, 'failure')
     expect(failed.context.lastErrorMessage).toBe('User rejected')
+    // The acceptance belonged to the failed attempt and is not carried over.
+    expect(failed.context.paymentUpdate).toBeUndefined()
 
     actor.send({ type: 'retry' })
-    const retried = await waitForReview(actor)
-    // A new attempt starts from the amount the user confirmed, not the one
-    // accepted for the attempt that failed.
-    expect(retried.context.acceptedPayment).toBeUndefined()
+    await waitForReview(actor)
     expect(mocks.submitHcaRenewal).toHaveBeenCalledTimes(2)
 
     actor.send({ type: 'renewal.payment.accept' })
@@ -506,7 +508,7 @@ describe('increased payment on the smart-account route', () => {
 
     void inputs[1]?.confirmIncreasedPayment(UPDATED)
     const review = await waitForReview(actor)
-    expect(review.context.paymentReview?.prompt).toBe(UPDATED)
+    expect(review.context.paymentUpdate?.prompt).toBe(UPDATED)
     actor.stop()
   })
 })

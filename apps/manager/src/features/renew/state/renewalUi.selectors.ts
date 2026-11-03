@@ -30,10 +30,8 @@ export const useIsAwaitingRenewalApproval = createRenewalUiSelector(
 export const useRenewalPaymentUpdate = createRenewalUiSelector(
   (state): RenewalPaymentUpdate | undefined => {
     if (!state.matches('submittingHcaRenewal')) return undefined
-    const { paymentReview, acceptedPayment } = state.context
-    if (paymentReview)
-      return { status: 'reviewing', prompt: paymentReview.prompt }
-    if (acceptedPayment) return { status: 'accepted', prompt: acceptedPayment }
+    const update = state.context.paymentUpdate
+    if (update) return { status: update.status, prompt: update.prompt }
     return undefined
   },
   (a, b) => a?.status === b?.status && a?.prompt === b?.prompt,

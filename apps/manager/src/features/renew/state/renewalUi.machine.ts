@@ -78,17 +78,23 @@ const requireSubmissionData = (
   return submissionData
 }
 
-/** A re-quoted payment above the confirmed one, waiting on the user. */
-type PaymentReview = {
-  readonly attempt: number
-  readonly prompt: HcaFundingPrompt
-  readonly decide: (isAccepted: boolean) => void
-}
+/**
+ * The current intent attempt's increased payment: waiting on the user, who
+ * answers through `decide`, or accepted and being signed.
+ */
+type PaymentUpdateState =
+  | {
+      readonly status: 'reviewing'
+      readonly prompt: HcaFundingPrompt
+      readonly decide: (isAccepted: boolean) => void
+    }
+  | { readonly status: 'accepted'; readonly prompt: HcaFundingPrompt }
 
 /** The receipt an intent attempt shows once its payment went up. */
-export type RenewalPaymentUpdate =
-  | { readonly status: 'reviewing'; readonly prompt: HcaFundingPrompt }
-  | { readonly status: 'accepted'; readonly prompt: HcaFundingPrompt }
+export type RenewalPaymentUpdate = {
+  readonly status: PaymentUpdateState['status']
+  readonly prompt: HcaFundingPrompt
+}
 
 /** Resolves `false` once the signal aborts, so a waiting question is declined. */
 const declineOnAbort = (signal: AbortSignal) =>
@@ -126,10 +132,8 @@ export const renewalUiMachine = setup({
        * carries an older number and is declined.
        */
       intentAttempt: number
-      /** The increased payment the current attempt is waiting on. */
-      paymentReview?: PaymentReview
-      /** The increased payment the user accepted for the current attempt. */
-      acceptedPayment?: HcaFundingPrompt
+      /** The current attempt's increased payment, once it went up. */
+      paymentUpdate?: PaymentUpdateState
     },
     input: {} as {
       currentExpiry: bigint
@@ -256,27 +260,30 @@ export const renewalUiMachine = setup({
     }),
     beginIntentAttempt: assign({
       intentAttempt: ({ context }) => context.intentAttempt + 1,
-      paymentReview: () => undefined,
-      acceptedPayment: () => undefined,
+      paymentUpdate: () => undefined,
     }),
     reviewPayment: assign({
-      paymentReview: ({ event }) =>
+      paymentUpdate: ({ event }) =>
         event.type === 'renewal.payment.increased'
           ? {
-              attempt: event.attempt,
+              status: 'reviewing' as const,
               prompt: event.prompt,
               decide: event.decide,
             }
           : undefined,
     }),
     answerPaymentReview: ({ context }, params: { isAccepted: boolean }) => {
-      context.paymentReview?.decide(params.isAccepted)
+      if (context.paymentUpdate?.status === 'reviewing')
+        context.paymentUpdate.decide(params.isAccepted)
     },
     keepAcceptedPayment: assign({
-      acceptedPayment: ({ context }) => context.paymentReview?.prompt,
-      paymentReview: () => undefined,
+      paymentUpdate: ({ context }) =>
+        context.paymentUpdate && {
+          status: 'accepted' as const,
+          prompt: context.paymentUpdate.prompt,
+        },
     }),
-    clearPaymentReview: assign({ paymentReview: () => undefined }),
+    clearPaymentUpdate: assign({ paymentUpdate: () => undefined }),
     declineStalePayment: ({ event }) => {
       if (event.type === 'renewal.payment.increased') event.decide(false)
     },
@@ -405,7 +412,7 @@ export const renewalUiMachine = setup({
       // abandoned submit stops instead of waiting forever.
       exit: [
         { type: 'answerPaymentReview', params: { isAccepted: false } },
-        'clearPaymentReview',
+        'clearPaymentUpdate',
       ],
       // Until the intent is submitted the owner is still approving (the
       // funding permit, then the signature), so the payment dialog stays up
