@@ -17,7 +17,9 @@ describe('NameHeading', () => {
       screen.getByRole('heading', { level: 1, name: 'rustic-sparrow.eth' }),
     ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy value' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Copy rustic-sparrow.eth' }),
+    )
 
     await waitFor(() =>
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(

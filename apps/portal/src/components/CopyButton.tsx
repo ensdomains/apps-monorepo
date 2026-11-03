@@ -8,10 +8,13 @@ export const CopyButton = ({
   value,
   size = 'default',
   className,
+  label = 'Copy value',
 }: {
   value: string
   size?: 'default' | 'sm'
   className?: string
+  /** Screen-reader name; defaults to the generic "Copy value". */
+  label?: string
 }) => {
   const [copied, setCopied] = useState(false)
 
@@ -41,7 +44,7 @@ export const CopyButton = ({
         ) : (
           <CopyIcon className="size-3" />
         )}
-        <span className="sr-only">Copy value</span>
+        <span className="sr-only">{label}</span>
       </button>
     )
   }
@@ -61,7 +64,7 @@ export const CopyButton = ({
       ) : (
         <CopyIcon className="size-3.5" />
       )}
-      <span className="sr-only">Copy value</span>
+      <span className="sr-only">{label}</span>
     </Button>
   )
 }

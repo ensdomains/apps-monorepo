@@ -11,6 +11,10 @@ export const NameHeading = ({ name }: { readonly name: string }) => (
     <PageHeading className={cn(nameHeadingClassName, 'inline')}>
       {name}
     </PageHeading>
-    <CopyButton value={name} className="ml-1 align-middle" />
+    <CopyButton
+      value={name}
+      label={`Copy ${name}`}
+      className="ml-1 align-middle"
+    />
   </div>
 )
