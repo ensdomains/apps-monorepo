@@ -30,8 +30,10 @@ import type { FundingSourceOrigin } from '../../../state/registrationUi.machine'
 import { useRegistrationLockHeartbeat } from '../../registering/hooks/useRegistrationLockHeartbeat'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { useFallbackPaymentChoice } from '../hooks/useFallbackPaymentChoice'
+import { useHeldWhile } from '../hooks/useHeldWhile'
 import {
   canPayFromL2,
+  isL2Empty,
   type L2PaymentProps,
   type L2PaymentRow,
   useL2Payment,
@@ -726,19 +728,22 @@ const getPayableMethods = (
   ),
 ]
 
-const getL2MethodItems = (
+export const getL2MethodItems = (
   l2Payment: L2PaymentProps | undefined,
   selectedL2: L2PaymentRow | undefined,
   funding: RegistrationFundingSummary | undefined,
+  l2FeeTooltip: ((chainName: string) => ReactNode) | undefined,
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
-  // A chain appears once its full quote covers it; a chosen one stays through refreshes.
+  // A chain appears once its full quote covers it; a chosen one stays through
+  // refreshes, unless it has nothing in it.
   return l2Payment.rows
     .filter(
       (row) =>
-        row === selectedL2 ||
-        (row.amountInRaw !== undefined && !isL2ShortOfFunds(row)),
+        !isL2Empty(row) &&
+        (row === selectedL2 ||
+          (row.amountInRaw !== undefined && !isL2ShortOfFunds(row))),
     )
     .sort(byBalanceDescending)
     .map((row) => {
@@ -748,6 +753,9 @@ const getL2MethodItems = (
         isSelected: row === selectedL2,
         content: (
           <L2SourceListItem
+            {...(l2FeeTooltip
+              ? { feeTooltip: l2FeeTooltip(row.option.source.chain.name) }
+              : {})}
             isFeeEstimated={
               row.amountInRaw === undefined && estimatedAmountIn !== undefined
             }
@@ -789,8 +797,48 @@ const isBudgetQuoting = (
     budgetQuery.isPending ||
     budgetQuery.isPlaceholderData)
 
-export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
+/** The name being paid for, with its premium and cooldown pills. */
+const DomainHeading = ({
   label,
+  isInPriceCooldown,
+}: {
+  readonly label: string
+  readonly isInPriceCooldown: boolean
+}) => {
+  const { t } = useLingui()
+  const domainName = `${label}.eth`
+  const premiumLabel = getPremiumLabel(label.length)
+  return (
+    <div className="flex w-full min-w-0 flex-col items-center gap-3 px-5 py-3">
+      {(premiumLabel || isInPriceCooldown) && (
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+          {premiumLabel && (
+            <DomainAttributePill
+              label={t(premiumLabel.label)}
+              variant={premiumLabel.variant}
+            />
+          )}
+          {isInPriceCooldown && <PriceCooldownPill />}
+        </div>
+      )}
+      <span
+        className={cn(
+          'wrap-anywhere w-full min-w-0 text-center font-medium font-semi-mono',
+          'whitespace-normal leading-ens-none tracking-[-0.8px]',
+          'text-ens-gray',
+          getDomainSizeClasses(domainName),
+        )}
+        title={domainName}
+      >
+        {domainName}
+      </span>
+    </div>
+  )
+}
+
+const PaymentPicker = <T extends TOKEN_SYMBOL>({
+  label = '',
+  header,
   pricingLoading,
   pricingData,
   isInPriceCooldown = false,
@@ -832,8 +880,12 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   isEstimate = false,
   walletDebitFor,
   l2Payment,
+  l2FeeTooltip,
 }: {
-  readonly label: string
+  /** The name being paid for, shown as the heading unless `header` replaces it. */
+  readonly label?: string
+  /** The caller's own heading, such as a list of names. */
+  readonly header?: ReactNode
   readonly pricingLoading: boolean
   readonly pricingData: number | undefined
   readonly isInPriceCooldown?: boolean
@@ -888,12 +940,12 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly isEstimate?: boolean
   /** Per-coin override of what the wallet must cover, for a fee paid in one coin and rent in another. */
   readonly walletDebitFor?: (symbol: TOKEN_SYMBOL) => number
-  /** Registration only: rows that pay the registration from an L2. */
+  /** Rows that pay from the wallet's USDC on an L2. */
   readonly l2Payment?: L2PaymentProps
+  /** What an L2 row's fee info explains; the registration's wording by default. */
+  readonly l2FeeTooltip?: (chainName: string) => ReactNode
 }) => {
   const { t } = useLingui()
-  const domainName = `${label}.eth`
-  const premiumLabel = getPremiumLabel(label.length)
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
 
@@ -951,7 +1003,12 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
       hasBalances && hasSufficientBalanceForSelectedCoin,
     )
   const walletSelection = selectedL2 ? undefined : selectedToken
-  const l2MethodItems = getL2MethodItems(l2Payment, selectedL2, funding)
+  const l2MethodItems = getL2MethodItems(
+    l2Payment,
+    selectedL2,
+    funding,
+    l2FeeTooltip,
+  )
 
   const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
   const isSettling = isCheckoutSettling(isBusy, isRequoting)
@@ -997,6 +1054,16 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     },
   )
   const paymentMethodItems = [...walletMethodItems, ...l2MethodItems]
+  // A coin the wallet holds none of still covers a share of 0, so it stays
+  // choosable when the account pays it all, but it is never listed.
+  const emptyCoins = new Set<string>(
+    stablecoinBalances
+      .filter((coin) => BigInt(coin.balance) === 0n)
+      .map((coin) => coin.address),
+  )
+  const listedMethodItems = paymentMethodItems.filter(
+    (item) => !emptyCoins.has(item.id),
+  )
   const isL2Pending = !!l2Payment?.rows.some(
     (row) => row.option.status === 'loading' || row.isQuoteLoading,
   )
@@ -1014,7 +1081,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     paymentMethodItems.length > 0 &&
     !walletMethodItems.some((item) => item.isSelected)
 
-  // Registration only: when the chosen method can't pay, switch to the one holding the most
+  // With L2 rows: when the chosen method can't pay, switch to the one holding the most
   const fallbackChoice = l2Payment
     ? getFallbackPaymentChoice({
         current: getCurrentMethodState(
@@ -1070,30 +1137,12 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         )}
       >
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
-          <div className="flex w-full min-w-0 flex-col items-center gap-3 px-5 py-3">
-            {(premiumLabel || isInPriceCooldown) && (
-              <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-                {premiumLabel && (
-                  <DomainAttributePill
-                    label={t(premiumLabel.label)}
-                    variant={premiumLabel.variant}
-                  />
-                )}
-                {isInPriceCooldown && <PriceCooldownPill />}
-              </div>
-            )}
-            <span
-              className={cn(
-                'wrap-anywhere w-full min-w-0 text-center font-medium font-semi-mono',
-                'whitespace-normal leading-ens-none tracking-[-0.8px]',
-                'text-ens-gray',
-                getDomainSizeClasses(domainName),
-              )}
-              title={domainName}
-            >
-              {domainName}
-            </span>
-          </div>
+          {header ?? (
+            <DomainHeading
+              isInPriceCooldown={isInPriceCooldown}
+              label={label}
+            />
+          )}
 
           <div className="flex w-full flex-col gap-6">
             <div className="flex items-center justify-between">
@@ -1142,7 +1191,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
               .otherwise(() => (
                 <PaymentMethods
                   onSelectCoin={onSelectCoin}
-                  paymentMethodItems={paymentMethodItems}
+                  paymentMethodItems={listedMethodItems}
                   selectedToken={selectedToken}
                   showNetworkFeeDetails={showNetworkFeeDetails}
                   stablecoinBalances={stablecoinBalances}
@@ -1176,5 +1225,30 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         />
       </div>
     </fieldset>
+  )
+}
+
+type TokenPickerContentBaseProps<T extends TOKEN_SYMBOL> = Parameters<
+  typeof PaymentPicker<T>
+>[0]
+
+/**
+ * The payment picker. While a payment is in flight (`isBusy`) it keeps showing
+ * what the user confirmed: balances and quotes refresh underneath, and the
+ * payment landing in the account would otherwise rewrite the figures mid-flow.
+ * Only the progress label and errors stay live.
+ */
+export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>(
+  props: TokenPickerContentBaseProps<T>,
+) => {
+  const held = useHeldWhile(props, props.isBusy ?? false)
+  return (
+    <PaymentPicker
+      {...held}
+      globalErrorMessage={props.globalErrorMessage}
+      isBusy={props.isBusy}
+      nextMessage={props.nextMessage}
+      revalidatedShortfall={props.revalidatedShortfall}
+    />
   )
 }
