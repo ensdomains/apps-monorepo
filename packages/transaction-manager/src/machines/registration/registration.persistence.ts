@@ -8,6 +8,7 @@ import {
   PAYMENT_TOKEN_CONTRACT,
   type TOKEN_SYMBOL,
 } from './registration.actors'
+import type { EthFunding, PendingEthSwap } from './registration.eth.actors'
 import { hcaRegistrarAddress } from './registration.hca.actors'
 import type {
   RegistrationContext,
@@ -83,6 +84,10 @@ export type PersistedRegistrationContext = {
   unsettledL2Bridge?: UnsettledL2Bridge
   /** Whether that bridge came from an abandoned run; see the machine context. */
   isL2BridgeFromPriorRun?: boolean
+  /** A run paying with ETH, so a resumed one keeps paying with it. */
+  ethFunding?: EthFunding
+  /** The ETH swap still confirming, so a resumed run counts it. */
+  pendingEthSwap?: PendingEthSwap
 
   // Flow state
   resolverAddress?: Address
@@ -247,6 +252,8 @@ export function serializeRegistrationContext(
     l2FundingChainId: context.l2Funding?.chain.id,
     unsettledL2Bridge: context.unsettledL2Bridge,
     isL2BridgeFromPriorRun: context.isL2BridgeFromPriorRun,
+    ethFunding: context.ethFunding,
+    pendingEthSwap: context.pendingEthSwap,
     resolverAddress: context.resolverAddress,
     resolverTxId: context.resolverTxId,
     resolverSalt: context.resolverSalt,
@@ -344,6 +351,10 @@ const persistedContextSchema = v.object({
     }),
   ),
   isL2BridgeFromPriorRun: v.optional(v.boolean()),
+  ethFunding: v.optional(v.object({ displayedCharge: v.optional(v.bigint()) })),
+  pendingEthSwap: v.optional(
+    v.object({ hash: hashSchema, deadline: v.bigint() }),
+  ),
   resolverAddress: v.optional(addressSchema),
   resolverTxId: v.optional(v.string()),
   resolverSalt: v.optional(v.bigint()),
