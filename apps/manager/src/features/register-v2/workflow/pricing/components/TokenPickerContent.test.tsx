@@ -1247,4 +1247,44 @@ describe('TokenPickerContentBase L2 rows', () => {
       expect(onSelectCoin).toHaveBeenCalledWith('USDC')
     })
   })
+
+  // A share of 0 is "covered" by any coin, an empty one included.
+  describe('an empty wallet coin, with the account covering it all', () => {
+    const covered = { ...underfunded, walletDebit: 0, hcaCredit: 5 }
+    const nothingToBridge = () =>
+      baseSepoliaRow('available', { amountInRaw: 0n })
+
+    // A renewal retried after its bridge landed, still paying from the L2.
+    it('is not listed', () => {
+      renderPicker({
+        funding: covered,
+        selectedToken: 'USDC',
+        stablecoinBalances: [emptyUsdc],
+        l2Payment: l2Payment(nothingToBridge(), baseSepolia.id),
+      })
+
+      expect(
+        screen.queryByRole('button', { name: 'Select USDC' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+      ).toBeVisible()
+    })
+
+    it('still pays nothing once chosen, rather than giving way to the L2', () => {
+      const payment = l2Payment(nothingToBridge())
+      renderPicker({
+        funding: covered,
+        selectedToken: 'USDC',
+        stablecoinBalances: [emptyUsdc],
+        l2Payment: payment,
+      })
+
+      expect(screen.getByText(/No additional payment needed/)).toBeVisible()
+      expect(
+        screen.getByRole('button', { name: 'Register name' }),
+      ).toBeEnabled()
+      expect(payment.onSelect).not.toHaveBeenCalled()
+    })
+  })
 })
