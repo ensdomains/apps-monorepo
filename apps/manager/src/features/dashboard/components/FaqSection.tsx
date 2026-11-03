@@ -8,6 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { SubnameUpgradeExplanation } from '@/features/migration/components/SubnameUpgradeExplanation'
 
 const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
   {
@@ -30,13 +31,11 @@ const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
       <div className="space-y-3">
         <p>
           <Trans>
-            Supported direct subnames, such as alice.example.eth, can be
-            included when you upgrade an unwrapped or unlocked example.eth. Each
-            keeps the owner and resolver shown in your review. Existing subname
-            records stay on that resolver, and you keep control of the parent
-            name.
+            Supported direct subnames, such as alice.example.eth, upgrade with
+            an unwrapped or unlocked example.eth:
           </Trans>
         </p>
+        <SubnameUpgradeExplanation />
         <p>
           <Trans>
             The review uses a saved point in time. We check for changes again

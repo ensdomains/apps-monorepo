@@ -249,6 +249,14 @@ export const test = base.extend<ManagerFixtures>({
   // Install the bigname mock on every page when E2E_MOCK_BIGNAME=true.
   // Nothing indexes the local chain, so bigname reads are answered from the mock.
   page: async ({ page }, use) => {
+    // Answer the analytics banner up front so it never covers a control.
+    await page.context().addCookies([
+      {
+        name: 'ens_analytics_consent',
+        value: '0',
+        url: process.env.MANAGER_APP_URL ?? 'http://localhost:3000',
+      },
+    ])
     if (process.env.MATRIX_LOCAL_RPC_ONLY === '1') await routeToLocalFork(page)
     await bignameMock.installIfEnabled(page)
     await use(page)

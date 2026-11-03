@@ -37,6 +37,7 @@ import {
   getV1ProfileKeys,
   type V1ProfileKeys,
 } from '@/features/migration/service/v1ProfileKeys'
+import { namesNotRequiringProfileRead } from './migrationEstimateProgress'
 
 export type MigrationPreflight = {
   skipFetchProfilesPhase: boolean
@@ -94,6 +95,7 @@ const computeApprovalPreflight = async (params: {
   readonly requiresManagerRestoration: boolean
   readonly requiresRegistryConfiguration: boolean
   readonly wagmiConfig: WagmiConfig
+  readonly approvalReadClient?: PublicClient
 }): Promise<{
   readonly migrationApprovals?: readonly MigrationApproval[]
   readonly migrationCleanupApprovals?: readonly MigrationCleanupApproval[]
@@ -117,6 +119,7 @@ const computeApprovalPreflight = async (params: {
       requiresRegistryConfiguration,
     },
     wagmiConfig,
+    publicClient: params.approvalReadClient,
   })
   const migrationApprovals = planMigrationApprovals({
     hcaAddress,
@@ -140,8 +143,10 @@ const computeApprovalPreflight = async (params: {
 
 const computeProfilePreflight = async (
   namesToOwnedPermRes: readonly ClassifiedName[],
+  publicClient: PublicClient,
+  verificationClient: PublicClient | undefined,
   signal?: AbortSignal,
-  chainId?: number,
+  onNamesRead?: (names: readonly string[]) => void | Promise<void>,
 ): Promise<{
   readonly skipFetchProfilesPhase: boolean
   readonly profileKeys?: readonly V1ProfileKeys[]
@@ -160,7 +165,13 @@ const computeProfilePreflight = async (
         ? [{ id: domain.id, name: domain.name, resolver: v1ResolverAddress }]
         : [],
     ),
-    { signal, chainId },
+    {
+      signal,
+      chainId: publicClient.chain?.id,
+      publicClient,
+      verificationClient,
+      onNamesRead,
+    },
   )
   signal?.throwIfAborted()
   if (keysResult.isErr()) {
@@ -204,7 +215,10 @@ export const computeMigrationPreflight = async (params: {
   requiresRegistryConfiguration?: boolean
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
+  readonly verificationClient?: PublicClient
+  readonly approvalReadClient?: PublicClient
   signal?: AbortSignal
+  readonly onNamesRead?: (names: readonly string[]) => void | Promise<void>
 }): Promise<MigrationPreflight> => {
   const {
     eoa,
@@ -233,6 +247,8 @@ export const computeMigrationPreflight = async (params: {
     (n) => n.resolverStrategy === 'to-owned-permres',
   )
   const needsOwnedPermRes = namesToOwnedPermRes.length > 0
+  const noProfileRead = namesNotRequiringProfileRead(classified)
+  await params.onNamesRead?.(noProfileRead)
 
   const [
     resolverPreflight,
@@ -254,11 +270,18 @@ export const computeMigrationPreflight = async (params: {
       requiresManagerRestoration,
       requiresRegistryConfiguration,
       wagmiConfig,
+      approvalReadClient: params.approvalReadClient,
     }),
     computeProfilePreflight(
       namesToOwnedPermRes,
+      publicClient,
+      params.verificationClient,
       signal,
-      params.publicClient.chain?.id,
+      params.onNamesRead
+        ? async (names) => {
+            await params.onNamesRead?.([...noProfileRead, ...names])
+          }
+        : undefined,
     ),
     resolveDirectMigrationRoutes({ publicClient, classified: directNames }),
     hcaAddress

@@ -31,7 +31,6 @@ const mocks = vi.hoisted(() => ({
   readNameResolver: vi.fn(),
   hasV2NameEntry: vi.fn(),
   readContract: vi.fn(),
-  isOffchainName: vi.fn(),
   isExtendedResolver: false,
 }))
 
@@ -63,17 +62,11 @@ vi.mock('./changeResolver', () => {
     hasV2NameEntry: mocks.hasV2NameEntry,
   }
 })
-vi.mock('./resolverRecordCalls', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./resolverRecordCalls')>()),
-  isOffchainName: mocks.isOffchainName,
-}))
 vi.mock('../data/records', () => ({
-  addressRecords: [{ coinType: 60 }, { coinType: 121 }, { coinType: 501 }],
-  alwaysProbeAddressRecords: [],
-  forceFetchRecords: { always: [], whenNotIndexed: [] },
-  offchainProfileRecords: { texts: ['description'], coins: [60] },
-  staticTextRecords: ['avatar', 'theme'],
-  textRecords: [],
+  mainProfileRecords: {
+    texts: ['avatar', 'theme', 'links'],
+    coins: [60, 121, 501],
+  },
 }))
 
 import { NameRegistryNotFoundError } from './changeResolver'
@@ -181,7 +174,6 @@ describe('profile records', () => {
     mocks.readNameResolver.mockResolvedValue(resolverAddress)
     mocks.call.mockReset().mockImplementation(directRead)
     mocks.hasV2NameEntry.mockResolvedValue(true)
-    mocks.isOffchainName.mockResolvedValue(false)
     mocks.isExtendedResolver = false
   })
 
@@ -382,42 +374,25 @@ describe('profile records', () => {
     ).toHaveLength(4)
   })
 
-  it.each([
-    { isOffchain: false, texts: ['avatar', 'theme', 'links'], coins: 3 },
-    // Every key would not fit one gateway request, so only the profile keys.
-    { isOffchain: true, texts: ['description'], coins: 1 },
-  ])(
-    'reads the default keys for a name bigname has not indexed (offchain: $isOffchain)',
-    async ({ isOffchain, texts, coins }) => {
-      mocks.nameRecords.mockReturnValue(
-        errAsync(
-          new BignameError({
-            code: 'not_found',
-            status: 404,
-            message: 'missing',
-          }),
-        ),
-      )
-      mocks.isOffchainName.mockResolvedValue(isOffchain)
-      mocks.resolveNameData.mockResolvedValue(null)
-
-      const result = await getProfileRecords('unindexed.eth')
-
-      expect(result.isOk()).toBe(true)
-      expect(requestedTextKeys()).toEqual(texts)
-      expect(
-        requestedCalls().filter((call) => call.functionName === 'addr'),
-      ).toHaveLength(coins)
-    },
-  )
-
-  it('reads only the profile keys for an offchain name bigname indexed without keys', async () => {
-    mocks.isOffchainName.mockResolvedValue(true)
+  it('reads the main keys for a name bigname has not indexed', async () => {
+    mocks.nameRecords.mockReturnValue(
+      errAsync(
+        new BignameError({
+          code: 'not_found',
+          status: 404,
+          message: 'missing',
+        }),
+      ),
+    )
     mocks.resolveNameData.mockResolvedValue(null)
 
-    await getProfileRecords('offchain.eth')
+    const result = await getProfileRecords('unindexed.eth')
 
-    expect(requestedTextKeys()).toEqual(['description'])
+    expect(result.isOk()).toBe(true)
+    expect(requestedTextKeys()).toEqual(['avatar', 'theme', 'links'])
+    expect(
+      requestedCalls().filter((call) => call.functionName === 'addr'),
+    ).toHaveLength(3)
   })
 
   const gatewayError = (status: number) => ({
