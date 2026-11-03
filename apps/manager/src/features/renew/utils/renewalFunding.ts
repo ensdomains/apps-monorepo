@@ -1,3 +1,4 @@
+import type { HcaDisplayedDebit } from '@ens-apps/transaction-manager'
 import type { RENEWAL_TOKEN, TOKEN_SYMBOL } from '@/lib/tokens'
 
 /** The rent is paid in the chosen coin; the intent's fee is always USDC. */
@@ -64,5 +65,30 @@ export const computeRenewalFunding = (params: {
       hcaCredit: legs.reduce((sum, leg) => sum + creditOf(...leg), 0),
     },
     walletDebitFor,
+  }
+}
+
+const debitRaw = (amount: bigint, credit: bigint | undefined) =>
+  amount > (credit ?? 0n) ? amount - (credit ?? 0n) : 0n
+
+/** The wallet debit {@link computeRenewalFunding} shows, in each coin's units; the intent may not take more. */
+export const computeRenewalDisplayedDebit = (params: {
+  /** The rent with its approval headroom, in the chosen coin's units. */
+  readonly fundedRaw: bigint
+  /** USDC (6dp). */
+  readonly networkFeeRaw: bigint
+  readonly selectedToken: RENEWAL_TOKEN
+  readonly accountCreditRaw: Partial<Record<RENEWAL_TOKEN, bigint>>
+}): HcaDisplayedDebit => {
+  const { fundedRaw, networkFeeRaw, selectedToken, accountCreditRaw } = params
+  if (selectedToken === FEE_TOKEN) {
+    return {
+      usdc: debitRaw(fundedRaw + networkFeeRaw, accountCreditRaw.USDC),
+      token: 0n,
+    }
+  }
+  return {
+    usdc: debitRaw(networkFeeRaw, accountCreditRaw.USDC),
+    token: debitRaw(fundedRaw, accountCreditRaw[selectedToken]),
   }
 }
