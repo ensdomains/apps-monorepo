@@ -238,3 +238,24 @@ it('keeps the allowance on screen while it closes after the approval lands', () 
   fireEvent.animationEnd(screen.getByRole('alertdialog'))
   expect(screen.queryByText('0.000004 USDC')).not.toBeInTheDocument()
 })
+
+it('takes no second answer while it closes after consent', () => {
+  keepClosingDialogsMounted()
+  const onApprove = vi.fn()
+  const content = (state: HcaFundingApprovalState) => (
+    <I18nProvider i18n={i18n}>
+      <HcaFundingApprovalDialog
+        onApprove={onApprove}
+        onDecline={() => undefined}
+        state={state}
+      />
+    </I18nProvider>
+  )
+  const view = render(content({ kind: 'approval', prompt }))
+
+  view.rerender(content({ kind: 'idle' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Approve USDC' }))
+
+  expect(onApprove).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+})

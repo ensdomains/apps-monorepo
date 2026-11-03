@@ -105,6 +105,8 @@ export const HcaFundingConfirmDialog = ({
   // Approving clears `prompt` and opens the wallet while the dialog is still
   // closing; keep its figures until it is gone.
   const shownPrompt = useLastShown(prompt, (value) => value !== null)
+  // Its answer is already given, and a click now would answer the next prompt.
+  const isClosing = prompt === null
   const legs = shownPrompt ? legsOf(shownPrompt) : []
   const covered = legs.filter((leg) => leg.covered > 0n)
   const debits = legs.filter((leg) => leg.debit > 0n)
@@ -217,6 +219,7 @@ export const HcaFundingConfirmDialog = ({
         <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
           <Button
             className="flex-1/3 uppercase"
+            disabled={isClosing}
             onClick={onDecline}
             size="lg"
             type="button"
@@ -226,6 +229,7 @@ export const HcaFundingConfirmDialog = ({
           </Button>
           <Button
             className="flex-2/3 uppercase"
+            disabled={isClosing}
             onClick={onApprove}
             size="lg"
             type="button"

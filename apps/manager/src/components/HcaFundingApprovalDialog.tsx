@@ -31,6 +31,8 @@ export const HcaFundingApprovalDialog = ({
   // The state turns idle once the approval lands (or is answered) while the
   // dialog is still closing; keep showing the last one until it is gone.
   const shown = useLastShown(state, (value) => value.kind !== 'idle')
+  // Its answer is already given, and a click now would answer the next prompt.
+  const isClosing = state.kind === 'idle'
   const prompt = shown.kind === 'idle' ? null : shown.prompt
   const isRecovery = shown.kind === 'approval-recovery'
   const isPending =
@@ -169,7 +171,7 @@ export const HcaFundingApprovalDialog = ({
         <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
           <Button
             className="flex-1/3 uppercase"
-            disabled={isPending}
+            disabled={isPending || isClosing}
             onClick={onDecline}
             ref={cancelRef}
             size="lg"
@@ -180,7 +182,9 @@ export const HcaFundingApprovalDialog = ({
           </Button>
           <Button
             className="flex-2/3 uppercase"
-            disabled={isPending || (isRecovery && !isRecoveryConfirmed)}
+            disabled={
+              isPending || isClosing || (isRecovery && !isRecoveryConfirmed)
+            }
             onClick={onApprove}
             size="lg"
             type="button"

@@ -116,6 +116,9 @@ describe('HcaFundingConfirmDialog', () => {
     expect(screen.getByText('−0.4 USDC')).toBeInTheDocument()
     expect(screen.getByText('2.5 USDC')).toBeInTheDocument()
     expect(screen.getByText(/approve this exact amount/)).toBeInTheDocument()
+    // Answered already: a second tap must not answer whatever is asked next.
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
 
     fireEvent.animationEnd(screen.getByRole('alertdialog'))
     expect(screen.queryByText('2.5 USDC')).not.toBeInTheDocument()
