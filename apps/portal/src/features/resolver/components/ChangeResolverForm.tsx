@@ -59,7 +59,9 @@ const CustomResolverAddressInput = ({
   readonly value: string
   readonly onChange: (value: string) => void
 }) => {
-  const [isTouched, setIsTouched] = useState(false)
+  // The value outlives this input when custom resolver is toggled off and on,
+  // so a remount with a value already in it starts touched.
+  const [isTouched, setIsTouched] = useState(value !== '')
   const errorId = useId()
   const error = getResolverAddressError({ value, isTouched })
 
