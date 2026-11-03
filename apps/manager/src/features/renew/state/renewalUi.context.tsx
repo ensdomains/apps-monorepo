@@ -28,9 +28,8 @@ export const RenewalUiProvider = ({
   currentExpiry: bigint
   protocol: RenewalProtocol
 }) => {
-  // The renewal intent is quoted inside the submit call, and only then is the
-  // funding amount known — so the machine parks on this promise and the dialog
-  // below resolves it. Nothing else asks the wallet for a signature first.
+  // The payment screen's debit is checked against the intent's own quote, so
+  // the funding dialog below only opens when that screen showed the rent alone.
   const {
     prompt: fundingPrompt,
     confirmFunding,

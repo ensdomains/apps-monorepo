@@ -164,6 +164,14 @@ describe('submitHcaRenewal', () => {
     })
   })
 
+  it('checks the funding against the debit the payment screen showed', async () => {
+    const displayedDebit = { usdc: 1_100_000n, token: 0n }
+
+    await submitHcaRenewal({ ...params, displayedDebit })
+
+    expect(fundingParams()).toMatchObject({ displayedDebit })
+  })
+
   it('batches several names into one call, with a limit scaled to the count', async () => {
     const items = [
       { label: 'alice', duration: 31_536_000n },

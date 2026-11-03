@@ -836,6 +836,72 @@ describe('planHcaIntentFunding for a spend in another token', () => {
   })
 })
 
+describe('planHcaIntentFunding after a screen showed the debit', () => {
+  // 2.0 rent + 0.9 fee, out of an empty HCA: the wallet owes 2.9 USDC.
+  const rentParams = { ...params, requiredUsdc: 2_000_000n }
+  const DAI = '0x00000000000000000000000000000000000000da' as Address
+  const ONE_DAI = 10n ** 18n
+
+  it('signs without asking again when the quote matches what was shown', async () => {
+    const confirmFunding = vi.fn(() => true)
+
+    const funding = await planHcaIntentFunding({
+      ...rentParams,
+      confirmFunding,
+      displayedDebit: { usdc: 2_900_000n, token: 0n },
+    })
+
+    expect(confirmFunding).not.toHaveBeenCalled()
+    expect(signFundingPermit.mock.calls[0]?.[0]).toMatchObject({
+      value: 2_900_000n,
+    })
+    expect(funding.incomingUsdc).toBe(2_900_000n)
+  })
+
+  it.each([
+    {
+      case: 'a permit',
+      reads: {},
+      shown: { usdc: 2_300_000n, token: 0n },
+      spend: {},
+    },
+    {
+      case: 'a standing allowance',
+      reads: { allowance: 9_000_000n },
+      shown: { usdc: 2_300_000n, token: 0n },
+      spend: {},
+    },
+    {
+      case: 'the token leg',
+      reads: {},
+      shown: { usdc: 900_000n, token: (3n * ONE_DAI) / 2n },
+      spend: {
+        requiredUsdc: 0n,
+        tokenSpend: {
+          token: DAI,
+          symbol: 'DAI',
+          decimals: 18,
+          amount: 2n * ONE_DAI,
+        },
+      },
+    },
+  ])(
+    'refuses funding above the shown debit, through $case',
+    async ({ reads, shown, spend }) => {
+      mockReads(reads)
+
+      await expect(
+        planHcaIntentFunding({
+          ...rentParams,
+          ...spend,
+          displayedDebit: shown,
+        }),
+      ).rejects.toThrow(/ was shown /)
+      expect(signFundingPermit).not.toHaveBeenCalled()
+    },
+  )
+})
+
 describe('explicit renewal permit validation', () => {
   it('stops at a failed permit preflight instead of returning a rejected permit', async () => {
     prepareTransaction.mockResolvedValue({

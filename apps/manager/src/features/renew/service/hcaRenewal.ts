@@ -1,6 +1,7 @@
 import {
   type Call,
   getSmartAccountAddress,
+  type HcaDisplayedDebit,
   type HcaFundingApprovalCapability,
   type HcaFundingPrompt,
   hcaMaxIntentFeeUsdcFor,
@@ -59,7 +60,7 @@ export const HCA_RENEWAL_INTENT_MAX_ITEMS = 25
 /** How the funding permit's errors describe a renewal. */
 const RENEWAL_PERMIT_PURPOSE: PermitPurpose = {
   subject: 'the renewal',
-  shownAt: 'in the renewal payment prompt',
+  shownAt: 'when you started the renewal',
   costNote:
     'The amount covers the renewal price with its 10% buffer, and in USDC ' +
     'the network fee, less what the smart account already holds.',
@@ -117,6 +118,11 @@ export interface SubmitHcaRenewalParams {
    */
   readonly approvalFallback?: HcaFundingApprovalCapability
   readonly signal?: AbortSignal
+  /**
+   * What the payment screen showed the wallet would pay. The funding is checked
+   * against it instead of asking `confirmFunding`.
+   */
+  readonly displayedDebit?: HcaDisplayedDebit
   readonly confirmFunding?: (
     prompt: HcaFundingPrompt,
   ) => Promise<boolean> | boolean
@@ -288,6 +294,19 @@ export async function quoteHcaRenewalFee(
 }
 
 /**
+ * How the user agrees to the funding the intent re-quotes: by the debit the
+ * payment screen showed, else by a prompt before any signature.
+ */
+const fundingConsent = ({
+  displayedDebit,
+  confirmFunding,
+}: Pick<SubmitHcaRenewalParams, 'displayedDebit' | 'confirmFunding'>) => {
+  if (displayedDebit) return { displayedDebit }
+  if (confirmFunding) return { confirmFunding }
+  return {}
+}
+
+/**
  * Renew one or more names as a single owner-signed HCA intent, with the rent in
  * the chosen stable and the intent's fee in USDC.
  *
@@ -317,7 +336,6 @@ export async function submitHcaRenewal(
     chainId,
     onTxId,
     onSubmitted,
-    confirmFunding,
   } = params
 
   const single = items.length === 1 ? items[0] : undefined
@@ -370,9 +388,7 @@ export async function submitHcaRenewal(
     },
     gasLimit,
     maxFeeUsdc: hcaMaxIntentFeeUsdcFor(gasLimit),
-    // The amounts are quoted here, not on any earlier screen, so this is the
-    // only place they can be shown before a signature is requested.
-    ...(confirmFunding ? { confirmFunding } : {}),
+    ...fundingConsent(params),
     purpose: RENEWAL_PERMIT_PURPOSE,
     ...(params.approvalFallback
       ? { approvalFallback: params.approvalFallback }
