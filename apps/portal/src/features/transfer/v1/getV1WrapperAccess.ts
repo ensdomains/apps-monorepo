@@ -22,9 +22,7 @@ const nameWrapperCanModifyNameAbi = parseAbi([
   'function canModifyName(bytes32 node, address addr) view returns (bool)',
 ])
 
-export class GetV1WrapperAccessError extends TaggedError(
-  'GetV1WrapperAccessError',
-)<{
+class GetV1WrapperAccessError extends TaggedError('GetV1WrapperAccessError')<{
   cause: ReadContractErrorType
 }> {}
 
@@ -45,7 +43,7 @@ type GetV1WrapperAccessParameters = {
   readonly account: Address
 }
 
-const getV1WrapperAccess = ResultFn(async function* ({
+export const getV1WrapperAccess = ResultFn(async function* ({
   name: rawName,
   account,
 }: GetV1WrapperAccessParameters) {

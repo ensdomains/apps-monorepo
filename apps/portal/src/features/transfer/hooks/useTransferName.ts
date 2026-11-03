@@ -72,7 +72,7 @@ import {
   type NameNotNormalizableError,
 } from '../v1/getV1NameState'
 import {
-  type GetV1WrapperAccessError,
+  type getV1WrapperAccess,
   getV1WrapperAccessQueryOptions,
 } from '../v1/getV1WrapperAccess'
 import {
@@ -421,7 +421,7 @@ export const useTransferName = ({
           ...getV1WrapperAccessQueryOptions({ name, account }),
           staleTime: 0,
         }),
-        (e) => e as GetV1WrapperAccessError | NameNotNormalizableError,
+        (e) => e as ErrorOf<ReturnType<typeof getV1WrapperAccess>>,
       ),
     ]).andThen(([state, wrapperAccess]) => {
       const refuse = (reason: V1TransferRefusedError['reason']) =>
