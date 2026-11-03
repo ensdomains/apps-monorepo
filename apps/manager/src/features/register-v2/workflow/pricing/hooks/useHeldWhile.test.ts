@@ -5,7 +5,7 @@ import { useHeldWhile } from './useHeldWhile'
 describe('useHeldWhile', () => {
   it('keeps the value from when holding began, and follows it again once released', () => {
     const { result, rerender } = renderHook(
-      ({ isHeld, value }) => useHeldWhile(isHeld, value),
+      ({ isHeld, value }) => useHeldWhile(value, isHeld),
       { initialProps: { isHeld: false, value: 1 } },
     )
 
