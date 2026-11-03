@@ -501,6 +501,12 @@ describe('submitHcaRenewal paid from an L2', () => {
     expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
   })
 
+  it('plans the renewal on the balance the bridge read back, past a lagging node', async () => {
+    await run()
+
+    expect(fundingParams()).toMatchObject({ hcaBalanceAtLeast: 2_225_000n })
+  })
+
   it('sends nothing from the L2 when the account already covers the renewal', async () => {
     mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(5_000_000n))
 
