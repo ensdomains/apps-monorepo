@@ -30,6 +30,7 @@ import type { FundingSourceOrigin } from '../../../state/registrationUi.machine'
 import { useRegistrationLockHeartbeat } from '../../registering/hooks/useRegistrationLockHeartbeat'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { useFallbackPaymentChoice } from '../hooks/useFallbackPaymentChoice'
+import { useHeldWhile } from '../hooks/useHeldWhile'
 import {
   canPayFromL2,
   isL2Empty,
@@ -830,7 +831,7 @@ const DomainHeading = ({
   )
 }
 
-export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
+const PaymentPicker = <T extends TOKEN_SYMBOL>({
   label = '',
   header,
   pricingLoading,
@@ -1215,5 +1216,30 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         />
       </div>
     </fieldset>
+  )
+}
+
+type TokenPickerContentBaseProps<T extends TOKEN_SYMBOL> = Parameters<
+  typeof PaymentPicker<T>
+>[0]
+
+/**
+ * The payment picker. While a payment is in flight (`isBusy`) it keeps showing
+ * what the user confirmed: balances and quotes refresh underneath, and the
+ * payment landing in the account would otherwise rewrite the figures mid-flow.
+ * Only the progress label and errors stay live.
+ */
+export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>(
+  props: TokenPickerContentBaseProps<T>,
+) => {
+  const held = useHeldWhile(props, props.isBusy ?? false)
+  return (
+    <PaymentPicker
+      {...held}
+      globalErrorMessage={props.globalErrorMessage}
+      isBusy={props.isBusy}
+      nextMessage={props.nextMessage}
+      revalidatedShortfall={props.revalidatedShortfall}
+    />
   )
 }

@@ -44,6 +44,12 @@ export const TokenPickerContent = () => {
   )
   const token = selectedToken ?? TOKENS.USDC.symbol
   const isAwaitingApproval = useIsAwaitingRenewalApproval(uiActor)
+  // The L2 a started renewal pays from. The live selection lets go of it once
+  // the payment lands and there is nothing left to bridge.
+  const payingL2ChainName = useSelector(
+    uiActor,
+    (state) => state.context.submissionData?.l2Funding?.source.chain.name,
+  )
 
   const pricingQuery = useQuery({
     ...getRenewPriceQueryOptions(label, duration, token, protocol),
@@ -120,11 +126,13 @@ export const TokenPickerContent = () => {
     isIntentRoute,
     isQuoting,
     isFullyCovered,
-    l2ChainName,
+    payingL2ChainName,
   })
     .with(
-      { isAwaitingApproval: true, l2ChainName: P.string },
-      ({ l2ChainName }) => <Trans>Paying from {l2ChainName}…</Trans>,
+      { isAwaitingApproval: true, payingL2ChainName: P.string },
+      ({ payingL2ChainName: l2ChainName }) => (
+        <Trans>Paying from {l2ChainName}…</Trans>
+      ),
     )
     .with({ isAwaitingApproval: true, isIntentRoute: true }, () => (
       <Trans>Signing renewal…</Trans>
