@@ -2,12 +2,17 @@ import type { RhinestoneSigner } from '@ens-apps/transaction-manager'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { fromPromise, ok } from 'neverthrow'
+import { fromPromise, ok, ResultAsync } from 'neverthrow'
 import type { Address, PublicClient } from 'viem'
 import { envConfig } from '@/config'
 import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
-import { quoteHcaRenewalFee } from '../../service/hcaRenewal'
+import {
+  type HcaRenewalItem,
+  quoteHcaRenewalFee,
+} from '../../service/hcaRenewal'
+import { chunkRenewalItems } from '../../utils/chunks'
+import { sumRenewalFees } from '../../utils/renewalFees'
 import type { RenewalProtocol } from '../../utils/renewalProtocol'
 
 /** The rail refused to price the intent; the dialog then shows the rent alone. */
@@ -16,8 +21,7 @@ export class QuoteRenewalFeeError extends TaggedError('QuoteRenewalFeeError')<{
 }> {}
 
 export interface RenewalFeeQueryParams {
-  readonly label: string
-  readonly duration: bigint
+  readonly items: readonly HcaRenewalItem[]
   readonly token: RENEWAL_TOKEN
   readonly protocol: RenewalProtocol
   readonly renewerAddress: Address
@@ -29,31 +33,39 @@ export interface RenewalFeeQueryParams {
 const RENEWAL_FEE_STALE_TIME_MS = 60_000
 
 const getRenewalFee = ResultFn(async function* (params: RenewalFeeQueryParams) {
-  if (!params.signer || !params.ownerAddress) return ok(null)
-  const fee = yield* fromPromise(
-    quoteHcaRenewalFee({
-      items: [{ label: params.label, duration: params.duration }],
-      renewerAddress: params.renewerAddress,
-      protocol: params.protocol,
-      token: params.token,
-      signer: params.signer,
-      ownerAddress: params.ownerAddress,
-      publicClient: publicClient as PublicClient,
-      chainId: envConfig.chain.id,
-    }),
-    (cause) => new QuoteRenewalFeeError({ cause }),
+  const { signer, ownerAddress } = params
+  if (!signer || !ownerAddress || params.items.length === 0) return ok(null)
+  // One intent per chunk of names, so the fee is theirs summed.
+  const fees = yield* ResultAsync.combine(
+    chunkRenewalItems(params.items).map((items) =>
+      fromPromise(
+        quoteHcaRenewalFee({
+          items,
+          renewerAddress: params.renewerAddress,
+          protocol: params.protocol,
+          token: params.token,
+          signer,
+          ownerAddress,
+          publicClient: publicClient as PublicClient,
+          chainId: envConfig.chain.id,
+        }),
+        (cause) => new QuoteRenewalFeeError({ cause }),
+      ),
+    ),
   )
-  return ok(fee)
+  return ok(sumRenewalFees(fees))
 })
 
-/** USDC (6dp) the renewal intent's fee is quoted at; only the smart-account route has one. */
+/** USDC (6dp) the renewal intents' fees are quoted at; only the smart-account route has them. */
 export const getRenewalFeeQueryOptions = (params: RenewalFeeQueryParams) =>
   resultQueryOptions({
     queryKey: $qk({
       $scope: 'renewal',
       $action: 'intent-fee',
-      label: params.label,
-      duration: params.duration.toString(),
+      items: params.items.map(({ label, duration }) => ({
+        label,
+        duration: duration.toString(),
+      })),
       token: params.token,
       protocol: params.protocol,
       owner: params.ownerAddress,
