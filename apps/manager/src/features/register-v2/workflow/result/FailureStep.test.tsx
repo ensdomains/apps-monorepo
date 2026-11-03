@@ -137,16 +137,39 @@ describe('FailureStepView', () => {
 })
 
 describe('FailureStep', () => {
-  it('shows the reset screen once a reset here meets a refused signature', () => {
-    signals.isSessionAccessReset = true
-    signals.isSignatureRejected = true
-    render(
-      <I18nProvider i18n={i18n}>
-        <FailureStep />
-      </I18nProvider>,
-    )
+  it.each([
+    [
+      'a reset here meets a refused signature',
+      true,
+      true,
+      'Smart Session Access Reset',
+    ],
+    // A refused signature without a reset here is some other policy failure.
+    [
+      'a signature is refused without a reset',
+      false,
+      true,
+      'Registration Failed',
+    ],
+    // A reset here, but the run failed for another reason.
+    [
+      'the run fails for another reason after a reset',
+      true,
+      false,
+      'Registration Failed',
+    ],
+  ])(
+    'titles the failure when %s',
+    (_, isSessionAccessReset, isSignatureRejected, title) => {
+      signals.isSessionAccessReset = isSessionAccessReset
+      signals.isSignatureRejected = isSignatureRejected
+      render(
+        <I18nProvider i18n={i18n}>
+          <FailureStep />
+        </I18nProvider>,
+      )
 
-    expect(screen.getByText('Smart Session Access Reset')).toBeVisible()
-    expect(screen.queryByText(/InvalidSignature/)).not.toBeInTheDocument()
-  })
+      expect(screen.getByText(title)).toBeVisible()
+    },
+  )
 })

@@ -6,7 +6,6 @@ import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
-import { isSessionRevokedFailure } from '../../service/registrationFailure'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 
 export const FailureStep = () => {
@@ -47,10 +46,9 @@ export const FailureStep = () => {
 
   return (
     <FailureStepView
-      isSessionRevoked={isSessionRevokedFailure({
-        isSessionAccessReset,
-        isSignatureRejected,
-      })}
+      // Neither alone is enough: `InvalidSignature()` also wraps policy
+      // failures, and a reset run can still fail for another reason.
+      isSessionRevoked={isSessionAccessReset && isSignatureRejected}
       isWalletBusy={isWalletBusy}
       label={label}
       message={message}
