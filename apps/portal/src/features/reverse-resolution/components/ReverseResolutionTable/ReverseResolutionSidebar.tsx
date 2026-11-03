@@ -44,6 +44,7 @@ import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { computeDisplayNameState } from '@/utils/reverseResolution/computeDisplayNameState'
+import { getNameReach, type NameReach } from '../../helpers/getNameReach'
 import { prepareSetForwardResolutionTransaction } from '../../helpers/setForwardResolution'
 import { prepareSetReverseResolutionTransaction } from '../../helpers/setReverseResolution'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
@@ -196,7 +197,7 @@ const mismatchReason = ({
   displayName: string
   label: string
   isUnverifiedDefault: boolean
-  isUnreachable: boolean
+  readonly isUnreachable: boolean
   lacksNameAuthority: boolean
   isNameAuthorityUnknown: boolean
 }) =>
@@ -259,7 +260,7 @@ const primaryActionState = ({
   canSetAddress: boolean
   isNameAuthorityLoading: boolean
   isNameAuthorityError: boolean
-  reach: NameReach
+  readonly reach: NameReach
 }) => {
   const isOffered = isForwardRecordMissing && !isDefaultRow && isOwnAddress
   const isSettled = !isNameAuthorityLoading && !isNameAuthorityError
@@ -275,9 +276,6 @@ const primaryActionState = ({
       isOffered && (isNameAuthorityError || reach === 'unknown'),
   }
 }
-
-/** Whether lookups reach the resolver "Set primary name" writes. */
-type NameReach = 'checking' | 'reachable' | 'unreachable' | 'unknown'
 
 interface ReverseResolutionSidebarProps extends PropsWithChildren {
   row: Row<ReverseResolutionResult> | null
@@ -371,12 +369,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     ...getNameResolverQueryOptions({ name: forwardName }),
     enabled: isForwardRecordMissing,
   })
-  const reach = match(nameResolverQuery)
-    .returnType<NameReach>()
-    .with({ status: 'pending' }, () => 'checking')
-    .with({ status: 'error' }, () => 'unknown')
-    .with({ data: { source: 'v1-registry' } }, () => 'unreachable')
-    .otherwise(() => 'reachable')
+  const reach = getNameReach(nameResolverQuery)
 
   const {
     isOffered: canSetAsPrimary,
