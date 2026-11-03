@@ -216,6 +216,7 @@ export const checkMigrationApprovals = async (params: {
   readonly hcaAddress: Address
   readonly needs: MigrationApprovalNeeds
   readonly wagmiConfig: WagmiConfig
+  readonly publicClient?: PublicClient
 }): Promise<MigrationApprovalStatus> => {
   const { eoa, hcaAddress, needs, wagmiConfig } = params
   const migrationHelper = V2_CONTRACTS.MigrationHelper
@@ -280,11 +281,17 @@ export const checkMigrationApprovals = async (params: {
           args: [read.tokenId],
         },
   )
-  const results = (await readContracts(wagmiConfig, {
-    contracts,
-    allowFailure: false,
-    batchSize: 0,
-  })) as readonly unknown[]
+  const results = params.publicClient
+    ? await params.publicClient.multicall({
+        contracts,
+        allowFailure: false,
+        batchSize: 0,
+      })
+    : await readContracts(wagmiConfig, {
+        contracts,
+        allowFailure: false,
+        batchSize: 0,
+      })
 
   let baseRegistrarHcaApproved = initialStatus.baseRegistrarHcaApproved
   let nameWrapperHcaApproved = initialStatus.nameWrapperHcaApproved

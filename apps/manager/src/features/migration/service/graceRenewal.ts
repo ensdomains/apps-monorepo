@@ -27,6 +27,7 @@ import {
   type PublicClient,
   parseAbi,
   type TransactionReceipt,
+  TransactionReceiptNotFoundError,
   type WaitForTransactionReceiptParameters,
   type WalletClient,
   zeroAddress,
@@ -376,6 +377,7 @@ type ExecuteGraceRenewalParameters = {
   readonly connector?: Connector
   readonly renewalHash?: Hex
   readonly signal?: AbortSignal
+  readonly isAttached?: () => boolean
   readonly onStatus?: (status: GraceRenewalStatus) => void
   readonly onApprovalRequired?: (required: boolean) => void
   readonly onRenewalSubmitted?: (hash: Hex) => void
@@ -389,8 +391,11 @@ const assertWallet = async ({
   publicClient,
   walletClient,
   signal,
+  isAttached,
 }: ExecuteGraceRenewalParameters): Promise<void> => {
   signal?.throwIfAborted()
+  if (isAttached?.() === false)
+    throw new DOMException('The renewal screen was closed.', 'AbortError')
   assertChain(publicClient)
   const [walletChainId, addresses] = await Promise.all([
     walletClient.getChainId(),
@@ -406,6 +411,8 @@ const assertWallet = async ({
   )
     throw new Error('Reconnect the wallet and network used for this renewal.')
   signal?.throwIfAborted()
+  if (isAttached?.() === false)
+    throw new DOMException('The renewal screen was closed.', 'AbortError')
 }
 
 /** viem's default, which the direct receipt wait keeps. */
@@ -496,7 +503,17 @@ const reconcilePendingRenewal = async (
 ): Promise<readonly V1Domain[]> => {
   if (pending.hash) {
     params.onRenewalSubmitted?.(pending.hash)
-    await waitForRenewal(params, { ...pending, hash: pending.hash })
+    // A Safe's safeTxHash has no receipt, and its execution can predate the log lookback.
+    const isSettled =
+      (await pendingTargetsReached(params.publicClient, pending)) &&
+      (await params.publicClient
+        .getTransactionReceipt({ hash: pending.hash })
+        .then(
+          () => false,
+          (error: unknown) => error instanceof TransactionReceiptNotFoundError,
+        ))
+    if (!isSettled)
+      await waitForRenewal(params, { ...pending, hash: pending.hash })
   }
   if (!(await pendingTargetsReached(params.publicClient, pending))) {
     if (

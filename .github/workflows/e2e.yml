@@ -1,9 +1,8 @@
 name: E2E Tests
 
-# The fast per-PR gate. Portal and manager migration run only their `@smoke`
-# tests (see e2e/docs/smoke-suite.md); every spec, cross-app included, runs
-# in e2e-nightly.yml. The rest of the manager still runs its full suite here
-# until its smoke config lands.
+# The fast per-PR gate. Portal, manager and manager migration run only their
+# `@smoke` tests (see e2e/docs/smoke-suite.md); every spec, cross-app
+# included, runs in e2e-nightly.yml.
 on:
   push:
     branches:
@@ -77,14 +76,14 @@ jobs:
         run: |
           # Emit a flat array of {project, shardIndex, shardTotal} objects so
           # each project gets the right number of shards:
-          #   manager — 5 active test files → 3 shards
+          #   manager — @smoke subset → 2 shards
           #   manager-migration — the migration @smoke flows → 1 shard
           #   portal  — @smoke subset → 2 shards
           #   (temporaryPremium skipped until snapshot is rebuilt)
           configs=()
           if [[ "$MANAGER_CHANGED" == "true" ]]; then
-            for i in 1 2 3; do
-              configs+=("{\"project\":\"manager\",\"shardIndex\":$i,\"shardTotal\":3}")
+            for i in 1 2; do
+              configs+=("{\"project\":\"manager\",\"shardIndex\":$i,\"shardTotal\":2}")
             done
             configs+=("{\"project\":\"manager-migration\",\"shardIndex\":1,\"shardTotal\":1}")
           fi
@@ -276,21 +275,22 @@ jobs:
       # ── run e2e tests ─────────────────────────────────────────────
       - name: Run E2E tests (${{ matrix.config.project }})
         run: |
-          # The app dev server each project needs, and what it runs. Portal
-          # runs its @smoke tests; nightly runs the rest.
+          # The app dev server each project needs, and what it runs. Each
+          # project runs its @smoke tests; nightly runs the rest.
           case "${{ matrix.config.project }}" in
             portal)
               APPS="portal:3001"
               PLAYWRIGHT_ARGS="--config=projects/portal/playwright.smoke.config.ts" ;;
             manager-migration)
-              APPS="manager:3000"
+              # offchain-migration checks the migrated name resolves in the explorer.
+              APPS="manager:3000 portal:3001"
               PLAYWRIGHT_ARGS="--config=projects/manager/playwright.migration.config.ts --grep @smoke" ;;
             manager-premium)
               APPS="manager:3000"
               PLAYWRIGHT_ARGS="--config=projects/manager/playwright.premium.config.ts" ;;
             *)
               APPS="manager:3000"
-              PLAYWRIGHT_ARGS="--config=projects/manager/playwright.config.ts" ;;
+              PLAYWRIGHT_ARGS="--config=projects/manager/playwright.smoke.config.ts" ;;
           esac
 
           # One app at a time: two cold vite starts at once compete for the

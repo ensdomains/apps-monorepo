@@ -41,6 +41,7 @@ import {
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
+import { getIncludedSubnameParents } from '@/features/migration/service/includedSubnameParents'
 import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
 import { recordRecentlyMigratedNames } from '@/features/migration/service/recentlyMigratedNames'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
@@ -54,6 +55,7 @@ import {
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient as migrationExecutionClient } from '@/lib/wagmi'
+import { isMetaMask } from '@/lib/wallet/stacks/custom/connect.helpers'
 import { invalidateMigrationQueries } from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
@@ -416,6 +418,8 @@ export const MigrationPage = () => {
     isEnabled: step === 'select' || shouldCheckImpactBeforeRetry,
     isPrepared:
       shouldCheckImpactBeforeRetry || networkEstimate.status === 'ready',
+    // Starting or retrying always rechecks; idle previews need no repeating wallet scan.
+    isRefetchEnabled: false,
   })
 
   useSyncRenewedV1Names()
@@ -541,8 +545,13 @@ export const MigrationPage = () => {
     uiActor,
   ])
 
+  const includedSubnameParents = useMemo(
+    () => getIncludedSubnameParents(impactNames),
+    [impactNames],
+  )
   const confirmation = useSubnameMigrationConfirmation({
     impact: subnameImpact,
+    hasIncludedSubnames: includedSubnameParents.length > 0,
     onConfirm: (action) => {
       if (action === 'start') return handleBeginUpgrade()
       uiActor.send({ type: 'retry' })
@@ -574,6 +583,7 @@ export const MigrationPage = () => {
             gasAffordability={gasAffordability}
             gasEstimate={gasEstimate}
             gasFundingStatus={gasFundingStatus}
+            isMetaMaskWallet={connector !== undefined && isMetaMask(connector)}
             onManagerRestorationChange={handleManagerRestorationChange}
             onNamesChange={handleNamesChange}
             onNext={() => confirmation.request('start')}
@@ -655,6 +665,7 @@ export const MigrationPage = () => {
 
       <SubnameMigrationDialog
         hasAcknowledgedImpact={confirmation.hasAcknowledgedImpact}
+        includedParents={includedSubnameParents}
         isChecking={confirmation.isChecking}
         isOpen={confirmation.isOpen}
         onAcknowledgeImpact={confirmation.acknowledgeImpact}

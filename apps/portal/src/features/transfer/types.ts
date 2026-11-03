@@ -70,6 +70,8 @@ export type V1ParentState = {
   readonly isWrapped: boolean
   /** Wrapped parent only. Burned, it can't re-issue a lapsed emancipated subname — until its own expiry clears the fuse. */
   readonly cannotCreateSubdomain: boolean
+  /** Wrapped `.eth` 2LD that can be unwrapped and wrapped back unchanged. Absent reads as no. */
+  readonly isRewrappable?: boolean
 }
 
 /**

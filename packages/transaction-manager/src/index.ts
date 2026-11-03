@@ -16,9 +16,16 @@ export {
   scopeTransactionId,
 } from './helpers/flow-identity'
 export { getSmartAccountAddress } from './helpers/getSmartAccountAddress'
+export type {
+  HcaFundingApprovalCapability,
+  HcaFundingApprovalPrompt,
+  HcaFundingApprovalRecoveryPrompt,
+  HcaFundingApprovalState,
+} from './helpers/hca-funding-approval'
 export {
   HCA_MAX_STANDALONE_INTENT_FEE_USDC,
   HCA_STANDALONE_INTENT_GAS_LIMIT,
+  type HcaDisplayedDebit,
   HcaFundingDeclinedError,
   type HcaFundingPrompt,
   type HcaFundingTokenLeg,

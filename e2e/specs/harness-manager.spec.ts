@@ -90,7 +90,9 @@ test.describe('Harness integrity — manager', () => {
 
   // ── makeV2Name ─────────────────────────────────────────────────────────
 
-  test('the manager under test is pointed at this fork, not a public RPC', async () => {
+  test('the manager under test is pointed at this fork, not a public RPC', {
+    tag: ['@smoke'],
+  }, async () => {
     // The portal's twin is in `harness.spec.ts`. A manager built against a
     // public RPC serves fine and sees none of this suite's names.
     await expectAppOnLocalFork('manager', MANAGER_APP_URL)
