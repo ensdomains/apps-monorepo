@@ -4,12 +4,15 @@ import {
   type BignameClient,
   MAX_PAGE_SIZE,
   readAllCollectionPages,
-  toExactSeconds,
+  toExpirySeconds,
 } from '@ens-apps/indexer/bigname'
 import { SECONDS_PER_DAY } from '@ens-apps/utils/gracePeriod'
 import { isNormalizedLabel } from '@/utils/token/isNormalized'
 
-/** How long a name the address let expire stays listed, counted from its expiry. */
+/**
+ * How long a name the address let expire stays listed, counted from its expiry
+ * (for an ENSv1 name, its registrar lease rather than its ENSv2 reservation).
+ */
 const LAPSED_LISTED_DAYS = 30
 const LAPSED_WINDOW_SECONDS = BigInt(LAPSED_LISTED_DAYS * SECONDS_PER_DAY)
 
@@ -30,7 +33,7 @@ export const isLapsedName = (
   address: Address,
   nowSeconds: bigint,
 ): boolean => {
-  const expiry = toExactSeconds(row.expires_at)
+  const expiry = toExpirySeconds(row)
   return (
     (row.status === 'expired' || row.status === 'released') &&
     row.lapsed_registration?.release_kind === 'expired' &&
