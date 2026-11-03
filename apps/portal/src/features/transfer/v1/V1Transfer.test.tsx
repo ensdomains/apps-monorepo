@@ -1,7 +1,10 @@
+import { TransactionManagerProvider } from '@ens-apps/transaction-manager'
 import { ChildFuses, decodeFuses, ParentFuses } from '@ensdomains/ensjs/utils'
 import { render, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { usePublicClient } from 'wagmi'
 import { LEGACY_APP_BASE_URL } from '@/lib/constants/domain'
 import { createTestWrapper } from '@/test-utils/providers'
 import { deriveV1NameState, type V1NameReads } from './getV1NameState'
@@ -20,8 +23,35 @@ vi.mock('./getV1WrapperAccess', async (importOriginal) => ({
   getV1WrapperAccessQueryOptions: vi.fn(),
 }))
 
+const { ethAddressRead } = vi.hoisted(() => ({
+  ethAddressRead: vi.fn(async () => {
+    throw new Error('rpc down')
+  }),
+}))
+vi.mock('../queries/getEthAddress', () => ({
+  getEthAddressQueryOptions: () => ({
+    queryKey: ['eth-address-test'],
+    queryFn: ethAddressRead,
+  }),
+}))
+
 const { getV1NameStateQueryOptions } = await import('./getV1NameState')
 const { getV1WrapperAccessQueryOptions } = await import('./getV1WrapperAccess')
+
+// The form behind an `ok` gate registers its transactions with the manager.
+const WithTransactionManager = ({
+  children,
+}: {
+  readonly children: ReactNode
+}) => {
+  const publicClient = usePublicClient()
+  if (!publicClient) return <>{children}</>
+  return (
+    <TransactionManagerProvider publicClient={publicClient}>
+      {children}
+    </TransactionManagerProvider>
+  )
+}
 
 const PARENT_CANNOT_CONTROL = Number(ParentFuses.PARENT_CANNOT_CONTROL)
 const CANNOT_CREATE_SUBDOMAIN = Number(ChildFuses.CANNOT_CREATE_SUBDOMAIN)
@@ -53,7 +83,7 @@ const reads = (overrides: Partial<V1NameReads>): V1NameReads => ({
 const renderAs = (
   account: Address,
   nameReads: V1NameReads,
-  wrapperAccess: V1WrapperAccess = {
+  wrapperAccess: V1WrapperAccess | Error = {
     canModifyName: false,
     canModifyParent: false,
   },
@@ -64,11 +94,17 @@ const renderAs = (
   } as never)
   vi.mocked(getV1WrapperAccessQueryOptions).mockReturnValue({
     queryKey: ['v1-wrapper-access-test'],
-    queryFn: () => wrapperAccess,
+    queryFn: async () => {
+      if (wrapperAccess instanceof Error) throw wrapperAccess
+      return wrapperAccess
+    },
   } as never)
-  return render(<V1Transfer name="other.label.eth" account={account} />, {
-    wrapper: createTestWrapper(),
-  })
+  return render(
+    <WithTransactionManager>
+      <V1Transfer name="other.label.eth" account={account} />
+    </WithTransactionManager>,
+    { wrapper: createTestWrapper() },
+  )
 }
 
 /** A wrapped `.eth` 2LD in grace: `ownerOf` reverts, so ensjs reports the
@@ -173,5 +209,45 @@ describe('V1Transfer — an emancipated subname, seen by the parent’s owner', 
     expect(
       await screen.findByText('This subname is out of the parent’s control'),
     ).toBeInTheDocument()
+  })
+})
+
+describe('V1Transfer — the NameWrapper access read', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  // An approval only widens who may move the name, so the holder's answer
+  // doesn't wait on it.
+  it('lets the holder through when the access read fails', async () => {
+    renderAs(B, reads({}), new Error('rpc down'))
+
+    expect(
+      await screen.findByPlaceholderText('ENS name or address'),
+    ).toBeInTheDocument()
+  })
+
+  it('reports the failed read when only an approval could answer', async () => {
+    renderAs(
+      '0xcccccccccccccccccccccccccccccccccccccccc',
+      reads({}),
+      new Error('rpc down'),
+    )
+
+    expect(
+      await screen.findByText('Couldn’t check this name'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Not authorized')).not.toBeInTheDocument()
+  })
+
+  // The resolver ignores NameWrapper approvals, so the operator never gets
+  // the ETH step and mustn't be held up by its read failing.
+  it('doesn’t read the ETH record for the holder’s operator', async () => {
+    renderAs('0xcccccccccccccccccccccccccccccccccccccccc', reads({}), {
+      canModifyName: true,
+      canModifyParent: false,
+    })
+
+    await screen.findByPlaceholderText('ENS name or address')
+
+    expect(ethAddressRead).not.toHaveBeenCalled()
   })
 })

@@ -521,22 +521,22 @@ const V1CreateSubname = ({ name: rawName }: CreateSubnameContentProps) => {
     enabled: !!connectedAddress,
   })
 
-  if (stateQuery.isLoading || wrapperAccessQuery.isLoading)
-    return <LoadingMessage />
+  const cantCheck = (
+    <MessageCard
+      icon={<AlertTriangle className="size-8" />}
+      title="Couldn’t check this name"
+      description={
+        <p>
+          We couldn’t read how this name is held, so we can’t tell whether
+          subnames can be created under it. Refresh and try again.
+        </p>
+      }
+    />
+  )
 
-  if (stateQuery.isError || wrapperAccessQuery.isError)
-    return (
-      <MessageCard
-        icon={<AlertTriangle className="size-8" />}
-        title="Couldn’t check this name"
-        description={
-          <p>
-            We couldn’t read how this name is held, so we can’t tell whether
-            subnames can be created under it. Refresh and try again.
-          </p>
-        }
-      />
-    )
+  if (stateQuery.isLoading) return <LoadingMessage />
+
+  if (stateQuery.isError) return cantCheck
 
   // Can't throw: the query already normalised the same input, and every V1
   // hash and write below must use the normalised form.
@@ -548,6 +548,10 @@ const V1CreateSubname = ({ name: rawName }: CreateSubnameContentProps) => {
         wrapperAccessQuery.data,
       )
     : ({ reason: 'unowned' } as const)
+
+  // Only an operator approval could lift `not-holder`.
+  if (gate.reason === 'not-holder' && !wrapperAccessQuery.data)
+    return wrapperAccessQuery.isError ? cantCheck : <LoadingMessage />
 
   return match(gate)
     .with({ reason: 'ok' }, ({ target }) => (
