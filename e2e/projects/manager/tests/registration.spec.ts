@@ -256,7 +256,7 @@ test.describe('Registration progress (A25)', () => {
     await page.goto(`${MANAGER_APP_URL}/register/${label}.eth`)
     await page.getByRole('button', { name: 'Continue to payment' }).click()
     await clickThroughEnableSessions(page)
-    await page.getByRole('button', { name: 'Select USDC' }).click()
+    await selectUsdcIfNeeded(page)
 
     // Sample from inside the page. The weave fill draws progress as
     // `clip-path: inset(0 X% 0 0)` on the name's line (one line for a short
@@ -282,7 +282,7 @@ test.describe('Registration progress (A25)', () => {
       }, 100)
     })
 
-    await page.getByRole('button', { name: /register name/i }).click()
+    await clickRegistrationPaymentAction(page)
     await page.getByRole('button', { name: 'Set up later' }).click()
     let isComplete = false
     const authorizing = authorizeTransactionsWhile(

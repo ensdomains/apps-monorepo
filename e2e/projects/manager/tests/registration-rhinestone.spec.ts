@@ -194,7 +194,7 @@ async function registerUntilCommitConfirmed(page: Page, label: string) {
   await selectUsdcIfNeeded(page)
 
   const monitor = createConsoleMonitor(page, { logConsoleMessages: false })
-  await page.getByRole('button', { name: /register name/i }).click()
+  await clickRegistrationPaymentAction(page)
   await page.getByRole('button', { name: 'Set up later' }).click()
   await monitor.waitForTransactionState(COMMIT_TX_ID, 'success', 180_000)
   return monitor
@@ -909,12 +909,12 @@ async function openRegisterPageAndConnect(
   await page.waitForTimeout(SWEEP_SETTLE_MS)
 }
 
-/** Pay → USDC → Register name, on an already open quote. */
+/** Pay → USDC → the payment action, on an already open quote. */
 async function pressRegister(page: Page) {
   await page.getByRole('button', { name: 'Continue to payment' }).click()
   await clickThroughEnableSessions(page)
   await selectUsdcIfNeeded(page)
-  await page.getByRole('button', { name: /register name/i }).click()
+  await clickRegistrationPaymentAction(page)
 }
 
 /** The refusal screen, naming the registration that holds the wallet. */
