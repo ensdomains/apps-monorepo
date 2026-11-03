@@ -172,4 +172,33 @@ describe('FailureStep', () => {
       expect(screen.getByText(title)).toBeVisible()
     },
   )
+
+  // The reset flag lives in the smart account context, not in the failure:
+  // signing a new session clears it, and a reset can come after the failure.
+  it.each([
+    [
+      'a new session is signed after the reset',
+      true,
+      false,
+      'Smart Session Access Reset',
+    ],
+    ['the reset comes after the failure', false, true, 'Registration Failed'],
+  ])(
+    'keeps the title it opened with when %s',
+    (_, isResetAtFailure, isResetLater, title) => {
+      signals.isSessionAccessReset = isResetAtFailure
+      signals.isSignatureRejected = true
+      const view = () => (
+        <I18nProvider i18n={i18n}>
+          <FailureStep />
+        </I18nProvider>
+      )
+      const { rerender } = render(view())
+
+      signals.isSessionAccessReset = isResetLater
+      rerender(view())
+
+      expect(screen.getByText(title)).toBeVisible()
+    },
+  )
 })

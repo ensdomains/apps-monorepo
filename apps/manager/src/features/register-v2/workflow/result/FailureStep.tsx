@@ -1,6 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
+import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -12,6 +13,10 @@ export const FailureStep = () => {
   const { uiActor, label, resume } = RegisterV2Context.use()
   const navigate = useNavigate()
   const { isSessionAccessReset } = useSmartAccountContext()
+  // Kept from when this screen opened: signing a new session clears the live
+  // flag while the run still holds the revoked one, and a reset made after the
+  // failure didn't cause it.
+  const [wasSessionAccessReset] = useState(isSessionAccessReset)
   const message = RegisterV2Context.useSelector(
     (state) => state.context.lastErrorMessage,
   )
@@ -48,7 +53,7 @@ export const FailureStep = () => {
     <FailureStepView
       // Neither alone is enough: `InvalidSignature()` also wraps policy
       // failures, and a reset run can still fail for another reason.
-      isSessionRevoked={isSessionAccessReset && isSignatureRejected}
+      isSessionRevoked={wasSessionAccessReset && isSignatureRejected}
       isWalletBusy={isWalletBusy}
       label={label}
       message={message}
