@@ -771,9 +771,6 @@ const getStartFunding = (
     isHcaRegistration,
   )
   if (l2Funding instanceof Error) return l2Funding
-  if (event.ethFunding && !isHcaRegistration) {
-    return new Error('Cannot register: paying with ETH needs an ENS account.')
-  }
   return { l2Funding, ethFunding: event.ethFunding }
 }
 

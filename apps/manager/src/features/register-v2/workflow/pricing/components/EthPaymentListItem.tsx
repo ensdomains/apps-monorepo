@@ -1,13 +1,8 @@
-import { formatGasEth } from '@ens-apps/utils/formatGasEth'
+import type { CowSellToken } from '@ens-apps/transaction-manager'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { match } from 'ts-pattern'
+import { formatUnits } from 'viem'
 import ethCoinIcon from '@/assets/icons/eth-coin.svg'
-import { MSymbol } from '@/components/ui/material-symbol'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
 
@@ -49,73 +44,74 @@ export const canPayWithEth = (row: EthPaymentRow) =>
   !row.hasQuoteFailed &&
   !isEthShortOfFunds(row)
 
-export const getEthSelectionMessage = (row: EthPaymentRow) =>
+export const getEthSelectionMessage = (
+  row: EthPaymentRow,
+  symbol = 'this token',
+) =>
   match(row)
     .when(isEthShortOfFunds, () => (
-      <Trans>Not enough ETH in your wallet.</Trans>
+      <Trans>Not enough {symbol} in your wallet.</Trans>
     ))
     .with({ hasQuoteFailed: true }, () => (
-      <Trans>Paying with ETH isn't available right now.</Trans>
+      <Trans>Paying with {symbol} isn't available right now.</Trans>
     ))
     .otherwise(() => undefined)
 
 export const EthPaymentListItem = ({
+  token,
   row,
   isSelected,
   onSelect,
 }: {
+  readonly token: CowSellToken & { logoURI?: string }
   readonly row: EthPaymentRow
   readonly isSelected: boolean
   readonly onSelect: () => void
 }) => {
   const { t } = useLingui()
+  const formatAmount = (value: bigint) =>
+    new Intl.NumberFormat(undefined, { maximumSignificantDigits: 6 }).format(
+      Number(formatUnits(value, token.decimals)),
+    )
   return (
     <PaymentMethodRow
       amount={
         row.balanceRaw === undefined
           ? '—'
-          : `${formatGasEth(row.balanceRaw)} ETH`
+          : `${formatAmount(row.balanceRaw)} ${token.symbol}`
       }
       amountLabel={<Trans>balance</Trans>}
       fee={
-        row.chargeRaw === undefined ? undefined : (
-          <Trans>Swaps up to {formatGasEth(row.chargeRaw)} ETH</Trans>
-        )
+        row.chargeRaw === undefined
+          ? undefined
+          : t`Uses up to ${formatAmount(row.chargeRaw)} ${token.symbol}`
       }
       icon={
         <PaymentMethodIcon
-          icon={<img alt="" className="size-full" src={ethCoinIcon} />}
+          icon={
+            token.logoURI ? (
+              <img
+                alt=""
+                className="size-full rounded-full"
+                src={token.logoURI}
+              />
+            ) : token.isNative ? (
+              <img alt="" className="size-full" src={ethCoinIcon} />
+            ) : (
+              <span className="flex size-full items-center justify-center rounded-full bg-ens-quartz-100 font-semibold text-[10px] text-ens-quartz-500">
+                {token.symbol.slice(0, 3)}
+              </span>
+            )
+          }
         />
       }
       isAvailable
       isFeeLoading={row.isQuoteLoading}
       isInsufficient={isEthShortOfFunds(row)}
       isSelected={isSelected}
-      name="ETH"
-      nameBadge={
-        <span className="pointer-events-auto relative z-20 flex items-center gap-1">
-          <span className="rounded-sm bg-ens-quartz-100 px-1 font-medium font-mono text-ens-quartz-500 text-xs uppercase">
-            <Trans>CoW Protocol</Trans>
-          </span>
-          <Tooltip>
-            <TooltipTrigger
-              aria-label={t`What is the ETH swap?`}
-              className="flex shrink-0 items-center text-ens-quartz-350"
-              type="button"
-            >
-              <MSymbol className="ms-opsz-16 ms-wght-400" symbol="info" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-64 text-center">
-              <Trans>
-                CoW Protocol solvers exchange your ETH and deliver the USDC this
-                registration needs directly to your ENS smart account.
-              </Trans>
-            </TooltipContent>
-          </Tooltip>
-        </span>
-      }
+      name={token.symbol}
       onSelect={onSelect}
-      selectLabel={t`Pay with ETH`}
+      selectLabel={t`Pay with ${token.symbol}`}
     />
   )
 }

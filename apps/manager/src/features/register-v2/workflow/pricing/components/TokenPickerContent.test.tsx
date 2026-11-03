@@ -1615,10 +1615,57 @@ describe('TokenPickerContentBase ETH row', () => {
       ethPayment,
     })
 
-    expect(screen.getByText('Swaps up to 0.0026 ETH')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Pay with ETH' }))
     expect(ethPayment.onSelect).toHaveBeenCalledOnce()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('still lists token payment when the wallet has no supported stablecoin', () => {
+    const ethPayment = ethPaymentOf()
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [],
+      ethPayment,
+    })
+
+    expect(screen.getByRole('button', { name: 'Pay with ETH' })).toBeVisible()
+    expect(
+      screen.queryByText(
+        'You do not have enough funds to complete this transaction.',
+      ),
+    ).not.toBeInTheDocument()
+  })
+
+  it('lists every wallet-held payment token instead of asking for an address', () => {
+    const ethPayment = {
+      ...ethPaymentOf(),
+      tokens: [
+        {
+          address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+          symbol: 'ETH',
+          decimals: 18,
+          isNative: true,
+          balance: 10n ** 18n,
+        },
+        {
+          address: '0x00000000000000000000000000000000000000da',
+          symbol: 'DAI',
+          decimals: 18,
+          isNative: false,
+          balance: 100n * 10n ** 18n,
+        },
+      ] as const,
+    }
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [],
+      ethPayment,
+    })
+
+    expect(screen.getByRole('button', { name: 'Pay with ETH' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Pay with DAI' })).toBeVisible()
   })
 
   it.each([

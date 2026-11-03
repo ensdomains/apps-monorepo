@@ -1,3 +1,4 @@
+import { NATIVE_ETH } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -28,6 +29,10 @@ import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import type { FundingSourceOrigin } from '../../../state/registrationUi.machine'
 import { useRegistrationLockHeartbeat } from '../../registering/hooks/useRegistrationLockHeartbeat'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
+import {
+  type CowPaymentToken,
+  useCowPaymentTokens,
+} from '../hooks/useCowPaymentTokens'
 import { useFallbackPaymentChoice } from '../hooks/useFallbackPaymentChoice'
 import { useHeldWhile } from '../hooks/useHeldWhile'
 import {
@@ -348,39 +353,69 @@ export const TokenPickerContent = () => {
   const isPaidFromL2 = l2FundingChainId !== undefined
   const displayedL2Charge = getSelectedL2(l2Payment)?.amountInRaw
 
-  // The swapped USDC funds the HCA's permit, so only the HCA route offers ETH.
-  const isEthOffered = isBudgetRequired && account.signer?.type === 'rhinestone'
+  const cowTokensQuery = useCowPaymentTokens(account.ownerAddress)
+  const [selectedCowTokenAddress, setSelectedCowTokenAddress] =
+    useState<string>()
+  const cowTokens = cowTokensQuery.data ?? []
+  const selectedCowToken =
+    cowTokens.find(
+      (token) =>
+        token.address.toLowerCase() === selectedCowTokenAddress?.toLowerCase(),
+    ) ?? cowTokens[0]
+  // HCA funding lands in the account; EOA funding lands in the wallet and the
+  // ordinary ENS approval/commit/register spine continues from there.
+  const cowReceiver =
+    account.signer?.type === 'rhinestone'
+      ? account.accountAddress
+      : account.ownerAddress
+  const cowUsdcTarget = isBudgetRequired
+    ? funding?.walletDebitRaw
+    : pricingQuery.data?.rawPrice
+  const isEthOffered =
+    !!account.ownerAddress && !!cowReceiver && cowTokens.length > 0
   const ethQuoteQuery = useQuery(
     getEthPaymentQuoteQueryOptions({
       owner: account.ownerAddress,
-      hca: account.accountAddress,
-      permitValue:
-        funding && !budgetQuery.isPlaceholderData
-          ? funding.walletDebitRaw
-          : undefined,
-      isEnabled: isEthOffered,
+      receiver: cowReceiver,
+      sellToken: selectedCowToken,
+      permitValue: cowUsdcTarget,
+      isEnabled: isEthOffered && paymentAsset === 'eth',
     }),
   )
-  const ethPayment = isEthOffered
-    ? {
-        row: getEthPaymentRow(ethQuoteQuery, funding?.walletDebitRaw),
-        isSelected: paymentAsset === 'eth',
-        onSelect: () =>
-          uiActor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' }),
-        onFallbackSelect: () =>
-          uiActor.send({
-            type: 'pricing.paymentAsset.select',
-            asset: 'eth',
-            origin: 'fallback',
-          }),
-      }
-    : undefined
+  const ethRow = useHeldWhile(
+    approvalState.isApproving,
+    getEthPaymentRow(ethQuoteQuery, funding?.walletDebitRaw),
+  )
+  const ethPayment =
+    isEthOffered && selectedCowToken
+      ? {
+          tokens: cowTokens,
+          selectedToken: selectedCowToken,
+          row: ethRow,
+          isSelected: paymentAsset === 'eth',
+          onSelect: (token: CowPaymentToken) => {
+            setSelectedCowTokenAddress(token.address)
+            uiActor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' })
+          },
+          onFallbackSelect: () => {
+            setSelectedCowTokenAddress(selectedCowToken.address)
+            uiActor.send({
+              type: 'pricing.paymentAsset.select',
+              asset: 'eth',
+              origin: 'fallback',
+            })
+          },
+        }
+      : undefined
   const isPaidWithEth = ethPayment?.isSelected === true
   // Something other than the wallet's USDC pays, so that balance is no gate.
   const isPaidFromElsewhere = isPaidFromL2 || isPaidWithEth
   // Paid with ETH, the swap is bounded by the ETH shown.
   const ethFunding = isPaidWithEth
-    ? { displayedCharge: ethPayment?.row.chargeRaw }
+    ? {
+        displayedCharge: ethPayment?.row.chargeRaw,
+        sellToken: selectedCowToken,
+      }
     : undefined
 
   // A confirmed choice always wins. Otherwise resolve the eligibility
@@ -521,8 +556,13 @@ export const TokenPickerContent = () => {
     },
   })
 
-  const { stablecoinBalances, isLoadingBalances, isConnected } =
-    useSmartAccountContext()
+  const {
+    stablecoinBalances,
+    isLoadingBalances: isLoadingStablecoinBalances,
+    isConnected,
+  } = useSmartAccountContext()
+  const isLoadingBalances =
+    isLoadingStablecoinBalances || cowTokensQuery.isLoading
 
   const revalidatedFundingError =
     availabilityMutation.error instanceof InsufficientFundingError
@@ -597,7 +637,7 @@ export const TokenPickerContent = () => {
     .with(
       { isPaidWithEth: true },
       () =>
-        t`You will be wrapping your ETH into WETH, swapping WETH for USDC, which will then be used to register the name. The final price can shift slightly with the market price.`,
+        t`Your selected token will be converted into the exact USDC needed for registration. The final amount can shift slightly with the market price.`,
     )
     .with(
       { l2Chain: P.string },
@@ -623,12 +663,19 @@ export const TokenPickerContent = () => {
     isLoadingBalances,
     hasFunding: !!funding,
   })
-    .with({ isBusy: true }, () => <Trans>Registering...</Trans>)
+    .with(
+      { isBusy: true, isAwaitingPaymentApproval: true, isPaidWithEth: true },
+      () => <Trans>Preparing token payment…</Trans>,
+    )
+    .with({ isBusy: true, isAwaitingPaymentApproval: true }, () => (
+      <Trans>Signing payment approval…</Trans>
+    ))
+    .with({ isBusy: true }, () => <Trans>Preparing registration…</Trans>)
     .with(P.union({ isLoadingBalances: true }, { isQuoting: true }), () => (
       <Trans>Loading...</Trans>
     ))
     .with({ isPaymentApprovalRequired: true, isPaidWithEth: true }, () => (
-      <Trans>Swap and Register</Trans>
+      <Trans>Pay and register</Trans>
     ))
     .with({ isPaymentApprovalRequired: true, hasFunding: true }, () => (
       <Trans>Sign approval</Trans>
@@ -878,30 +925,47 @@ export const getL2MethodItems = (
     })
 }
 
-/** Like an L2 row: listed once quoted with something to swap while the wallet holds ETH, or while it is chosen. */
+/** Every wallet-held CoW token is selectable; only the chosen one is quoted. */
 const getEthMethodItems = (
   ethPayment: EthPaymentProps | undefined,
   networkFee: number | undefined,
 ): PaymentMethodListItem[] =>
-  ethPayment &&
-  (ethPayment.isSelected ||
-    // Nothing to swap: the wallet's USDC already pays, so ETH would be the same payment.
-    ((ethPayment.row.chargeRaw ?? 0n) > 0n &&
-      (ethPayment.row.balanceRaw ?? 0n) > 0n))
-    ? [
-        {
-          id: 'eth',
-          isSelected: ethPayment.isSelected,
+  ethPayment
+    ? (
+        ethPayment.tokens ?? [
+          {
+            ...NATIVE_ETH,
+            balance: ethPayment.row.balanceRaw ?? 0n,
+          },
+        ]
+      ).map((token) => {
+        const selectedToken = ethPayment.selectedToken ?? token
+        const isTokenSelected =
+          ethPayment.isSelected &&
+          token.address.toLowerCase() === selectedToken.address.toLowerCase()
+        return {
+          id: `cow-${token.address}`,
+          isSelected: isTokenSelected,
           content: (
             <EthPaymentListItem
-              isSelected={ethPayment.isSelected}
-              networkFee={networkFee}
-              onSelect={ethPayment.onSelect}
-              row={ethPayment.row}
+              isSelected={isTokenSelected}
+              onSelect={() => ethPayment.onSelect(token)}
+              row={
+                isTokenSelected
+                  ? ethPayment.row
+                  : {
+                      chargeRaw: undefined,
+                      balanceRaw: token.balance,
+                      gasReserveRaw: 0n,
+                      isQuoteLoading: false,
+                      hasQuoteFailed: false,
+                    }
+              }
+              token={token}
             />
           ),
-        },
-      ]
+        }
+      })
     : []
 
 /** Registration needs no method once the existing balance covers everything: the receipt says so. */
@@ -1281,7 +1345,12 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
 
   const warning =
     globalErrorMessage ||
-    (selectedEth && getEthSelectionMessage(selectedEth)) ||
+    (selectedEth &&
+      getEthSelectionMessage(
+        selectedEth,
+        ethPayment?.selectedToken?.symbol ??
+          (ethPayment ? 'ETH' : 'this token'),
+      )) ||
     (selectedL2 &&
       getL2SelectionMessage(
         selectedL2,
@@ -1337,9 +1406,9 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
                 (paymentMethodItems.length === 0 &&
                   (isL2Pending || isEthPending)),
               isFullyCovered,
-              hasNoMethods:
-                showNetworkFeeDetails && paymentMethodItems.length === 0,
-              stablecoinsCount: stablecoinBalances?.length ?? 0,
+              hasNoMethods: showNetworkFeeDetails
+                ? paymentMethodItems.length === 0
+                : (stablecoinBalances?.length ?? 0) === 0,
             })
               .with({ isConnected: false }, () => (
                 <p className="text-ens-quartz-500 text-sm">
@@ -1356,16 +1425,13 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
                   {fullyCoveredMessage}
                 </p>
               ))
-              .with(
-                P.union({ hasNoMethods: true }, { stablecoinsCount: 0 }),
-                () => (
-                  <p className="text-ens-signal-danger-800 text-lg">
-                    <Trans>
-                      You do not have enough funds to complete this transaction.
-                    </Trans>
-                  </p>
-                ),
-              )
+              .with({ hasNoMethods: true }, () => (
+                <p className="text-ens-signal-danger-800 text-lg">
+                  <Trans>
+                    You do not have enough funds to complete this transaction.
+                  </Trans>
+                </p>
+              ))
               .otherwise(() => (
                 <PaymentMethods
                   onSelectCoin={onSelectCoin}

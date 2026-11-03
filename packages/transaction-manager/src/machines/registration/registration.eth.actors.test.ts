@@ -10,13 +10,13 @@ import {
   usdcToBuy,
 } from './registration.eth.actors'
 
-const quoteEthSwap = vi.fn()
-const submitEthSwap = vi.fn()
+const quoteCowSwap = vi.fn()
+const submitCowSwap = vi.fn()
 const refundExpiredEthSwap = vi.fn()
 vi.mock('../../helpers/eth-usdc-swap', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../helpers/eth-usdc-swap')>()),
-  quoteEthSwap: (...args: unknown[]) => quoteEthSwap(...args),
-  submitEthSwap: (...args: unknown[]) => submitEthSwap(...args),
+  quoteCowSwap: (...args: unknown[]) => quoteCowSwap(...args),
+  submitCowSwap: (...args: unknown[]) => submitCowSwap(...args),
   refundExpiredEthSwap: (...args: unknown[]) => refundExpiredEthSwap(...args),
 }))
 
@@ -51,6 +51,7 @@ const ORDER = {
   orderId: 'cow-order-id',
   hash: SWAP_HASH,
   validTo: Math.floor(Date.now() / 1000) + 1_200,
+  kind: 'native' as const,
 }
 const PENDING = { ...ORDER, orderId: 'pending-order', hash: PENDING_HASH }
 const publicClient = { chain: sepolia } as unknown as PublicClient
@@ -77,19 +78,21 @@ beforeEach(() => {
   estimateFeesPerGas.mockResolvedValue({ maxFeePerGas: 1_000_000_000n })
   waitForTransactionReceipt.mockResolvedValue({ status: 'success' })
   getOrder.mockResolvedValue({ status: 'fulfilled' })
-  quoteEthSwap.mockReturnValue(
+  quoteCowSwap.mockReturnValue(
     okAsync({
       amountOut: TARGET,
       maximumEth: MAXIMUM_ETH,
+      maximumSell: MAXIMUM_ETH,
       validTo: ORDER.validTo,
     }),
   )
-  submitEthSwap.mockReturnValue(
+  submitCowSwap.mockReturnValue(
     okAsync({
       order: ORDER,
       quote: {
         amountOut: TARGET,
         maximumEth: MAXIMUM_ETH,
+        maximumSell: MAXIMUM_ETH,
         validTo: ORDER.validTo,
       },
     }),
@@ -126,11 +129,12 @@ describe('rejectEthSwap', () => {
 
 describe('swapEthForUsdcActor', () => {
   it('sends the exact HCA shortfall through CoW and reports the order', async () => {
-    readContract.mockResolvedValue(5_000_000n)
-    quoteEthSwap.mockReturnValueOnce(
+    readContract.mockResolvedValueOnce(5_000_000n).mockResolvedValueOnce(TARGET)
+    quoteCowSwap.mockReturnValueOnce(
       okAsync({
         amountOut: 15_000_000n,
         maximumEth: MAXIMUM_ETH,
+        maximumSell: MAXIMUM_ETH,
         validTo: ORDER.validTo,
       }),
     )
@@ -139,7 +143,7 @@ describe('swapEthForUsdcActor', () => {
     const result = await swapEthForUsdcActor(input({ onSwapSent }))
 
     expect(result._unsafeUnwrap()).toBe(15_000_000n)
-    expect(quoteEthSwap).toHaveBeenCalledWith(
+    expect(quoteCowSwap).toHaveBeenCalledWith(
       expect.objectContaining({
         owner: WALLET,
         receiver: HCA,
@@ -154,8 +158,8 @@ describe('swapEthForUsdcActor', () => {
     readContract.mockResolvedValue(TARGET)
     const result = await swapEthForUsdcActor(input({}))
     expect(result._unsafeUnwrap()).toBe(0n)
-    expect(quoteEthSwap).not.toHaveBeenCalled()
-    expect(submitEthSwap).not.toHaveBeenCalled()
+    expect(quoteCowSwap).not.toHaveBeenCalled()
+    expect(submitCowSwap).not.toHaveBeenCalled()
   })
 
   it('settles an earlier order before reading the HCA and never funds twice', async () => {
@@ -167,13 +171,14 @@ describe('swapEthForUsdcActor', () => {
       hash: PENDING_HASH,
     })
     expect(getOrder).toHaveBeenCalledWith(PENDING.orderId)
-    expect(submitEthSwap).not.toHaveBeenCalled()
+    expect(submitCowSwap).not.toHaveBeenCalled()
   })
 
   it('refunds an expired order before opening its replacement', async () => {
     getOrder
       .mockResolvedValueOnce({ status: 'expired', uid: PENDING.orderId })
       .mockResolvedValueOnce({ status: 'fulfilled' })
+    readContract.mockResolvedValueOnce(0n).mockResolvedValueOnce(TARGET)
 
     const result = await swapEthForUsdcActor(input({ pendingSwap: PENDING }))
 
@@ -184,7 +189,7 @@ describe('swapEthForUsdcActor', () => {
         order: expect.objectContaining({ uid: PENDING.orderId }),
       }),
     )
-    expect(submitEthSwap).toHaveBeenCalledOnce()
+    expect(submitCowSwap).toHaveBeenCalledOnce()
   })
 
   it('sends nothing when cancelled before the wallet prompt', async () => {
@@ -194,11 +199,11 @@ describe('swapEthForUsdcActor', () => {
       input({ signal: controller.signal }),
     )
     expect(result.isErr()).toBe(true)
-    expect(submitEthSwap).not.toHaveBeenCalled()
+    expect(submitCowSwap).not.toHaveBeenCalled()
   })
 
   it('keeps a declined EthFlow transaction recognisable', async () => {
-    submitEthSwap.mockReturnValueOnce(
+    submitCowSwap.mockReturnValueOnce(
       errAsync(
         Object.assign(new Error('User rejected the request.'), {
           name: 'UserRejectedRequestError',
@@ -214,6 +219,6 @@ describe('swapEthForUsdcActor', () => {
       input({ funding: { displayedCharge: 9_000_000_000_000_000n } }),
     )
     expect(result._unsafeUnwrapErr().message).toContain('shown at checkout')
-    expect(submitEthSwap).not.toHaveBeenCalled()
+    expect(submitCowSwap).not.toHaveBeenCalled()
   })
 })

@@ -351,9 +351,26 @@ const persistedContextSchema = v.object({
     }),
   ),
   isL2BridgeFromPriorRun: v.optional(v.boolean()),
-  ethFunding: v.optional(v.object({ displayedCharge: v.optional(v.bigint()) })),
+  ethFunding: v.optional(
+    v.object({
+      displayedCharge: v.optional(v.bigint()),
+      sellToken: v.optional(
+        v.object({
+          address: addressSchema,
+          symbol: v.string(),
+          decimals: v.number(),
+          isNative: v.boolean(),
+        }),
+      ),
+    }),
+  ),
   pendingEthSwap: v.optional(
-    v.object({ hash: hashSchema, orderId: v.string(), validTo: v.number() }),
+    v.object({
+      hash: v.optional(hashSchema),
+      orderId: v.string(),
+      validTo: v.number(),
+      kind: v.optional(v.picklist(['native', 'erc20'])),
+    }),
   ),
   resolverAddress: v.optional(addressSchema),
   resolverTxId: v.optional(v.string()),
@@ -405,7 +422,24 @@ export function parseRegistrationRecord(
     )
   }
 
-  const record = result.output as PersistedRegistrationRecord
+  const parsedRecord = result.output as PersistedRegistrationRecord
+  // ETH-only snapshots predate the explicit order kind. A hash identifies an
+  // EthFlow creation transaction, so they safely resume as native orders.
+  const record: PersistedRegistrationRecord = parsedRecord.context
+    .pendingEthSwap
+    ? {
+        ...parsedRecord,
+        context: {
+          ...parsedRecord.context,
+          pendingEthSwap: {
+            ...parsedRecord.context.pendingEthSwap,
+            kind:
+              parsedRecord.context.pendingEthSwap.kind ??
+              (parsedRecord.context.pendingEthSwap.hash ? 'native' : 'erc20'),
+          },
+        },
+      }
+    : parsedRecord
 
   if (record.v !== REGISTRATION_PERSISTENCE_VERSION) {
     return err(

@@ -7,7 +7,12 @@ import { type Address, isHash } from 'viem'
 /** Unsettled EthFlow orders, kept apart from the run record across cancellation. */
 const STORAGE_KEY = 'ens-registration-pending-cow-orders-v1'
 
-type StoredEthSwap = { hash: string; orderId: string; validTo: number }
+type StoredEthSwap = {
+  hash?: string
+  orderId: string
+  validTo: number
+  kind?: 'native' | 'erc20'
+}
 
 /** Swaps by `chainId:wallet`. */
 type PendingEthSwaps = Record<string, StoredEthSwap>
@@ -48,17 +53,18 @@ export const readPendingEthSwap = (
     readAll()[keyFor(chainId, wallet)]
   if (
     !stored ||
-    typeof stored.hash !== 'string' ||
-    !isHash(stored.hash) ||
+    (stored.hash !== undefined &&
+      (typeof stored.hash !== 'string' || !isHash(stored.hash))) ||
     typeof stored.orderId !== 'string' ||
     typeof stored.validTo !== 'number'
   ) {
     return undefined
   }
   return {
-    hash: stored.hash,
+    ...(stored.hash ? { hash: stored.hash } : {}),
     orderId: stored.orderId,
     validTo: stored.validTo,
+    kind: stored.kind ?? (stored.hash ? 'native' : 'erc20'),
   }
 }
 
@@ -70,9 +76,10 @@ export const savePendingEthSwap = (
   writeAll({
     ...readAll(),
     [keyFor(chainId, wallet)]: {
-      hash: swap.hash,
+      ...(swap.hash ? { hash: swap.hash } : {}),
       orderId: swap.orderId,
       validTo: swap.validTo,
+      kind: swap.kind,
     },
   })
 }

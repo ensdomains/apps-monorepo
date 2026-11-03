@@ -444,6 +444,7 @@ export type RegistrationContext = {
     | 'submittingSetupBundle'
     | 'preparingCommitment'
     | 'signingFundingPermit'
+    | 'swappingEth'
     | 'approvingToken'
     | 'registeringDomain'
     | 'submittingRhinestoneBundle'
@@ -917,11 +918,12 @@ export const registrationMachine = setup({
 
   guards: {
     isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
+    isEoaCowFunded: ({ context }) =>
+      context.signer?.type === 'eoa' && context.ethFunding !== undefined,
     shouldBundleEoaSetup: ({ context }) => shouldBundleEoaSetup(context),
     isL2Funded: ({ context }) =>
       context.signer?.type === 'rhinestone' && context.l2Funding !== undefined,
-    isEthFunded: ({ context }) =>
-      context.signer?.type === 'rhinestone' && context.ethFunding !== undefined,
+    isEthFunded: ({ context }) => context.ethFunding !== undefined,
     // A landed bridge kept for the balance read is not awaited again.
     hasPriorL2BridgeTx: ({ context }) => context.priorL2BridgeTx !== undefined,
     hasUnsettledL2Bridge: ({ context }) =>
@@ -1232,6 +1234,12 @@ export const registrationMachine = setup({
         })
       },
       always: [
+        {
+          // EOA checkout can fund its own USDC balance from any CoW token
+          // before entering the ordinary approval/commit/register spine.
+          guard: 'isEoaCowFunded',
+          target: 'swappingEth',
+        },
         {
           // Standalone-HCA: compute the funding budget at runtime, check
           // whether the HCA already holds enough USDC (skips the funding
@@ -1627,37 +1635,63 @@ export const registrationMachine = setup({
       },
     },
 
-    // Paid with ETH: the wallet creates an EthFlow order and CoW solvers send
-    // the exact USDC shortfall directly to the HCA.
+    // Paid with another token: CoW solvers send the exact USDC shortfall to
+    // the HCA, or to the EOA before the normal ENS registration spine.
     swappingEth: {
       entry: ['logTransition'],
       invoke: {
         src: 'swapEthForUsdc',
-        input: ({ context, self }) => ({
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          hca: context.accountAddress!,
-          // biome-ignore lint/style/noNonNullAssertion: set by computingHcaBudget
-          targetBalance: context.hcaBudget!,
-          funding: context.ethFunding,
-          // EthFlow is the wallet's own transaction.
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          approvalSigner: context.approvalSigner ?? context.signer!,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          publicClient: context.publicClient!,
-          pendingSwap: context.pendingEthSwap,
-          onSwapSent: (swap: PendingEthSwap) =>
-            self.send({ type: 'ETH_SWAP_SENT', swap }),
-        }),
-        onDone: {
-          target: 'submittingSetupBundle',
-          actions: assign({ pendingEthSwap: () => undefined }),
+        input: ({ context, self }) => {
+          const receiver =
+            context.signer?.type === 'rhinestone'
+              ? context.accountAddress
+              : (context.ownerAddress ?? context.accountAddress)
+          const targetBalance =
+            context.signer?.type === 'rhinestone'
+              ? context.hcaBudget
+              : context.tokenPrice
+          const approvalSigner = context.approvalSigner ?? context.signer
+          if (
+            !receiver ||
+            targetBalance === undefined ||
+            !approvalSigner ||
+            !context.publicClient
+          ) {
+            throw new Error('Token payment is missing registration context.')
+          }
+          return {
+            hca: receiver,
+            targetBalance,
+            funding: context.ethFunding,
+            approvalSigner,
+            publicClient: context.publicClient,
+            pendingSwap: context.pendingEthSwap,
+            onSwapSent: (swap: PendingEthSwap) =>
+              self.send({ type: 'ETH_SWAP_SENT', swap }),
+          }
         },
+        onDone: [
+          {
+            guard: 'isRhinestoneSigner',
+            target: 'submittingSetupBundle',
+            actions: assign({ pendingEthSwap: () => undefined }),
+          },
+          {
+            guard: ({ context }) => context.approveBeforeCommit === true,
+            target: 'checkingAllowance',
+            actions: assign({ pendingEthSwap: () => undefined }),
+          },
+          {
+            target: 'checkingResolver',
+            actions: assign({ pendingEthSwap: () => undefined }),
+          },
+        ],
         // Retry re-checks the HCA balance and settles a persisted order first.
         onError: {
           target: 'error',
           actions: assign({
             error: ({ event }) => event.error as Error,
-            retryTarget: () => 'signingFundingPermit' as const,
+            retryTarget: () => 'swappingEth' as const,
           }),
         },
       },
@@ -2904,6 +2938,17 @@ export const registrationMachine = setup({
               error: undefined,
               retryTarget: undefined,
               permit: undefined,
+              registrationTxId: undefined,
+              registrationIntentId: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) => context.retryTarget === 'swappingEth',
+            target: 'swappingEth',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
               registrationTxId: undefined,
               registrationIntentId: undefined,
             })),

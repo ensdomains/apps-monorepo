@@ -10,10 +10,11 @@ export {
   TransactionSubmissionError,
 } from './errors/transaction.errors'
 export {
+  type CowSellToken,
+  type CowSwapOrder,
+  type CowSwapQuote,
   type EthSwapQuote,
-  EthSwapUnavailableError,
-  ethToUsdcRaw,
-  readEthUsdPrice,
+  NATIVE_ETH,
 } from './helpers/eth-usdc-swap'
 // Helpers
 export {

@@ -542,7 +542,7 @@ describe('registrationMachine — paid with ETH', () => {
     await waitFor(actor, (s) => s.matches('error'))
 
     expect(signFundingPermit).not.toHaveBeenCalled()
-    expect(actor.getSnapshot().context.retryTarget).toBe('signingFundingPermit')
+    expect(actor.getSnapshot().context.retryTarget).toBe('swappingEth')
   })
 })
 

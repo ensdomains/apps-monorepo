@@ -18,7 +18,7 @@ import { err, fromPromise, ok, ResultAsync } from 'neverthrow'
 import {
   type Address,
   erc20Abi,
-  formatEther,
+  formatUnits,
   type PublicClient,
   type WalletClient,
 } from 'viem'
@@ -29,32 +29,37 @@ import {
   waitForTransactionReceipt,
 } from 'viem/actions'
 import {
-  type CowEthOrder,
+  type CowSellToken,
+  type CowSwapOrder,
+  type CowSwapQuote,
   ETH_SWAP_DISPLAYED_DRIFT_BPS,
-  type EthSwapQuote,
   type EthSwapUnavailableError,
-  quoteEthSwap,
+  NATIVE_ETH,
+  quoteCowSwap,
   refundExpiredEthSwap,
-  submitEthSwap,
+  submitCowSwap,
   withBps,
 } from '../../helpers/eth-usdc-swap'
 import type { Signer } from '../../types/signer.types'
 
 export interface EthFunding {
-  /** The most ETH (wei) checkout showed EthFlow escrowing. */
+  /** Token the wallet sells. Missing only on snapshots from the ETH-only build. */
+  readonly sellToken?: CowSellToken
+  /** The most sell-token units checkout showed the order spending. */
   readonly displayedCharge?: bigint
 }
 
 export type EthPaymentQuote = Readonly<{
   /** Exact USDC (6dp) CoW must deliver to the HCA. */
   usdcToBuy: bigint
-  swap?: EthSwapQuote
+  swap?: CowSwapQuote
 }>
 
 /** Persisted from EthFlow submission until CoW settlement is observed. */
-export type PendingEthSwap = CowEthOrder
+export type PendingEthSwap = CowSwapOrder
 
 const COW_POLL_MS = 4_000
+const MAX_COW_FUNDING_ATTEMPTS = 3
 const GAS_RESERVE_UNITS = 500_000n
 const GAS_RESERVE_MULTIPLIER = 2n
 
@@ -77,20 +82,29 @@ export function rejectEthSwap(params: {
   readonly displayedCharge?: bigint
   readonly walletBalance: bigint
   readonly gasReserve: bigint
+  readonly decimals?: number
+  readonly symbol?: string
 }): string | undefined {
-  const { maximumEth, displayedCharge, walletBalance, gasReserve } = params
+  const {
+    maximumEth,
+    displayedCharge,
+    walletBalance,
+    gasReserve,
+    decimals = 18,
+    symbol = 'ETH',
+  } = params
   if (
     displayedCharge !== undefined &&
     maximumEth > withBps(displayedCharge, ETH_SWAP_DISPLAYED_DRIFT_BPS)
   ) {
     return (
-      `Paying now takes up to ${formatEther(maximumEth)} ETH, but ` +
-      `${formatEther(displayedCharge)} ETH was shown at checkout. ` +
+      `Paying now takes up to ${formatUnits(maximumEth, decimals)} ${symbol}, but ` +
+      `${formatUnits(displayedCharge, decimals)} ${symbol} was shown at checkout. ` +
       'Please start again.'
     )
   }
   if (walletBalance < maximumEth + gasReserve) {
-    return 'Not enough ETH in your wallet for the CoW order and its network fee.'
+    return `Not enough ${symbol} in your wallet for this payment.`
   }
   return undefined
 }
@@ -102,16 +116,18 @@ export const quoteEthPaymentActor = ResultFn(async function* (input: {
   readonly permitValue: bigint
   readonly publicClient: PublicClient
   readonly chainId: number
+  readonly sellToken?: CowSellToken
 }) {
   if (input.permitValue === 0n) {
     return ok<EthPaymentQuote>({ usdcToBuy: 0n })
   }
-  const swap = yield* quoteEthSwap({
+  const swap = yield* quoteCowSwap({
     publicClient: input.publicClient,
     chainId: input.chainId,
     owner: input.owner,
     receiver: input.hca,
     amountOut: input.permitValue,
+    sellToken: input.sellToken ?? NATIVE_ETH,
   })
   return ok<EthPaymentQuote>({ usdcToBuy: input.permitValue, swap })
 })
@@ -130,7 +146,7 @@ export const quoteEthSwapGasReserve = (input: {
   readonly publicClient: PublicClient
   readonly chainId: number
   readonly owner: Address
-  readonly swap: EthSwapQuote
+  readonly swap: CowSwapQuote
 }): ResultAsync<bigint, EthSwapPaymentError | EthSwapUnavailableError> =>
   ResultAsync.fromPromise(estimateFeesPerGas(input.publicClient), (cause) =>
     paymentError('Could not estimate the EthFlow network fee.', cause),
@@ -172,6 +188,7 @@ const refundExpiredOrder = async (
   input: CowSettlementInput,
   order: EnrichedOrder,
 ): Promise<void> => {
+  if (input.order.kind !== 'native') return
   const refund = await refundExpiredEthSwap({
     publicClient: input.publicClient,
     walletClient: input.walletClient,
@@ -212,11 +229,13 @@ const waitForCowSettlement = async (
 
 /** Wait for the EthFlow transaction and then for a solver settlement. */
 const settleCowOrder = async (input: CowSettlementInput): Promise<void> => {
-  const receipt = await waitForTransactionReceipt(input.publicClient, {
-    hash: input.order.hash,
-  })
-  if (receipt.status !== 'success') {
-    throw paymentError('The EthFlow transaction failed on-chain.')
+  if (input.order.hash) {
+    const receipt = await waitForTransactionReceipt(input.publicClient, {
+      hash: input.order.hash,
+    })
+    if (receipt.status !== 'success') {
+      throw paymentError('The EthFlow transaction failed on-chain.')
+    }
   }
   const chainId = supportedChain(input.chainId)
   if (!chainId) {
@@ -237,9 +256,25 @@ const readHcaBalance = (input: {
     args: [input.hca],
   })
 
+const readSellTokenBalance = (input: {
+  publicClient: PublicClient
+  owner: Address
+  token: CowSellToken
+}) =>
+  input.token.isNative
+    ? getBalance(input.publicClient, { address: input.owner })
+    : readContract(input.publicClient, {
+        address: input.token.address,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [input.owner],
+      })
+
 /**
- * Fund the HCA's USDC budget with one native-ETH EthFlow transaction.
- * Resolves only after CoW settlement, so the next machine state can commit.
+ * Fund the registration receiver's USDC budget through CoW Protocol.
+ * Resolves only after the receiver balance proves settlement. An expired or
+ * cancelled order is re-quoted instead of being mistaken for a successful
+ * payment.
  */
 export const swapEthForUsdcActor = ResultFn(async function* (input: {
   readonly hca: Address
@@ -255,6 +290,7 @@ export const swapEthForUsdcActor = ResultFn(async function* (input: {
   if (wallet instanceof EthSwapPaymentError) return err(wallet)
   const { chain } = input.publicClient
   if (!chain) return err(paymentError('Paying with ETH needs the app chain.'))
+  const sellToken = input.funding?.sellToken ?? NATIVE_ETH
 
   if (input.pendingSwap) {
     yield* fromPromise(
@@ -269,77 +305,96 @@ export const swapEthForUsdcActor = ResultFn(async function* (input: {
     )
   }
 
-  const hcaBalance = yield* fromPromise(
-    readHcaBalance({
-      publicClient: input.publicClient,
-      chainId: chain.id,
-      hca: input.hca,
-    }),
-    toError,
-  )
-  const toBuy = usdcToBuy(input.targetBalance, hcaBalance)
-  if (toBuy === 0n) return ok(0n)
+  let amountRequested = 0n
+  for (let attempt = 0; attempt < MAX_COW_FUNDING_ATTEMPTS; attempt += 1) {
+    const receiverBalance = yield* fromPromise(
+      readHcaBalance({
+        publicClient: input.publicClient,
+        chainId: chain.id,
+        hca: input.hca,
+      }),
+      toError,
+    )
+    const toBuy = usdcToBuy(input.targetBalance, receiverBalance)
+    if (toBuy === 0n) return ok(amountRequested)
+    if (amountRequested === 0n) amountRequested = toBuy
 
-  const preview = yield* quoteEthPaymentActor({
-    owner: wallet.address,
-    hca: input.hca,
-    permitValue: toBuy,
-    publicClient: input.publicClient,
-    chainId: chain.id,
-  })
-  if (!preview.swap) return ok(0n)
-
-  const [walletBalance, gasReserve] = yield* ResultAsync.combine([
-    fromPromise(
-      getBalance(input.publicClient, { address: wallet.address }),
-      (cause) => paymentError('Could not prepare the CoW order.', cause),
-    ),
-    quoteEthSwapGasReserve({
-      publicClient: input.publicClient,
-      chainId: chain.id,
+    const preview = yield* quoteEthPaymentActor({
       owner: wallet.address,
-      swap: preview.swap,
-    }),
-  ])
-  const refusal = rejectEthSwap({
-    maximumEth: preview.swap.maximumEth,
-    displayedCharge: input.funding?.displayedCharge,
-    walletBalance,
-    gasReserve,
-  })
-  if (refusal) return err(paymentError(refusal))
-  if (input.signal?.aborted) {
-    return err(paymentError('Cancelled before the swap.'))
-  }
+      hca: input.hca,
+      permitValue: toBuy,
+      publicClient: input.publicClient,
+      chainId: chain.id,
+      sellToken,
+    })
+    if (!preview.swap) return ok(amountRequested)
 
-  const submitted = yield* submitEthSwap({
-    publicClient: input.publicClient,
-    walletClient: wallet.client,
-    chainId: chain.id,
-    owner: wallet.address,
-    receiver: input.hca,
-    amountOut: toBuy,
-    maximumEth: (() => {
-      const solventMaximum = walletBalance - gasReserve
-      if (input.funding?.displayedCharge === undefined) return solventMaximum
-      const consentMaximum = withBps(
-        input.funding.displayedCharge,
-        ETH_SWAP_DISPLAYED_DRIFT_BPS,
-      )
-      return consentMaximum < solventMaximum ? consentMaximum : solventMaximum
-    })(),
-  })
-  input.onSwapSent?.(submitted.order)
+    const [walletBalance, gasReserve] = yield* ResultAsync.combine([
+      fromPromise(
+        readSellTokenBalance({
+          publicClient: input.publicClient,
+          owner: wallet.address,
+          token: sellToken,
+        }),
+        (cause) => paymentError('Could not prepare the CoW order.', cause),
+      ),
+      sellToken.isNative
+        ? quoteEthSwapGasReserve({
+            publicClient: input.publicClient,
+            chainId: chain.id,
+            owner: wallet.address,
+            swap: preview.swap,
+          })
+        : ResultAsync.fromSafePromise(Promise.resolve(0n)),
+    ])
+    const refusal = rejectEthSwap({
+      maximumEth: preview.swap.maximumEth,
+      displayedCharge: input.funding?.displayedCharge,
+      walletBalance,
+      gasReserve,
+      decimals: sellToken.decimals,
+      symbol: sellToken.symbol,
+    })
+    if (refusal) return err(paymentError(refusal))
+    if (input.signal?.aborted) {
+      return err(paymentError('Cancelled before the swap.'))
+    }
 
-  yield* fromPromise(
-    settleCowOrder({
+    const submitted = yield* submitCowSwap({
       publicClient: input.publicClient,
       walletClient: wallet.client,
       chainId: chain.id,
-      order: submitted.order,
-      signal: input.signal,
-    }),
-    toError,
+      owner: wallet.address,
+      receiver: input.hca,
+      amountOut: toBuy,
+      sellToken,
+      maximumSell: (() => {
+        const solventMaximum = walletBalance - gasReserve
+        if (input.funding?.displayedCharge === undefined) return solventMaximum
+        const consentMaximum = withBps(
+          input.funding.displayedCharge,
+          ETH_SWAP_DISPLAYED_DRIFT_BPS,
+        )
+        return consentMaximum < solventMaximum ? consentMaximum : solventMaximum
+      })(),
+    })
+    input.onSwapSent?.(submitted.order)
+
+    yield* fromPromise(
+      settleCowOrder({
+        publicClient: input.publicClient,
+        walletClient: wallet.client,
+        chainId: chain.id,
+        order: submitted.order,
+        signal: input.signal,
+      }),
+      toError,
+    )
+  }
+
+  return err(
+    paymentError(
+      'CoW Protocol could not settle this payment after several fresh quotes. Please try again.',
+    ),
   )
-  return ok(toBuy)
 })

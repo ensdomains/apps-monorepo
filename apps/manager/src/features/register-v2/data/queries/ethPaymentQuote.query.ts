@@ -1,4 +1,5 @@
 import {
+  type CowSellToken,
   quoteEthPaymentActor,
   quoteEthSwapGasReserve,
   readEthUsdPrice,
@@ -10,13 +11,14 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { keepPreviousData } from '@tanstack/react-query'
 import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
+import { erc20Abi } from 'viem'
 import { chain } from '@/config'
 import { publicClient } from '@/lib/wagmi'
 
-/** What paying with ETH asks of the wallet, and the ETH it holds. */
+/** What paying with a selected CoW token asks of the wallet. */
 export type EthPaymentQuote = SwapQuote &
   Readonly<{
-    /** The wallet's ETH (wei). */
+    /** The wallet's selected-token balance in base units. */
     walletBalance: bigint
     /** ETH (wei) the swap step also keeps back for gas; `0n` while the swap alone is unaffordable. */
     gasReserve: bigint
@@ -26,7 +28,8 @@ export type EthPaymentQuote = SwapQuote &
 
 export type EthPaymentQuoteParams = Readonly<{
   owner: Address | null | undefined
-  hca: Address | null | undefined
+  receiver: Address | null | undefined
+  sellToken: CowSellToken | undefined
   /** USDC (6dp) CoW delivers; `undefined` until the budget is quoted. */
   permitValue: bigint | undefined
   /** Off where the route has no permit to fund. */
@@ -40,27 +43,38 @@ export class EthPaymentQuoteError extends TaggedError('EthPaymentQuoteError')<{
 
 const getEthPaymentQuote = ({
   owner,
-  hca,
+  receiver,
+  sellToken,
   permitValue,
 }: EthPaymentQuoteParams): ResultAsync<
   EthPaymentQuote,
   EthPaymentQuoteError
 > => {
-  if (!owner || !hca || permitValue === undefined) {
+  if (!owner || !receiver || !sellToken || permitValue === undefined) {
     return errAsync(
-      new EthPaymentQuoteError({ cause: 'No wallet, HCA, or amount.' }),
+      new EthPaymentQuoteError({
+        cause: 'No wallet, receiver, token, or amount.',
+      }),
     )
   }
   return ResultAsync.combine([
     quoteEthPaymentActor({
       owner,
-      hca,
+      hca: receiver,
       permitValue,
       publicClient,
       chainId: chain.id,
+      sellToken,
     }),
     ResultAsync.fromPromise(
-      publicClient.getBalance({ address: owner }),
+      sellToken.isNative
+        ? publicClient.getBalance({ address: owner })
+        : publicClient.readContract({
+            address: sellToken.address,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [owner],
+          }),
       (cause) => cause,
     ),
     readEthUsdPrice({
@@ -71,7 +85,9 @@ const getEthPaymentQuote = ({
   ])
     .andThen(([quote, walletBalance, ethUsd]) =>
       // Estimating gas for a swap the wallet can't fund fails, and the row is short anyway.
-      quote.swap && walletBalance >= quote.swap.maximumEth
+      sellToken.isNative &&
+      quote.swap &&
+      walletBalance >= quote.swap.maximumSell
         ? quoteEthSwapGasReserve({
             publicClient,
             chainId: chain.id,
@@ -99,14 +115,16 @@ export const getEthPaymentQuoteQueryOptions = (params: EthPaymentQuoteParams) =>
       $scope: 'registration',
       $action: 'eth-payment-quote',
       owner: params.owner ?? undefined,
-      hca: params.hca ?? undefined,
+      receiver: params.receiver ?? undefined,
+      sellToken: params.sellToken?.address,
       permitValue: params.permitValue?.toString(),
     }),
     queryFn: () => getEthPaymentQuote(params),
     enabled:
       params.isEnabled &&
       !!params.owner &&
-      !!params.hca &&
+      !!params.receiver &&
+      !!params.sellToken &&
       params.permitValue !== undefined &&
       params.permitValue > 0n,
     retry: false,

@@ -15,6 +15,7 @@ const SWAP: PendingEthSwap = {
   hash: `0x${'de'.repeat(32)}`,
   orderId: 'cow-order-id',
   validTo: 1_800_000_000,
+  kind: 'native',
 }
 
 type Context = {

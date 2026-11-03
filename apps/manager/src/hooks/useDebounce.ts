@@ -49,7 +49,7 @@ export function useDebounce<T>(
   const callback = options?.callback
   const immediateCallback = options?.immediateCallback
   const [debouncedValue, setDebouncedValue] = useState<T>(value)
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const cancel = useCallback(() => {
     if (timeoutRef.current) {
