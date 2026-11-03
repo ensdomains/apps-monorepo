@@ -1,6 +1,7 @@
 import {
   quoteEthPaymentActor,
   quoteEthSwapGasReserve,
+  readEthUsdPrice,
   type EthPaymentQuote as SwapQuote,
 } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
@@ -19,6 +20,8 @@ export type EthPaymentQuote = SwapQuote &
     walletBalance: bigint
     /** ETH (wei) the swap step also keeps back for gas; `0n` while the swap alone is unaffordable. */
     gasReserve: bigint
+    /** The Chainlink ETH/USD price (8 decimals), for the figures shown in USD. */
+    ethUsd: bigint
   }>
 
 export type EthPaymentQuoteParams = Readonly<{
@@ -55,8 +58,13 @@ const getEthPaymentQuote = ({
       publicClient.getBalance({ address: owner }),
       (cause) => cause,
     ),
+    readEthUsdPrice({
+      publicClient,
+      chainId: chain.id,
+      nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
+    }),
   ])
-    .andThen(([quote, walletBalance]) =>
+    .andThen(([quote, walletBalance, ethUsd]) =>
       // Estimating gas for a swap the wallet can't fund fails, and the row is short anyway.
       quote.swap && walletBalance >= quote.swap.maximumEth
         ? quoteEthSwapGasReserve({
@@ -64,8 +72,13 @@ const getEthPaymentQuote = ({
             chainId: chain.id,
             owner,
             swap: quote.swap,
-          }).map((gasReserve) => ({ ...quote, walletBalance, gasReserve }))
-        : okAsync({ ...quote, walletBalance, gasReserve: 0n }),
+          }).map((gasReserve) => ({
+            ...quote,
+            walletBalance,
+            gasReserve,
+            ethUsd,
+          }))
+        : okAsync({ ...quote, walletBalance, gasReserve: 0n, ethUsd }),
     )
     .mapErr((cause) => new EthPaymentQuoteError({ cause }))
 }

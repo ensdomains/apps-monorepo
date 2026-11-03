@@ -15,11 +15,11 @@ export const useAutoSelectOnlyToken = <T extends TOKEN_SYMBOL>({
   readonly selectedToken: T | undefined
   readonly stablecoinBalances: readonly StablecoinBalance[] | undefined
   readonly isLoadingBalances: boolean
-  readonly onSelectCoin: (coin: T) => void
+  readonly onSelectCoin: (coin: T, origin: 'fallback') => void
 }) => {
   useEffect(() => {
     const onlyCoin = stablecoinBalances?.length === 1 && stablecoinBalances[0]
     if (selectedToken || isLoadingBalances || !onlyCoin) return
-    onSelectCoin(onlyCoin.symbol as T)
+    onSelectCoin(onlyCoin.symbol as T, 'fallback')
   }, [selectedToken, isLoadingBalances, stablecoinBalances, onSelectCoin])
 }

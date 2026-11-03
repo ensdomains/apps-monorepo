@@ -53,7 +53,7 @@ export type EthPaymentQuote = Readonly<{
 }>
 
 /** Each gas unit the swap is estimated at is reserved twice over. */
-const GAS_RESERVE_MULTIPLIER = 2n
+export const ETH_SWAP_GAS_RESERVE_MULTIPLIER = 2n
 /** How long the signed swap stays valid on-chain. */
 const SWAP_DEADLINE_SECONDS = 20n * 60n
 /** Leeway for this device's clock running ahead of the chain's. */
@@ -186,7 +186,9 @@ const estimateSwapGasReserve = (input: {
       estimateFeesPerGas(input.publicClient),
     ]),
     (cause) => paymentError('Could not prepare the ETH swap.', cause),
-  ).map(([gas, fees]) => gas * fees.maxFeePerGas * GAS_RESERVE_MULTIPLIER)
+  ).map(
+    ([gas, fees]) => gas * fees.maxFeePerGas * ETH_SWAP_GAS_RESERVE_MULTIPLIER,
+  )
 
 /** The gas reserve the swap step will ask of `owner` for `swap`, for checkout to show. */
 export const quoteEthSwapGasReserve = (input: {

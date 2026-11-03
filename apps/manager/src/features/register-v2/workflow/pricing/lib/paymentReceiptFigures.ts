@@ -74,3 +74,53 @@ export const getWalletShortfall = (
   if (shownGap > 0) return Math.ceil(shownGap / MICROS_PER_CENT) / 100
   return toMicros(required) > toMicros(balance) ? 0.01 : undefined
 }
+
+/** One cent in USDC's 6 decimals. */
+const CENT_RAW = 10_000n
+
+/** Half-up to a whole cent, as `formatUsd` shows it. */
+const roundToCentRaw = (raw: bigint): bigint =>
+  ((raw + CENT_RAW / 2n) / CENT_RAW) * CENT_RAW
+
+/** All in USDC's 6 decimals, rounded to cents. */
+export type NetworkFeeReceiptFigures = {
+  readonly registrationTotalRaw: bigint
+  readonly networkFeeRaw: bigint
+  /** The existing balance left after the name cost, applied to the fee; zero when none is left. */
+  readonly existingBalanceRaw: bigint
+  readonly dueRaw: bigint
+}
+
+/** The registration sheet's receipt: page total, the method's full fee, leftover balance, and what is due. */
+export const getNetworkFeeReceiptFigures = ({
+  registrationTotalRaw,
+  networkFeeRaw,
+  walletDebitRaw,
+  extraFeeRaw = 0n,
+}: {
+  readonly registrationTotalRaw: bigint
+  /** The selected method's fee, before any existing balance. */
+  readonly networkFeeRaw: bigint
+  readonly walletDebitRaw: bigint
+  /** Paid on top of the wallet debit, such as an ETH swap's gas. */
+  readonly extraFeeRaw?: bigint
+}): NetworkFeeReceiptFigures => {
+  const total = roundToCentRaw(registrationTotalRaw)
+  const due = roundToCentRaw(walletDebitRaw + extraFeeRaw)
+  const fee = roundToCentRaw(networkFeeRaw + extraFeeRaw)
+  const existingBalance = total + fee - due
+  // A cent of rounding either way goes to the fee: no balance line without a real balance.
+  return existingBalance <= CENT_RAW
+    ? {
+        registrationTotalRaw: total,
+        networkFeeRaw: due > total ? due - total : 0n,
+        existingBalanceRaw: 0n,
+        dueRaw: due,
+      }
+    : {
+        registrationTotalRaw: total,
+        networkFeeRaw: fee,
+        existingBalanceRaw: existingBalance,
+        dueRaw: due,
+      }
+}

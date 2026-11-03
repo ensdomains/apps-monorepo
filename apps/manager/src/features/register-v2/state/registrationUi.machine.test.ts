@@ -1541,6 +1541,22 @@ describe('paying from an L2', () => {
     expect(actor.getSnapshot().context.fundingSourceOrigin).toBe('user')
   })
 
+  it.each([
+    ['the fallback picks a wallet coin', 'fallback', 'fallback'],
+    ['the user picks a wallet coin', undefined, 'user'],
+  ] as const)(
+    'remembers who picked the coin when %s',
+    (_case, origin, expected) => {
+      const actor = startActorInTokens()
+      actor.send({
+        type: 'pricing.fundingSource.select',
+        chainId: baseSepolia.id,
+      })
+      actor.send({ type: 'pricing.token.select', token: 'USDC', origin })
+      expect(actor.getSnapshot().context.fundingSourceOrigin).toBe(expected)
+    },
+  )
+
   it('hands the registration the L2 it pays from', () => {
     const actor = startActorInTokens()
     actor.send({

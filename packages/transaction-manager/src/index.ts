@@ -9,7 +9,12 @@ export {
   TransactionStoppedError,
   TransactionSubmissionError,
 } from './errors/transaction.errors'
-export type { EthSwapQuote } from './helpers/eth-usdc-swap'
+export {
+  type EthSwapQuote,
+  EthSwapUnavailableError,
+  ethToUsdcRaw,
+  readEthUsdPrice,
+} from './helpers/eth-usdc-swap'
 // Helpers
 export {
   createFlowScope,
@@ -82,6 +87,7 @@ export {
   VERIFY_POLL_INTERVAL_MS,
 } from './machines/registration/registration.actors'
 export {
+  ETH_SWAP_GAS_RESERVE_MULTIPLIER,
   type EthFunding,
   type EthPaymentQuote,
   type PendingEthSwap,

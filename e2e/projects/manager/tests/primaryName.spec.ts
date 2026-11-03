@@ -73,8 +73,8 @@ firstRegistrationTest.describe(
 
         await page.goto(`${MANAGER_APP_URL}/register/${nameOnly}`)
 
-        await page.getByRole('button', { name: 'Pay', exact: true }).click()
-        // Smart-session gate: on the HCA path clicking "Pay" opens
+        await page.getByRole('button', { name: 'Continue to payment' }).click()
+        // Smart-session gate: on the HCA path clicking "Continue to payment" opens
         // the EnableSessions modal before the token picker. Idempotent no-op in
         // EOA mode. See registration-rhinestone.spec.ts.
         await clickThroughEnableSessions(page)

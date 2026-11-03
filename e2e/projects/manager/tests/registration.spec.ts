@@ -81,8 +81,8 @@ test.describe('ENS name registration', () => {
     // Dismiss the SIWE modal before continuing to payment.
     await dismissBackendAuthModal(page)
 
-    await page.getByRole('button', { name: 'Pay', exact: true }).click()
-    // On the smart-account / HCA path, "Pay" opens the
+    await page.getByRole('button', { name: 'Continue to payment' }).click()
+    // On the smart-account / HCA path, "Continue to payment" opens the
     // EnableSessions modal BEFORE the token picker, which blocks the USDC click.
     // Click through it (auto-authorized via PERMITTED_SIGN_KINDS). The helper is
     // idempotent — a no-op in EOA mode where the modal never appears.
@@ -201,7 +201,7 @@ test.describe('Registration pricing against the oracle (A23)', () => {
     for (const text of await presets.allInnerTexts()) {
       const flat = text.replace(/\s+/g, ' ')
       const years = Number(flat.match(/(\d+) years?/)?.[1])
-      const shownBase = dollars(flat, /\$([\d,]+\.\d{2}) base price/)
+      const shownBase = dollars(flat, /\$([\d,]+\.\d{2}) total/)
       const { discounted, undiscounted } = await prices(years)
       console.log(
         `[A23] ${years}y: shown $${shownBase}, oracle $${discounted.toFixed(4)}, undiscounted $${undiscounted.toFixed(4)}`,
@@ -254,7 +254,7 @@ test.describe('Registration progress (A25)', () => {
     test.setTimeout(300_000)
     const label = `a25${Date.now().toString(36)}`.slice(0, 10)
     await page.goto(`${MANAGER_APP_URL}/register/${label}.eth`)
-    await page.getByRole('button', { name: 'Pay', exact: true }).click()
+    await page.getByRole('button', { name: 'Continue to payment' }).click()
     await clickThroughEnableSessions(page)
     await page.getByRole('button', { name: 'Select USDC' }).click()
 

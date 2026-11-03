@@ -8,7 +8,6 @@ import {
 import { useSelector } from '@xstate/react'
 import { useState } from 'react'
 import { useConnection } from 'wagmi'
-import ethCoinIcon from '@/assets/icons/eth-coin.svg'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { Card } from '@/components/ui/card'
@@ -24,13 +23,22 @@ import { tw } from '@/utils/tailwind'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { warmRegistrationCheckout } from '../../../service/checkoutWarmup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { useCheckoutSources } from '../hooks/useCheckoutSources'
+import {
+  getCheckoutAction,
+  getPageAvailability,
+} from '../lib/checkoutAvailability'
+import { getCheckoutSummary } from '../lib/checkoutSummary'
 import { useCheckoutWarmup } from '../useCheckoutWarmup'
 import { AnimatedPrice } from './AnimatedPrice'
+import { CheckoutSummaryCard } from './CheckoutSummaryCard'
 import {
   PaymentCardBaseLine,
   PaymentCardPremiumLine,
 } from './PaymentCardLineItems'
 import { SafeWalletDialog } from './SafeWalletDialog'
+
+const toUsd = (raw: bigint) => decimalBigintToNumber(raw, TOKENS.USDC.decimals)
 
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
@@ -48,19 +56,13 @@ export const PaymentCard = () => {
 
   const pricingQuery = useQuery({
     ...getRegisterPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
-    select: (data) => ({
-      totalPrice: decimalBigintToNumber(
-        data.basePrice + data.premium,
-        TOKENS.USDC.decimals,
-      ),
-      basePrice: decimalBigintToNumber(data.basePrice, TOKENS.USDC.decimals),
-      premiumPrice: decimalBigintToNumber(data.premium, TOKENS.USDC.decimals),
-    }),
     placeholderData: keepPreviousData,
   })
+  const basePrice = toUsd(pricingQuery.data?.basePrice ?? 0n)
+  const premium = toUsd(pricingQuery.data?.premium ?? 0n)
 
   const { discountAmount } = calculateDiscount(
-    pricingQuery.data?.basePrice ?? 0,
+    basePrice,
     baseRate,
     BigInt(duration),
   )
@@ -90,7 +92,27 @@ export const PaymentCard = () => {
   useQuery({ ...isSafeWalletOptions, enabled: !!connector })
   const [isSafeDialogOpen, setIsSafeDialogOpen] = useState(false)
   const { disconnect } = useWalletDisconnect()
-  const { openConnectModal } = useConnectModal()
+  const { openConnectModal, connectModalOpen } = useConnectModal()
+
+  const { accountBalance, sources } = useCheckoutSources(account)
+  const summary = pricingQuery.data
+    ? getCheckoutSummary(
+        pricingQuery.data.basePrice + pricingQuery.data.premium,
+        accountBalance.status === 'known' ? accountBalance.usdcRaw : 0n,
+      )
+    : undefined
+  const action = getCheckoutAction({
+    isConnected: account.isConnected,
+    isPreparing: openTokenPicker.isPending,
+    availability: pricingQuery.data
+      ? getPageAvailability(
+          pricingQuery.data.basePrice + pricingQuery.data.premium,
+          accountBalance,
+          sources,
+        )
+      : 'unknown',
+    canNext,
+  })
 
   const onNext = async () => {
     const isSafeWallet = await queryClient
@@ -105,18 +127,30 @@ export const PaymentCard = () => {
 
   return (
     <>
-      <PaymentCardBase
+      <CheckoutSummaryCard
         // ETH is swapped for the ENS account, so only that route offers it.
         acceptsEth={account.signer?.type === 'rhinestone'}
-        amount={pricingQuery.data?.totalPrice}
-        basePrice={pricingQuery.data?.basePrice}
-        canNext={canNext}
-        discountAmount={discountAmount}
+        action={action}
+        connect={{
+          onConnect: () => openConnectModal?.(),
+          isOpen: connectModalOpen,
+        }}
+        discount={discountAmount}
+        header={
+          premium > 0 && (
+            <div className="mx-auto w-max space-y-2">
+              <PaymentCardBaseLine basePrice={basePrice} isLoading={false} />
+              <PaymentCardPremiumLine
+                isLoading={false}
+                premiumAmount={premium}
+              />
+            </div>
+          )
+        }
         isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
-        isPreparing={openTokenPicker.isPending}
-        onNext={() => void onNext()}
-        premiumAmount={pricingQuery.data?.premiumPrice}
-        type="register"
+        isTotalPending={accountBalance.status === 'unknown'}
+        onContinue={() => void onNext()}
+        summary={summary}
       />
       {sessionModal}
       <SafeWalletDialog
@@ -133,18 +167,6 @@ export const PaymentCard = () => {
   )
 }
 
-const AcceptedTokens = ({ acceptsEth }: { readonly acceptsEth: boolean }) => (
-  <div className="flex flex-col items-center gap-1.5">
-    <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
-      {acceptsEth ? <Trans>Accepted</Trans> : <Trans>Stables accepted</Trans>}
-    </p>
-    <div className="flex items-center gap-1">
-      <USDCIcon className="h-7 w-7" />
-      {acceptsEth && <img alt="ETH" className="h-7 w-7" src={ethCoinIcon} />}
-    </div>
-  </div>
-)
-
 export const PaymentCardBase = ({
   canNext,
   onNext,
@@ -156,12 +178,9 @@ export const PaymentCardBase = ({
   type,
   connectionSource = 'smart-account',
   isPreparing = false,
-  acceptsEth = false,
 }: {
   canNext: boolean
   onNext: () => void
-  /** Checkout also offers paying with ETH, so it is shown as accepted. */
-  readonly acceptsEth?: boolean
   /** The chooser's figures are being fetched; the button shows it and waits. */
   readonly isPreparing?: boolean
   amount: number | undefined
@@ -230,7 +249,15 @@ export const PaymentCardBase = ({
       </div>
 
       <div className="flex w-full flex-col items-center justify-between gap-3">
-        <AcceptedTokens acceptsEth={acceptsEth} />
+        <div className="flex flex-col items-center gap-1.5">
+          <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
+            <Trans>Stables accepted</Trans>
+          </p>
+          {/* Stablecoin icons */}
+          <div className="flex items-center gap-1">
+            <USDCIcon className="h-7 w-7" />
+          </div>
+        </div>
 
         {isConnected ? (
           <Button
