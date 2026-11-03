@@ -68,4 +68,13 @@ describe('getSelectedL2ChainId', () => {
   it('selects nothing for a chain with no row', () => {
     expect(getSelectedL2ChainId(optionsWith(1n), 1)).toBeUndefined()
   })
+
+  it.each([
+    ['drops a chosen L2 with nothing to bridge', 0n, undefined],
+    ['keeps it while there is something to bridge', 2_000_000n, baseSepolia.id],
+  ] as const)('%s', (_, amountRaw, expected) => {
+    expect(
+      getSelectedL2ChainId(optionsWith(1n), baseSepolia.id, amountRaw),
+    ).toBe(expected)
+  })
 })
