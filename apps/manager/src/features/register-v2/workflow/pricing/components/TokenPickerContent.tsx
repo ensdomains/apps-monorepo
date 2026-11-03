@@ -353,6 +353,7 @@ export const TokenPickerContent = () => {
   const ethQuoteQuery = useQuery(
     getEthPaymentQuoteQueryOptions({
       owner: account.ownerAddress,
+      hca: account.accountAddress,
       permitValue:
         funding && !budgetQuery.isPlaceholderData
           ? funding.walletDebitRaw

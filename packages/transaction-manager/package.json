@@ -17,6 +17,8 @@
     "lint": "biome check"
   },
   "dependencies": {
+    "@cowprotocol/cow-sdk": "catalog:",
+    "@cowprotocol/sdk-viem-adapter": "catalog:",
     "@ens-apps/config": "workspace:*",
     "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/utils": "workspace:*",

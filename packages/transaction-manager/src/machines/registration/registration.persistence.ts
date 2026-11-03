@@ -86,7 +86,7 @@ export type PersistedRegistrationContext = {
   isL2BridgeFromPriorRun?: boolean
   /** A run paying with ETH, so a resumed one keeps paying with it. */
   ethFunding?: EthFunding
-  /** The ETH swap still confirming, so a resumed run counts it. */
+  /** The EthFlow order still settling, so a resumed run waits for it. */
   pendingEthSwap?: PendingEthSwap
 
   // Flow state
@@ -353,7 +353,7 @@ const persistedContextSchema = v.object({
   isL2BridgeFromPriorRun: v.optional(v.boolean()),
   ethFunding: v.optional(v.object({ displayedCharge: v.optional(v.bigint()) })),
   pendingEthSwap: v.optional(
-    v.object({ hash: hashSchema, deadline: v.bigint() }),
+    v.object({ hash: hashSchema, orderId: v.string(), validTo: v.number() }),
   ),
   resolverAddress: v.optional(addressSchema),
   resolverTxId: v.optional(v.string()),

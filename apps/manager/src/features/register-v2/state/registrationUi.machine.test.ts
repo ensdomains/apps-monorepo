@@ -17,7 +17,11 @@ type RegistrationStubEvent =
       referrer?: `0x${string}`
       l2Funding?: { chain: { id: number } }
       ethFunding?: { displayedCharge?: bigint }
-      pendingEthSwap?: { hash: `0x${string}`; deadline: bigint }
+      pendingEthSwap?: {
+        hash: `0x${string}`
+        orderId: string
+        validTo: number
+      }
     }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
@@ -70,7 +74,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       ethFunding: undefined as { displayedCharge?: bigint } | undefined,
       /** The swap an abandoned run sent, as the run was handed it. */
       pendingEthSwap: undefined as
-        | { hash: `0x${string}`; deadline: bigint }
+        | { hash: `0x${string}`; orderId: string; validTo: number }
         | undefined,
       /** Captures the RESUME payload so tests can assert what was forwarded. */
       resumed: undefined as
@@ -1682,7 +1686,8 @@ describe('paying with ETH', () => {
   it("hands the registration a cancelled run's ETH swap so it is not bought twice", () => {
     const swap = {
       hash: `0x${'de'.repeat(32)}` as const,
-      deadline: 1_800_000_000n,
+      orderId: 'cow-order-id',
+      validTo: 1_800_000_000,
     }
     savePendingEthSwap(11155111, EOA_ADDRESS, swap)
     const actor = startActorInTokens()

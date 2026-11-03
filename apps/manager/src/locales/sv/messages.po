@@ -1008,6 +1008,10 @@ msgstr ""
 msgid "Copied"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "CoW Protocol"
+msgstr "CoW Protocol"
+
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Copied!"
 msgstr ""
@@ -4654,7 +4658,7 @@ msgid "Your wallet shows the final fee before you approve."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use."
+msgid "CoW Protocol solvers exchange your ETH and deliver the USDC this registration needs directly to your ENS smart account."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

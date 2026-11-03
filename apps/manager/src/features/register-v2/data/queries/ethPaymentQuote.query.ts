@@ -26,7 +26,8 @@ export type EthPaymentQuote = SwapQuote &
 
 export type EthPaymentQuoteParams = Readonly<{
   owner: Address | null | undefined
-  /** USDC (6dp) the permit moves; `undefined` until the budget is quoted. */
+  hca: Address | null | undefined
+  /** USDC (6dp) CoW delivers; `undefined` until the budget is quoted. */
   permitValue: bigint | undefined
   /** Off where the route has no permit to fund. */
   isEnabled: boolean
@@ -39,17 +40,21 @@ export class EthPaymentQuoteError extends TaggedError('EthPaymentQuoteError')<{
 
 const getEthPaymentQuote = ({
   owner,
+  hca,
   permitValue,
 }: EthPaymentQuoteParams): ResultAsync<
   EthPaymentQuote,
   EthPaymentQuoteError
 > => {
-  if (!owner || permitValue === undefined) {
-    return errAsync(new EthPaymentQuoteError({ cause: 'No wallet or amount.' }))
+  if (!owner || !hca || permitValue === undefined) {
+    return errAsync(
+      new EthPaymentQuoteError({ cause: 'No wallet, HCA, or amount.' }),
+    )
   }
   return ResultAsync.combine([
     quoteEthPaymentActor({
       owner,
+      hca,
       permitValue,
       publicClient,
       chainId: chain.id,
@@ -94,12 +99,14 @@ export const getEthPaymentQuoteQueryOptions = (params: EthPaymentQuoteParams) =>
       $scope: 'registration',
       $action: 'eth-payment-quote',
       owner: params.owner ?? undefined,
+      hca: params.hca ?? undefined,
       permitValue: params.permitValue?.toString(),
     }),
     queryFn: () => getEthPaymentQuote(params),
     enabled:
       params.isEnabled &&
       !!params.owner &&
+      !!params.hca &&
       params.permitValue !== undefined &&
       params.permitValue > 0n,
     retry: false,

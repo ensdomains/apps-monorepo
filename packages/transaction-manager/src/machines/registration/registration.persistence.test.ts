@@ -234,7 +234,8 @@ describe('registration record serialization', () => {
       ethFunding: { displayedCharge: 10n ** 16n },
       pendingEthSwap: {
         hash: `0x${'de'.repeat(32)}`,
-        deadline: 1_800_000_000n,
+        orderId: 'cow-order-id',
+        validTo: 1_800_000_000,
       },
     })
 

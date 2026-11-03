@@ -167,6 +167,12 @@ catalogs:
     '@cloudflare/vite-plugin':
       specifier: ^1.64.0
       version: 1.64.0
+    '@cowprotocol/cow-sdk':
+      specifier: 9.3.0
+      version: 9.3.0
+    '@cowprotocol/sdk-viem-adapter':
+      specifier: 0.3.37
+      version: 0.3.37
     '@ensdomains/address-encoder':
       specifier: ^2.0.1
       version: 2.0.1
@@ -1191,6 +1197,12 @@ importers:
 
   packages/transaction-manager:
     dependencies:
+      '@cowprotocol/cow-sdk':
+        specifier: 'catalog:'
+        version: 9.3.0(cross-fetch@3.2.0)(multiformats@9.9.0)
+      '@cowprotocol/sdk-viem-adapter':
+        specifier: 'catalog:'
+        version: 0.3.37(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ens-apps/config':
         specifier: workspace:*
         version: link:../config
@@ -1685,6 +1697,44 @@ packages:
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
     engines: {node: '>=0.1.90'}
+
+  '@cowprotocol/cow-sdk@9.3.0':
+    resolution: {integrity: sha512-rFtDCAJslWErDStvWW6BqyJ6yCzljdyM85eCH/ot37oXA/Nfnz7B4uhih0KPoTpF3hj1lVcu86xFzEoNwk6ToQ==}
+    peerDependencies:
+      '@openzeppelin/merkle-tree': ^1.x
+      cross-fetch: ^3.x
+      multiformats: ^9.x
+    peerDependenciesMeta:
+      '@openzeppelin/merkle-tree':
+        optional: true
+      multiformats:
+        optional: true
+
+  '@cowprotocol/sdk-app-data@6.0.12':
+    resolution: {integrity: sha512-XLYC6wyKYzRmiJL8V0BieCWa7DrswlXkvXeCurHE8MxHDHb4JUP2SWdEJtvmGlvIxMEEun4AhFAhIoxrGqUjng==}
+
+  '@cowprotocol/sdk-common@0.14.6':
+    resolution: {integrity: sha512-5RKiQtloFGM2Cu8Teku8iRYHwcjxGZQb9dXEmrU1HOrDijpLESilFBcZ0p0Zg9vrvlLKOB1AMjj0EmV7rnLmDw==}
+
+  '@cowprotocol/sdk-config@2.11.0':
+    resolution: {integrity: sha512-hbFFBN2HMXjaW+YjrQzNNXnXMmbSqHbHnltxBph+Uy58Ku+UDfq/f8mLCMOTvc1Yi+cWnK33FvK7sWVJHqTZ7w==}
+
+  '@cowprotocol/sdk-contracts-ts@3.7.6':
+    resolution: {integrity: sha512-7gju0jOpoM5MCRO1drU0WOvHMf7qMVxJVcxAdd0939/qbdUMYi3hV9SpJhNk+fdcBgG2lossf3ncBH9rjO7ebA==}
+
+  '@cowprotocol/sdk-order-book@4.5.0':
+    resolution: {integrity: sha512-M9Z6BdG24ebfmQv+it/rpKeZRmcJ5D8cRP0psB/zvJHzp/zBfo/VYdbdXbtjL/TrcspP7nqBlUfcoWrYacHVPQ==}
+
+  '@cowprotocol/sdk-order-signing@1.1.22':
+    resolution: {integrity: sha512-mWn1UjYtBHBtK+iVRFvHp2KP4rXd1QKjlzfDGgJy/uLcU9oQYYoEpuvqT/N6kRCLVL8sgqkwrvrVpVMWZyvLZg==}
+
+  '@cowprotocol/sdk-trading@2.7.10':
+    resolution: {integrity: sha512-9Zeo4HUuZyE4/R3Vce7g4kjRWbbSyk+r+E+Xk0CWiFWxiPbRxLXO7DFjrUPdrBgNBokC0bO8hUZkqQGKXaLheA==}
+
+  '@cowprotocol/sdk-viem-adapter@0.3.37':
+    resolution: {integrity: sha512-7LdSTrOPkgyKPNbRlZmsHEHodm8+CvBgwh39xIwF6SuyE6u/UWjb+OB+TdMv18qiTNvK9ZXihQj44pHpH8a+Ng==}
+    peerDependencies:
+      viem: ^2.28.4
 
   '@crowdin/cli@4.15.1':
     resolution: {integrity: sha512-ck64SSRQFVaU8C09d1kti1/fAGQh2EJGPZvEpTQvnf9l/2GCGBc/hJJt8cC1TdPzc+BCnfwHm2cva47eD/kEmw==}
@@ -5482,6 +5532,9 @@ packages:
       zod:
         optional: true
 
+  ajv@8.20.0:
+    resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
+
   ansi-escapes@7.3.0:
     resolution: {integrity: sha512-BvU8nYgGQBxcmMuEeUEmNTvrMVjJNSH7RgW24vXexN4Ven6qCvy4TntnvlnwnMLTVlcRQQdbRY8NKnaIoeWDNg==}
     engines: {node: '>=18'}
@@ -6129,12 +6182,18 @@ packages:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
 
+  exponential-backoff@3.1.3:
+    resolution: {integrity: sha512-ZgEeZXj30q+I0EN+CbSSpIyPaJ5HVQD18Z1m+u1FXbAeT94mr1zw50q4q6jiiC447Nl/YTcIYSAftiGqetwXCA==}
+
   exsolve@1.1.3:
     resolution: {integrity: sha512-kuzL9zherLQoqDeQaS55AiiIg1kb4KYXaSusTtgZTPlvKP2gGCI82LNmBNh5RjDVUXIcmgx+/Mx7vPwRzBbhJA==}
 
   fast-check@4.10.2:
     resolution: {integrity: sha512-iK2f+YrcmoeGqk6fA0ea2bptcu/itMIm4NfEozq6N25+aG6h7s5HZbB/k1aV7b5w5sFLMCbbtRUsTVR+BgC3xw==}
     engines: {node: '>=12.17.0'}
+
+  fast-deep-equal@3.1.3:
+    resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
 
   fast-glob@3.3.3:
     resolution: {integrity: sha512-7MptL8U0cqcFdzIzwOTHoilX9x5BrNqye7Z/LuC7kCMRio1EMSyqRK3BEAUD7sXRq4iT4AzTVuZdhgQ2TCvYLg==}
@@ -6146,6 +6205,9 @@ packages:
 
   fast-safe-stringify@2.1.1:
     resolution: {integrity: sha512-W+KJc2dmILlPplD/H4K9l9LcAHAfPtP6BY84uVLXQ6Evcz9Lcg33Y2z1IVblT6xdY54PXYVHEv+0Wpq8Io6zkA==}
+
+  fast-uri@3.1.9:
+    resolution: {integrity: sha512-hS/0Wt3Ya043oKXs0sIxrMpKQITXhMLIrVAKKXi4gozGC9v7YRWVnXIZzjNPTO02M9BdxLCWqK1yRXgNziVyJQ==}
 
   fastq@1.20.3:
     resolution: {integrity: sha512-XKv5nnLs6nLF71NgiKJLIZFLkPyIEuOselLG7ujZnGrRfQK8HpvY+WqKhAJUAdLomwVHErVS4LfxFlPq0/FTAw==}
@@ -6436,6 +6498,13 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
+  json-schema-traverse@1.0.0:
+    resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
+
+  json-stringify-deterministic@1.0.18:
+    resolution: {integrity: sha512-V9zW1SOlQNMgpYk4TYg2FAswRDKR857yW1gXlo+vJ/oqxW/+nEeWpOGucV1aIy9C24zNP0nqdTGLEvcL8LK3ug==}
+    engines: {node: '>= 4'}
+
   json5@2.2.3:
     resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
     engines: {node: '>=6'}
@@ -6446,6 +6515,9 @@ packages:
 
   just-camel-case@6.2.0:
     resolution: {integrity: sha512-ICenRLXwkQYLk3UyvLQZ+uKuwFVJ3JHFYFn7F2782G2Mv2hW8WPePqgdhpnjGaqkYtSVWnyCESZhGXUmY3/bEg==}
+
+  just-performance@4.3.0:
+    resolution: {integrity: sha512-L7RjvtJsL0QO8xFs5wEoDDzzJwoiowRw6Rn/GnvldlchS2JQr9wFYPiwZcDfrbbujEKqKN0tvENdbjXdYhDp5Q==}
 
   keyvaluestorage-interface@1.0.0:
     resolution: {integrity: sha512-8t6Q3TclQ4uZynJY9IGr2+SsIGwK9JHcO6ootkHCGA0CrQCRy+VkouYNO2xicET6b9al7QKzpebNow+gkpCL8g==}
@@ -6671,6 +6743,12 @@ packages:
   lilconfig@3.1.4:
     resolution: {integrity: sha512-zJZyBmQhArDRefuWTypZxwDpFDIYmrj8ypSBvwGD5P13Y95s6DjzKgu4DVdGbeQa5PDEsAOCAPNk4X+QOR006w==}
     engines: {node: '>=14'}
+
+  limiter@2.1.0:
+    resolution: {integrity: sha512-361TYz6iay6n+9KvUUImqdLuFigK+K79qrUtBsXhJTLdH4rIt/r1y8r1iozwh8KbZNpujbFTSh74mJ7bwbAMOw==}
+
+  limiter@3.0.0:
+    resolution: {integrity: sha512-hev7DuXojsTFl2YwyzUJMDnZ/qBDd3yZQLSH3aD4tdL1cqfc3TMnoecEJtWFaQFdErZsKoFMBTxF/FBSkgDbEg==}
 
   linebreak@1.1.0:
     resolution: {integrity: sha512-MHp03UImeVhB7XZtjd0E4n6+3xr5Dq/9xI/5FptGk5FrbDR3zagPa2DS6U8ks/3HjbKWG9Q1M2ufOzxV2qLYSQ==}
@@ -7309,6 +7387,10 @@ packages:
 
   require-directory@2.1.1:
     resolution: {integrity: sha512-fGxEI7+wsG9xrvdjsrlmL22OMTTiHRwAMroiEeMgq8gzoLC/PQr7RsRDSTLUg/bZAZtF+TVIkHc6/4RIKrui+Q==}
+    engines: {node: '>=0.10.0'}
+
+  require-from-string@2.0.2:
+    resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
 
   require-main-filename@2.0.0:
@@ -8543,6 +8625,78 @@ snapshots:
 
   '@colors/colors@1.5.0':
     optional: true
+
+  '@cowprotocol/cow-sdk@9.3.0(cross-fetch@3.2.0)(multiformats@9.9.0)':
+    dependencies:
+      '@cowprotocol/sdk-app-data': 6.0.12
+      '@cowprotocol/sdk-common': 0.14.6
+      '@cowprotocol/sdk-config': 2.11.0
+      '@cowprotocol/sdk-contracts-ts': 3.7.6
+      '@cowprotocol/sdk-order-book': 4.5.0
+      '@cowprotocol/sdk-order-signing': 1.1.22
+      '@cowprotocol/sdk-trading': 2.7.10
+      cross-fetch: 3.2.0
+    optionalDependencies:
+      multiformats: 9.9.0
+    transitivePeerDependencies:
+      - encoding
+
+  '@cowprotocol/sdk-app-data@6.0.12':
+    dependencies:
+      '@cowprotocol/sdk-common': 0.14.6
+      ajv: 8.20.0
+      json-stringify-deterministic: 1.0.18
+      multiformats: 9.9.0
+
+  '@cowprotocol/sdk-common@0.14.6':
+    dependencies:
+      '@cowprotocol/sdk-config': 2.11.0
+
+  '@cowprotocol/sdk-config@2.11.0':
+    dependencies:
+      exponential-backoff: 3.1.3
+      limiter: 2.1.0
+
+  '@cowprotocol/sdk-contracts-ts@3.7.6':
+    dependencies:
+      '@cowprotocol/sdk-common': 0.14.6
+      '@cowprotocol/sdk-config': 2.11.0
+
+  '@cowprotocol/sdk-order-book@4.5.0':
+    dependencies:
+      '@cowprotocol/sdk-common': 0.14.6
+      '@cowprotocol/sdk-config': 2.11.0
+      cross-fetch: 3.2.0
+      exponential-backoff: 3.1.3
+      limiter: 3.0.0
+    transitivePeerDependencies:
+      - encoding
+
+  '@cowprotocol/sdk-order-signing@1.1.22':
+    dependencies:
+      '@cowprotocol/sdk-common': 0.14.6
+      '@cowprotocol/sdk-config': 2.11.0
+      '@cowprotocol/sdk-contracts-ts': 3.7.6
+      '@cowprotocol/sdk-order-book': 4.5.0
+    transitivePeerDependencies:
+      - encoding
+
+  '@cowprotocol/sdk-trading@2.7.10':
+    dependencies:
+      '@cowprotocol/sdk-app-data': 6.0.12
+      '@cowprotocol/sdk-common': 0.14.6
+      '@cowprotocol/sdk-config': 2.11.0
+      '@cowprotocol/sdk-contracts-ts': 3.7.6
+      '@cowprotocol/sdk-order-book': 4.5.0
+      '@cowprotocol/sdk-order-signing': 1.1.22
+      deepmerge: 4.3.1
+    transitivePeerDependencies:
+      - encoding
+
+  '@cowprotocol/sdk-viem-adapter@0.3.37(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
+    dependencies:
+      '@cowprotocol/sdk-common': 0.14.6
+      viem: 2.57.7(typescript@7.0.2)(zod@4.6.7)
 
   '@crowdin/cli@4.15.1':
     dependencies:
@@ -12491,6 +12645,13 @@ snapshots:
       typescript: 7.0.2
       zod: 4.6.7
 
+  ajv@8.20.0:
+    dependencies:
+      fast-deep-equal: 3.1.3
+      fast-uri: 3.1.9
+      json-schema-traverse: 1.0.0
+      require-from-string: 2.0.2
+
   ansi-escapes@7.3.0:
     dependencies:
       environment: 1.1.0
@@ -13077,11 +13238,15 @@ snapshots:
 
   expect-type@1.4.0: {}
 
+  exponential-backoff@3.1.3: {}
+
   exsolve@1.1.3: {}
 
   fast-check@4.10.2:
     dependencies:
       pure-rand: 8.4.2
+
+  fast-deep-equal@3.1.3: {}
 
   fast-glob@3.3.3:
     dependencies:
@@ -13094,6 +13259,8 @@ snapshots:
   fast-redact@3.5.0: {}
 
   fast-safe-stringify@2.1.1: {}
+
+  fast-uri@3.1.9: {}
 
   fastq@1.20.3:
     dependencies:
@@ -13339,11 +13506,17 @@ snapshots:
 
   jsesc@3.1.0: {}
 
+  json-schema-traverse@1.0.0: {}
+
+  json-stringify-deterministic@1.0.18: {}
+
   json5@2.2.3: {}
 
   jsonc-parser@3.3.1: {}
 
   just-camel-case@6.2.0: {}
+
+  just-performance@4.3.0: {}
 
   keyvaluestorage-interface@1.0.0: {}
 
@@ -13510,6 +13683,12 @@ snapshots:
       lightningcss-win32-x64-msvc: 1.33.0
 
   lilconfig@3.1.4: {}
+
+  limiter@2.1.0:
+    dependencies:
+      just-performance: 4.3.0
+
+  limiter@3.0.0: {}
 
   linebreak@1.1.0:
     dependencies:
@@ -14302,6 +14481,8 @@ snapshots:
       strip-indent: 3.0.0
 
   require-directory@2.1.1: {}
+
+  require-from-string@2.0.2: {}
 
   require-main-filename@2.0.0: {}
 

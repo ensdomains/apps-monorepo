@@ -1003,6 +1003,10 @@ msgstr "Cooldown fee"
 msgid "Copied"
 msgstr "Copied"
 
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "CoW Protocol"
+msgstr "CoW Protocol"
+
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Copied!"
 msgstr "Copied!"
@@ -4649,8 +4653,8 @@ msgid "Your wallet shows the final fee before you approve."
 msgstr "Your wallet shows the final fee before you approve."
 
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use."
-msgstr "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use."
+msgid "CoW Protocol solvers exchange your ETH and deliver the USDC this registration needs directly to your ENS smart account."
+msgstr "CoW Protocol solvers exchange your ETH and deliver the USDC this registration needs directly to your ENS smart account."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment approval for the amount shown. This allows that USDC to pay for registration and network fees. Registration starts after you sign."

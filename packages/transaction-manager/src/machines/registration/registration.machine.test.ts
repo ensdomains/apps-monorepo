@@ -457,10 +457,11 @@ describe('registrationMachine — paid with ETH', () => {
   const ethFunding: EthFunding = { displayedCharge: 10n ** 16n }
   const SWAP: PendingEthSwap = {
     hash: `0x${'de'.repeat(32)}` as Hash,
-    deadline: 1_800_000_000n,
+    orderId: 'cow-order-id',
+    validTo: 1_800_000_000,
   }
 
-  it('buys the USDC with ETH, then funds the HCA with the usual permit', async () => {
+  it('uses CoW to fund the HCA directly, then commits without a permit', async () => {
     const balance = 1_000_000n
     const { actor, swapEthForUsdc, signFundingPermit, submitFundingAndCommit } =
       startHcaRegistration({ balances: [balance], ethFunding })
@@ -468,16 +469,12 @@ describe('registrationMachine — paid with ETH', () => {
     await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
 
     expect(swapEthForUsdc.mock.calls[0][0].input).toMatchObject({
-      permitValue: BUDGET - balance,
+      hca: HCA,
+      targetBalance: BUDGET,
       funding: ethFunding,
     })
-    expect(signFundingPermit.mock.calls[0][0].input.value).toBe(
-      BUDGET - balance,
-    )
-    expect(swapEthForUsdc.mock.invocationCallOrder[0]).toBeLessThan(
-      signFundingPermit.mock.invocationCallOrder[0] ?? 0,
-    )
-    expect(submitFundingAndCommit.mock.calls[0][0].input.permit).toBe(permit)
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    expect(submitFundingAndCommit.mock.calls[0][0].input.permit).toBeUndefined()
   })
 
   it('swaps nothing when the HCA already holds the budget', async () => {

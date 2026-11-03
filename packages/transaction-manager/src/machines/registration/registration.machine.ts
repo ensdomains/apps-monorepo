@@ -79,10 +79,10 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  *    the app BEFORE the machine starts). Paid from an L2, `bridgingFromL2`
  *    instead: the wallet signs an intent there delivering the same shortfall
  *    to the HCA, and every later step is unchanged. Paid with ETH,
- *    `swappingEth` first: the wallet buys the USDC it is short on Uniswap,
- *    then signs the permit as usual
- * 3. `submittingSetupBundle` — ONE session-signed request: permit +
- *    transferFrom + commit; deploys the HCA lazily
+ *    `swappingEth` first: the wallet creates an EthFlow order and CoW solvers
+ *    deliver the USDC shortfall directly to the HCA, skipping the permit
+ * 3. `submittingSetupBundle` — ONE session-signed request: optional permit +
+ *    transferFrom, then commit; deploys the HCA lazily
  * 4. Shared cooldown spine (against the standalone registrar)
  * 5. `submittingRhinestoneBundle` — price re-read + exact-ordered reveal batch
  *    (deployProxy? → approve → register(wallet) → setters → setNameWithHCA? →
@@ -359,13 +359,13 @@ export type RegistrationContext = {
   /** USDC (6dp) checkout showed the L2 being charged, fee included. */
   displayedL2Charge?: bigint
   /**
-   * Standalone-HCA: the wallet buys the USDC the permit needs with its ETH
-   * first. Persisted, so a resumed run keeps paying with ETH.
+   * Standalone-HCA: CoW converts the wallet's ETH and delivers USDC directly
+   * to the HCA. Persisted, so a resumed run keeps the same funding route.
    */
   ethFunding?: EthFunding
   /**
-   * The wallet's ETH swap, from when it was sent until it confirmed.
-   * Persisted, so a resumed run counts it instead of swapping again.
+   * The EthFlow order, from on-chain creation until CoW settlement.
+   * Persisted, so a resumed run waits for it instead of funding twice.
    */
   pendingEthSwap?: PendingEthSwap
   /**
@@ -494,7 +494,7 @@ export type RegistrationEvent =
       displayedL2Charge?: bigint
       /** Standalone-HCA: fund with ETH. See `RegistrationContext.ethFunding`. */
       ethFunding?: EthFunding
-      /** An ETH swap an abandoned run sent; this run counts it before buying. */
+      /** An EthFlow order an abandoned run sent; this run waits for it. */
       pendingEthSwap?: PendingEthSwap
       /**
        * A bridge an abandoned run sent that may not have settled yet; this run
@@ -575,7 +575,7 @@ export type RegistrationEvent =
       fundsHcaTo: bigint
     }
   | {
-      /** The wallet sent the ETH swap; see `pendingEthSwap`. */
+      /** The wallet created the EthFlow order; see `pendingEthSwap`. */
       type: 'ETH_SWAP_SENT'
       swap: PendingEthSwap
     }
@@ -1358,7 +1358,7 @@ export const registrationMachine = setup({
             ],
           },
           {
-            // Paid with ETH: buy the USDC the permit needs first.
+            // Paid with ETH: CoW delivers the HCA's USDC shortfall directly.
             guard: 'isEthFunded',
             target: 'swappingEth',
             actions: [
@@ -1627,16 +1627,19 @@ export const registrationMachine = setup({
       },
     },
 
-    // Paid with ETH: the wallet buys the USDC it is short of the permit on
-    // Uniswap, then signs the permit as if it had held the USDC all along.
+    // Paid with ETH: the wallet creates an EthFlow order and CoW solvers send
+    // the exact USDC shortfall directly to the HCA.
     swappingEth: {
       entry: ['logTransition'],
       invoke: {
         src: 'swapEthForUsdc',
         input: ({ context, self }) => ({
-          permitValue: fundingShortfall(context),
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          hca: context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: set by computingHcaBudget
+          targetBalance: context.hcaBudget!,
           funding: context.ethFunding,
-          // The swap is the wallet's own transaction, like the permit.
+          // EthFlow is the wallet's own transaction.
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           approvalSigner: context.approvalSigner ?? context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -1646,11 +1649,10 @@ export const registrationMachine = setup({
             self.send({ type: 'ETH_SWAP_SENT', swap }),
         }),
         onDone: {
-          target: 'signingFundingPermit',
+          target: 'submittingSetupBundle',
           actions: assign({ pendingEthSwap: () => undefined }),
         },
-        // Retried like the permit: the wallet's USDC is read again, so a swap
-        // that landed is counted rather than bought twice.
+        // Retry re-checks the HCA balance and settles a persisted order first.
         onError: {
           target: 'error',
           actions: assign({

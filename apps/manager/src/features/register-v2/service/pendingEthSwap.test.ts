@@ -11,10 +11,10 @@ import {
 
 const WALLET = '0x1111111111111111111111111111111111111111' as const
 const OTHER_WALLET = '0x2222222222222222222222222222222222222222' as const
-// A deadline past 2^53 checks it round-trips as a bigint, not a number.
 const SWAP: PendingEthSwap = {
   hash: `0x${'de'.repeat(32)}`,
-  deadline: 2n ** 60n + 1n,
+  orderId: 'cow-order-id',
+  validTo: 1_800_000_000,
 }
 
 type Context = {

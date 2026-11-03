@@ -4,17 +4,13 @@ import type {
 } from '@ens-apps/transaction-manager'
 import { type Address, isHash } from 'viem'
 
-/** Unconfirmed ETH swaps, kept apart from the run record so a cancel doesn't forget them. */
-const STORAGE_KEY = 'ens-registration-pending-eth-swaps-v1'
+/** Unsettled EthFlow orders, kept apart from the run record across cancellation. */
+const STORAGE_KEY = 'ens-registration-pending-cow-orders-v1'
 
-/** A `PendingEthSwap` with its deadline in decimal. */
-type StoredEthSwap = { hash: string; deadline: string }
+type StoredEthSwap = { hash: string; orderId: string; validTo: number }
 
 /** Swaps by `chainId:wallet`. */
 type PendingEthSwaps = Record<string, StoredEthSwap>
-
-const isDecimal = (value: unknown): value is string =>
-  typeof value === 'string' && /^\d+$/.test(value)
 
 const keyFor = (chainId: number, wallet: Address) =>
   `${chainId}:${wallet.toLowerCase()}`
@@ -54,11 +50,16 @@ export const readPendingEthSwap = (
     !stored ||
     typeof stored.hash !== 'string' ||
     !isHash(stored.hash) ||
-    !isDecimal(stored.deadline)
+    typeof stored.orderId !== 'string' ||
+    typeof stored.validTo !== 'number'
   ) {
     return undefined
   }
-  return { hash: stored.hash, deadline: BigInt(stored.deadline) }
+  return {
+    hash: stored.hash,
+    orderId: stored.orderId,
+    validTo: stored.validTo,
+  }
 }
 
 export const savePendingEthSwap = (
@@ -70,7 +71,8 @@ export const savePendingEthSwap = (
     ...readAll(),
     [keyFor(chainId, wallet)]: {
       hash: swap.hash,
-      deadline: swap.deadline.toString(),
+      orderId: swap.orderId,
+      validTo: swap.validTo,
     },
   })
 }

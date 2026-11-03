@@ -1,70 +1,63 @@
 /**
- * Standalone-HCA funding from the wallet's ETH, in `swappingEth`.
+ * Standalone-HCA funding from native ETH through CoW Protocol.
  *
- * The wallet buys the USDC it is short on Uniswap (`helpers/eth-usdc-swap.ts`)
- * in one transaction, and the run then funds the HCA from that USDC with the
- * usual EIP-2612 permit, exactly as if the wallet had held it all along. The
- * wallet's USDC balance is the source of truth: a retry buys only what is
- * still missing, so a swap that landed is never bought twice.
+ * EthFlow escrows the wallet's ETH in one transaction. CoW solvers deliver
+ * the exact USDC shortfall directly to the HCA, so registration continues
+ * without an intermediate wallet balance or EIP-2612 funding permit.
  */
 
+import {
+  type EnrichedOrder,
+  OrderBookApi,
+  OrderStatus,
+  SupportedChainId,
+} from '@cowprotocol/cow-sdk'
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { err, fromPromise, ok, okAsync, ResultAsync } from 'neverthrow'
+import { err, fromPromise, ok, ResultAsync } from 'neverthrow'
 import {
   type Address,
   erc20Abi,
   formatEther,
-  type Hash,
-  type Hex,
   type PublicClient,
   type WalletClient,
 } from 'viem'
 import {
   estimateFeesPerGas,
-  estimateGas,
   getBalance,
   readContract,
-  sendTransaction,
   waitForTransactionReceipt,
 } from 'viem/actions'
 import {
-  buildEthSwapCall,
+  type CowEthOrder,
   ETH_SWAP_DISPLAYED_DRIFT_BPS,
   type EthSwapQuote,
   type EthSwapUnavailableError,
   quoteEthSwap,
+  refundExpiredEthSwap,
+  submitEthSwap,
   withBps,
 } from '../../helpers/eth-usdc-swap'
 import type { Signer } from '../../types/signer.types'
 
-/** Paying the shortfall with the wallet's ETH, as checkout showed it. */
 export interface EthFunding {
-  /** The most ETH (wei) checkout showed the wallet sending. */
+  /** The most ETH (wei) checkout showed EthFlow escrowing. */
   readonly displayedCharge?: bigint
 }
 
-/** What paying with ETH asks of the wallet right now. */
 export type EthPaymentQuote = Readonly<{
-  /** USDC (6dp) the wallet buys: the permit's value less what it holds. */
+  /** Exact USDC (6dp) CoW must deliver to the HCA. */
   usdcToBuy: bigint
-  /** The swap that buys it; absent when the wallet already holds enough. */
   swap?: EthSwapQuote
 }>
 
-/** Each gas unit the swap is estimated at is reserved twice over. */
-export const ETH_SWAP_GAS_RESERVE_MULTIPLIER = 2n
-/** How long the signed swap stays valid on-chain. */
-const SWAP_DEADLINE_SECONDS = 20n * 60n
-/** Leeway for this device's clock running ahead of the chain's. */
-const DEADLINE_CLOCK_MARGIN_SECONDS = 5n * 60n
+/** Persisted from EthFlow submission until CoW settlement is observed. */
+export type PendingEthSwap = CowEthOrder
 
-/** A swap the wallet sent, and the deadline after which the router refuses it. */
-export type PendingEthSwap = Readonly<{ hash: Hash; deadline: bigint }>
+const COW_POLL_MS = 4_000
+const GAS_RESERVE_UNITS = 500_000n
+const GAS_RESERVE_MULTIPLIER = 2n
 
-const nowSeconds = (): bigint => BigInt(Math.floor(Date.now() / 1000))
-
-/** Paying with ETH failed; `cause` keeps the wallet's error, so a rejection is still recognised. */
 export class EthSwapPaymentError extends TaggedError('EthSwapPaymentError')<{
   readonly message: string
   readonly cause: unknown
@@ -76,13 +69,10 @@ const paymentError = (message: string, cause?: unknown) =>
 const toError = (cause: unknown): EthSwapPaymentError =>
   paymentError(cause instanceof Error ? cause.message : String(cause), cause)
 
-/** The USDC the wallet still has to buy before it can sign `permitValue`. */
-export const usdcToBuy = (permitValue: bigint, walletUsdc: bigint): bigint =>
-  permitValue > walletUsdc ? permitValue - walletUsdc : 0n
+export const usdcToBuy = (target: bigint, hcaUsdc: bigint): bigint =>
+  target > hcaUsdc ? target - hcaUsdc : 0n
 
-/** Why the swap must not be sent, or undefined when it may be. */
 export function rejectEthSwap(params: {
-  /** What the swap sends, at its slippage limit. */
   readonly maximumEth: bigint
   readonly displayedCharge?: bigint
   readonly walletBalance: bigint
@@ -100,39 +90,30 @@ export function rejectEthSwap(params: {
     )
   }
   if (walletBalance < maximumEth + gasReserve) {
-    return 'Not enough ETH in your wallet for the swap and its network fee.'
+    return 'Not enough ETH in your wallet for the CoW order and its network fee.'
   }
   return undefined
 }
 
-/**
- * The USDC `owner` has to buy before signing a permit for `permitValue`, and
- * the swap that buys it. Nothing is signed; checkout shows this.
- */
+/** Quote the exact USDC amount that CoW will send directly to `hca`. */
 export const quoteEthPaymentActor = ResultFn(async function* (input: {
   readonly owner: Address
+  readonly hca: Address
   readonly permitValue: bigint
   readonly publicClient: PublicClient
   readonly chainId: number
 }) {
-  const walletUsdc = yield* fromPromise(
-    readContract(input.publicClient, {
-      address: getDestinationContracts(input.chainId).usdc,
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      args: [input.owner],
-    }),
-    toError,
-  )
-  const toBuy = usdcToBuy(input.permitValue, walletUsdc)
-  if (toBuy === 0n) return ok<EthPaymentQuote>({ usdcToBuy: 0n })
+  if (input.permitValue === 0n) {
+    return ok<EthPaymentQuote>({ usdcToBuy: 0n })
+  }
   const swap = yield* quoteEthSwap({
     publicClient: input.publicClient,
     chainId: input.chainId,
-    amountOut: toBuy,
-    nowSeconds: nowSeconds(),
+    owner: input.owner,
+    receiver: input.hca,
+    amountOut: input.permitValue,
   })
-  return ok<EthPaymentQuote>({ usdcToBuy: toBuy, swap })
+  return ok<EthPaymentQuote>({ usdcToBuy: input.permitValue, swap })
 })
 
 const walletOf = (
@@ -145,149 +126,220 @@ const walletOf = (
     : paymentError('Paying with ETH needs the wallet that owns this account.')
 }
 
-/** Past its deadline the router refuses a swap, so it can buy nothing more. */
-export const isPastSwapDeadline = (
-  swap: PendingEthSwap,
-  now: bigint,
-): boolean => now > swap.deadline + DEADLINE_CLOCK_MARGIN_SECONDS
-
-/** Wait out an earlier swap before buying again; what it bought shows in the wallet's USDC. */
-const settlePendingSwap = (
-  publicClient: PublicClient,
-  pending: PendingEthSwap | undefined,
-): ResultAsync<void, EthSwapPaymentError> => {
-  if (!pending || isPastSwapDeadline(pending, nowSeconds())) {
-    return okAsync(undefined)
-  }
-  return fromPromise(
-    waitForTransactionReceipt(publicClient, { hash: pending.hash }).then(
-      () => {},
-    ),
-    (cause) =>
-      paymentError(
-        'Your earlier ETH swap has not confirmed yet, so not swapping again. Try again in a few minutes.',
-        cause,
-      ),
-  )
-}
-
-/** Twice the swap's estimated gas cost: what the wallet must hold on top of the swap. */
-const estimateSwapGasReserve = (input: {
-  readonly publicClient: PublicClient
-  readonly account: Address
-  readonly call: Readonly<{ to: Address; data: Hex; value: bigint }>
-}): ResultAsync<bigint, EthSwapPaymentError> =>
-  fromPromise(
-    Promise.all([
-      estimateGas(input.publicClient, {
-        account: input.account,
-        ...input.call,
-      }),
-      estimateFeesPerGas(input.publicClient),
-    ]),
-    (cause) => paymentError('Could not prepare the ETH swap.', cause),
-  ).map(
-    ([gas, fees]) => gas * fees.maxFeePerGas * ETH_SWAP_GAS_RESERVE_MULTIPLIER,
-  )
-
-/** The gas reserve the swap step will ask of `owner` for `swap`, for checkout to show. */
 export const quoteEthSwapGasReserve = (input: {
   readonly publicClient: PublicClient
   readonly chainId: number
   readonly owner: Address
   readonly swap: EthSwapQuote
 }): ResultAsync<bigint, EthSwapPaymentError | EthSwapUnavailableError> =>
-  buildEthSwapCall({
-    quote: input.swap,
-    chainId: input.chainId,
-    recipient: input.owner,
-    deadline: nowSeconds() + SWAP_DEADLINE_SECONDS,
-  }).asyncAndThen((call) =>
-    estimateSwapGasReserve({
-      publicClient: input.publicClient,
-      account: input.owner,
-      call,
-    }),
+  ResultAsync.fromPromise(estimateFeesPerGas(input.publicClient), (cause) =>
+    paymentError('Could not estimate the EthFlow network fee.', cause),
+  ).map(
+    (fees) => GAS_RESERVE_UNITS * fees.maxFeePerGas * GAS_RESERVE_MULTIPLIER,
   )
 
+const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
+  new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new Error('The registration was cancelled.'))
+      return
+    }
+    const timer = setTimeout(resolve, ms)
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer)
+        reject(signal.reason ?? new Error('The registration was cancelled.'))
+      },
+      { once: true },
+    )
+  })
+
+const supportedChain = (chainId: number): SupportedChainId | undefined =>
+  chainId === SupportedChainId.MAINNET || chainId === SupportedChainId.SEPOLIA
+    ? chainId
+    : undefined
+
+type CowSettlementInput = {
+  publicClient: PublicClient
+  walletClient: WalletClient
+  chainId: number
+  order: PendingEthSwap
+  signal?: AbortSignal
+}
+
+const refundExpiredOrder = async (
+  input: CowSettlementInput,
+  order: EnrichedOrder,
+): Promise<void> => {
+  const refund = await refundExpiredEthSwap({
+    publicClient: input.publicClient,
+    walletClient: input.walletClient,
+    chainId: input.chainId,
+    order,
+  })
+  if (refund.isErr()) throw refund.error
+  const receipt = await waitForTransactionReceipt(input.publicClient, {
+    hash: refund.value,
+  })
+  if (receipt.status !== 'success') {
+    throw paymentError('The expired EthFlow refund failed on-chain.')
+  }
+}
+
+const waitForCowSettlement = async (
+  input: CowSettlementInput,
+  orderBook: OrderBookApi,
+): Promise<void> => {
+  while (true) {
+    input.signal?.throwIfAborted()
+    const order = await orderBook
+      .getOrder(input.order.orderId)
+      .catch(() => null)
+    if (order) {
+      if (order.status === OrderStatus.FULFILLED) return
+      if (order.status === OrderStatus.CANCELLED) return
+      if (order.status === OrderStatus.EXPIRED) {
+        await refundExpiredOrder(input, order)
+        return
+      }
+    }
+    // The API can briefly 404 while the on-chain order indexes. Even after
+    // expiry, its enriched order is needed to build the safe refund call.
+    await sleep(COW_POLL_MS, input.signal)
+  }
+}
+
+/** Wait for the EthFlow transaction and then for a solver settlement. */
+const settleCowOrder = async (input: CowSettlementInput): Promise<void> => {
+  const receipt = await waitForTransactionReceipt(input.publicClient, {
+    hash: input.order.hash,
+  })
+  if (receipt.status !== 'success') {
+    throw paymentError('The EthFlow transaction failed on-chain.')
+  }
+  const chainId = supportedChain(input.chainId)
+  if (!chainId) {
+    throw paymentError('CoW funding is not available on this network.')
+  }
+  await waitForCowSettlement(input, new OrderBookApi({ chainId }))
+}
+
+const readHcaBalance = (input: {
+  publicClient: PublicClient
+  chainId: number
+  hca: Address
+}) =>
+  readContract(input.publicClient, {
+    address: getDestinationContracts(input.chainId).usdc,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [input.hca],
+  })
+
 /**
- * Buy the USDC the wallet is short of signing a permit for `permitValue`.
- * Resolves with the USDC bought, `0n` when the wallet already held enough.
+ * Fund the HCA's USDC budget with one native-ETH EthFlow transaction.
+ * Resolves only after CoW settlement, so the next machine state can commit.
  */
 export const swapEthForUsdcActor = ResultFn(async function* (input: {
-  readonly permitValue: bigint
+  readonly hca: Address
+  readonly targetBalance: bigint
   readonly funding?: EthFunding
-  /** The wallet, which swaps and later signs the permit. */
   readonly approvalSigner: Signer
   readonly publicClient: PublicClient
-  /** A swap an earlier attempt sent. */
   readonly pendingSwap?: PendingEthSwap
-  /** Receives the swap the moment the wallet sends it. */
   readonly onSwapSent?: (swap: PendingEthSwap) => void
-  /** Set when the run is cancelled; nothing is sent after that. */
   readonly signal?: AbortSignal
 }) {
   const wallet = walletOf(input.approvalSigner)
   if (wallet instanceof EthSwapPaymentError) return err(wallet)
-  // Named so viem refuses to send while the wallet is on another chain.
   const { chain } = input.publicClient
   if (!chain) return err(paymentError('Paying with ETH needs the app chain.'))
 
-  yield* settlePendingSwap(input.publicClient, input.pendingSwap)
+  if (input.pendingSwap) {
+    yield* fromPromise(
+      settleCowOrder({
+        publicClient: input.publicClient,
+        walletClient: wallet.client,
+        chainId: chain.id,
+        order: input.pendingSwap,
+        signal: input.signal,
+      }),
+      toError,
+    )
+  }
 
-  const { usdcToBuy: toBuy, swap } = yield* quoteEthPaymentActor({
+  const hcaBalance = yield* fromPromise(
+    readHcaBalance({
+      publicClient: input.publicClient,
+      chainId: chain.id,
+      hca: input.hca,
+    }),
+    toError,
+  )
+  const toBuy = usdcToBuy(input.targetBalance, hcaBalance)
+  if (toBuy === 0n) return ok(0n)
+
+  const preview = yield* quoteEthPaymentActor({
     owner: wallet.address,
-    permitValue: input.permitValue,
+    hca: input.hca,
+    permitValue: toBuy,
     publicClient: input.publicClient,
     chainId: chain.id,
   })
-  if (!swap) return ok(0n)
+  if (!preview.swap) return ok(0n)
 
-  const deadline = nowSeconds() + SWAP_DEADLINE_SECONDS
-  const call = yield* buildEthSwapCall({
-    quote: swap,
-    chainId: chain.id,
-    recipient: wallet.address,
-    deadline,
-  })
   const [walletBalance, gasReserve] = yield* ResultAsync.combine([
     fromPromise(
       getBalance(input.publicClient, { address: wallet.address }),
-      (cause) => paymentError('Could not prepare the ETH swap.', cause),
+      (cause) => paymentError('Could not prepare the CoW order.', cause),
     ),
-    estimateSwapGasReserve({
+    quoteEthSwapGasReserve({
       publicClient: input.publicClient,
-      account: wallet.address,
-      call,
+      chainId: chain.id,
+      owner: wallet.address,
+      swap: preview.swap,
     }),
   ])
   const refusal = rejectEthSwap({
-    maximumEth: swap.maximumEth,
+    maximumEth: preview.swap.maximumEth,
     displayedCharge: input.funding?.displayedCharge,
     walletBalance,
     gasReserve,
   })
   if (refusal) return err(paymentError(refusal))
-  // The quote and estimates above take time; a run cancelled meanwhile sends nothing.
   if (input.signal?.aborted) {
     return err(paymentError('Cancelled before the swap.'))
   }
 
-  const hash = yield* fromPromise(
-    sendTransaction(wallet.client, {
-      account: wallet.client.account ?? wallet.address,
-      chain,
-      ...call,
+  const submitted = yield* submitEthSwap({
+    publicClient: input.publicClient,
+    walletClient: wallet.client,
+    chainId: chain.id,
+    owner: wallet.address,
+    receiver: input.hca,
+    amountOut: toBuy,
+    maximumEth: (() => {
+      const solventMaximum = walletBalance - gasReserve
+      if (input.funding?.displayedCharge === undefined) return solventMaximum
+      const consentMaximum = withBps(
+        input.funding.displayedCharge,
+        ETH_SWAP_DISPLAYED_DRIFT_BPS,
+      )
+      return consentMaximum < solventMaximum ? consentMaximum : solventMaximum
+    })(),
+  })
+  input.onSwapSent?.(submitted.order)
+
+  yield* fromPromise(
+    settleCowOrder({
+      publicClient: input.publicClient,
+      walletClient: wallet.client,
+      chainId: chain.id,
+      order: submitted.order,
+      signal: input.signal,
     }),
     toError,
   )
-  input.onSwapSent?.({ hash, deadline })
-  const receipt = yield* fromPromise(
-    waitForTransactionReceipt(input.publicClient, { hash }),
-    toError,
-  )
-  if (receipt.status !== 'success') {
-    return err(paymentError('The ETH swap failed on-chain.'))
-  }
   return ok(toBuy)
 })
