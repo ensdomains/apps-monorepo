@@ -359,3 +359,31 @@ error resurfaces, check that gate first.
 Note that `checkingHcaFunding` reads the **HCA's** balance, not the wallet's —
 it decides whether a permit is needed at all, and never validated that the
 wallet could honour one.
+
+## 9. Paying with ETH: the only owner-signed intent in the flow
+
+Paid with ETH (`eth-swap.ts`, `registration.eth.actors.ts`), the shortfall
+reaches the HCA in two steps before the usual session-signed commit:
+
+1. `depositingEth`: the wallet sends the HCA plain ETH. Native ETH cannot be
+   pulled with a signature (Permit2 moves ERC-20s only; for an EOA payer the
+   orchestrator answers with a `wrap` token requirement the SDK leaves to the
+   app), so this is an ordinary transaction. The HCA implementation accepts a
+   bare value transfer; any other unknown selector reverts
+   `MissingFallbackHandler` (`0x08c63e27`).
+2. `swappingEth`: the HCA swaps exactly that ETH into USDC for itself with an
+   intent the **owner** signs. The session cannot: `_checkRegistrationExecutions`
+   rejects any execution with value and any target outside the registration
+   allowlist. A 65-byte owner signature skips the policy entirely
+   (`isValidSignatureWithSender`), so `validateEthSwapQuote` is what holds the
+   intent to "only the HCA's ETH in, only USDC out, to the HCA, no calls".
+
+Every quote is bounded by the Chainlink ETH/USD feed (`maxEthSwapInput`: the
+USDC plus 3%, at least 2 USDC). A swap refused as "exchange rate is too high"
+means the orchestrator priced ETH well below the feed — compare
+`signedMetadata.tokenPrices` with `latestRoundData()` before touching the cap.
+
+The HCA balances are the source of truth: a retry deposits only what the swap
+still needs, and swaps whatever ETH the HCA holds up to the bound. A deposit
+hash (`pendingEthDeposit`) and a swap intent id (`unsettledEthSwap`) are
+persisted so a resumed run waits for them instead of paying twice.
