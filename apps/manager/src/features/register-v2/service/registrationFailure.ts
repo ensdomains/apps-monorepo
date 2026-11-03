@@ -71,18 +71,14 @@ const asRecord = (value: unknown): Readonly<Record<string, unknown>> =>
     ? (value as Record<string, unknown>)
     : {}
 
+// Reads the SDK error's `context`. A `TransactionSubmissionError` keeps the SDK
+// error as its `cause`, so the cause chain reaches it without a second parser.
 const isInvalidSignatureRejection = (error: Error): boolean => {
-  const fields = asRecord(error)
-  // The SDK error carries `context`; `TransactionSubmissionError` lifts it
-  // onto `orchestrator.context`.
+  const context = asRecord(asRecord(error).context)
   return (
-    [fields.context, asRecord(fields.orchestrator).context]
-      .map(asRecord)
-      .some(
-        (context) =>
-          context.category === 'INVALID_SIGNATURE' ||
-          context.errorSelector === INVALID_SIGNATURE_SELECTOR,
-      ) || INVALID_SIGNATURE_IN_TEXT.test(error.message)
+    context.category === 'INVALID_SIGNATURE' ||
+    context.errorSelector === INVALID_SIGNATURE_SELECTOR ||
+    INVALID_SIGNATURE_IN_TEXT.test(error.message)
   )
 }
 
