@@ -2,6 +2,28 @@ import { assert, describe, expect, it } from 'vitest'
 import { isNormalizedName, parseCanonicalName, parseName } from './name-parser'
 
 describe('parseName', () => {
+  it.each(['agent$', '$agent', 'ag$ent', '$$$'])(
+    'accepts the canonical dollar-sign label %s',
+    (label) => {
+      const result = parseName(`${label}.eth`)
+
+      assert(result.isOk())
+      expect(result.value).toEqual({
+        subLabels: [],
+        label,
+        tld: 'eth',
+        name: `${label}.eth`,
+      })
+    },
+  )
+
+  it('refuses an apostrophe rewrite when acting on an existing name', () => {
+    const result = parseName("o'connor.eth")
+
+    assert(result.isErr())
+    expect(result.error.reason).toBe('NOT_NORMALIZED')
+  })
+
   it('parses a plain label as an .eth name', () => {
     const result = parseName('vitalik')
 
@@ -73,7 +95,7 @@ describe('parseName', () => {
 
     assert(result.isErr())
     expect(result.error).toMatchObject({
-      reason: 'INVALID_CHARACTER',
+      reason: 'INVALID_NAME',
     })
   })
 
@@ -82,7 +104,7 @@ describe('parseName', () => {
 
     assert(result.isErr())
     expect(result.error).toMatchObject({
-      reason: 'INVALID_CHARACTER',
+      reason: 'INVALID_NAME',
     })
   })
 
@@ -118,7 +140,6 @@ describe('parseName', () => {
 
   it.each([
     ['a zero-width space', 'ali\u200bce.eth'],
-    ['a zero-width non-joiner', 'ali\u200cce.eth'],
     ['a stray variation selector', 'alice\ufe0f.eth'],
     ['a circled-letter confusable', 'alice\u24dd.eth'],
     ['a soft hyphen', 'ali\u00adce.eth'],
@@ -136,14 +157,17 @@ describe('parseName', () => {
     },
   )
 
-  it('refuses a label that ENSIP-15 normalisation rejects outright', () => {
-    const result = parseName('alice\u0000.eth')
+  it.each(['alice\u0000.eth', 'ali\u200cce.eth'])(
+    'reports an invalid name when ENSIP-15 rejects %s outright',
+    (name) => {
+      const result = parseName(name)
 
-    assert(result.isErr())
-    expect(result.error).toMatchObject({
-      reason: 'NOT_NORMALIZED',
-    })
-  })
+      assert(result.isErr())
+      expect(result.error).toMatchObject({
+        reason: 'INVALID_NAME',
+      })
+    },
+  )
 
   // Stray dots are dropped; the register/renew routes redirect to the result.
   it.each([
@@ -173,7 +197,7 @@ describe('parseName', () => {
       const result = parseName(name)
 
       assert(result.isErr())
-      expect(result.error).toMatchObject({ reason: 'NOT_NORMALIZED' })
+      expect(result.error).toMatchObject({ reason: 'INVALID_NAME' })
     })
 
     it('refuses a Latin name with Cyrillic look-alike letters mixed in', () => {
@@ -181,7 +205,7 @@ describe('parseName', () => {
       const result = parseName('v\u0456t\u0430lik.eth')
 
       assert(result.isErr())
-      expect(result.error).toMatchObject({ reason: 'NOT_NORMALIZED' })
+      expect(result.error).toMatchObject({ reason: 'INVALID_NAME' })
     })
 
     it('accepts a whole-script Cyrillic name, which ENSIP-15 allows', () => {
@@ -203,6 +227,60 @@ describe('parseName', () => {
 })
 
 describe('parseCanonicalName', () => {
+  it.each(['ab--cd.eth', 'ab--cd$.eth', 'alice\u0000.eth'])(
+    'reports a normalization failure without guessing its cause for %s',
+    (name) => {
+      const result = parseCanonicalName(name)
+
+      assert(result.isErr())
+      expect(result.error.reason).toBe('INVALID_NAME')
+      expect(result.error.message).toBe(
+        'This name does not meet ENS naming rules.',
+      )
+    },
+  )
+
+  it('normalizes every label before extracting the registrable label', () => {
+    const result = parseCanonicalName('a\u2122\ufe0f._$A.ETH')
+
+    assert(result.isOk())
+    expect(result.value).toEqual({
+      subLabels: ['atm'],
+      label: '_$a',
+      tld: 'eth',
+      name: 'atm._$a.eth',
+      wasRewritten: true,
+    })
+  })
+
+  it.each([
+    ['agent$.eth', 'agent$.eth', false],
+    ["o'connor.eth", 'o\u2019connor.eth', true],
+    ['#\ufe0f\u20e3abc.eth', '#\u20e3abc.eth', true],
+    ['*\ufe0f\u20e3abc.eth', '*\u20e3abc.eth', true],
+  ])('accepts and canonicalises %s', (input, name, wasRewritten) => {
+    const result = parseCanonicalName(input)
+
+    assert(result.isOk())
+    expect(result.value).toEqual({
+      subLabels: [],
+      label: name.slice(0, -4),
+      tld: 'eth',
+      name,
+      wasRewritten,
+    })
+  })
+
+  it.each(['agent!.eth', 'agent&.eth', 'agent#.eth', 'agent*.eth'])(
+    'rejects disallowed punctuation in %s',
+    (name) => {
+      const result = parseCanonicalName(name)
+
+      assert(result.isErr())
+      expect(result.error.reason).toBe('INVALID_NAME')
+    },
+  )
+
   it('reports a name that is already canonical as unrewritten', () => {
     const result = parseCanonicalName('vitalik.eth')
 
@@ -255,14 +333,14 @@ describe('parseCanonicalName', () => {
     const result = parseCanonicalName(name)
 
     assert(result.isErr())
-    expect(result.error).toMatchObject({ reason: 'NOT_NORMALIZED' })
+    expect(result.error).toMatchObject({ reason: 'INVALID_NAME' })
   })
 
   it('refuses a bracket-encoded labelhash', () => {
     const result = parseCanonicalName('[deadbeef].eth')
 
     assert(result.isErr())
-    expect(result.error).toMatchObject({ reason: 'INVALID_CHARACTER' })
+    expect(result.error).toMatchObject({ reason: 'INVALID_NAME' })
   })
 })
 

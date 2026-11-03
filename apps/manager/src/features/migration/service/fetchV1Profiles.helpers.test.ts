@@ -2,6 +2,7 @@ import type { Address, Hex } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   buildProfileMulticallPlan,
+  completedProfileNames,
   indexNamesByNode,
   type NameForFetch,
   type ProfileKeyEntry,
@@ -19,6 +20,29 @@ const A: NameForFetch = {
   nodeHex: NODE_A,
   v1ResolverAddress: V1_RESOLVER,
 }
+
+it.each([
+  { chunks: [0], expected: [] },
+  { chunks: [1], expected: [] },
+  { chunks: [0, 1], expected: ['a.eth', 'b.eth'] },
+])(
+  'counts a name only after every split chunk returns: $chunks',
+  ({ chunks, expected }) => {
+    const B = { ...A, name: 'b.eth', nodeHex: NODE_B }
+    const calls = [A, B, A, B].map((name) => ({
+      kind: 'pubkey' as const,
+      name,
+    }))
+    expect(
+      completedProfileNames({
+        calls,
+        names: [A, B],
+        completedChunks: new Set(chunks),
+        chunkSize: 2,
+      }),
+    ).toEqual(expected)
+  },
+)
 const profileKeys = (
   overrides: Pick<ProfileKeyEntry, 'id' | 'texts' | 'coinTypes'> &
     Partial<ProfileKeyEntry>,
@@ -43,7 +67,7 @@ describe('buildProfileMulticallPlan', () => {
     const byNode = indexNamesByNode([A])
     const { calls, contracts } = buildProfileMulticallPlan(
       [
-        profileKeys({ id: NODE_A, texts: ['email'], coinTypes: [60] }),
+        profileKeys({ id: NODE_A, texts: ['email'], coinTypes: [60n] }),
         profileKeys({ id: NODE_B, texts: ['only'], coinTypes: [] }),
       ],
       byNode,

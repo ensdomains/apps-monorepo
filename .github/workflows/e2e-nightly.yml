@@ -149,7 +149,9 @@ jobs:
         run: |
           case "${{ matrix.config.project }}" in
             portal) APPS="portal:3001" ;;
-            manager|manager-migration) APPS="manager:3000" ;;
+            manager) APPS="manager:3000" ;;
+            # offchain-migration checks the migrated name resolves in the explorer.
+            manager-migration) APPS="manager:3000 portal:3001" ;;
             cross-app) APPS="manager:3000 portal:3001" ;;
           esac
 
