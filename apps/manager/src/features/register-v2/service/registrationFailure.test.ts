@@ -1,3 +1,4 @@
+import { TransactionSubmissionError } from '@ens-apps/transaction-manager'
 import {
   type Abi,
   ContractFunctionExecutionError,
@@ -8,6 +9,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   getRegistrationFailureMessage,
+  isInvalidSignatureError,
   isNameNotAvailableError,
 } from './registrationFailure'
 
@@ -68,6 +70,59 @@ describe('isNameNotAvailableError', () => {
     expect(
       isNameNotAvailableError(new Error('sent from 0x12477707e8aa5b0c')),
     ).toBe(false)
+  })
+})
+
+// The SDK error from the reported failure, trimmed to the fields we read.
+const orchestratorRejection = (context: Record<string, unknown>) =>
+  Object.assign(new Error('Simulation failed'), {
+    errorType: 'Bad Request',
+    statusCode: 400,
+    context,
+  })
+
+describe('isInvalidSignatureError', () => {
+  it.each([
+    [
+      'the orchestrator error by its category',
+      orchestratorRejection({ category: 'INVALID_SIGNATURE' }),
+    ],
+    [
+      'the orchestrator error by its selector',
+      orchestratorRejection({ errorSelector: '0x8baa579f' }),
+    ],
+    [
+      'the submission error the transport wraps it in',
+      new TransactionSubmissionError(
+        { type: 'eoa', from: REGISTRAR, chainId: 11155111, to: REGISTRAR },
+        orchestratorRejection({ category: 'INVALID_SIGNATURE' }),
+      ),
+    ],
+    [
+      'a wrapper that only kept the text',
+      new Error('Registration failed', {
+        cause: new Error(
+          'Failed to submit transaction: Simulation failed: InvalidSignature()',
+        ),
+      }),
+    ],
+  ])('spots %s', (_, error) => {
+    expect(isInvalidSignatureError(error)).toBe(true)
+  })
+
+  it.each([
+    [
+      'another orchestrator category',
+      orchestratorRejection({ category: 'INSUFFICIENT_BALANCE' }),
+    ],
+    ['a plain failure', new Error('rpc down')],
+    [
+      'an address that starts with the selector digits',
+      new Error('sent from 0x8baa579f2c4e6a8b'),
+    ],
+    ['no error', undefined],
+  ])('ignores %s', (_, error) => {
+    expect(isInvalidSignatureError(error)).toBe(false)
   })
 })
 

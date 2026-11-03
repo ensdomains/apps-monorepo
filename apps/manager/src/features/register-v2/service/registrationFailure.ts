@@ -57,6 +57,39 @@ const isNameNotAvailableRevert = (error: Error): boolean => {
 export const isNameNotAvailableError = (error: unknown): boolean =>
   causeChain(error).some(isNameNotAvailableRevert)
 
+// The orchestrator's emissary reports any validator rejection of an intent
+// this way, a session the owner revoked included. It wraps other causes too,
+// so it only says "the session was revoked" next to a revoke on this page.
+const INVALID_SIGNATURE_SELECTOR = toFunctionSelector('InvalidSignature()')
+const INVALID_SIGNATURE_IN_TEXT = new RegExp(
+  `InvalidSignature\\(\\)|(?<![0-9a-f])${INVALID_SIGNATURE_SELECTOR}(?![0-9a-f])`,
+  'i',
+)
+
+const asRecord = (value: unknown): Readonly<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : {}
+
+const isInvalidSignatureRejection = (error: Error): boolean => {
+  const fields = asRecord(error)
+  // The SDK error carries `context`; `TransactionSubmissionError` lifts it
+  // onto `orchestrator.context`.
+  return (
+    [fields.context, asRecord(fields.orchestrator).context]
+      .map(asRecord)
+      .some(
+        (context) =>
+          context.category === 'INVALID_SIGNATURE' ||
+          context.errorSelector === INVALID_SIGNATURE_SELECTOR,
+      ) || INVALID_SIGNATURE_IN_TEXT.test(error.message)
+  )
+}
+
+/** The orchestrator refused an intent's signature (`InvalidSignature()`). */
+export const isInvalidSignatureError = (error: unknown): boolean =>
+  causeChain(error).some(isInvalidSignatureRejection)
+
 /**
  * A readable one-liner for the failure screen. viem's `message` appends the
  * contract call, args, docs link and version; `shortMessage` leaves those out.

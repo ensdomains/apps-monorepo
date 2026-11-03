@@ -62,3 +62,15 @@ export const NameNoLongerAvailable: Story = {
     nameUnavailable: true,
   },
 }
+
+/**
+ * Smart session access was reset mid-run, so the orchestrator refused the
+ * run's intent. Back to Quote leads: Try Again would reuse the old session.
+ */
+export const SessionAccessReset: Story = {
+  args: {
+    message:
+      'Failed to submit transaction: Simulation failed: InvalidSignature() (errorType=Bad Request statusCode=400)',
+    isSessionRevoked: true,
+  },
+}

@@ -71,6 +71,24 @@ describe('FailureStepView', () => {
     expect(onFindAnotherName).toHaveBeenCalledOnce()
   })
 
+  it('explains a reset session instead of showing the raw error', () => {
+    renderView({
+      message:
+        'Failed to submit transaction: Simulation failed: InvalidSignature() (errorType=Bad Request statusCode=400)',
+      isSessionRevoked: true,
+    })
+
+    expect(screen.getByText('Smart Session Access Reset')).toBeVisible()
+    expect(
+      screen.getByText(/smart session access was reset while name-two\.eth/i),
+    ).toBeVisible()
+    expect(screen.queryByText(/InvalidSignature/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/retrying will attempt/i)).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/trying again would use the old session/i),
+    ).toBeVisible()
+  })
+
   it('still reports a real failure as one', () => {
     renderView()
 
