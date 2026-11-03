@@ -38,6 +38,31 @@ const getStatus = (
     .exhaustive()
 
 /**
+ * The wallet holds no USDC there. With nothing to bridge such an option still
+ * reads as `available`, and its quote as `0n`, which it would otherwise cover.
+ */
+export const isL2OptionEmpty = (option: L2PaymentOption): boolean =>
+  option.balanceRaw === 0n
+
+/**
+ * The chosen L2's chain id, while the wallet holds something there and there
+ * is something to bridge (`amountRaw`, when known). An emptied one is no
+ * choice at all, and with nothing to bridge the account pays it all, so either
+ * way the wallet's coin pays in its place.
+ */
+export const getSelectedL2ChainId = (
+  options: readonly L2PaymentOption[],
+  chainId: number | undefined,
+  amountRaw?: bigint | null,
+): number | undefined =>
+  amountRaw === 0n
+    ? undefined
+    : options.find(
+        (option) =>
+          option.source.chain.id === chainId && !isL2OptionEmpty(option),
+      )?.source.chain.id
+
+/**
  * One row per L2 source. `amountRaw`, what paying from an L2 sends the HCA, is
  * `null` until the registration's cost is quoted; a `null` balance is a failed
  * read.

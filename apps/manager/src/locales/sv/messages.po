@@ -419,7 +419,19 @@ msgid "An estimate of what the on-chain transactions that register your name cos
 msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "An estimate of what the transaction that renews your name costs, including moving the USDC from {chainName}. It is paid there with the renewal price."
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
+msgstr ""
+
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
+msgid "An estimate of what the transactions that renew your names cost, including moving the USDC from {chainName}. It is paid there with the renewal price."
+msgstr ""
+
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
+msgid "An estimate of what the transactions that renew your names will cost. It is collected together with the renewal price, in the same approval."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -860,7 +872,6 @@ msgstr ""
 msgid "Complete your profile"
 msgstr ""
 
-#: src/features/bulk-renew/components/BulkRenewDialog.tsx
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Confirm"
 msgstr ""
@@ -966,6 +977,7 @@ msgstr ""
 msgid "Continue"
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Continue in wallet"
 msgstr ""
@@ -1643,6 +1655,10 @@ msgstr ""
 msgid "If your wallet needs to pay, it first asks you to sign a payment approval for up to the amount due. You then sign the renewal itself."
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
+msgid "If your wallet needs to pay, it first asks you to sign a payment approval for up to the amount due. You then sign the renewal, once for every 25 names."
+msgstr ""
+
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 msgid "Image not available"
 msgstr ""
@@ -1781,7 +1797,6 @@ msgstr ""
 msgid "Load more"
 msgstr ""
 
-#: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Loading balances…"
 msgstr ""
@@ -2013,6 +2028,7 @@ msgstr ""
 msgid "NFT video downloaded"
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No additional payment needed. You'll still need to sign the renewal."
 msgstr ""
@@ -2068,10 +2084,6 @@ msgstr ""
 
 #: src/features/navigation/Header/search/SearchSuggestions.tsx
 msgid "No recent searches"
-msgstr ""
-
-#: src/features/bulk-renew/components/PaymentMethodSection.tsx
-msgid "No stablecoins available"
 msgstr ""
 
 #: src/components/AnalyticsConsentBanner.tsx
@@ -2231,6 +2243,10 @@ msgstr ""
 msgid "Paying from {l2ChainName}"
 msgstr ""
 
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Paying from {l2ChainName}…"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Payment summary"
 msgstr ""
@@ -2261,10 +2277,6 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "Play artwork"
-msgstr ""
-
-#: src/features/bulk-renew/components/PaymentMethodSection.tsx
-msgid "Please connect your wallet first"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -2636,6 +2648,10 @@ msgstr ""
 msgid "Renew Name"
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
+msgid "Renew names"
+msgstr ""
+
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "Renew Names"
 msgstr ""
@@ -2693,6 +2709,7 @@ msgstr ""
 msgid "Renewal price"
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renewal total"
 msgstr ""
@@ -2914,7 +2931,6 @@ msgstr ""
 msgid "Select all names"
 msgstr ""
 
-#: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.stories.tsx
 msgid "Select payment"
@@ -3097,6 +3113,7 @@ msgstr ""
 msgid "Sign payment approval"
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign renewal"
 msgstr ""
@@ -4466,6 +4483,10 @@ msgstr ""
 msgid "Your wallet and your smart account both lost permission to update your names' records. Restore the permission in your profile, then try again. No names were changed."
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
+msgid "Your wallet asks you to approve the payment if needed, then to confirm each name's renewal."
+msgstr ""
+
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet asks you to approve the payment if needed, then to confirm the renewal transaction."
 msgstr ""
@@ -4473,6 +4494,14 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your wallet first asks you to sign a payment of the amount shown on {l2ChainName}. Once it arrives, you sign the renewal itself."
+msgstr ""
+
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
+msgid "Your wallet first asks you to sign a payment of the amount shown on {l2ChainName}. Once it arrives, you sign the renewal, once for every 25 names."
 msgstr ""
 
 #: src/components/HcaFundingConfirmDialog.tsx
