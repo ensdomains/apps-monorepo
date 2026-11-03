@@ -4,6 +4,7 @@ import {
   MIGRATION_HELPER_ABI,
 } from '../contracts/abis'
 import { ProfileFetchError } from './fetchV1Profiles'
+import { MigrationRecipientCheckError } from './migrationRecipientError'
 
 export type MigrationError =
   | { type: 'generic'; message: string }
@@ -31,14 +32,13 @@ export type MigrationError =
   | { type: 'invalid-data' }
   | { type: 'name-requires-migration' }
   | { type: 'parent-not-upgraded' }
+  | { type: 'recipient-incompatible'; recipient: Address }
+  | { type: 'recipient-unavailable'; recipient: Address }
 
 export const extractErrorMessage = (err: unknown): string => {
   if (!(err instanceof Error)) return String(err)
 
-  let deepest = err
-  while ('cause' in deepest && deepest.cause instanceof Error) {
-    deepest = deepest.cause
-  }
+  const deepest = walkCauseChain(err).at(-1) ?? err
 
   const short =
     (err as unknown as Record<string, unknown>).shortMessage ??
@@ -50,15 +50,13 @@ export const extractErrorMessage = (err: unknown): string => {
   return err.message || "Upgrade didn't finish"
 }
 
-const walkCauseChain = (err: unknown): Error[] => {
-  const chain: Error[] = []
-  let cur: unknown = err
-  while (cur instanceof Error) {
-    chain.push(cur)
-    cur = (cur as { cause?: unknown }).cause
-  }
-  return chain
-}
+const walkCauseChain = (
+  error: unknown,
+  chain: readonly Error[] = [],
+): readonly Error[] =>
+  error instanceof Error && !chain.includes(error)
+    ? walkCauseChain(error.cause, [...chain, error])
+    : chain
 
 const isUserRejection = (err: unknown): boolean => {
   if (err instanceof Error && err.name === 'MigrationUserRejectedError') {
@@ -90,6 +88,12 @@ const findNamedError = (err: unknown, name: string): Error | undefined =>
 const asHexData = (value: unknown): Hex | null =>
   typeof value === 'string' && value.startsWith('0x') ? (value as Hex) : null
 
+const prefixedRevertData = (value: unknown): Hex | null => {
+  if (typeof value !== 'string') return null
+  const data = value.match(/WrappedError::(0x[0-9a-f]+)\b/i)?.[1]
+  return data ? parseHexText(data) : null
+}
+
 const findRevertData = (err: unknown): readonly Hex[] => {
   const matches = walkCauseChain(err).flatMap((error) => {
     const errorRecord = error as unknown as Record<string, unknown>
@@ -102,6 +106,10 @@ const findRevertData = (err: unknown): readonly Hex[] => {
       asHexData(errorRecord.raw),
       asHexData(nestedData),
       asHexData(nestedDataRecord?.data),
+      prefixedRevertData(error.message),
+      prefixedRevertData(errorRecord.shortMessage),
+      prefixedRevertData(errorRecord.details),
+      prefixedRevertData(errorRecord.reason),
     ].filter((data): data is Hex => data !== null)
   })
   return [...new Set(matches)]
@@ -117,6 +125,7 @@ const MIGRATION_EXECUTION_ERRORS_ABI = [
     'error ERC1155MissingApprovalForAll(address operator, address owner)',
     'error ERC1155InsufficientBalance(address sender, uint256 balance, uint256 needed, uint256 tokenId)',
     'error ERC1155InvalidArrayLength(uint256 idsLength, uint256 valuesLength)',
+    'error ERC1155InvalidReceiver(address receiver)',
   ]),
 ] as const
 
@@ -127,6 +136,8 @@ const tryDecodeMigrationExecutionError = (data: Hex): MigrationError | null => {
       data,
     })
     switch (decoded.errorName) {
+      case 'ERC1155InvalidReceiver':
+        return { type: 'recipient-incompatible', recipient: decoded.args[0] }
       case 'CallerNotOwner':
         return { type: 'hca-owner-mismatch' }
       case 'UnauthorizedCaller':
@@ -302,6 +313,15 @@ const matchMigrationRevert = (data: Hex, depth = 0): MigrationError | null => {
 
 export const decodeMigrationError = (err: unknown): MigrationError => {
   if (isUserRejection(err)) return { type: 'user-rejected' }
+
+  const recipientFailure = walkCauseChain(err).find(
+    (cause) => cause instanceof MigrationRecipientCheckError,
+  )
+  if (recipientFailure)
+    return {
+      type: `recipient-${recipientFailure.reason}`,
+      recipient: recipientFailure.recipient,
+    }
 
   if (
     hasNamedError(err, 'MigrationPlanChangedError') ||

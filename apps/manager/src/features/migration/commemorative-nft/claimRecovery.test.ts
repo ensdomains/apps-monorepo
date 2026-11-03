@@ -1,18 +1,35 @@
+import { getPublicClient } from '@wagmi/core'
 import { Storage } from 'happy-dom'
 import type { Address, Hex } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { submitPendingNftClaim } from './claimRecovery'
+import {
+  createSafeExecutionPublicClient,
+  SAFE_WALLET_CONNECTOR,
+} from '@/test-utils/safeWallet.fixture'
+import {
+  reconcilePendingNftClaim,
+  submitPendingNftClaim,
+} from './claimRecovery'
 import { getCommemorativeNftContractAddress } from './config'
-import { claimCommemorativeNft, readCommemorativeNftClaimed } from './contract'
+import {
+  claimCommemorativeNft,
+  readCommemorativeNftClaimed,
+  waitForCommemorativeNftClaimReceipt,
+} from './contract'
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
 import { readPendingNftClaim } from './pendingClaim'
 
 vi.mock('@/config', () => ({ envConfig: { network: 'sepolia' } }))
+vi.mock('@wagmi/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wagmi/core')>()),
+  getPublicClient: vi.fn(),
+}))
 
 vi.mock('./contract', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./contract')>()),
   claimCommemorativeNft: vi.fn(),
   readCommemorativeNftClaimed: vi.fn(),
+  waitForCommemorativeNftClaimReceipt: vi.fn(),
 }))
 const ownerAddress: Address = '0x1111111111111111111111111111111111111111'
 const contractAddress = getCommemorativeNftContractAddress()
@@ -123,5 +140,101 @@ describe('commemorative NFT claim submission coordination', () => {
     )
     await expect(submitPendingNftClaim(params)).resolves.toMatchObject({ hash })
     expect(claimCommemorativeNft).toHaveBeenCalledTimes(2)
+  })
+
+  it('retains an uncertain submitted claim and blocks another wallet submission', async () => {
+    const claim = await submitPendingNftClaim(params)
+    vi.mocked(waitForCommemorativeNftClaimReceipt).mockResolvedValue({
+      status: 'pending',
+      hash,
+    })
+    const reconciled = await reconcilePendingNftClaim({
+      wagmiConfig: params.wagmiConfig,
+      claim,
+      onHash: vi.fn(),
+    })
+    expect(reconciled.outcome).toEqual({ status: 'pending', hash })
+    expect(readPendingNftClaim(claim).claim?.hash).toBe(hash)
+    await expect(submitPendingNftClaim(params)).rejects.toMatchObject({
+      reason: 'storage-unavailable',
+    })
+    expect(claimCommemorativeNft).toHaveBeenCalledTimes(1)
+  })
+
+  it('captures an onchain history bound before requesting a Safe claim', async () => {
+    const publicClient = createSafeExecutionPublicClient({
+      ownerAddress,
+      safeTxHash: hash,
+      executionHash: hash,
+      event: 'ExecutionSuccess',
+      latestBlockNumber: 123n,
+    })
+    vi.mocked(getPublicClient).mockReturnValue(publicClient)
+    const getBlockNumber = vi.spyOn(publicClient, 'getBlockNumber')
+    const claim = await submitPendingNftClaim({
+      ...params,
+      connector: SAFE_WALLET_CONNECTOR,
+    })
+    expect(getBlockNumber).toHaveBeenCalledBefore(
+      vi.mocked(claimCommemorativeNft),
+    )
+    expect(claim.safeExecutionSearchFromBlock).toBe(123n)
+    expect(readPendingNftClaim(claim).claim?.safeExecutionSearchFromBlock).toBe(
+      123n,
+    )
+  })
+
+  it('rechecks the current owner and chain after reading the Safe submission block', async () => {
+    const publicClient = createSafeExecutionPublicClient({
+      ownerAddress,
+      safeTxHash: hash,
+      executionHash: hash,
+      event: 'ExecutionSuccess',
+    })
+    const block = deferred<bigint>()
+    const getBlockNumber = vi
+      .spyOn(publicClient, 'getBlockNumber')
+      .mockReturnValueOnce(block.promise)
+    vi.mocked(getPublicClient).mockReturnValue(publicClient)
+    const isCurrent = vi.fn(() => true)
+    const submission = submitPendingNftClaim({
+      ...params,
+      connector: SAFE_WALLET_CONNECTOR,
+      isCurrent,
+    })
+    const rejection = expect(submission).rejects.toMatchObject({
+      reason: 'feature-disabled',
+    })
+    await vi.waitFor(() => expect(getBlockNumber).toHaveBeenCalledTimes(1))
+    isCurrent.mockReturnValue(false)
+    block.resolve(123n)
+    await rejection
+    expect(claimCommemorativeNft).not.toHaveBeenCalled()
+    expect(
+      readPendingNftClaim({
+        ownerAddress,
+        chainId: params.chainId,
+        contractAddress,
+      }).status,
+    ).toBe('empty')
+  })
+
+  it('persists only explicitly reported Safe history progress without changing the hash', async () => {
+    const claim = await submitPendingNftClaim(params)
+    vi.mocked(waitForCommemorativeNftClaimReceipt).mockImplementation(
+      async ({ onHistoryProgress }) => {
+        onHistoryProgress?.(9_900n)
+        return { status: 'pending', hash }
+      },
+    )
+    await reconcilePendingNftClaim({
+      wagmiConfig: params.wagmiConfig,
+      claim,
+      onHash: vi.fn(),
+    })
+    expect(readPendingNftClaim(claim).claim).toEqual({
+      ...claim,
+      safeExecutionSearchFromBlock: 9_900n,
+    })
   })
 })

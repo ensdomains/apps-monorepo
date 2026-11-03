@@ -22,13 +22,68 @@ const directMigrationErrorsAbi = parseAbi([
   'error ERC721InsufficientApproval(address operator, uint256 tokenId)',
   'error ERC721IncorrectOwner(address sender, uint256 tokenId, address owner)',
   'error ERC1155MissingApprovalForAll(address operator, address owner)',
+  'error ERC1155InvalidReceiver(address receiver)',
 ])
 
 const errorStringAbi = [
   { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
 ] as const
 
+const RECEIVER = '0x00000000000000000000000000000000000000AB'
+const invalidReceiverData = encodeErrorResult({
+  abi: directMigrationErrorsAbi,
+  errorName: 'ERC1155InvalidReceiver',
+  args: [RECEIVER],
+})
+
+describe('decodeMigrationError — recipient compatibility', () => {
+  it.each([
+    { name: 'direct revert', error: revertWith(invalidReceiverData) },
+    {
+      name: 'ABI-wrapped revert',
+      error: revertWith(
+        encodeErrorResult({
+          abi: errorStringAbi,
+          errorName: 'Error',
+          args: [`WrappedError::${invalidReceiverData}`],
+        }),
+      ),
+    },
+    ...(['message', 'shortMessage', 'details', 'reason'] as const).map(
+      (field) => ({
+        name: `${field}-only wrapped revert`,
+        error: Object.assign(new Error('RPC execution failed'), {
+          [field]: `Execution failed: WrappedError::${invalidReceiverData}`,
+        }),
+      }),
+    ),
+  ])('identifies the rejected receiver from $name', ({ error }) => {
+    expect(decodeMigrationError(error)).toEqual({
+      type: 'recipient-incompatible',
+      recipient: RECEIVER,
+    })
+  })
+
+  it('does not treat an unmarked hex diagnostic as a receiver revert', () => {
+    const message = `RPC upstream timeout while reading ${invalidReceiverData}`
+    expect(decodeMigrationError(new Error(message))).toEqual({
+      type: 'generic',
+      message,
+    })
+  })
+})
+
 describe('extractErrorMessage', () => {
+  it('terminates on a cyclic cause without losing its diagnostic message', () => {
+    const error = new Error('wallet RPC unavailable')
+    error.cause = error
+    expect(extractErrorMessage(error)).toBe('wallet RPC unavailable')
+    expect(decodeMigrationError(error)).toEqual({
+      type: 'generic',
+      message: 'wallet RPC unavailable',
+    })
+  })
+
   it.each([
     ['plain string', 'plain string'],
     [42, '42'],

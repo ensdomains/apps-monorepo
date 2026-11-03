@@ -193,6 +193,33 @@ const PUBLIC_CLIENT = {
   waitForTransactionReceipt: waitForReceiptMock,
 } as unknown as PublicClient
 
+const mockUndeployedHca = () => {
+  const hcaCode = vi
+    .fn()
+    .mockResolvedValueOnce('0x')
+    .mockResolvedValue('0x6000')
+  getCodeMock.mockImplementation(
+    ({ address }: { readonly address: Address }) =>
+      address.toLowerCase() === HCA.toLowerCase()
+        ? hcaCode()
+        : Promise.resolve('0x6000'),
+  )
+}
+
+const mockRecipientCodeRead = (readOwner: () => Promise<Hex>) => {
+  getCodeMock.mockImplementation(
+    ({ address }: { readonly address: Address }) =>
+      address.toLowerCase() === OWNER.toLowerCase()
+        ? readOwner()
+        : Promise.resolve(
+            address.toLowerCase() ===
+              '0x00000000000000000000000000000000000000ab'
+              ? '0x'
+              : '0x6000',
+          ),
+  )
+}
+
 const setHcaApprovalActive = () => {
   mocks.checkMigrationApprovals.mockResolvedValue({
     ethRegistryHcaApproved: true,
@@ -718,6 +745,34 @@ beforeEach(() => {
 })
 
 describe('executeMigration HCA orchestration', () => {
+  it('refuses a delegation that changes before the batch submission', async () => {
+    const recipientCode = vi
+      .fn()
+      .mockResolvedValueOnce('0x')
+      .mockResolvedValue('0xef010000000000000000000000000000000000000000ab')
+    mockRecipientCodeRead(recipientCode)
+
+    await expect(runExecute()).rejects.toMatchObject({
+      name: 'MigrationRecipientCheckError',
+      reason: 'incompatible',
+      recipient: OWNER,
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('rechecks a delegated recipient before requesting setup transactions', async () => {
+    mockRecipientCodeRead(() =>
+      Promise.resolve('0xef010000000000000000000000000000000000000000ab'),
+    )
+
+    await expect(runExecute()).rejects.toMatchObject({
+      name: 'MigrationRecipientCheckError',
+      reason: 'incompatible',
+      recipient: OWNER,
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
   it('revalidates each batch using the inventory confirmed by the previous batch', async () => {
     const parent = classifiedFor('alice')
     const copy = copyClassifiedFor()
@@ -1807,7 +1862,7 @@ describe('executeMigration HCA orchestration', () => {
   })
 
   it('deploys an undeployed HCA directly from the wallet and refreshes account state', async () => {
-    getCodeMock.mockResolvedValueOnce('0x')
+    mockUndeployedHca()
     const refreshAccount = vi.fn(() => Promise.resolve())
 
     const { result } = await runExecute({ refreshAccount })
@@ -1842,7 +1897,7 @@ describe('executeMigration HCA orchestration', () => {
   })
 
   it('rejects mismatched HCA deployment data before opening a wallet transaction', async () => {
-    getCodeMock.mockResolvedValueOnce('0x')
+    mockUndeployedHca()
     mocks.buildHcaDeploymentCall.mockImplementationOnce(() => {
       throw new Error('HCA deployment clientHca mismatch')
     })
@@ -1964,6 +2019,48 @@ describe('executeMigration HCA orchestration', () => {
       from: OWNER,
       gas: 132_000n,
     })
+  })
+
+  it('blocks a delegation installed while the separate record replay confirms', async () => {
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
+      status: 'incomplete',
+      verification: { batchIndex: 0, status: 'confirmed', results: [] },
+      mismatches: [],
+    })
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({ hca, classified }: BuildAtomicMigrationBatchesParams) => ({
+        resolver: RESOLVER,
+        batches: [
+          walletReplayBatch({
+            names: classified.map(({ domain }) => domain.name),
+            outerCall: { to: hca, data: OUTER_DATA, value: 0n },
+          }),
+        ],
+      }),
+    )
+    mocks.waitForTransaction.mockImplementationOnce(async () => {
+      mockRecipientCodeRead(() =>
+        Promise.resolve('0xef010000000000000000000000000000000000000000ab'),
+      )
+      return { hash: hashFor(1) }
+    })
+
+    await expect(runExecute()).rejects.toMatchObject({
+      name: 'MigrationRecipientCheckError',
+      reason: 'incompatible',
+      recipient: OWNER,
+    })
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    expect(mocks.startTransaction.mock.calls[0]?.[0].request).toMatchObject({
+      to: RESOLVER,
+    })
+    expect(
+      loadPendingAtomicMigrationIntents({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      }),
+    ).toEqual([])
   })
 
   it('skips the replay when its records already landed on the resolver', async () => {
@@ -2346,7 +2443,7 @@ describe('executeMigration HCA orchestration', () => {
   })
 
   it('blocks a stale permission preview before opening the first wallet prompt', async () => {
-    getCodeMock.mockResolvedValueOnce('0x')
+    mockUndeployedHca()
     const plan = {
       ...planFor(),
       hcaDeploymentRequired: true,
