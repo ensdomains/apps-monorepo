@@ -6,7 +6,7 @@ import type {
 } from '@ens-apps/transaction-manager'
 import { transactionMachine } from '@ens-apps/transaction-manager/machines/transaction.machine'
 import { createRhinestoneAccount } from '@rhinestone/sdk'
-import { err, ok } from 'neverthrow'
+import { err, errAsync, ok, okAsync } from 'neverthrow'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { decodeFunctionData, erc20Abi } from 'viem'
 import { toAccount } from 'viem/accounts'
@@ -25,6 +25,11 @@ const mocks = vi.hoisted(() => ({
   startTransaction: vi.fn(),
   waitForTransaction: vi.fn(),
   getSmartAccountAddress: vi.fn(),
+  quoteHcaIntentFeeUsdc: vi.fn(),
+  awaitL2BridgeActor: vi.fn(),
+  readHcaUsdcBalanceActor: vi.fn(),
+  readHcaUsdcBalanceAtLeastActor: vi.fn(),
+  submitL2BridgeActor: vi.fn(),
 }))
 
 vi.mock('@ens-apps/transaction-manager', () => ({
@@ -34,8 +39,24 @@ vi.mock('@ens-apps/transaction-manager', () => ({
   hcaMaxIntentFeeUsdcFor: (gasLimit: bigint) =>
     (gasLimit * 10_000_000n) / 300_000n,
   planHcaIntentFunding: mocks.planHcaIntentFunding,
+  quoteHcaIntentFeeUsdc: mocks.quoteHcaIntentFeeUsdc,
   transactionManager: { startTransaction: mocks.startTransaction },
   waitForTransaction: mocks.waitForTransaction,
+}))
+
+vi.mock(
+  '@ens-apps/transaction-manager/machines/registration/registration.hca.actors',
+  () => ({
+    awaitL2BridgeActor: mocks.awaitL2BridgeActor,
+    L2_BRIDGE_CLAIMABLE_MS: 3_600_000,
+    readHcaUsdcBalanceActor: mocks.readHcaUsdcBalanceActor,
+    readHcaUsdcBalanceAtLeastActor: mocks.readHcaUsdcBalanceAtLeastActor,
+    submitL2BridgeActor: mocks.submitL2BridgeActor,
+  }),
+)
+
+vi.mock('@/lib/smart-account/rhinestone', () => ({
+  buildIntentStatusFetcher: () => undefined,
 }))
 
 vi.mock(
@@ -56,8 +77,13 @@ vi.mock('../data/queries/renewPricing.query', () => ({
   getRenewPrice: mocks.getRenewPrice,
 }))
 
+import {
+  readPendingL2Bridge,
+  savePendingL2Bridge,
+} from '@/features/register-v2/service/pendingL2Bridge'
 import { TOKENS } from '@/lib/tokens'
 import {
+  fundHcaRenewalsFromL2,
   HCA_RENEWAL_INTENT_GAS_LIMIT_BASE,
   HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM,
   HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS,
@@ -431,6 +457,173 @@ describe('submitHcaRenewal', () => {
       RENEWER,
       USDC,
     )
+  })
+})
+
+describe('submitHcaRenewal paid from an L2', () => {
+  const source = { chain: { id: 84_532, name: 'Base Sepolia' } } as any
+  const run = (l2Funding: Record<string, unknown> = {}) =>
+    submitHcaRenewal({
+      ...params,
+      l2Funding: { source, displayedCharge: 2_100_000n, ...l2Funding },
+    })
+  const bridged = () => mocks.submitL2BridgeActor.mock.calls[0]?.[0]
+
+  beforeEach(() => {
+    window.localStorage.clear()
+    mocks.quoteHcaIntentFeeUsdc.mockResolvedValue(900_000n)
+    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(200_000n))
+    mocks.readHcaUsdcBalanceAtLeastActor.mockImplementation(({ atLeast }) =>
+      okAsync(atLeast),
+    )
+    mocks.submitL2BridgeActor.mockReturnValue(okAsync('bridge-tx'))
+  })
+
+  it('bridges what the account is short in, then renews from the account', async () => {
+    mocks.planHcaIntentFunding.mockImplementation(async ({ calls }: any) => {
+      // The renewal is planned only once the bridged USDC reads back.
+      expect(mocks.readHcaUsdcBalanceAtLeastActor).toHaveBeenCalled()
+      return { calls, quotedFeeUsdc: 900_000n }
+    })
+
+    await run()
+
+    // 1.10 rent + 0.90 fee widened by 25%, less the 0.20 already held.
+    expect(bridged()).toMatchObject({
+      hca: HCA,
+      payment: { source, amount: 2_025_000n, displayedCharge: 2_100_000n },
+      signer: { session: undefined },
+    })
+    expect(mocks.waitForTransaction).toHaveBeenCalledWith('bridge-tx')
+    expect(mocks.readHcaUsdcBalanceAtLeastActor).toHaveBeenCalledWith(
+      expect.objectContaining({ atLeast: 2_225_000n }),
+    )
+    expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
+  })
+
+  it('plans the renewal on the balance the bridge read back, past a lagging node', async () => {
+    await run()
+
+    expect(fundingParams()).toMatchObject({ hcaBalanceAtLeast: 2_225_000n })
+  })
+
+  it('sends nothing from the L2 when the account already covers the renewal', async () => {
+    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(5_000_000n))
+
+    await run()
+
+    expect(mocks.submitL2BridgeActor).not.toHaveBeenCalled()
+    expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
+  })
+
+  it('keeps an accepted payment that never filled, and waits for it on the retry', async () => {
+    mocks.submitL2BridgeActor.mockImplementationOnce(
+      ({ onIntentSubmitted }: any) => {
+        onIntentSubmitted(7n)
+        return okAsync('bridge-tx')
+      },
+    )
+    mocks.waitForTransaction.mockRejectedValueOnce(new Error('fill timed out'))
+
+    await expect(run()).rejects.toThrow('fill timed out')
+    expect(readPendingL2Bridge(params.chainId, HCA)).toMatchObject({
+      intentId: 7n,
+      fundsHcaTo: 2_225_000n,
+    })
+    expect(mocks.planHcaIntentFunding).not.toHaveBeenCalled()
+
+    // It landed after all: the retry reads it back and pays nothing more.
+    mocks.awaitL2BridgeActor.mockReturnValue(okAsync('landed'))
+    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(2_225_000n))
+
+    await run()
+
+    expect(mocks.awaitL2BridgeActor).toHaveBeenCalledWith(
+      expect.objectContaining({ intentId: 7n }),
+    )
+    expect(mocks.submitL2BridgeActor).toHaveBeenCalledOnce()
+    expect(readPendingL2Bridge(params.chainId, HCA)).toBeUndefined()
+  })
+
+  it('keeps the payment pending and stops when the bridged USDC never reads back', async () => {
+    mocks.submitL2BridgeActor.mockImplementationOnce(
+      ({ onIntentSubmitted }: any) => {
+        onIntentSubmitted(8n)
+        return okAsync('bridge-tx')
+      },
+    )
+    // The read runs out of time still showing the balance from before.
+    mocks.readHcaUsdcBalanceAtLeastActor.mockReturnValue(okAsync(200_000n))
+
+    await expect(run()).rejects.toThrow(/hasn't shown up/)
+    expect(readPendingL2Bridge(params.chainId, HCA)).toMatchObject({
+      intentId: 8n,
+    })
+    expect(mocks.planHcaIntentFunding).not.toHaveBeenCalled()
+  })
+
+  it('bridges a bulk selection once, sized over every batch', async () => {
+    await fundHcaRenewalsFromL2({
+      ...params,
+      batches: [
+        [{ label: 'alice', duration: 31_536_000n }],
+        [{ label: 'bob', duration: 31_536_000n }],
+      ],
+      l2Funding: { source, displayedCharge: 4_300_000n },
+    })
+
+    // 2 × 1.10 rent + 2 × 0.90 fee widened by 25%, less the 0.20 held.
+    expect(mocks.submitL2BridgeActor).toHaveBeenCalledOnce()
+    expect(bridged()).toMatchObject({
+      payment: { amount: 4_250_000n, displayedCharge: 4_300_000n },
+    })
+  })
+
+  it('settles an earlier payment whose USDC was spent since, as registration does', async () => {
+    savePendingL2Bridge(params.chainId, HCA, {
+      intentId: 10n,
+      claimableUntil: Date.now() + 60_000,
+      fundsHcaTo: 3_000_000n,
+    })
+    mocks.awaitL2BridgeActor.mockReturnValue(okAsync('landed'))
+    // It landed, but an L1 retry spent it, so the balance never gets back there.
+    mocks.readHcaUsdcBalanceAtLeastActor.mockReturnValueOnce(okAsync(200_000n))
+
+    await run()
+
+    expect(readPendingL2Bridge(params.chainId, HCA)).toBeUndefined()
+    // Sized on what the account holds now, not on the spent payment.
+    expect(bridged()).toMatchObject({ payment: { amount: 2_025_000n } })
+    expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
+  })
+
+  it('pays nothing while an earlier payment is still unsettled', async () => {
+    savePendingL2Bridge(params.chainId, HCA, {
+      intentId: 9n,
+      claimableUntil: Date.now() + 60_000,
+      fundsHcaTo: 3_000_000n,
+    })
+    mocks.awaitL2BridgeActor.mockReturnValue(
+      errAsync(new Error('The earlier L2 payment has not settled yet')),
+    )
+
+    await expect(run()).rejects.toThrow(/not settled yet/)
+    expect(mocks.submitL2BridgeActor).not.toHaveBeenCalled()
+    expect(readPendingL2Bridge(params.chainId, HCA)).toBeDefined()
+  })
+
+  it('refuses a fee above the ceiling before the wallet is asked', async () => {
+    mocks.quoteHcaIntentFeeUsdc.mockResolvedValue(50_000_000n)
+
+    await expect(run()).rejects.toThrow()
+    expect(mocks.submitL2BridgeActor).not.toHaveBeenCalled()
+  })
+
+  it('pays a renewal in USDC only', async () => {
+    await expect(
+      submitHcaRenewal({ ...params, token: 'DAI', l2Funding: { source } }),
+    ).rejects.toThrow(/USDC only/)
+    expect(mocks.submitL2BridgeActor).not.toHaveBeenCalled()
   })
 })
 
