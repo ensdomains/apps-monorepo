@@ -1045,6 +1045,16 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
     },
   )
   const paymentMethodItems = [...walletMethodItems, ...l2MethodItems]
+  // A coin the wallet holds none of still covers a share of 0, so it stays
+  // choosable when the account pays it all, but it is never listed.
+  const emptyCoins = new Set<string>(
+    stablecoinBalances
+      .filter((coin) => BigInt(coin.balance) === 0n)
+      .map((coin) => coin.address),
+  )
+  const listedMethodItems = paymentMethodItems.filter(
+    (item) => !emptyCoins.has(item.id),
+  )
   const isL2Pending = !!l2Payment?.rows.some(
     (row) => row.option.status === 'loading' || row.isQuoteLoading,
   )
@@ -1172,7 +1182,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
               .otherwise(() => (
                 <PaymentMethods
                   onSelectCoin={onSelectCoin}
-                  paymentMethodItems={paymentMethodItems}
+                  paymentMethodItems={listedMethodItems}
                   selectedToken={selectedToken}
                   showNetworkFeeDetails={showNetworkFeeDetails}
                   stablecoinBalances={stablecoinBalances}
