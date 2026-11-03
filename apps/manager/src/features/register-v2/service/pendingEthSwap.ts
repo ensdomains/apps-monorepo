@@ -1,11 +1,20 @@
-import type { RegistrationMachineActor } from '@ens-apps/transaction-manager'
-import { type Address, type Hash, isHash } from 'viem'
+import type {
+  PendingEthSwap,
+  RegistrationMachineActor,
+} from '@ens-apps/transaction-manager'
+import { type Address, isHash } from 'viem'
 
 /** Unconfirmed ETH swaps, kept apart from the run record so a cancel doesn't forget them. */
 const STORAGE_KEY = 'ens-registration-pending-eth-swaps-v1'
 
-/** Swap hashes by `chainId:wallet`. */
-type PendingEthSwaps = Record<string, string>
+/** A `PendingEthSwap` with its deadline in decimal. */
+type StoredEthSwap = { hash: string; deadline: string }
+
+/** Swaps by `chainId:wallet`. */
+type PendingEthSwaps = Record<string, StoredEthSwap>
+
+const isDecimal = (value: unknown): value is string =>
+  typeof value === 'string' && /^\d+$/.test(value)
 
 const keyFor = (chainId: number, wallet: Address) =>
   `${chainId}:${wallet.toLowerCase()}`
@@ -38,17 +47,32 @@ const writeAll = (swaps: PendingEthSwaps): void => {
 export const readPendingEthSwap = (
   chainId: number,
   wallet: Address,
-): Hash | undefined => {
-  const stored = readAll()[keyFor(chainId, wallet)]
-  return stored !== undefined && isHash(stored) ? stored : undefined
+): PendingEthSwap | undefined => {
+  const stored: Partial<StoredEthSwap> | undefined =
+    readAll()[keyFor(chainId, wallet)]
+  if (
+    !stored ||
+    typeof stored.hash !== 'string' ||
+    !isHash(stored.hash) ||
+    !isDecimal(stored.deadline)
+  ) {
+    return undefined
+  }
+  return { hash: stored.hash, deadline: BigInt(stored.deadline) }
 }
 
 export const savePendingEthSwap = (
   chainId: number,
   wallet: Address,
-  hash: Hash,
+  swap: PendingEthSwap,
 ): void => {
-  writeAll({ ...readAll(), [keyFor(chainId, wallet)]: hash })
+  writeAll({
+    ...readAll(),
+    [keyFor(chainId, wallet)]: {
+      hash: swap.hash,
+      deadline: swap.deadline.toString(),
+    },
+  })
 }
 
 export const clearPendingEthSwap = (chainId: number, wallet: Address): void => {
@@ -62,12 +86,12 @@ export const subscribePendingEthSwap = (
 ): (() => void) => {
   let previous = actor.getSnapshot().context.pendingEthSwap
   const subscription = actor.subscribe(({ context }) => {
-    const { pendingEthSwap: hash, chainId, ownerAddress } = context
-    if (hash === previous) return
-    previous = hash
+    const { pendingEthSwap: swap, chainId, ownerAddress } = context
+    if (swap === previous) return
+    previous = swap
     if (!ownerAddress) return
-    if (hash === undefined) clearPendingEthSwap(chainId, ownerAddress)
-    else savePendingEthSwap(chainId, ownerAddress, hash)
+    if (swap === undefined) clearPendingEthSwap(chainId, ownerAddress)
+    else savePendingEthSwap(chainId, ownerAddress, swap)
   })
   return () => subscription.unsubscribe()
 }

@@ -1,5 +1,7 @@
-import type { RegistrationMachineActor } from '@ens-apps/transaction-manager'
-import type { Hash } from 'viem'
+import type {
+  PendingEthSwap,
+  RegistrationMachineActor,
+} from '@ens-apps/transaction-manager'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   readPendingEthSwap,
@@ -9,10 +11,14 @@ import {
 
 const WALLET = '0x1111111111111111111111111111111111111111' as const
 const OTHER_WALLET = '0x2222222222222222222222222222222222222222' as const
-const SWAP: Hash = `0x${'de'.repeat(32)}`
+// A deadline past 2^53 checks it round-trips as a bigint, not a number.
+const SWAP: PendingEthSwap = {
+  hash: `0x${'de'.repeat(32)}`,
+  deadline: 2n ** 60n + 1n,
+}
 
 type Context = {
-  readonly pendingEthSwap?: Hash
+  readonly pendingEthSwap?: PendingEthSwap
   readonly chainId: number
   readonly ownerAddress?: string
 }
@@ -28,6 +34,7 @@ const fakeActor = (initial: Context) => {
     },
   }
   return {
+    // Partial: the subscription only reads `getSnapshot` and `subscribe`.
     actor: actor as unknown as RegistrationMachineActor,
     emit: (context: Context) => listener?.({ context }),
   }
@@ -39,7 +46,7 @@ describe('pendingEthSwap', () => {
   it('keeps one swap per chain and wallet', () => {
     savePendingEthSwap(11155111, WALLET, SWAP)
 
-    expect(readPendingEthSwap(11155111, WALLET.toUpperCase() as never)).toBe(
+    expect(readPendingEthSwap(11155111, WALLET.toUpperCase() as never)).toEqual(
       SWAP,
     )
     expect(readPendingEthSwap(11155111, OTHER_WALLET)).toBeUndefined()
@@ -54,7 +61,7 @@ describe('pendingEthSwap', () => {
     subscribePendingEthSwap(actor)
 
     emit({ chainId: 11155111, ownerAddress: WALLET, pendingEthSwap: SWAP })
-    expect(readPendingEthSwap(11155111, WALLET)).toBe(SWAP)
+    expect(readPendingEthSwap(11155111, WALLET)).toEqual(SWAP)
 
     emit({ chainId: 11155111, ownerAddress: WALLET })
     expect(readPendingEthSwap(11155111, WALLET)).toBeUndefined()
@@ -71,6 +78,6 @@ describe('pendingEthSwap', () => {
 
     emit({ chainId: 11155111, ownerAddress: WALLET })
 
-    expect(readPendingEthSwap(11155111, WALLET)).toBe(SWAP)
+    expect(readPendingEthSwap(11155111, WALLET)).toEqual(SWAP)
   })
 })

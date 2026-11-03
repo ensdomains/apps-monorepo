@@ -30,7 +30,11 @@ import {
   validateCommitmentActor,
   verifyRegistrationActor,
 } from './registration.actors'
-import { type EthFunding, swapEthForUsdcActor } from './registration.eth.actors'
+import {
+  type EthFunding,
+  type PendingEthSwap,
+  swapEthForUsdcActor,
+} from './registration.eth.actors'
 import {
   awaitL2BridgeActor,
   estimateHcaBudgetActor,
@@ -363,7 +367,7 @@ export type RegistrationContext = {
    * The wallet's ETH swap, from when it was sent until it confirmed.
    * Persisted, so a resumed run counts it instead of swapping again.
    */
-  pendingEthSwap?: Hash
+  pendingEthSwap?: PendingEthSwap
   /**
    * Standalone-HCA: asks the host app for a new session when a leg's quoted
    * gas refund outgrows the current one's caps. Runtime dep injected on
@@ -491,7 +495,7 @@ export type RegistrationEvent =
       /** Standalone-HCA: fund with ETH. See `RegistrationContext.ethFunding`. */
       ethFunding?: EthFunding
       /** An ETH swap an abandoned run sent; this run counts it before buying. */
-      pendingEthSwap?: Hash
+      pendingEthSwap?: PendingEthSwap
       /**
        * A bridge an abandoned run sent that may not have settled yet; this run
        * waits for it before paying. See `isL2BridgeFromPriorRun`.
@@ -573,7 +577,7 @@ export type RegistrationEvent =
   | {
       /** The wallet sent the ETH swap; see `pendingEthSwap`. */
       type: 'ETH_SWAP_SENT'
-      hash: Hash
+      swap: PendingEthSwap
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -1108,7 +1112,7 @@ export const registrationMachine = setup({
       }),
     },
     ETH_SWAP_SENT: {
-      actions: assign({ pendingEthSwap: ({ event }) => event.hash }),
+      actions: assign({ pendingEthSwap: ({ event }) => event.swap }),
     },
     // Accepted from anywhere, since the owning wallet can go away at any point
     // of the run. Leaving the state stops whatever it had invoked, as closing
@@ -1638,8 +1642,8 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           pendingSwap: context.pendingEthSwap,
-          onSwapSent: (hash: Hash) =>
-            self.send({ type: 'ETH_SWAP_SENT', hash }),
+          onSwapSent: (swap: PendingEthSwap) =>
+            self.send({ type: 'ETH_SWAP_SENT', swap }),
         }),
         onDone: {
           target: 'signingFundingPermit',

@@ -14,12 +14,20 @@ export type EthPaymentRow = Readonly<{
   chargeRaw: bigint | undefined
   /** The wallet's ETH (wei), once read. */
   balanceRaw: bigint | undefined
+  /** ETH (wei) the swap step keeps back for gas on top of the swap. */
+  gasReserveRaw: bigint
   isQuoteLoading: boolean
   hasQuoteFailed: boolean
 }>
 
-export const isEthShortOfFunds = ({ chargeRaw, balanceRaw }: EthPaymentRow) =>
-  chargeRaw !== undefined && balanceRaw !== undefined && balanceRaw < chargeRaw
+export const isEthShortOfFunds = ({
+  chargeRaw,
+  balanceRaw,
+  gasReserveRaw,
+}: EthPaymentRow) =>
+  chargeRaw !== undefined &&
+  balanceRaw !== undefined &&
+  balanceRaw < chargeRaw + gasReserveRaw
 
 /** The row can pay: quoted, and the wallet holds what it would send. */
 export const canPayWithEth = (row: EthPaymentRow) =>

@@ -1222,6 +1222,7 @@ describe('TokenPickerContentBase ETH row', () => {
     row: {
       chargeRaw: 2_600_000_000_000_000n,
       balanceRaw: 10n ** 18n,
+      gasReserveRaw: 0n,
       isQuoteLoading: false,
       hasQuoteFailed: false,
       ...row,
@@ -1271,17 +1272,28 @@ describe('TokenPickerContentBase ETH row', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 
-  it('holds checkout and says why when the wallet is short of ETH', () => {
-    renderPicker({
-      funding: underfunded,
-      selectedToken: 'USDC',
-      stablecoinBalances: [emptyUsdc],
-      ethPayment: ethPaymentOf({ balanceRaw: 1n }, true),
-    })
+  it.each([
+    ['the swap', { balanceRaw: 1n }],
+    [
+      'the swap and its gas',
+      { balanceRaw: 2_600_000_000_000_000n, gasReserveRaw: 1n },
+    ],
+  ])(
+    'holds checkout and says why when the wallet is short of %s',
+    (_case, row) => {
+      renderPicker({
+        funding: underfunded,
+        selectedToken: 'USDC',
+        stablecoinBalances: [emptyUsdc],
+        ethPayment: ethPaymentOf(row, true),
+      })
 
-    expect(screen.getByText('Not enough ETH in your wallet.')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
-  })
+      expect(screen.getByText('Not enough ETH in your wallet.')).toBeVisible()
+      expect(
+        screen.getByRole('button', { name: 'Register name' }),
+      ).toBeDisabled()
+    },
+  )
 
   it('keeps a chosen ETH payment rather than falling back to the wallet', () => {
     const onSelectCoin = renderPicker({

@@ -691,6 +691,7 @@ const getEthPaymentRow = (
     readonly data?: {
       readonly swap?: { readonly maximumEth: bigint }
       readonly walletBalance: bigint
+      readonly gasReserve: bigint
     }
     readonly isPending: boolean
     readonly isPlaceholderData: boolean
@@ -702,6 +703,7 @@ const getEthPaymentRow = (
     ? {
         chargeRaw: 0n,
         balanceRaw: undefined,
+        gasReserveRaw: 0n,
         isQuoteLoading: false,
         hasQuoteFailed: false,
       }
@@ -712,6 +714,7 @@ const getEthPaymentRow = (
             ? undefined
             : (quote.data.swap?.maximumEth ?? 0n),
         balanceRaw: quote.data?.walletBalance,
+        gasReserveRaw: quote.data?.gasReserve ?? 0n,
         // A placeholder belongs to another amount: shown, never paid on.
         isQuoteLoading: quote.isPending || quote.isPlaceholderData,
         hasQuoteFailed: quote.isError,

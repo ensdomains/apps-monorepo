@@ -17,7 +17,6 @@ const estimateGas = vi.fn()
 const estimateFeesPerGas = vi.fn()
 const sendTransaction = vi.fn()
 const waitForTransactionReceipt = vi.fn()
-const getTransaction = vi.fn()
 vi.mock('viem/actions', async (importOriginal) => ({
   ...(await importOriginal<typeof import('viem/actions')>()),
   readContract: (...args: unknown[]) => readContract(...args),
@@ -28,7 +27,6 @@ vi.mock('viem/actions', async (importOriginal) => ({
   sendTransaction: (...args: unknown[]) => sendTransaction(...args),
   waitForTransactionReceipt: (...args: unknown[]) =>
     waitForTransactionReceipt(...args),
-  getTransaction: (...args: unknown[]) => getTransaction(...args),
 }))
 
 const WALLET: Address = '0x1111111111111111111111111111111111111111'
@@ -37,6 +35,8 @@ const ROUTER = '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E'
 const SWAP_HASH: Hash = `0x${'de'.repeat(32)}`
 const PENDING_HASH: Hash = `0x${'aa'.repeat(32)}`
 const NOW_S = BigInt(Math.floor(Date.now() / 1000))
+/** An earlier swap whose deadline hasn't passed, so it may still land. */
+const LIVE_SWAP = { hash: PENDING_HASH, deadline: NOW_S + 10n * 60n }
 const ETH_USD = 2_000_00000000n
 const PERMIT_VALUE = 20_000_000n
 const QUOTED_IN = 10_000_000_000_000_000n
@@ -135,7 +135,11 @@ describe('swapEthForUsdcActor', () => {
         chain: sepolia,
       }),
     )
-    expect(onSwapSent).toHaveBeenCalledWith(SWAP_HASH)
+    const [sent] = onSwapSent.mock.calls[0] ?? []
+    expect(sent.hash).toBe(SWAP_HASH)
+    // The router's deadline, 20 minutes out, is what lets a later run rule this swap out.
+    expect(sent.deadline - NOW_S).toBeGreaterThanOrEqual(20n * 60n)
+    expect(sent.deadline - NOW_S).toBeLessThan(20n * 60n + 60n)
     expect(onSwapSent.mock.invocationCallOrder[0]).toBeLessThan(
       waitForTransactionReceipt.mock.invocationCallOrder[0] ?? 0,
     )
@@ -150,7 +154,7 @@ describe('swapEthForUsdcActor', () => {
   })
 
   it('counts an earlier swap before buying again', async () => {
-    await swapEthForUsdcActor(input({ pendingSwap: PENDING_HASH }))
+    await swapEthForUsdcActor(input({ pendingSwap: LIVE_SWAP }))
     expect(waitForTransactionReceipt).toHaveBeenNthCalledWith(1, publicClient, {
       hash: PENDING_HASH,
     })
@@ -159,31 +163,29 @@ describe('swapEthForUsdcActor', () => {
     )
   })
 
-  it.each([
-    ['dropped, so buys again', true],
-    ['still pending, so stops', false],
-  ])(
-    'treats an earlier swap whose wait ran out as %s',
-    async (_case, isDropped) => {
-      waitForTransactionReceipt.mockRejectedValueOnce(new Error('timed out'))
-      getTransaction.mockImplementation(async () => {
-        if (!isDropped) return { hash: PENDING_HASH }
-        throw Object.assign(new Error('not found'), {
-          name: 'TransactionNotFoundError',
-        })
-      })
+  // The app's node may not see a swap the wallet sent privately, so only the deadline rules it out.
+  it('waits instead of buying again while an earlier swap can still land', async () => {
+    waitForTransactionReceipt.mockRejectedValueOnce(new Error('timed out'))
 
-      const result = await swapEthForUsdcActor(
-        input({ pendingSwap: PENDING_HASH }),
-      )
+    const result = await swapEthForUsdcActor(input({ pendingSwap: LIVE_SWAP }))
 
-      expect(getTransaction).toHaveBeenCalledWith(publicClient, {
-        hash: PENDING_HASH,
-      })
-      expect(result.isOk()).toBe(isDropped)
-      expect(sendTransaction).toHaveBeenCalledTimes(isDropped ? 1 : 0)
-    },
-  )
+    expect(result._unsafeUnwrapErr().message).toContain('not confirmed yet')
+    expect(sendTransaction).not.toHaveBeenCalled()
+  })
+
+  it('buys again once an earlier swap is past its deadline, without waiting on it', async () => {
+    const result = await swapEthForUsdcActor(
+      input({
+        pendingSwap: { hash: PENDING_HASH, deadline: NOW_S - 10n * 60n },
+      }),
+    )
+
+    expect(result.isOk()).toBe(true)
+    expect(waitForTransactionReceipt).not.toHaveBeenCalledWith(publicClient, {
+      hash: PENDING_HASH,
+    })
+    expect(sendTransaction).toHaveBeenCalledOnce()
+  })
 
   it('sends nothing when the run was cancelled before the wallet is asked', async () => {
     const cancelled = new AbortController()

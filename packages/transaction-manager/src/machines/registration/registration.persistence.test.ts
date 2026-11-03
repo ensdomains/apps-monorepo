@@ -232,7 +232,10 @@ describe('registration record serialization', () => {
   it('round-trips an ETH swap still confirming, so a resume counts it', () => {
     const context = baseContext({
       ethFunding: { displayedCharge: 10n ** 16n },
-      pendingEthSwap: `0x${'de'.repeat(32)}`,
+      pendingEthSwap: {
+        hash: `0x${'de'.repeat(32)}`,
+        deadline: 1_800_000_000n,
+      },
     })
 
     const record = buildRegistrationRecord('swappingEth', context, 42)

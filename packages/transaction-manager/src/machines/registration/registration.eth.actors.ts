@@ -10,19 +10,13 @@
 
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import {
-  err,
-  errAsync,
-  fromPromise,
-  ok,
-  okAsync,
-  type ResultAsync,
-} from 'neverthrow'
+import { err, fromPromise, ok, okAsync, ResultAsync } from 'neverthrow'
 import {
   type Address,
   erc20Abi,
   formatEther,
   type Hash,
+  type Hex,
   type PublicClient,
   type WalletClient,
 } from 'viem'
@@ -30,7 +24,6 @@ import {
   estimateFeesPerGas,
   estimateGas,
   getBalance,
-  getTransaction,
   readContract,
   sendTransaction,
   waitForTransactionReceipt,
@@ -39,6 +32,7 @@ import {
   buildEthSwapCall,
   ETH_SWAP_DISPLAYED_DRIFT_BPS,
   type EthSwapQuote,
+  type EthSwapUnavailableError,
   quoteEthSwap,
   withBps,
 } from '../../helpers/eth-usdc-swap'
@@ -62,6 +56,11 @@ export type EthPaymentQuote = Readonly<{
 const GAS_RESERVE_MULTIPLIER = 2n
 /** How long the signed swap stays valid on-chain. */
 const SWAP_DEADLINE_SECONDS = 20n * 60n
+/** Leeway for this device's clock running ahead of the chain's. */
+const DEADLINE_CLOCK_MARGIN_SECONDS = 5n * 60n
+
+/** A swap the wallet sent, and the deadline after which the router refuses it. */
+export type PendingEthSwap = Readonly<{ hash: Hash; deadline: bigint }>
 
 const nowSeconds = (): bigint => BigInt(Math.floor(Date.now() / 1000))
 
@@ -146,38 +145,68 @@ const walletOf = (
     : paymentError('Paying with ETH needs the wallet that owns this account.')
 }
 
-/** viem's error for a hash no node knows; `name` survives minification. */
-const isTransactionNotFound = (error: unknown): boolean =>
-  error instanceof Error && error.name === 'TransactionNotFoundError'
+/** Past its deadline the router refuses a swap, so it can buy nothing more. */
+export const isPastSwapDeadline = (
+  swap: PendingEthSwap,
+  now: bigint,
+): boolean => now > swap.deadline + DEADLINE_CLOCK_MARGIN_SECONDS
 
-/** Count an earlier swap before buying again; one dropped after the wait is bought again, one still pending stops. */
+/** Wait out an earlier swap before buying again; what it bought shows in the wallet's USDC. */
 const settlePendingSwap = (
   publicClient: PublicClient,
-  hash: Hash | undefined,
+  pending: PendingEthSwap | undefined,
 ): ResultAsync<void, EthSwapPaymentError> => {
-  if (hash === undefined) return okAsync(undefined)
+  if (!pending || isPastSwapDeadline(pending, nowSeconds())) {
+    return okAsync(undefined)
+  }
   return fromPromise(
-    waitForTransactionReceipt(publicClient, { hash }).then(() => {}),
-    toError,
-  ).orElse((waitError) =>
-    fromPromise(getTransaction(publicClient, { hash }), (cause) => cause)
-      .map(() => false)
-      .orElse((cause) =>
-        isTransactionNotFound(cause) ? okAsync(true) : errAsync(cause),
-      )
-      .mapErr(toError)
-      .andThen((isDropped) =>
-        isDropped
-          ? okAsync(undefined)
-          : errAsync(
-              paymentError(
-                'Your earlier ETH swap has not confirmed yet, so not swapping again. Try again in a few minutes.',
-                waitError,
-              ),
-            ),
+    waitForTransactionReceipt(publicClient, { hash: pending.hash }).then(
+      () => {},
+    ),
+    (cause) =>
+      paymentError(
+        'Your earlier ETH swap has not confirmed yet, so not swapping again. Try again in a few minutes.',
+        cause,
       ),
   )
 }
+
+/** Twice the swap's estimated gas cost: what the wallet must hold on top of the swap. */
+const estimateSwapGasReserve = (input: {
+  readonly publicClient: PublicClient
+  readonly account: Address
+  readonly call: Readonly<{ to: Address; data: Hex; value: bigint }>
+}): ResultAsync<bigint, EthSwapPaymentError> =>
+  fromPromise(
+    Promise.all([
+      estimateGas(input.publicClient, {
+        account: input.account,
+        ...input.call,
+      }),
+      estimateFeesPerGas(input.publicClient),
+    ]),
+    (cause) => paymentError('Could not prepare the ETH swap.', cause),
+  ).map(([gas, fees]) => gas * fees.maxFeePerGas * GAS_RESERVE_MULTIPLIER)
+
+/** The gas reserve the swap step will ask of `owner` for `swap`, for checkout to show. */
+export const quoteEthSwapGasReserve = (input: {
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly owner: Address
+  readonly swap: EthSwapQuote
+}): ResultAsync<bigint, EthSwapPaymentError | EthSwapUnavailableError> =>
+  buildEthSwapCall({
+    quote: input.swap,
+    chainId: input.chainId,
+    recipient: input.owner,
+    deadline: nowSeconds() + SWAP_DEADLINE_SECONDS,
+  }).asyncAndThen((call) =>
+    estimateSwapGasReserve({
+      publicClient: input.publicClient,
+      account: input.owner,
+      call,
+    }),
+  )
 
 /**
  * Buy the USDC the wallet is short of signing a permit for `permitValue`.
@@ -190,9 +219,9 @@ export const swapEthForUsdcActor = ResultFn(async function* (input: {
   readonly approvalSigner: Signer
   readonly publicClient: PublicClient
   /** A swap an earlier attempt sent. */
-  readonly pendingSwap?: Hash
-  /** Receives the swap's hash the moment the wallet sends it. */
-  readonly onSwapSent?: (hash: Hash) => void
+  readonly pendingSwap?: PendingEthSwap
+  /** Receives the swap the moment the wallet sends it. */
+  readonly onSwapSent?: (swap: PendingEthSwap) => void
   /** Set when the run is cancelled; nothing is sent after that. */
   readonly signal?: AbortSignal
 }) {
@@ -212,25 +241,29 @@ export const swapEthForUsdcActor = ResultFn(async function* (input: {
   })
   if (!swap) return ok(0n)
 
+  const deadline = nowSeconds() + SWAP_DEADLINE_SECONDS
   const call = yield* buildEthSwapCall({
     quote: swap,
     chainId: chain.id,
     recipient: wallet.address,
-    deadline: nowSeconds() + SWAP_DEADLINE_SECONDS,
+    deadline,
   })
-  const [walletBalance, gas, fees] = yield* fromPromise(
-    Promise.all([
+  const [walletBalance, gasReserve] = yield* ResultAsync.combine([
+    fromPromise(
       getBalance(input.publicClient, { address: wallet.address }),
-      estimateGas(input.publicClient, { account: wallet.address, ...call }),
-      estimateFeesPerGas(input.publicClient),
-    ]),
-    (cause) => paymentError('Could not prepare the ETH swap.', cause),
-  )
+      (cause) => paymentError('Could not prepare the ETH swap.', cause),
+    ),
+    estimateSwapGasReserve({
+      publicClient: input.publicClient,
+      account: wallet.address,
+      call,
+    }),
+  ])
   const refusal = rejectEthSwap({
     maximumEth: swap.maximumEth,
     displayedCharge: input.funding?.displayedCharge,
     walletBalance,
-    gasReserve: gas * fees.maxFeePerGas * GAS_RESERVE_MULTIPLIER,
+    gasReserve,
   })
   if (refusal) return err(paymentError(refusal))
   // The quote and estimates above take time; a run cancelled meanwhile sends nothing.
@@ -246,7 +279,7 @@ export const swapEthForUsdcActor = ResultFn(async function* (input: {
     }),
     toError,
   )
-  input.onSwapSent?.(hash)
+  input.onSwapSent?.({ hash, deadline })
   const receipt = yield* fromPromise(
     waitForTransactionReceipt(input.publicClient, { hash }),
     toError,

@@ -1,12 +1,13 @@
 import {
   quoteEthPaymentActor,
+  quoteEthSwapGasReserve,
   type EthPaymentQuote as SwapQuote,
 } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { keepPreviousData } from '@tanstack/react-query'
-import { errAsync, ResultAsync } from 'neverthrow'
+import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { chain } from '@/config'
 import { publicClient } from '@/lib/wagmi'
@@ -16,6 +17,8 @@ export type EthPaymentQuote = SwapQuote &
   Readonly<{
     /** The wallet's ETH (wei). */
     walletBalance: bigint
+    /** ETH (wei) the swap step also keeps back for gas; `0n` while the swap alone is unaffordable. */
+    gasReserve: bigint
   }>
 
 export type EthPaymentQuoteParams = Readonly<{
@@ -53,7 +56,17 @@ const getEthPaymentQuote = ({
       (cause) => cause,
     ),
   ])
-    .map(([quote, walletBalance]) => ({ ...quote, walletBalance }))
+    .andThen(([quote, walletBalance]) =>
+      // Estimating gas for a swap the wallet can't fund fails, and the row is short anyway.
+      quote.swap && walletBalance >= quote.swap.maximumEth
+        ? quoteEthSwapGasReserve({
+            publicClient,
+            chainId: chain.id,
+            owner,
+            swap: quote.swap,
+          }).map((gasReserve) => ({ ...quote, walletBalance, gasReserve }))
+        : okAsync({ ...quote, walletBalance, gasReserve: 0n }),
+    )
     .mapErr((cause) => new EthPaymentQuoteError({ cause }))
 }
 

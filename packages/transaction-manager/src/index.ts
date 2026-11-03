@@ -84,7 +84,9 @@ export {
 export {
   type EthFunding,
   type EthPaymentQuote,
+  type PendingEthSwap,
   quoteEthPaymentActor,
+  quoteEthSwapGasReserve,
 } from './machines/registration/registration.eth.actors'
 export type {
   ReauthorizeSession,

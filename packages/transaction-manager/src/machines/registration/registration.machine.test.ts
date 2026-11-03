@@ -11,7 +11,7 @@ import {
 import { transactionManager } from '../../providers/transactionManager'
 import type { L2FundingSource, Signer } from '../../types/signer.types'
 import type { TransactionRequest } from '../../types/transaction.types'
-import type { EthFunding } from './registration.eth.actors'
+import type { EthFunding, PendingEthSwap } from './registration.eth.actors'
 import {
   type HcaSessionEnableParams,
   L2_BRIDGE_CLAIMABLE_MS,
@@ -80,7 +80,7 @@ const startHcaRegistration = (overrides: {
   /** Funds the HCA with the wallet's ETH instead of with a permit. */
   ethFunding?: EthFunding
   /** An ETH swap an abandoned run sent, as read back from storage. */
-  pendingEthSwap?: Hash
+  pendingEthSwap?: PendingEthSwap
   swapEthForUsdc?: ReturnType<typeof vi.fn>
 }) => {
   const estimateHcaBudget =
@@ -455,7 +455,10 @@ describe('registrationMachine — standalone-HCA funding', () => {
 
 describe('registrationMachine — paid with ETH', () => {
   const ethFunding: EthFunding = { displayedCharge: 10n ** 16n }
-  const SWAP_HASH = `0x${'de'.repeat(32)}` as Hash
+  const SWAP: PendingEthSwap = {
+    hash: `0x${'de'.repeat(32)}` as Hash,
+    deadline: 1_800_000_000n,
+  }
 
   it('buys the USDC with ETH, then funds the HCA with the usual permit', async () => {
     const balance = 1_000_000n
@@ -493,12 +496,12 @@ describe('registrationMachine — paid with ETH', () => {
     const { actor, swapEthForUsdc } = startHcaRegistration({
       balances: [0n],
       ethFunding,
-      pendingEthSwap: SWAP_HASH,
+      pendingEthSwap: SWAP,
     })
 
     await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
 
-    expect(swapEthForUsdc.mock.calls[0][0].input.pendingSwap).toBe(SWAP_HASH)
+    expect(swapEthForUsdc.mock.calls[0][0].input.pendingSwap).toBe(SWAP)
     expect(actor.getSnapshot().context.pendingEthSwap).toBeUndefined()
   })
 
@@ -512,9 +515,9 @@ describe('registrationMachine — paid with ETH', () => {
           async ({
             input,
           }: {
-            input: { onSwapSent: (hash: Hash) => void }
+            input: { onSwapSent: (swap: PendingEthSwap) => void }
           }) => {
-            input.onSwapSent(SWAP_HASH)
+            input.onSwapSent(SWAP)
             throw new Error('lost track of the receipt')
           },
         )
@@ -522,11 +525,11 @@ describe('registrationMachine — paid with ETH', () => {
     })
 
     await waitFor(actor, (s) => s.matches('error'))
-    expect(actor.getSnapshot().context.pendingEthSwap).toBe(SWAP_HASH)
+    expect(actor.getSnapshot().context.pendingEthSwap).toBe(SWAP)
     actor.send({ type: 'RETRY' })
     await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
 
-    expect(swapEthForUsdc.mock.calls[1][0].input.pendingSwap).toBe(SWAP_HASH)
+    expect(swapEthForUsdc.mock.calls[1][0].input.pendingSwap).toBe(SWAP)
     expect(actor.getSnapshot().context.pendingEthSwap).toBeUndefined()
   })
 
