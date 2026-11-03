@@ -5,6 +5,7 @@ import { logger } from '#utils/logger.js'
 import { createApp } from './middleware/hono'
 import authApp from './routes/auth'
 import favoritesApp from './routes/favorites'
+import linkPreviewApp from './routes/link-preview'
 import namesApp from './routes/names'
 import notificationsApp from './routes/notifications'
 import walletApp from './routes/wallet'
@@ -16,6 +17,7 @@ const app = createApp()
   .get('/health', (c) => c.json({ status: 'ok', chain: c.env.CHAIN }))
   .route('/', authApp)
   .route('/', favoritesApp)
+  .route('/', linkPreviewApp)
   .route('/', namesApp)
   .route('/', notificationsApp)
   .route('/', webhookApp)
