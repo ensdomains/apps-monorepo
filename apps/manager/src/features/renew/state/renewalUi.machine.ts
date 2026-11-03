@@ -90,6 +90,13 @@ export type RenewalPaymentUpdate =
   | { readonly status: 'reviewing'; readonly prompt: HcaFundingPrompt }
   | { readonly status: 'accepted'; readonly prompt: HcaFundingPrompt }
 
+/** Resolves `false` once the signal aborts, so a waiting question is declined. */
+const declineOnAbort = (signal: AbortSignal) =>
+  new Promise<boolean>((resolve) => {
+    if (signal.aborted) resolve(false)
+    signal.addEventListener('abort', () => resolve(false), { once: true })
+  })
+
 const requireRhinestoneSigner = (signer: Signer): RhinestoneSigner => {
   if (signer.type !== 'rhinestone') {
     throw new Error('The HCA renewal route needs a smart-account signer')
@@ -189,7 +196,26 @@ export const renewalUiMachine = setup({
       }: {
         input: Parameters<typeof submitHcaRenewal>[0]
         signal: AbortSignal
-      }) => (await submitHcaRenewal({ ...input, signal })).txId,
+      }) => {
+        const { confirmIncreasedPayment } = input
+        return (
+          await submitHcaRenewal({
+            ...input,
+            signal,
+            // Stopping the machine runs no exit actions, so the abort answers
+            // the open question instead.
+            ...(confirmIncreasedPayment
+              ? {
+                  confirmIncreasedPayment: (prompt: HcaFundingPrompt) =>
+                    Promise.race([
+                      confirmIncreasedPayment(prompt),
+                      declineOnAbort(signal),
+                    ]),
+                }
+              : {}),
+          })
+        ).txId
+      },
     ),
     readExpiry: fromResultAsync(
       (input: { name: string; protocol: RenewalProtocol }) =>

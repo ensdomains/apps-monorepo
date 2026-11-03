@@ -459,6 +459,24 @@ describe('increased payment on the smart-account route', () => {
     actor.stop()
   })
 
+  it('declines the open question when the renewal actor stops', async () => {
+    // Stopping an actor runs no exit actions, so unmounting the page must
+    // still answer the question the abandoned submit is waiting on.
+    let answer: Promise<boolean> | undefined
+    mocks.submitHcaRenewal.mockImplementation((input: SubmitInput) => {
+      answer = input.confirmIncreasedPayment(UPDATED)
+      return new Promise(() => undefined)
+    })
+
+    const actor = startRenewal('v2', 'smart-account', {
+      displayedDebit: CONFIRMED,
+    })
+    await waitForReview(actor)
+    actor.stop()
+
+    await expect(answer).resolves.toBe(false)
+  })
+
   it('declines a late question from an abandoned attempt without replacing the newer receipt', async () => {
     const inputs: SubmitInput[] = []
     // Each attempt waits on its quote until the test answers it.
