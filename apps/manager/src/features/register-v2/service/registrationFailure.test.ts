@@ -120,6 +120,10 @@ describe('isInvalidSignatureError', () => {
       'an address that starts with the selector digits',
       new Error('sent from 0x8baa579f2c4e6a8b'),
     ],
+    [
+      'a longer error name that ends the same way',
+      new Error('execution reverted: ECDSAInvalidSignature()'),
+    ],
     ['no error', undefined],
   ])('ignores %s', (_, error) => {
     expect(isInvalidSignatureError(error)).toBe(false)

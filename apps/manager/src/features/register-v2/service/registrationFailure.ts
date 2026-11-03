@@ -62,7 +62,7 @@ export const isNameNotAvailableError = (error: unknown): boolean =>
 // so it only says "the session was revoked" next to a revoke on this page.
 const INVALID_SIGNATURE_SELECTOR = toFunctionSelector('InvalidSignature()')
 const INVALID_SIGNATURE_IN_TEXT = new RegExp(
-  `InvalidSignature\\(\\)|(?<![0-9a-f])${INVALID_SIGNATURE_SELECTOR}(?![0-9a-f])`,
+  `(?<!\\w)InvalidSignature\\(\\)|(?<![0-9a-f])${INVALID_SIGNATURE_SELECTOR}(?![0-9a-f])`,
   'i',
 )
 
