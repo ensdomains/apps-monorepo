@@ -1,10 +1,4 @@
-import { useLingui } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 export type PaymentMethodRowProps = {
@@ -22,7 +16,6 @@ export type PaymentMethodRowProps = {
   readonly onSelect: () => void
   readonly fee?: React.ReactNode
   readonly isFeeLoading?: boolean
-  readonly feeTooltip?: React.ReactNode
   /** A reason this method can't pay yet, under the fee. */
   readonly warning?: React.ReactNode
 }
@@ -41,16 +34,14 @@ export const PaymentMethodRow = ({
   onSelect,
   fee,
   isFeeLoading = false,
-  feeTooltip,
   warning,
 }: PaymentMethodRowProps) => {
-  const { t } = useLingui()
-
   return (
     <div
       className={cn(
-        'relative flex w-full items-start justify-between gap-3 rounded p-3 text-left',
-        isSelected && 'bg-ens-quartz-75',
+        // Every row keeps a 1px border, so selecting one doesn't shift the list.
+        'relative flex w-full items-start justify-between gap-3 rounded border border-transparent p-3 text-left',
+        isSelected && 'border-ens-lapis-500 bg-[#F6FBFD]',
       )}
       data-slot="payment-method-row"
     >
@@ -75,25 +66,11 @@ export const PaymentMethodRow = ({
           {(fee !== undefined || isFeeLoading) && (
             <span
               className={cn(
-                'flex min-w-0 items-center gap-0.5 text-ens-quartz-500 text-xs',
+                'flex min-w-0 items-center gap-0.5 text-ens-quartz-400 text-xs',
                 isFeeLoading && 'animate-pulse',
               )}
             >
               <span className="truncate">{fee ?? '—'}</span>
-              {feeTooltip && (
-                <Tooltip>
-                  <TooltipTrigger
-                    aria-label={t`What is the network fee?`}
-                    className="pointer-events-auto relative z-20 flex shrink-0 items-center text-ens-quartz-350"
-                    type="button"
-                  >
-                    <MSymbol className="ms-opsz-16 ms-wght-400" symbol="info" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-64 text-center">
-                    {feeTooltip}
-                  </TooltipContent>
-                </Tooltip>
-              )}
             </span>
           )}
           {warning && (

@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
-import { LoaderCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { MSymbol } from '@/components/ui/material-symbol'
 import {
   Popover,
   PopoverContent,
@@ -45,7 +45,7 @@ export const PaymentAction = ({
         aria-busy={isSettling}
         className={cn(
           'h-18 w-full rounded font-medium font-mono text-sm uppercase tracking-[1.12px]',
-          isEnabled || isBusy
+          isEnabled
             ? 'bg-ens-lapis-500 text-white hover:bg-ens-blue-hover'
             : 'bg-ens-quartz-100 text-ens-quartz-400',
           'disabled:cursor-not-allowed disabled:opacity-100',
@@ -53,12 +53,16 @@ export const PaymentAction = ({
         disabled={!isEnabled}
         onClick={onRetry ?? onNext}
       >
-        {isBusy && <LoaderCircle aria-hidden="true" className="animate-spin" />}
         {onRetry ? <Trans>Try again</Trans> : label}
       </Button>
-      {helpMessage && (
+      {helpMessage && !isBusy && (
         <Popover>
-          <PopoverTrigger className="rounded px-2 py-1 text-ens-quartz-500 text-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ens-blue">
+          <PopoverTrigger className="flex items-center gap-1 rounded px-2 py-1 text-ens-quartz-500 text-xs outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ens-blue">
+            <MSymbol
+              aria-hidden="true"
+              className="ms-opsz-20 ms-wght-400 text-xs"
+              symbol="info"
+            />
             <Trans>What will I sign?</Trans>
           </PopoverTrigger>
           <PopoverContent

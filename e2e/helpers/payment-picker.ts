@@ -18,7 +18,7 @@ export async function clickRegistrationPaymentAction(page: Page) {
   await page
     .getByRole('dialog', { name: 'Approve and register name' })
     .getByRole('button', {
-      name: /^(approve and register|sign payment approval|register name)$/i,
+      name: /^(approve and register|sign approval|register name)$/i,
     })
     .click()
 }

@@ -6,10 +6,7 @@ import { useSelector } from '@xstate/react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { isAddressEqual } from 'viem'
-import ethCoinIcon from '@/assets/icons/eth-coin.svg'
-import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
-import { Switch } from '@/components/ui/switch'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
@@ -25,6 +22,7 @@ import {
   getHcaBudgetQueryOptions,
   isHcaBudgetQuoteRequired,
 } from '../../../data/queries/hcaBudget.query'
+import { getHcaUsdcBalanceQueryOptions } from '../../../data/queries/hcaUsdcBalance.query'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
@@ -39,13 +37,15 @@ import {
   type L2PaymentRow,
   useL2Payment,
 } from '../hooks/useL2Payment'
+import { getCheckoutTotalUsd } from '../lib/checkoutSummary'
 import {
-  type CurrentMethodState,
+  getCurrentMethodState,
   getFallbackPaymentChoice,
   type PayableMethod,
+  type SelectedMethod,
+  shouldShowWalletShortfall,
 } from '../lib/fallbackPaymentChoice'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
-import { getPayingMethods } from '../lib/paymentMethodVisibility'
 import {
   getPaymentReceiptFigures,
   getPaymentReceiptState,
@@ -58,6 +58,7 @@ import {
   EthPaymentListItem,
   type EthPaymentRow,
   getEthSelectionMessage,
+  getEthSwapGasUsd,
   isEthShortOfFunds,
 } from './EthPaymentListItem'
 import {
@@ -71,8 +72,9 @@ import {
   PaymentMethodList,
   type PaymentMethodListItem,
 } from './PaymentMethodList'
-import { PaymentReceipt } from './PaymentReceipt'
+import { NetworkFeeReceipt, PaymentReceipt } from './PaymentReceipt'
 import { PriceCooldownPill } from './PriceCooldownPill'
+import { RECEIPT_LABEL } from './receiptTypography'
 import { TokenListItem } from './TokenListItem'
 
 const MEDIUM_NAME_CHAR_THRESHOLD = 10
@@ -145,7 +147,7 @@ const PaymentMethods = <T extends TOKEN_SYMBOL>({
   readonly showNetworkFeeDetails: boolean
   readonly paymentMethodItems: readonly PaymentMethodListItem[]
   readonly stablecoinBalances: readonly StablecoinBalance[]
-  readonly onSelectCoin: (coin: T) => void
+  readonly onSelectCoin: (coin: T, origin?: FundingSourceOrigin) => void
   readonly selectedToken: T | undefined
   /** What the wallet must cover in a coin; `undefined` until it is priced. */
   readonly walletShareOf: (symbol: string) => number | undefined
@@ -225,6 +227,7 @@ export const TokenPickerContent = () => {
     ),
     enabled: selectedToken !== undefined,
     select: (data) => ({
+      totalPriceRaw: data.basePrice + data.premium,
       basePriceNumber: decimalBigintToNumber(
         data.basePrice,
         selectedToken ? TOKENS[selectedToken].decimals : TOKENS.USDC.decimals,
@@ -241,8 +244,11 @@ export const TokenPickerContent = () => {
     }),
   })
 
-  const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
-    uiActor.send({ type: 'pricing.token.select', token: coin })
+  const onSelectCoin = (
+    coin: SUPPORTED_TOKEN,
+    origin?: FundingSourceOrigin,
+  ) => {
+    uiActor.send({ type: 'pricing.token.select', token: coin, origin })
   }
 
   // The wallet's USDC balance. This is the EOA owner's balance (see
@@ -269,15 +275,14 @@ export const TokenPickerContent = () => {
   )
 
   // Auto-set is the default only when the wallet is eligible (no primary name
-  // yet and fewer than 5 owned names). The user can always override via the
-  // toggle, including turning it on to replace an existing primary name.
+  // yet and fewer than 5 owned names). A retry keeps the choice it confirmed.
   const defaultSetAsPrimary = !!getManagerRegistrationPostRegistrationSetup({
     ownerAddress: account.ownerAddress,
     existingPrimaryName: existingPrimaryNameQuery.data,
     ownedNamesCount: ownedNamesCountQuery.data,
   })
-  const [setPrimaryChoice, setSetPrimaryChoice] = useState<boolean | null>(
-    () => (approvalState.hasConfirmedData ? approvalState.setAsPrimary : null),
+  const [setPrimaryChoice] = useState<boolean | null>(() =>
+    approvalState.hasConfirmedData ? approvalState.setAsPrimary : null,
   )
   const setAsPrimary = approvalState.isApproving
     ? approvalState.setAsPrimary
@@ -305,6 +310,14 @@ export const TokenPickerContent = () => {
   // takes; on the HCA route a missing quote blocks rather than falling back to
   // the rent, which is not what the wallet pays.
   const isBudgetRequired = isHcaBudgetQuoteRequired(budgetQueryParams)
+  // The same figure the page showed: the name's cost less the account's balance.
+  const hcaBalanceQuery = useQuery(
+    getHcaUsdcBalanceQueryOptions(account.accountAddress),
+  )
+  const registrationTotal = getCheckoutTotalUsd(
+    pricingQuery.data?.totalPriceRaw,
+    hcaBalanceQuery.data,
+  )
   const hasBudgetQuoteFailed = isBudgetRequired && budgetQuery.isError
 
   // Absent until the quote lands, and permanently absent if it fails.
@@ -373,8 +386,8 @@ export const TokenPickerContent = () => {
     ? { displayedCharge: ethPayment?.row.chargeRaw }
     : undefined
 
-  // An explicit toggle choice always wins. Otherwise resolve the eligibility
-  // lookups (already in flight for the toggle default — fetchQuery dedupes)
+  // A confirmed choice always wins. Otherwise resolve the eligibility
+  // lookups (already in flight for the default — fetchQuery dedupes)
   // so a click that lands before they settle still auto-sets correctly. A
   // failed lookup skips the auto-setup rather than blocking registration.
   const resolveSetAsPrimary = async (): Promise<boolean> => {
@@ -609,22 +622,15 @@ export const TokenPickerContent = () => {
     isLoadingBalances,
     hasFunding: !!funding,
   })
-    .with(
-      { isBusy: true, isAwaitingPaymentApproval: true, isPaidWithEth: true },
-      () => <Trans>Paying with ETH…</Trans>,
-    )
-    .with({ isBusy: true, isAwaitingPaymentApproval: true }, () => (
-      <Trans>Signing payment approval…</Trans>
-    ))
-    .with({ isBusy: true }, () => <Trans>Preparing registration…</Trans>)
+    .with({ isBusy: true }, () => <Trans>Registering...</Trans>)
     .with(P.union({ isLoadingBalances: true }, { isQuoting: true }), () => (
-      <Trans>Register name</Trans>
+      <Trans>Loading...</Trans>
     ))
     .with({ isPaymentApprovalRequired: true, isPaidWithEth: true }, () => (
       <Trans>Swap and Register</Trans>
     ))
     .with({ isPaymentApprovalRequired: true, hasFunding: true }, () => (
-      <Trans>Sign payment approval</Trans>
+      <Trans>Sign approval</Trans>
     ))
     .with({ isPaymentApprovalRequired: true }, () => (
       <Trans>Approve and register</Trans>
@@ -634,28 +640,6 @@ export const TokenPickerContent = () => {
   return (
     <TokenPickerContentBase
       ethPayment={ethPayment}
-      footer={
-        <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
-          <div className="flex flex-col gap-0.5">
-            <span className="font-medium text-ens-gray text-sm">
-              <Trans>Set as primary name</Trans>
-            </span>
-            <span className="text-ens-gray text-xs">
-              <Trans>
-                Your wallet address can only have one primary name, which will
-                display instead of your wallet address across apps. You'll be
-                prompted to confirm this additional transaction after
-                registration.
-              </Trans>
-            </span>
-          </div>
-          <Switch
-            aria-label={t`Set ${domainName} as your primary name`}
-            checked={setAsPrimary}
-            onCheckedChange={setSetPrimaryChoice}
-          />
-        </div>
-      }
       funding={
         funding
           ? {
@@ -690,8 +674,12 @@ export const TokenPickerContent = () => {
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
+      registrationReceipt={
+        isBudgetRequired ? { total: registrationTotal } : undefined
+      }
       revalidatedShortfall={revalidatedShortfall}
       selectedToken={selectedToken}
+      shortfallLabel={<Trans>Register name</Trans>}
       showNetworkFeeDetails
       stablecoinBalances={stablecoinBalances}
     />
@@ -705,6 +693,7 @@ const getEthPaymentRow = (
       readonly swap?: { readonly maximumEth: bigint }
       readonly walletBalance: bigint
       readonly gasReserve: bigint
+      readonly ethUsd: bigint
     }
     readonly isPending: boolean
     readonly isPlaceholderData: boolean
@@ -717,6 +706,7 @@ const getEthPaymentRow = (
         chargeRaw: 0n,
         balanceRaw: undefined,
         gasReserveRaw: 0n,
+        ethUsdRaw: undefined,
         isQuoteLoading: false,
         hasQuoteFailed: false,
       }
@@ -728,6 +718,7 @@ const getEthPaymentRow = (
             : (quote.data.swap?.maximumEth ?? 0n),
         balanceRaw: quote.data?.walletBalance,
         gasReserveRaw: quote.data?.gasReserve ?? 0n,
+        ethUsdRaw: quote.data?.ethUsd,
         // A placeholder belongs to another amount: shown, never paid on.
         isQuoteLoading: quote.isPending || quote.isPlaceholderData,
         hasQuoteFailed: quote.isError,
@@ -786,34 +777,45 @@ const byBalanceDescending = (a: L2PaymentRow, b: L2PaymentRow) => {
   return right > left ? 1 : -1
 }
 
+// A short coin stays listed, so it can be picked; an empty one has nothing to offer.
+const hasBalance = (coin: StablecoinBalance) => BigInt(coin.balance) > 0n
+
 const coversShare = (coin: StablecoinBalance, share: number | undefined) =>
   share !== undefined &&
   decimalBigintToNumber(BigInt(coin.balance), coin.decimals) >= share
 
-const getCurrentMethodState = (
-  selectedL2: L2PaymentRow | undefined,
-  selectedOrigin: FundingSourceOrigin | undefined,
-  walletSelection: TOKEN_SYMBOL | undefined,
-  walletMethodItems: readonly PaymentMethodListItem[],
-  selectedEth: EthPaymentRow | undefined,
-): CurrentMethodState =>
-  match({ selectedL2, walletSelection, selectedEth })
-    // Always the user's pick, so it only gives way once it cannot pay.
-    .with({ selectedEth: P.nonNullable }, ({ selectedEth }) =>
-      isEthShortOfFunds(selectedEth)
-        ? ('short' as const)
-        : ('payable' as const),
-    )
-    .with({ selectedL2: P.nonNullable }, ({ selectedL2 }) =>
-      match({ isShort: isL2ShortOfFunds(selectedL2), selectedOrigin })
-        .with({ isShort: true }, () => 'short' as const)
-        .with({ selectedOrigin: 'fallback' }, () => 'auto' as const)
-        .otherwise(() => 'payable' as const),
-    )
-    .with({ walletSelection: P.nullish }, () => 'none' as const)
-    .otherwise(() =>
-      walletMethodItems.some((item) => item.isSelected) ? 'payable' : 'short',
-    )
+/** The method being paid with, whichever kind it is. */
+const getSelectedMethod = ({
+  selectedL2,
+  selectedEth,
+  walletSelection,
+  isWalletSelectionPayable,
+  origin,
+}: {
+  readonly selectedL2: L2PaymentRow | undefined
+  readonly selectedEth: EthPaymentRow | undefined
+  readonly walletSelection: TOKEN_SYMBOL | undefined
+  readonly isWalletSelectionPayable: boolean
+  readonly origin: FundingSourceOrigin | undefined
+}): SelectedMethod | undefined =>
+  match({ selectedL2, selectedEth, walletSelection })
+    .returnType<SelectedMethod | undefined>()
+    .with({ selectedEth: P.nonNullable }, ({ selectedEth }) => ({
+      kind: 'eth',
+      isPayable: !isEthShortOfFunds(selectedEth),
+      origin,
+    }))
+    .with({ selectedL2: P.nonNullable }, ({ selectedL2 }) => ({
+      kind: 'l2',
+      isPayable: !isL2ShortOfFunds(selectedL2),
+      origin,
+    }))
+    .with({ walletSelection: P.nullish }, () => undefined)
+    .otherwise(() => ({
+      kind: 'wallet',
+      isPayable: isWalletSelectionPayable,
+      origin,
+    }))
 
 /** Every method that can pay right now, with what it holds. */
 const getPayableMethods = (
@@ -851,12 +853,12 @@ const getL2MethodItems = (
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
-  // A chain appears once its full quote covers it; a chosen one stays through refreshes.
+  // A chain holding USDC appears once quoted, short or not; a chosen one stays through refreshes.
   return l2Payment.rows
     .filter(
       (row) =>
         row === selectedL2 ||
-        (row.amountInRaw !== undefined && !isL2ShortOfFunds(row)),
+        (row.amountInRaw !== undefined && (row.option.balanceRaw ?? 0n) > 0n),
     )
     .sort(byBalanceDescending)
     .map((row) => {
@@ -885,14 +887,15 @@ const getL2MethodItems = (
     })
 }
 
-/** Like an L2 row: listed once its quote covers it, or while it is chosen. */
+/** Like an L2 row: listed once quoted while the wallet holds ETH, or while it is chosen. */
 const getEthMethodItems = (
   ethPayment: EthPaymentProps | undefined,
+  networkFee: number | undefined,
 ): PaymentMethodListItem[] =>
   ethPayment &&
   (ethPayment.isSelected ||
     (ethPayment.row.chargeRaw !== undefined &&
-      !isEthShortOfFunds(ethPayment.row)))
+      (ethPayment.row.balanceRaw ?? 0n) > 0n))
     ? [
         {
           id: 'eth',
@@ -900,6 +903,7 @@ const getEthMethodItems = (
           content: (
             <EthPaymentListItem
               isSelected={ethPayment.isSelected}
+              networkFee={networkFee}
               onSelect={ethPayment.onSelect}
               row={ethPayment.row}
             />
@@ -907,6 +911,32 @@ const getEthMethodItems = (
         },
       ]
     : []
+
+/** Registration needs no method once the existing balance covers everything: the receipt says so. */
+const isMethodPickerHidden = (
+  registrationReceipt: Readonly<{ total: number | undefined }> | undefined,
+  isFullyCovered: boolean,
+) => registrationReceipt !== undefined && isFullyCovered
+
+const isSelectedMethodShort = (
+  isWalletSelectionShort: boolean,
+  selectedL2: L2PaymentRow | undefined,
+  selectedEth: EthPaymentRow | undefined,
+) =>
+  isWalletSelectionShort ||
+  (!!selectedL2 && isL2ShortOfFunds(selectedL2)) ||
+  (!!selectedEth && isEthShortOfFunds(selectedEth))
+
+/** What the button says: the next step, or the caller's shortfall label once the selection can't pay. */
+const getActionLabel = ({
+  isSelectionShort,
+  nextMessage,
+  shortfallLabel,
+}: {
+  readonly isSelectionShort: boolean
+  readonly nextMessage: ReactNode
+  readonly shortfallLabel: ReactNode | undefined
+}) => (isSelectionShort && shortfallLabel ? shortfallLabel : nextMessage)
 
 /** A quote is pending, or a stale one (the toggle re-keyed it) is being replaced. */
 const isRequotingFunding = (isQuotingFunding: boolean, isQuoteStale: boolean) =>
@@ -953,6 +983,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   isLoadingBalances,
   isConnected,
   nextMessage = <Trans>Register name</Trans>,
+  shortfallLabel,
   footer,
   funding,
   isQuotingFunding = false,
@@ -961,18 +992,12 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   hasBudgetQuoteFailed = false,
   isBusy = false,
   canProceed = true,
-  networkFeeTooltip = (
-    <Trans>
-      An estimate of what the two on-chain transactions that register your name
-      will cost. It is collected together with the name price, in the same
-      approval.
-    </Trans>
-  ),
   totalLabel = <Trans>Registration total</Trans>,
   isEstimate = false,
   walletDebitFor,
   l2Payment,
   ethPayment,
+  registrationReceipt,
 }: {
   readonly label: string
   readonly pricingLoading: boolean
@@ -984,7 +1009,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly revalidatedShortfall?: number | undefined
   readonly helpMessage?: ReactNode
   readonly fullyCoveredMessage?: ReactNode
-  readonly onSelectCoin: (coin: T) => void
+  readonly onSelectCoin: (coin: T, origin?: FundingSourceOrigin) => void
   readonly onNext: () => void
   readonly onRetry?: () => void
   readonly stablecoinBalances: readonly StablecoinBalance[]
@@ -1001,6 +1026,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly isLoadingBalances: boolean
   readonly isConnected: boolean
   readonly nextMessage?: ReactNode
+  /** The button's label while the selected method can't pay, when it differs from `nextMessage`. */
+  readonly shortfallLabel?: ReactNode
   /** Optional content below the payment options (e.g. the primary-name toggle). */
   readonly footer?: ReactNode
   /**
@@ -1020,8 +1047,6 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly isBusy?: boolean
   /** False while the caller is missing something `onNext` needs, such as the signing wallet. */
   readonly canProceed?: boolean
-  /** What the wallet row's fee info explains. */
-  readonly networkFeeTooltip?: ReactNode
   readonly totalLabel?: ReactNode
   /** Prefix amounts with "up to", for a total carrying approval headroom. */
   readonly isEstimate?: boolean
@@ -1031,6 +1056,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly l2Payment?: L2PaymentProps
   /** Registration only: the row that pays with the wallet's ETH. */
   readonly ethPayment?: EthPaymentProps
+  /** Registration only: the receipt shows the page's total and the network fee instead of the existing balance. */
+  readonly registrationReceipt?: Readonly<{ total: number | undefined }>
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -1096,7 +1123,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         ))
   const walletSelection = selectedL2 || selectedEth ? undefined : selectedToken
   const l2MethodItems = getL2MethodItems(l2Payment, selectedL2, funding)
-  const ethMethodItems = getEthMethodItems(ethPayment)
+  const ethMethodItems = getEthMethodItems(ethPayment, displayedNetworkFee)
 
   const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
   const isSettling = isCheckoutSettling(isBusy, isRequoting)
@@ -1117,17 +1144,17 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   const isFullyCovered =
     receiptState.status === 'ready' && selectedShare === 0 && !!walletSelection
 
-  const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances.flatMap(
-    (stablecoin) => {
+  const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances
+    .filter(hasBalance)
+    .flatMap((stablecoin) => {
       const share = walletShareOf(stablecoin.symbol)
-      if (share === undefined || !coversShare(stablecoin, share)) return []
+      if (share === undefined) return []
       return [
         {
           id: stablecoin.address,
           isSelected: walletSelection === stablecoin.symbol,
           content: (
             <TokenListItem
-              feeTooltip={networkFeeTooltip}
               isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
               networkFee={displayedNetworkFee}
               onSelectCoin={onSelectCoin}
@@ -1139,13 +1166,14 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           ),
         },
       ]
-    },
-  )
+    })
   const paymentMethodItems = [
     ...walletMethodItems,
     ...l2MethodItems,
     ...ethMethodItems,
   ]
+  // While paying, every method stays as it was clicked, so the swap landing can't add or change a row.
+  const shownMethodItems = useHeldWhile(isBusy, paymentMethodItems)
   const isL2Pending = !!l2Payment?.rows.some(
     (row) => row.option.status === 'loading' || row.isQuoteLoading,
   )
@@ -1157,23 +1185,24 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
       row.isQuoteStale &&
       !row.hasQuoteFailed,
   )
-  // The selected wallet coin went short (say the primary-name re-quote) while another method can pay.
-  const isWalletSelectionHidden =
+  const isWalletSelectionShort =
     !!walletSelection &&
     receiptState.status === 'ready' &&
-    paymentMethodItems.length > 0 &&
-    !walletMethodItems.some((item) => item.isSelected)
+    !hasSufficientBalanceForSelectedCoin
 
   // Registration only: when the chosen method can't pay, switch to the one holding the most
+  const currentMethod = getCurrentMethodState(
+    getSelectedMethod({
+      selectedL2,
+      selectedEth,
+      walletSelection,
+      isWalletSelectionPayable: hasSufficientBalanceForSelectedCoin,
+      origin: l2Payment?.selectedOrigin,
+    }),
+  )
   const fallbackChoice = l2Payment
     ? getFallbackPaymentChoice({
-        current: getCurrentMethodState(
-          selectedL2,
-          l2Payment.selectedOrigin,
-          walletSelection,
-          walletMethodItems,
-          selectedEth,
-        ),
+        current: currentMethod,
         payableMethods: getPayableMethods(
           stablecoinBalances,
           walletShareOf,
@@ -1208,9 +1237,13 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
       )) ||
     (revalidatedShortfall !== undefined &&
       t`${formatUsd(revalidatedShortfall)} more needed in your wallet.`) ||
-    (isWalletSelectionHidden &&
-      !fallbackChoice &&
-      t`Not enough USDC in your wallet. Choose another payment method.`)
+    (shouldShowWalletShortfall({
+      isShort: isWalletSelectionShort,
+      current: currentMethod,
+      hasFallback: !!fallbackChoice,
+      isSettling: isL2Pending || hasStaleL2Quote,
+    }) &&
+      t`You do not have enough ${walletSelection} for this transaction.`)
 
   return (
     // A fieldset's anonymous content box prevents its flex children shrinking
@@ -1248,18 +1281,13 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
             </span>
           </div>
 
-          <div className="flex w-full flex-col gap-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-ens-quartz-400 text-lg leading-none">
-                <Trans>Select payment</Trans>
-              </h2>
-              <span className="flex items-center gap-1">
-                <USDCIcon aria-hidden="true" className="size-[18px]" />
-                {ethPayment && (
-                  <img alt="" className="size-[18px]" src={ethCoinIcon} />
-                )}
-              </span>
-            </div>
+          <div
+            className="flex w-full flex-col gap-4 [&[hidden]]:hidden"
+            hidden={isMethodPickerHidden(registrationReceipt, isFullyCovered)}
+          >
+            <h2 className={cn(RECEIPT_LABEL, 'text-center')}>
+              <Trans>Pay with</Trans>
+            </h2>
             {match({
               isConnected,
               isLoading:
@@ -1301,10 +1329,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
               .otherwise(() => (
                 <PaymentMethods
                   onSelectCoin={onSelectCoin}
-                  paymentMethodItems={getPayingMethods(
-                    paymentMethodItems,
-                    isBusy,
-                  )}
+                  paymentMethodItems={shownMethodItems}
                   selectedToken={selectedToken}
                   showNetworkFeeDetails={showNetworkFeeDetails}
                   stablecoinBalances={stablecoinBalances}
@@ -1316,19 +1341,36 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           </div>
         </div>
 
-        <PaymentReceipt
-          hasExistingBalance={(receiptFigures?.applied ?? 0) > 0}
-          isEstimate={isEstimate}
-          state={receiptState}
-          totalLabel={totalLabel}
-        />
+        {registrationReceipt === undefined ? (
+          <PaymentReceipt
+            hasExistingBalance={(receiptFigures?.applied ?? 0) > 0}
+            isEstimate={isEstimate}
+            state={receiptState}
+            totalLabel={totalLabel}
+          />
+        ) : (
+          <NetworkFeeReceipt
+            extraFee={getEthSwapGasUsd(selectedEth)}
+            networkFee={shownFunding?.networkFee}
+            registrationTotal={registrationReceipt.total}
+            state={receiptState}
+          />
+        )}
 
         <PaymentAction
           canNext={canNext}
           helpMessage={helpMessage}
           isBusy={isBusy}
           isSettling={isSettling}
-          label={nextMessage}
+          label={getActionLabel({
+            isSelectionShort: isSelectedMethodShort(
+              isWalletSelectionShort,
+              selectedL2,
+              selectedEth,
+            ),
+            nextMessage,
+            shortfallLabel,
+          })}
           onNext={onNext}
           onRetry={
             hasBudgetQuoteFailed && !isQuotingFunding ? onRetry : undefined

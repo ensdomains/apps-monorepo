@@ -1291,7 +1291,7 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
   /** The payment action, whichever label the funding state gives it. */
   const paymentAction = (picker: Picker) =>
     picker.getByRole('button', {
-      name: /^(approve and register|sign payment approval|register name)$/i,
+      name: /^(approve and register|sign approval|register name)$/i,
     })
 
   /**

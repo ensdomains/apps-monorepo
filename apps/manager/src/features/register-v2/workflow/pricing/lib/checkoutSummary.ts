@@ -1,3 +1,7 @@
+import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
+
+const USDC_DECIMALS = 6
+
 /** What the registration page asks for, in USDC (6 decimals). */
 export type CheckoutSummary = Readonly<{
   nameCostRaw: bigint
@@ -18,3 +22,15 @@ export const getCheckoutSummary = (
     totalRaw: nameCostRaw - existingBalanceRaw,
   }
 }
+
+/** The page's total in USD, once the name is priced and the account's balance read. */
+export const getCheckoutTotalUsd = (
+  nameCostRaw: bigint | undefined,
+  accountBalanceRaw: bigint | undefined,
+): number | undefined =>
+  nameCostRaw === undefined || accountBalanceRaw === undefined
+    ? undefined
+    : decimalBigintToNumber(
+        getCheckoutSummary(nameCostRaw, accountBalanceRaw).totalRaw,
+        USDC_DECIMALS,
+      )

@@ -155,12 +155,6 @@ export const TokenPickerContent = () => {
       isLoadingBalances={balances.isLoading}
       isQuotingFunding={isQuoting}
       label={label}
-      networkFeeTooltip={
-        <Trans>
-          An estimate of what the transaction that renews your name will cost.
-          It is collected together with the renewal price, in the same approval.
-        </Trans>
-      }
       nextMessage={nextMessage}
       onNext={startRenewal}
       onSelectCoin={onSelectCoin}

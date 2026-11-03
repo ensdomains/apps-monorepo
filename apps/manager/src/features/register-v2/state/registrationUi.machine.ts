@@ -120,7 +120,7 @@ type Context = {
   paymentAsset: PaymentAsset
   /** The L2 row picked to pay from; the registration still pays in `selectedToken`. */
   fundingSourceChainId?: number
-  /** A fallback pick gives way to the wallet once the wallet can pay again. */
+  /** Who picked the method being paid with: a wallet coin, an L2 or ETH. Only the app's own pick ever gives way. */
   fundingSourceOrigin?: FundingSourceOrigin
   lastErrorMessage?: string
   approvalOutcome: ApprovalOutcome
@@ -174,7 +174,11 @@ type Events =
   | { type: 'pricing.step.previous' }
   | { type: 'pricing.dialog.dismiss' }
   | { type: 'pricing.duration.set'; duration: number }
-  | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+  | {
+      type: 'pricing.token.select'
+      token: SUPPORTED_TOKEN | undefined
+      origin?: FundingSourceOrigin
+    }
   | {
       type: 'pricing.fundingSource.select'
       chainId: number
@@ -421,6 +425,10 @@ const machineSetup = setup({
           ? event.token
           : context.selectedToken,
       paymentAsset: () => 'stablecoin' as const,
+      fundingSourceOrigin: ({ event }) =>
+        event.type === 'pricing.token.select'
+          ? (event.origin ?? 'user')
+          : undefined,
     }),
     setPaymentAsset: assign(({ event, context }) =>
       event.type === 'pricing.paymentAsset.select'
@@ -432,7 +440,9 @@ const machineSetup = setup({
             fundingSourceChainId:
               event.asset === 'eth' ? undefined : context.fundingSourceChainId,
             fundingSourceOrigin:
-              event.asset === 'eth' ? undefined : context.fundingSourceOrigin,
+              event.asset === 'eth'
+                ? ('user' as const)
+                : context.fundingSourceOrigin,
           }
         : {},
     ),
@@ -1178,7 +1188,8 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               actions: 'clearError',
             },
             'pricing.token.select': {
-              actions: ['setToken', 'clearFundingSource', 'clearError'],
+              // Cleared first: the coin's own origin replaces the L2's.
+              actions: ['clearFundingSource', 'setToken', 'clearError'],
             },
             'pricing.fundingSource.select': {
               actions: 'setFundingSource',

@@ -2,24 +2,29 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import type {
-  PaymentReceiptFigures,
-  PaymentReceiptState,
+import {
+  getNetworkFeeReceiptFigures,
+  type PaymentReceiptFigures,
+  type PaymentReceiptState,
 } from '../lib/paymentReceiptFigures'
 import { ExistingBalanceLabel } from './ExistingBalanceLabel'
+import { RECEIPT_AMOUNT, RECEIPT_LABEL } from './receiptTypography'
 
-const Amount = ({
-  state,
-  field,
+type ShownAmount =
+  | { readonly status: 'loading' }
+  | { readonly status: 'unavailable' }
+  | { readonly status: 'ready'; readonly value: number }
+
+const UsdAmount = ({
+  amount,
   isEstimate = false,
   isDeduction = false,
 }: {
-  readonly state: PaymentReceiptState
-  readonly field: keyof PaymentReceiptFigures
+  readonly amount: ShownAmount
   readonly isEstimate?: boolean
   readonly isDeduction?: boolean
 }) =>
-  match(state)
+  match(amount)
     .with({ status: 'loading' }, () => (
       <span
         aria-hidden="true"
@@ -29,8 +34,7 @@ const Amount = ({
     .with({ status: 'unavailable' }, () => (
       <span className="text-ens-quartz-900 text-xl">—</span>
     ))
-    .with({ status: 'ready' }, ({ figures }) => {
-      const value = figures[field]
+    .with({ status: 'ready' }, ({ value }) => {
       return (
         <span className="flex items-baseline gap-2">
           {isEstimate && value > 0 && (
@@ -38,16 +42,36 @@ const Amount = ({
               <Trans>up to</Trans>
             </span>
           )}
-          <span className="text-ens-quartz-900 text-xl leading-none">
+          <span className={RECEIPT_AMOUNT}>
             {isDeduction && value > 0
               ? `-${formatUsd(value)}`
               : formatUsd(value)}
           </span>
-          <span className="text-ens-quartz-400 text-lg leading-none">USD</span>
+          <span className={RECEIPT_LABEL}>USD</span>
         </span>
       )
     })
     .exhaustive()
+
+const Amount = ({
+  state,
+  field,
+  ...rest
+}: {
+  readonly state: PaymentReceiptState
+  readonly field: keyof PaymentReceiptFigures
+  readonly isEstimate?: boolean
+  readonly isDeduction?: boolean
+}) => (
+  <UsdAmount
+    amount={
+      state.status === 'ready'
+        ? { status: 'ready', value: state.figures[field] }
+        : state
+    }
+    {...rest}
+  />
+)
 
 const Row = ({
   label,
@@ -57,7 +81,7 @@ const Row = ({
   readonly children: ReactNode
 }) => (
   <div className="flex items-baseline justify-between gap-2">
-    <dt className="text-ens-quartz-400 text-lg leading-none">{label}</dt>
+    <dt className={RECEIPT_LABEL}>{label}</dt>
     <dd>{children}</dd>
   </div>
 )
@@ -104,6 +128,80 @@ export const PaymentReceipt = ({
           </Row>
         </dl>
       )}
+    </section>
+  )
+}
+
+/** Registration's receipt: the page's total, the selected method's fee, and what the wallet pays. */
+export const NetworkFeeReceipt = ({
+  state,
+  registrationTotal,
+  networkFee,
+  extraFee,
+}: {
+  /** The quote behind the fee; the total is the page's and is always shown. */
+  readonly state: PaymentReceiptState
+  /** `undefined` while the price or the account balance loads. */
+  readonly registrationTotal: number | undefined
+  /** The selected method's fee, before any existing balance; `undefined` until quoted. */
+  readonly networkFee: number | undefined
+  /** Paid on top of the wallet debit, such as an ETH swap's gas. */
+  readonly extraFee: number
+}) => {
+  const { t } = useLingui()
+  const figures =
+    state.status === 'ready' &&
+    registrationTotal !== undefined &&
+    networkFee !== undefined
+      ? getNetworkFeeReceiptFigures({
+          registrationTotal,
+          networkFee,
+          walletDebit: state.figures.due,
+          extraFee,
+        })
+      : undefined
+  const pending: ShownAmount =
+    state.status === 'loading'
+      ? { status: 'loading' }
+      : { status: 'unavailable' }
+  const shown = (field: 'networkFee' | 'due'): ShownAmount =>
+    figures ? { status: 'ready', value: figures[field] } : pending
+
+  return (
+    <section
+      aria-busy={state.status === 'loading'}
+      aria-label={t`Payment summary`}
+      className="w-full"
+    >
+      <dl className="flex flex-col gap-4">
+        <Row label={<Trans>Registration total</Trans>}>
+          <UsdAmount
+            amount={
+              registrationTotal === undefined
+                ? { status: 'loading' }
+                : {
+                    status: 'ready',
+                    value: figures?.registrationTotal ?? registrationTotal,
+                  }
+            }
+          />
+        </Row>
+        <Row label={<Trans>Estimated network fee</Trans>}>
+          <UsdAmount amount={shown('networkFee')} />
+        </Row>
+        {figures && figures.existingBalance > 0 && (
+          <Row label={<ExistingBalanceLabel />}>
+            <UsdAmount
+              amount={{ status: 'ready', value: figures.existingBalance }}
+              isDeduction
+            />
+          </Row>
+        )}
+        <hr className="border-ens-quartz-100" />
+        <Row label={<Trans>You pay</Trans>}>
+          <UsdAmount amount={shown('due')} />
+        </Row>
+      </dl>
     </section>
   )
 }

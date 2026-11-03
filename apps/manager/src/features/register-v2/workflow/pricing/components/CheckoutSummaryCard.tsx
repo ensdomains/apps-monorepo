@@ -12,13 +12,14 @@ import type { CheckoutAction } from '../lib/checkoutAvailability'
 import type { CheckoutSummary } from '../lib/checkoutSummary'
 import { AnimatedPrice } from './AnimatedPrice'
 import { ExistingBalanceLabel } from './ExistingBalanceLabel'
+import { RECEIPT_AMOUNT, RECEIPT_LABEL } from './receiptTypography'
 
 const USDC_DECIMALS = 6
 
 const toUsd = (raw: bigint) => decimalBigintToNumber(raw, USDC_DECIMALS)
 
 const SavePill = ({ amount }: { readonly amount: number }) => (
-  <span className="flex h-5 items-center rounded-[5px] bg-ens-signal-success-100 px-2 text-[#007C23] text-[15px] leading-none">
+  <span className="inline-block h-5 whitespace-nowrap rounded-[5px] bg-ens-signal-success-100 px-2 text-[#007C23] text-[15px] leading-5">
     <Trans>
       Save <AnimatedPrice value={amount} />
     </Trans>
@@ -33,7 +34,7 @@ const Row = ({
   readonly children: ReactNode
 }) => (
   <div className="flex items-baseline justify-between gap-2">
-    <span className="text-ens-quartz-400 text-lg leading-none">{label}</span>
+    <span className={RECEIPT_LABEL}>{label}</span>
     <span className="flex items-center gap-2">{children}</span>
   </div>
 )
@@ -46,11 +47,11 @@ const Usd = ({
   readonly isDeduction?: boolean
 }) => (
   <>
-    <span className="text-ens-quartz-900 text-xl leading-none">
+    <span className={RECEIPT_AMOUNT}>
       {isDeduction && '-'}
       {formatUsd(toUsd(raw))}
     </span>
-    <span className="text-ens-quartz-400 text-lg leading-none">USD</span>
+    <span className={RECEIPT_LABEL}>USD</span>
   </>
 )
 
@@ -97,7 +98,7 @@ const WithExistingBalance = ({
         <span className="font-medium font-semi-mono text-ens-blue-midnight text-temp-32px leading-ens-none">
           <AnimatedPrice emphasis="soft" value={toUsd(summary.totalRaw)} />
         </span>
-        <span className="text-ens-quartz-400 text-lg leading-none">USD</span>
+        <span className={RECEIPT_LABEL}>USD</span>
       </span>
     </div>
   </div>

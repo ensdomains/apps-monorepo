@@ -86,6 +86,7 @@ export {
   VERIFY_POLL_INTERVAL_MS,
 } from './machines/registration/registration.actors'
 export {
+  ETH_SWAP_GAS_RESERVE_MULTIPLIER,
   type EthFunding,
   type EthPaymentQuote,
   type PendingEthSwap,

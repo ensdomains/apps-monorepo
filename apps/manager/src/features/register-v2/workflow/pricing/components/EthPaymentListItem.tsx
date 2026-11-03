@@ -1,3 +1,7 @@
+import {
+  ETH_SWAP_GAS_RESERVE_MULTIPLIER,
+  ethToUsdcRaw,
+} from '@ens-apps/transaction-manager'
 import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { match } from 'ts-pattern'
@@ -8,8 +12,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
+
+const USDC_DECIMALS = 6
 
 /** Paying the registration with the wallet's ETH, swapped into USDC. */
 export type EthPaymentRow = Readonly<{
@@ -22,6 +30,8 @@ export type EthPaymentRow = Readonly<{
   balanceRaw: bigint | undefined
   /** ETH (wei) the swap step keeps back for gas on top of the swap. */
   gasReserveRaw: bigint
+  /** The Chainlink ETH/USD price (8 decimals), once read. */
+  ethUsdRaw: bigint | undefined
   isQuoteLoading: boolean
   hasQuoteFailed: boolean
 }>
@@ -42,37 +52,93 @@ export const canPayWithEth = (row: EthPaymentRow) =>
   !row.hasQuoteFailed &&
   !isEthShortOfFunds(row)
 
+const weiToUsd = (wei: bigint, ethUsd: bigint) =>
+  decimalBigintToNumber(ethToUsdcRaw(wei, ethUsd), USDC_DECIMALS)
+
+/** The swap's own gas in USD: one estimate, not the doubled reserve kept back for it. */
+export const getEthSwapGasUsd = (row: EthPaymentRow | undefined) =>
+  row?.ethUsdRaw === undefined
+    ? 0
+    : weiToUsd(
+        row.gasReserveRaw / ETH_SWAP_GAS_RESERVE_MULTIPLIER,
+        row.ethUsdRaw,
+      )
+
 export const getEthSelectionMessage = (row: EthPaymentRow) =>
   match(row)
     .when(isEthShortOfFunds, () => (
-      <Trans>Not enough ETH in your wallet.</Trans>
+      <Trans>You do not have enough ETH for this transaction.</Trans>
     ))
     .with({ hasQuoteFailed: true }, () => (
       <Trans>Paying with ETH isn't available right now.</Trans>
     ))
     .otherwise(() => undefined)
 
+/** The wallet's ETH in USD, or in ETH until the price is read. */
+const getShownBalance = ({ balanceRaw, ethUsdRaw }: EthPaymentRow) => {
+  if (balanceRaw === undefined) return '—'
+  if (ethUsdRaw === undefined) return `${formatGasEth(balanceRaw)} ETH`
+  return formatUsd(weiToUsd(balanceRaw, ethUsdRaw))
+}
+
+const SwapBadge = () => {
+  const { t } = useLingui()
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        aria-label={t`What is the ETH swap?`}
+        className="pointer-events-auto relative z-20 flex items-center gap-0.5 rounded-[2px] bg-neutral-100 px-1 font-medium text-ens-quartz-500 text-xs"
+        type="button"
+      >
+        <Trans>Swaps to USDC</Trans>
+        <MSymbol
+          aria-hidden="true"
+          className="ms-opsz-20 ms-wght-400 text-[10px]"
+          symbol="info"
+        />
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64 text-center">
+        <Trans>
+          Your wallet swaps ETH for the USDC this registration needs on Uniswap,
+          and gets back any ETH the swap does not use.
+        </Trans>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 export const EthPaymentListItem = ({
   row,
+  networkFee,
   isSelected,
   onSelect,
 }: {
   readonly row: EthPaymentRow
+  /** The registration's own network fee; the swap's gas comes on top. */
+  readonly networkFee: number | undefined
   readonly isSelected: boolean
   readonly onSelect: () => void
 }) => {
   const { t } = useLingui()
+
   return (
     <PaymentMethodRow
-      amount={
-        row.balanceRaw === undefined
-          ? '—'
-          : `${formatGasEth(row.balanceRaw)} ETH`
-      }
-      amountLabel={<Trans>balance</Trans>}
+      amount={getShownBalance(row)}
+      amountLabel={<Trans>available</Trans>}
       fee={
         row.chargeRaw === undefined ? undefined : (
-          <Trans>Swaps up to {formatGasEth(row.chargeRaw)} ETH</Trans>
+          <span className="flex flex-col">
+            <span>
+              <Trans>Swaps up to {formatGasEth(row.chargeRaw)} ETH</Trans>
+            </span>
+            {networkFee !== undefined && (
+              <span>
+                <Trans>
+                  Est. fee: {formatUsd(networkFee + getEthSwapGasUsd(row))}
+                </Trans>
+              </span>
+            )}
+          </span>
         )
       }
       icon={
@@ -82,31 +148,9 @@ export const EthPaymentListItem = ({
       }
       isAvailable
       isFeeLoading={row.isQuoteLoading}
-      isInsufficient={isEthShortOfFunds(row)}
       isSelected={isSelected}
       name="ETH"
-      nameBadge={
-        <span className="pointer-events-auto relative z-20 flex items-center gap-1">
-          <span className="rounded-sm bg-ens-quartz-100 px-1 font-medium font-mono text-ens-quartz-500 text-xs uppercase">
-            <Trans>Swap</Trans>
-          </span>
-          <Tooltip>
-            <TooltipTrigger
-              aria-label={t`What is the ETH swap?`}
-              className="flex shrink-0 items-center text-ens-quartz-350"
-              type="button"
-            >
-              <MSymbol className="ms-opsz-16 ms-wght-400" symbol="info" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-64 text-center">
-              <Trans>
-                Your wallet swaps ETH for the USDC this registration needs on
-                Uniswap, and gets back any ETH the swap does not use.
-              </Trans>
-            </TooltipContent>
-          </Tooltip>
-        </span>
-      }
+      nameBadge={<SwapBadge />}
       onSelect={onSelect}
       selectLabel={t`Pay with ETH`}
     />

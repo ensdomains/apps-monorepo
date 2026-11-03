@@ -13,9 +13,15 @@ export class ReadHcaUsdcBalanceError extends TaggedError(
 )<{ cause: unknown }> {}
 
 /** The USDC already in the smart account, which a registration spends first. */
-export const getHcaUsdcBalanceQueryOptions = (hca: Address | undefined) =>
+export const getHcaUsdcBalanceQueryOptions = (
+  hca: Address | null | undefined,
+) =>
   resultQueryOptions({
-    queryKey: $qk({ $scope: 'wallet', $action: 'hca-usdc-balance', hca }),
+    queryKey: $qk({
+      $scope: 'wallet',
+      $action: 'hca-usdc-balance',
+      hca: hca ?? undefined,
+    }),
     queryFn: () =>
       hca
         ? readHcaUsdcBalanceActor({
