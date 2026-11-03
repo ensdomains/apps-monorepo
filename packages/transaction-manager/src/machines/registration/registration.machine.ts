@@ -490,6 +490,8 @@ export type RegistrationEvent =
       displayedL2Charge?: bigint
       /** Standalone-HCA: fund with ETH. See `RegistrationContext.ethFunding`. */
       ethFunding?: EthFunding
+      /** An ETH swap an abandoned run sent; this run counts it before buying. */
+      pendingEthSwap?: Hash
       /**
        * A bridge an abandoned run sent that may not have settled yet; this run
        * waits for it before paying. See `isL2BridgeFromPriorRun`.
@@ -1163,7 +1165,7 @@ export const registrationMachine = setup({
               hcaBalanceFloor: () => undefined,
               displayedL2Charge: ({ event }) => event.displayedL2Charge,
               ethFunding: ({ event }) => event.ethFunding,
-              pendingEthSwap: () => undefined,
+              pendingEthSwap: ({ event }) => event.pendingEthSwap,
               primaryName: ({ event }) => event.primaryName,
               resolverAddress: () => undefined,
               resolverTxId: () => undefined,
@@ -1627,8 +1629,7 @@ export const registrationMachine = setup({
         src: 'swapEthForUsdc',
         input: ({ context, self }) => ({
           permitValue: fundingShortfall(context),
-          // biome-ignore lint/style/noNonNullAssertion: guarded by isEthFunded
-          funding: context.ethFunding!,
+          funding: context.ethFunding,
           // The swap is the wallet's own transaction, like the permit.
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           approvalSigner: context.approvalSigner ?? context.signer!,

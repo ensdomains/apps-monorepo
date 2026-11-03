@@ -17,6 +17,7 @@ type RegistrationStubEvent =
       referrer?: `0x${string}`
       l2Funding?: { chain: { id: number } }
       ethFunding?: { displayedCharge?: bigint }
+      pendingEthSwap?: `0x${string}`
     }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
@@ -67,6 +68,8 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       l2FundingChainId: undefined as number | undefined,
       /** The ETH payment the run was handed. */
       ethFunding: undefined as { displayedCharge?: bigint } | undefined,
+      /** The swap an abandoned run sent, as the run was handed it. */
+      pendingEthSwap: undefined as `0x${string}` | undefined,
       /** Captures the RESUME payload so tests can assert what was forwarded. */
       resumed: undefined as
         | { stage: string; context: any; deps: any }
@@ -91,6 +94,10 @@ vi.mock('@ens-apps/transaction-manager', () => ({
               ethFunding: ({ event }) =>
                 event.type === 'START_REGISTRATION'
                   ? event.ethFunding
+                  : undefined,
+              pendingEthSwap: ({ event }) =>
+                event.type === 'START_REGISTRATION'
+                  ? event.pendingEthSwap
                   : undefined,
             }),
           },
@@ -218,6 +225,7 @@ import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
+import { savePendingEthSwap } from '../service/pendingEthSwap'
 import { clearStoredRegistrationIfUnchanged } from '../service/registrationPersistence'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
 import {
@@ -1625,6 +1633,16 @@ describe('paying with ETH', () => {
     expect(getChild(actor).getSnapshot().context.ethFunding).toEqual({
       displayedCharge: 10n ** 16n,
     })
+    actor.stop()
+  })
+
+  it("hands the registration a cancelled run's ETH swap so it is not bought twice", () => {
+    const swap = `0x${'de'.repeat(32)}` as const
+    savePendingEthSwap(11155111, EOA_ADDRESS, swap)
+    const actor = startActorInTokens()
+    actor.send({ ...startEvent(smartAccount), ethFunding: {} })
+
+    expect(getChild(actor).getSnapshot().context.pendingEthSwap).toBe(swap)
     actor.stop()
   })
 

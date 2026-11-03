@@ -79,6 +79,8 @@ const startHcaRegistration = (overrides: {
   awaitL2Bridge?: ReturnType<typeof vi.fn>
   /** Funds the HCA with the wallet's ETH instead of with a permit. */
   ethFunding?: EthFunding
+  /** An ETH swap an abandoned run sent, as read back from storage. */
+  pendingEthSwap?: Hash
   swapEthForUsdc?: ReturnType<typeof vi.fn>
 }) => {
   const estimateHcaBudget =
@@ -169,6 +171,9 @@ const startHcaRegistration = (overrides: {
         : {}),
       unsettledL2Bridge: overrides.unsettledL2Bridge,
       ...(overrides.ethFunding ? { ethFunding: overrides.ethFunding } : {}),
+      ...(overrides.pendingEthSwap
+        ? { pendingEthSwap: overrides.pendingEthSwap }
+        : {}),
     })
   start()
 
@@ -482,6 +487,19 @@ describe('registrationMachine — paid with ETH', () => {
 
     expect(swapEthForUsdc).not.toHaveBeenCalled()
     expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
+  it('counts a swap an abandoned run sent before buying again', async () => {
+    const { actor, swapEthForUsdc } = startHcaRegistration({
+      balances: [0n],
+      ethFunding,
+      pendingEthSwap: SWAP_HASH,
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(swapEthForUsdc.mock.calls[0][0].input.pendingSwap).toBe(SWAP_HASH)
+    expect(actor.getSnapshot().context.pendingEthSwap).toBeUndefined()
   })
 
   it('counts a sent swap on retry instead of swapping again', async () => {

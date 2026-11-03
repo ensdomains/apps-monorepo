@@ -16,6 +16,7 @@ const estimateGas = vi.fn()
 const estimateFeesPerGas = vi.fn()
 const sendTransaction = vi.fn()
 const waitForTransactionReceipt = vi.fn()
+const getTransaction = vi.fn()
 vi.mock('viem/actions', async (importOriginal) => ({
   ...(await importOriginal<typeof import('viem/actions')>()),
   readContract: (...args: unknown[]) => readContract(...args),
@@ -26,6 +27,7 @@ vi.mock('viem/actions', async (importOriginal) => ({
   sendTransaction: (...args: unknown[]) => sendTransaction(...args),
   waitForTransactionReceipt: (...args: unknown[]) =>
     waitForTransactionReceipt(...args),
+  getTransaction: (...args: unknown[]) => getTransaction(...args),
 }))
 
 const WALLET: Address = '0x1111111111111111111111111111111111111111'
@@ -153,6 +155,32 @@ describe('swapEthForUsdcActor', () => {
       readContract.mock.invocationCallOrder[0] ?? 0,
     )
   })
+
+  it.each([
+    ['dropped, so buys again', true],
+    ['still pending, so stops', false],
+  ])(
+    'treats an earlier swap whose wait ran out as %s',
+    async (_case, isDropped) => {
+      waitForTransactionReceipt.mockRejectedValueOnce(new Error('timed out'))
+      getTransaction.mockImplementation(async () => {
+        if (!isDropped) return { hash: PENDING_HASH }
+        throw Object.assign(new Error('not found'), {
+          name: 'TransactionNotFoundError',
+        })
+      })
+
+      const result = await swapEthForUsdcActor(
+        input({ pendingSwap: PENDING_HASH }),
+      )
+
+      expect(getTransaction).toHaveBeenCalledWith(publicClient, {
+        hash: PENDING_HASH,
+      })
+      expect(result.isOk()).toBe(isDropped)
+      expect(sendTransaction).toHaveBeenCalledTimes(isDropped ? 1 : 0)
+    },
+  )
 
   it('does not send more ETH than checkout showed', async () => {
     const result = await swapEthForUsdcActor(

@@ -42,6 +42,7 @@ import {
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
 import { getL2FundingSource } from '../service/l2FundingSource'
+import { readPendingEthSwap } from '../service/pendingEthSwap'
 import { readPendingL2Bridge } from '../service/pendingL2Bridge'
 import {
   getRegistrationFailureMessage,
@@ -890,6 +891,8 @@ const startRegistrationAction = machineSetup.createAction(
         l2Funding: funding.l2Funding,
         displayedL2Charge: event.displayedL2Charge,
         ethFunding: funding.ethFunding,
+        // A cancelled run's swap may still land: count it, don't buy twice.
+        pendingEthSwap: readPendingEthSwap(context.chainId, ownerAddress),
         // A cancelled run's bridge may still arrive: wait for it, don't pay twice.
         unsettledL2Bridge: readPendingL2Bridge(
           context.chainId,

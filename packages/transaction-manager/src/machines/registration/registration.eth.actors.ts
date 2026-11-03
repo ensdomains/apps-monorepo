@@ -10,7 +10,14 @@
 
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
-import { err, fromPromise, ok, okAsync, type ResultAsync } from 'neverthrow'
+import {
+  err,
+  errAsync,
+  fromPromise,
+  ok,
+  okAsync,
+  type ResultAsync,
+} from 'neverthrow'
 import {
   type Address,
   erc20Abi,
@@ -23,6 +30,7 @@ import {
   estimateFeesPerGas,
   estimateGas,
   getBalance,
+  getTransaction,
   readContract,
   sendTransaction,
   waitForTransactionReceipt,
@@ -129,25 +137,38 @@ const walletOf = (
     : new Error('Paying with ETH needs the wallet that owns this account.')
 }
 
-/**
- * Wait out a swap an earlier attempt sent, so its USDC is counted rather than
- * bought again. One that never confirms leaves the balance as it was, which
- * the next swap then makes up.
- */
+/** viem's error for a hash no node knows; `name` survives minification. */
+const isTransactionNotFound = (error: unknown): boolean =>
+  error instanceof Error && error.name === 'TransactionNotFoundError'
+
+/** Count an earlier swap before buying again; one dropped after the wait is bought again, one still pending stops. */
 const settlePendingSwap = (
   publicClient: PublicClient,
   hash: Hash | undefined,
-): ResultAsync<void, Error> =>
-  hash === undefined
-    ? okAsync(undefined)
-    : fromPromise(
-        waitForTransactionReceipt(publicClient, { hash }).then(() => {}),
-        (cause) =>
-          new Error(
-            'Your earlier ETH swap has not confirmed yet, so not swapping again. Try again in a few minutes.',
-            { cause },
-          ),
+): ResultAsync<void, Error> => {
+  if (hash === undefined) return okAsync(undefined)
+  return fromPromise(
+    waitForTransactionReceipt(publicClient, { hash }).then(() => {}),
+    toError,
+  ).orElse((waitError) =>
+    fromPromise(getTransaction(publicClient, { hash }), (cause) => cause)
+      .map(() => false)
+      .orElse((cause) =>
+        isTransactionNotFound(cause) ? okAsync(true) : errAsync(cause),
       )
+      .mapErr(toError)
+      .andThen((isDropped) =>
+        isDropped
+          ? okAsync(undefined)
+          : errAsync(
+              new Error(
+                'Your earlier ETH swap has not confirmed yet, so not swapping again. Try again in a few minutes.',
+                { cause: waitError },
+              ),
+            ),
+      ),
+  )
+}
 
 /**
  * Buy the USDC the wallet is short of signing a permit for `permitValue`.
@@ -155,7 +176,7 @@ const settlePendingSwap = (
  */
 export const swapEthForUsdcActor = ResultFn(async function* (input: {
   readonly permitValue: bigint
-  readonly funding: EthFunding
+  readonly funding?: EthFunding
   /** The wallet, which swaps and later signs the permit. */
   readonly approvalSigner: Signer
   readonly publicClient: PublicClient
@@ -196,7 +217,7 @@ export const swapEthForUsdcActor = ResultFn(async function* (input: {
   )
   const refusal = rejectEthSwap({
     maximumEth: swap.maximumEth,
-    displayedCharge: input.funding.displayedCharge,
+    displayedCharge: input.funding?.displayedCharge,
     walletBalance,
     gasReserve: gas * fees.maxFeePerGas * GAS_RESERVE_MULTIPLIER,
   })
