@@ -1,4 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import type { ReactNode } from 'react'
 import { match, P } from 'ts-pattern'
 import {
   arbitrum,
@@ -12,7 +13,7 @@ import { coinIcons } from '@/assets/coins'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import type { L2PaymentRow } from '../hooks/useL2Payment'
+import { isL2Empty, type L2PaymentRow } from '../hooks/useL2Payment'
 import { getWalletShortfall } from '../lib/paymentReceiptFigures'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
@@ -35,7 +36,7 @@ const isShortOfQuote = ({ option, amountInRaw }: L2PaymentRow) =>
   option.balanceRaw < amountInRaw
 
 export const isL2ShortOfFunds = (row: L2PaymentRow) =>
-  row.option.status === 'insufficient' || isShortOfQuote(row)
+  row.option.status === 'insufficient' || isShortOfQuote(row) || isL2Empty(row)
 
 /** The highest quoted L2 charge, standing in for chains that cannot be quoted. */
 export const getEstimatedL2AmountIn = (rows: readonly L2PaymentRow[]) =>
@@ -120,6 +121,7 @@ export const L2SourceListItem = ({
   isFeeEstimated,
   isSelected,
   onSelect,
+  feeTooltip = getL2FeeExplanation(row),
 }: {
   readonly row: L2PaymentRow
   /** What the registration costs on top of the name, paid from here, once quoted. */
@@ -128,6 +130,8 @@ export const L2SourceListItem = ({
   readonly isFeeEstimated: boolean
   readonly isSelected: boolean
   readonly onSelect: () => void
+  /** What the fee info explains; the registration's wording by default. */
+  readonly feeTooltip?: ReactNode
 }) => {
   const { t } = useLingui()
   const { option } = row
@@ -153,7 +157,7 @@ export const L2SourceListItem = ({
           </Trans>
         )
       }
-      feeTooltip={getL2FeeExplanation(row)}
+      feeTooltip={feeTooltip}
       icon={
         <PaymentMethodIcon
           icon={<USDCIcon className="size-full" />}

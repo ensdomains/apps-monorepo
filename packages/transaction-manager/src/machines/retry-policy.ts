@@ -54,3 +54,14 @@ export const isRetryableSubmissionError = (error: unknown): boolean => {
     /NonceTooLowError/.test(message)
   )
 }
+
+/**
+ * The relayer's gas price rose past the refund cap the intent was quoted with,
+ * so the orchestrator refused the fill. It marks this non-retryable, but a
+ * resend is quoted again at the current price. Kept apart from
+ * {@link isRetryableSubmissionError}: an intent that was refused never landed.
+ */
+export const isStaleGasQuoteError = (error: unknown): boolean =>
+  error instanceof TransactionSubmissionError &&
+  (error.orchestrator.context as { errorName?: unknown } | undefined)
+    ?.errorName === 'ExcessiveGasRefund()'
