@@ -222,7 +222,9 @@ it('keeps the allowance on screen while it closes after the approval lands', () 
       />
     </I18nProvider>
   )
-  const view = render(
+  // Mounted idle, as every caller mounts it.
+  const view = render(content({ kind: 'idle' }))
+  view.rerender(
     content({
       kind: 'approval-receipt',
       prompt,

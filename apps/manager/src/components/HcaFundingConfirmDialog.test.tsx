@@ -107,7 +107,10 @@ describe('HcaFundingConfirmDialog', () => {
       hcaBalanceUsdc: 400_000n,
       requiredUsdc: 2_000_000n,
     }
-    const view = render(dialog(prompt))
+    // Mounted closed, as every caller mounts it, so the figures it keeps come
+    // from the prompt it was opened with.
+    const view = render(dialog(null))
+    view.rerender(dialog(prompt))
 
     // Approving clears the prompt and opens the wallet, but the dialog is
     // still on screen until its exit animation ends.
@@ -122,5 +125,9 @@ describe('HcaFundingConfirmDialog', () => {
 
     fireEvent.animationEnd(screen.getByRole('alertdialog'))
     expect(screen.queryByText('2.5 USDC')).not.toBeInTheDocument()
+
+    // The next prompt shows its own figures, not the ones kept from the last.
+    view.rerender(dialog({ ...prompt, permitValue: 3_100_000n }))
+    expect(screen.getByText('3.1 USDC')).toBeInTheDocument()
   })
 })
