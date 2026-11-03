@@ -24,6 +24,15 @@
       "enabled": true
     }
   },
+  // Preview requests share a per-IP budget across URLs. Namespaces are
+  // separate for Sepolia, mainnet and PR previews.
+  "ratelimits": [
+    {
+      "name": "LINK_PREVIEW_RATE_LIMITER",
+      "namespace_id": "163001",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ],
   "kv_namespaces": [
     {
       "binding": "KV",
@@ -151,6 +160,13 @@
           "MAINNET_RPC_URL"
         ]
       },
+      "ratelimits": [
+        {
+          "name": "LINK_PREVIEW_RATE_LIMITER",
+          "namespace_id": "163002",
+          "simple": { "limit": 60, "period": 60 }
+        }
+      ],
       // Create a separate mainnet namespace and add its real id here before deployment.
       // Without an id, Wrangler can auto-provision it during a future deployment.
       "kv_namespaces": [
@@ -243,6 +259,13 @@
   // Set the secrets named in top-level secrets.required in Previews Base;
   // deployed Worker secrets are not automatically inherited by previews.
   "previews": {
+    "ratelimits": [
+      {
+        "name": "LINK_PREVIEW_RATE_LIMITER",
+        "namespace_id": "163003",
+        "simple": { "limit": 60, "period": 60 }
+      }
+    ],
     "vars": {
       "CHAIN": "sepolia",
       "BASE_URL": "https://sepolia.app-api.ens.domains",
