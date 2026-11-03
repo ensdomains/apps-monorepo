@@ -19,7 +19,7 @@ export const StablecoinsAndEth: Story = {
     onEth: () => {},
   },
   render: (args) => (
-    <Card className="w-[420px] items-center gap-5 px-12 py-10">
+    <Card className="w-105 items-center gap-5 px-12 py-10">
       <p className="text-ens-lapis-surface text-xs uppercase">Total</p>
       <p className="font-medium text-4xl text-ens-blue-midnight">$20.00 USD</p>
       <div className="flex w-full flex-col gap-3">

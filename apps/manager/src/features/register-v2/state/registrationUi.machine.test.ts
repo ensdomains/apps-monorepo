@@ -1576,6 +1576,7 @@ describe('paying from an L2', () => {
 })
 
 describe('paying with ETH', () => {
+  // Partial: the UI machine only reads the signer type, addresses and the wallet's account.
   const smartAccount = {
     signer: {
       type: 'rhinestone',
@@ -1584,7 +1585,7 @@ describe('paying with ETH', () => {
     },
     accountAddress: HCA_ADDRESS,
     ownerAddress: EOA_ADDRESS,
-    walletClient: { account: { address: EOA_ADDRESS } } as any,
+    walletClient: { account: { address: EOA_ADDRESS } },
   } as unknown as SmartAccountContextValue
 
   it('picks ETH before the sheet opens, paying the registration in USDC', () => {
@@ -1649,6 +1650,7 @@ describe('paying with ETH', () => {
   it('refuses to pay with ETH without an ENS account', () => {
     const actor = startActorInTokens()
     actor.send({
+      // Partial: an EOA account is refused before any wallet field is read.
       ...startEvent({
         signer: { type: 'eoa' },
         accountAddress: EOA_ADDRESS,

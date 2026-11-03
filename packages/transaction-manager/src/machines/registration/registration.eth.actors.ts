@@ -9,7 +9,7 @@
  */
 
 import { getDestinationContracts } from '@ens-apps/smart-account'
-import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   err,
   errAsync,
@@ -65,8 +65,17 @@ const SWAP_DEADLINE_SECONDS = 20n * 60n
 
 const nowSeconds = (): bigint => BigInt(Math.floor(Date.now() / 1000))
 
-const toError = (error: unknown): Error =>
-  error instanceof Error ? error : new Error(String(error))
+/** Paying with ETH failed; `cause` keeps the wallet's error, so a rejection is still recognised. */
+export class EthSwapPaymentError extends TaggedError('EthSwapPaymentError')<{
+  readonly message: string
+  readonly cause: unknown
+}> {}
+
+const paymentError = (message: string, cause?: unknown) =>
+  new EthSwapPaymentError({ message, cause })
+
+const toError = (cause: unknown): EthSwapPaymentError =>
+  paymentError(cause instanceof Error ? cause.message : String(cause), cause)
 
 /** The USDC the wallet still has to buy before it can sign `permitValue`. */
 export const usdcToBuy = (permitValue: bigint, walletUsdc: bigint): bigint =>
@@ -129,12 +138,12 @@ export const quoteEthPaymentActor = ResultFn(async function* (input: {
 
 const walletOf = (
   signer: Signer,
-): { client: WalletClient; address: Address } | Error => {
+): { client: WalletClient; address: Address } | EthSwapPaymentError => {
   const address =
     signer.type === 'eoa' ? signer.walletClient.account?.address : undefined
   return signer.type === 'eoa' && address
     ? { client: signer.walletClient, address }
-    : new Error('Paying with ETH needs the wallet that owns this account.')
+    : paymentError('Paying with ETH needs the wallet that owns this account.')
 }
 
 /** viem's error for a hash no node knows; `name` survives minification. */
@@ -145,7 +154,7 @@ const isTransactionNotFound = (error: unknown): boolean =>
 const settlePendingSwap = (
   publicClient: PublicClient,
   hash: Hash | undefined,
-): ResultAsync<void, Error> => {
+): ResultAsync<void, EthSwapPaymentError> => {
   if (hash === undefined) return okAsync(undefined)
   return fromPromise(
     waitForTransactionReceipt(publicClient, { hash }).then(() => {}),
@@ -161,9 +170,9 @@ const settlePendingSwap = (
         isDropped
           ? okAsync(undefined)
           : errAsync(
-              new Error(
+              paymentError(
                 'Your earlier ETH swap has not confirmed yet, so not swapping again. Try again in a few minutes.',
-                { cause: waitError },
+                waitError,
               ),
             ),
       ),
@@ -184,12 +193,14 @@ export const swapEthForUsdcActor = ResultFn(async function* (input: {
   readonly pendingSwap?: Hash
   /** Receives the swap's hash the moment the wallet sends it. */
   readonly onSwapSent?: (hash: Hash) => void
+  /** Set when the run is cancelled; nothing is sent after that. */
+  readonly signal?: AbortSignal
 }) {
   const wallet = walletOf(input.approvalSigner)
-  if (wallet instanceof Error) return err(wallet)
+  if (wallet instanceof EthSwapPaymentError) return err(wallet)
   // Named so viem refuses to send while the wallet is on another chain.
   const { chain } = input.publicClient
-  if (!chain) return err(new Error('Paying with ETH needs the app chain.'))
+  if (!chain) return err(paymentError('Paying with ETH needs the app chain.'))
 
   yield* settlePendingSwap(input.publicClient, input.pendingSwap)
 
@@ -213,7 +224,7 @@ export const swapEthForUsdcActor = ResultFn(async function* (input: {
       estimateGas(input.publicClient, { account: wallet.address, ...call }),
       estimateFeesPerGas(input.publicClient),
     ]),
-    (cause) => new Error('Could not prepare the ETH swap.', { cause }),
+    (cause) => paymentError('Could not prepare the ETH swap.', cause),
   )
   const refusal = rejectEthSwap({
     maximumEth: swap.maximumEth,
@@ -221,7 +232,11 @@ export const swapEthForUsdcActor = ResultFn(async function* (input: {
     walletBalance,
     gasReserve: gas * fees.maxFeePerGas * GAS_RESERVE_MULTIPLIER,
   })
-  if (refusal) return err(new Error(refusal))
+  if (refusal) return err(paymentError(refusal))
+  // The quote and estimates above take time; a run cancelled meanwhile sends nothing.
+  if (input.signal?.aborted) {
+    return err(paymentError('The registration was cancelled before the swap.'))
+  }
 
   const hash = yield* fromPromise(
     sendTransaction(wallet.client, {
@@ -237,7 +252,7 @@ export const swapEthForUsdcActor = ResultFn(async function* (input: {
     toError,
   )
   if (receipt.status !== 'success') {
-    return err(new Error('The ETH swap failed on-chain.'))
+    return err(paymentError('The ETH swap failed on-chain.'))
   }
   return ok(toBuy)
 })

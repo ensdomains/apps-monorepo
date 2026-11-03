@@ -2,6 +2,7 @@ import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Address, Hash, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { isUserRejectionError } from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
 import {
   rejectEthSwap,
@@ -39,7 +40,9 @@ const NOW_S = BigInt(Math.floor(Date.now() / 1000))
 const ETH_USD = 2_000_00000000n
 const PERMIT_VALUE = 20_000_000n
 const QUOTED_IN = 10_000_000_000_000_000n
+// Partial: every viem action the actor calls is mocked above, so only `chain` is read.
 const publicClient = { chain: sepolia } as unknown as PublicClient
+// Partial: the actor only reads the wallet client's account address.
 const wallet = {
   type: 'eoa',
   walletClient: { account: { address: WALLET } },
@@ -181,6 +184,30 @@ describe('swapEthForUsdcActor', () => {
       expect(sendTransaction).toHaveBeenCalledTimes(isDropped ? 1 : 0)
     },
   )
+
+  it('sends nothing when the run was cancelled before the wallet is asked', async () => {
+    const cancelled = new AbortController()
+    cancelled.abort()
+
+    const result = await swapEthForUsdcActor(
+      input({ signal: cancelled.signal }),
+    )
+
+    expect(result.isErr()).toBe(true)
+    expect(sendTransaction).not.toHaveBeenCalled()
+  })
+
+  it('keeps a declined swap recognisable as a wallet rejection', async () => {
+    sendTransaction.mockRejectedValue(
+      Object.assign(new Error('User rejected the request.'), {
+        name: 'UserRejectedRequestError',
+      }),
+    )
+
+    const result = await swapEthForUsdcActor(input({}))
+
+    expect(isUserRejectionError(result._unsafeUnwrapErr())).toBe(true)
+  })
 
   it('does not send more ETH than checkout showed', async () => {
     const result = await swapEthForUsdcActor(

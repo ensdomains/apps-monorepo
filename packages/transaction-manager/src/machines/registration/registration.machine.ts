@@ -669,8 +669,10 @@ export const registrationMachine = setup({
       ) => awaitL2BridgeActor({ ...input, signal }),
     ),
     swapEthForUsdc: fromResultAsync(
-      (input: Parameters<typeof swapEthForUsdcActor>[0]) =>
-        swapEthForUsdcActor(input),
+      (
+        input: Parameters<typeof swapEthForUsdcActor>[0],
+        { signal }: { signal: AbortSignal },
+      ) => swapEthForUsdcActor({ ...input, signal }),
     ),
     submitFundingAndCommit: fromResultAsync(
       (input: {
