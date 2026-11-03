@@ -5,7 +5,7 @@
  * through the usual EIP-2612 permit.
  *
  * Not Rhinestone: its swap venues are DEX aggregators, and none of them serves
- * a same-chain swap on any testnet (see `DEBUGGING_INTENTS.md` §9).
+ * a same-chain swap on any testnet (see `DEBUGGING_INTENTS.md` §10).
  *
  * Every quote is held to the Chainlink ETH/USD feed before the wallet is asked.
  * Adapted from #1679.

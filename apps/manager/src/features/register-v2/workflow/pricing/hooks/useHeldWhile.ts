@@ -1,9 +1,9 @@
-import { useRef } from 'react'
+import { useState } from 'react'
 
-/** `value` as it was when `isHeld` turned on, until it turns off. */
-export const useHeldWhile = <T>(isHeld: boolean, value: T): T => {
-  const held = useRef<{ readonly value: T } | undefined>(undefined)
-  if (!isHeld) held.current = undefined
-  else if (!held.current) held.current = { value }
-  return held.current ? held.current.value : value
+/** `value` as it was when `isHeld` turned true, until it turns false again. */
+export const useHeldWhile = <T>(value: T, isHeld: boolean): T => {
+  const [held, setHeld] = useState<{ readonly value: T } | undefined>()
+  if (isHeld && !held) setHeld({ value })
+  if (!isHeld && held) setHeld(undefined)
+  return isHeld && held ? held.value : value
 }

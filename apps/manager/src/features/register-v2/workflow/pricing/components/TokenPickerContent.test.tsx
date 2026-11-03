@@ -561,6 +561,31 @@ describe('TokenPickerContent', () => {
     )
   })
 
+  // Say a retry after the bridge landed: the chosen L2 has nothing to send.
+  it('pays from the account, not a chosen L2, once the account covers it all', async () => {
+    const covered = { ...fiveUsdcBudget, hcaBalance: 5_000_000n }
+    containerMocks.walletBalance = '0'
+    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+    containerMocks.renderBudget = covered
+    containerMocks.revalidatedBudget = covered
+    containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
+    containerMocks.fundingSourceChainId = baseSepolia.id
+    renderContainer()
+
+    // Covered in full, registration shows the receipt alone.
+    expect(screen.getByText(/No additional payment needed/)).not.toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Register name' }))
+
+    await waitFor(() =>
+      expect(containerMocks.send).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'registration.start' }),
+      ),
+    )
+    expect(containerMocks.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ l2FundingChainId: baseSepolia.id }),
+    )
+  })
+
   // An L2 payment can fail for a reason the user acts on, like one still settling.
   it('shows why a payment from the L2 failed rather than a generic approval error', () => {
     containerMocks.renderBudget = fiveUsdcBudget
@@ -630,6 +655,13 @@ describe('TokenPickerContent', () => {
 })
 
 describe('TokenPickerContentBase', () => {
+  it('shows a caller heading in place of the name', () => {
+    renderPicker({ header: <p>3 names to renew</p> })
+
+    expect(screen.getByText('3 names to renew')).toBeVisible()
+    expect(screen.queryByText('jeff.eth')).not.toBeInTheDocument()
+  })
+
   it('selects the only payment option automatically', () => {
     const onSelectCoin = renderPicker()
 
@@ -997,6 +1029,52 @@ describe('TokenPickerContentBase', () => {
   })
 })
 
+describe('TokenPickerContentBase while a payment is in flight', () => {
+  const picker = (
+    props: Partial<Parameters<typeof TokenPickerContentBase>[0]>,
+  ) => (
+    <I18nProvider i18n={i18n}>
+      <TokenPickerContentBase
+        isConnected
+        isLoadingBalances={false}
+        label="oranges"
+        onNext={() => {}}
+        onSelectCoin={() => {}}
+        pricingData={0.75}
+        pricingLoading={false}
+        selectedToken="USDC"
+        showNetworkFeeDetails
+        stablecoinBalances={[usdc]}
+        {...props}
+      />
+    </I18nProvider>
+  )
+  const owed = {
+    registration: 0.75,
+    networkFee: 0.1,
+    total: 0.85,
+    walletDebit: 0.04,
+    hcaCredit: 0.81,
+    isLoading: false,
+  }
+  // The payment landed in the account, which now covers it all.
+  const covered = { ...owed, total: 0.84, walletDebit: 0, hcaCredit: 0.84 }
+
+  it('keeps the figures the user confirmed until it settles', () => {
+    const { rerender } = render(picker({ funding: owed }))
+    rerender(picker({ funding: owed, isBusy: true }))
+    rerender(picker({ funding: covered, isBusy: true }))
+
+    expect(receiptRow('You pay')).toHaveTextContent('$0.04')
+    expect(
+      screen.queryByText(/No additional payment needed/),
+    ).not.toBeInTheDocument()
+
+    rerender(picker({ funding: covered }))
+    expect(screen.getByText(/No additional payment needed/)).toBeVisible()
+  })
+})
+
 describe('TokenPickerContentBase L2 rows', () => {
   const underfunded = {
     registration: 4.8,
@@ -1271,6 +1349,83 @@ describe('TokenPickerContentBase L2 rows', () => {
       screen.getByText('At least $2.00 more needed on Base Sepolia.'),
     ).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  describe('an empty L2, with nothing left to bridge', () => {
+    const covered = { ...underfunded, walletDebit: 0, hcaCredit: 5 }
+    const emptyRow = () => {
+      const row = baseSepoliaRow('available', { amountInRaw: 0n })
+      return { ...row, option: { ...row.option, balanceRaw: 0n } }
+    }
+
+    it('is not listed', () => {
+      renderPicker({
+        funding: covered,
+        selectedToken: undefined,
+        l2Payment: l2Payment(emptyRow()),
+      })
+
+      expect(
+        screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('is not listed or paid from once chosen, and the wallet takes over', () => {
+      const payment = l2Payment(emptyRow(), baseSepolia.id)
+      const onSelectCoin = renderPicker({
+        funding: covered,
+        selectedToken: 'USDC',
+        l2Payment: payment,
+      })
+
+      expect(
+        screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'Register name' }),
+      ).toBeDisabled()
+      expect(onSelectCoin).toHaveBeenCalledWith('USDC', 'fallback')
+    })
+  })
+
+  // A share of 0 is "covered" by any coin, an empty one included.
+  describe('an empty wallet coin, with the account covering it all', () => {
+    const covered = { ...underfunded, walletDebit: 0, hcaCredit: 5 }
+    const nothingToBridge = () =>
+      baseSepoliaRow('available', { amountInRaw: 0n })
+
+    // A renewal retried after its bridge landed, still paying from the L2.
+    it('is not listed', () => {
+      renderPicker({
+        funding: covered,
+        selectedToken: 'USDC',
+        stablecoinBalances: [emptyUsdc],
+        l2Payment: l2Payment(nothingToBridge(), baseSepolia.id),
+      })
+
+      expect(
+        screen.queryByRole('button', { name: 'Select USDC' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+      ).toBeVisible()
+    })
+
+    it('still pays nothing once chosen, rather than giving way to the L2', () => {
+      const payment = l2Payment(nothingToBridge())
+      renderPicker({
+        funding: covered,
+        selectedToken: 'USDC',
+        stablecoinBalances: [emptyUsdc],
+        l2Payment: payment,
+      })
+
+      expect(screen.getByText(/No additional payment needed/)).toBeVisible()
+      expect(
+        screen.getByRole('button', { name: 'Register name' }),
+      ).toBeEnabled()
+      expect(payment.onSelect).not.toHaveBeenCalled()
+    })
   })
 })
 
