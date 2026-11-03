@@ -15,21 +15,9 @@ const meta = {
     layout: 'fullscreen',
   },
   args: {
-    intent: 'primary-name',
-    replaces: 'resolver',
     open: true,
     onOpenChange: noop,
     onConfirm: noop,
-  },
-  argTypes: {
-    intent: {
-      control: 'inline-radio',
-      options: ['primary-name', 'edit-profile'],
-    },
-    replaces: {
-      control: 'inline-radio',
-      options: ['nothing', 'resolver', 'invalid-resolver'],
-    },
   },
 } satisfies Meta<typeof ResolverSetupConfirmDialog>
 
@@ -37,19 +25,17 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const PrimaryNameNothingToReplace: Story = {
-  args: { replaces: 'nothing' },
+  args: { intent: 'primary-name', replaces: 'nothing' },
 }
 
-export const PrimaryNameReplacing: Story = {}
+export const PrimaryNameReplacing: Story = {
+  args: { intent: 'primary-name', replaces: 'resolver' },
+}
 
 export const PrimaryNameInvalidResolver: Story = {
-  args: { replaces: 'invalid-resolver' },
+  args: { intent: 'primary-name', replaces: 'invalid-resolver' },
 }
 
 export const EditProfileReplacing: Story = {
-  args: { intent: 'edit-profile', recordWrites },
-}
-
-export const EditProfileInvalidResolver: Story = {
-  args: { intent: 'edit-profile', replaces: 'invalid-resolver', recordWrites },
+  args: { intent: 'edit-profile', isReplacing: true, recordWrites },
 }

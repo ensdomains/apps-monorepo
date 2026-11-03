@@ -3581,10 +3581,6 @@ msgid "This name points to a different wallet. If you continue, we’ll update i
 msgstr ""
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "This name points to an address that isn’t a working resolver, so its records can’t be read or saved. To save these changes, we’ll replace it with a resolver your wallet controls."
-msgstr ""
-
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "This name points to an address that isn’t a working resolver, so its records can’t be read or saved. To use it as your primary name, we’ll replace it with a resolver your wallet controls."
 msgstr ""
 

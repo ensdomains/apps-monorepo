@@ -91,7 +91,6 @@ export const EditProfileDialog = ({
     handleSetupConfirmOpenChange,
     isFinalizingImageSave,
     isResolverAccessPending,
-    setupReplaces,
     resetPreparedImageSaveState,
     preparedImageUploads,
     setupConfirmOpen,
@@ -279,11 +278,11 @@ export const EditProfileDialog = ({
 
       <ResolverSetupConfirmDialog
         intent="edit-profile"
+        isReplacing={Boolean(savedRecords.resolverAddress)}
         onConfirm={confirmSetupSave}
         onOpenChange={handleSetupConfirmOpenChange}
         open={setupConfirmOpen}
         recordWrites={setupRecordWrites}
-        replaces={setupReplaces}
       />
     </>
   )
