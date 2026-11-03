@@ -78,20 +78,7 @@ export const BulkRenewPaymentStep = ({
       isEstimate={isIntentRoute}
       isLoadingBalances={payment.isLoadingBalances}
       isQuotingFunding={isQuoting}
-      l2FeeTooltip={(chainName) => (
-        <Trans>
-          An estimate of what the transactions that renew your names cost,
-          including moving the USDC from {chainName}. It is paid there with the
-          renewal price.
-        </Trans>
-      )}
       l2Payment={payment.l2Payment}
-      networkFeeTooltip={
-        <Trans>
-          An estimate of what the transactions that renew your names will cost.
-          It is collected together with the renewal price, in the same approval.
-        </Trans>
-      }
       nextMessage={nextMessage}
       onNext={onConfirm}
       onSelectCoin={onSelectCoin}
