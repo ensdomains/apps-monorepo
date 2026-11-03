@@ -32,6 +32,7 @@ import type { FundingSourceOrigin } from '../../../state/registrationUi.machine'
 import { useRegistrationLockHeartbeat } from '../../registering/hooks/useRegistrationLockHeartbeat'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { useFallbackPaymentChoice } from '../hooks/useFallbackPaymentChoice'
+import { useHeldWhile } from '../hooks/useHeldWhile'
 import {
   canPayFromL2,
   type L2PaymentProps,
@@ -44,6 +45,7 @@ import {
   type PayableMethod,
 } from '../lib/fallbackPaymentChoice'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
+import { getPayingMethods } from '../lib/paymentMethodVisibility'
 import {
   getPaymentReceiptFigures,
   getPaymentReceiptState,
@@ -306,11 +308,17 @@ export const TokenPickerContent = () => {
   const hasBudgetQuoteFailed = isBudgetRequired && budgetQuery.isError
 
   // Absent until the quote lands, and permanently absent if it fails.
-  const funding = computeRegistrationFunding({
-    budget: budgetQuery.data,
-    ...(budgetQuery.data ? { hcaBalanceRaw: budgetQuery.data.hcaBalance } : {}),
-    decimals: USDC_DECIMALS,
-  })
+  // Held while paying: an ETH swap landing mid-run must not move the figures.
+  const funding = useHeldWhile(
+    approvalState.isApproving,
+    computeRegistrationFunding({
+      budget: budgetQuery.data,
+      ...(budgetQuery.data
+        ? { hcaBalanceRaw: budgetQuery.data.hcaBalance }
+        : {}),
+      decimals: USDC_DECIMALS,
+    }),
+  )
 
   const l2Payment = useL2Payment({
     uiActor,
@@ -345,9 +353,13 @@ export const TokenPickerContent = () => {
       isEnabled: isEthOffered,
     }),
   )
+  const ethRow = useHeldWhile(
+    approvalState.isApproving,
+    getEthPaymentRow(ethQuoteQuery, funding?.walletDebitRaw),
+  )
   const ethPayment = isEthOffered
     ? {
-        row: getEthPaymentRow(ethQuoteQuery, funding?.walletDebitRaw),
+        row: ethRow,
         isSelected: paymentAsset === 'eth',
         onSelect: () =>
           uiActor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' }),
@@ -1289,7 +1301,10 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
               .otherwise(() => (
                 <PaymentMethods
                   onSelectCoin={onSelectCoin}
-                  paymentMethodItems={paymentMethodItems}
+                  paymentMethodItems={getPayingMethods(
+                    paymentMethodItems,
+                    isBusy,
+                  )}
                   selectedToken={selectedToken}
                   showNetworkFeeDetails={showNetworkFeeDetails}
                   stablecoinBalances={stablecoinBalances}

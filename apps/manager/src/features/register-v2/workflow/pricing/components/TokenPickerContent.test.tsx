@@ -1246,6 +1246,27 @@ describe('TokenPickerContentBase ETH row', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 
+  it.each([
+    { isBusy: true, isUsdcListed: false },
+    { isBusy: false, isUsdcListed: true },
+  ])(
+    'lists the USDC the swap bought only when not paying (busy $isBusy)',
+    ({ isBusy, isUsdcListed }) => {
+      renderPicker({
+        funding: underfunded,
+        selectedToken: 'USDC',
+        stablecoinBalances: [usdc],
+        ethPayment: ethPaymentOf({}, true),
+        isBusy,
+      })
+
+      expect(screen.getByRole('button', { name: 'Pay with ETH' })).toBeVisible()
+      expect(
+        screen.queryByRole('button', { name: 'Select USDC' }) !== null,
+      ).toBe(isUsdcListed)
+    },
+  )
+
   it('registers with ETH once quoted, whatever USDC the wallet holds', () => {
     renderPicker({
       funding: underfunded,

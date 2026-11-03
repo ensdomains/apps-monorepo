@@ -21,3 +21,14 @@ export const getPaymentMethodVisibility = <
     hiddenCount: methods.length - visibleMethods.length,
   }
 }
+
+/** While paying, only the chosen method stays listed, so another can't appear mid-payment. */
+export const getPayingMethods = <
+  TMethod extends { readonly isSelected: boolean },
+>(
+  methods: readonly TMethod[],
+  isPaying: boolean,
+): readonly TMethod[] =>
+  isPaying && methods.some((method) => method.isSelected)
+    ? methods.filter((method) => method.isSelected)
+    : methods
