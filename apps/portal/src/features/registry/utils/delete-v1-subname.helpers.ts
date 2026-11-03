@@ -12,15 +12,18 @@ import {
   registrySetRecordSnippet,
   registrySetSubnodeRecordSnippet,
 } from '@ensdomains/ensjs-abi/registry'
+import { baseRegistrarSafeTransferFromWithDataSnippet } from '@ensdomains/ensjs-abi/v1/baseRegistrar'
 import {
   nameWrapperSetRecordSnippet,
   nameWrapperSetSubnodeOwnerSnippet,
   nameWrapperSetSubnodeRecordSnippet,
+  nameWrapperUnwrapEth2ldSnippet,
 } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import { match, P } from 'ts-pattern'
 import {
   type Address,
   concatHex,
+  encodeAbiParameters,
   encodeFunctionData,
   type Hex,
   labelhash as hashLabel,
@@ -44,6 +47,10 @@ const NAME_WRAPPER = getChainContractAddress({
   chain: ensChain,
   contract: 'ensNameWrapper',
 })
+const BASE_REGISTRAR = getChainContractAddress({
+  chain: ensChain,
+  contract: 'ensBaseRegistrarImplementation',
+})
 
 export type V1SubnameDeleteChild = {
   /** The label, when known: the NameWrapper takes the label, not its hash. */
@@ -58,12 +65,15 @@ export type V1SubnameDeleteChild = {
 /**
  * The writes a delete takes. From the parent's side an unwrapped subname under
  * a wrapped parent is wrapped to the caller first: the NameWrapper can only
- * zero a name it holds. Its own holder zeroes it on its own node instead.
+ * zero a name it holds. With no label to wrap it by, the parent is unwrapped,
+ * the subname zeroed in the registry by its labelhash, and the parent wrapped
+ * back. Its own holder zeroes it on its own node instead.
  */
 export type V1SubnameDeleteTarget =
   | 'registry'
   | 'wrapper'
   | 'wrap-then-delete'
+  | 'unwrap-parent-then-delete'
   | 'registry-as-holder'
   | 'wrapper-as-holder'
 
@@ -108,6 +118,14 @@ export const getV1SubnameDeleteGate = (
     .with(
       { parent: { isWrapped: false } },
       () => ({ reason: 'ok', target: 'registry' }) as const,
+    )
+    .with(
+      {
+        labelName: null,
+        parent: { isRewrappable: true },
+        wrapping: { isWrapped: false },
+      },
+      () => ({ reason: 'ok', target: 'unwrap-parent-then-delete' }) as const,
     )
     .with({ labelName: null }, () => ({ reason: 'unknown-label' }) as const)
     .with(
@@ -158,10 +176,18 @@ export const getV1SubnameDeleteAccess = (
   account: Address,
 ): V1SubnameDeleteGate | null => {
   const asParent = parent ? getV1SubnameDeleteGate(parent, child) : null
-  if (asParent?.reason === 'ok') return asParent
   const isHolder =
     child.holder !== null && isAddressEqual(child.holder, account)
-  return isHolder ? getV1SubnameHolderDeleteGate(child) : asParent
+  const asHolder = isHolder ? getV1SubnameHolderDeleteGate(child) : null
+  // Its own holder zeroes it in one write, without unwrapping the parent.
+  if (
+    asParent?.reason === 'ok' &&
+    asParent.target === 'unwrap-parent-then-delete' &&
+    asHolder?.reason === 'ok'
+  )
+    return asHolder
+  if (asParent?.reason === 'ok') return asParent
+  return asHolder ?? asParent
 }
 
 export interface V1SubnameDelete {
@@ -184,8 +210,9 @@ export interface PrepareDeleteV1SubnameParams {
 }
 
 /**
- * The delete intents, in order: one write, or the wrap then the delete. Throws
- * for a wrapper target whose label does not hash to the row's labelhash.
+ * The delete intents, in order: one write, the wrap then the delete, or the
+ * parent's unwrap, the delete and the parent's re-wrap. Throws for a wrapper
+ * target whose label does not hash to the row's labelhash.
  */
 export const prepareDeleteV1SubnameTransactions = ({
   target,
@@ -215,18 +242,19 @@ export const prepareDeleteV1SubnameTransactions = ({
       chainId,
     })
 
-  return match(target)
-    .with('registry', () => [
-      toEoaIntent(walletClient, {
-        to: LEGACY_REGISTRY,
-        data: encodeFunctionData({
-          abi: registrySetSubnodeRecordSnippet,
-          functionName: 'setSubnodeRecord',
-          args: [parentNode, labelhash, zeroAddress, zeroAddress, 0n],
-        }),
-        chainId,
+  const zeroInRegistry = () =>
+    toEoaIntent(walletClient, {
+      to: LEGACY_REGISTRY,
+      data: encodeFunctionData({
+        abi: registrySetSubnodeRecordSnippet,
+        functionName: 'setSubnodeRecord',
+        args: [parentNode, labelhash, zeroAddress, zeroAddress, 0n],
       }),
-    ])
+      chainId,
+    })
+
+  return match(target)
+    .with('registry', () => [zeroInRegistry()])
     .with('wrapper', () => [zeroThroughWrapper()])
     .with('wrap-then-delete', () => {
       const account = walletClient.account?.address
@@ -242,6 +270,50 @@ export const prepareDeleteV1SubnameTransactions = ({
           chainId,
         }),
         zeroThroughWrapper(),
+      ]
+    })
+    .with('unwrap-parent-then-delete', () => {
+      const account = walletClient.account?.address
+      if (!account) throw new Error('No account connected')
+      // Unwrapped and wrapped back by the same label, so a wrong one fails
+      // at the unwrap, before anything changes.
+      const [parentLabel = ''] = parentName.split('.')
+      const parentLabelhash = hashLabel(parentLabel)
+      return [
+        toEoaIntent(walletClient, {
+          to: NAME_WRAPPER,
+          data: encodeFunctionData({
+            abi: nameWrapperUnwrapEth2ldSnippet,
+            functionName: 'unwrapETH2LD',
+            args: [parentLabelhash, account, account],
+          }),
+          chainId,
+        }),
+        zeroInRegistry(),
+        // Sending the token to the NameWrapper wraps it with no approval. A
+        // zero resolver leaves the name's resolver as it is.
+        toEoaIntent(walletClient, {
+          to: BASE_REGISTRAR,
+          data: encodeFunctionData({
+            abi: baseRegistrarSafeTransferFromWithDataSnippet,
+            functionName: 'safeTransferFrom',
+            args: [
+              account,
+              NAME_WRAPPER,
+              BigInt(parentLabelhash),
+              encodeAbiParameters(
+                [
+                  { name: 'label', type: 'string' },
+                  { name: 'wrappedOwner', type: 'address' },
+                  { name: 'ownerControlledFuses', type: 'uint16' },
+                  { name: 'resolverAddress', type: 'address' },
+                ],
+                [parentLabel, account, 0, zeroAddress],
+              ),
+            ],
+          }),
+          chainId,
+        }),
       ]
     })
     .with('registry-as-holder', () => [

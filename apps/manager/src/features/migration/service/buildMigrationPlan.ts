@@ -71,6 +71,10 @@ import {
   type TemporaryRegistrationApproval,
 } from './migrationBatchJournal'
 import {
+  type MigrationEstimateObserver,
+  namesNotRequiringProfileRead,
+} from './migrationEstimateProgress'
+import {
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
@@ -132,7 +136,9 @@ const fetchProfilesForNames = async (params: {
   namesToOwnedPermRes: readonly ClassifiedName[]
   preflight: MigrationPreflight
   publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   signal?: AbortSignal
+  readonly onNamesRead?: (names: readonly string[]) => void | Promise<void>
 }): Promise<Map<Hex, Profile>> => {
   const { namesToOwnedPermRes, preflight, publicClient, signal } = params
   signal?.throwIfAborted()
@@ -149,6 +155,8 @@ const fetchProfilesForNames = async (params: {
       })),
     publicClient,
     profileKeys: preflight.profileKeys,
+    verificationClient: params.verificationClient,
+    ...(params.onNamesRead && { onNamesRead: params.onNamesRead }),
     signal,
   })
 }
@@ -444,6 +452,7 @@ export const assertLockedResolverReplacementRecordSafety = async (
   classified: readonly ClassifiedName[],
   publicClient: PublicClient,
   signal?: AbortSignal,
+  verificationClient?: PublicClient,
 ): Promise<void> => {
   signal?.throwIfAborted()
   const candidates = lockedResolverReplacementsWithoutAtomicReplay(classified)
@@ -455,7 +464,12 @@ export const assertLockedResolverReplacementRecordSafety = async (
       name: name.domain.name,
       resolver: v1Resolver,
     })),
-    { signal, chainId: publicClient.chain?.id },
+    {
+      signal,
+      chainId: publicClient.chain?.id,
+      publicClient,
+      verificationClient,
+    },
   )
   signal?.throwIfAborted()
   if (result.isErr()) {
@@ -492,12 +506,14 @@ export const buildMigrationPlan = async (params: {
   /** Names whose ENSv1 registry controller the owner chose to keep as manager. */
   managerRestorationNames?: readonly string[]
   publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   preflight: MigrationPreflight
   /** The owner wallet bundles calls atomically (EIP-5792). */
   canBatchAtomically?: boolean
   /** Names whose expiry projects a pending renewal; only fee previews pass this. */
   projectedExpiryNames?: ReadonlySet<string>
   signal?: AbortSignal
+  readonly onProgress?: MigrationEstimateObserver
 }): Promise<MigrationPlan> => {
   const {
     domains,
@@ -538,6 +554,7 @@ export const buildMigrationPlan = async (params: {
   if (params.subnameRecreation)
     await assertSubnameRecreationUnchanged({
       publicClient,
+      verificationClient: params.verificationClient,
       snapshot: params.subnameRecreation.snapshot,
       domains,
     })
@@ -548,6 +565,7 @@ export const buildMigrationPlan = async (params: {
     classified,
     publicClient,
     signal,
+    params.verificationClient,
   )
   signal?.throwIfAborted()
   const directRoutes =
@@ -594,14 +612,29 @@ export const buildMigrationPlan = async (params: {
       })
   }
 
+  await params.onProgress?.({ stage: 'reading-records', names: [] })
+  const noProfileRead = namesNotRequiringProfileRead(classified)
+  await params.onProgress?.({ stage: 'reading-records', names: noProfileRead })
   const profiles = await fetchProfilesForNames({
+    onNamesRead: params.onProgress
+      ? (names) =>
+          params.onProgress?.({
+            stage: 'reading-records',
+            names: [...noProfileRead, ...names],
+          })
+      : undefined,
     namesToOwnedPermRes,
     preflight,
     publicClient,
+    verificationClient: params.verificationClient,
     signal,
   })
   signal?.throwIfAborted()
 
+  await params.onProgress?.({
+    stage: 'reading-records',
+    names: classified.map(({ domain }) => domain.name),
+  })
   const classifiedByName = new Map(
     classified.map((name) => [name.domain.name, name] as const),
   )
@@ -610,7 +643,11 @@ export const buildMigrationPlan = async (params: {
     preflight.hcaResolverReadiness?.status === 'verified' &&
     preflight.hcaResolverReadiness.walletHasWildcardRoles
   const resolverWriter = resolverWriterFor(preflight.hcaResolverReadiness)
+  await params.onProgress?.({ stage: 'preparing-upgrade', names: [] })
   const atomicPlan = await buildAtomicMigrationBatches({
+    onNamesEstimated: params.onProgress
+      ? (names) => params.onProgress?.({ stage: 'preparing-upgrade', names })
+      : undefined,
     directMigrationExpiries,
     chainId: requireChainId(publicClient, 'migration'),
     hca: hcaAddress,
@@ -947,6 +984,7 @@ export const buildMigrationRecoveryPlan = async (params: {
   readonly publicClient: PublicClient
   readonly canBatchAtomically?: boolean
   readonly signal?: AbortSignal
+  readonly onProgress?: MigrationEstimateObserver
 }): Promise<MigrationPlan> => {
   const { snapshot, hcaAddress, migrationOwner, publicClient, signal } = params
   const canBatchAtomically =
@@ -1093,7 +1131,15 @@ export const buildMigrationRecoveryPlan = async (params: {
   const classifiedByName = new Map(
     classified.map((name) => [name.domain.name, name] as const),
   )
+  await params.onProgress?.({
+    stage: 'checking-names',
+    names: classified.map(({ domain }) => domain.name),
+  })
+  await params.onProgress?.({ stage: 'preparing-upgrade', names: [] })
   const atomicPlan = await buildAtomicMigrationBatches({
+    onNamesEstimated: params.onProgress
+      ? (names) => params.onProgress?.({ stage: 'preparing-upgrade', names })
+      : undefined,
     directMigrationExpiries,
     chainId,
     hca: hcaAddress,

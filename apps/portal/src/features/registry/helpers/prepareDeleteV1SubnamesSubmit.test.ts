@@ -207,4 +207,24 @@ describe('prepareDeleteV1SubnamesSubmit', () => {
       (await submit('wrapper-as-holder'))._unsafeUnwrapErr().cause,
     ).toEqual({ kind: 'refused', reason: 'locked' })
   })
+
+  it('confirms an unknown label under a parent that can be wrapped back', async () => {
+    mocks.getV1NameState.mockReturnValue(
+      parentHeld(true).map((state) => ({ ...state, isRewrappable: true })),
+    )
+
+    const result = await prepareDeleteV1SubnamesSubmit({
+      parentName: 'parent.eth',
+      account: ACCOUNT,
+      deletes: [
+        {
+          labelhash: LABELHASH,
+          labelName: null,
+          target: 'unwrap-parent-then-delete',
+        },
+      ],
+    })
+
+    expect(result.isOk()).toBe(true)
+  })
 })
