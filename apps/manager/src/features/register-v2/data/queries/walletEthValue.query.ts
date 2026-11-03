@@ -10,7 +10,7 @@ import { publicClient } from '@/lib/wagmi'
 /** The wallet's ETH, or the ETH price, could not be read. */
 export class ReadWalletEthValueError extends TaggedError(
   'ReadWalletEthValueError',
-)<{ cause: unknown }> {}
+)<{ cause: Error }> {}
 
 /** The wallet's ETH (wei) and what it is worth in USDC (6 decimals). */
 export type WalletEthValue = Readonly<{ weiRaw: bigint; usdcRaw: bigint }>
@@ -21,7 +21,7 @@ const getWalletEthValue = (
   ResultAsync.combine([
     ResultAsync.fromPromise(
       publicClient.getBalance({ address: owner }),
-      (cause) => cause,
+      (cause) => (cause instanceof Error ? cause : new Error(String(cause))),
     ),
     readEthUsdPrice({
       publicClient,
@@ -48,7 +48,9 @@ export const getWalletEthValueQueryOptions = (params: {
     queryFn: () =>
       params.owner
         ? getWalletEthValue(params.owner)
-        : errAsync(new ReadWalletEthValueError({ cause: 'No wallet.' })),
+        : errAsync(
+            new ReadWalletEthValueError({ cause: new Error('No wallet.') }),
+          ),
     enabled: params.isEnabled && !!params.owner,
     refetchInterval: 30_000,
   })

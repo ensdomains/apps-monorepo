@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getCheckoutSummary, getCheckoutTotalUsd } from './checkoutSummary'
+import { getCheckoutSummary, getCheckoutTotalRaw } from './checkoutSummary'
 
 describe('getCheckoutSummary', () => {
   it.each([
@@ -27,12 +27,12 @@ describe('getCheckoutSummary', () => {
   })
 })
 
-describe('getCheckoutTotalUsd', () => {
+describe('getCheckoutTotalRaw', () => {
   it.each([
-    ['both known', 330_000_000n, 3_000_000n, 327],
+    ['both known', 330_000_000n, 3_000_000n, 327_000_000n],
     ['the price still loading', undefined, 3_000_000n, undefined],
     ['the balance still loading', 330_000_000n, undefined, undefined],
   ])('%s', (_case, nameCost, accountBalance, expected) => {
-    expect(getCheckoutTotalUsd(nameCost, accountBalance)).toBe(expected)
+    expect(getCheckoutTotalRaw(nameCost, accountBalance)).toBe(expected)
   })
 })

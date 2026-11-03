@@ -55,14 +55,17 @@ export const canPayWithEth = (row: EthPaymentRow) =>
 const weiToUsd = (wei: bigint, ethUsd: bigint) =>
   decimalBigintToNumber(ethToUsdcRaw(wei, ethUsd), USDC_DECIMALS)
 
-/** The swap's own gas in USD: one estimate, not the doubled reserve kept back for it. */
-export const getEthSwapGasUsd = (row: EthPaymentRow | undefined) =>
+/** The swap's own gas in USDC: one estimate, not the doubled reserve kept back for it. */
+export const getEthSwapGasUsdcRaw = (row: EthPaymentRow | undefined) =>
   row?.ethUsdRaw === undefined
-    ? 0
-    : weiToUsd(
+    ? 0n
+    : ethToUsdcRaw(
         row.gasReserveRaw / ETH_SWAP_GAS_RESERVE_MULTIPLIER,
         row.ethUsdRaw,
       )
+
+export const getEthSwapGasUsd = (row: EthPaymentRow | undefined) =>
+  decimalBigintToNumber(getEthSwapGasUsdcRaw(row), USDC_DECIMALS)
 
 export const getEthSelectionMessage = (row: EthPaymentRow) =>
   match(row)

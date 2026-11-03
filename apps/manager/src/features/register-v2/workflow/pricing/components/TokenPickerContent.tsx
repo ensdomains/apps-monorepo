@@ -37,7 +37,7 @@ import {
   type L2PaymentRow,
   useL2Payment,
 } from '../hooks/useL2Payment'
-import { getCheckoutTotalUsd } from '../lib/checkoutSummary'
+import { getCheckoutTotalRaw } from '../lib/checkoutSummary'
 import {
   getCurrentMethodState,
   getFallbackPaymentChoice,
@@ -58,7 +58,7 @@ import {
   EthPaymentListItem,
   type EthPaymentRow,
   getEthSelectionMessage,
-  getEthSwapGasUsd,
+  getEthSwapGasUsdcRaw,
   isEthShortOfFunds,
 } from './EthPaymentListItem'
 import {
@@ -311,7 +311,7 @@ export const TokenPickerContent = () => {
   // the rent, which is not what the wallet pays.
   const isBudgetRequired = isHcaBudgetQuoteRequired(budgetQueryParams)
   // The page's figure, from the budget's own balance read, so the receipt's lines share one snapshot.
-  const registrationTotal = getCheckoutTotalUsd(
+  const registrationTotalRaw = getCheckoutTotalRaw(
     pricingQuery.data?.totalPriceRaw,
     budgetQuery.data?.hcaBalance,
   )
@@ -662,7 +662,7 @@ export const TokenPickerContent = () => {
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
       registrationReceipt={
-        isBudgetRequired ? { total: registrationTotal } : undefined
+        isBudgetRequired ? { totalRaw: registrationTotalRaw } : undefined
       }
       revalidatedShortfall={revalidatedShortfall}
       selectedToken={selectedToken}
@@ -901,7 +901,7 @@ const getEthMethodItems = (
 
 /** Registration needs no method once the existing balance covers everything: the receipt says so. */
 const isMethodPickerHidden = (
-  registrationReceipt: Readonly<{ total: number | undefined }> | undefined,
+  registrationReceipt: Readonly<{ totalRaw: bigint | undefined }> | undefined,
   isFullyCovered: boolean,
 ) => registrationReceipt !== undefined && isFullyCovered
 
@@ -1087,7 +1087,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   /** Registration only: the row that pays with the wallet's ETH. */
   readonly ethPayment?: EthPaymentProps
   /** Registration only: the receipt shows the page's total and the network fee instead of the existing balance. */
-  readonly registrationReceipt?: Readonly<{ total: number | undefined }>
+  readonly registrationReceipt?: Readonly<{ totalRaw: bigint | undefined }>
 }) => {
   const { t } = useLingui()
 
@@ -1358,9 +1358,9 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           />
         ) : (
           <NetworkFeeReceipt
-            extraFee={getEthSwapGasUsd(selectedEth)}
+            extraFeeRaw={getEthSwapGasUsdcRaw(selectedEth)}
             networkFee={shownFunding?.networkFee}
-            registrationTotal={registrationReceipt.total}
+            registrationTotalRaw={registrationReceipt.totalRaw}
             state={receiptState}
           />
         )}

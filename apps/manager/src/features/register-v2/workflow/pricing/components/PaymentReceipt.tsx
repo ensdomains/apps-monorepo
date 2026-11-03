@@ -1,14 +1,18 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
+import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import {
   getNetworkFeeReceiptFigures,
   type PaymentReceiptFigures,
   type PaymentReceiptState,
+  usdToUsdcRaw,
 } from '../lib/paymentReceiptFigures'
 import { ExistingBalanceLabel } from './ExistingBalanceLabel'
 import { RECEIPT_AMOUNT, RECEIPT_LABEL } from './receiptTypography'
+
+const USDC_DECIMALS = 6
 
 type ShownAmount =
   | { readonly status: 'loading' }
@@ -133,39 +137,41 @@ export const PaymentReceipt = ({
 }
 
 /** Registration's receipt: the page's total, the selected method's fee, and what the wallet pays. */
+const toUsd = (raw: bigint) => decimalBigintToNumber(raw, USDC_DECIMALS)
+
 export const NetworkFeeReceipt = ({
   state,
-  registrationTotal,
+  registrationTotalRaw,
   networkFee,
-  extraFee,
+  extraFeeRaw,
 }: {
   /** The quote behind the fee; the total is the page's and is always shown. */
   readonly state: PaymentReceiptState
   /** `undefined` while the price or the account balance loads. */
-  readonly registrationTotal: number | undefined
+  readonly registrationTotalRaw: bigint | undefined
   /** The selected method's fee, before any existing balance; `undefined` until quoted. */
   readonly networkFee: number | undefined
   /** Paid on top of the wallet debit, such as an ETH swap's gas. */
-  readonly extraFee: number
+  readonly extraFeeRaw: bigint
 }) => {
   const { t } = useLingui()
   const figures =
     state.status === 'ready' &&
-    registrationTotal !== undefined &&
+    registrationTotalRaw !== undefined &&
     networkFee !== undefined
       ? getNetworkFeeReceiptFigures({
-          registrationTotal,
-          networkFee,
-          walletDebit: state.figures.due,
-          extraFee,
+          registrationTotalRaw,
+          networkFeeRaw: usdToUsdcRaw(networkFee),
+          walletDebitRaw: usdToUsdcRaw(state.figures.due),
+          extraFeeRaw,
         })
       : undefined
   const pending: ShownAmount =
     state.status === 'loading'
       ? { status: 'loading' }
       : { status: 'unavailable' }
-  const shown = (field: 'networkFee' | 'due'): ShownAmount =>
-    figures ? { status: 'ready', value: figures[field] } : pending
+  const shown = (field: 'networkFeeRaw' | 'dueRaw'): ShownAmount =>
+    figures ? { status: 'ready', value: toUsd(figures[field]) } : pending
 
   return (
     <section
@@ -177,29 +183,34 @@ export const NetworkFeeReceipt = ({
         <Row label={<Trans>Registration total</Trans>}>
           <UsdAmount
             amount={
-              registrationTotal === undefined
+              registrationTotalRaw === undefined
                 ? { status: 'loading' }
                 : {
                     status: 'ready',
-                    value: figures?.registrationTotal ?? registrationTotal,
+                    value: toUsd(
+                      figures?.registrationTotalRaw ?? registrationTotalRaw,
+                    ),
                   }
             }
           />
         </Row>
         <Row label={<Trans>Estimated network fee</Trans>}>
-          <UsdAmount amount={shown('networkFee')} />
+          <UsdAmount amount={shown('networkFeeRaw')} />
         </Row>
-        {figures && figures.existingBalance > 0 && (
+        {figures && figures.existingBalanceRaw > 0n && (
           <Row label={<ExistingBalanceLabel />}>
             <UsdAmount
-              amount={{ status: 'ready', value: figures.existingBalance }}
+              amount={{
+                status: 'ready',
+                value: toUsd(figures.existingBalanceRaw),
+              }}
               isDeduction
             />
           </Row>
         )}
         <hr className="border-ens-quartz-100" />
         <Row label={<Trans>You pay</Trans>}>
-          <UsdAmount amount={shown('due')} />
+          <UsdAmount amount={shown('dueRaw')} />
         </Row>
       </dl>
     </section>

@@ -887,7 +887,7 @@ describe('TokenPickerContentBase', () => {
           hcaCredit: 41.98 - walletDebit,
           isLoading: false,
         },
-        registrationReceipt: { total: 0 },
+        registrationReceipt: { totalRaw: 0n },
         selectedToken: 'USDC',
       })
 

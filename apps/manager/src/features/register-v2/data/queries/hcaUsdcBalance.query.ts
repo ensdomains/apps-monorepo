@@ -10,7 +10,7 @@ import { publicClient } from '@/lib/wagmi'
 /** The smart account's USDC could not be read. */
 export class ReadHcaUsdcBalanceError extends TaggedError(
   'ReadHcaUsdcBalanceError',
-)<{ cause: unknown }> {}
+)<{ cause: Error }> {}
 
 /** The USDC already in the smart account, which a registration spends first. */
 export const getHcaUsdcBalanceQueryOptions = (
@@ -29,7 +29,11 @@ export const getHcaUsdcBalanceQueryOptions = (
             publicClient,
             chainId: chain.id,
           }).mapErr((cause) => new ReadHcaUsdcBalanceError({ cause }))
-        : errAsync(new ReadHcaUsdcBalanceError({ cause: 'No smart account.' })),
+        : errAsync(
+            new ReadHcaUsdcBalanceError({
+              cause: new Error('No smart account.'),
+            }),
+          ),
     enabled: !!hca,
     refetchInterval: 30_000,
   })

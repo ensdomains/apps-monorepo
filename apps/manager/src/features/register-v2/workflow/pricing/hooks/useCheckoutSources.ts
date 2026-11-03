@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import { TOKENS } from '@/lib/tokens'
 import { getHcaUsdcBalanceQueryOptions } from '../../../data/queries/hcaUsdcBalance.query'
@@ -52,14 +52,19 @@ export const useCheckoutSources = (account: CheckoutSourcesAccount) => {
   const owner = account.ownerAddress ?? undefined
   const isHcaRoute = !!hca
 
-  const hcaBalance = useQuery(getHcaUsdcBalanceQueryOptions(hca))
-  const l2Balances = useQuery({
-    ...getL2BalancesQueryOptions(owner),
-    enabled: isHcaRoute && !!owner,
+  const [accountBalance, l2s, eth] = useQueries({
+    queries: [
+      getHcaUsdcBalanceQueryOptions(hca),
+      { ...getL2BalancesQueryOptions(owner), enabled: isHcaRoute && !!owner },
+      getWalletEthValueQueryOptions({ owner, isEnabled: isHcaRoute }),
+    ],
+    combine: ([hcaBalance, l2Balances, ethValue]) =>
+      [
+        readOf(hcaBalance.isSuccess ? hcaBalance.data : undefined),
+        l2Reads(l2Balances.isSuccess ? l2Balances.data : undefined),
+        readOf(ethValue.isSuccess ? ethValue.data.usdcRaw : undefined),
+      ] as const,
   })
-  const ethValue = useQuery(
-    getWalletEthValueQueryOptions({ owner, isEnabled: isHcaRoute }),
-  )
 
   if (!isHcaRoute) {
     return {
@@ -69,11 +74,8 @@ export const useCheckoutSources = (account: CheckoutSourcesAccount) => {
   }
   const sources: PaymentSources = {
     wallet: walletUsdcRead(account),
-    l2s: l2Reads(l2Balances.isSuccess ? l2Balances.data : undefined),
-    eth: readOf(ethValue.isSuccess ? ethValue.data.usdcRaw : undefined),
+    l2s,
+    eth,
   }
-  return {
-    accountBalance: readOf(hcaBalance.isSuccess ? hcaBalance.data : undefined),
-    sources,
-  }
+  return { accountBalance, sources }
 }
