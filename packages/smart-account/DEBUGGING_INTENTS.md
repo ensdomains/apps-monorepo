@@ -390,11 +390,15 @@ a `wrap` for the ETH; the SDK only acts on requirements for EOA accounts, and
 the swap op spends the ETH directly. Exact input is honoured: `tokensSpent` is
 the full amount, and the swap op's value is that less the ETH gas fee.
 
-**Ethereum Sepolia has no swap route.** Every venue (`1inch`, `0x`, `velora`,
-`kyberswap`, `fynd`, `fynd-hosted`, `bebop`, `relay`) answers
-`SWAP_INPUTS_REJECTED` / `chain_not_available` for ETH → USDC there, although
-`/chains` lists both tokens. Bridging (the L2 payment) is a different path and
-works; it proves nothing about swaps.
+**No testnet offers a same-chain swap.** On Sepolia, Base Sepolia, Arbitrum
+Sepolia and OP Sepolia, every pair (ETH, WETH, USDC either way) and every venue
+(`1inch`, `0x`, `velora`, `kyberswap`, `fynd`, `fynd-hosted`, `bebop`,
+`relay`) answers `SWAP_INPUTS_REJECTED` / `chain_not_available`, although
+`/chains` lists the tokens (checked 2026-11-03). Cross-chain testnet routes
+do quote, ETH in and USDC out (e.g. Base Sepolia ETH → Sepolia USDC), because
+Across fills them: `ACROSS` / `PERMIT2`, paid from a wallet on the other chain,
+with a `wrap` and a WETH `approval` requirement on that chain. That is the L2
+payment's path; it says nothing about the same-chain swap this flow needs.
 
 Every quote is bounded by the Chainlink ETH/USD feed (`maxEthSwapInput`: the
 USDC plus 3%, at least 2 USDC). A swap refused as "exchange rate is too high"
