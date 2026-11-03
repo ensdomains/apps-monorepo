@@ -15,10 +15,10 @@ import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
 import type { BulkRenewName, Selection, SummaryRow } from '../types'
+import { BulkRenewPaymentStep } from './BulkRenewPaymentStep'
 import { DurationPresets } from './DurationPresets'
 import { FailureStep } from './FailureStep'
 import { NamesBreakdown } from './NamesBreakdown'
-import { PaymentMethodSection } from './PaymentMethodSection'
 import { RenewingStep } from './RenewingStep'
 import { RenewToDatePopover } from './RenewToDatePopover'
 import { SuccessStep } from './SuccessStep'
@@ -189,29 +189,14 @@ export const BulkRenewDialog = ({
             </DialogTitle>
           </DialogHeader>
 
-          <NamesBreakdown rows={summaryRows} total={grandTotal} />
-
-          <PaymentMethodSection
-            accountCredit={payment.accountCredit}
-            isConnected={payment.isConnected}
-            isLoadingBalances={payment.isLoadingBalances}
-            l2Payment={payment.l2Payment}
+          <BulkRenewPaymentStep
+            grandTotal={grandTotal}
+            header={<NamesBreakdown rows={summaryRows} total={grandTotal} />}
+            onConfirm={handleConfirm}
             onSelectCoin={selectCoin}
-            priceUSD={payment.fundedTotal}
-            selectedL2={selectedL2}
+            payment={payment}
             selectedToken={selectedToken}
-            stablecoinBalances={payment.stablecoinBalances}
           />
-
-          <Button
-            className="w-full uppercase"
-            disabled={!payment.canConfirm}
-            onClick={handleConfirm}
-            size="lg"
-            type="button"
-          >
-            <Trans>Confirm</Trans>
-          </Button>
         </>
       )
     }

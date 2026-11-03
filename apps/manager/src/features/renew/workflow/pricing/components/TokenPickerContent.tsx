@@ -62,8 +62,7 @@ export const TokenPickerContent = () => {
   })
   const { isIntentRoute, isQuoting, funding, walletDebitFor, feeRaw } =
     useRenewalIntentFunding({
-      label,
-      duration,
+      items: [{ label, duration }],
       token,
       protocol,
       renewerAddress,

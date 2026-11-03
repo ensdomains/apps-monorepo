@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { getRenewalFeeQueryOptions } from '@/features/renew/data/queries/renewalFee.query'
+import type { HcaRenewalItem } from '@/features/renew/service/hcaRenewal'
 import {
   computeRenewalFunding,
   type RenewalFunding,
@@ -26,10 +27,12 @@ export type RenewalIntentFunding = {
   readonly feeRaw: bigint | undefined
 }
 
-/** The renewal intent's fee, folded with the rent and the account's balance into what the wallet pays. */
+/** The renewal intents' fee, folded with the rent and the account's balance into what the wallet pays. */
 export const useRenewalIntentFunding = (params: {
-  readonly label: string
-  readonly duration: bigint
+  /** The names renewed: one for a single renewal, the selection for a bulk one. */
+  readonly items: readonly HcaRenewalItem[]
+  /** False until the fee is worth quoting, such as before the payment step. */
+  readonly isEnabled?: boolean
   readonly token: RENEWAL_TOKEN
   readonly protocol: RenewalProtocol
   readonly renewerAddress: Address
@@ -37,15 +40,14 @@ export const useRenewalIntentFunding = (params: {
   readonly pricing: { readonly funded: number } | undefined
   readonly accountCredit: Partial<Record<TOKEN_SYMBOL, number>>
 }): RenewalIntentFunding => {
-  const { account, pricing, accountCredit, label, duration, ...quote } = params
+  const { account, pricing, accountCredit, isEnabled = true, ...quote } = params
   const isIntentRoute = getRenewalPaymentRoute(account.signer) === 'intent'
 
   const feeQuery = useQuery(
     getRenewalFeeQueryOptions({
       ...quote,
-      items: [{ label, duration }],
       signer:
-        isIntentRoute && account.signer?.type === 'rhinestone'
+        isEnabled && isIntentRoute && account.signer?.type === 'rhinestone'
           ? account.signer
           : null,
       ownerAddress: account.ownerAddress ?? null,
@@ -72,7 +74,7 @@ export const useRenewalIntentFunding = (params: {
 
   return {
     isIntentRoute,
-    isQuoting: isIntentRoute && feeQuery.isLoading,
+    isQuoting: isEnabled && isIntentRoute && feeQuery.isLoading,
     funding: renewalFunding
       ? { ...renewalFunding.summary, isLoading: feeQuery.isFetching }
       : undefined,
