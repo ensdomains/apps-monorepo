@@ -145,6 +145,43 @@ const buildPlan = (
   })
 }
 
+it('reports each estimated name once after its group fits, including a retried gas boundary', async () => {
+  const onNamesEstimated = vi.fn()
+  const classified = ['alice.eth', 'bob.eth', 'carol.eth'].map((name) =>
+    makeName(name),
+  )
+  const options = {
+    classified,
+    maxOuterGas: 250_000n,
+    estimateBatchGas: ({ names }: { readonly names: readonly string[] }) => ({
+      outerGas: BigInt(names.length) * 100_000n,
+      walletGas: 0n,
+    }),
+    onNamesEstimated,
+  }
+
+  await buildPlan(options)
+
+  expect(onNamesEstimated.mock.calls).toEqual([
+    [['alice.eth']],
+    [['alice.eth', 'bob.eth']],
+    [['alice.eth', 'bob.eth', 'carol.eth']],
+  ])
+})
+
+it('stops estimating queued groups when the progress observer cancels', async () => {
+  const reason = new DOMException('Selection changed', 'AbortError')
+  const estimateBatchGas = vi.fn(() => ({ outerGas: 100_000n, walletGas: 0n }))
+  await expect(
+    buildPlan({
+      classified: ['alice.eth', 'bob.eth'].map((name) => makeName(name)),
+      estimateBatchGas,
+      onNamesEstimated: () => Promise.reject(reason),
+    }),
+  ).rejects.toBe(reason)
+  expect(estimateBatchGas).toHaveBeenCalledTimes(1)
+})
+
 describe('direct reservation expiry snapshots', () => {
   it.each([5356800n, 5356801n])(
     'keeps the exact on-chain expiry with bonus %s',
