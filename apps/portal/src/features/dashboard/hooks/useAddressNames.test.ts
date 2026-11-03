@@ -201,7 +201,13 @@ describe('getAddressNames', () => {
       await getAddressNames({ address: ADDRESS }, { now: NOW })
     )._unsafeUnwrap()
 
-    expect(names.map(({ name }) => name)).toEqual(['released-recently.eth'])
+    expect(names).toEqual([
+      expect.objectContaining({
+        name: 'released-recently.eth',
+        status: 'released',
+        protocolVersion: 'ENSv2',
+      }),
+    ])
   })
 
   it('drops a lapsed name once it is registered again', async () => {
