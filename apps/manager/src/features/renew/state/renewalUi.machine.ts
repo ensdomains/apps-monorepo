@@ -1,4 +1,10 @@
-import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
+import type {
+  HcaDisplayedDebit,
+  HcaFundingApprovalCapability,
+  RhinestoneSigner,
+  Signer,
+} from '@ens-apps/transaction-manager'
+import { HcaFundingApprovalDeclinedError } from '@ens-apps/transaction-manager/helpers/hca-funding-approval'
 import {
   HcaFundingDeclinedError,
   type HcaFundingPrompt,
@@ -15,9 +21,13 @@ import type { Address, WalletClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import { envConfig } from '@/config'
 import { getExpiry } from '@/features/profile/service/profileExpiry'
+import type { FundingSourceOrigin } from '@/features/register-v2/state/registrationUi.machine'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import { getV1RenewableQueryOptions } from '@/features/renew/data/queries/v1Renewable.query'
-import { submitHcaRenewal } from '@/features/renew/service/hcaRenewal'
+import {
+  type HcaRenewalL2Funding,
+  submitHcaRenewal,
+} from '@/features/renew/service/hcaRenewal'
 import {
   getRenewerAddress,
   type RenewalProtocol,
@@ -27,9 +37,10 @@ import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 
 // Two routes pay for a renewal. A smart-account signer renews as an
-// owner-signed HCA intent: no plain transactions, no gas token, and the rent
+// owner-signed HCA intent: rent
 // (in the chosen stable) and fee (in USDC) come out of the account, funded in
-// the same intent when short. An EOA signer keeps the direct-wallet route:
+// the same intent when short, or bridged in from an L2 first when the user
+// pays from one. An EOA signer keeps the direct-wallet route:
 // allowance check, approve and renew as plain wagmi transactions. `renew`
 // charges `msg.sender`, so each route pays as itself.
 
@@ -43,6 +54,9 @@ type SubmissionData = {
 
   /** Formatted base price */
   priceNumber: number
+
+  /** What the payment screen showed the wallet would pay; absent when it showed the rent alone. */
+  readonly displayedDebit?: HcaDisplayedDebit
 
   /**
    * The account context's signer. `rhinestone` selects the intent route (the
@@ -62,6 +76,9 @@ type SubmissionData = {
    * unused on the direct route, where the signer is this wallet itself.
    */
   walletClient: WalletClient
+
+  /** HCA route: bridge the account's shortfall in from an L2 instead. */
+  l2Funding?: HcaRenewalL2Funding
 }
 
 const requireSubmissionData = (
@@ -86,6 +103,10 @@ export const renewalUiMachine = setup({
       renewerAddress: Address
       duration: bigint
       selectedToken: RENEWAL_TOKEN | undefined
+      /** The L2 row picked to pay from; the renewal then pays in USDC. */
+      fundingSourceChainId?: number
+      /** A fallback pick gives way to the wallet once the wallet can pay again. */
+      fundingSourceOrigin?: FundingSourceOrigin
       lastErrorMessage?: string
       submissionData?: SubmissionData
       approvalTxId?: string
@@ -94,11 +115,14 @@ export const renewalUiMachine = setup({
        * Parks the HCA funding on the user's answer. Lives in context so the
        * invoked intent submit can reach the component that renders the prompt.
        */
+      approvalFallback?: HcaFundingApprovalCapability
+      /** Only asked when the payment screen could not show the debit. */
       confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
     },
     input: {} as {
       currentExpiry: bigint
       protocol: RenewalProtocol
+      approvalFallback?: HcaFundingApprovalCapability
       confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
     },
     events: {} as
@@ -107,6 +131,11 @@ export const renewalUiMachine = setup({
       | { type: 'pricing.dialog.dismiss' }
       | { type: 'pricing.duration.set'; duration: bigint }
       | { type: 'pricing.token.select'; token: RENEWAL_TOKEN | undefined }
+      | {
+          type: 'pricing.fundingSource.select'
+          chainId: number
+          origin?: FundingSourceOrigin
+        }
       | {
           type: 'renewal.start'
           label: string
@@ -121,6 +150,9 @@ export const renewalUiMachine = setup({
 
           /** Formatted base price */
           priceNumber: number
+          readonly displayedDebit?: HcaDisplayedDebit
+          /** HCA route: pay from the wallet's USDC on an L2. */
+          l2Funding?: HcaRenewalL2Funding
         }
       | { type: 'renewal.submitted'; txId: string }
       | { type: 'retry' }
@@ -147,8 +179,13 @@ export const renewalUiMachine = setup({
     // The intent route submits and WAITS for the fill here, so there is nothing
     // left to poll afterwards.
     submitHcaRenewalIntent: fromPromise(
-      async ({ input }: { input: Parameters<typeof submitHcaRenewal>[0] }) =>
-        (await submitHcaRenewal(input)).txId,
+      async ({
+        input,
+        signal,
+      }: {
+        input: Parameters<typeof submitHcaRenewal>[0]
+        signal: AbortSignal
+      }) => (await submitHcaRenewal({ ...input, signal })).txId,
     ),
     readExpiry: fromResultAsync(
       (input: { name: string; protocol: RenewalProtocol }) =>
@@ -183,6 +220,21 @@ export const renewalUiMachine = setup({
         event.type === 'pricing.token.select'
           ? event.token
           : context.selectedToken,
+      // A wallet coin replaces the L2 row.
+      fundingSourceChainId: () => undefined,
+      fundingSourceOrigin: () => undefined,
+    }),
+    setFundingSource: assign({
+      fundingSourceChainId: ({ event, context }) =>
+        event.type === 'pricing.fundingSource.select'
+          ? event.chainId
+          : context.fundingSourceChainId,
+      fundingSourceOrigin: ({ event }) =>
+        event.type === 'pricing.fundingSource.select'
+          ? (event.origin ?? 'user')
+          : undefined,
+      // Bridged in as USDC, so the rent is paid in USDC.
+      selectedToken: () => 'USDC' as const,
     }),
     clearFailure: assign({
       lastErrorMessage: () => undefined,
@@ -207,8 +259,10 @@ export const renewalUiMachine = setup({
               token: event.token,
               priceRaw: event.priceRaw,
               priceNumber: event.priceNumber,
+              displayedDebit: event.displayedDebit,
               ownerAddress: event.ownerAddress,
               walletClient: event.walletClient,
+              l2Funding: event.l2Funding,
             }
           : undefined,
     }),
@@ -250,6 +304,7 @@ export const renewalUiMachine = setup({
     selectedToken: undefined,
     lastErrorMessage: undefined,
     confirmFunding: input.confirmFunding,
+    approvalFallback: input.approvalFallback,
   }),
   initial: 'pricing',
   states: {
@@ -275,6 +330,9 @@ export const renewalUiMachine = setup({
             'pricing.token.select': {
               actions: 'setToken',
             },
+            'pricing.fundingSource.select': {
+              actions: 'setFundingSource',
+            },
             'pricing.dialog.dismiss': {
               target: 'duration',
             },
@@ -287,6 +345,9 @@ export const renewalUiMachine = setup({
                 actions: 'startRenewal',
               },
               {
+                // Only the account can be paid from an L2, so a wallet start
+                // naming one is refused rather than paid from the wallet.
+                guard: ({ event }) => event.l2Funding === undefined,
                 target: '#renewalUi.checkingAllowance',
                 actions: 'startRenewal',
               },
@@ -297,12 +358,13 @@ export const renewalUiMachine = setup({
     },
     // Smart-account route: ONE owner-signed intent renews the name and moves
     // the USDC to pay for it (rent plus fee), so there is no approve
-    // transaction and no gas token. `submitHcaRenewal` resolves only once the
+    // intent, with a separately consented USDC approval fallback when needed.
+    // `submitHcaRenewal` resolves only once the
     // intent has filled, so success needs no polling step of its own.
     submittingHcaRenewal: {
       tags: 'renewing',
       // Until the intent is submitted the owner is still approving (the
-      // funding prompt, then the signature), so the payment dialog stays up
+      // funding permit, then the signature), so the payment dialog stays up
       // as it does for registration; `renewalTxId` marks the hand-over.
       on: {
         'renewal.submitted': {
@@ -317,6 +379,9 @@ export const renewalUiMachine = setup({
           return {
             onSubmitted: (txId: string) =>
               self.send({ type: 'renewal.submitted', txId }),
+            ...(submission.l2Funding
+              ? { l2Funding: submission.l2Funding }
+              : {}),
             items: [
               {
                 label: submission.label,
@@ -332,6 +397,12 @@ export const renewalUiMachine = setup({
             walletClient: submission.walletClient,
             publicClient,
             chainId: envConfig.chain.id,
+            ...(context.approvalFallback
+              ? { approvalFallback: context.approvalFallback }
+              : {}),
+            ...(submission.displayedDebit
+              ? { displayedDebit: submission.displayedDebit }
+              : {}),
             ...(context.confirmFunding
               ? { confirmFunding: context.confirmFunding }
               : {}),
@@ -346,11 +417,11 @@ export const renewalUiMachine = setup({
         },
         onError: [
           {
-            // Declining the funding prompt is a cancel, not a failure: nothing
-            // was signed and nothing was spent, so hand the user back to the
-            // payment step instead of a failure screen (as the bulk route does).
+            // Either consent can be declined without submitting a renewal.
+            // A permit may already be signed before the separate approval consent.
             guard: ({ event }) =>
-              event.error instanceof HcaFundingDeclinedError,
+              event.error instanceof HcaFundingDeclinedError ||
+              event.error instanceof HcaFundingApprovalDeclinedError,
             target: '#renewalUi.pricing.tokens',
           },
           {

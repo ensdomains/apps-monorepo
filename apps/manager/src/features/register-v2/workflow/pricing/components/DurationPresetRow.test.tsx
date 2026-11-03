@@ -36,4 +36,29 @@ describe('DurationPresetRow', () => {
     expect(screen.queryByText(/6 hours/i)).not.toBeInTheDocument()
     expect(screen.getByText('$14.00/year')).toBeInTheDocument()
   })
+
+  it('headlines the total with any premium, while the yearly pill stays on the base price', () => {
+    render(
+      <I18nProvider i18n={i18n}>
+        <DurationPresetRow
+          data={{
+            years: 3,
+            duration: getDurationInSecondsFromYears(3),
+            title: { id: 'committed', message: 'Committed' },
+            subtitle: { id: 'make-it-yours', message: 'Make it yours' },
+            kind: 'mostPopular',
+            color: 'peridot',
+          }}
+          isLoading={false}
+          isSelected={false}
+          onSelect={vi.fn()}
+          price={42}
+          total={45}
+        />
+      </I18nProvider>,
+    )
+
+    expect(screen.getByText('$45.00')).toBeInTheDocument()
+    expect(screen.getByText('$14.00/year')).toBeInTheDocument()
+  })
 })

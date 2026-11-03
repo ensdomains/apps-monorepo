@@ -12,7 +12,7 @@ import { coinIcons } from '@/assets/coins'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import type { L2PaymentRow } from '../hooks/useL2Payment'
+import { isL2Empty, type L2PaymentRow } from '../hooks/useL2Payment'
 import { getWalletShortfall } from '../lib/paymentReceiptFigures'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
@@ -35,7 +35,7 @@ const isShortOfQuote = ({ option, amountInRaw }: L2PaymentRow) =>
   option.balanceRaw < amountInRaw
 
 export const isL2ShortOfFunds = (row: L2PaymentRow) =>
-  row.option.status === 'insufficient' || isShortOfQuote(row)
+  row.option.status === 'insufficient' || isShortOfQuote(row) || isL2Empty(row)
 
 /** The highest quoted L2 charge, standing in for chains that cannot be quoted. */
 export const getEstimatedL2AmountIn = (rows: readonly L2PaymentRow[]) =>
@@ -102,17 +102,6 @@ export const getL2SelectionMessage = (
     .otherwise(() => undefined)
 }
 
-const getL2FeeExplanation = (row: L2PaymentRow) => {
-  const chainName = row.option.source.chain.name
-  return (
-    <Trans>
-      An estimate of what the on-chain transactions that register your name
-      cost, including moving the USDC from {chainName}. It is paid there with
-      the name price, with no separate approval transaction.
-    </Trans>
-  )
-}
-
 /** A payment row that pays the registration with the wallet's USDC on an L2. */
 export const L2SourceListItem = ({
   row,
@@ -141,19 +130,14 @@ export const L2SourceListItem = ({
           ? '—'
           : formatUsd(decimalBigintToNumber(option.balanceRaw, USDC_DECIMALS))
       }
-      amountLabel={<Trans>balance</Trans>}
+      amountLabel={<Trans>available</Trans>}
       fee={
         isFeeEstimated ? (
-          <Trans>
-            {chainName} est. fee: ~{formatUsd(networkFee ?? Number.NaN)}
-          </Trans>
+          <Trans>Est. fee: ~{formatUsd(networkFee ?? Number.NaN)}</Trans>
         ) : (
-          <Trans>
-            {chainName} est. fee: {formatUsd(networkFee ?? Number.NaN)}
-          </Trans>
+          <Trans>Est. fee: {formatUsd(networkFee ?? Number.NaN)}</Trans>
         )
       }
-      feeTooltip={getL2FeeExplanation(row)}
       icon={
         <PaymentMethodIcon
           icon={<USDCIcon className="size-full" />}
@@ -163,9 +147,8 @@ export const L2SourceListItem = ({
         />
       }
       isAvailable
-      isFeeLoading={row.isQuoteLoading}
       // Selectable while quoting; the action waits for the quote.
-      isInsufficient={isL2ShortOfFunds(row)}
+      isFeeLoading={row.isQuoteLoading}
       isSelected={isSelected}
       name="USDC"
       onSelect={onSelect}

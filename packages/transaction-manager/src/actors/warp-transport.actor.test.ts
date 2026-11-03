@@ -21,15 +21,17 @@ import type {
   TransactionResult,
 } from '@rhinestone/sdk'
 import { errAsync, okAsync } from 'neverthrow'
-import type { Address, Hash, Hex } from 'viem'
+import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { baseSepolia, mainnet, sepolia } from 'viem/chains'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ChainIdMismatchError,
   L2PaymentNotSentError,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
+import { waitForTransaction } from '../helpers/waitForTransaction'
+import { transactionManager } from '../providers/transactionManager'
 import type { L2FundingSource, RhinestoneSigner } from '../types/signer.types'
 import type {
   EOATransactionRequest,
@@ -742,5 +744,48 @@ describe('submitWarpTransaction — paid from an L2', () => {
 
     expect(error).toBeInstanceOf(TransactionSubmissionError)
     expect(error).not.toBeInstanceOf(L2PaymentNotSentError)
+  })
+})
+
+describe('warp intents through the transaction machine', () => {
+  afterEach(() => {
+    transactionManager.clear()
+  })
+
+  const publicClient = {
+    waitForTransactionReceipt: async ({ hash }: { hash: Hash }) => ({
+      status: 'success',
+      transactionHash: hash,
+      blockNumber: 1n,
+    }),
+  } as unknown as PublicClient
+
+  // The relayer's gas price rose after the quote: the orchestrator refuses the
+  // fill and marks it non-retryable, though a fresh quote prices it again.
+  it('re-quotes an intent whose gas refund the gas price outgrew', async () => {
+    const signer = createMockSigner()
+    const account = vi.mocked(signer.account)
+    account.submitTransaction.mockRejectedValueOnce(
+      Object.assign(new Error('Simulation failed: ExcessiveGasRefund()'), {
+        errorType: 'Bad Request',
+        statusCode: 400,
+        context: {
+          category: 'EXECUTION_FAILED',
+          errorName: 'ExcessiveGasRefund()',
+          retryable: false,
+        },
+      }),
+    )
+
+    const txId = transactionManager.startTransaction(
+      { type: 'custom', request: createRhinestoneRequest() },
+      signer,
+      { id: 'tx-warp-requote', publicClient, retryDelay: 1 },
+    )
+
+    await expect(waitForTransaction(txId)).resolves.toMatchObject({
+      hash: MOCK_TX_HASH,
+    })
+    expect(account.prepareTransaction).toHaveBeenCalledTimes(2)
   })
 })

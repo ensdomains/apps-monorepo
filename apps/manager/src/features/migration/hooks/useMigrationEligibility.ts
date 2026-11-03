@@ -2,11 +2,20 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
+import { chain } from '@/config'
 import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import { resolveMigratableNames } from '@/features/migration/service/migratableNames'
 import { runEligibilityChecks } from '@/features/migration/service/preflightChecks'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { publicClient } from '@/lib/wagmi'
+import { V1_CONTRACTS } from '../contracts/addresses'
+import type { RpcSubnameInventory } from '../service/readRpcSubnameInventory'
+import { getRpcSubnameInventoryCacheKey } from '../service/rpcSubnameInventoryCache'
+import type {
+  UpgradeReadClients,
+  UpgradeReadCoordinator,
+} from '../service/upgradeReadCoordinator'
+import { useUpgradeReadCoordinator } from '../state/upgradeReadCoordinator.context'
 
 export type {
   BlockedSubnameMigration,
@@ -16,6 +25,7 @@ export type {
 const ELIGIBILITY_STALE_MS = 60_000
 
 type EligibilityQueryParams = {
+  readonly coordinator?: UpgradeReadCoordinator
   readonly names: readonly ClassifiedName[]
   readonly ownerAddress?: string | null
   readonly isSubnameImportEnabled: boolean
@@ -32,9 +42,11 @@ export const getMigrationEligibilityQueryOptions = ({
   names,
   ownerAddress,
   isSubnameImportEnabled,
+  coordinator,
 }: EligibilityQueryParams) =>
   queryOptions({
     queryKey: qk('migration', 'eligibility', {
+      ...(coordinator && { readScope: 'upgrade' }),
       owner: ownerAddress?.toLowerCase(),
       isSubnameImportEnabled,
       names: names.map((name) => ({
@@ -48,21 +60,44 @@ export const getMigrationEligibilityQueryOptions = ({
         wrappedExpiry: name.domain.wrappedDomain?.expiryDate,
       })),
     }),
-    queryFn: async ({ signal }) => {
-      const client = publicClient as PublicClient
+    queryFn: async ({ signal, client: queryClient }) => {
       const owner = ownerAddress as Address
-      const result = await runEligibilityChecks(client, [...names], owner)
-      signal.throwIfAborted()
-      return {
-        ...result,
-        ...(await resolveMigratableNames({
-          eligible: result.eligible,
-          isSubnameImportEnabled,
-          owner,
-          publicClient: client,
-          signal,
-        })),
+      const read = async ({
+        publicClient: client,
+        verificationClient,
+      }: UpgradeReadClients) => {
+        const inventoryKey = getRpcSubnameInventoryCacheKey({
+          ownerAddress: owner,
+          chainId: chain.id,
+          registryAddress: V1_CONTRACTS.LegacyRegistry,
+          nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+        })
+        const result = await runEligibilityChecks(client, [...names], owner)
+        signal.throwIfAborted()
+        return {
+          ...result,
+          ...(await resolveMigratableNames({
+            eligible: result.eligible,
+            isSubnameImportEnabled,
+            owner,
+            publicClient: client,
+            verificationClient,
+            previousInventory:
+              queryClient.getQueryData<RpcSubnameInventory>(inventoryKey),
+            onInventory: (inventory) => {
+              signal.throwIfAborted()
+              queryClient.setQueryData(inventoryKey, inventory)
+            },
+            signal,
+          })),
+        }
       }
+      return coordinator
+        ? coordinator.run({ owner, signal }, read)
+        : read({
+            publicClient: publicClient as PublicClient,
+            verificationClient: publicClient as PublicClient,
+          })
     },
     enabled: !!ownerAddress && names.length > 0,
     staleTime: ELIGIBILITY_STALE_MS,
@@ -75,11 +110,13 @@ export const useMigrationEligibility = (
   ownerAddress?: string | null,
 ) => {
   const isSubnameImportEnabled = useIsSubnameImportEnabled()
+  const coordinator = useUpgradeReadCoordinator()
   return useQuery(
     getMigrationEligibilityQueryOptions({
       names,
       ownerAddress,
       isSubnameImportEnabled,
+      coordinator: coordinator ?? undefined,
     }),
   )
 }
@@ -93,9 +130,11 @@ export const getGraceRenewalEligibilityQueryOptions = ({
   names,
   ownerAddress,
   isSubnameImportEnabled,
+  coordinator,
 }: EligibilityQueryParams) =>
   queryOptions({
     queryKey: qk('migration', 'grace-renewal-eligibility', {
+      ...(coordinator && { readScope: 'upgrade' }),
       owner: ownerAddress?.toLowerCase(),
       isSubnameImportEnabled,
       names: names.map((name) => ({
@@ -106,30 +145,31 @@ export const getGraceRenewalEligibilityQueryOptions = ({
         resolver: name.v1ResolverAddress,
       })),
     }),
-    queryFn: ({ signal }) =>
-      resolveMigratableNames({
-        eligible: names,
-        isSubnameImportEnabled,
-        owner: ownerAddress as Address,
-        publicClient: publicClient as PublicClient,
-        signal,
-      }),
+    queryFn: ({ signal }) => {
+      const read = ({
+        publicClient: client,
+        verificationClient,
+      }: UpgradeReadClients) =>
+        resolveMigratableNames({
+          eligible: names,
+          isSubnameImportEnabled,
+          owner: ownerAddress as Address,
+          publicClient: client,
+          verificationClient,
+          signal,
+        })
+      return coordinator
+        ? coordinator.run(
+            { owner: ownerAddress as Address, signal, mode: 'after-renewal' },
+            read,
+          )
+        : read({
+            publicClient: publicClient as PublicClient,
+            verificationClient: publicClient as PublicClient,
+          })
+    },
     enabled: !!ownerAddress && names.length > 0,
     staleTime: ELIGIBILITY_STALE_MS,
     refetchOnWindowFocus: false,
     retry: false,
   })
-
-export const useGraceRenewalEligibility = (
-  renewedNames: readonly ClassifiedName[],
-  ownerAddress?: string | null,
-) => {
-  const isSubnameImportEnabled = useIsSubnameImportEnabled()
-  return useQuery(
-    getGraceRenewalEligibilityQueryOptions({
-      names: renewedNames,
-      ownerAddress,
-      isSubnameImportEnabled,
-    }),
-  )
-}

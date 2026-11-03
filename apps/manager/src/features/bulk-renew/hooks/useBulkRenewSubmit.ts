@@ -1,9 +1,12 @@
 import {
+  type HcaFundingApprovalCapability,
+  type HcaFundingApprovalState,
   HcaFundingDeclinedError,
   type HcaFundingPrompt,
   type RhinestoneSigner,
   type Signer,
 } from '@ens-apps/transaction-manager'
+import { HcaFundingApprovalDeclinedError } from '@ens-apps/transaction-manager/helpers/hca-funding-approval'
 import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
@@ -14,16 +17,19 @@ import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useSearch } from '@tanstack/react-router'
-import { ok, okAsync, ResultAsync } from 'neverthrow'
-import { useRef, useState } from 'react'
+import { err, ok, okAsync, ResultAsync } from 'neverthrow'
+import { useEffect, useRef, useState } from 'react'
 import type { Address, WalletClient } from 'viem'
 import { envConfig } from '@/config'
 import { invalidateDashboardNames } from '@/features/dashboard/service/queries/getDashboardNames'
 import { getExpiry } from '@/features/profile/service/profileExpiry'
+import { getL2FundingSource } from '@/features/register-v2/service/l2FundingSource'
 import {
-  HCA_RENEWAL_INTENT_MAX_ITEMS,
+  fundHcaRenewalsFromL2,
+  type HcaRenewalL2Funding,
   submitHcaRenewal,
 } from '@/features/renew/service/hcaRenewal'
+import { chunkRenewalItems } from '@/features/renew/utils/chunks'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
@@ -145,21 +151,6 @@ type HcaContext = {
   readonly token: RENEWAL_TOKEN
 }
 
-/** Split the selection into the batches an intent can carry. */
-const chunkItems = (
-  items: readonly AttributedRenewItem[],
-): AttributedRenewItem[][] => {
-  const chunks: AttributedRenewItem[][] = []
-  for (
-    let index = 0;
-    index < items.length;
-    index += HCA_RENEWAL_INTENT_MAX_ITEMS
-  ) {
-    chunks.push(items.slice(index, index + HCA_RENEWAL_INTENT_MAX_ITEMS))
-  }
-  return chunks
-}
-
 /**
  * Renew the selection one intent at a time.
  *
@@ -173,27 +164,50 @@ const runHcaRenewals = ResultFn(async function* (
   remaining: readonly AttributedRenewItem[],
   reporters: RowReporters,
   confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean,
+  approvalFallback?: HcaFundingApprovalCapability,
+  signal?: AbortSignal,
+  // Bridges what the account is short of every chunk in from this L2, once.
+  l2Funding?: HcaRenewalL2Funding,
 ) {
   const { onActive, onDone } = reporters
-  for (const chunk of chunkItems(remaining)) {
+  const chunks = chunkRenewalItems(remaining)
+  const toError = (error: unknown) =>
+    error instanceof Error ? error : new Error(String(error))
+  const intentParams = {
+    // Bulk renewal is offered for v2 2LD `.eth` names only, so the
+    // canonical v2 registrar is always the right renewer.
+    renewerAddress: getRenewerAddress('v2'),
+    protocol: 'v2',
+    token: ctx.token,
+    signer: ctx.signer,
+    ownerAddress: ctx.ownerAddress,
+    publicClient,
+    chainId: envConfig.chain.id,
+  } as const
+
+  if (l2Funding) {
+    for (const item of remaining) onActive(item.label)
+    yield* ResultAsync.fromPromise(
+      fundHcaRenewalsFromL2({ ...intentParams, batches: chunks, l2Funding }),
+      toError,
+    )
+  }
+
+  for (const chunk of chunks) {
+    if (signal?.aborted)
+      return err(new Error('The bulk renewal screen was closed.'))
     for (const item of chunk) onActive(item.label)
 
     yield* ResultAsync.fromPromise(
       submitHcaRenewal({
+        ...intentParams,
         items: chunk,
-        // Bulk renewal is offered for v2 2LD `.eth` names only, so the
-        // canonical v2 registrar is always the right renewer.
-        renewerAddress: getRenewerAddress('v2'),
-        protocol: 'v2',
-        token: ctx.token,
-        signer: ctx.signer,
-        ownerAddress: ctx.ownerAddress,
         walletClient: ctx.walletClient,
-        publicClient,
-        chainId: envConfig.chain.id,
         ...(confirmFunding ? { confirmFunding } : {}),
+        ...(approvalFallback ? { approvalFallback } : {}),
+        ...(signal ? { signal } : {}),
       }),
-      (error) => (error instanceof Error ? error : new Error(String(error))),
+      toError,
     )
 
     for (const item of chunk) onDone(item.label)
@@ -305,6 +319,11 @@ type SubmitArgs = {
   readonly token: RENEWAL_TOKEN
   /** Summed quoted price in token units, used to size the allowance. */
   readonly sumPriceRaw: bigint
+  /** Intent route: pay from the wallet's USDC on this L2, bounded by the charge shown. */
+  readonly l2Payment?: {
+    readonly chainId: number
+    readonly displayedCharge?: bigint
+  }
 }
 
 export type UseBulkRenewSubmit = {
@@ -316,6 +335,7 @@ export type UseBulkRenewSubmit = {
    * dialog from this: the intent submit is parked until it is answered, and no
    * wallet signature is requested before then.
    */
+  readonly approvalState: HcaFundingApprovalState
   readonly fundingPrompt: HcaFundingPrompt | null
   readonly approveFunding: () => void
   readonly declineFunding: () => void
@@ -335,12 +355,24 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const {
     prompt: fundingPrompt,
     confirmFunding,
+    confirmApproval,
+    confirmApprovalRecovery,
+    approvalState,
+    onApprovalState,
     approve: approveFunding,
     decline: declineFunding,
   } = useHcaFundingPrompt()
   const [phase, setPhase] = useState<BulkRenewPhase>('idle')
   const [statuses, setStatuses] = useState<Record<string, RowStatus>>({})
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
+  const abortRef = useRef<AbortController | null>(null)
+  useEffect(
+    () => () => {
+      abortRef.current?.abort()
+      runIdRef.current += 1
+    },
+    [],
+  )
   const completedRef = useRef<Set<string>>(new Set())
   // Set by a failed run: the next submit re-reads expiries before paying.
   const failedRef = useRef(false)
@@ -350,6 +382,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const runIdRef = useRef(0)
 
   const reset = () => {
+    abortRef.current?.abort()
     runIdRef.current += 1
     completedRef.current = new Set()
     failedRef.current = false
@@ -430,25 +463,42 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
 
   /**
    * Smart-account route: one owner-signed intent per chunk of names, each
-   * submitted and awaited here — so no allowance transaction and no polling.
+   * submitted and awaited here, including any separately consented USDC approval.
    */
   const renewWithIntents = async (
     hca: HcaContext,
     remaining: readonly AttributedRenewItem[],
     isCurrent: () => boolean,
+    l2Payment: SubmitArgs['l2Payment'],
   ) => {
+    const source =
+      l2Payment && getL2FundingSource(hca.ownerAddress, l2Payment.chainId)
+    // Refused rather than paid from the wallet instead.
+    if (l2Payment && !source) {
+      return failWith(
+        new Error('Cannot renew: paying from that network is not supported.'),
+      )
+    }
     setPhase('renewing')
     const renewed = await runHcaRenewals(
       hca,
       remaining,
       rowReporters(isCurrent, markStatus, completedRef.current),
       confirmFunding,
+      { confirmApproval, confirmApprovalRecovery, onState: onApprovalState },
+      abortRef.current?.signal,
+      source
+        ? { source, displayedCharge: l2Payment?.displayedCharge }
+        : undefined,
     )
     if (!isCurrent()) return
     if (renewed.isErr()) {
-      // A declined prompt is not a failure: nothing was signed and nothing was
-      // spent, so go back to the confirm step rather than showing an error.
-      if (renewed.error instanceof HcaFundingDeclinedError) {
+      // Either consent can be declined without submitting a renewal. The
+      // separate approval prompt may follow an already-signed funding permit.
+      if (
+        renewed.error instanceof HcaFundingDeclinedError ||
+        renewed.error instanceof HcaFundingApprovalDeclinedError
+      ) {
         abortRun()
         return
       }
@@ -486,11 +536,14 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     items: inputItems,
     token,
     sumPriceRaw,
+    l2Payment,
   }: SubmitArgs) => {
     const items = inputItems.map((item) => ({
       ...item,
       referrer: normalizeReferrer(referrer, ENS_LABS_REFERRER),
     }))
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
     // Claim this run; if `reset` (or another submit) bumps the id while we await,
     // `isCurrent()` turns false and we stop touching the now-stale UI state.
     runIdRef.current += 1
@@ -529,7 +582,9 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       ),
     )
 
-    if (hca) return renewWithIntents(hca, remaining, isCurrent)
+    if (hca) return renewWithIntents(hca, remaining, isCurrent, l2Payment)
+    // Only the account can be paid from an L2: never the wallet in its place.
+    if (l2Payment) return failWith(new Error(ACCOUNT_LOADING_MESSAGE))
     // `ctx` exists wherever `hca` does not — the guard above rejected the
     // no-context case.
     if (ctx) return renewWithWallet(ctx, remaining, sumPriceRaw, isCurrent)
@@ -540,6 +595,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     statuses,
     errorMessage,
     fundingPrompt,
+    approvalState,
     approveFunding,
     declineFunding,
     submit,

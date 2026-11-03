@@ -168,6 +168,7 @@ const renderStep = ({
   gasEstimate = { status: 'idle' } as MigrationGasEstimateState,
   gasAffordability = { status: 'unknown' } as GasAffordability,
   gasFundingStatus = 'settled',
+  isMetaMaskWallet = false,
   renewal = { status: 'idle' },
   renewalGasEstimate = { status: 'idle' },
   onNext = vi.fn(),
@@ -175,6 +176,7 @@ const renderStep = ({
   gasEstimate?: MigrationGasEstimateState
   gasAffordability?: GasAffordability
   gasFundingStatus?: MigrationGasFundingStatus
+  isMetaMaskWallet?: boolean
   renewal?: GraceRenewalQuoteState
   renewalGasEstimate?: GraceRenewalGasEstimateState
   onNext?: () => boolean | Promise<boolean>
@@ -190,6 +192,7 @@ const renderStep = ({
         gasAffordability={gasAffordability}
         gasEstimate={estimate}
         gasFundingStatus={gasFundingStatus}
+        isMetaMaskWallet={isMetaMaskWallet}
         onManagerRestorationChange={onManagerRestorationChange}
         onNamesChange={onNamesChange}
         onNext={onNext}
@@ -212,6 +215,61 @@ const renderStep = ({
 }
 
 describe('SelectNamesStep', () => {
+  it.each([
+    'checking-names',
+    'finding-records',
+    'reading-records',
+    'preparing-upgrade',
+    'checking-upgrade',
+    'checking-fee',
+  ] as const)(
+    'shows a percentage instead of name counts during %s',
+    (stage) => {
+      const { getByText, getByRole, queryByText } = renderStep({
+        gasEstimate: { status: 'loading', progress: { stage, percentage: 42 } },
+      })
+      expect(getByText('42%')).toBeInTheDocument()
+      expect(queryByText(/\d+\/\d+/)).not.toBeInTheDocument()
+      expect(getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
+      expect(getByRole('progressbar')).toHaveAttribute('aria-valuemax', '100')
+    },
+  )
+
+  it('keeps one bar through preparation and removes it when ready', () => {
+    const {
+      getByText,
+      getByRole,
+      queryByRole,
+      queryByText,
+      rerenderGasEstimate,
+    } = renderStep({
+      gasEstimate: { status: 'loading' },
+    })
+    const progressBar = getByRole('progressbar')
+    expect(getByText('0%')).toBeInTheDocument()
+    rerenderGasEstimate({
+      status: 'loading',
+      progress: { stage: 'finding-records', percentage: 25 },
+    })
+    expect(getByRole('progressbar')).toBe(progressBar)
+    expect(getByText('25%')).toBeInTheDocument()
+    rerenderGasEstimate({
+      status: 'loading',
+      progress: { stage: 'checking-fee', percentage: 99 },
+    })
+    expect(getByRole('progressbar')).toBe(progressBar)
+    expect(getByText('99%')).toBeInTheDocument()
+    expect(getByRole('button', { name: 'Preparing...' })).toBeDisabled()
+    rerenderGasEstimate(readyGasEstimate)
+    expect(queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(queryByText('100%')).not.toBeInTheDocument()
+    expect(queryByText('Ready to upgrade')).not.toBeInTheDocument()
+    expect(
+      getByRole('button', { name: '1 request' }).closest('p'),
+    ).toHaveTextContent('Your wallet shows the final fee before you approve.')
+    expect(getByRole('button', { name: /Upgrade \d+ names/ })).toBeEnabled()
+  })
+
   it('waits for the default impact check before selecting names', () => {
     impactState.status = 'loading'
     const { onNamesChange } = renderStep()
@@ -492,7 +550,7 @@ describe('SelectNamesStep', () => {
       })
     expect(getByText(child.domain.name)).toBeInTheDocument()
     expect(getByRole('checkbox', { name: parent.domain.name })).toBeChecked()
-    expect(getByRole('button', { name: 'Estimating...' })).toBeDisabled()
+    expect(getByRole('button', { name: 'Preparing...' })).toBeDisabled()
 
     rerenderGasEstimate({
       ...readyGasEstimate,
@@ -580,6 +638,39 @@ describe('SelectNamesStep', () => {
     expect(getByRole('note')).toHaveTextContent(
       /Public key records can.t be carried over .* for status\.eth\./i,
     )
+  })
+
+  it('asks MetaMask users to turn off Smart Transactions before upgrading', () => {
+    const { getByRole } = renderStep({
+      gasEstimate: readyGasEstimate,
+      isMetaMaskWallet: true,
+    })
+
+    expect(getByRole('note')).toHaveTextContent(/Turn off Smart Transactions/i)
+    expect(
+      getByRole('link', { name: 'About Smart Transactions' }),
+    ).toHaveAttribute('href', expect.stringContaining('support.metamask.io'))
+  })
+
+  it('asks MetaMask users to turn off Smart Transactions before a name sync', () => {
+    const stale = eligibleFixture[0]
+    if (!stale) throw new Error('Missing fixture')
+    eligibilityState.wrapperSyncNames = [stale]
+    const { getAllByRole, getByRole } = renderStep({ isMetaMaskWallet: true })
+
+    for (const checkbox of getAllByRole('checkbox'))
+      if (checkbox instanceof HTMLInputElement && checkbox.checked)
+        fireEvent.click(checkbox)
+    for (const checkbox of getAllByRole('checkbox'))
+      expect(checkbox).not.toBeChecked()
+
+    expect(getByRole('note')).toHaveTextContent(/Turn off Smart Transactions/i)
+  })
+
+  it('does not mention Smart Transactions to other wallets', () => {
+    const { queryByText } = renderStep({ gasEstimate: readyGasEstimate })
+
+    expect(queryByText(/Smart Transactions/i)).not.toBeInTheDocument()
   })
 
   it('keeps the fee in the requests dialog when the balance cannot be read', () => {

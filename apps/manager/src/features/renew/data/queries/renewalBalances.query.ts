@@ -17,9 +17,15 @@ export type RenewalBalances = {
   readonly wallet: readonly StablecoinBalance[]
   /** What the smart account already holds of each; empty off the HCA route. */
   readonly accountCredit: Partial<Record<RENEWAL_TOKEN, number>>
+  /** The same balances in token units, for the debit the intent is checked against. */
+  readonly accountCreditRaw: Partial<Record<RENEWAL_TOKEN, bigint>>
 }
 
-const NO_BALANCES: RenewalBalances = { wallet: [], accountCredit: {} }
+const NO_BALANCES: RenewalBalances = {
+  wallet: [],
+  accountCredit: {},
+  accountCreditRaw: {},
+}
 
 const readBalances = (holder: Address) =>
   Promise.allSettled(
@@ -69,6 +75,12 @@ const readRenewalBalances = async (
               ],
             ]
           : []
+      }),
+    ),
+    accountCreditRaw: Object.fromEntries(
+      RENEWAL_SYMBOLS.flatMap((symbol, index) => {
+        const read = account[index]
+        return read?.status === 'fulfilled' ? [[symbol, read.value]] : []
       }),
     ),
   }

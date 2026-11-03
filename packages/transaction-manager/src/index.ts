@@ -9,6 +9,12 @@ export {
   TransactionStoppedError,
   TransactionSubmissionError,
 } from './errors/transaction.errors'
+export {
+  type EthSwapQuote,
+  EthSwapUnavailableError,
+  ethToUsdcRaw,
+  readEthUsdPrice,
+} from './helpers/eth-usdc-swap'
 // Helpers
 export {
   createFlowScope,
@@ -16,9 +22,16 @@ export {
   scopeTransactionId,
 } from './helpers/flow-identity'
 export { getSmartAccountAddress } from './helpers/getSmartAccountAddress'
+export type {
+  HcaFundingApprovalCapability,
+  HcaFundingApprovalPrompt,
+  HcaFundingApprovalRecoveryPrompt,
+  HcaFundingApprovalState,
+} from './helpers/hca-funding-approval'
 export {
   HCA_MAX_STANDALONE_INTENT_FEE_USDC,
   HCA_STANDALONE_INTENT_GAS_LIMIT,
+  type HcaDisplayedDebit,
   HcaFundingDeclinedError,
   type HcaFundingPrompt,
   type HcaFundingTokenLeg,
@@ -73,6 +86,14 @@ export {
   VERIFY_GRACE_WINDOW_MS,
   VERIFY_POLL_INTERVAL_MS,
 } from './machines/registration/registration.actors'
+export {
+  ETH_SWAP_GAS_RESERVE_MULTIPLIER,
+  type EthFunding,
+  type EthPaymentQuote,
+  type PendingEthSwap,
+  quoteEthPaymentActor,
+  quoteEthSwapGasReserve,
+} from './machines/registration/registration.eth.actors'
 export type {
   ReauthorizeSession,
   RegistrationContext,

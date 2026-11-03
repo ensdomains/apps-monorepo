@@ -35,8 +35,12 @@ vi.mock('motion/react', () => ({
 // handed so the assertion can read them.
 vi.mock('./DurationPresets', () => ({ DurationPresets: () => <div /> }))
 vi.mock('./RenewToDatePopover', () => ({ RenewToDatePopover: () => <div /> }))
-vi.mock('./PaymentMethodSection', () => ({
-  PaymentMethodSection: () => <div />,
+vi.mock('./BulkRenewPaymentStep', () => ({
+  BulkRenewPaymentStep: ({ onConfirm }: { onConfirm: () => void }) => (
+    <button onClick={onConfirm} type="button">
+      Confirm
+    </button>
+  ),
 }))
 vi.mock('./NamesBreakdown', () => ({ NamesBreakdown: () => <div /> }))
 vi.mock('./RenewingStep', () => ({
@@ -76,7 +80,7 @@ const bulkRenewResult = (rows: readonly SummaryRow[]) => ({
     isConnected: true,
     isLoadingBalances: false,
     stablecoinBalances: [],
-    canConfirm: true,
+    canProceed: true,
   },
 })
 
@@ -92,6 +96,7 @@ beforeEach(() => {
     phase: submitPhase,
     statuses: {},
     errorMessage: undefined,
+    approvalState: { kind: 'idle' },
     fundingPrompt: null,
     approveFunding: vi.fn(),
     declineFunding: vi.fn(),

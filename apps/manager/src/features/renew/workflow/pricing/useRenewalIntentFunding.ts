@@ -1,7 +1,10 @@
+import type { HcaDisplayedDebit } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { getRenewalFeeQueryOptions } from '@/features/renew/data/queries/renewalFee.query'
+import type { HcaRenewalItem } from '@/features/renew/service/hcaRenewal'
 import {
+  computeRenewalDisplayedDebit,
   computeRenewalFunding,
   type RenewalFunding,
 } from '@/features/renew/utils/renewalFunding'
@@ -22,37 +25,54 @@ export type RenewalIntentFunding = {
     | (RenewalFunding['summary'] & { readonly isLoading: boolean })
     | undefined
   readonly walletDebitFor: RenewalFunding['walletDebitFor'] | undefined
+  /** The shown wallet debit in token units, present exactly when `funding` is. */
+  readonly displayedDebit: HcaDisplayedDebit | undefined
+  /** The quoted fee in USDC units; absent until quoted, or when the quote failed. */
+  readonly feeRaw: bigint | undefined
 }
 
-/** The renewal intent's fee, folded with the rent and the account's balance into what the wallet pays. */
+/** The renewal intents' fee, folded with the rent and the account's balance into what the wallet pays. */
 export const useRenewalIntentFunding = (params: {
-  readonly label: string
-  readonly duration: bigint
+  /** The names renewed: one for a single renewal, the selection for a bulk one. */
+  readonly items: readonly HcaRenewalItem[]
+  /** False until the fee is worth quoting, such as before the payment step. */
+  readonly isEnabled?: boolean
   readonly token: RENEWAL_TOKEN
   readonly protocol: RenewalProtocol
   readonly renewerAddress: Address
   readonly account: Pick<SmartAccountContextValue, 'signer' | 'ownerAddress'>
-  readonly pricing: { readonly funded: number } | undefined
+  readonly pricing:
+    | { readonly funded: number; readonly fundedRaw: bigint }
+    | undefined
   readonly accountCredit: Partial<Record<TOKEN_SYMBOL, number>>
+  readonly accountCreditRaw: Partial<Record<RENEWAL_TOKEN, bigint>>
 }): RenewalIntentFunding => {
-  const { account, pricing, accountCredit, ...quote } = params
+  const {
+    account,
+    pricing,
+    accountCredit,
+    accountCreditRaw,
+    isEnabled = true,
+    ...quote
+  } = params
   const isIntentRoute = getRenewalPaymentRoute(account.signer) === 'intent'
 
   const feeQuery = useQuery(
     getRenewalFeeQueryOptions({
       ...quote,
       signer:
-        isIntentRoute && account.signer?.type === 'rhinestone'
+        isEnabled && isIntentRoute && account.signer?.type === 'rhinestone'
           ? account.signer
           : null,
       ownerAddress: account.ownerAddress ?? null,
     }),
   )
 
+  const networkFeeRaw = feeQuery.data ?? undefined
   const networkFee =
-    feeQuery.data === null || feeQuery.data === undefined
+    networkFeeRaw === undefined
       ? undefined
-      : decimalBigintToNumber(feeQuery.data, USDC_DECIMALS)
+      : decimalBigintToNumber(networkFeeRaw, USDC_DECIMALS)
 
   // The rent is owed in the chosen coin and the fee in USDC, each net of what
   // the account already holds. Shown as "up to": the rent carries its approval
@@ -69,10 +89,20 @@ export const useRenewalIntentFunding = (params: {
 
   return {
     isIntentRoute,
-    isQuoting: isIntentRoute && feeQuery.isLoading,
+    isQuoting: isEnabled && isIntentRoute && feeQuery.isLoading,
     funding: renewalFunding
       ? { ...renewalFunding.summary, isLoading: feeQuery.isFetching }
       : undefined,
     walletDebitFor: renewalFunding?.walletDebitFor,
+    displayedDebit:
+      renewalFunding && pricing && networkFeeRaw !== undefined
+        ? computeRenewalDisplayedDebit({
+            fundedRaw: pricing.fundedRaw,
+            networkFeeRaw,
+            selectedToken: quote.token,
+            accountCreditRaw,
+          })
+        : undefined,
+    feeRaw: networkFeeRaw,
   }
 }

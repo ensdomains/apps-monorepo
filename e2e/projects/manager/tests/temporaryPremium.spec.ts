@@ -21,12 +21,13 @@
  */
 import type { Page } from '@playwright/test'
 import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
+import { getBackendAuthDialog } from '../../../helpers/manager-auth.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
 /**
  * After navigating directly to /register/<name>, the app may show a
- * "Verify your wallet" SIWE modal. Click "Sign in with Wallet" to
+ * "Authenticate to continue" SIWE modal. Click "Sign in" to
  * dismiss it so the pricing query uses the real owner address
  * (required for temporary premium to be included).
  *
@@ -35,22 +36,18 @@ const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
  * so we MUST complete the SIWE flow for premium to appear.
  */
 async function dismissSiweModal(page: Page) {
-  const signInBtn = page.getByRole('button', { name: /sign in with wallet/i })
-  const skipBtn = page.getByRole('button', { name: /skip for now/i })
-  const modalBtn = signInBtn.or(skipBtn)
+  const signInBtn = getBackendAuthDialog(page).getByRole('button', {
+    name: 'Sign in',
+    exact: true,
+  })
   try {
-    await modalBtn.first().waitFor({ state: 'visible', timeout: 8_000 })
-    // Prefer "Sign in with Wallet" so the owner address is set for pricing
-    if (await signInBtn.isVisible()) {
-      await signInBtn.click()
-      // Wait for the signing to complete — the button changes to "Signing in..."
-      // then the modal disappears once the SIWE session is established.
-      await signInBtn
-        .waitFor({ state: 'hidden', timeout: 30_000 })
-        .catch(() => {})
-    } else {
-      await skipBtn.click()
-    }
+    await signInBtn.waitFor({ state: 'visible', timeout: 8_000 })
+    await signInBtn.click()
+    // Wait for the signing to complete — the button changes to "Signing in..."
+    // then the modal disappears once the SIWE session is established.
+    await signInBtn
+      .waitFor({ state: 'hidden', timeout: 30_000 })
+      .catch(() => {})
     // Extra wait for modal to fully close and pricing to re-fetch
     await page.waitForTimeout(2_000)
   } catch {
@@ -70,10 +67,10 @@ async function dismissSiweModal(page: Page) {
     // Modal didn't appear — sessions already enabled or feature flag off
   }
 
-  // Wait for the "Pay with stablecoins" button to confirm the wallet
+  // Wait for the "Continue to payment" button to confirm the wallet
   // session is fully established (replaces "Connect or sign in")
   await page
-    .getByRole('button', { name: /pay with stablecoins/i })
+    .getByRole('button', { name: 'Continue to payment' })
     .waitFor({ state: 'visible', timeout: 30_000 })
     .catch(() => {})
 }
@@ -107,7 +104,7 @@ test.describe
       // temporary premium when owner is address(0) (unauthenticated).
       await page.goto(`${MANAGER_APP_URL}/register/${name}`)
 
-      // Dismiss the "Verify your wallet" / SIWE modal if it appears
+      // Dismiss the "Authenticate to continue" / SIWE modal if it appears
       await dismissSiweModal(page)
 
       // Wait for the pricing step to load
@@ -115,10 +112,10 @@ test.describe
         timeout: 30_000,
       })
 
-      // ── 3. Verify the "Pay with stablecoins" button is visible ────
+      // ── 3. Verify the "Continue to payment" button is visible ────
       // (confirms user is authenticated and pricing loaded)
       await expect(
-        page.getByRole('button', { name: /pay with stablecoins/i }),
+        page.getByRole('button', { name: 'Continue to payment' }),
       ).toBeVisible({ timeout: 15_000 })
 
       // ── 4. Verify the price includes a premium ────────────────────
@@ -156,9 +153,9 @@ test.describe
         timeout: 30_000,
       })
 
-      // Authenticated user should see "Pay with stablecoins" (not "Connect")
+      // Authenticated user should see "Continue to payment" (not "Connect")
       await expect(
-        page.getByRole('button', { name: /pay with stablecoins/i }),
+        page.getByRole('button', { name: 'Continue to payment' }),
       ).toBeVisible({ timeout: 15_000 })
     })
 
@@ -189,7 +186,7 @@ test.describe
       })
 
       await expect(
-        page.getByRole('button', { name: /pay with stablecoins/i }),
+        page.getByRole('button', { name: 'Continue to payment' }),
       ).toBeVisible({ timeout: 15_000 })
     })
 
@@ -219,7 +216,7 @@ test.describe
       })
 
       await expect(
-        page.getByRole('button', { name: /pay with stablecoins/i }),
+        page.getByRole('button', { name: 'Continue to payment' }),
       ).toBeVisible({ timeout: 15_000 })
     })
   })
