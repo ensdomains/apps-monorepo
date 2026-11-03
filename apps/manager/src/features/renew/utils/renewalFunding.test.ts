@@ -5,7 +5,7 @@ import {
   computeRenewalFunding,
   decideRenewalPayment,
   getPromptWalletDebit,
-  getUpdatedRenewalFunding,
+  getRenewalPaymentScreen,
 } from './renewalFunding'
 
 describe('computeRenewalFunding', () => {
@@ -110,37 +110,57 @@ describe('decideRenewalPayment', () => {
   })
 })
 
-describe('getUpdatedRenewalFunding', () => {
-  it('itemises a USDC prompt with the account balance applied', () => {
-    const prompt = {
-      permitValue: 6_700_000n,
-      requiresPermit: true,
-      quotedFeeUsdc: 900_000n,
-      hcaBalanceUsdc: 3_000_000n,
-      requiredUsdc: 8_800_000n,
-    }
+describe('getRenewalPaymentScreen', () => {
+  /** The live quote as it stands when it failed in the background. */
+  const failedQuote = {
+    funding: undefined,
+    walletDebitFor: () => 4,
+    isQuoting: false,
+    hasQuoteFailed: true,
+  }
+  const usdcPrompt = {
+    permitValue: 6_700_000n,
+    requiresPermit: true,
+    quotedFeeUsdc: 900_000n,
+    hcaBalanceUsdc: 3_000_000n,
+    requiredUsdc: 8_800_000n,
+  }
 
-    expect(getPromptWalletDebit(prompt)).toEqual({
-      usdc: 6_700_000n,
-      token: 0n,
+  it('shows the live quote, failure included, while no attempt holds a prompt', () => {
+    const screen = getRenewalPaymentScreen({
+      prompt: undefined,
+      selectedToken: 'USDC',
+      quote: failedQuote,
     })
-    const { summary, walletDebitFor, needsApproval } = getUpdatedRenewalFunding(
-      {
-        prompt,
-        selectedToken: 'USDC',
-        quotedWalletDebitFor: () => 4,
-      },
-    )
-    expect(summary.registration).toBeCloseTo(8.8)
-    expect(summary.networkFee).toBeCloseTo(0.9)
-    expect(summary.total).toBeCloseTo(9.7)
-    expect(summary.walletDebit).toBeCloseTo(6.7)
-    expect(summary.hcaCredit).toBeCloseTo(3)
-    expect(walletDebitFor('USDC')).toBeCloseTo(6.7)
-    // Coins not chosen keep the earlier quote's figure.
-    expect(walletDebitFor('DAI')).toBe(4)
-    expect(needsApproval).toBe(true)
+
+    expect(screen).toEqual({ ...failedQuote, needsApproval: false })
   })
+
+  it.each([
+    ['fails', { hasQuoteFailed: true, isQuoting: false }],
+    ['refetches', { hasQuoteFailed: false, isQuoting: true }],
+  ])(
+    "keeps the pending prompt's receipt when the live quote %s",
+    (_case, state) => {
+      const screen = getRenewalPaymentScreen({
+        prompt: usdcPrompt,
+        selectedToken: 'USDC',
+        quote: { ...failedQuote, ...state },
+      })
+
+      expect(screen.hasQuoteFailed).toBe(false)
+      expect(screen.isQuoting).toBe(false)
+      expect(screen.needsApproval).toBe(true)
+      expect(screen.funding?.registration).toBeCloseTo(8.8)
+      expect(screen.funding?.networkFee).toBeCloseTo(0.9)
+      expect(screen.funding?.total).toBeCloseTo(9.7)
+      expect(screen.funding?.walletDebit).toBeCloseTo(6.7)
+      expect(screen.funding?.hcaCredit).toBeCloseTo(3)
+      expect(screen.walletDebitFor?.('USDC')).toBeCloseTo(6.7)
+      // Coins not chosen keep the earlier quote's figure.
+      expect(screen.walletDebitFor?.('DAI')).toBe(4)
+    },
+  )
 
   it('bills a DAI rent in DAI and the fee in USDC', () => {
     const ONE_DAI = 10n ** 18n
@@ -164,14 +184,16 @@ describe('getUpdatedRenewalFunding', () => {
       usdc: 900_000n,
       token: 7n * ONE_DAI,
     })
-    const { summary, walletDebitFor } = getUpdatedRenewalFunding({
+    const screen = getRenewalPaymentScreen({
       prompt,
       selectedToken: 'DAI',
-      quotedWalletDebitFor: undefined,
+      quote: { ...failedQuote, walletDebitFor: undefined },
     })
-    expect(summary.total).toBeCloseTo(8.9)
-    expect(summary.walletDebit).toBeCloseTo(7.9)
-    expect(summary.hcaCredit).toBeCloseTo(1)
-    expect(walletDebitFor('DAI')).toBeCloseTo(7)
+    expect(screen.funding?.total).toBeCloseTo(8.9)
+    expect(screen.funding?.walletDebit).toBeCloseTo(7.9)
+    expect(screen.funding?.hcaCredit).toBeCloseTo(1)
+    expect(screen.walletDebitFor?.('DAI')).toBeCloseTo(7)
+    // The rent token's permit is still a payment approval.
+    expect(screen.needsApproval).toBe(true)
   })
 })

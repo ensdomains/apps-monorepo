@@ -15,7 +15,7 @@ import {
   useIsAwaitingRenewalApproval,
   useRenewalPaymentUpdate,
 } from '@/features/renew/state/renewalUi.selectors'
-import { getUpdatedRenewalFunding } from '@/features/renew/utils/renewalFunding'
+import { getRenewalPaymentScreen } from '@/features/renew/utils/renewalFunding'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -61,25 +61,18 @@ export const TokenPickerContent = () => {
       }
     },
   })
-  const {
-    isIntentRoute,
-    isQuoting,
-    hasQuoteFailed,
-    retryQuote,
-    funding: quotedFunding,
-    walletDebitFor: quotedWalletDebitFor,
-    displayedDebit,
-  } = useRenewalIntentFunding({
-    label,
-    duration,
-    token,
-    protocol,
-    renewerAddress,
-    account,
-    pricing: pricingQuery.data,
-    accountCredit: balances.accountCredit,
-    accountCreditRaw: balances.accountCreditRaw,
-  })
+  const { isIntentRoute, retryQuote, displayedDebit, ...quote } =
+    useRenewalIntentFunding({
+      label,
+      duration,
+      token,
+      protocol,
+      renewerAddress,
+      account,
+      pricing: pricingQuery.data,
+      accountCredit: balances.accountCredit,
+      accountCreditRaw: balances.accountCreditRaw,
+    })
 
   // The owner wallet signs the intent and any funding permit, so the renewal
   // cannot start until the account context has both.
@@ -94,18 +87,12 @@ export const TokenPickerContent = () => {
 
   // An increased payment replaces the receipt with the figures the wallet
   // would actually be asked for.
-  const updatedFunding =
-    paymentUpdate &&
-    getUpdatedRenewalFunding({
-      prompt: paymentUpdate.prompt,
+  const { funding, walletDebitFor, isQuoting, hasQuoteFailed, needsApproval } =
+    getRenewalPaymentScreen({
+      prompt: paymentUpdate?.prompt,
       selectedToken: token,
-      quotedWalletDebitFor,
+      quote,
     })
-  const funding = updatedFunding
-    ? { ...updatedFunding.summary, isLoading: false }
-    : quotedFunding
-  const walletDebitFor = updatedFunding?.walletDebitFor ?? quotedWalletDebitFor
-  const needsApproval = !!updatedFunding?.needsApproval
 
   const isFullyCovered = funding?.walletDebit === 0
   const nextMessage = match({

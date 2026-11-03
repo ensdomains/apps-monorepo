@@ -132,7 +132,7 @@ export const decideRenewalPayment = ({
  * prompt's receipt in place of the earlier quote's, and whether the wallet
  * signs a payment approval before the renewal.
  */
-export const getUpdatedRenewalFunding = ({
+const getUpdatedRenewalFunding = ({
   prompt,
   selectedToken,
   quotedWalletDebitFor,
@@ -171,5 +171,43 @@ export const getUpdatedRenewalFunding = ({
         ? selectedCoinDebit
         : (quotedWalletDebitFor?.(symbol) ?? walletDebit),
     needsApproval: prompt.requiresPermit || !!token?.requiresPermit,
+  }
+}
+
+type ScreenQuote = {
+  readonly funding:
+    | (RenewalFundingSummary & { readonly isLoading: boolean })
+    | undefined
+  readonly walletDebitFor: ((symbol: TOKEN_SYMBOL) => number) | undefined
+  readonly isQuoting: boolean
+  readonly hasQuoteFailed: boolean
+}
+
+/**
+ * What the payment screen shows: the live quote, or, once an attempt's
+ * payment went up, that attempt's own prompt. The prompt is what the wallet
+ * will be asked for, so the live quote's loading or failure never replaces it.
+ */
+export const getRenewalPaymentScreen = ({
+  prompt,
+  selectedToken,
+  quote,
+}: {
+  readonly prompt: HcaFundingPrompt | undefined
+  readonly selectedToken: RENEWAL_TOKEN
+  readonly quote: ScreenQuote
+}): ScreenQuote & { readonly needsApproval: boolean } => {
+  if (!prompt) return { ...quote, needsApproval: false }
+  const updated = getUpdatedRenewalFunding({
+    prompt,
+    selectedToken,
+    quotedWalletDebitFor: quote.walletDebitFor,
+  })
+  return {
+    funding: { ...updated.summary, isLoading: false },
+    walletDebitFor: updated.walletDebitFor,
+    isQuoting: false,
+    hasQuoteFailed: false,
+    needsApproval: updated.needsApproval,
   }
 }
