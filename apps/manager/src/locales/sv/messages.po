@@ -332,6 +332,10 @@ msgstr ""
 msgid "About Smart Transactions"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+msgid "Accepted"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr ""
@@ -2224,14 +2228,12 @@ msgstr ""
 msgid "Page not found"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/ConnectedPaymentButtons.tsx
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Pay with ETH"
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+msgid "Pay"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/ConnectedPaymentButtons.tsx
-msgid "Pay with stablecoins"
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "Pay with ETH"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
@@ -2302,7 +2304,7 @@ msgstr ""
 msgid "Preferences updated"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/ConnectedPaymentButtons.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Preparing checkout..."
 msgstr ""
 
@@ -3321,6 +3323,14 @@ msgstr ""
 msgid "Supported direct subnames, such as alice.example.eth, upgrade with an unwrapped or unlocked example.eth:"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "Swap"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Swap and Register"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Swapping ETH for USDC"
 msgstr ""
@@ -4141,6 +4151,10 @@ msgstr ""
 msgid "What is a primary name?"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "What is the ETH swap?"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PaymentMethodRow.tsx
 msgid "What is the network fee?"
 msgstr ""
@@ -4265,6 +4279,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "You pay"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "You will be wrapping your ETH into WETH, swapping WETH for USDC, which will then be used to register the name. The final price can shift slightly with the market price."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -4520,7 +4538,7 @@ msgid "Your wallet shows the final fee before you approve."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use. You then approve that USDC for the name and network fees as usual."
+msgid "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -4529,8 +4547,4 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Your wallet will ask you to swap up to the ETH shown for USDC, then to sign a payment approval for that USDC. Registration starts after you sign."
 msgstr ""

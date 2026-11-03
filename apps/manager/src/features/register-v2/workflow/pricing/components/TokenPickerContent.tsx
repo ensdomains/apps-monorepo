@@ -6,6 +6,7 @@ import { useSelector } from '@xstate/react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { isAddressEqual } from 'viem'
+import ethCoinIcon from '@/assets/icons/eth-coin.svg'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Switch } from '@/components/ui/switch'
@@ -570,7 +571,7 @@ export const TokenPickerContent = () => {
     .with(
       { isPaidWithEth: true },
       () =>
-        t`Your wallet will ask you to swap up to the ETH shown for USDC, then to sign a payment approval for that USDC. Registration starts after you sign.`,
+        t`You will be wrapping your ETH into WETH, swapping WETH for USDC, which will then be used to register the name. The final price can shift slightly with the market price.`,
     )
     .with(
       { l2Chain: P.string },
@@ -608,7 +609,7 @@ export const TokenPickerContent = () => {
       <Trans>Register name</Trans>
     ))
     .with({ isPaymentApprovalRequired: true, isPaidWithEth: true }, () => (
-      <Trans>Pay with ETH</Trans>
+      <Trans>Swap and Register</Trans>
     ))
     .with({ isPaymentApprovalRequired: true, hasFunding: true }, () => (
       <Trans>Sign payment approval</Trans>
@@ -1240,7 +1241,12 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
               <h2 className="text-ens-quartz-400 text-lg leading-none">
                 <Trans>Select payment</Trans>
               </h2>
-              <USDCIcon aria-hidden="true" className="size-[18px]" />
+              <span className="flex items-center gap-1">
+                <USDCIcon aria-hidden="true" className="size-[18px]" />
+                {ethPayment && (
+                  <img alt="" className="size-[18px]" src={ethCoinIcon} />
+                )}
+              </span>
             </div>
             {match({
               isConnected,

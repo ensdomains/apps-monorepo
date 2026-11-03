@@ -1,7 +1,13 @@
 import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { match } from 'ts-pattern'
-import ethereumIcon from '@/assets/icons/ethereum-color.svg'
+import ethCoinIcon from '@/assets/icons/eth-coin.svg'
+import { MSymbol } from '@/components/ui/material-symbol'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
 
@@ -69,16 +75,9 @@ export const EthPaymentListItem = ({
           <Trans>Swaps up to {formatGasEth(row.chargeRaw)} ETH</Trans>
         )
       }
-      feeTooltip={
-        <Trans>
-          Your wallet swaps ETH for the USDC this registration needs on Uniswap,
-          and gets back any ETH the swap does not use. You then approve that
-          USDC for the name and network fees as usual.
-        </Trans>
-      }
       icon={
         <PaymentMethodIcon
-          icon={<img alt="" className="size-full" src={ethereumIcon} />}
+          icon={<img alt="" className="size-full" src={ethCoinIcon} />}
         />
       }
       isAvailable
@@ -86,6 +85,28 @@ export const EthPaymentListItem = ({
       isInsufficient={isEthShortOfFunds(row)}
       isSelected={isSelected}
       name="ETH"
+      nameBadge={
+        <span className="pointer-events-auto relative z-20 flex items-center gap-1">
+          <span className="rounded-sm bg-ens-quartz-100 px-1 font-medium font-mono text-ens-quartz-500 text-xs uppercase">
+            <Trans>Swap</Trans>
+          </span>
+          <Tooltip>
+            <TooltipTrigger
+              aria-label={t`What is the ETH swap?`}
+              className="flex shrink-0 items-center text-ens-quartz-350"
+              type="button"
+            >
+              <MSymbol className="ms-opsz-16 ms-wght-400" symbol="info" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-64 text-center">
+              <Trans>
+                Your wallet swaps ETH for the USDC this registration needs on
+                Uniswap, and gets back any ETH the swap does not use.
+              </Trans>
+            </TooltipContent>
+          </Tooltip>
+        </span>
+      }
       onSelect={onSelect}
       selectLabel={t`Pay with ETH`}
     />

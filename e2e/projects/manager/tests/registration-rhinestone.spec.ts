@@ -84,9 +84,9 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       .waitFor({ state: 'visible', timeout: 15_000 })
     await page.getByText(DOMAIN_TO_REGISTER).click()
 
-    await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    await page.getByRole('button', { name: 'Pay', exact: true }).click()
     // Smart-session gate: on the HCA path (VITE_FF_USE_EOA=false) clicking
-    // "Pay with stablecoins" opens the EnableSessions modal BEFORE the token
+    // "Pay" opens the EnableSessions modal BEFORE the token
     // picker. Click through it (the single ENABLE intent is auto-authorized via
     // PERMITTED_SIGN_KINDS); idempotent no-op in EOA mode.
     await clickThroughEnableSessions(page)
@@ -189,7 +189,7 @@ const readRegistryState = (label: string) =>
 async function registerUntilCommitConfirmed(page: Page, label: string) {
   await page.goto(`${MANAGER_APP_URL}/register/${label}`)
 
-  await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+  await page.getByRole('button', { name: 'Pay', exact: true }).click()
   await clickThroughEnableSessions(page)
   await selectUsdcIfNeeded(page)
 
@@ -507,7 +507,7 @@ test.describe('HCA registration budget (WEB-1506)', () => {
    */
   async function openTokenPicker(page: Page, label: string) {
     await page.goto(`/register/${label}`)
-    await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    await page.getByRole('button', { name: 'Pay', exact: true }).click()
     await clickThroughEnableSessions(page)
     await selectUsdcIfNeeded(page)
     return page.getByRole('dialog')
@@ -690,7 +690,7 @@ test.describe('HCA registration budget (WEB-1506)', () => {
     await page.route('**/orchestrator/intents/route', failRegistrationQuotes)
 
     await page.goto(`/register/${label}`)
-    await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    await page.getByRole('button', { name: 'Pay', exact: true }).click()
     await clickThroughEnableSessions(page)
     const picker = page.getByRole('dialog')
     const summary = picker.getByRole('region', { name: 'Payment summary' })
@@ -929,7 +929,7 @@ async function openRegisterPage(page: Page, label: string) {
 
 async function waitForQuote(page: Page) {
   await expect(
-    page.getByRole('button', { name: /pay with stablecoins/i }),
+    page.getByRole('button', { name: 'Pay', exact: true }),
   ).toBeVisible({ timeout: 20_000 })
   await expect.poll(() => readHolderId(page)).toBeTruthy()
 }
@@ -946,9 +946,9 @@ async function openRegisterPageAndConnect(
   await page.waitForTimeout(SWEEP_SETTLE_MS)
 }
 
-/** Pay with stablecoins → USDC → Register name, on an already open quote. */
+/** Pay → USDC → Register name, on an already open quote. */
 async function pressRegister(page: Page) {
-  await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+  await page.getByRole('button', { name: 'Pay', exact: true }).click()
   await clickThroughEnableSessions(page)
   await selectUsdcIfNeeded(page)
   await page.getByRole('button', { name: /register name/i }).click()
@@ -1178,7 +1178,7 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
     const main = other.locator('main')
     await main.getByRole('button', { name: 'Back to Quote' }).click()
     await expect(
-      other.getByRole('button', { name: /pay with stablecoins/i }),
+      other.getByRole('button', { name: 'Pay', exact: true }),
     ).toBeVisible({ timeout: 15_000 })
     await expect(main.getByText(BUSY_TITLE, { exact: true })).toHaveCount(0)
     expect(await readClaim(other, owner)).toMatchObject({
@@ -1316,7 +1316,7 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
    */
   async function openPicker(page: Page, label: string) {
     await page.goto(`/register/${label}`)
-    await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    await page.getByRole('button', { name: 'Pay', exact: true }).click()
     const picker = page.getByRole('dialog')
     const enableSessions = page.getByRole('button', {
       name: /enable sessions/i,

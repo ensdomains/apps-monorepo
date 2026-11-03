@@ -126,7 +126,7 @@ pnpm --filter manager dev -- --port 3000
 
 | # | Steps | Pass |
 |---|---|---|
-| M1 | HCA at 0. Open `/register/<new label>`, click **Pay with stablecoins**, enable sessions, pick **USDC** | "Registration fee" and "Network fee" rows, each with an ⓘ. No "Left from your last attempt" line. The headline reads **Total**, and the token row says **in your wallet** |
+| M1 | HCA at 0. Open `/register/<new label>`, click **Pay**, enable sessions, pick **USDC** | "Registration fee" and "Network fee" rows, each with an ⓘ. No "Left from your last attempt" line. The headline reads **Total**, and the token row says **in your wallet** |
 | M2 | Seed $1.82, reload, reopen the sheet | A muted **Left from your last attempt -$1.82** line under the two rows. The headline reads **You pay now**, and Registration fee + Network fee − 1.82 equals it. Hovering the ⓘ shows the "funded for their quoted maximum cost" explanation. The word "account" appears nowhere |
 | M3 | Seed 1000 USDC, reopen | **What was left from your last attempt covers the X USDC…** with X = Registration fee + Network fee. The leftover line equals X, not 1000. "You pay now $0.00". Register is enabled |
 | M4 | Seed $1.82, and set the wallet's USDC to 5 (`cast rpc anvil_setStorageAt $USDC $(cast index address 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 0) $(cast to-uint256 5000000)`), then reopen | USDC row disabled. "Not enough USDC. This registration costs X USDC and 1.82 is left from your last attempt, so you need Y more, but your wallet holds 5.00 USDC." Register is disabled. **Afterwards, restore the wallet** with `fund-account.sh` |

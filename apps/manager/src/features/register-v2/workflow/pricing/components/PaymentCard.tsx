@@ -8,6 +8,7 @@ import {
 import { useSelector } from '@xstate/react'
 import { useState } from 'react'
 import { useConnection } from 'wagmi'
+import ethCoinIcon from '@/assets/icons/eth-coin.svg'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { Card } from '@/components/ui/card'
@@ -23,10 +24,8 @@ import { tw } from '@/utils/tailwind'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { warmRegistrationCheckout } from '../../../service/checkoutWarmup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
-import type { PaymentAsset } from '../../../state/registrationUi.machine'
 import { useCheckoutWarmup } from '../useCheckoutWarmup'
 import { AnimatedPrice } from './AnimatedPrice'
-import { ConnectedPaymentButtons } from './ConnectedPaymentButtons'
 import {
   PaymentCardBaseLine,
   PaymentCardPremiumLine,
@@ -93,7 +92,7 @@ export const PaymentCard = () => {
   const { disconnect } = useWalletDisconnect()
   const { openConnectModal } = useConnectModal()
 
-  const onNext = async (asset: PaymentAsset) => {
+  const onNext = async () => {
     const isSafeWallet = await queryClient
       .ensureQueryData(isSafeWalletOptions)
       .catch(() => false)
@@ -101,26 +100,21 @@ export const PaymentCard = () => {
       setIsSafeDialogOpen(true)
       return
     }
-    uiActor.send({ type: 'pricing.paymentAsset.select', asset })
     gate(() => openTokenPicker.mutate())
   }
 
   return (
     <>
       <PaymentCardBase
+        // ETH is swapped for the ENS account, so only that route offers it.
+        acceptsEth={account.signer?.type === 'rhinestone'}
         amount={pricingQuery.data?.totalPrice}
         basePrice={pricingQuery.data?.basePrice}
         canNext={canNext}
         discountAmount={discountAmount}
         isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
         isPreparing={openTokenPicker.isPending}
-        // ETH is swapped by the ENS account, so only that route offers it.
-        onEth={
-          account.signer?.type === 'rhinestone'
-            ? () => void onNext('eth')
-            : undefined
-        }
-        onNext={() => void onNext('stablecoin')}
+        onNext={() => void onNext()}
         premiumAmount={pricingQuery.data?.premiumPrice}
         type="register"
       />
@@ -139,10 +133,21 @@ export const PaymentCard = () => {
   )
 }
 
+const AcceptedTokens = ({ acceptsEth }: { readonly acceptsEth: boolean }) => (
+  <div className="flex flex-col items-center gap-1.5">
+    <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
+      {acceptsEth ? <Trans>Accepted</Trans> : <Trans>Stables accepted</Trans>}
+    </p>
+    <div className="flex items-center gap-1">
+      <USDCIcon className="h-7 w-7" />
+      {acceptsEth && <img alt="ETH" className="h-7 w-7" src={ethCoinIcon} />}
+    </div>
+  </div>
+)
+
 export const PaymentCardBase = ({
   canNext,
   onNext,
-  onEth,
   amount,
   isLoading,
   discountAmount,
@@ -151,11 +156,12 @@ export const PaymentCardBase = ({
   type,
   connectionSource = 'smart-account',
   isPreparing = false,
+  acceptsEth = false,
 }: {
   canNext: boolean
   onNext: () => void
-  /** Offers paying with ETH, below the stablecoins; absent, no ETH option. */
-  readonly onEth?: () => void
+  /** Checkout also offers paying with ETH, so it is shown as accepted. */
+  readonly acceptsEth?: boolean
   /** The chooser's figures are being fetched; the button shows it and waits. */
   readonly isPreparing?: boolean
   amount: number | undefined
@@ -224,23 +230,23 @@ export const PaymentCardBase = ({
       </div>
 
       <div className="flex w-full flex-col items-center justify-between gap-3">
-        <div className="flex flex-col items-center gap-1.5">
-          <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
-            <Trans>Stables accepted</Trans>
-          </p>
-          {/* Stablecoin icons */}
-          <div className="flex items-center gap-1">
-            <USDCIcon className="h-7 w-7" />
-          </div>
-        </div>
+        <AcceptedTokens acceptsEth={acceptsEth} />
 
         {isConnected ? (
-          <ConnectedPaymentButtons
-            canNext={canNext}
-            isPreparing={isPreparing}
-            onEth={onEth}
-            onNext={onNext}
-          />
+          <Button
+            className="w-full font-medium font-mono uppercase tracking-widest"
+            color="blue"
+            disabled={!canNext && !isPreparing}
+            loading={isPreparing}
+            onClick={isPreparing ? undefined : onNext}
+            size="lg"
+          >
+            {isPreparing ? (
+              <Trans>Preparing checkout...</Trans>
+            ) : (
+              <Trans>Pay</Trans>
+            )}
+          </Button>
         ) : (
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"

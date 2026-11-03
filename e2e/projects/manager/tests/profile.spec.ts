@@ -385,7 +385,7 @@ test.describe('ENS profile', () => {
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2_000)
 
-    // renewFor28Days clicks "Pay with stablecoins", dismisses the
+    // renewFor28Days clicks "Pay", dismisses the
     // EnableSessions modal (HCA path), selects USDC, and awaits
     // "Renewal Complete!". On the HCA path USDC is authorized via an
     // EIP-2612 permit (eth_signTypedData_v4, auto-authorized) — no
@@ -502,7 +502,7 @@ test.describe('ENS profile', () => {
     try {
       await goToProfile(page, name)
       await page.getByRole('link', { name: /renew/i }).click()
-      await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+      await page.getByRole('button', { name: 'Pay', exact: true }).click()
       await clickThroughEnableSessions(page)
       // Every source the picker could pay from is empty.
       const fundingAddresses: Address[] = [

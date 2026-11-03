@@ -67,10 +67,10 @@ async function dismissSiweModal(page: Page) {
     // Modal didn't appear — sessions already enabled or feature flag off
   }
 
-  // Wait for the "Pay with stablecoins" button to confirm the wallet
+  // Wait for the "Pay" button to confirm the wallet
   // session is fully established (replaces "Connect or sign in")
   await page
-    .getByRole('button', { name: /pay with stablecoins/i })
+    .getByRole('button', { name: 'Pay', exact: true })
     .waitFor({ state: 'visible', timeout: 30_000 })
     .catch(() => {})
 }
@@ -112,10 +112,10 @@ test.describe
         timeout: 30_000,
       })
 
-      // ── 3. Verify the "Pay with stablecoins" button is visible ────
+      // ── 3. Verify the "Pay" button is visible ────
       // (confirms user is authenticated and pricing loaded)
       await expect(
-        page.getByRole('button', { name: /pay with stablecoins/i }),
+        page.getByRole('button', { name: 'Pay', exact: true }),
       ).toBeVisible({ timeout: 15_000 })
 
       // ── 4. Verify the price includes a premium ────────────────────
@@ -153,9 +153,9 @@ test.describe
         timeout: 30_000,
       })
 
-      // Authenticated user should see "Pay with stablecoins" (not "Connect")
+      // Authenticated user should see "Pay" (not "Connect")
       await expect(
-        page.getByRole('button', { name: /pay with stablecoins/i }),
+        page.getByRole('button', { name: 'Pay', exact: true }),
       ).toBeVisible({ timeout: 15_000 })
     })
 
@@ -186,7 +186,7 @@ test.describe
       })
 
       await expect(
-        page.getByRole('button', { name: /pay with stablecoins/i }),
+        page.getByRole('button', { name: 'Pay', exact: true }),
       ).toBeVisible({ timeout: 15_000 })
     })
 
@@ -216,7 +216,7 @@ test.describe
       })
 
       await expect(
-        page.getByRole('button', { name: /pay with stablecoins/i }),
+        page.getByRole('button', { name: 'Pay', exact: true }),
       ).toBeVisible({ timeout: 15_000 })
     })
   })

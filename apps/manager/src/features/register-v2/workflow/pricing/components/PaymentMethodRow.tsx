@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils'
 
 export type PaymentMethodRowProps = {
   readonly name: string
+  /** Shown beside the name, such as a method's kind and what it means. */
+  readonly nameBadge?: React.ReactNode
   readonly icon: React.ReactNode
   readonly amount: React.ReactNode
   readonly amountLabel: React.ReactNode
@@ -28,6 +30,7 @@ export type PaymentMethodRowProps = {
 /** A selectable payment row: token icon, name and fee, balance. */
 export const PaymentMethodRow = ({
   name,
+  nameBadge,
   icon,
   amount,
   amountLabel,
@@ -63,8 +66,11 @@ export const PaymentMethodRow = ({
       <span className="pointer-events-none relative z-10 flex min-w-0 items-start gap-2">
         {icon}
         <span className="flex min-w-0 flex-col">
-          <span className="font-medium text-ens-quartz-900 text-sm uppercase">
-            {name}
+          <span className="flex items-center gap-1.5">
+            <span className="font-medium text-ens-quartz-900 text-sm uppercase">
+              {name}
+            </span>
+            {nameBadge}
           </span>
           {(fee !== undefined || isFeeLoading) && (
             <span
