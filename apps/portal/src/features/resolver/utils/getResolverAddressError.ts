@@ -5,7 +5,6 @@ const ADDRESS_LENGTH = 42
 
 export type GetResolverAddressErrorParams = {
   readonly value: string
-  /** The field has lost focus at least once. */
   readonly isTouched: boolean
 }
 
