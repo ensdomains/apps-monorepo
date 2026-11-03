@@ -168,6 +168,7 @@ export const TokenPickerContent = () => {
         onCancel: () => {
           uiActor.send({ type: 'cancel' })
           // Back on the payment step, show the amount signing would use now.
+          balances.refetch()
           retryQuote()
         },
       }

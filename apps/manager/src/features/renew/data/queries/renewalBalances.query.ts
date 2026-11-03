@@ -109,5 +109,11 @@ export const useRenewalBalances = ({ enabled = true } = {}) => {
     refetchInterval: 30_000,
   })
 
-  return { ...(query.data ?? NO_BALANCES), isLoading: query.isLoading }
+  return {
+    ...(query.data ?? NO_BALANCES),
+    isLoading: query.isLoading,
+    refetch: () => {
+      query.refetch()
+    },
+  }
 }
