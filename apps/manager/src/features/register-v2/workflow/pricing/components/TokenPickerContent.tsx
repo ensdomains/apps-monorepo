@@ -608,8 +608,8 @@ export const TokenPickerContent = () => {
       l2Payment={l2Payment}
       label={label}
       nextMessage={nextMessage}
-      // The reveal is sent from this tab after the commitment wait, so the
-      // registration only completes while it stays open.
+      // The reveal is sent from this tab after the commitment wait. Leaving
+      // pauses the run until the user returns (see useRegistrationResume).
       notice={
         <Trans>Keep browser open until your transaction is confirmed</Trans>
       }
