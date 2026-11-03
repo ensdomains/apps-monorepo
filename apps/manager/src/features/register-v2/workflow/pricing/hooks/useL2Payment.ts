@@ -190,7 +190,11 @@ export const useL2PaymentRows = ({
   })
   return {
     rows,
-    selectedChainId: getSelectedL2ChainId(options, selectedChainId),
+    selectedChainId: getSelectedL2ChainId(
+      options,
+      selectedChainId,
+      statusAmountRaw,
+    ),
     selectedOrigin,
     onSelect,
     onFallbackSelect,

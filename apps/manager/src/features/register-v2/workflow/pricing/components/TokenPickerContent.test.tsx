@@ -567,6 +567,30 @@ describe('TokenPickerContent', () => {
     )
   })
 
+  // Say a retry after the bridge landed: the chosen L2 has nothing to send.
+  it('pays from the account, not a chosen L2, once the account covers it all', async () => {
+    const covered = { ...fiveUsdcBudget, hcaBalance: 5_000_000n }
+    containerMocks.walletBalance = '0'
+    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+    containerMocks.renderBudget = covered
+    containerMocks.revalidatedBudget = covered
+    containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
+    containerMocks.fundingSourceChainId = baseSepolia.id
+    renderContainer()
+
+    expect(screen.getByText(/No additional payment needed/)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Register name' }))
+
+    await waitFor(() =>
+      expect(containerMocks.send).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'registration.start' }),
+      ),
+    )
+    expect(containerMocks.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ l2FundingChainId: baseSepolia.id }),
+    )
+  })
+
   // An L2 payment can fail for a reason the user acts on, like one still settling.
   it('shows why a payment from the L2 failed rather than a generic approval error', () => {
     containerMocks.renderBudget = fiveUsdcBudget
