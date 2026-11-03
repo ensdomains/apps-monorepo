@@ -656,6 +656,7 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
@@ -867,6 +868,14 @@ msgstr ""
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "Confirm renewal"
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Confirm the payment approval and renewal in your wallet."
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Confirm the renewal in your wallet."
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx
@@ -2227,6 +2236,10 @@ msgstr ""
 msgid "Paying from {l2ChainName}"
 msgstr ""
 
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Payment amount updated"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Payment summary"
 msgstr ""
@@ -3090,6 +3103,7 @@ msgid "Sign once to enable seamless transactions."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign payment approval"
 msgstr ""
 
@@ -3361,6 +3375,10 @@ msgstr ""
 
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "That's generous of you!"
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "The amount due increased. Review the updated total before signing."
 msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts

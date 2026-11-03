@@ -172,6 +172,37 @@ describe('submitHcaRenewal', () => {
     expect(fundingParams()).toMatchObject({ displayedDebit })
   })
 
+  it('asks about the re-quoted payment only when the wallet would pay more than was confirmed', async () => {
+    const displayedDebit = { usdc: 6_690_000n, token: 0n }
+    const confirmIncreasedPayment = vi.fn().mockResolvedValue(false)
+    const prompt = (permitValue: bigint) => ({
+      permitValue,
+      requiresPermit: true,
+      quotedFeeUsdc: 900_000n,
+      hcaBalanceUsdc: 3_000_000n,
+      requiredUsdc: 8_800_000n,
+    })
+
+    await submitHcaRenewal({
+      ...params,
+      displayedDebit,
+      confirmIncreasedPayment,
+    })
+    const { confirmFunding, ...funding } = fundingParams()
+
+    // The planner signs for the prompt's amount, so it is not given the
+    // drift-tolerant displayed debit to check against.
+    expect(funding).not.toHaveProperty('displayedDebit')
+    expect(await confirmFunding(prompt(6_690_000n))).toBe(true)
+    expect(await confirmFunding(prompt(6_000_000n))).toBe(true)
+    expect(confirmIncreasedPayment).not.toHaveBeenCalled()
+
+    expect(await confirmFunding(prompt(6_700_000n))).toBe(false)
+    expect(confirmIncreasedPayment).toHaveBeenCalledExactlyOnceWith(
+      prompt(6_700_000n),
+    )
+  })
+
   it('batches several names into one call, with a limit scaled to the count', async () => {
     const items = [
       { label: 'alice', duration: 31_536_000n },

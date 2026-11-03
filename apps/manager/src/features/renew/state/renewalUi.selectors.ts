@@ -1,9 +1,14 @@
 import { match, P } from 'ts-pattern'
 import { createRenewalUiSelector } from './renewalUi.context'
+import type { RenewalPaymentUpdate } from './renewalUi.machine'
 
 export const useRenewalStep = createRenewalUiSelector((state) =>
   match(state.value)
     .with({ pricing: P.string }, () => 'pricing' as const)
+    .with(
+      { submittingHcaRenewal: P.string },
+      () => 'submittingHcaRenewal' as const,
+    )
     .with(P.string, (step) => step)
     .exhaustive(),
 )
@@ -19,4 +24,17 @@ export const useIsAwaitingRenewalApproval = createRenewalUiSelector(
     (state.matches('submittingHcaRenewal') && !state.context.renewalTxId) ||
     state.matches('checkingAllowance') ||
     state.matches('submittingTokenApproval'),
+)
+
+/** The updated receipt of the running intent attempt, once its payment went up. */
+export const useRenewalPaymentUpdate = createRenewalUiSelector(
+  (state): RenewalPaymentUpdate | undefined => {
+    if (!state.matches('submittingHcaRenewal')) return undefined
+    const { paymentReview, acceptedPayment } = state.context
+    if (paymentReview)
+      return { status: 'reviewing', prompt: paymentReview.prompt }
+    if (acceptedPayment) return { status: 'accepted', prompt: acceptedPayment }
+    return undefined
+  },
+  (a, b) => a?.status === b?.status && a?.prompt === b?.prompt,
 )

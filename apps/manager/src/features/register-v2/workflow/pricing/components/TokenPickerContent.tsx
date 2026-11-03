@@ -826,6 +826,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   isEstimate = false,
   walletDebitFor,
   l2Payment,
+  receiptNotice,
+  onCancel,
 }: {
   readonly label: string
   readonly pricingLoading: boolean
@@ -882,6 +884,10 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly walletDebitFor?: (symbol: TOKEN_SYMBOL) => number
   /** Registration only: rows that pay the registration from an L2. */
   readonly l2Payment?: L2PaymentProps
+  /** A message about the receipt's figures, shown directly below it. */
+  readonly receiptNotice?: ReactNode
+  /** Offers Cancel below the CTA. */
+  readonly onCancel?: () => void
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -1152,6 +1158,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           state={receiptState}
           totalLabel={totalLabel}
         />
+        {receiptNotice}
 
         <PaymentAction
           canNext={canNext}
@@ -1159,6 +1166,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           isBusy={isBusy}
           isSettling={isSettling}
           label={nextMessage}
+          onCancel={onCancel}
           onNext={onNext}
           onRetry={
             hasBudgetQuoteFailed && !isQuotingFunding ? onRetry : undefined

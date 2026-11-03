@@ -651,6 +651,7 @@ msgstr "Can you share your order number?"
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
@@ -863,6 +864,14 @@ msgstr "Confirm"
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "Confirm renewal"
 msgstr "Confirm renewal"
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Confirm the payment approval and renewal in your wallet."
+msgstr "Confirm the payment approval and renewal in your wallet."
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Confirm the renewal in your wallet."
+msgstr "Confirm the renewal in your wallet."
 
 #: src/components/HcaFundingApprovalDialog.tsx
 msgid "Confirm the USDC approval transaction in your wallet. The renewal will continue after it confirms."
@@ -2222,6 +2231,10 @@ msgstr "Paying from {chainName} isn't available right now."
 msgid "Paying from {l2ChainName}"
 msgstr "Paying from {l2ChainName}"
 
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Payment amount updated"
+msgstr "Payment amount updated"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Payment summary"
 msgstr "Payment summary"
@@ -3085,6 +3098,7 @@ msgid "Sign once to enable seamless transactions."
 msgstr "Sign once to enable seamless transactions."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign payment approval"
 msgstr "Sign payment approval"
 
@@ -3357,6 +3371,10 @@ msgstr "That name was registered by someone else. You were not charged."
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "That's generous of you!"
 msgstr "That's generous of you!"
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "The amount due increased. Review the updated total before signing."
+msgstr "The amount due increased. Review the updated total before signing."
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "The commemorative NFT could not be minted. Please try again."

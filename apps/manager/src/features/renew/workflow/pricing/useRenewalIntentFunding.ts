@@ -19,6 +19,9 @@ export type RenewalIntentFunding = {
   /** Only the smart-account route pays an intent fee. */
   readonly isIntentRoute: boolean
   readonly isQuoting: boolean
+  /** The fee could not be quoted, so the renewal cannot start until a retry succeeds. */
+  readonly hasQuoteFailed: boolean
+  readonly retryQuote: () => void
   /** Absent until the fee is quoted, or when the quote failed: the rent alone is shown then. */
   readonly funding:
     | (RenewalFunding['summary'] & { readonly isLoading: boolean })
@@ -75,9 +78,18 @@ export const useRenewalIntentFunding = (params: {
         })
       : undefined
 
+  // `null` is a quote the rail refused to price: as unusable as an error.
+  const isQuoteUnusable =
+    feeQuery.isError || (feeQuery.isSuccess && feeQuery.data === null)
+
   return {
     isIntentRoute,
-    isQuoting: isIntentRoute && feeQuery.isLoading,
+    isQuoting:
+      isIntentRoute && feeQuery.isFetching && networkFeeRaw === undefined,
+    hasQuoteFailed: isIntentRoute && isQuoteUnusable && !feeQuery.isFetching,
+    retryQuote: () => {
+      feeQuery.refetch()
+    },
     funding: renewalFunding
       ? { ...renewalFunding.summary, isLoading: feeQuery.isFetching }
       : undefined,

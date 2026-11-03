@@ -11,11 +11,16 @@ import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
-import { useIsAwaitingRenewalApproval } from '@/features/renew/state/renewalUi.selectors'
+import {
+  useIsAwaitingRenewalApproval,
+  useRenewalPaymentUpdate,
+} from '@/features/renew/state/renewalUi.selectors'
+import { getUpdatedRenewalFunding } from '@/features/renew/utils/renewalFunding'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { useRenewalIntentFunding } from '../useRenewalIntentFunding'
+import { PaymentUpdateNotice } from './PaymentUpdateNotice'
 
 export const TokenPickerContent = () => {
   const { label, uiActor, protocol } = useRenewalUiContext()
@@ -34,6 +39,10 @@ export const TokenPickerContent = () => {
   )
   const token = selectedToken ?? TOKENS.USDC.symbol
   const isAwaitingApproval = useIsAwaitingRenewalApproval(uiActor)
+  const paymentUpdate = useRenewalPaymentUpdate(uiActor)
+  const isReviewingPayment = paymentUpdate?.status === 'reviewing'
+  // The wallet is only waiting on a signature once the user has accepted.
+  const isBusy = isAwaitingApproval && !isReviewingPayment
 
   const pricingQuery = useQuery({
     ...getRenewPriceQueryOptions(label, duration, token, protocol),
@@ -52,18 +61,25 @@ export const TokenPickerContent = () => {
       }
     },
   })
-  const { isIntentRoute, isQuoting, funding, walletDebitFor, displayedDebit } =
-    useRenewalIntentFunding({
-      label,
-      duration,
-      token,
-      protocol,
-      renewerAddress,
-      account,
-      pricing: pricingQuery.data,
-      accountCredit: balances.accountCredit,
-      accountCreditRaw: balances.accountCreditRaw,
-    })
+  const {
+    isIntentRoute,
+    isQuoting,
+    hasQuoteFailed,
+    retryQuote,
+    funding: quotedFunding,
+    walletDebitFor: quotedWalletDebitFor,
+    displayedDebit,
+  } = useRenewalIntentFunding({
+    label,
+    duration,
+    token,
+    protocol,
+    renewerAddress,
+    account,
+    pricing: pricingQuery.data,
+    accountCredit: balances.accountCredit,
+    accountCreditRaw: balances.accountCreditRaw,
+  })
 
   // The owner wallet signs the intent and any funding permit, so the renewal
   // cannot start until the account context has both.
@@ -76,13 +92,34 @@ export const TokenPickerContent = () => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
+  // An increased payment replaces the receipt with the figures the wallet
+  // would actually be asked for.
+  const updatedFunding =
+    paymentUpdate &&
+    getUpdatedRenewalFunding({
+      prompt: paymentUpdate.prompt,
+      selectedToken: token,
+      quotedWalletDebitFor,
+    })
+  const funding = updatedFunding
+    ? { ...updatedFunding.summary, isLoading: false }
+    : quotedFunding
+  const walletDebitFor = updatedFunding?.walletDebitFor ?? quotedWalletDebitFor
+  const needsApproval = !!updatedFunding?.needsApproval
+
   const isFullyCovered = funding?.walletDebit === 0
   const nextMessage = match({
+    isReviewingPayment,
+    needsApproval,
     isAwaitingApproval,
     isIntentRoute,
     isQuoting,
     isFullyCovered,
   })
+    .with({ isReviewingPayment: true, needsApproval: true }, () => (
+      <Trans>Sign payment approval</Trans>
+    ))
+    .with({ isReviewingPayment: true }, () => <Trans>Sign renewal</Trans>)
     .with({ isAwaitingApproval: true, isIntentRoute: true }, () => (
       <Trans>Signing renewal…</Trans>
     ))
@@ -101,7 +138,9 @@ export const TokenPickerContent = () => {
       !selectedToken ||
       !signer ||
       !ownerAddress ||
-      !walletClient
+      !walletClient ||
+      // The intent route signs only against an amount the user was shown.
+      (isIntentRoute && !displayedDebit)
     ) {
       return
     }
@@ -122,6 +161,18 @@ export const TokenPickerContent = () => {
     })
   }
 
+  // On the updated receipt the CTA accepts the new amount; Cancel drops it.
+  const paymentActions = isReviewingPayment
+    ? {
+        onNext: () => uiActor.send({ type: 'renewal.payment.accept' }),
+        onCancel: () => {
+          uiActor.send({ type: 'cancel' })
+          // Back on the payment step, show the amount signing would use now.
+          retryQuote()
+        },
+      }
+    : { onNext: startRenewal }
+
   return (
     <TokenPickerContentBase
       // With a funding summary the credit is already inside it.
@@ -136,6 +187,7 @@ export const TokenPickerContent = () => {
         </Trans>
       }
       funding={funding}
+      hasBudgetQuoteFailed={hasQuoteFailed}
       helpMessage={
         isIntentRoute ? (
           <Trans>
@@ -149,7 +201,7 @@ export const TokenPickerContent = () => {
           </Trans>
         )
       }
-      isBusy={isAwaitingApproval}
+      isBusy={isBusy}
       isConnected={isConnected}
       isEstimate={isIntentRoute}
       isLoadingBalances={balances.isLoading}
@@ -162,10 +214,19 @@ export const TokenPickerContent = () => {
         </Trans>
       }
       nextMessage={nextMessage}
-      onNext={startRenewal}
+      {...paymentActions}
+      onRetry={retryQuote}
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.price}
       pricingLoading={pricingQuery.isLoading}
+      receiptNotice={
+        paymentUpdate && (
+          <PaymentUpdateNotice
+            needsApproval={needsApproval}
+            status={paymentUpdate.status}
+          />
+        )
+      }
       selectedToken={selectedToken}
       showNetworkFeeDetails={isIntentRoute}
       stablecoinBalances={balances.wallet}

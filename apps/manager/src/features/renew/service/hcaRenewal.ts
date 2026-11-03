@@ -26,6 +26,10 @@ import type { Address, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData, erc20Abi, isAddressEqual } from 'viem'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { getRenewPrice } from '../data/queries/renewPricing.query'
+import {
+  decideRenewalPayment,
+  getPromptWalletDebit,
+} from '../utils/renewalFunding'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 
 /**
@@ -126,6 +130,14 @@ export interface SubmitHcaRenewalParams {
   readonly confirmFunding?: (
     prompt: HcaFundingPrompt,
   ) => Promise<boolean> | boolean
+  /**
+   * Asked, before any signature, only when the re-quoted wallet debit is above
+   * `displayedDebit`. Accepting signs for exactly the prompt's amounts; a same
+   * or lower debit signs without asking.
+   */
+  readonly confirmIncreasedPayment?: (
+    prompt: HcaFundingPrompt,
+  ) => Promise<boolean>
 }
 
 /**
@@ -295,12 +307,25 @@ export async function quoteHcaRenewalFee(
 
 /**
  * How the user agrees to the funding the intent re-quotes: by the debit the
- * payment screen showed, else by a prompt before any signature.
+ * payment screen showed (asking again only when it went up), else by a prompt
+ * before any signature.
  */
 const fundingConsent = ({
   displayedDebit,
   confirmFunding,
-}: Pick<SubmitHcaRenewalParams, 'displayedDebit' | 'confirmFunding'>) => {
+  confirmIncreasedPayment,
+}: Pick<
+  SubmitHcaRenewalParams,
+  'displayedDebit' | 'confirmFunding' | 'confirmIncreasedPayment'
+>) => {
+  if (confirmIncreasedPayment)
+    return {
+      confirmFunding: (prompt: HcaFundingPrompt) =>
+        decideRenewalPayment({
+          confirmed: displayedDebit,
+          requoted: getPromptWalletDebit(prompt),
+        }) === 'proceed' || confirmIncreasedPayment(prompt),
+    }
   if (displayedDebit) return { displayedDebit }
   if (confirmFunding) return { confirmFunding }
   return {}

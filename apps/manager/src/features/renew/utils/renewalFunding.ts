@@ -1,5 +1,9 @@
-import type { HcaDisplayedDebit } from '@ens-apps/transaction-manager'
+import type {
+  HcaDisplayedDebit,
+  HcaFundingPrompt,
+} from '@ens-apps/transaction-manager'
 import type { RENEWAL_TOKEN, TOKEN_SYMBOL } from '@/lib/tokens'
+import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 /** The rent is paid in the chosen coin; the intent's fee is always USDC. */
 const FEE_TOKEN: TOKEN_SYMBOL = 'USDC'
@@ -90,5 +94,82 @@ export const computeRenewalDisplayedDebit = (params: {
   return {
     usdc: debitRaw(networkFeeRaw, accountCreditRaw.USDC),
     token: debitRaw(fundedRaw, accountCreditRaw[selectedToken]),
+  }
+}
+
+const USDC_DECIMALS = 6
+
+/** What a re-quoted funding prompt takes from the wallet, in each coin's units. */
+export const getPromptWalletDebit = (
+  prompt: HcaFundingPrompt,
+): HcaDisplayedDebit => ({
+  usdc: prompt.permitValue,
+  token: prompt.token?.permitValue ?? 0n,
+})
+
+export type RenewalPaymentDecision = 'proceed' | 'confirm'
+
+/**
+ * Whether a re-quoted renewal can be signed on the amount the user confirmed.
+ * It can when the wallet pays no more in either coin; otherwise the user has to
+ * accept the new amount first. With nothing confirmed, any wallet debit asks.
+ */
+export const decideRenewalPayment = ({
+  confirmed,
+  requoted,
+}: {
+  readonly confirmed: HcaDisplayedDebit | undefined
+  readonly requoted: HcaDisplayedDebit
+}): RenewalPaymentDecision => {
+  const ceiling = confirmed ?? { usdc: 0n, token: 0n }
+  return requoted.usdc > ceiling.usdc || requoted.token > ceiling.token
+    ? 'confirm'
+    : 'proceed'
+}
+
+/**
+ * The payment screen's figures once a re-quote raised the payment: the
+ * prompt's receipt in place of the earlier quote's, and whether the wallet
+ * signs a payment approval before the renewal.
+ */
+export const getUpdatedRenewalFunding = ({
+  prompt,
+  selectedToken,
+  quotedWalletDebitFor,
+}: {
+  readonly prompt: HcaFundingPrompt
+  readonly selectedToken: RENEWAL_TOKEN
+  /** The earlier quote's per-coin debit, kept for the coins not chosen. */
+  readonly quotedWalletDebitFor: ((symbol: TOKEN_SYMBOL) => number) | undefined
+}): RenewalFunding & { readonly needsApproval: boolean } => {
+  const usdc = (value: bigint) => decimalBigintToNumber(value, USDC_DECIMALS)
+  const { token } = prompt
+  const tokenOf = (value: bigint) =>
+    token ? decimalBigintToNumber(value, token.decimals) : 0
+  const usdcCredit =
+    prompt.requiredUsdc + prompt.quotedFeeUsdc - prompt.permitValue
+  const rent = token ? tokenOf(token.required) : usdc(prompt.requiredUsdc)
+  const networkFee = usdc(prompt.quotedFeeUsdc)
+  const selectedCoinDebit = token
+    ? tokenOf(token.permitValue)
+    : usdc(prompt.permitValue)
+  const walletDebit =
+    usdc(prompt.permitValue) + (token ? tokenOf(token.permitValue) : 0)
+
+  return {
+    summary: {
+      registration: rent,
+      networkFee,
+      total: rent + networkFee,
+      walletDebit,
+      hcaCredit:
+        usdc(usdcCredit) +
+        (token ? tokenOf(token.required - token.permitValue) : 0),
+    },
+    walletDebitFor: (symbol) =>
+      symbol === selectedToken
+        ? selectedCoinDebit
+        : (quotedWalletDebitFor?.(symbol) ?? walletDebit),
+    needsApproval: prompt.requiresPermit || !!token?.requiresPermit,
   }
 }
