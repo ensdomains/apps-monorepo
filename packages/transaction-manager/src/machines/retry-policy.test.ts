@@ -9,7 +9,10 @@ import {
   TransactionUserRejectedError,
 } from '../errors/transaction.errors'
 import type { EOATransactionRequest } from '../types/transaction.types'
-import { isRetryableSubmissionError } from './retry-policy'
+import {
+  isRetryableSubmissionError,
+  isStaleGasQuoteError,
+} from './retry-policy'
 
 const request = {
   type: 'eoa',
@@ -102,5 +105,34 @@ describe('isRetryableSubmissionError', () => {
 
   it('does not retry a desynced nonce', () => {
     expect(isRetryableSubmissionError(new Error('nonce too low'))).toBe(false)
+  })
+})
+
+// The orchestrator's refusal of a fill whose gas refund outgrew the signed cap.
+const simulationFailure = (errorName: string) =>
+  new TransactionSubmissionError(
+    request,
+    Object.assign(new Error(`Simulation failed: ${errorName}`), {
+      errorType: 'Bad Request',
+      statusCode: 400,
+      context: {
+        category: 'EXECUTION_FAILED',
+        errorName,
+        retryable: false,
+      },
+    }),
+  )
+
+describe('isStaleGasQuoteError', () => {
+  it('re-quotes a fill the gas price outgrew', () => {
+    expect(
+      isStaleGasQuoteError(simulationFailure('ExcessiveGasRefund()')),
+    ).toBe(true)
+  })
+
+  it('leaves any other refused simulation alone', () => {
+    expect(
+      isStaleGasQuoteError(simulationFailure('ERC20InsufficientBalance()')),
+    ).toBe(false)
   })
 })
