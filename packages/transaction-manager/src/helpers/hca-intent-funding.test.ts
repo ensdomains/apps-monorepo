@@ -532,6 +532,35 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
     expect(signFundingPermit).not.toHaveBeenCalled()
   })
 
+  it('waits out a node still reading the balance from before a known top-up', async () => {
+    vi.useFakeTimers()
+    // A load-balanced RPC: the first node has not seen the bridged USDC yet.
+    const hcaReads = [0n, 5_000_000n]
+    readContract.mockImplementation(
+      (_client: unknown, { args }: { args: unknown[] }) =>
+        Promise.resolve(
+          args[0] === HCA
+            ? (hcaReads.shift() ?? 5_000_000n)
+            : 1_000_000_000_000n,
+        ),
+    )
+
+    try {
+      const planned = planHcaIntentFunding({
+        ...rentParams,
+        hcaBalanceAtLeast: 5_000_000n,
+      })
+      await vi.advanceTimersByTimeAsync(10_000)
+      const funding = await planned
+
+      expect(funding.calls).toEqual(actionCalls)
+      expect(funding.incomingUsdc).toBeUndefined()
+      expect(signFundingPermit).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('pulls with a standing allowance instead of a permit, after showing the amount', async () => {
     // No permit is needed, but the USDC still leaves the wallet when the
     // intent fills, so the user sees the figure before signing it.

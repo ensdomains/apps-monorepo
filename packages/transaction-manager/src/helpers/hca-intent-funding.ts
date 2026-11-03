@@ -48,6 +48,7 @@ import {
   type PermitPurpose,
   type PermitValueBounds,
   readHcaUsdcBalanceActor,
+  readHcaUsdcBalanceAtLeastActor,
   readUsdcSpend,
   signFundingPermitForTokenActor,
 } from '../machines/registration/registration.hca.actors'
@@ -389,6 +390,12 @@ export interface PlanHcaIntentFundingParams {
    */
   readonly gasLimit?: bigint
   /**
+   * USDC (6dp) the HCA is already known to hold, say from a bridge that just
+   * read back. The balance is read until a node shows at least this, as a
+   * lagging one would otherwise size a permit for USDC already there.
+   */
+  readonly hcaBalanceAtLeast?: bigint
+  /**
    * Ceiling on the quoted fee before it can become a permit value. Defaults to
    * {@link HCA_MAX_STANDALONE_INTENT_FEE_USDC}; pass
    * {@link hcaMaxIntentFeeUsdcFor} of a non-default `gasLimit`.
@@ -583,6 +590,7 @@ export type QuoteHcaIntentParams = Pick<
   | 'requiredUsdc'
   | 'tokenSpend'
   | 'gasLimit'
+  | 'hcaBalanceAtLeast'
 >
 
 /** Read the balances and quote the fee for `calls` as the funded batch; nothing is signed. */
@@ -598,6 +606,7 @@ async function quoteIntent(
     requiredUsdc: usdcSpend = 0n,
     tokenSpend,
     gasLimit = HCA_STANDALONE_INTENT_GAS_LIMIT,
+    hcaBalanceAtLeast,
   } = params
 
   const chain = publicClient.chain
@@ -621,11 +630,15 @@ async function quoteIntent(
   // zero on a failed read is exactly the guess this function refuses to make
   // elsewhere — it would pull the full fee out of the owner's wallet into an
   // HCA that may already have been holding it.
-  const balance = await readHcaUsdcBalanceActor({
-    hca,
-    publicClient,
-    chainId,
-  }).match(
+  const balance = await (hcaBalanceAtLeast === undefined
+    ? readHcaUsdcBalanceActor({ hca, publicClient, chainId })
+    : readHcaUsdcBalanceAtLeastActor({
+        hca,
+        publicClient,
+        chainId,
+        atLeast: hcaBalanceAtLeast,
+      })
+  ).match(
     (value) => value,
     (error) => {
       throw error

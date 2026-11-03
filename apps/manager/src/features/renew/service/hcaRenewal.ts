@@ -434,7 +434,7 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
     quotedFeeUsdc,
     hcaBalance,
   })
-  if (amount === 0n) return ok(undefined)
+  if (amount === 0n) return ok(hcaBalance)
 
   const fundsHcaTo = hcaBalance + amount
   const txId = yield* submitL2BridgeActor({
@@ -454,7 +454,7 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
   // A lagging read would otherwise ask the wallet to fund it all over again.
   yield* awaitHcaBalance({ hca, publicClient, chainId, atLeast: fundsHcaTo })
   clearPendingL2Bridge(chainId, hca)
-  return ok(undefined)
+  return ok(fundsHcaTo)
 })
 
 /**
@@ -565,25 +565,28 @@ export async function submitHcaRenewal(
   // legal in the same batch.
   const ownerSigner: RhinestoneSigner = { ...signer, session: undefined }
 
-  if (l2Funding) {
-    // Unwrapped at this promise boundary, like the rent read.
-    ;(
-      await fundRenewalsFromL2({
-        l2Funding,
-        intents: [{ tokenAddress, rentTotal, actionCalls, gasLimit }],
-        token,
-        signer: ownerSigner,
-        ownerAddress,
-        publicClient,
-        chainId,
-      })
-    ).match(
-      () => undefined,
-      (error) => {
-        throw error
-      },
-    )
-  }
+  // What the HCA was read holding once funded from an L2. Funding is planned
+  // no lower: another node can still read the balance from before the bridge,
+  // and would ask the wallet for USDC the account already holds.
+  const hcaBalanceAtLeast = l2Funding
+    ? // Unwrapped at this promise boundary, like the rent read.
+      (
+        await fundRenewalsFromL2({
+          l2Funding,
+          intents: [{ tokenAddress, rentTotal, actionCalls, gasLimit }],
+          token,
+          signer: ownerSigner,
+          ownerAddress,
+          publicClient,
+          chainId,
+        })
+      ).match(
+        (balance) => balance,
+        (error) => {
+          throw error
+        },
+      )
+    : undefined
 
   const funding = await planHcaIntentFunding({
     signer: ownerSigner,
@@ -602,6 +605,7 @@ export async function submitHcaRenewal(
       amount: rentTotal,
     },
     gasLimit,
+    ...(hcaBalanceAtLeast === undefined ? {} : { hcaBalanceAtLeast }),
     maxFeeUsdc: hcaMaxIntentFeeUsdcFor(gasLimit),
     // The amounts are quoted here, not on any earlier screen, so this is the
     // only place they can be shown before a signature is requested.
