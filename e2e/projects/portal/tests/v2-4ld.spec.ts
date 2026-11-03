@@ -15,10 +15,7 @@ import {
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient } from '../../../helpers/anvil-client.js'
-import {
-  isRealBigname,
-  waitForBignameName,
-} from '../../../helpers/bigname-sync.js'
+import { isRealBigname } from '../../../helpers/bigname-sync.js'
 import { expectRecordsResolve } from '../../../helpers/resolve-records.js'
 import {
   accountHasRoles,
@@ -49,25 +46,22 @@ test.beforeEach(async ({ portalPage: page, wallet }) => {
   await connectWithHeadlessWallet(page, wallet)
 })
 
-test('creates a native 4LD in its immediate parent registry', {
+test('redirects native 4LD creation and disables the action', {
   tag: ['@smoke', '@scenario:Q50', '@inv:INV5-native-4ld-writes'],
-}, async ({ portalPage: page, wallet, wallets }) => {
+}, async ({ portalPage: page, wallets }) => {
   const tree = await makeV2FourLD(wallets.account('owner'))
   const LABEL = 'created'
-  const name = `${LABEL}.${tree.parent.name}`
   expect(await status(tree.leaf.registryAddress, LABEL)).toBe(0)
   await page.goto(`${PORTAL_APP_URL}/${tree.parent.name}/create-subname`)
-  await page.locator('#label').fill(LABEL)
-  await page.locator('#owner').fill(wallets.address('manager'))
-  await page.getByRole('button', { name: 'Create subname' }).click()
-  await driveTransactionsToSuccess(page, wallet, ['tx-create-ens-subname'])
-  expect(await status(tree.leaf.registryAddress, LABEL)).toBe(2)
-  expect(await status(tree.parent.registryAddress, LABEL)).toBe(0)
-  expect(await owner(name)).toBe(wallets.address('manager'))
-  await waitForBignameName(name)
-  await page.goto(`${PORTAL_APP_URL}/${tree.parent.name}/subnames`)
+  await expect(page).toHaveURL(`${PORTAL_APP_URL}/${tree.parent.name}/subnames`)
   await expect(
-    page.locator('table').getByText(name, { exact: true }),
+    page.getByRole('button', { name: 'Create subname' }),
+  ).toBeDisabled()
+  await expect(page.locator('#label')).toHaveCount(0)
+  expect(await status(tree.leaf.registryAddress, LABEL)).toBe(0)
+  expect(await status(tree.parent.registryAddress, LABEL)).toBe(0)
+  await expect(
+    page.locator('table').getByText(tree.name, { exact: true }),
   ).toBeVisible()
 })
 

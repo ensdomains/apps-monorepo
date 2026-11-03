@@ -52,7 +52,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
         <input
           className={cn(
             'size-full self-stretch',
-            'font-sans font-semibold text-xl leading-[110%] tracking-[-0.4px]',
+            'font-medium font-sans text-xl leading-[110%] tracking-[-2%]',
             'py-[21px] pr-7 pl-13',
             'data-[loading=true]:pr-14',
             hasValue && !isLoading && 'pr-14',
