@@ -1,4 +1,5 @@
 import type {
+  HcaDisplayedDebit,
   HcaFundingApprovalCapability,
   RhinestoneSigner,
   Signer,
@@ -48,6 +49,9 @@ type SubmissionData = {
 
   /** Formatted base price */
   priceNumber: number
+
+  /** What the payment screen showed the wallet would pay; absent when it showed the rent alone. */
+  readonly displayedDebit?: HcaDisplayedDebit
 
   /**
    * The account context's signer. `rhinestone` selects the intent route (the
@@ -100,6 +104,7 @@ export const renewalUiMachine = setup({
        * invoked intent submit can reach the component that renders the prompt.
        */
       approvalFallback?: HcaFundingApprovalCapability
+      /** Only asked when the payment screen could not show the debit. */
       confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
     },
     input: {} as {
@@ -128,6 +133,7 @@ export const renewalUiMachine = setup({
 
           /** Formatted base price */
           priceNumber: number
+          readonly displayedDebit?: HcaDisplayedDebit
         }
       | { type: 'renewal.submitted'; txId: string }
       | { type: 'retry' }
@@ -219,6 +225,7 @@ export const renewalUiMachine = setup({
               token: event.token,
               priceRaw: event.priceRaw,
               priceNumber: event.priceNumber,
+              displayedDebit: event.displayedDebit,
               ownerAddress: event.ownerAddress,
               walletClient: event.walletClient,
             }
@@ -316,7 +323,7 @@ export const renewalUiMachine = setup({
     submittingHcaRenewal: {
       tags: 'renewing',
       // Until the intent is submitted the owner is still approving (the
-      // funding prompt, then the signature), so the payment dialog stays up
+      // funding permit, then the signature), so the payment dialog stays up
       // as it does for registration; `renewalTxId` marks the hand-over.
       on: {
         'renewal.submitted': {
@@ -348,6 +355,9 @@ export const renewalUiMachine = setup({
             chainId: envConfig.chain.id,
             ...(context.approvalFallback
               ? { approvalFallback: context.approvalFallback }
+              : {}),
+            ...(submission.displayedDebit
+              ? { displayedDebit: submission.displayedDebit }
               : {}),
             ...(context.confirmFunding
               ? { confirmFunding: context.confirmFunding }

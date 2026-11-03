@@ -50,6 +50,7 @@ import {
   type PermitValueBounds,
   readHcaUsdcBalanceActor,
   readUsdcSpend,
+  rejectPermitValue,
   signFundingPermitForTokenActor,
 } from '../machines/registration/registration.hca.actors'
 import type { RhinestoneSigner, Signer } from '../types/signer.types'
@@ -181,6 +182,14 @@ export interface HcaTokenSpend {
   readonly amount: bigint
   /** The permit the token implements. Defaults to EIP-2612. */
   readonly permitKind?: PermitKind
+}
+
+/** The wallet debit a payment screen showed, in each token's own units. */
+export interface HcaDisplayedDebit {
+  /** USDC (6dp): the fee, plus the spend when it is in USDC. */
+  readonly usdc: bigint
+  /** The `tokenSpend` token; zero when the spend is in USDC. */
+  readonly token: bigint
 }
 
 /** The user saw the funding amount and declined it. Not an error condition. */
@@ -418,6 +427,11 @@ export interface PlanHcaIntentFundingParams {
   readonly confirmFunding?: (
     prompt: HcaFundingPrompt,
   ) => Promise<boolean> | boolean
+  /**
+   * The debit the user's screen showed. Replaces `confirmFunding`: funding above
+   * it, beyond registration's quote drift, is refused before any signature.
+   */
+  readonly displayedDebit?: HcaDisplayedDebit
   /**
    * What the funding pays for, as the permit's errors describe it. Defaults to
    * {@link STANDALONE_INTENT_PERMIT_PURPOSE}.
@@ -834,6 +848,30 @@ type QuotedFunding = {
   readonly tokenShortfall: bigint
 }
 
+/** Why the funding cannot go ahead on the debit the user was shown, or `null`. */
+const rejectAboveDisplayed = (
+  quoted: Pick<
+    QuotedFunding,
+    'usdcShortfall' | 'tokenShortfall' | 'otherSpend'
+  >,
+  displayed: HcaDisplayedDebit,
+  purpose: PermitPurpose = STANDALONE_INTENT_PERMIT_PURPOSE,
+): string | null =>
+  rejectPermitValue(
+    quoted.usdcShortfall,
+    { displayedValue: displayed.usdc },
+    { symbol: 'USDC', decimals: 6 },
+    purpose,
+  ) ??
+  (quoted.otherSpend
+    ? rejectPermitValue(
+        quoted.tokenShortfall,
+        { displayedValue: displayed.token },
+        quoted.otherSpend,
+        purpose,
+      )
+    : null)
+
 /** The non-USDC half of the prompt, flagging a permit that grants unlimited. */
 const tokenPromptLeg = (
   spend: HcaTokenSpend,
@@ -964,8 +1002,13 @@ async function fundShortfalls(
   params: PlanHcaIntentFundingParams,
   quoted: QuotedFunding,
 ): Promise<HcaIntentFunding> {
-  const { ownerAddress, publicClient } = params
+  const { ownerAddress, publicClient, displayedDebit } = params
   const { hca, usdc, balance, requiredUsdc, usdcShortfall, otherSpend } = quoted
+
+  const refusal = displayedDebit
+    ? rejectAboveDisplayed(quoted, displayedDebit, params.purpose)
+    : null
+  if (refusal) throw new Error(refusal)
 
   const owner = { publicClient, ownerAddress, hca }
   const usdcLeg =
@@ -990,9 +1033,11 @@ async function fundShortfalls(
       : null
 
   // Show the amounts before anything is signed, permit or not: either way they
-  // leave the wallet when the intent fills.
+  // leave the wallet when the intent fills. A screen that already showed them
+  // was checked above instead.
   params.signal?.throwIfAborted()
-  const approved = await (params.confirmFunding?.({
+  const confirmFunding = displayedDebit ? undefined : params.confirmFunding
+  const approved = await (confirmFunding?.({
     permitValue: usdcShortfall,
     requiresPermit: usdcLeg?.requiresPermit ?? false,
     quotedFeeUsdc: quoted.quotedFeeUsdc,
