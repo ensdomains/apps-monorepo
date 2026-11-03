@@ -80,6 +80,12 @@ export {
   VERIFY_GRACE_WINDOW_MS,
   VERIFY_POLL_INTERVAL_MS,
 } from './machines/registration/registration.actors'
+export {
+  type EthDepositQuote,
+  type EthFunding,
+  quoteEthDepositActor,
+  type UnsettledEthSwap,
+} from './machines/registration/registration.eth.actors'
 export type {
   ReauthorizeSession,
   RegistrationContext,

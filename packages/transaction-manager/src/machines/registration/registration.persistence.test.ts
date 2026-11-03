@@ -229,6 +229,25 @@ describe('registration record serialization', () => {
     )
   })
 
+  it('round-trips an ETH payment still settling, so a resume waits for it', () => {
+    const context = baseContext({
+      ethFunding: { displayedCharge: 10n ** 16n },
+      pendingEthDeposit: `0x${'de'.repeat(32)}`,
+      unsettledEthSwap: {
+        intentId: 2n ** 249n + 9n,
+        claimableUntil: 1_800_000_600_000,
+      },
+    })
+
+    const record = buildRegistrationRecord('swappingEth', context, 42)
+    const result = parseRegistrationRecord(serializeRegistrationRecord(record))
+
+    expect(result._unsafeUnwrap()).toEqual(record)
+    expect(result._unsafeUnwrap().context.unsettledEthSwap?.intentId).toBe(
+      2n ** 249n + 9n,
+    )
+  })
+
   it('round-trips bigints under an app-wide BigInt toJSON shim', () => {
     // The portal installs exactly this in main.tsx. `JSON.stringify` runs it
     // before any replacer, so a record written through it lost its envelopes,

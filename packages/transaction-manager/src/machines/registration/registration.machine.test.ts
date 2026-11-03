@@ -11,6 +11,7 @@ import {
 import { transactionManager } from '../../providers/transactionManager'
 import type { L2FundingSource, Signer } from '../../types/signer.types'
 import type { TransactionRequest } from '../../types/transaction.types'
+import type { EthFunding } from './registration.eth.actors'
 import {
   type HcaSessionEnableParams,
   L2_BRIDGE_CLAIMABLE_MS,
@@ -76,6 +77,10 @@ const startHcaRegistration = (overrides: {
   unsettledL2Bridge?: UnsettledL2Bridge
   submitL2Bridge?: ReturnType<typeof vi.fn>
   awaitL2Bridge?: ReturnType<typeof vi.fn>
+  /** Funds the HCA with the wallet's ETH instead of with a permit. */
+  ethFunding?: EthFunding
+  depositEth?: ReturnType<typeof vi.fn>
+  swapEth?: ReturnType<typeof vi.fn>
 }) => {
   const estimateHcaBudget =
     overrides.estimateHcaBudget ??
@@ -98,6 +103,8 @@ const startHcaRegistration = (overrides: {
   const submitL2Bridge =
     overrides.submitL2Bridge ?? vi.fn(async () => 'tx-reg-l2-bridge')
   const awaitL2Bridge = overrides.awaitL2Bridge ?? vi.fn(async () => 'landed')
+  const depositEth = overrides.depositEth ?? vi.fn(async () => 1n)
+  const swapEth = overrides.swapEth ?? vi.fn(async () => 'filled')
 
   const balances = overrides.balances ?? [0n]
   let fundingChecks = 0
@@ -119,6 +126,8 @@ const startHcaRegistration = (overrides: {
         submitFundingAndCommit: fromPromise(submitFundingAndCommit) as never,
         submitL2Bridge: fromPromise(submitL2Bridge) as never,
         awaitL2Bridge: fromPromise(awaitL2Bridge) as never,
+        depositEth: fromPromise(depositEth) as never,
+        swapEth: fromPromise(swapEth) as never,
         ...(overrides.pollTransactionStatus && {
           pollTransactionStatus: fromPromise(
             overrides.pollTransactionStatus,
@@ -161,6 +170,7 @@ const startHcaRegistration = (overrides: {
         ? { displayedL2Charge: overrides.displayedL2Charge }
         : {}),
       unsettledL2Bridge: overrides.unsettledL2Bridge,
+      ...(overrides.ethFunding ? { ethFunding: overrides.ethFunding } : {}),
     })
   start()
 
@@ -173,6 +183,8 @@ const startHcaRegistration = (overrides: {
     submitFundingAndCommit,
     submitL2Bridge,
     awaitL2Bridge,
+    depositEth,
+    swapEth,
   }
 }
 
@@ -436,6 +448,134 @@ describe('registrationMachine — standalone-HCA funding', () => {
     expect(signFundingPermit).toHaveBeenCalledOnce()
     // A stale commitment is cleared too, so the reveal can't bind to it.
     expect(actor.getSnapshot().context.commitmentTxId).toBeUndefined()
+  })
+})
+
+describe('registrationMachine — paid with ETH', () => {
+  const ethFunding: EthFunding = { displayedCharge: 10n ** 16n }
+  const DEPOSIT_HASH = `0x${'de'.repeat(32)}` as Hash
+  const lostTrack = () =>
+    vi.fn(async () => {
+      throw new Error('lost track')
+    })
+
+  it('deposits and swaps the shortfall in instead of a permit, then commits as usual', async () => {
+    const balance = 1_000_000n
+    const {
+      actor,
+      signFundingPermit,
+      depositEth,
+      swapEth,
+      submitFundingAndCommit,
+    } = startHcaRegistration({ balances: [balance], ethFunding })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    expect(depositEth.mock.calls[0][0].input).toMatchObject({
+      hca: HCA,
+      amountOut: BUDGET - balance,
+      funding: ethFunding,
+    })
+    expect(swapEth.mock.calls[0][0].input).toMatchObject({
+      hca: HCA,
+      amountOut: BUDGET - balance,
+    })
+    expect(submitFundingAndCommit.mock.calls[0][0].input.permit).toBeUndefined()
+  })
+
+  it('pays nothing in ETH when the HCA already holds the budget', async () => {
+    const { actor, depositEth, swapEth } = startHcaRegistration({
+      balances: [BUDGET],
+      ethFunding,
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(depositEth).not.toHaveBeenCalled()
+    expect(swapEth).not.toHaveBeenCalled()
+  })
+
+  it('counts a sent deposit on retry instead of sending another', async () => {
+    const { actor, depositEth } = startHcaRegistration({
+      balances: [0n],
+      ethFunding,
+      depositEth: vi
+        .fn()
+        .mockImplementationOnce(
+          async ({
+            input,
+          }: {
+            input: { onDepositSent: (hash: Hash) => void }
+          }) => {
+            input.onDepositSent(DEPOSIT_HASH)
+            throw new Error('lost track of the receipt')
+          },
+        )
+        .mockResolvedValue(0n),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.pendingEthDeposit).toBe(DEPOSIT_HASH)
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(depositEth.mock.calls[1][0].input.pendingDeposit).toBe(DEPOSIT_HASH)
+    expect(actor.getSnapshot().context.pendingEthDeposit).toBeUndefined()
+  })
+
+  it('settles a submitted swap on retry before depositing again', async () => {
+    const swap = { intentId: 9n, claimableUntil: 1_900_000_000_000 }
+    const { actor, depositEth, swapEth } = startHcaRegistration({
+      // Still settling when the retry reads the balance.
+      balances: [0n, 0n],
+      ethFunding,
+      swapEth: vi
+        .fn()
+        .mockImplementationOnce(
+          async ({
+            input,
+          }: {
+            input: { onSwapSubmitted: (s: typeof swap) => void }
+          }) => {
+            input.onSwapSubmitted(swap)
+            throw new Error('lost track of the fill')
+          },
+        )
+        .mockResolvedValue('filled'),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(depositEth).toHaveBeenCalledOnce()
+    expect(swapEth.mock.calls[1][0].input.unsettledSwap).toEqual(swap)
+    expect(actor.getSnapshot().context.unsettledEthSwap).toBeUndefined()
+  })
+
+  it('reads the balance again once an earlier swap turns out to have landed', async () => {
+    const { actor, swapEth } = startHcaRegistration({
+      balances: [0n, BUDGET],
+      ethFunding,
+      swapEth: vi.fn(async () => 'settled'),
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(swapEth).toHaveBeenCalledOnce()
+  })
+
+  it('stops for a retry when the deposit fails, without swapping', async () => {
+    const { actor, swapEth } = startHcaRegistration({
+      balances: [0n],
+      ethFunding,
+      depositEth: lostTrack(),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    expect(swapEth).not.toHaveBeenCalled()
   })
 })
 

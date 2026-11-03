@@ -31,6 +31,13 @@ import {
   verifyRegistrationActor,
 } from './registration.actors'
 import {
+  depositEthActor,
+  type EthFunding,
+  type EthSwapOutcome,
+  swapEthActor,
+  type UnsettledEthSwap,
+} from './registration.eth.actors'
+import {
   awaitL2BridgeActor,
   estimateHcaBudgetActor,
   type HcaSessionEnableParams,
@@ -73,7 +80,9 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  *    and last wallet prompt (the 1st was the session authorization, signed in
  *    the app BEFORE the machine starts). Paid from an L2, `bridgingFromL2`
  *    instead: the wallet signs an intent there delivering the same shortfall
- *    to the HCA, and every later step is unchanged
+ *    to the HCA, and every later step is unchanged. Paid with ETH,
+ *    `depositingEth` + `swappingEth` instead: the wallet sends the HCA ETH,
+ *    and the owner signs a swap of it into the shortfall in USDC
  * 3. `submittingSetupBundle` — ONE session-signed request: permit +
  *    transferFrom + commit; deploys the HCA lazily
  * 4. Shared cooldown spine (against the standalone registrar)
@@ -352,6 +361,21 @@ export type RegistrationContext = {
   /** USDC (6dp) checkout showed the L2 being charged, fee included. */
   displayedL2Charge?: bigint
   /**
+   * Standalone-HCA: funds the HCA from the wallet's ETH on this chain instead
+   * of with the permit. Persisted, so a resumed run keeps paying with ETH.
+   */
+  ethFunding?: EthFunding
+  /**
+   * The ETH deposit into the HCA, from when the wallet sent it until it
+   * confirmed. Persisted, so a resumed run counts it instead of sending again.
+   */
+  pendingEthDeposit?: Hash
+  /**
+   * The swap of the HCA's ETH, from submission until it settles. Persisted, so
+   * a resumed run waits for it instead of swapping again.
+   */
+  unsettledEthSwap?: UnsettledEthSwap
+  /**
    * Standalone-HCA: asks the host app for a new session when a leg's quoted
    * gas refund outgrows the current one's caps. Runtime dep injected on
    * START_REGISTRATION and RESUME, never persisted; absent, such a leg fails.
@@ -475,6 +499,8 @@ export type RegistrationEvent =
       l2Funding?: L2FundingSource
       /** See `RegistrationContext.displayedL2Charge`. */
       displayedL2Charge?: bigint
+      /** Standalone-HCA: fund with ETH. See `RegistrationContext.ethFunding`. */
+      ethFunding?: EthFunding
       /**
        * A bridge an abandoned run sent that may not have settled yet; this run
        * waits for it before paying. See `isL2BridgeFromPriorRun`.
@@ -552,6 +578,16 @@ export type RegistrationEvent =
       intentId: bigint
       /** The balance the bridge was sized to bring the HCA up to. */
       fundsHcaTo: bigint
+    }
+  | {
+      /** The wallet sent the ETH deposit; see `pendingEthDeposit`. */
+      type: 'ETH_DEPOSIT_SENT'
+      hash: Hash
+    }
+  | {
+      /** The ETH swap's intent was submitted; see `unsettledEthSwap`. */
+      type: 'ETH_SWAP_SUBMITTED'
+      swap: UnsettledEthSwap
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -645,6 +681,15 @@ export const registrationMachine = setup({
         },
         { signal }: { signal: AbortSignal },
       ) => awaitL2BridgeActor({ ...input, signal }),
+    ),
+    depositEth: fromResultAsync(
+      (input: Parameters<typeof depositEthActor>[0]) => depositEthActor(input),
+    ),
+    swapEth: fromResultAsync(
+      (
+        input: Omit<Parameters<typeof swapEthActor>[0], 'signal'>,
+        { signal }: { signal: AbortSignal },
+      ) => swapEthActor({ ...input, signal }),
     ),
     submitFundingAndCommit: fromResultAsync(
       (input: {
@@ -888,6 +933,10 @@ export const registrationMachine = setup({
     shouldBundleEoaSetup: ({ context }) => shouldBundleEoaSetup(context),
     isL2Funded: ({ context }) =>
       context.signer?.type === 'rhinestone' && context.l2Funding !== undefined,
+    isEthFunded: ({ context }) =>
+      context.signer?.type === 'rhinestone' && context.ethFunding !== undefined,
+    hasUnsettledEthSwap: ({ context }) =>
+      context.unsettledEthSwap !== undefined,
     // A landed bridge kept for the balance read is not awaited again.
     hasPriorL2BridgeTx: ({ context }) => context.priorL2BridgeTx !== undefined,
     hasUnsettledL2Bridge: ({ context }) =>
@@ -1077,6 +1126,12 @@ export const registrationMachine = setup({
           context.priorL2BridgeTx !== undefined,
       }),
     },
+    ETH_DEPOSIT_SENT: {
+      actions: assign({ pendingEthDeposit: ({ event }) => event.hash }),
+    },
+    ETH_SWAP_SUBMITTED: {
+      actions: assign({ unsettledEthSwap: ({ event }) => event.swap }),
+    },
     // Accepted from anywhere, since the owning wallet can go away at any point
     // of the run. Leaving the state stops whatever it had invoked, as closing
     // the tab would; the flow fields stay for the RESUME that picks it back up.
@@ -1133,6 +1188,9 @@ export const registrationMachine = setup({
                 event.unsettledL2Bridge !== undefined,
               hcaBalanceFloor: () => undefined,
               displayedL2Charge: ({ event }) => event.displayedL2Charge,
+              ethFunding: ({ event }) => event.ethFunding,
+              pendingEthDeposit: () => undefined,
+              unsettledEthSwap: () => undefined,
               primaryName: ({ event }) => event.primaryName,
               resolverAddress: () => undefined,
               resolverTxId: () => undefined,
@@ -1319,6 +1377,17 @@ export const registrationMachine = setup({
             ],
           },
           {
+            // Paid with ETH: swap the shortfall in instead of a permit.
+            guard: 'isEthFunded',
+            target: 'depositingEth',
+            actions: [
+              assign({
+                hcaUsdcBalance: ({ event }) => event.output as bigint,
+              }),
+              'settleLandedL2Bridge',
+            ],
+          },
+          {
             target: 'signingFundingPermit',
             actions: [
               assign({
@@ -1343,6 +1412,14 @@ export const registrationMachine = setup({
           {
             guard: 'isL2Funded',
             target: 'bridgingFromL2',
+            actions: [
+              assign({ hcaUsdcBalance: () => 0n }),
+              'settleLandedL2Bridge',
+            ],
+          },
+          {
+            guard: 'isEthFunded',
+            target: 'depositingEth',
             actions: [
               assign({ hcaUsdcBalance: () => 0n }),
               'settleLandedL2Bridge',
@@ -1556,6 +1633,97 @@ export const registrationMachine = setup({
             }),
           },
         ],
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+            retryTarget: () => 'signingFundingPermit' as const,
+          }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    // Paid with ETH, first prompt: the wallet sends the HCA the ETH a swap of
+    // the shortfall needs. A swap already sent goes first: its ETH has left the
+    // HCA, and depositing now would pay a second time.
+    depositingEth: {
+      entry: ['logTransition'],
+      always: { guard: 'hasUnsettledEthSwap', target: 'swappingEth' },
+      invoke: {
+        src: 'depositEth',
+        input: ({ context, self }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          hca: context.accountAddress!,
+          amountOut: fundingShortfall(context),
+          // biome-ignore lint/style/noNonNullAssertion: guarded by isEthFunded
+          funding: context.ethFunding!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          approvalSigner: context.approvalSigner ?? context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          pendingDeposit: context.pendingEthDeposit,
+          onDepositSent: (hash: Hash) =>
+            self.send({ type: 'ETH_DEPOSIT_SENT', hash }),
+        }),
+        onDone: {
+          target: 'swappingEth',
+          actions: assign({ pendingEthDeposit: () => undefined }),
+        },
+        // Retried like the permit: the balances are read again, so a deposit
+        // that landed is counted rather than sent twice.
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+            retryTarget: () => 'signingFundingPermit' as const,
+          }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    // Paid with ETH, second prompt: the owner signs a swap of the HCA's ETH
+    // into USDC for it.
+    swappingEth: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'swapEth',
+        input: ({ context, self }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          hca: context.accountAddress!,
+          amountOut: fundingShortfall(context),
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          unsettledSwap: context.unsettledEthSwap,
+          fetchIntentStatus: context.fetchRegistrationIntentStatus,
+          onSwapSubmitted: (swap: UnsettledEthSwap) =>
+            self.send({ type: 'ETH_SWAP_SUBMITTED', swap }),
+        }),
+        onDone: [
+          {
+            // Filled, so the HCA holds the shortfall and commits as if it
+            // always had. Not re-read: a lagging read would swap again.
+            guard: ({ event }) => (event.output as EthSwapOutcome) === 'filled',
+            target: 'submittingSetupBundle',
+            actions: assign({ unsettledEthSwap: () => undefined }),
+          },
+          {
+            // An earlier attempt's swap landed, sized for that attempt: read
+            // the balance again rather than assume it covers this one.
+            target: 'checkingHcaFunding',
+            actions: assign({ unsettledEthSwap: () => undefined }),
+          },
+        ],
+        // The swap id stays, so the retry settles that swap before another.
         onError: {
           target: 'error',
           actions: assign({
