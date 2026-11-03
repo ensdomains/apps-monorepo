@@ -10,7 +10,7 @@ import { publicClient } from '@/lib/wagmi'
 import { quoteHcaRenewalFee } from '../../service/hcaRenewal'
 import type { RenewalProtocol } from '../../utils/renewalProtocol'
 
-/** The rail refused to price the intent; the dialog then shows the rent alone. */
+/** The rail refused to price the intent; the renewal stays blocked until a retry succeeds. */
 export class QuoteRenewalFeeError extends TaggedError('QuoteRenewalFeeError')<{
   readonly cause: unknown
 }> {}
