@@ -5,13 +5,17 @@ import { render } from '@/utils/test-utils'
 import type { UseBulkRenewResult } from '../hooks/useBulkRenew'
 import { BulkRenewPaymentStep } from './BulkRenewPaymentStep'
 
-const coin = (symbol: 'USDC' | 'DAI', balance: string, decimals: number) =>
-  ({
-    address: symbol === 'USDC' ? '0x01' : '0x02',
-    symbol,
-    decimals,
-    balance,
-  }) as unknown as StablecoinBalance
+const coin = (
+  symbol: 'USDC' | 'DAI',
+  balance: string,
+  decimals: number,
+): StablecoinBalance => ({
+  address: symbol === 'USDC' ? '0x01' : '0x02',
+  symbol,
+  balance,
+  decimals,
+  formattedBalance: `${balance} ${symbol}`,
+})
 
 const payment: UseBulkRenewResult['payment'] = {
   isConnected: true,
