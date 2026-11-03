@@ -22,7 +22,6 @@ import {
   getHcaBudgetQueryOptions,
   isHcaBudgetQuoteRequired,
 } from '../../../data/queries/hcaBudget.query'
-import { getHcaUsdcBalanceQueryOptions } from '../../../data/queries/hcaUsdcBalance.query'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
@@ -311,13 +310,10 @@ export const TokenPickerContent = () => {
   // takes; on the HCA route a missing quote blocks rather than falling back to
   // the rent, which is not what the wallet pays.
   const isBudgetRequired = isHcaBudgetQuoteRequired(budgetQueryParams)
-  // The same figure the page showed: the name's cost less the account's balance.
-  const hcaBalanceQuery = useQuery(
-    getHcaUsdcBalanceQueryOptions(account.accountAddress),
-  )
+  // The page's figure, from the budget's own balance read, so the receipt's lines share one snapshot.
   const registrationTotal = getCheckoutTotalUsd(
     pricingQuery.data?.totalPriceRaw,
-    hcaBalanceQuery.data,
+    budgetQuery.data?.hcaBalance,
   )
   const hasBudgetQuoteFailed = isBudgetRequired && budgetQuery.isError
 

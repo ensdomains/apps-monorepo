@@ -19,7 +19,8 @@ const USDC_DECIMALS = 6
 const toUsd = (raw: bigint) => decimalBigintToNumber(raw, USDC_DECIMALS)
 
 const SavePill = ({ amount }: { readonly amount: number }) => (
-  <span className="inline-block h-5 whitespace-nowrap rounded-[5px] bg-ens-signal-success-100 px-2 text-[#007C23] text-[15px] leading-5">
+  // Figma's pill sets 15px, between the theme's text-sm and text-base.
+  <span className="inline-block h-5 whitespace-nowrap rounded bg-ens-signal-success-100 px-2 text-[15px] text-ens-peridot-500 leading-5">
     <Trans>
       Save <AnimatedPrice value={amount} />
     </Trans>
@@ -55,20 +56,37 @@ const Usd = ({
   </>
 )
 
-const TotalOnly = ({
-  summary,
-  discount,
+/** The total, pulsing on its own while the account's balance, and so the total, is still being read. */
+const TotalAmount = ({
+  raw,
+  isPending,
+  className,
 }: {
-  readonly summary: CheckoutSummary
-  readonly discount: number
+  readonly raw: bigint
+  readonly isPending: boolean
+  readonly className: string
 }) => (
+  <span className={tw(className, isPending && 'animate-pulse')}>
+    <AnimatedPrice emphasis="soft" value={toUsd(raw)} />
+  </span>
+)
+
+type LayoutProps = Readonly<{
+  summary: CheckoutSummary
+  discount: number
+  isTotalPending: boolean
+}>
+
+const TotalOnly = ({ summary, discount, isTotalPending }: LayoutProps) => (
   <div className="flex flex-col items-center gap-2 text-center">
     <span className="text-ens-lapis-500 text-xs uppercase">
       <Trans>Total USD</Trans>
     </span>
-    <span className="font-medium font-semi-mono text-4xl text-ens-blue-midnight leading-ens-none md:text-5xl">
-      <AnimatedPrice emphasis="soft" value={toUsd(summary.totalRaw)} />
-    </span>
+    <TotalAmount
+      className="font-medium font-semi-mono text-4xl text-ens-blue-midnight leading-ens-none md:text-5xl"
+      isPending={isTotalPending}
+      raw={summary.totalRaw}
+    />
     {discount > 0 && <SavePill amount={discount} />}
   </div>
 )
@@ -76,10 +94,8 @@ const TotalOnly = ({
 const WithExistingBalance = ({
   summary,
   discount,
-}: {
-  readonly summary: CheckoutSummary
-  readonly discount: number
-}) => (
+  isTotalPending,
+}: LayoutProps) => (
   <div className="flex w-full flex-1 flex-col justify-between gap-8">
     <div className="flex flex-col gap-5">
       <Row label={<Trans>Name cost</Trans>}>
@@ -95,9 +111,11 @@ const WithExistingBalance = ({
         <Trans>Total</Trans>
       </span>
       <span className="flex items-baseline gap-1.5">
-        <span className="font-medium font-semi-mono text-ens-blue-midnight text-temp-32px leading-ens-none">
-          <AnimatedPrice emphasis="soft" value={toUsd(summary.totalRaw)} />
-        </span>
+        <TotalAmount
+          className="font-medium font-semi-mono text-ens-blue-midnight text-temp-32px leading-ens-none"
+          isPending={isTotalPending}
+          raw={summary.totalRaw}
+        />
         <span className={RECEIPT_LABEL}>USD</span>
       </span>
     </div>
@@ -106,7 +124,7 @@ const WithExistingBalance = ({
 
 const AcceptedTokens = ({ acceptsEth }: { readonly acceptsEth: boolean }) => (
   <div className="flex items-center justify-center gap-2">
-    <span className="text-[#7D7D7D] text-sm">
+    <span className="text-ens-quartz-400 text-sm">
       <Trans>Accepted</Trans>
     </span>
     <span className="flex items-center gap-1">
@@ -169,6 +187,7 @@ export const CheckoutSummaryCard = ({
   summary,
   discount,
   isLoading,
+  isTotalPending,
   header,
   action,
   acceptsEth,
@@ -178,7 +197,10 @@ export const CheckoutSummaryCard = ({
   /** `undefined` until the name is priced. */
   readonly summary: CheckoutSummary | undefined
   readonly discount: number
+  /** The name's price is loading. */
   readonly isLoading: boolean
+  /** The account's balance, and so the total, is still being read. */
+  readonly isTotalPending: boolean
   /** Shown above the figures, such as the cooldown fee lines. */
   readonly header?: ReactNode
   readonly action: CheckoutAction
@@ -195,10 +217,15 @@ export const CheckoutSummaryCard = ({
     >
       {header}
       {summary && summary.existingBalanceRaw > 0n ? (
-        <WithExistingBalance discount={discount} summary={summary} />
+        <WithExistingBalance
+          discount={discount}
+          isTotalPending={isTotalPending}
+          summary={summary}
+        />
       ) : (
         <TotalOnly
           discount={discount}
+          isTotalPending={isTotalPending}
           summary={
             summary ?? { nameCostRaw: 0n, existingBalanceRaw: 0n, totalRaw: 0n }
           }

@@ -20,6 +20,7 @@ const renderCard = (
         connect={{ onConnect: () => {}, isOpen: false }}
         discount={0}
         isLoading={false}
+        isTotalPending={false}
         onContinue={onContinue}
         summary={{
           nameCostRaw: 330_000_000n,

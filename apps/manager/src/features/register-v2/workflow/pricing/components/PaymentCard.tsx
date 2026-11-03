@@ -26,7 +26,7 @@ import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useCheckoutSources } from '../hooks/useCheckoutSources'
 import {
   getCheckoutAction,
-  getCheckoutAvailability,
+  getPageAvailability,
 } from '../lib/checkoutAvailability'
 import { getCheckoutSummary } from '../lib/checkoutSummary'
 import { useCheckoutWarmup } from '../useCheckoutWarmup'
@@ -104,8 +104,12 @@ export const PaymentCard = () => {
   const action = getCheckoutAction({
     isConnected: account.isConnected,
     isPreparing: openTokenPicker.isPending,
-    availability: summary
-      ? getCheckoutAvailability(summary.totalRaw, sources)
+    availability: pricingQuery.data
+      ? getPageAvailability(
+          pricingQuery.data.basePrice + pricingQuery.data.premium,
+          accountBalance,
+          sources,
+        )
       : 'unknown',
     canNext,
   })
@@ -143,11 +147,8 @@ export const PaymentCard = () => {
             </div>
           )
         }
-        isLoading={
-          pricingQuery.isLoading ||
-          pricingQuery.isPlaceholderData ||
-          accountBalance.status === 'unknown'
-        }
+        isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
+        isTotalPending={accountBalance.status === 'unknown'}
         onContinue={() => void onNext()}
         summary={summary}
       />

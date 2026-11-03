@@ -16,12 +16,16 @@ export const DurationPresetRow = ({
   data,
   isSelected,
   price,
+  total = price,
   onSelect,
   priceLabel = <Trans>base price</Trans>,
 }: {
   data: DurationPresetData
   isLoading: boolean
+  /** The base price the per-year pill divides. */
   price: number | undefined
+  /** The headline figure, when it differs from `price`: a premium is part of the total but never of the per-year price. */
+  readonly total?: number
   isSelected: boolean
   onSelect: () => void
   /** The word after the price. */
@@ -66,8 +70,8 @@ export const DurationPresetRow = ({
 
         <div className="ml-auto flex items-baseline gap-1 md:gap-1.5">
           <span className="font-medium font-mono text-ens-blue-dark text-xl leading-none tracking-tighter md:text-temp-32px">
-            {price ? (
-              formatUsd(price)
+            {total ? (
+              formatUsd(total)
             ) : (
               <span className="animate-pulse">$...</span>
             )}

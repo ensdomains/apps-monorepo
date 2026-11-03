@@ -3,6 +3,7 @@ import {
   type CheckoutAvailability,
   getCheckoutAction,
   getCheckoutAvailability,
+  getPageAvailability,
   knownBalance,
   type PaymentSources,
   UNKNOWN_BALANCE,
@@ -86,5 +87,19 @@ describe('getCheckoutAction', () => {
     ],
   ] as const)('%s', (_case, input, expected) => {
     expect(getCheckoutAction(input)).toEqual(expected)
+  })
+})
+
+describe('getPageAvailability', () => {
+  it.each<[string, PaymentSources['wallet'], CheckoutAvailability]>([
+    ['the account balance is still unknown', UNKNOWN_BALANCE, 'unknown'],
+    ['the account balance covers the name', knownBalance(TOTAL), 'payable'],
+    [
+      'the account balance is known and nothing covers the rest',
+      knownBalance(0n),
+      'insufficient',
+    ],
+  ])('%s', (_case, accountBalance, expected) => {
+    expect(getPageAvailability(TOTAL, accountBalance, sources())).toBe(expected)
   })
 })

@@ -87,10 +87,11 @@ const SwapBadge = () => {
     <Tooltip>
       <TooltipTrigger
         aria-label={t`What is the ETH swap?`}
-        className="pointer-events-auto relative z-20 flex items-center gap-0.5 rounded-[2px] bg-neutral-100 px-1 font-medium text-ens-quartz-500 text-xs"
+        className="pointer-events-auto relative z-20 flex items-center gap-0.5 rounded-xs bg-neutral-100 px-1 font-medium text-ens-quartz-500 text-xs"
         type="button"
       >
         <Trans>Swaps to USDC</Trans>
+        {/* Figma's badge icon is 10px, below the theme's smallest text size. */}
         <MSymbol
           aria-hidden="true"
           className="ms-opsz-20 ms-wght-400 text-[10px]"

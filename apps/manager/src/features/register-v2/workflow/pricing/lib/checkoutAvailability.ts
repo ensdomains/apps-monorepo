@@ -1,4 +1,5 @@
 import { match } from 'ts-pattern'
+import { getCheckoutSummary } from './checkoutSummary'
 
 /** A balance in USDC (6 decimals): known once a read succeeded, unknown while loading or after a failure. */
 export type BalanceRead =
@@ -69,3 +70,16 @@ export const getCheckoutAction = (params: {
     .with({ isPreparing: true }, () => ({ kind: 'preparing' }))
     .with({ availability: 'insufficient' }, () => ({ kind: 'insufficient' }))
     .otherwise(({ canNext }) => ({ kind: 'continue', isEnabled: canNext }))
+
+/** The page's availability: unknown until the account's own balance is read, as it may cover the name itself. */
+export const getPageAvailability = (
+  nameCostRaw: bigint,
+  accountBalance: BalanceRead,
+  sources: PaymentSources,
+): CheckoutAvailability =>
+  accountBalance.status === 'unknown'
+    ? 'unknown'
+    : getCheckoutAvailability(
+        getCheckoutSummary(nameCostRaw, accountBalance.usdcRaw).totalRaw,
+        sources,
+      )

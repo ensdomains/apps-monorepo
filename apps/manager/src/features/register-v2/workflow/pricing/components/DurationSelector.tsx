@@ -97,6 +97,7 @@ export const DurationSelector = () => {
             }
             price={query.data?.basePrice}
             priceLabel={<Trans>total</Trans>}
+            total={query.data?.totalPrice}
           />
         )
       })}

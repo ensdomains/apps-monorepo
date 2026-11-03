@@ -41,6 +41,7 @@ export const PaymentMethodRow = ({
       className={cn(
         // Every row keeps a 1px border, so selecting one doesn't shift the list.
         'relative flex w-full items-start justify-between gap-3 rounded border border-transparent p-3 text-left',
+        // Figma's lapis/50; the theme has no lapis-50 token.
         isSelected && 'border-ens-lapis-500 bg-[#F6FBFD]',
       )}
       data-slot="payment-method-row"
