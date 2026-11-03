@@ -791,8 +791,48 @@ const isBudgetQuoting = (
     budgetQuery.isPending ||
     budgetQuery.isPlaceholderData)
 
-export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
+/** The name being paid for, with its premium and cooldown pills. */
+const DomainHeading = ({
   label,
+  isInPriceCooldown,
+}: {
+  readonly label: string
+  readonly isInPriceCooldown: boolean
+}) => {
+  const { t } = useLingui()
+  const domainName = `${label}.eth`
+  const premiumLabel = getPremiumLabel(label.length)
+  return (
+    <div className="flex w-full min-w-0 flex-col items-center gap-3 px-5 py-3">
+      {(premiumLabel || isInPriceCooldown) && (
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+          {premiumLabel && (
+            <DomainAttributePill
+              label={t(premiumLabel.label)}
+              variant={premiumLabel.variant}
+            />
+          )}
+          {isInPriceCooldown && <PriceCooldownPill />}
+        </div>
+      )}
+      <span
+        className={cn(
+          'wrap-anywhere w-full min-w-0 text-center font-medium font-semi-mono',
+          'whitespace-normal leading-ens-none tracking-[-0.8px]',
+          'text-ens-gray',
+          getDomainSizeClasses(domainName),
+        )}
+        title={domainName}
+      >
+        {domainName}
+      </span>
+    </div>
+  )
+}
+
+export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
+  label = '',
+  header,
   pricingLoading,
   pricingData,
   isInPriceCooldown = false,
@@ -835,7 +875,10 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   l2Payment,
   l2FeeTooltip,
 }: {
-  readonly label: string
+  /** The name being paid for, shown as the heading unless `header` replaces it. */
+  readonly label?: string
+  /** The caller's own heading, such as a list of names. */
+  readonly header?: ReactNode
   readonly pricingLoading: boolean
   readonly pricingData: number | undefined
   readonly isInPriceCooldown?: boolean
@@ -894,8 +937,6 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly l2FeeTooltip?: (chainName: string) => ReactNode
 }) => {
   const { t } = useLingui()
-  const domainName = `${label}.eth`
-  const premiumLabel = getPremiumLabel(label.length)
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
 
@@ -1077,30 +1118,12 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         )}
       >
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
-          <div className="flex w-full min-w-0 flex-col items-center gap-3 px-5 py-3">
-            {(premiumLabel || isInPriceCooldown) && (
-              <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-                {premiumLabel && (
-                  <DomainAttributePill
-                    label={t(premiumLabel.label)}
-                    variant={premiumLabel.variant}
-                  />
-                )}
-                {isInPriceCooldown && <PriceCooldownPill />}
-              </div>
-            )}
-            <span
-              className={cn(
-                'wrap-anywhere w-full min-w-0 text-center font-medium font-semi-mono',
-                'whitespace-normal leading-ens-none tracking-[-0.8px]',
-                'text-ens-gray',
-                getDomainSizeClasses(domainName),
-              )}
-              title={domainName}
-            >
-              {domainName}
-            </span>
-          </div>
+          {header ?? (
+            <DomainHeading
+              isInPriceCooldown={isInPriceCooldown}
+              label={label}
+            />
+          )}
 
           <div className="flex w-full flex-col gap-6">
             <div className="flex items-center justify-between">

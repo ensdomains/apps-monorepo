@@ -4,13 +4,8 @@ import {
   getDurationExpiryDateForDisplay,
   getDurationInSecondsFromYears,
 } from '@/features/register-v2/utils/time'
-import {
-  canPayFromL2,
-  type L2PaymentRow,
-} from '@/features/register-v2/workflow/pricing/hooks/useL2Payment'
 import { MIN_RENEW_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import { TOKENS } from '@/lib/tokens'
-import { hasInsufficientBalance } from '@/utils/payment'
 import type { Selection } from '../types'
 
 /** Renewals are paid in stablecoins; USDC is the display/default coin. */
@@ -82,23 +77,3 @@ export const newExpiryDateForName = (
     durationSecondsForName(selection, currentExpiry),
     referenceDateOf(currentExpiry),
   )
-
-/**
- * Whether the chosen method covers the selection: a chosen L2 pays in place of
- * the wallet, so only its quote must cover it; otherwise the account's own
- * balance pays first and the wallet covers the rest.
- */
-export const canPayBulkRenewal = ({
-  selectedL2,
-  walletBalance,
-  accountCredit,
-  fundedTotal,
-}: {
-  readonly selectedL2: L2PaymentRow | undefined
-  readonly walletBalance: number
-  readonly accountCredit: number
-  readonly fundedTotal: number
-}): boolean =>
-  selectedL2
-    ? canPayFromL2(selectedL2)
-    : !hasInsufficientBalance(walletBalance + accountCredit, fundedTotal)
