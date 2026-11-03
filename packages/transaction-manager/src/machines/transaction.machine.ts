@@ -32,7 +32,10 @@ import type {
   TransactionOptions,
   TransactionRequest,
 } from '../types/transaction.types'
-import { isRetryableSubmissionError } from './retry-policy'
+import {
+  isRetryableSubmissionError,
+  isStaleGasQuoteError,
+} from './retry-policy'
 
 /**
  * What a transport hands back on submission: a transaction hash, or — for an
@@ -542,7 +545,8 @@ export const transactionMachine = setup({
           {
             /** Can retry? See isRetryableSubmissionError for what never is. */
             guard: ({ context, event }) =>
-              isRetryableSubmissionError(event.error) &&
+              (isRetryableSubmissionError(event.error) ||
+                isStaleGasQuoteError(event.error)) &&
               context.retryCount < (context.options.retryCount ?? 3),
             target: 'retrying',
             actions: assign({
