@@ -78,7 +78,9 @@ jobs:
         run: |
           echo "📊 Running coverage tests on changed packages..."
           set -f
-          pnpm $SCOPE test:coverage
+          # Each Vitest project already sizes its worker pool to the runner.
+          # Avoid competing Manager/Portal pools during CPU-heavy coverage tests.
+          pnpm --workspace-concurrency=1 $SCOPE test:coverage
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v7

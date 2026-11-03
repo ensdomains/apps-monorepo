@@ -116,6 +116,31 @@ describe('migration preparation errors', () => {
     },
   )
 
+  it.each(['plan', 'fee'] as const)(
+    'identifies an oversized atomic tree during %s and names what to deselect',
+    (stage) => {
+      const cause = failure('AtomicMigrationNameGasLimitExceededError', {
+        ensName: 'walletmail.eth',
+        estimatedGas: 25_125_000n,
+        maxOuterGas: 15_000_000n,
+      })
+      const wrapped = failure('OuterError', { cause })
+      expect(migrationPreparationFailure(wrapped, stage).reason).toBe(
+        'atomic-name-gas-limit',
+      )
+      expect(message(wrapped, stage)).toBe(
+        'The estimated gas for walletmail.eth and its subnames exceeds the per-transaction limit. Deselect this name to upgrade the rest.',
+      )
+      expect(message(wrapped, stage)).not.toMatch(/secret|deadbeef/)
+    },
+  )
+
+  it('keeps oversized-plan diagnostics private when the name is unavailable', () => {
+    expect(message(failure('AtomicMigrationNameGasLimitExceededError'))).toBe(
+      'The estimated gas for a name and its subnames exceeds the per-transaction limit. Deselect the name to upgrade the rest.',
+    )
+  })
+
   it('reserves the fee message for failed fee lookups', () => {
     const cause = failure('HttpRequestError')
     expect(message(cause, 'fee')).toBe("Couldn't estimate the network fee")

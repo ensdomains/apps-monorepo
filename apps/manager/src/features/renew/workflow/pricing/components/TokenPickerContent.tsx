@@ -48,10 +48,11 @@ export const TokenPickerContent = () => {
           authorizedPaymentAmount(data.amount),
           decimals,
         ),
+        fundedRaw: authorizedPaymentAmount(data.amount),
       }
     },
   })
-  const { isIntentRoute, isQuoting, funding, walletDebitFor } =
+  const { isIntentRoute, isQuoting, funding, walletDebitFor, displayedDebit } =
     useRenewalIntentFunding({
       label,
       duration,
@@ -61,6 +62,7 @@ export const TokenPickerContent = () => {
       account,
       pricing: pricingQuery.data,
       accountCredit: balances.accountCredit,
+      accountCreditRaw: balances.accountCreditRaw,
     })
 
   // The owner wallet signs the intent and any funding permit, so the renewal
@@ -114,6 +116,9 @@ export const TokenPickerContent = () => {
       token: selectedToken,
       priceRaw: pricingQuery.data.rawPrice,
       priceNumber: pricingQuery.data.price,
+      // Checked against the intent's own quote, so the wallet opens on the
+      // amount shown here without a second confirmation.
+      ...(displayedDebit ? { displayedDebit } : {}),
     })
   }
 
