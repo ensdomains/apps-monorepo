@@ -27,7 +27,7 @@ const RegisterPage = () => {
               description={
                 <div>
                   <p>
-                    Search for a name using the search bar in the sidebar, then
+                    Search for a name using the search in the sidebar, then
                     select or enter the name to proceed with the registration
                     flow.
                   </p>
