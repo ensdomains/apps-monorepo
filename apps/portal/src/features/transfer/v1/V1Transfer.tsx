@@ -9,6 +9,7 @@ import { MessageCard } from '@/components/ui/message-card'
 import { LEGACY_APP_BASE_URL } from '@/lib/constants/domain'
 import { getEth2LDAncestor, getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { getV1NameStateQueryOptions } from './getV1NameState'
+import { getV1WrapperAccessQueryOptions } from './getV1WrapperAccess'
 import { canParentReissueV1Subname, getV1TransferGate } from './rules'
 import { V1SendName } from './V1SendName'
 
@@ -44,10 +45,15 @@ export const V1Transfer = ({
     ...getV1NameStateQueryOptions({ name: rawName }),
     staleTime: 0,
   })
+  const wrapperAccessQuery = useQuery({
+    ...getV1WrapperAccessQueryOptions({ name: rawName, account }),
+    staleTime: 0,
+  })
 
-  if (stateQuery.isLoading) return <LoadingMessage />
+  if (stateQuery.isLoading || wrapperAccessQuery.isLoading)
+    return <LoadingMessage />
 
-  if (stateQuery.isError)
+  if (stateQuery.isError || wrapperAccessQuery.isError)
     return (
       <MessageCard
         icon={<AlertTriangle className="size-8" />}
@@ -90,7 +96,7 @@ export const V1Transfer = ({
   // parent), and a burned CANNOT_CREATE_SUBDOMAIN closes even that door.
   const canReissue = canParentReissueV1Subname(state.parent)
 
-  return match(getV1TransferGate(state, account))
+  return match(getV1TransferGate(state, account, wrapperAccessQuery.data))
     .with({ reason: 'ok' }, ({ subject, actor }) => (
       <V1SendName
         name={name}
@@ -178,10 +184,10 @@ export const V1Transfer = ({
         description={
           <>
             <p>
-              You’re reassigning this subname as the owner of its parent, but
-              the Name Wrapper refuses parent changes while{' '}
-              <Name>{ancestorName}</Name> is in grace — and once it expires,
-              every name under it can be re-issued by whoever registers it.
+              You’re reassigning this subname from its parent, but the Name
+              Wrapper refuses parent changes while <Name>{ancestorName}</Name>{' '}
+              is in grace — and once it expires, every name under it can be
+              re-issued by whoever registers it.
             </p>
             <Muted>
               Renew <Name>{ancestorName}</Name> first, then come back to
@@ -240,8 +246,8 @@ export const V1Transfer = ({
         description={
           <>
             <p>
-              You own <Name>{parentName}</Name>, but this subname has burned its{' '}
-              <span className="font-mono">PARENT_CANNOT_CONTROL</span> fuse.
+              You control <Name>{parentName}</Name>, but this subname has burned
+              its <span className="font-mono">PARENT_CANNOT_CONTROL</span> fuse.
               Until it expires, only its own owner can move it.
             </p>
             {canReissue ? (
@@ -277,7 +283,7 @@ export const V1Transfer = ({
         description={
           <>
             <p>
-              You own <Name>{parentName}</Name>, but it and this subname are
+              You control <Name>{parentName}</Name>, but it and this subname are
               held differently — one in the Name Wrapper, the other in the plain
               registry. Reassigning across that line would forcibly wrap or
               unwrap the subname, so we don’t offer it.

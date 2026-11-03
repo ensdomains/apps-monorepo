@@ -126,6 +126,29 @@ describe('buildTransferStepIntent (v1)', () => {
     })
   })
 
+  it('moves a wrapped name out of its holder when the holder’s operator sends it', () => {
+    const intent = buildTransferStepIntent(
+      { kind: 'transfer-erc1155' },
+      {
+        ...ctx,
+        subject: {
+          kind: 'v1-wrapped',
+          owner: OTHER,
+          fuses: {
+            cannotTransfer: false,
+            cannotSetResolver: false,
+            cannotUnwrap: false,
+            cannotCreateSubdomain: false,
+            parentCannotControl: true,
+          },
+          expiry: null,
+        },
+      },
+    )
+    expect(intent.request).toMatchObject({ type: 'eoa', from: ME })
+    expect(call(intent).args?.slice(0, 2)).toEqual([OTHER, RECIPIENT])
+  })
+
   // The ensjs `ensRegistry` key is the V2 root on Sepolia; V1 registry writes
   // must hit the legacy registry.
   it('sets the owner on the legacy registry, not the V2 root', () => {

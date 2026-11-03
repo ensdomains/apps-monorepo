@@ -49,6 +49,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
+import { getV1WrapperAccessQueryOptions } from '@/features/transfer/v1/getV1WrapperAccess'
 import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import { useDebouncedValue } from '@/hooks/useDebounce'
 import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
@@ -508,10 +509,19 @@ const V1CreateSubname = ({ name: rawName }: CreateSubnameContentProps) => {
     ...getV1NameStateQueryOptions({ name: rawName }),
     staleTime: 0,
   })
+  const wrapperAccessQuery = useQuery({
+    ...getV1WrapperAccessQueryOptions({
+      name: rawName,
+      account: connectedAddress ?? zeroAddress,
+    }),
+    staleTime: 0,
+    enabled: !!connectedAddress,
+  })
 
-  if (stateQuery.isLoading) return <LoadingMessage />
+  if (stateQuery.isLoading || wrapperAccessQuery.isLoading)
+    return <LoadingMessage />
 
-  if (stateQuery.isError)
+  if (stateQuery.isError || wrapperAccessQuery.isError)
     return (
       <MessageCard
         icon={<AlertTriangle className="size-8" />}
@@ -529,7 +539,11 @@ const V1CreateSubname = ({ name: rawName }: CreateSubnameContentProps) => {
   // hash and write below must use the normalised form.
   const name = normalize(rawName)
   const gate = stateQuery.data
-    ? getV1SubnameCreateGate(stateQuery.data, connectedAddress)
+    ? getV1SubnameCreateGate(
+        stateQuery.data,
+        connectedAddress,
+        wrapperAccessQuery.data,
+      )
     : ({ reason: 'unowned' } as const)
 
   return match(gate)
