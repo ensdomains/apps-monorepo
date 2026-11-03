@@ -1006,6 +1006,52 @@ describe('TokenPickerContentBase', () => {
   })
 })
 
+describe('TokenPickerContentBase while a payment is in flight', () => {
+  const picker = (
+    props: Partial<Parameters<typeof TokenPickerContentBase>[0]>,
+  ) => (
+    <I18nProvider i18n={i18n}>
+      <TokenPickerContentBase
+        isConnected
+        isLoadingBalances={false}
+        label="oranges"
+        onNext={() => {}}
+        onSelectCoin={() => {}}
+        pricingData={0.75}
+        pricingLoading={false}
+        selectedToken="USDC"
+        showNetworkFeeDetails
+        stablecoinBalances={[usdc]}
+        {...props}
+      />
+    </I18nProvider>
+  )
+  const owed = {
+    registration: 0.75,
+    networkFee: 0.1,
+    total: 0.85,
+    walletDebit: 0.04,
+    hcaCredit: 0.81,
+    isLoading: false,
+  }
+  // The payment landed in the account, which now covers it all.
+  const covered = { ...owed, total: 0.84, walletDebit: 0, hcaCredit: 0.84 }
+
+  it('keeps the figures the user confirmed until it settles', () => {
+    const { rerender } = render(picker({ funding: owed }))
+    rerender(picker({ funding: owed, isBusy: true }))
+    rerender(picker({ funding: covered, isBusy: true }))
+
+    expect(receiptRow('You pay')).toHaveTextContent('$0.04')
+    expect(
+      screen.queryByText(/No additional payment needed/),
+    ).not.toBeInTheDocument()
+
+    rerender(picker({ funding: covered }))
+    expect(screen.getByText(/No additional payment needed/)).toBeVisible()
+  })
+})
+
 describe('TokenPickerContentBase L2 rows', () => {
   const underfunded = {
     registration: 4.8,
