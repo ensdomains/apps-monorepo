@@ -13,6 +13,7 @@ import {
 } from '../../../service/registrationLock'
 import type { L2PaymentRow } from '../hooks/useL2Payment'
 import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
+import type { EthPaymentRow } from './EthPaymentListItem'
 import {
   TokenPickerContent,
   TokenPickerContentBase,
@@ -1202,5 +1203,101 @@ describe('TokenPickerContentBase L2 rows', () => {
       screen.getByText('At least $2.00 more needed on Base Sepolia.'),
     ).toBeVisible()
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+})
+
+describe('TokenPickerContentBase ETH row', () => {
+  const underfunded = {
+    registration: 4.8,
+    networkFee: 0.2,
+    total: 5,
+    walletDebit: 5,
+    hcaCredit: 0,
+    isLoading: false,
+  }
+  const ethPaymentOf = (
+    row: Partial<EthPaymentRow> = {},
+    isSelected = false,
+  ) => ({
+    row: {
+      depositRaw: 2_600_000_000_000_000n,
+      balanceRaw: 10n ** 18n,
+      isQuoteLoading: false,
+      hasQuoteFailed: false,
+      ...row,
+    },
+    isSelected,
+    onSelect: vi.fn(),
+  })
+
+  it('lists ETH next to a wallet that cannot pay, and selects it on click', () => {
+    const ethPayment = ethPaymentOf()
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment,
+    })
+
+    expect(screen.getByText('Sends ~0.0026 ETH')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Pay with ETH' }))
+    expect(ethPayment.onSelect).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('registers with ETH once quoted, whatever USDC the wallet holds', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment: ethPaymentOf({}, true),
+    })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+  })
+
+  it.each([
+    ['still being quoted', { isQuoteLoading: true }],
+    ['quoted on a stale amount', { isQuoteLoading: true, depositRaw: 1n }],
+    ['unavailable', { hasQuoteFailed: true }],
+  ])('holds checkout while the ETH payment is %s', (_case, row) => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment: ethPaymentOf(row, true),
+    })
+
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('holds checkout and says why when the wallet is short of ETH', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment: ethPaymentOf({ balanceRaw: 1n }, true),
+    })
+
+    expect(screen.getByText('Not enough ETH in your wallet.')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('keeps a chosen ETH payment rather than falling back to the wallet', () => {
+    const onSelectCoin = renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      l2Payment: {
+        rows: [],
+        selectedChainId: undefined,
+        selectedOrigin: undefined,
+        onSelect: vi.fn(),
+        onFallbackSelect: vi.fn(),
+      },
+      ethPayment: ethPaymentOf({}, true),
+    })
+
+    expect(onSelectCoin).not.toHaveBeenCalled()
   })
 })

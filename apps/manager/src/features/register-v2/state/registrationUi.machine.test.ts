@@ -16,6 +16,7 @@ type RegistrationStubEvent =
       primaryName?: string
       referrer?: `0x${string}`
       l2Funding?: { chain: { id: number } }
+      ethFunding?: { displayedCharge?: bigint }
     }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
@@ -64,6 +65,8 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       referrer: undefined as `0x${string}` | undefined,
       /** The L2 the run was handed to pay from. */
       l2FundingChainId: undefined as number | undefined,
+      /** The ETH payment the run was handed. */
+      ethFunding: undefined as { displayedCharge?: bigint } | undefined,
       /** Captures the RESUME payload so tests can assert what was forwarded. */
       resumed: undefined as
         | { stage: string; context: any; deps: any }
@@ -84,6 +87,10 @@ vi.mock('@ens-apps/transaction-manager', () => ({
               l2FundingChainId: ({ event }) =>
                 event.type === 'START_REGISTRATION'
                   ? event.l2Funding?.chain.id
+                  : undefined,
+              ethFunding: ({ event }) =>
+                event.type === 'START_REGISTRATION'
+                  ? event.ethFunding
                   : undefined,
             }),
           },
@@ -1556,6 +1563,108 @@ describe('paying from an L2', () => {
 
     const { resumed } = getChild(actor).getSnapshot().context as any
     expect(resumed.deps.l2Funding.chain.id).toBe(baseSepolia.id)
+    actor.stop()
+  })
+})
+
+describe('paying with ETH', () => {
+  const smartAccount = {
+    signer: {
+      type: 'rhinestone',
+      account: {} as never,
+      config: { accountAddress: HCA_ADDRESS },
+    },
+    accountAddress: HCA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    walletClient: { account: { address: EOA_ADDRESS } } as any,
+  } as unknown as SmartAccountContextValue
+
+  it('picks ETH before the sheet opens, paying the registration in USDC', () => {
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+    actor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' })
+    actor.send({ type: 'pricing.step.next' })
+
+    expect(actor.getSnapshot().context).toMatchObject({
+      paymentAsset: 'eth',
+      selectedToken: 'USDC',
+    })
+    actor.stop()
+  })
+
+  it('takes over from an L2 row, and gives way to any other pick', () => {
+    const actor = startActorInTokens()
+    actor.send({
+      type: 'pricing.fundingSource.select',
+      chainId: baseSepolia.id,
+    })
+    actor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' })
+    expect(actor.getSnapshot().context.fundingSourceChainId).toBeUndefined()
+
+    actor.send({
+      type: 'pricing.fundingSource.select',
+      chainId: baseSepolia.id,
+    })
+    expect(actor.getSnapshot().context.paymentAsset).toBe('stablecoin')
+
+    actor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' })
+    actor.send({ type: 'pricing.token.select', token: 'USDC' })
+    expect(actor.getSnapshot().context.paymentAsset).toBe('stablecoin')
+    actor.stop()
+  })
+
+  it('hands the registration the ETH payment, bounded by what was shown', () => {
+    const actor = startActorInTokens()
+    actor.send({
+      ...startEvent(smartAccount),
+      ethFunding: { displayedCharge: 10n ** 16n },
+    })
+
+    expect(getChild(actor).getSnapshot().context.ethFunding).toEqual({
+      displayedCharge: 10n ** 16n,
+    })
+    actor.stop()
+  })
+
+  it('refuses to pay with ETH without an ENS account', () => {
+    const actor = startActorInTokens()
+    actor.send({
+      ...startEvent({
+        signer: { type: 'eoa' },
+        accountAddress: EOA_ADDRESS,
+        ownerAddress: EOA_ADDRESS,
+        walletClient: {},
+      } as unknown as SmartAccountContextValue),
+      ethFunding: {},
+    })
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(getChild(actor).getSnapshot().matches('idle')).toBe(true)
+    actor.stop()
+  })
+
+  it('reopens the sheet on ETH when a run that never committed resumes', () => {
+    const actor = createActor(registrationV2UiMachine, {
+      input: { chainId: 11155111 },
+    })
+    actor.start()
+    const event = resumeEvent(smartAccount, { stage: 'depositingEth' })
+    actor.send({
+      ...event,
+      record: {
+        ...event.record,
+        context: {
+          ...event.record.context,
+          commitment: undefined,
+          ethFunding: {},
+        },
+      },
+    })
+
+    expect(actor.getSnapshot().matches({ pricing: 'tokens' })).toBe(true)
+    expect(actor.getSnapshot().context.paymentAsset).toBe('eth')
     actor.stop()
   })
 })

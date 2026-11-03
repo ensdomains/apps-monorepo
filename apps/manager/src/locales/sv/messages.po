@@ -588,6 +588,7 @@ msgstr ""
 msgid "Back to selection"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "balance"
@@ -867,6 +868,10 @@ msgstr ""
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "Confirm renewal"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Confirm the ETH transfer in your wallet"
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx
@@ -2082,6 +2087,10 @@ msgstr ""
 msgid "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "Not enough ETH in your wallet."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Not enough USDC in your wallet. Choose another payment method."
 msgstr ""
@@ -2215,7 +2224,13 @@ msgstr ""
 msgid "Page not found"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+#: src/features/register-v2/workflow/pricing/components/ConnectedPaymentButtons.tsx
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Pay with ETH"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/ConnectedPaymentButtons.tsx
 msgid "Pay with stablecoins"
 msgstr ""
 
@@ -2225,6 +2240,14 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Paying from {l2ChainName}"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "Paying with ETH isn't available right now."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Paying with ETH…"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
@@ -2279,7 +2302,7 @@ msgstr ""
 msgid "Preferences updated"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+#: src/features/register-v2/workflow/pricing/components/ConnectedPaymentButtons.tsx
 msgid "Preparing checkout..."
 msgstr ""
 
@@ -2928,8 +2951,17 @@ msgstr ""
 msgid "Send Verification"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Sending ETH to your account"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Sending..."
+msgstr ""
+
+#. placeholder {0}: formatGasEth(row.depositRaw)
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "Sends ~{0} ETH"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -3099,6 +3131,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Sign the gasless payment approval in your wallet"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Sign the swap in your wallet, then wait for it to complete"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
@@ -3296,6 +3332,10 @@ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Supported direct subnames, such as alice.example.eth, upgrade with an unwrapped or unlocked example.eth:"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Swapping ETH for USDC"
 msgstr ""
 
 #. placeholder {0}: appChain.name
@@ -4479,12 +4519,20 @@ msgstr ""
 msgid "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, you can sign the renewal."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "Your wallet sends this ETH to your ENS account, which swaps it for the USDC that pays for the name and network fees. Any USDC left over stays in your account for your next registration."
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Your wallet sends this one, because your temporary account no longer has permission to update these records."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Your wallet shows the final fee before you approve."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your wallet will ask you to send the ETH shown to your ENS account, then to sign a swap of it for USDC. Registration starts once the swap completes."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

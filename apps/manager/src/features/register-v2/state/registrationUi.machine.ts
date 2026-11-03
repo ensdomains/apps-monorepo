@@ -1,5 +1,6 @@
 import type { HcaSessionEnablePayload } from '@ens-apps/smart-account'
 import {
+  type EthFunding,
   type L2FundingSource,
   type PersistedRegistrationRecord,
   type RegistrationEvent,
@@ -105,10 +106,17 @@ export type RegistrationConfirmedData = {
 
 export type FundingSourceOrigin = 'user' | 'fallback'
 
+/**
+ * What the wallet pays with. Either way the registration is paid in USDC:
+ * `eth` swaps the wallet's ETH into it first.
+ */
+export type PaymentAsset = 'stablecoin' | 'eth'
+
 type Context = {
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
+  paymentAsset: PaymentAsset
   /** The L2 row picked to pay from; the registration still pays in `selectedToken`. */
   fundingSourceChainId?: number
   /** A fallback pick gives way to the wallet once the wallet can pay again. */
@@ -171,6 +179,7 @@ type Events =
       chainId: number
       origin?: FundingSourceOrigin
     }
+  | { type: 'pricing.paymentAsset.select'; asset: PaymentAsset }
   | {
       type: 'registration.start'
       label: string
@@ -198,6 +207,8 @@ type Events =
       l2FundingChainId?: number
       /** What checkout showed that L2 being charged, fee included. */
       displayedL2Charge?: bigint
+      /** Standalone-HCA: the wallet's ETH pays, swapped into USDC first. */
+      ethFunding?: EthFunding
     }
   | {
       /**
@@ -408,7 +419,22 @@ const machineSetup = setup({
         event.type === 'pricing.token.select'
           ? event.token
           : context.selectedToken,
+      paymentAsset: () => 'stablecoin' as const,
     }),
+    setPaymentAsset: assign(({ event, context }) =>
+      event.type === 'pricing.paymentAsset.select'
+        ? {
+            paymentAsset: event.asset,
+            // ETH is swapped into USDC, which is what the registration pays.
+            selectedToken:
+              event.asset === 'eth' ? ('USDC' as const) : context.selectedToken,
+            fundingSourceChainId:
+              event.asset === 'eth' ? undefined : context.fundingSourceChainId,
+            fundingSourceOrigin:
+              event.asset === 'eth' ? undefined : context.fundingSourceOrigin,
+          }
+        : {},
+    ),
     restorePricing: assign(({ event }) => {
       if (event.type !== 'registration.resume') return {}
       return {
@@ -418,6 +444,9 @@ const machineSetup = setup({
         postRegistrationSetup: event.postRegistrationSetup,
         hcaPrimaryName: event.record.context.primaryName,
         fundingSourceChainId: event.record.context.l2FundingChainId,
+        paymentAsset: event.record.context.ethFunding
+          ? ('eth' as const)
+          : ('stablecoin' as const),
       }
     }),
     setFundingSource: assign({
@@ -431,6 +460,7 @@ const machineSetup = setup({
           : undefined,
       // Every row ends up paying the registration in wallet USDC.
       selectedToken: () => 'USDC' as const,
+      paymentAsset: () => 'stablecoin' as const,
     }),
     clearFundingSource: assign({
       fundingSourceChainId: () => undefined,
@@ -693,6 +723,31 @@ const getStartL2Funding = (
   )
 }
 
+/**
+ * What funds a start other than the permit: an L2, or the wallet's ETH. Both
+ * are intents into the HCA, so a run without one refuses the start rather
+ * than paying some other way.
+ */
+const getStartFunding = (
+  event: Pick<
+    Extract<Events, { type: 'registration.start' }>,
+    'l2FundingChainId' | 'ethFunding'
+  >,
+  owner: Address,
+  isHcaRegistration: boolean,
+): { l2Funding?: L2FundingSource; ethFunding?: EthFunding } | Error => {
+  const l2Funding = getStartL2Funding(
+    event.l2FundingChainId,
+    owner,
+    isHcaRegistration,
+  )
+  if (l2Funding instanceof Error) return l2Funding
+  if (event.ethFunding && !isHcaRegistration) {
+    return new Error('Cannot register: paying with ETH needs an ENS account.')
+  }
+  return { l2Funding, ethFunding: event.ethFunding }
+}
+
 const startRegistrationAction = machineSetup.createAction(
   enqueueActions(({ enqueue, context, event }) => {
     if (event.type !== 'registration.start') {
@@ -745,13 +800,9 @@ const startRegistrationAction = machineSetup.createAction(
       })
     }
 
-    const l2Funding = getStartL2Funding(
-      event.l2FundingChainId,
-      ownerAddress,
-      isHcaRegistration,
-    )
-    if (l2Funding instanceof Error) {
-      return enqueue.raise({ type: '$error', error: l2Funding })
+    const funding = getStartFunding(event, ownerAddress, isHcaRegistration)
+    if (funding instanceof Error) {
+      return enqueue.raise({ type: '$error', error: funding })
     }
 
     // The HCA reveal batch sets the ETH addr record itself and, when opted
@@ -836,8 +887,9 @@ const startRegistrationAction = machineSetup.createAction(
         primaryName: bundlePrimaryName,
         // Consent bound on the funding permit: what the confirm screen showed.
         displayedWalletDebit: event.displayedWalletDebit,
-        l2Funding,
+        l2Funding: funding.l2Funding,
         displayedL2Charge: event.displayedL2Charge,
+        ethFunding: funding.ethFunding,
         // A cancelled run's bridge may still arrive: wait for it, don't pay twice.
         unsettledL2Bridge: readPendingL2Bridge(
           context.chainId,
@@ -1055,6 +1107,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     chainId: input.chainId,
     duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,
+    paymentAsset: 'stablecoin',
     lastErrorMessage: undefined,
     approvalOutcome: 'none',
     nameUnavailable: false,
@@ -1105,6 +1158,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             'pricing.duration.set': {
               actions: 'setDuration',
             },
+            // Checkout's payment buttons pick the asset before the sheet opens.
+            'pricing.paymentAsset.select': {
+              actions: 'setPaymentAsset',
+            },
             'pricing.step.next': {
               guard: 'isDurationValid',
               target: 'tokens',
@@ -1122,6 +1179,9 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             },
             'pricing.fundingSource.select': {
               actions: 'setFundingSource',
+            },
+            'pricing.paymentAsset.select': {
+              actions: ['setPaymentAsset', 'clearError'],
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
