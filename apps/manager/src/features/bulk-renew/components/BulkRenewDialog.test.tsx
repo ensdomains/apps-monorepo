@@ -92,6 +92,7 @@ beforeEach(() => {
     phase: submitPhase,
     statuses: {},
     errorMessage: undefined,
+    approvalState: { kind: 'idle' },
     fundingPrompt: null,
     approveFunding: vi.fn(),
     declineFunding: vi.fn(),

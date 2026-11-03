@@ -215,6 +215,61 @@ const renderStep = ({
 }
 
 describe('SelectNamesStep', () => {
+  it.each([
+    'checking-names',
+    'finding-records',
+    'reading-records',
+    'preparing-upgrade',
+    'checking-upgrade',
+    'checking-fee',
+  ] as const)(
+    'shows a percentage instead of name counts during %s',
+    (stage) => {
+      const { getByText, getByRole, queryByText } = renderStep({
+        gasEstimate: { status: 'loading', progress: { stage, percentage: 42 } },
+      })
+      expect(getByText('42%')).toBeInTheDocument()
+      expect(queryByText(/\d+\/\d+/)).not.toBeInTheDocument()
+      expect(getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
+      expect(getByRole('progressbar')).toHaveAttribute('aria-valuemax', '100')
+    },
+  )
+
+  it('keeps one bar through preparation and removes it when ready', () => {
+    const {
+      getByText,
+      getByRole,
+      queryByRole,
+      queryByText,
+      rerenderGasEstimate,
+    } = renderStep({
+      gasEstimate: { status: 'loading' },
+    })
+    const progressBar = getByRole('progressbar')
+    expect(getByText('0%')).toBeInTheDocument()
+    rerenderGasEstimate({
+      status: 'loading',
+      progress: { stage: 'finding-records', percentage: 25 },
+    })
+    expect(getByRole('progressbar')).toBe(progressBar)
+    expect(getByText('25%')).toBeInTheDocument()
+    rerenderGasEstimate({
+      status: 'loading',
+      progress: { stage: 'checking-fee', percentage: 99 },
+    })
+    expect(getByRole('progressbar')).toBe(progressBar)
+    expect(getByText('99%')).toBeInTheDocument()
+    expect(getByRole('button', { name: 'Preparing...' })).toBeDisabled()
+    rerenderGasEstimate(readyGasEstimate)
+    expect(queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(queryByText('100%')).not.toBeInTheDocument()
+    expect(queryByText('Ready to upgrade')).not.toBeInTheDocument()
+    expect(
+      getByRole('button', { name: '1 request' }).closest('p'),
+    ).toHaveTextContent('Your wallet shows the final fee before you approve.')
+    expect(getByRole('button', { name: /Upgrade \d+ names/ })).toBeEnabled()
+  })
+
   it('waits for the default impact check before selecting names', () => {
     impactState.status = 'loading'
     const { onNamesChange } = renderStep()
@@ -495,7 +550,7 @@ describe('SelectNamesStep', () => {
       })
     expect(getByText(child.domain.name)).toBeInTheDocument()
     expect(getByRole('checkbox', { name: parent.domain.name })).toBeChecked()
-    expect(getByRole('button', { name: 'Estimating...' })).toBeDisabled()
+    expect(getByRole('button', { name: 'Preparing...' })).toBeDisabled()
 
     rerenderGasEstimate({
       ...readyGasEstimate,

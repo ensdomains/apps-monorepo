@@ -90,6 +90,32 @@ describe('profileMapKey', () => {
 })
 
 describe('fetchV1Profiles', () => {
+  it('reports completed names after the multicall returns', async () => {
+    mockKeys([
+      { id: NODE_A, texts: [], coinTypes: [] },
+      { id: NODE_B, texts: [], coinTypes: [] },
+    ])
+    let release = () => {}
+    const pending = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const client = clientWith(async () => {
+      await pending
+      return [NO_PUBKEY, NO_PUBKEY]
+    })
+    const onNamesRead = vi.fn()
+    const read = fetchV1Profiles({
+      names: [A, B],
+      publicClient: client,
+      onNamesRead,
+    })
+    await vi.waitFor(() => expect(client.multicall).toHaveBeenCalledTimes(1))
+    expect(onNamesRead).not.toHaveBeenCalled()
+    release()
+    await read
+    expect(onNamesRead).toHaveBeenLastCalledWith(['a.eth', 'b.eth'])
+  })
+
   it.each([
     ['content', `0x${'11'.repeat(32)}`, 'LegacyResolverContentError'],
     ['name', 'keep-me.eth', 'UnsupportedResolverRecordsError'],
@@ -186,7 +212,7 @@ describe('fetchV1Profiles', () => {
   })
 
   it('populates text + addr records from multicall results', async () => {
-    mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [60] }])
+    mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [60n] }])
     const result = await run(
       [A],
       clientWith(() => [
@@ -252,7 +278,7 @@ describe('fetchV1Profiles', () => {
   })
 
   it('drops empty text values and zero-length addr values', async () => {
-    mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [60] }])
+    mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [60n] }])
     const result = await run(
       [A],
       clientWith(() => [okCall(''), okCall('0x' as Hex), NO_PUBKEY]),

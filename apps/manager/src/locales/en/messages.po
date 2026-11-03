@@ -505,6 +505,14 @@ msgstr "Approve this name"
 msgid "Approve this name in your wallet"
 msgstr "Approve this name in your wallet"
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Approve USDC"
+msgstr "Approve USDC"
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Approve USDC for your renewal?"
+msgstr "Approve USDC for your renewal?"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approve USDC on {l2ChainName} if your wallet asks, then sign the payment"
 msgstr "Approve USDC on {l2ChainName} if your wallet asks, then sign the payment"
@@ -512,6 +520,10 @@ msgstr "Approve USDC on {l2ChainName} if your wallet asks, then sign the payment
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve your wrapped names"
 msgstr "Approve your wrapped names"
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Approving"
+msgstr "Approving"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approving payment token"
@@ -632,6 +644,7 @@ msgstr "Can I send crypto to a .eth name (instead of an address)?"
 msgid "Can you share your order number?"
 msgstr "Can you share your order number?"
 
+#: src/components/HcaFundingApprovalDialog.tsx
 #: src/components/HcaFundingConfirmDialog.tsx
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -705,6 +718,10 @@ msgstr "Checking"
 msgid "Checking allowance"
 msgstr "Checking allowance"
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking everything is ready..."
+msgstr "Checking everything is ready..."
+
 #: src/features/register-v2/workflow/pricing/components/ResumeCheckPlaceholder.tsx
 msgid "Checking for an unfinished registration"
 msgstr "Checking for an unfinished registration"
@@ -732,6 +749,10 @@ msgstr "Checking the last attempt"
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Checking the latest name state before you continue."
 msgstr "Checking the latest name state before you continue."
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking the network fee..."
+msgstr "Checking the network fee..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking token allowance"
@@ -761,6 +782,14 @@ msgstr "Checking your account…"
 msgid "Checking your earlier payment"
 msgstr "Checking your earlier payment"
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking your name details..."
+msgstr "Checking your name details..."
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Checking your names..."
+msgstr "Checking your names..."
+
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
 msgid "Checking your smart account balance…"
 msgstr "Checking your smart account balance…"
@@ -776,6 +805,10 @@ msgstr "Choose a different name (reserved key)"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Clear and retry"
+msgstr "Clear and retry"
 
 #: src/components/molecules/SearchField/SearchField.tsx
 #: src/features/navigation/Header/search/SearchInput.tsx
@@ -830,6 +863,10 @@ msgstr "Confirm"
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "Confirm renewal"
 msgstr "Confirm renewal"
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Confirm the USDC approval transaction in your wallet. The renewal will continue after it confirms."
+msgstr "Confirm the USDC approval transaction in your wallet. The renewal will continue after it confirms."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Confirm updated network fees"
@@ -1203,6 +1240,10 @@ msgstr "Downloading artwork…"
 msgid "Each text record needs a unique key. Remove the duplicate custom record to edit it in its existing field."
 msgstr "Each text record needs a unique key. Remove the duplicate custom record to edit it in its existing field."
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Earlier requested allowance"
+msgstr "Earlier requested allowance"
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfilePreviewActions.tsx
 msgid "Edit"
@@ -1350,14 +1391,6 @@ msgstr "Estimated network fee"
 msgid "Estimated renewal cost"
 msgstr "Estimated renewal cost"
 
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Estimating the network fee..."
-msgstr "Estimating the network fee..."
-
-#: src/features/migration/components/SelectNamesStepFooter.tsx
-msgid "Estimating..."
-msgstr "Estimating..."
-
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Existing balance"
 msgstr "Existing balance"
@@ -1496,6 +1529,10 @@ msgstr "Funding wallet"
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr "Funding wallet {address} with mock USDC & DAI tokens"
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Gathering your name details..."
+msgstr "Gathering your name details..."
 
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Get instant push notifications in your browser"
@@ -1820,6 +1857,10 @@ msgstr "Mark all as read"
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Marking..."
 msgstr "Marking..."
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Maximum network fee"
+msgstr "Maximum network fee"
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/components/success/CommemorativeNftMintBanner.tsx
@@ -2265,6 +2306,18 @@ msgstr "Preparing your newly registered name"
 msgid "Preparing your registration"
 msgstr "Preparing your registration"
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Preparing your upgrade"
+msgstr "Preparing your upgrade"
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Preparing your upgrade..."
+msgstr "Preparing your upgrade..."
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Preparing..."
+msgstr "Preparing..."
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 msgid "Preview"
 msgstr "Preview"
@@ -2478,6 +2531,10 @@ msgstr "Registration total"
 #: src/features/profile/components/view/AgentRecordCard.tsx
 msgid "Registry"
 msgstr "Registry"
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Reject any waiting USDC approval request in your wallet. If a transaction was already sent, wait for that transaction or its cancellation to confirm before clearing. Clearing the app record does not cancel a wallet transaction. Any new approval will ask for your consent separately."
+msgstr "Reject any waiting USDC approval request in your wallet. If a transaction was already sent, wait for that transaction or its cancellation to confirm before clearing. Clearing the app record does not cancel a wallet transaction. Any new approval will ask for your consent separately."
 
 #: src/features/dashboard/components/NameRow.tsx
 msgid "Remind me"
@@ -2716,6 +2773,10 @@ msgstr "Resetting access…"
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 msgid "Resolve errors before previewing changes."
 msgstr "Resolve errors before previewing changes."
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Resolve your earlier USDC approval"
+msgstr "Resolve your earlier USDC approval"
 
 #: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
 msgid "Resolver replacement is blocked. These records could not be read or preserved:"
@@ -3072,6 +3133,10 @@ msgstr "Signing renewal…"
 msgid "Smart account access"
 msgstr "Smart account access"
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Smart account receiving allowance"
+msgstr "Smart account receiving allowance"
+
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Smart session access reset"
 msgstr "Smart session access reset"
@@ -3229,10 +3294,6 @@ msgid "Support"
 msgstr "Support"
 
 #: src/features/dashboard/components/FaqSection.tsx
-#~ msgid "Supported direct subnames, such as alice.example.eth, can be included when you upgrade an unwrapped or unlocked example.eth. Each keeps the owner and resolver shown in your review. Existing subname records stay on that resolver, and you keep control of the parent name."
-#~ msgstr "Supported direct subnames, such as alice.example.eth, can be included when you upgrade an unwrapped or unlocked example.eth. Each keeps the owner and resolver shown in your review. Existing subname records stay on that resolver, and you keep control of the parent name."
-
-#: src/features/dashboard/components/FaqSection.tsx
 msgid "Supported direct subnames, such as alice.example.eth, upgrade with an unwrapped or unlocked example.eth:"
 msgstr "Supported direct subnames, such as alice.example.eth, upgrade with an unwrapped or unlocked example.eth:"
 
@@ -3321,6 +3382,10 @@ msgstr "The commemorative NFT is not available yet."
 msgid "The connected wallet doesn't own this smart account."
 msgstr "The connected wallet doesn't own this smart account."
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "The earlier USDC approval is no longer pending."
+msgstr "The earlier USDC approval is no longer pending."
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "The eligibility proof could not be verified."
 msgstr "The eligibility proof could not be verified."
@@ -3328,6 +3393,14 @@ msgstr "The eligibility proof could not be verified."
 #: src/features/renew/workflow/renewing/components/RenewalCompletionBanner.tsx
 msgid "The ENS domain has been successfully renewed."
 msgstr "The ENS domain has been successfully renewed."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "The estimated gas for {ensName} and its subnames exceeds the per-transaction limit. Deselect this name to upgrade the rest."
+msgstr "The estimated gas for {ensName} and its subnames exceeds the per-transaction limit. Deselect this name to upgrade the rest."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "The estimated gas for a name and its subnames exceeds the per-transaction limit. Deselect the name to upgrade the rest."
+msgstr "The estimated gas for a name and its subnames exceeds the per-transaction limit. Deselect the name to upgrade the rest."
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "The fee hits $0 on"
@@ -3721,6 +3794,10 @@ msgstr "Upgrading names with a different manager requires temporary permission f
 msgid "USD"
 msgstr "USD"
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "USDC allowance"
+msgstr "USDC allowance"
+
 #: src/features/register-v2/workflow/pricing/components/SafeWalletDialog.tsx
 msgid "Use a different wallet"
 msgstr "Use a different wallet"
@@ -3843,6 +3920,10 @@ msgstr "Waiting for commitment receipt"
 msgid "Waiting for commitment submission"
 msgstr "Waiting for commitment submission"
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Waiting for confirmation"
+msgstr "Waiting for confirmation"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for ETH address record confirmation"
 msgstr "Waiting for ETH address record confirmation"
@@ -3895,9 +3976,17 @@ msgstr "Waiting for the registration transaction"
 msgid "Waiting for the resolver deployment"
 msgstr "Waiting for the resolver deployment"
 
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Waiting for the USDC approval to confirm. Your renewal has not been submitted yet."
+msgstr "Waiting for the USDC approval to confirm. Your renewal has not been submitted yet."
+
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Waiting for token approval"
 msgstr "Waiting for token approval"
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Waiting for your wallet"
+msgstr "Waiting for your wallet"
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Wallet {address} funded successfully"
@@ -4384,6 +4473,10 @@ msgstr "Your wallet does not have permission to change the resolver for this nam
 #: src/components/HcaFundingConfirmDialog.tsx
 msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
 msgstr "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, you can sign the renewal."
+msgstr "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, you can sign the renewal."
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Your wallet sends this one, because your temporary account no longer has permission to update these records."
