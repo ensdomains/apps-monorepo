@@ -59,11 +59,7 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({
-        resolverAddress: undefined,
-        canWrite: false,
-        isResolverInvalid: false,
-      }),
+      ok({ resolverAddress: undefined, canWrite: false }),
     )
 
     await expect(
@@ -82,11 +78,7 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({
-        resolverAddress: RESOLVER,
-        canWrite: true,
-        isResolverInvalid: false,
-      }),
+      ok({ resolverAddress: RESOLVER, canWrite: true }),
     )
 
     await expect(
@@ -103,11 +95,7 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(otherAddress)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({
-        resolverAddress: RESOLVER,
-        canWrite: true,
-        isResolverInvalid: false,
-      }),
+      ok({ resolverAddress: RESOLVER, canWrite: true }),
     )
 
     await expect(
@@ -123,11 +111,7 @@ describe('getPrimaryNamePreparation', () => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(zeroAddress)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({
-        resolverAddress: undefined,
-        canWrite: false,
-        isResolverInvalid: false,
-      }),
+      ok({ resolverAddress: undefined, canWrite: false }),
     )
 
     await expect(
@@ -154,25 +138,57 @@ describe('getPrimaryNamePreparation', () => {
     )
   })
 
+  // Only `multicall` (the ERC-165 probe) is read off the client.
+  const clientAnswering = (isResolver: boolean) =>
+    ({
+      multicall: vi.fn(async () => [
+        { status: 'failure', error: new Error('reverted') },
+        { status: 'success', result: false },
+        { status: 'success', result: false },
+        { status: 'success', result: false },
+        { status: 'success', result: isResolver },
+      ]),
+    }) as unknown as PublicClient
+
+  // A resolver the wallet cannot write is either someone else's working
+  // resolver or not a resolver at all, such as an EOA; only the second is invalid.
   it.each([
-    { label: 'a foreign resolver', isResolverInvalid: false },
-    { label: 'an invalid resolver', isResolverInvalid: true },
-  ])('flags $label as being replaced', async ({ isResolverInvalid }) => {
+    { label: 'a foreign resolver', isResolver: true },
+    { label: 'an address that is not a resolver', isResolver: false },
+  ])('flags $label as being replaced', async ({ isResolver }) => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
-      ok({ resolverAddress: RESOLVER, canWrite: false, isResolverInvalid }),
+      ok({ resolverAddress: RESOLVER, canWrite: false }),
     )
 
     await expect(
-      getPrimaryNamePreparation(client, name, owner),
+      getPrimaryNamePreparation(clientAnswering(isResolver), name, owner),
     ).resolves.toEqual({
       kind: 'setup-resolver',
       existingEthAddress: null,
       hasResolver: true,
       hasOffchainResolver: false,
-      isResolverInvalid,
+      isResolverInvalid: !isResolver,
     })
+  })
+
+  it('stops on a failed resolver-validity read instead of guessing', async () => {
+    vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
+    vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
+    vi.mocked(getResolverWriteState).mockResolvedValue(
+      ok({ resolverAddress: RESOLVER, canWrite: false }),
+    )
+    const rpcDown = new Error('rpc down')
+    const failingClient = {
+      multicall: vi.fn(async () => {
+        throw rpcDown
+      }),
+    } as unknown as PublicClient
+
+    await expect(
+      getPrimaryNamePreparation(failingClient, name, owner),
+    ).rejects.toBe(rpcDown)
   })
 })
 

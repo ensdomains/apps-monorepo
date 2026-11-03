@@ -148,6 +148,45 @@ export const getUnreachableV1NameQueryOptions = (
       ),
   })
 
+/**
+ * ERC-165 ids a working resolver reports at least one of: `addr`, multicoin
+ * `addr`, `text`, `contenthash` (V1 and public resolvers) or
+ * `IExtendedResolver` (the V2 PermissionedResolver reports only this).
+ */
+const RESOLVER_INTERFACE_IDS = [
+  '0x3b3b57de',
+  '0xf1cb7e06',
+  '0x59d1d43c',
+  '0xbc1c58d1',
+  '0x9061b923',
+] as const
+
+const supportsInterfaceAbi = parseAbi([
+  'function supportsInterface(bytes4 interfaceId) view returns (bool)',
+])
+
+/**
+ * Whether `address` answers as a resolver. An EOA, or a contract that is not a
+ * resolver, answers none of the ids; an RPC failure throws.
+ */
+const isWorkingResolver = async (
+  publicClient: PublicClient,
+  address: Address,
+): Promise<boolean> => {
+  const results = await publicClient.multicall({
+    contracts: RESOLVER_INTERFACE_IDS.map((interfaceId) => ({
+      address,
+      abi: supportsInterfaceAbi,
+      functionName: 'supportsInterface' as const,
+      args: [interfaceId] as const,
+    })),
+    allowFailure: true,
+  })
+  return results.some(
+    (result) => result.status === 'success' && result.result === true,
+  )
+}
+
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
 export async function getPrimaryNamePreparation(
   publicClient: PublicClient,
@@ -167,10 +206,15 @@ export async function getPrimaryNamePreparation(
       ? forwardAddress
       : null
 
-  const { resolverAddress, canWrite, isResolverInvalid } = writeState.value
+  const { resolverAddress, canWrite } = writeState.value
   if (canWrite && resolverAddress) {
     return { kind: 'update-eth-address', existingEthAddress, resolverAddress }
   }
+
+  // Only a resolver the wallet cannot write needs telling apart from a non-resolver.
+  const isResolverInvalid =
+    resolverAddress !== undefined &&
+    !(await isWorkingResolver(publicClient, resolverAddress))
 
   return {
     kind: 'setup-resolver',
@@ -179,7 +223,6 @@ export async function getPrimaryNamePreparation(
     hasResolver: resolverAddress !== undefined,
     hasOffchainResolver:
       resolverAddress !== undefined &&
-      !isResolverInvalid &&
       (await isOffchainResolver(publicClient, resolverAddress, name)),
     isResolverInvalid,
   }
