@@ -636,6 +636,13 @@ describe('TokenPickerContent', () => {
 })
 
 describe('TokenPickerContentBase', () => {
+  it('shows a caller heading in place of the name', () => {
+    renderPicker({ header: <p>3 names to renew</p> })
+
+    expect(screen.getByText('3 names to renew')).toBeVisible()
+    expect(screen.queryByText('jeff.eth')).not.toBeInTheDocument()
+  })
+
   it('selects the only payment option automatically', () => {
     const onSelectCoin = renderPicker()
 

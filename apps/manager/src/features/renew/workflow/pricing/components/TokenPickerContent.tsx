@@ -68,8 +68,7 @@ export const TokenPickerContent = () => {
     displayedDebit,
     feeRaw,
   } = useRenewalIntentFunding({
-    label,
-    duration,
+    items: [{ label, duration }],
     token,
     protocol,
     renewerAddress,

@@ -14,9 +14,12 @@ import type {
   L2PaymentRow,
 } from '@/features/register-v2/workflow/pricing/hooks/useL2Payment'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
-import { getRenewalFeeQueryOptions } from '@/features/renew/data/queries/renewalFee.query'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
+import {
+  type RenewalIntentFunding,
+  useRenewalIntentFunding,
+} from '@/features/renew/workflow/pricing/useRenewalIntentFunding'
 import { useRenewalL2Payment } from '@/features/renew/workflow/pricing/useRenewalL2Payment'
 import {
   MIN_RENEW_DURATION_SECONDS,
@@ -36,7 +39,6 @@ import type {
   SummaryRow,
 } from '../types'
 import {
-  canPayBulkRenewal,
   durationForName,
   newExpiryDateForName,
   PRESETS,
@@ -54,8 +56,12 @@ type BulkRenewPayment = {
    * approval's headroom on the intent route, which moves into the account too.
    */
   readonly fundedTotal: number
-  /** True when the wallet is connected and the selected coin, or L2, covers the total. */
-  readonly canConfirm: boolean
+  /** Connected, the route known and every price resolved; the picker checks the method covers it. */
+  readonly canProceed: boolean
+  /** Every price resolved for the current selection. */
+  readonly pricesReady: boolean
+  /** The intents' fee folded with the rent and the account's balance, as single renewal shows it. */
+  readonly intentFunding: RenewalIntentFunding
   /** Rows that pay from the wallet's USDC on an L2; intent route only. */
   readonly l2Payment: L2PaymentProps | undefined
   /** The L2 row chosen to pay, in place of the wallet's coin. */
@@ -255,43 +261,41 @@ export const useBulkRenew = ({
         )
       : grandTotal
 
-  // An L2 bridges USDC into the account, so it pays a USDC renewal on the intent route.
-  const isL2Enabled =
-    open && isPaying && route === 'intent' && selectedToken === USDC.symbol
-  const feeQuery = useQuery(
-    getRenewalFeeQueryOptions({
-      items: renewItems,
-      token: USDC.symbol,
-      protocol: 'v2',
-      renewerAddress: getRenewerAddress('v2'),
-      signer: isL2Enabled && signer?.type === 'rhinestone' ? signer : null,
-      ownerAddress: ownerAddress ?? null,
-    }),
-  )
+  const intentFunding = useRenewalIntentFunding({
+    items: renewItems,
+    // Quoted on the payment step only: each chunk of names is its own quote.
+    isEnabled: open && isPaying,
+    token: selectedToken,
+    protocol: 'v2',
+    renewerAddress: getRenewerAddress('v2'),
+    account: { signer, ownerAddress },
+    pricing: pricesReady
+      ? { funded: fundedTotal, fundedRaw: authorizedPaymentAmount(sumPriceRaw) }
+      : undefined,
+    accountCredit,
+    accountCreditRaw,
+  })
+
+  // An L2 bridges USDC into the account, so it pays a USDC renewal on the
+  // intent route. Sized on the fee, so a failed fee quote leaves the wallet alone.
   const l2Payment = useRenewalL2Payment({
     rentTotalRaw: pricesReady
       ? authorizedPaymentAmount(sumPriceRaw)
       : undefined,
-    feeRaw: feeQuery.data ?? undefined,
+    feeRaw: intentFunding.feeRaw,
     hcaBalanceRaw: accountCreditRaw.USDC,
-    // Sized on the fee, so a failed fee quote leaves the wallet alone.
-    isEnabled: isL2Enabled && (feeQuery.isLoading || feeQuery.data != null),
+    isEnabled:
+      open &&
+      isPaying &&
+      route === 'intent' &&
+      selectedToken === USDC.symbol &&
+      (intentFunding.isQuoting || intentFunding.feeRaw !== undefined),
     selectedChainId: fundingSourceChainId,
     onSelect: onSelectL2,
   })
   const selectedL2 = l2Payment?.rows.find(
     ({ option }) => option.source.chain.id === l2Payment.selectedChainId,
   )
-
-  const selectedBalance = stablecoinBalances.find(
-    (b) => b.symbol === selectedToken,
-  )
-  const selectedBalanceUsd = selectedBalance
-    ? decimalBigintToNumber(
-        BigInt(selectedBalance.balance),
-        selectedBalance.decimals,
-      )
-    : 0
 
   return {
     minSelectableDate,
@@ -306,18 +310,10 @@ export const useBulkRenew = ({
       stablecoinBalances,
       accountCredit,
       fundedTotal,
-      canConfirm:
-        isConnected &&
-        route !== null &&
-        !isLoadingBalances &&
-        pricesReady &&
-        grandTotal > 0 &&
-        canPayBulkRenewal({
-          selectedL2,
-          walletBalance: selectedBalanceUsd,
-          accountCredit: accountCredit[selectedToken] ?? 0,
-          fundedTotal,
-        }),
+      canProceed:
+        isConnected && route !== null && pricesReady && grandTotal > 0,
+      pricesReady,
+      intentFunding,
       l2Payment,
       selectedL2,
     },
