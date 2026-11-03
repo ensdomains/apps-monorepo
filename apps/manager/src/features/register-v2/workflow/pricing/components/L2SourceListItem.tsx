@@ -106,9 +106,9 @@ const getL2FeeExplanation = (row: L2PaymentRow) => {
   const chainName = row.option.source.chain.name
   return (
     <Trans>
-      An estimate of what the on-chain transactions that register your name
-      cost, including moving the USDC from {chainName}. It is paid there with
-      the name price, with no separate approval transaction.
+      This estimate covers the cost of the onchain transactions that register
+      your name, including moving the USDC from {chainName}. Any unspent USDC
+      stays in your ENS account and can be used for your next payment.
     </Trans>
   )
 }

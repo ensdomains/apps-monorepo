@@ -414,16 +414,8 @@ msgstr ""
 msgid "Allow your smart account to configure your upgraded names and their subnames. No managers are being added in this upgrade."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "An estimate of what the on-chain transactions that register your name cost, including moving the USDC from {chainName}. It is paid there with the name price, with no separate approval transaction."
-msgstr ""
-
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "An estimate of what the transaction that renews your name will cost. It is collected together with the renewal price, in the same approval."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "An estimate of what the two on-chain transactions that register your name will cost. It is collected together with the name price, in the same approval."
 msgstr ""
 
 #: src/components/AnalyticsConsentBanner.tsx
@@ -1389,6 +1381,7 @@ msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Estimated network fee"
 msgstr ""
 
@@ -3530,6 +3523,14 @@ msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This commemorative NFT has already been minted."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "This estimate covers the cost of the onchain transactions that register your name, including moving the USDC from {chainName}. Any unspent USDC stays in your ENS account and can be used for your next payment."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "This estimate covers the cost of the onchain transactions that register your name. Any unspent USDC stays in your ENS account and can be used for your next payment."
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx

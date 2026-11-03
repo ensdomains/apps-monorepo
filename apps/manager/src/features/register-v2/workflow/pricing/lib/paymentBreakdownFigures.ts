@@ -7,7 +7,7 @@ export type PaymentBreakdownFigures = {
   /**
    * What the ENS account covers, as the displayed lines imply it. Zero when
    * the account is empty or holds under a cent, neither of which has an honest
-   * line to render: callers show the plain total in that case.
+   * deduction to render.
    */
   readonly credit: number
 }
@@ -27,7 +27,7 @@ export type PaymentBreakdownFigures = {
  * The residue cuts both ways, so `hcaCredit` supplies a displayed credit only
  * when it itself rounds to a visible cent. An independent rounding residue must
  * not invent credit for an empty or sub-cent account; those come back as zero,
- * and the sheet shows the plain total instead.
+ * without inventing a deduction.
  */
 export const getPaymentBreakdownFigures = (funding: {
   readonly registration: number
@@ -40,10 +40,6 @@ export const getPaymentBreakdownFigures = (funding: {
   const networkFee = roundUsdToCents(funding.networkFee)
   const walletDebit = roundUsdToCents(funding.walletDebit)
   const credit = Math.max(0, roundUsdToCents(funding.hcaCredit))
-
-  if (credit === 0) {
-    return { registration, networkFee, walletDebit, credit }
-  }
 
   const roundingResidual = roundUsdToCents(
     walletDebit + credit - registration - networkFee,

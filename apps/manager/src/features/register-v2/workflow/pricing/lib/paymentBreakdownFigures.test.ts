@@ -15,6 +15,41 @@ const expectValidDisplayedBreakdown = (figures: PaymentBreakdownFigures) => {
 }
 
 describe('getPaymentBreakdownFigures', () => {
+  it.each([
+    {
+      registration: 4.996,
+      networkFee: 4.996,
+      walletDebit: 9.992,
+      hcaCredit: 0,
+    },
+    {
+      registration: 4.994,
+      networkFee: 4.994,
+      walletDebit: 9.988,
+      hcaCredit: 0,
+    },
+    {
+      registration: 4.996,
+      networkFee: 4.996,
+      walletDebit: 9.988,
+      hcaCredit: 0.004,
+    },
+    {
+      registration: 1.006,
+      networkFee: 0.001,
+      walletDebit: 1.003,
+      hcaCredit: 0.004,
+    },
+  ])(
+    'reconciles the fee and name price without a visible credit: $walletDebit',
+    (input) => {
+      const figures = getPaymentBreakdownFigures(input)
+
+      expect(figures.credit).toBe(0)
+      expectValidDisplayedBreakdown(figures)
+    },
+  )
+
   it('keeps the lines adding up to the headline', () => {
     // Six-decimal USDC amounts that each round away from the sum: preserving
     // the visible 1.01 credit requires the displayed fee to absorb one cent.

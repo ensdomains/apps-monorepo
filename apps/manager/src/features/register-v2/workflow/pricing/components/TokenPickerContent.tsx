@@ -599,6 +599,7 @@ export const TokenPickerContent = () => {
       helpMessage={helpMessage}
       isBusy={isBusy}
       isConnected={isConnected}
+      isEstimate={!!funding}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
       isQuoteStale={budgetQuery.isPlaceholderData}
@@ -618,6 +619,7 @@ export const TokenPickerContent = () => {
       pricingLoading={pricingQuery.isLoading}
       revalidatedShortfall={revalidatedShortfall}
       selectedToken={selectedToken}
+      shouldShowRegistrationBreakdown
       showNetworkFeeDetails
       stablecoinBalances={stablecoinBalances}
     />
@@ -811,15 +813,16 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   funding,
   isQuotingFunding = false,
   showNetworkFeeDetails = false,
+  shouldShowRegistrationBreakdown = false,
   isQuoteStale = false,
   hasBudgetQuoteFailed = false,
   isBusy = false,
   canProceed = true,
   networkFeeTooltip = (
     <Trans>
-      An estimate of what the two on-chain transactions that register your name
-      will cost. It is collected together with the name price, in the same
-      approval.
+      This estimate covers the cost of the onchain transactions that register
+      your name. Any unspent USDC stays in your ENS account and can be used for
+      your next payment.
     </Trans>
   ),
   totalLabel = <Trans>Registration total</Trans>,
@@ -866,6 +869,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   readonly isQuotingFunding?: boolean
   /** Registration-only disclosure; renewals keep their existing token row. */
   readonly showNetworkFeeDetails?: boolean
+  /** Itemise registration costs without changing the renewal receipt. */
+  readonly shouldShowRegistrationBreakdown?: boolean
   /** A placeholder quote belongs to the previous primary-name choice. */
   readonly isQuoteStale?: boolean
   /** A required budget quote failed, so checkout must remain blocked. */
@@ -1149,6 +1154,11 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
         <PaymentReceipt
           hasExistingBalance={(receiptFigures?.applied ?? 0) > 0}
           isEstimate={isEstimate}
+          registrationBreakdown={
+            shouldShowRegistrationBreakdown && shownFunding
+              ? getPaymentBreakdownFigures(shownFunding)
+              : undefined
+          }
           state={receiptState}
           totalLabel={totalLabel}
         />

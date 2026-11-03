@@ -1,7 +1,13 @@
 import '@testing-library/jest-dom'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { L2Source } from '@/l2Sources'
@@ -365,6 +371,15 @@ describe('TokenPickerContent', () => {
     hcaBalance: 0n,
   }
 
+  it('wires the quoted registration costs into the itemised receipt', () => {
+    containerMocks.renderBudget = fiveUsdcBudget
+    renderContainer()
+
+    expect(receiptRow('Registration total')).toHaveTextContent('$4.80')
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('$0.20')
+    expect(receiptRow('You pay')).toHaveTextContent('up to$5.00')
+  })
+
   it('lists the wallet first, then quoted L2s by balance, three at a time', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
     containerMocks.renderBudget = fiveUsdcBudget
@@ -636,6 +651,98 @@ describe('TokenPickerContent', () => {
 })
 
 describe('TokenPickerContentBase', () => {
+  it.each([
+    { isQuoteStale: true, hasBudgetQuoteFailed: false },
+    { isQuoteStale: false, hasBudgetQuoteFailed: true },
+  ])(
+    'hides every quoted amount when the receipt is unavailable: %o',
+    (quoteState) => {
+      renderPicker({
+        funding: {
+          registration: 160,
+          networkFee: 4.32,
+          total: 164.32,
+          walletDebit: 162.5,
+          hcaCredit: 1.82,
+          isLoading: false,
+        },
+        selectedToken: 'USDC',
+        shouldShowRegistrationBreakdown: true,
+        ...quoteState,
+      })
+
+      const receipt = within(
+        screen.getByRole('region', { name: 'Payment summary' }),
+      )
+      expect(receipt.getByText('Estimated network fee')).toBeVisible()
+      expect(receipt.queryAllByText(/\$[\d,.]+/)).toEqual([])
+      expect(
+        screen.getByRole('button', { name: 'Register name' }),
+      ).toBeDisabled()
+    },
+  )
+  it.each([
+    { name: 'sufficient balance', balance: usdc, error: null, canPay: true },
+    {
+      name: 'insufficient balance',
+      balance: emptyUsdc,
+      error: null,
+      canPay: false,
+    },
+    {
+      name: 'failed payment',
+      balance: usdc,
+      error: "We couldn't approve your payment. Please try again.",
+      canPay: true,
+    },
+  ])(
+    'keeps the registration math visible with $name',
+    ({ balance, error, canPay }) => {
+      renderPicker({
+        funding: {
+          registration: 160,
+          networkFee: 4.32,
+          total: 164.32,
+          walletDebit: 162.5,
+          hcaCredit: 1.82,
+          isLoading: false,
+        },
+        globalErrorMessage: error,
+        selectedToken: 'USDC',
+        shouldShowRegistrationBreakdown: true,
+        stablecoinBalances: [balance],
+      })
+
+      expect(receiptRow('Registration total')).toHaveTextContent('$160.00')
+      expect(receiptRow('Estimated network fee')).toHaveTextContent('$4.32')
+      expect(receiptRow('Existing balance')).toHaveTextContent('-$1.82')
+      expect(receiptRow('You pay')).toHaveTextContent('$162.50')
+      expect(
+        screen.getByRole('button', { name: 'Register name' }),
+      ).toHaveProperty('disabled', !canPay)
+    },
+  )
+
+  it('shows the name price plus the network fee without an existing balance', () => {
+    renderPicker({
+      funding: {
+        registration: 8.81,
+        networkFee: 5.52,
+        total: 14.33,
+        walletDebit: 14.33,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      selectedToken: 'USDC',
+      shouldShowRegistrationBreakdown: true,
+    })
+
+    expect(receiptRow('Registration total')).toHaveTextContent('$8.81')
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('$5.52')
+    expect(screen.queryByText('Existing balance')).not.toBeInTheDocument()
+    expect(receiptRow('You pay')).toHaveTextContent('$14.33')
+  })
+
   it('selects the only payment option automatically', () => {
     const onSelectCoin = renderPicker()
 
@@ -1023,6 +1130,23 @@ describe('TokenPickerContentBase L2 rows', () => {
     row: L2PaymentRow,
     selectedChainId: number | undefined = undefined,
   ) => l2PaymentOf([row], selectedChainId)
+
+  it('itemises the selected L2 quote rather than the mainnet fee', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      shouldShowRegistrationBreakdown: true,
+      l2Payment: l2Payment(
+        baseSepoliaRow('available', { amountInRaw: 5_012_573n }),
+        baseSepolia.id,
+      ),
+    })
+
+    expect(receiptRow('Registration total')).toHaveTextContent('$4.80')
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('$0.21')
+    expect(receiptRow('You pay')).toHaveTextContent('$5.01')
+  })
 
   it('lists an L2 next to a wallet that cannot pay, and selects it on click', () => {
     const payment = l2Payment(

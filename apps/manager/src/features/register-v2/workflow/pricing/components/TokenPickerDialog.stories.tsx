@@ -122,6 +122,7 @@ export const TokenPickerDialogShell = ({
         globalErrorMessage={globalErrorMessage}
         helpMessage={helpMessage}
         isConnected={isConnected}
+        isEstimate={!!funding}
         isInPriceCooldown={isInPriceCooldown}
         isLoadingBalances={isLoadingBalances}
         isQuotingFunding={isQuotingFunding}
@@ -143,6 +144,7 @@ export const TokenPickerDialogShell = ({
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         selectedToken={selectedToken}
+        shouldShowRegistrationBreakdown
         showNetworkFeeDetails
         stablecoinBalances={stablecoinBalances}
       />
@@ -403,6 +405,21 @@ export const WithAccountCreditAndL2: Story = {
       l2Row(baseSepolia, 400_000_000n, 'available', 162_780_000n),
       l2Row(optimismSepolia, 250_000_000n, 'available', 162_770_000n),
     ],
+  },
+}
+
+export const InsufficientUSDCWithAccountCredit: Story = {
+  args: {
+    ...WithAccountCredit.args,
+    stablecoinBalances: [INSUFFICIENT_USDC],
+  },
+}
+
+export const PaymentFailed: Story = {
+  args: {
+    ...WithAccountCredit.args,
+    globalErrorMessage:
+      "We couldn't approve your payment. Please try again and approve the payment in your wallet.",
   },
 }
 
