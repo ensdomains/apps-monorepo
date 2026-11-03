@@ -87,6 +87,17 @@ export const isInvalidSignatureError = (error: unknown): boolean =>
   causeChain(error).some(isInvalidSignatureRejection)
 
 /**
+ * The run failed because smart session access was reset on this page. A
+ * refused signature alone isn't enough, since `InvalidSignature()` also wraps
+ * policy failures. A reset alone isn't enough either: the run may have failed
+ * for another reason.
+ */
+export const isSessionRevokedFailure = (params: {
+  readonly isSessionAccessReset: boolean
+  readonly isSignatureRejected: boolean
+}): boolean => params.isSessionAccessReset && params.isSignatureRejected
+
+/**
  * A readable one-liner for the failure screen. viem's `message` appends the
  * contract call, args, docs link and version; `shortMessage` leaves those out.
  */

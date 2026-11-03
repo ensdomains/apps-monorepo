@@ -3,7 +3,44 @@ import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { FailureStepView } from './FailureStep'
+import { FailureStep, FailureStepView } from './FailureStep'
+
+// The container reads two signals from two places: the registration's failure
+// and this page's session reset. Both are stubbed so the wiring is what runs.
+const signals = vi.hoisted(() => ({
+  isSessionAccessReset: false,
+  isSignatureRejected: false,
+}))
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useNavigate: () => vi.fn(),
+}))
+vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
+  useSmartAccountContext: () => ({
+    isSessionAccessReset: signals.isSessionAccessReset,
+  }),
+}))
+vi.mock('../../state/registrationUi.context', () => ({
+  RegisterV2Context: {
+    use: () => ({
+      uiActor: { send: () => {} },
+      label: 'name-two',
+      resume: { status: 'idle' },
+    }),
+    useSelector: (select: (state: unknown) => unknown) =>
+      select({
+        context: {
+          lastErrorMessage:
+            'Failed to submit transaction: Simulation failed: InvalidSignature()',
+          nameUnavailable: false,
+          isWalletBusy: false,
+          isSignatureRejected: signals.isSignatureRejected,
+          restoredRun: undefined,
+        },
+      }),
+  },
+}))
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
 
@@ -96,5 +133,20 @@ describe('FailureStepView', () => {
     expect(
       screen.getByText(/retrying will attempt the registration/i),
     ).toBeVisible()
+  })
+})
+
+describe('FailureStep', () => {
+  it('shows the reset screen once a reset here meets a refused signature', () => {
+    signals.isSessionAccessReset = true
+    signals.isSignatureRejected = true
+    render(
+      <I18nProvider i18n={i18n}>
+        <FailureStep />
+      </I18nProvider>,
+    )
+
+    expect(screen.getByText('Smart Session Access Reset')).toBeVisible()
+    expect(screen.queryByText(/InvalidSignature/)).not.toBeInTheDocument()
   })
 })

@@ -11,6 +11,7 @@ import {
   getRegistrationFailureMessage,
   isInvalidSignatureError,
   isNameNotAvailableError,
+  isSessionRevokedFailure,
 } from './registrationFailure'
 
 const REGISTRAR = '0xa88553F454b77203B0D036A05c894d555EAAa2Cc'
@@ -124,6 +125,24 @@ describe('isInvalidSignatureError', () => {
   ])('ignores %s', (_, error) => {
     expect(isInvalidSignatureError(error)).toBe(false)
   })
+})
+
+describe('isSessionRevokedFailure', () => {
+  it.each([
+    [true, true, true],
+    // A refused signature without a reset here is some other policy failure.
+    [false, true, false],
+    // A reset here, but the run failed for another reason.
+    [true, false, false],
+    [false, false, false],
+  ])(
+    'reset %s, signature rejected %s → %s',
+    (isSessionAccessReset, isSignatureRejected, expected) => {
+      expect(
+        isSessionRevokedFailure({ isSessionAccessReset, isSignatureRejected }),
+      ).toBe(expected)
+    },
+  )
 })
 
 describe('getRegistrationFailureMessage', () => {
