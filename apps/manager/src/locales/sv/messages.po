@@ -4359,6 +4359,10 @@ msgstr ""
 msgid "Your ENSv2 moment is waiting"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your existing balance covers the registration and its network fee, so nothing is charged from your wallet. Your wallet may still ask you to sign to start the registration."
+msgstr ""
+
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
 msgstr ""

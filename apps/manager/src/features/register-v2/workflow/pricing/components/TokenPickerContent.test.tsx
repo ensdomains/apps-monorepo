@@ -310,6 +310,18 @@ describe('TokenPickerContent', () => {
     }
   })
 
+  it('keeps explaining the signature while registering', () => {
+    containerMocks.isApproving = true
+    renderContainer()
+
+    expect(
+      screen.getByRole('button', { name: 'Registering...' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'What will I sign?' }),
+    ).toBeVisible()
+  })
+
   it('starts registration after checking availability and preparing the session', async () => {
     renderContainer()
     fireEvent.click(
@@ -515,7 +527,10 @@ describe('TokenPickerContent', () => {
     expect(
       screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
     ).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Sign approval' })).toBeEnabled()
+    expect(
+      screen.getByRole('button', { name: 'What will I sign?' }),
+    ).toBeVisible()
     expect(containerMocks.l2QuoteKeys).toHaveLength(0)
   })
 
@@ -574,7 +589,7 @@ describe('TokenPickerContent', () => {
 
     // Covered in full, registration shows the receipt alone.
     expect(screen.getByText(/No additional payment needed/)).not.toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Register name' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sign approval' }))
 
     await waitFor(() =>
       expect(containerMocks.send).toHaveBeenCalledWith(

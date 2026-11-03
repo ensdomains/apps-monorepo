@@ -55,7 +55,7 @@ export const PaymentAction = ({
       >
         {onRetry ? <Trans>Try again</Trans> : label}
       </Button>
-      {helpMessage && !isBusy && (
+      {helpMessage && (
         <Popover>
           <PopoverTrigger className="flex items-center gap-1 rounded px-2 py-1 text-ens-quartz-500 text-xs outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ens-blue">
             <MSymbol

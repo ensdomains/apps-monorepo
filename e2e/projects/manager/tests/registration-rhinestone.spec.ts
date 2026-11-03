@@ -1392,7 +1392,7 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
       await expect(picker.getByText(/\baccount\b/i)).toHaveCount(0)
       // A debit of zero is a legitimate state, not a missing quote.
       await expect(
-        picker.getByRole('button', { name: /^register name$/i }),
+        picker.getByRole('button', { name: /^sign approval$/i }),
       ).toBeEnabled()
     })
   })

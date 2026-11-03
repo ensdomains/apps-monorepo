@@ -579,7 +579,11 @@ export const TokenPickerContent = () => {
     isPaidWithEth,
     signerType: account.signer?.type,
   })
-    .with({ isPaymentApprovalRequired: false }, () => undefined)
+    .with(
+      { isPaymentApprovalRequired: false },
+      () =>
+        t`Your existing balance covers the registration and its network fee, so nothing is charged from your wallet. Your wallet may still ask you to sign to start the registration.`,
+    )
     .with(
       { isPaidWithEth: true },
       () =>
@@ -622,7 +626,8 @@ export const TokenPickerContent = () => {
     .with({ isPaymentApprovalRequired: true }, () => (
       <Trans>Approve and register</Trans>
     ))
-    .otherwise(() => <Trans>Register name</Trans>)
+    // The balance covers everything: the design keeps the approval wording.
+    .otherwise(() => <Trans>Sign approval</Trans>)
 
   return (
     <TokenPickerContentBase
