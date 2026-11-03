@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
-/** The modal warning, the payment CTA ("Try again" when `onRetry` is set), and "What will I sign?". */
+/** The modal warning, the payment CTA ("Try again" when `onRetry` is set), "What will I sign?", and an optional notice below it. */
 export const PaymentAction = ({
   label,
   warning,
@@ -19,6 +19,7 @@ export const PaymentAction = ({
   isBusy,
   isSettling,
   helpMessage,
+  notice,
 }: {
   readonly label: ReactNode
   readonly warning: ReactNode
@@ -28,6 +29,7 @@ export const PaymentAction = ({
   readonly isBusy: boolean
   readonly isSettling: boolean
   readonly helpMessage: ReactNode
+  readonly notice?: ReactNode
 }) => {
   const isEnabled = !isBusy && (canNext || !!onRetry)
 
@@ -68,6 +70,9 @@ export const PaymentAction = ({
             {helpMessage}
           </PopoverContent>
         </Popover>
+      )}
+      {notice && (
+        <p className="text-center text-ens-quartz-400 text-sm">{notice}</p>
       )}
     </div>
   )

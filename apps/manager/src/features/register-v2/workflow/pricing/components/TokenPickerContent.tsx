@@ -608,6 +608,11 @@ export const TokenPickerContent = () => {
       l2Payment={l2Payment}
       label={label}
       nextMessage={nextMessage}
+      // The reveal is sent from this tab after the commitment wait, so the
+      // registration only completes while it stays open.
+      notice={
+        <Trans>Keep browser open until your transaction is confirmed</Trans>
+      }
       onNext={() => availabilityMutation.mutate()}
       onRetry={() => {
         availabilityMutation.reset()
@@ -793,6 +798,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   globalErrorMessage,
   revalidatedShortfall,
   helpMessage,
+  notice,
   fullyCoveredMessage = (
     <Trans>
       No additional payment needed. Your available balance covers the total.
@@ -836,6 +842,8 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
   /** A shortfall found at click time, shown when the render saw none. */
   readonly revalidatedShortfall?: number | undefined
   readonly helpMessage?: ReactNode
+  /** Shown below "What will I sign?", e.g. what the user must do after signing. */
+  readonly notice?: ReactNode
   readonly fullyCoveredMessage?: ReactNode
   readonly onSelectCoin: (coin: T) => void
   readonly onNext: () => void
@@ -1159,6 +1167,7 @@ export const TokenPickerContentBase = <T extends TOKEN_SYMBOL>({
           isBusy={isBusy}
           isSettling={isSettling}
           label={nextMessage}
+          notice={notice}
           onNext={onNext}
           onRetry={
             hasBudgetQuoteFailed && !isQuotingFunding ? onRetry : undefined

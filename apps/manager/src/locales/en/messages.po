@@ -1703,6 +1703,10 @@ msgstr "Join the community"
 msgid "Keep <0>{0}</0> as a manager."
 msgstr "Keep <0>{0}</0> as a manager."
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Keep browser open until your transaction is confirmed"
+msgstr "Keep browser open until your transaction is confirmed"
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."

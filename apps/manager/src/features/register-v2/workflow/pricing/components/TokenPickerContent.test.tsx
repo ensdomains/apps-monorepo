@@ -510,6 +510,27 @@ describe('TokenPickerContent', () => {
     expect(screen.queryByText(/more needed/)).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['a payment approval is needed', null],
+    [
+      'the account credit covers it all',
+      { ...fiveUsdcBudget, hcaBalance: 5_000_000n },
+    ],
+  ] as const)(
+    'tells the user to keep the browser open when %s',
+    (_, budget) => {
+      containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+      containerMocks.renderBudget = budget
+      renderContainer()
+
+      expect(
+        screen.getByText(
+          'Keep browser open until your transaction is confirmed',
+        ),
+      ).toBeInTheDocument()
+    },
+  )
+
   it('needs no method when the account credit covers it all, bridging nothing', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
     containerMocks.renderBudget = { ...fiveUsdcBudget, hcaBalance: 5_000_000n }

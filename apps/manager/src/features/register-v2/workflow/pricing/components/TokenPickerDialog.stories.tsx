@@ -78,6 +78,7 @@ interface TokenPickerDialogShellProps {
   readonly stablecoinBalances?: StablecoinBalance[]
   readonly globalErrorMessage?: string | null
   readonly helpMessage?: string
+  readonly notice?: string
   readonly footer?: ReactNode
   readonly initialSelectedToken?: SUPPORTED_TOKEN
   readonly funding?: RegistrationFundingSummary
@@ -97,6 +98,7 @@ export const TokenPickerDialogShell = ({
   stablecoinBalances = [FUNDED_USDC],
   globalErrorMessage = null,
   helpMessage,
+  notice,
   footer,
   initialSelectedToken,
   funding,
@@ -135,6 +137,7 @@ export const TokenPickerDialogShell = ({
           }
         }
         label={label}
+        notice={notice}
         onNext={() => {}}
         onSelectCoin={(coin) => {
           setSelectedChainId(undefined)
@@ -487,6 +490,20 @@ export const LongNameWithApprovalDetails: Story = {
       }
     />
   ),
+}
+
+export const KeepBrowserOpenNotice: Story = {
+  args: {
+    ...FundedUSDC.args,
+    helpMessage:
+      'Your wallet will ask you to sign a payment approval for the amount shown.',
+    notice: 'Keep browser open until your transaction is confirmed',
+  },
+}
+
+export const KeepBrowserOpenNoticeMobile: Story = {
+  ...KeepBrowserOpenNotice,
+  parameters: { viewport: { defaultViewport: 'mobile1' } },
 }
 
 export const FixtureMultipleMethodsCollapsed: Story = {
