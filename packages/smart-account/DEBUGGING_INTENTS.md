@@ -238,6 +238,14 @@ simulation with `ERC20InsufficientBalance` 0.0023 USDC short of the price.
 spend and `(gasLimit + 2 × gasOverhead) × gasPrice × exchangeRate`, capped at
 the signed `refundAmount`. Reported to Rhinestone.
 
+The executor reverts `ExcessiveGasRefund()` (`0xda334754`, in Rhinestone's
+`StandaloneIntent.sol`) when `pulled` exceeds the signed `refundAmount`. The
+relayer pays the gas price it quoted, which on Sepolia jumps between ~1 Mwei and
+1 gwei from one intent to the next (2026-11-03), so an intent quoted low and
+simulated after a jump is refused at submit with `retryable: false`. Nothing
+landed, so the transaction machine resends it with a fresh quote
+(`isStaleGasQuoteError`).
+
 To see what the orchestrator would quote right now, `POST /intents/route` with
 the API key and read
 `intentOp.elements[].mandate.qualifier.settlementContext.gasRefund` —
