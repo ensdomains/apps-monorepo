@@ -24,7 +24,7 @@ export type NameForFetch = {
 }
 
 /** Inventory-only reads cannot certify that an unlisted singleton is empty. */
-export const hasKnownContentHashGetter = (params: {
+const hasKnownContentHashGetter = (params: {
   readonly resolver: Address
   readonly chainId: number | undefined
 }): boolean => {
@@ -40,7 +40,7 @@ export const hasKnownContentHashGetter = (params: {
 export type ProfileKeyEntry = {
   readonly id: string
   readonly texts: readonly string[]
-  readonly coinTypes: readonly number[]
+  readonly coinTypes: readonly bigint[]
   readonly hasContentHash: boolean
   readonly abiContentTypes: readonly bigint[]
   readonly interfaceIds: readonly Hex[]
@@ -151,8 +151,7 @@ export const buildProfileMulticallPlan = (
         args: [name.nodeHex, key],
       })
     }
-    for (const ct of entry.coinTypes) {
-      const coinType = BigInt(ct)
+    for (const coinType of entry.coinTypes) {
       calls.push({ name, kind: 'addr', coinType })
       contracts.push({
         address: name.v1ResolverAddress,
@@ -315,4 +314,23 @@ export const mergeMulticallResultsIntoProfiles = (params: {
     }
   }
   return buckets
+}
+
+export const completedProfileNames = ({
+  calls,
+  names,
+  completedChunks,
+  chunkSize,
+}: {
+  readonly calls: readonly ResolverCall[]
+  readonly names: readonly NameForFetch[]
+  readonly completedChunks: ReadonlySet<number>
+  readonly chunkSize: number
+}): readonly string[] => {
+  const pending = new Set(
+    calls.flatMap(({ name }, index) =>
+      completedChunks.has(Math.floor(index / chunkSize)) ? [] : [name.name],
+    ),
+  )
+  return names.filter(({ name }) => !pending.has(name)).map(({ name }) => name)
 }

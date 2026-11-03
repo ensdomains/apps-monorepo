@@ -1,11 +1,14 @@
 import { useActorRef, useSelector } from '@xstate/react'
-import { createContext, use, useEffect } from 'react'
+import { createContext, use, useEffect, useState } from 'react'
 import { useConfig } from 'wagmi'
 import type { Actor } from 'xstate'
+import { publicClient } from '@/lib/wagmi'
+import { createUpgradeReadCoordinator } from '../service/upgradeReadCoordinator'
 import {
   type MigrationUiSnapshot,
   migrationUiMachine,
 } from './migrationUi.machine'
+import { UpgradeReadCoordinatorContext } from './upgradeReadCoordinator.context'
 
 const MigrationUiContext = createContext<{
   uiActor: Actor<typeof migrationUiMachine>
@@ -17,6 +20,9 @@ export const MigrationUiProvider = ({
   children: React.ReactNode
 }) => {
   const wagmiConfig = useConfig()
+  const [readCoordinator] = useState(() =>
+    createUpgradeReadCoordinator({ publicClient }),
+  )
   const uiActor = useActorRef(migrationUiMachine, {
     input: { wagmiConfig },
   })
@@ -28,13 +34,18 @@ export const MigrationUiProvider = ({
       },
     })
 
-    return subscription.unsubscribe
-  }, [uiActor])
+    return () => {
+      subscription.unsubscribe()
+      readCoordinator.dispose()
+    }
+  }, [uiActor, readCoordinator])
 
   return (
-    <MigrationUiContext.Provider value={{ uiActor }}>
-      {children}
-    </MigrationUiContext.Provider>
+    <UpgradeReadCoordinatorContext.Provider value={readCoordinator}>
+      <MigrationUiContext.Provider value={{ uiActor }}>
+        {children}
+      </MigrationUiContext.Provider>
+    </UpgradeReadCoordinatorContext.Provider>
   )
 }
 

@@ -17,6 +17,7 @@ import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { estimateGraceRenewalGas } from './estimateGraceRenewalGas'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type { GraceRenewalQuote } from './graceRenewal'
+import type { MigrationEstimateObserver } from './migrationEstimateProgress'
 import { projectRenewedDomain } from './projectRenewedDomain'
 import { discoverSubnameRecreation } from './subnameRecreation'
 
@@ -25,6 +26,7 @@ type Params = {
   readonly domains: readonly V1Domain[]
   readonly hcaAddress: Address
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly wagmiConfig: Config
   /** Names whose ENSv1 controller the owner chose to keep as an ENSv2 manager. */
   readonly managerRestorationNames?: readonly string[]
@@ -32,6 +34,7 @@ type Params = {
   readonly canBatchAtomically?: boolean
   readonly isSubnameRecreationEnabled?: boolean
   readonly signal?: AbortSignal
+  readonly onProgress?: MigrationEstimateObserver
 }
 
 export type GraceRenewalMigrationGasEstimate = {
@@ -108,29 +111,43 @@ const estimateProjectedMigration = async (
   domains: readonly V1Domain[],
 ) => {
   const { quote, hcaAddress, publicClient, wagmiConfig, signal } = params
+  const selectedNames = domains.map(({ name }) => name)
   const managerRestorationNames = params.managerRestorationNames ?? []
   const discovery = params.isSubnameRecreationEnabled
     ? await discoverSubnameRecreation({
+        onNamesChecked: params.onProgress
+          ? (names) => params.onProgress?.({ stage: 'checking-names', names })
+          : undefined,
         domains,
         owner: quote.ownerAddress,
         publicClient,
+        verificationClient: params.verificationClient,
         signal,
       })
     : undefined
   const recreation = discovery?.snapshot.roots.length ? discovery : undefined
   const migrationDomains = recreation?.domains ?? domains
   // Projected expiries must not share the executable preflight cache.
+  await params.onProgress?.({ stage: 'checking-names', names: selectedNames })
+  await params.onProgress?.({ stage: 'finding-records', names: [] })
   const preflight = await computeMigrationPreflight({
+    onNamesRead: params.onProgress
+      ? (names) => params.onProgress?.({ stage: 'finding-records', names })
+      : undefined,
     eoa: quote.ownerAddress,
     hcaAddress,
     domains,
     requiresManagerRestoration: managerRestorationNames.length > 0,
     publicClient,
+    verificationClient: params.verificationClient,
+    approvalReadClient: params.verificationClient ? publicClient : undefined,
     wagmiConfig,
     signal,
   })
   signal?.throwIfAborted()
+  await params.onProgress?.({ stage: 'finding-records', names: selectedNames })
   const plan = await buildMigrationPlan({
+    onProgress: params.onProgress,
     domains: migrationDomains,
     subnameRecreation: recreation
       ? { snapshot: recreation.snapshot }
@@ -139,6 +156,7 @@ const estimateProjectedMigration = async (
     migrationOwner: quote.ownerAddress,
     managerRestorationNames,
     publicClient,
+    verificationClient: params.verificationClient,
     preflight,
     canBatchAtomically: params.canBatchAtomically,
     projectedExpiryNames: new Set(
@@ -163,8 +181,10 @@ const estimateProjectedMigration = async (
       'Could not estimate the network fee for every selected name.',
     )
   }
+  await params.onProgress?.({ stage: 'checking-fee', names: [] })
   const estimate = await estimateMigrationGasCost({ plan, publicClient })
   if (estimate.status === 'error') throw estimate.error
+  await params.onProgress?.({ stage: 'checking-fee', names: selectedNames })
   return {
     ...estimate,
     classified: plan.classified,

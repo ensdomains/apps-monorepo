@@ -146,7 +146,7 @@ type Dependencies = {
     getAddress: (user?: any) => Address
     getPrivateKey: (user?: any) => Hash
   }
-  time: Time
+  time: Pick<Time, 'sync'>
 }
 
 // ---------------------------------------------------------------------------

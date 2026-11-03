@@ -1,6 +1,8 @@
 import {
   type Call,
   getSmartAccountAddress,
+  type HcaDisplayedDebit,
+  type HcaFundingApprovalCapability,
   type HcaFundingPrompt,
   hcaMaxIntentFeeUsdcFor,
   type PermitPurpose,
@@ -12,6 +14,7 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { assertPaymentTokenSupported } from '@ens-apps/transaction-manager/contracts/paymentToken'
+import { assertHcaFundingWallet } from '@ens-apps/transaction-manager/helpers/hca-funding-approval'
 import {
   authorizedPaymentAmount,
   encodeRenewBatchData,
@@ -57,7 +60,7 @@ export const HCA_RENEWAL_INTENT_MAX_ITEMS = 25
 /** How the funding permit's errors describe a renewal. */
 const RENEWAL_PERMIT_PURPOSE: PermitPurpose = {
   subject: 'the renewal',
-  shownAt: 'in the renewal payment prompt',
+  shownAt: 'when you started the renewal',
   costNote:
     'The amount covers the renewal price with its 10% buffer, and in USDC ' +
     'the network fee, less what the smart account already holds.',
@@ -113,6 +116,13 @@ export interface SubmitHcaRenewalParams {
    * accept it. Called only when the HCA cannot cover the renewal out of its own
    * balance, and always before the wallet is asked to sign anything.
    */
+  readonly approvalFallback?: HcaFundingApprovalCapability
+  readonly signal?: AbortSignal
+  /**
+   * What the payment screen showed the wallet would pay. The funding is checked
+   * against it instead of asking `confirmFunding`.
+   */
+  readonly displayedDebit?: HcaDisplayedDebit
   readonly confirmFunding?: (
     prompt: HcaFundingPrompt,
   ) => Promise<boolean> | boolean
@@ -284,12 +294,25 @@ export async function quoteHcaRenewalFee(
 }
 
 /**
+ * How the user agrees to the funding the intent re-quotes: by the debit the
+ * payment screen showed, else by a prompt before any signature.
+ */
+const fundingConsent = ({
+  displayedDebit,
+  confirmFunding,
+}: Pick<SubmitHcaRenewalParams, 'displayedDebit' | 'confirmFunding'>) => {
+  if (displayedDebit) return { displayedDebit }
+  if (confirmFunding) return { confirmFunding }
+  return {}
+}
+
+/**
  * Renew one or more names as a single owner-signed HCA intent, with the rent in
  * the chosen stable and the intent's fee in USDC.
  *
- * There is no plain transaction and no gas token on this route: the wallet
- * signs typed data (the intent, plus a funding permit per token the HCA is
- * short of), and the HCA executes the calls out of its own balances.
+ * The wallet normally signs typed data for funding and the intent. A proven
+ * delegated-wallet USDC incompatibility can instead use a separately consented,
+ * bounded approval transaction, paid in ETH, before the owner signs the intent.
  *
  * `renew` charges `msg.sender`, so the payer is the HCA, and the intent is
  * owner-signed — `HCAOwnerAndSessionValidator` allowlists only `commit` and
@@ -313,7 +336,6 @@ export async function submitHcaRenewal(
     chainId,
     onTxId,
     onSubmitted,
-    confirmFunding,
   } = params
 
   const single = items.length === 1 ? items[0] : undefined
@@ -366,11 +388,29 @@ export async function submitHcaRenewal(
     },
     gasLimit,
     maxFeeUsdc: hcaMaxIntentFeeUsdcFor(gasLimit),
-    // The amounts are quoted here, not on any earlier screen, so this is the
-    // only place they can be shown before a signature is requested.
-    ...(confirmFunding ? { confirmFunding } : {}),
+    ...fundingConsent(params),
     purpose: RENEWAL_PERMIT_PURPOSE,
+    ...(params.approvalFallback
+      ? { approvalFallback: params.approvalFallback }
+      : {}),
+    ...(params.signal ? { signal: params.signal } : {}),
   })
+
+  // Cancellation never undoes an approval, but it must stop a detached screen from starting an intent.
+  if (params.signal?.aborted)
+    return Promise.reject(
+      new Error('The renewal screen was closed before submission.'),
+    )
+  if (params.approvalFallback) {
+    const identity = await assertHcaFundingWallet({
+      walletClient,
+      publicClient,
+      owner: ownerAddress,
+      chainId,
+      ...(params.signal ? { signal: params.signal } : {}),
+    })
+    if (identity.isErr()) return Promise.reject(identity.error)
+  }
 
   // Assigned by `startTransaction` below; the transport reports the submitted
   // intent only after that returns.
@@ -398,6 +438,7 @@ export async function submitHcaRenewal(
     ? `Renew ${single.label}.eth`
     : `Renew ${items.length} names`
 
+  params.signal?.throwIfAborted()
   txId = transactionManager.startTransaction(
     { type: 'custom', request },
     ownerSigner,
@@ -406,6 +447,8 @@ export async function submitHcaRenewal(
       publicClient,
       chainId,
       operation: 'renew-name',
+      // An accepted intent can still fill after its status request fails.
+      retryCount: 0,
     },
   )
   onTxId?.(txId)
