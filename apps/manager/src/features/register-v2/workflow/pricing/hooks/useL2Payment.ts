@@ -11,6 +11,8 @@ import type { RegistrationV2UiActor } from '../../../state/registrationUi.contex
 import type { FundingSourceOrigin } from '../../../state/registrationUi.machine'
 import {
   getL2PaymentOptions,
+  getSelectedL2ChainId,
+  isL2OptionEmpty,
   type L2PaymentOption,
 } from '../lib/paymentOptions'
 
@@ -36,12 +38,9 @@ export type L2PaymentProps = Readonly<{
   onFallbackSelect: (chainId: number) => void
 }>
 
-/**
- * The wallet holds no USDC there. With nothing to bridge such a row still
- * reads as `available` and its quote as `0n`, which it would otherwise cover.
- */
+/** The wallet holds no USDC on the row's L2. */
 export const isL2Empty = (row: L2PaymentRow): boolean =>
-  row.option.balanceRaw === 0n
+  isL2OptionEmpty(row.option)
 
 /** Quoted, and the balance there covers the quote. */
 export const canPayFromL2 = (row: L2PaymentRow): boolean =>
@@ -191,9 +190,7 @@ export const useL2PaymentRows = ({
   })
   return {
     rows,
-    selectedChainId: rows.find(
-      ({ option }) => option.source.chain.id === selectedChainId,
-    )?.option.source.chain.id,
+    selectedChainId: getSelectedL2ChainId(options, selectedChainId),
     selectedOrigin,
     onSelect,
     onFallbackSelect,
