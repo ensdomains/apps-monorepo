@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { FailureStep, FailureStepView } from './FailureStep'
 
 // The container reads two signals from two places: the registration's failure
-// and this page's session reset. Both are stubbed so the wiring is what runs.
+// and this browser's session reset. Both are stubbed so the wiring is what runs.
 const signals = vi.hoisted(() => ({
   isSessionAccessReset: false,
   isSignatureRejected: false,

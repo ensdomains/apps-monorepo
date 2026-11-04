@@ -31,7 +31,7 @@ export const FailureStep = () => {
   const isWalletBusy = RegisterV2Context.useSelector(
     (state) => state.context.isWalletBusy,
   )
-  // The run's intent was refused after this page reset smart session access:
+  // The run's intent was refused after this browser reset smart session access:
   // the run still holds the revoked session, so retrying fails the same way.
   const isSignatureRejected = RegisterV2Context.useSelector(
     (state) => state.context.isSignatureRejected,

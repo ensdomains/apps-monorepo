@@ -132,7 +132,7 @@ type Context = {
   nameUnavailable: boolean
   /**
    * The orchestrator refused the intent's signature (`InvalidSignature()`).
-   * With a session revoked on this page, that is the revoke taking effect.
+   * With a session reset from this browser, that is the reset taking effect.
    */
   isSignatureRejected: boolean
   /**

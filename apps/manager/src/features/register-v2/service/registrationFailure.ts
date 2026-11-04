@@ -59,7 +59,7 @@ export const isNameNotAvailableError = (error: unknown): boolean =>
 
 // The orchestrator's emissary reports any validator rejection of an intent
 // this way, a session the owner revoked included. It wraps other causes too,
-// so it only says "the session was revoked" next to a revoke on this page.
+// so it only says "the session was revoked" next to a reset from this browser.
 const INVALID_SIGNATURE_SELECTOR = toFunctionSelector('InvalidSignature()')
 const INVALID_SIGNATURE_IN_TEXT = new RegExp(
   `(?<!\\w)InvalidSignature\\(\\)|(?<![0-9a-f])${INVALID_SIGNATURE_SELECTOR}(?![0-9a-f])`,
