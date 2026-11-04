@@ -13,7 +13,7 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 import type { SupportedTokenAddresses } from '../types/tokens'
 
-// Shared by register + renew pricing (same rent-price oracle). The cause union
+// Shared by register + renew pricing (same price oracle). The cause union
 // covers renewals (`GetRenewPriceErrorType`), constructed from `useRenewalPrice`.
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',

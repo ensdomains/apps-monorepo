@@ -25,6 +25,12 @@ import { useV1NameClassificationTime } from './useV1NameClassificationTime'
 
 const EMPTY_WRAPPER_SYNC_NAMES: readonly ClassifiedName[] = []
 
+// A resumed run rebuilds its batch from the durable snapshot, not from eligibility.
+const unlessRecovering = <T>(
+  isRecovering: boolean,
+  items: readonly T[] | undefined,
+): readonly T[] => (isRecovering ? [] : (items ?? []))
+
 type UseEligibleV1NamesOptions = {
   readonly enabled?: boolean
   readonly fallbackToClassified?: boolean
@@ -156,6 +162,11 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
     ? []
     : (eligibility?.blockedSubnames ?? [])
 
+  const unrecoverableSubnames = unlessRecovering(
+    !!recoverySnapshot,
+    eligibility?.unrecoverableSubnames,
+  )
+
   const verifiedSubnames = useMemo<readonly CopyClassifiedName[]>(() => {
     if (recoverySnapshot) return []
     const eligibleNames = new Set(eligible.map(({ domain }) => domain.name))
@@ -172,6 +183,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
     unavailableNames,
     blockedSubnames,
     verifiedSubnames,
+    unrecoverableSubnames,
     isEligibilityError:
       !recoverySnapshot && (!!isEligibilityError || !!isV1Error),
     retryEligibility: () => {

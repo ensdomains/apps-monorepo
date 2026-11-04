@@ -32,7 +32,7 @@ export const RenewingStep = () => {
       <div className="mx-auto max-w-6xl pt-3 md:w-full-[32px]">
         <RegistrationProgressBar
           {...match(step)
-            // One owner-signed intent does the whole job: allowance, rent and
+            // One owner-signed intent does the whole job: allowance, price and
             // fee. It is submitted and awaited in a single step, so there is
             // nothing to show in between.
             .with('submittingHcaRenewal', () => ({

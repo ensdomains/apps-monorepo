@@ -10,7 +10,7 @@ const PRODUCTION_FAILURE = {
 }
 
 describe('computeRegistrationFunding', () => {
-  it('splits the budget into the rent and the network fee', () => {
+  it('splits the budget into the price and the network fee', () => {
     const funding = computeRegistrationFunding({
       budget: PRODUCTION_FAILURE,
       decimals: USDC,

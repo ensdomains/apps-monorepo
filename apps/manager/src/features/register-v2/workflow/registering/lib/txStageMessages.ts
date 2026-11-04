@@ -46,6 +46,10 @@ export const getRegistrationStageMessages = (
         stageDescription: msg`Waiting for the payment you already signed to arrive`,
       }),
     )
+    .with({ stage: 'swappingEth' }, () => ({
+      stageLabel: msg`Swapping ETH for USDC`,
+      stageDescription: msg`Confirm the swap in your wallet, then wait for it to complete`,
+    }))
     .with({ stage: 'idle' }, () => ({
       stageLabel: msg`Idle`,
       stageDescription: msg`The registration flow is idle`,
