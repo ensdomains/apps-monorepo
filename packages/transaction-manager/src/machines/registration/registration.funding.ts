@@ -200,6 +200,9 @@ export const prepareRegistrationFunding = ResultFn(async function* (input: {
   readonly permit: PermitSignature | undefined
   readonly approvalFallback: RegistrationFundingApproval | undefined
   readonly signal: AbortSignal | undefined
+  readonly validateOwnerSetup: (
+    funding: ReturnType<typeof buildFundingCalls>,
+  ) => ResultAsync<void, Error>
 }) {
   const { permit, approvalFallback, publicClient, token, signal } = input
   const build = (funding: Funding) => buildFundingCalls({ ...input, funding })
@@ -283,8 +286,12 @@ export const prepareRegistrationFunding = ResultFn(async function* (input: {
   )
   if (allowance !== amount) {
     const approvalAmount = yield* refreshAmount(consented)
-    if (approvalAmount > 0n)
+    if (approvalAmount > 0n) {
+      yield* input
+        .validateOwnerSetup(build({ kind: 'allowance', value: approvalAmount }))
+        .mapErr(fundingError)
       yield* approveHcaFunding({ ...approval, amount: approvalAmount })
+    }
     const fundedAmount = yield* refreshAmount(approvalAmount)
     yield* requireExactFundingAmount(fundedAmount, approvalAmount)
     yield* assertHcaFundingWallet(approval)

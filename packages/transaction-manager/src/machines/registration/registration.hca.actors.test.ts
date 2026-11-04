@@ -2,11 +2,13 @@
 
 import {
   buildHcaSessionConfig,
+  buildStandaloneAccountConfig,
   computeResolverAddress,
   getDestinationContracts,
   HCA_ADDR_REVERSE_CLEAR_GAS,
   primaryNameGas,
 } from '@ens-apps/smart-account'
+import { RhinestoneSDK } from '@rhinestone/sdk'
 import type { Address, Hex, PublicClient } from 'viem'
 import {
   ContractFunctionRevertedError,
@@ -25,6 +27,7 @@ import {
   parseAbiParameters,
   parseSignature,
   zeroAddress,
+  zeroHash,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { mainnet, sepolia } from 'viem/chains'
@@ -128,6 +131,58 @@ const makeRegistrationFundingRun = async () => {
     '0x0000000000000000000000000000000000000000000000000000000000000001',
   )
   const contracts = getDestinationContracts(mainnet.id)
+  const sdkAccount = await new RhinestoneSDK({
+    auth: { mode: 'apiKey', apiKey: 'test-key' },
+    provider: { type: 'custom', urls: { 1: 'https://rpc.invalid' } },
+  }).createAccount({
+    account: buildStandaloneAccountConfig(1),
+    owners: {
+      type: 'ecdsa',
+      accounts: [account],
+      module: contracts.hcaOwnerAndSessionValidator,
+    },
+  })
+  const prepareOwnerSetup = vi
+    .spyOn(sdkAccount, 'prepareTransaction')
+    .mockImplementation(async (transaction) => ({
+      transaction,
+      intentInput: {},
+      // SDK tuples incorrectly require token claims on a no-funding route.
+      intentRoute: {
+        intentOp: {
+          sponsor: HCA,
+          elements: [
+            {
+              chainId: '1',
+              idsAndAmounts: [],
+              spendTokens: [],
+              mandate: {
+                recipient: HCA,
+                destinationChainId: '1',
+                tokenOut: [],
+                preClaimOps: { vt: zeroHash, ops: [] },
+                destinationOps: {
+                  vt: `0x0201${'00'.repeat(30)}`,
+                  ops: transaction.calls,
+                },
+                qualifier: {
+                  settlementContext: {
+                    settlementLayer: 'INTENT_EXECUTOR',
+                    fundingMethod: 'NO_FUNDING',
+                    using7579: true,
+                    gasRefund: {
+                      token: contracts.usdc,
+                      exchangeRate: 1n,
+                      overhead: (1n << 128n) | 1n,
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      } as never,
+    }))
   const domain = {
     name: 'USD Coin',
     version: '2',
@@ -251,7 +306,11 @@ const makeRegistrationFundingRun = async () => {
     wallet: account.address,
     hca: HCA,
     duration: 31_536_000n,
-    signer: rhinestoneSigner,
+    signer: {
+      type: 'rhinestone',
+      account: sdkAccount,
+      config: { chain: mainnet },
+    } satisfies RhinestoneSigner,
     publicClient,
     permit: signedPermit,
     approvalFallback,
@@ -266,6 +325,7 @@ const makeRegistrationFundingRun = async () => {
     walletClient,
     contracts,
     approvalFallback,
+    prepareOwnerSetup,
   }
 }
 
@@ -278,6 +338,30 @@ describe('submitFundingAndCommitActor', () => {
     signer: rhinestoneSigner,
     publicClient: commitClient,
   }
+
+  it.each(['unsupported route', 'RPC failure'])(
+    'refuses %s before requesting a paid approval',
+    async (failure) => {
+      const {
+        input,
+        prepareOwnerSetup,
+        approvalFallback,
+        walletClient,
+        records,
+      } = await makeRegistrationFundingRun()
+      if (failure === 'RPC failure')
+        prepareOwnerSetup.mockRejectedValueOnce(new Error('Quote unavailable'))
+      else prepareOwnerSetup.mockResolvedValueOnce({ intentRoute: {} } as never)
+
+      const result = await submitFundingAndCommitActor(input)
+
+      expect(result.isErr()).toBe(true)
+      expect(approvalFallback.confirmApproval).not.toHaveBeenCalled()
+      expect(walletClient.request).not.toHaveBeenCalled()
+      expect(startTransaction).not.toHaveBeenCalled()
+      expect(records.size).toBe(0)
+    },
+  )
 
   it.each([0n, 30_000_000n])(
     'replaces an incompatible permit and allowance %s with an exact grant and owner-signed pull',

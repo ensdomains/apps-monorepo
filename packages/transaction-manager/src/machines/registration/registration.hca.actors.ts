@@ -81,6 +81,7 @@ import {
 } from 'viem'
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
 import { normalize } from 'viem/ens'
+import { preflightOwnerIntentQuote } from '../../actors/warp-owner-quote'
 import { assertHcaFundingWallet } from '../../helpers/hca-funding-approval'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
@@ -1386,14 +1387,6 @@ export function submitFundingAndCommitActor(input: {
       () => canonicalLabel(input.name),
       (cause) => new RegistrationFundingError({ cause }),
     )
-    const funding = yield* prepareRegistrationFunding({
-      ...input,
-      chainId,
-      token: contracts.usdc,
-      permit: input.permit,
-      approvalFallback: input.approvalFallback,
-      signal: input.signal,
-    })
     const resolverAddress = computeResolverAddress({ chainId, hca: input.hca })
     // Fresh secret per attempt; the reveal reuses all of these commitment inputs.
     const secret = bytesToHex(crypto.getRandomValues(new Uint8Array(32)))
@@ -1411,33 +1404,60 @@ export function submitFundingAndCommitActor(input: {
       (cause) => new RegistrationFundingError({ cause }),
     )
     const commitCall = buildCommitCall({ chainId, commitment })
+    const buildRequest = (funding: {
+      readonly authority: 'session' | 'owner'
+      readonly calls: readonly Call[]
+      readonly incomingUsdc: bigint
+    }) =>
+      buildUserPaidRequest({
+        from: input.hca,
+        chainId,
+        calls: [...funding.calls, commitCall],
+        sessionEnableData:
+          funding.authority === 'session'
+            ? input.sessionEnable?.enableData
+            : undefined,
+        ownerIntentLimits:
+          funding.authority === 'owner'
+            ? getRegistrationOwnerIntentLimits({
+                refundToken: contracts.usdc,
+                enableData: input.sessionEnable?.enableData,
+                signer: input.signer,
+              })
+            : undefined,
+        ...(funding.incomingUsdc > 0n
+          ? { incomingUsdc: funding.incomingUsdc }
+          : {}),
+      })
+    const funding = yield* prepareRegistrationFunding({
+      ...input,
+      chainId,
+      token: contracts.usdc,
+      permit: input.permit,
+      approvalFallback: input.approvalFallback,
+      signal: input.signal,
+      validateOwnerSetup: (planned) => {
+        if (input.signer.type !== 'rhinestone' || !input.publicClient.chain)
+          return errAsync(
+            new RegistrationFundingError({
+              cause:
+                'The owner setup signer and funding network are unavailable.',
+            }),
+          )
+        return preflightOwnerIntentQuote({
+          request: buildRequest(planned),
+          account: input.signer.account,
+          chain: input.publicClient.chain,
+        })
+      },
+    })
     // A bare pull is outside the session policy. The owner signs this setup
     // intent only; the machine retains its original session signer for reveal.
     const signer = yield* getRegistrationCommitSigner({
       authority: funding.authority,
       signer: input.signer,
     })
-    const request = buildUserPaidRequest({
-      from: input.hca,
-      chainId,
-      calls: [...funding.calls, commitCall],
-      sessionEnableData:
-        funding.authority === 'session'
-          ? input.sessionEnable?.enableData
-          : undefined,
-      ownerIntentLimits:
-        funding.authority === 'owner'
-          ? getRegistrationOwnerIntentLimits({
-              refundToken: contracts.usdc,
-              enableData: input.sessionEnable?.enableData,
-              signer: input.signer,
-            })
-          : undefined,
-      // The planner sees only what this batch actually pulls from the wallet.
-      ...(funding.incomingUsdc > 0n
-        ? { incomingUsdc: funding.incomingUsdc }
-        : {}),
-    })
+    const request = buildRequest(funding)
     if (funding.authority === 'owner') {
       const allowance = yield* fromPromise(
         input.publicClient.readContract({
