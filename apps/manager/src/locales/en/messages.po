@@ -1787,6 +1787,7 @@ msgid "Loading NFT artwork…"
 msgstr "Loading NFT artwork…"
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
+#: src/features/dashboard/components/FavoritesList.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/notifications/inbox/list.tsx
 #: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
@@ -3169,6 +3170,7 @@ msgstr "Some names are more in-demand than others — the stats below can help y
 msgid "Some names are more in-demand than others."
 msgstr "Some names are more in-demand than others."
 
+#: src/features/dashboard/components/FavoritesList.tsx
 #: src/features/dashboard/components/MyNamesList.tsx
 msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
@@ -3288,10 +3290,6 @@ msgstr "Subtotal:"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Support"
 msgstr "Support"
-
-#: src/features/dashboard/components/FaqSection.tsx
-#~ msgid "Supported direct subnames, such as alice.example.eth, can be included when you upgrade an unwrapped or unlocked example.eth. Each keeps the owner and resolver shown in your review. Existing subname records stay on that resolver, and you keep control of the parent name."
-#~ msgstr "Supported direct subnames, such as alice.example.eth, can be included when you upgrade an unwrapped or unlocked example.eth. Each keeps the owner and resolver shown in your review. Existing subname records stay on that resolver, and you keep control of the parent name."
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Supported direct subnames, such as alice.example.eth, upgrade with an unwrapped or unlocked example.eth:"

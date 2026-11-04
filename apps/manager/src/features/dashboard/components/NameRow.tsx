@@ -66,6 +66,7 @@ interface NameRowProps {
   readonly isFavorite?: boolean
   readonly showFavoriteButton?: boolean
   readonly onToggleFavorite?: () => void
+  readonly onOptionsOpenChange?: (isOpen: boolean) => void
   readonly isAuthenticated?: boolean
   readonly isInGrace?: boolean
   readonly canRenew?: boolean
@@ -380,11 +381,13 @@ const NameAvatar = ({
 }
 
 const NameOptionsMenu = ({
+  onOpenChange,
   canRenew,
   label,
   renewalProtocol,
   showNotificationsAction,
 }: {
+  readonly onOpenChange?: (isOpen: boolean) => void
   readonly canRenew: boolean
   readonly label: string
   readonly renewalProtocol: RenewalProtocol
@@ -395,7 +398,7 @@ const NameOptionsMenu = ({
   if (!canRenew && !showNotificationsAction) return null
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
           aria-label={t`More options for ${label}`}
@@ -505,6 +508,7 @@ export const NameRow = ({
   isFavorite = false,
   showFavoriteButton = false,
   onToggleFavorite,
+  onOptionsOpenChange,
   isAuthenticated = true,
   isInGrace = false,
   canRenew = true,
@@ -555,6 +559,7 @@ export const NameRow = ({
         <NameOptionsMenu
           canRenew={canRenew}
           label={label}
+          onOpenChange={onOptionsOpenChange}
           renewalProtocol={renewalProtocol}
           showNotificationsAction={showNotificationsAction}
         />

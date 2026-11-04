@@ -83,7 +83,8 @@ export const toCanonicalRenewableName = (name: string): string | null =>
 export const canRenewV2Name = (
   name: string,
   expiryDate: Date | null | undefined,
+  now: Date = new Date(),
 ) =>
   resolveRenewalLabel(name)
-    .map((label) => isRenewableV2EthName(`${label}.eth`, expiryDate))
+    .map((label) => isRenewableV2EthName(`${label}.eth`, expiryDate, now))
     .unwrapOr(false)

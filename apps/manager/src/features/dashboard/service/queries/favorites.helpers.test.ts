@@ -1,7 +1,11 @@
+import type { LookupRecord } from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
 import {
+  canRenewFavorite,
   type FavoriteEntry,
   filterFavoritesBySearch,
+  filterFavoritesByVersion,
+  getFavoriteMetadata,
   paginateFavorites,
   sortFavorites,
 } from './favorites.helpers'
@@ -191,4 +195,101 @@ describe('favorites.helpers', () => {
       expect(result.hasPrevPage).toBe(false)
     })
   })
+})
+
+describe('filterFavoritesByVersion', () => {
+  const favorites = [
+    createFavorite('old.eth', 1),
+    createFavorite('new.eth', 2),
+    createFavorite('unknown.eth', 3),
+  ]
+  const versions = new Map([
+    ['old.eth', 'v1' as const],
+    ['new.eth', 'v2' as const],
+  ])
+
+  it.each([
+    ['v1' as const, ['old.eth']],
+    ['v2' as const, ['new.eth']],
+    [null, ['old.eth', 'new.eth', 'unknown.eth']],
+  ])(
+    'filters %s without assigning unknown names a version',
+    (version, expected) => {
+      expect(
+        filterFavoritesByVersion(favorites, version, versions).map(
+          ({ label }) => label,
+        ),
+      ).toEqual(expected)
+    },
+  )
+})
+
+it('enriches indexed favorites without treating misses or unknown expiry as non-expiring', () => {
+  const record = (name: string, overrides: Partial<LookupRecord> = {}) => ({
+    name,
+    display_name: name,
+    namespace: 'ens',
+    namehash: '0x01' as const,
+    authority: 'ens_v2' as const,
+    read_status: 'ok' as const,
+    ...overrides,
+  })
+  const results = [
+    {
+      input: { name: 'old.eth' },
+      kind: 'name' as const,
+      status: 'ok' as const,
+      record: record('old.eth', {
+        authority: 'ens_v1',
+        expires_at: '2027-03-04T00:00:00Z',
+        ens_v1: { expires_at: '2027-01-01T00:00:00Z' },
+      }),
+    },
+    {
+      input: { name: 'never.eth' },
+      kind: 'name' as const,
+      status: 'ok' as const,
+      record: record('never.eth', {
+        expires_at: null,
+        expires_at_reason: 'no_expiry',
+      }),
+    },
+    {
+      input: { name: 'unknown.eth' },
+      kind: 'name' as const,
+      status: 'ok' as const,
+      record: record('unknown.eth'),
+    },
+    {
+      input: { name: 'missing.eth' },
+      kind: 'name' as const,
+      status: 'not_found' as const,
+    },
+  ]
+  const metadata = getFavoriteMetadata(
+    results,
+    new Date('2026-11-03T00:00:00Z'),
+  )
+  expect(metadata.get('old.eth')).toEqual({
+    protocol: 'v1',
+    expiryDate: new Date('2027-01-01T00:00:00Z'),
+    expiryLabel: 'January 1, 2027',
+    isInGrace: false,
+  })
+  expect(metadata.get('never.eth')?.expiryLabel).toBe('Does not expire')
+  expect(metadata.get('unknown.eth')?.expiryLabel).toBeNull()
+  expect(metadata.has('missing.eth')).toBe(false)
+})
+
+it('offers renewal only for supported names with confirmed eligibility', () => {
+  const now = new Date('2026-11-04T00:00:00Z')
+  const expiry = new Date('2030-01-01T00:00:00Z')
+  expect([
+    canRenewFavorite('alice.com', 'v1', expiry, true, now),
+    canRenewFavorite('sub.alice.eth', 'v2', expiry, true, now),
+    canRenewFavorite('alice.eth', 'v1', expiry, false, now),
+    canRenewFavorite('alice.eth', 'v1', expiry, true, now),
+    canRenewFavorite('alice.eth', 'v2', new Date('2020-01-01'), false, now),
+    canRenewFavorite('alice.eth', 'v2', expiry, false, now),
+  ]).toEqual([false, false, false, true, false, true])
 })
