@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   readHcaUsdcBalanceActor: vi.fn(),
   readHcaUsdcBalanceAtLeastActor: vi.fn(),
   submitL2BridgeActor: vi.fn(),
+  swapEthForUsdcActor: vi.fn(),
 }))
 
 vi.mock('@ens-apps/transaction-manager', () => ({
@@ -40,6 +41,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
     (gasLimit * 10_000_000n) / 300_000n,
   planHcaIntentFunding: mocks.planHcaIntentFunding,
   quoteHcaIntentFeeUsdc: mocks.quoteHcaIntentFeeUsdc,
+  swapEthForUsdcActor: mocks.swapEthForUsdcActor,
   transactionManager: { startTransaction: mocks.startTransaction },
   waitForTransaction: mocks.waitForTransaction,
 }))
@@ -77,6 +79,10 @@ vi.mock('../data/queries/renewPricing.query', () => ({
   getRenewPrice: mocks.getRenewPrice,
 }))
 
+import {
+  readPendingEthSwap,
+  savePendingEthSwap,
+} from '@/features/register-v2/service/pendingEthSwap'
 import {
   readPendingL2Bridge,
   savePendingL2Bridge,
@@ -753,4 +759,58 @@ it('checks cancellation at the synchronous intent handoff after identity validat
     }),
   ).rejects.toThrow()
   expect(mocks.startTransaction).not.toHaveBeenCalled()
+})
+
+describe('submitHcaRenewal paid with ETH', () => {
+  const ethFunding = { usdcAmount: 2_025_000n, displayedCharge: 10n ** 15n }
+  const sent = { hash: `0x${'ab'.repeat(32)}` as Hex, deadline: 1_700_000_000n }
+  const swapInput = () => mocks.swapEthForUsdcActor.mock.calls[0]?.[0]
+
+  beforeEach(() => {
+    window.localStorage.clear()
+    mocks.swapEthForUsdcActor.mockImplementation(({ onSwapSent }: any) => {
+      onSwapSent?.(sent)
+      return okAsync(2_025_000n)
+    })
+  })
+
+  it('swaps for the USDC first, then funds the account with the usual permit', async () => {
+    mocks.planHcaIntentFunding.mockImplementation(async ({ calls }: any) => {
+      expect(mocks.swapEthForUsdcActor).toHaveBeenCalledOnce()
+      return { calls, quotedFeeUsdc: 900_000n }
+    })
+    const displayedDebit = { usdc: 2_000_000n, token: 0n }
+
+    await submitHcaRenewal({ ...params, displayedDebit, ethFunding })
+
+    expect(swapInput()).toMatchObject({
+      permitValue: 2_025_000n,
+      funding: { displayedCharge: 10n ** 15n },
+      approvalSigner: { type: 'eoa', walletClient },
+    })
+    // The wallet still pays by permit, so the debit shown is still checked.
+    expect(fundingParams()).toMatchObject({ displayedDebit })
+    expect(readPendingEthSwap(params.chainId, OWNER)).toBeUndefined()
+  })
+
+  it('counts a swap an earlier attempt sent instead of buying again', async () => {
+    savePendingEthSwap(params.chainId, OWNER, sent)
+
+    await submitHcaRenewal({ ...params, ethFunding })
+
+    expect(swapInput()).toMatchObject({ pendingSwap: sent })
+  })
+
+  it('stops before any permit when the swap fails, keeping the sent swap for the retry', async () => {
+    mocks.swapEthForUsdcActor.mockImplementation(({ onSwapSent }: any) => {
+      onSwapSent?.(sent)
+      return errAsync(new Error('The ETH swap failed on-chain.'))
+    })
+
+    await expect(submitHcaRenewal({ ...params, ethFunding })).rejects.toThrow(
+      'The ETH swap failed on-chain.',
+    )
+    expect(mocks.planHcaIntentFunding).not.toHaveBeenCalled()
+    expect(readPendingEthSwap(params.chainId, OWNER)).toEqual(sent)
+  })
 })

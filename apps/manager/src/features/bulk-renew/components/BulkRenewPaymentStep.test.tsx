@@ -46,6 +46,7 @@ const payment: UseBulkRenewResult['payment'] = {
   },
   l2Payment: undefined,
   selectedL2: undefined,
+  ethPayment: undefined,
 }
 
 describe('BulkRenewPaymentStep', () => {

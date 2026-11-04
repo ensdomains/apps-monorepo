@@ -11,7 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { FundingSourceOrigin } from '@/features/register-v2/state/registrationUi.machine'
+import type {
+  FundingSourceOrigin,
+  PaymentAsset,
+} from '@/features/register-v2/state/registrationUi.machine'
 import { RenewalFundingDialog } from '@/features/renew/components/RenewalFundingDialog'
 import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { useBulkRenew } from '../hooks/useBulkRenew'
@@ -58,16 +61,26 @@ export const BulkRenewDialog = ({
   // Who picked the method: the fallback's pick gives way when it no longer pays.
   const [fundingSourceOrigin, setFundingSourceOrigin] =
     useState<FundingSourceOrigin>()
+  const [paymentAsset, setPaymentAsset] = useState<PaymentAsset>('stablecoin')
   const selectCoin = (coin: RENEWAL_TOKEN, origin?: FundingSourceOrigin) => {
     setSelectedToken(coin)
     setFundingSourceChainId(undefined)
     setFundingSourceOrigin(origin ?? 'user')
+    setPaymentAsset('stablecoin')
+  }
+  // Swapped into USDC, so the price is paid in USDC.
+  const selectEth = (origin?: FundingSourceOrigin) => {
+    setSelectedToken('USDC')
+    setFundingSourceChainId(undefined)
+    setFundingSourceOrigin(origin ?? 'user')
+    setPaymentAsset('eth')
   }
   // Bridged in as USDC, so the price is paid in USDC.
   const selectL2 = (chainId: number, origin?: FundingSourceOrigin) => {
     setSelectedToken('USDC')
     setFundingSourceChainId(chainId)
     setFundingSourceOrigin(origin ?? 'user')
+    setPaymentAsset('stablecoin')
   }
 
   const [receipt, setReceipt] = useState<{
@@ -92,6 +105,8 @@ export const BulkRenewDialog = ({
     fundingSourceChainId,
     fundingSourceOrigin,
     onSelectL2: selectL2,
+    isEthSelected: paymentAsset === 'eth',
+    onSelectEth: selectEth,
   })
 
   const submit = useBulkRenewSubmit()
@@ -126,12 +141,13 @@ export const BulkRenewDialog = ({
       setReceipt(null)
       setFundingSourceChainId(undefined)
       setFundingSourceOrigin(undefined)
+      setPaymentAsset('stablecoin')
       submit.reset()
     }
     onOpenChange(next)
   }
 
-  const { selectedL2 } = payment
+  const { selectedL2, ethPayment } = payment
   const handleConfirm = () => {
     setReceipt({ rows: summaryRows, total: grandTotal })
     submit.submit({
@@ -145,6 +161,15 @@ export const BulkRenewDialog = ({
             l2Payment: {
               chainId: selectedL2.option.source.chain.id,
               displayedCharge: selectedL2.amountInRaw,
+            },
+          }
+        : {}),
+      // Paid with ETH, one swap buys every chunk's USDC, bounded by the ETH shown.
+      ...(ethPayment?.isSelected && ethPayment.usdcAmount !== undefined
+        ? {
+            ethPayment: {
+              usdcAmount: ethPayment.usdcAmount,
+              displayedCharge: ethPayment.row.chargeRaw,
             },
           }
         : {}),

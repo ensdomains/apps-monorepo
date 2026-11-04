@@ -6,6 +6,7 @@ import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createActor, waitFor } from 'xstate'
 import type { HcaRenewalL2Funding } from '@/features/renew/service/hcaRenewal'
+import type { HcaRenewalEthFunding } from '@/features/renew/service/renewalEthSwap'
 import { renewalUiMachine } from './renewalUi.machine'
 
 const mocks = vi.hoisted(() => ({
@@ -48,10 +49,11 @@ const CURRENT_EXPIRY = 1_800_000_000n
 const expiryOnChain = (expiry: bigint) =>
   okAsync({ expiry, isNonExpiring: false, protocol: 'v2' })
 
-/** What the payment screen hands the renewal: the debit it showed, or the L2 it pays from. */
+/** What the payment screen hands the renewal: the debit it showed, or the L2 or ETH it pays with. */
 type Shown = {
   readonly displayedDebit?: HcaDisplayedDebit
   readonly l2Funding?: HcaRenewalL2Funding
+  readonly ethFunding?: HcaRenewalEthFunding
 }
 
 const startRenewal = (
@@ -573,6 +575,53 @@ describe('renewal paid from an L2', () => {
 
   it('never starts a wallet-route renewal that names an L2', () => {
     const actor = startRenewal('v2', 'eoa', { l2Funding })
+
+    expect(actor.getSnapshot().matches({ pricing: 'tokens' })).toBe(true)
+    expect(mocks.readPaymentTokenAllowanceActor).not.toHaveBeenCalled()
+    actor.stop()
+  })
+})
+
+describe('renewal paid with ETH', () => {
+  const ethFunding = { usdcAmount: 2_025_000n, displayedCharge: 10n ** 15n }
+
+  it('pays a USDC renewal with ETH in place of an L2, until a wallet coin replaces it', () => {
+    const actor = createActor(renewalUiMachine, {
+      input: { currentExpiry: CURRENT_EXPIRY, protocol: 'v2' },
+    }).start()
+    actor.send({ type: 'pricing.step.next' })
+    actor.send({ type: 'pricing.token.select', token: 'DAI' })
+    actor.send({ type: 'pricing.fundingSource.select', chainId: 84_532 })
+
+    actor.send({
+      type: 'pricing.paymentAsset.select',
+      asset: 'eth',
+      origin: 'fallback',
+    })
+    expect(actor.getSnapshot().context).toMatchObject({
+      paymentAsset: 'eth',
+      selectedToken: 'USDC',
+      fundingSourceChainId: undefined,
+      fundingSourceOrigin: 'fallback',
+    })
+
+    actor.send({ type: 'pricing.token.select', token: 'USDC' })
+    expect(actor.getSnapshot().context.paymentAsset).toBe('stablecoin')
+    actor.stop()
+  })
+
+  it('hands the ETH funding shown to the renewal', async () => {
+    const actor = startRenewal('v2', 'smart-account', { ethFunding })
+    await waitForState(actor, 'success')
+
+    expect(mocks.submitHcaRenewal.mock.calls[0]?.[0].ethFunding).toBe(
+      ethFunding,
+    )
+    actor.stop()
+  })
+
+  it('never starts a wallet-route renewal paid with ETH', () => {
+    const actor = startRenewal('v2', 'eoa', { ethFunding })
 
     expect(actor.getSnapshot().matches({ pricing: 'tokens' })).toBe(true)
     expect(mocks.readPaymentTokenAllowanceActor).not.toHaveBeenCalled()

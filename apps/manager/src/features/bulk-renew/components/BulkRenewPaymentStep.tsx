@@ -26,12 +26,16 @@ export const BulkRenewPaymentStep = ({
   ) => void
   readonly onConfirm: () => void
 }) => {
-  const { intentFunding, selectedL2 } = payment
+  const { intentFunding, selectedL2, ethPayment } = payment
+  const isPaidWithEth = ethPayment?.isSelected === true
   const { isIntentRoute, isQuoting, funding, walletDebitFor } = intentFunding
   const l2ChainName = selectedL2?.option.source.chain.name
 
-  const nextMessage = match({ isIntentRoute, isQuoting })
+  const nextMessage = match({ isIntentRoute, isQuoting, isPaidWithEth })
     .with({ isQuoting: true }, () => <Trans>Loading...</Trans>)
+    .with({ isIntentRoute: true, isPaidWithEth: true }, () => (
+      <Trans>Swap and Renew</Trans>
+    ))
     .with({ isIntentRoute: true }, () => <Trans>Sign approval</Trans>)
     .otherwise(() => <Trans>Renew names</Trans>)
 
@@ -52,6 +56,7 @@ export const BulkRenewPaymentStep = ({
       {...(isIntentRoute && payment.pricesReady
         ? { fundedAmount: payment.fundedTotal }
         : {})}
+      ethPayment={ethPayment}
       fullyCoveredMessage={
         <Trans>
           No additional payment needed. You'll still need to sign the renewal.
@@ -59,7 +64,14 @@ export const BulkRenewPaymentStep = ({
       }
       funding={funding}
       header={header}
-      helpMessage={match({ isIntentRoute, l2ChainName })
+      helpMessage={match({ isIntentRoute, l2ChainName, isPaidWithEth })
+        .with({ isPaidWithEth: true }, () => (
+          <Trans>
+            You will be wrapping your ETH into WETH, swapping WETH for USDC,
+            which will then be used to renew the names. The final price can
+            shift slightly with the market price.
+          </Trans>
+        ))
         .with({ l2ChainName: P.string }, ({ l2ChainName }) => (
           <Trans>
             Your wallet first asks you to sign a payment of the amount shown on{' '}

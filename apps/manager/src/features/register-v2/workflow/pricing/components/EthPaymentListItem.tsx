@@ -36,6 +36,14 @@ export type EthPaymentRow = Readonly<{
   hasQuoteFailed: boolean
 }>
 
+/** Selecting ETH, and what paying with it asks of the wallet. */
+export type EthPaymentProps = Readonly<{
+  row: EthPaymentRow
+  isSelected: boolean
+  onSelect: () => void
+  onFallbackSelect: () => void
+}>
+
 export const isEthShortOfFunds = ({
   chargeRaw,
   balanceRaw,

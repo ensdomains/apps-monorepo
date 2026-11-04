@@ -38,6 +38,7 @@ import {
   useL2Payment,
 } from '../hooks/useL2Payment'
 import { getCheckoutTotalRaw } from '../lib/checkoutSummary'
+import { getEthPaymentRow } from '../lib/ethPaymentRow'
 import {
   getCurrentMethodState,
   getFallbackPaymentChoice,
@@ -57,6 +58,7 @@ import { EthNameText } from './EthNameText'
 import {
   canPayWithEth,
   EthPaymentListItem,
+  type EthPaymentProps,
   type EthPaymentRow,
   getEthSelectionMessage,
   getEthSwapGasUsdcRaw,
@@ -685,44 +687,6 @@ export const TokenPickerContent = () => {
   )
 }
 
-/** The ETH row, from its quote. With the HCA already funded, nothing is sent. */
-const getEthPaymentRow = (
-  quote: {
-    readonly data?: {
-      readonly swap?: { readonly maximumEth: bigint }
-      readonly walletBalance: bigint
-      readonly gasReserve: bigint
-      readonly ethUsd: bigint
-    }
-    readonly isPending: boolean
-    readonly isPlaceholderData: boolean
-    readonly isError: boolean
-  },
-  walletDebitRaw: bigint | undefined,
-): EthPaymentRow =>
-  walletDebitRaw === 0n
-    ? {
-        chargeRaw: 0n,
-        balanceRaw: undefined,
-        gasReserveRaw: 0n,
-        ethUsdRaw: undefined,
-        isQuoteLoading: false,
-        hasQuoteFailed: false,
-      }
-    : {
-        // No swap: the wallet already holds the USDC.
-        chargeRaw:
-          quote.data === undefined
-            ? undefined
-            : (quote.data.swap?.maximumEth ?? 0n),
-        balanceRaw: quote.data?.walletBalance,
-        gasReserveRaw: quote.data?.gasReserve ?? 0n,
-        ethUsdRaw: quote.data?.ethUsd,
-        // A placeholder belongs to another amount: shown, never paid on.
-        isQuoteLoading: quote.isPending || quote.isPlaceholderData,
-        hasQuoteFailed: quote.isError,
-      }
-
 /** The page's checkout total the sheet's receipt starts from. */
 export type CheckoutReceipt = Readonly<{
   /** `undefined` while the price or the account balance loads. */
@@ -731,14 +695,6 @@ export type CheckoutReceipt = Readonly<{
   totalLabel?: ReactNode
   /** The figures are maximums, such as renewal's price with its approval headroom. */
   isUpTo?: boolean
-}>
-
-/** Selecting ETH, and what paying with it asks of the wallet. */
-type EthPaymentProps = Readonly<{
-  row: EthPaymentRow
-  isSelected: boolean
-  onSelect: () => void
-  onFallbackSelect: () => void
 }>
 
 const getSelectedL2 = (l2Payment: L2PaymentProps | undefined) =>
@@ -1137,7 +1093,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   readonly walletDebitFor?: (symbol: TOKEN_SYMBOL) => number
   /** Rows that pay from the wallet's USDC on an L2. */
   readonly l2Payment?: L2PaymentProps
-  /** Registration only: the row that pays with the wallet's ETH. */
+  /** The row that pays with the wallet's ETH; smart-account routes only. */
   readonly ethPayment?: EthPaymentProps
   /**
    * The sheet follows the page's checkout: its receipt shows the page's total and the network fee,

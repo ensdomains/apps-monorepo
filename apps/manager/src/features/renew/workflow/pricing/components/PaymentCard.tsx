@@ -50,10 +50,11 @@ export const PaymentCard = () => {
   const account = useSmartAccountContext()
   const { isConnected: isEoaConnected } = useConnection()
   const { openConnectModal, connectModalOpen } = useConnectModal()
-  // Renewal can't pay with ETH, so its balance is left out.
+  // ETH is swapped to fund the account, so the wallet route can't pay with it.
+  const isEthAccepted = !isWalletRoute
   const { accountBalance, sources } = useCheckoutSources(
     { ...account, signer },
-    false,
+    isEthAccepted,
   )
 
   const openTokenPicker = () => uiActor.send({ type: 'pricing.step.next' })
@@ -71,7 +72,7 @@ export const PaymentCard = () => {
   return (
     <>
       <CheckoutSummaryCard
-        acceptsEth={false}
+        acceptsEth={isEthAccepted}
         action={action}
         connect={{
           onConnect: () => openConnectModal?.(),

@@ -27,6 +27,7 @@ import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
+import { useRenewalEthPayment } from '../useRenewalEthPayment'
 import { useRenewalIntentFunding } from '../useRenewalIntentFunding'
 import { useRenewalL2Payment } from '../useRenewalL2Payment'
 import { PaymentUpdateNotice } from './PaymentUpdateNotice'
@@ -47,6 +48,7 @@ export const TokenPickerContent = () => {
     renewerAddress,
     fundingSourceChainId,
     fundingSourceOrigin,
+    paymentAsset,
   ] = useSelector(
     uiActor,
     (state) =>
@@ -56,6 +58,7 @@ export const TokenPickerContent = () => {
         state.context.renewerAddress,
         state.context.fundingSourceChainId,
         state.context.fundingSourceOrigin,
+        state.context.paymentAsset,
       ] as const,
   )
   const token = selectedToken ?? TOKENS.USDC.symbol
@@ -117,6 +120,27 @@ export const TokenPickerContent = () => {
   )
   const l2ChainName = selectedL2?.option.source.chain.name
 
+  // The swapped USDC funds the account's permit, so only the intent route offers ETH.
+  const ethPayment = useRenewalEthPayment({
+    isEnabled:
+      isIntentRoute &&
+      token === TOKENS.USDC.symbol &&
+      (quote.isQuoting || feeRaw !== undefined),
+    rentTotalRaw: pricingQuery.data?.fundedRaw,
+    feeRaw,
+    hcaBalanceRaw: balances.accountCreditRaw.USDC,
+    isSelected: paymentAsset === 'eth',
+    onSelect: () =>
+      uiActor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' }),
+    onFallbackSelect: () =>
+      uiActor.send({
+        type: 'pricing.paymentAsset.select',
+        asset: 'eth',
+        origin: 'fallback',
+      }),
+  })
+  const isPaidWithEth = ethPayment?.isSelected === true
+
   // An increased payment replaces the receipt with the figures the wallet
   // would actually be asked for.
   const {
@@ -152,6 +176,7 @@ export const TokenPickerContent = () => {
     isAwaitingApproval,
     isIntentRoute,
     isQuoting,
+    isPaidWithEth,
   })
     .with({ isReviewingPayment: true, isApprovalRequired: true }, () => (
       <Trans>Sign payment approval</Trans>
@@ -159,6 +184,9 @@ export const TokenPickerContent = () => {
     .with({ isReviewingPayment: true }, () => <Trans>Sign renewal</Trans>)
     .with({ isAwaitingApproval: true }, () => <Trans>Renewing...</Trans>)
     .with({ isQuoting: true }, () => <Trans>Loading...</Trans>)
+    .with({ isIntentRoute: true, isPaidWithEth: true }, () => (
+      <Trans>Swap and Renew</Trans>
+    ))
     .with({ isIntentRoute: true }, () => <Trans>Sign approval</Trans>)
     .otherwise(() => <Trans>Renew name</Trans>)
 
@@ -184,6 +212,8 @@ export const TokenPickerContent = () => {
     // The intent route signs only against an amount the user was shown: the
     // wallet debit, or the L2 charge.
     if (isIntentRoute && !displayedDebit && !l2Source) return
+    const ethUsdcAmount = isPaidWithEth ? ethPayment?.usdcAmount : undefined
+    if (isPaidWithEth && ethUsdcAmount === undefined) return
     uiActor.send({
       type: 'renewal.start',
       referrer: normalizeReferrer(referrer, ENS_LABS_REFERRER),
@@ -209,6 +239,15 @@ export const TokenPickerContent = () => {
             },
           }
         : {}),
+      // Paid with ETH, the swap is bounded by the ETH shown.
+      ...(ethUsdcAmount === undefined
+        ? {}
+        : {
+            ethFunding: {
+              usdcAmount: ethUsdcAmount,
+              displayedCharge: ethPayment?.row.chargeRaw,
+            },
+          }),
     })
   }
 
@@ -243,6 +282,7 @@ export const TokenPickerContent = () => {
       {...(isIntentRoute && pricingQuery.data
         ? { fundedAmount: pricingQuery.data.funded }
         : {})}
+      ethPayment={ethPayment}
       fullyCoveredMessage={
         <Trans>
           No additional payment needed. You'll still need to sign the renewal.
@@ -250,7 +290,14 @@ export const TokenPickerContent = () => {
       }
       funding={funding}
       hasBudgetQuoteFailed={hasQuoteFailed}
-      helpMessage={match({ isIntentRoute, l2ChainName })
+      helpMessage={match({ isIntentRoute, l2ChainName, isPaidWithEth })
+        .with({ isPaidWithEth: true }, () => (
+          <Trans>
+            You will be wrapping your ETH into WETH, swapping WETH for USDC,
+            which will then be used to renew the name. The final price can shift
+            slightly with the market price.
+          </Trans>
+        ))
         .with({ l2ChainName: P.string }, ({ l2ChainName }) => (
           <Trans>
             Your wallet first asks you to sign a payment of the amount shown on{' '}

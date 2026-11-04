@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   submitRenewBatchActor: vi.fn(),
   submitHcaRenewal: vi.fn(),
   fundHcaRenewalsFromL2: vi.fn(),
+  swapEthForRenewal: vi.fn(),
   getExpiry: vi.fn(),
   useSmartAccountContext: vi.fn(),
   useRenewalSigner: vi.fn(),
@@ -50,6 +51,9 @@ vi.mock('@/features/renew/service/hcaRenewal', () => ({
   HCA_RENEWAL_INTENT_MAX_ITEMS: 25,
   fundHcaRenewalsFromL2: mocks.fundHcaRenewalsFromL2,
   submitHcaRenewal: mocks.submitHcaRenewal,
+}))
+vi.mock('@/features/renew/service/renewalEthSwap', () => ({
+  swapEthForRenewal: mocks.swapEthForRenewal,
 }))
 vi.mock('@/features/profile/service/profileExpiry', () => ({
   getExpiry: mocks.getExpiry,
@@ -318,6 +322,50 @@ describe('useBulkRenewSubmit (smart account)', () => {
     for (const [input] of mocks.submitHcaRenewal.mock.calls) {
       expect(input).not.toHaveProperty('l2Funding')
     }
+  })
+
+  it('pays a whole selection with ETH through one swap, then renews each chunk with the usual permit', async () => {
+    mocks.swapEthForRenewal.mockImplementation(() => {
+      expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
+      return okAsync(30_000_000n)
+    })
+    const many = items(Array.from({ length: 26 }, (_, i) => `name${i}`))
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit({
+        ...args,
+        items: many,
+        ethPayment: { usdcAmount: 30_000_000n, displayedCharge: 10n ** 16n },
+      })
+    })
+
+    expect(result.current.phase).toBe('success')
+    expect(mocks.swapEthForRenewal).toHaveBeenCalledOnce()
+    expect(mocks.swapEthForRenewal.mock.calls[0]?.[0]).toMatchObject({
+      ethFunding: { usdcAmount: 30_000_000n, displayedCharge: 10n ** 16n },
+    })
+    expect(intentLabels().map((labels) => labels.length)).toEqual([25, 1])
+    for (const [input] of mocks.submitHcaRenewal.mock.calls) {
+      expect(input).not.toHaveProperty('ethFunding')
+    }
+  })
+
+  it('renews nothing when the ETH swap fails', async () => {
+    mocks.swapEthForRenewal.mockReturnValue(
+      errAsync(new Error('The ETH swap failed on-chain.')),
+    )
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit({
+        ...args,
+        ethPayment: { usdcAmount: 30_000_000n },
+      })
+    })
+
+    expect(result.current.phase).toBe('error')
+    expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
   })
 
   it('surfaces a failed intent and resumes after the chunks that landed', async () => {

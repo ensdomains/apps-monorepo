@@ -20,6 +20,10 @@ import { getRenewalCheckoutTotalRaw } from '@/features/renew/utils/renewalFundin
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
 import {
+  type RenewalEthPayment,
+  useRenewalEthPayment,
+} from '@/features/renew/workflow/pricing/useRenewalEthPayment'
+import {
   type RenewalIntentFunding,
   useRenewalIntentFunding,
 } from '@/features/renew/workflow/pricing/useRenewalIntentFunding'
@@ -71,6 +75,8 @@ type BulkRenewPayment = {
   readonly l2Payment: L2PaymentProps | undefined
   /** The L2 row chosen to pay, in place of the wallet's coin. */
   readonly selectedL2: L2PaymentRow | undefined
+  /** The row that swaps the wallet's ETH into USDC; intent route only. */
+  readonly ethPayment: RenewalEthPayment | undefined
 }
 
 export type UseBulkRenewResult = {
@@ -99,7 +105,9 @@ export const useBulkRenew = ({
   isPaying = false,
   fundingSourceChainId,
   fundingSourceOrigin,
+  isEthSelected = false,
   onSelectL2 = () => {},
+  onSelectEth = () => {},
 }: {
   readonly names: readonly BulkRenewName[]
   readonly selection: Selection
@@ -111,6 +119,8 @@ export const useBulkRenew = ({
   readonly fundingSourceChainId?: number
   readonly fundingSourceOrigin?: FundingSourceOrigin
   readonly onSelectL2?: (chainId: number, origin?: FundingSourceOrigin) => void
+  readonly isEthSelected?: boolean
+  readonly onSelectEth?: (origin?: FundingSourceOrigin) => void
 }): UseBulkRenewResult => {
   const count = names.length
   const { isConnected, ownerAddress } = useSmartAccountContext()
@@ -306,6 +316,23 @@ export const useBulkRenew = ({
   const selectedL2 = l2Payment?.rows.find(
     ({ option }) => option.source.chain.id === l2Payment.selectedChainId,
   )
+  // The swapped USDC funds the account's permits, so only the intent route offers ETH.
+  const ethPayment = useRenewalEthPayment({
+    rentTotalRaw: pricesReady
+      ? authorizedPaymentAmount(sumPriceRaw)
+      : undefined,
+    feeRaw: intentFunding.feeRaw,
+    hcaBalanceRaw: accountCreditRaw.USDC,
+    isEnabled:
+      open &&
+      isPaying &&
+      route === 'intent' &&
+      selectedToken === USDC.symbol &&
+      (intentFunding.isQuoting || intentFunding.feeRaw !== undefined),
+    isSelected: isEthSelected,
+    onSelect: () => onSelectEth(),
+    onFallbackSelect: () => onSelectEth('fallback'),
+  })
 
   return {
     minSelectableDate,
@@ -330,6 +357,7 @@ export const useBulkRenew = ({
       intentFunding,
       l2Payment,
       selectedL2,
+      ethPayment,
     },
   }
 }

@@ -30,6 +30,10 @@ import {
   type HcaRenewalL2Funding,
   submitHcaRenewal,
 } from '@/features/renew/service/hcaRenewal'
+import {
+  type HcaRenewalEthFunding,
+  swapEthForRenewal,
+} from '@/features/renew/service/renewalEthSwap'
 import { chunkRenewalItems } from '@/features/renew/utils/chunks'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
@@ -149,12 +153,26 @@ const runRenewals = (
     }).andThen((txId) => pollTransactionStatusActor({ txId })),
   )
 
+const getBulkFundingSource = (
+  l2Funding: HcaRenewalL2Funding | undefined,
+  ethFunding: HcaRenewalEthFunding | undefined,
+): BulkFundingSource | undefined => {
+  if (l2Funding) return { kind: 'l2', l2Funding }
+  if (ethFunding) return { kind: 'eth', ethFunding }
+  return undefined
+}
+
 type HcaContext = {
   readonly signer: RhinestoneSigner
   readonly ownerAddress: Address
   readonly walletClient: WalletClient
   readonly token: RENEWAL_TOKEN
 }
+
+/** What pays every chunk's shortfall, once, before the chunks renew. */
+type BulkFundingSource =
+  | { readonly kind: 'l2'; readonly l2Funding: HcaRenewalL2Funding }
+  | { readonly kind: 'eth'; readonly ethFunding: HcaRenewalEthFunding }
 
 /** Smart-account route: one owner-signed intent per chunk. */
 const runHcaRenewals = ResultFn(async function* (
@@ -164,8 +182,7 @@ const runHcaRenewals = ResultFn(async function* (
   confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean,
   approvalFallback?: HcaFundingApprovalCapability,
   signal?: AbortSignal,
-  // Bridges what the account is short of every chunk in from this L2, once.
-  l2Funding?: HcaRenewalL2Funding,
+  fundingSource?: BulkFundingSource,
 ) {
   const toError = (error: unknown) =>
     error instanceof Error ? error : new Error(String(error))
@@ -181,16 +198,29 @@ const runHcaRenewals = ResultFn(async function* (
     chainId: envConfig.chain.id,
   } as const
 
-  if (l2Funding) {
+  if (fundingSource) {
     for (const item of remaining) reporters.onActive(item.label)
+  }
+  if (fundingSource?.kind === 'l2') {
     yield* ResultAsync.fromPromise(
       fundHcaRenewalsFromL2({
         ...intentParams,
         batches: chunkRenewalItems(remaining),
-        l2Funding,
+        l2Funding: fundingSource.l2Funding,
       }),
       toError,
     )
+  }
+  // Buys the wallet's USDC for every chunk's permit with one swap.
+  if (fundingSource?.kind === 'eth') {
+    yield* swapEthForRenewal({
+      ethFunding: fundingSource.ethFunding,
+      walletClient: ctx.walletClient,
+      ownerAddress: ctx.ownerAddress,
+      publicClient,
+      chainId: envConfig.chain.id,
+      ...(signal ? { signal } : {}),
+    })
   }
 
   yield* renewInChunks(
@@ -317,6 +347,8 @@ type SubmitArgs = {
     readonly chainId: number
     readonly displayedCharge?: bigint
   }
+  /** Intent route: pay with the wallet's ETH, swapped into USDC, bounded by the ETH shown. */
+  readonly ethPayment?: HcaRenewalEthFunding
 }
 
 export type UseBulkRenewSubmit = {
@@ -464,6 +496,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     remaining: readonly AttributedRenewItem[],
     isCurrent: () => boolean,
     l2Payment: SubmitArgs['l2Payment'],
+    ethPayment: SubmitArgs['ethPayment'],
   ) => {
     const source =
       l2Payment && getL2FundingSource(hca.ownerAddress, l2Payment.chainId)
@@ -481,9 +514,10 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       confirmFunding,
       { confirmApproval, confirmApprovalRecovery, onState: onApprovalState },
       abortRef.current?.signal,
-      source
-        ? { source, displayedCharge: l2Payment?.displayedCharge }
-        : undefined,
+      getBulkFundingSource(
+        source && { source, displayedCharge: l2Payment?.displayedCharge },
+        ethPayment,
+      ),
     )
     if (!isCurrent()) return
     if (renewed.isErr()) {
@@ -531,6 +565,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     token,
     sumPriceRaw,
     l2Payment,
+    ethPayment,
   }: SubmitArgs) => {
     const items = inputItems.map((item) => ({
       ...item,
@@ -576,9 +611,11 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       ),
     )
 
-    if (hca) return renewWithIntents(hca, remaining, isCurrent, l2Payment)
-    // Only the account can be paid from an L2: never the wallet in its place.
-    if (l2Payment) return failWith(new Error(ACCOUNT_LOADING_MESSAGE))
+    if (hca)
+      return renewWithIntents(hca, remaining, isCurrent, l2Payment, ethPayment)
+    // Only the account can be paid from an L2 or with ETH: never the wallet in its place.
+    if (l2Payment || ethPayment)
+      return failWith(new Error(ACCOUNT_LOADING_MESSAGE))
     // `ctx` exists wherever `hca` does not — the guard above rejected the
     // no-context case.
     if (ctx) return renewWithWallet(ctx, remaining, sumPriceRaw, isCurrent)

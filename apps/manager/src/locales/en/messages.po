@@ -3351,6 +3351,11 @@ msgstr "Supported direct subnames, such as alice.example.eth, upgrade with an un
 msgid "Swap and Register"
 msgstr "Swap and Register"
 
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Swap and Renew"
+msgstr "Swap and Renew"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Swapping ETH for USDC"
 msgstr "Swapping ETH for USDC"
@@ -4376,6 +4381,14 @@ msgstr "You pay"
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "You will be wrapping your ETH into WETH, swapping WETH for USDC, which will then be used to register the name. The final price can shift slightly with the market price."
 msgstr "You will be wrapping your ETH into WETH, swapping WETH for USDC, which will then be used to register the name. The final price can shift slightly with the market price."
+
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "You will be wrapping your ETH into WETH, swapping WETH for USDC, which will then be used to renew the name. The final price can shift slightly with the market price."
+msgstr "You will be wrapping your ETH into WETH, swapping WETH for USDC, which will then be used to renew the name. The final price can shift slightly with the market price."
+
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
+msgid "You will be wrapping your ETH into WETH, swapping WETH for USDC, which will then be used to renew the names. The final price can shift slightly with the market price."
+msgstr "You will be wrapping your ETH into WETH, swapping WETH for USDC, which will then be used to renew the names. The final price can shift slightly with the market price."
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You'll always see important notifications in the app."

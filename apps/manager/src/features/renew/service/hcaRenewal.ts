@@ -47,6 +47,7 @@ import {
   getPromptWalletDebit,
 } from '../utils/renewalFunding'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
+import { type HcaRenewalEthFunding, swapEthForRenewal } from './renewalEthSwap'
 
 /**
  * Declared gas limit for a renewal intent, and the marginal cost of each extra
@@ -166,6 +167,8 @@ export interface SubmitHcaRenewalParams {
    * renewal pays from the HCA with no permit.
    */
   readonly l2Funding?: HcaRenewalL2Funding
+  /** Swap the wallet's ETH for the USDC its permit moves, before the funding is planned. */
+  readonly ethFunding?: HcaRenewalEthFunding
 }
 
 /**
@@ -647,6 +650,25 @@ export async function submitHcaRenewal(
         },
       )
     : undefined
+
+  if (params.ethFunding) {
+    // Unwrapped at this promise boundary, like the L2 funding above.
+    ;(
+      await swapEthForRenewal({
+        ethFunding: params.ethFunding,
+        walletClient,
+        ownerAddress,
+        publicClient,
+        chainId,
+        ...(params.signal ? { signal: params.signal } : {}),
+      })
+    ).match(
+      () => undefined,
+      (error) => {
+        throw error
+      },
+    )
+  }
 
   const funding = await planHcaIntentFunding({
     signer: ownerSigner,
