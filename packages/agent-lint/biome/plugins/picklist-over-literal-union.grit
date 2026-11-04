@@ -1,0 +1,15 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: valibot.md "Model closed string enums with v.picklist". A picklist cannot hold
+// true, false or null, so unions with those literals are left alone.
+
+`v.union([$...])` as $bad where {
+  $bad <: r"(?s)^v\.union\(\[(?:\s*v\.literal\([^()]*\)\s*,?)+\s*\]\)$",
+  $bad <: not contains or {
+    `v.literal(true)`,
+    `v.literal(false)`,
+    `v.literal(null)`
+  },
+  register_diagnostic(span=$bad, message="[picklist-over-literal-union] Use v.picklist([...]) for a closed set of values, not a union of v.literal.", severity="error")
+}

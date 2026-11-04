@@ -1,0 +1,50 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: neverthrow.md "Specific error classes built from TaggedError" (Default), Greptile
+// tagged-error-classes: a failure carried as a value is a TaggedError class a caller can match
+// on. Flags a bare Error, TypeError or RangeError built for an error channel (an err or
+// errAsync argument, the error mapper of fromPromise, fromThrowable, fromSync or
+// fromAsyncThrowable, or a promise `.catch` handler that resolves with it), and a mapper of
+// those helpers that returns a string. A bare Error passed as another error's cause, and a
+// throw (agent/no-throw's), are left alone.
+
+or {
+  or { `new Error($...)`, `new TypeError($...)`, `new RangeError($...)` } as $bad where {
+    $bad <: not within JsThrowStatement(),
+    or {
+      $bad <: within `$helper($subject, $mapper)` where {
+        $helper <: or {
+          `fromPromise`,
+          `fromThrowable`,
+          `fromSync`,
+          `fromAsyncThrowable`,
+          `ResultAsync.fromPromise`,
+          `ResultAsync.fromThrowable`,
+          `Result.fromThrowable`
+        },
+        $mapper <: contains $bad
+      },
+      $bad <: within `$promise.catch($mapper)` where { $mapper <: contains $bad },
+      $bad <: within `err($bad)`,
+      $bad <: within `errAsync($bad)`
+    },
+    // A bare Error handed to another error's constructor is that error's cause.
+    $bad <: not within JsNewExpression(arguments=$arguments) where { $arguments <: contains $bad },
+    register_diagnostic(span=$bad, message="[no-bare-error-value] Carry a failure as a TaggedError class, not a bare Error or a string: a caller can match on its tag.", severity="error")
+  },
+  `$helper($subject, $mapper)` where {
+    $helper <: or {
+      `fromPromise`,
+      `fromThrowable`,
+      `fromSync`,
+      `fromAsyncThrowable`,
+      `ResultAsync.fromPromise`,
+      `ResultAsync.fromThrowable`,
+      `Result.fromThrowable`
+    },
+    $mapper <: JsArrowFunctionExpression(body=$text),
+    $text <: or { JsStringLiteralExpression(), JsTemplateExpression() },
+    register_diagnostic(span=$mapper, message="[no-bare-error-value] Carry a failure as a TaggedError class, not a bare Error or a string: a caller can match on its tag.", severity="error")
+  }
+}

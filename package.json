@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "check": "biome check",
+    "lint:agent": "node --max-old-space-size=8192 --experimental-strip-types --disable-warning=ExperimentalWarning packages/agent-lint/src/cli.ts",
     "check:fix": "biome check --fix",
     "knip": "LINGUI_CONFIG=apps/manager/lingui.config.ts knip",
     "prepare": "lefthook install",

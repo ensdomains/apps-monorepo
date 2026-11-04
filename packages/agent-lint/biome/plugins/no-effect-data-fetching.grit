@@ -1,0 +1,19 @@
+language js(typescript, jsx)
+
+// Rule: react.md "Never use useEffect for data fetching" (Must) and
+// tanstack-query.md "TanStack Query owns all server and async state" (Must).
+// Syntax-only approximation: a useEffect callback that contains a recognisable
+// network call. Covers the common forms (fetch, axios, ky, response.json(),
+// XMLHttpRequest). It cannot see a fetch hidden behind a helper function.
+`useEffect($callback, $...)` as $effect where {
+  $callback <: contains or {
+    `fetch($...)`,
+    `axios($...)`,
+    `axios.$method($...)`,
+    `ky($...)`,
+    `ky.$method($...)`,
+    `$response.json()`,
+    `new XMLHttpRequest()`
+  },
+  register_diagnostic(span=$effect, message="[no-effect-data-fetching] Never fetch data in useEffect. Route it through TanStack Query (useQuery / useQueries / useSuspenseQuery) so caching, deduplication and error handling come from one place.", severity="error")
+}

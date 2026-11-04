@@ -1,0 +1,9 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: drizzle.md "Inject the db through `injectDb`; read it from `c.var.db`, never ambient
+// state": a route handler takes the database from injectDb, never getDatabase.
+
+`getDatabase($...)` as $bad where {
+  register_diagnostic(span=$bad, message="[no-getdatabase-in-routes] Route handlers take the database from injectDb (c.var.db), not getDatabase().", severity="error")
+}

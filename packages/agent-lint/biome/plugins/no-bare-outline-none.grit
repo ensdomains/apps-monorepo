@@ -1,0 +1,19 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: react.md "Build accessible, semantic, keyboard-operable UI", STYLEGUIDE.md
+// "Focus Visible", Greptile focus-visible-rings. Reads the whole className or cn, cva,
+// clsx, tw or twm call, so a ring in a sibling string counts, and accepts focus-visible,
+// focus-within and focus: styles.
+
+or {
+  JsxAttribute() as $n where { $n <: r"(?s)^className=.*" },
+  JsCallExpression() as $n where {
+    $n <: r"(?s)^(?:cn|cva|clsx|tw|twm)\(.*",
+    $n <: not within JsxAttribute()
+  }
+} where {
+  $n <: r"(?s).*(?:^|[\s'\x22`])(?:(?:focus|hover|active|disabled|sm|md|lg|xl|dark|data-\[[^\]]*\]|aria-\[[^\]]*\]):)*outline-(?:none|0)(?:$|[\s'\x22`]).*",
+  $n <: not r"(?s).*(?:focus-visible\]?|focus-within|focus):(?:[a-z0-9\[\]\-=:]*:)*(?:ring|border|bg|shadow|underline|text|opacity|outline-(?:1|2|4|8|offset)).*",
+  register_diagnostic(span=$n, message="[no-bare-outline-none] Keep a visible focus style: pair outline-none with a focus-visible: ring.", severity="error")
+}

@@ -1,0 +1,10 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: STYLEGUIDE.md "Single Transaction Pattern" (read the mutation's state directly),
+// Greptile mutation-isPending-direct: never copy a mutation's state into a variable or useState.
+
+JsVariableDeclarator(initializer=JsInitializerClause(expression=$init)) as $bad where {
+  $init <: r"^(?:useState\(\s*)?[A-Za-z_$][\w$]*[Mm]utation\.(?:isPending|isSuccess|isError|data|error)(?:\s*\))?$",
+  register_diagnostic(span=$bad, message="[no-copied-mutation-state] Read the mutation's isPending, isSuccess, data or error directly instead of copying it.", severity="error")
+}

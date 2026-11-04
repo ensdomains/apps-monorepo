@@ -1,0 +1,19 @@
+language js(typescript, jsx)
+
+// Rule: xstate.md "Never chain transactions with useEffect" (Must), repeated in the
+// TypeScript README (Composition) and web3.md (Submit writes through wagmi hooks).
+// Syntax-only: a useEffect callback that starts or submits a transaction. A user
+// action, not an effect, should trigger submission; multi-step flows belong in an
+// XState machine. Recall is limited to direct calls (a helper that starts the
+// transaction on the effect's behalf is invisible to a syntax-only rule).
+`useEffect($callback, $...)` as $effect where {
+  $callback <: contains or {
+    `$manager.startTransaction($...)`,
+    `startTransaction($...)`,
+    `writeContract($...)`,
+    `writeContractAsync($...)`,
+    `sendTransaction($...)`,
+    `sendTransactionAsync($...)`
+  },
+  register_diagnostic(span=$effect, message="[no-effect-transactions] Do not start or submit a transaction from a useEffect. Trigger submission from the user action and model multi-step flows as an XState operation machine.", severity="error")
+}

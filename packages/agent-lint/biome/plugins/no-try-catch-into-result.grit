@@ -1,0 +1,19 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: neverthrow.md "Never mix Result with try-catch" (Must), STYLEGUIDE.md "Critical
+// Anti-Patterns", Greptile fromSync-not-trycatch: a catch that returns
+// err(...) should be fromSync, fromThrowable or fromPromise.
+
+or {
+  JsTryStatement(),
+  JsTryFinallyStatement()
+} as $bad where {
+  $bad <: contains JsCatchClause() as $catch where {
+    $catch <: contains or {
+      `err($...)`,
+      `errAsync($...)`
+    }
+  },
+  register_diagnostic(span=$bad, message="[no-try-catch-into-result] Do not turn a throw into a Result with try/catch; wrap the call with fromSync, fromThrowable or fromPromise.", severity="error")
+}

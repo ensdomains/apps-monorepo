@@ -1,0 +1,18 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: web3.md "Type every address as viem's Address, not string", STYLEGUIDE.md "Address
+// Type Safety". Only names that mean an on-chain account are checked; form text such as
+// an ethAddress field is validated before it becomes an Address, and the address
+// of a mail or email object is an email address.
+
+or {
+  TsPropertySignatureTypeMember(),
+  JsFormalParameter()
+} as $bad where {
+  $bad <: r"(?s)^(?:readonly\s+)?(?:address|(?:owner|account|wallet|contract|registry|resolver|signer|token|recipient|sender|controller|manager|registrant|operator|target|user|safe|smartAccount|implementation|proxy|factory|deployer)Address)\??\s*:\s*string\s*;?$",
+  $bad <: not within TsPropertySignatureTypeMember() as $outer where {
+    $outer <: r"(?s)^(?:readonly\s+)?(?:mail|email)\??\s*:.*"
+  } ,
+  register_diagnostic(span=$bad, message="[address-type] Type an address as viem's Address, not string.", severity="error")
+}

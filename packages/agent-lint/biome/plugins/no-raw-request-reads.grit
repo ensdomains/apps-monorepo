@@ -1,0 +1,15 @@
+language js(typescript, jsx)
+
+// Rule: valibot.md "Validate inbound HTTP bodies with vValidator at the boundary" (Must).
+// Handlers read `c.req.valid('json')`, never re-parse raw `c.req`. Syntax-only:
+// flag the raw readers named by the rule. Scope it with the plugin `includes`
+// glob (route files); webhook handlers that need the raw bytes for signature
+// checks take a `// biome-ignore lint/plugin: <reason>` comment.
+or {
+  `$c.req.json($...)`,
+  `$c.req.query($...)`,
+  `$c.req.parseBody($...)`,
+  `$c.req.formData($...)`
+} as $raw where {
+  register_diagnostic(span=$raw, message="[no-raw-request-reads] Do not read the raw request. Validate at the boundary with vValidator('json' | 'query' | 'form', Schema) and read c.req.valid(...).", severity="error")
+}

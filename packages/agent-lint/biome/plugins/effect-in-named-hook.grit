@@ -1,0 +1,20 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: react.md "Extract non-trivial effects into named hooks", STYLEGUIDE.md "useEffect
+// Usage Policy", Greptile extract-effect-to-hook: an effect with more than five lines of
+// code, or one that awaits, moves into a named use* hook. Blank and comment lines do not count.
+
+`useEffect($callback, $...)` as $bad where {
+  $bad <: not within JsVariableDeclarator(id=$hook) where {
+    $hook <: r"^use[A-Z].*"
+  } ,
+  $bad <: not within JsFunctionDeclaration(id=$named) where {
+    $named <: r"^use[A-Z].*"
+  } ,
+  $callback <: or {
+    r"(?s)^(?:[ \t]*[^\s/*][^\n]*\n(?:[ \t]*\n|[ \t]*(?://|/\*|\*)[^\n]*\n)*){7,}.*$",
+    contains JsAwaitExpression()
+  },
+  register_diagnostic(span=$bad, message="[effect-in-named-hook] Move this effect into a named use* hook: it has more than five lines of code or awaits.", severity="error")
+}

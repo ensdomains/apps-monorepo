@@ -1,0 +1,11 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: neverthrow.md "Never mix Result with try-catch" (Must). Subset that is
+// decidable from syntax: a try statement inside the generator passed to ResultFn
+// (the repo's Result-composition idiom). A function that returns a Result without
+// ResultFn, or one whose Result return type is only inferred, is not covered.
+`ResultFn($fn)` as $call where {
+  $fn <: contains JsTryStatement() as $try,
+  register_diagnostic(span=$try, message="[no-try-in-resultfn] Do not wrap code in try/catch inside a ResultFn generator. Lift throwing calls with fromPromise/fromSync/fromThrowable and keep failures on the Result channel.", severity="error")
+}

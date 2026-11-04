@@ -1,0 +1,21 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: tanstack-query.md "Wrap fallible query functions so the Result is unwrapped at the
+// boundary" (Must): never wrap a Result-returning query function in try/catch. A
+// best-effort try that touches no Result is left alone.
+
+JsPropertyObjectMember(name=$name, value=$fn) where {
+  $name <: r"^queryFn$",
+  $fn <: contains JsTryStatement() as $bad,
+  $fn <: contains or {
+    `$r.isErr()`,
+    `$r.isOk()`,
+    `$r.match($a, $b)`,
+    `$r.unwrapOr($a)`,
+    `fromPromise($a, $b)`,
+    `ok($a)`,
+    `err($a)`
+  },
+  register_diagnostic(span=$bad, message="[no-try-in-query-fn] Do not wrap a Result in try/catch inside a queryFn; return it through resultQueryOptions.", severity="error")
+}

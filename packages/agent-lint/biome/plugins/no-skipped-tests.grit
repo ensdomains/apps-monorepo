@@ -1,0 +1,22 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: testing.md "Tool-enforced": no committed .only or .skip. Flags a skipped test or
+// suite, not Playwright's runtime guard test.skip(condition, reason), which skips under a
+// stated condition. Replaces Biome's noSkippedTests, which flags both.
+
+or {
+  `$runner.skip($title, $body)` where {
+    $body <: or {
+      JsArrowFunctionExpression(),
+      JsFunctionExpression()
+    }
+  },
+  `describe.skip($...)`,
+  `$runner.describe.skip($...)`,
+  `xit($...)`,
+  `xtest($...)`,
+  `xdescribe($...)`
+} as $bad where {
+  register_diagnostic(span=$bad, message="[no-skipped-tests] Do not commit a skipped test; delete it or make it pass.", severity="error")
+}

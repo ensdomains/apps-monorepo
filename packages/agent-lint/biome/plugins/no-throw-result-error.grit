@@ -1,0 +1,14 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: neverthrow.md "Never mix Result with try-catch" (Must): never unwrap a Result and
+// `throw result.error` to bridge it into a throwing channel. Only a throw guarded by
+// isErr() or !isOk() is a Result unwrap; `.error` on other objects is left alone.
+
+JsThrowStatement(argument=`$result.error`) as $bad where {
+  $bad <: within JsIfStatement(test=or {
+    `$result.isErr()`,
+    `!$result.isOk()`
+  }) ,
+  register_diagnostic(span=$bad, message="[no-throw-result-error] Do not throw result.error to bridge a Result into a throwing channel. Chain with .andThen or .map, yield* it in a ResultFn generator, or return it.", severity="error")
+}

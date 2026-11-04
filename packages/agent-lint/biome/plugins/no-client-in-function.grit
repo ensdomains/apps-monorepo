@@ -1,0 +1,17 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: web3.md "Instantiate clients once; access them through a safe accessor",
+// STYLEGUIDE.md "Golden Rules" (Must), Greptile clients-instantiated-once.
+
+or {
+  `createPublicClient($...)`,
+  `createWalletClient($...)`
+} as $bad where {
+  $bad <: within or {
+    JsArrowFunctionExpression(),
+    JsFunctionDeclaration(),
+    JsFunctionExpression()
+  } ,
+  register_diagnostic(span=$bad, message="[no-client-in-function] Create viem clients once at module scope, not inside a function or component.", severity="error")
+}

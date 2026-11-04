@@ -1,0 +1,15 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: drizzle.md "Type enum-like and JSON columns with `.$type<>()` against
+// shared-schema unions" (Must). Subset that is decidable from syntax: a jsonb
+// column definition whose builder chain has no `.$type<...>()` call. The regex runs
+// on the text of the whole column expression, so the position of `.$type` in the
+// chain does not matter; (?s) lets it span the line breaks of a formatted chain.
+// Enum-like text columns need a name heuristic and are not covered (the page's
+// judgement about "enum-like" stays with the reviewer).
+JsPropertyObjectMember(value=$column) as $member where {
+  $column <: r"(?s)jsonb\(.*",
+  $column <: not r"(?s).*\$type<.*",
+  register_diagnostic(span=$member, message="[jsonb-needs-type] A jsonb column holds a structured payload and must be narrowed with .$type<...>() against the shared-schema union.", severity="error")
+}

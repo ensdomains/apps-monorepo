@@ -1,0 +1,16 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Rule: tanstack-query.md "Build query keys with the object-param key factory",
+// STYLEGUIDE.md "Query Key Patterns", Greptile object-based-query-keys. A one-element
+// array is a scope prefix for invalidation, which the guide writes that way itself.
+
+JsPropertyObjectMember(name=$name, value=$array) as $bad where {
+  $name <: r"^queryKey$",
+  $array <: or {
+    JsArrayExpression(elements=$elements),
+    TsAsExpression(expression=JsArrayExpression(elements=$elements))
+  },
+  $elements <: [$first, $second, ...],
+  register_diagnostic(span=$bad, message="[no-literal-query-keys] Build the query key with createQueryKey and a named params object, not a positional array.", severity="error")
+}
