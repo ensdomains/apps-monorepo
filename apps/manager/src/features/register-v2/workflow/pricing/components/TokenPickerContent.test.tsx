@@ -1485,6 +1485,25 @@ describe('TokenPickerContentBase ETH row', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 
+  it.each([
+    ['nothing to swap', 0n, false],
+    ['a swap to make', 2_600_000_000_000_000n, true],
+  ])(
+    'with a wallet that pays in USDC, lists ETH only with %s',
+    (_case, chargeRaw, isListed) => {
+      renderPicker({
+        funding: underfunded,
+        selectedToken: 'USDC',
+        stablecoinBalances: [usdc],
+        ethPayment: ethPaymentOf({ chargeRaw }),
+      })
+
+      expect(
+        screen.queryByRole('button', { name: 'Pay with ETH' }) !== null,
+      ).toBe(isListed)
+    },
+  )
+
   it('keeps the methods as they were clicked while paying', () => {
     const ethPayment = ethPaymentOf({}, true)
     const sheet = (
