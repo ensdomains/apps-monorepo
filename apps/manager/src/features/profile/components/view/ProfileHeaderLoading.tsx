@@ -8,6 +8,7 @@ import { getLoadingHeaderCover } from '@/features/profile/utils/defaultHeaderCov
 import { cn } from '@/lib/utils'
 import { tw } from '@/utils/tailwind'
 import { ProfileDesktopActionsLoading } from './ProfileActionsLoading'
+import { ProfileNameBadgeRow } from './ProfileDetails'
 import { getMotionProps, SkeletonBlock } from './ProfileLoadingPrimitives'
 
 const neutralAvatarCellIds = Array.from({ length: 36 }, (_, index) => index)
@@ -76,23 +77,28 @@ const ProfileNameBadgeLoading = ({
   readonly name?: string
   readonly shouldReduceMotion: boolean
 }) => (
-  <div
-    className={tw(
-      'relative inline-flex max-w-full items-center overflow-hidden rounded-[3px] px-3 py-1.5',
-      name ? 'bg-ens-quartz-700 text-white' : 'bg-ens-quartz-200',
-    )}
-  >
-    {name ? (
-      <h1 className="truncate font-semi-mono text-[32px] leading-[1.12]">
-        {name}
-      </h1>
-    ) : (
-      <div className="h-[35.84px] w-56" />
-    )}
-    {shouldReduceMotion ? null : (
-      <div className="pointer-events-none absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/15 to-transparent" />
-    )}
-  </div>
+  <ProfileNameBadgeRow
+    badge={
+      <div
+        className={tw(
+          'relative inline-flex min-w-0 max-w-full items-center overflow-hidden rounded-[3px] px-3 py-1.5',
+          name ? 'bg-ens-quartz-700 text-white' : 'bg-ens-quartz-200',
+        )}
+      >
+        {name ? (
+          <h1 className="truncate font-semi-mono text-[32px] leading-[1.12]">
+            {name}
+          </h1>
+        ) : (
+          <div className="h-[35.84px] w-56" />
+        )}
+        {shouldReduceMotion ? null : (
+          <div className="pointer-events-none absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/15 to-transparent" />
+        )}
+      </div>
+    }
+    trailing={<div aria-hidden className="size-8 shrink-0" />}
+  />
 )
 
 const ProfileDetailLoading = ({

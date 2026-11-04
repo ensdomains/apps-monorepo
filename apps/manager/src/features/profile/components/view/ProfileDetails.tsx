@@ -32,15 +32,35 @@ const detailValueClassName =
 const detailIconClassName =
   'ms-opsz-11 ms-wght-300 shrink-0 text-[11px] leading-[11px]'
 
-export const ProfileNameBadge = ({ name }: { readonly name: string }) => (
+/** Shared by the badge and its skeleton so the badge stays put on load. */
+export const ProfileNameBadgeRow = ({
+  badge,
+  trailing,
+}: {
+  readonly badge: React.ReactNode
+  readonly trailing: React.ReactNode
+}) => (
   <div className="inline-flex max-w-full items-center gap-1">
-    <div className="inline-flex min-w-0 items-center rounded-[3px] bg-[var(--theme-color,var(--color-ens-lapis-500))] px-3 py-1.5 text-white">
-      <h1 className="truncate font-semi-mono text-[32px] leading-[1.12]">
-        {name}
-      </h1>
+    {/* Mirrors the size-8 trailing slot to centre the badge below xl; only this spacer shrinks, and the badge cap leaves room for the button and gaps */}
+    <div aria-hidden className="h-8 w-8 min-w-0 shrink xl:hidden" />
+    <div className="flex max-w-[calc(100%-2.5rem)] shrink-0 xl:max-w-[calc(100%-2.25rem)]">
+      {badge}
     </div>
-    <NameCopyButton name={name} />
+    {trailing}
   </div>
+)
+
+export const ProfileNameBadge = ({ name }: { readonly name: string }) => (
+  <ProfileNameBadgeRow
+    badge={
+      <div className="inline-flex min-w-0 items-center rounded-[3px] bg-[var(--theme-color,var(--color-ens-lapis-500))] px-3 py-1.5 text-white">
+        <h1 className="truncate font-semi-mono text-[32px] leading-[1.12]">
+          {name}
+        </h1>
+      </div>
+    }
+    trailing={<NameCopyButton name={name} />}
+  />
 )
 
 const ProfileDetailCopyButton = ({ value }: { readonly value: string }) => {
