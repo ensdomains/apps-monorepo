@@ -152,7 +152,12 @@ export const renewalUiMachine = setup({
       | { type: 'pricing.step.previous' }
       | { type: 'pricing.dialog.dismiss' }
       | { type: 'pricing.duration.set'; duration: bigint }
-      | { type: 'pricing.token.select'; token: RENEWAL_TOKEN | undefined }
+      | {
+          type: 'pricing.token.select'
+          token: RENEWAL_TOKEN | undefined
+          /** Who picked it; a click when absent. */
+          origin?: FundingSourceOrigin
+        }
       | {
           type: 'pricing.fundingSource.select'
           chainId: number
@@ -270,7 +275,10 @@ export const renewalUiMachine = setup({
           : context.selectedToken,
       // A wallet coin replaces the L2 row.
       fundingSourceChainId: () => undefined,
-      fundingSourceOrigin: () => undefined,
+      fundingSourceOrigin: ({ event }) =>
+        event.type === 'pricing.token.select'
+          ? (event.origin ?? 'user')
+          : undefined,
     }),
     setFundingSource: assign({
       fundingSourceChainId: ({ event, context }) =>

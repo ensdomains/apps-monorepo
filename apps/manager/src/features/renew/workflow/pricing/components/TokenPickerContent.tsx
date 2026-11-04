@@ -8,6 +8,7 @@ import { match, P } from 'ts-pattern'
 import type { WalletClient } from 'viem'
 import { useConnection } from 'wagmi'
 import { getL2FundingSource } from '@/features/register-v2/service/l2FundingSource'
+import type { FundingSourceOrigin } from '@/features/register-v2/state/registrationUi.machine'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
@@ -60,12 +61,6 @@ export const TokenPickerContent = () => {
   const isReviewingPayment = paymentUpdate?.status === 'reviewing'
   // The wallet is only waiting on a signature once the user has accepted.
   const isBusy = isAwaitingApproval && !isReviewingPayment
-  // The L2 a started renewal pays from. The live selection lets go of it once
-  // the payment lands and there is nothing left to bridge.
-  const payingL2ChainName = useSelector(
-    uiActor,
-    (state) => state.context.submissionData?.l2Funding?.source.chain.name,
-  )
 
   const pricingQuery = useQuery({
     ...getRenewPriceQueryOptions(label, duration, token, protocol),
@@ -139,40 +134,39 @@ export const TokenPickerContent = () => {
   const ownerAddress = account.ownerAddress ?? null
   const canStart = !!signer && !!ownerAddress && !!walletClient
 
-  const onSelectCoin = (coin: RENEWAL_TOKEN) => {
-    uiActor.send({ type: 'pricing.token.select', token: coin })
+  const onSelectCoin = (coin: RENEWAL_TOKEN, origin?: FundingSourceOrigin) => {
+    uiActor.send({
+      type: 'pricing.token.select',
+      token: coin,
+      ...(origin ? { origin } : {}),
+    })
   }
 
-  const isFullyCovered = funding?.walletDebit === 0
+  // As registration's: the review keeps its own wording, the wallet route renews directly.
   const nextMessage = match({
     isReviewingPayment,
     isApprovalRequired,
     isAwaitingApproval,
     isIntentRoute,
     isQuoting,
-    isFullyCovered,
-    payingL2ChainName,
   })
     .with({ isReviewingPayment: true, isApprovalRequired: true }, () => (
       <Trans>Sign payment approval</Trans>
     ))
     .with({ isReviewingPayment: true }, () => <Trans>Sign renewal</Trans>)
-    .with(
-      { isAwaitingApproval: true, payingL2ChainName: P.string },
-      ({ payingL2ChainName: l2ChainName }) => (
-        <Trans>Paying from {l2ChainName}…</Trans>
-      ),
-    )
-    .with({ isAwaitingApproval: true, isIntentRoute: true }, () => (
-      <Trans>Signing renewal…</Trans>
-    ))
-    .with({ isAwaitingApproval: true }, () => <Trans>Approve in wallet</Trans>)
-    .with({ isQuoting: true }, () => <Trans>Renew name</Trans>)
-    .with({ isIntentRoute: true, isFullyCovered: true }, () => (
-      <Trans>Sign renewal</Trans>
-    ))
-    .with({ isIntentRoute: true }, () => <Trans>Continue in wallet</Trans>)
+    .with({ isAwaitingApproval: true }, () => <Trans>Renewing...</Trans>)
+    .with({ isQuoting: true }, () => <Trans>Loading...</Trans>)
+    .with({ isIntentRoute: true }, () => <Trans>Sign approval</Trans>)
     .otherwise(() => <Trans>Renew name</Trans>)
+
+  // The receipt starts from the price with its headroom, less the balance applied up to it.
+  const checkoutTotalRaw =
+    pricingQuery.data && balances.accountCreditRaw.USDC !== undefined
+      ? pricingQuery.data.fundedRaw -
+        (balances.accountCreditRaw.USDC < pricingQuery.data.fundedRaw
+          ? balances.accountCreditRaw.USDC
+          : pricingQuery.data.fundedRaw)
+      : undefined
 
   const { referrer } = useSearch({ strict: false })
   const startRenewal = () => {
@@ -236,7 +230,17 @@ export const TokenPickerContent = () => {
     <TokenPickerContentBase
       // With a funding summary the credit is already inside it.
       accountCredit={funding ? undefined : balances.accountCredit}
-      canProceed={canStart}
+      // After a Cancel the fee re-quotes; Continue waits for it.
+      canProceed={canStart && !funding?.isLoading}
+      {...(isIntentRoute
+        ? {
+            checkoutReceipt: {
+              totalRaw: checkoutTotalRaw,
+              totalLabel: <Trans>Renewal total</Trans>,
+              isUpTo: true,
+            },
+          }
+        : {})}
       {...(isIntentRoute && pricingQuery.data
         ? { fundedAmount: pricingQuery.data.funded }
         : {})}
@@ -270,6 +274,7 @@ export const TokenPickerContent = () => {
       isConnected={isConnected}
       isEstimate={isIntentRoute}
       isLoadingBalances={balances.isLoading}
+      isMethodListHidden={isReviewingPayment}
       isQuotingFunding={isQuoting}
       l2Payment={l2Payment}
       label={label}
@@ -288,6 +293,7 @@ export const TokenPickerContent = () => {
         )
       }
       selectedToken={selectedToken}
+      shortfallLabel={<Trans>Renew name</Trans>}
       showNetworkFeeDetails={isIntentRoute}
       stablecoinBalances={balances.wallet}
       totalLabel={<Trans>Renewal total</Trans>}

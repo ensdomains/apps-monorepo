@@ -952,7 +952,8 @@ const getEthMethodItems = (
 const isMethodPickerHidden = (
   checkoutReceipt: CheckoutReceipt | undefined,
   isFullyCovered: boolean,
-) => checkoutReceipt !== undefined && isFullyCovered
+  isMethodListHidden: boolean,
+) => isMethodListHidden || (checkoutReceipt !== undefined && isFullyCovered)
 
 const isSelectedMethodShort = (
   isWalletSelectionShort: boolean,
@@ -1074,6 +1075,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   l2Payment,
   ethPayment,
   checkoutReceipt,
+  isMethodListHidden = false,
   receiptNotice,
   onCancel,
 }: {
@@ -1142,6 +1144,8 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
    * methods give way to the receipt when the balance covers everything, and every L2 holding USDC is listed.
    */
   readonly checkoutReceipt?: CheckoutReceipt
+  /** The caller hides the methods, such as while a re-quoted amount is reviewed. */
+  readonly isMethodListHidden?: boolean
   /** Renewal only: a message about the receipt's figures, shown directly below it. */
   readonly receiptNotice?: ReactNode
   /** Renewal only: offers Cancel below the CTA. */
@@ -1359,7 +1363,11 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
 
           <div
             className="flex w-full flex-col gap-4 [&[hidden]]:hidden"
-            hidden={isMethodPickerHidden(checkoutReceipt, isFullyCovered)}
+            hidden={isMethodPickerHidden(
+              checkoutReceipt,
+              isFullyCovered,
+              isMethodListHidden,
+            )}
           >
             <h2 className={cn(RECEIPT_LABEL, 'text-center')}>
               <Trans>Pay with</Trans>

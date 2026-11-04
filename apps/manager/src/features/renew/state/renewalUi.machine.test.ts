@@ -542,6 +542,27 @@ describe('renewal paid from an L2', () => {
     actor.stop()
   })
 
+  it.each([
+    ["a click is the user's", undefined, 'user'],
+    ["a pick by the app is the fallback's", 'fallback', 'fallback'],
+  ] as const)(
+    'records who picked a wallet coin: %s',
+    (_case, origin, expected) => {
+      const actor = createActor(renewalUiMachine, {
+        input: { currentExpiry: CURRENT_EXPIRY, protocol: 'v2' },
+      }).start()
+      actor.send({ type: 'pricing.step.next' })
+
+      actor.send({
+        type: 'pricing.token.select',
+        token: 'USDC',
+        ...(origin ? { origin } : {}),
+      })
+      expect(actor.getSnapshot().context.fundingSourceOrigin).toBe(expected)
+      actor.stop()
+    },
+  )
+
   it('hands the L2 and the charge shown to the renewal', async () => {
     const actor = startRenewal('v2', 'smart-account', { l2Funding })
     await waitForState(actor, 'success')

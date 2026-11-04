@@ -452,10 +452,6 @@ msgstr ""
 msgid "Approve and renew name"
 msgstr ""
 
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Approve in wallet"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approve payment"
 msgstr ""
@@ -970,7 +966,6 @@ msgid "Continue"
 msgstr ""
 
 #: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Continue in wallet"
 msgstr ""
 
@@ -1848,6 +1843,7 @@ msgstr ""
 #: src/features/notifications/inbox/list.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Loading..."
 msgstr "Laddar..."
@@ -2287,10 +2283,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Paying from {l2ChainName}"
-msgstr ""
-
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Paying from {l2ChainName}…"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
@@ -2790,6 +2782,10 @@ msgstr ""
 msgid "Renewing this name will add time to the <0>current owner's</0> registration. You won't gain ownership of the name, but you will make someone's day."
 msgstr ""
 
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Renewing..."
+msgstr ""
+
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "Replace & Continue"
 msgstr ""
@@ -3133,6 +3129,7 @@ msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign approval"
 msgstr ""
 
@@ -3188,10 +3185,6 @@ msgstr ""
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
-msgstr ""
-
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Signing renewal…"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx

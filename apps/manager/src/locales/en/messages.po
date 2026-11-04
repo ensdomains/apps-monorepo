@@ -447,10 +447,6 @@ msgstr "Approve and register name"
 msgid "Approve and renew name"
 msgstr "Approve and renew name"
 
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Approve in wallet"
-msgstr "Approve in wallet"
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approve payment"
 msgstr "Approve payment"
@@ -965,7 +961,6 @@ msgid "Continue"
 msgstr "Continue"
 
 #: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Continue in wallet"
 msgstr "Continue in wallet"
 
@@ -1843,6 +1838,7 @@ msgstr "Loading NFT artwork…"
 #: src/features/notifications/inbox/list.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Loading..."
 msgstr "Loading..."
@@ -2283,10 +2279,6 @@ msgstr "Paying from {chainName} isn't available right now."
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Paying from {l2ChainName}"
 msgstr "Paying from {l2ChainName}"
-
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Paying from {l2ChainName}…"
-msgstr "Paying from {l2ChainName}…"
 
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
 msgid "Paying with ETH isn't available right now."
@@ -2785,6 +2777,10 @@ msgstr "Renewing names"
 msgid "Renewing this name will add time to the <0>current owner's</0> registration. You won't gain ownership of the name, but you will make someone's day."
 msgstr "Renewing this name will add time to the <0>current owner's</0> registration. You won't gain ownership of the name, but you will make someone's day."
 
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Renewing..."
+msgstr "Renewing..."
+
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 msgid "Replace & Continue"
 msgstr "Replace & Continue"
@@ -3128,6 +3124,7 @@ msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign approval"
 msgstr "Sign approval"
 
@@ -3184,10 +3181,6 @@ msgstr "Signing in is the recommended way to use the ENS App. It enables notific
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
 msgstr "Signing in..."
-
-#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Signing renewal…"
-msgstr "Signing renewal…"
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Smart account access"

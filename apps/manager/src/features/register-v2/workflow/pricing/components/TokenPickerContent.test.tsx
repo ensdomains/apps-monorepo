@@ -1213,6 +1213,21 @@ describe('TokenPickerContentBase L2 rows', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('hides the methods while the caller asks it to', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      isMethodListHidden: true,
+    })
+
+    expect(
+      screen
+        .getByRole('heading', { hidden: true, name: 'Pay with' })
+        .closest('[hidden]'),
+    ).not.toBeNull()
+  })
+
   it('labels the checkout total and shows its figures as up to, as a caller asks', () => {
     renderPicker({
       funding: underfunded,
