@@ -2,8 +2,10 @@ import { encodeErrorResult, type Hex, parseAbi } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { LIB_MIGRATION_ERRORS_ABI } from '../contracts/abis'
 import {
+  canRetryMigration,
   decodeMigrationError,
   extractErrorMessage,
+  type MigrationError,
 } from './decodeMigrationError'
 import { ProfileFetchError } from './fetchV1Profiles'
 
@@ -12,6 +14,20 @@ const revertWith = (data: Hex) =>
     name: 'ContractFunctionRevertedError',
     data,
   })
+
+describe('canRetryMigration', () => {
+  it.each([
+    { error: { type: 'plan-changed' }, expected: false },
+    { error: { type: 'user-rejected' }, expected: true },
+    { error: { type: 'cleanup-failed' }, expected: true },
+    { error: { type: 'generic', message: 'RPC unavailable' }, expected: true },
+  ] satisfies readonly {
+    readonly error: MigrationError
+    readonly expected: boolean
+  }[])('allows retry for $error.type: $expected', ({ error, expected }) =>
+    expect(canRetryMigration(error)).toBe(expected),
+  )
+})
 
 const directMigrationErrorsAbi = parseAbi([
   'error CallerNotOwner()',

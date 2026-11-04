@@ -6,6 +6,8 @@ import {
   createWalletClient,
   custom,
   decodeFunctionData,
+  encodeFunctionData,
+  erc20Abi,
   type Hex,
   InsufficientFundsError,
   InvalidInputRpcError,
@@ -210,7 +212,7 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     request: vi.fn(
       async ({ params }: { params: readonly [{ readonly data: Hex }] }) => {
         const { functionName, args } = decodeFunctionData({
-          abi: GRACE_RENEWAL_ABI,
+          abi: [...GRACE_RENEWAL_ABI, ...erc20Abi],
           data: params[0].data,
         })
         return writeContract({ functionName, args: args ?? [] })
@@ -662,7 +664,28 @@ describe('bulk grace renewal', () => {
       s.writeContract.mock.calls.map(([call]) => call.functionName),
     ).toEqual(['approve', 'renewBatch'])
     expect(s.writeContract.mock.calls[0]?.[0].args[1]).toBe(200n)
-    expect(s.walletClient.request).toHaveBeenCalledExactlyOnceWith(
+    expect(s.walletClient.request).toHaveBeenCalledTimes(2)
+    expect(s.walletClient.request).toHaveBeenNthCalledWith(
+      1,
+      {
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: OWNER,
+            to: quote.paymentToken,
+            chainId: `0x${quote.chainId.toString(16)}`,
+            data: encodeFunctionData({
+              abi: erc20Abi,
+              functionName: 'approve',
+              args: [quote.renewerAddress, 200n],
+            }),
+          },
+        ],
+      },
+      { retryCount: 0 },
+    )
+    expect(s.walletClient.request).toHaveBeenNthCalledWith(
+      2,
       {
         method: 'eth_sendTransaction',
         params: [
@@ -690,6 +713,41 @@ describe('bulk grace renewal', () => {
         ([read]) => read.functionName === 'ownerOf',
       ),
     ).toBe(true)
+  })
+
+  it.each([
+    { name: 'InvalidInput', code: -32000 },
+    { name: 'InvalidParams', code: -32602 },
+    { name: 'MethodNotFound', code: -32601 },
+    { name: 'MethodNotSupported', code: -32004 },
+  ])('does not resend an approval after $name', async ({ code }) => {
+    const s = setup()
+    const quote = await s.quote()
+    const request = vi.fn(async ({ method }: { readonly method: string }) => {
+      if (method === 'eth_chainId') return `0x${chain.id.toString(16)}`
+      if (method === 'eth_accounts') return [OWNER]
+      if (method === 'eth_sendTransaction')
+        throw Object.assign(new Error('Wallet submission failed'), { code })
+      if (method === 'wallet_sendTransaction') return APPROVAL_HASH
+      throw new Error(`Unexpected wallet request: ${method}`)
+    })
+    const walletClient = createWalletClient({
+      chain,
+      transport: custom({ request }),
+    })
+
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient,
+    })
+
+    expect(result.isErr()).toBe(true)
+    expect(
+      request.mock.calls
+        .map(([{ method }]) => method)
+        .filter((method) => method.endsWith('sendTransaction')),
+    ).toEqual(['eth_sendTransaction'])
   })
 
   it('skips approval when allowance is sufficient', async () => {

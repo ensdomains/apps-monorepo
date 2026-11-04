@@ -300,6 +300,9 @@ const matchMigrationRevert = (data: Hex, depth = 0): MigrationError | null => {
   return null
 }
 
+export const canRetryMigration = (error: MigrationError | undefined): boolean =>
+  error?.type !== 'plan-changed'
+
 export const decodeMigrationError = (err: unknown): MigrationError => {
   if (isUserRejection(err)) return { type: 'user-rejected' }
 
