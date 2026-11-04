@@ -57,6 +57,25 @@ const isNameNotAvailableRevert = (error: Error): boolean => {
 export const isNameNotAvailableError = (error: unknown): boolean =>
   causeChain(error).some(isNameNotAvailableRevert)
 
+const INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE'
+
+// A refused route lists one code per strategy; a refused simulation has one category.
+const isInsufficientBalanceRefusal = (error: Error): boolean => {
+  const context = 'context' in error ? error.context : undefined
+  if (typeof context !== 'object' || context === null) return false
+
+  return (
+    ('category' in context && context.category === INSUFFICIENT_BALANCE) ||
+    ('failureCodes' in context &&
+      Array.isArray(context.failureCodes) &&
+      context.failureCodes.includes(INSUFFICIENT_BALANCE))
+  )
+}
+
+/** The orchestrator refused because the smart account can't pay, e.g. its funds were withdrawn. */
+export const isInsufficientFundsError = (error: unknown): boolean =>
+  causeChain(error).some(isInsufficientBalanceRefusal)
+
 /**
  * A readable one-liner for the failure screen. viem's `message` appends the
  * contract call, args, docs link and version; `shortMessage` leaves those out.

@@ -1,4 +1,9 @@
 import {
+  type TransactionRequest,
+  TransactionSubmissionError,
+} from '@ens-apps/transaction-manager'
+import { OrchestratorError } from '@rhinestone/sdk/errors'
+import {
   type Abi,
   ContractFunctionExecutionError,
   ContractFunctionRevertedError,
@@ -8,6 +13,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   getRegistrationFailureMessage,
+  isInsufficientFundsError,
   isNameNotAvailableError,
 } from './registrationFailure'
 
@@ -68,6 +74,78 @@ describe('isNameNotAvailableError', () => {
     expect(
       isNameNotAvailableError(new Error('sent from 0x12477707e8aa5b0c')),
     ).toBe(false)
+  })
+})
+
+// The orchestrator's answer when no route can pay for the reveal: one code per
+// strategy that gave up.
+const noRoute = (failureCodes: unknown) =>
+  new TransactionSubmissionError(
+    {} as TransactionRequest,
+    new OrchestratorError({
+      message: 'No viable route found for this intent.',
+      errorType: 'Unprocessable Entity',
+      statusCode: 422,
+      traceId: 'ad91fd026b13d7363f8d4accc2f9fe97',
+      context: {
+        requestedSettlementLayers: null,
+        resolvedLayers: ['ECO', 'ACROSS', 'SAME_CHAIN', 'INTENT_EXECUTOR'],
+        failureCodes,
+      },
+    }),
+  )
+
+const simulation = (category: string) =>
+  new TransactionSubmissionError(
+    {} as TransactionRequest,
+    new OrchestratorError({
+      message: 'Simulation failed due to insufficient token balance',
+      errorType: 'Unprocessable Entity',
+      statusCode: 422,
+      context: { category, retryable: false },
+    }),
+  )
+
+describe('isInsufficientFundsError', () => {
+  it.each([
+    [
+      'a route refused for the balance',
+      noRoute([
+        'UNSUPPORTED_DESTINATION_EXECUTIONS',
+        'NO_ROUTE_SUPPORT',
+        'INSUFFICIENT_BALANCE',
+        'UNSUPPORTED_MULTI_TOKEN',
+      ]),
+      true,
+    ],
+    [
+      'the same, behind a wrapper',
+      new Error('Not confirmed', {
+        cause: noRoute(['INSUFFICIENT_BALANCE']),
+      }),
+      true,
+    ],
+    [
+      'a simulation refused for the balance',
+      simulation('INSUFFICIENT_BALANCE'),
+      true,
+    ],
+    ['a route refused for other reasons', noRoute(['NO_ROUTE_SUPPORT']), false],
+    [
+      'failure codes that are not a list',
+      noRoute('INSUFFICIENT_BALANCE'),
+      false,
+    ],
+    [
+      'a simulation refused for other reasons',
+      simulation('EXECUTION_FAILED'),
+      false,
+    ],
+    ['a taken name', priceReadRevert(), false],
+    ['a plain error', new Error('rpc down'), false],
+    ['no error', undefined, false],
+  ])('%s', (_, error, expected) => {
+    expect(isInsufficientFundsError(error)).toBe(expected)
   })
 })
 
