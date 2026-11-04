@@ -139,11 +139,6 @@ export const renewalUiMachine = setup({
        * invoked intent submit can reach the component that renders the prompt.
        */
       approvalFallback?: HcaFundingApprovalCapability
-      /**
-       * Counts intent attempts. A late answer request from an abandoned attempt
-       * carries an older number and is declined.
-       */
-      intentAttempt: number
       /** The current attempt's increased payment, once it went up. */
       paymentUpdate?: PaymentUpdateState
     },
@@ -184,7 +179,6 @@ export const renewalUiMachine = setup({
       | { type: 'renewal.submitted'; txId: string }
       | {
           type: 'renewal.payment.increased'
-          readonly attempt: number
           readonly prompt: HcaFundingPrompt
           readonly decide: (isAccepted: boolean) => void
         }
@@ -225,15 +219,16 @@ export const renewalUiMachine = setup({
           await submitHcaRenewal({
             ...input,
             signal,
-            // Stopping the machine runs no exit actions, so the abort answers
-            // the open question instead.
+            // An abandoned attempt never asks, and its open question is declined.
             ...(confirmIncreasedPayment
               ? {
                   confirmIncreasedPayment: (prompt: HcaFundingPrompt) =>
-                    Promise.race([
-                      confirmIncreasedPayment(prompt),
-                      declineOnAbort(signal),
-                    ]),
+                    signal.aborted
+                      ? Promise.resolve(false)
+                      : Promise.race([
+                          confirmIncreasedPayment(prompt),
+                          declineOnAbort(signal),
+                        ]),
                 }
               : {}),
           })
@@ -260,9 +255,6 @@ export const renewalUiMachine = setup({
       context.submissionData?.signer.type === 'rhinestone',
     alreadyRenewed: ({ context }, params: { expiry: bigint | null }) =>
       params.expiry !== null && params.expiry > context.currentExpiry,
-    isCurrentAttempt: ({ context, event }) =>
-      event.type === 'renewal.payment.increased' &&
-      event.attempt === context.intentAttempt,
   },
   actions: {
     setDuration: assign({
@@ -292,10 +284,7 @@ export const renewalUiMachine = setup({
       // Bridged in as USDC, so the price is paid in USDC.
       selectedToken: () => 'USDC' as const,
     }),
-    beginIntentAttempt: assign({
-      intentAttempt: ({ context }) => context.intentAttempt + 1,
-      paymentUpdate: () => undefined,
-    }),
+    beginIntentAttempt: assign({ paymentUpdate: () => undefined }),
     reviewPayment: assign({
       paymentUpdate: ({ event }) =>
         event.type === 'renewal.payment.increased'
@@ -318,9 +307,6 @@ export const renewalUiMachine = setup({
         },
     }),
     clearPaymentUpdate: assign({ paymentUpdate: () => undefined }),
-    declineStalePayment: ({ event }) => {
-      if (event.type === 'renewal.payment.increased') event.decide(false)
-    },
     clearFailure: assign({
       lastErrorMessage: () => undefined,
     }),
@@ -389,7 +375,6 @@ export const renewalUiMachine = setup({
     selectedToken: undefined,
     lastErrorMessage: undefined,
     approvalFallback: input.approvalFallback,
-    intentAttempt: 0,
   }),
   initial: 'pricing',
   states: {
@@ -449,12 +434,7 @@ export const renewalUiMachine = setup({
     submittingHcaRenewal: {
       tags: 'renewing',
       entry: 'beginIntentAttempt',
-      // Whatever ends the attempt also answers its open question, so the
-      // abandoned submit stops instead of waiting forever.
-      exit: [
-        { type: 'answerPaymentReview', params: { isAccepted: false } },
-        'clearPaymentUpdate',
-      ],
+      exit: 'clearPaymentUpdate',
       // Until the intent is submitted the owner is still approving (the
       // funding permit, then the signature), so the payment dialog stays up
       // as it does for registration; `renewalTxId` marks the hand-over.
@@ -468,7 +448,6 @@ export const renewalUiMachine = setup({
         signing: {
           on: {
             'renewal.payment.increased': {
-              guard: 'isCurrentAttempt',
               target: 'reviewingPayment',
               actions: 'reviewPayment',
             },
@@ -494,7 +473,6 @@ export const renewalUiMachine = setup({
         src: 'submitHcaRenewalIntent',
         input: ({ context, self }) => {
           const submission = requireSubmissionData(context.submissionData)
-          const attempt = context.intentAttempt
           return {
             onSubmitted: (txId: string) =>
               self.send({ type: 'renewal.submitted', txId }),
@@ -502,7 +480,6 @@ export const renewalUiMachine = setup({
               new Promise<boolean>((decide) =>
                 self.send({
                   type: 'renewal.payment.increased',
-                  attempt,
                   prompt,
                   decide,
                 }),
@@ -773,7 +750,5 @@ export const renewalUiMachine = setup({
       target: '.pricing',
       actions: ['clearFailure', 'clearSubmission'],
     },
-    // Reached only when no current attempt is waiting for this answer.
-    'renewal.payment.increased': { actions: 'declineStalePayment' },
   },
 })
