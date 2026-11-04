@@ -1,6 +1,7 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: decoded ABI args need flexible typing in tests
 
 import {
+  buildHcaSessionConfig,
   computeResolverAddress,
   getDestinationContracts,
   HCA_ADDR_REVERSE_CLEAR_GAS,
@@ -360,6 +361,36 @@ describe('submitFundingAndCommitActor', () => {
     expect(walletClient.request).not.toHaveBeenCalled()
   })
 
+  it('retains the original session fee caps independently of the owner setup signer', async () => {
+    const { input, contracts } = await makeRegistrationFundingRun()
+    const config = buildHcaSessionConfig({
+      chainId: 1,
+      sessionKey: SESSION_KEY,
+      validUntil: 1_800_000_000n,
+      resolver: RESOLVER_WITH_RECORD,
+      refundCaps: {
+        maxRefundExchangeRate: 3_000_000_000n,
+        maxRefundGasOverhead: 2_000_000n,
+        maxRefundAmount: 1_000_000n,
+      },
+    })
+    await submitFundingAndCommitActor({
+      ...input,
+      sessionEnable: {
+        ...sessionEnable,
+        enableData: { ...sessionEnable.enableData, hcaSessionConfig: config },
+      },
+    })
+    expect(submittedRequest().rhinestoneParams.ownerIntentLimits).toEqual({
+      refundToken: contracts.usdc,
+      refundCaps: {
+        maxRefundExchangeRate: 3_000_000_000n,
+        maxRefundGasOverhead: 2_000_000n,
+        maxRefundAmount: 1_000_000n,
+      },
+    })
+  })
+
   it('keeps a compatible permit in the atomic batch without an approval prompt', async () => {
     const { input, publicClient, approvalFallback, walletClient } =
       await makeRegistrationFundingRun()
@@ -384,17 +415,27 @@ describe('submitFundingAndCommitActor', () => {
     expect(records.size).toBe(0)
   })
 
-  it('does not offer an approval for an unproven permit failure', async () => {
-    const { input, publicClient, approvalFallback, walletClient } =
-      await makeRegistrationFundingRun()
-    publicClient.simulateContract.mockRejectedValue(
-      new Error('RPC unavailable'),
-    )
-    expect((await submitFundingAndCommitActor(input)).isErr()).toBe(true)
-    expect(approvalFallback.confirmApproval).not.toHaveBeenCalled()
-    expect(walletClient.request).not.toHaveBeenCalled()
-    expect(startTransaction).not.toHaveBeenCalled()
-  })
+  it.each(['getBlockNumber', 'simulateContract', 'getCode'] as const)(
+    'keeps the permit path without offering approval when preflight %s fails',
+    async (operation) => {
+      const { input, publicClient, approvalFallback, walletClient } =
+        await makeRegistrationFundingRun()
+      publicClient[operation].mockRejectedValue(new Error('RPC unavailable'))
+      expect(
+        (await submitFundingAndCommitActor(input))._unsafeUnwrap().txId,
+      ).toBe('tx-1')
+      expect(submittedRequest().rhinestoneParams.calls).toHaveLength(3)
+      expect(
+        decodeFunctionData({
+          abi: erc20Abi,
+          data: submittedRequest().rhinestoneParams.calls[0].data,
+        }).functionName,
+      ).toBe('permit')
+      expect(approvalFallback.confirmApproval).not.toHaveBeenCalled()
+      expect(walletClient.request).not.toHaveBeenCalled()
+      expect(approvalFallback.environment.locks.request).not.toHaveBeenCalled()
+    },
+  )
 
   it('rechecks the connected account after approval consent', async () => {
     const { input, approvalFallback, walletClient } =

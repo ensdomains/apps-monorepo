@@ -103,6 +103,7 @@ import {
 
 import {
   getRegistrationCommitSigner,
+  getRegistrationOwnerIntentLimits,
   prepareRegistrationFunding,
   type RegistrationFundingApproval,
   RegistrationFundingError,
@@ -639,6 +640,7 @@ function buildUserPaidRequest(params: {
   chainId: number
   calls: Call[]
   sessionEnableData?: SessionEnableData
+  ownerIntentLimits?: RhinestoneTransactionRequest['rhinestoneParams']['ownerIntentLimits']
   /**
    * USDC (6dp) this intent will pull into the HCA before it spends anything —
    * i.e. the funding permit's value. Omit when the batch carries no funding
@@ -659,6 +661,9 @@ function buildUserPaidRequest(params: {
       feeAsset: 'USDC',
       ...(params.sessionEnableData
         ? { sessionEnableData: params.sessionEnableData }
+        : {}),
+      ...(params.ownerIntentLimits
+        ? { ownerIntentLimits: params.ownerIntentLimits }
         : {}),
       ...(params.deliveredUsdc !== undefined
         ? {
@@ -1420,6 +1425,14 @@ export function submitFundingAndCommitActor(input: {
         funding.authority === 'session'
           ? input.sessionEnable?.enableData
           : undefined,
+      ownerIntentLimits:
+        funding.authority === 'owner'
+          ? getRegistrationOwnerIntentLimits({
+              refundToken: contracts.usdc,
+              enableData: input.sessionEnable?.enableData,
+              signer: input.signer,
+            })
+          : undefined,
       // The planner sees only what this batch actually pulls from the wallet.
       ...(funding.incomingUsdc > 0n
         ? { incomingUsdc: funding.incomingUsdc }
@@ -1443,7 +1456,7 @@ export function submitFundingAndCommitActor(input: {
           }),
         )
     }
-    if (input.approvalFallback && input.permit) {
+    if (input.approvalFallback && funding.authority === 'owner') {
       yield* assertHcaFundingWallet({
         ...input.approvalFallback,
         publicClient: input.publicClient,

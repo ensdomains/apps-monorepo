@@ -1,3 +1,4 @@
+import { LEGACY_REFUND_CAPS } from '@ens-apps/smart-account'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, ok, ResultAsync } from 'neverthrow'
 import type { Address, PublicClient } from 'viem'
@@ -13,7 +14,7 @@ import {
   validateHcaUsdcPermit,
 } from '../../helpers/hca-usdc-permit'
 import type { Signer } from '../../types/signer.types'
-import type { Call } from '../../types/transaction.types'
+import type { Call, SessionEnableData } from '../../types/transaction.types'
 import type { PermitSignature } from './registration.actors'
 
 const PERMIT_ABI = parseAbi([
@@ -51,6 +52,29 @@ type Funding =
 const fundingError = (cause: unknown) => new RegistrationFundingError({ cause })
 const boundary = <T>(promise: Promise<T>) =>
   ResultAsync.fromPromise(promise, fundingError)
+
+/** Preserve the fee ceilings even though the setup itself uses the owner validator. */
+export const getRegistrationOwnerIntentLimits = (input: {
+  readonly refundToken: Address
+  readonly enableData: SessionEnableData | undefined
+  readonly signer: Signer
+}) => {
+  const config =
+    input.enableData?.hcaSessionConfig ??
+    (input.signer.type === 'rhinestone'
+      ? input.signer.session?.enableData?.hcaSessionConfig
+      : undefined)
+  return {
+    refundToken: config?.refundToken ?? input.refundToken,
+    refundCaps: config
+      ? {
+          maxRefundExchangeRate: BigInt(config.maxRefundExchangeRate),
+          maxRefundGasOverhead: BigInt(config.maxRefundGasOverhead),
+          maxRefundAmount: BigInt(config.maxRefundAmount),
+        }
+      : LEGACY_REFUND_CAPS,
+  }
+}
 
 export const getRegistrationCommitSigner = (input: {
   readonly authority: 'session' | 'owner'
@@ -216,15 +240,17 @@ export const prepareRegistrationFunding = ResultFn(async function* (input: {
         }
       : {}),
   }
-  yield* assertHcaFundingWallet(approval)
+  // Preflight is only evidence for offering an approval. When inconclusive,
+  // the original permit still goes through the token's on-chain validation.
   const validation = yield* validateHcaUsdcPermit({
     publicClient,
     chainId: input.chainId,
     token,
     permit,
-  })
+  }).orElse(() => ok('permit' as const))
   // A compatible permit needs neither durable approval storage nor browser locks.
   if (validation === 'permit') return ok(build({ kind: 'permit', permit }))
+  yield* assertHcaFundingWallet(approval)
   const recovered = yield* recoverHcaFundingApproval(approval)
   const consented =
     recovered.kind === 'covered' && recovered.maxAmount < permit.value
