@@ -89,6 +89,13 @@ const TotalAmount = ({
     </span>
   )
 
+/** The total leaves the network fee to the payment sheet, and says so. */
+const NetworkFeesNote = () => (
+  <span className="text-ens-quartz-550 text-xs leading-none">
+    <Trans>+ network fees</Trans>
+  </span>
+)
+
 type LayoutProps = Readonly<{
   summary: CheckoutSummary
   discount: number
@@ -108,11 +115,14 @@ const TotalOnly = ({ summary, discount, isTotalPending }: LayoutProps) => (
     <span className="text-ens-lapis-500 text-xs uppercase">
       <Trans>Total USD</Trans>
     </span>
-    <TotalAmount
-      className="font-medium font-semi-mono text-4xl text-ens-blue-midnight leading-ens-none md:text-5xl"
-      isPending={isTotalPending}
-      raw={summary.totalRaw}
-    />
+    <div className="flex flex-col items-center">
+      <TotalAmount
+        className="font-medium font-semi-mono text-4xl text-ens-blue-midnight leading-ens-none md:text-5xl"
+        isPending={isTotalPending}
+        raw={summary.totalRaw}
+      />
+      <NetworkFeesNote />
+    </div>
     {discount > 0 && <SavePill amount={discount} />}
   </div>
 )
@@ -142,18 +152,21 @@ const WithExistingBalance = ({
         )}
       </Row>
     </div>
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-ens-lapis-500 text-lg leading-none">
-        <Trans>Total</Trans>
-      </span>
-      <span className="flex items-baseline gap-1.5">
-        <TotalAmount
-          className="font-medium font-semi-mono text-ens-blue-midnight text-temp-32px leading-ens-none"
-          isPending={isAccountPending || !summary}
-          raw={summary?.totalRaw ?? 0n}
-        />
-        <span className={RECEIPT_LABEL}>USD</span>
-      </span>
+    <div className="flex flex-col items-end gap-0.5">
+      <div className="flex w-full items-baseline justify-between gap-2">
+        <span className="text-ens-lapis-500 text-lg leading-none">
+          <Trans>Total</Trans>
+        </span>
+        <span className="flex items-baseline gap-1.5">
+          <TotalAmount
+            className="font-medium font-semi-mono text-ens-blue-midnight text-temp-32px leading-ens-none"
+            isPending={isAccountPending || !summary}
+            raw={summary?.totalRaw ?? 0n}
+          />
+          <span className={RECEIPT_LABEL}>USD</span>
+        </span>
+      </div>
+      <NetworkFeesNote />
     </div>
   </div>
 )

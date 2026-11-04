@@ -239,6 +239,10 @@ msgstr ""
 msgid "{years} years"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
+msgid "+ network fees"
+msgstr ""
+
 #. placeholder {0}: truncateAddress(account)
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "<0>{0}</0> will be able to change the resolver for <1>{name}</1>"

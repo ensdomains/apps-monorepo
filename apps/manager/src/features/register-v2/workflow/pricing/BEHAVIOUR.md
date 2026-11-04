@@ -14,7 +14,7 @@ Paths are relative to this folder. "Sheet tests" means `components/TokenPickerCo
 
 | Rule | Held by |
 | --- | --- |
-| Without an existing balance, the card shows the total in USD and the savings pill. | `CheckoutSummaryCard.test.tsx` |
+| Without an existing balance, the card shows the total in USD and the savings pill. Under the total, in both layouts, "+ network fees": the page's total leaves the fee to the sheet. | `CheckoutSummaryCard.test.tsx` |
 | With one, it shows Name cost, Existing balance and Total. The balance is applied up to the name cost, so the total is never below zero. | `lib/checkoutSummary.test.ts`, `CheckoutSummaryCard.test.tsx` "shows the name cost, the existing balance and the total left to pay" |
 | Tier cards headline the total including any premium; the per-year pill stays on the base price and reads "total". | `DurationPresetRow.test.tsx` "headlines the total with any premium..." |
 | The button reads "Continue to payment" and opens the sheet. Accepted coins sit under it (USDC and ETH). While preparing it reads "Preparing..." and is disabled with a not-allowed cursor. | `CheckoutSummaryCard.test.tsx` "opens the payment sheet from Continue to payment"; `lib/checkoutAvailability.test.ts` (`getCheckoutAction`) |
