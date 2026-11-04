@@ -1,3 +1,4 @@
+import { fromSync } from '@ens-apps/utils/neverthrow'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { err, ok, ResultAsync } from 'neverthrow'
 import type { Chain } from 'viem'
@@ -6,6 +7,32 @@ import {
   checkOwnerIntentRoute,
   OwnerIntentValidationError,
 } from './warp-owner-intent'
+
+export const checkPreparedOwnerIntentRoute = (input: {
+  readonly request: RhinestoneTransactionRequest
+  readonly account: RhinestoneAccount
+  readonly prepared: Parameters<RhinestoneAccount['getTransactionMessages']>[0]
+}) => {
+  const error = checkOwnerIntentRoute({
+    request: input.request,
+    intentRoute: input.prepared.intentRoute,
+  })
+  if (!error) return undefined
+  // The mainnet planner includes unsigned legacy claim metadata. Accept it
+  // only when the SDK's actual authorization hashes to the local setup.
+  return fromSync(
+    () => input.account.getTransactionMessages(input.prepared),
+    (cause) => new OwnerIntentValidationError({ cause }),
+  ).match(
+    (signingMessages) =>
+      checkOwnerIntentRoute({
+        request: input.request,
+        intentRoute: input.prepared.intentRoute,
+        signingMessages,
+      }),
+    () => error,
+  )
+}
 
 /** Refuse an unsupported setup before the wallet pays for its funding approval. */
 export const preflightOwnerIntentQuote = (input: {
@@ -30,9 +57,10 @@ export const preflightOwnerIntentQuote = (input: {
         cause,
       }),
   ).andThen((prepared) => {
-    const error = checkOwnerIntentRoute({
+    const error = checkPreparedOwnerIntentRoute({
       request: input.request,
-      intentRoute: prepared.intentRoute,
+      account: input.account,
+      prepared,
     })
     return error ? err(error) : ok(undefined)
   })

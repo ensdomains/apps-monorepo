@@ -1,5 +1,15 @@
-import type { IntentOp } from '@rhinestone/sdk'
-import { zeroAddress, zeroHash } from 'viem'
+import {
+  buildStandaloneAccountConfig,
+  getDestinationContracts,
+} from '@ens-apps/smart-account'
+import {
+  type IntentOp,
+  type RhinestoneAccount,
+  RhinestoneSDK,
+} from '@rhinestone/sdk'
+import { encodeFunctionData, erc20Abi, zeroAddress, zeroHash } from 'viem'
+import { toAccount } from 'viem/accounts'
+import { mainnet } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import type {
   Call,
@@ -87,7 +97,217 @@ const withCalls = (ops: readonly Call[]) =>
     },
   })
 
+const makeLiveOwnerQuote = async () => {
+  const usdc = getDestinationContracts(1).usdc
+  const request: RhinestoneTransactionRequest = {
+    ...REQUEST,
+    rhinestoneParams: {
+      calls: [{ ...CALLS[0], to: usdc }, CALLS[1]],
+      ownerIntentLimits: {
+        refundToken: usdc,
+        refundCaps: REQUEST.rhinestoneParams.ownerIntentLimits?.refundCaps ?? {
+          maxRefundExchangeRate: 3_000_000_000n,
+          maxRefundGasOverhead: 500_000n,
+          maxRefundAmount: 1_000_000n,
+        },
+      },
+    },
+  }
+  const approval = {
+    to: usdc,
+    value: 0n,
+    data: encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: ['0x1d7df6ddc7328ac827eb4d7f171c60afb7f9a599', 1_000_000n],
+    }),
+  }
+  const route = makeRoute({
+    element: { idsAndAmounts: [['1', '100']], spendTokens: [['1', '100']] },
+    mandate: {
+      preClaimOps: { vt: `0x0201${'00'.repeat(30)}`, ops: [approval] },
+      destinationOps: {
+        vt: `0x0201${'00'.repeat(30)}`,
+        ops: [approval, ...request.rhinestoneParams.calls],
+      },
+    },
+    refund: { token: usdc },
+  })
+  const intentRoute = { ...route, intentOp: { ...route.intentOp, nonce: '1' } }
+  const owner = toAccount({
+    address: REGISTRAR,
+    signMessage: async () => {
+      throw new Error('Signing disabled')
+    },
+    signTransaction: async () => {
+      throw new Error('Signing disabled')
+    },
+    signTypedData: async () => {
+      throw new Error('Signing disabled')
+    },
+  })
+  const account = await new RhinestoneSDK({
+    auth: { mode: 'apiKey', apiKey: 'test' },
+  }).createAccount({
+    account: buildStandaloneAccountConfig(1),
+    owners: {
+      type: 'ecdsa',
+      accounts: [owner],
+      module: getDestinationContracts(1).hcaOwnerAndSessionValidator,
+    },
+  })
+  const hca = account.getAddress()
+  const verifiedRoute = {
+    ...intentRoute,
+    intentOp: {
+      ...intentRoute.intentOp,
+      sponsor: hca,
+      elements: intentRoute.intentOp.elements.map((element) => ({
+        ...element,
+        mandate: { ...element.mandate, recipient: hca },
+      })),
+    },
+  }
+  const getSigningMessages = (intentRoute: typeof verifiedRoute) =>
+    account.getTransactionMessages({
+      // The SDK types require tokenOut even when the no-funding route has none.
+      intentRoute: intentRoute as never,
+      intentInput: {},
+      transaction: {
+        sourceChains: [mainnet],
+        targetChain: mainnet,
+        calls: [...request.rhinestoneParams.calls],
+      },
+    })
+  const signingMessages = getSigningMessages(verifiedRoute)
+  return {
+    request: { ...request, from: hca },
+    intentRoute: verifiedRoute,
+    signingMessages,
+    getSigningMessages,
+  }
+}
+
 describe('checkOwnerIntentRoute', () => {
+  it('accepts only the capped Paymaster approval and the verified SingleChainOps authorization', async () => {
+    expect(checkOwnerIntentRoute(await makeLiveOwnerQuote())).toBeUndefined()
+  })
+
+  it('requires the SDK authorization before accepting routing metadata', async () => {
+    const { request, intentRoute } = await makeLiveOwnerQuote()
+    expect(checkOwnerIntentRoute({ request, intentRoute })).toBeInstanceOf(
+      OwnerIntentValidationError,
+    )
+  })
+
+  it.each([
+    { label: 'another spender', spender: REGISTRAR, amount: 1_000_000n },
+    {
+      label: 'a larger approval',
+      spender: '0x1d7df6ddc7328ac827eb4d7f171c60afb7f9a599',
+      amount: 1_000_001n,
+    },
+    {
+      label: 'a different approval cap',
+      spender: '0x1d7df6ddc7328ac827eb4d7f171c60afb7f9a599',
+      amount: 999_999n,
+    },
+  ] as const)(
+    'refuses $label even when the SDK would sign it',
+    async ({ spender, amount }) => {
+      const input = await makeLiveOwnerQuote()
+      const intentRoute = {
+        ...input.intentRoute,
+        intentOp: {
+          ...input.intentRoute.intentOp,
+          elements: input.intentRoute.intentOp.elements.map((element) => ({
+            ...element,
+            mandate: {
+              ...element.mandate,
+              destinationOps: {
+                ...element.mandate.destinationOps,
+                ops: element.mandate.destinationOps.ops.map((call, index) =>
+                  index === 0
+                    ? {
+                        ...call,
+                        data: encodeFunctionData({
+                          abi: erc20Abi,
+                          functionName: 'approve',
+                          args: [spender, amount],
+                        }),
+                      }
+                    : call,
+                ),
+              },
+            },
+          })),
+        },
+      }
+      expect(
+        checkOwnerIntentRoute({
+          ...input,
+          intentRoute,
+          signingMessages: input.getSigningMessages(intentRoute),
+        }),
+      ).toBeInstanceOf(OwnerIntentValidationError)
+    },
+  )
+
+  it.each([
+    {
+      label: 'origin domain',
+      change: (
+        messages: ReturnType<RhinestoneAccount['getTransactionMessages']>,
+      ) => ({
+        ...messages,
+        origin: messages.origin.map((message) => ({
+          ...message,
+          domain: { ...message.domain, verifyingContract: REGISTRAR },
+        })),
+      }),
+    },
+    {
+      label: 'destination domain',
+      change: (
+        messages: ReturnType<RhinestoneAccount['getTransactionMessages']>,
+      ) => ({
+        ...messages,
+        destination: {
+          ...messages.destination,
+          domain: { ...messages.destination.domain, chainId: 8453 },
+        },
+      }),
+    },
+    {
+      label: 'additional authorization',
+      change: (
+        messages: ReturnType<RhinestoneAccount['getTransactionMessages']>,
+      ) => ({
+        ...messages,
+        origin: [...messages.origin, ...messages.origin],
+      }),
+    },
+    {
+      label: 'typed data structure',
+      change: (
+        messages: ReturnType<RhinestoneAccount['getTransactionMessages']>,
+      ) => ({
+        ...messages,
+        origin: messages.origin.map((message) => ({
+          ...message,
+          primaryType: 'Op',
+        })),
+      }),
+    },
+  ])('refuses a changed $label', async ({ change }) => {
+    const input = await makeLiveOwnerQuote()
+    expect(
+      checkOwnerIntentRoute({
+        ...input,
+        signingMessages: change(input.signingMessages),
+      }),
+    ).toBeInstanceOf(OwnerIntentValidationError)
+  })
   it('accepts the exact same-chain calls at all retained fee ceilings', () => {
     expect(
       checkOwnerIntentRoute({ request: REQUEST, intentRoute: makeRoute() }),
