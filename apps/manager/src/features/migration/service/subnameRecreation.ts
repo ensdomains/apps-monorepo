@@ -1,5 +1,9 @@
 import { type BignameClient, readAllEnvelopes } from '@ens-apps/indexer/bigname'
-import type { SubnameMigrationImpact, V1Domain } from '@ens-apps/migration'
+import {
+  type SubnameMigrationImpact,
+  unknownLabelhashOf,
+  type V1Domain,
+} from '@ens-apps/migration'
 import {
   registryOwnerSnippet,
   registryResolverSnippet,
@@ -7,6 +11,7 @@ import {
 import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import {
   type Address,
+  concat,
   type GetLogsReturnType,
   type Hex,
   isAddress,
@@ -39,6 +44,7 @@ import {
   getProvenSubnameName,
 } from './rpcSubnameInventory'
 import { isEmptyRpcSubnameTombstone } from './rpcSubnameMigrationImpact'
+import { readSubnameMigrationImpactWithRetry } from './subnameMigrationImpactRetry'
 import {
   assertSubnameRecreationSnapshotCurrent,
   SubnameRecreationError,
@@ -55,6 +61,8 @@ export type SubnameRecreationSnapshot = {
   readonly chainId?: number
   readonly inventoryDigest?: Hex
   readonly registryAddresses?: readonly Address[]
+  /** Unknown-label leaves left on ENSv1; checked for new descendants before signing. */
+  readonly skipped?: readonly string[]
 }
 
 const SOURCE_MAX_AGE_SECONDS = 300n
@@ -74,6 +82,16 @@ const fail: (ensName: string, reason: string) => never = (ensName, reason) => {
 }
 const parentOf = (name: string): string => name.slice(name.indexOf('.') + 1)
 const assertIdentity = (name: string, node: string): void => {
+  const unknownLabelhash = unknownLabelhashOf(name)
+  if (unknownLabelhash) {
+    // The label was never published, so prove the node from its hash instead.
+    if (
+      keccak256(concat([namehash(parentOf(name)), unknownLabelhash])) !==
+      node.toLowerCase()
+    )
+      fail(name, 'an exact, valid subname label is required before migration.')
+    return
+  }
   if (
     name.includes('[') ||
     normalize(name) !== name ||
@@ -504,6 +522,16 @@ const readRecreationInventory = async (params: {
   return inventory
 }
 
+const unknownLabelNameOf = (
+  hints: readonly string[],
+  node: Hex,
+): string | undefined =>
+  hints.find(
+    (name) =>
+      unknownLabelhashOf(name) !== null &&
+      namehash(name).toLowerCase() === node.toLowerCase(),
+  )
+
 export const discoverSubnameRecreation = async (params: {
   readonly domains: readonly V1Domain[]
   readonly owner: Address
@@ -517,6 +545,8 @@ export const discoverSubnameRecreation = async (params: {
   readonly domains: readonly V1Domain[]
   readonly snapshot: SubnameRecreationSnapshot
   readonly inventory: RpcSubnameInventory
+  /** Unknown-label subnames the upgrade leaves behind on ENSv1. */
+  readonly unrecoverable: readonly string[]
 }> => {
   const { publicClient, signal } = params
   signal?.throwIfAborted()
@@ -575,6 +605,7 @@ export const discoverSubnameRecreation = async (params: {
   await params.onNamesChecked?.(checkedNames)
   let imports: readonly V1Domain[] = []
   let importRoots: readonly string[] = []
+  let unrecoverable: readonly string[] = []
   for (const root of candidates) {
     signal?.throwIfAborted()
     const children = inventory.nodes.filter(
@@ -613,7 +644,7 @@ export const discoverSubnameRecreation = async (params: {
         )
       : []
     const hintPreimages = getKnownSubnamePreimages(hints)
-    const imported = children.map((child) => {
+    const imported = children.flatMap((child) => {
       const hint = hintPreimages.get(child.node)
       const name =
         child.name ??
@@ -621,7 +652,8 @@ export const discoverSubnameRecreation = async (params: {
           ...child,
           knownNames: hint ? [hint] : [],
           wrapperName: '0x',
-        })
+        }) ??
+        unknownLabelNameOf(hints, child.node)
       if (!name)
         return fail(
           root.domain.name,
@@ -633,6 +665,11 @@ export const discoverSubnameRecreation = async (params: {
           root.domain.name,
           'a child label, owner or parent could not be verified.',
         )
+      // Unknown labels cannot be recreated in ENSv2; the upgrade drops them.
+      if (unknownLabelhashOf(name)) {
+        unrecoverable = [...unrecoverable, name]
+        return []
+      }
       return childDomainFromSource(
         root.domain,
         { name, namehash: child.node },
@@ -672,11 +709,13 @@ export const discoverSubnameRecreation = async (params: {
     chainId: envConfig.chain.id,
     inventoryDigest: inventoryDigest(values),
     registryAddresses: inventory.registries.map(({ address }) => address),
+    ...(unrecoverable.length > 0 ? { skipped: unrecoverable } : {}),
   }
   return {
     domains: values,
     snapshot,
     inventory: withValidatedInventoryLabels(inventory, values),
+    unrecoverable,
   }
 }
 
@@ -756,6 +795,12 @@ export const assertSubnameRecreationUnchanged = async (params: {
   const children = params.domains.filter((domain) =>
     relevantRoots.includes(parentOf(domain.name)),
   )
+  const watched = [
+    ...children.map(({ name }) => name),
+    ...(params.snapshot.skipped ?? []).filter((name) =>
+      relevantRoots.includes(parentOf(name)),
+    ),
+  ]
   if (head.number > BigInt(params.snapshot.blockNumber)) {
     const events = await readNewOwnerChanges({
       publicClient: params.publicClient,
@@ -776,19 +821,19 @@ export const assertSubnameRecreationUnchanged = async (params: {
       )
     const descendants = await readNewOwnerChanges({
       publicClient: params.publicClient,
-      nodes: children.map(({ name }) => namehash(name)),
+      nodes: watched.map((name) => namehash(name)),
       fromBlock: BigInt(params.snapshot.blockNumber) + 1n,
       toBlock: head.number,
       registryAddresses: params.snapshot.registryAddresses,
     })
     if (descendants.length)
       fail(
-        children.find(({ name }) =>
+        watched.find((name) =>
           descendants.some(
             ({ args }) =>
               args.node?.toLowerCase() === namehash(name).toLowerCase(),
           ),
-        )?.name ?? 'selection',
+        ) ?? 'selection',
         'its descendants changed after review. Prepare a fresh import.',
       )
   }
@@ -840,6 +885,8 @@ export const assertSupportedSubnameMigration = async (params: {
   readonly onInventory?: (
     inventory: RpcSubnameInventory,
   ) => void | Promise<void>
+  /** Unknown-label leaves the reviewed import skipped; they are dropped, not lost. */
+  readonly unknownLabelNames?: readonly string[]
   readonly signal?: AbortSignal
 }): Promise<SubnameMigrationImpact> => {
   const unreviewed = params.classified.find(
@@ -853,15 +900,20 @@ export const assertSupportedSubnameMigration = async (params: {
   const migratingNames = params.classified
     .filter((name) => name.action === 'migrate')
     .map(({ domain }) => domain.name)
-  const impact = await readRpcSubnameMigrationImpact({
-    inventory: params.inventory,
-    onInventory: params.onInventory,
-    publicClient: params.publicClient,
-    verificationClient: params.verificationClient,
-    migratingNames,
-    copiedNames: params.classified
-      .filter((name) => name.action === 'copy')
-      .map(({ domain }) => domain.name),
+  const impact = await readSubnameMigrationImpactWithRetry({
+    read: () =>
+      readRpcSubnameMigrationImpact({
+        inventory: params.inventory,
+        onInventory: params.onInventory,
+        publicClient: params.publicClient,
+        verificationClient: params.verificationClient,
+        migratingNames,
+        copiedNames: params.classified
+          .filter((name) => name.action === 'copy')
+          .map(({ domain }) => domain.name),
+        unknownLabelNames: params.unknownLabelNames,
+        signal: params.signal,
+      }),
     signal: params.signal,
   })
   if (impact.affectedCount > 0)

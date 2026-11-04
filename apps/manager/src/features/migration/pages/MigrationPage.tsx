@@ -286,7 +286,7 @@ export const MigrationPage = () => {
   const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
   const dialogNames = isMigrationSuccess ? completedNames : selectedNames
-  const { gracePeriodNames } = useEligibleV1Names()
+  const { gracePeriodNames, unrecoverableSubnames } = useEligibleV1Names()
   const graceDomains = useMemo(() => {
     const selected = new Set(selectedNames)
     return gracePeriodNames
@@ -413,6 +413,7 @@ export const MigrationPage = () => {
       retryRenewal?.quote.items.map(({ domain }) => domain.name),
       graceDomains.map(({ name }) => name),
     ),
+    unknownLabelNames: unrecoverableSubnames,
     ownerAddress,
     managerRestorationNames,
     isEnabled: step === 'select' || shouldCheckImpactBeforeRetry,
