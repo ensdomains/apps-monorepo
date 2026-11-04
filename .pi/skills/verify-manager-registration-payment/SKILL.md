@@ -16,9 +16,23 @@ This verifies the PR #1708 rule: “While a payment is in flight, the list and f
 
 ## Coverage record
 
-Last synchronized with code commit: `e37040946b2b1e51f7667faf782c17305581ddec`
+Last synchronized with code commit: `0fadce5156326f30af42eb1a47d01554631765d8`
 
-Covered code:
+Reviewed baseline: rebased `origin/main`, including merged PR #1708. The
+covered-file diff from the previous sync commit was inspected:
+
+- #1708 clarifies fallback ranking and primary-name eligibility in `BEHAVIOUR.md`;
+  neither changes the modeled in-flight confirmation rule.
+- #1706 changes “rent” to “price” in comments in the picker and UI machine.
+- #1694 adds optional renewal receipt notices and Cancel callbacks to the shared
+  picker/action, and passes `isEstimate` into receipt calculation. Registration
+  supplies neither optional prop and keeps `isEstimate=false`.
+
+The click callback, busy observation, held-props capture, fallback gate, actor
+snapshot abort, and start-data binding still match the model. No model constants,
+actions, or invariants changed for this baseline update.
+
+Covered paths checked against that baseline:
 
 - `apps/manager/src/features/register-v2/workflow/pricing/BEHAVIOUR.md`
 - `apps/manager/src/features/register-v2/workflow/pricing/components/PaymentAction.tsx`
@@ -27,12 +41,16 @@ Covered code:
   - `startRegistration`
   - fallback settlement gate
   - `TokenPickerContentBase`
-- `apps/manager/src/features/register-v2/workflow/pricing/components/TokenPickerContent.test.tsx`
-- `apps/manager/src/features/register-v2/workflow/pricing/components/TokenPickerContent.confirmation.test.tsx`
 - `apps/manager/src/features/register-v2/workflow/pricing/hooks/useHeldWhile.ts`
 - `apps/manager/src/features/register-v2/workflow/pricing/hooks/useFallbackPaymentChoice.ts`
 - `apps/manager/src/features/register-v2/state/registrationUi.machine.ts`
   - payment-selection events
+
+Executable behavior witnesses added by this follow-up (outside the synchronized
+production baseline):
+
+- `apps/manager/src/features/register-v2/workflow/pricing/components/TokenPickerContent.test.tsx`
+- `apps/manager/src/features/register-v2/workflow/pricing/components/TokenPickerContent.confirmation.test.tsx`
 
 Verification files:
 
@@ -69,11 +87,17 @@ Change a constant only when the code actually changes that fact. Never change on
 
 ## Run
 
-From the repository root, first prove that the model still maps to the synchronized source:
+From the repository root, first check that the covered paths still match the
+reviewed source baseline:
 
 ```sh
 node apps/manager/verification/registration-payment/verify-source-map.mjs
 ```
+
+This is a provenance check, not a runtime behavior assertion. The retained
+Vitest regressions below are the executable behavior witnesses and deliberately
+remain failing in the normal suite. TLC consumes the configurations directly;
+the provenance checker does not assert their constants through source text.
 
 Then use pstack `/skill:statechart` to check `RegistrationPayment.tla` with the adjacent current config and view module, writing results to a new scratch directory outside the repository. Read every result through `/skill:statechart`; do not judge raw TLC output alone.
 
@@ -119,7 +143,7 @@ For every future counterexample:
 2. Compare covered files with the sync commit.
 3. Keep click, query refresh, busy render, fallback effect, awaited preparation, and XState send as separate actions unless the code makes them atomic.
 4. Update model actions and constants to describe the code, not the desired outcome.
-5. Update source facts in `verify-source-map.mjs`.
+5. Update this coverage record and the covered paths in `verify-source-map.mjs`.
 6. Use `/skill:statechart` and replay every counterexample against real code.
 7. Run `verify-sensitivity.sh`; the hardened configuration must pass and each removed guard must fail.
 8. Deliberately remove one real guard in a scratch change, update the model to that scratch code, and confirm the corresponding invariant fails.
