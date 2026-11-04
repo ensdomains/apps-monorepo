@@ -10,7 +10,7 @@ import {
   type Hex,
   WaitForTransactionReceiptTimeoutError,
 } from 'viem'
-import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Config as WagmiConfig } from 'wagmi'
 import {
   migrationHcaApprovalQueryKey,
@@ -94,6 +94,8 @@ beforeEach(() => {
   )
 })
 
+afterEach(() => vi.useRealTimers())
+
 describe('revokeMigrationApproval', () => {
   it('supports partial invalidation by owner across HCA and chain scopes', async () => {
     const queryClient = new QueryClient()
@@ -142,6 +144,7 @@ describe('revokeMigrationApproval', () => {
     expect(waitForTransactionReceiptMock).toHaveBeenCalledWith(wagmiConfig, {
       hash,
       chainId,
+      timeout: 180_000,
     })
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: migrationOperatorApprovalsQueryKey({ owner, hca, chainId }),
@@ -174,6 +177,48 @@ describe('revokeMigrationApproval', () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: migrationOperatorApprovalsQueryKey({ owner, hca, chainId }),
     })
+  })
+
+  it('finishes a stalled Safe revocation without refreshing approvals', async () => {
+    vi.useFakeTimers()
+    const publicClient = createSafeExecutionPublicClient({
+      ownerAddress: owner,
+      safeTxHash: hash,
+      executionHash,
+      event: 'ExecutionSuccess',
+      hasExecution: false,
+    })
+    vi.spyOn(publicClient, 'getLogs').mockReturnValue(
+      new Promise<never>(() => undefined),
+    )
+    getPublicClientMock.mockReturnValue(publicClient)
+    getConnectionMock.mockReturnValue({ connector: SAFE_WALLET_CONNECTOR })
+    waitForTransactionReceiptMock.mockReturnValue(
+      new Promise<never>(() => undefined),
+    )
+    const queryClient = new QueryClient()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const settled =
+      vi.fn<
+        (result: Awaited<ReturnType<typeof revokeMigrationApproval>>) => void
+      >()
+
+    void revokeMigrationApproval({
+      approval,
+      owner,
+      hca,
+      walletAddress: owner,
+      chainId,
+      wagmiConfig,
+      queryClient,
+    }).then(settled)
+    await vi.runAllTimersAsync()
+
+    expect(settled).toHaveBeenCalledOnce()
+    const result = settled.mock.calls[0]?.[0]
+    assert(result?.isErr())
+    expect(result.error.cause).toMatchObject({ name: 'TimeoutError' })
+    expect(invalidate).not.toHaveBeenCalled()
   })
 
   it('reports a failed Safe{Wallet} execution as a failed revocation', async () => {

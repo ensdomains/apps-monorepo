@@ -16,6 +16,7 @@ import {
   migrationOperatorApprovalsQueryKey,
 } from '@/features/migration/service/migrationApprovalQueryKeys'
 import type { MigrationOperatorApproval } from '@/features/migration/service/migrationApprovals'
+import { withRequestDeadline } from '@/features/migration/service/requestDeadline'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 import {
   RevokeMigrationApprovalError,
@@ -82,19 +83,32 @@ export const revokeMigrationApproval = ResultFn(async function* (params: {
   )
   const receiptOf = (txHash: Hash) =>
     fromPromise(
-      waitForTransactionReceipt(wagmiConfig, { hash: txHash, chainId }),
+      waitForTransactionReceipt(wagmiConfig, {
+        hash: txHash,
+        chainId,
+        timeout: RECEIPT_TIMEOUT_MS,
+      }),
       (cause) => cause,
     )
-  const receipt = yield* orSafeExecution({
-    publicClient,
-    connector: getConnection(wagmiConfig).connector,
-    account: owner,
-    id: hash,
-    timeout: RECEIPT_TIMEOUT_MS,
-    direct: receiptOf(hash),
-    settle: receiptOf,
-    signal: AbortSignal.timeout(RECEIPT_TIMEOUT_MS),
-  }).mapErr(toRevokeMigrationApprovalError)
+  const receipt = yield* fromPromise(
+    withRequestDeadline(
+      async (signal) =>
+        orSafeExecution({
+          publicClient,
+          connector: getConnection(wagmiConfig).connector,
+          account: owner,
+          id: hash,
+          timeout: RECEIPT_TIMEOUT_MS,
+          direct: receiptOf(hash),
+          settle: receiptOf,
+          signal,
+        }),
+      { timeoutMs: RECEIPT_TIMEOUT_MS },
+    ),
+    (cause) => cause,
+  )
+    .andThen((result) => result)
+    .mapErr(toRevokeMigrationApprovalError)
   yield* verifyMigrationApprovalRevocationReceipt(receipt)
 
   yield* fromPromise(
