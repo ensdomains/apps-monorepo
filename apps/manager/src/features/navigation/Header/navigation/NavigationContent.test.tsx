@@ -89,6 +89,12 @@ describe('NavigationContent', () => {
     expect(link.getAttribute('target')).toBe('_blank')
   })
 
+  it('names the DAO Forum icon link for screen readers', async () => {
+    await renderMenu()
+    const link = await screen.findByRole('link', { name: 'DAO Forum' })
+    expect(link.getAttribute('href')).toBe('https://discuss.ens.domains/')
+  })
+
   it('links to each destination once', async () => {
     await renderMenu()
     const hrefs = (await screen.findAllByRole('link')).map((link) =>
