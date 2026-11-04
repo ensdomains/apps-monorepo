@@ -1,7 +1,7 @@
 ---
 name: verify-manager-registration-payment
 description: "Verify that Manager registration payment stays bound to the method and figures the user clicked across async balance, quote, fallback, React-render, and registration-start orderings. Use when changing the payment sheet, PaymentAction, useHeldWhile, fallback selection, payment queries, or registration start preparation."
-compatibility: "Requires mise; the sensitivity script installs pinned Java and TLA+ tools."
+compatibility: "Requires mise; the sensitivity script installs Java and TLA+ tools."
 ---
 
 # Verify Manager registration payment confirmation
@@ -74,14 +74,8 @@ Treat a browser click, each XState event, each query notification, each React co
 | `ObserveBusy` | `TokenPickerContentBase` first sees `isBusy=true`; `useHeldWhile` captures that render’s props | one React commit, separate from the click and refresh |
 | `DispatchRegistrationStart` | `startRegistration` checks the actor snapshot and sends `registration.start` or returns | one post-`await` continuation and possible XState send |
 
-The current configuration records observed code facts:
-
-- `CaptureViewAtClick = FALSE`
-- `HoldViewWhileBusy = TRUE`
-- `LockSelectionAtClick = FALSE`
-- `BindStartMethodToClick = FALSE`
-- `BindStartFiguresToClick = FALSE`
-- `AbortOnActorChange = TRUE`
+The [current configuration](../../../apps/manager/verification/registration-payment/RegistrationPayment.cfg)
+records the observed code facts as model constants.
 
 Change a constant only when the code actually changes that fact. Never change one merely to make an invariant pass.
 
@@ -107,7 +101,9 @@ Finally run the sensitivity suite:
 apps/manager/verification/registration-payment/verify-sensitivity.sh
 ```
 
-The sensitivity command must pass. It proves that the hardened click-snapshot model passes and that removing each busy hold, selection lock, actor abort, or start-data binding changes the verdict.
+The sensitivity command must pass. See the verification README's
+[models](../../../apps/manager/verification/registration-payment/README.md#models)
+for the sensitivity cases and their guard dependencies.
 
 ## Current expected findings
 

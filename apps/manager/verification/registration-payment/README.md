@@ -30,9 +30,11 @@ to TLC.
   fail and produce a counterexample.
 - `RegistrationPaymentHardened.cfg` models atomic click-time capture and is
   expected to pass.
-- The `RegistrationPaymentNo*.cfg` models are mutation tests. Each removes one
-  protection and must fail its named invariant, proving the main model is
-  sensitive to that protection.
+- The `RegistrationPaymentNo*.cfg` models are mutation tests and must fail their
+  named invariants. The actor-abort case also permits selection changes and
+  unbinds the start method so that removing the abort guard can affect a start;
+  the hardened model's selection lock would otherwise make that guard redundant.
+  The start-binding case removes figure binding while retaining method binding.
 
 ## Run
 
@@ -42,11 +44,10 @@ First run the provenance check from the repository root:
 node apps/manager/verification/registration-payment/verify-source-map.mjs
 ```
 
-The checker validates that the covered paths are tracked and unchanged from the
-reviewed baseline `0fadce5156326f30af42eb1a47d01554631765d8` (rebased main,
-including merged PR #1708). It does not infer runtime behavior from source text
-or validate model constants. The reviewed differences and model-to-code mapping
-are recorded in the
+The checker validates that the covered paths are tracked and unchanged from
+`SYNC_COMMIT` in [`verify-source-map.mjs`](./verify-source-map.mjs). It does not
+infer runtime behavior from source text or validate model constants. The
+reviewed baseline, differences, and model-to-code mapping are recorded in the
 [coverage record](../../../../.pi/skills/verify-manager-registration-payment/SKILL.md#coverage-record).
 
 Then use pstack `/skill:statechart` with the model, current config, and view in
@@ -58,23 +59,18 @@ Finally run the mutation checks:
 apps/manager/verification/registration-payment/verify-sensitivity.sh
 ```
 
-The sensitivity script installs pinned TLC and Java tools through `mise`, checks
-the expected current failure, proves the hardened model passes, and proves each
+The sensitivity script installs TLC and Java through `mise` using the tool
+selections in [`verify-sensitivity.sh`](./verify-sensitivity.sh), checks the
+expected current failure, proves the hardened model passes, and proves each
 mutation model fails its named invariant. Logs and TLC state metadata are
 written to the temporary directory printed at the end. Set `FORMAL_OUT_DIR` to
 retain them at a chosen location.
 
-At the synchronized commit, `/skill:statechart` reports that the clicked view,
-pending selection, and eventual start data can diverge from the click. The
-actor-snapshot abort still prevents a changed XState selection from starting.
-
-The executable behavior witnesses are the intentionally failing Vitest
-regressions that live with the production
-code in `TokenPickerContent.test.tsx` and
-`TokenPickerContent.confirmation.test.tsx`. They are kept out of this formal
-model directory so the executable code repros and the TLA+ abstractions remain
-visibly separate. All three remain in the normal test suite and are expected
-to fail until production behavior is fixed in a separate change.
+See the coverage record's [current expected findings](../../../../.pi/skills/verify-manager-registration-payment/SKILL.md#current-expected-findings)
+and [real-code replay and evidence](../../../../.pi/skills/verify-manager-registration-payment/SKILL.md#real-code-replay-and-evidence)
+for the known failures and their executable witnesses. All three Vitest
+regressions remain in the normal test suite beside the production code and are
+expected to fail until production behavior is fixed in a separate change.
 
 ## Updating the model
 
