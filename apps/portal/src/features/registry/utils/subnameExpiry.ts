@@ -3,8 +3,9 @@ import { maxUint64 } from 'viem'
 import { getStartOfToday } from '@/features/register/utils/registrationDuration'
 import {
   type ExtensionSpan,
-  getExtensionDurationSeconds,
+  getExtensionTargetDate,
 } from '@/features/renew/utils/extensionDurationPicker'
+import { SECONDS_PER_DAY } from '@/lib/constants/duration'
 
 /** A new ENSv2 subname's expiry: none of its own, or a span from today. */
 export type SubnameExpiry =
@@ -31,11 +32,13 @@ export const getSubnameExpirySeconds = (
 ): bigint =>
   match(expiry)
     .with({ type: 'none' }, () => maxUint64)
-    .with(
-      { type: 'span' },
-      ({ span }) =>
-        nowSeconds + BigInt(getExtensionDurationSeconds(today, span)),
-    )
+    .with({ type: 'span' }, ({ span }) => {
+      // Calendar days, not renewal's contract years, so the picked day is kept.
+      const { days } = today.until(getExtensionTargetDate(today, span), {
+        largestUnit: 'day',
+      })
+      return nowSeconds + BigInt(Math.max(days, 1) * SECONDS_PER_DAY)
+    })
     .exhaustive()
 
 /** Whether a picked expiry outlasts the parent, whose expiry stops the subname resolving first. */
