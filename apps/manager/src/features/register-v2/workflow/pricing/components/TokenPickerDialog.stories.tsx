@@ -79,6 +79,9 @@ interface TokenPickerDialogShellProps {
   readonly globalErrorMessage?: string | null
   readonly helpMessage?: string
   readonly notice?: string
+  readonly nextMessage?: string
+  /** The button label once the selected method can't pay. */
+  readonly shortfallLabel?: string
   readonly footer?: ReactNode
   readonly initialSelectedToken?: SUPPORTED_TOKEN
   readonly funding?: RegistrationFundingSummary
@@ -99,6 +102,8 @@ export const TokenPickerDialogShell = ({
   globalErrorMessage = null,
   helpMessage,
   notice,
+  nextMessage,
+  shortfallLabel,
   footer,
   initialSelectedToken,
   funding,
@@ -137,6 +142,7 @@ export const TokenPickerDialogShell = ({
           }
         }
         label={label}
+        nextMessage={nextMessage}
         notice={notice}
         onNext={() => {}}
         onSelectCoin={(coin) => {
@@ -146,6 +152,7 @@ export const TokenPickerDialogShell = ({
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         selectedToken={selectedToken}
+        shortfallLabel={shortfallLabel}
         showNetworkFeeDetails
         stablecoinBalances={stablecoinBalances}
       />
@@ -504,6 +511,26 @@ export const KeepBrowserOpenNotice: Story = {
 export const KeepBrowserOpenNoticeMobile: Story = {
   ...KeepBrowserOpenNotice,
   parameters: { viewport: { defaultViewport: 'mobile1' } },
+}
+
+// The wallet holds $1 of a $5 total: the button falls back to the shortfall
+// label, and the notice still shows under it.
+export const KeepBrowserOpenNoticeShortWallet: Story = {
+  args: {
+    ...KeepBrowserOpenNotice.args,
+    pricingData: 5,
+    stablecoinBalances: [{ ...FUNDED_USDC, balance: '1000000' }],
+    funding: {
+      registration: 4.8,
+      networkFee: 0.2,
+      total: 5,
+      walletDebit: 5,
+      hcaCredit: 0,
+      isLoading: false,
+    },
+    nextMessage: 'Sign payment approval',
+    shortfallLabel: 'Register name',
+  },
 }
 
 export const FixtureMultipleMethodsCollapsed: Story = {
