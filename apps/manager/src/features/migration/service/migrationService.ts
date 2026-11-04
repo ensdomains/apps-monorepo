@@ -2382,6 +2382,7 @@ const executeRemainingAtomicBatches = async (params: {
       onInventory: (inventory) => {
         subnameInventory = inventory
       },
+      unknownLabelNames: params.plan.subnameRecreation?.skipped,
     })
     assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const description = describeUpgradeOperations(batch.operations)
