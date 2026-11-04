@@ -909,11 +909,10 @@ msgid "Connect to favorite name"
 msgstr "Connect to favorite name"
 
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Connect to register"
 msgstr "Connect to register"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+#: src/features/renew/workflow/pricing/components/PaymentCard.tsx
 msgid "Connect to renew"
 msgstr "Connect to renew"
 
@@ -2269,10 +2268,6 @@ msgstr "Owner"
 msgid "Page not found"
 msgstr "Page not found"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
-msgid "Pay"
-msgstr "Pay"
-
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Pay with"
 msgstr "Pay with"
@@ -2348,10 +2343,6 @@ msgstr "Preferences"
 #: src/features/notifications/settings/preferences.tsx
 msgid "Preferences updated"
 msgstr "Preferences updated"
-
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
-msgid "Preparing checkout..."
-msgstr "Preparing checkout..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing commitment"
@@ -2927,7 +2918,6 @@ msgid "Save {0}"
 msgstr "Save {0}"
 
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Save <0/>"
 msgstr "Save <0/>"
 
@@ -3286,10 +3276,6 @@ msgstr "Something went wrong. Refresh and try again."
 #: src/features/dashboard/components/SortMenu.tsx
 msgid "Sort by"
 msgstr "Sort by"
-
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
-msgid "Stables accepted"
-msgstr "Stables accepted"
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Start typing to check if your perfect name is available"
@@ -3736,7 +3722,6 @@ msgid "total"
 msgstr "total"
 
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Total"
 msgstr "Total"
@@ -3905,10 +3890,6 @@ msgstr "Upgrading is optional. Your existing names keep working as they do today
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Upgrading names with a different manager requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
 msgstr "Upgrading names with a different manager requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
-
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
-msgid "USD"
-msgstr "USD"
 
 #: src/components/HcaFundingApprovalDialog.tsx
 msgid "USDC allowance"

@@ -23,8 +23,21 @@ vi.mock('@/features/renew/state/renewalUi.context', () => ({
 vi.mock('@xstate/react', () => ({ useSelector: () => [31_536_000n, true] }))
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
-  useQuery: () => ({ data: 5, isLoading: false, isPlaceholderData: false }),
+  useQuery: () => ({
+    data: { amount: 5_000_000n },
+    isLoading: false,
+    isPlaceholderData: false,
+  }),
 }))
+vi.mock(
+  '@/features/register-v2/workflow/pricing/hooks/useCheckoutSources',
+  () => ({
+    useCheckoutSources: () => ({
+      accountBalance: { status: 'known', usdcRaw: 0n },
+      sources: { wallet: { status: 'known', usdcRaw: 10_000_000n }, l2s: [] },
+    }),
+  }),
+)
 vi.mock('@/features/register-v2/data/queries/baseRates.query', () => ({
   useBaseRate: () => 0n,
 }))
@@ -53,7 +66,7 @@ const payButton = () => {
       <PaymentCard />
     </I18nProvider>,
   )
-  return screen.getByRole('button', { name: /^pay$/i })
+  return screen.getByRole('button', { name: /^continue to payment$/i })
 }
 
 beforeEach(() => {

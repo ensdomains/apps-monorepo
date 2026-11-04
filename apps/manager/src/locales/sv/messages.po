@@ -914,11 +914,10 @@ msgid "Connect to favorite name"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Connect to register"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+#: src/features/renew/workflow/pricing/components/PaymentCard.tsx
 msgid "Connect to renew"
 msgstr ""
 
@@ -2274,10 +2273,6 @@ msgstr ""
 msgid "Page not found"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
-msgid "Pay"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Pay with"
 msgstr ""
@@ -2352,10 +2347,6 @@ msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "Preferences updated"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
-msgid "Preparing checkout..."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -2932,7 +2923,6 @@ msgid "Save {0}"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Save <0/>"
 msgstr ""
 
@@ -3291,10 +3281,6 @@ msgstr ""
 #: src/features/dashboard/components/SortMenu.tsx
 msgid "Sort by"
 msgstr "Sortera efter"
-
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
-msgid "Stables accepted"
-msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Start typing to check if your perfect name is available"
@@ -3741,7 +3727,6 @@ msgid "total"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Total"
 msgstr ""
@@ -3909,10 +3894,6 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Upgrading names with a different manager requires temporary permission for your smart account to manage your names. We remove that permission after the upgrade."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
-msgid "USD"
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx
