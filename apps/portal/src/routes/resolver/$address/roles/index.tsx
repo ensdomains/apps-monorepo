@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -20,6 +21,7 @@ import {
   resolverAdminRoleOf,
   resolverPermissions,
 } from '@/lib/roles/resolverRoles'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/roles/')({
@@ -80,18 +82,25 @@ const ResolverRoles = ({ address }: { readonly address: Address }) => {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
-        <PageHeading parent={{ type: 'resolver', address }}>Roles</PageHeading>
-        {accountAddress && canManageRoles && (
-          <Button
-            variant="default"
-            className="flex items-center gap-2"
-            onClick={() => setAddUserOpen(true)}
-          >
-            <Plus className="size-4" />
-            Add user
-          </Button>
-        )}
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between">
+          <PageHeading parent={{ type: 'resolver', address }}>
+            Roles
+          </PageHeading>
+          {accountAddress && canManageRoles && (
+            <Button
+              variant="default"
+              className="flex items-center gap-2"
+              onClick={() => setAddUserOpen(true)}
+            >
+              <Plus className="size-4" />
+              Add user
+            </Button>
+          )}
+        </div>
+        <EntityBadge variant="contract" address={address}>
+          {truncateAddress(address)}
+        </EntityBadge>
       </div>
       <ResolverCollectionNotice
         collection="roles"
