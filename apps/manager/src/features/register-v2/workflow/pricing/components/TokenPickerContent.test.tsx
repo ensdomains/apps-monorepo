@@ -774,7 +774,7 @@ describe('TokenPickerContentBase', () => {
   })
 
   it('blocks checkout when the wallet cannot cover the debit', () => {
-    // The 1,000 USDC balance covers the 330 rent but not the 2,000 debit —
+    // The 1,000 USDC balance covers the 330 price but not the 2,000 debit —
     // gating on the debit is what makes this fail.
     renderPicker({
       funding: {

@@ -189,7 +189,7 @@ describe('useBulkRenewSubmit (smart account)', () => {
 
     expect(result.current.phase).toBe('success')
     expect(intentLabels()).toEqual([['one', 'two', 'three']])
-    // The intent funds its own rent (permit/transferFrom inside the batch), so
+    // The intent funds its own price (permit/transferFrom inside the batch), so
     // nothing goes through the wallet-route actors.
     expect(mocks.readPaymentTokenAllowanceActor).not.toHaveBeenCalled()
     expect(mocks.submitApprovalActor).not.toHaveBeenCalled()

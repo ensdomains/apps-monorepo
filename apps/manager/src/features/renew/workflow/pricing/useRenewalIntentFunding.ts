@@ -20,7 +20,7 @@ export type RenewalIntentFunding = {
   /** Only the smart-account route pays an intent fee. */
   readonly isIntentRoute: boolean
   readonly isQuoting: boolean
-  /** Absent until the fee is quoted, or when the quote failed: the rent alone is shown then. */
+  /** Absent until the fee is quoted, or when the quote failed: the price alone is shown then. */
   readonly funding:
     | (RenewalFunding['summary'] & { readonly isLoading: boolean })
     | undefined
@@ -31,7 +31,7 @@ export type RenewalIntentFunding = {
   readonly feeRaw: bigint | undefined
 }
 
-/** The renewal intents' fee, folded with the rent and the account's balance into what the wallet pays. */
+/** The renewal intents' fee, folded with the price and the account's balance into what the wallet pays. */
 export const useRenewalIntentFunding = (params: {
   /** The names renewed: one for a single renewal, the selection for a bulk one. */
   readonly items: readonly HcaRenewalItem[]
@@ -74,8 +74,8 @@ export const useRenewalIntentFunding = (params: {
       ? undefined
       : decimalBigintToNumber(networkFeeRaw, USDC_DECIMALS)
 
-  // The rent is owed in the chosen coin and the fee in USDC, each net of what
-  // the account already holds. Shown as "up to": the rent carries its approval
+  // The price is owed in the chosen coin and the fee in USDC, each net of what
+  // the account already holds. Shown as "up to": the price carries its approval
   // headroom and the fee is an estimate.
   const renewalFunding =
     isIntentRoute && pricing && networkFee !== undefined

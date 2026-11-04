@@ -96,7 +96,7 @@ class InsufficientFundingError extends Error {
 
 /**
  * The funding budget could not be quoted. Not a funding failure, but still a
- * hard stop: the only figure left is the rent, which is less than the permit
+ * hard stop: the only figure left is the price, which is less than the permit
  * must cover, so proceeding strands a paid-for commitment (Immunefi #93021).
  */
 class BudgetQuoteUnavailableError extends TaggedError(
@@ -106,7 +106,7 @@ class BudgetQuoteUnavailableError extends TaggedError(
 }> {}
 
 /**
- * What the wallet is actually debited, itemised — `rent + networkFee` on the
+ * What the wallet is actually debited, itemised — `price + networkFee` on the
  * standalone-HCA route. See {@link computeRegistrationFunding}.
  */
 export type RegistrationFundingSummary = {
@@ -309,7 +309,7 @@ export const TokenPickerContent = () => {
 
   // The EOA route needs no budget and must not be gated on a quote it never
   // takes; on the HCA route a missing quote blocks rather than falling back to
-  // the rent, which is not what the wallet pays.
+  // the price, which is not what the wallet pays.
   const isBudgetRequired = isHcaBudgetQuoteRequired(budgetQueryParams)
   // The page's figure, from the budget's own balance read, so the receipt's lines share one snapshot.
   const registrationTotalRaw = getCheckoutTotalRaw(
@@ -438,7 +438,7 @@ export const TokenPickerContent = () => {
       // before sizing the permit, and refuses to prompt if that re-quote lands
       // materially above this — so what the wallet is asked to approve can
       // never diverge from what was on screen. `undefined` when the quote
-      // failed and only the rent was shown; the machine's independent ceiling
+      // failed and only the price was shown; the machine's independent ceiling
       // still applies.
       ...(funding && !budgetQuery.isPlaceholderData
         ? { displayedWalletDebit: funding.walletDebitRaw }
@@ -458,7 +458,7 @@ export const TokenPickerContent = () => {
       // still have been in flight when the screen painted, and a stale budget
       // would let through exactly the registration this gate exists to stop.
       // `fetchQuery` reuses the in-flight/fresh result, so this is usually free.
-      // Surfaced, not swallowed: the rent cannot fund the batch, so there is
+      // Surfaced, not swallowed: the price cannot fund the batch, so there is
       // nothing to fall through to. Gated because `fetchQuery` ignores
       // `enabled` and the EOA route has no signer to quote with.
       const budget = isBudgetRequired
@@ -1089,7 +1089,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   readonly accountCredit?: Partial<Record<TOKEN_SYMBOL, number>>
   /**
    * What has to be funded before account credit, when that exceeds the price:
-   * a renewal intent funds its approval's headroom as well as the rent.
+   * a renewal intent funds its approval's headroom as well as the price.
    */
   readonly fundedAmount?: number
   readonly isLoadingBalances: boolean
@@ -1119,7 +1119,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   readonly totalLabel?: ReactNode
   /** Prefix amounts with "up to", for a total carrying approval headroom. */
   readonly isEstimate?: boolean
-  /** Per-coin override of what the wallet must cover, for a fee paid in one coin and rent in another. */
+  /** Per-coin override of what the wallet must cover, for a fee paid in one coin and price in another. */
   readonly walletDebitFor?: (symbol: TOKEN_SYMBOL) => number
   /** Rows that pay from the wallet's USDC on an L2. */
   readonly l2Payment?: L2PaymentProps
@@ -1139,8 +1139,8 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
     stablecoinBalances,
   })
 
-  // Gate on the funded amount, never the rent alone: the permit is signed for
-  // `rent + networkFee`, so a wallet holding only the rent cannot pay. It is
+  // Gate on the funded amount, never the price alone: the permit is signed for
+  // `price + networkFee`, so a wallet holding only the price cannot pay. It is
   // the wallet's DEBIT rather than the budget, since a part-funded HCA covers
   // the remainder itself.
   const requiredAmount = funding?.walletDebit ?? fundedAmount ?? pricingData
