@@ -26,6 +26,15 @@ function isBigIntMarker(value: object): value is BigIntMarker {
   )
 }
 
+/** Rebuilds `data` with `map` applied to each value; `fromEntries` keeps a `__proto__` key as data. */
+const mapEntries = (
+  data: object,
+  map: (value: unknown) => unknown,
+): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [key, map(value)]),
+  )
+
 export function serializeBigInts(data: unknown): unknown {
   if (typeof data === 'bigint') {
     return { [BIGINT_TAG]: data.toString() } satisfies BigIntMarker
@@ -34,11 +43,7 @@ export function serializeBigInts(data: unknown): unknown {
     return data.map(serializeBigInts)
   }
   if (data !== null && typeof data === 'object') {
-    const out: Record<string, unknown> = {}
-    for (const key of Object.keys(data)) {
-      out[key] = serializeBigInts((data as Record<string, unknown>)[key])
-    }
-    return out
+    return mapEntries(data, serializeBigInts)
   }
   return data
 }
@@ -53,9 +58,5 @@ export function deserializeBigInts(data: unknown): unknown {
   if (isBigIntMarker(data)) {
     return BigInt(data[BIGINT_TAG])
   }
-  const out: Record<string, unknown> = {}
-  for (const key of Object.keys(data)) {
-    out[key] = deserializeBigInts((data as Record<string, unknown>)[key])
-  }
-  return out
+  return mapEntries(data, deserializeBigInts)
 }
