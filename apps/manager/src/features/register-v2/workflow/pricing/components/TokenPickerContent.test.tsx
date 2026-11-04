@@ -422,14 +422,14 @@ describe('TokenPickerContent', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows the wallet while an L2 is still unquoted, and not the L2', () => {
+  it('shows the wallet and an L2 holding USDC before the L2 is quoted', () => {
     containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
     renderContainer()
 
     expect(screen.getByRole('button', { name: 'Select USDC' })).toBeVisible()
     expect(
-      screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).toBeVisible()
   })
   it('lists every method holding something, short or not, and hides the empty wallet', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
@@ -1164,6 +1164,53 @@ describe('TokenPickerContentBase L2 rows', () => {
     expect(payment.onSelect).not.toHaveBeenCalled()
     fireEvent.click(row)
     expect(payment.onSelect).toHaveBeenCalledWith(baseSepolia.id)
+  })
+
+  const failedQuoteRow = () =>
+    baseSepoliaRow('available', { hasQuoteFailed: true })
+
+  it('lists an L2 holding USDC whose quote failed, without moving to it', () => {
+    const payment = l2Payment(failedQuoteRow())
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: payment,
+      registrationReceipt: { totalRaw: 5_000_000n },
+    })
+
+    expect(
+      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).toBeVisible()
+    expect(payment.onSelect).not.toHaveBeenCalled()
+  })
+
+  it('says a picked L2 whose quote failed cannot be used right now', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: l2Payment(failedQuoteRow(), baseSepolia.id),
+      registrationReceipt: { totalRaw: 5_000_000n },
+    })
+
+    expect(
+      screen.getByText("Paying from Base Sepolia isn't available right now."),
+    ).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('keeps an unquoted L2 hidden in renewal', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: l2Payment(failedQuoteRow()),
+    })
+
+    expect(
+      screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).not.toBeInTheDocument()
   })
 
   it('keeps a short L2 hidden in renewal', () => {

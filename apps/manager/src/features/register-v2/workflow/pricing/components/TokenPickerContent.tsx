@@ -850,19 +850,19 @@ export const getL2MethodItems = (
   l2Payment: L2PaymentProps | undefined,
   selectedL2: L2PaymentRow | undefined,
   funding: RegistrationFundingSummary | undefined,
-  /** Registration lists L2s that hold USDC but fall short; renewal keeps them hidden. */
-  isShortListed: boolean,
+  /** Registration lists every L2 holding USDC, whether or not it can pay; renewal lists the quoted ones. */
+  isEveryHoldingListed: boolean,
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
-  // A chain holding USDC appears once quoted or known to fall short; a chosen one stays through refreshes, unless it is empty.
+  // A chosen chain stays through refreshes, unless it is empty.
   return l2Payment.rows
     .filter(
       (row) =>
         !isL2Empty(row) &&
         (row === selectedL2 ||
           row.amountInRaw !== undefined ||
-          (isShortListed && row.option.status === 'insufficient')),
+          (isEveryHoldingListed && row.option.balanceRaw !== null)),
     )
     .sort(byBalanceDescending)
     .map((row) => {
