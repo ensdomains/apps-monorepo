@@ -143,6 +143,26 @@ in passing.
 - For UI changes, check the screen in the running app at desktop and
   mobile width. Green tests don't prove a working screen.
 
+**Audit the diff before opening the PR.** Read `git diff origin/main...HEAD`
+the way Greptile and a reviewer will, and fix what you find before pushing:
+- Walk it against `.greptile/config.json` (the `high` rules first) and the
+  STYLEGUIDE sections in the map above for everything you touched.
+- Logic: decisions live in pure functions, not components or hooks; no
+  predicate copied into a second file; no `Result` unwrapped by throwing
+  (return `Promise.reject(result.error)` at a promise boundary, or `yield*`
+  inside `ResultFn`).
+- viem first: `formatUnits`/`parseUnits` rather than our own converters,
+  viem's `*ErrorType` as the `cause` when the failure is a viem call, and
+  `bigint` for amounts until they are displayed.
+- The added lines carry no `any`, `!`, `as unknown as`, `biome-ignore` or
+  `@ts-expect-error`, and every added comment is one line.
+- `npx biome lint` on the changed files raises no complexity warning above
+  what the same function had on `main`.
+- Run `main`'s version of every test you edited against your code; each
+  failure must be an intended behaviour change.
+- This repo is public: no wording in commits, branches or the PR that reads
+  as a vulnerability.
+
 **Add a "Regression check" section to the PR body:** the callers you
 checked, existing tests you changed and why (or "none"), and any behaviour
 that changes for users or other callers.
