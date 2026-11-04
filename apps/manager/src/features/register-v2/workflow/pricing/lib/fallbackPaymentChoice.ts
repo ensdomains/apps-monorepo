@@ -15,11 +15,13 @@ export type PayableMethod = Readonly<{
 
 /**
  * The selected method: covers the payment, falls short, or nothing is chosen
- * yet. `auto` covers it too, but was picked here; `chosen` is the user's pick that falls short.
+ * yet. `auto` covers it too, but was picked here, as was `autoEth`, the last
+ * resort; `chosen` is the user's pick that falls short.
  */
 export type CurrentMethodState =
   | 'payable'
   | 'auto'
+  | 'autoEth'
   | 'short'
   | 'chosen'
   | 'none'
@@ -40,7 +42,8 @@ export const getCurrentMethodState = (
     // Only a click is the user's; a default or resumed pick still gives way.
     .with({ isPayable: false, origin: 'user' }, () => 'chosen')
     .with({ isPayable: false }, () => 'short')
-    .with({ kind: P.union('l2', 'eth'), origin: 'fallback' }, () => 'auto')
+    .with({ kind: 'eth', origin: 'fallback' }, () => 'autoEth')
+    .with({ kind: 'l2', origin: 'fallback' }, () => 'auto')
     .otherwise(() => 'payable')
 
 const COMPARE_DECIMALS = 18
@@ -79,7 +82,7 @@ export const getFallbackPaymentChoice = ({
   const candidates = match(current)
     .with('payable', () => [])
     .with('auto', () => walletMethods)
-    .with('none', () =>
+    .with(P.union('none', 'autoEth'), () =>
       walletMethods.length > 0 ? walletMethods : payableMethods,
     )
     .with('short', () => payableMethods)

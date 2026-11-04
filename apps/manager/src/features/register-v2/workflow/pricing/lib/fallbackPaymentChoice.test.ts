@@ -131,10 +131,22 @@ describe('getFallbackPaymentChoice', () => {
       expected: undefined,
     },
     {
-      case: 'keeps ETH it picked while no wallet coin can pay',
-      current: 'auto' as const,
+      case: 'keeps ETH it picked while nothing else can pay',
+      current: 'autoEth' as const,
       payableMethods: [],
       expected: undefined,
+    },
+    {
+      case: 'moves ETH it picked to an L2 that can now pay',
+      current: 'autoEth' as const,
+      payableMethods: [l2(baseSepolia.id, 48_340_000n)],
+      expected: { kind: 'l2', chainId: baseSepolia.id },
+    },
+    {
+      case: 'moves ETH it picked to a wallet coin over a bigger L2',
+      current: 'autoEth' as const,
+      payableMethods: [wallet(20_000_000n), l2(baseSepolia.id, 48_340_000n)],
+      expected: { kind: 'wallet', symbol: 'USDC' },
     },
   ])('with ETH able to pay, $case', ({ current, payableMethods, expected }) => {
     expect(
@@ -179,7 +191,7 @@ describe('getCurrentMethodState', () => {
     [
       'ETH the app picked',
       { kind: 'eth', isPayable: true, origin: 'fallback' },
-      'auto',
+      'autoEth',
     ],
     [
       'a wallet coin the app picked',

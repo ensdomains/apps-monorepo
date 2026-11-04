@@ -1213,6 +1213,21 @@ describe('TokenPickerContentBase L2 rows', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('in registration, says a picked short L2 lacks USDC and estimates its fee', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: { ...shortL2Payment(), selectedChainId: baseSepolia.id },
+      registrationReceipt: { totalRaw: 5_000_000n },
+    })
+
+    expect(
+      screen.getByText('You do not have enough USDC for this transaction.'),
+    ).toBeVisible()
+    expect(screen.getByText('Est. fee: ~$0.20')).toBeVisible()
+  })
+
   it('keeps a short L2 hidden in renewal', () => {
     renderPicker({
       funding: underfunded,

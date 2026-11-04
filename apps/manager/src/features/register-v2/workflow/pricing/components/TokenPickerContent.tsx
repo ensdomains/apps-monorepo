@@ -754,6 +754,30 @@ const getL2FundingSummary = (
   }
 }
 
+/**
+ * An L2 row's fee: from its own quote, else another chain's, else, where every
+ * holding is listed, the registration's own fee before bridging.
+ */
+const getL2RowFee = (
+  funding: RegistrationFundingSummary | undefined,
+  amountInRaw: bigint | undefined,
+  estimatedAmountIn: bigint | undefined,
+  isRegistrationFeeEstimated: boolean,
+): Readonly<{ networkFee: number | undefined; isEstimated: boolean }> => {
+  const amountIn = amountInRaw ?? estimatedAmountIn
+  if (amountIn !== undefined)
+    return {
+      networkFee:
+        funding &&
+        getPaymentBreakdownFigures(getL2FundingSummary(funding, amountIn))
+          .networkFee,
+      isEstimated: amountInRaw === undefined,
+    }
+  return isRegistrationFeeEstimated && funding
+    ? { networkFee: funding.networkFee, isEstimated: true }
+    : { networkFee: undefined, isEstimated: false }
+}
+
 /** A chosen L2 pays in place of the wallet, so only its own quote must cover it. */
 const canPaySelection = (
   selectedL2: L2PaymentRow | undefined,
@@ -866,23 +890,20 @@ export const getL2MethodItems = (
     )
     .sort(byBalanceDescending)
     .map((row) => {
-      const amountIn = row.amountInRaw ?? estimatedAmountIn
+      const fee = getL2RowFee(
+        funding,
+        row.amountInRaw,
+        estimatedAmountIn,
+        isEveryHoldingListed,
+      )
       return {
         id: row.option.id,
         isSelected: row === selectedL2,
         content: (
           <L2SourceListItem
-            isFeeEstimated={
-              row.amountInRaw === undefined && estimatedAmountIn !== undefined
-            }
+            isFeeEstimated={fee.isEstimated}
             isSelected={row === selectedL2}
-            networkFee={
-              funding && amountIn !== undefined
-                ? getPaymentBreakdownFigures(
-                    getL2FundingSummary(funding, amountIn),
-                  ).networkFee
-                : undefined
-            }
+            networkFee={fee.networkFee}
             onSelect={() => l2Payment.onSelect(row.option.source.chain.id)}
             row={row}
           />
@@ -1286,6 +1307,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
         selectedL2,
         funding?.walletDebit,
         l2Payment && getEstimatedL2AmountIn(l2Payment.rows),
+        registrationReceipt !== undefined,
       )) ||
     (revalidatedShortfall !== undefined &&
       t`${formatUsd(revalidatedShortfall)} more needed in your wallet.`) ||
