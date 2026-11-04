@@ -35,8 +35,11 @@ export const WalletMenu = ({
         className="w-full group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:p-0"
         onClick={() => openConnectModal?.()}
       >
-        <AccountCircleIcon className="size-4 shrink-0 hidden group-data-[collapsible=icon]:block" />
-        <span className="group-data-[collapsible=icon]:hidden">Connect</span>
+        <AccountCircleIcon
+          aria-hidden="true"
+          className="size-4 shrink-0 hidden group-data-[collapsible=icon]:block"
+        />
+        <span className="group-data-[collapsible=icon]:sr-only">Connect</span>
       </Button>
     )
   }

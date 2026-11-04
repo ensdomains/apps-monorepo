@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { AddressHighlightProvider } from '@/components/AddressHighlight'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
 import { getNameHistoryPagesQueryOptions } from '@/features/history/hooks/useNameHistoryTimeline'
@@ -21,5 +22,10 @@ export const Route = createFileRoute('/$name/history')({
 function RouteComponent() {
   const { name } = Route.useParams()
 
-  return <HistoryTimeline name={name} />
+  // Only this page highlights matching addresses; the other timelines don't.
+  return (
+    <AddressHighlightProvider>
+      <HistoryTimeline name={name} />
+    </AddressHighlightProvider>
+  )
 }
