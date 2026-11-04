@@ -130,10 +130,7 @@ type Context = {
    * Nothing to retry — the failure screen offers only a way back.
    */
   nameUnavailable: boolean
-  /**
-   * The orchestrator refused the intent's signature (`InvalidSignature()`).
-   * With a session reset from this browser, that is the reset taking effect.
-   */
+  /** The orchestrator refused the intent's signature (`InvalidSignature()`). */
   isSignatureRejected: boolean
   /**
    * A start or resume was refused because the wallet is registering elsewhere.

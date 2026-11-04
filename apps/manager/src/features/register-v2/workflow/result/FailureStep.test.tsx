@@ -5,8 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { FailureStep, FailureStepView } from './FailureStep'
 
-// The container reads two signals from two places: the registration's failure
-// and this browser's session reset. Both are stubbed so the wiring is what runs.
+// The failure and this browser's session reset are stubbed so the container's wiring runs.
 const signals = vi.hoisted(() => ({
   isSessionAccessReset: false,
   isSignatureRejected: false,
@@ -149,8 +148,7 @@ describe('FailureStep', () => {
     expect(screen.getByText('Smart Session Access Reset')).toBeVisible()
   })
 
-  // The reset flag lives in the smart account context, not in the failure:
-  // signing a new session clears it, and a reset can come after the failure.
+  // The live reset flag clears on a new session and can be set after the failure.
   it.each([
     [
       'a new session is signed after the reset',

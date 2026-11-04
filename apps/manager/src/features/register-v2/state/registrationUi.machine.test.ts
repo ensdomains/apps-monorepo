@@ -1473,8 +1473,7 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
   })
 })
 
-// Resetting smart session access mid-run makes the orchestrator refuse the
-// run's next intent, which the failure screen explains instead of the raw error.
+// A reset mid-run makes the orchestrator refuse the run's next intent with `InvalidSignature()`.
 describe('signature rejection on failure', () => {
   const eoaAccount = {
     signer: { type: 'eoa', walletClient: {} as never },

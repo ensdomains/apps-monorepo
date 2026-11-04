@@ -63,10 +63,7 @@ export const NameNoLongerAvailable: Story = {
   },
 }
 
-/**
- * Smart session access was reset mid-run, so the orchestrator refused the
- * run's intent. Back to Quote leads: Try Again would reuse the old session.
- */
+/** Smart session access was reset mid-run; Back to Quote leads, as Try Again reuses the old session. */
 export const SessionAccessReset: Story = {
   args: {
     message:

@@ -14,9 +14,7 @@ export const FailureStep = () => {
   const { uiActor, label, resume } = RegisterV2Context.use()
   const navigate = useNavigate()
   const { isSessionAccessReset } = useSmartAccountContext()
-  // Kept from when this screen opened: signing a new session clears the live
-  // flag while the run still holds the revoked one, and a reset made after the
-  // failure didn't cause it.
+  // As at open: a new session clears the live flag, and a later reset didn't cause this failure.
   const [wasSessionAccessReset] = useState(isSessionAccessReset)
   const message = RegisterV2Context.useSelector(
     (state) => state.context.lastErrorMessage,
@@ -31,8 +29,7 @@ export const FailureStep = () => {
   const isWalletBusy = RegisterV2Context.useSelector(
     (state) => state.context.isWalletBusy,
   )
-  // The run's intent was refused after this browser reset smart session access:
-  // the run still holds the revoked session, so retrying fails the same way.
+  // After a reset, the run still holds the revoked session, so retrying fails the same way.
   const isSignatureRejected = RegisterV2Context.useSelector(
     (state) => state.context.isSignatureRejected,
   )
