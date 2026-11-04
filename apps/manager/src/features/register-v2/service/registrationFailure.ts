@@ -86,6 +86,12 @@ const isInvalidSignatureRejection = (error: Error): boolean => {
 export const isInvalidSignatureError = (error: unknown): boolean =>
   causeChain(error).some(isInvalidSignatureRejection)
 
+/** A refused signature means a revoked session only when the screen opened after a reset. */
+export const isSessionRevokedFailure = (params: {
+  readonly wasSessionAccessReset: boolean
+  readonly isSignatureRejected: boolean
+}): boolean => params.wasSessionAccessReset && params.isSignatureRejected
+
 /**
  * A readable one-liner for the failure screen. viem's `message` appends the
  * contract call, args, docs link and version; `shortMessage` leaves those out.
