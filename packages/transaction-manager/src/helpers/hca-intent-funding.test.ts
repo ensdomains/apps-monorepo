@@ -642,7 +642,7 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
     })
 
     await expect(planHcaIntentFunding(rentParams)).rejects.toThrow(
-      /connected wallet holds/,
+      /your wallet holds/,
     )
     expect(signFundingPermit).not.toHaveBeenCalled()
   })
