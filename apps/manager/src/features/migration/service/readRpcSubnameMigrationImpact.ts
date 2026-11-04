@@ -293,6 +293,7 @@ type ReadImpactParameters = {
   readonly onInventory?: (
     inventory: RpcSubnameInventory,
   ) => void | Promise<void>
+  readonly unknownLabelNames?: readonly string[]
   readonly signal?: AbortSignal
 }
 
@@ -386,6 +387,7 @@ const readImpactContext = async (
     upgradedNodes,
     expiredRootNodes,
     checkedAt: Date.now(),
+    unknownLabelNames: params.unknownLabelNames,
   }
 }
 

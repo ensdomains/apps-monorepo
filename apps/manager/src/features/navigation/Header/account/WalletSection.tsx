@@ -1,4 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store-react'
 import {
   ArrowDownToLine,
@@ -19,6 +20,7 @@ import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { truncateAddress } from '@/lib/utils'
 import { useWalletDisconnect } from '@/lib/wallet'
+import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
 import { backendAuthStore } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { AccountMenuItemButton, AccountMenuItemStatus } from './AccountMenuItem'
@@ -48,7 +50,12 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
   const leftoverFundsLabel = leftoverFunds.leftover?.funds.length
     ? formatLeftoverFunds(leftoverFunds.leftover.funds)
     : null
-  const { address: connectedAddress } = useAccount()
+  const { address: connectedAddress, connector } = useAccount()
+  // A Safe can't sign for its HCA, so it gets no smart-session controls.
+  const { data: isSafeWallet } = useQuery({
+    ...getIsSafeWalletQueryOptions({ connector, address: connectedAddress }),
+    enabled: !!connector,
+  })
   const { copied, copy } = useCopyFeedback()
   const shouldShowSiweButton = useSelector(
     backendAuthStore,
@@ -162,7 +169,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           another device, so a fresh browser is where its owner revokes it.
           Right after a reset there is nothing left to revoke until a new
           session is signed, so a second one would only spend gas. */}
-      {accountAddress && !isFeatureEnabled('USE_EOA') && (
+      {accountAddress && !isFeatureEnabled('USE_EOA') && !isSafeWallet && (
         <>
           <AccountMenuItemStatus
             className="text-ens-quartz-400"

@@ -126,7 +126,7 @@ pnpm --filter manager dev -- --port 3000
 
 | # | Step | Pass |
 |---|---|---|
-| M1 | Tab A: search a fresh label, open it, Pay with stablecoins → USDC → Register name → Set up later. Wait for the countdown to start | `ens-registration-locks-v1` holds `{ name: <label>.eth, holderId: <A's id> }` |
+| M1 | Tab A: search a fresh label, open it, Pay → USDC → Register name → Set up later. Wait for the countdown to start | `ens-registration-locks-v1` holds `{ name: <label>.eth, holderId: <A's id> }` |
 | M2 | Right-click tab A → **Duplicate**. In tab B, look at storage after a second | The lock is unchanged (still A's id). B's `ens-registration-holder` is a **different** id from A's |
 | M3 | Tab B shows the quote with "Unfinished registration". If B isn't connected, connect | B shows **Another Registration Is Running**, "<label>.eth is already being registered with this wallet, possibly in another tab. One registration runs at a time, so this one has not started.", a clock icon, and the next step "Finish or cancel the other registration in its tab…". **Back to Quote** is blue (primary) and Try Again is light. No wallet prompt appears in B |
 | M4 | Back in A, let the registration finish | "Registration Complete". The lock entry is gone |

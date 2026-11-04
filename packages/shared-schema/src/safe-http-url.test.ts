@@ -1,3 +1,4 @@
+import * as fc from 'fast-check'
 import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { isSafeHttpUrl, safeHttpUrlSchema } from './safe-http-url'
@@ -23,5 +24,29 @@ describe('safe-http-url', () => {
     expect(
       v.safeParse(safeHttpUrlSchema(), 'javascript:alert(1)').success,
     ).toBe(false)
+  })
+
+  it('accepts generated HTTP URLs with surrounding whitespace', () => {
+    fc.assert(
+      fc.property(
+        fc.webUrl({ validSchemes: ['http', 'https'] }),
+        fc.string({ unit: fc.constantFrom(' ', '\t', '\n'), maxLength: 4 }),
+        (url, whitespace) => {
+          expect(isSafeHttpUrl(`${whitespace}${url}${whitespace}`)).toBe(true)
+        },
+      ),
+    )
+  })
+
+  it('never accepts a generated URL with a non-HTTP scheme', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom('data', 'file', 'ftp', 'javascript', 'mailto', 'ws'),
+        fc.string(),
+        (scheme, rest) => {
+          expect(isSafeHttpUrl(`${scheme}:${rest}`)).toBe(false)
+        },
+      ),
+    )
   })
 })

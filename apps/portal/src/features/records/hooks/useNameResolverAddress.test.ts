@@ -28,11 +28,11 @@ vi.mock('viem/utils', async (importOriginal) => ({
   getAction: () => mockReadContract,
 }))
 
-const { getNameResolverAddress } = await import('./useNameResolverAddress')
+const { getNameResolver } = await import('./useNameResolverAddress')
 
-const read = (name = 'lapsed.eth') => getNameResolverAddress({ name })
+const read = (name = 'lapsed.eth') => getNameResolver({ name })
 
-describe('getNameResolverAddress', () => {
+describe('getNameResolver', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockReadContract.mockResolvedValue(LEGACY_RESOLVER)
@@ -42,16 +42,23 @@ describe('getNameResolverAddress', () => {
   it('reports the resolver the UniversalResolver walk finds', async () => {
     mockGetResolver.mockResolvedValue(UR_RESOLVER)
 
-    expect((await read())._unsafeUnwrap()).toBe(UR_RESOLVER)
+    expect((await read())._unsafeUnwrap()).toEqual({
+      address: UR_RESOLVER,
+      source: 'lookup',
+    })
     expect(mockReadContract).not.toHaveBeenCalled()
   })
 
   // A lapsed ENSv1 name leaves the walk 28 days before its grace ends, while
-  // the legacy registry still names the resolver its owner can write.
+  // the legacy registry still names the resolver its owner can write. Lookups
+  // don't read it, so it is tagged (WEB-2017).
   it('falls back to the legacy registry when the walk finds nothing', async () => {
     mockGetResolver.mockResolvedValue(null)
 
-    expect((await read())._unsafeUnwrap()).toBe(LEGACY_RESOLVER)
+    expect((await read())._unsafeUnwrap()).toEqual({
+      address: LEGACY_RESOLVER,
+      source: 'v1-registry',
+    })
     expect(mockReadContract).toHaveBeenCalledWith(
       expect.objectContaining({ address: LEGACY_REGISTRY }),
     )
