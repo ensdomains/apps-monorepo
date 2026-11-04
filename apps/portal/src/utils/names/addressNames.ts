@@ -17,8 +17,8 @@ export type AddressNameItem = {
   /** Null when the name does not expire. */
   readonly expiryDate: Date | null
   /**
-   * Set on a subname that lapses with its `.eth` parent, even before its own
-   * expiry. Null when the parent's expiry couldn't be read.
+   * Set on a subname that lapses with the names above it, even before its own
+   * expiry: the earliest of their expiries. Null when one couldn't be read.
    */
   readonly parentExpiryDate?: Date | null
   readonly graceEndDate: Date | null
@@ -75,19 +75,37 @@ export const toLapsedItem = (row: AddressName): AddressNameItem => ({
 })
 
 /**
- * The `.eth` 2LD a subname lapses with, or null for a name that has none. An
- * ENSv1 subname's own expiry is capped at its parent's, so it needs none.
- * Deeper names lapse with the same 2LD.
+ * The names above a `.eth` subname whose expiry it lapses with, nearest first.
+ * An ENSv2 subname stops resolving when any of them expires. An ENSv1 subname
+ * lapses with its 2LD alone, and needs none when it has its own expiry, which
+ * is capped at its parent's.
  */
-export const ethParentOf = ({
+export const ethAncestorsOf = ({
   name,
   expiryDate,
   protocolVersion,
-}: AddressNameItem): string | null => {
-  if (expiryDate && protocolVersion === 'ENSv1') return null
+}: AddressNameItem): readonly string[] => {
   const labels = name.split('.')
-  if (labels.length < 3 || labels.at(-1) !== 'eth') return null
-  return labels.slice(-2).join('.')
+  if (labels.length < 3 || labels.at(-1) !== 'eth') return []
+  if (protocolVersion === 'ENSv1')
+    return expiryDate ? [] : [labels.slice(-2).join('.')]
+  return Array.from({ length: labels.length - 2 }, (_, index) =>
+    labels.slice(index + 1).join('.'),
+  )
+}
+
+/** The earliest expiry among `names`; null when one couldn't be read or none expires. */
+export const getEarliestExpiry = (
+  names: readonly string[],
+  expiryOf: ReadonlyMap<string, Date | null>,
+): Date | null => {
+  if (!names.every((name) => expiryOf.has(name))) return null
+  return names
+    .flatMap((name) => expiryOf.get(name) ?? [])
+    .reduce<Date | null>(
+      (earliest, date) => (earliest && earliest <= date ? earliest : date),
+      null,
+    )
 }
 
 type ShownExpiryInput = {

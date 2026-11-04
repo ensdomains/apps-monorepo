@@ -2,8 +2,33 @@ import { describe, expect, it } from 'vitest'
 import {
   byShownExpiry,
   getEarlierParentExpiry,
+  getEarliestExpiry,
   isShownExpiryInRange,
 } from './addressNames'
+
+describe('getEarliestExpiry', () => {
+  const at = (year: number) => new Date(Date.UTC(year, 0, 1))
+  const expiryOf = new Map<string, Date | null>([
+    ['ops.team.parent.eth', null],
+    ['team.parent.eth', at(2028)],
+    ['parent.eth', at(2029)],
+  ])
+
+  it('gives the earliest expiry above, passing names that never expire', () => {
+    expect(
+      getEarliestExpiry(
+        ['ops.team.parent.eth', 'team.parent.eth', 'parent.eth'],
+        expiryOf,
+      ),
+    ).toEqual(at(2028))
+  })
+
+  it('gives none when a name above couldn’t be read', () => {
+    expect(
+      getEarliestExpiry(['unread.parent.eth', 'parent.eth'], expiryOf),
+    ).toBeNull()
+  })
+})
 
 describe('getEarlierParentExpiry', () => {
   const PARENT_EXPIRY = new Date(Date.UTC(2030, 5, 1))
