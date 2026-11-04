@@ -13,7 +13,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   getRegistrationFailureMessage,
-  isInsufficientFundsError,
+  getRegistrationFailureReason,
   isNameNotAvailableError,
 } from './registrationFailure'
 
@@ -106,7 +106,7 @@ const simulation = (category: string) =>
     }),
   )
 
-describe('isInsufficientFundsError', () => {
+describe('getRegistrationFailureReason', () => {
   it.each([
     [
       'a route refused for the balance',
@@ -116,36 +116,40 @@ describe('isInsufficientFundsError', () => {
         'INSUFFICIENT_BALANCE',
         'UNSUPPORTED_MULTI_TOKEN',
       ]),
-      true,
+      'insufficientFunds',
     ],
     [
       'the same, behind a wrapper',
       new Error('Not confirmed', {
         cause: noRoute(['INSUFFICIENT_BALANCE']),
       }),
-      true,
+      'insufficientFunds',
     ],
     [
       'a simulation refused for the balance',
       simulation('INSUFFICIENT_BALANCE'),
-      true,
+      'insufficientFunds',
     ],
-    ['a route refused for other reasons', noRoute(['NO_ROUTE_SUPPORT']), false],
+    [
+      'a route refused for other reasons',
+      noRoute(['NO_ROUTE_SUPPORT']),
+      undefined,
+    ],
     [
       'failure codes that are not a list',
       noRoute('INSUFFICIENT_BALANCE'),
-      false,
+      undefined,
     ],
     [
       'a simulation refused for other reasons',
       simulation('EXECUTION_FAILED'),
-      false,
+      undefined,
     ],
-    ['a taken name', priceReadRevert(), false],
-    ['a plain error', new Error('rpc down'), false],
-    ['no error', undefined, false],
+    ['a taken name', priceReadRevert(), undefined],
+    ['a plain error', new Error('rpc down'), undefined],
+    ['no error', undefined, undefined],
   ])('%s', (_, error, expected) => {
-    expect(isInsufficientFundsError(error)).toBe(expected)
+    expect(getRegistrationFailureReason(error)).toBe(expected)
   })
 })
 

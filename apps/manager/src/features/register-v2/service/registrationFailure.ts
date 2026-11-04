@@ -72,9 +72,16 @@ const isInsufficientBalanceRefusal = (error: Error): boolean => {
   )
 }
 
-/** The orchestrator refused because the smart account can't pay, e.g. its funds were withdrawn. */
-export const isInsufficientFundsError = (error: unknown): boolean =>
+/** Why a run failed, when the failure screen has something specific to say. */
+export type RegistrationFailureReason = 'insufficientFunds'
+
+/** `insufficientFunds` when the orchestrator refused because the smart account can't pay, e.g. its funds were withdrawn. */
+export const getRegistrationFailureReason = (
+  error: unknown,
+): RegistrationFailureReason | undefined =>
   causeChain(error).some(isInsufficientBalanceRefusal)
+    ? 'insufficientFunds'
+    : undefined
 
 /**
  * A readable one-liner for the failure screen. viem's `message` appends the

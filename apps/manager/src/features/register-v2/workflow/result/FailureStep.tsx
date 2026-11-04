@@ -5,8 +5,8 @@ import { match, P } from 'ts-pattern'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import type { RegistrationFailureReason } from '../../service/registrationFailure'
 import { RegisterV2Context } from '../../state/registrationUi.context'
-import type { RegistrationFailureReason } from '../../state/registrationUi.machine'
 
 export const FailureStep = () => {
   const { uiActor, label, resume } = RegisterV2Context.use()

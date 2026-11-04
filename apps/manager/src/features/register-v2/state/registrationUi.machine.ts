@@ -46,9 +46,10 @@ import { readPendingEthSwap } from '../service/pendingEthSwap'
 import { readPendingL2Bridge } from '../service/pendingL2Bridge'
 import {
   getRegistrationFailureMessage,
-  isInsufficientFundsError,
+  getRegistrationFailureReason,
   isNameNotAvailableError,
   isNameTakenByOther,
+  type RegistrationFailureReason,
 } from '../service/registrationFailure'
 import {
   acquireRegistrationLock,
@@ -113,9 +114,6 @@ export type FundingSourceOrigin = 'user' | 'fallback'
  * `eth` swaps the wallet's ETH into it first.
  */
 export type PaymentAsset = 'stablecoin' | 'eth'
-
-/** Why a run failed, when the failure screen has something specific to say. */
-export type RegistrationFailureReason = 'insufficientFunds'
 
 type Context = {
   chainId: number
@@ -252,6 +250,7 @@ type Events =
       confirmedData: RegistrationConfirmedData
       /** The stored write the run was restored from. */
       run: StoredRegistrationKey
+      failureReason?: RegistrationFailureReason
     }
   | {
       /**
@@ -517,12 +516,7 @@ const machineSetup = setup({
           )
           .otherwise(() => false),
       failureReason: ({ event }) =>
-        match(event)
-          .with(
-            { type: 'transaction.failed' },
-            ({ failureReason }) => failureReason,
-          )
-          .otherwise(() => undefined),
+        event.type === 'transaction.failed' ? event.failureReason : undefined,
       // A real failure replaces a refusal: something did run this time.
       isWalletBusy: () => false,
     }),
@@ -581,7 +575,11 @@ const machineSetup = setup({
     },
     restoreFailure: assign(({ event, context }) =>
       event.type === 'registration.failure.restore'
-        ? { confirmedData: event.confirmedData, restoredRun: event.run }
+        ? {
+            confirmedData: event.confirmedData,
+            restoredRun: event.run,
+            failureReason: event.failureReason,
+          }
         : context,
     ),
     clearRegistrationData: assign({
@@ -1104,9 +1102,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             nameUnavailable:
               snapshot.context.nameUnavailable === true ||
               isNameNotAvailableError(snapshot.context.error),
-            failureReason: isInsufficientFundsError(snapshot.context.error)
-              ? 'insufficientFunds'
-              : undefined,
+            failureReason: getRegistrationFailureReason(snapshot.context.error),
           })),
         ],
       },

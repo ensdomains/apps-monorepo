@@ -93,6 +93,7 @@ vi.mock('../data/queries/pricing.query', async (importOriginal) => {
   }
 })
 
+import type { RegistrationFailureReason } from '../service/registrationFailure'
 import {
   acquireRegistrationLock,
   releaseRegistrationLock,
@@ -142,7 +143,13 @@ const renderPage = () =>
  * `registerSent`, its register went out before it failed: it may have landed,
  * or still be filling.
  */
-const storeFailedRun = ({ registerSent }: { registerSent: boolean }) => {
+const storeFailedRun = ({
+  registerSent,
+  failureReason,
+}: {
+  readonly registerSent: boolean
+  readonly failureReason?: RegistrationFailureReason
+}) => {
   const record: PersistedRegistrationRecord = buildRegistrationRecord(
     'error',
     {
@@ -174,6 +181,7 @@ const storeFailedRun = ({ registerSent }: { registerSent: boolean }) => {
         basePriceNumber: 5,
         premiumPriceNumber: 0,
       },
+      failureReason,
     }),
   }).save(record)
 }
@@ -274,6 +282,20 @@ describe('a failed registration, after a reload', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('pricing')
     expect(loadStoredRegistration()).toBeNull()
+
+    page.unmount()
+  })
+
+  // Try Again would resume the reveal from the same empty account.
+  it('keeps the emptied-account explanation, with nothing to retry', async () => {
+    storeFailedRun({ registerSent: false, failureReason: 'insufficientFunds' })
+    const page = renderPage()
+
+    expect(await screen.findByText('Not Enough Funds to Finish')).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Try Again' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to Quote' })).toBeVisible()
 
     page.unmount()
   })
