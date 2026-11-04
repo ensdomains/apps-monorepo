@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, waitFor } from '@testing-library/react'
 import { useActorRef } from '@xstate/react'
+import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Tabs } from '@/components/ui/tabs'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
@@ -26,6 +27,7 @@ const renderAdvanced = (records = newEmptyProfileRecords()) => {
     defaultOptions: { queries: { enabled: false } },
   })
   const Harness = () => {
+    const [values, setValues] = useState(records)
     const actor = useActorRef(editProfileDialogMachine, {
       input: { name: '🦊.eth', records },
     })
@@ -42,10 +44,13 @@ const renderAdvanced = (records = newEmptyProfileRecords()) => {
               onDraftLinkValidationIssuesChange={vi.fn()}
               onLinksChange={vi.fn()}
               onMobileNavOpenChange={vi.fn()}
-              onOtherChange={onOtherChange}
+              onOtherChange={(value) => {
+                onOtherChange(value)
+                setValues((current) => ({ ...current, ...value }))
+              }}
               onSocialChange={vi.fn()}
               preparedImageUploads={[]}
-              values={records}
+              values={values}
             />
           </Tabs>
         </EditProfileDialogProvider>
@@ -112,6 +117,29 @@ describe('Advanced profile navigation', () => {
 
     expect(view.getByRole('textbox', { name: 'Record 1 key' })).toBeVisible()
     expect(view.getByRole('alert')).toHaveTextContent('Enter a key')
+  })
+
+  it('keeps the local editor open while correcting an imported record key', () => {
+    const view = renderAdvanced({
+      ...newEmptyProfileRecords(),
+      unknown: [{ key: '', value: 'A recovered record' }],
+    })
+    view.getByRole('textbox', { name: 'Record 1 key' }).focus()
+
+    for (const key of ['o', 'org.', 'org.ens']) {
+      fireEvent.change(view.getByRole('textbox', { name: 'Record 1 key' }), {
+        target: { value: key },
+      })
+    }
+
+    expect(view.getByRole('textbox', { name: 'Record 1 key' })).toHaveValue(
+      'org.ens',
+    )
+    expect(view.getByRole('textbox', { name: 'Record 1 key' })).toHaveFocus()
+    expect(view.queryByRole('alert')).toBeNull()
+
+    fireEvent.click(view.getByRole('button', { name: 'Edit records here' }))
+    expect(view.queryByRole('textbox', { name: 'Record 1 key' })).toBeNull()
   })
 
   it('keeps editing available without cross-network links when Explorer is unavailable', () => {

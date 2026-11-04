@@ -125,7 +125,7 @@ export const UpgradeBanner = ({
                   <Trans>
                     V1 names like yours can still be managed in{' '}
                     <a
-                      className="rounded-sm underline underline-offset-2 hover:text-ens-garnet-900 focus-visible:outline-2 focus-visible:outline-offset-2"
+                      className="rounded-sm underline underline-offset-2 hover:text-ens-garnet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       href={`${EXPLORER_URL}/${encodeURIComponent(profileName)}`}
                       rel="noopener noreferrer"
                       target="_blank"

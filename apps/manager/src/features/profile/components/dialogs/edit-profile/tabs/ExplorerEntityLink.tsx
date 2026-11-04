@@ -37,7 +37,7 @@ export const ExplorerEntityLink = ({
     >
       <a
         className={cn(
-          'inline-flex max-w-full items-center gap-1.5 rounded-sm px-1.5 py-1 font-medium transition-colors hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none',
+          'inline-flex max-w-full items-center gap-1.5 rounded-sm px-1.5 py-1 font-medium transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none',
           className,
         )}
         href={href}

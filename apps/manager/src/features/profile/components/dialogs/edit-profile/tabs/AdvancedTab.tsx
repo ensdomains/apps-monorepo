@@ -51,7 +51,7 @@ export const AdvancedTab = ({
               <Trans>
                 The{' '}
                 <a
-                  className="rounded-sm underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
+                  className="rounded-sm underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   href={EXPLORER_URL ?? undefined}
                   rel="noopener noreferrer"
                   target="_blank"
@@ -121,7 +121,7 @@ export const AdvancedTab = ({
           <Trans>
             Note: ENS Explorer is designed for developers! Keep the{' '}
             <a
-              className="rounded-sm underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="rounded-sm underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               href="https://docs.ens.domains"
               rel="noopener noreferrer"
               target="_blank"
@@ -137,7 +137,7 @@ export const AdvancedTab = ({
         open={!nameHref || hasValidationIssues || isLocalEditorOpen}
       >
         <CollapsibleTrigger
-          className="group flex items-center gap-1.5 rounded-sm font-medium text-ens-quartz-700 focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="group flex items-center gap-1.5 rounded-sm font-medium text-ens-quartz-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           type="button"
         >
           <Trans>Edit records here</Trans>
@@ -148,7 +148,10 @@ export const AdvancedTab = ({
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-4">
           <OtherRecordsTab
-            onChange={onChange}
+            onChange={(value) => {
+              setIsLocalEditorOpen(true)
+              onChange(value)
+            }}
             savedAbi={savedAbi}
             values={values}
           />
