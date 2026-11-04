@@ -1393,9 +1393,9 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
             extraFeeRaw={getEthSwapGasUsdcRaw(selectedEth)}
             isUpTo={checkoutReceipt.isUpTo}
             networkFee={shownFunding?.networkFee}
-            registrationTotalRaw={checkoutReceipt.totalRaw}
             state={receiptState}
             totalLabel={checkoutReceipt.totalLabel}
+            totalRaw={checkoutReceipt.totalRaw}
           />
         )}
         {receiptNotice}

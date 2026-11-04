@@ -1,6 +1,7 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: test fixtures use loose typing
 
 import type {
+  PendingEthSwap,
   RhinestoneTransactionRequest,
   TransactionOptions,
 } from '@ens-apps/transaction-manager'
@@ -761,6 +762,8 @@ it('checks cancellation at the synchronous intent handoff after identity validat
   expect(mocks.startTransaction).not.toHaveBeenCalled()
 })
 
+type SwapStubInput = { readonly onSwapSent?: (swap: PendingEthSwap) => void }
+
 describe('submitHcaRenewal paid with ETH', () => {
   const ethFunding = { usdcAmount: 2_025_000n, displayedCharge: 10n ** 15n }
   const sent = { hash: `0x${'ab'.repeat(32)}` as Hex, deadline: 1_700_000_000n }
@@ -768,17 +771,21 @@ describe('submitHcaRenewal paid with ETH', () => {
 
   beforeEach(() => {
     window.localStorage.clear()
-    mocks.swapEthForUsdcActor.mockImplementation(({ onSwapSent }: any) => {
-      onSwapSent?.(sent)
-      return okAsync(2_025_000n)
-    })
+    mocks.swapEthForUsdcActor.mockImplementation(
+      ({ onSwapSent }: SwapStubInput) => {
+        onSwapSent?.(sent)
+        return okAsync(2_025_000n)
+      },
+    )
   })
 
   it('swaps for the USDC first, then funds the account with the usual permit', async () => {
-    mocks.planHcaIntentFunding.mockImplementation(async ({ calls }: any) => {
-      expect(mocks.swapEthForUsdcActor).toHaveBeenCalledOnce()
-      return { calls, quotedFeeUsdc: 900_000n }
-    })
+    mocks.planHcaIntentFunding.mockImplementation(
+      async ({ calls }: { readonly calls: unknown }) => {
+        expect(mocks.swapEthForUsdcActor).toHaveBeenCalledOnce()
+        return { calls, quotedFeeUsdc: 900_000n }
+      },
+    )
     const displayedDebit = { usdc: 2_000_000n, token: 0n }
 
     await submitHcaRenewal({ ...params, displayedDebit, ethFunding })
@@ -802,10 +809,12 @@ describe('submitHcaRenewal paid with ETH', () => {
   })
 
   it('stops before any permit when the swap fails, keeping the sent swap for the retry', async () => {
-    mocks.swapEthForUsdcActor.mockImplementation(({ onSwapSent }: any) => {
-      onSwapSent?.(sent)
-      return errAsync(new Error('The ETH swap failed on-chain.'))
-    })
+    mocks.swapEthForUsdcActor.mockImplementation(
+      ({ onSwapSent }: SwapStubInput) => {
+        onSwapSent?.(sent)
+        return errAsync(new Error('The ETH swap failed on-chain.'))
+      },
+    )
 
     await expect(submitHcaRenewal({ ...params, ethFunding })).rejects.toThrow(
       'The ETH swap failed on-chain.',

@@ -294,20 +294,21 @@ export const useBulkRenew = ({
     accountCreditRaw,
   })
 
-  // An L2 bridges USDC into the account, so it pays a USDC renewal on the
-  // intent route. Sized on the fee, so a failed fee quote leaves the wallet alone.
+  // An L2 or ETH pays a USDC renewal into the account on the intent route.
+  // Sized on the fee, so a failed fee quote leaves the wallet alone.
+  const isUsdcMethodQuotable =
+    open &&
+    isPaying &&
+    route === 'intent' &&
+    selectedToken === USDC.symbol &&
+    (intentFunding.isQuoting || intentFunding.feeRaw !== undefined)
   const l2Payment = useRenewalL2Payment({
     rentTotalRaw: pricesReady
       ? authorizedPaymentAmount(sumPriceRaw)
       : undefined,
     feeRaw: intentFunding.feeRaw,
     hcaBalanceRaw: accountCreditRaw.USDC,
-    isEnabled:
-      open &&
-      isPaying &&
-      route === 'intent' &&
-      selectedToken === USDC.symbol &&
-      (intentFunding.isQuoting || intentFunding.feeRaw !== undefined),
+    isEnabled: isUsdcMethodQuotable,
     selectedChainId: fundingSourceChainId,
     selectedOrigin: fundingSourceOrigin,
     onSelect: (chainId) => onSelectL2(chainId),
@@ -316,19 +317,13 @@ export const useBulkRenew = ({
   const selectedL2 = l2Payment?.rows.find(
     ({ option }) => option.source.chain.id === l2Payment.selectedChainId,
   )
-  // The swapped USDC funds the account's permits, so only the intent route offers ETH.
   const ethPayment = useRenewalEthPayment({
     rentTotalRaw: pricesReady
       ? authorizedPaymentAmount(sumPriceRaw)
       : undefined,
     feeRaw: intentFunding.feeRaw,
     hcaBalanceRaw: accountCreditRaw.USDC,
-    isEnabled:
-      open &&
-      isPaying &&
-      route === 'intent' &&
-      selectedToken === USDC.symbol &&
-      (intentFunding.isQuoting || intentFunding.feeRaw !== undefined),
+    isEnabled: isUsdcMethodQuotable,
     isSelected: isEthSelected,
     onSelect: () => onSelectEth(),
     onFallbackSelect: () => onSelectEth('fallback'),

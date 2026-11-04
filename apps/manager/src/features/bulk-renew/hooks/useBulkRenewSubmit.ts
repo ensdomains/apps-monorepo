@@ -351,6 +351,13 @@ type SubmitArgs = {
   readonly ethPayment?: HcaRenewalEthFunding
 }
 
+/** Only the account can be paid from an L2 or with ETH: never the wallet in its place. */
+const isPaidFromAccount = ({
+  l2Payment,
+  ethPayment,
+}: Pick<SubmitArgs, 'l2Payment' | 'ethPayment'>) =>
+  l2Payment !== undefined || ethPayment !== undefined
+
 export type UseBulkRenewSubmit = {
   readonly phase: BulkRenewPhase
   readonly statuses: Readonly<Record<string, RowStatus>>
@@ -613,8 +620,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
 
     if (hca)
       return renewWithIntents(hca, remaining, isCurrent, l2Payment, ethPayment)
-    // Only the account can be paid from an L2 or with ETH: never the wallet in its place.
-    if (l2Payment || ethPayment)
+    if (isPaidFromAccount({ l2Payment, ethPayment }))
       return failWith(new Error(ACCOUNT_LOADING_MESSAGE))
     // `ctx` exists wherever `hca` does not — the guard above rejected the
     // no-context case.

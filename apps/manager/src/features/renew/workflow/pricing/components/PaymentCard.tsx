@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
+import { formatUnits } from 'viem'
 import { useConnection } from 'wagmi'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
@@ -19,7 +20,6 @@ import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { TOKENS } from '@/lib/tokens'
 import { useConnectModal } from '@/lib/wallet'
-import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 /** The renewal page's payment card: the registration card, with renewal's routes. */
 export const PaymentCard = () => {
@@ -42,7 +42,7 @@ export const PaymentCard = () => {
   })
   const priceRaw = pricingQuery.data?.amount
   const { discountAmount } = calculateDiscount(
-    decimalBigintToNumber(priceRaw ?? 0n, TOKENS.USDC.decimals),
+    Number(formatUnits(priceRaw ?? 0n, TOKENS.USDC.decimals)),
     baseRate,
     duration,
   )

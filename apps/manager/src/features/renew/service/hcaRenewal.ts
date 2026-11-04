@@ -29,7 +29,7 @@ import {
   submitL2BridgeActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.hca.actors'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
-import { err, fromPromise, ok, ResultAsync } from 'neverthrow'
+import { err, fromPromise, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData, erc20Abi, isAddressEqual } from 'viem'
 import {
@@ -563,6 +563,26 @@ const fundingConsent = ({
   return {}
 }
 
+/** Paid with ETH, buys the wallet's USDC for the permit first; otherwise swaps nothing. */
+const swapForEthFunding = ({
+  ethFunding,
+  walletClient,
+  ownerAddress,
+  publicClient,
+  chainId,
+  signal,
+}: SubmitHcaRenewalParams) =>
+  ethFunding
+    ? swapEthForRenewal({
+        ethFunding,
+        walletClient,
+        ownerAddress,
+        publicClient,
+        chainId,
+        ...(signal ? { signal } : {}),
+      })
+    : okAsync(0n)
+
 /**
  * Renew one or more names as a single owner-signed HCA intent, with the price in
  * the chosen stable and the intent's fee in USDC.
@@ -651,24 +671,8 @@ export async function submitHcaRenewal(
       )
     : undefined
 
-  if (params.ethFunding) {
-    // Unwrapped at this promise boundary, like the L2 funding above.
-    ;(
-      await swapEthForRenewal({
-        ethFunding: params.ethFunding,
-        walletClient,
-        ownerAddress,
-        publicClient,
-        chainId,
-        ...(params.signal ? { signal: params.signal } : {}),
-      })
-    ).match(
-      () => undefined,
-      (error) => {
-        throw error
-      },
-    )
-  }
+  const swapped = await swapForEthFunding(params)
+  if (swapped.isErr()) return Promise.reject(swapped.error)
 
   const funding = await planHcaIntentFunding({
     signer: ownerSigner,

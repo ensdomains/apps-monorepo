@@ -143,7 +143,7 @@ const toUsdcRaw = (usd: number) =>
 /** The checkout receipt: the page's total, the selected method's fee, and what the wallet pays. */
 export const NetworkFeeReceipt = ({
   state,
-  registrationTotalRaw,
+  totalRaw,
   networkFee,
   extraFeeRaw,
   totalLabel = <Trans>Registration total</Trans>,
@@ -152,7 +152,7 @@ export const NetworkFeeReceipt = ({
   /** The quote behind the fee; the total is the page's and is always shown. */
   readonly state: PaymentReceiptState
   /** `undefined` while the price or the account balance loads. */
-  readonly registrationTotalRaw: bigint | undefined
+  readonly totalRaw: bigint | undefined
   /** The selected method's fee, before any existing balance; `undefined` until quoted. */
   readonly networkFee: number | undefined
   /** Paid on top of the wallet debit, such as an ETH swap's gas. */
@@ -164,10 +164,10 @@ export const NetworkFeeReceipt = ({
   const { t } = useLingui()
   const figures =
     state.status === 'ready' &&
-    registrationTotalRaw !== undefined &&
+    totalRaw !== undefined &&
     networkFee !== undefined
       ? getNetworkFeeReceiptFigures({
-          registrationTotalRaw,
+          registrationTotalRaw: totalRaw,
           networkFeeRaw: toUsdcRaw(networkFee),
           walletDebitRaw: toUsdcRaw(state.figures.due),
           extraFeeRaw,
@@ -191,13 +191,11 @@ export const NetworkFeeReceipt = ({
         <Row label={totalLabel}>
           <UsdAmount
             amount={
-              registrationTotalRaw === undefined
+              totalRaw === undefined
                 ? { status: 'loading' }
                 : {
                     status: 'ready',
-                    value: toUsd(
-                      figures?.registrationTotalRaw ?? registrationTotalRaw,
-                    ),
+                    value: toUsd(figures?.registrationTotalRaw ?? totalRaw),
                   }
             }
             isEstimate={isUpTo}

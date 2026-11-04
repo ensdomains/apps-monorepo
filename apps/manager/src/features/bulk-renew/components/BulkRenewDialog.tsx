@@ -149,6 +149,8 @@ export const BulkRenewDialog = ({
 
   const { selectedL2, ethPayment } = payment
   const handleConfirm = () => {
+    // Refused rather than paid from the wallet's USDC instead.
+    if (ethPayment?.isSelected && ethPayment.usdcAmount === undefined) return
     setReceipt({ rows: summaryRows, total: grandTotal })
     submit.submit({
       items: renewItems,

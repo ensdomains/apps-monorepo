@@ -23,6 +23,7 @@ import {
   getRenewalPaymentScreen,
 } from '@/features/renew/utils/renewalFunding'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
+import { getRenewalStartFunding } from '@/features/renew/utils/renewalStartFunding'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
@@ -94,13 +95,14 @@ export const TokenPickerContent = () => {
       accountCredit: balances.accountCredit,
       accountCreditRaw: balances.accountCreditRaw,
     })
-  // An L2 bridges USDC into the account, so it pays a USDC renewal on the
-  // intent route. Sized on the fee, so a failed fee quote leaves the wallet alone.
+  // An L2 or ETH pays a USDC renewal into the account on the intent route.
+  // Sized on the fee, so a failed fee quote leaves the wallet alone.
+  const isUsdcMethodQuotable =
+    isIntentRoute &&
+    token === TOKENS.USDC.symbol &&
+    (quote.isQuoting || feeRaw !== undefined)
   const l2Payment = useRenewalL2Payment({
-    isEnabled:
-      isIntentRoute &&
-      token === TOKENS.USDC.symbol &&
-      (quote.isQuoting || feeRaw !== undefined),
+    isEnabled: isUsdcMethodQuotable,
     rentTotalRaw: pricingQuery.data?.fundedRaw,
     feeRaw,
     hcaBalanceRaw: balances.accountCreditRaw.USDC,
@@ -120,12 +122,8 @@ export const TokenPickerContent = () => {
   )
   const l2ChainName = selectedL2?.option.source.chain.name
 
-  // The swapped USDC funds the account's permit, so only the intent route offers ETH.
   const ethPayment = useRenewalEthPayment({
-    isEnabled:
-      isIntentRoute &&
-      token === TOKENS.USDC.symbol &&
-      (quote.isQuoting || feeRaw !== undefined),
+    isEnabled: isUsdcMethodQuotable,
     rentTotalRaw: pricingQuery.data?.fundedRaw,
     feeRaw,
     hcaBalanceRaw: balances.accountCreditRaw.USDC,
@@ -209,11 +207,25 @@ export const TokenPickerContent = () => {
     const l2Source =
       selectedL2 &&
       getL2FundingSource(ownerAddress, selectedL2.option.source.chain.id)
-    // The intent route signs only against an amount the user was shown: the
-    // wallet debit, or the L2 charge.
-    if (isIntentRoute && !displayedDebit && !l2Source) return
-    const ethUsdcAmount = isPaidWithEth ? ethPayment?.usdcAmount : undefined
-    if (isPaidWithEth && ethUsdcAmount === undefined) return
+    const funding = getRenewalStartFunding({
+      isIntentRoute,
+      displayedDebit,
+      // Bridged from the L2, bounded by the charge this screen showed.
+      l2Funding: l2Source && {
+        source: l2Source,
+        displayedCharge: selectedL2?.amountInRaw,
+      },
+      isPaidWithEth,
+      // Swapped from ETH, bounded by the ETH shown.
+      ethFunding:
+        ethPayment?.usdcAmount === undefined
+          ? undefined
+          : {
+              usdcAmount: ethPayment.usdcAmount,
+              displayedCharge: ethPayment.row.chargeRaw,
+            },
+    })
+    if (funding.status === 'refused') return
     uiActor.send({
       type: 'renewal.start',
       referrer: normalizeReferrer(referrer, ENS_LABS_REFERRER),
@@ -226,28 +238,8 @@ export const TokenPickerContent = () => {
       priceRaw: pricingQuery.data.rawPrice,
       priceNumber: pricingQuery.data.price,
       // Checked against the intent's own quote, so the wallet opens on the
-      // amount shown here without a second confirmation. Paying from an L2,
-      // the screen showed that charge instead, so the debit is not passed.
-      ...(displayedDebit && !l2Source ? { displayedDebit } : {}),
-      // Paid from an L2, what the account is short is bridged in from there,
-      // bounded by the charge this screen showed.
-      ...(l2Source
-        ? {
-            l2Funding: {
-              source: l2Source,
-              displayedCharge: selectedL2?.amountInRaw,
-            },
-          }
-        : {}),
-      // Paid with ETH, the swap is bounded by the ETH shown.
-      ...(ethUsdcAmount === undefined
-        ? {}
-        : {
-            ethFunding: {
-              usdcAmount: ethUsdcAmount,
-              displayedCharge: ethPayment?.row.chargeRaw,
-            },
-          }),
+      // amount shown here without a second confirmation.
+      ...funding.fields,
     })
   }
 
