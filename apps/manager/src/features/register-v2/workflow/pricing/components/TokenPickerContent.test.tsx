@@ -431,7 +431,7 @@ describe('TokenPickerContent', () => {
       screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
     ).not.toBeInTheDocument()
   })
-  it('hides every method known to be short, the wallet included', () => {
+  it('lists every method holding something, short or not, and hides the empty wallet', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
     containerMocks.walletBalance = '0'
     containerMocks.renderBudget = fiveUsdcBudget
@@ -449,8 +449,8 @@ describe('TokenPickerContent', () => {
       screen.queryByRole('button', { name: 'Select USDC' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
+    ).toBeVisible()
   })
 
   it('moves to the L2 holding the most when the wallet cannot pay', () => {
@@ -1139,6 +1139,28 @@ describe('TokenPickerContentBase L2 rows', () => {
     selectedChainId: number | undefined = undefined,
   ) => l2PaymentOf([row], selectedChainId)
 
+  it('lists an L2 that holds USDC but cannot pay, and leaves the pick to the user', () => {
+    const shortRow = baseSepoliaRow('insufficient')
+    const payment = l2Payment({
+      ...shortRow,
+      option: { ...shortRow.option, balanceRaw: 2_000_000n },
+    })
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: payment,
+    })
+
+    const row = screen.getByRole('button', {
+      name: 'Select USDC on Base Sepolia',
+    })
+    expect(row).toBeVisible()
+    expect(payment.onSelect).not.toHaveBeenCalled()
+    fireEvent.click(row)
+    expect(payment.onSelect).toHaveBeenCalledWith(baseSepolia.id)
+  })
+
   it('lists an L2 next to a wallet that cannot pay, and selects it on click', () => {
     const payment = l2Payment(
       baseSepoliaRow('available', { amountInRaw: 5_012_573n }),
@@ -1468,6 +1490,7 @@ describe('TokenPickerContentBase ETH row', () => {
     },
     isSelected,
     onSelect: vi.fn(),
+    onFallbackSelect: vi.fn(),
   })
 
   it('lists ETH next to a wallet that cannot pay, and selects it on click', () => {
@@ -1503,6 +1526,34 @@ describe('TokenPickerContentBase ETH row', () => {
       ).toBe(isListed)
     },
   )
+
+  it('moves to ETH when nothing else can pay, without blaming the empty USDC', () => {
+    const ethPayment = ethPaymentOf()
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment,
+    })
+
+    expect(ethPayment.onFallbackSelect).toHaveBeenCalledOnce()
+    expect(ethPayment.onSelect).not.toHaveBeenCalled()
+    expect(
+      screen.queryByText('You do not have enough USDC for this transaction.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('stays on a wallet coin that can pay rather than swapping ETH', () => {
+    const ethPayment = ethPaymentOf()
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      ethPayment,
+    })
+
+    expect(ethPayment.onFallbackSelect).not.toHaveBeenCalled()
+  })
 
   it('keeps the methods as they were clicked while paying', () => {
     const ethPayment = ethPaymentOf({}, true)

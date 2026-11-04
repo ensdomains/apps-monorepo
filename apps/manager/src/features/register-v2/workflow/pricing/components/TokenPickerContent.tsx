@@ -53,6 +53,7 @@ import {
 } from '../lib/paymentReceiptFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
+import { EthNameText } from './EthNameText'
 import {
   canPayWithEth,
   EthPaymentListItem,
@@ -363,6 +364,12 @@ export const TokenPickerContent = () => {
         isSelected: paymentAsset === 'eth',
         onSelect: () =>
           uiActor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' }),
+        onFallbackSelect: () =>
+          uiActor.send({
+            type: 'pricing.paymentAsset.select',
+            asset: 'eth',
+            origin: 'fallback',
+          }),
       }
     : undefined
   const isPaidWithEth = ethPayment?.isSelected === true
@@ -721,6 +728,7 @@ type EthPaymentProps = Readonly<{
   row: EthPaymentRow
   isSelected: boolean
   onSelect: () => void
+  onFallbackSelect: () => void
 }>
 
 const getSelectedL2 = (l2Payment: L2PaymentProps | undefined) =>
@@ -845,12 +853,14 @@ export const getL2MethodItems = (
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
-  // A chain holding USDC appears once quoted, short or not; a chosen one stays through refreshes, unless it is empty.
+  // A chain holding USDC appears once quoted or known to fall short; a chosen one stays through refreshes, unless it is empty.
   return l2Payment.rows
     .filter(
       (row) =>
         !isL2Empty(row) &&
-        (row === selectedL2 || row.amountInRaw !== undefined),
+        (row === selectedL2 ||
+          row.amountInRaw !== undefined ||
+          row.option.status === 'insufficient'),
     )
     .sort(byBalanceDescending)
     .map((row) => {
@@ -986,7 +996,7 @@ const DomainHeading = ({
         )}
         title={domainName}
       >
-        {domainName}
+        <EthNameText label={label} />
       </span>
     </div>
   )
@@ -1232,16 +1242,18 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
       origin: l2Payment?.selectedOrigin,
     }),
   )
-  const fallbackChoice = l2Payment
-    ? getFallbackPaymentChoice({
-        current: currentMethod,
-        payableMethods: getPayableMethods(
-          stablecoinBalances,
-          walletShareOf,
-          l2Payment.rows,
-        ),
-      })
-    : undefined
+  const fallbackChoice =
+    l2Payment || ethPayment
+      ? getFallbackPaymentChoice({
+          current: currentMethod,
+          payableMethods: getPayableMethods(
+            stablecoinBalances,
+            walletShareOf,
+            l2Payment?.rows ?? [],
+          ),
+          isEthPayable: !!ethPayment && canPayWithEth(ethPayment.row),
+        })
+      : undefined
   useFallbackPaymentChoice({
     choice: fallbackChoice,
     // Never mid-click: any send invalidates the click's pricing snapshot.
@@ -1256,6 +1268,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
       !(selectedEth && isEthPending),
     onSelectCoin,
     onSelectL2: l2Payment?.onFallbackSelect,
+    onSelectEth: ethPayment?.onFallbackSelect,
   })
 
   const warning =
@@ -1273,7 +1286,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
       isShort: isWalletSelectionShort,
       current: currentMethod,
       hasFallback: !!fallbackChoice,
-      isSettling: isL2Pending || hasStaleL2Quote,
+      isSettling: isL2Pending || hasStaleL2Quote || isEthPending,
     }) &&
       t`You do not have enough ${walletSelection} for this transaction.`)
 

@@ -104,6 +104,43 @@ describe('getFallbackPaymentChoice', () => {
       expected,
     )
   })
+
+  it.each([
+    {
+      case: 'takes ETH when nothing else can pay',
+      current: 'short' as const,
+      payableMethods: [],
+      expected: { kind: 'eth' },
+    },
+    {
+      case: 'with nothing chosen, takes ETH when nothing else can pay',
+      current: 'none' as const,
+      payableMethods: [],
+      expected: { kind: 'eth' },
+    },
+    {
+      case: 'prefers any USDC method to the ETH swap',
+      current: 'short' as const,
+      payableMethods: [l2(baseSepolia.id, 48_340_000n)],
+      expected: { kind: 'l2', chainId: baseSepolia.id },
+    },
+    {
+      case: "keeps the user's own pick that falls short",
+      current: 'chosen' as const,
+      payableMethods: [],
+      expected: undefined,
+    },
+    {
+      case: 'keeps ETH it picked while no wallet coin can pay',
+      current: 'auto' as const,
+      payableMethods: [],
+      expected: undefined,
+    },
+  ])('with ETH able to pay, $case', ({ current, payableMethods, expected }) => {
+    expect(
+      getFallbackPaymentChoice({ current, payableMethods, isEthPayable: true }),
+    ).toEqual(expected)
+  })
 })
 
 describe('getCurrentMethodState', () => {
@@ -137,6 +174,11 @@ describe('getCurrentMethodState', () => {
     [
       'an L2 the app picked',
       { kind: 'l2', isPayable: true, origin: 'fallback' },
+      'auto',
+    ],
+    [
+      'ETH the app picked',
+      { kind: 'eth', isPayable: true, origin: 'fallback' },
       'auto',
     ],
     [

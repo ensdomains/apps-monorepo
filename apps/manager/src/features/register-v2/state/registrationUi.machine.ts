@@ -184,7 +184,11 @@ type Events =
       chainId: number
       origin?: FundingSourceOrigin
     }
-  | { type: 'pricing.paymentAsset.select'; asset: PaymentAsset }
+  | {
+      type: 'pricing.paymentAsset.select'
+      asset: PaymentAsset
+      origin?: FundingSourceOrigin
+    }
   | {
       type: 'registration.start'
       label: string
@@ -441,7 +445,7 @@ const machineSetup = setup({
               event.asset === 'eth' ? undefined : context.fundingSourceChainId,
             fundingSourceOrigin:
               event.asset === 'eth'
-                ? ('user' as const)
+                ? (event.origin ?? ('user' as const))
                 : context.fundingSourceOrigin,
           }
         : {},
