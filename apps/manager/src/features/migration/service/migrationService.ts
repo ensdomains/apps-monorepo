@@ -2377,6 +2377,7 @@ const executeRemainingAtomicBatches = async (params: {
     await assertSupportedSubnameMigration({
       publicClient: params.publicClient,
       classified: remaining,
+      signal: params.ctx.submissionGate.signal,
       inventory: subnameInventory,
       onInventory: (inventory) => {
         subnameInventory = inventory
