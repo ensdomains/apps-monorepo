@@ -1347,10 +1347,6 @@ msgid "Enabling smart sessions…"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "ENS"
-msgstr ""
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS App"
 msgstr ""
 
@@ -1364,6 +1360,10 @@ msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
+msgstr ""
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS Protocol"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
@@ -1608,6 +1608,10 @@ msgstr ""
 msgid "Getting your wallet ready..."
 msgstr ""
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "GitHub"
+msgstr ""
+
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "Go back home"
 msgstr ""
@@ -1750,10 +1754,6 @@ msgstr ""
 
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "its registration couldn't be read. Try again later."
-msgstr ""
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Join the community"
 msgstr ""
 
 #. placeholder {0}: truncateAddress(manager)
@@ -2012,10 +2012,6 @@ msgstr ""
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
-msgstr ""
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Need help?"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
@@ -3759,10 +3755,6 @@ msgstr ""
 msgid "Track your favorite names"
 msgstr ""
 
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Trademark Guidelines"
-msgstr ""
-
 #: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
 msgid "Transaction actions"
 msgstr ""
@@ -4318,6 +4310,10 @@ msgstr ""
 msgid "Wrong wallet connected"
 msgstr ""
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "X"
+msgstr ""
+
 #: src/components/AnalyticsConsentBanner.tsx
 msgid "Yes, happy to help"
 msgstr ""
@@ -4680,4 +4676,8 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
+msgstr ""
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "YouTube"
 msgstr ""
