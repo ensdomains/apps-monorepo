@@ -11,7 +11,8 @@ import { bigname } from '@/lib/bigname'
 import {
   type AddressNameItem,
   byShownExpiry,
-  ethParentOf,
+  ethAncestorsOf,
+  getEarliestExpiry,
   mergeAddressNames,
   toAddressNameItem,
   toLapsedItem,
@@ -66,26 +67,26 @@ const readParentExpiries = (
     .orElse(() => okAsync([]))
 
 /**
- * Gives each subname with no expiry its `.eth` parent's expiry. Parents
- * already listed are reused; the rest are looked up in batches.
+ * Gives each subname the earliest expiry of the names above it. Names already
+ * listed are reused; the rest are looked up in batches.
  */
 const withParentExpiry = (
   items: readonly AddressNameItem[],
   signal?: AbortSignal,
 ): ResultAsync<AddressNameItem[], never> => {
   const listed = new Map(items.map((item) => [item.name, item.expiryDate]))
-  const missing = [
-    ...new Set(items.flatMap((item) => ethParentOf(item) ?? [])),
-  ].filter((parent) => !listed.get(parent))
+  const missing = [...new Set(items.flatMap(ethAncestorsOf))].filter(
+    (ancestor) => !listed.get(ancestor),
+  )
 
   return ResultAsync.combine(
     toBatches(missing).map((batch) => readParentExpiries(batch, signal)),
   ).map((batches) => {
     const expiryOf = new Map([...listed, ...batches.flat()])
     return items.map((item) => {
-      const parent = ethParentOf(item)
-      return parent
-        ? { ...item, parentExpiryDate: expiryOf.get(parent) ?? null }
+      const ancestors = ethAncestorsOf(item)
+      return ancestors.length > 0
+        ? { ...item, parentExpiryDate: getEarliestExpiry(ancestors, expiryOf) }
         : item
     })
   })

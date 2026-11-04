@@ -289,6 +289,51 @@ describe('getAddressNames', () => {
     )
   })
 
+  it('gives a deeper ENSv2 subname the earliest expiry of every name above it', async () => {
+    const TEAM_EXPIRY = NOW_SECONDS + 86_400n * 20n
+    answer([
+      [
+        row('parent.eth', { expires_at: String(NOW_SECONDS + 86_400n * 90n) }),
+        row('team.parent.eth', { expires_at: String(TEAM_EXPIRY) }),
+        row('a.ops.team.parent.eth', { expires_at: String(maxUint64) }),
+      ],
+    ])
+    vi.mocked(bigname.lookup).mockReturnValue(
+      okAsync({
+        data: [
+          {
+            input: { name: 'ops.team.parent.eth' },
+            kind: 'name',
+            status: 'ok',
+            record: {
+              name: 'ops.team.parent.eth',
+              display_name: 'ops.team.parent.eth',
+              namespace: 'ens',
+              namehash: '0x03',
+              expires_at: String(NOW_SECONDS + 86_400n * 60n),
+              read_status: 'ok',
+            },
+          },
+        ],
+        meta: { as_of: {} },
+      }),
+    )
+
+    const names = (
+      await getAddressNames({ address: ADDRESS }, { now: NOW })
+    )._unsafeUnwrap()
+
+    expect(vi.mocked(bigname.lookup).mock.calls[0]?.[0].inputs).toEqual([
+      { name: 'ops.team.parent.eth' },
+    ])
+    expect(names).toContainEqual(
+      expect.objectContaining({
+        name: 'a.ops.team.parent.eth',
+        parentExpiryDate: new Date(Number(TEAM_EXPIRY) * 1000),
+      }),
+    )
+  })
+
   it("orders subnames by their parent's expiry", async () => {
     const PARENT_EXPIRY = NOW_SECONDS + 86_400n * 10n
     answer([
