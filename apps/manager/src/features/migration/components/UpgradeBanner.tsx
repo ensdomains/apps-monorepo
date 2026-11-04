@@ -101,7 +101,13 @@ export const UpgradeBanner = ({
                     value={gracePeriodNameCount}
                   />
                 ))
-                .with({ isProfileBanner: true }, () => (
+                .with({ isProfileBanner: true, nftCopyEnabled: true }, () => (
+                  <Trans>
+                    Upgrade your name to edit your new ENS profile and claim
+                    your personalized NFT.
+                  </Trans>
+                ))
+                .with({ isProfileBanner: true, nftCopyEnabled: false }, () => (
                   <Trans>Upgrade your name to ENSv2 to edit it here.</Trans>
                 ))
                 .with({ isProfileBanner: false, nftCopyEnabled: true }, () => (

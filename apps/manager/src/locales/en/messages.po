@@ -3841,6 +3841,10 @@ msgid "Upgrade the parent name first, then its subnames."
 msgstr "Upgrade the parent name first, then its subnames."
 
 #: src/features/migration/components/UpgradeBanner.tsx
+msgid "Upgrade your name to edit your new ENS profile and claim your personalized NFT."
+msgstr "Upgrade your name to edit your new ENS profile and claim your personalized NFT."
+
+#: src/features/migration/components/UpgradeBanner.tsx
 msgid "Upgrade your name to ENSv2 to edit it here."
 msgstr "Upgrade your name to ENSv2 to edit it here."
 
