@@ -8,16 +8,83 @@ import {
   getRenewalCheckoutTotalRaw,
   getRenewalFeeQuoteState,
   getRenewalPaymentScreen,
+  getRenewalReceiptTotalRaw,
 } from './renewalFunding'
 
 describe('getRenewalCheckoutTotalRaw', () => {
+  const DAI = 10n ** 12n
   it.each([
-    ['less the account balance', 8_800_000n, 5_000_000n, 3_800_000n],
-    ['never below zero', 8_800_000n, 20_000_000n, 0n],
-    ['unknown while the balance is unread', 8_800_000n, undefined, undefined],
-    ['unknown while unpriced', undefined, 5_000_000n, undefined],
-  ] as const)('is the funded price %s', (_case, funded, credit, expected) => {
-    expect(getRenewalCheckoutTotalRaw(funded, credit)).toBe(expected)
+    ['less the account balance', 8_800_000n, 5_000_000n, 6, 3_800_000n],
+    ['never below zero', 8_800_000n, 20_000_000n, 6, 0n],
+    [
+      'in USDC units for a DAI price',
+      8_800_000n * DAI,
+      5_000_000n * DAI,
+      18,
+      3_800_000n,
+    ],
+    [
+      'unknown while the balance is unread',
+      8_800_000n,
+      undefined,
+      6,
+      undefined,
+    ],
+    ['unknown while unpriced', undefined, 5_000_000n, 6, undefined],
+  ] as const)(
+    'is the funded price %s',
+    (_case, fundedRaw, accountBalanceRaw, decimals, expected) => {
+      expect(
+        getRenewalCheckoutTotalRaw({ fundedRaw, accountBalanceRaw, decimals }),
+      ).toBe(expected)
+    },
+  )
+})
+
+describe('getRenewalReceiptTotalRaw', () => {
+  const prompt = {
+    permitValue: 4_000_000n,
+    requiresPermit: true,
+    quotedFeeUsdc: 330_000n,
+    hcaBalanceUsdc: 5_000_000n,
+    requiredUsdc: 8_800_000n,
+  }
+
+  // The balance read before the review is gone; the prompt's figures stand.
+  const live = {
+    fundedRaw: 8_800_000n,
+    accountBalanceRaw: 8_000_000n,
+    decimals: 6,
+  }
+
+  it('reads the review total off the prompt, not the balance read before it', () => {
+    expect(getRenewalReceiptTotalRaw({ ...live, prompt })).toBe(3_800_000n)
+  })
+
+  it('uses the live price and balance while nothing is under review', () => {
+    expect(getRenewalReceiptTotalRaw({ ...live, prompt: undefined })).toBe(
+      800_000n,
+    )
+  })
+
+  it('takes a DAI price and balance from the token leg, in USDC units', () => {
+    expect(
+      getRenewalReceiptTotalRaw({
+        ...live,
+        prompt: {
+          ...prompt,
+          requiredUsdc: 0n,
+          token: {
+            symbol: 'DAI',
+            decimals: 18,
+            required: 8_800_000n * 10n ** 12n,
+            hcaBalance: 1_000_000n * 10n ** 12n,
+            permitValue: 7_800_000n * 10n ** 12n,
+            requiresPermit: true,
+          },
+        },
+      }),
+    ).toBe(7_800_000n)
   })
 })
 

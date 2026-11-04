@@ -166,13 +166,10 @@ export const BulkRenewDialog = ({
             },
           }
         : {}),
-      // Paid with ETH, one swap buys every chunk's USDC, bounded by the ETH shown.
+      // Paid with ETH, one swap buys the remaining chunks' USDC, bounded by the ETH shown.
       ...(ethPayment?.isSelected && ethPayment.usdcAmount !== undefined
         ? {
-            ethPayment: {
-              usdcAmount: ethPayment.usdcAmount,
-              displayedCharge: ethPayment.row.chargeRaw,
-            },
+            ethPayment: { displayedCharge: ethPayment.row.chargeRaw },
           }
         : {}),
     })

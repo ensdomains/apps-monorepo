@@ -27,13 +27,11 @@ import { getL2FundingSource } from '@/features/register-v2/service/l2FundingSour
 import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import {
   fundHcaRenewalsFromL2,
+  fundHcaRenewalsWithEth,
   type HcaRenewalL2Funding,
   submitHcaRenewal,
 } from '@/features/renew/service/hcaRenewal'
-import {
-  type HcaRenewalEthFunding,
-  swapEthForRenewal,
-} from '@/features/renew/service/renewalEthSwap'
+import type { HcaRenewalEthFunding } from '@/features/renew/service/renewalEthSwap'
 import { chunkRenewalItems } from '@/features/renew/utils/chunks'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
@@ -153,9 +151,12 @@ const runRenewals = (
     }).andThen((txId) => pollTransactionStatusActor({ txId })),
   )
 
+/** The swap is sized when it runs, on the names still to renew; only the ETH shown bounds it. */
+type BulkEthFunding = Pick<HcaRenewalEthFunding, 'displayedCharge'>
+
 const getBulkFundingSource = (
   l2Funding: HcaRenewalL2Funding | undefined,
-  ethFunding: HcaRenewalEthFunding | undefined,
+  ethFunding: BulkEthFunding | undefined,
 ): BulkFundingSource | undefined => {
   if (l2Funding) return { kind: 'l2', l2Funding }
   if (ethFunding) return { kind: 'eth', ethFunding }
@@ -172,7 +173,7 @@ type HcaContext = {
 /** What pays every chunk's shortfall, once, before the chunks renew. */
 type BulkFundingSource =
   | { readonly kind: 'l2'; readonly l2Funding: HcaRenewalL2Funding }
-  | { readonly kind: 'eth'; readonly ethFunding: HcaRenewalEthFunding }
+  | { readonly kind: 'eth'; readonly ethFunding: BulkEthFunding }
 
 /** Smart-account route: one owner-signed intent per chunk. */
 const runHcaRenewals = ResultFn(async function* (
@@ -211,16 +212,18 @@ const runHcaRenewals = ResultFn(async function* (
       toError,
     )
   }
-  // Buys the wallet's USDC for every chunk's permit with one swap.
+  // Buys the wallet's USDC for every remaining chunk's permit with one swap.
   if (fundingSource?.kind === 'eth') {
-    yield* swapEthForRenewal({
-      ethFunding: fundingSource.ethFunding,
-      walletClient: ctx.walletClient,
-      ownerAddress: ctx.ownerAddress,
-      publicClient,
-      chainId: envConfig.chain.id,
-      ...(signal ? { signal } : {}),
-    })
+    yield* ResultAsync.fromPromise(
+      fundHcaRenewalsWithEth({
+        ...intentParams,
+        walletClient: ctx.walletClient,
+        batches: chunkRenewalItems(remaining),
+        ethFunding: fundingSource.ethFunding,
+        ...(signal ? { signal } : {}),
+      }),
+      toError,
+    )
   }
 
   yield* renewInChunks(
@@ -348,7 +351,7 @@ type SubmitArgs = {
     readonly displayedCharge?: bigint
   }
   /** Intent route: pay with the wallet's ETH, swapped into USDC, bounded by the ETH shown. */
-  readonly ethPayment?: HcaRenewalEthFunding
+  readonly ethPayment?: BulkEthFunding
 }
 
 /** Only the account can be paid from an L2 or with ETH: never the wallet in its place. */

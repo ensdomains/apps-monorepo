@@ -19,8 +19,8 @@ import {
   useRenewalPaymentUpdate,
 } from '@/features/renew/state/renewalUi.selectors'
 import {
-  getRenewalCheckoutTotalRaw,
   getRenewalPaymentScreen,
+  getRenewalReceiptTotalRaw,
 } from '@/features/renew/utils/renewalFunding'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewalStartFunding } from '@/features/renew/utils/renewalStartFunding'
@@ -188,10 +188,12 @@ export const TokenPickerContent = () => {
     .with({ isIntentRoute: true }, () => <Trans>Sign approval</Trans>)
     .otherwise(() => <Trans>Renew name</Trans>)
 
-  const checkoutTotalRaw = getRenewalCheckoutTotalRaw(
-    pricingQuery.data?.fundedRaw,
-    balances.accountCreditRaw.USDC,
-  )
+  const checkoutTotalRaw = getRenewalReceiptTotalRaw({
+    prompt: paymentUpdate?.prompt,
+    fundedRaw: pricingQuery.data?.fundedRaw,
+    accountBalanceRaw: balances.accountCreditRaw[token],
+    decimals: TOKENS[token].decimals,
+  })
 
   const { referrer } = useSearch({ strict: false })
   const startRenewal = () => {

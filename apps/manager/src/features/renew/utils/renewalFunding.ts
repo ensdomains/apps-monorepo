@@ -2,6 +2,7 @@ import type {
   HcaDisplayedDebit,
   HcaFundingPrompt,
 } from '@ens-apps/transaction-manager'
+import { formatUnits, parseUnits } from 'viem'
 import type { RENEWAL_TOKEN, TOKEN_SYMBOL } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
@@ -244,11 +245,58 @@ export const getRenewalFeeQuoteState = (quote: {
     (quote.isError || quote.feeRaw === null),
 })
 
-/** The receipt's renewal total: the price with its headroom, less the account's USDC applied up to it. */
-export const getRenewalCheckoutTotalRaw = (
-  fundedRaw: bigint | undefined,
-  accountUsdcRaw: bigint | undefined,
-): bigint | undefined =>
-  fundedRaw === undefined || accountUsdcRaw === undefined
+const RECEIPT_DECIMALS = 6
+
+/** The price less the balance applied up to it, in the receipt's USDC units. */
+const toReceiptTotalRaw = (
+  fundedRaw: bigint,
+  balanceRaw: bigint,
+  decimals: number,
+): bigint =>
+  parseUnits(
+    formatUnits(
+      fundedRaw - (balanceRaw < fundedRaw ? balanceRaw : fundedRaw),
+      decimals,
+    ),
+    RECEIPT_DECIMALS,
+  )
+
+/** The receipt's renewal total: the price with its headroom, less the account's balance of that coin. */
+export const getRenewalCheckoutTotalRaw = ({
+  fundedRaw,
+  accountBalanceRaw,
+  decimals,
+}: {
+  readonly fundedRaw: bigint | undefined
+  readonly accountBalanceRaw: bigint | undefined
+  /** The price's coin. */
+  readonly decimals: number
+}): bigint | undefined =>
+  fundedRaw === undefined || accountBalanceRaw === undefined
     ? undefined
-    : fundedRaw - (accountUsdcRaw < fundedRaw ? accountUsdcRaw : fundedRaw)
+    : toReceiptTotalRaw(fundedRaw, accountBalanceRaw, decimals)
+
+/** The review's renewal total, from the prompt the wallet will be asked for. */
+const getPromptCheckoutTotalRaw = (prompt: HcaFundingPrompt): bigint =>
+  prompt.token
+    ? toReceiptTotalRaw(
+        prompt.token.required,
+        prompt.token.hcaBalance,
+        prompt.token.decimals,
+      )
+    : toReceiptTotalRaw(
+        prompt.requiredUsdc,
+        prompt.hcaBalanceUsdc,
+        RECEIPT_DECIMALS,
+      )
+
+/** The sheet's renewal total: an increased amount's own prompt once there is one, else the live price and balance. */
+export const getRenewalReceiptTotalRaw = ({
+  prompt,
+  ...checkout
+}: Parameters<typeof getRenewalCheckoutTotalRaw>[0] & {
+  readonly prompt: HcaFundingPrompt | undefined
+}): bigint | undefined =>
+  prompt
+    ? getPromptCheckoutTotalRaw(prompt)
+    : getRenewalCheckoutTotalRaw(checkout)

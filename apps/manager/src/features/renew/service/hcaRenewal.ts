@@ -394,32 +394,18 @@ const settlePendingL2Bridge = ResultFn(async function* (params: {
   return ok(undefined)
 })
 
-/**
- * Bridge what the HCA is short of `intents` in from an L2 as one payment, then
- * wait for a read that shows it, so each renewal pays from the HCA with no
- * permit. The bridge is recorded once accepted and cleared once it shows, so a
- * retry waits for it rather than paying twice.
- */
-const fundRenewalsFromL2 = ResultFn(async function* (params: {
-  readonly l2Funding: HcaRenewalL2Funding
+/** The USDC the HCA is short of `intents`, quoted when it runs; sizes an L2 bridge or an ETH swap. */
+const sizeRenewalShortfall = ResultFn(async function* (params: {
   readonly intents: readonly RenewalIntent[]
-  readonly token: RENEWAL_TOKEN
   readonly signer: RhinestoneSigner
   readonly ownerAddress: Address
   readonly publicClient: PublicClient
   readonly chainId: number
+  readonly hca: Address
+  /** Why nothing is paid when a fee can't be quoted. */
+  readonly unpricedMessage: string
 }) {
-  const { l2Funding, intents, signer, publicClient, chainId } = params
-  const { source } = l2Funding
-  if (params.token !== 'USDC') {
-    return err(
-      new Error(`Paying from ${source.chain.name} renews in USDC only.`),
-    )
-  }
-
-  const hca = getSmartAccountAddress(signer)
-  yield* settlePendingL2Bridge({ hca, publicClient, chainId })
-
+  const { intents, signer, publicClient, chainId, hca } = params
   const fees = yield* ResultAsync.combine(
     intents.map((intent) =>
       fromPromise(
@@ -443,12 +429,9 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
     })),
   ).mapErr((error) =>
     error instanceof RenewalFeeUnpricedError
-      ? new Error(
-          `Could not quote the renewal, so the payment from ${source.chain.name} cannot be sized.`,
-        )
+      ? new Error(params.unpricedMessage)
       : error,
   )
-
   const hcaBalance = yield* readHcaUsdcBalanceActor({
     hca,
     publicClient,
@@ -458,6 +441,40 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
     rentTotal: intents.reduce((sum, intent) => sum + intent.rentTotal, 0n),
     quotedFeeUsdc,
     hcaBalance,
+  })
+  return ok({ amount, hcaBalance })
+})
+
+/**
+ * Bridge what the HCA is short of `intents` in from an L2 as one payment, then
+ * wait for a read that shows it, so each renewal pays from the HCA with no
+ * permit. The bridge is recorded once accepted and cleared once it shows, so a
+ * retry waits for it rather than paying twice.
+ */
+const fundRenewalsFromL2 = ResultFn(async function* (params: {
+  readonly l2Funding: HcaRenewalL2Funding
+  readonly intents: readonly RenewalIntent[]
+  readonly token: RENEWAL_TOKEN
+  readonly signer: RhinestoneSigner
+  readonly ownerAddress: Address
+  readonly publicClient: PublicClient
+  readonly chainId: number
+}) {
+  const { l2Funding, signer, publicClient, chainId } = params
+  const { source } = l2Funding
+  if (params.token !== 'USDC') {
+    return err(
+      new Error(`Paying from ${source.chain.name} renews in USDC only.`),
+    )
+  }
+
+  const hca = getSmartAccountAddress(signer)
+  yield* settlePendingL2Bridge({ hca, publicClient, chainId })
+
+  const { amount, hcaBalance } = yield* sizeRenewalShortfall({
+    ...params,
+    hca,
+    unpricedMessage: `Could not quote the renewal, so the payment from ${source.chain.name} cannot be sized.`,
   })
   if (amount === 0n) return ok(hcaBalance)
 
@@ -526,6 +543,63 @@ export async function fundHcaRenewalsFromL2(
       throw error
     },
   )
+}
+
+/** One ETH swap for what the remaining batches are short, sized when it runs and bounded by the ETH shown. */
+export async function fundHcaRenewalsWithEth(
+  params: Omit<
+    SubmitHcaRenewalParams,
+    | 'items'
+    | 'onTxId'
+    | 'onSubmitted'
+    | 'approvalFallback'
+    | 'displayedDebit'
+    | 'confirmFunding'
+    | 'confirmIncreasedPayment'
+    | 'l2Funding'
+    | 'ethFunding'
+  > & {
+    readonly batches: readonly (readonly HcaRenewalItem[])[]
+    readonly ethFunding: Pick<HcaRenewalEthFunding, 'displayedCharge'>
+  },
+): Promise<void> {
+  const {
+    batches,
+    signer,
+    publicClient,
+    walletClient,
+    ethFunding,
+    signal,
+    ...rest
+  } = params
+  if (rest.token !== 'USDC')
+    return Promise.reject(new Error('Paying with ETH renews in USDC only.'))
+  const hca = getSmartAccountAddress(signer)
+  const intents = await Promise.all(
+    batches.map((items) =>
+      buildRenewalIntent({ ...rest, items, hca, publicClient }),
+    ),
+  )
+  const sized = await sizeRenewalShortfall({
+    ...rest,
+    intents,
+    signer: { ...signer, session: undefined },
+    publicClient,
+    hca,
+    unpricedMessage:
+      'Could not quote the renewal, so the ETH swap cannot be sized.',
+  })
+  if (sized.isErr()) return Promise.reject(sized.error)
+  if (sized.value.amount === 0n) return
+  const swapped = await swapEthForRenewal({
+    ethFunding: { ...ethFunding, usdcAmount: sized.value.amount },
+    walletClient,
+    ownerAddress: rest.ownerAddress,
+    publicClient,
+    chainId: rest.chainId,
+    ...(signal ? { signal } : {}),
+  })
+  if (swapped.isErr()) return Promise.reject(swapped.error)
 }
 
 /**

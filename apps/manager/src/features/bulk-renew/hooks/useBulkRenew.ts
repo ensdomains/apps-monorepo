@@ -342,10 +342,13 @@ export const useBulkRenew = ({
       stablecoinBalances,
       accountCredit,
       fundedTotal,
-      checkoutTotalRaw: getRenewalCheckoutTotalRaw(
-        pricesReady ? authorizedPaymentAmount(sumPriceRaw) : undefined,
-        accountCreditRaw.USDC,
-      ),
+      checkoutTotalRaw: getRenewalCheckoutTotalRaw({
+        fundedRaw: pricesReady
+          ? authorizedPaymentAmount(sumPriceRaw)
+          : undefined,
+        accountBalanceRaw: accountCreditRaw[selectedToken],
+        decimals: tokenDecimals,
+      }),
       canProceed:
         isConnected && route !== null && pricesReady && grandTotal > 0,
       pricesReady,

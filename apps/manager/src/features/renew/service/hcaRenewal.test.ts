@@ -91,6 +91,7 @@ import {
 import { TOKENS } from '@/lib/tokens'
 import {
   fundHcaRenewalsFromL2,
+  fundHcaRenewalsWithEth,
   HCA_RENEWAL_INTENT_GAS_LIMIT_BASE,
   HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM,
   HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS,
@@ -821,5 +822,54 @@ describe('submitHcaRenewal paid with ETH', () => {
     )
     expect(mocks.planHcaIntentFunding).not.toHaveBeenCalled()
     expect(readPendingEthSwap(params.chainId, OWNER)).toEqual(sent)
+  })
+})
+
+describe('fundHcaRenewalsWithEth', () => {
+  const batches = [
+    [{ label: 'alice', duration: 31_536_000n }],
+    [{ label: 'bob', duration: 31_536_000n }],
+  ]
+  const run = (overrides: Record<string, unknown> = {}) =>
+    fundHcaRenewalsWithEth({
+      ...params,
+      batches,
+      ethFunding: { displayedCharge: 10n ** 16n },
+      ...overrides,
+    })
+
+  beforeEach(() => {
+    window.localStorage.clear()
+    mocks.quoteHcaIntentFeeUsdc.mockResolvedValue(900_000n)
+    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(200_000n))
+    mocks.swapEthForUsdcActor.mockReturnValue(okAsync(4_250_000n))
+  })
+
+  it('swaps once for what the batches it is given are short, bounded by the ETH shown', async () => {
+    await run()
+
+    // 2 × 1.10 price + 2 × 0.90 fee widened by 25%, less the 0.20 held.
+    expect(mocks.swapEthForUsdcActor).toHaveBeenCalledOnce()
+    expect(mocks.swapEthForUsdcActor.mock.calls[0]?.[0]).toMatchObject({
+      permitValue: 4_250_000n,
+      funding: { displayedCharge: 10n ** 16n },
+    })
+  })
+
+  it('sizes a retry on the names left, not the whole selection', async () => {
+    await run({ batches: [batches[0]] })
+
+    // 1.10 price + 0.90 fee widened by 25%, less the 0.20 held.
+    expect(mocks.swapEthForUsdcActor.mock.calls[0]?.[0]).toMatchObject({
+      permitValue: 2_025_000n,
+    })
+  })
+
+  it('swaps nothing when the account already covers the batches', async () => {
+    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(10_000_000n))
+
+    await run()
+
+    expect(mocks.swapEthForUsdcActor).not.toHaveBeenCalled()
   })
 })
