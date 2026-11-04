@@ -496,6 +496,10 @@ msgid "Approve USDC"
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx
+msgid "Approve USDC for your registration?"
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
 msgid "Approve USDC for your renewal?"
 msgstr ""
 
@@ -852,6 +856,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Confirm the swap in your wallet, then wait for it to complete"
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Confirm the USDC approval transaction in your wallet. Registration will continue after it confirms."
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx
@@ -4018,6 +4026,10 @@ msgid "Waiting for the resolver deployment"
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx
+msgid "Waiting for the USDC approval to confirm. Your registration has not been submitted yet."
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
 msgid "Waiting for the USDC approval to confirm. Your renewal has not been submitted yet."
 msgstr ""
 
@@ -4537,6 +4549,10 @@ msgstr ""
 
 #: src/components/HcaFundingConfirmDialog.tsx
 msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, sign the registration setup in your wallet. The registration will then continue."
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx

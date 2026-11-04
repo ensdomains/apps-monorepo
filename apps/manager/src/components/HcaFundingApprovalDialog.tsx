@@ -16,10 +16,12 @@ import { Button } from '@/components/ui/button'
 /** Recovery and approval consent stay separate from the funding permit prompt. */
 export const HcaFundingApprovalDialog = ({
   state,
+  operation = 'renewal',
   onApprove,
   onDecline,
 }: {
   readonly state: HcaFundingApprovalState
+  readonly operation?: 'renewal' | 'registration'
   readonly onApprove: () => void
   readonly onDecline: () => void
 }) => {
@@ -47,25 +49,48 @@ export const HcaFundingApprovalDialog = ({
         consent separately.
       </Trans>
     ))
-    .with('approval-wallet', () => (
-      <Trans>
-        Confirm the USDC approval transaction in your wallet. The renewal will
-        continue after it confirms.
-      </Trans>
-    ))
-    .with('approval-receipt', () => (
-      <Trans>
-        Waiting for the USDC approval to confirm. Your renewal has not been
-        submitted yet.
-      </Trans>
-    ))
-    .otherwise(() => (
-      <Trans>
-        Your wallet needs a separate transaction to approve USDC for your smart
-        account. This costs ETH gas. After it confirms, you can sign the
-        renewal.
-      </Trans>
-    ))
+    .with('approval-wallet', () =>
+      operation === 'registration' ? (
+        <Trans>
+          Confirm the USDC approval transaction in your wallet. Registration
+          will continue after it confirms.
+        </Trans>
+      ) : (
+        <Trans>
+          Confirm the USDC approval transaction in your wallet. The renewal will
+          continue after it confirms.
+        </Trans>
+      ),
+    )
+    .with('approval-receipt', () =>
+      operation === 'registration' ? (
+        <Trans>
+          Waiting for the USDC approval to confirm. Your registration has not
+          been submitted yet.
+        </Trans>
+      ) : (
+        <Trans>
+          Waiting for the USDC approval to confirm. Your renewal has not been
+          submitted yet.
+        </Trans>
+      ),
+    )
+    .otherwise(() =>
+      operation === 'registration' ? (
+        <Trans>
+          Your wallet needs a separate transaction to approve USDC for your
+          smart account. This costs ETH gas. After it confirms, sign the
+          registration setup in your wallet. The registration will then
+          continue.
+        </Trans>
+      ) : (
+        <Trans>
+          Your wallet needs a separate transaction to approve USDC for your
+          smart account. This costs ETH gas. After it confirms, you can sign the
+          renewal.
+        </Trans>
+      ),
+    )
   return (
     <AlertDialog
       onOpenChange={(open) => {
@@ -96,6 +121,8 @@ export const HcaFundingApprovalDialog = ({
           <AlertDialogTitle>
             {isRecovery ? (
               <Trans>Resolve your earlier USDC approval</Trans>
+            ) : operation === 'registration' ? (
+              <Trans>Approve USDC for your registration?</Trans>
             ) : (
               <Trans>Approve USDC for your renewal?</Trans>
             )}
