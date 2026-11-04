@@ -1,6 +1,6 @@
-# Registration and renewal payment: expected behaviour
+# Registration payment: expected behaviour
 
-This file lists what the registration and renewal pages and payment sheet must do, and the test that holds each rule. A change to any rule below is a product change: it needs the design owner's agreement, and the PR must name the rule and the test it changes.
+This file lists what the registration page and payment sheet must do, and the test that holds each rule. A change to any rule below is a product change: it needs the design owner's agreement, and the PR must name the rule and the test it changes.
 
 Sources, in order of authority:
 
@@ -64,25 +64,9 @@ Paths are relative to this folder. "Sheet tests" means `components/TokenPickerCo
 
 - Focus ring drawn inside the row, and no hover tint on the selected row (Dom's feedback, PR #1698).
 
-## Renewal
+## Shared with renewal
 
-Single and bulk renewal use the same page card, sheet and receipt as registration (WEB-2133). `TokenPickerContentBase`, `PaymentAction`, `PaymentMethodRow` and the L2 rows are shared, so a change to a rule above changes renewal too. Paths below are relative to `../../../renew` (single) and `../../../bulk-renew` (bulk).
-
-| Rule | Held by |
-| --- | --- |
-| The renewal page uses the registration card: Name cost, Existing balance and Total, "Continue to payment", "Connect to renew" when disconnected. USDC and ETH sit under the button, and ETH counts toward the balance check, except on the wallet route (EOA, Safe, V1), which can't pay with ETH. | `workflow/pricing/components/PaymentCard.test.tsx` |
-| Tier cards read "total", as registration's. | `workflow/pricing/components/DurationSelector.tsx` (no test) |
-| On a smart account the sheet passes `checkoutReceipt`: the receipt reads "Renewal total" and its figures read "up to", rounded up to the cent, because the approval carries headroom over the price. | Sheet tests "labels the checkout total and shows its figures as up to, as a caller asks"; `lib/paymentReceiptFigures.test.ts` |
-| The renewal total is the price with its headroom, less the account's USDC applied up to it, never below zero. | `utils/renewalFunding.test.ts` (`getRenewalCheckoutTotalRaw`) |
-| The ETH row works as in registration: the wallet's ETH is swapped into the wallet's USDC, which the usual permit then moves into the account. The swap buys toward the same amount an L2 payment is sized on (the price with its headroom, plus the fee with its drift margin, less the account's balance), so a small fee change at signing stays covered; unspent USDC stays in the wallet. The button reads "Swap and Renew". Bulk renewal swaps once for every batch. | `service/hcaRenewal.test.ts` "submitHcaRenewal paid with ETH"; `state/renewalUi.machine.test.ts` "renewal paid with ETH"; `../bulk-renew/hooks/useBulkRenewSubmit.test.ts` "pays a whole selection with ETH through one swap..." |
-| A swap still confirming is saved, so a retry or reload counts it instead of buying again; a failed swap stops before any permit. | `service/hcaRenewal.test.ts` "counts a swap an earlier attempt sent...", "stops before any permit when the swap fails..." |
-| Paid with ETH, an amount re-quoted beyond the drift margin stops the renewal (the wallet holds less USDC than the permit needs) rather than asking for a second swap. Going back to the sheet re-quotes, and the next swap buys only what is missing. | No test yet. |
-| Buttons: "Sign approval" on a smart account, "Renew name" / "Renew names" on the wallet route and when the selection can't pay, "Loading..." while quoting, "Renewing..." while paying. | `../bulk-renew/components/BulkRenewPaymentStep.test.tsx` holds "Sign approval"; the other labels have no test yet. |
-| The fallback rules above apply: the app's pick gives way, the user's pick stays. Single renewal records who picked in its machine, bulk in its dialog. | `state/renewalUi.machine.test.ts` "records who picked a wallet coin: %s" |
-| An increased amount at signing is shown for review before anything is signed (single renewal only). The methods are hidden during the review; "Sign payment approval" or "Sign renewal" accepts it, Cancel returns to the sheet. | `state/renewalUi.machine.test.ts` "increased payment on the smart-account route"; `utils/renewalFunding.test.ts` (`decideRenewalPayment`); sheet tests "hides the methods while the caller asks it to" |
-| On the wallet route (EOA, Safe, V1) the sheet keeps its older behaviour: no `checkoutReceipt`, short and unquoted L2s hidden. | Sheet tests "keeps a short L2 hidden in renewal", "keeps an unquoted L2 hidden in renewal", "keeps the existing token row outside registration" |
-
-Not yet in renewal: bulk's increased-amount review, which still asks through `RenewalFundingDialog`.
+`TokenPickerContentBase`, `PaymentAction`, `PaymentMethodRow` and the L2 and ETH rows are shared with single and bulk renewal, which follow this design (WEB-2133). A change to a rule above changes renewal too. Renewal's own rules, and where it differs, are in `../../../renew/workflow/pricing/BEHAVIOUR.md`.
 
 ## Before changing anything here
 
