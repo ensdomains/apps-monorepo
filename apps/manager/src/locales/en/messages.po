@@ -475,10 +475,6 @@ msgstr "Approve the network fee?"
 msgid "Approve the payment in your wallet to let ENS use your selected token for registration. Registration starts after approval completes."
 msgstr "Approve the payment in your wallet to let ENS use your selected token for registration. Registration starts after approval completes."
 
-#: src/features/renew/components/RenewalFundingDialog.tsx
-msgid "Approve the renewal payment?"
-msgstr "Approve the renewal payment?"
-
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Approve the signature in your wallet, then wait for on-chain confirmation."
 msgstr "Approve the signature in your wallet, then wait for on-chain confirmation."
@@ -2015,7 +2011,6 @@ msgid "Need more help? Visit ENS Support Docs"
 msgstr "Need more help? Visit ENS Support Docs"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/renew/components/RenewalFundingDialog.tsx
 msgid "Network fee"
 msgstr "Network fee"
 
@@ -2746,22 +2741,10 @@ msgstr "Renewal Fee"
 msgid "Renewal Period"
 msgstr "Renewal Period"
 
-#: src/features/renew/components/RenewalFundingDialog.tsx
-msgid "Renewal price"
-msgstr "Renewal price"
-
 #: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renewal total"
 msgstr "Renewal total"
-
-#: src/features/renew/components/RenewalFundingDialog.tsx
-msgid "Renewals are paid in USDC out of your smart account."
-msgstr "Renewals are paid in USDC out of your smart account."
-
-#: src/features/renew/components/RenewalFundingDialog.tsx
-msgid "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
-msgstr "Renewals are paid out of your smart account: the price in {symbol}, the network fee in USDC."
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Renewing <0>{count, plural, one {# name} other {# names}}</0> for <1>{amount} USDC</1>"
@@ -3558,10 +3541,6 @@ msgstr "The renewal could not be completed."
 #: src/features/renew/workflow/result/FailureStep.tsx
 msgid "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 msgstr "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
-
-#: src/features/renew/components/RenewalFundingDialog.tsx
-msgid "The renewal price includes a 10% buffer: the final price is set when the renewal executes, slightly after this quote."
-msgstr "The renewal price includes a 10% buffer: the final price is set when the renewal executes, slightly after this quote."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts

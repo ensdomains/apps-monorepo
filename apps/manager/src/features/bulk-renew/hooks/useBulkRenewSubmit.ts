@@ -1,8 +1,8 @@
 import {
+  type HcaDisplayedDebit,
   type HcaFundingApprovalCapability,
   type HcaFundingApprovalState,
   HcaFundingDeclinedError,
-  type HcaFundingPrompt,
   type RhinestoneSigner,
   type Signer,
 } from '@ens-apps/transaction-manager'
@@ -43,6 +43,7 @@ import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
+import { getBatchDisplayedDebit } from '../utils/batchDisplayedDebit'
 
 type AttributedRenewItem = RenewItem & {
   readonly referrer: `0x${string}`
@@ -151,16 +152,64 @@ const runRenewals = (
     }).andThen((txId) => pollTransactionStatusActor({ txId })),
   )
 
+const NO_WALLET_DEBIT: HcaDisplayedDebit = { usdc: 0n, token: 0n }
+
 /** The swap is sized when it runs, on the names still to renew; only the ETH shown bounds it. */
 type BulkEthFunding = Pick<HcaRenewalEthFunding, 'displayedCharge'>
 
-const getBulkFundingSource = (
-  l2Funding: HcaRenewalL2Funding | undefined,
-  ethFunding: BulkEthFunding | undefined,
-): BulkFundingSource | undefined => {
-  if (l2Funding) return { kind: 'l2', l2Funding }
-  if (ethFunding) return { kind: 'eth', ethFunding }
-  return undefined
+type BulkIntentFunding =
+  | { readonly status: 'refused'; readonly message: string }
+  | {
+      readonly status: 'ready'
+      readonly shownDebit: HcaDisplayedDebit
+      readonly fundingSource: BulkFundingSource | undefined
+    }
+
+/** What an intent run is checked against and paid from; refused rather than left unchecked or paid from the wallet instead. */
+const getBulkIntentFunding = ({
+  l2Payment,
+  l2Source,
+  ethPayment,
+  displayedDebit,
+}: {
+  readonly l2Payment: SubmitArgs['l2Payment']
+  readonly l2Source: HcaRenewalL2Funding['source'] | undefined
+  readonly ethPayment: SubmitArgs['ethPayment']
+  readonly displayedDebit: SubmitArgs['displayedDebit']
+}): BulkIntentFunding => {
+  if (l2Payment && !l2Source) {
+    return {
+      status: 'refused',
+      message: 'Cannot renew: paying from that network is not supported.',
+    }
+  }
+  // Paid from an L2 the wallet is shown nothing, so anything left for it is refused.
+  if (l2Source) {
+    return {
+      status: 'ready',
+      shownDebit: NO_WALLET_DEBIT,
+      fundingSource: {
+        kind: 'l2',
+        l2Funding: {
+          source: l2Source,
+          displayedCharge: l2Payment?.displayedCharge,
+        },
+      },
+    }
+  }
+  if (!displayedDebit) {
+    return {
+      status: 'refused',
+      message: 'Cannot renew: the payment amount is not known yet.',
+    }
+  }
+  return {
+    status: 'ready',
+    shownDebit: displayedDebit,
+    fundingSource: ethPayment
+      ? { kind: 'eth', ethFunding: ethPayment }
+      : undefined,
+  }
 }
 
 type HcaContext = {
@@ -180,7 +229,8 @@ const runHcaRenewals = ResultFn(async function* (
   ctx: HcaContext,
   remaining: readonly AttributedRenewItem[],
   reporters: RowReporters,
-  confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean,
+  /** The wallet debit the sheet showed; each batch may take only what is left of it. */
+  shownDebit: HcaDisplayedDebit,
   approvalFallback?: HcaFundingApprovalCapability,
   signal?: AbortSignal,
   fundingSource?: BulkFundingSource,
@@ -226,6 +276,7 @@ const runHcaRenewals = ResultFn(async function* (
     )
   }
 
+  let movedUsdc = 0n
   yield* renewInChunks(
     remaining,
     reporters,
@@ -235,12 +286,15 @@ const runHcaRenewals = ResultFn(async function* (
           ...intentParams,
           items: chunk,
           walletClient: ctx.walletClient,
-          ...(confirmFunding ? { confirmFunding } : {}),
+          displayedDebit: getBatchDisplayedDebit(shownDebit, movedUsdc),
           ...(approvalFallback ? { approvalFallback } : {}),
           ...(signal ? { signal } : {}),
         }),
         toError,
-      ),
+      ).map((renewed) => {
+        movedUsdc += renewed.incomingUsdc ?? 0n
+        return renewed
+      }),
     signal,
   )
   return ok(undefined)
@@ -352,6 +406,8 @@ type SubmitArgs = {
   }
   /** Intent route: pay with the wallet's ETH, swapped into USDC, bounded by the ETH shown. */
   readonly ethPayment?: BulkEthFunding
+  /** Intent route: the wallet debit the sheet showed, which bounds every batch. */
+  readonly displayedDebit?: HcaDisplayedDebit
 }
 
 /** Only the account can be paid from an L2 or with ETH: never the wallet in its place. */
@@ -366,12 +422,10 @@ export type UseBulkRenewSubmit = {
   readonly statuses: Readonly<Record<string, RowStatus>>
   readonly errorMessage: string | undefined
   /**
-   * The USDC a funding permit is waiting to authorize, or `null`. Render a
-   * dialog from this: the intent submit is parked until it is answered, and no
-   * wallet signature is requested before then.
+   * A separately consented USDC approval waiting on the user. Render a dialog
+   * from this: the intent submit is parked until it is answered.
    */
   readonly approvalState: HcaFundingApprovalState
-  readonly fundingPrompt: HcaFundingPrompt | null
   readonly approveFunding: () => void
   readonly declineFunding: () => void
   readonly submit: (args: SubmitArgs) => Promise<void>
@@ -389,8 +443,6 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const account = useSmartAccountContext()
   const signer = useRenewalSigner()
   const {
-    prompt: fundingPrompt,
-    confirmFunding,
     confirmApproval,
     confirmApprovalRecovery,
     approvalState,
@@ -507,27 +559,26 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     isCurrent: () => boolean,
     l2Payment: SubmitArgs['l2Payment'],
     ethPayment: SubmitArgs['ethPayment'],
+    displayedDebit: SubmitArgs['displayedDebit'],
   ) => {
-    const source =
-      l2Payment && getL2FundingSource(hca.ownerAddress, l2Payment.chainId)
-    // Refused rather than paid from the wallet instead.
-    if (l2Payment && !source) {
-      return failWith(
-        new Error('Cannot renew: paying from that network is not supported.'),
-      )
-    }
+    const funding = getBulkIntentFunding({
+      l2Payment,
+      l2Source:
+        l2Payment && getL2FundingSource(hca.ownerAddress, l2Payment.chainId),
+      ethPayment,
+      displayedDebit,
+    })
+    if (funding.status === 'refused')
+      return failWith(new Error(funding.message))
     setPhase('renewing')
     const renewed = await runHcaRenewals(
       hca,
       remaining,
       rowReporters(isCurrent, markStatus, completedRef.current),
-      confirmFunding,
+      funding.shownDebit,
       { confirmApproval, confirmApprovalRecovery, onState: onApprovalState },
       abortRef.current?.signal,
-      getBulkFundingSource(
-        source && { source, displayedCharge: l2Payment?.displayedCharge },
-        ethPayment,
-      ),
+      funding.fundingSource,
     )
     if (!isCurrent()) return
     if (renewed.isErr()) {
@@ -576,6 +627,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     sumPriceRaw,
     l2Payment,
     ethPayment,
+    displayedDebit,
   }: SubmitArgs) => {
     const items = inputItems.map((item) => ({
       ...item,
@@ -622,7 +674,14 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     )
 
     if (hca)
-      return renewWithIntents(hca, remaining, isCurrent, l2Payment, ethPayment)
+      return renewWithIntents(
+        hca,
+        remaining,
+        isCurrent,
+        l2Payment,
+        ethPayment,
+        displayedDebit,
+      )
     if (isPaidFromAccount({ l2Payment, ethPayment }))
       return failWith(new Error(ACCOUNT_LOADING_MESSAGE))
     // `ctx` exists wherever `hca` does not — the guard above rejected the
@@ -634,7 +693,6 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     phase,
     statuses,
     errorMessage,
-    fundingPrompt,
     approvalState,
     approveFunding,
     declineFunding,

@@ -15,7 +15,6 @@ import type {
   FundingSourceOrigin,
   PaymentAsset,
 } from '@/features/register-v2/state/registrationUi.machine'
-import { RenewalFundingDialog } from '@/features/renew/components/RenewalFundingDialog'
 import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
@@ -147,7 +146,7 @@ export const BulkRenewDialog = ({
     onOpenChange(next)
   }
 
-  const { selectedL2, ethPayment } = payment
+  const { selectedL2, ethPayment, intentFunding } = payment
   const handleConfirm = () => {
     // Refused rather than paid from the wallet's USDC instead.
     if (ethPayment?.isSelected && ethPayment.usdcAmount === undefined) return
@@ -156,6 +155,10 @@ export const BulkRenewDialog = ({
       items: renewItems,
       token: selectedToken,
       sumPriceRaw,
+      // Each batch is checked against this, so the wallet opens on the amount shown here.
+      ...(intentFunding.displayedDebit
+        ? { displayedDebit: intentFunding.displayedDebit }
+        : {}),
       // Paid from an L2, each intent's shortfall is bridged in from there,
       // bounded by the charge this screen showed.
       ...(selectedL2
@@ -302,11 +305,6 @@ export const BulkRenewDialog = ({
         onApprove={submit.approveFunding}
         onDecline={submit.declineFunding}
         state={submit.approvalState}
-      />
-      <RenewalFundingDialog
-        onApprove={submit.approveFunding}
-        onDecline={submit.declineFunding}
-        prompt={submit.fundingPrompt}
       />
     </>
   )

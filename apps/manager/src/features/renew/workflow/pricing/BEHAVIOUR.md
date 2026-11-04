@@ -73,10 +73,11 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 | The intent route renews up to 25 names per intent; a retry resumes after the chunks that landed and never charges a landed chunk again. | `bulk-renew/hooks/useBulkRenewSubmit.test.ts` "splits a large selection into one intent per chunk", "does not charge again for a chunk that renewed but failed its wait", "surfaces a failed intent and resumes..." |
 | The wallet route approves the summed price once, then renews the selection in one `renewBatch`. | `bulk-renew/hooks/useBulkRenewSubmit.test.ts` "approves the summed price once, then renews the selection in one renewBatch" |
 | The payment step uses the same sheet and receipt as single renewal. | `bulk-renew/components/BulkRenewPaymentStep.test.tsx` |
+| No "Approve the renewal payment?" dialog (product, as in single renewal): the wallet opens straight on its approval. Each batch is checked against what is left of the debit the sheet showed, after the earlier batches' funding; a batch quoted above it is refused before anything is signed, and the run stops with Try again. Paid from an L2, the wallet is shown nothing to pay. A smart-account run never starts without the shown debit. | `bulk-renew/hooks/useBulkRenewSubmit.test.ts` "checks each chunk against what is left of the amount shown, without asking", "shows the wallet nothing to pay once an L2 has paid", "never starts without the amount the sheet showed"; `bulk-renew/utils/batchDisplayedDebit.test.ts` |
 
 ## Known limits, not bugs
 
-- Bulk renewal has no in-sheet review of an increased amount: each chunk still asks through `RenewalFundingDialog`.
+- Bulk renewal has no in-sheet review of an increased amount: a batch quoted above what the sheet showed stops the run, and Try again goes back through the sheet.
 - On Sepolia, paying from an L2 fails above about 8 USDC (Across caps transfers into Sepolia), as in registration.
 - Prices are slightly above round numbers ($8.01 for a year): a year is charged as at least 365.25 days.
 - The renewal failure screen can show the wallet's raw rejection text.

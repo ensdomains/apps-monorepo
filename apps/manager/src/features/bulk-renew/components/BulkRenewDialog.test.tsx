@@ -81,6 +81,7 @@ const bulkRenewResult = (rows: readonly SummaryRow[]) => ({
     isLoadingBalances: false,
     stablecoinBalances: [],
     canProceed: true,
+    intentFunding: { displayedDebit: { usdc: 11_000_000n, token: 0n } },
   },
 })
 
@@ -97,7 +98,6 @@ beforeEach(() => {
     statuses: {},
     errorMessage: undefined,
     approvalState: { kind: 'idle' },
-    fundingPrompt: null,
     approveFunding: vi.fn(),
     declineFunding: vi.fn(),
     submit,
