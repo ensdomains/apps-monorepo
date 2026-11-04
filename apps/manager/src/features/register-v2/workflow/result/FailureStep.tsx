@@ -6,6 +6,7 @@ import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { RegisterV2Context } from '../../state/registrationUi.context'
+import type { RegistrationFailureReason } from '../../state/registrationUi.machine'
 
 export const FailureStep = () => {
   const { uiActor, label, resume } = RegisterV2Context.use()
@@ -23,6 +24,9 @@ export const FailureStep = () => {
   const isWalletBusy = RegisterV2Context.useSelector(
     (state) => state.context.isWalletBusy,
   )
+  const failureReason = RegisterV2Context.useSelector(
+    (state) => state.context.failureReason,
+  )
   // A run that failed before this page loaded. Its machine never resumed, so
   // Try Again resumes it rather than retrying it.
   const isRestoredFailure = RegisterV2Context.useSelector(
@@ -39,6 +43,7 @@ export const FailureStep = () => {
 
   return (
     <FailureStepView
+      failureReason={failureReason}
       isWalletBusy={isWalletBusy}
       label={label}
       message={message}
@@ -59,6 +64,7 @@ interface FailureStepViewProps {
   readonly nameUnavailable?: boolean
   /** This run was refused because the wallet is busy, rather than failing. */
   readonly isWalletBusy?: boolean
+  readonly failureReason?: RegistrationFailureReason
   readonly onRetry: () => void
   readonly onCancel: () => void
   /** The name is gone, so send them to search for another one. */
@@ -70,11 +76,14 @@ export const FailureStepView = ({
   message,
   nameUnavailable,
   isWalletBusy = false,
+  failureReason,
   onRetry,
   onCancel,
   onFindAnotherName,
 }: FailureStepViewProps) => {
   const { t } = useLingui()
+  // The reveal pays from the emptied account, so retrying it fails the same way.
+  const isInsufficientFunds = failureReason === 'insufficientFunds'
 
   return (
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
@@ -83,23 +92,31 @@ export const FailureStepView = ({
         variant="destructive"
       >
         <AlertTitle>
-          {match({ nameUnavailable, isWalletBusy })
+          {match({ nameUnavailable, isWalletBusy, isInsufficientFunds })
             .with({ nameUnavailable: true }, () => (
               <Trans>Name No Longer Available</Trans>
             ))
             .with({ isWalletBusy: true }, () => (
               <Trans>Another Registration Is Running</Trans>
             ))
+            .with({ isInsufficientFunds: true }, () => (
+              <Trans>Not Enough Funds to Finish</Trans>
+            ))
             .otherwise(() => (
               <Trans>Registration Failed</Trans>
             ))}
         </AlertTitle>
         <AlertDescription className="max-h-32 overflow-y-auto">
-          {match({ nameUnavailable, message })
+          {match({ nameUnavailable, isInsufficientFunds, message })
             .with(
               { nameUnavailable: true },
               () =>
                 t`${label}.eth was registered by someone else just before your registration went through.`,
+            )
+            .with(
+              { isInsufficientFunds: true },
+              () =>
+                t`Your smart account no longer has enough funds to finish registering ${label}.eth. This can happen if funds are withdrawn in another tab or browser while a registration is running.`,
             )
             .with({ message: P.string.minLength(1) }, ({ message }) => message)
             .otherwise(
@@ -120,7 +137,7 @@ export const FailureStepView = ({
               <Trans>What would you like to do?</Trans>
             </h3>
             <p className="text-ens-gray text-sm">
-              {match({ nameUnavailable, isWalletBusy })
+              {match({ nameUnavailable, isWalletBusy, isInsufficientFunds })
                 .with({ nameUnavailable: true }, () => (
                   <Trans>
                     Another address registered this name first, so it can no
@@ -133,6 +150,12 @@ export const FailureStepView = ({
                     Again once this wallet is free.
                   </Trans>
                 ))
+                .with({ isInsufficientFunds: true }, () => (
+                  <Trans>
+                    Go back to the quote and register again. You'll be asked to
+                    approve the payment again.
+                  </Trans>
+                ))
                 .otherwise(() => (
                   <Trans>
                     Retrying will attempt the registration again from where it
@@ -143,7 +166,7 @@ export const FailureStepView = ({
           </div>
 
           <div className="flex gap-3">
-            {!nameUnavailable && (
+            {!nameUnavailable && !isInsufficientFunds && (
               <Button
                 className="flex-1"
                 onClick={onRetry}
@@ -170,7 +193,9 @@ export const FailureStepView = ({
                 onClick={onCancel}
                 size="xl"
                 type="button"
-                variant={isWalletBusy ? 'blue' : 'lightBlue'}
+                variant={
+                  isWalletBusy || isInsufficientFunds ? 'blue' : 'lightBlue'
+                }
               >
                 <Trans>Back to Quote</Trans>
               </Button>
