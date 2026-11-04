@@ -75,6 +75,33 @@ describe('computeRenewalDisplayedDebit', () => {
 
 describe('decideRenewalPayment', () => {
   const confirmed = { usdc: 6_690_000n, token: 0n }
+  const usdcAmounts = [0n, 10_000n, 20_000n] as const
+  const tokenAmounts = [0n, 10n ** 16n, 2n * 10n ** 16n] as const
+  const debits = usdcAmounts.flatMap((usdc) =>
+    tokenAmounts.map((token) => ({ usdc, token })),
+  )
+  const paymentMatrix = [undefined, ...debits].flatMap((confirmedDebit) =>
+    debits.map((requoted) => ({ confirmedDebit, requoted })),
+  )
+
+  it.each(paymentMatrix)(
+    'requires consent exactly when $requoted exceeds $confirmedDebit in either coin',
+    ({ confirmedDebit, requoted }) => {
+      const ceiling = confirmedDebit ?? { usdc: 0n, token: 0n }
+      const expected =
+        requoted.usdc > ceiling.usdc || requoted.token > ceiling.token
+          ? 'confirm'
+          : 'proceed'
+
+      expect(
+        decideRenewalPayment({
+          confirmed: confirmedDebit,
+          requoted,
+          tokenDecimals: 18,
+        }),
+      ).toBe(expected)
+    },
+  )
 
   it.each([
     ['the same amount', confirmed, confirmed, 'proceed'],
@@ -172,6 +199,32 @@ describe('getRenewalPaymentScreen', () => {
       expect(screen.walletDebitFor?.('DAI')).toBe(4)
     },
   )
+
+  it('keeps the unlimited DAI approval warning on the updated receipt', () => {
+    const ONE_DAI = 10n ** 18n
+    const screen = getRenewalPaymentScreen({
+      prompt: {
+        permitValue: 900_000n,
+        requiresPermit: false,
+        quotedFeeUsdc: 900_000n,
+        hcaBalanceUsdc: 0n,
+        requiredUsdc: 0n,
+        token: {
+          symbol: 'DAI',
+          decimals: 18,
+          required: 8n * ONE_DAI,
+          hcaBalance: ONE_DAI,
+          permitValue: 7n * ONE_DAI,
+          requiresPermit: true,
+          hasUnlimitedAllowance: true,
+        },
+      },
+      selectedToken: 'DAI',
+      quote: { ...failedQuote, walletDebitFor: undefined },
+    })
+
+    expect(screen).toHaveProperty('hasUnlimitedAllowance', true)
+  })
 
   it('bills a DAI rent in DAI and the fee in USDC', () => {
     const ONE_DAI = 10n ** 18n
