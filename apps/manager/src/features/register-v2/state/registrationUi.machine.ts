@@ -46,6 +46,7 @@ import { readPendingEthSwap } from '../service/pendingEthSwap'
 import { readPendingL2Bridge } from '../service/pendingL2Bridge'
 import {
   getRegistrationFailureMessage,
+  isInsufficientFundsError,
   isNameNotAvailableError,
   isNameTakenByOther,
 } from '../service/registrationFailure'
@@ -113,6 +114,9 @@ export type FundingSourceOrigin = 'user' | 'fallback'
  */
 export type PaymentAsset = 'stablecoin' | 'eth'
 
+/** Why a run failed, when the failure screen has something specific to say. */
+export type RegistrationFailureReason = 'insufficientFunds'
+
 type Context = {
   chainId: number
   duration: number
@@ -137,6 +141,7 @@ type Context = {
    * finishes in between, and the refusal still happened.
    */
   isWalletBusy: boolean
+  failureReason?: RegistrationFailureReason
   /**
    * Set while the failure screen shows a run that failed before this page
    * loaded: the stored write it was restored from. Its child machine never
@@ -263,6 +268,7 @@ type Events =
       type: 'transaction.failed'
       message?: string
       nameUnavailable?: boolean
+      failureReason?: RegistrationFailureReason
       approvalOutcome?: ApprovalOutcome
       hasCommitment?: boolean
     }
@@ -486,6 +492,7 @@ const machineSetup = setup({
       approvalOutcome: () => 'none' as const,
       nameUnavailable: () => false,
       isWalletBusy: () => false,
+      failureReason: () => undefined,
     }),
     clearMaxProgress: assign({
       maxProgressReached: () => undefined,
@@ -509,6 +516,13 @@ const machineSetup = setup({
             ({ nameUnavailable }) => nameUnavailable === true,
           )
           .otherwise(() => false),
+      failureReason: ({ event }) =>
+        match(event)
+          .with(
+            { type: 'transaction.failed' },
+            ({ failureReason }) => failureReason,
+          )
+          .otherwise(() => undefined),
       // A real failure replaces a refusal: something did run this time.
       isWalletBusy: () => false,
     }),
@@ -535,6 +549,7 @@ const machineSetup = setup({
           .otherwise(() => undefined),
       isWalletBusy: () => true,
       nameUnavailable: () => false,
+      failureReason: () => undefined,
     }),
     setRegistrationLockError: assign({
       lastErrorMessage: ({ context }) =>
@@ -1089,6 +1104,9 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             nameUnavailable:
               snapshot.context.nameUnavailable === true ||
               isNameNotAvailableError(snapshot.context.error),
+            failureReason: isInsufficientFundsError(snapshot.context.error)
+              ? 'insufficientFunds'
+              : undefined,
           })),
         ],
       },
