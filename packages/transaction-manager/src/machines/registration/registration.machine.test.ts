@@ -374,7 +374,7 @@ describe('registrationMachine — standalone-HCA funding', () => {
   })
 
   it('passes no consent bound when checkout had no figure to show', async () => {
-    // A failed budget quote leaves the confirm screen showing the rent alone.
+    // A failed budget quote leaves the confirm screen showing the price alone.
     // There is nothing the user consented to, so only the independent ceiling
     // applies — inventing a bound here would block a legitimate registration.
     const { actor, signFundingPermit } = startHcaRegistration({

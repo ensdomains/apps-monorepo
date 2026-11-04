@@ -78,7 +78,7 @@ export function buildRenewIntent(params: RenewParams): CustomTransactionIntent {
 
 /**
  * One `renewBatch` call renewing every entry on a single renewer, each at its own
- * duration. The renewer pulls the summed rent once, and the batch is atomic.
+ * duration. The renewer pulls the summed price once, and the batch is atomic.
  */
 export function buildRenewBatchIntent(
   params: RenewBatchParams,
