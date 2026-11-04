@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import { render } from '@/utils/test-utils'
@@ -63,7 +63,7 @@ describe('ProfileLinksSection', () => {
     expect(patternPanel.style.backgroundImage).toContain('data:image/svg+xml')
     expect(patternPanel.style.backgroundImage).not.toContain('link-pattern')
     expect(patternPanel).toHaveAttribute('data-link-pattern-palette-id')
-    expect(firstLink.querySelector('img')).not.toBeInTheDocument()
+    expect(firstLink.querySelector('img')).not.toBeVisible()
     expect(firstLink.querySelector('.lucide-link')).not.toBeInTheDocument()
     expect(container.querySelectorAll('a')).toHaveLength(3)
   })
@@ -145,5 +145,94 @@ describe('ProfileLinksSection', () => {
     expect(githubPatternPanel.getAttribute('data-link-pattern-id')).not.toBe(
       heyPatternPanel.getAttribute('data-link-pattern-id'),
     )
+  })
+
+  it('reveals a worker-served OG image only after it loads', () => {
+    render(
+      <ProfileLinksSection
+        records={{
+          ...newEmptyProfileRecords(),
+          links: [{ name: 'Blog', url: 'https://example.com/blog' }],
+        }}
+      />,
+    )
+    const link = screen.getByRole('link', { name: /Blog/ })
+    const image = link.querySelector('img')
+    expect(image).not.toBeNull()
+    expect(image).not.toBeVisible()
+    expect(image).toHaveAttribute('alt', '')
+    expect(image).toHaveAttribute('decoding', 'async')
+    expect(image?.getAttribute('src')).toContain(
+      '/link-preview/image?url=https%3A%2F%2Fexample.com%2Fblog',
+    )
+    if (!image) throw new Error('Missing OG image')
+    fireEvent.load(image)
+    expect(image).toBeVisible()
+    fireEvent.error(image)
+    expect(link.querySelector('img')).not.toBeInTheDocument()
+    expect(getLinkPatternPanel(link).style.backgroundImage).toContain(
+      'data:image/svg+xml',
+    )
+  })
+
+  it('waits until near the viewport before mounting the image', () => {
+    let onIntersect: IntersectionObserverCallback = () => {}
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          onIntersect = callback
+        }
+        observe() {}
+        disconnect() {}
+      },
+    )
+    render(
+      <ProfileLinksSection
+        records={{
+          ...newEmptyProfileRecords(),
+          links: [{ name: 'Blog', url: 'https://example.com/blog' }],
+        }}
+      />,
+    )
+    const link = screen.getByRole('link', { name: /Blog/ })
+    expect(link.querySelector('img')).not.toBeInTheDocument()
+    act(() =>
+      onIntersect(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      ),
+    )
+    expect(link.querySelector('img')?.getAttribute('src')).toContain(
+      '/link-preview/image?url=',
+    )
+  })
+
+  it('resets a failed image when the link URL changes', () => {
+    const records = {
+      ...newEmptyProfileRecords(),
+      links: [{ name: 'Blog', url: 'https://example.com/old' }],
+    }
+    const { rerender } = render(<ProfileLinksSection records={records} />)
+    const oldImage = screen
+      .getByRole('link', { name: /Blog/ })
+      .querySelector('img')
+    if (!oldImage) throw new Error('Missing OG image')
+    fireEvent.error(oldImage)
+    rerender(
+      <ProfileLinksSection
+        records={{
+          ...records,
+          links: [{ name: 'Blog', url: 'https://example.com/new' }],
+        }}
+      />,
+    )
+    const newImage = screen
+      .getByRole('link', { name: /Blog/ })
+      .querySelector('img')
+    expect(newImage?.getAttribute('src')).toContain(
+      'https%3A%2F%2Fexample.com%2Fnew',
+    )
+    expect(newImage).not.toBeVisible()
   })
 })
