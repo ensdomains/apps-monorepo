@@ -15,6 +15,10 @@ import {
   getReusableRpcSubnameInventory,
   getRpcSubnameInventoryCacheKey,
 } from './rpcSubnameInventoryCache'
+import {
+  getSubnameMigrationImpactRetryDelay,
+  shouldRetrySubnameMigrationImpact,
+} from './subnameMigrationImpactQuery.helpers'
 import type { UpgradeReadCoordinator } from './upgradeReadCoordinator'
 
 type Scope = {
@@ -23,6 +27,8 @@ type Scope = {
   readonly migratingNames: readonly string[]
   readonly copiedNames: readonly string[]
   readonly renewingNames: readonly string[]
+  /** Unknown-label subnames eligibility proved; a leaf among them is dropped rather than lost. */
+  readonly unknownLabelNames?: readonly string[]
 }
 
 const FRESH_FOR_MS = 60_000
@@ -32,6 +38,7 @@ const getImpactInputs = (scope: Scope) => ({
   migratingNames: normalizedNames(scope.migratingNames),
   copiedNames: normalizedNames(scope.copiedNames),
   renewingNames: normalizedNames(scope.renewingNames),
+  unknownLabelNames: normalizedNames(scope.unknownLabelNames ?? []),
 })
 const getImpactQueryKey = (scope: Scope) =>
   qk('migration', 'subname_impact', {
@@ -108,7 +115,9 @@ export const getSubnameMigrationImpactQueryOptions = (
     staleTime: FRESH_FOR_MS,
     refetchInterval: isEnabled && isRefetchEnabled ? FRESH_FOR_MS : false,
     refetchOnWindowFocus: isRefetchEnabled ? 'always' : false,
-    retry: false,
+    retry: (failureCount, error) =>
+      shouldRetrySubnameMigrationImpact({ failureCount, cause: error.cause }),
+    retryDelay: getSubnameMigrationImpactRetryDelay,
   })
 }
 

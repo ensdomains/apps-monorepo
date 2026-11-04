@@ -428,3 +428,39 @@ An owner-signed intent (a renewal, a primary name) asks the wallet to sign again
 on each resend; a session-signed one does not. A failure at fill time never
 matches: the SDK reports it as `IntentFailedError`, which carries only the
 intent id.
+
+## 10. Same-chain swaps: why Pay with ETH does not use Rhinestone
+
+Paying for a registration with ETH (`helpers/eth-usdc-swap.ts` in
+transaction-manager) does **not** go through an intent. The wallet buys the
+USDC it is short on Uniswap v3 in one transaction (wrap, exact-output swap,
+refund of unused ETH), held to the Chainlink ETH/USD feed, and the HCA is then
+funded with the usual EIP-2612 permit. Rhinestone was tried first and ruled
+out for testnets; the findings are kept here for whoever tries again.
+
+**No testnet offers a same-chain swap.** On Sepolia, Base Sepolia, Arbitrum
+Sepolia and OP Sepolia, every pair (ETH, WETH, USDC either way) and every venue
+(`1inch`, `0x`, `velora`, `kyberswap`, `fynd`, `fynd-hosted`, `bebop`,
+`relay`) answers `SWAP_INPUTS_REJECTED` / `chain_not_available`, although
+`/chains` lists the tokens (checked 2026-11-03). The venues are DEX
+aggregators, and none of them serves ETH → USDC on Sepolia: Relay is the only
+one with a testnet deployment, and there it only wraps and unwraps ETH. LI.FI,
+not a Rhinestone venue, has no Sepolia quote either. Uniswap does route it, but
+is a single DEX, not a venue Rhinestone offers. Cross-chain testnet routes do
+quote, ETH in and USDC out (e.g. Base Sepolia ETH → Sepolia USDC), because
+Across fills them: `ACROSS` / `PERMIT2`, paid from a wallet on the other chain,
+with a `wrap` and a WETH `approval` requirement on that chain.
+
+**On mainnet a same-chain swap from the HCA does quote** (2026-11-03): one
+`INTENT_EXECUTOR` element (`fundingMethod: NO_FUNDING`) delivering to the HCA,
+with the gas refund in native ETH (`token` zero, `exchangeRate` 1e18). The swap
+itself is the HCA's **destination op**: a call to the venue's router carrying
+the ETH as value, with the HCA as recipient. `preClaimOps` holds the
+orchestrator's Permit2 approval of the input token, which for native ETH is an
+`approve` sent to the zero address and does nothing. `tokenRequirements` lists
+a `wrap` for the ETH, which the SDK only acts on for EOA accounts. Exact input
+is honoured, and the fee comes out of the ETH. Only the owner can sign such an
+intent: the session policy (`_checkRegistrationExecutions`) rejects any
+execution with value or outside the registration allowlist, while a 65-byte
+owner signature skips the policy entirely, so the quote must be checked in
+full before it is signed.

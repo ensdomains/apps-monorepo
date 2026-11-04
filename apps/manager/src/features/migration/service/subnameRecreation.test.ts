@@ -3,6 +3,7 @@ import {
   type Meta,
   type Subname,
 } from '@ens-apps/indexer/bigname'
+import { unknownLabelhashOf } from '@ens-apps/migration'
 import {
   registryOwnerSnippet,
   registryResolverSnippet,
@@ -29,21 +30,26 @@ import {
   multicall3Abi,
   namehash,
   type PublicClient,
+  TimeoutError,
   toHex,
   zeroAddress,
   zeroHash,
 } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { envConfig } from '@/config'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { DEFAULT_RESOLVER, makeDomain, OTHER, OWNER } from './_fixtures'
 import { classifyNames } from './classifyNames'
+import { RpcSubnameInventoryError } from './readRpcSubnameInventory'
+import * as impactReader from './readRpcSubnameMigrationImpact'
 import { NEW_OWNER_ABI } from './rpcSubnameInventory'
 import {
   applySubnameRecreation,
   assertSubnameRecreationUnchanged,
+  assertSupportedSubnameMigration,
   discoverSubnameRecreation,
 } from './subnameRecreation'
+import { SubnameRecreationError } from './subnameRecreationError'
 
 vi.mock('@/lib/wagmi', async () => ({
   sepoliaWithEns: (await import('@/config')).envConfig.chain,
@@ -66,6 +72,13 @@ const row: Subname = {
   status: 'active',
   owner: OWNER, // Deliberately stale: RPC, not this indexed owner, is authoritative.
   subname_count: 0,
+}
+const UNKNOWN = `[${'ab'.repeat(32)}].${ROOT}`
+const unknownRow: Subname = {
+  ...row,
+  name: UNKNOWN,
+  display_name: UNKNOWN,
+  namehash: namehash(UNKNOWN),
 }
 const meta: Meta = {
   completeness: 'full',
@@ -105,6 +118,7 @@ const fixture = (
     eventRegistry: V1_CONTRACTS.LegacyRegistry as Address,
     parentEvents: [] as { args: { label: Hex } }[],
     descendantEvents: [] as { args: { label: Hex } }[],
+    descendantParent: CHILD,
   }
   const indexer = createBignameClient('https://indexer.invalid', {
     fetch: async (input) => {
@@ -148,7 +162,7 @@ const fixture = (
             keccak256(concat([namehash(ROOT), args.label])),
           ),
           ...state.descendantEvents.map(({ args }) =>
-            keccak256(concat([namehash(CHILD), args.label])),
+            keccak256(concat([namehash(state.descendantParent), args.label])),
           ),
         ].some((node) => args[0] === node || args[0] === BigInt(node))
       )
@@ -245,7 +259,9 @@ const fixture = (
           ? [
               ...(options.rows ?? [row]).map((child) => ({
                 parent: namehash(ROOT),
-                label: labelhash(child.name.split('.')[0] ?? ''),
+                label:
+                  unknownLabelhashOf(child.name) ??
+                  labelhash(child.name.split('.')[0] ?? ''),
                 blockNumber: 100n,
                 address: V1_CONTRACTS.LegacyRegistry,
               })),
@@ -257,9 +273,9 @@ const fixture = (
               })),
             ]
           : []),
-        ...(filter.topics[1].includes(namehash(CHILD))
+        ...(filter.topics[1].includes(namehash(state.descendantParent))
           ? state.descendantEvents.map(({ args }) => ({
-              parent: namehash(CHILD),
+              parent: namehash(state.descendantParent),
               label: args.label,
               blockNumber: state.head,
               address: state.eventRegistry,
@@ -312,6 +328,104 @@ const fixture = (
     })
   return { state, client, indexer, discover, request, readContract }
 }
+
+describe('preparation and execution subname safety retries', () => {
+  const safeImpact = {
+    parents: [],
+    affectedCount: 0,
+    unrecoverable: [],
+    fingerprint: 'safe',
+    checkedAt: 1000,
+  }
+  const timeout = new TimeoutError({ url: 'https://rpc.invalid', body: {} })
+  const run = () => {
+    vi.useFakeTimers()
+    const read = vi.spyOn(impactReader, 'readRpcSubnameMigrationImpact')
+    const controller = new AbortController()
+    const check = () =>
+      assertSupportedSubnameMigration({
+        publicClient: fixture().client,
+        classified: classifyNames([root], OWNER, envConfig.chain.id).classified,
+        signal: controller.signal,
+      })
+    return { read, controller, check }
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('recovers from a transient read only after the retry delay', async () => {
+    const { read, check } = run()
+    read.mockRejectedValueOnce(timeout).mockResolvedValueOnce(safeImpact)
+    const pending = check().catch((cause: unknown) => cause)
+
+    await vi.advanceTimersByTimeAsync(999)
+    expect(read).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+
+    expect(await pending).toEqual(safeImpact)
+    expect(read).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops a persistent outage after three total safety checks', async () => {
+    const { read, check } = run()
+    read.mockRejectedValue(timeout)
+    const pending = check().catch((cause: unknown) => cause)
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(read).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(read).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+
+    expect(await pending).toBe(timeout)
+    expect(read).toHaveBeenCalledTimes(3)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('keeps a dependent subtree blocked after transient recovery', async () => {
+    const { read, check } = run()
+    read
+      .mockRejectedValueOnce(timeout)
+      .mockResolvedValue({ ...safeImpact, affectedCount: 1 })
+    const pending = check().catch((cause: unknown) => cause)
+
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(await pending).toBeInstanceOf(SubnameRecreationError)
+    expect(read).toHaveBeenCalledTimes(2)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('does not retry an inventory limit even with a nested timeout', async () => {
+    const { read, check } = run()
+    const failure = new RpcSubnameInventoryError({
+      reason: 'node-limit',
+      cause: timeout,
+    })
+    read.mockRejectedValue(failure)
+
+    await expect(check()).rejects.toBe(failure)
+    expect(read).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('cancels the retry wait without starting another read', async () => {
+    const { read, check, controller } = run()
+    read.mockRejectedValueOnce(timeout).mockResolvedValue(safeImpact)
+    const pending = check().catch((cause: unknown) => cause)
+    await vi.advanceTimersByTimeAsync(0)
+
+    controller.abort()
+
+    expect(await pending).toBe(controller.signal.reason)
+    expect(vi.getTimerCount()).toBe(0)
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(read).toHaveBeenCalledTimes(1)
+  })
+})
 
 describe('direct subname source checks', () => {
   it('queues the current head while its canonical inventory check is pending', async () => {
@@ -946,6 +1060,53 @@ describe('direct subname source checks', () => {
     await expect(context.discover()).rejects.toThrow(
       /exact, valid subname label/,
     )
+  })
+
+  it.each([
+    { case: 'beside a known child', rows: [row, unknownRow] },
+    { case: 'as the only child', rows: [unknownRow] },
+  ])(
+    'keeps checking the parent but leaves an unknown-label child out of the import $case',
+    async ({ rows }) => {
+      const found = await fixture({ count: rows.length, rows }).discover()
+      expect(found.snapshot.roots).toEqual([ROOT])
+      expect(found.domains.map(({ name }) => name)).not.toContain(UNKNOWN)
+      expect(found.unrecoverable).toEqual([UNKNOWN])
+      expect(found.snapshot.skipped).toEqual([UNKNOWN])
+    },
+  )
+
+  it('still rejects an unknown-label child that has a subname', async () => {
+    const context = fixture({ count: 1, rows: [unknownRow] })
+    context.state.descendantParent = UNKNOWN
+    context.state.descendantEvents = [{ args: { label: labelhash('new') } }]
+    await expect(context.discover()).rejects.toThrow(/deeper subnames/)
+  })
+
+  it('rejects an unlabelled child the indexer names with a different hash', async () => {
+    const other = `[${'cd'.repeat(32)}].${ROOT}`
+    const context = fixture({
+      count: 1,
+      rows: [{ ...unknownRow, name: other, namehash: namehash(other) }],
+    })
+    context.state.parentEvents = [{ args: { label: `0x${'ab'.repeat(32)}` } }]
+    await expect(context.discover()).rejects.toThrow(
+      /exact, valid subname label/,
+    )
+  })
+
+  it('blocks signing when a skipped unknown-label child gains a subname after review', async () => {
+    const context = fixture({ count: 1, rows: [unknownRow] })
+    const found = await context.discover()
+    context.state.head = 101n
+    context.state.descendantParent = UNKNOWN
+    context.state.descendantEvents = [{ args: { label: labelhash('new') } }]
+    await expect(
+      assertSubnameRecreationUnchanged({
+        ...found,
+        publicClient: context.client,
+      }),
+    ).rejects.toThrow(/descendants changed after review/)
   })
 
   it('rejects descendants created below any child in the batched log check', async () => {
