@@ -1993,8 +1993,8 @@ msgid "Names could not be loaded"
 msgstr "Names could not be loaded"
 
 #: src/features/migration/components/SelectNamesStepNameList.tsx
-msgid "Names in grace will be renewed before being migrated"
-msgstr "Names in grace will be renewed before being migrated"
+msgid "Names in grace period will be renewed before they're upgraded. The renewal is paid in USDC, and your wallet also needs ETH for network fees."
+msgstr "Names in grace period will be renewed before they're upgraded. The renewal is paid in USDC, and your wallet also needs ETH for network fees."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Names that point to your wallet couldn’t be loaded, so some may be missing."
@@ -4664,6 +4664,10 @@ msgstr "Your wallet has already given your smart account an allowance that cover
 #: src/components/HcaFundingApprovalDialog.tsx
 msgid "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, you can sign the renewal."
 msgstr "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, you can sign the renewal."
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Your wallet needs more ETH for network fees. Add ETH and try again."
+msgstr "Your wallet needs more ETH for network fees. Add ETH and try again."
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Your wallet sends this one, because your temporary account no longer has permission to update these records."

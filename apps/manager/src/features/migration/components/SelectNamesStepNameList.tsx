@@ -88,7 +88,9 @@ const SelectNamesStepNameListComponent = ({
                   strokeWidth={1.8}
                 />
                 <Trans>
-                  Names in grace will be renewed before being migrated
+                  Names in grace period will be renewed before they're upgraded.
+                  The renewal is paid in USDC, and your wallet also needs ETH
+                  for network fees.
                 </Trans>
               </p>
             </div>
