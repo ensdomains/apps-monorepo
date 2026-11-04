@@ -1588,7 +1588,7 @@ export function submitRenewActor({
 export function submitRenewBatchActor(input: {
   readonly renewals: readonly RenewDataEntry[]
   selectedToken: TOKEN_SYMBOL
-  signer: import('../..').Signer
+  signer: Signer
   publicClient: PublicClient
   renewerAddress?: Address
   id?: string

@@ -9,7 +9,7 @@ import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
 export const useRenewalSigner = (): Signer | null => {
   const { signer, walletClient } = useSmartAccountContext()
   const { connector, address } = useConnection()
-  const safeWallet = useQuery({
+  const { data: isSafeWallet, isError: isSafeWalletError } = useQuery({
     ...getIsSafeWalletQueryOptions({ connector, address }),
     enabled: !!connector,
   })
@@ -19,6 +19,6 @@ export const useRenewalSigner = (): Signer | null => {
     walletClient,
     connector,
     // An unreadable WalletConnect session is not a Safe, as at registration.
-    isSafeWallet: safeWallet.isError ? false : safeWallet.data,
+    isSafeWallet: isSafeWalletError ? false : isSafeWallet,
   })
 }
