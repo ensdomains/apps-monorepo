@@ -500,8 +500,9 @@ async function planFundingLeg(
   if (walletBalance < leg.shortfall) {
     throw new Error(
       `This action needs ${formatUnits(leg.shortfall, leg.decimals)} ` +
-        `${leg.symbol} moved into the smart account, but the connected ` +
-        `wallet holds ${formatUnits(walletBalance, leg.decimals)} ${leg.symbol}.`,
+        `${leg.symbol}, including the network fee, but the connected ` +
+        `wallet holds ${formatUnits(walletBalance, leg.decimals)} ${leg.symbol}. ` +
+        `Add ${leg.symbol} to your wallet, then try again.`,
     )
   }
   return { ...leg, requiresPermit: allowance < leg.shortfall }
