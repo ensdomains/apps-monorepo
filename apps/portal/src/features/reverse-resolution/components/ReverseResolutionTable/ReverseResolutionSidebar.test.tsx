@@ -1,18 +1,27 @@
 import type { Row } from '@tanstack/react-table'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { okAsync } from 'neverthrow'
+import { toast } from 'sonner'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { NameResolver } from '@/features/records/hooks/useNameResolverAddress'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const VISITOR = '0x2222222222222222222222222222222222222222' as Address
+const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
+const UNREACHABLE: NameResolver = { address: RESOLVER, source: 'v1-registry' }
 
 let connectedAddress: Address = OWNER
 /** Whether the connected wallet can set the row name's address record. */
 let canSetAddress = true
 let isNameAuthorityError = false
 let canEditParams: unknown
+/** The row name's resolver read, which says whether lookups reach it. */
+let nameResolverQuery: { status: string; data: NameResolver | undefined }
+/** The resolver read for a name typed into the reverse-name field. */
+let typedNameResolver: NameResolver | null
 
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
@@ -26,7 +35,25 @@ vi.mock('wagmi', async (importOriginal) => ({
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
-  useQuery: () => ({ data: undefined, isLoading: false, isPending: false }),
+  useQuery: ({ queryKey }: { queryKey: readonly unknown[] }) =>
+    queryKey[0] === 'get-name-resolver-address'
+      ? nameResolverQuery
+      : { data: undefined, isLoading: false, isPending: false },
+}))
+vi.mock(
+  '@/features/records/hooks/useNameResolverAddress',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('@/features/records/hooks/useNameResolverAddress')
+    >()),
+    getNameResolver: () => okAsync(typedNameResolver),
+  }),
+)
+vi.mock('@/features/profile/hooks/useEnsOwner', () => ({
+  getEnsOwner: () => okAsync({ owner: OWNER }),
+}))
+vi.mock('sonner', () => ({
+  toast: { warning: vi.fn(), error: vi.fn(), loading: vi.fn() },
 }))
 // The permission rule itself is covered in useCanEditRecords.test.ts.
 vi.mock('@/features/records/hooks/useCanEditRecords', () => ({
@@ -143,6 +170,12 @@ describe('ReverseResolutionSidebar', () => {
     canSetAddress = true
     isNameAuthorityError = false
     canEditParams = undefined
+    nameResolverQuery = {
+      status: 'success',
+      data: { address: RESOLVER, source: 'lookup' },
+    }
+    typedNameResolver = null
+    vi.clearAllMocks()
   })
 
   // Closing the mismatch is a `setAddr` on the *name's* resolver, so it needs
@@ -213,6 +246,58 @@ describe('ReverseResolutionSidebar', () => {
 
     expect(setPrimaryButton()).not.toBeInTheDocument()
     expect(reverseNameInput()).toBeDisabled()
+  })
+
+  // WEB-2017: an ENSv1 name under an expired parent keeps a resolver its owner
+  // can write, but lookups don't reach it, so the `setAddr` changes nothing.
+  it('disables "Set primary name" for a name lookups no longer reach, and says why', () => {
+    nameResolverQuery = { status: 'success', data: UNREACHABLE }
+
+    renderSidebar(OWNER)
+
+    expect(setPrimaryButton()).toBeDisabled()
+    expect(
+      screen.getByText(
+        'The set address does not resolve back to this name on Mainnet. someone-elses.eth no longer resolves, usually because it or its parent name has expired.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('gives a visitor the same reason for an unreachable reverse name', () => {
+    connectedAddress = VISITOR
+    nameResolverQuery = { status: 'success', data: UNREACHABLE }
+
+    renderSidebar(OWNER)
+
+    expect(
+      screen.getByText(/someone-elses\.eth no longer resolves/),
+    ).toBeInTheDocument()
+  })
+
+  it('disables "Set primary name" when the reach read fails, without claiming the name is unreachable', () => {
+    nameResolverQuery = { status: 'error', data: undefined }
+
+    renderSidebar(OWNER)
+
+    expect(setPrimaryButton()).toBeDisabled()
+    expect(screen.getByText(/We couldn't check/)).toBeInTheDocument()
+    expect(screen.queryByText(/no longer resolves/)).not.toBeInTheDocument()
+  })
+
+  it('warns when the reverse name entered is one lookups no longer reach', async () => {
+    typedNameResolver = UNREACHABLE
+
+    renderSidebar(OWNER)
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: 'kid.lapsed.eth' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }))
+
+    await waitFor(() =>
+      expect(toast.warning).toHaveBeenCalledWith(
+        "kid.lapsed.eth no longer resolves, usually because it or its parent name has expired — it won't work as your primary name until it resolves again.",
+      ),
+    )
   })
 
   it('offers a visitor nothing even when they can set the address', () => {
