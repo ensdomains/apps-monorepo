@@ -37,7 +37,7 @@
  *            v9 sessions refund in a token the HCA no longer holds.
  */
 
-import type { Address } from 'viem'
+import { type Address, isAddress, isHex } from 'viem'
 import type { RhinestoneStoredSession } from './types'
 
 const SESSION_STORAGE_KEY = 'ens-sessions-v10'
@@ -45,14 +45,67 @@ const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 const hasWindow = (): boolean => typeof window !== 'undefined'
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const isNonNegativeSafeInteger = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+
+const isUnsignedIntegerString = (value: unknown): value is string =>
+  typeof value === 'string' && /^(?:0|[1-9]\d*)$/.test(value)
+
+const isChainDigest = (
+  value: unknown,
+): value is RhinestoneStoredSession['hashesAndChainIds'][number] =>
+  isRecord(value) &&
+  isUnsignedIntegerString(value.chainId) &&
+  typeof value.sessionDigest === 'string' &&
+  isHex(value.sessionDigest)
+
+const isRefundCaps = (
+  value: unknown,
+): value is NonNullable<RhinestoneStoredSession['refundCaps']> =>
+  isRecord(value) &&
+  isUnsignedIntegerString(value.maxRefundExchangeRate) &&
+  isUnsignedIntegerString(value.maxRefundGasOverhead) &&
+  isUnsignedIntegerString(value.maxRefundAmount)
+
+const isStoredSession = (value: unknown): value is RhinestoneStoredSession =>
+  isRecord(value) &&
+  typeof value.id === 'string' &&
+  value.id.length > 0 &&
+  value.provider === 'rhinestone' &&
+  typeof value.sessionKeyAddress === 'string' &&
+  isAddress(value.sessionKeyAddress, { strict: false }) &&
+  typeof value.smartAccountAddress === 'string' &&
+  isAddress(value.smartAccountAddress, { strict: false }) &&
+  typeof value.ownerAddress === 'string' &&
+  isAddress(value.ownerAddress, { strict: false }) &&
+  isNonNegativeSafeInteger(value.createdAt) &&
+  isNonNegativeSafeInteger(value.chainId) &&
+  isNonNegativeSafeInteger(value.validUntil) &&
+  typeof value.sessionPrivateKey === 'string' &&
+  isHex(value.sessionPrivateKey) &&
+  typeof value.permissionId === 'string' &&
+  isHex(value.permissionId) &&
+  typeof value.resolver === 'string' &&
+  isAddress(value.resolver, { strict: false }) &&
+  isUnsignedIntegerString(value.hcaSessionNonce) &&
+  typeof value.authorization === 'string' &&
+  isHex(value.authorization) &&
+  Array.isArray(value.hashesAndChainIds) &&
+  value.hashesAndChainIds.every(isChainDigest) &&
+  isNonNegativeSafeInteger(value.sessionToEnableIndex) &&
+  (value.refundCaps === undefined || isRefundCaps(value.refundCaps))
+
 /** Get all stored sessions. */
 export function getAllSessions(): readonly RhinestoneStoredSession[] {
   if (!hasWindow()) return []
   try {
     const data = localStorage.getItem(SESSION_STORAGE_KEY)
     if (!data) return []
-    const sessions = JSON.parse(data) as RhinestoneStoredSession[]
-    return Array.isArray(sessions) ? sessions : []
+    const sessions: unknown = JSON.parse(data)
+    return Array.isArray(sessions) ? sessions.filter(isStoredSession) : []
   } catch {
     return []
   }

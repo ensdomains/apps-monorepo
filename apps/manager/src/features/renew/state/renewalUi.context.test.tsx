@@ -10,6 +10,7 @@ import { mainnet } from 'viem/chains'
 import { beforeEach, expect, it, vi } from 'vitest'
 import type { submitHcaRenewal } from '../service/hcaRenewal'
 import { RenewalUiProvider, useRenewalUiContext } from './renewalUi.context'
+import { useRenewalPaymentUpdate } from './renewalUi.selectors'
 
 const mocks = vi.hoisted(() => ({ submit: vi.fn<typeof submitHcaRenewal>() }))
 vi.mock('../service/hcaRenewal', () => ({ submitHcaRenewal: mocks.submit }))
@@ -107,7 +108,7 @@ it.each(['consent', 'wallet', 'receipt'] as const)(
       ),
     )
     mocks.submit.mockImplementation(async (input) => {
-      await input.confirmFunding?.({
+      await input.confirmIncreasedPayment?.({
         permitValue: 4n,
         requiresPermit: false,
         quotedFeeUsdc: 1n,
@@ -118,7 +119,23 @@ it.each(['consent', 'wallet', 'receipt'] as const)(
     })
     const Start = () => {
       const { uiActor, label } = useRenewalUiContext()
-      return (
+      const paymentUpdate = useRenewalPaymentUpdate(uiActor)
+      return paymentUpdate?.status === 'reviewing' ? (
+        <>
+          <button
+            onClick={() => uiActor.send({ type: 'renewal.payment.accept' })}
+            type="button"
+          >
+            Approve
+          </button>
+          <button
+            onClick={() => uiActor.send({ type: 'cancel' })}
+            type="button"
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
         <button
           onClick={() => {
             uiActor.send({ type: 'pricing.step.next' })

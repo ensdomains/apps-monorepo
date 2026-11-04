@@ -60,6 +60,17 @@ import { serveV1Names } from '../../../helpers/v1-names.js'
 // These scenarios assert the exact set of names and renewal steps for this
 // wallet. Isolate each wallet so earlier suite names cannot change that set.
 const test = baseTest.extend({
+  // These accounts are funded on the local fork before the page can request
+  // funding. A public Sepolia faucet cannot fund this fork or gate its checks.
+  page: async ({ page, accounts }, use) => {
+    expect(
+      await publicClient.getBalance({ address: accounts.getAddress('user') }),
+    ).toBe(100n * 10n ** 18n)
+    await page.route('**/wallet/fund', (route) =>
+      route.fulfill({ json: { txHash: null } }),
+    )
+    await use(page)
+  },
   // biome-ignore lint/correctness/noEmptyPattern: Playwright requires destructured fixture dependencies.
   accounts: async ({}, use) => {
     const accounts = createAccounts(20_000_000 + (Date.now() % 10_000_000))

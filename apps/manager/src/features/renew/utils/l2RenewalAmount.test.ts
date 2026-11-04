@@ -3,7 +3,7 @@ import { getL2RenewalAmountOut } from './l2RenewalAmount'
 
 describe('getL2RenewalAmountOut', () => {
   it.each([
-    // 5.50 rent + 1.00 fee widened to 1.25, from an empty HCA.
+    // 5.50 price + 1.00 fee widened to 1.25, from an empty HCA.
     { hcaBalance: 0n, expected: 6_750_000n },
     // The HCA's balance comes off what is bridged.
     { hcaBalance: 2_000_000n, expected: 4_750_000n },
