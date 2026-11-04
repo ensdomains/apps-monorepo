@@ -719,6 +719,7 @@ beforeEach(() => {
 
 describe('executeMigration HCA orchestration', () => {
   it('revalidates each batch using the inventory confirmed by the previous batch', async () => {
+    const controller = new AbortController()
     const parent = classifiedFor('alice')
     const copy = copyClassifiedFor()
     const plan = planFromClassified([parent, copy], [parent, copy])
@@ -774,9 +775,20 @@ describe('executeMigration HCA orchestration', () => {
         }
       },
     )
-    const { result } = await runExecute({ plan })
+    const { result } = await runExecute({
+      plan,
+      submissionSignal: controller.signal,
+    })
     expect(result.completed).toBe(2)
     expect(observations).toEqual([undefined, inventory])
+    expect(mocks.assertSupportedSubnameMigration).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ signal: controller.signal }),
+    )
+    expect(mocks.assertSupportedSubnameMigration).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ signal: controller.signal }),
+    )
   })
 
   it.each([false, true])(

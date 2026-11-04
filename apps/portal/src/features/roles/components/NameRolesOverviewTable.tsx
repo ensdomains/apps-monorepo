@@ -5,6 +5,7 @@ import { Fragment, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -20,6 +21,7 @@ import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVers
 import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { canCallerSetManagerRole, permissions } from '@/lib/roles/permissions'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const V2NameRoles = ({
   name,
@@ -218,14 +220,19 @@ export const NameRolesOverviewTable = ({
 
   return (
     <Fragment>
-      <div className="flex items-center justify-between">
-        <h3 className="text-caps leading-none">parent registry / roles</h3>
-        {address && (
-          <AddUserButton
-            canManageRoles={canAddUser}
-            onClick={() => setAddUserOpen(true)}
-          />
-        )}
+      <div className="flex flex-col">
+        <div className="flex min-h-10 items-center justify-between">
+          <h3 className="text-caps leading-none">parent registry / roles</h3>
+          {address && (
+            <AddUserButton
+              canManageRoles={canAddUser}
+              onClick={() => setAddUserOpen(true)}
+            />
+          )}
+        </div>
+        <EntityBadge variant="contract" address={registryAddress} isRegistry>
+          {truncateAddress(registryAddress)}
+        </EntityBadge>
       </div>
       <V2NameRoles
         name={name}

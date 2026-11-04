@@ -2,7 +2,7 @@ import type { HcaFundingPrompt } from '@ens-apps/transaction-manager'
 import { Trans } from '@lingui/react/macro'
 import { HcaFundingConfirmDialog } from '@/components/HcaFundingConfirmDialog'
 
-/** The funding prompt for a renewal intent: rent in its own token, fee in USDC. */
+/** The funding prompt for a renewal intent: price in its own token, fee in USDC. */
 export const RenewalFundingDialog = ({
   prompt,
   onApprove,
@@ -26,7 +26,7 @@ export const RenewalFundingDialog = ({
     }}
     lines={({ token, requiredUsdc, quotedFeeUsdc }) => [
       {
-        // The rent plus the small headroom the renewer's approval carries,
+        // The price plus the small headroom the renewer's approval carries,
         // because the price is re-read when the renewal executes.
         label: <Trans>Renewal price</Trans>,
         ...(token

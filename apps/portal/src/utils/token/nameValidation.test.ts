@@ -1,3 +1,5 @@
+import { ensNameArbitraries } from '@ens-apps/test-utils/arbitraries/names'
+import * as fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import {
   validateNameLength,
@@ -35,6 +37,79 @@ describe('validateRegistrableEthName', () => {
   it('returns error for empty or whitespace', () => {
     expect(validateRegistrableEthName('')).toBe('Enter a name to register.')
     expect(validateRegistrableEthName('   ')).toBe('Enter a name to register.')
+  })
+
+  it('accepts generated registrable names', () => {
+    fc.assert(
+      fc.property(ensNameArbitraries.names.registrableEth, (name) => {
+        expect(validateRegistrableEthName(name)).toBeUndefined()
+      }),
+    )
+  })
+
+  it('accepts generated NFC Unicode labels', () => {
+    fc.assert(
+      fc.property(
+        ensNameArbitraries.relatedLabels.unicodeNormalization,
+        ({ normalized }) => {
+          expect(
+            validateRegistrableEthName(`${normalized}.eth`),
+          ).toBeUndefined()
+        },
+      ),
+    )
+  })
+
+  it('accepts generated hex-shaped text labels', () => {
+    fc.assert(
+      fc.property(ensNameArbitraries.labels.hexShaped, (label) => {
+        expect(validateRegistrableEthName(`${label}.eth`)).toBeUndefined()
+      }),
+    )
+  })
+
+  it('rejects generated non-normalized labels', () => {
+    fc.assert(
+      fc.property(ensNameArbitraries.labels.nonNormalized, (label) => {
+        expect(validateRegistrableEthName(`${label}.eth`)).not.toBeUndefined()
+      }),
+    )
+  })
+
+  it('rejects generated subnames', () => {
+    fc.assert(
+      fc.property(
+        fc.oneof(
+          ensNameArbitraries.names.subname,
+          ensNameArbitraries.labels.literalWithDot.map(
+            (label) => `${label}.eth`,
+          ),
+        ),
+        (name) => {
+          expect(validateRegistrableEthName(name)).toBe(
+            'Only .eth names can be registered (e.g. name.eth).',
+          )
+        },
+      ),
+    )
+  })
+
+  it('rejects generated encoded labelhash names', () => {
+    fc.assert(
+      fc.property(
+        fc.oneof(
+          ensNameArbitraries.labels.encodedLabelhash,
+          ensNameArbitraries.relatedLabels.encodedLabelhashCollision.map(
+            ({ encodedLabel }) => encodedLabel,
+          ),
+        ),
+        (label) => {
+          expect(validateRegistrableEthName(`${label}.eth`)).toMatch(
+            /cannot be registered/,
+          )
+        },
+      ),
+    )
   })
 })
 
