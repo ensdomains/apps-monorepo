@@ -62,8 +62,6 @@ import { getLabelRegistrationError } from '@/utils/token/isNormalized'
 
 // ============================================================================
 // !!! TODO(WEB-2122): DO NOT MERGE. Set this back to `true` before merging. !!!
-// ENSv2 subname creation is unpaused for testing only; main keeps it paused.
-// The same marker sits on the `isCreationPaused` prop in routes/$name/subnames.tsx.
 // ============================================================================
 const IS_V2_CREATION_PAUSED = false
 
