@@ -195,6 +195,7 @@ const CreateSubnameForm = ({
   })
   const labelStatus = isLookupCurrent ? labelStatusQuery.data : undefined
   const isLabelTaken = labelStatus === 'registered'
+  const isLabelTakenError = isLabelTaken && !isSuccess
   const hasLookupFailed = isLookupCurrent && labelStatusQuery.isError
   // V1 `setSubnodeRecord` overwrites an existing subname, and V2 `register`
   // checks a different role for a reserved label, so both wait for the answer.
@@ -254,7 +255,7 @@ const CreateSubnameForm = ({
       <PageHeader name={name} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <Field data-invalid={isLabelTaken || Boolean(labelError)}>
+        <Field data-invalid={isLabelTakenError || Boolean(labelError)}>
           <FieldLabel htmlFor="label">Subname</FieldLabel>
           <div className="flex items-center gap-2">
             <Input
@@ -269,7 +270,7 @@ const CreateSubnameForm = ({
             />
             <span className="text-base">.{name}</span>
           </div>
-          {isLabelTaken && (
+          {isLabelTakenError && (
             <p className="text-p text-danger">
               {trimmedLabel}.{name} is already registered.
             </p>
