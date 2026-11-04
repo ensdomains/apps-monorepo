@@ -1139,17 +1139,22 @@ describe('TokenPickerContentBase L2 rows', () => {
     selectedChainId: number | undefined = undefined,
   ) => l2PaymentOf([row], selectedChainId)
 
-  it('lists an L2 that holds USDC but cannot pay, and leaves the pick to the user', () => {
+  const shortL2Payment = () => {
     const shortRow = baseSepoliaRow('insufficient')
-    const payment = l2Payment({
+    return l2Payment({
       ...shortRow,
       option: { ...shortRow.option, balanceRaw: 2_000_000n },
     })
+  }
+
+  it('lists an L2 that holds USDC but cannot pay, and leaves the pick to the user', () => {
+    const payment = shortL2Payment()
     renderPicker({
       funding: underfunded,
       selectedToken: 'USDC',
       stablecoinBalances: [emptyUsdc],
       l2Payment: payment,
+      registrationReceipt: { totalRaw: 5_000_000n },
     })
 
     const row = screen.getByRole('button', {
@@ -1159,6 +1164,19 @@ describe('TokenPickerContentBase L2 rows', () => {
     expect(payment.onSelect).not.toHaveBeenCalled()
     fireEvent.click(row)
     expect(payment.onSelect).toHaveBeenCalledWith(baseSepolia.id)
+  })
+
+  it('keeps a short L2 hidden in renewal', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: shortL2Payment(),
+    })
+
+    expect(
+      screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).not.toBeInTheDocument()
   })
 
   it('lists an L2 next to a wallet that cannot pay, and selects it on click', () => {

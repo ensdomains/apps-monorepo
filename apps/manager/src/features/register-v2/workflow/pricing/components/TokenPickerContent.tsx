@@ -850,6 +850,8 @@ export const getL2MethodItems = (
   l2Payment: L2PaymentProps | undefined,
   selectedL2: L2PaymentRow | undefined,
   funding: RegistrationFundingSummary | undefined,
+  /** Registration lists L2s that hold USDC but fall short; renewal keeps them hidden. */
+  isShortListed: boolean,
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
@@ -860,7 +862,7 @@ export const getL2MethodItems = (
         !isL2Empty(row) &&
         (row === selectedL2 ||
           row.amountInRaw !== undefined ||
-          row.option.status === 'insufficient'),
+          (isShortListed && row.option.status === 'insufficient')),
     )
     .sort(byBalanceDescending)
     .map((row) => {
@@ -1166,7 +1168,12 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           hasBalances && hasSufficientBalanceForSelectedCoin,
         ))
   const walletSelection = selectedL2 || selectedEth ? undefined : selectedToken
-  const l2MethodItems = getL2MethodItems(l2Payment, selectedL2, funding)
+  const l2MethodItems = getL2MethodItems(
+    l2Payment,
+    selectedL2,
+    funding,
+    registrationReceipt !== undefined,
+  )
   const ethMethodItems = getEthMethodItems(ethPayment, displayedNetworkFee)
 
   const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
