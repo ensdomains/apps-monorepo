@@ -64,6 +64,7 @@ beforeEach(() => {
 })
 
 const { EntityBadge } = await import('./EntityBadge')
+const { AddressHighlightProvider } = await import('./AddressHighlight')
 
 const TEST_ADDRESS = '0x1234567890123456789012345678901234567890' as Address
 const TEST_TX_URL = 'https://etherscan.io/tx/0xabc'
@@ -357,5 +358,118 @@ describe('EntityBadge name display', () => {
     const name = `${'long'.repeat(40)}.eth`
     render(<EntityBadge variant="name" name={name} format="truncate" />)
     expect(screen.getByTitle(name)).toContainElement(screen.getByText(name))
+  })
+})
+
+describe('EntityBadge address highlight', () => {
+  const MOUSE = { pointerType: 'mouse' }
+  const OWNER = '0xC28d000000000000000000000000000000AbC20D' as Address
+  const OTHER = '0xa708000000000000000000000000000000008AAa' as Address
+
+  const badge = (text: string) => {
+    const element = screen
+      .getByText(text)
+      .closest<HTMLElement>('[data-entity-badge]')
+    if (!element) throw new Error(`No badge around "${text}"`)
+    return element
+  }
+  const highlighted = () =>
+    ['owner', 'owner-lower', 'owner-name', 'other'].filter(
+      (text) => badge(text).dataset.addressHighlighted === 'true',
+    )
+
+  const renderBadges = () =>
+    render(
+      <AddressHighlightProvider>
+        <EntityBadge variant="address" address={OWNER}>
+          owner
+        </EntityBadge>
+        <EntityBadge variant="address" address={OWNER.toLowerCase() as Address}>
+          owner-lower
+        </EntityBadge>
+        <EntityBadge variant="name" name="owner.eth" address={OWNER}>
+          owner-name
+        </EntityBadge>
+        <EntityBadge variant="contract" address={OTHER}>
+          other
+        </EntityBadge>
+      </AddressHighlightProvider>,
+    )
+
+  it('highlights every copy of the hovered address and no other', () => {
+    renderBadges()
+    expect(highlighted()).toEqual([])
+
+    fireEvent.pointerEnter(badge('owner'), MOUSE)
+    expect(highlighted()).toEqual(['owner', 'owner-lower', 'owner-name'])
+
+    fireEvent.pointerLeave(badge('owner'), MOUSE)
+    expect(highlighted()).toEqual([])
+  })
+
+  it('highlights on keyboard focus too', () => {
+    renderBadges()
+    const link = screen.getByRole('link', { name: 'owner' })
+    fireEvent.focus(link)
+    expect(highlighted()).toEqual(['owner', 'owner-lower', 'owner-name'])
+
+    fireEvent.blur(link)
+    expect(highlighted()).toEqual([])
+  })
+
+  it('keeps the newly hovered address when the previous one leaves late', () => {
+    renderBadges()
+    fireEvent.pointerEnter(badge('owner'), MOUSE)
+    fireEvent.pointerEnter(badge('other'), MOUSE)
+    fireEvent.pointerLeave(badge('owner'), MOUSE)
+    expect(highlighted()).toEqual(['other'])
+  })
+
+  it('keeps the highlight while the pointer stays after focus leaves', () => {
+    renderBadges()
+    const link = screen.getByRole('link', { name: 'owner' })
+    fireEvent.pointerEnter(badge('owner'), MOUSE)
+    fireEvent.focus(link)
+    fireEvent.blur(link)
+    expect(highlighted()).toEqual(['owner', 'owner-lower', 'owner-name'])
+  })
+
+  it('clears the highlight when the hovered badge is removed', () => {
+    const rows = (texts: readonly string[]) => (
+      <AddressHighlightProvider>
+        {texts.map((text) => (
+          <EntityBadge key={text} variant="address" address={OWNER}>
+            {text}
+          </EntityBadge>
+        ))}
+      </AddressHighlightProvider>
+    )
+    const view = render(rows(['hovered', 'kept']))
+    fireEvent.pointerEnter(badge('hovered'), MOUSE)
+    expect(badge('kept')).toHaveAttribute('data-address-highlighted')
+
+    view.rerender(rows(['kept']))
+    expect(badge('kept')).not.toHaveAttribute('data-address-highlighted')
+  })
+
+  it('ignores touch, whose tap never sends a leave', () => {
+    renderBadges()
+    fireEvent.pointerEnter(badge('owner'), { pointerType: 'touch' })
+    expect(highlighted()).toEqual([])
+  })
+
+  it('never highlights outside a provider', () => {
+    render(
+      <>
+        <EntityBadge variant="address" address={OWNER}>
+          a
+        </EntityBadge>
+        <EntityBadge variant="address" address={OWNER}>
+          b
+        </EntityBadge>
+      </>,
+    )
+    fireEvent.pointerEnter(badge('a'), MOUSE)
+    expect(badge('b')).not.toHaveAttribute('data-address-highlighted')
   })
 })

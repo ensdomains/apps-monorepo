@@ -55,6 +55,14 @@ export const LongRevertReason: Story = {
   },
 }
 
+/** The smart account was emptied mid-run, e.g. a withdrawal in another browser. */
+export const InsufficientFunds: Story = {
+  args: {
+    message: LONG_REVERT_REASON,
+    failureReason: 'insufficientFunds',
+  },
+}
+
 /** Someone else got the name first: nothing to retry. */
 export const NameNoLongerAvailable: Story = {
   args: {

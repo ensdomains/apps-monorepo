@@ -89,6 +89,32 @@ export const isSessionRevokedFailure = (params: {
   readonly isSignatureRejected: boolean
 }): boolean => params.wasSessionAccessReset && params.isSignatureRejected
 
+const INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE'
+
+// A refused route lists one code per strategy; a refused simulation has one category.
+const isInsufficientBalanceRefusal = (error: Error): boolean => {
+  const context = 'context' in error ? error.context : undefined
+  if (typeof context !== 'object' || context === null) return false
+
+  return (
+    ('category' in context && context.category === INSUFFICIENT_BALANCE) ||
+    ('failureCodes' in context &&
+      Array.isArray(context.failureCodes) &&
+      context.failureCodes.includes(INSUFFICIENT_BALANCE))
+  )
+}
+
+/** Why a run failed, when the failure screen has something specific to say. */
+export type RegistrationFailureReason = 'insufficientFunds'
+
+/** `insufficientFunds` when the orchestrator refused because the smart account can't pay, e.g. its funds were withdrawn. */
+export const getRegistrationFailureReason = (
+  error: unknown,
+): RegistrationFailureReason | undefined =>
+  causeChain(error).some(isInsufficientBalanceRefusal)
+    ? 'insufficientFunds'
+    : undefined
+
 /**
  * A readable one-liner for the failure screen. viem's `message` appends the
  * contract call, args, docs link and version; `shortMessage` leaves those out.
