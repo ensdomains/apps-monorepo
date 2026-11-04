@@ -5,12 +5,12 @@ import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
+import { AdvancedTab } from './tabs/AdvancedTab'
 import { AddressesTab } from './tabs/addresses/AddressesTab'
 import { AppearanceTab } from './tabs/appearance/AppearanceTab'
 import { ContactTab } from './tabs/contact/ContactTab'
 import { GeneralTab } from './tabs/general/GeneralTab'
 import { LinksTab } from './tabs/links/LinksTab'
-import { OtherRecordsTab } from './tabs/OtherRecordsTab'
 
 export const editProfileTabs = [
   { label: 'General', value: 'general' },
@@ -18,7 +18,7 @@ export const editProfileTabs = [
   { label: 'Addresses', value: 'addresses' },
   { label: 'Links', value: 'links' },
   { label: 'Appearance', value: 'appearance' },
-  { label: 'Other records', value: 'other' },
+  { label: 'Advanced', value: 'other' },
 ] as const
 
 interface EditProfileDialogTabsProps {
@@ -195,7 +195,8 @@ export const EditProfileDialogTabs = ({
             />
           </TabsContent>
           <TabsContent className="min-h-0 flex-1" value="other">
-            <OtherRecordsTab
+            <AdvancedTab
+              name={name}
               onChange={onOtherChange}
               savedAbi={savedAbi}
               values={values}

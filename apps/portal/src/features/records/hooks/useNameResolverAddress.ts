@@ -24,6 +24,12 @@ export type GetNameResolverAddressParams = {
   name: string
 }
 
+/** `v1-registry`: lookups no longer reach it, so records written there don't resolve. */
+export type NameResolver = {
+  readonly address: Address
+  readonly source: 'lookup' | 'v1-registry'
+}
+
 // ============================================================================
 // Error
 // ============================================================================
@@ -39,9 +45,9 @@ class GetNameResolverAddressError extends TaggedError(
 // ============================================================================
 
 /**
- * Get the resolver address for a name via the UniversalResolver.
+ * Get the resolver for a name via the UniversalResolver.
  */
-export const getNameResolverAddress = ResultFn(async function* (
+export const getNameResolver = ResultFn(async function* (
   params: GetNameResolverAddressParams,
 ) {
   const { name } = params
@@ -53,7 +59,10 @@ export const getNameResolverAddress = ResultFn(async function* (
   )
 
   if (resolverAddress && resolverAddress !== zeroAddress) {
-    return ok<Address | null>(resolverAddress)
+    return ok<NameResolver | null>({
+      address: resolverAddress,
+      source: 'lookup',
+    })
   }
 
   // A V2 name with no resolver has none; its leftover V1 entry is stale.
@@ -62,7 +71,7 @@ export const getNameResolverAddress = ResultFn(async function* (
       resolveV2EthOwner(client, name),
       (e) => new GetNameResolverAddressError({ cause: e }),
     )
-    if (v2Owner) return ok<Address | null>(null)
+    if (v2Owner) return ok<NameResolver | null>(null)
   }
 
   // A lapsed ENSv1 name leaves the UniversalResolver walk when its v2
@@ -72,7 +81,9 @@ export const getNameResolverAddress = ResultFn(async function* (
     (e) => new GetNameResolverAddressError({ cause: e }),
   )
 
-  return ok<Address | null>(legacyResolver)
+  return ok<NameResolver | null>(
+    legacyResolver ? { address: legacyResolver, source: 'v1-registry' } : null,
+  )
 })
 
 // ============================================================================
@@ -84,13 +95,20 @@ export const getNameResolverAddressQueryKey = createQueryKey<
   GetNameResolverAddressParams
 >('get-name-resolver-address')
 
-export const getNameResolverAddressQueryOptions = (
+export const getNameResolverQueryOptions = (
   params: GetNameResolverAddressParams,
 ) =>
   resultQueryOptions({
     queryKey: getNameResolverAddressQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getNameResolverAddress(params),
+    queryFn: ({ queryKey: [, params] }) => getNameResolver(params),
   })
+
+export const getNameResolverAddressQueryOptions = (
+  params: GetNameResolverAddressParams,
+) => ({
+  ...getNameResolverQueryOptions(params),
+  select: (resolver: NameResolver | null) => resolver?.address ?? null,
+})
 
 // ============================================================================
 // Hook

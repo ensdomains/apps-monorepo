@@ -1,5 +1,6 @@
 import { useLingui } from '@lingui/react'
 import { Plural, Trans } from '@lingui/react/macro'
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { tw } from '@/utils/tailwind'
@@ -15,13 +16,20 @@ export const DurationPresetRow = ({
   data,
   isSelected,
   price,
+  total = price,
   onSelect,
+  priceLabel = <Trans>base price</Trans>,
 }: {
   data: DurationPresetData
   isLoading: boolean
+  /** The base price the per-year pill divides. */
   price: number | undefined
+  /** The headline figure, when it differs from `price`: a premium is part of the total but never of the per-year price. */
+  readonly total?: number
   isSelected: boolean
   onSelect: () => void
+  /** The word after the price. */
+  readonly priceLabel?: ReactNode
 }) => {
   const { _ } = useLingui()
 
@@ -62,14 +70,14 @@ export const DurationPresetRow = ({
 
         <div className="ml-auto flex items-baseline gap-1 md:gap-1.5">
           <span className="font-medium font-mono text-ens-blue-dark text-xl leading-none tracking-tighter md:text-temp-32px">
-            {price ? (
-              formatUsd(price)
+            {total ? (
+              formatUsd(total)
             ) : (
               <span className="animate-pulse">$...</span>
             )}
           </span>
           <span className="font-normal text-[#A0A4A6] text-xs leading-none tracking-tight md:text-base">
-            <Trans>base price</Trans>
+            {priceLabel}
           </span>
         </div>
       </div>

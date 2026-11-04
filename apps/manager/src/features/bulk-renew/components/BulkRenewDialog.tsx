@@ -58,7 +58,7 @@ export const BulkRenewDialog = ({
     setSelectedToken(coin)
     setFundingSourceChainId(undefined)
   }
-  // Bridged in as USDC, so the rent is paid in USDC.
+  // Bridged in as USDC, so the price is paid in USDC.
   const selectL2 = (chainId: number) => {
     setSelectedToken('USDC')
     setFundingSourceChainId(chainId)

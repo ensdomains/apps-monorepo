@@ -5,7 +5,9 @@ import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { PaymentCardBase } from '@/features/register-v2/workflow/pricing/components/PaymentCard'
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
+import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
+import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate'
 import { TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -34,6 +36,7 @@ const SmartSessionPaymentCard = (props: RenewalPaymentCardProps) => {
 
 export const PaymentCard = () => {
   const { uiActor, label, protocol } = useRenewalUiContext()
+  const route = getRenewalPaymentRoute(useRenewalSigner())
 
   const [duration, canNext] = useSelector(uiActor, (state) => [
     state.context.duration,
@@ -64,7 +67,8 @@ export const PaymentCard = () => {
     onNext: openTokenPicker,
   }
 
-  if (protocol === 'v1') {
+  // The wallet route sends transactions and signs no session, like a v1 renewal.
+  if (protocol === 'v1' || route === 'wallet') {
     return (
       <PaymentCardBase
         {...paymentCardProps}
@@ -74,5 +78,11 @@ export const PaymentCard = () => {
     )
   }
 
-  return <SmartSessionPaymentCard {...paymentCardProps} />
+  // Until the route is known, a Safe could still reach the session prompt.
+  return (
+    <SmartSessionPaymentCard
+      {...paymentCardProps}
+      canNext={canNext && route === 'intent'}
+    />
+  )
 }

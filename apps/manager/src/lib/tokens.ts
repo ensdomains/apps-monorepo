@@ -35,7 +35,7 @@ export const TOKENS = {
 export type TOKEN_SYMBOL = keyof typeof TOKENS
 
 /**
- * What registration pays in. The rent oracle accepts DAI too, but the HCA
+ * What registration pays in. The price oracle accepts DAI too, but the HCA
  * validator's payment tokens (`PAYMENT_TOKEN` / `SECONDARY_PAYMENT_TOKEN`) are
  * both USDC, so a DAI registration would fail validation.
  */
