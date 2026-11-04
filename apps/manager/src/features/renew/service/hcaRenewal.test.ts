@@ -532,6 +532,21 @@ describe('submitHcaRenewal paid from an L2', () => {
     expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
   })
 
+  it('never asks about the wallet after the bridge, and refuses anything left for it to pay', async () => {
+    const confirmIncreasedPayment = vi.fn()
+    await submitHcaRenewal({
+      ...params,
+      confirmIncreasedPayment,
+      l2Funding: { source, displayedCharge: 2_100_000n },
+    })
+
+    expect(fundingParams()).toMatchObject({
+      displayedDebit: { usdc: 0n, token: 0n },
+    })
+    expect(fundingParams()).not.toHaveProperty('confirmFunding')
+    expect(confirmIncreasedPayment).not.toHaveBeenCalled()
+  })
+
   it('plans the renewal on the balance the bridge read back, past a lagging node', async () => {
     await run()
 
