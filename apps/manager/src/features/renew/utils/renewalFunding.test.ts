@@ -5,6 +5,7 @@ import {
   computeRenewalFunding,
   decideRenewalPayment,
   getPromptWalletDebit,
+  getRenewalFeeQuoteState,
   getRenewalPaymentScreen,
 } from './renewalFunding'
 
@@ -195,5 +196,52 @@ describe('getRenewalPaymentScreen', () => {
     expect(screen.walletDebitFor?.('DAI')).toBeCloseTo(7)
     // The rent token's permit is still a payment approval.
     expect(screen.isApprovalRequired).toBe(true)
+  })
+})
+
+describe('getRenewalFeeQuoteState', () => {
+  const quote = {
+    isActive: true,
+    isFetching: false,
+    isError: false,
+    feeRaw: 120_000n as bigint | null | undefined,
+  }
+
+  it.each([
+    ['a priced fee', {}, { isQuoting: false, hasQuoteFailed: false }],
+    [
+      'the first quote loading',
+      { isFetching: true, feeRaw: undefined },
+      { isQuoting: true, hasQuoteFailed: false },
+    ],
+    [
+      'a refresh behind a priced fee',
+      { isFetching: true },
+      { isQuoting: false, hasQuoteFailed: false },
+    ],
+    [
+      'an error',
+      { isError: true, feeRaw: undefined },
+      { isQuoting: false, hasQuoteFailed: true },
+    ],
+    [
+      'a fee the rail refused to price',
+      { feeRaw: null },
+      { isQuoting: false, hasQuoteFailed: true },
+    ],
+    [
+      'a retry after a failure',
+      { isError: true, isFetching: true, feeRaw: undefined },
+      { isQuoting: true, hasQuoteFailed: false },
+    ],
+    [
+      'the payment step closed',
+      { isActive: false, isError: true },
+      { isQuoting: false, hasQuoteFailed: false },
+    ],
+  ] as const)('%s', (_case, overrides, expected) => {
+    expect(getRenewalFeeQuoteState({ ...quote, ...overrides })).toEqual(
+      expected,
+    )
   })
 })

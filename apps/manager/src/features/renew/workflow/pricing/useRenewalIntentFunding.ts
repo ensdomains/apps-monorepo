@@ -6,6 +6,7 @@ import type { HcaRenewalItem } from '@/features/renew/service/hcaRenewal'
 import {
   computeRenewalDisplayedDebit,
   computeRenewalFunding,
+  getRenewalFeeQuoteState,
   type RenewalFunding,
 } from '@/features/renew/utils/renewalFunding'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
@@ -90,19 +91,16 @@ export const useRenewalIntentFunding = (params: {
         })
       : undefined
 
-  // `null` is a quote the rail refused to price: as unusable as an error.
-  const isQuoteUnusable =
-    feeQuery.isError || (feeQuery.isSuccess && feeQuery.data === null)
+  const quoteState = getRenewalFeeQuoteState({
+    isActive: isEnabled && isIntentRoute,
+    isFetching: feeQuery.isFetching,
+    isError: feeQuery.isError,
+    feeRaw: feeQuery.isSuccess ? feeQuery.data : undefined,
+  })
 
   return {
     isIntentRoute,
-    isQuoting:
-      isEnabled &&
-      isIntentRoute &&
-      feeQuery.isFetching &&
-      networkFeeRaw === undefined,
-    hasQuoteFailed:
-      isEnabled && isIntentRoute && isQuoteUnusable && !feeQuery.isFetching,
+    ...quoteState,
     retryQuote: () => {
       feeQuery.refetch()
     },

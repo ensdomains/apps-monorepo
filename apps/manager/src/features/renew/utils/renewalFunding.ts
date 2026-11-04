@@ -211,3 +211,22 @@ export const getRenewalPaymentScreen = ({
     isApprovalRequired: updated.isApprovalRequired,
   }
 }
+
+/**
+ * Where the renewal fee quote stands. A quote the rail refused to price (`null`)
+ * is as unusable as an error, and neither counts as failed while a retry runs.
+ */
+export const getRenewalFeeQuoteState = (quote: {
+  /** The quote applies: the payment step is open on the smart-account route. */
+  readonly isActive: boolean
+  readonly isFetching: boolean
+  readonly isError: boolean
+  /** The fee in USDC units; `null` once the rail refused to price it. */
+  readonly feeRaw: bigint | null | undefined
+}): { readonly isQuoting: boolean; readonly hasQuoteFailed: boolean } => ({
+  isQuoting: quote.isActive && quote.isFetching && quote.feeRaw == null,
+  hasQuoteFailed:
+    quote.isActive &&
+    !quote.isFetching &&
+    (quote.isError || quote.feeRaw === null),
+})
