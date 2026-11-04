@@ -121,11 +121,11 @@ const socialIcons: readonly SocialIcon[] = [
 ]
 
 const linkClassName =
-  'w-fit text-base text-ens-quartz-450 leading-ens-normal tracking-ens-wide transition-colors hover:underline'
+  'w-fit text-base text-ens-quartz-900 leading-ens-normal tracking-ens-wide transition-colors hover:underline'
 const sectionClassName =
   'flex flex-col gap-6 border-ens-quartz-75 border-t pt-6'
 const sectionTitleClassName =
-  'font-medium text-base text-ens-quartz-450 leading-ens-normal tracking-ens-wide'
+  'font-medium text-base text-ens-quartz-900 leading-ens-normal tracking-ens-wide'
 
 const getLinkKey = (link: NavigationLink) =>
   'linkOptions' in link ? link.linkOptions.to : link.href
@@ -143,7 +143,7 @@ export const AnalyticsSetting = () => {
   return (
     <div className={sectionClassName}>
       <h3 className={sectionTitleClassName}>{_(msg`Settings`)}</h3>
-      <div className="flex items-center justify-between gap-3 text-base text-ens-quartz-450 leading-ens-normal tracking-ens-wide">
+      <div className="flex items-center justify-between gap-3 text-base text-ens-quartz-900 leading-ens-normal tracking-ens-wide">
         {label}
         <Switch
           aria-label={label}
