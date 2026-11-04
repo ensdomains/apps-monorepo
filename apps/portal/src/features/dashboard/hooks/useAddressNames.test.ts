@@ -1,6 +1,7 @@
 import type { AddressNamesQuery } from '@ens-apps/indexer/bigname'
 import { type AddressName, BignameError } from '@ens-apps/indexer/bigname'
 import { errAsync, okAsync } from 'neverthrow'
+import { maxUint64 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
 import { getAddressNames } from './useAddressNames'
@@ -251,6 +252,38 @@ describe('getAddressNames', () => {
         expect.objectContaining({
           name: 'deep.sub.other.eth',
           parentExpiryDate: new Date(Number(LOOKED_UP_EXPIRY) * 1000),
+        }),
+      ]),
+    )
+  })
+
+  it('gives ENSv2 subnames the expiry of their .eth parent, with or without their own', async () => {
+    const PARENT_EXPIRY = NOW_SECONDS + 86_400n * 30n
+    const OWN_EXPIRY = NOW_SECONDS + 86_400n * 90n
+    answer([
+      [
+        row('parent.eth', { expires_at: String(PARENT_EXPIRY) }),
+        row('none.parent.eth', { expires_at: String(maxUint64) }),
+        row('dated.parent.eth', { expires_at: String(OWN_EXPIRY) }),
+      ],
+    ])
+
+    const names = (
+      await getAddressNames({ address: ADDRESS }, { now: NOW })
+    )._unsafeUnwrap()
+
+    const parentExpiryDate = new Date(Number(PARENT_EXPIRY) * 1000)
+    expect(names).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'none.parent.eth',
+          expiryDate: null,
+          parentExpiryDate,
+        }),
+        expect.objectContaining({
+          name: 'dated.parent.eth',
+          expiryDate: new Date(Number(OWN_EXPIRY) * 1000),
+          parentExpiryDate,
         }),
       ]),
     )
