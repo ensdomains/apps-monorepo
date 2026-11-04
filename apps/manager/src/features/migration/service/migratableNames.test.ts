@@ -159,7 +159,7 @@ describe('resolveMigratableNames', () => {
           name,
           result: {
             status: 'complete',
-            impact: { affectedCount: 0, parents: [] },
+            impact: { affectedCount: 0, parents: [], unrecoverable: [] },
           },
         })),
     )
@@ -242,7 +242,7 @@ describe('resolveMigratableNames', () => {
               detail:
                 'an exact, valid subname label is required before migration.',
             })
-          return { domains, inventory: preparedInventory }
+          return { domains, inventory: preparedInventory, unrecoverable: [] }
         },
       )
       const result = await resolveMigratableNames({
@@ -336,7 +336,7 @@ describe('resolveMigratableNames', () => {
         name: 'good.eth',
         result: {
           status: 'complete',
-          impact: { affectedCount: 0, parents: [] },
+          impact: { affectedCount: 0, parents: [], unrecoverable: [] },
         },
       },
     ])
@@ -355,6 +355,94 @@ describe('resolveMigratableNames', () => {
     ])
     expect(mocks.readRpcSubnameInventory).toHaveBeenCalledTimes(1)
     expect(mocks.getSubnameMigrationImpact).toHaveBeenCalledTimes(1)
+  })
+
+  describe('unknown-label subnames', () => {
+    const UNKNOWN = `[${'ab'.repeat(32)}].label.eth`
+    const name = makeClassified({
+      name: 'label.eth',
+      id: namehash('label.eth'),
+    })
+    const run = (isSubnameImportEnabled: boolean) => {
+      mocks.readRpcSubnameInventory.mockResolvedValueOnce({
+        roots: [{ node: name.domain.id, name: name.domain.name }],
+        nodes: [{ parentNode: name.domain.id, node: namehash(UNKNOWN) }],
+      })
+      return resolveMigratableNames({
+        eligible: [name],
+        owner: OWNER,
+        isSubnameImportEnabled,
+        publicClient: createPublicClient({
+          chain: envConfig.chain,
+          transport: http(),
+        }),
+      })
+    }
+    const discovered = (unrecoverable: readonly string[]) =>
+      mocks.discoverSubnameRecreation.mockResolvedValueOnce({
+        domains: [name.domain],
+        inventory: makeRpcSubnameInventory({
+          domains: [makeDomain({ name: 'label.eth', id: name.domain.id })],
+          rootNames: [name.domain.name],
+        }),
+        unrecoverable,
+      })
+
+    it.each([
+      {
+        path: 'the import',
+        isSubnameImportEnabled: true,
+        setup: () => discovered([UNKNOWN]),
+      },
+      {
+        path: 'the impact check',
+        isSubnameImportEnabled: false,
+        setup: () =>
+          mocks.getSubnameMigrationImpact.mockResolvedValueOnce([
+            {
+              name: name.domain.name,
+              result: {
+                status: 'complete',
+                impact: {
+                  affectedCount: 0,
+                  parents: [],
+                  unrecoverable: [UNKNOWN],
+                },
+              },
+            },
+          ]),
+      },
+    ])(
+      'keeps a name upgradable and reports what $path leaves behind',
+      async ({ isSubnameImportEnabled, setup }) => {
+        setup()
+        const result = await run(isSubnameImportEnabled)
+        expect(result.eligible).toEqual([name])
+        expect(result.blockedSubnames).toEqual([])
+        expect(result.unrecoverableSubnames).toEqual([UNKNOWN])
+      },
+    )
+
+    it.each([
+      { count: 5, isBlocked: false },
+      { count: 6, isBlocked: true },
+    ])(
+      'with $count to leave behind through the import blocks: $isBlocked',
+      async ({ count, isBlocked }) => {
+        const unrecoverable = Array.from(
+          { length: count },
+          (_, index) => `[${index.toString(16).padStart(64, '0')}].label.eth`,
+        )
+        discovered(unrecoverable)
+        const result = await run(true)
+        expect(result.blockedSubnames).toEqual(
+          isBlocked ? [{ name, reason: 'too-many-unknown-labels' }] : [],
+        )
+        expect(result.unrecoverableSubnames).toEqual(
+          isBlocked ? [] : unrecoverable,
+        )
+      },
+    )
   })
 
   // The error message embeds the name, so only the fixed reason may decide.
@@ -442,7 +530,7 @@ describe('resolveMigratableNames', () => {
           name,
           result: {
             status: 'complete',
-            impact: { affectedCount: 0, parents: [] },
+            impact: { affectedCount: 0, parents: [], unrecoverable: [] },
           },
         })),
     )

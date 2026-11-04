@@ -5,6 +5,7 @@ import type { Address, PublicClient, WalletClient } from 'viem'
 import {
   decodeFunctionData,
   erc20Abi,
+  parseAbi,
   toFunctionSelector,
   zeroHash,
 } from 'viem'
@@ -12,7 +13,11 @@ import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EOASigner } from '../../types/signer.types'
 import type { EoaTransactionRequest } from '../../types/transaction.types'
-import { submitApprovalActor, submitRenewActor } from './registration.actors'
+import {
+  submitApprovalActor,
+  submitRenewActor,
+  submitRenewBatchActor,
+} from './registration.actors'
 
 const mocks = vi.hoisted(() => ({
   assertPaymentTokenSupported: vi.fn().mockResolvedValue(undefined),
@@ -107,6 +112,37 @@ describe('V1 renewal actors', () => {
     )
     expect(decoded.args).toEqual([
       { label: 'alice', duration: 31_536_000n, referrer: zeroHash },
+      TOKENS.USDC.address,
+    ])
+  })
+
+  it('renews several names in one renewBatch transaction', async () => {
+    const result = await submitRenewBatchActor({
+      renewals: [
+        { label: 'alice.eth', duration: 1n },
+        { label: 'bob', duration: 2n },
+      ],
+      selectedToken: 'USDC',
+      signer,
+      publicClient,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    const request = submittedRequest()
+    const decoded = decodeFunctionData({
+      abi: parseAbi([
+        'function renewBatch((string label, uint64 duration, bytes32 referrer)[] rds, address paymentToken)',
+      ]),
+      data: request.data,
+    })
+
+    expect(request.to).toBe(CONTRACTS.ensEthRegistrar.address)
+    expect(decoded.args).toEqual([
+      [
+        { label: 'alice', duration: 1n, referrer: zeroHash },
+        { label: 'bob', duration: 2n, referrer: zeroHash },
+      ],
       TOKENS.USDC.address,
     ])
   })

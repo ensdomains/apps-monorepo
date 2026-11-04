@@ -1,8 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { MobileHeader } from '@/components/MobileHeader'
 import { PageContainer } from '@/components/PageContainer'
-import { RegisterSidebar } from '@/components/RegisterSidebar'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { TopNav } from '@/components/TopNav'
 import {
   DnsImportFlow,
   type DnsImportSearch,
@@ -14,10 +12,9 @@ const DnsImportPage = () => {
   const navigate = Route.useNavigate()
 
   return (
-    <SidebarProvider>
-      <RegisterSidebar />
-      <SidebarInset className="w-full min-w-0">
-        <MobileHeader />
+    <>
+      <TopNav />
+      <main className="w-full min-w-0">
         <PageContainer className="min-h-screen flex flex-col pt-4">
           <DnsImportFlow
             name={name}
@@ -29,8 +26,8 @@ const DnsImportPage = () => {
             }
           />
         </PageContainer>
-      </SidebarInset>
-    </SidebarProvider>
+      </main>
+    </>
   )
 }
 

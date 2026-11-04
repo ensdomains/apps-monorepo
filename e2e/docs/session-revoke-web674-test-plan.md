@@ -152,7 +152,7 @@ The HCA address is shown in the revoke dialog (truncated), and in full in
 
 ### Steps
 
-1. **Sign a session.** Search an available name, open it, click **Pay with stablecoins**, then **Enable sessions**. *Pass:* one signature; `ens-sessions-v9` holds a record whose `hcaSessionNonce` equals the on-chain nonce.
+1. **Sign a session.** Search an available name, open it, click **Pay**, then **Enable sessions**. *Pass:* one signature; `ens-sessions-v9` holds a record whose `hcaSessionNonce` equals the on-chain nonce.
 2. **Menu entry.** Open the account menu. *Pass:* **Revoke smart sessions** sits above **Disconnect**.
 3. **Dialog copy.** Click it. *Pass:* the HCA address (not the owner's), "This ends every session you have signed for this account, in every browser and on every device", and "costs gas".
 4. **Reject.** Click **Revoke sessions** and reject in the wallet. *Pass:* "Couldn't revoke sessions. Please try again.", **Try Again**, dialog open, nonce unchanged, record still in storage.

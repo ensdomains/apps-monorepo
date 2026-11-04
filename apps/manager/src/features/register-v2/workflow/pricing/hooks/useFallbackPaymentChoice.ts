@@ -8,6 +8,7 @@ const choiceKey = (choice: PaymentChoice | undefined) =>
     .with(undefined, () => undefined)
     .with({ kind: 'wallet' }, ({ symbol }) => `wallet:${symbol}`)
     .with({ kind: 'l2' }, ({ chainId }) => `l2:${chainId}`)
+    .with({ kind: 'eth' }, () => 'eth')
     .exhaustive()
 
 /** Moves the selection to `choice` once the methods have settled. */
@@ -16,18 +17,23 @@ export const useFallbackPaymentChoice = <T extends TOKEN_SYMBOL>({
   isSettled,
   onSelectCoin,
   onSelectL2,
+  onSelectEth,
 }: {
   readonly choice: PaymentChoice | undefined
   readonly isSettled: boolean
-  readonly onSelectCoin: (coin: T) => void
+  readonly onSelectCoin: (coin: T, origin: 'fallback') => void
   readonly onSelectL2: ((chainId: number) => void) | undefined
+  readonly onSelectEth: (() => void) | undefined
 }) => {
   const key = choiceKey(choice)
   const select = useEffectEvent(() =>
     match(choice)
       .with(undefined, () => undefined)
-      .with({ kind: 'wallet' }, ({ symbol }) => onSelectCoin(symbol as T))
+      .with({ kind: 'wallet' }, ({ symbol }) =>
+        onSelectCoin(symbol as T, 'fallback'),
+      )
       .with({ kind: 'l2' }, ({ chainId }) => onSelectL2?.(chainId))
+      .with({ kind: 'eth' }, () => onSelectEth?.())
       .exhaustive(),
   )
 

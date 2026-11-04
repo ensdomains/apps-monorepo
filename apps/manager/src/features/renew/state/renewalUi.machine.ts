@@ -1,14 +1,12 @@
 import type {
   HcaDisplayedDebit,
   HcaFundingApprovalCapability,
+  HcaFundingPrompt,
   RhinestoneSigner,
   Signer,
 } from '@ens-apps/transaction-manager'
 import { HcaFundingApprovalDeclinedError } from '@ens-apps/transaction-manager/helpers/hca-funding-approval'
-import {
-  HcaFundingDeclinedError,
-  type HcaFundingPrompt,
-} from '@ens-apps/transaction-manager/helpers/hca-intent-funding'
+import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager/helpers/hca-intent-funding'
 import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
@@ -37,7 +35,7 @@ import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 
 // Two routes pay for a renewal. A smart-account signer renews as an
-// owner-signed HCA intent: rent
+// owner-signed HCA intent: price
 // (in the chosen stable) and fee (in USDC) come out of the account, funded in
 // the same intent when short, or bridged in from an L2 first when the user
 // pays from one. An EOA signer keeps the direct-wallet route:
@@ -55,7 +53,7 @@ type SubmissionData = {
   /** Formatted base price */
   priceNumber: number
 
-  /** What the payment screen showed the wallet would pay; absent when it showed the rent alone. */
+  /** What the payment screen showed the wallet would pay; absent when it showed the price alone. */
   readonly displayedDebit?: HcaDisplayedDebit
 
   /**
@@ -65,7 +63,7 @@ type SubmissionData = {
   signer: Signer
 
   /**
-   * EOA that funds the renewal from its wallet: it pays the rent on the direct
+   * EOA that funds the renewal from its wallet: it pays the price on the direct
    * route (`renew` charges `msg.sender`), and signs the intent plus any funding
    * permit on the HCA route.
    */
@@ -87,6 +85,31 @@ const requireSubmissionData = (
   if (!submissionData) throw new Error('Renewal submission data is required')
   return submissionData
 }
+
+/**
+ * The current intent attempt's increased payment: waiting on the user, who
+ * answers through `decide`, or accepted and being signed.
+ */
+type PaymentUpdateState =
+  | {
+      readonly status: 'reviewing'
+      readonly prompt: HcaFundingPrompt
+      readonly decide: (isAccepted: boolean) => void
+    }
+  | { readonly status: 'accepted'; readonly prompt: HcaFundingPrompt }
+
+/** The receipt an intent attempt shows once its payment went up. */
+export type RenewalPaymentUpdate = {
+  readonly status: PaymentUpdateState['status']
+  readonly prompt: HcaFundingPrompt
+}
+
+/** Resolves `false` once the signal aborts, so a waiting question is declined. */
+const declineOnAbort = (signal: AbortSignal) =>
+  new Promise<boolean>((resolve) => {
+    if (signal.aborted) resolve(false)
+    signal.addEventListener('abort', () => resolve(false), { once: true })
+  })
 
 const requireRhinestoneSigner = (signer: Signer): RhinestoneSigner => {
   if (signer.type !== 'rhinestone') {
@@ -116,14 +139,13 @@ export const renewalUiMachine = setup({
        * invoked intent submit can reach the component that renders the prompt.
        */
       approvalFallback?: HcaFundingApprovalCapability
-      /** Only asked when the payment screen could not show the debit. */
-      confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
+      /** The current attempt's increased payment, once it went up. */
+      paymentUpdate?: PaymentUpdateState
     },
     input: {} as {
       currentExpiry: bigint
       protocol: RenewalProtocol
       approvalFallback?: HcaFundingApprovalCapability
-      confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
     },
     events: {} as
       | { type: 'pricing.step.next' }
@@ -155,6 +177,12 @@ export const renewalUiMachine = setup({
           l2Funding?: HcaRenewalL2Funding
         }
       | { type: 'renewal.submitted'; txId: string }
+      | {
+          type: 'renewal.payment.increased'
+          readonly prompt: HcaFundingPrompt
+          readonly decide: (isAccepted: boolean) => void
+        }
+      | { type: 'renewal.payment.accept' }
       | { type: 'retry' }
       | { type: 'cancel' }
       | { type: 'label.changed' },
@@ -185,7 +213,27 @@ export const renewalUiMachine = setup({
       }: {
         input: Parameters<typeof submitHcaRenewal>[0]
         signal: AbortSignal
-      }) => (await submitHcaRenewal({ ...input, signal })).txId,
+      }) => {
+        const { confirmIncreasedPayment } = input
+        return (
+          await submitHcaRenewal({
+            ...input,
+            signal,
+            // An abandoned attempt never asks, and its open question is declined.
+            ...(confirmIncreasedPayment
+              ? {
+                  confirmIncreasedPayment: (prompt: HcaFundingPrompt) =>
+                    signal.aborted
+                      ? Promise.resolve(false)
+                      : Promise.race([
+                          confirmIncreasedPayment(prompt),
+                          declineOnAbort(signal),
+                        ]),
+                }
+              : {}),
+          })
+        ).txId
+      },
     ),
     readExpiry: fromResultAsync(
       (input: { name: string; protocol: RenewalProtocol }) =>
@@ -233,9 +281,32 @@ export const renewalUiMachine = setup({
         event.type === 'pricing.fundingSource.select'
           ? (event.origin ?? 'user')
           : undefined,
-      // Bridged in as USDC, so the rent is paid in USDC.
+      // Bridged in as USDC, so the price is paid in USDC.
       selectedToken: () => 'USDC' as const,
     }),
+    beginIntentAttempt: assign({ paymentUpdate: () => undefined }),
+    reviewPayment: assign({
+      paymentUpdate: ({ event }) =>
+        event.type === 'renewal.payment.increased'
+          ? {
+              status: 'reviewing' as const,
+              prompt: event.prompt,
+              decide: event.decide,
+            }
+          : undefined,
+    }),
+    answerPaymentReview: ({ context }, params: { isAccepted: boolean }) => {
+      if (context.paymentUpdate?.status === 'reviewing')
+        context.paymentUpdate.decide(params.isAccepted)
+    },
+    keepAcceptedPayment: assign({
+      paymentUpdate: ({ context }) =>
+        context.paymentUpdate && {
+          status: 'accepted' as const,
+          prompt: context.paymentUpdate.prompt,
+        },
+    }),
+    clearPaymentUpdate: assign({ paymentUpdate: () => undefined }),
     clearFailure: assign({
       lastErrorMessage: () => undefined,
     }),
@@ -303,7 +374,6 @@ export const renewalUiMachine = setup({
     ),
     selectedToken: undefined,
     lastErrorMessage: undefined,
-    confirmFunding: input.confirmFunding,
     approvalFallback: input.approvalFallback,
   }),
   initial: 'pricing',
@@ -357,18 +427,45 @@ export const renewalUiMachine = setup({
       },
     },
     // Smart-account route: ONE owner-signed intent renews the name and moves
-    // the USDC to pay for it (rent plus fee), so there is no approve
+    // the USDC to pay for it (price plus fee), so there is no approve
     // intent, with a separately consented USDC approval fallback when needed.
     // `submitHcaRenewal` resolves only once the
     // intent has filled, so success needs no polling step of its own.
     submittingHcaRenewal: {
       tags: 'renewing',
+      entry: 'beginIntentAttempt',
+      exit: 'clearPaymentUpdate',
       // Until the intent is submitted the owner is still approving (the
       // funding permit, then the signature), so the payment dialog stays up
       // as it does for registration; `renewalTxId` marks the hand-over.
       on: {
         'renewal.submitted': {
           actions: assign({ renewalTxId: ({ event }) => event.txId }),
+        },
+      },
+      initial: 'signing',
+      states: {
+        signing: {
+          on: {
+            'renewal.payment.increased': {
+              target: 'reviewingPayment',
+              actions: 'reviewPayment',
+            },
+          },
+        },
+        // The re-quote asks the wallet for more than the user confirmed:
+        // nothing is signed until they accept the updated receipt.
+        reviewingPayment: {
+          on: {
+            'renewal.payment.accept': {
+              target: 'signing',
+              actions: [
+                { type: 'answerPaymentReview', params: { isAccepted: true } },
+                'keepAcceptedPayment',
+              ],
+            },
+            cancel: { target: '#renewalUi.pricing.tokens' },
+          },
         },
       },
       invoke: {
@@ -379,6 +476,14 @@ export const renewalUiMachine = setup({
           return {
             onSubmitted: (txId: string) =>
               self.send({ type: 'renewal.submitted', txId }),
+            confirmIncreasedPayment: (prompt: HcaFundingPrompt) =>
+              new Promise<boolean>((decide) =>
+                self.send({
+                  type: 'renewal.payment.increased',
+                  prompt,
+                  decide,
+                }),
+              ),
             ...(submission.l2Funding
               ? { l2Funding: submission.l2Funding }
               : {}),
@@ -402,9 +507,6 @@ export const renewalUiMachine = setup({
               : {}),
             ...(submission.displayedDebit
               ? { displayedDebit: submission.displayedDebit }
-              : {}),
-            ...(context.confirmFunding
-              ? { confirmFunding: context.confirmFunding }
               : {}),
           }
         },
@@ -437,7 +539,7 @@ export const renewalUiMachine = setup({
       },
     },
     // Read the connected EOA's current allowance to the registrar. This is the
-    // EOA fallback route: the EOA is `msg.sender` and pays the rent itself.
+    // EOA fallback route: the EOA is `msg.sender` and pays the price itself.
     checkingAllowance: {
       tags: 'renewing',
       invoke: {

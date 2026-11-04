@@ -14,6 +14,7 @@ catalog:
   typescript: ^7.0.2
   vite: ^8.3.4
   vitest: ^4.1.12
+  fast-check: ^4.10.2
   "@vitest/coverage-v8": ^4.1.12
   happy-dom: ^20.14.6
   "@cloudflare/vite-plugin": ^1.64.0

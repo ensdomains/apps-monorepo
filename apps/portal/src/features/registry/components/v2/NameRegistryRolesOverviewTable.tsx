@@ -2,12 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { zeroAddress } from 'viem'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 /**
  * Read-only registry roles for a name's own registry, for embedding on the name
@@ -45,16 +47,21 @@ export const NameRegistryRolesOverviewTable = ({ name }: { name: string }) => {
   return (
     <RoleContractGate address={address} expected="registry" variant="embedded">
       <div className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <h3 className="text-caps leading-none min-w-0 break-words">
-            {name} registry / roles
-          </h3>
-          <Button className="text-muted-foreground" variant="ghost" asChild>
-            <Link params={{ address }} to="/registry/$address/roles">
-              <ArrowUpRight className="size-5" />
-              View and manage
-            </Link>
-          </Button>
+        <div className="flex flex-col">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <h3 className="text-caps leading-none min-w-0 break-words">
+              {name} registry / roles
+            </h3>
+            <Button className="text-muted-foreground" variant="ghost" asChild>
+              <Link params={{ address }} to="/registry/$address/roles">
+                <ArrowUpRight className="size-5" />
+                View and manage
+              </Link>
+            </Button>
+          </div>
+          <EntityBadge variant="contract" address={address} isRegistry>
+            {truncateAddress(address)}
+          </EntityBadge>
         </div>
         <RegistryRolesTable address={address} disableEdit />
       </div>
