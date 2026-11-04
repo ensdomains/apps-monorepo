@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { FieldLegend, FieldSet } from '@/components/ui/field'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { getRegistrationDataQueryOptions } from '@/features/profile/hooks/useRegistrationData'
@@ -17,9 +18,15 @@ type ExpiryOptionProps = {
   readonly value: SubnameExpiry['type']
   readonly title: string
   readonly description: string
+  readonly isRecommended?: boolean
 }
 
-const ExpiryOption = ({ value, title, description }: ExpiryOptionProps) => (
+const ExpiryOption = ({
+  value,
+  title,
+  description,
+  isRecommended = false,
+}: ExpiryOptionProps) => (
   <label
     htmlFor={`subname-expiry-${value}`}
     className="flex items-start gap-3 cursor-pointer"
@@ -30,7 +37,14 @@ const ExpiryOption = ({ value, title, description }: ExpiryOptionProps) => (
       className="mt-0.5"
     />
     <div className="flex flex-col gap-1">
-      <span className="font-medium">{title}</span>
+      <span className="flex flex-wrap items-center gap-2">
+        <span className="font-medium">{title}</span>
+        {isRecommended && (
+          <Badge variant="secondary" className="text-small">
+            Recommended
+          </Badge>
+        )}
+      </span>
       <span className="text-p text-muted-foreground">{description}</span>
     </div>
   </label>
@@ -73,13 +87,14 @@ export const SubnameExpiryField = ({
       >
         <ExpiryOption
           value="none"
-          title="No expiry"
+          title={`Expires with ${parentName}`}
           description={`Lasts as long as ${parentName} stays registered.`}
+          isRecommended
         />
         <ExpiryOption
           value="span"
           title="Set an expiry"
-          description="The new owner can extend it later."
+          description="Stops resolving on the date you pick, unless it’s extended."
         />
       </RadioGroup>
       {expiry.type === 'span' && (
