@@ -53,6 +53,7 @@ import {
 } from '../lib/paymentReceiptFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { computeRegistrationFunding } from '../lib/registrationFunding'
+import { EthNameText } from './EthNameText'
 import {
   canPayWithEth,
   EthPaymentListItem,
@@ -363,6 +364,12 @@ export const TokenPickerContent = () => {
         isSelected: paymentAsset === 'eth',
         onSelect: () =>
           uiActor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' }),
+        onFallbackSelect: () =>
+          uiActor.send({
+            type: 'pricing.paymentAsset.select',
+            asset: 'eth',
+            origin: 'fallback',
+          }),
       }
     : undefined
   const isPaidWithEth = ethPayment?.isSelected === true
@@ -721,6 +728,7 @@ type EthPaymentProps = Readonly<{
   row: EthPaymentRow
   isSelected: boolean
   onSelect: () => void
+  onFallbackSelect: () => void
 }>
 
 const getSelectedL2 = (l2Payment: L2PaymentProps | undefined) =>
@@ -744,6 +752,30 @@ const getL2FundingSummary = (
     total,
     networkFee: total - funding.registration,
   }
+}
+
+/**
+ * An L2 row's fee: from its own quote, else another chain's, else, where every
+ * holding is listed, the registration's own fee before bridging.
+ */
+const getL2RowFee = (
+  funding: RegistrationFundingSummary | undefined,
+  amountInRaw: bigint | undefined,
+  estimatedAmountIn: bigint | undefined,
+  isRegistrationFeeEstimated: boolean,
+): Readonly<{ networkFee: number | undefined; isEstimated: boolean }> => {
+  const amountIn = amountInRaw ?? estimatedAmountIn
+  if (amountIn !== undefined)
+    return {
+      networkFee:
+        funding &&
+        getPaymentBreakdownFigures(getL2FundingSummary(funding, amountIn))
+          .networkFee,
+      isEstimated: amountInRaw === undefined,
+    }
+  return isRegistrationFeeEstimated && funding
+    ? { networkFee: funding.networkFee, isEstimated: true }
+    : { networkFee: undefined, isEstimated: false }
 }
 
 /** A chosen L2 pays in place of the wallet, so only its own quote must cover it. */
@@ -842,35 +874,36 @@ export const getL2MethodItems = (
   l2Payment: L2PaymentProps | undefined,
   selectedL2: L2PaymentRow | undefined,
   funding: RegistrationFundingSummary | undefined,
+  /** Registration lists every L2 holding USDC, whether or not it can pay; renewal lists the quoted ones. */
+  isEveryHoldingListed: boolean,
 ): PaymentMethodListItem[] => {
   if (!l2Payment) return []
   const estimatedAmountIn = getEstimatedL2AmountIn(l2Payment.rows)
-  // A chain holding USDC appears once quoted, short or not; a chosen one stays through refreshes, unless it is empty.
+  // A chosen chain stays through refreshes, unless it is empty.
   return l2Payment.rows
     .filter(
       (row) =>
         !isL2Empty(row) &&
-        (row === selectedL2 || row.amountInRaw !== undefined),
+        (row === selectedL2 ||
+          row.amountInRaw !== undefined ||
+          (isEveryHoldingListed && row.option.balanceRaw !== null)),
     )
     .sort(byBalanceDescending)
     .map((row) => {
-      const amountIn = row.amountInRaw ?? estimatedAmountIn
+      const fee = getL2RowFee(
+        funding,
+        row.amountInRaw,
+        estimatedAmountIn,
+        isEveryHoldingListed,
+      )
       return {
         id: row.option.id,
         isSelected: row === selectedL2,
         content: (
           <L2SourceListItem
-            isFeeEstimated={
-              row.amountInRaw === undefined && estimatedAmountIn !== undefined
-            }
+            isFeeEstimated={fee.isEstimated}
             isSelected={row === selectedL2}
-            networkFee={
-              funding && amountIn !== undefined
-                ? getPaymentBreakdownFigures(
-                    getL2FundingSummary(funding, amountIn),
-                  ).networkFee
-                : undefined
-            }
+            networkFee={fee.networkFee}
             onSelect={() => l2Payment.onSelect(row.option.source.chain.id)}
             row={row}
           />
@@ -986,7 +1019,7 @@ const DomainHeading = ({
         )}
         title={domainName}
       >
-        {domainName}
+        <EthNameText label={label} />
       </span>
     </div>
   )
@@ -1156,7 +1189,12 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           hasBalances && hasSufficientBalanceForSelectedCoin,
         ))
   const walletSelection = selectedL2 || selectedEth ? undefined : selectedToken
-  const l2MethodItems = getL2MethodItems(l2Payment, selectedL2, funding)
+  const l2MethodItems = getL2MethodItems(
+    l2Payment,
+    selectedL2,
+    funding,
+    registrationReceipt !== undefined,
+  )
   const ethMethodItems = getEthMethodItems(ethPayment, displayedNetworkFee)
 
   const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
@@ -1232,16 +1270,18 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
       origin: l2Payment?.selectedOrigin,
     }),
   )
-  const fallbackChoice = l2Payment
-    ? getFallbackPaymentChoice({
-        current: currentMethod,
-        payableMethods: getPayableMethods(
-          stablecoinBalances,
-          walletShareOf,
-          l2Payment.rows,
-        ),
-      })
-    : undefined
+  const fallbackChoice =
+    l2Payment || ethPayment
+      ? getFallbackPaymentChoice({
+          current: currentMethod,
+          payableMethods: getPayableMethods(
+            stablecoinBalances,
+            walletShareOf,
+            l2Payment?.rows ?? [],
+          ),
+          isEthPayable: !!ethPayment && canPayWithEth(ethPayment.row),
+        })
+      : undefined
   useFallbackPaymentChoice({
     choice: fallbackChoice,
     // Never mid-click: any send invalidates the click's pricing snapshot.
@@ -1256,6 +1296,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
       !(selectedEth && isEthPending),
     onSelectCoin,
     onSelectL2: l2Payment?.onFallbackSelect,
+    onSelectEth: ethPayment?.onFallbackSelect,
   })
 
   const warning =
@@ -1266,6 +1307,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
         selectedL2,
         funding?.walletDebit,
         l2Payment && getEstimatedL2AmountIn(l2Payment.rows),
+        registrationReceipt !== undefined,
       )) ||
     (revalidatedShortfall !== undefined &&
       t`${formatUsd(revalidatedShortfall)} more needed in your wallet.`) ||
@@ -1273,7 +1315,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
       isShort: isWalletSelectionShort,
       current: currentMethod,
       hasFallback: !!fallbackChoice,
-      isSettling: isL2Pending || hasStaleL2Quote,
+      isSettling: isL2Pending || hasStaleL2Quote || isEthPending,
     }) &&
       t`You do not have enough ${walletSelection} for this transaction.`)
 

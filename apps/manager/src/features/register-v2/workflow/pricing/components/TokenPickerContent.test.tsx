@@ -422,16 +422,16 @@ describe('TokenPickerContent', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows the wallet while an L2 is still unquoted, and not the L2', () => {
+  it('shows the wallet and an L2 holding USDC before the L2 is quoted', () => {
     containerMocks.l2Balances = { [baseSepolia.id]: 25_000_000n }
     renderContainer()
 
     expect(screen.getByRole('button', { name: 'Select USDC' })).toBeVisible()
     expect(
-      screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).toBeVisible()
   })
-  it('hides every method known to be short, the wallet included', () => {
+  it('lists every method holding something, short or not, and hides the empty wallet', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
     containerMocks.walletBalance = '0'
     containerMocks.renderBudget = fiveUsdcBudget
@@ -449,8 +449,8 @@ describe('TokenPickerContent', () => {
       screen.queryByRole('button', { name: 'Select USDC' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
+    ).toBeVisible()
   })
 
   it('moves to the L2 holding the most when the wallet cannot pay', () => {
@@ -1139,6 +1139,108 @@ describe('TokenPickerContentBase L2 rows', () => {
     selectedChainId: number | undefined = undefined,
   ) => l2PaymentOf([row], selectedChainId)
 
+  const shortL2Payment = () => {
+    const shortRow = baseSepoliaRow('insufficient')
+    return l2Payment({
+      ...shortRow,
+      option: { ...shortRow.option, balanceRaw: 2_000_000n },
+    })
+  }
+
+  it('lists an L2 that holds USDC but cannot pay, and leaves the pick to the user', () => {
+    const payment = shortL2Payment()
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: payment,
+      registrationReceipt: { totalRaw: 5_000_000n },
+    })
+
+    const row = screen.getByRole('button', {
+      name: 'Select USDC on Base Sepolia',
+    })
+    expect(row).toBeVisible()
+    expect(payment.onSelect).not.toHaveBeenCalled()
+    fireEvent.click(row)
+    expect(payment.onSelect).toHaveBeenCalledWith(baseSepolia.id)
+  })
+
+  const failedQuoteRow = () =>
+    baseSepoliaRow('available', { hasQuoteFailed: true })
+
+  it('lists an L2 holding USDC whose quote failed, without moving to it', () => {
+    const payment = l2Payment(failedQuoteRow())
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: payment,
+      registrationReceipt: { totalRaw: 5_000_000n },
+    })
+
+    expect(
+      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).toBeVisible()
+    expect(payment.onSelect).not.toHaveBeenCalled()
+  })
+
+  it('says a picked L2 whose quote failed cannot be used right now', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: l2Payment(failedQuoteRow(), baseSepolia.id),
+      registrationReceipt: { totalRaw: 5_000_000n },
+    })
+
+    expect(
+      screen.getByText("Paying from Base Sepolia isn't available right now."),
+    ).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
+  it('keeps an unquoted L2 hidden in renewal', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: l2Payment(failedQuoteRow()),
+    })
+
+    expect(
+      screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('in registration, says a picked short L2 lacks USDC and estimates its fee', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: { ...shortL2Payment(), selectedChainId: baseSepolia.id },
+      registrationReceipt: { totalRaw: 5_000_000n },
+    })
+
+    expect(
+      screen.getByText('You do not have enough USDC for this transaction.'),
+    ).toBeVisible()
+    expect(screen.getByText('Est. fee: ~$0.20')).toBeVisible()
+  })
+
+  it('keeps a short L2 hidden in renewal', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: shortL2Payment(),
+    })
+
+    expect(
+      screen.queryByRole('button', { name: 'Select USDC on Base Sepolia' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('lists an L2 next to a wallet that cannot pay, and selects it on click', () => {
     const payment = l2Payment(
       baseSepoliaRow('available', { amountInRaw: 5_012_573n }),
@@ -1468,6 +1570,7 @@ describe('TokenPickerContentBase ETH row', () => {
     },
     isSelected,
     onSelect: vi.fn(),
+    onFallbackSelect: vi.fn(),
   })
 
   it('lists ETH next to a wallet that cannot pay, and selects it on click', () => {
@@ -1503,6 +1606,34 @@ describe('TokenPickerContentBase ETH row', () => {
       ).toBe(isListed)
     },
   )
+
+  it('moves to ETH when nothing else can pay, without blaming the empty USDC', () => {
+    const ethPayment = ethPaymentOf()
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment,
+    })
+
+    expect(ethPayment.onFallbackSelect).toHaveBeenCalledOnce()
+    expect(ethPayment.onSelect).not.toHaveBeenCalled()
+    expect(
+      screen.queryByText('You do not have enough USDC for this transaction.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('stays on a wallet coin that can pay rather than swapping ETH', () => {
+    const ethPayment = ethPaymentOf()
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      ethPayment,
+    })
+
+    expect(ethPayment.onFallbackSelect).not.toHaveBeenCalled()
+  })
 
   it('keeps the methods as they were clicked while paying', () => {
     const ethPayment = ethPaymentOf({}, true)

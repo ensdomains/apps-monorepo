@@ -4242,6 +4242,10 @@ msgstr "You do not have enough ETH for this transaction."
 msgid "You do not have enough funds to complete this transaction."
 msgstr "You do not have enough funds to complete this transaction."
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "You do not have enough USDC for this transaction."
+msgstr "You do not have enough USDC for this transaction."
+
 #: src/features/migration/components/MigrationModal.tsx
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
 msgstr "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
