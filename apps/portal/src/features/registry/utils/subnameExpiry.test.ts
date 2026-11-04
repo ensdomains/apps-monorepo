@@ -31,6 +31,28 @@ describe('getSubnameExpirySeconds', () => {
       NOW + BigInt(10 * SECONDS_PER_DAY),
     )
   })
+
+  it.each<SubnameExpiry>([
+    {
+      type: 'span',
+      span: { type: 'date', date: Temporal.PlainDate.from('2028-01-15') },
+    },
+    { type: 'span', span: { type: 'years', years: 1 } },
+  ])(
+    'keeps a year out on its calendar day, late in the day too (%o)',
+    (expiry) => {
+      const lateInTheDay = NOW + 12n * 3600n
+      expect(
+        getSubnameExpirySeconds(expiry, { ...CLOCK, nowSeconds: lateInTheDay }),
+      ).toBe(lateInTheDay + BigInt(365 * SECONDS_PER_DAY))
+    },
+  )
+
+  it('still lands a day out once the picked date is no longer ahead', () => {
+    expect(getSubnameExpirySeconds(inDays(0), CLOCK)).toBe(
+      NOW + BigInt(SECONDS_PER_DAY),
+    )
+  })
 })
 
 describe('isPastParentExpiry', () => {
