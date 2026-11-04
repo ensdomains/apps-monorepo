@@ -133,7 +133,7 @@ pnpm --filter manager dev -- --port 3000
 
 | # | Steps | Pass |
 |---|---|---|
-| M1 | First registration. Open `/register/<new label>`, click **Pay with stablecoins**, enable sessions, and pick **USDC**. Find the `intents/route` request whose executions include `0xcff3e7c2…` (register) | The batch starts with a call to `0xDa70…2991` (`0x5d84121a…`, `deployProxy`). `destinationGasUnits` is **660000** with the primary-name toggle off, and 660000 + the primary-name gas with it on (700000 for any name up to 31 bytes) |
+| M1 | First registration. Open `/register/<new label>`, click **Pay**, enable sessions, and pick **USDC**. Find the `intents/route` request whose executions include `0xcff3e7c2…` (register) | The batch starts with a call to `0xDa70…2991` (`0x5d84121a…`, `deployProxy`). `destinationGasUnits` is **660000** with the primary-name toggle off, and 660000 + the primary-name gas with it on (700000 for any name up to 31 bytes) |
 | M2 | Complete that registration, then repeat M1 with another new label | No `deployProxy` call. `destinationGasUnits` is **450000** (+ the primary-name gas when on) |
 | M3 | Failed quote. Open the picker as in M1, so sessions are already enabled. Right-click any `intents/route` request → **Block request URL**, then reopen the picker by navigating to the same `/register/<label>`. Blocking before enabling sessions blocks the session-enable intent too | "We couldn't calculate the total. Please try again." is shown, the total reads **—**, and the action is **Try again** |
 | M4 | Unblock the URL and reopen the picker | No error. Register is enabled |

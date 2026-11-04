@@ -5,14 +5,14 @@ import type {
 import type { RENEWAL_TOKEN, TOKEN_SYMBOL } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
-/** The rent is paid in the chosen coin; the intent's fee is always USDC. */
+/** The price is paid in the chosen coin; the intent's fee is always USDC. */
 const FEE_TOKEN: TOKEN_SYMBOL = 'USDC'
 
 export type RenewalFundingSummary = {
-  /** The rent with its approval headroom: what the renewer may pull. */
+  /** The price with its approval headroom: what the renewer may pull. */
   readonly registration: number
   readonly networkFee: number
-  /** Rent with headroom plus the fee: the figure shown as "up to". */
+  /** Price with headroom plus the fee: the figure shown as "up to". */
   readonly total: number
   /** What the wallet covers across both coins after the account's own balances. */
   readonly walletDebit: number
@@ -22,19 +22,19 @@ export type RenewalFundingSummary = {
 
 export type RenewalFunding = {
   readonly summary: RenewalFundingSummary
-  /** What the wallet must cover in `symbol` if it pays the rent: the fee only counts against USDC. */
+  /** What the wallet must cover in `symbol` if it pays the price: the fee only counts against USDC. */
   readonly walletDebitFor: (symbol: TOKEN_SYMBOL) => number
 }
 
 type Leg = readonly [symbol: TOKEN_SYMBOL, amount: number]
 
 /**
- * What a smart-account renewal needs from the wallet. The rent (with its
+ * What a smart-account renewal needs from the wallet. The price (with its
  * headroom) is owed in the chosen coin and the fee in USDC, and the account's
  * own balance of each pays first.
  */
 export const computeRenewalFunding = (params: {
-  /** The rent with its approval headroom, in the chosen coin. */
+  /** The price with its approval headroom, in the chosen coin. */
   readonly funded: number
   readonly networkFee: number
   readonly selectedToken: RENEWAL_TOKEN
@@ -47,11 +47,11 @@ export const computeRenewalFunding = (params: {
   const debitOf = ([symbol, amount]: Leg) =>
     Math.max(0, amount - creditOf(symbol, amount))
 
-  // Were `symbol` the chosen coin, it would owe the rent, plus the fee if it is USDC.
+  // Were `symbol` the chosen coin, it would owe the price, plus the fee if it is USDC.
   const walletDebitFor = (symbol: TOKEN_SYMBOL) =>
     debitOf([symbol, funded + (symbol === FEE_TOKEN ? networkFee : 0)])
 
-  // The headline covers both coins: the rent in the chosen one, the fee in USDC.
+  // The headline covers both coins: the price in the chosen one, the fee in USDC.
   const legs: readonly Leg[] =
     selectedToken === FEE_TOKEN
       ? [[FEE_TOKEN, funded + networkFee]]
@@ -77,7 +77,7 @@ const debitRaw = (amount: bigint, credit: bigint | undefined) =>
 
 /** The wallet debit {@link computeRenewalFunding} shows, in each coin's units; the intent may not take more. */
 export const computeRenewalDisplayedDebit = (params: {
-  /** The rent with its approval headroom, in the chosen coin's units. */
+  /** The price with its approval headroom, in the chosen coin's units. */
   readonly fundedRaw: bigint
   /** USDC (6dp). */
   readonly networkFeeRaw: bigint

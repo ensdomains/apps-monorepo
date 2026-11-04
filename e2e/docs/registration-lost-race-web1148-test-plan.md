@@ -113,7 +113,7 @@ pnpm --filter manager dev -- --port 3000
 
 | # | Step | Pass |
 |---|---|---|
-| M1 | Search `race-test-1`, open it, Pay with stablecoins → USDC → Register name → Set up later. Wait for the commit to confirm and the countdown to start, then run the rival command | The rival command prints `registered race-test-1.eth` |
+| M1 | Search `race-test-1`, open it, Pay → USDC → Register name → Set up later. Wait for the commit to confirm and the countdown to start, then run the rival command | The rival command prints `registered race-test-1.eth` |
 | M2 | Wait for the countdown to end | The failure panel reads **Name No Longer Available** and "race-test-1.eth was registered by another address first." The body says another address registered it first. **No Try Again**; Back to Quote is the only (blue) button |
 | M3 | Wait 30s on that screen; watch the console | No new `tx-reg-commit` or `tx-reg-register` lines; no wallet prompts |
 | M4 | Press Back to Quote | Lands on `/race-test-1.eth`, which shows `0x7099…79C8` as owner |

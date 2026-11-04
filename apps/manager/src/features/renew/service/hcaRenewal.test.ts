@@ -140,11 +140,11 @@ beforeEach(() => {
 })
 
 describe('submitHcaRenewal', () => {
-  it('approves the renewer for the live rent plus headroom, then renews', async () => {
+  it('approves the renewer for the live price plus headroom, then renews', async () => {
     await submitHcaRenewal(params)
 
     // Priced at submit time, not from the screen before: the renewer computes
-    // the rent when it executes.
+    // the price when it executes.
     expect(mocks.getRenewPrice).toHaveBeenCalledWith(
       'alice',
       31_536_000n,
@@ -157,7 +157,7 @@ describe('submitHcaRenewal', () => {
       decodeFunctionData({ abi: erc20Abi, data: approve.data as Hex }),
     ).toMatchObject({
       functionName: 'approve',
-      // 1.0 rent + 10% drift headroom — bounded, deliberately not unlimited.
+      // 1.0 price + 10% drift headroom — bounded, deliberately not unlimited.
       args: [RENEWER, 1_100_000n],
     })
     expect(actionCall()).toMatchObject({
@@ -174,7 +174,7 @@ describe('submitHcaRenewal', () => {
     expect(mocks.encodeRenewBatchData).not.toHaveBeenCalled()
   })
 
-  it('funds the rent on top of the fee, since both come out of the HCA', async () => {
+  it('funds the price on top of the fee, since both come out of the HCA', async () => {
     await submitHcaRenewal(params)
 
     expect(fundingParams()).toMatchObject({
@@ -250,7 +250,7 @@ describe('submitHcaRenewal', () => {
     })
   })
 
-  it('pays the rent in DAI as a leg of its own, the fee still in USDC', async () => {
+  it('pays the price in DAI as a leg of its own, the fee still in USDC', async () => {
     const DAI = TOKENS.DAI.address
 
     await submitHcaRenewal({ ...params, token: 'DAI' })
@@ -519,7 +519,7 @@ describe('submitHcaRenewal paid from an L2', () => {
 
     await run()
 
-    // 1.10 rent + 0.90 fee widened by 25%, less the 0.20 already held.
+    // 1.10 price + 0.90 fee widened by 25%, less the 0.20 already held.
     expect(bridged()).toMatchObject({
       hca: HCA,
       payment: { source, amount: 2_025_000n, displayedCharge: 2_100_000n },
@@ -603,7 +603,7 @@ describe('submitHcaRenewal paid from an L2', () => {
       l2Funding: { source, displayedCharge: 4_300_000n },
     })
 
-    // 2 × 1.10 rent + 2 × 0.90 fee widened by 25%, less the 0.20 held.
+    // 2 × 1.10 price + 2 × 0.90 fee widened by 25%, less the 0.20 held.
     expect(mocks.submitL2BridgeActor).toHaveBeenCalledOnce()
     expect(bridged()).toMatchObject({
       payment: { amount: 4_250_000n, displayedCharge: 4_300_000n },

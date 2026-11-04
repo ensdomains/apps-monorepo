@@ -1,6 +1,6 @@
 import type { ClassifiedName } from '@ens-apps/migration'
 import { useFeatureFlagEnabled } from '@posthog/react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { match } from 'ts-pattern'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
@@ -30,6 +30,7 @@ export const useSubnameMigrationImpact = ({
   isPrepared,
   isRefetchEnabled = true,
 }: Parameters) => {
+  const queryClient = useQueryClient()
   const recoverySnapshot = useMigrationRecoverySnapshot()
   const coordinator = useUpgradeReadCoordinator()
   const isCleanupRecovery =
@@ -91,20 +92,19 @@ export const useSubnameMigrationImpact = ({
       isReady,
     }
   }
-  const query = useQuery(
-    getSubnameMigrationImpactQueryOptions({
-      coordinator: coordinator ?? undefined,
-      ownerAddress,
-      chainId: publicClient.chain.id,
-      migratingNames,
-      copiedNames,
-      renewingNames,
-      isEnabled: isEnabled && !recoverySnapshot,
-      isPrepared,
-      hasSelectedNames: selected.size > 0,
-      isRefetchEnabled,
-    }),
-  )
+  const queryOptions = getSubnameMigrationImpactQueryOptions({
+    coordinator: coordinator ?? undefined,
+    ownerAddress,
+    chainId: publicClient.chain.id,
+    migratingNames,
+    copiedNames,
+    renewingNames,
+    isEnabled: isEnabled && !recoverySnapshot,
+    isPrepared,
+    hasSelectedNames: selected.size > 0,
+    isRefetchEnabled,
+  })
+  const query = useQuery(queryOptions)
   // Recovery first reconciles recorded transactions and temporary approvals.
   // A fresh indexer outage cannot stop that work. The execution service checks
   // the saved source and feature availability before any further submission.
@@ -136,10 +136,22 @@ export const useSubnameMigrationImpact = ({
     if (recoverySnapshot) return true
     const current = query.data
     const revision = currentSelection.current.revision
-    const result = await query.refetch()
+    const pending = query.refetch()
+    // Observer refetch can restore cached success on cancellation. The
+    // underlying query promise rejects it instead of authorizing from old data.
+    const verification = queryClient.getQueryCache().find({
+      queryKey: queryOptions.queryKey,
+      exact: true,
+    })?.promise
+    const hasFreshVerification = await verification?.then(
+      () => true,
+      () => false,
+    )
+    const result = await pending
     // Re-read immediately before starting, including on a same-plan retry.
     // Changed/failed reads leave the new result visible for another decision.
     return (
+      hasFreshVerification === true &&
       !result.isError &&
       result.data !== undefined &&
       currentSelection.current.key === selectionKey &&

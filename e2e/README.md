@@ -89,7 +89,7 @@ Full ENS name registration flow with stablecoin (USDC) payment:
 2. Search for `E2E_DOMAIN` in the header search bar
 3. Click the search result
 4. Change registration duration to 2 years ($10 USD)
-5. Click "Pay with Stablecoins" → select USDC → "Confirm Payment"
+5. Click "Pay" → select USDC → "Confirm Payment"
 6. Start `ConsoleMonitor` before clicking "BUY NAME"
 7. Wait for `monitor.waitForRegistrationComplete(120_000)`
 8. Assert `success` state and "Registration Complete" banner

@@ -10,7 +10,10 @@ import { publicClient, testClient } from '../../../helpers/anvil-client.js'
 import { expectFlowSuccess } from '../../../helpers/flow-completion.js'
 import { fundTestUsdc } from '../../../helpers/fund-test-usdc.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
-import { selectUsdcIfNeeded } from '../../../helpers/payment-picker.js'
+import {
+  clickRegistrationPaymentAction,
+  selectUsdcIfNeeded,
+} from '../../../helpers/payment-picker.js'
 import { readPrimaryName } from '../../../helpers/primary-name.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -73,15 +76,13 @@ firstRegistrationTest.describe(
 
         await page.goto(`${MANAGER_APP_URL}/register/${nameOnly}`)
 
-        await page
-          .getByRole('button', { name: /pay with stablecoins/i })
-          .click()
-        // Smart-session gate: on the HCA path clicking "Pay with stablecoins" opens
+        await page.getByRole('button', { name: 'Continue to payment' }).click()
+        // Smart-session gate: on the HCA path clicking "Continue to payment" opens
         // the EnableSessions modal before the token picker. Idempotent no-op in
         // EOA mode. See registration-rhinestone.spec.ts.
         await clickThroughEnableSessions(page)
         await selectUsdcIfNeeded(page)
-        await page.getByRole('button', { name: /register name/i }).click()
+        await clickRegistrationPaymentAction(page)
 
         // RegisteringStep renders NotificationSettings for as long as the
         // parallel `notifications` region sits in its initial `settings` state —

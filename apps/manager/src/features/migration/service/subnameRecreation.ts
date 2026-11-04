@@ -39,6 +39,7 @@ import {
   getProvenSubnameName,
 } from './rpcSubnameInventory'
 import { isEmptyRpcSubnameTombstone } from './rpcSubnameMigrationImpact'
+import { readSubnameMigrationImpactWithRetry } from './subnameMigrationImpactRetry'
 import {
   assertSubnameRecreationSnapshotCurrent,
   SubnameRecreationError,
@@ -853,15 +854,19 @@ export const assertSupportedSubnameMigration = async (params: {
   const migratingNames = params.classified
     .filter((name) => name.action === 'migrate')
     .map(({ domain }) => domain.name)
-  const impact = await readRpcSubnameMigrationImpact({
-    inventory: params.inventory,
-    onInventory: params.onInventory,
-    publicClient: params.publicClient,
-    verificationClient: params.verificationClient,
-    migratingNames,
-    copiedNames: params.classified
-      .filter((name) => name.action === 'copy')
-      .map(({ domain }) => domain.name),
+  const impact = await readSubnameMigrationImpactWithRetry({
+    read: () =>
+      readRpcSubnameMigrationImpact({
+        inventory: params.inventory,
+        onInventory: params.onInventory,
+        publicClient: params.publicClient,
+        verificationClient: params.verificationClient,
+        migratingNames,
+        copiedNames: params.classified
+          .filter((name) => name.action === 'copy')
+          .map(({ domain }) => domain.name),
+        signal: params.signal,
+      }),
     signal: params.signal,
   })
   if (impact.affectedCount > 0)
