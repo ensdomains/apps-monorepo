@@ -44,7 +44,7 @@ export const RenewalFundingDialog = ({
     ]}
     note={
       <Trans>
-        The renewal price includes a 10% buffer: the final price is set when the
+        The renewal price includes a 2% buffer: the final price is set when the
         renewal executes, slightly after this quote.
       </Trans>
     }
