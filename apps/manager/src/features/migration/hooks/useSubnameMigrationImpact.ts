@@ -13,6 +13,7 @@ type Parameters = {
   readonly selectedNames: readonly string[]
   readonly classified: readonly ClassifiedName[]
   readonly renewingNames: readonly string[]
+  readonly unknownLabelNames?: readonly string[]
   readonly ownerAddress?: string | null
   readonly managerRestorationNames?: readonly string[]
   readonly isEnabled: boolean
@@ -24,6 +25,7 @@ export const useSubnameMigrationImpact = ({
   selectedNames,
   classified,
   renewingNames,
+  unknownLabelNames,
   ownerAddress,
   managerRestorationNames = [],
   isEnabled,
@@ -99,6 +101,7 @@ export const useSubnameMigrationImpact = ({
     migratingNames,
     copiedNames,
     renewingNames,
+    unknownLabelNames,
     isEnabled: isEnabled && !recoverySnapshot,
     isPrepared,
     hasSelectedNames: selected.size > 0,
@@ -112,6 +115,7 @@ export const useSubnameMigrationImpact = ({
     ? {
         parents: [],
         affectedCount: 0,
+        unrecoverable: [],
         fingerprint: selectionKey,
         checkedAt: 0,
       }

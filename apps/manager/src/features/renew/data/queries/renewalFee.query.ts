@@ -15,7 +15,7 @@ import { chunkRenewalItems } from '../../utils/chunks'
 import { sumRenewalFees } from '../../utils/renewalFees'
 import type { RenewalProtocol } from '../../utils/renewalProtocol'
 
-/** The rail refused to price the intent; the dialog then shows the price alone. */
+/** The rail refused to price the intent; the renewal stays blocked until a retry succeeds. */
 export class QuoteRenewalFeeError extends TaggedError('QuoteRenewalFeeError')<{
   readonly cause: unknown
 }> {}

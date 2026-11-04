@@ -29,6 +29,8 @@ const payment: UseBulkRenewResult['payment'] = {
   intentFunding: {
     isIntentRoute: true,
     isQuoting: false,
+    hasQuoteFailed: false,
+    retryQuote: () => {},
     funding: {
       registration: 22,
       networkFee: 0.3,

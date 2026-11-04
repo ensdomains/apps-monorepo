@@ -11,7 +11,7 @@ import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
   submitApprovalActor,
-  submitRenewActor,
+  submitRenewBatchActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
@@ -24,14 +24,15 @@ import { envConfig } from '@/config'
 import { invalidateDashboardNames } from '@/features/dashboard/service/queries/getDashboardNames'
 import { getExpiry } from '@/features/profile/service/profileExpiry'
 import { getL2FundingSource } from '@/features/register-v2/service/l2FundingSource'
+import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import {
   fundHcaRenewalsFromL2,
   type HcaRenewalL2Funding,
   submitHcaRenewal,
 } from '@/features/renew/service/hcaRenewal'
 import { chunkRenewalItems } from '@/features/renew/utils/chunks'
-import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import {
   useHcaFundingPrompt,
   useSmartAccountContext,
@@ -51,9 +52,10 @@ const SETTLE_MS = 600
 // Bulk renewal takes whichever route the account has. With a smart account the
 // whole selection renews as owner-signed HCA intents paid out of the account
 // (price in the chosen stable, fee in USDC) — one intent per chunk of names,
-// each renewing its chunk atomically in a single `renewBatch`. Without one it
-// falls back to the direct-wallet route: the connected EOA approves once and
-// renews each name itself, one transaction per name.
+// each renewing its chunk atomically in a single `renewBatch`. Without one
+// (EOA-only mode, or a Safe{Wallet}, which can't sign for its HCA) it takes the
+// direct-wallet route: the wallet approves once, then sends one `renewBatch`
+// transaction per chunk.
 //
 // The wallet route cannot use the HCA. `AbstractETHRegistrar.renew` charges
 // `msg.sender` with no HCA unwrap, and the scoped session's policy allowlists
@@ -78,9 +80,9 @@ type Context = {
 }
 
 /**
- * Authorize the whole batch once: approve the registrar for the summed price so
- * the individual `renew` calls can each pull from the same allowance. Resolves
- * immediately when the existing allowance already covers the batch.
+ * Authorize the whole selection once: approve the registrar for the summed
+ * price so each chunk's `renewBatch` pulls from the same allowance. Resolves
+ * immediately when the existing allowance already covers the selection.
  */
 const authorizeSpend = (
   ctx: Context,
@@ -106,42 +108,46 @@ const authorizeSpend = (
         .map(() => undefined)
     })
 
-/** Renew one name and wait for it to land. */
-const renewOne = (
-  ctx: Context,
-  item: AttributedRenewItem,
-): ResultAsync<void, Error> =>
-  submitRenewActor({
-    label: item.label,
-    duration: item.duration,
-    referrer: item.referrer,
-    selectedToken: ctx.token,
-    signer: ctx.signer,
-    publicClient,
-  })
-    .andThen((txId) => pollTransactionStatusActor({ txId }))
-    .map(() => undefined)
-
 /**
- * Renew each name in turn, reporting per-row progress.
+ * Renew the selection one chunk at a time.
  *
- * Sequential rather than atomic: each name is its own transaction, so a failure
- * part-way leaves the earlier names genuinely renewed. `onDone` records them so
- * a retry resumes from the first failure instead of re-paying for the batch.
+ * Each chunk is atomic: either every name in it renews or none does, which is
+ * why progress is reported per chunk rather than per name. A failure stops the
+ * run, and the chunks that already landed are recorded as done so a retry
+ * resumes instead of re-paying for them.
  */
-const runRenewals = ResultFn(async function* (
-  ctx: Context,
+const renewInChunks = ResultFn(async function* (
   remaining: readonly AttributedRenewItem[],
-  reporters: RowReporters,
+  { onActive, onDone }: RowReporters,
+  renewChunk: (
+    chunk: readonly AttributedRenewItem[],
+  ) => ResultAsync<unknown, Error>,
+  signal?: AbortSignal,
 ) {
-  const { onActive, onDone } = reporters
-  for (const item of remaining) {
-    onActive(item.label)
-    yield* renewOne(ctx, item)
-    onDone(item.label)
+  for (const chunk of chunkRenewalItems(remaining)) {
+    if (signal?.aborted)
+      return err(new Error('The bulk renewal screen was closed.'))
+    for (const item of chunk) onActive(item.label)
+    yield* renewChunk(chunk)
+    for (const item of chunk) onDone(item.label)
   }
   return ok(undefined)
 })
+
+/** Wallet route: one `renewBatch` transaction per chunk, each awaited. */
+const runRenewals = (
+  ctx: Context,
+  remaining: readonly AttributedRenewItem[],
+  reporters: RowReporters,
+) =>
+  renewInChunks(remaining, reporters, (chunk) =>
+    submitRenewBatchActor({
+      renewals: chunk,
+      selectedToken: ctx.token,
+      signer: ctx.signer,
+      publicClient,
+    }).andThen((txId) => pollTransactionStatusActor({ txId })),
+  )
 
 type HcaContext = {
   readonly signer: RhinestoneSigner
@@ -150,14 +156,7 @@ type HcaContext = {
   readonly token: RENEWAL_TOKEN
 }
 
-/**
- * Renew the selection one intent at a time.
- *
- * Each chunk is atomic: either every name in it renews or none does, which is
- * why progress is reported per chunk rather than per name. A failure stops the
- * run, and the chunks that already landed are recorded as done so a retry
- * resumes instead of re-paying for them.
- */
+/** Smart-account route: one owner-signed intent per chunk. */
 const runHcaRenewals = ResultFn(async function* (
   ctx: HcaContext,
   remaining: readonly AttributedRenewItem[],
@@ -168,8 +167,6 @@ const runHcaRenewals = ResultFn(async function* (
   // Bridges what the account is short of every chunk in from this L2, once.
   l2Funding?: HcaRenewalL2Funding,
 ) {
-  const { onActive, onDone } = reporters
-  const chunks = chunkRenewalItems(remaining)
   const toError = (error: unknown) =>
     error instanceof Error ? error : new Error(String(error))
   const intentParams = {
@@ -185,32 +182,34 @@ const runHcaRenewals = ResultFn(async function* (
   } as const
 
   if (l2Funding) {
-    for (const item of remaining) onActive(item.label)
+    for (const item of remaining) reporters.onActive(item.label)
     yield* ResultAsync.fromPromise(
-      fundHcaRenewalsFromL2({ ...intentParams, batches: chunks, l2Funding }),
-      toError,
-    )
-  }
-
-  for (const chunk of chunks) {
-    if (signal?.aborted)
-      return err(new Error('The bulk renewal screen was closed.'))
-    for (const item of chunk) onActive(item.label)
-
-    yield* ResultAsync.fromPromise(
-      submitHcaRenewal({
+      fundHcaRenewalsFromL2({
         ...intentParams,
-        items: chunk,
-        walletClient: ctx.walletClient,
-        ...(confirmFunding ? { confirmFunding } : {}),
-        ...(approvalFallback ? { approvalFallback } : {}),
-        ...(signal ? { signal } : {}),
+        batches: chunkRenewalItems(remaining),
+        l2Funding,
       }),
       toError,
     )
-
-    for (const item of chunk) onDone(item.label)
   }
+
+  yield* renewInChunks(
+    remaining,
+    reporters,
+    (chunk) =>
+      ResultAsync.fromPromise(
+        submitHcaRenewal({
+          ...intentParams,
+          items: chunk,
+          walletClient: ctx.walletClient,
+          ...(confirmFunding ? { confirmFunding } : {}),
+          ...(approvalFallback ? { approvalFallback } : {}),
+          ...(signal ? { signal } : {}),
+        }),
+        toError,
+      ),
+    signal,
+  )
   return ok(undefined)
 })
 
@@ -246,29 +245,24 @@ type SmartAccount = ReturnType<typeof useSmartAccountContext>
  * the same EOA that submits.
  */
 const resolveContext = (
-  account: SmartAccount,
+  signer: Signer | null,
   token: RENEWAL_TOKEN,
 ): Context | null => {
-  if (getRenewalPaymentRoute(account.signer) !== 'wallet') return null
-  const walletClient = account.walletClient
-  const ownerAddress = walletClient?.account?.address
-  if (!walletClient || !ownerAddress) return null
-  return {
-    signer: { type: 'eoa', walletClient: walletClient as WalletClient },
-    ownerAddress,
-    token,
-  }
+  if (signer?.type !== 'eoa') return null
+  const ownerAddress = signer.walletClient.account?.address
+  if (!ownerAddress) return null
+  return { signer, ownerAddress, token }
 }
 
 /**
  * Resolve the smart-account context, or `null` when the account has no HCA
- * (EOA-only mode) or is still initializing.
+ * (EOA-only mode or a Safe{Wallet}) or is still initializing.
  */
 const resolveHcaContext = (
-  account: SmartAccount,
+  { ownerAddress, walletClient }: SmartAccount,
+  signer: Signer | null,
   token: RENEWAL_TOKEN,
 ): HcaContext | null => {
-  const { signer, ownerAddress, walletClient } = account
   if (signer?.type !== 'rhinestone' || !ownerAddress || !walletClient) {
     return null
   }
@@ -351,6 +345,7 @@ export type UseBulkRenewSubmit = {
 export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const { referrer } = useSearch({ strict: false })
   const account = useSmartAccountContext()
+  const signer = useRenewalSigner()
   const {
     prompt: fundingPrompt,
     confirmFunding,
@@ -539,7 +534,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   }: SubmitArgs) => {
     const items = inputItems.map((item) => ({
       ...item,
-      referrer: normalizeReferrer(referrer),
+      referrer: normalizeReferrer(referrer, ENS_LABS_REFERRER),
     }))
     abortRef.current?.abort()
     abortRef.current = new AbortController()
@@ -549,11 +544,11 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     const runId = runIdRef.current
     const isCurrent = () => runIdRef.current === runId
 
-    const hca = resolveHcaContext(account, token)
-    const ctx = resolveContext(account, token)
+    const hca = resolveHcaContext(account, signer, token)
+    const ctx = resolveContext(signer, token)
     if (!hca && !ctx) {
       setErrorMessage(
-        account.walletClient && !account.signer
+        account.walletClient && !signer
           ? ACCOUNT_LOADING_MESSAGE
           : WALLET_REQUIRED_MESSAGE,
       )

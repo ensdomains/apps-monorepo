@@ -14,6 +14,7 @@ import type {
   L2PaymentRow,
 } from '@/features/register-v2/workflow/pricing/hooks/useL2Payment'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
+import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
 import {
@@ -106,7 +107,8 @@ export const useBulkRenew = ({
   readonly onSelectL2?: (chainId: number) => void
 }): UseBulkRenewResult => {
   const count = names.length
-  const { isConnected, signer, ownerAddress } = useSmartAccountContext()
+  const { isConnected, ownerAddress } = useSmartAccountContext()
+  const signer = useRenewalSigner()
   // `null` while the signer initializes: nothing is confirmable until the
   // route is known, so a smart account never falls back to the wallet route.
   const route = getRenewalPaymentRoute(signer)
