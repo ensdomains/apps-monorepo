@@ -15,8 +15,8 @@ msgstr ""
 
 #. placeholder {0}: filteredGracePeriodNames.length
 #: src/features/migration/components/SelectNamesStepNameList.tsx
-msgid "{0, plural, one {# name in grace} other {# names in grace}}"
-msgstr "{0, plural, one {# name in grace} other {# names in grace}}"
+msgid "{0, plural, one {# name in grace period} other {# names in grace period}}"
+msgstr "{0, plural, one {# name in grace period} other {# names in grace period}}"
 
 #. placeholder {0}: wrapperSyncNames.length
 #: src/features/migration/components/UpgradeBanner.tsx

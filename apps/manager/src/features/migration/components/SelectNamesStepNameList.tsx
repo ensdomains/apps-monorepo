@@ -76,8 +76,8 @@ const SelectNamesStepNameListComponent = ({
               <h2 className="flex items-center gap-2 font-normal font-semi-mono text-ens-garnet-900 text-sm uppercase leading-[1.2] tracking-[0.14px] md:text-base md:tracking-[0.16px]">
                 <RotateCcw aria-hidden className="size-4 shrink-0" />
                 <Plural
-                  one="# name in grace"
-                  other="# names in grace"
+                  one="# name in grace period"
+                  other="# names in grace period"
                   value={filteredGracePeriodNames.length}
                 />
               </h2>
