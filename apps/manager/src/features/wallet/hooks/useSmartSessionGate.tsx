@@ -17,9 +17,12 @@
  * `onProceed` immediately.
  */
 
+import { useQuery } from '@tanstack/react-query'
 import { useCallback, useRef, useState } from 'react'
+import { useConnection } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { needsSessionBeforeRegistration } from '@/lib/smart-account/sessionGate'
+import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
 import { EnableSessionModal } from '../components/EnableSessionModal'
 
 export interface SmartSessionGate {
@@ -35,6 +38,11 @@ export interface SmartSessionGate {
 
 export function useSmartSessionGate(): SmartSessionGate {
   const account = useSmartAccountContext()
+  const { connector, address } = useConnection()
+  const { data: isSafeWallet } = useQuery({
+    ...getIsSafeWalletQueryOptions({ connector, address }),
+    enabled: !!connector,
+  })
   const [isOpen, setIsOpen] = useState(false)
   // Only a failure during this prompt shows the error state, not one from an earlier visit.
   const [hasFailed, setHasFailed] = useState(false)
@@ -44,6 +52,8 @@ export function useSmartSessionGate(): SmartSessionGate {
 
   const gate = useCallback(
     (onProceed: () => void) => {
+      // A Safe can't sign for its HCA, so it never gets the session prompt.
+      if (isSafeWallet) return
       if (needsSessionBeforeRegistration(account)) {
         pendingRef.current = onProceed
         promptRef.current += 1
@@ -53,7 +63,7 @@ export function useSmartSessionGate(): SmartSessionGate {
       }
       onProceed()
     },
-    [account],
+    [account, isSafeWallet],
   )
 
   // Dismissing drops the deferred action: the next attempt starts from the user's own click.

@@ -190,7 +190,11 @@ type Events =
       chainId: number
       origin?: FundingSourceOrigin
     }
-  | { type: 'pricing.paymentAsset.select'; asset: PaymentAsset }
+  | {
+      type: 'pricing.paymentAsset.select'
+      asset: PaymentAsset
+      origin?: FundingSourceOrigin
+    }
   | {
       type: 'registration.start'
       label: string
@@ -211,7 +215,7 @@ type Events =
        * Standalone-HCA: the USDC (6dp) wallet debit the confirm screen showed.
        * Passed straight to the registration machine, which refuses to request a
        * funding-permit signature for materially more than this. Absent when the
-       * budget quote failed and only the rent was displayed.
+       * budget quote failed and only the price was displayed.
        */
       displayedWalletDebit?: bigint
       /** Standalone-HCA: the L2 whose USDC pays, instead of the wallet's here. */
@@ -448,7 +452,7 @@ const machineSetup = setup({
               event.asset === 'eth' ? undefined : context.fundingSourceChainId,
             fundingSourceOrigin:
               event.asset === 'eth'
-                ? ('user' as const)
+                ? (event.origin ?? ('user' as const))
                 : context.fundingSourceOrigin,
           }
         : {},
