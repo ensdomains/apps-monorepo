@@ -34,11 +34,13 @@ export function serializeBigInts(data: unknown): unknown {
     return data.map(serializeBigInts)
   }
   if (data !== null && typeof data === 'object') {
-    const out: Record<string, unknown> = {}
-    for (const key of Object.keys(data)) {
-      out[key] = serializeBigInts((data as Record<string, unknown>)[key])
-    }
-    return out
+    // fromEntries keeps a `__proto__` key as data, where `out[key] =` would not.
+    return Object.fromEntries(
+      Object.entries(data).map(([key, value]) => [
+        key,
+        serializeBigInts(value),
+      ]),
+    )
   }
   return data
 }
@@ -53,9 +55,10 @@ export function deserializeBigInts(data: unknown): unknown {
   if (isBigIntMarker(data)) {
     return BigInt(data[BIGINT_TAG])
   }
-  const out: Record<string, unknown> = {}
-  for (const key of Object.keys(data)) {
-    out[key] = deserializeBigInts((data as Record<string, unknown>)[key])
-  }
-  return out
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [
+      key,
+      deserializeBigInts(value),
+    ]),
+  )
 }
