@@ -13,11 +13,17 @@
  * query data.
  */
 const BIGINT_TAG = '__ENS_BIGINT__'
+const SERIALIZED_BIGINT = /^(?:0|-?[1-9]\d*)$/
 
 type BigIntMarker = { readonly [BIGINT_TAG]: string }
 
 function isBigIntMarker(value: object): value is BigIntMarker {
-  return typeof (value as Partial<BigIntMarker>)[BIGINT_TAG] === 'string'
+  const marker = (value as Partial<BigIntMarker>)[BIGINT_TAG]
+  return (
+    Object.keys(value).length === 1 &&
+    typeof marker === 'string' &&
+    SERIALIZED_BIGINT.test(marker)
+  )
 }
 
 export function serializeBigInts(data: unknown): unknown {

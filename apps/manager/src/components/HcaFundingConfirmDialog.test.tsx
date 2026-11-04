@@ -25,7 +25,7 @@ const ONE_DAI = 10n ** 18n
 
 describe('HcaFundingConfirmDialog', () => {
   it('shows what each token takes from the account and the wallet', () => {
-    // Rent in DAI, fee in USDC: two amounts, so two approvals.
+    // Price in DAI, fee in USDC: two amounts, so two approvals.
     renderDialog({
       permitValue: 900_000n,
       requiresPermit: true,

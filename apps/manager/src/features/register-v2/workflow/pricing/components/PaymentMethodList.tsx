@@ -18,12 +18,7 @@ export const PaymentMethodList = ({
   const { hiddenCount } = getPaymentMethodVisibility(items, false)
 
   return (
-    <div
-      className={
-        // Figma specifies a 454px desktop list width; no exact theme token exists.
-        'flex w-full flex-col self-center sm:w-[454px] sm:max-w-full'
-      }
-    >
+    <div className="flex w-full flex-col">
       <ul
         aria-label="Payment methods"
         className="flex w-full list-none flex-col p-0"
@@ -39,11 +34,7 @@ export const PaymentMethodList = ({
           onClick={() => setIsExpanded(!isExpanded)}
           type="button"
         >
-          {isExpanded ? (
-            <Trans>Show fewer</Trans>
-          ) : (
-            <Trans>Load {hiddenCount} more</Trans>
-          )}
+          {isExpanded ? <Trans>Show fewer</Trans> : <Trans>Load more</Trans>}
         </button>
       )}
     </div>

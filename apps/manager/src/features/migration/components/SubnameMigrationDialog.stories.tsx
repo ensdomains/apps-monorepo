@@ -1,11 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
+import { type ComponentProps, useState } from 'react'
 import type { SubnameMigrationImpactState } from '../hooks/useSubnameMigrationImpact'
 import { SubnameMigrationDialog } from './SubnameMigrationDialog'
 
 const noop = () => undefined
+const UNKNOWN_LABEL_SUBNAME =
+  '[fa4cc33169239c8fff15b85fb5271b339ccc0832ed620916ff7af7609f561eec].omnipin.eth'
 
 const readyState = (
   parents: readonly { readonly name: string; readonly affectedCount: number }[],
+  unrecoverable: readonly string[] = [],
 ): SubnameMigrationImpactState => ({
   status: 'ready',
   impact: {
@@ -14,6 +18,7 @@ const readyState = (
       (sum, { affectedCount }) => sum + affectedCount,
       0,
     ),
+    unrecoverable,
     fingerprint: 'story',
     checkedAt: 0,
   },
@@ -24,9 +29,23 @@ const readyState = (
   retry: noop,
 })
 
+const Acknowledgeable = (
+  props: ComponentProps<typeof SubnameMigrationDialog>,
+) => {
+  const [hasAcknowledgedImpact, setHasAcknowledgedImpact] = useState(false)
+  return (
+    <SubnameMigrationDialog
+      {...props}
+      hasAcknowledgedImpact={hasAcknowledgedImpact}
+      onAcknowledgeImpact={setHasAcknowledgedImpact}
+    />
+  )
+}
+
 const meta = {
   title: 'Migration/SubnameMigrationDialog',
   component: SubnameMigrationDialog,
+  render: (args) => <Acknowledgeable {...args} />,
   args: {
     isOpen: true,
     selectedNameCount: 2,
@@ -50,6 +69,19 @@ export const IncludedSubnames: Story = {
       { name: 'echidnas.eth', subnameCount: 3 },
       { name: 'a-very-long-parent-name-for-wrapping.eth', subnameCount: 1 },
     ],
+  },
+}
+
+export const UnknownLabelsLeftBehind: Story = {
+  args: {
+    state: readyState([], [UNKNOWN_LABEL_SUBNAME]),
+  },
+}
+
+export const IncludedAndUnknownLabels: Story = {
+  args: {
+    state: readyState([], [UNKNOWN_LABEL_SUBNAME]),
+    includedParents: [{ name: 'omnipin.eth', subnameCount: 3 }],
   },
 }
 

@@ -1,8 +1,10 @@
 import { baseSepolia, optimismSepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
+  getCurrentMethodState,
   getFallbackPaymentChoice,
   type PayableMethod,
+  shouldShowWalletShortfall,
 } from './fallbackPaymentChoice'
 
 const wallet = (balanceRaw: bigint, decimals = 6): PayableMethod => ({
@@ -91,9 +93,135 @@ describe('getFallbackPaymentChoice', () => {
       ],
       expected: undefined,
     },
+    {
+      case: "keeps the user's own pick that falls short",
+      current: 'chosen' as const,
+      payableMethods: [l2(baseSepolia.id, 48_340_000n)],
+      expected: undefined,
+    },
   ])('$case', ({ current, payableMethods, expected }) => {
     expect(getFallbackPaymentChoice({ current, payableMethods })).toEqual(
       expected,
     )
+  })
+
+  it.each([
+    {
+      case: 'takes ETH when nothing else can pay',
+      current: 'short' as const,
+      payableMethods: [],
+      expected: { kind: 'eth' },
+    },
+    {
+      case: 'with nothing chosen, takes ETH when nothing else can pay',
+      current: 'none' as const,
+      payableMethods: [],
+      expected: { kind: 'eth' },
+    },
+    {
+      case: 'prefers any USDC method to the ETH swap',
+      current: 'short' as const,
+      payableMethods: [l2(baseSepolia.id, 48_340_000n)],
+      expected: { kind: 'l2', chainId: baseSepolia.id },
+    },
+    {
+      case: "keeps the user's own pick that falls short",
+      current: 'chosen' as const,
+      payableMethods: [],
+      expected: undefined,
+    },
+    {
+      case: 'keeps ETH it picked while nothing else can pay',
+      current: 'autoEth' as const,
+      payableMethods: [],
+      expected: undefined,
+    },
+    {
+      case: 'moves ETH it picked to an L2 that can now pay',
+      current: 'autoEth' as const,
+      payableMethods: [l2(baseSepolia.id, 48_340_000n)],
+      expected: { kind: 'l2', chainId: baseSepolia.id },
+    },
+    {
+      case: 'moves ETH it picked to a wallet coin over a bigger L2',
+      current: 'autoEth' as const,
+      payableMethods: [wallet(20_000_000n), l2(baseSepolia.id, 48_340_000n)],
+      expected: { kind: 'wallet', symbol: 'USDC' },
+    },
+  ])('with ETH able to pay, $case', ({ current, payableMethods, expected }) => {
+    expect(
+      getFallbackPaymentChoice({ current, payableMethods, isEthPayable: true }),
+    ).toEqual(expected)
+  })
+})
+
+describe('getCurrentMethodState', () => {
+  it.each([
+    ['nothing selected', undefined, 'none'],
+    [
+      'a user pick that can pay',
+      { kind: 'wallet', isPayable: true, origin: 'user' },
+      'payable',
+    ],
+    [
+      'a user pick that falls short',
+      { kind: 'wallet', isPayable: false, origin: 'user' },
+      'chosen',
+    ],
+    [
+      'ETH that falls short',
+      { kind: 'eth', isPayable: false, origin: 'user' },
+      'chosen',
+    ],
+    [
+      'an app pick that falls short',
+      { kind: 'wallet', isPayable: false, origin: 'fallback' },
+      'short',
+    ],
+    [
+      'a default or resumed pick that falls short',
+      { kind: 'wallet', isPayable: false, origin: undefined },
+      'short',
+    ],
+    [
+      'an L2 the app picked',
+      { kind: 'l2', isPayable: true, origin: 'fallback' },
+      'auto',
+    ],
+    [
+      'ETH the app picked',
+      { kind: 'eth', isPayable: true, origin: 'fallback' },
+      'autoEth',
+    ],
+    [
+      'a wallet coin the app picked',
+      { kind: 'wallet', isPayable: true, origin: 'fallback' },
+      'payable',
+    ],
+  ] as const)('%s', (_case, selected, expected) => {
+    expect(getCurrentMethodState(selected)).toBe(expected)
+  })
+})
+
+describe('shouldShowWalletShortfall', () => {
+  const short = {
+    isShort: true,
+    current: 'short' as const,
+    hasFallback: false,
+    isSettling: false,
+  }
+
+  it.each([
+    [
+      'the user picked it',
+      { current: 'chosen' as const, hasFallback: true },
+      true,
+    ],
+    ['nothing else can take over', {}, true],
+    ['another method will take over', { hasFallback: true }, false],
+    ['another method is still loading', { isSettling: true }, false],
+    ['it can pay', { isShort: false }, false],
+  ])('%s', (_case, overrides, expected) => {
+    expect(shouldShowWalletShortfall({ ...short, ...overrides })).toBe(expected)
   })
 })
