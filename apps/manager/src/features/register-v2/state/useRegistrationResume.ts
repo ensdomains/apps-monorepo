@@ -436,6 +436,7 @@ export function useRegistrationResume(params: {
         type: 'registration.failure.restore',
         confirmedData,
         run: storedRegistrationKey(stored),
+        failureReason: stored.failureReason,
       })
       decidedForLabel.current = label
       // Dropped unless the page was still on pricing, so nothing is shown.

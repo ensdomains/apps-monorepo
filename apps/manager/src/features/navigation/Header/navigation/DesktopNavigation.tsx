@@ -96,7 +96,7 @@ export const DesktopNavigation = ({
       <PopoverContent
         align="start"
         anchor={anchorRef}
-        className="w-97.5 max-w-(--available-width) bg-white p-6"
+        className="w-fit max-w-(--available-width) bg-white p-6"
         sideOffset={4}
       >
         <NavigationContent onAction={handleAction} />
