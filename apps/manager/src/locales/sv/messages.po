@@ -371,6 +371,10 @@ msgstr ""
 msgid "Addresses"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Advanced"
+msgstr ""
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr ""
@@ -994,6 +998,7 @@ msgstr ""
 msgid "Cooldown fee"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Copied"
 msgstr ""
@@ -1002,6 +1007,7 @@ msgstr ""
 msgid "Copied!"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
 #: src/features/profile/components/view/AgentRecordCard.tsx
 msgid "Copy"
 msgstr ""
@@ -1023,6 +1029,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Copy Link"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Copy name"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
@@ -1250,6 +1260,10 @@ msgstr ""
 msgid "Edit Profile"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Edit records here"
+msgstr ""
+
 #: src/features/migration/components/SubnameUpgradeExplanation.tsx
 msgid "Editing those records depends on that resolver. If it stops accepting changes, the subname owner can switch to a new resolver and set the records again."
 msgstr ""
@@ -1330,6 +1344,10 @@ msgstr ""
 msgid "ENS Explorer"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "ENS Explorer is not available on this network yet. You can edit advanced records here."
+msgstr ""
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
 msgstr ""
@@ -1399,6 +1417,10 @@ msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Estimated renewal cost"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
+msgid "Etherscan"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ExistingBalanceLabel.tsx
@@ -1920,6 +1942,10 @@ msgstr ""
 msgid "Name"
 msgstr "Namn"
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Name actions"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
 msgid "Name cost"
 msgstr ""
@@ -2108,6 +2134,10 @@ msgstr ""
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Not supported"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Note: ENS Explorer is designed for developers! Keep the <0>ENS docs</0> handy as you dive in."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
@@ -3394,6 +3424,10 @@ msgstr ""
 msgid "That's generous of you!"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "The <0>ENS Explorer app</0> is home to advanced features and details about this name."
+msgstr ""
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "The commemorative NFT could not be minted. Please try again."
 msgstr ""
@@ -3687,6 +3721,10 @@ msgstr ""
 msgid "Trademark Guidelines"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
+msgid "Transaction actions"
+msgstr ""
+
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 #: src/features/migration/components/MigrationSuccessDialog.tsx
@@ -3808,11 +3846,7 @@ msgid "Upgrade the parent name first, then its subnames."
 msgstr ""
 
 #: src/features/migration/components/UpgradeBanner.tsx
-msgid "Upgrade your name to edit your new ENS profile and claim your personalized NFT."
-msgstr ""
-
-#: src/features/migration/components/UpgradeBanner.tsx
-msgid "Upgrade your name to edit your new ENS profile."
+msgid "Upgrade your name to ENSv2 to edit it here."
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -3857,6 +3891,10 @@ msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "V1"
+msgstr ""
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "V1 names like yours can still be managed in <0>ENS Explorer</0>."
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
@@ -3920,9 +3958,17 @@ msgstr ""
 msgid "View address"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
+msgid "View history"
+msgstr ""
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "View in Explorer"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "View name"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
@@ -3935,6 +3981,20 @@ msgstr ""
 
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 msgid "View profile"
+msgstr ""
+
+#. placeholder {0}: formatProfileDetailDate(creation.createdAt)
+#. placeholder {1}: truncateAddress(creation.transactionHash)
+#: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
+msgid "View the detailed history going back to when this name was created on <0><1>{0}</1><2>{1}</2></0>"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
+msgid "View the detailed history of this name in Explorer. <0>View history</0>"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Visit <0><1><2/></1><3>{name}</3></0> to create and edit custom records, subnames, and permissions."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts

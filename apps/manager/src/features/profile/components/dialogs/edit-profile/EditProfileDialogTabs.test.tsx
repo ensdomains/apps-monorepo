@@ -1,0 +1,143 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fireEvent, waitFor } from '@testing-library/react'
+import { useActorRef } from '@xstate/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Tabs } from '@/components/ui/tabs'
+import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
+import { render } from '@/utils/test-utils'
+import { EditProfileDialogProvider } from './EditProfileDialog.context'
+import { editProfileDialogMachine } from './EditProfileDialog.machine'
+import { EditProfileDialogTabs } from './EditProfileDialogTabs'
+
+const getExplorerUrl = vi.hoisted(() => vi.fn<() => string | null>())
+vi.mock('@/constants', () => ({
+  get EXPLORER_URL() {
+    return getExplorerUrl()
+  },
+}))
+
+beforeEach(() => {
+  getExplorerUrl.mockReturnValue('https://sepolia.explorer.ens.domains')
+})
+
+const renderAdvanced = (records = newEmptyProfileRecords()) => {
+  const onOtherChange = vi.fn()
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { enabled: false } },
+  })
+  const Harness = () => {
+    const actor = useActorRef(editProfileDialogMachine, {
+      input: { name: '🦊.eth', records },
+    })
+    return (
+      <QueryClientProvider client={queryClient}>
+        <EditProfileDialogProvider actor={actor}>
+          <Tabs defaultValue="other">
+            <EditProfileDialogTabs
+              isMobileNavOpen={false}
+              name="🦊.eth"
+              onAddressesChange={vi.fn()}
+              onBaseChange={vi.fn()}
+              onContactChange={vi.fn()}
+              onDraftLinkValidationIssuesChange={vi.fn()}
+              onLinksChange={vi.fn()}
+              onMobileNavOpenChange={vi.fn()}
+              onOtherChange={onOtherChange}
+              onSocialChange={vi.fn()}
+              preparedImageUploads={[]}
+              values={records}
+            />
+          </Tabs>
+        </EditProfileDialogProvider>
+      </QueryClientProvider>
+    )
+  }
+  return { ...render(<Harness />), onOtherChange }
+}
+
+describe('Advanced profile navigation', () => {
+  it('offers the Explorer landing page and equivalent name and history views', () => {
+    const view = renderAdvanced()
+
+    expect(view.getByRole('tab', { name: 'Advanced' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(
+      view.getByRole('link', { name: 'ENS Explorer app' }),
+    ).toHaveAttribute('href', 'https://sepolia.explorer.ens.domains')
+    expect(view.getByRole('link', { name: '🦊.eth' })).toHaveAttribute(
+      'href',
+      'https://sepolia.explorer.ens.domains/%F0%9F%A6%8A.eth',
+    )
+    expect(view.getByRole('link', { name: 'View history' })).toHaveAttribute(
+      'href',
+      'https://sepolia.explorer.ens.domains/%F0%9F%A6%8A.eth/history',
+    )
+    expect(view.getByRole('link', { name: 'ENS docs' })).toHaveAttribute(
+      'href',
+      'https://docs.ens.domains',
+    )
+  })
+
+  it('copies the complete name from its entity actions', async () => {
+    const writeText = vi
+      .spyOn(navigator.clipboard, 'writeText')
+      .mockResolvedValue()
+    const view = renderAdvanced()
+
+    fireEvent.focus(view.getByRole('link', { name: '🦊.eth' }))
+    fireEvent.click(view.getByRole('button', { name: 'Copy name' }))
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('🦊.eth'))
+    writeText.mockRestore()
+  })
+
+  it('keeps local custom record editing available', () => {
+    const view = renderAdvanced()
+
+    fireEvent.click(view.getByText('Edit records here'))
+    fireEvent.click(view.getByRole('button', { name: 'Add custom record' }))
+
+    expect(view.onOtherChange).toHaveBeenCalledWith(
+      expect.objectContaining({ unknown: [{ key: '', value: '' }] }),
+    )
+  })
+
+  it('opens local controls automatically when record validation needs attention', () => {
+    const view = renderAdvanced({
+      ...newEmptyProfileRecords(),
+      unknown: [{ key: '', value: 'A recovered record' }],
+    })
+
+    expect(view.getByRole('textbox', { name: 'Record 1 key' })).toBeVisible()
+    expect(view.getByRole('alert')).toHaveTextContent('Enter a key')
+  })
+
+  it('keeps editing available without cross-network links when Explorer is unavailable', () => {
+    getExplorerUrl.mockReturnValue(null)
+    const view = renderAdvanced()
+
+    expect(view.queryByRole('link', { name: '🦊.eth' })).toBeNull()
+    expect(view.queryByRole('link', { name: 'ENS Explorer app' })).toBeNull()
+    expect(
+      view.getByRole('button', { name: 'Add custom record' }),
+    ).toBeVisible()
+    expect(view.getByRole('link', { name: 'ENS docs' })).toHaveAttribute(
+      'href',
+      'https://docs.ens.domains',
+    )
+  })
+
+  it('dismisses entity actions with Escape and restores them on focus', () => {
+    const view = renderAdvanced()
+    const nameLink = view.getByRole('link', { name: '🦊.eth' })
+
+    fireEvent.focus(nameLink)
+    fireEvent.keyDown(nameLink, { key: 'Escape' })
+    expect(view.queryByRole('button', { name: 'Copy name' })).toBeNull()
+
+    fireEvent.focus(nameLink)
+    expect(view.getByRole('button', { name: 'Copy name' })).toBeInTheDocument()
+  })
+})

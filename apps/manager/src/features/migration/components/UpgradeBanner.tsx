@@ -1,6 +1,7 @@
 import { Plural, Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import { match } from 'ts-pattern'
+import { EXPLORER_URL } from '@/constants'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationUpgradeButton } from '@/features/migration/components/MigrationUpgradeButton'
@@ -100,14 +101,8 @@ export const UpgradeBanner = ({
                     value={gracePeriodNameCount}
                   />
                 ))
-                .with({ isProfileBanner: true, nftCopyEnabled: true }, () => (
-                  <Trans>
-                    Upgrade your name to edit your new ENS profile and claim
-                    your personalized NFT.
-                  </Trans>
-                ))
-                .with({ isProfileBanner: true, nftCopyEnabled: false }, () => (
-                  <Trans>Upgrade your name to edit your new ENS profile.</Trans>
+                .with({ isProfileBanner: true }, () => (
+                  <Trans>Upgrade your name to ENSv2 to edit it here.</Trans>
                 ))
                 .with({ isProfileBanner: false, nftCopyEnabled: true }, () => (
                   <Plural
@@ -124,6 +119,23 @@ export const UpgradeBanner = ({
                   />
                 ))
                 .exhaustive()}
+              {profileName !== undefined && EXPLORER_URL ? (
+                <>
+                  {' '}
+                  <Trans>
+                    V1 names like yours can still be managed in{' '}
+                    <a
+                      className="rounded-sm underline underline-offset-2 hover:text-ens-garnet-900 focus-visible:outline-2 focus-visible:outline-offset-2"
+                      href={`${EXPLORER_URL}/${encodeURIComponent(profileName)}`}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      ENS Explorer
+                    </a>
+                    .
+                  </Trans>
+                </>
+              ) : null}
             </p>
           </div>
           {!isProfileBanner &&
