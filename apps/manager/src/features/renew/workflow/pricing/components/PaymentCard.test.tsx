@@ -45,7 +45,7 @@ vi.mock('@/features/wallet/hooks/useSmartSessionGate', () => ({
   useSmartSessionGate: () => ({ gate: mocks.gate, sessionModal: null }),
 }))
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
-  useSmartAccountContext: () => ({ isConnected: true }),
+  useSmartAccountContext: () => ({ isConnected: true, hasInitialized: true }),
 }))
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),

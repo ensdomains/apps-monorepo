@@ -7,6 +7,7 @@ import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { CheckoutSummaryCard } from '@/features/register-v2/workflow/pricing/components/CheckoutSummaryCard'
 import { useCheckoutSources } from '@/features/register-v2/workflow/pricing/hooks/useCheckoutSources'
+import { useIsAccountPending } from '@/features/register-v2/workflow/pricing/hooks/useIsAccountPending'
 import {
   getCheckoutAction,
   getPageAvailability,
@@ -57,9 +58,12 @@ export const PaymentCard = () => {
     isEthAccepted,
   )
 
+  const isConnected = isWalletRoute ? isEoaConnected : account.isConnected
+  const isAccountPending = useIsAccountPending(isConnected)
   const openTokenPicker = () => uiActor.send({ type: 'pricing.step.next' })
   const action = getCheckoutAction({
-    isConnected: isWalletRoute ? isEoaConnected : account.isConnected,
+    isAccountPending,
+    isConnected,
     isPreparing: false,
     availability:
       priceRaw === undefined

@@ -56,7 +56,20 @@ const Usd = ({
   </>
 )
 
-/** The total, pulsing on its own while the account's balance, and so the total, is still being read. */
+/** Set in the figure's own type, so the row keeps its height when the figure arrives. */
+const PENDING_FIGURE = 'animate-pulse rounded bg-ens-quartz-75 text-transparent'
+
+/** A row's figure not known yet. */
+const FigurePlaceholder = () => (
+  <>
+    <span aria-hidden="true" className={tw(RECEIPT_AMOUNT, PENDING_FIGURE)}>
+      $00.00
+    </span>
+    <span className={RECEIPT_LABEL}>USD</span>
+  </>
+)
+
+/** The total, or a placeholder while the account's balance, and so the total, is still being read. */
 const TotalAmount = ({
   raw,
   isPending,
@@ -65,16 +78,29 @@ const TotalAmount = ({
   readonly raw: bigint
   readonly isPending: boolean
   readonly className: string
-}) => (
-  <span className={tw(className, isPending && 'animate-pulse')}>
-    <AnimatedPrice emphasis="soft" value={toUsd(raw)} />
-  </span>
-)
+}) =>
+  isPending ? (
+    <span aria-hidden="true" className={tw(className, PENDING_FIGURE)}>
+      $00.00
+    </span>
+  ) : (
+    <span className={className}>
+      <AnimatedPrice emphasis="soft" value={toUsd(raw)} />
+    </span>
+  )
 
 type LayoutProps = Readonly<{
   summary: CheckoutSummary
   discount: number
   isTotalPending: boolean
+}>
+
+type RowsLayoutProps = Readonly<{
+  /** `undefined` until the name is priced. */
+  summary: CheckoutSummary | undefined
+  discount: number
+  /** The account and its balance aren't known yet: the balance and the total are placeholders. */
+  isAccountPending: boolean
 }>
 
 const TotalOnly = ({ summary, discount, isTotalPending }: LayoutProps) => (
@@ -94,16 +120,26 @@ const TotalOnly = ({ summary, discount, isTotalPending }: LayoutProps) => (
 const WithExistingBalance = ({
   summary,
   discount,
-  isTotalPending,
-}: LayoutProps) => (
+  isAccountPending,
+}: RowsLayoutProps) => (
   <div className="flex w-full flex-1 flex-col justify-between gap-8">
     <div className="flex flex-col gap-5">
       <Row label={<Trans>Name cost</Trans>}>
-        {discount > 0 && <SavePill amount={discount} />}
-        <Usd raw={summary.nameCostRaw} />
+        {summary ? (
+          <>
+            {discount > 0 && <SavePill amount={discount} />}
+            <Usd raw={summary.nameCostRaw} />
+          </>
+        ) : (
+          <FigurePlaceholder />
+        )}
       </Row>
       <Row label={<ExistingBalanceLabel />}>
-        <Usd isDeduction raw={summary.existingBalanceRaw} />
+        {summary && !isAccountPending ? (
+          <Usd isDeduction raw={summary.existingBalanceRaw} />
+        ) : (
+          <FigurePlaceholder />
+        )}
       </Row>
     </div>
     <div className="flex items-baseline justify-between gap-2">
@@ -113,8 +149,8 @@ const WithExistingBalance = ({
       <span className="flex items-baseline gap-1.5">
         <TotalAmount
           className="font-medium font-semi-mono text-ens-blue-midnight text-temp-32px leading-ens-none"
-          isPending={isTotalPending}
-          raw={summary.totalRaw}
+          isPending={isAccountPending || !summary}
+          raw={summary?.totalRaw ?? 0n}
         />
         <span className={RECEIPT_LABEL}>USD</span>
       </span>
@@ -152,6 +188,11 @@ const ActionButton = ({
 }) => {
   const [label, onClick, isEnabled] = match(action)
     .returnType<readonly [ReactNode, () => void, boolean]>()
+    .with({ kind: 'loading' }, () => [
+      <Trans key="loading">Loading...</Trans>,
+      onContinue,
+      false,
+    ])
     .with({ kind: 'connect' }, () => [
       connect.label ?? <Trans key="connect">Connect to register</Trans>,
       connect.onConnect,
@@ -221,16 +262,20 @@ export const CheckoutSummaryCard = ({
       )}
     >
       {header}
-      {summary && summary.existingBalanceRaw > 0n ? (
+      {/* Until the account is known, assume the fuller layout so it doesn't jump into it. */}
+      {isTotalPending ||
+      action.kind === 'loading' ||
+      (summary && summary.existingBalanceRaw > 0n) ? (
         <WithExistingBalance
           discount={discount}
-          isTotalPending={isTotalPending}
+          isAccountPending={isTotalPending || action.kind === 'loading'}
           summary={summary}
         />
       ) : (
         <TotalOnly
           discount={discount}
-          isTotalPending={isTotalPending}
+          // Unpriced, there is no total to show yet.
+          isTotalPending={isTotalPending || summary === undefined}
           summary={
             summary ?? { nameCostRaw: 0n, existingBalanceRaw: 0n, totalRaw: 0n }
           }

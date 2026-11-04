@@ -19,6 +19,7 @@ import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.quer
 import { warmRegistrationCheckout } from '../../../service/checkoutWarmup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useCheckoutSources } from '../hooks/useCheckoutSources'
+import { useIsAccountPending } from '../hooks/useIsAccountPending'
 import {
   getCheckoutAction,
   getPageAvailability,
@@ -89,6 +90,7 @@ export const PaymentCard = () => {
   const { openConnectModal, connectModalOpen } = useConnectModal()
 
   const { accountBalance, sources } = useCheckoutSources(account)
+  const isAccountPending = useIsAccountPending(account.isConnected)
   const summary = pricingQuery.data
     ? getCheckoutSummary(
         pricingQuery.data.basePrice + pricingQuery.data.premium,
@@ -96,6 +98,7 @@ export const PaymentCard = () => {
       )
     : undefined
   const action = getCheckoutAction({
+    isAccountPending,
     isConnected: account.isConnected,
     isPreparing: openTokenPicker.isPending,
     availability: pricingQuery.data

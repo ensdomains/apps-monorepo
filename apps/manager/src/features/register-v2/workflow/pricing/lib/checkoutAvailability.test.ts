@@ -4,6 +4,7 @@ import {
   getCheckoutAction,
   getCheckoutAvailability,
   getPageAvailability,
+  isAccountPending,
   knownBalance,
   type PaymentSources,
   UNKNOWN_BALANCE,
@@ -88,6 +89,16 @@ describe('getCheckoutAction', () => {
   ] as const)('%s', (_case, input, expected) => {
     expect(getCheckoutAction(input)).toEqual(expected)
   })
+
+  it('waits while the account is still being restored, rather than asking to connect', () => {
+    expect(
+      getCheckoutAction({
+        ...ready,
+        isConnected: false,
+        isAccountPending: true,
+      }),
+    ).toEqual({ kind: 'loading' })
+  })
 })
 
 describe('getPageAvailability', () => {
@@ -101,5 +112,34 @@ describe('getPageAvailability', () => {
     ],
   ])('%s', (_case, accountBalance, expected) => {
     expect(getPageAvailability(TOTAL, accountBalance, sources())).toBe(expected)
+  })
+})
+
+describe('isAccountPending', () => {
+  const settled = {
+    isHydrated: true,
+    hasInitialized: true,
+    walletStatus: 'connected',
+    isAccountConnected: true,
+  } as const
+
+  it.each([
+    ['the server render', { isHydrated: false }, true],
+    ['an account still being restored', { hasInitialized: false }, true],
+    ['a wallet reconnecting', { walletStatus: 'reconnecting' }, true],
+    ['a wallet connecting', { walletStatus: 'connecting' }, true],
+    [
+      'a reconnected wallet the account has not synced to yet',
+      { isAccountConnected: false },
+      true,
+    ],
+    ['a connected account', {}, false],
+    [
+      'a disconnected wallet',
+      { walletStatus: 'disconnected', isAccountConnected: false },
+      false,
+    ],
+  ] as const)('%s: %s', (_case, overrides, expected) => {
+    expect(isAccountPending({ ...settled, ...overrides })).toBe(expected)
   })
 })
