@@ -47,8 +47,10 @@ import { readPendingEthSwap } from '../service/pendingEthSwap'
 import { readPendingL2Bridge } from '../service/pendingL2Bridge'
 import {
   getRegistrationFailureMessage,
+  getRegistrationFailureReason,
   isNameNotAvailableError,
   isNameTakenByOther,
+  type RegistrationFailureReason,
 } from '../service/registrationFailure'
 import {
   acquireRegistrationLock,
@@ -138,6 +140,7 @@ type Context = {
    * finishes in between, and the refusal still happened.
    */
   isWalletBusy: boolean
+  failureReason?: RegistrationFailureReason
   /**
    * Set while the failure screen shows a run that failed before this page
    * loaded: the stored write it was restored from. Its child machine never
@@ -248,6 +251,7 @@ type Events =
       confirmedData: RegistrationConfirmedData
       /** The stored write the run was restored from. */
       run: StoredRegistrationKey
+      failureReason?: RegistrationFailureReason
     }
   | {
       /**
@@ -264,6 +268,7 @@ type Events =
       type: 'transaction.failed'
       message?: string
       nameUnavailable?: boolean
+      failureReason?: RegistrationFailureReason
       approvalOutcome?: ApprovalOutcome
       hasCommitment?: boolean
     }
@@ -487,6 +492,7 @@ const machineSetup = setup({
       approvalOutcome: () => 'none' as const,
       nameUnavailable: () => false,
       isWalletBusy: () => false,
+      failureReason: () => undefined,
     }),
     clearMaxProgress: assign({
       maxProgressReached: () => undefined,
@@ -510,6 +516,8 @@ const machineSetup = setup({
             ({ nameUnavailable }) => nameUnavailable === true,
           )
           .otherwise(() => false),
+      failureReason: ({ event }) =>
+        event.type === 'transaction.failed' ? event.failureReason : undefined,
       // A real failure replaces a refusal: something did run this time.
       isWalletBusy: () => false,
     }),
@@ -536,6 +544,7 @@ const machineSetup = setup({
           .otherwise(() => undefined),
       isWalletBusy: () => true,
       nameUnavailable: () => false,
+      failureReason: () => undefined,
     }),
     setRegistrationLockError: assign({
       lastErrorMessage: ({ context }) =>
@@ -567,7 +576,11 @@ const machineSetup = setup({
     },
     restoreFailure: assign(({ event, context }) =>
       event.type === 'registration.failure.restore'
-        ? { confirmedData: event.confirmedData, restoredRun: event.run }
+        ? {
+            confirmedData: event.confirmedData,
+            restoredRun: event.run,
+            failureReason: event.failureReason,
+          }
         : context,
     ),
     clearRegistrationData: assign({
@@ -1090,6 +1103,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             nameUnavailable:
               snapshot.context.nameUnavailable === true ||
               isNameNotAvailableError(snapshot.context.error),
+            failureReason: getRegistrationFailureReason(snapshot.context.error),
           })),
         ],
       },

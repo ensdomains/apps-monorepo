@@ -222,6 +222,7 @@ vi.mock('../service/registrationPersistence', () => ({
 }))
 
 import { waitForTransaction } from '@ens-apps/transaction-manager'
+import { OrchestratorError } from '@rhinestone/sdk/errors'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import {
@@ -1471,6 +1472,28 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
 
     expect(actor.getSnapshot().matches('registering')).toBe(true)
     expect(childRetryCount(actor)).toBe(1)
+  })
+
+  it('names an emptied smart account on the failure screen, and clears it on retry', async () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, {
+      type: 'FORCE_ERROR',
+      error: new OrchestratorError({
+        message: 'No viable route found for this intent.',
+        statusCode: 422,
+        context: { failureCodes: ['NO_ROUTE_SUPPORT', 'INSUFFICIENT_BALANCE'] },
+      }),
+    })
+    await flush()
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(actor.getSnapshot().context.failureReason).toBe('insufficientFunds')
+
+    actor.send({ type: 'retry' })
+    await flush()
+
+    expect(actor.getSnapshot().context.failureReason).toBeUndefined()
   })
 })
 
