@@ -61,6 +61,12 @@ At the synchronized commit, `/skill:statechart` reports that the clicked view,
 pending selection, and eventual start data can diverge from the click. The
 actor-snapshot abort still prevents a changed XState selection from starting.
 
+The corresponding intentionally failing unit tests live with the production
+code in `TokenPickerContent.test.tsx` and
+`TokenPickerContent.confirmation.test.tsx`. They are kept out of this formal
+model directory so the executable code repros and the TLA+ abstractions remain
+visibly separate.
+
 ## Updating the model
 
 When a covered source file changes:

@@ -27,6 +27,8 @@ Covered code:
   - `startRegistration`
   - fallback settlement gate
   - `TokenPickerContentBase`
+- `apps/manager/src/features/register-v2/workflow/pricing/components/TokenPickerContent.test.tsx`
+- `apps/manager/src/features/register-v2/workflow/pricing/components/TokenPickerContent.confirmation.test.tsx`
 - `apps/manager/src/features/register-v2/workflow/pricing/hooks/useHeldWhile.ts`
 - `apps/manager/src/features/register-v2/workflow/pricing/hooks/useFallbackPaymentChoice.ts`
 - `apps/manager/src/features/register-v2/state/registrationUi.machine.ts`
@@ -97,15 +99,13 @@ Keep failures as findings. Do not weaken invariants to match the implementation,
 
 ## Real-code replay and evidence
 
-The view counterexample was replayed against the real `TokenPickerContentBase`:
+The counterexamples are retained as intentionally failing unit tests:
 
-1. Render the existing `owed` fixture (`You pay $0.04`) with `isBusy=false`.
-2. In one rerender, provide the existing `covered` fixture and `isBusy=true`.
-3. Assert that the receipt still says `$0.04`.
+- `TokenPickerContent.test.tsx` — “keeps the clicked figures when refreshed data and busy land together” expects `$0.04` but receives `$0.00`.
+- `TokenPickerContent.test.tsx` — “keeps the clicked method when refreshed balances and busy land together” expects the clicked ETH-only method list but receives a newly selected USDC row.
+- `TokenPickerContent.confirmation.test.tsx` — “starts with the payment figures that were visible at the click” expects `displayedWalletDebit: 5_000_000n` but `registration.start` receives `6_000_000n`.
 
-The assertion fails because the component shows `$0.00`. The existing test passes only because it forces an intermediate busy render with the old figures before refreshing them. The scratch replay test was removed after confirmation.
-
-For start-data binding, the installed TanStack Query `5.104.4` was replayed with a pending `MutationObserver`: updating observer options before resolution caused the refreshed render’s `onSuccess` callback to run. In this component, that callback closes over render-scope wallet debit, L2 charge, and ETH funding. Recheck this dependency behavior if the TanStack version changes.
+The last test uses the installed TanStack Query `5.104.4` mutation implementation. While the mutation is pending, a rerender updates its `onSuccess` callback; this component’s callback closes over render-scope wallet debit, L2 charge, and ETH funding. Recheck the test if the TanStack version changes.
 
 For every future counterexample:
 
