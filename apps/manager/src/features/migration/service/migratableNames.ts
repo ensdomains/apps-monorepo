@@ -1,3 +1,4 @@
+import { MAX_UNRECOVERABLE_SUBNAMES } from '@ens-apps/migration'
 import { type Address, namehash, type PublicClient } from 'viem'
 import { envConfig } from '@/config'
 import { V1_CONTRACTS } from '../contracts/addresses'
@@ -33,6 +34,7 @@ export type SubnameMigrationBlockReason =
   | 'wrapped-protections'
   | 'too-large'
   | 'unknown-label'
+  | 'too-many-unknown-labels'
   | 'incomplete-inventory'
   | 'unverified-source'
   | 'requires-parent'
@@ -96,8 +98,18 @@ type SubnameCandidateResult =
   | {
       readonly status: 'verified'
       readonly subnames: readonly CopyClassifiedName[]
+      readonly unrecoverable: readonly string[]
     }
   | { readonly status: 'blocked'; readonly block: BlockedSubnameMigration }
+
+const verifiedCandidate = (
+  name: ClassifiedName,
+  subnames: readonly CopyClassifiedName[],
+  unrecoverable: readonly string[],
+): SubnameCandidateResult =>
+  unrecoverable.length > MAX_UNRECOVERABLE_SUBNAMES
+    ? { status: 'blocked', block: { name, reason: 'too-many-unknown-labels' } }
+    : { status: 'verified', subnames, unrecoverable }
 
 const getImportCandidates = (params: {
   readonly candidates: readonly ClassifiedName[]
@@ -121,6 +133,7 @@ const readRecreatedCandidates = async (params: {
 }): Promise<{
   readonly classified: readonly ClassifiedName[]
   readonly inventory: RpcSubnameInventory
+  readonly unrecoverable: readonly string[]
 }> => {
   const discovery = await discoverSubnameRecreation({
     domains: params.candidates.map(({ domain }) => domain),
@@ -137,6 +150,7 @@ const readRecreatedCandidates = async (params: {
       owner: params.owner,
     }),
     inventory: discovery.inventory,
+    unrecoverable: discovery.unrecoverable,
   }
 }
 
@@ -281,7 +295,7 @@ const checkSubnameCandidates = async (params: {
             const canImport = canImportDirectSubnames(name)
             if (params.isSubnameImportEnabled && canImport) {
               if (!nonemptyNodes.has(namehash(name.domain.name)))
-                return { status: 'verified', subnames: [] }
+                return { status: 'verified', subnames: [], unrecoverable: [] }
               const verified =
                 recreated ??
                 (await readRecreatedCandidates({
@@ -289,13 +303,15 @@ const checkSubnameCandidates = async (params: {
                   candidates: [name],
                   inventory: inventory.value,
                 }))
-              return {
-                status: 'verified',
-                subnames: copiedChildrenOf(
-                  verified.classified,
-                  name.domain.name,
+              return verifiedCandidate(
+                name,
+                copiedChildrenOf(verified.classified, name.domain.name),
+                verified.unrecoverable.filter(
+                  (subname) =>
+                    subname.slice(subname.indexOf('.') + 1) ===
+                    name.domain.name,
                 ),
-              }
+              )
             }
             if (impact?.status !== 'verified')
               throw new Error('The subname impact could not be verified.', {
@@ -319,7 +335,11 @@ const checkSubnameCandidates = async (params: {
                       : 'unsupported-parent',
                   },
                 }
-              : { status: 'verified', subnames: [] }
+              : {
+                  status: 'verified',
+                  subnames: [],
+                  unrecoverable: tree.result.impact.unrecoverable,
+                }
           } catch (error) {
             params.signal?.throwIfAborted()
             return {
@@ -443,6 +463,8 @@ export const resolveMigratableNames = async (params: {
   readonly eligible: readonly ClassifiedName[]
   readonly blockedSubnames: readonly BlockedSubnameMigration[]
   readonly verifiedSubnames: readonly CopyClassifiedName[]
+  /** Unknown-label subnames of upgradable names; they are left on ENSv1. */
+  readonly unrecoverableSubnames: readonly string[]
 }> => {
   const direct = params.eligible.filter(
     (name): name is DirectClassifiedName => name.action === 'migrate',
@@ -490,6 +512,9 @@ export const resolveMigratableNames = async (params: {
     blockedSubnames: blocked,
     verifiedSubnames: checked.flatMap((result) =>
       result.status === 'verified' ? result.subnames : [],
+    ),
+    unrecoverableSubnames: checked.flatMap((result) =>
+      result.status === 'verified' ? result.unrecoverable : [],
     ),
   }
 }
