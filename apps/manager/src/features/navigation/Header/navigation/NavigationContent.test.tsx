@@ -1,8 +1,14 @@
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AnalyticsSetting } from './NavigationContent'
+import { AnalyticsSetting, NavigationContent } from './NavigationContent'
 
 // PostHog, keeping the answer the way its consent cookie does.
 const posthog = vi.hoisted(() => {
@@ -57,5 +63,37 @@ describe('AnalyticsSetting', () => {
     posthog.__loaded = false
     renderSetting()
     expect(screen.queryByRole('switch')).toBeNull()
+  })
+})
+
+describe('NavigationContent', () => {
+  const renderMenu = async () => {
+    const router = createRouter({
+      routeTree: createRootRoute({
+        component: () => (
+          <I18nProvider i18n={i18n}>
+            <NavigationContent onAction={() => {}} />
+          </I18nProvider>
+        ),
+      }),
+      history: createMemoryHistory({ initialEntries: ['/'] }),
+    })
+    await router.load()
+    return render(<RouterProvider router={router} />)
+  }
+
+  it('links to the ens.domains homepage in a new tab', async () => {
+    await renderMenu()
+    const link = await screen.findByRole('link', { name: 'ENS Protocol ↗' })
+    expect(link.getAttribute('href')).toBe('https://ens.domains')
+    expect(link.getAttribute('target')).toBe('_blank')
+  })
+
+  it('links to each destination once', async () => {
+    await renderMenu()
+    const hrefs = (await screen.findAllByRole('link')).map((link) =>
+      link.getAttribute('href'),
+    )
+    expect(hrefs).toEqual([...new Set(hrefs)])
   })
 })
