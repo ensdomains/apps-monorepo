@@ -63,7 +63,10 @@ import {
   assertV2Reserved,
   readGraveyard,
 } from '../../../helpers/migration-assertions.js'
-import { selectOnlyRoots } from '../../../helpers/migration-flow.js'
+import {
+  selectOnlyRoots,
+  upgradeAndSettle,
+} from '../../../helpers/migration-flow.js'
 import { renewFor28Days } from '../../../helpers/profile-helpers.js'
 import {
   dnsEncode,
@@ -336,14 +339,10 @@ test.describe('Migration deep into and after the V1 grace period', () => {
 
     const upgrade = page.getByRole('button', { name: /^Upgrade 2 names$/ })
     await expect(upgrade).toBeEnabled({ timeout: 90_000 })
-    let isDone = false
-    const authorizeAll = authorizeTransactionsWhile(page, wallet, () => isDone)
-    await upgrade.click()
+    expect(await upgradeAndSettle(page, wallet)).toBe('success')
     await expect(
       page.getByRole('heading', { name: /your names have been upgraded/i }),
     ).toBeVisible({ timeout: 240_000 })
-    isDone = true
-    await authorizeAll
 
     const now = await chainNow()
     for (const grace of [day45, day89]) {
