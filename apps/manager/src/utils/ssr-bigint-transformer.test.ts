@@ -58,6 +58,15 @@ describe('SSR BigInt transformer', () => {
     )
   })
 
+  it('keeps a key named __proto__ as data through the round trip', () => {
+    const data = JSON.parse(
+      '{"list":[{"__proto__":0}],"total":{"__proto__":{"a":1}}}',
+    )
+
+    expect(deserializeBigInts(serializeBigInts(data))).toEqual(data)
+    expect(deserializeBigInts(data)).toEqual(data)
+  })
+
   it('does not consume nested user objects that only resemble a BigInt marker', () => {
     fc.assert(
       fc.property(
