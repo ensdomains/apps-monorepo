@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@/utils/test-utils'
 import { WalletSection } from './WalletSection'
 
+const checkIsSafeWalletMock = vi.hoisted(() => vi.fn<() => Promise<boolean>>())
+
 const session = vi.hoisted(() => ({
   hasActiveSession: false,
   isEnablingSession: false,
@@ -63,7 +65,7 @@ vi.mock('wagmi', async (importOriginal) => ({
 }))
 vi.mock('@ens-apps/transaction-manager', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ens-apps/transaction-manager')>()),
-  checkIsSafeWallet: async () => session.isSafeWallet,
+  checkIsSafeWallet: checkIsSafeWalletMock,
 }))
 
 const leftover = vi.hoisted(() => ({
@@ -108,6 +110,7 @@ describe('WalletSection smart session safety controls', () => {
     session.isSessionAccessReset = false
     session.useEoa = false
     session.isSafeWallet = false
+    checkIsSafeWalletMock.mockImplementation(async () => session.isSafeWallet)
     session.enableSession.mockResolvedValue({ status: 'enabled' })
     session.revokeSession.mockResolvedValue(true)
     leftover.leftover = undefined
@@ -453,6 +456,18 @@ describe('WalletSection smart session safety controls', () => {
     expect(
       screen.queryByText('Reset smart session access'),
     ).not.toBeInTheDocument()
+  })
+
+  it('blocks session authorization while Safe detection is pending', () => {
+    checkIsSafeWalletMock.mockReturnValueOnce(new Promise<boolean>(() => {}))
+    render(<WalletSection onAction={vi.fn()} />)
+
+    const enable = screen.queryByRole('button', {
+      name: 'Enable smart sessions',
+    })
+    if (enable) fireEvent.click(enable)
+
+    expect(session.enableSession).not.toHaveBeenCalled()
   })
 
   it('hides smart-session controls for a Safe{Wallet}', async () => {
