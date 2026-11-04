@@ -47,7 +47,14 @@ export type PaymentReceiptState =
   | { readonly status: 'unavailable' }
   | { readonly status: 'ready'; readonly figures: PaymentReceiptFigures }
 
-/** A failed quote shows dashes, never a stale or partial figure. */
+/**
+ * Receipt state for the payment sheet.
+ *
+ * A failed quote with no figures stays dashes (never the registration price
+ * alone — Immunefi #93021). When the caller passes figures from a fallback
+ * estimate, those are shown so the user can see the elevated cost; payment
+ * must still stay blocked until a real quote succeeds.
+ */
 export const getPaymentReceiptState = ({
   hasQuoteFailed,
   isLoading,
@@ -57,9 +64,52 @@ export const getPaymentReceiptState = ({
   readonly isLoading: boolean
   readonly figures: PaymentReceiptFigures | undefined
 }): PaymentReceiptState => {
-  if (hasQuoteFailed) return { status: 'unavailable' }
+  if (hasQuoteFailed) {
+    return figures ? { status: 'ready', figures } : { status: 'unavailable' }
+  }
   if (isLoading) return { status: 'loading' }
   return figures ? { status: 'ready', figures } : { status: 'unavailable' }
+}
+
+/**
+ * Figures for the receipt. On a failed budget quote, only a full fee estimate
+ * may appear — never the registration price alone.
+ */
+export const getCheckoutReceiptFigures = ({
+  hasBudgetQuoteFailed,
+  funding,
+  price,
+  accountCredit,
+  isUpTo = false,
+}: {
+  readonly hasBudgetQuoteFailed: boolean
+  readonly funding:
+    | {
+        readonly registration: number
+        readonly networkFee: number
+        readonly walletDebit: number
+        readonly hcaCredit: number
+      }
+    | undefined
+  readonly price: number | undefined
+  readonly accountCredit: number
+  readonly isUpTo?: boolean
+}): PaymentReceiptFigures | undefined => {
+  if (hasBudgetQuoteFailed) {
+    return funding
+      ? getPaymentReceiptFigures({
+          funding,
+          price: undefined,
+          accountCredit: 0,
+        })
+      : undefined
+  }
+  return getPaymentReceiptFigures({
+    funding,
+    price,
+    accountCredit,
+    isUpTo,
+  })
 }
 
 const MICROS_PER_CENT = 10_000

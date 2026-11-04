@@ -579,6 +579,78 @@ export interface HcaBudgetBreakdown {
 }
 
 /**
+ * Why a Rhinestone budget quote could not be used to size a permit.
+ *
+ * `gas-coverage` is the gas-spike class that refuses a plan when the destination
+ * account cannot leave a spendable balance for the gas refund
+ * ("No available destination-chain balance can cover execution gas").
+ */
+export type HcaBudgetFailureKind = 'gas-coverage' | 'generic'
+
+/** Rhinestone planner copy for destination gas that the HCA cannot cover. */
+const DESTINATION_GAS_COVERAGE_PATTERN =
+  /destination-chain balance can cover execution gas|No available destination-chain balance|NO_PLAN_AVAILABLE/i
+
+/**
+ * Classify orchestrator / quoter failure reasons for checkout copy.
+ * Display-only: funding still requires `source === 'quote'`.
+ */
+export function classifyHcaBudgetFailureReasons(
+  reasons: readonly string[],
+): HcaBudgetFailureKind {
+  return reasons.some((reason) => DESTINATION_GAS_COVERAGE_PATTERN.test(reason))
+    ? 'gas-coverage'
+    : 'generic'
+}
+
+/**
+ * The estimator produced a breakdown but refused to size a permit from it
+ * (`source` is `'fallback'` or `'mixed'`). Carries the breakdown so checkout
+ * can show the higher estimate without funding from it.
+ */
+export class HcaBudgetUnquotedError extends Error {
+  readonly breakdown: HcaBudgetBreakdown
+  readonly kind: HcaBudgetFailureKind
+
+  constructor(breakdown: HcaBudgetBreakdown) {
+    const reasons = breakdown.fallbackReasons ?? []
+    super(
+      `HCA budget could not be quoted (source: ${breakdown.source}). ` +
+        `Refusing to size the funding permit from the fallback model. ` +
+        `Reasons: ${reasons.join('; ') || 'unknown'}`,
+    )
+    this.name = 'HcaBudgetUnquotedError'
+    this.breakdown = breakdown
+    this.kind = classifyHcaBudgetFailureReasons(reasons)
+  }
+}
+
+/**
+ * Walk a cause chain for {@link HcaBudgetUnquotedError}. Matches by `name` so
+ * a split package copy of the class still surfaces the breakdown.
+ */
+export function findHcaBudgetUnquotedError(error: unknown):
+  | {
+      readonly breakdown: HcaBudgetBreakdown
+      readonly kind: HcaBudgetFailureKind
+    }
+  | undefined {
+  let current: unknown = error
+  while (current instanceof Error) {
+    if (
+      current.name === 'HcaBudgetUnquotedError' &&
+      'breakdown' in current &&
+      'kind' in current
+    ) {
+      const { breakdown, kind } = current as HcaBudgetUnquotedError
+      return { breakdown, kind }
+    }
+    current = current.cause
+  }
+  return undefined
+}
+
+/**
  * Compute the same-chain HCA funding budget at runtime:
  * `commitCost + registerCost + registrationPrice`.
  *

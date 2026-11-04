@@ -53,6 +53,8 @@ Paths are relative to this folder. "Sheet tests" means `components/TokenPickerCo
 | "What will I sign?" stays visible while registering, and is kept on the ETH swap (agreed; the WEB-2121 notes left it out for ETH). | Sheet tests "keeps explaining the signature while registering" |
 | The primary-name toggle is hidden. Its default is unchanged: the primary name is set only when the wallet has none and its owned-name count is known and below five (`../../state/registrationAutoSetup.ts`). | `../../state/registrationAutoSetup.test.ts`; no test asserts the toggle is absent |
 | A long name wraps before ".eth", never inside it. | `components/EthNameText.tsx` (no test) |
+| When the HCA budget quote fails with no fallback figures, the receipt shows dashes and the CTA is "Try again" with "We couldn't calculate the total. Please try again." Payment stays blocked. | Sheet tests "offers only a retry, with no figures, when the required quote failed"; `TokenPickerContent.budget.test.tsx` |
+| When Rhinestone refuses a quote because destination-chain balance cannot cover execution gas (elevated fees) and a fallback estimate exists, the sheet shows that higher estimate, says network fees are elevated with the estimate in the warning, keeps "Try again", and still blocks payment. It never shows the registration price alone. | Sheet tests "shows the higher estimate and still blocks payment when the quote failed"; `lib/budgetQuoteRecovery.test.ts` |
 
 ## Known limits, not bugs
 

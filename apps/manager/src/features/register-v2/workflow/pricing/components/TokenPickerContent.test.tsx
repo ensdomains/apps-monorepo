@@ -1006,6 +1006,48 @@ describe('TokenPickerContentBase', () => {
     expect(onRetry).toHaveBeenCalledOnce()
   })
 
+  it('shows the higher estimate and still blocks payment when the quote failed', () => {
+    const onRetry = vi.fn()
+    renderPicker({
+      hasBudgetQuoteFailed: true,
+      onRetry,
+      selectedToken: 'USDC',
+      estimatedFunding: {
+        registration: 1.4,
+        networkFee: 10,
+        total: 11.4,
+        walletDebit: 11.4,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      globalErrorMessage:
+        "Network fees are elevated right now (about $11.40 estimated). We couldn't lock in a total — please try again shortly.",
+      receiptNotice: (
+        <p>
+          This total is estimated from current gas. Try again for a confirmed
+          quote before paying.
+        </p>
+      ),
+      registrationReceipt: { totalRaw: 1_400_000n },
+    })
+
+    expect(
+      screen.getByText(
+        /Network fees are elevated right now \(about \$11\.40 estimated\)/,
+      ),
+    ).toBeVisible()
+    expect(receiptRow('Registration total')).toHaveTextContent('$1.40')
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('$10.00')
+    expect(receiptRow('You pay')).toHaveTextContent('$11.40')
+    expect(
+      screen.getByText(/This total is estimated from current gas/),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: /approv|register/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
+  })
+
   it('holds checkout while a stale quote is on screen', () => {
     renderPicker({
       funding: {

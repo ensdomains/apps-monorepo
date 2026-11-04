@@ -2027,6 +2027,14 @@ msgstr ""
 msgid "Network fee"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Network fees are elevated right now (about {estimatedTotalLabel} estimated). We couldn't lock in a total — please try again shortly."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Network fees are elevated right now, so we couldn't calculate a total. Please try again when gas is lower."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Network fees changed since you authorized this registration. Sign once more in your wallet to continue."
 msgstr ""
@@ -3697,6 +3705,10 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "This subname's parent or registry is not supported for upgrading yet."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "This total is estimated from current gas. Try again for a confirmed quote before paying."
 msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx

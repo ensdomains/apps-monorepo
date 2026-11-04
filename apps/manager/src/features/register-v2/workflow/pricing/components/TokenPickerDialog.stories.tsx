@@ -81,6 +81,9 @@ interface TokenPickerDialogShellProps {
   readonly footer?: ReactNode
   readonly initialSelectedToken?: SUPPORTED_TOKEN
   readonly funding?: RegistrationFundingSummary
+  readonly estimatedFunding?: RegistrationFundingSummary
+  readonly hasBudgetQuoteFailed?: boolean
+  readonly receiptNotice?: ReactNode
   readonly isQuotingFunding?: boolean
   /** L2 rows the registration can be paid from. */
   readonly l2Rows?: readonly L2PaymentRow[]
@@ -100,6 +103,9 @@ export const TokenPickerDialogShell = ({
   footer,
   initialSelectedToken,
   funding,
+  estimatedFunding,
+  hasBudgetQuoteFailed = false,
+  receiptNotice,
   isQuotingFunding = false,
   l2Rows,
 }: TokenPickerDialogShellProps) => {
@@ -117,9 +123,11 @@ export const TokenPickerDialogShell = ({
       title="Select payment"
     >
       <TokenPickerContentBase
+        estimatedFunding={estimatedFunding}
         footer={footer}
         funding={funding}
         globalErrorMessage={globalErrorMessage}
+        hasBudgetQuoteFailed={hasBudgetQuoteFailed}
         helpMessage={helpMessage}
         isConnected={isConnected}
         isInPriceCooldown={isInPriceCooldown}
@@ -136,12 +144,19 @@ export const TokenPickerDialogShell = ({
         }
         label={label}
         onNext={() => {}}
+        onRetry={hasBudgetQuoteFailed ? () => {} : undefined}
         onSelectCoin={(coin) => {
           setSelectedChainId(undefined)
           setSelectedToken(coin)
         }}
         pricingData={pricingData}
         pricingLoading={pricingLoading}
+        receiptNotice={receiptNotice}
+        registrationReceipt={
+          hasBudgetQuoteFailed || funding
+            ? { totalRaw: BigInt(Math.round((pricingData ?? 0) * 1e6)) }
+            : undefined
+        }
         selectedToken={selectedToken}
         showNetworkFeeDetails
         stablecoinBalances={stablecoinBalances}
@@ -487,6 +502,47 @@ export const LongNameWithApprovalDetails: Story = {
       }
     />
   ),
+}
+
+const ELEVATED_FEE_ESTIMATE: RegistrationFundingSummary = {
+  registration: 1.4,
+  networkFee: 10,
+  total: 11.4,
+  walletDebit: 11.4,
+  hcaCredit: 0,
+  isLoading: false,
+}
+
+/** WEB-2061: Rhinestone refused a quote during a gas spike; show the higher estimate. */
+export const BudgetQuoteGasCoverageFailed: Story = {
+  args: {
+    label: 'freedz',
+    initialSelectedToken: 'USDC',
+    pricingData: 1.4,
+    stablecoinBalances: [
+      { ...FUNDED_USDC, balance: '9000000', formattedBalance: '9.00' },
+    ],
+    hasBudgetQuoteFailed: true,
+    estimatedFunding: ELEVATED_FEE_ESTIMATE,
+    globalErrorMessage:
+      "Network fees are elevated right now (about $11.40 estimated). We couldn't lock in a total — please try again shortly.",
+    receiptNotice:
+      'This total is estimated from current gas. Try again for a confirmed quote before paying.',
+  },
+}
+
+/** WEB-2061: quote failed with no fallback figures — dashes and the generic retry. */
+export const BudgetQuoteFailedGeneric: Story = {
+  args: {
+    label: 'freedz',
+    initialSelectedToken: 'USDC',
+    pricingData: 1.4,
+    stablecoinBalances: [
+      { ...FUNDED_USDC, balance: '9000000', formattedBalance: '9.00' },
+    ],
+    hasBudgetQuoteFailed: true,
+    globalErrorMessage: "We couldn't calculate the total. Please try again.",
+  },
 }
 
 export const FixtureMultipleMethodsCollapsed: Story = {
