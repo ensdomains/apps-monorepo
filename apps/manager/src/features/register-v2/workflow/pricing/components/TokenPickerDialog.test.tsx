@@ -3,6 +3,11 @@ import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { PaymentMethodRow } from './PaymentMethodRow'
 import { PaymentDialogBase } from './TokenPickerDialog'
 
@@ -11,15 +16,22 @@ i18n.loadAndActivate({ locale: 'en', messages: {} })
 const feeRow = (
   <PaymentMethodRow
     amount="$100.00"
-    amountLabel="balance"
-    fee="Sepolia est. fee: $4.32"
-    feeTooltip="Fee explanation"
+    amountLabel="available"
+    fee="Est. fee: $4.32"
     icon={<span>$</span>}
     isAvailable
     isSelected
-    name="USDC"
+    name="ETH"
+    nameBadge={
+      <Tooltip>
+        <TooltipTrigger aria-label="What is the ETH swap?" type="button">
+          i
+        </TooltipTrigger>
+        <TooltipContent>Swap explanation</TooltipContent>
+      </Tooltip>
+    }
     onSelect={() => {}}
-    selectLabel="Select USDC"
+    selectLabel="Pay with ETH"
   />
 )
 
@@ -41,7 +53,7 @@ describe('PaymentDialogBase', () => {
     )
 
     const trigger = await screen.findByRole('button', {
-      name: 'What is the network fee?',
+      name: 'What is the ETH swap?',
     })
 
     await waitFor(() =>

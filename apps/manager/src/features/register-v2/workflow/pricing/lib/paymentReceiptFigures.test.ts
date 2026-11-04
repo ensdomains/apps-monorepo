@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getNetworkFeeReceiptFigures,
   getPaymentReceiptFigures,
   getWalletShortfall,
 } from './paymentReceiptFigures'
@@ -77,4 +78,89 @@ describe('getWalletShortfall', () => {
       expect(getWalletShortfall(required, balance)).toBe(expected)
     },
   )
+})
+
+describe('getNetworkFeeReceiptFigures', () => {
+  // USDC's 6 decimals, written as dollars and cents.
+  const usd = (value: string) => BigInt(value.replace('.', '')) * 10_000n
+  const figures = (
+    registrationTotal: string,
+    networkFee: string,
+    existingBalance: string,
+    due: string,
+  ) => ({
+    registrationTotalRaw: usd(registrationTotal),
+    networkFeeRaw: usd(networkFee),
+    existingBalanceRaw: usd(existingBalance),
+    dueRaw: usd(due),
+  })
+
+  it.each([
+    [
+      'no existing balance',
+      {
+        registrationTotalRaw: usd('330.00'),
+        networkFeeRaw: usd('5.52'),
+        walletDebitRaw: usd('335.52'),
+      },
+      figures('330.00', '5.52', '0.00', '335.52'),
+    ],
+    [
+      'a balance below the name cost, already in the page total',
+      {
+        registrationTotalRaw: usd('327.00'),
+        networkFeeRaw: usd('5.52'),
+        walletDebitRaw: usd('332.52'),
+      },
+      figures('327.00', '5.52', '0.00', '332.52'),
+    ],
+    [
+      'a balance beyond the name cost, part of the fee',
+      {
+        registrationTotalRaw: 0n,
+        networkFeeRaw: usd('25.46'),
+        walletDebitRaw: usd('16.45'),
+      },
+      figures('0.00', '25.46', '9.01', '16.45'),
+    ],
+    [
+      'a balance covering the fee as well',
+      {
+        registrationTotalRaw: 0n,
+        networkFeeRaw: usd('5.52'),
+        walletDebitRaw: 0n,
+      },
+      figures('0.00', '5.52', '5.52', '0.00'),
+    ],
+    [
+      'an ETH swap paying its own gas',
+      {
+        registrationTotalRaw: usd('330.00'),
+        networkFeeRaw: usd('5.52'),
+        walletDebitRaw: usd('335.52'),
+        extraFeeRaw: usd('9.25'),
+      },
+      figures('330.00', '14.77', '0.00', '344.77'),
+    ],
+    [
+      'sub-cent figures, rounded half up to cents',
+      {
+        registrationTotalRaw: 330_004_000n,
+        networkFeeRaw: usd('5.52'),
+        walletDebitRaw: 335_526_000n,
+      },
+      figures('330.00', '5.53', '0.00', '335.53'),
+    ],
+    [
+      'a cent of rounding the other way, still no balance line',
+      {
+        registrationTotalRaw: usd('330.00'),
+        networkFeeRaw: 5_524_000n,
+        walletDebitRaw: 335_514_000n,
+      },
+      figures('330.00', '5.51', '0.00', '335.51'),
+    ],
+  ])('%s', (_case, input, expected) => {
+    expect(getNetworkFeeReceiptFigures(input)).toEqual(expected)
+  })
 })
