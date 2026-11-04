@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match, P } from 'ts-pattern'
+import type { FundingSourceOrigin } from '@/features/register-v2/state/registrationUi.machine'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
 import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import type { UseBulkRenewResult } from '../hooks/useBulkRenew'
@@ -19,23 +20,19 @@ export const BulkRenewPaymentStep = ({
   readonly grandTotal: number
   readonly payment: UseBulkRenewResult['payment']
   readonly selectedToken: RENEWAL_TOKEN
-  readonly onSelectCoin: (coin: RENEWAL_TOKEN) => void
+  readonly onSelectCoin: (
+    coin: RENEWAL_TOKEN,
+    origin?: FundingSourceOrigin,
+  ) => void
   readonly onConfirm: () => void
 }) => {
   const { intentFunding, selectedL2 } = payment
   const { isIntentRoute, isQuoting, funding, walletDebitFor } = intentFunding
   const l2ChainName = selectedL2?.option.source.chain.name
 
-  const nextMessage = match({
-    isIntentRoute,
-    isQuoting,
-    isFullyCovered: funding?.walletDebit === 0,
-  })
-    .with({ isQuoting: true }, () => <Trans>Renew names</Trans>)
-    .with({ isIntentRoute: true, isFullyCovered: true }, () => (
-      <Trans>Sign renewal</Trans>
-    ))
-    .with({ isIntentRoute: true }, () => <Trans>Continue in wallet</Trans>)
+  const nextMessage = match({ isIntentRoute, isQuoting })
+    .with({ isQuoting: true }, () => <Trans>Loading...</Trans>)
+    .with({ isIntentRoute: true }, () => <Trans>Sign approval</Trans>)
     .otherwise(() => <Trans>Renew names</Trans>)
 
   return (
@@ -43,6 +40,15 @@ export const BulkRenewPaymentStep = ({
       // With a funding summary the credit is already inside it.
       accountCredit={funding ? undefined : payment.accountCredit}
       canProceed={payment.canProceed}
+      {...(isIntentRoute
+        ? {
+            checkoutReceipt: {
+              totalRaw: payment.checkoutTotalRaw,
+              totalLabel: <Trans>Renewal total</Trans>,
+              isUpTo: true,
+            },
+          }
+        : {})}
       {...(isIntentRoute && payment.pricesReady
         ? { fundedAmount: payment.fundedTotal }
         : {})}
@@ -85,6 +91,7 @@ export const BulkRenewPaymentStep = ({
       pricingData={grandTotal}
       pricingLoading={!payment.pricesReady}
       selectedToken={selectedToken}
+      shortfallLabel={<Trans>Renew names</Trans>}
       showNetworkFeeDetails={isIntentRoute}
       stablecoinBalances={payment.stablecoinBalances}
       totalLabel={<Trans>Renewal total</Trans>}

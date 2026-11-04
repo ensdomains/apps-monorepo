@@ -18,7 +18,10 @@ import {
   useIsAwaitingRenewalApproval,
   useRenewalPaymentUpdate,
 } from '@/features/renew/state/renewalUi.selectors'
-import { getRenewalPaymentScreen } from '@/features/renew/utils/renewalFunding'
+import {
+  getRenewalCheckoutTotalRaw,
+  getRenewalPaymentScreen,
+} from '@/features/renew/utils/renewalFunding'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -159,14 +162,10 @@ export const TokenPickerContent = () => {
     .with({ isIntentRoute: true }, () => <Trans>Sign approval</Trans>)
     .otherwise(() => <Trans>Renew name</Trans>)
 
-  // The receipt starts from the price with its headroom, less the balance applied up to it.
-  const checkoutTotalRaw =
-    pricingQuery.data && balances.accountCreditRaw.USDC !== undefined
-      ? pricingQuery.data.fundedRaw -
-        (balances.accountCreditRaw.USDC < pricingQuery.data.fundedRaw
-          ? balances.accountCreditRaw.USDC
-          : pricingQuery.data.fundedRaw)
-      : undefined
+  const checkoutTotalRaw = getRenewalCheckoutTotalRaw(
+    pricingQuery.data?.fundedRaw,
+    balances.accountCreditRaw.USDC,
+  )
 
   const { referrer } = useSearch({ strict: false })
   const startRenewal = () => {

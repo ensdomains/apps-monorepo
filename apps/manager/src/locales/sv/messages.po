@@ -965,10 +965,6 @@ msgstr ""
 msgid "Continue"
 msgstr ""
 
-#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
-msgid "Continue in wallet"
-msgstr ""
-
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Continue migration"
 msgstr ""
@@ -1839,6 +1835,7 @@ msgid "Loading NFT artwork…"
 msgstr ""
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/notifications/inbox/list.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -3128,6 +3125,7 @@ msgstr ""
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign approval"
@@ -3157,7 +3155,6 @@ msgstr ""
 msgid "Sign payment approval"
 msgstr ""
 
-#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign renewal"
 msgstr ""

@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import type { FundingSourceOrigin } from '@/features/register-v2/state/registrationUi.machine'
 import { RenewalFundingDialog } from '@/features/renew/components/RenewalFundingDialog'
 import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { useBulkRenew } from '../hooks/useBulkRenew'
@@ -54,14 +55,19 @@ export const BulkRenewDialog = ({
   const [fundingSourceChainId, setFundingSourceChainId] = useState<
     number | undefined
   >()
-  const selectCoin = (coin: RENEWAL_TOKEN) => {
+  // Who picked the method: the fallback's pick gives way when it no longer pays.
+  const [fundingSourceOrigin, setFundingSourceOrigin] =
+    useState<FundingSourceOrigin>()
+  const selectCoin = (coin: RENEWAL_TOKEN, origin?: FundingSourceOrigin) => {
     setSelectedToken(coin)
     setFundingSourceChainId(undefined)
+    setFundingSourceOrigin(origin ?? 'user')
   }
   // Bridged in as USDC, so the price is paid in USDC.
-  const selectL2 = (chainId: number) => {
+  const selectL2 = (chainId: number, origin?: FundingSourceOrigin) => {
     setSelectedToken('USDC')
     setFundingSourceChainId(chainId)
+    setFundingSourceOrigin(origin ?? 'user')
   }
 
   const [receipt, setReceipt] = useState<{
@@ -84,6 +90,7 @@ export const BulkRenewDialog = ({
     open,
     isPaying: step === 'confirm',
     fundingSourceChainId,
+    fundingSourceOrigin,
     onSelectL2: selectL2,
   })
 
@@ -118,6 +125,7 @@ export const BulkRenewDialog = ({
       setStep('summary')
       setReceipt(null)
       setFundingSourceChainId(undefined)
+      setFundingSourceOrigin(undefined)
       submit.reset()
     }
     onOpenChange(next)

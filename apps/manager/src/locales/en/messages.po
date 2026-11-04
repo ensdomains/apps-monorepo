@@ -960,10 +960,6 @@ msgstr "Content hash"
 msgid "Continue"
 msgstr "Continue"
 
-#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
-msgid "Continue in wallet"
-msgstr "Continue in wallet"
-
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Continue migration"
 msgstr "Continue migration"
@@ -1834,6 +1830,7 @@ msgid "Loading NFT artwork…"
 msgstr "Loading NFT artwork…"
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/notifications/inbox/list.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -3123,6 +3120,7 @@ msgstr "Show more"
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
 
+#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign approval"
@@ -3152,7 +3150,6 @@ msgstr "Sign once to enable seamless transactions."
 msgid "Sign payment approval"
 msgstr "Sign payment approval"
 
-#: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign renewal"
 msgstr "Sign renewal"

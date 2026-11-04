@@ -5,9 +5,21 @@ import {
   computeRenewalFunding,
   decideRenewalPayment,
   getPromptWalletDebit,
+  getRenewalCheckoutTotalRaw,
   getRenewalFeeQuoteState,
   getRenewalPaymentScreen,
 } from './renewalFunding'
+
+describe('getRenewalCheckoutTotalRaw', () => {
+  it.each([
+    ['less the account balance', 8_800_000n, 5_000_000n, 3_800_000n],
+    ['never below zero', 8_800_000n, 20_000_000n, 0n],
+    ['unknown while the balance is unread', 8_800_000n, undefined, undefined],
+    ['unknown while unpriced', undefined, 5_000_000n, undefined],
+  ] as const)('is the funded price %s', (_case, funded, credit, expected) => {
+    expect(getRenewalCheckoutTotalRaw(funded, credit)).toBe(expected)
+  })
+})
 
 describe('computeRenewalFunding', () => {
   it('deducts the account balance once and keeps the headroom out of the displayed fee', () => {

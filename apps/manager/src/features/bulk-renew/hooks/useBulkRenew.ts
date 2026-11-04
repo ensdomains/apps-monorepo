@@ -6,6 +6,7 @@ import { getNameRowProfilePreview } from '@/features/dashboard/components/nameRo
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getBaseRatesQueryOptions } from '@/features/register-v2/data/queries/baseRates.query'
 import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
+import type { FundingSourceOrigin } from '@/features/register-v2/state/registrationUi.machine'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
@@ -15,6 +16,7 @@ import type {
 } from '@/features/register-v2/workflow/pricing/hooks/useL2Payment'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
+import { getRenewalCheckoutTotalRaw } from '@/features/renew/utils/renewalFunding'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
 import {
@@ -57,6 +59,8 @@ type BulkRenewPayment = {
    * approval's headroom on the intent route, which moves into the account too.
    */
   readonly fundedTotal: number
+  /** The receipt's renewal total, once priced and the account's balance is read. */
+  readonly checkoutTotalRaw: bigint | undefined
   /** Connected, the route known and every price resolved; the picker checks the method covers it. */
   readonly canProceed: boolean
   /** Every price resolved for the current selection. */
@@ -94,6 +98,7 @@ export const useBulkRenew = ({
   open,
   isPaying = false,
   fundingSourceChainId,
+  fundingSourceOrigin,
   onSelectL2 = () => {},
 }: {
   readonly names: readonly BulkRenewName[]
@@ -104,7 +109,8 @@ export const useBulkRenew = ({
   readonly isPaying?: boolean
   /** The L2 row chosen to pay from. */
   readonly fundingSourceChainId?: number
-  readonly onSelectL2?: (chainId: number) => void
+  readonly fundingSourceOrigin?: FundingSourceOrigin
+  readonly onSelectL2?: (chainId: number, origin?: FundingSourceOrigin) => void
 }): UseBulkRenewResult => {
   const count = names.length
   const { isConnected, ownerAddress } = useSmartAccountContext()
@@ -293,7 +299,9 @@ export const useBulkRenew = ({
       selectedToken === USDC.symbol &&
       (intentFunding.isQuoting || intentFunding.feeRaw !== undefined),
     selectedChainId: fundingSourceChainId,
-    onSelect: onSelectL2,
+    selectedOrigin: fundingSourceOrigin,
+    onSelect: (chainId) => onSelectL2(chainId),
+    onFallbackSelect: (chainId) => onSelectL2(chainId, 'fallback'),
   })
   const selectedL2 = l2Payment?.rows.find(
     ({ option }) => option.source.chain.id === l2Payment.selectedChainId,
@@ -312,6 +320,10 @@ export const useBulkRenew = ({
       stablecoinBalances,
       accountCredit,
       fundedTotal,
+      checkoutTotalRaw: getRenewalCheckoutTotalRaw(
+        pricesReady ? authorizedPaymentAmount(sumPriceRaw) : undefined,
+        accountCreditRaw.USDC,
+      ),
       canProceed:
         isConnected && route !== null && pricesReady && grandTotal > 0,
       pricesReady,

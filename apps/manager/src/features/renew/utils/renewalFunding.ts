@@ -243,3 +243,12 @@ export const getRenewalFeeQuoteState = (quote: {
     !quote.isFetching &&
     (quote.isError || quote.feeRaw === null),
 })
+
+/** The receipt's renewal total: the price with its headroom, less the account's USDC applied up to it. */
+export const getRenewalCheckoutTotalRaw = (
+  fundedRaw: bigint | undefined,
+  accountUsdcRaw: bigint | undefined,
+): bigint | undefined =>
+  fundedRaw === undefined || accountUsdcRaw === undefined
+    ? undefined
+    : fundedRaw - (accountUsdcRaw < fundedRaw ? accountUsdcRaw : fundedRaw)
