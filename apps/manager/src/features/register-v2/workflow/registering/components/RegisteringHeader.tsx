@@ -64,7 +64,11 @@ export const RegisteringHeader = ({
   }
 
   const label = match(uiStage?.transaction)
-    .with('pendingRegistration', () => t`Registering name`)
+    // Registration finishes from this tab, so closing it leaves the name unregistered.
+    .with(
+      'pendingRegistration',
+      () => t`Keep this browser open while your name is registered`,
+    )
     .with(undefined, () => t`Loading...`)
     .otherwise(() => stageLabel)
 
