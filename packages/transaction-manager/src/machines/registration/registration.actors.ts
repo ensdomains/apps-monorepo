@@ -83,7 +83,7 @@ const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
 
 /**
  * The ERC-20 amount to approve for a single EOA registration/renewal at
- * `price`. Deliberately NOT unlimited: the registrar pulls the live rent price
+ * `price`. Deliberately NOT unlimited: the registrar pulls the live price
  * (no max-price arg), which can drift slightly between quote and execution; we
  * add 10% headroom to absorb that while keeping the allowance tightly scoped.
  *
@@ -1388,7 +1388,7 @@ export function submitRegistrationActor(input: {
         `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
       )
 
-      // Validate the token against the registrar's *actual* rent price oracle
+      // Validate the token against the registrar's *actual* price oracle
       // (see `assertPaymentTokenSupported` for why the registrar itself can't
       // be queried directly).
       await assertPaymentTokenSupported(
@@ -1483,7 +1483,7 @@ export function pollTransactionStatusActor(input: {
 // Renewal Actor Functions
 // ============================================================================
 //
-// `ETHRegistrar.renew((label, duration, referrer), paymentToken)` pulls the rent
+// `ETHRegistrar.renew((label, duration, referrer), paymentToken)` pulls the price
 // from `msg.sender` (see AbstractETHRegistrar.renew) — raw `msg.sender`, with no
 // HCA unwrap. So the payer is whoever executes the call: the connected EOA on
 // the direct-wallet route, or the user's own HCA when the renewal runs as an
@@ -1531,7 +1531,7 @@ export interface RenewDataEntry {
 /**
  * Encode `renewBatch(RenewData[], paymentToken)` calldata.
  *
- * `renewBatch` renews every entry and pulls the SUMMED rent once from
+ * `renewBatch` renews every entry and pulls the SUMMED price once from
  * `msg.sender`, which is what makes a whole selection payable in one intent —
  * one permit, one approval, one fee. `ensjs-abi` has no snippet for it yet.
  */

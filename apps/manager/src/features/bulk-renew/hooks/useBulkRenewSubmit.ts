@@ -50,7 +50,7 @@ const SETTLE_MS = 600
 
 // Bulk renewal takes whichever route the account has. With a smart account the
 // whole selection renews as owner-signed HCA intents paid out of the account
-// (rent in the chosen stable, fee in USDC) — one intent per chunk of names,
+// (price in the chosen stable, fee in USDC) — one intent per chunk of names,
 // each renewing its chunk atomically in a single `renewBatch`. Without one it
 // falls back to the direct-wallet route: the connected EOA approves once and
 // renews each name itself, one transaction per name.
@@ -71,7 +71,7 @@ export const RENEWED_CHECK_FAILED_MESSAGE =
   "Couldn't confirm which names already renewed, so none were retried. Please try again."
 
 type Context = {
-  /** The connected EOA — `msg.sender` for `renew`, and the rent payer. */
+  /** The connected EOA — `msg.sender` for `renew`, and who pays the price. */
   readonly signer: Signer
   readonly ownerAddress: Address
   readonly token: RENEWAL_TOKEN

@@ -60,7 +60,7 @@ export const TokenPickerContent = () => {
         rawPrice: data.amount,
         price: decimalBigintToNumber(data.amount, decimals),
         // The intent route moves the approval's headroom into the account
-        // too, so the wallet is gated on that, not on the rent alone.
+        // too, so the wallet is gated on that, not on the price alone.
         fundedRaw,
         funded: decimalBigintToNumber(fundedRaw, decimals),
       }

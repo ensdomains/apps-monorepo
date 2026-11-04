@@ -68,7 +68,7 @@ export const PaymentCard = () => {
   )
 
   // The chooser opens once its figures are cached, so it does not open on the
-  // rent alone and then reflow when the funding budget lands.
+  // price alone and then reflow when the funding budget lands.
   const queryClient = useQueryClient()
   const account = useSmartAccountContext()
   const checkout = {
