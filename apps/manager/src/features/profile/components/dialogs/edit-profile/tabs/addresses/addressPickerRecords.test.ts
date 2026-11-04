@@ -73,3 +73,55 @@ describe('L2 address records key on this deployment’s coin type', () => {
     },
   )
 })
+
+// address-encoder 3.0.0 added these EVM chains (PR 422).
+describe('EVM chains added in address-encoder 3.0.0', () => {
+  it.each([
+    ['Unichain', 2147483778],
+    ['Monad', 2147483791],
+    ['Sonic', 2147483794],
+    ['World Chain', 2147484128],
+    ['HyperEVM', 2147484647],
+    ['Lisk', 2147484783],
+    ['Soneium', 2147485516],
+    ['Ronin', 2147485668],
+    ['Abstract', 2147486389],
+    ['Tempo', 2147487865],
+    ['Robinhood Chain', 2147488311],
+    ['Arc', 2147488690],
+    ['Plasma', 2147493393],
+    ['Arbitrum Nova', 2147525818],
+    ['Ink', 2147540721],
+    ['Berachain', 2147563742],
+    ['Taiko', 2147650648],
+  ] as const)('finds %s by name under coin type %i', (name, coinType) => {
+    const { otherRecords, popularRecords } = getPickerRecordGroups({
+      mode: 'evm',
+      normalizedSearchValue: name.toLowerCase(),
+      unavailableCoinTypes: new Set(),
+    })
+    const found = [...popularRecords, ...otherRecords].find(
+      (record) => record.name === name,
+    )
+
+    expect(found?.coinType).toBe(coinType)
+    expect(getAddressPresentation(coinType).label).toBe(name)
+  })
+})
+
+describe('coins address-encoder 3.0.0 removed', () => {
+  it('no longer offers Binance Chain (714) for a new record', () => {
+    const { otherRecords, popularRecords } = getPickerRecordGroups({
+      mode: 'other',
+      normalizedSearchValue: 'binance',
+      unavailableCoinTypes: new Set(),
+    })
+
+    expect(otherNetworkOptions.map(({ coinType }) => coinType)).not.toContain(
+      714,
+    )
+    expect(
+      [...popularRecords, ...otherRecords].map(({ coinType }) => coinType),
+    ).not.toContain(714)
+  })
+})
