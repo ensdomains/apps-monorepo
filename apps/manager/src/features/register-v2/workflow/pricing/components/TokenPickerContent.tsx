@@ -879,14 +879,15 @@ export const getL2MethodItems = (
     })
 }
 
-/** Like an L2 row: listed once quoted while the wallet holds ETH, or while it is chosen. */
+/** Like an L2 row: listed once quoted with something to swap while the wallet holds ETH, or while it is chosen. */
 const getEthMethodItems = (
   ethPayment: EthPaymentProps | undefined,
   networkFee: number | undefined,
 ): PaymentMethodListItem[] =>
   ethPayment &&
   (ethPayment.isSelected ||
-    (ethPayment.row.chargeRaw !== undefined &&
+    // Nothing to swap: the wallet's USDC already pays, so ETH would be the same payment.
+    ((ethPayment.row.chargeRaw ?? 0n) > 0n &&
       (ethPayment.row.balanceRaw ?? 0n) > 0n))
     ? [
         {
