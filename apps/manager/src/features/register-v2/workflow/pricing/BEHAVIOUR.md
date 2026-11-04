@@ -66,7 +66,7 @@ Paths are relative to this folder. "Sheet tests" means `components/TokenPickerCo
 
 ## Shared with renewal
 
-`TokenPickerContentBase`, `PaymentAction`, `PaymentMethodRow` and the L2 rows are shared with single and bulk renewal. Registration-only behaviour is switched on by the `registrationReceipt` prop. Renewal must not change through a registration PR: sheet tests "keeps a short L2 hidden in renewal", "keeps an unquoted L2 hidden in renewal" and "keeps the existing token row outside registration" hold that.
+`TokenPickerContentBase`, `PaymentAction`, `PaymentMethodRow` and the L2 rows are shared with single and bulk renewal. Registration-only behaviour is switched on by the `checkoutReceipt` prop. Renewal must not change through a registration PR: sheet tests "keeps a short L2 hidden in renewal", "keeps an unquoted L2 hidden in renewal" and "keeps the existing token row outside registration" hold that.
 
 ## Before changing anything here
 

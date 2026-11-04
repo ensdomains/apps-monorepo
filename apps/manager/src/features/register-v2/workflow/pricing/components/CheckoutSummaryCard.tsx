@@ -134,7 +134,12 @@ const AcceptedTokens = ({ acceptsEth }: { readonly acceptsEth: boolean }) => (
   </div>
 )
 
-type ConnectControl = Readonly<{ onConnect: () => void; isOpen: boolean }>
+type ConnectControl = Readonly<{
+  onConnect: () => void
+  isOpen: boolean
+  /** "Connect to register" by default. */
+  label?: ReactNode
+}>
 
 const ActionButton = ({
   action,
@@ -148,7 +153,7 @@ const ActionButton = ({
   const [label, onClick, isEnabled] = match(action)
     .returnType<readonly [ReactNode, () => void, boolean]>()
     .with({ kind: 'connect' }, () => [
-      <Trans key="connect">Connect to register</Trans>,
+      connect.label ?? <Trans key="connect">Connect to register</Trans>,
       connect.onConnect,
       !connect.isOpen,
     ])

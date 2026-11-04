@@ -86,6 +86,10 @@ const CENT_RAW = 10_000n
 const roundToCentRaw = (raw: bigint): bigint =>
   ((raw + CENT_RAW / 2n) / CENT_RAW) * CENT_RAW
 
+/** Up to a whole cent, for figures shown as a maximum. */
+const ceilToCentRaw = (raw: bigint): bigint =>
+  ((raw + CENT_RAW - 1n) / CENT_RAW) * CENT_RAW
+
 /** All in USDC's 6 decimals, rounded to cents. */
 export type NetworkFeeReceiptFigures = {
   readonly registrationTotalRaw: bigint
@@ -101,6 +105,7 @@ export const getNetworkFeeReceiptFigures = ({
   networkFeeRaw,
   walletDebitRaw,
   extraFeeRaw = 0n,
+  isUpTo = false,
 }: {
   readonly registrationTotalRaw: bigint
   /** The selected method's fee, before any existing balance. */
@@ -108,10 +113,13 @@ export const getNetworkFeeReceiptFigures = ({
   readonly walletDebitRaw: bigint
   /** Paid on top of the wallet debit, such as an ETH swap's gas. */
   readonly extraFeeRaw?: bigint
+  /** The figures are maximums ("up to"), so they round up rather than half-up. */
+  readonly isUpTo?: boolean
 }): NetworkFeeReceiptFigures => {
-  const total = roundToCentRaw(registrationTotalRaw)
-  const due = roundToCentRaw(walletDebitRaw + extraFeeRaw)
-  const fee = roundToCentRaw(networkFeeRaw + extraFeeRaw)
+  const toCent = isUpTo ? ceilToCentRaw : roundToCentRaw
+  const total = toCent(registrationTotalRaw)
+  const due = toCent(walletDebitRaw + extraFeeRaw)
+  const fee = toCent(networkFeeRaw + extraFeeRaw)
   const existingBalance = total + fee - due
   // A cent of rounding either way goes to the fee: no balance line without a real balance.
   return existingBalance <= CENT_RAW

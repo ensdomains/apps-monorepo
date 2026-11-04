@@ -638,6 +638,9 @@ export const TokenPickerContent = () => {
 
   return (
     <TokenPickerContentBase
+      checkoutReceipt={
+        isBudgetRequired ? { totalRaw: registrationTotalRaw } : undefined
+      }
       ethPayment={ethPayment}
       funding={
         funding
@@ -673,9 +676,6 @@ export const TokenPickerContent = () => {
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
-      registrationReceipt={
-        isBudgetRequired ? { totalRaw: registrationTotalRaw } : undefined
-      }
       revalidatedShortfall={revalidatedShortfall}
       selectedToken={selectedToken}
       shortfallLabel={<Trans>Register name</Trans>}
@@ -722,6 +722,16 @@ const getEthPaymentRow = (
         isQuoteLoading: quote.isPending || quote.isPlaceholderData,
         hasQuoteFailed: quote.isError,
       }
+
+/** The page's checkout total the sheet's receipt starts from. */
+export type CheckoutReceipt = Readonly<{
+  /** `undefined` while the price or the account balance loads. */
+  totalRaw: bigint | undefined
+  /** "Registration total" by default. */
+  totalLabel?: ReactNode
+  /** The figures are maximums, such as renewal's price with its approval headroom. */
+  isUpTo?: boolean
+}>
 
 /** Selecting ETH, and what paying with it asks of the wallet. */
 type EthPaymentProps = Readonly<{
@@ -940,9 +950,9 @@ const getEthMethodItems = (
 
 /** Registration needs no method once the existing balance covers everything: the receipt says so. */
 const isMethodPickerHidden = (
-  registrationReceipt: Readonly<{ totalRaw: bigint | undefined }> | undefined,
+  checkoutReceipt: CheckoutReceipt | undefined,
   isFullyCovered: boolean,
-) => registrationReceipt !== undefined && isFullyCovered
+) => checkoutReceipt !== undefined && isFullyCovered
 
 const isSelectedMethodShort = (
   isWalletSelectionShort: boolean,
@@ -1063,7 +1073,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   walletDebitFor,
   l2Payment,
   ethPayment,
-  registrationReceipt,
+  checkoutReceipt,
   receiptNotice,
   onCancel,
 }: {
@@ -1127,8 +1137,11 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   readonly l2Payment?: L2PaymentProps
   /** Registration only: the row that pays with the wallet's ETH. */
   readonly ethPayment?: EthPaymentProps
-  /** Registration only: the receipt shows the page's total and the network fee instead of the existing balance. */
-  readonly registrationReceipt?: Readonly<{ totalRaw: bigint | undefined }>
+  /**
+   * The sheet follows the page's checkout: its receipt shows the page's total and the network fee,
+   * methods give way to the receipt when the balance covers everything, and every L2 holding USDC is listed.
+   */
+  readonly checkoutReceipt?: CheckoutReceipt
   /** Renewal only: a message about the receipt's figures, shown directly below it. */
   readonly receiptNotice?: ReactNode
   /** Renewal only: offers Cancel below the CTA. */
@@ -1199,7 +1212,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
     l2Payment,
     selectedL2,
     funding,
-    registrationReceipt !== undefined,
+    checkoutReceipt !== undefined,
   )
   const ethMethodItems = getEthMethodItems(ethPayment, displayedNetworkFee)
 
@@ -1314,7 +1327,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
         selectedL2,
         funding?.walletDebit,
         l2Payment && getEstimatedL2AmountIn(l2Payment.rows),
-        registrationReceipt !== undefined,
+        checkoutReceipt !== undefined,
       )) ||
     (revalidatedShortfall !== undefined &&
       t`${formatUsd(revalidatedShortfall)} more needed in your wallet.`) ||
@@ -1346,7 +1359,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
 
           <div
             className="flex w-full flex-col gap-4 [&[hidden]]:hidden"
-            hidden={isMethodPickerHidden(registrationReceipt, isFullyCovered)}
+            hidden={isMethodPickerHidden(checkoutReceipt, isFullyCovered)}
           >
             <h2 className={cn(RECEIPT_LABEL, 'text-center')}>
               <Trans>Pay with</Trans>
@@ -1404,7 +1417,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           </div>
         </div>
 
-        {registrationReceipt === undefined ? (
+        {checkoutReceipt === undefined ? (
           <PaymentReceipt
             hasExistingBalance={(receiptFigures?.applied ?? 0) > 0}
             isEstimate={isEstimate}
@@ -1414,9 +1427,11 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
         ) : (
           <NetworkFeeReceipt
             extraFeeRaw={getEthSwapGasUsdcRaw(selectedEth)}
+            isUpTo={checkoutReceipt.isUpTo}
             networkFee={shownFunding?.networkFee}
-            registrationTotalRaw={registrationReceipt.totalRaw}
+            registrationTotalRaw={checkoutReceipt.totalRaw}
             state={receiptState}
+            totalLabel={checkoutReceipt.totalLabel}
           />
         )}
         {receiptNotice}

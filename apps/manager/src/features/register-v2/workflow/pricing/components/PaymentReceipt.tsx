@@ -135,17 +135,19 @@ export const PaymentReceipt = ({
   )
 }
 
-/** Registration's receipt: the page's total, the selected method's fee, and what the wallet pays. */
 const toUsd = (raw: bigint) => Number(formatUnits(raw, USDC_DECIMALS))
 
 const toUsdcRaw = (usd: number) =>
   parseUnits(usd.toFixed(USDC_DECIMALS), USDC_DECIMALS)
 
+/** The checkout receipt: the page's total, the selected method's fee, and what the wallet pays. */
 export const NetworkFeeReceipt = ({
   state,
   registrationTotalRaw,
   networkFee,
   extraFeeRaw,
+  totalLabel = <Trans>Registration total</Trans>,
+  isUpTo = false,
 }: {
   /** The quote behind the fee; the total is the page's and is always shown. */
   readonly state: PaymentReceiptState
@@ -155,6 +157,9 @@ export const NetworkFeeReceipt = ({
   readonly networkFee: number | undefined
   /** Paid on top of the wallet debit, such as an ETH swap's gas. */
   readonly extraFeeRaw: bigint
+  readonly totalLabel?: ReactNode
+  /** The figures are maximums: shown as "up to" and rounded up. */
+  readonly isUpTo?: boolean
 }) => {
   const { t } = useLingui()
   const figures =
@@ -166,6 +171,7 @@ export const NetworkFeeReceipt = ({
           networkFeeRaw: toUsdcRaw(networkFee),
           walletDebitRaw: toUsdcRaw(state.figures.due),
           extraFeeRaw,
+          isUpTo,
         })
       : undefined
   const pending: ShownAmount =
@@ -182,7 +188,7 @@ export const NetworkFeeReceipt = ({
       className="w-full"
     >
       <dl className="flex flex-col gap-4">
-        <Row label={<Trans>Registration total</Trans>}>
+        <Row label={totalLabel}>
           <UsdAmount
             amount={
               registrationTotalRaw === undefined
@@ -194,6 +200,7 @@ export const NetworkFeeReceipt = ({
                     ),
                   }
             }
+            isEstimate={isUpTo}
           />
         </Row>
         <Row label={<Trans>Estimated network fee</Trans>}>
@@ -212,7 +219,7 @@ export const NetworkFeeReceipt = ({
         )}
         <hr className="border-ens-quartz-100" />
         <Row label={<Trans>You pay</Trans>}>
-          <UsdAmount amount={shown('dueRaw')} />
+          <UsdAmount amount={shown('dueRaw')} isEstimate={isUpTo} />
         </Row>
       </dl>
     </section>

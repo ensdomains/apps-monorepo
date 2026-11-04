@@ -902,7 +902,7 @@ describe('TokenPickerContentBase', () => {
           hcaCredit: 41.98 - walletDebit,
           isLoading: false,
         },
-        registrationReceipt: { totalRaw: 0n },
+        checkoutReceipt: { totalRaw: 0n },
         selectedToken: 'USDC',
       })
 
@@ -1154,7 +1154,7 @@ describe('TokenPickerContentBase L2 rows', () => {
       selectedToken: 'USDC',
       stablecoinBalances: [emptyUsdc],
       l2Payment: payment,
-      registrationReceipt: { totalRaw: 5_000_000n },
+      checkoutReceipt: { totalRaw: 5_000_000n },
     })
 
     const row = screen.getByRole('button', {
@@ -1176,7 +1176,7 @@ describe('TokenPickerContentBase L2 rows', () => {
       selectedToken: 'USDC',
       stablecoinBalances: [emptyUsdc],
       l2Payment: payment,
-      registrationReceipt: { totalRaw: 5_000_000n },
+      checkoutReceipt: { totalRaw: 5_000_000n },
     })
 
     expect(
@@ -1191,7 +1191,7 @@ describe('TokenPickerContentBase L2 rows', () => {
       selectedToken: 'USDC',
       stablecoinBalances: [emptyUsdc],
       l2Payment: l2Payment(failedQuoteRow(), baseSepolia.id),
-      registrationReceipt: { totalRaw: 5_000_000n },
+      checkoutReceipt: { totalRaw: 5_000_000n },
     })
 
     expect(
@@ -1213,13 +1213,30 @@ describe('TokenPickerContentBase L2 rows', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('labels the checkout total and shows its figures as up to, as a caller asks', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      checkoutReceipt: {
+        totalRaw: 5_000_000n,
+        totalLabel: 'Renewal total',
+        isUpTo: true,
+      },
+    })
+
+    expect(screen.getByText('Renewal total')).toBeVisible()
+    expect(screen.queryByText('Registration total')).not.toBeInTheDocument()
+    expect(screen.getAllByText('up to').length).toBeGreaterThan(0)
+  })
+
   it('in registration, says a picked short L2 lacks USDC and estimates its fee', () => {
     renderPicker({
       funding: underfunded,
       selectedToken: 'USDC',
       stablecoinBalances: [emptyUsdc],
       l2Payment: { ...shortL2Payment(), selectedChainId: baseSepolia.id },
-      registrationReceipt: { totalRaw: 5_000_000n },
+      checkoutReceipt: { totalRaw: 5_000_000n },
     })
 
     expect(
