@@ -205,6 +205,19 @@ vi.mock('@/features/shared/registration/pricing', () => ({
 
 vi.mock('@/lib/wagmi', () => ({
   publicClient: { chain: { id: 11155111 } },
+  wagmiConfig: {},
+}))
+
+vi.mock('@/features/wallet/service/leftoverFunds', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/features/wallet/service/leftoverFunds')
+  >()),
+  withdrawLeftoverFunds: vi.fn(async () => ({ withdrawn: [] })),
+}))
+
+vi.mock('@/features/wallet/data/queries/leftoverFunds.query', () => ({
+  findPendingRegistrationFor: vi.fn(async () => null),
+  invalidateAfterWithdrawal: vi.fn(async () => undefined),
 }))
 
 vi.mock('@/utils/router/root-context', () => ({
@@ -223,6 +236,7 @@ vi.mock('../service/registrationPersistence', () => ({
 
 import { waitForTransaction } from '@ens-apps/transaction-manager'
 import { OrchestratorError } from '@rhinestone/sdk/errors'
+import { withdrawLeftoverFunds } from '@/features/wallet/service/leftoverFunds'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import {
@@ -242,6 +256,7 @@ const waitForKnownTransaction = vi.mocked(waitForTransaction)
 const startSyncEthRecord = vi.mocked(startSyncEthAddressRecordTransaction)
 const startPrimaryNameForward = vi.mocked(submitPrimaryNameForward)
 const startPrimaryNameReverse = vi.mocked(submitPrimaryNameReverse)
+const withdrawLeftover = vi.mocked(withdrawLeftoverFunds)
 
 const HCA_ADDRESS = '0x1111111111111111111111111111111111111111' as const
 const EOA_ADDRESS = '0x2222222222222222222222222222222222222222' as const
@@ -885,6 +900,46 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
       actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
     ).toBe(true)
     expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
+  })
+
+  describe('leftover refund', () => {
+    const completeRegistration = async (account: SmartAccountContextValue) => {
+      const actor = startActorInTokens()
+      actor.send(startEvent(account))
+      sendToChild(actor, { type: 'FORCE_SUCCESS' })
+      actor.send({ type: 'notifications.step.next' })
+      await flush()
+      return actor
+    }
+
+    it("returns the smart account's leftover to its owner once the name is registered", async () => {
+      const actor = await completeRegistration(smartAccount)
+
+      expect(actor.getSnapshot().matches('success')).toBe(true)
+      expect(withdrawLeftover).toHaveBeenCalledTimes(1)
+      expect(withdrawLeftover).toHaveBeenCalledWith(
+        expect.objectContaining({ hca: HCA_ADDRESS, owner: EOA_ADDRESS }),
+      )
+      actor.stop()
+    })
+
+    it('does not withdraw after a registration paid from the wallet', async () => {
+      const actor = await completeRegistration(eoaAccount)
+
+      expect(actor.getSnapshot().matches('success')).toBe(true)
+      expect(withdrawLeftover).not.toHaveBeenCalled()
+      actor.stop()
+    })
+
+    it('keeps the registration successful when the refund fails', async () => {
+      withdrawLeftover.mockRejectedValueOnce(new Error('reverted'))
+
+      const actor = await completeRegistration(smartAccount)
+
+      expect(withdrawLeftover).toHaveBeenCalledTimes(1)
+      expect(actor.getSnapshot().matches('success')).toBe(true)
+      actor.stop()
+    })
   })
 })
 

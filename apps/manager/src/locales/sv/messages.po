@@ -87,6 +87,10 @@ msgstr ""
 msgid "{affectedCount, plural, one {# affected subname} other {# affected subnames}}"
 msgstr ""
 
+#: src/features/register-v2/state/registrationUi.machine.ts
+msgid "{amount} left over from your payment is back in your wallet."
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {# request} other {# requests}}"
 msgstr ""
@@ -1129,6 +1133,10 @@ msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't restore your upgrade progress. Reload to check the latest state."
+msgstr ""
+
+#: src/features/register-v2/state/registrationUi.machine.ts
+msgid "Couldn't return your leftover funds. They're still in your smart account: use \"Withdraw leftover funds\" to get them back."
 msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
@@ -4498,6 +4506,14 @@ msgstr ""
 #: src/features/dashboard/components/LeftoverFundsNotice.tsx
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Your leftover funds are back in your wallet."
+msgstr ""
+
+#: src/features/register-v2/state/registrationUi.machine.ts
+msgid "Your leftover funds are still in your smart account. Use \"Withdraw leftover funds\" to get them back."
+msgstr ""
+
+#: src/features/register-v2/state/registrationUi.machine.ts
+msgid "Your leftover funds stay in your smart account until your registration of {registrationName} completes."
 msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts

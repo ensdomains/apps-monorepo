@@ -12,6 +12,8 @@ import { isUserRejectionError } from '@ens-apps/transaction-manager/errors/trans
 import { getResumeTarget } from '@ens-apps/transaction-manager/machines/registration/registration.persistence'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { msg } from '@lingui/core/macro'
+import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import {
   type Address,
@@ -32,17 +34,30 @@ import {
 import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import {
+  findPendingRegistrationFor,
+  invalidateAfterWithdrawal,
+} from '@/features/wallet/data/queries/leftoverFunds.query'
+import {
+  type WithdrawLeftoverFundsResult,
+  withdrawLeftoverFunds,
+} from '@/features/wallet/service/leftoverFunds'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
-import { publicClient as defaultPublicClient } from '@/lib/wagmi'
+import { publicClient as defaultPublicClient, wagmiConfig } from '@/lib/wagmi'
+import { translateMessage } from '@/utils/i18n/translateMessage'
 import { getQueryClient } from '@/utils/router/root-context'
 import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
 import { getL2FundingSource } from '../service/l2FundingSource'
+import {
+  type LeftoverRefundNotice,
+  resolveLeftoverRefundNotice,
+} from '../service/leftoverRefund'
 import { readPendingEthSwap } from '../service/pendingEthSwap'
 import { readPendingL2Bridge } from '../service/pendingL2Bridge'
 import {
@@ -327,6 +342,20 @@ const hasPrimaryNameReverseRemaining = (context: Context) =>
   canSetPrimaryName(context) &&
   context.postRegistrationProgress.primaryNameForwardConfirmed
 
+/** The smart account a run paid from and its owner; `null` for an EOA run. */
+const leftoverRefundAccounts = (
+  context: Context,
+): { readonly hca: Address; readonly owner: Address } | null => {
+  const data = context.postRegistrationData
+  if (
+    data?.signer.type !== 'rhinestone' ||
+    data.accountAddress.toLowerCase() === data.ownerAddress.toLowerCase()
+  ) {
+    return null
+  }
+  return { hca: data.accountAddress, owner: data.ownerAddress }
+}
+
 const updateMaxProgress = (
   current: MaxProgressReached | undefined,
   stage: RegistrationStage,
@@ -397,6 +426,26 @@ const machineSetup = setup({
     waitForKnownTransaction: fromPromise(
       async ({ input }: { input: { txId: string } }) =>
         waitForTransaction(input.txId),
+    ),
+    refundLeftoverFunds: fromPromise(
+      ({
+        input,
+      }: {
+        input: ReturnType<typeof leftoverRefundAccounts>
+      }): Promise<WithdrawLeftoverFundsResult> =>
+        input
+          ? withdrawLeftoverFunds({
+              hca: input.hca,
+              owner: input.owner,
+              // The reveal deployed the account, so there is nothing to deploy.
+              hcaClient: null,
+              refreshAccount: () => Promise.resolve(),
+              publicClient: defaultPublicClient,
+              wagmiConfig,
+              findPendingRegistration: () =>
+                findPendingRegistrationFor(input.hca),
+            })
+          : Promise.resolve({ withdrawn: [] }),
     ),
   },
   guards: {
@@ -715,6 +764,47 @@ const machineSetup = setup({
         primaryNameForwardConfirmed: true,
       }),
     }),
+    // Both sides moved: the account's balance and the wallet's.
+    invalidateAfterLeftoverRefund: ({ context }) => {
+      const accounts = leftoverRefundAccounts(context)
+      const queryClient = getQueryClient()
+      if (accounts && queryClient) {
+        void invalidateAfterWithdrawal(queryClient, accounts.hca)
+      }
+    },
+    announceLeftoverRefund: (_, notice: LeftoverRefundNotice) => {
+      match(notice)
+        .with({ kind: 'none' }, () => undefined)
+        .with({ kind: 'returned' }, ({ amount }) =>
+          toast.success(
+            translateMessage(
+              msg`${amount} left over from your payment is back in your wallet.`,
+            ),
+          ),
+        )
+        .with({ kind: 'held' }, ({ registrationName }) =>
+          toast.info(
+            translateMessage(
+              msg`Your leftover funds stay in your smart account until your registration of ${registrationName} completes.`,
+            ),
+          ),
+        )
+        .with({ kind: 'declined' }, () =>
+          toast.info(
+            translateMessage(
+              msg`Your leftover funds are still in your smart account. Use "Withdraw leftover funds" to get them back.`,
+            ),
+          ),
+        )
+        .with({ kind: 'failed' }, () =>
+          toast.error(
+            translateMessage(
+              msg`Couldn't return your leftover funds. They're still in your smart account: use "Withdraw leftover funds" to get them back.`,
+            ),
+          ),
+        )
+        .exhaustive()
+    },
   },
 })
 
@@ -1516,7 +1606,33 @@ export const registrationV2UiMachine = machineSetup.createMachine({
         actions: ['invalidateNameQueries'],
       },
     },
-    success: {},
+    success: {
+      // Return the payment's leftover to the owner; a failed refund never undoes the registration.
+      invoke: {
+        src: 'refundLeftoverFunds',
+        input: ({ context }) => leftoverRefundAccounts(context),
+        onDone: {
+          actions: [
+            'invalidateAfterLeftoverRefund',
+            {
+              type: 'announceLeftoverRefund',
+              params: ({ event }) =>
+                resolveLeftoverRefundNotice({ result: event.output }),
+            },
+          ],
+        },
+        onError: {
+          actions: [
+            'invalidateAfterLeftoverRefund',
+            {
+              type: 'announceLeftoverRefund',
+              params: ({ event }) =>
+                resolveLeftoverRefundNotice({ error: event.error }),
+            },
+          ],
+        },
+      },
+    },
     failure: {
       // A reverted register says nothing about why, so ask the registry
       // whether someone else got the name first

@@ -82,6 +82,10 @@ msgstr "{0}% discount"
 msgid "{affectedCount, plural, one {# affected subname} other {# affected subnames}}"
 msgstr "{affectedCount, plural, one {# affected subname} other {# affected subnames}}"
 
+#: src/features/register-v2/state/registrationUi.machine.ts
+msgid "{amount} left over from your payment is back in your wallet."
+msgstr "{amount} left over from your payment is back in your wallet."
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {# request} other {# requests}}"
 msgstr "{count, plural, one {# request} other {# requests}}"
@@ -1125,6 +1129,10 @@ msgstr "Couldn't read your balance on {chainName}."
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't restore your upgrade progress. Reload to check the latest state."
 msgstr "Couldn't restore your upgrade progress. Reload to check the latest state."
+
+#: src/features/register-v2/state/registrationUi.machine.ts
+msgid "Couldn't return your leftover funds. They're still in your smart account: use \"Withdraw leftover funds\" to get them back."
+msgstr "Couldn't return your leftover funds. They're still in your smart account: use \"Withdraw leftover funds\" to get them back."
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Couldn't revoke sessions. Please try again."
@@ -4494,6 +4502,14 @@ msgstr "Your journey with ENS has given you these <0>traits</0>"
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Your leftover funds are back in your wallet."
 msgstr "Your leftover funds are back in your wallet."
+
+#: src/features/register-v2/state/registrationUi.machine.ts
+msgid "Your leftover funds are still in your smart account. Use \"Withdraw leftover funds\" to get them back."
+msgstr "Your leftover funds are still in your smart account. Use \"Withdraw leftover funds\" to get them back."
+
+#: src/features/register-v2/state/registrationUi.machine.ts
+msgid "Your leftover funds stay in your smart account until your registration of {registrationName} completes."
+msgstr "Your leftover funds stay in your smart account until your registration of {registrationName} completes."
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "Your mint was submitted. Check its status before trying another mint."
