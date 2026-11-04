@@ -87,6 +87,24 @@ describe('NamesTable expiry cell', () => {
     )
   })
 
+  it('shows a subname’s own expiry, and when it stops resolving if the parent expires first', () => {
+    render(
+      <NamesTableHarness
+        data={[
+          {
+            ...row('sub.parent.eth', new Date(Date.UTC(2034, 10, 4))),
+            parentExpiryDate: new Date(Date.UTC(2030, 5, 15)),
+          },
+        ]}
+      />,
+    )
+
+    expect(desktopRowText('sub.parent.eth')).toContain('November 4, 2034')
+    expect(desktopRowText('sub.parent.eth')).toContain(
+      'Stops resolving with its parent on June 15, 2030',
+    )
+  })
+
   it("says a subname expires with its parent when the parent's date is unknown", () => {
     render(
       <NamesTableHarness
