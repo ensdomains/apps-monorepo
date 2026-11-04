@@ -19,6 +19,7 @@ import {
 } from '@/features/renew/state/renewalUi.selectors'
 import { getRenewalPaymentScreen } from '@/features/renew/utils/renewalFunding'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -192,7 +193,7 @@ export const TokenPickerContent = () => {
     if (isIntentRoute && !displayedDebit && !l2Source) return
     uiActor.send({
       type: 'renewal.start',
-      referrer: normalizeReferrer(referrer),
+      referrer: normalizeReferrer(referrer, ENS_LABS_REFERRER),
       label,
       signer,
       ownerAddress,
