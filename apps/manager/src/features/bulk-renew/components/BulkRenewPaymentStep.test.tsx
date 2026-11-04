@@ -61,7 +61,7 @@ describe('BulkRenewPaymentStep', () => {
 
     expect(screen.getByText('3 names')).toBeVisible()
     // The fee is shown with the method, and the total carries it.
-    expect(screen.getByText(/est\. fee: \$0\.30/)).toBeVisible()
+    expect(screen.getByText(/Est\. fee: \$0\.30/)).toBeVisible()
     expect(screen.getByText('$22.30')).toBeVisible()
     expect(
       screen.queryByRole('button', { name: /DAI/ }),

@@ -4,7 +4,7 @@ import type { Address, PublicClient } from 'viem'
 import { readContract } from 'viem/actions'
 
 /**
- * Checks whether `paymentToken` is whitelisted on the registrar's rent price
+ * Checks whether `paymentToken` is whitelisted on the registrar's price
  * oracle.
  *
  * The production v2 `ETHRegistrar` does **not** expose `isPaymentToken`
@@ -35,7 +35,7 @@ export async function isPaymentTokenSupported(
 }
 
 /**
- * Throws if `paymentToken` is not whitelisted on the registrar's rent price
+ * Throws if `paymentToken` is not whitelisted on the registrar's price
  * oracle. Wraps {@link isPaymentTokenSupported}.
  */
 export async function assertPaymentTokenSupported(

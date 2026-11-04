@@ -1,6 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
-import { chain } from '@/config'
 import { STABLECOINS } from '@/features/shared/registration/nameUtils'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import type { TOKEN_SYMBOL } from '@/lib/tokens'
@@ -10,9 +9,6 @@ import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { hasInsufficientBalance } from '@/utils/payment'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
-
-// The wallet pays on the app's own chain, which isn't always mainnet.
-const chainName = chain.name
 
 const MainnetBadge = () => (
   <span
@@ -35,7 +31,6 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
   networkFee,
   isNetworkFeeLoading = false,
   showNetworkFeeDetails = false,
-  feeTooltip,
 }: {
   readonly stablecoin: StablecoinBalance
   readonly selectedCoin: T | undefined
@@ -44,8 +39,6 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
   readonly networkFee?: number
   readonly isNetworkFeeLoading?: boolean
   readonly showNetworkFeeDetails?: boolean
-  /** What the fee pays for. */
-  readonly feeTooltip?: React.ReactNode
 }) => {
   const { t } = useLingui()
   const isSelected = selectedCoin === stablecoin.symbol
@@ -110,13 +103,8 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
   return (
     <PaymentMethodRow
       amount={formatUsd(coinBalanceUSD)}
-      amountLabel={<Trans>balance</Trans>}
-      fee={
-        <Trans>
-          {chainName} est. fee: {formatUsd(networkFee ?? Number.NaN)}
-        </Trans>
-      }
-      feeTooltip={feeTooltip}
+      amountLabel={<Trans>available</Trans>}
+      fee={<Trans>Est. fee: {formatUsd(networkFee ?? Number.NaN)}</Trans>}
       icon={
         <PaymentMethodIcon
           icon={<IconComponent className="size-full" />}
@@ -125,7 +113,6 @@ export const TokenListItem = <T extends TOKEN_SYMBOL>({
       }
       isAvailable
       isFeeLoading={isNetworkFeeLoading}
-      isInsufficient={!isFunded}
       isSelected={isSelected}
       name={stablecoin.symbol}
       onSelect={() => onSelectCoin(stablecoin.symbol as T)}

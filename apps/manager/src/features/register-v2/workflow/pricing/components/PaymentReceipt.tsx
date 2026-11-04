@@ -1,30 +1,33 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
-import { MSymbol } from '@/components/ui/material-symbol'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { formatUnits, parseUnits } from 'viem'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import type {
-  PaymentReceiptFigures,
-  PaymentReceiptState,
+import {
+  getNetworkFeeReceiptFigures,
+  type PaymentReceiptFigures,
+  type PaymentReceiptState,
 } from '../lib/paymentReceiptFigures'
+import { ExistingBalanceLabel } from './ExistingBalanceLabel'
+import { RECEIPT_AMOUNT, RECEIPT_LABEL } from './receiptTypography'
 
-const Amount = ({
-  state,
-  field,
+const USDC_DECIMALS = 6
+
+type ShownAmount =
+  | { readonly status: 'loading' }
+  | { readonly status: 'unavailable' }
+  | { readonly status: 'ready'; readonly value: number }
+
+const UsdAmount = ({
+  amount,
   isEstimate = false,
   isDeduction = false,
 }: {
-  readonly state: PaymentReceiptState
-  readonly field: keyof PaymentReceiptFigures
+  readonly amount: ShownAmount
   readonly isEstimate?: boolean
   readonly isDeduction?: boolean
 }) =>
-  match(state)
+  match(amount)
     .with({ status: 'loading' }, () => (
       <span
         aria-hidden="true"
@@ -34,8 +37,7 @@ const Amount = ({
     .with({ status: 'unavailable' }, () => (
       <span className="text-ens-quartz-900 text-xl">—</span>
     ))
-    .with({ status: 'ready' }, ({ figures }) => {
-      const value = figures[field]
+    .with({ status: 'ready' }, ({ value }) => {
       return (
         <span className="flex items-baseline gap-2">
           {isEstimate && value > 0 && (
@@ -43,16 +45,36 @@ const Amount = ({
               <Trans>up to</Trans>
             </span>
           )}
-          <span className="text-ens-quartz-900 text-xl leading-none">
+          <span className={RECEIPT_AMOUNT}>
             {isDeduction && value > 0
               ? `-${formatUsd(value)}`
               : formatUsd(value)}
           </span>
-          <span className="text-ens-quartz-400 text-lg leading-none">USD</span>
+          <span className={RECEIPT_LABEL}>USD</span>
         </span>
       )
     })
     .exhaustive()
+
+const Amount = ({
+  state,
+  field,
+  ...rest
+}: {
+  readonly state: PaymentReceiptState
+  readonly field: keyof PaymentReceiptFigures
+  readonly isEstimate?: boolean
+  readonly isDeduction?: boolean
+}) => (
+  <UsdAmount
+    amount={
+      state.status === 'ready'
+        ? { status: 'ready', value: state.figures[field] }
+        : state
+    }
+    {...rest}
+  />
+)
 
 const Row = ({
   label,
@@ -62,36 +84,10 @@ const Row = ({
   readonly children: ReactNode
 }) => (
   <div className="flex items-baseline justify-between gap-2">
-    <dt className="text-ens-quartz-400 text-lg leading-none">{label}</dt>
+    <dt className={RECEIPT_LABEL}>{label}</dt>
     <dd>{children}</dd>
   </div>
 )
-
-const ExistingBalanceLabel = () => {
-  const { t } = useLingui()
-
-  return (
-    <span className="flex items-center gap-1">
-      <Trans>Existing balance</Trans>
-      <Tooltip>
-        <TooltipTrigger
-          aria-label={t`Where did this come from?`}
-          className="flex items-center text-ens-quartz-350"
-          type="button"
-        >
-          <MSymbol className="ms-opsz-20 ms-wght-400" symbol="info" />
-        </TooltipTrigger>
-        <TooltipContent className="max-w-64 text-center">
-          <Trans>
-            Your own USDC, left in your ENS account by a payment you started
-            earlier. It is spent first, so your wallet pays the rest. Nothing
-            extra is charged for it.
-          </Trans>
-        </TooltipContent>
-      </Tooltip>
-    </span>
-  )
-}
 
 /** A single total, or total, existing balance and what the user pays when a balance applies. */
 export const PaymentReceipt = ({
@@ -135,6 +131,90 @@ export const PaymentReceipt = ({
           </Row>
         </dl>
       )}
+    </section>
+  )
+}
+
+/** Registration's receipt: the page's total, the selected method's fee, and what the wallet pays. */
+const toUsd = (raw: bigint) => Number(formatUnits(raw, USDC_DECIMALS))
+
+const toUsdcRaw = (usd: number) =>
+  parseUnits(usd.toFixed(USDC_DECIMALS), USDC_DECIMALS)
+
+export const NetworkFeeReceipt = ({
+  state,
+  registrationTotalRaw,
+  networkFee,
+  extraFeeRaw,
+}: {
+  /** The quote behind the fee; the total is the page's and is always shown. */
+  readonly state: PaymentReceiptState
+  /** `undefined` while the price or the account balance loads. */
+  readonly registrationTotalRaw: bigint | undefined
+  /** The selected method's fee, before any existing balance; `undefined` until quoted. */
+  readonly networkFee: number | undefined
+  /** Paid on top of the wallet debit, such as an ETH swap's gas. */
+  readonly extraFeeRaw: bigint
+}) => {
+  const { t } = useLingui()
+  const figures =
+    state.status === 'ready' &&
+    registrationTotalRaw !== undefined &&
+    networkFee !== undefined
+      ? getNetworkFeeReceiptFigures({
+          registrationTotalRaw,
+          networkFeeRaw: toUsdcRaw(networkFee),
+          walletDebitRaw: toUsdcRaw(state.figures.due),
+          extraFeeRaw,
+        })
+      : undefined
+  const pending: ShownAmount =
+    state.status === 'loading'
+      ? { status: 'loading' }
+      : { status: 'unavailable' }
+  const shown = (field: 'networkFeeRaw' | 'dueRaw'): ShownAmount =>
+    figures ? { status: 'ready', value: toUsd(figures[field]) } : pending
+
+  return (
+    <section
+      aria-busy={state.status === 'loading'}
+      aria-label={t`Payment summary`}
+      className="w-full"
+    >
+      <dl className="flex flex-col gap-4">
+        <Row label={<Trans>Registration total</Trans>}>
+          <UsdAmount
+            amount={
+              registrationTotalRaw === undefined
+                ? { status: 'loading' }
+                : {
+                    status: 'ready',
+                    value: toUsd(
+                      figures?.registrationTotalRaw ?? registrationTotalRaw,
+                    ),
+                  }
+            }
+          />
+        </Row>
+        <Row label={<Trans>Estimated network fee</Trans>}>
+          <UsdAmount amount={shown('networkFeeRaw')} />
+        </Row>
+        {figures && figures.existingBalanceRaw > 0n && (
+          <Row label={<ExistingBalanceLabel />}>
+            <UsdAmount
+              amount={{
+                status: 'ready',
+                value: toUsd(figures.existingBalanceRaw),
+              }}
+              isDeduction
+            />
+          </Row>
+        )}
+        <hr className="border-ens-quartz-100" />
+        <Row label={<Trans>You pay</Trans>}>
+          <UsdAmount amount={shown('dueRaw')} />
+        </Row>
+      </dl>
     </section>
   )
 }

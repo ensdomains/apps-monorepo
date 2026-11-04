@@ -60,7 +60,7 @@ export const TokenPickerContent = () => {
         rawPrice: data.amount,
         price: decimalBigintToNumber(data.amount, decimals),
         // The intent route moves the approval's headroom into the account
-        // too, so the wallet is gated on that, not on the rent alone.
+        // too, so the wallet is gated on that, not on the price alone.
         fundedRaw,
         funded: decimalBigintToNumber(fundedRaw, decimals),
       }
@@ -225,21 +225,8 @@ export const TokenPickerContent = () => {
       isEstimate={isIntentRoute}
       isLoadingBalances={balances.isLoading}
       isQuotingFunding={isQuoting}
-      l2FeeTooltip={(chainName) => (
-        <Trans>
-          An estimate of what the transaction that renews your name costs,
-          including moving the USDC from {chainName}. It is paid there with the
-          renewal price.
-        </Trans>
-      )}
       l2Payment={l2Payment}
       label={label}
-      networkFeeTooltip={
-        <Trans>
-          An estimate of what the transaction that renews your name will cost.
-          It is collected together with the renewal price, in the same approval.
-        </Trans>
-      }
       nextMessage={nextMessage}
       onNext={startRenewal}
       onSelectCoin={onSelectCoin}

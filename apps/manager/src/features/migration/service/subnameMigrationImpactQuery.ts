@@ -15,6 +15,10 @@ import {
   getReusableRpcSubnameInventory,
   getRpcSubnameInventoryCacheKey,
 } from './rpcSubnameInventoryCache'
+import {
+  getSubnameMigrationImpactRetryDelay,
+  shouldRetrySubnameMigrationImpact,
+} from './subnameMigrationImpactQuery.helpers'
 import type { UpgradeReadCoordinator } from './upgradeReadCoordinator'
 
 type Scope = {
@@ -111,7 +115,9 @@ export const getSubnameMigrationImpactQueryOptions = (
     staleTime: FRESH_FOR_MS,
     refetchInterval: isEnabled && isRefetchEnabled ? FRESH_FOR_MS : false,
     refetchOnWindowFocus: isRefetchEnabled ? 'always' : false,
-    retry: false,
+    retry: (failureCount, error) =>
+      shouldRetrySubnameMigrationImpact({ failureCount, cause: error.cause }),
+    retryDelay: getSubnameMigrationImpactRetryDelay,
   })
 }
 

@@ -30,21 +30,26 @@ import {
   multicall3Abi,
   namehash,
   type PublicClient,
+  TimeoutError,
   toHex,
   zeroAddress,
   zeroHash,
 } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { envConfig } from '@/config'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { DEFAULT_RESOLVER, makeDomain, OTHER, OWNER } from './_fixtures'
 import { classifyNames } from './classifyNames'
+import { RpcSubnameInventoryError } from './readRpcSubnameInventory'
+import * as impactReader from './readRpcSubnameMigrationImpact'
 import { NEW_OWNER_ABI } from './rpcSubnameInventory'
 import {
   applySubnameRecreation,
   assertSubnameRecreationUnchanged,
+  assertSupportedSubnameMigration,
   discoverSubnameRecreation,
 } from './subnameRecreation'
+import { SubnameRecreationError } from './subnameRecreationError'
 
 vi.mock('@/lib/wagmi', async () => ({
   sepoliaWithEns: (await import('@/config')).envConfig.chain,
@@ -323,6 +328,104 @@ const fixture = (
     })
   return { state, client, indexer, discover, request, readContract }
 }
+
+describe('preparation and execution subname safety retries', () => {
+  const safeImpact = {
+    parents: [],
+    affectedCount: 0,
+    unrecoverable: [],
+    fingerprint: 'safe',
+    checkedAt: 1000,
+  }
+  const timeout = new TimeoutError({ url: 'https://rpc.invalid', body: {} })
+  const run = () => {
+    vi.useFakeTimers()
+    const read = vi.spyOn(impactReader, 'readRpcSubnameMigrationImpact')
+    const controller = new AbortController()
+    const check = () =>
+      assertSupportedSubnameMigration({
+        publicClient: fixture().client,
+        classified: classifyNames([root], OWNER, envConfig.chain.id).classified,
+        signal: controller.signal,
+      })
+    return { read, controller, check }
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('recovers from a transient read only after the retry delay', async () => {
+    const { read, check } = run()
+    read.mockRejectedValueOnce(timeout).mockResolvedValueOnce(safeImpact)
+    const pending = check().catch((cause: unknown) => cause)
+
+    await vi.advanceTimersByTimeAsync(999)
+    expect(read).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+
+    expect(await pending).toEqual(safeImpact)
+    expect(read).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops a persistent outage after three total safety checks', async () => {
+    const { read, check } = run()
+    read.mockRejectedValue(timeout)
+    const pending = check().catch((cause: unknown) => cause)
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(read).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(read).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+
+    expect(await pending).toBe(timeout)
+    expect(read).toHaveBeenCalledTimes(3)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('keeps a dependent subtree blocked after transient recovery', async () => {
+    const { read, check } = run()
+    read
+      .mockRejectedValueOnce(timeout)
+      .mockResolvedValue({ ...safeImpact, affectedCount: 1 })
+    const pending = check().catch((cause: unknown) => cause)
+
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(await pending).toBeInstanceOf(SubnameRecreationError)
+    expect(read).toHaveBeenCalledTimes(2)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('does not retry an inventory limit even with a nested timeout', async () => {
+    const { read, check } = run()
+    const failure = new RpcSubnameInventoryError({
+      reason: 'node-limit',
+      cause: timeout,
+    })
+    read.mockRejectedValue(failure)
+
+    await expect(check()).rejects.toBe(failure)
+    expect(read).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('cancels the retry wait without starting another read', async () => {
+    const { read, check, controller } = run()
+    read.mockRejectedValueOnce(timeout).mockResolvedValue(safeImpact)
+    const pending = check().catch((cause: unknown) => cause)
+    await vi.advanceTimersByTimeAsync(0)
+
+    controller.abort()
+
+    expect(await pending).toBe(controller.signal.reason)
+    expect(vi.getTimerCount()).toBe(0)
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(read).toHaveBeenCalledTimes(1)
+  })
+})
 
 describe('direct subname source checks', () => {
   it('queues the current head while its canonical inventory check is pending', async () => {
