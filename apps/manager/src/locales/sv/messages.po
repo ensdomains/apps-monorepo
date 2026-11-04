@@ -3716,6 +3716,7 @@ msgid "To use this as your primary name, we’ll set a resolver your wallet cont
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/renew/workflow/pricing/components/DurationSelector.tsx
 msgid "total"
 msgstr ""
 
