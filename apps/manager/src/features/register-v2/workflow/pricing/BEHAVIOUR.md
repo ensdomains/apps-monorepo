@@ -36,7 +36,7 @@ Paths are relative to this folder. "Sheet tests" means `components/TokenPickerCo
 
 | Rule | Held by |
 | --- | --- |
-| The app picks a method that can pay: a wallet coin first, then the L2 holding the most, then ETH as the last option. | `lib/fallbackPaymentChoice.test.ts`; sheet tests "moves to the L2 holding the most when the wallet cannot pay", "moves to ETH when nothing else can pay..." |
+| With nothing chosen yet, the app picks a wallet coin that can pay first, then the L2 holding the most. When the current method falls short, it moves to whichever method that can pay holds the most, wallet coin or L2 (a tie keeps the wallet coin). ETH is taken only when no USDC method can pay. | `lib/fallbackPaymentChoice.test.ts` ("with nothing chosen, takes a wallet coin that can pay over a bigger L2", "takes the method holding the most", "keeps list order on a tie, so the wallet wins", "prefers any USDC method to the ETH swap"); sheet tests "moves to the L2 holding the most when the wallet cannot pay", "moves to ETH when nothing else can pay..." |
 | A method the app picked gives way when a better one can pay: an L2 to a wallet coin, ETH to a wallet coin or an L2. | `lib/fallbackPaymentChoice.test.ts` ("moves ETH it picked to an L2 that can now pay", "moves an L2 it picked back to a wallet coin...") |
 | A method the user picked stays selected when it falls short, with the token named: "You do not have enough USDC for this transaction." | Sheet tests "keeps a short wallet coin only when the user picked it", "in registration, says a picked short L2 lacks USDC..." |
 | A picked L2 with no route says "Paying from {chain} isn't available right now." | Sheet tests "says a picked L2 whose quote failed cannot be used right now" |
@@ -51,7 +51,7 @@ Paths are relative to this folder. "Sheet tests" means `components/TokenPickerCo
 | Buttons: "Sign approval" for USDC, "Swap and Register" for ETH, "Loading..." while balances or quotes load, "Registering..." while paying, "Register name" (disabled) when the selection can't pay. Every disabled button is grey. | Sheet tests "labels the button $label when the wallet holds $balance", "keeps the wallet locked while payment approval takes longer than a minute". "Swap and Register" has no test yet. |
 | When the existing balance covers everything, the button still reads "Sign approval" with "What will I sign?" (Big Balance frame). | Sheet tests "needs no method when the account credit covers it all, bridging nothing" |
 | "What will I sign?" stays visible while registering, and is kept on the ETH swap (agreed; the WEB-2121 notes left it out for ETH). | Sheet tests "keeps explaining the signature while registering" |
-| The primary-name toggle is hidden. Its default, which sets the primary name for a wallet without one, is unchanged. | Sheet tests via `renderContainer` (default primary-name setup); no test asserts the toggle is absent |
+| The primary-name toggle is hidden. Its default is unchanged: the primary name is set only when the wallet has none and its owned-name count is known and below five (`../../state/registrationAutoSetup.ts`). | `../../state/registrationAutoSetup.test.ts`; no test asserts the toggle is absent |
 | A long name wraps before ".eth", never inside it. | `components/EthNameText.tsx` (no test) |
 
 ## Known limits, not bugs
