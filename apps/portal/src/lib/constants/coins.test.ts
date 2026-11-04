@@ -68,7 +68,6 @@ describe('coins', () => {
     })
   })
 
-  // address-encoder 3.0.0 added these EVM chains (PR 422).
   describe('EVM chains added in address-encoder 3.0.0', () => {
     it.each([
       ['unichain', 'Unichain', 2147483778],

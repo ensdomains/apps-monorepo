@@ -74,7 +74,6 @@ describe('L2 address records key on this deployment’s coin type', () => {
   )
 })
 
-// address-encoder 3.0.0 added these EVM chains (PR 422).
 describe('EVM chains added in address-encoder 3.0.0', () => {
   it.each([
     ['Unichain', 2147483778],
