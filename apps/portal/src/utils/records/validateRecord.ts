@@ -3,6 +3,7 @@ import {
   getCoderByCoinType,
 } from '@ensdomains/address-encoder'
 import {
+  getCoderFromCoin,
   getProtocolType,
   isValidContentHash as isValidEncodedContentHash,
 } from '@ensdomains/ensjs/utils'
@@ -60,6 +61,19 @@ function normalizeCoinAddress(coinType: number, address: string): string {
   return address
 }
 
+// ensjs encodes the write with its own copy, which still codes coins 3.0.0 removed.
+function getCoder(coinType: number) {
+  try {
+    return getCoderByCoinType(coinType)
+  } catch (error) {
+    try {
+      return getCoderFromCoin(coinType)
+    } catch {
+      throw error
+    }
+  }
+}
+
 /**
  * Validates a cryptocurrency address for a coin type using the address-encoder
  * library. Returns an error message if invalid, or null if valid.
@@ -72,7 +86,7 @@ function validateCryptoAddress(
 
   try {
     const normalizedAddress = normalizeCoinAddress(coinType, address)
-    const coder = getCoderByCoinType(coinType)
+    const coder = getCoder(coinType)
     coder.decode(normalizedAddress)
     return null // Valid
   } catch (e: unknown) {
