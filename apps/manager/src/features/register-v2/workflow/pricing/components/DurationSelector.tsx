@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useCallback, useMemo } from 'react'
@@ -95,6 +96,8 @@ export const DurationSelector = () => {
               })
             }
             price={query.data?.basePrice}
+            priceLabel={<Trans>total</Trans>}
+            total={query.data?.totalPrice}
           />
         )
       })}

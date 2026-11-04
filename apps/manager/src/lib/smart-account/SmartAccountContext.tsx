@@ -63,11 +63,7 @@ import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'
 import { resolveSessionActor } from './actors/session.actors'
-import {
-  isSessionAccessReset,
-  resolveVerifiedOwner,
-  sessionHydrationKey,
-} from './sessionGate'
+import { resolveVerifiedOwner, sessionHydrationKey } from './sessionGate'
 import {
   selectIsLoading,
   selectIsReady,
@@ -77,6 +73,7 @@ import type {
   WalletSource as BaseWalletSource,
   RhinestoneAccountState,
 } from './types'
+import { useSessionAccessReset } from './useSessionAccessReset'
 import { useSessionRevocationWatch } from './useSessionRevocationWatch'
 import { useSmartAccountBalances } from './useSmartAccountBalances'
 
@@ -153,10 +150,10 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    */
   readonly revokeSession: (options?: RevokeSessionOptions) => Promise<boolean>
   /**
-   * True once this page has reset the current HCA's sessions and no session
-   * has been authorized since: there is nothing left to revoke. Page-lifetime
-   * only, so a fresh load (where an owner goes after a leak elsewhere) can
-   * always reset.
+   * True once this browser has reset the current HCA's sessions and no
+   * session has been authorized since: there is nothing left to revoke. Kept
+   * across reloads, and dropped once the chain's nonce moves past the reset
+   * (a reset from another device).
    */
   readonly isSessionAccessReset: boolean
   /** Why the last revocation failed, for UI that branches on the cause. */
@@ -652,10 +649,6 @@ export const SmartAccountContextProvider = ({
   const [revokeError, setRevokeError] = useState<string | null>(null)
   const [revokeErrorReason, setRevokeErrorReason] =
     useState<SessionRevokeReason | null>(null)
-  // The HCA this page last revoked for. Kept in memory on purpose: another
-  // device can sign a session we never see, so a reload must offer reset again.
-  const [resetAccount, setResetAccount] = useState<Address | null>(null)
-
   // When the owner changes (incl. initial mount / reconnect), hydrate the
   // active session from localStorage: a valid, non-expired stored session for
   // this owner is reused WITHOUT prompting, because its owner-signed
@@ -707,6 +700,18 @@ export const SmartAccountContextProvider = ({
     chainId: appChain.id,
     publicClient: wagmiPublicClient as PublicClient | undefined,
     onRevoked: setActiveSession,
+  })
+
+  const {
+    isSessionAccessReset,
+    markSessionAccessReset,
+    clearSessionAccessReset,
+  } = useSessionAccessReset({
+    accountAddress,
+    chainId: appChain.id,
+    publicClient: wagmiPublicClient as PublicClient | undefined,
+    activeSession,
+    isActiveSessionRevoked,
   })
 
   // Authorize (or reuse) a session and return a signer carrying it. With
@@ -774,7 +779,7 @@ export const SmartAccountContextProvider = ({
 
       // Update state so future renders/intents pick up the session…
       setActiveSession(result.value.session)
-      setResetAccount(null)
+      clearSessionAccessReset(accountAddress)
 
       // …AND return a signer with the session attached NOW, so the caller can
       // start registration in the same tick without waiting for a re-render
@@ -804,6 +809,7 @@ export const SmartAccountContextProvider = ({
       snapshot.context.ownerAddress,
       eoaAddress,
       wagmiPublicClient,
+      clearSessionAccessReset,
     ],
   )
 
@@ -869,15 +875,20 @@ export const SmartAccountContextProvider = ({
         client: baseClient,
         hca: revokedAccount,
         owner: walletAccount.address,
-      }).asyncAndThen((deploymentCall) =>
-        revokeSessionsOnChain({
-          walletClient: wagmiWalletClient as WalletClient,
-          publicClient: wagmiPublicClient as PublicClient,
-          chain: appChain,
-          hca: revokedAccount,
-          ...(deploymentCall ? { deploymentCall } : {}),
-        }),
-      )
+      })
+        .asyncAndThen((deploymentCall) =>
+          revokeSessionsOnChain({
+            walletClient: wagmiWalletClient as WalletClient,
+            publicClient: wagmiPublicClient as PublicClient,
+            chain: appChain,
+            hca: revokedAccount,
+            ...(deploymentCall ? { deploymentCall } : {}),
+          }),
+        )
+        // The nonce moved on-chain whichever account is current now.
+        .andTee(({ sessionNonce }) =>
+          markSessionAccessReset(revokedAccount, sessionNonce),
+        )
       // The spinner is global, so always clear it — no revoke is in flight for
       // whatever account is current now. Only the session/error state below is
       // account-specific and therefore gated.
@@ -888,7 +899,6 @@ export const SmartAccountContextProvider = ({
           // `revokeSessionsOnChain` already dropped the stored row; clear the
           // in-memory one so the gate re-prompts on the next action.
           setActiveSession(null)
-          setResetAccount(revokedAccount)
           // The account machine still believes the HCA is counterfactual.
           if (deploymentTransactionHash) send({ type: 'REFRESH' })
           return true
@@ -912,7 +922,15 @@ export const SmartAccountContextProvider = ({
         },
       )
     },
-    [accountAddress, baseClient, wagmiWalletClient, wagmiPublicClient, send, t],
+    [
+      accountAddress,
+      baseClient,
+      wagmiWalletClient,
+      wagmiPublicClient,
+      send,
+      t,
+      markSessionAccessReset,
+    ],
   )
 
   // Drop the saved session from THIS browser without touching the chain.
@@ -1100,11 +1118,7 @@ export const SmartAccountContextProvider = ({
             revokeError,
             revokeErrorReason,
             revokeSession,
-            isSessionAccessReset: isSessionAccessReset({
-              resetAccount,
-              accountAddress: snapshot.context.accountAddress,
-              hasActiveSession: !!activeSession && !isActiveSessionRevoked,
-            }),
+            isSessionAccessReset,
             forgetLocalSession,
             activeStoredSession: activeSession,
             getSessionEnablePayload,
@@ -1131,7 +1145,6 @@ export const SmartAccountContextProvider = ({
       snapshot.context.walletSource,
       infrastructure,
       activeSession,
-      isActiveSessionRevoked,
       isEnablingSession,
       sessionError,
       enableSession,
@@ -1140,7 +1153,8 @@ export const SmartAccountContextProvider = ({
       revokeError,
       revokeErrorReason,
       revokeSession,
-      resetAccount,
+      isActiveSessionRevoked,
+      isSessionAccessReset,
       forgetLocalSession,
       getSessionEnablePayload,
       refreshAccount,

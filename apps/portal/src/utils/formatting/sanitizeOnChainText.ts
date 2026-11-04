@@ -24,6 +24,8 @@ const JOINERS = '\\u200C\\u200D'
  * // "com.twitter"
  */
 export const sanitizeOnChainText = (value: string, maxLength = 64): string => {
+  const lengthLimit = Math.max(0, Math.floor(maxLength))
+
   // \p{Cc} covers C0/C1 controls, \p{Cf} bidi overrides and zero-width spaces.
   // Line and paragraph separators fall out of the whitespace collapse below.
   const stripped = value
@@ -33,6 +35,6 @@ export const sanitizeOnChainText = (value: string, maxLength = 64): string => {
 
   // Split by code point so truncation can never cut a surrogate pair in half.
   const codePoints = [...stripped]
-  if (codePoints.length <= maxLength) return stripped
-  return `${codePoints.slice(0, maxLength).join('')}…`
+  if (codePoints.length <= lengthLimit) return stripped
+  return `${codePoints.slice(0, lengthLimit).join('')}…`
 }
