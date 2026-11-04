@@ -134,6 +134,7 @@ it('starts parent preflight while independent child discovery is still pending',
         blockHash: zeroHash,
         timestamp: '1',
       },
+      unrecoverable: [],
     })
     await pending
   }
