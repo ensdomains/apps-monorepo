@@ -29,7 +29,7 @@ export const RenewalUiProvider = ({
   protocol: RenewalProtocol
 }) => {
   // The payment screen's debit is checked against the intent's own quote, so
-  // the funding dialog below only opens when that screen showed the rent alone.
+  // the funding dialog below only opens when that screen showed the price alone.
   const {
     prompt: fundingPrompt,
     confirmFunding,

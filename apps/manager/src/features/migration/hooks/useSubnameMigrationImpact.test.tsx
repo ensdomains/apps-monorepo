@@ -14,6 +14,7 @@ import {
   multicall3Abi,
   namehash,
   parseAbi,
+  TimeoutError,
   toHex,
   zeroAddress,
   zeroHash,
@@ -287,7 +288,7 @@ const run = async () => {
   const initialProps: { readonly managers: readonly string[] } = {
     managers: [],
   }
-  return renderHook(
+  const hook = renderHook(
     ({ managers }: { readonly managers: readonly string[] }) =>
       useSubnameMigrationImpact({
         selectedNames: ['alice.eth'],
@@ -301,9 +302,166 @@ const run = async () => {
       }),
     { wrapper, initialProps },
   )
+  return { ...hook, queryClient }
 }
 
 describe('fresh start checks with shared impact evidence', () => {
+  it.each([
+    { stage: 'inventory', hasChild: false, canStart: true, affectedCount: 0 },
+    { stage: 'inventory', hasChild: true, canStart: false, affectedCount: 1 },
+    { stage: 'checkpoint', hasChild: false, canStart: true, affectedCount: 0 },
+  ])(
+    'rechecks safety after a transient $stage failure with $affectedCount affected subnames',
+    async ({ stage, hasChild, canStart, affectedCount }) => {
+      const { result, unmount } = await run()
+      const chainReads = requestCount('eth_chainId')
+      vi.useFakeTimers()
+      try {
+        const timeout = new TimeoutError({
+          url: 'https://rpc.example',
+          body: {},
+        })
+        if (stage === 'inventory') mocks.rpc.mockRejectedValueOnce(timeout)
+        else {
+          const canonicalRead = vi.fn()
+          mocks.rpc.mockImplementation(async (request: RpcRequest) => {
+            if (
+              request.method === 'eth_getBlockByNumber' &&
+              request.params?.[0] !== 'latest'
+            ) {
+              canonicalRead()
+              if (canonicalRead.mock.calls.length === 2) throw timeout
+            }
+            return answerRpc(request)
+          })
+        }
+        let check = Promise.resolve(false)
+        await act(async () => {
+          check = result.current.checkBeforeStart()
+          await vi.advanceTimersByTimeAsync(0)
+        })
+        expect(result.current.status).toBe('loading')
+        expect(requestCount('eth_chainId') - chainReads).toBe(1)
+
+        mocks.hasChild = hasChild
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(999)
+        })
+        expect(requestCount('eth_chainId') - chainReads).toBe(1)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1)
+          expect(await check).toBe(canStart)
+          await vi.advanceTimersByTimeAsync(1)
+        })
+        expect(requestCount('eth_chainId') - chainReads).toBe(2)
+        expect(result.current.impact?.affectedCount).toBe(affectedCount)
+        expect(result.current.isBlocked).toBe(hasChild)
+      } finally {
+        unmount()
+        vi.useRealTimers()
+      }
+    },
+  )
+
+  it('stops after two transient retries and keeps the upgrade blocked', async () => {
+    const { result, unmount } = await run()
+    const chainReads = requestCount('eth_chainId')
+    vi.useFakeTimers()
+    try {
+      mocks.rpc.mockImplementation(async (request: RpcRequest) => {
+        if (request.method === 'eth_chainId')
+          throw new TimeoutError({ url: 'https://rpc.example', body: {} })
+        return answerRpc(request)
+      })
+      let check = Promise.resolve(false)
+      await act(async () => {
+        check = result.current.checkBeforeStart()
+        await vi.advanceTimersByTimeAsync(3_001)
+      })
+      expect(requestCount('eth_chainId') - chainReads).toBe(3)
+      expect(result.current.status).toBe('error')
+      expect(await check).toBe(false)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000)
+      })
+      expect(requestCount('eth_chainId') - chainReads).toBe(3)
+    } finally {
+      unmount()
+      vi.useRealTimers()
+    }
+  })
+
+  it('cancels a transient retry without publishing a successful check', async () => {
+    const queryClient = new QueryClient()
+    const options = getSubnameMigrationImpactQueryOptions({
+      ownerAddress: OWNER,
+      chainId: envConfig.chain.id,
+      migratingNames: ['alice.eth'],
+      copiedNames: [],
+      renewingNames: [],
+      isEnabled: true,
+      isPrepared: true,
+      hasSelectedNames: true,
+    })
+    vi.useFakeTimers()
+    try {
+      mocks.rpc.mockRejectedValueOnce(
+        new TimeoutError({ url: 'https://rpc.example', body: {} }),
+      )
+      const check = queryClient.fetchQuery(options).catch(() => undefined)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(queryClient.getQueryState(options.queryKey)?.fetchStatus).toBe(
+        'fetching',
+      )
+      await queryClient.cancelQueries({ queryKey: options.queryKey })
+      await vi.advanceTimersByTimeAsync(60_000)
+      await check
+      expect(requestCount('eth_chainId')).toBe(1)
+      expect(queryClient.getQueryData(options.queryKey)).toBeUndefined()
+    } finally {
+      queryClient.clear()
+      vi.useRealTimers()
+    }
+  })
+
+  it.each(['read', 'backoff'] as const)(
+    'rejects cached success when a pre-start check is cancelled during %s',
+    async (phase) => {
+      const { result, queryClient, unmount } = await run()
+      const previous = result.current.impact
+      let release = (): void => {}
+      const gate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      vi.useFakeTimers()
+      try {
+        mocks.rpc.mockImplementation(async (request: RpcRequest) => {
+          if (request.method === 'eth_chainId') {
+            if (phase === 'backoff')
+              throw new TimeoutError({ url: 'https://rpc.example', body: {} })
+            await gate
+          }
+          return answerRpc(request)
+        })
+        let check = Promise.resolve(false)
+        await act(async () => {
+          check = result.current.checkBeforeStart()
+          await vi.advanceTimersByTimeAsync(0)
+        })
+        expect(result.current.status).toBe('loading')
+        await act(async () => {
+          await queryClient.cancelQueries()
+          expect(await check).toBe(false)
+        })
+        expect(result.current.impact).toBe(previous)
+      } finally {
+        release()
+        unmount()
+        vi.useRealTimers()
+      }
+    },
+  )
+
   it('leaves an idle preview quiet and still verifies the wallet again before starting', async () => {
     vi.useFakeTimers()
     try {

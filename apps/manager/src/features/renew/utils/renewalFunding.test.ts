@@ -21,7 +21,7 @@ describe('computeRenewalFunding', () => {
     expect(getPaymentBreakdownFigures(summary).networkFee).toBeCloseTo(0.02)
   })
 
-  it('bills a DAI rent in DAI and the fee in USDC, each against its own credit', () => {
+  it('bills a DAI price in DAI and the fee in USDC, each against its own credit', () => {
     const { summary, walletDebitFor } = computeRenewalFunding({
       funded: 8.8,
       networkFee: 0.02,
@@ -42,14 +42,14 @@ describe('computeRenewalDisplayedDebit', () => {
 
   it.each([
     {
-      case: 'a USDC rent and fee, net of the account balance',
+      case: 'a USDC price and fee, net of the account balance',
       selectedToken: 'USDC',
       fundedRaw: 8_800_000n,
       accountCreditRaw: { USDC: 5_000_000n },
       expected: { usdc: 3_820_000n, token: 0n },
     },
     {
-      case: 'a DAI rent in DAI, the fee in USDC',
+      case: 'a DAI price in DAI, the fee in USDC',
       selectedToken: 'DAI',
       fundedRaw: 8n * ONE_DAI,
       accountCreditRaw: { USDC: 5_000n, DAI: ONE_DAI },

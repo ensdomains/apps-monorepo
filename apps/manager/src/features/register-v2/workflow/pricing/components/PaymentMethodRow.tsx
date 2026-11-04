@@ -49,7 +49,11 @@ export const PaymentMethodRow = ({
       <button
         aria-label={selectLabel}
         aria-pressed={isSelected}
-        className="absolute inset-0 z-0 rounded outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2 enabled:cursor-pointer enabled:hover:bg-black/[0.025] disabled:cursor-not-allowed"
+        // An inset ring: the scrolling list clips anything drawn outside the row.
+        className={cn(
+          'absolute inset-0 z-0 rounded outline-none transition-colors focus-visible:inset-ring-2 focus-visible:inset-ring-ens-blue enabled:cursor-pointer disabled:cursor-not-allowed',
+          !isSelected && 'enabled:hover:bg-black/[0.025]',
+        )}
         disabled={!isAvailable}
         onClick={onSelect}
         type="button"

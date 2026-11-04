@@ -60,7 +60,7 @@ type BulkRenewPayment = {
   readonly canProceed: boolean
   /** Every price resolved for the current selection. */
   readonly pricesReady: boolean
-  /** The intents' fee folded with the rent and the account's balance, as single renewal shows it. */
+  /** The intents' fee folded with the price and the account's balance, as single renewal shows it. */
   readonly intentFunding: RenewalIntentFunding
   /** Rows that pay from the wallet's USDC on an L2; intent route only. */
   readonly l2Payment: L2PaymentProps | undefined

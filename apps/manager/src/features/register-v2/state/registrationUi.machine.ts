@@ -209,7 +209,7 @@ type Events =
        * Standalone-HCA: the USDC (6dp) wallet debit the confirm screen showed.
        * Passed straight to the registration machine, which refuses to request a
        * funding-permit signature for materially more than this. Absent when the
-       * budget quote failed and only the rent was displayed.
+       * budget quote failed and only the price was displayed.
        */
       displayedWalletDebit?: bigint
       /** Standalone-HCA: the L2 whose USDC pays, instead of the wallet's here. */

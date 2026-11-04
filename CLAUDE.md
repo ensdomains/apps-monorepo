@@ -199,3 +199,16 @@ When working in specific packages, consult these design documents:
 
 **When to Consult**: Any time a registration intent fails simulation, or before
 changing the shape of a call in the commit/reveal batch.
+
+### Registration and renewal payment (manager)
+**Location**: `apps/manager/src/features/register-v2/workflow/pricing/`
+**Documentation**: `BEHAVIOUR.md`
+
+**Key Concepts**:
+- What the registration page and payment sheet must do, from the design, each rule with the test that holds it
+- Known limits that are not bugs (the Sepolia L2 cap, cent rounding, $8.01-style prices)
+- The sheet's base is shared with single and bulk renewal; registration-only behaviour stays behind `registrationReceipt`
+
+**When to Consult**: Before any change to registration or renewal pricing, the payment
+sheet, `PaymentAction`, the fallback choice or the registration UI machine. A change to a
+listed rule is a product change: name the rule and the test it changes in the PR body.
