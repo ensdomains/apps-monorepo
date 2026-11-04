@@ -17,8 +17,8 @@ export type AddressNameItem = {
   /** Null when the name does not expire. */
   readonly expiryDate: Date | null
   /**
-   * Set on an ENSv1 subname, which lapses with its `.eth` parent. Null when the
-   * parent's expiry couldn't be read.
+   * Set on a subname that lapses with its `.eth` parent, even before its own
+   * expiry. Null when the parent's expiry couldn't be read.
    */
   readonly parentExpiryDate?: Date | null
   readonly graceEndDate: Date | null
@@ -75,15 +75,16 @@ export const toLapsedItem = (row: AddressName): AddressNameItem => ({
 })
 
 /**
- * The `.eth` 2LD an ENSv1 subname lapses with, or null for a name with its own
- * expiry. Deeper names lapse with the same 2LD.
+ * The `.eth` 2LD a subname lapses with, or null for a name that has none. An
+ * ENSv1 subname's own expiry is capped at its parent's, so it needs none.
+ * Deeper names lapse with the same 2LD.
  */
 export const ethParentOf = ({
   name,
   expiryDate,
   protocolVersion,
 }: AddressNameItem): string | null => {
-  if (expiryDate || protocolVersion !== 'ENSv1') return null
+  if (expiryDate && protocolVersion === 'ENSv1') return null
   const labels = name.split('.')
   if (labels.length < 3 || labels.at(-1) !== 'eth') return null
   return labels.slice(-2).join('.')
@@ -99,6 +100,15 @@ export const getShownExpiry = ({
   expiryDate,
   parentExpiryDate,
 }: ShownExpiryInput): Date | null => expiryDate ?? parentExpiryDate ?? null
+
+/** The parent's expiry when it comes before the row's own, which stops the subname resolving first. */
+export const getEarlierParentExpiry = ({
+  expiryDate,
+  parentExpiryDate,
+}: ShownExpiryInput): Date | null =>
+  expiryDate && parentExpiryDate && parentExpiryDate < expiryDate
+    ? parentExpiryDate
+    : null
 
 /** Whether the shown expiry falls in the range; a row with none never does. */
 export const isShownExpiryInRange = (

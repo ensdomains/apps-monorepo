@@ -66,8 +66,8 @@ const readParentExpiries = (
     .orElse(() => okAsync([]))
 
 /**
- * Gives each ENSv1 subname its `.eth` parent's expiry. Parents already listed
- * are reused; the rest are looked up in batches.
+ * Gives each subname with no expiry its `.eth` parent's expiry. Parents
+ * already listed are reused; the rest are looked up in batches.
  */
 const withParentExpiry = (
   items: readonly AddressNameItem[],
