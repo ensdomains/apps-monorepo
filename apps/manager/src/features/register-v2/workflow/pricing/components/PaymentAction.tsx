@@ -9,12 +9,13 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
-/** The modal warning, the payment CTA ("Try again" when `onRetry` is set), and "What will I sign?". */
+/** The modal warning, the payment CTA ("Try again" when `onRetry` is set), an optional Cancel, and "What will I sign?". */
 export const PaymentAction = ({
   label,
   warning,
   onNext,
   onRetry,
+  onCancel,
   canNext,
   isBusy,
   isSettling,
@@ -24,6 +25,7 @@ export const PaymentAction = ({
   readonly warning: ReactNode
   readonly onNext: () => void
   readonly onRetry: (() => void) | undefined
+  readonly onCancel?: () => void
   readonly canNext: boolean
   readonly isBusy: boolean
   readonly isSettling: boolean
@@ -55,6 +57,15 @@ export const PaymentAction = ({
       >
         {onRetry ? <Trans>Try again</Trans> : label}
       </Button>
+      {onCancel && (
+        <button
+          className="rounded px-2 py-1 text-ens-quartz-500 text-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ens-blue"
+          onClick={onCancel}
+          type="button"
+        >
+          <Trans>Cancel</Trans>
+        </button>
+      )}
       {helpMessage && (
         <Popover>
           <PopoverTrigger className="flex items-center gap-1 rounded px-2 py-1 text-ens-quartz-500 text-xs outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ens-blue">

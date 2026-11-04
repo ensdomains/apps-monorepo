@@ -53,6 +53,27 @@ describe('getPaymentReceiptFigures', () => {
     expect(figures).toEqual(expected)
   })
 
+  it.each([
+    [2.692, 2.7],
+    [2.69, 2.69],
+    [2.7, 2.7],
+  ])(
+    'as an up-to receipt, shows a wallet debit of %s as %s and adds up',
+    (walletDebit, due) => {
+      const figures = getPaymentReceiptFigures({
+        funding: funding({ walletDebit, hcaCredit: 7.75 }),
+        price: undefined,
+        accountCredit: 0,
+        isUpTo: true,
+      })
+      expect(figures).toEqual({
+        total: Math.round((due + 7.75) * 100) / 100,
+        applied: 7.75,
+        due,
+      })
+    },
+  )
+
   it('has nothing to show before a price', () => {
     expect(
       getPaymentReceiptFigures({

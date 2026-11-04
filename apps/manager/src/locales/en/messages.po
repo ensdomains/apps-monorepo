@@ -637,6 +637,7 @@ msgstr "Can you share your order number?"
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
@@ -848,6 +849,14 @@ msgstr "Confirm"
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "Confirm renewal"
 msgstr "Confirm renewal"
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Confirm the payment approval and renewal in your wallet."
+msgstr "Confirm the payment approval and renewal in your wallet."
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Confirm the renewal in your wallet."
+msgstr "Confirm the renewal in your wallet."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Confirm the swap in your wallet, then wait for it to complete"
@@ -2275,6 +2284,10 @@ msgstr "Paying from {l2ChainName}…"
 msgid "Paying with ETH isn't available right now."
 msgstr "Paying with ETH isn't available right now."
 
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Payment amount updated"
+msgstr "Payment amount updated"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "Payment summary"
 msgstr "Payment summary"
@@ -3135,6 +3148,10 @@ msgstr "Sign once to enable gasless transactions for your ENS operations."
 msgid "Sign once to enable seamless transactions."
 msgstr "Sign once to enable seamless transactions."
 
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Sign payment approval"
+msgstr "Sign payment approval"
+
 #: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign renewal"
@@ -3422,6 +3439,10 @@ msgstr "That's generous of you!"
 #: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
 msgid "The <0>ENS Explorer app</0> is home to advanced features and details about this name."
 msgstr "The <0>ENS Explorer app</0> is home to advanced features and details about this name."
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "The amount due increased. Review the updated total before signing."
+msgstr "The amount due increased. Review the updated total before signing."
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "The commemorative NFT could not be minted. Please try again."
