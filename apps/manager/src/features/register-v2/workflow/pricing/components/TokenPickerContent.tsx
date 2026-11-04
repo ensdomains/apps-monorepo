@@ -1064,6 +1064,8 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   l2Payment,
   ethPayment,
   registrationReceipt,
+  receiptNotice,
+  onCancel,
 }: {
   /** The name being paid for, shown as the heading unless `header` replaces it. */
   readonly label?: string
@@ -1127,6 +1129,10 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   readonly ethPayment?: EthPaymentProps
   /** Registration only: the receipt shows the page's total and the network fee instead of the existing balance. */
   readonly registrationReceipt?: Readonly<{ totalRaw: bigint | undefined }>
+  /** Renewal only: a message about the receipt's figures, shown directly below it. */
+  readonly receiptNotice?: ReactNode
+  /** Renewal only: offers Cancel below the CTA. */
+  readonly onCancel?: () => void
 }) => {
   const { t } = useLingui()
 
@@ -1204,6 +1210,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
     funding: shownFunding,
     price: fundedAmount ?? pricingData,
     accountCredit: selectedToken ? (accountCredit?.[selectedToken] ?? 0) : 0,
+    isUpTo: isEstimate,
   })
   const receiptState = getPaymentReceiptState({
     hasQuoteFailed: hasBudgetQuoteFailed,
@@ -1412,6 +1419,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
             state={receiptState}
           />
         )}
+        {receiptNotice}
 
         <PaymentAction
           canNext={canNext}
@@ -1427,6 +1435,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
             nextMessage,
             shortfallLabel,
           })}
+          onCancel={onCancel}
           onNext={onNext}
           onRetry={
             hasBudgetQuoteFailed && !isQuotingFunding ? onRetry : undefined

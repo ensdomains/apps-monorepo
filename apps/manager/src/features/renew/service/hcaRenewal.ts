@@ -42,6 +42,10 @@ import { type RENEWAL_TOKEN, TOKENS } from '@/lib/tokens'
 import { getRenewPrice } from '../data/queries/renewPricing.query'
 import { getL2RenewalAmountOut } from '../utils/l2RenewalAmount'
 import { checkRenewalFees, RenewalFeeUnpricedError } from '../utils/renewalFees'
+import {
+  decideRenewalPayment,
+  getPromptWalletDebit,
+} from '../utils/renewalFunding'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 
 /**
@@ -149,6 +153,14 @@ export interface SubmitHcaRenewalParams {
   readonly confirmFunding?: (
     prompt: HcaFundingPrompt,
   ) => Promise<boolean> | boolean
+  /**
+   * Asked, before any signature, only when the re-quoted wallet debit is above
+   * `displayedDebit`. Accepting signs for exactly the prompt's amounts; a same
+   * or lower debit signs without asking.
+   */
+  readonly confirmIncreasedPayment?: (
+    prompt: HcaFundingPrompt,
+  ) => Promise<boolean>
   /**
    * Bridge what the HCA is short in from an L2 before the renewal, so the
    * renewal pays from the HCA with no permit.
@@ -483,6 +495,7 @@ export async function fundHcaRenewalsFromL2(
     | 'signal'
     | 'displayedDebit'
     | 'confirmFunding'
+    | 'confirmIncreasedPayment'
     | 'l2Funding'
   > & {
     readonly batches: readonly (readonly HcaRenewalItem[])[]
@@ -514,12 +527,34 @@ export async function fundHcaRenewalsFromL2(
 
 /**
  * How the user agrees to the funding the intent re-quotes: by the debit the
- * payment screen showed, else by a prompt before any signature.
+ * payment screen showed (asking again only when it went up), else by a prompt
+ * before any signature.
  */
 const fundingConsent = ({
   displayedDebit,
   confirmFunding,
-}: Pick<SubmitHcaRenewalParams, 'displayedDebit' | 'confirmFunding'>) => {
+  confirmIncreasedPayment,
+  l2Funding,
+  token,
+}: Pick<
+  SubmitHcaRenewalParams,
+  | 'displayedDebit'
+  | 'confirmFunding'
+  | 'confirmIncreasedPayment'
+  | 'l2Funding'
+  | 'token'
+>) => {
+  // The bridge pays it all, so the screen showed nothing from the wallet: anything left is refused, never asked.
+  if (l2Funding) return { displayedDebit: { usdc: 0n, token: 0n } }
+  if (confirmIncreasedPayment)
+    return {
+      confirmFunding: (prompt: HcaFundingPrompt) =>
+        decideRenewalPayment({
+          confirmed: displayedDebit,
+          requoted: getPromptWalletDebit(prompt),
+          tokenDecimals: TOKENS[token].decimals,
+        }) === 'proceed' || confirmIncreasedPayment(prompt),
+    }
   if (displayedDebit) return { displayedDebit }
   if (confirmFunding) return { confirmFunding }
   return {}
