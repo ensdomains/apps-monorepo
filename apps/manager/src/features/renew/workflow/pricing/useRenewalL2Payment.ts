@@ -13,7 +13,7 @@ export const useRenewalL2Payment = ({
   hcaBalanceRaw,
   isEnabled,
   selectedChainId,
-  selectedOrigin = 'user',
+  selectedOrigin,
   onSelect,
   onFallbackSelect = onSelect,
 }: {
