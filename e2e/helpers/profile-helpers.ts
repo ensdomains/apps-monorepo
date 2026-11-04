@@ -132,8 +132,8 @@ export async function renewFor28Days(page: Page): Promise<string> {
     throw new Error('Could not read expected expiry date from pricing summary')
   const expectedExpiry = dateMatch[0]
 
-  await page.getByRole('button', { name: /pay with stablecoins/i }).click()
-  // Smart-session gate: on the HCA path clicking "Pay with stablecoins" opens the
+  await page.getByRole('button', { name: 'Pay', exact: true }).click()
+  // Smart-session gate: on the HCA path clicking "Pay" opens the
   // EnableSessions modal BEFORE the token picker — same gate as registration.
   // Idempotent no-op in EOA mode or when sessions are already active.
   await clickThroughEnableSessions(page)

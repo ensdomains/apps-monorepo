@@ -36,6 +36,7 @@ const options = {
 const impact = (checkedAt = Date.now()): SubnameMigrationImpact => ({
   parents: [],
   affectedCount: 0,
+  unrecoverable: [],
   fingerprint: 'verified',
   checkedAt,
 })

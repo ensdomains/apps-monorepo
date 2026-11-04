@@ -16,8 +16,8 @@
  * from the owner's wallet with an EIP-2612 permit + `transferFrom` pair carried
  * inside the SAME intent.
  *
- * An intent that BUYS something (`requiredUsdc` — a renewal's rent) spends from
- * the HCA twice over: the rent the action pulls, and the rail's fee. Both come
+ * An intent that BUYS something (`requiredUsdc` — a renewal's price) spends from
+ * the HCA twice over: the price the action pulls, and the rail's fee. Both come
  * out of the same balance, so the funding is sized over both. The shortfall is
  * always shown to the user before anything is signed, then pulled under either
  * a permit signed for exactly that amount or a standing allowance that already
@@ -148,7 +148,7 @@ export interface HcaFundingPrompt {
   /** USDC (6dp) the HCA already holds, which offsets what the intent needs. */
   readonly hcaBalanceUsdc: bigint
   /**
-   * USDC (6dp) the action itself spends from the HCA's balance — the rent a
+   * USDC (6dp) the action itself spends from the HCA's balance — the price a
    * renewal pulls, say. Zero for an intent that only pays its own fee.
    */
   readonly requiredUsdc: bigint
@@ -393,13 +393,13 @@ export interface PlanHcaIntentFundingParams {
   readonly calls: readonly Call[]
   /**
    * USDC (6dp) the calls themselves spend out of the HCA's balance, on top of
-   * the fee — a renewal's rent, say. The funding is sized over both, because
+   * the fee — a renewal's price, say. The funding is sized over both, because
    * both come out of the same balance. Defaults to zero (an action that buys
    * nothing).
    */
   readonly requiredUsdc?: bigint
   /**
-   * What the calls spend in a token of their choosing — a renewal's rent. In
+   * What the calls spend in a token of their choosing — a renewal's price. In
    * USDC it joins `requiredUsdc`; any other token is funded as its own leg.
    */
   readonly tokenSpend?: HcaTokenSpend
@@ -739,7 +739,7 @@ async function quoteIntent(
   ]
 
   // First-pass inflow: tops the HCA up to what the intent could conceivably
-  // need — the rent, plus the fee ceiling for the declared limit — so the
+  // need — the price, plus the fee ceiling for the declared limit — so the
   // planner sees it as covered and prices the legs at all. The real permit is
   // sized from the quote this produces, never from this number.
   //

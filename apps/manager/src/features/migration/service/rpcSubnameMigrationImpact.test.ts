@@ -329,6 +329,64 @@ describe('RPC subname migration impact', () => {
     ).toMatchObject({ status: 'incomplete' })
   })
 
+  describe('unknown-label subnames', () => {
+    const unknown = (index: number) =>
+      `[${index.toString(16).padStart(64, '0')}].${root}`
+    const unlabelled = (name: string) => child(name, { name: null })
+
+    it('leaves an unknown-label leaf behind instead of blocking, beside a copied child', () => {
+      const result = run([unlabelled(unknown(1)), child(`blog.${root}`)], {
+        copiedNames: [`blog.${root}`],
+        unknownLabelNames: [unknown(1)],
+      })
+      expect(result).toMatchObject({
+        status: 'complete',
+        impact: { affectedCount: 0, unrecoverable: [unknown(1)] },
+      })
+    })
+
+    it('still blocks on an unknown-label subname that has a subname', () => {
+      const result = run(
+        [unlabelled(unknown(1)), child(`deep.${unknown(1)}`)],
+        { unknownLabelNames: [unknown(1)] },
+      )
+      expect(result).toMatchObject({
+        status: 'complete',
+        impact: { affectedCount: 2, unrecoverable: [] },
+      })
+    })
+
+    it.each([
+      { count: 5, affectedCount: 0, dropped: 5 },
+      { count: 6, affectedCount: 6, dropped: 0 },
+    ])(
+      'with $count under one parent loses $affectedCount',
+      ({ count, affectedCount, dropped }) => {
+        const names = Array.from({ length: count }, (_, index) =>
+          unknown(index),
+        )
+        const result = run(names.map(unlabelled), { unknownLabelNames: names })
+        expect(result).toMatchObject({
+          status: 'complete',
+          impact: { affectedCount },
+        })
+        expect(
+          result.status === 'complete' && result.impact.unrecoverable,
+        ).toHaveLength(dropped)
+      },
+    )
+
+    it('changes the fingerprint with the names left behind', () => {
+      const fingerprint = (names: readonly string[]) => {
+        const result = run(names.map(unlabelled), { unknownLabelNames: names })
+        return result.status === 'complete' && result.impact.fingerprint
+      }
+      expect(fingerprint([unknown(1)])).not.toBe(
+        fingerprint([unknown(1), unknown(2)]),
+      )
+    })
+  })
+
   it('fails closed when the graph frontier has not been scanned', () => {
     const base = run([])
     expect(base).toMatchObject({
