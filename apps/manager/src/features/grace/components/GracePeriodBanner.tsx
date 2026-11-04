@@ -1,14 +1,14 @@
-import { Plural, Trans } from '@lingui/react/macro'
+import { Plural, Trans, useLingui } from '@lingui/react/macro'
 import { match } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { formatDashboardDate } from '@/features/dashboard/utils'
 import { GracePeriodFavoriteButton } from '@/features/grace/components/GracePeriodFavoriteButton'
 import { V2_GRACE_PERIOD_DAYS } from '@/features/grace/utils/gracePeriod'
 import {
   getRenewalRoute,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
+import { formatGraceEndDateTime } from './formatGraceEndDateTime'
 
 export type GracePeriodBannerVariant =
   | 'primaryExpired'
@@ -89,7 +89,12 @@ export const GracePeriodBanner = ({
   renewProtocol = 'v2',
   previewRenew = false,
 }: GracePeriodBannerProps) => {
-  const formattedGraceEnd = formatDashboardDate(graceEndDate)
+  const { i18n } = useLingui()
+  const formattedGraceEnd = formatGraceEndDateTime({
+    date: graceEndDate,
+    locale: i18n.locale,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  })
   const graceDays = isV2 ? V2_GRACE_PERIOD_DAYS : 90
   const isNotOwnedProfile = variant === 'profileNotOwnedName'
 

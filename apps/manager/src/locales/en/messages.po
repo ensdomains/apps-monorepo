@@ -1342,10 +1342,6 @@ msgid "Enabling smart sessions…"
 msgstr "Enabling smart sessions…"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "ENS"
-msgstr "ENS"
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS App"
 msgstr "ENS App"
 
@@ -1360,6 +1356,10 @@ msgstr "ENS Explorer is not available on this network yet. You can edit advanced
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS Protocol"
+msgstr "ENS Protocol"
 
 #: src/features/dashboard/components/DashboardPills.tsx
 msgid "ENSv1"
@@ -1603,6 +1603,10 @@ msgstr "Getting ready..."
 msgid "Getting your wallet ready..."
 msgstr "Getting your wallet ready..."
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "GitHub"
+msgstr "GitHub"
+
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "Go back home"
 msgstr "Go back home"
@@ -1746,10 +1750,6 @@ msgstr "its parent name, or one above it, was upgraded without it."
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "its registration couldn't be read. Try again later."
 msgstr "its registration couldn't be read. Try again later."
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Join the community"
-msgstr "Join the community"
 
 #. placeholder {0}: truncateAddress(manager)
 #: src/features/migration/components/NameRow.tsx
@@ -2008,10 +2008,6 @@ msgstr "Names you don't select stay on ENSv1, and their subnames keep working th
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
 msgstr "Need {0}"
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Need help?"
-msgstr "Need help?"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Need more help? Visit ENS Support Docs"
@@ -3762,10 +3758,6 @@ msgstr "Total:"
 msgid "Track your favorite names"
 msgstr "Track your favorite names"
 
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Trademark Guidelines"
-msgstr "Trademark Guidelines"
-
 #: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
 msgid "Transaction actions"
 msgstr "Transaction actions"
@@ -4325,6 +4317,10 @@ msgstr "Wrapped name access"
 msgid "Wrong wallet connected"
 msgstr "Wrong wallet connected"
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "X"
+msgstr "X"
+
 #: src/components/AnalyticsConsentBanner.tsx
 msgid "Yes, happy to help"
 msgstr "Yes, happy to help"
@@ -4688,3 +4684,7 @@ msgstr "Your wallet will ask you to sign a payment approval for the amount shown
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
 msgstr "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "YouTube"
+msgstr "YouTube"

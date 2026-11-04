@@ -32,6 +32,7 @@ import {
 } from '@/features/renew/service/hcaRenewal'
 import { chunkRenewalItems } from '@/features/renew/utils/chunks'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import {
   useHcaFundingPrompt,
   useSmartAccountContext,
@@ -533,7 +534,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   }: SubmitArgs) => {
     const items = inputItems.map((item) => ({
       ...item,
-      referrer: normalizeReferrer(referrer),
+      referrer: normalizeReferrer(referrer, ENS_LABS_REFERRER),
     }))
     abortRef.current?.abort()
     abortRef.current = new AbortController()
