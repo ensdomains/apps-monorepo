@@ -56,18 +56,8 @@ const Usd = ({
   </>
 )
 
-/** Set in the figure's own type, so the row keeps its height when the figure arrives. */
+/** Set in the total's own type, so the card keeps its height when the figure arrives. */
 const PENDING_FIGURE = 'animate-pulse rounded bg-ens-quartz-75 text-transparent'
-
-/** A row's figure not known yet. */
-const FigurePlaceholder = () => (
-  <>
-    <span aria-hidden="true" className={tw(RECEIPT_AMOUNT, PENDING_FIGURE)}>
-      $00.00
-    </span>
-    <span className={RECEIPT_LABEL}>USD</span>
-  </>
-)
 
 /** The total, or a placeholder while the account's balance, and so the total, is still being read. */
 const TotalAmount = ({
@@ -102,14 +92,6 @@ type LayoutProps = Readonly<{
   isTotalPending: boolean
 }>
 
-type RowsLayoutProps = Readonly<{
-  /** `undefined` until the name is priced. */
-  summary: CheckoutSummary | undefined
-  discount: number
-  /** The account and its balance aren't known yet: the balance and the total are placeholders. */
-  isAccountPending: boolean
-}>
-
 const TotalOnly = ({ summary, discount, isTotalPending }: LayoutProps) => (
   <div className="flex flex-col items-center gap-2 text-center">
     <span className="text-ens-lapis-500 text-xs uppercase">
@@ -130,26 +112,15 @@ const TotalOnly = ({ summary, discount, isTotalPending }: LayoutProps) => (
 const WithExistingBalance = ({
   summary,
   discount,
-  isAccountPending,
-}: RowsLayoutProps) => (
+}: Omit<LayoutProps, 'isTotalPending'>) => (
   <div className="flex w-full flex-1 flex-col justify-between gap-8">
     <div className="flex flex-col gap-5">
       <Row label={<Trans>Name cost</Trans>}>
-        {summary ? (
-          <>
-            {discount > 0 && <SavePill amount={discount} />}
-            <Usd raw={summary.nameCostRaw} />
-          </>
-        ) : (
-          <FigurePlaceholder />
-        )}
+        {discount > 0 && <SavePill amount={discount} />}
+        <Usd raw={summary.nameCostRaw} />
       </Row>
       <Row label={<ExistingBalanceLabel />}>
-        {summary && !isAccountPending ? (
-          <Usd isDeduction raw={summary.existingBalanceRaw} />
-        ) : (
-          <FigurePlaceholder />
-        )}
+        <Usd isDeduction raw={summary.existingBalanceRaw} />
       </Row>
     </div>
     <div className="flex flex-col items-end gap-0.5">
@@ -160,8 +131,8 @@ const WithExistingBalance = ({
         <span className="flex items-baseline gap-1.5">
           <TotalAmount
             className="font-medium font-semi-mono text-ens-blue-midnight text-temp-32px leading-ens-none"
-            isPending={isAccountPending || !summary}
-            raw={summary?.totalRaw ?? 0n}
+            isPending={false}
+            raw={summary.totalRaw}
           />
           <span className={RECEIPT_LABEL}>USD</span>
         </span>
@@ -275,20 +246,18 @@ export const CheckoutSummaryCard = ({
       )}
     >
       {header}
-      {/* Until the account is known, assume the fuller layout so it doesn't jump into it. */}
-      {isTotalPending ||
-      action.kind === 'loading' ||
-      (summary && summary.existingBalanceRaw > 0n) ? (
-        <WithExistingBalance
-          discount={discount}
-          isAccountPending={isTotalPending || action.kind === 'loading'}
-          summary={summary}
-        />
+      {/* The rows only once a balance is known; until then nothing says the user has one. */}
+      {summary &&
+      !isTotalPending &&
+      action.kind !== 'loading' &&
+      summary.existingBalanceRaw > 0n ? (
+        <WithExistingBalance discount={discount} summary={summary} />
       ) : (
         <TotalOnly
           discount={discount}
-          // Unpriced, there is no total to show yet.
-          isTotalPending={isTotalPending || summary === undefined}
+          isTotalPending={
+            isTotalPending || action.kind === 'loading' || summary === undefined
+          }
           summary={
             summary ?? { nameCostRaw: 0n, existingBalanceRaw: 0n, totalRaw: 0n }
           }

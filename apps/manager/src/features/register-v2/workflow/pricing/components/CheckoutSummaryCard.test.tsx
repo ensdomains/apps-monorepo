@@ -68,14 +68,14 @@ describe('CheckoutSummaryCard', () => {
     ['the balance is read', { isTotalPending: true }],
     ['the account is restored', { action: { kind: 'loading' } as const }],
   ])(
-    'keeps the rows and shows only the name cost while %s',
+    'assumes no existing balance and shows no total while %s',
     (_case, overrides) => {
       renderCard({ summary: withBalance, ...overrides })
 
-      expect(screen.getByText('Name cost')).toBeVisible()
-      expect(screen.getByText('$330.00')).toBeVisible()
-      expect(shownText()).not.toContain('3.00USD')
+      expect(screen.getByText('Total USD')).toBeVisible()
+      expect(screen.queryByText('Name cost')).not.toBeInTheDocument()
       expect(shownText()).not.toContain('327.00')
+      expect(shownText()).not.toContain('330.00')
     },
   )
 

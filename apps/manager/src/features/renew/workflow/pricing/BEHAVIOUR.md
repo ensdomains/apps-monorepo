@@ -24,7 +24,7 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 
 | Rule | Held by |
 | --- | --- |
-| The page uses the registration card: Name cost, Existing balance and Total, "Continue to payment", "Connect to renew" when disconnected. Its loading rules are registration's: a placeholder total while the balance is unread, "Loading..." while the wallet is restored. | `renew/workflow/pricing/components/PaymentCard.test.tsx` "takes a Safe{Wallet} to the token picker..." (the button); the rest has no test |
+| The page uses the registration card: Name cost, Existing balance and Total, "Continue to payment", "Connect to renew" when disconnected. Its loading rules are registration's: the no-balance layout with a placeholder total until the balance is read, "Loading..." while the wallet is restored. | `renew/workflow/pricing/components/PaymentCard.test.tsx` "takes a Safe{Wallet} to the token picker..." (the button); the rest has no test |
 | USDC and ETH sit under the button and ETH counts toward the "Insufficient balance" check, except on the wallet route, which shows and counts USDC only. | `register-v2/workflow/pricing/lib/checkoutAvailability.test.ts` (the check); the route switch has no test |
 | Tier cards headline the total and read "total", as registration's. | `register-v2/workflow/pricing/components/DurationPresetRow.test.tsx` (the shared row); renewal's `DurationSelector.tsx` has no test |
 
