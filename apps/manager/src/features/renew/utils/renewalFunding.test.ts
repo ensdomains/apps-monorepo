@@ -81,15 +81,21 @@ describe('decideRenewalPayment', () => {
     ['a lower amount', confirmed, { usdc: 6_000_000n, token: 0n }, 'proceed'],
     ['nothing from the wallet', confirmed, { usdc: 0n, token: 0n }, 'proceed'],
     [
-      'one more unit of USDC',
+      'a fraction of a cent more, within the cent shown',
+      { usdc: 2_690_100n, token: 0n },
+      { usdc: 2_692_000n, token: 0n },
+      'proceed',
+    ],
+    [
+      'one cent more of USDC',
       confirmed,
-      { usdc: 6_690_001n, token: 0n },
+      { usdc: 6_700_000n, token: 0n },
       'confirm',
     ],
     [
-      'more of the rent token, even with less USDC',
-      { usdc: 20_000n, token: 7n },
-      { usdc: 10_000n, token: 8n },
+      'a cent more of the rent token, even with less USDC',
+      { usdc: 20_000n, token: 7n * 10n ** 16n },
+      { usdc: 10_000n, token: 8n * 10n ** 16n },
       'confirm',
     ],
     [
@@ -105,9 +111,13 @@ describe('decideRenewalPayment', () => {
       'proceed',
     ],
   ] as const)('%s: %s', (_case, confirmedDebit, requoted, expected) => {
-    expect(decideRenewalPayment({ confirmed: confirmedDebit, requoted })).toBe(
-      expected,
-    )
+    expect(
+      decideRenewalPayment({
+        confirmed: confirmedDebit,
+        requoted,
+        tokenDecimals: 18,
+      }),
+    ).toBe(expected)
   })
 })
 

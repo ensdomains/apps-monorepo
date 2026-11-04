@@ -535,9 +535,14 @@ const fundingConsent = ({
   confirmFunding,
   confirmIncreasedPayment,
   l2Funding,
+  token,
 }: Pick<
   SubmitHcaRenewalParams,
-  'displayedDebit' | 'confirmFunding' | 'confirmIncreasedPayment' | 'l2Funding'
+  | 'displayedDebit'
+  | 'confirmFunding'
+  | 'confirmIncreasedPayment'
+  | 'l2Funding'
+  | 'token'
 >) => {
   // The bridge pays it all, so the screen showed nothing from the wallet: anything left is refused, never asked.
   if (l2Funding) return { displayedDebit: { usdc: 0n, token: 0n } }
@@ -547,6 +552,7 @@ const fundingConsent = ({
         decideRenewalPayment({
           confirmed: displayedDebit,
           requoted: getPromptWalletDebit(prompt),
+          tokenDecimals: TOKENS[token].decimals,
         }) === 'proceed' || confirmIncreasedPayment(prompt),
     }
   if (displayedDebit) return { displayedDebit }

@@ -1210,6 +1210,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
     funding: shownFunding,
     price: fundedAmount ?? pricingData,
     accountCredit: selectedToken ? (accountCredit?.[selectedToken] ?? 0) : 0,
+    isUpTo: isEstimate,
   })
   const receiptState = getPaymentReceiptState({
     hasQuoteFailed: hasBudgetQuoteFailed,

@@ -109,22 +109,35 @@ export const getPromptWalletDebit = (
 
 export type RenewalPaymentDecision = 'proceed' | 'confirm'
 
+/** `raw` rounded up to a whole cent, as an "up to" receipt shows it. */
+const toCentCeiling = (raw: bigint, decimals: number): bigint => {
+  const cent = 10n ** BigInt(Math.max(decimals - 2, 0))
+  return ((raw + cent - 1n) / cent) * cent
+}
+
 /**
  * Whether a re-quoted renewal can be signed on the amount the user confirmed.
- * It can when the wallet pays no more in either coin; otherwise the user has to
- * accept the new amount first. With nothing confirmed, any wallet debit asks.
+ * It can when the wallet pays no more, in either coin, than the cent the receipt
+ * showed; otherwise the user has to accept the new amount first. With nothing
+ * confirmed, any wallet debit asks.
  */
 export const decideRenewalPayment = ({
   confirmed,
   requoted,
+  tokenDecimals,
 }: {
   readonly confirmed: HcaDisplayedDebit | undefined
   readonly requoted: HcaDisplayedDebit
+  /** The rent token's decimals; USDC has 6. */
+  readonly tokenDecimals: number
 }): RenewalPaymentDecision => {
   const ceiling = confirmed ?? { usdc: 0n, token: 0n }
-  return requoted.usdc > ceiling.usdc || requoted.token > ceiling.token
-    ? 'confirm'
-    : 'proceed'
+  const isUsdcHigher =
+    toCentCeiling(requoted.usdc, 6) > toCentCeiling(ceiling.usdc, 6)
+  const isTokenHigher =
+    toCentCeiling(requoted.token, tokenDecimals) >
+    toCentCeiling(ceiling.token, tokenDecimals)
+  return isUsdcHigher || isTokenHigher ? 'confirm' : 'proceed'
 }
 
 /**
