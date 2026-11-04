@@ -1,4 +1,3 @@
-import { isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -15,7 +14,7 @@ import {
   Lock,
   ShieldX,
 } from 'lucide-react'
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { normalize } from 'viem/ens'
@@ -32,6 +31,7 @@ import { AddressNameInput } from '@/features/address/components/AddressNameInput
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getSubnameLabelStatusQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { SubnameExpiryField } from '@/features/registry/components/SubnameExpiryField'
 import { prepareCreateSubnameSubmit } from '@/features/registry/helpers/prepareCreateSubnameSubmit'
 import { useCreateSubname } from '@/features/registry/hooks/useCreateSubname'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
@@ -44,6 +44,12 @@ import {
   prepareCreateSubnameTransaction,
   type RegistrarAccess,
 } from '@/features/registry/utils/create-subname.helpers'
+import {
+  DEFAULT_SUBNAME_EXPIRY,
+  getSubnameExpirySeconds,
+  readSubnameExpiryClock,
+  type SubnameExpiry,
+} from '@/features/registry/utils/subnameExpiry'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
@@ -111,20 +117,6 @@ interface CreateSubnameFormProps {
 const CREATE_SUBNAME_TRANSACTION_ID = 'tx-create-ens-subname'
 const LABEL_LOOKUP_DEBOUNCE_MS = 300
 
-// One-year (in seconds) default expiry, matching ensjs'
-// `createSubnameWriteParameters` default. When time-travel is active Anvil's
-// block time can be far ahead of `Date.now()`, so use a 100-year window to
-// ensure the expiry is never stale on-chain.
-const ONE_YEAR_SECONDS = 31536000n
-const HUNDRED_YEARS_SECONDS = 3153600000n
-
-const computeSubnameExpires = (): bigint => {
-  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
-  return isTimeTravelEnabled()
-    ? nowSeconds + HUNDRED_YEARS_SECONDS
-    : nowSeconds + ONE_YEAR_SECONDS
-}
-
 const CreateSubnameForm = ({
   name,
   target,
@@ -136,12 +128,13 @@ const CreateSubnameForm = ({
   const [label, setLabel] = useState('')
   const [ownerInput, setOwnerInput] = useState(connectedAddress ?? '')
   const [prepareError, setPrepareError] = useState<string | null>(null)
+  const [expiry, setExpiry] = useState<SubnameExpiry>(DEFAULT_SUBNAME_EXPIRY)
   // Settled at submit: V1 after the label recheck, V2 with the parent's resolver.
-  const [write, setWrite] = useState<CreateSubnameWrite | null>(null)
-  // A stable expiry for the pre-start gas estimate. Gas is independent of the
-  // expiry value, so this need not match the fresh one the submit computes — it
-  // just has to be stable across renders so the estimate query doesn't churn.
-  const estimateExpires = useMemo(() => computeSubnameExpires(), [])
+  // The expiry is frozen with it, so the estimate and the send match.
+  const [submission, setSubmission] = useState<{
+    readonly write: CreateSubnameWrite
+    readonly expires: bigint
+  } | null>(null)
   const hasUserEditedOwner = useRef(false)
 
   const ownerResolution = useAddressResolution(ownerInput)
@@ -207,17 +200,17 @@ const CreateSubnameForm = ({
       : null
 
   const handleStartTransaction = () => {
-    if (!ownerAddress || !write || labelError) {
+    if (!ownerAddress || !submission || labelError) {
       return
     }
 
     createSubname({
-      write,
+      write: submission.write,
       label: label.trim(),
       owner: ownerAddress,
       parentName: name,
       id: createSubnameTxId,
-      expires: computeSubnameExpires(),
+      expires: submission.expires,
     })
   }
 
@@ -244,7 +237,10 @@ const CreateSubnameForm = ({
       return
     }
 
-    setWrite(writeResult.value)
+    setSubmission({
+      write: writeResult.value,
+      expires: getSubnameExpirySeconds(expiry, readSubnameExpiryClock()),
+    })
     if (connectedAddress) attempt.start(connectedAddress)
   }
 
@@ -324,6 +320,15 @@ const CreateSubnameForm = ({
           />
         </Field>
 
+        {target.protocol === 'ENSv2' && (
+          <SubnameExpiryField
+            parentName={name}
+            expiry={expiry}
+            onExpiryChange={setExpiry}
+            disabled={isSubmitting || isSuccess}
+          />
+        )}
+
         {match({ isConnected, prepareError })
           .with({ isConnected: false }, () => (
             <p className="text-p text-warning">
@@ -370,16 +375,16 @@ const CreateSubnameForm = ({
             // owner set) — the modal shows "Estimating…" until then.
             intent: {
               prepare:
-                ownerAddress && write
+                ownerAddress && submission
                   ? ({ walletClient, chainId }) =>
                       prepareCreateSubnameTransaction({
-                        write,
+                        write: submission.write,
                         parentName: name,
                         label: label.trim(),
                         owner: ownerAddress,
                         walletClient,
                         chainId,
-                        expires: estimateExpires,
+                        expires: submission.expires,
                       })
                   : undefined,
             },
