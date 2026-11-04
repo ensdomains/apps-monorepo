@@ -11,6 +11,7 @@ import {
   HubIcon,
   ResolverIcon,
 } from '@/assets/icons'
+import { useAddressHighlight } from '@/components/AddressHighlight'
 import {
   EntityActionCopy,
   entityActionVariants,
@@ -51,6 +52,15 @@ const variantTextClass: Record<EntityVariant, string> = {
   contract: 'text-danger-text',
   tx: 'text-warning-text',
   default: 'text-default-text',
+}
+
+// Dashed rim on the fill of every copy of the hovered address (AddressHighlight).
+const highlightClass: Record<EntityVariant, string> = {
+  name: 'outline-1 outline-dashed outline-accent-text',
+  address: 'outline-1 outline-dashed outline-success-text',
+  contract: 'outline-1 outline-dashed outline-danger-text',
+  tx: 'outline-1 outline-dashed outline-warning-text',
+  default: 'outline-1 outline-dashed outline-default-text',
 }
 
 export const hoverBgClass: Record<EntityVariant, string> = {
@@ -227,6 +237,8 @@ export const EntityBadge = ({
   const contractName =
     variant === 'contract' && address ? getEnsContractName(address) : undefined
 
+  const highlight = useAddressHighlight(address)
+
   const derivedCopyValue =
     copyValue ?? (variant === 'name' ? name : address) ?? ''
 
@@ -402,6 +414,7 @@ export const EntityBadge = ({
           // Content entities keep the fill hidden until hover/focus reveals
           // the chips, so resting rows read as plain text.
           type === 'content' &&
+            !highlight.isHighlighted &&
             'opacity-0 group-hover/entity:opacity-100 group-has-[:focus-visible]/entity:opacity-100',
           // Horizontal px-1 on the pill adds 4px of internal colored area on
           // each side; vertical centering in h-5 adds only 3px. Use -1px x-inset
@@ -420,6 +433,7 @@ export const EntityBadge = ({
               : 'inset-x-[-1px]',
           'group-hover/entity:inset-[-12px]',
           variantBgClass[variant],
+          highlight.isHighlighted && highlightClass[variant],
         )}
         aria-hidden="true"
       />
@@ -447,6 +461,11 @@ export const EntityBadge = ({
   return (
     <div
       data-entity-badge
+      data-address-highlighted={highlight.isHighlighted || undefined}
+      onPointerEnter={highlight.onPointerEnter}
+      onPointerLeave={highlight.onPointerLeave}
+      onFocus={highlight.onFocus}
+      onBlur={highlight.onBlur}
       title={fullText}
       className={cn(
         'relative group/entity inline-flex',
