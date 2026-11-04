@@ -1,3 +1,4 @@
+import * as fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { sanitizeOnChainText } from './sanitizeOnChainText'
 
@@ -61,5 +62,34 @@ describe('sanitizeOnChainText', () => {
       ),
     ).toBe('')
     expect(sanitizeOnChainText('')).toBe('')
+  })
+
+  it('is idempotent and respects generated length limits', () => {
+    fc.assert(
+      fc.property(
+        fc.string(),
+        fc.integer({ min: 0, max: 128 }),
+        (value, maxLength) => {
+          const sanitized = sanitizeOnChainText(value, maxLength)
+
+          expect(sanitizeOnChainText(sanitized, maxLength)).toBe(sanitized)
+          expect([...sanitized].length).toBeLessThanOrEqual(maxLength + 1)
+        },
+      ),
+    )
+  })
+
+  it('treats generated negative length limits as zero', () => {
+    fc.assert(
+      fc.property(
+        fc.string(),
+        fc.integer({ min: -1_000, max: -1 }),
+        (value, maxLength) => {
+          expect(sanitizeOnChainText(value, maxLength)).toBe(
+            sanitizeOnChainText(value, 0),
+          )
+        },
+      ),
+    )
   })
 })
