@@ -1347,10 +1347,6 @@ msgid "Enabling smart sessions…"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "ENS"
-msgstr ""
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS App"
 msgstr ""
 
@@ -1364,6 +1360,10 @@ msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
+msgstr ""
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS Protocol"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
@@ -1608,8 +1608,16 @@ msgstr ""
 msgid "Getting your wallet ready..."
 msgstr ""
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "GitHub"
+msgstr ""
+
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "Go back home"
+msgstr ""
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Go back to the quote and register again. You'll be asked to approve the payment again."
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
@@ -1750,10 +1758,6 @@ msgstr ""
 
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "its registration couldn't be read. Try again later."
-msgstr ""
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Join the community"
 msgstr ""
 
 #. placeholder {0}: truncateAddress(manager)
@@ -2014,10 +2018,6 @@ msgstr ""
 msgid "Need {0}"
 msgstr ""
 
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Need help?"
-msgstr ""
-
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
@@ -2143,6 +2143,10 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
+msgstr ""
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Not Enough Funds to Finish"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
@@ -3771,10 +3775,6 @@ msgstr ""
 msgid "Track your favorite names"
 msgstr ""
 
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Trademark Guidelines"
-msgstr ""
-
 #: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
 msgid "Transaction actions"
 msgstr ""
@@ -4330,6 +4330,10 @@ msgstr ""
 msgid "Wrong wallet connected"
 msgstr ""
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "X"
+msgstr ""
+
 #: src/components/AnalyticsConsentBanner.tsx
 msgid "Yes, happy to help"
 msgstr ""
@@ -4620,6 +4624,10 @@ msgstr ""
 msgid "Your smart account isn't set up on-chain yet. Sessions you signed for it still work once anyone sets it up, so revoking needs a setup transaction first."
 msgstr ""
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Your smart account no longer has enough funds to finish registering {label}.eth. This can happen if funds are withdrawn in another tab or browser while a registration is running."
+msgstr ""
+
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Your subnames are unaffected"
 msgstr ""
@@ -4692,4 +4700,8 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
+msgstr ""
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "YouTube"
 msgstr ""
