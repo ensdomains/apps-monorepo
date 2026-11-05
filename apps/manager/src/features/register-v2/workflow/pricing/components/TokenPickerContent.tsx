@@ -39,7 +39,10 @@ import {
   type L2PaymentRow,
   useL2Payment,
 } from '../hooks/useL2Payment'
-import { getBudgetQuoteFailureUi } from '../lib/budgetQuoteRecovery'
+import {
+  getBudgetQuoteFailureUi,
+  getCheckoutReceiptTotalRaw,
+} from '../lib/budgetQuoteRecovery'
 import { getCheckoutTotalRaw } from '../lib/checkoutSummary'
 import { getEthPaymentRow, getEthSwapDebitUsdcRaw } from '../lib/ethPaymentRow'
 import {
@@ -726,7 +729,16 @@ export const TokenPickerContent = () => {
   return (
     <TokenPickerContentBase
       checkoutReceipt={
-        isBudgetRequired ? { totalRaw: registrationTotalRaw } : undefined
+        isBudgetRequired
+          ? {
+              totalRaw: getCheckoutReceiptTotalRaw({
+                hasBudgetQuoteFailed,
+                estimatedRegistrationRaw:
+                  budgetFailureUi.estimatedRegistrationRaw,
+                totalRaw: registrationTotalRaw,
+              }),
+            }
+          : undefined
       }
       estimatedFunding={getFundingSummary(estimatedFunding, false)}
       ethPayment={ethPayment}

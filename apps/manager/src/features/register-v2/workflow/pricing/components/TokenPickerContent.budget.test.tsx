@@ -102,6 +102,12 @@ const mockAccount = (
     ...overrides,
   })
 
+const receiptRow = (label: string) => {
+  const row = screen.getByText(label).closest('div')
+  if (!row) throw new Error(`No receipt row for ${label}`)
+  return row
+}
+
 const renderConnectedPicker = () => {
   const queryClient = new QueryClient({
     // The budget query retries once; don't wait out the backoff.
@@ -159,6 +165,10 @@ describe('TokenPickerContent budget quote', () => {
       ),
     ).toBeInTheDocument()
     expect(screen.getByText(/This total is an estimate/)).toBeInTheDocument()
+    // No quote ever succeeded, so the whole receipt comes from the estimate.
+    expect(receiptRow('Registration total')).toHaveTextContent('$330.00')
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('$10.00')
+    expect(receiptRow('You pay')).toHaveTextContent('$340.00')
     expect(screen.queryByText(QUOTE_FAILED_MESSAGE)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
     expect(

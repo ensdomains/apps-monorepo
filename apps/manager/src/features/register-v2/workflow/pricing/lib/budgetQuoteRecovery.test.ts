@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getBudgetQuoteFailureCopy,
   getBudgetQuoteRecovery,
+  getCheckoutReceiptTotalRaw,
 } from './budgetQuoteRecovery'
 
 const breakdown = {
@@ -33,6 +34,7 @@ describe('getBudgetQuoteRecovery', () => {
       walletDebitRaw: 11_400_000n,
       hcaCredit: 0,
     })
+    expect(recovery.estimatedRegistrationRaw).toBe(1_400_000n)
   })
 
   it('walks a wrapping cause chain for the unquoted breakdown', () => {
@@ -51,6 +53,7 @@ describe('getBudgetQuoteRecovery', () => {
     ).toEqual({
       kind: 'generic',
       estimatedFunding: null,
+      estimatedRegistrationRaw: null,
     })
   })
 
@@ -105,4 +108,48 @@ describe('getBudgetQuoteFailureCopy', () => {
   ] as const)('picks %s', (_name, input, expected) => {
     expect(getBudgetQuoteFailureCopy(input)).toEqual(expected)
   })
+})
+
+describe('getCheckoutReceiptTotalRaw', () => {
+  it.each([
+    [
+      'a failed quote with an estimate uses the estimate',
+      true,
+      1_400_000n,
+      900_000n,
+      1_400_000n,
+    ],
+    [
+      'a failed first quote with an estimate fills the missing total',
+      true,
+      1_400_000n,
+      undefined,
+      1_400_000n,
+    ],
+    [
+      'a failed quote without an estimate keeps the page total',
+      true,
+      null,
+      900_000n,
+      900_000n,
+    ],
+    [
+      'a successful quote keeps the page total',
+      false,
+      1_400_000n,
+      900_000n,
+      900_000n,
+    ],
+  ] as const)(
+    '%s',
+    (_name, hasBudgetQuoteFailed, estimatedRegistrationRaw, totalRaw, expected) => {
+      expect(
+        getCheckoutReceiptTotalRaw({
+          hasBudgetQuoteFailed,
+          estimatedRegistrationRaw,
+          totalRaw,
+        }),
+      ).toBe(expected)
+    },
+  )
 })
