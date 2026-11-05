@@ -22,7 +22,7 @@ export const useCanEditRecords = ({
     isError,
     isPending,
   } = useQuery({
-    ...resolverWriteAccessQuery(name, ownerAddress ?? undefined),
+    ...resolverWriteAccessQuery(name, ownerAddress ?? undefined, 'profile'),
     enabled: isProbeEnabled,
   })
 

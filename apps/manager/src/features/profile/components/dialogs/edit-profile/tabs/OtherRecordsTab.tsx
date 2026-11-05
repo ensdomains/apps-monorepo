@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import type { ProfileRecords } from '@/features/profile/types'
+import { LockedRecordsNotice } from '../LockedRecordsNotice'
+import { useIsRecordTypeLocked } from '../LockedRecordTypes.context'
 import { getOtherRecordIssues } from './OtherRecordsTab.helpers'
 
 /** Raw recovered values stay visible/editable even without a dedicated field. */
@@ -19,6 +21,9 @@ export const OtherRecordsTab = ({
   ) => void
 }) => {
   const id = useId()
+  const isTextLocked = useIsRecordTypeLocked('text')
+  const isContentHashLocked = useIsRecordTypeLocked('contentHash')
+  const isAbiLocked = useIsRecordTypeLocked('abi')
   const [rowKeys, setRowKeys] = useState(() =>
     values.unknown.map(() => crypto.randomUUID()),
   )
@@ -42,6 +47,7 @@ export const OtherRecordsTab = ({
           remove a record.
         </Trans>
       </p>
+      <LockedRecordsNotice type="text" />
       {values.unknown.map((record, index) => (
         <div
           className="space-y-2 rounded-lg border border-ens-quartz-200 p-3"
@@ -49,15 +55,18 @@ export const OtherRecordsTab = ({
         >
           <Input
             aria-label={`Record ${index + 1} key`}
+            disabled={isTextLocked}
             onChange={(event) => update(index, { key: event.target.value })}
             value={record.key}
           />
           <Textarea
             aria-label={`Record ${index + 1} value`}
+            disabled={isTextLocked}
             onChange={(event) => update(index, { value: event.target.value })}
             value={record.value}
           />
           <Button
+            disabled={isTextLocked}
             onClick={() => {
               setRowKeys((keys) =>
                 keys.filter((_, currentIndex) => index !== currentIndex),
@@ -77,6 +86,7 @@ export const OtherRecordsTab = ({
         </div>
       ))}
       <Button
+        disabled={isTextLocked}
         onClick={() => {
           setRowKeys((keys) => [...keys, crypto.randomUUID()])
           onChange({
@@ -89,11 +99,13 @@ export const OtherRecordsTab = ({
       >
         <Trans>Add custom record</Trans>
       </Button>
+      <LockedRecordsNotice type="contentHash" />
       <label className="block space-y-2" htmlFor={`${id}-contenthash`}>
         <span>
           <Trans>Content hash</Trans>
         </span>
         <Input
+          disabled={isContentHashLocked}
           id={`${id}-contenthash`}
           onChange={(event) =>
             onChange({ ...values, contentHash: event.target.value })
@@ -101,11 +113,13 @@ export const OtherRecordsTab = ({
           value={values.contentHash ?? ''}
         />
       </label>
+      <LockedRecordsNotice type="abi" />
       <label className="block space-y-2" htmlFor={`${id}-abi`}>
         <span>
           <Trans>Contract ABI (JSON)</Trans>
         </span>
         <Textarea
+          disabled={isAbiLocked}
           id={`${id}-abi`}
           onChange={(event) => onChange({ ...values, abi: event.target.value })}
           value={values.abi ?? ''}

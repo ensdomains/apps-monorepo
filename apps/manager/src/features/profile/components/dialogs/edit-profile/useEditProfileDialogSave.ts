@@ -761,6 +761,7 @@ export const useEditProfileDialogSave = ({
     handleImageUploadPrepared,
     handleSetupConfirmOpenChange,
     isFinalizingImageSave,
+    editableTypes: resolverWriteAccess.data?.editableTypes,
     isResolverAccessPending,
     resetPreparedImageSaveState,
     preparedImageUploads,

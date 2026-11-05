@@ -18,6 +18,8 @@ import {
   useEditProfileDialogStatus,
   useEditProfileVisibleFields,
 } from '../../EditProfileDialog.context'
+import { LockedRecordsNotice } from '../../LockedRecordsNotice'
+import { useIsRecordTypeLocked } from '../../LockedRecordTypes.context'
 import { FieldPickerPill } from '../../shared/FieldPickerPill'
 import {
   DESCRIPTION_MAX_LENGTH,
@@ -285,6 +287,8 @@ export const GeneralTab = ({
   values,
 }: GeneralTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
+  const isTextLocked = useIsRecordTypeLocked('text')
+  const isDisabled = isSaving || isTextLocked
   const visibleFields = useEditProfileVisibleFields()
   const { showField, toggleField } = useEditProfileDialogActions()
   const [activeImageField, setActiveImageField] =
@@ -334,6 +338,7 @@ export const GeneralTab = ({
 
   return (
     <div className="flex flex-col gap-4 pb-4">
+      <LockedRecordsNotice type="text" />
       <p className="font-bold font-sans text-[#525252] text-[16px] leading-[0.96] tracking-[-0.32px]">
         General
       </p>
@@ -373,7 +378,7 @@ export const GeneralTab = ({
         {isVisible('avatar') && (
           <ProfileImageField
             currentImage={values.base.avatar}
-            disabled={isSaving}
+            disabled={isDisabled}
             isActive={activeImageField === 'avatar'}
             kind="avatar"
             name={name}
@@ -391,7 +396,7 @@ export const GeneralTab = ({
         {isVisible('header') && (
           <ProfileImageField
             currentImage={values.base.header}
-            disabled={isSaving}
+            disabled={isDisabled}
             isActive={activeImageField === 'header'}
             kind="header"
             name={name}
@@ -406,7 +411,7 @@ export const GeneralTab = ({
 
         <input
           className={cn(fieldClassName, !isVisible('name') && 'md:hidden')}
-          disabled={isSaving}
+          disabled={isDisabled}
           onChange={(event) => {
             showField('name')
             setBaseValue('name', event.target.value)
@@ -418,7 +423,7 @@ export const GeneralTab = ({
         {isVisible('description') && (
           <DescriptionField
             description={description}
-            disabled={isSaving}
+            disabled={isDisabled}
             onChange={(value) => setBaseValue('description', value)}
             savedDescription={savedDescription}
           />
@@ -427,7 +432,7 @@ export const GeneralTab = ({
         {isVisible('url') && (
           <div className="hidden w-full md:block">
             <UrlField
-              disabled={isSaving}
+              disabled={isDisabled}
               errorMessage={urlErrorMessage}
               onChange={(value) => setBaseValue('url', value)}
               value={values.base.url ?? ''}
@@ -440,7 +445,7 @@ export const GeneralTab = ({
             {isVisible('timezone') && (
               <SelectField
                 ariaLabel="Timezone"
-                disabled={isSaving}
+                disabled={isDisabled}
                 onChange={(value) =>
                   onContactChange(
                     setTextRecordValue(values.contact, 'timezone', value),
@@ -454,7 +459,7 @@ export const GeneralTab = ({
             {isVisible('language') && (
               <SelectField
                 ariaLabel="Language"
-                disabled={isSaving}
+                disabled={isDisabled}
                 onChange={(value) => setBaseValue('language', value)}
                 options={profileLanguageOptions}
                 placeholder="Language"
@@ -467,7 +472,7 @@ export const GeneralTab = ({
         {isVisible('location') && (
           <input
             className={fieldClassName}
-            disabled={isSaving}
+            disabled={isDisabled}
             onChange={(event) =>
               onContactChange(
                 setTextRecordValue(

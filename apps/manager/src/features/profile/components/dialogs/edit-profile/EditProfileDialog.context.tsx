@@ -1,10 +1,15 @@
 import { shallowEqual, useSelector } from '@xstate/react'
 import { createContext, use, useMemo } from 'react'
 import type { Actor } from 'xstate'
+import {
+  NO_LOCKED_RECORD_TYPES,
+  type RecordType,
+} from '@/features/profile/service/recordTypeLocks'
 import type {
   EditProfileDialogSnapshot,
   editProfileDialogMachine,
 } from './EditProfileDialog.machine'
+import { LockedRecordTypesProvider } from './LockedRecordTypes.context'
 import type { GeneralField } from './tabs/general/fields'
 
 interface EditProfileDialogContextValue {
@@ -17,14 +22,18 @@ const EditProfileDialogContext =
 interface EditProfileDialogProviderProps {
   readonly actor: Actor<typeof editProfileDialogMachine>
   readonly children: React.ReactNode
+  readonly lockedRecordTypes?: ReadonlySet<RecordType>
 }
 
 export const EditProfileDialogProvider = ({
   actor,
   children,
+  lockedRecordTypes = NO_LOCKED_RECORD_TYPES,
 }: EditProfileDialogProviderProps) => (
   <EditProfileDialogContext.Provider value={{ dialogActor: actor }}>
-    {children}
+    <LockedRecordTypesProvider lockedRecordTypes={lockedRecordTypes}>
+      {children}
+    </LockedRecordTypesProvider>
   </EditProfileDialogContext.Provider>
 )
 
