@@ -1,3 +1,4 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
   type CowSellToken,
   quoteEthPaymentActor,
@@ -36,6 +37,7 @@ export type EthPaymentQuoteParams = Readonly<{
   isEnabled: boolean
   /** EOA registration quotes include the permit + commit solver work. */
   includeRegistrationHooks?: boolean
+  fundingMode?: 'exact' | 'topUp'
 }>
 
 /** The ETH payment could not be quoted, or the wallet's ETH read. */
@@ -49,6 +51,7 @@ const getEthPaymentQuote = ({
   sellToken,
   permitValue,
   includeRegistrationHooks,
+  fundingMode,
 }: EthPaymentQuoteParams): ResultAsync<
   EthPaymentQuote,
   EthPaymentQuoteError
@@ -61,15 +64,28 @@ const getEthPaymentQuote = ({
     )
   }
   return ResultAsync.combine([
-    quoteEthPaymentActor({
-      owner,
-      hca: receiver,
-      permitValue,
-      publicClient,
-      chainId: chain.id,
-      sellToken,
-      includeRegistrationHooks,
-    }),
+    (fundingMode === 'topUp'
+      ? ResultAsync.fromPromise(
+          publicClient.readContract({
+            address: getDestinationContracts(chain.id).usdc,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [receiver],
+          }),
+          (cause) => cause,
+        ).map((balance) => (permitValue > balance ? permitValue - balance : 0n))
+      : okAsync(permitValue)
+    ).andThen((amount) =>
+      quoteEthPaymentActor({
+        owner,
+        hca: receiver,
+        permitValue: amount,
+        publicClient,
+        chainId: chain.id,
+        sellToken,
+        includeRegistrationHooks,
+      }),
+    ),
     ResultAsync.fromPromise(
       sellToken.isNative
         ? publicClient.getBalance({ address: owner })
@@ -125,6 +141,7 @@ export const getEthPaymentQuoteQueryOptions = (params: EthPaymentQuoteParams) =>
       sellToken: params.sellToken?.address,
       permitValue: params.permitValue?.toString(),
       includeRegistrationHooks: params.includeRegistrationHooks,
+      fundingMode: params.fundingMode,
     }),
     queryFn: () => getEthPaymentQuote(params),
     enabled:

@@ -488,6 +488,10 @@ msgstr ""
 msgid "Approve the temporary account in your wallet"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Approve the token once if needed, then sign the CoW order"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Approve this name"
 msgstr ""
@@ -550,7 +554,6 @@ msgstr ""
 msgid "Authorizing payment and registering your name"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "available"
@@ -579,6 +582,10 @@ msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Back to selection"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "balance"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
@@ -720,6 +727,10 @@ msgstr ""
 msgid "Checking for an unfinished registration"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking payment permission"
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Checking renewal costs..."
 msgstr ""
@@ -765,6 +776,10 @@ msgid "Checking whether a payment approval is needed"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Checking whether ENS already has payment permission"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking whether your resolver is already deployed"
 msgstr ""
 
@@ -806,6 +821,7 @@ msgstr ""
 
 #: src/components/molecules/SearchField/SearchField.tsx
 #: src/features/navigation/Header/search/SearchInput.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
 msgid "Clear search"
 msgstr ""
 
@@ -863,10 +879,6 @@ msgstr ""
 
 #: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
 msgid "Confirm the renewal in your wallet."
-msgstr ""
-
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-msgid "Confirm the swap in your wallet, then wait for it to complete"
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx
@@ -1007,10 +1019,6 @@ msgstr ""
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Copied"
 msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "CoW Protocol"
-msgstr "CoW Protocol"
 
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Copied!"
@@ -1407,9 +1415,7 @@ msgstr ""
 msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
-#. placeholder {0}: formatUsd(networkFee + getEthSwapGasUsd(row))
 #. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Est. fee: {0}"
@@ -1831,7 +1837,6 @@ msgid "Links can't contain spaces. Remove them and try again"
 msgstr ""
 
 #: src/features/notifications/inbox/list.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
 msgid "Load more"
 msgstr ""
 
@@ -2131,8 +2136,16 @@ msgstr ""
 msgid "No thanks"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "No tokens found"
+msgstr ""
+
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "No upgrade access to remove"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "Not enough {symbol} in your wallet."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
@@ -2262,6 +2275,10 @@ msgstr ""
 msgid "OpenSea"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Other ways to pay"
+msgstr ""
+
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Owned"
@@ -2280,8 +2297,9 @@ msgstr ""
 msgid "Pay with"
 msgstr ""
 
+#. placeholder {0}: token.symbol
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "Pay with ETH"
+msgid "Pay with {0}"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
@@ -2293,7 +2311,11 @@ msgid "Paying from {l2ChainName}"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "Paying with ETH isn't available right now."
+msgid "Paying with {symbol} isn't available right now."
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Paying with your selected token"
 msgstr ""
 
 #: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
@@ -2352,8 +2374,16 @@ msgstr ""
 msgid "Preparing commitment"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Preparing registration…"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing the commitment"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Preparing token payment…"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
@@ -2544,10 +2574,6 @@ msgstr "Registrerad"
 
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Registering for"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Registering..."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
@@ -2948,6 +2974,14 @@ msgstr ""
 msgid "Search notifications"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Search results"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Search tokens"
+msgstr ""
+
 #. placeholder {0}: stablecoin.symbol
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
@@ -3103,10 +3137,6 @@ msgstr ""
 msgid "Should I register now or wait?"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
-msgid "Show fewer"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx
 msgid "Show less"
 msgstr ""
@@ -3149,6 +3179,10 @@ msgstr ""
 msgid "Sign payment approval"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Sign payment permission"
+msgstr ""
+
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign renewal"
 msgstr ""
@@ -3176,6 +3210,10 @@ msgstr ""
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Signing payment approval…"
 msgstr ""
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
@@ -3338,6 +3376,10 @@ msgstr ""
 msgid "Subtotal:"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Suggested"
+msgstr ""
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Support"
 msgstr ""
@@ -3353,19 +3395,6 @@ msgstr ""
 #: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Swap and Renew"
-msgstr ""
-
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-msgid "Swapping ETH for USDC"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "Swaps to USDC"
-msgstr ""
-
-#. placeholder {0}: formatGasEth(row.chargeRaw)
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "Swaps up to {0} ETH"
 msgstr ""
 
 #. placeholder {0}: appChain.name
@@ -3608,6 +3637,10 @@ msgstr ""
 
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "This commemorative NFT has already been minted."
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "This is a gasless signature, not a transaction"
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
@@ -3896,6 +3929,12 @@ msgstr ""
 
 #: src/components/NameFallbackCard.tsx
 msgid "uses an unsupported TLD"
+msgstr ""
+
+#. placeholder {0}: formatAmount(row.chargeRaw)
+#. placeholder {1}: token.symbol
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "Uses up to {0} {1}"
 msgstr ""
 
 #: src/features/migration/components/SmartTransactionsNotice.tsx
@@ -4231,10 +4270,6 @@ msgstr ""
 msgid "What is a primary name?"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "What is the ETH swap?"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 msgid "What will I sign?"
 msgstr ""
@@ -4325,10 +4360,6 @@ msgstr ""
 msgid "You do not have enough {walletSelection} for this transaction."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "You do not have enough ETH for this transaction."
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "You do not have enough funds to complete this transaction."
 msgstr ""
@@ -4371,10 +4402,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "You pay"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "You will be wrapping your ETH into WETH, swapping WETH for USDC, which will then be used to register the name. The final price can shift slightly with the market price."
 msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
@@ -4563,6 +4590,10 @@ msgstr ""
 msgid "Your saved upgrade needs attention"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your selected token will be converted into the exact USDC needed for registration. The final amount can shift slightly with the market price."
+msgstr ""
+
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 msgid "Your smart account also holds {leftoverFunds} left over from earlier payments. It will be sent back to your wallet in one more transaction."
 msgstr ""
@@ -4593,6 +4624,10 @@ msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Your subnames are unaffected"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentMethodList.tsx
+msgid "Your tokens"
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
@@ -4655,10 +4690,6 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Your wallet shows the final fee before you approve."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "CoW Protocol solvers exchange your ETH and deliver the USDC this registration needs directly to your ENS smart account."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

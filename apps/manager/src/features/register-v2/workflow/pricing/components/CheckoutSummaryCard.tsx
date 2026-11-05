@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import { formatUnits } from 'viem'
+import ethCoinIcon from '@/assets/icons/eth-coin.svg'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { Card } from '@/components/ui/card'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -166,14 +167,20 @@ const acceptedTokenExamples = [
 const tokenBadgeClass =
   'flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-white'
 
-const AcceptedTokens = ({ acceptsEth }: { readonly acceptsEth: boolean }) => (
+const AcceptedTokens = ({
+  acceptsEth,
+  acceptsOtherTokens,
+}: {
+  readonly acceptsEth: boolean
+  readonly acceptsOtherTokens: boolean
+}) => (
   <div className="flex items-center justify-center gap-2">
     <span className="text-ens-quartz-400 text-xs">
       <Trans>Accepted</Trans>
     </span>
     <span className="flex items-center -space-x-1.5">
       {acceptedTokenExamples
-        .slice(0, acceptsEth ? acceptedTokenExamples.length : 1)
+        .slice(0, acceptsOtherTokens ? acceptedTokenExamples.length : 1)
         .map((token) => (
           <span
             className={tokenBadgeClass}
@@ -187,7 +194,10 @@ const AcceptedTokens = ({ acceptsEth }: { readonly acceptsEth: boolean }) => (
             />
           </span>
         ))}
-      {acceptsEth && (
+      {acceptsEth && !acceptsOtherTokens && (
+        <img alt="ETH" className="size-5" src={ethCoinIcon} />
+      )}
+      {acceptsOtherTokens && (
         <span
           className={`${tokenBadgeClass} border border-ens-quartz-100 font-semibold text-[10px] text-ens-blue-midnight`}
           title="More supported tokens"
@@ -266,6 +276,7 @@ export const CheckoutSummaryCard = ({
   header,
   action,
   acceptsEth,
+  acceptsOtherTokens = false,
   onContinue,
   connect,
 }: {
@@ -280,6 +291,7 @@ export const CheckoutSummaryCard = ({
   readonly header?: ReactNode
   readonly action: CheckoutAction
   readonly acceptsEth: boolean
+  readonly acceptsOtherTokens?: boolean
   readonly onContinue: () => void
   readonly connect: ConnectControl
 }) => (
@@ -311,7 +323,10 @@ export const CheckoutSummaryCard = ({
     </div>
     <div className="flex w-full flex-col gap-4">
       <ActionButton action={action} connect={connect} onContinue={onContinue} />
-      <AcceptedTokens acceptsEth={acceptsEth} />
+      <AcceptedTokens
+        acceptsEth={acceptsEth}
+        acceptsOtherTokens={acceptsOtherTokens}
+      />
     </div>
   </Card>
 )

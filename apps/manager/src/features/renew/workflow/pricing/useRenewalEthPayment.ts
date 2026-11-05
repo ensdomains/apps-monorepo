@@ -1,3 +1,4 @@
+import { NATIVE_ETH } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import { getEthPaymentQuoteQueryOptions } from '@/features/register-v2/data/queries/ethPaymentQuote.query'
 import type { EthPaymentProps } from '@/features/register-v2/workflow/pricing/components/EthPaymentListItem'
@@ -45,6 +46,9 @@ export const useRenewalEthPayment = ({
   const quote = useQuery(
     getEthPaymentQuoteQueryOptions({
       owner: ownerAddress,
+      receiver: ownerAddress,
+      sellToken: NATIVE_ETH,
+      fundingMode: 'topUp',
       permitValue: usdcAmount,
       isEnabled,
     }),

@@ -132,6 +132,7 @@ export const PaymentCard = () => {
     <>
       <CheckoutSummaryCard
         acceptsEth
+        acceptsOtherTokens
         action={action}
         connect={{
           onConnect: () => openConnectModal?.(),

@@ -44,7 +44,9 @@ export const swapEthForRenewal = ({
     )
   }
   return swapEthForUsdcActor({
-    permitValue: ethFunding.usdcAmount,
+    hca: ownerAddress,
+    targetBalance: ethFunding.usdcAmount,
+    fundingMode: 'topUp',
     funding: { displayedCharge: ethFunding.displayedCharge },
     approvalSigner: { type: 'eoa', walletClient },
     publicClient,

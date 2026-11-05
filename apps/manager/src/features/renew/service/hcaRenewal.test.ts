@@ -764,7 +764,12 @@ type SwapStubInput = { readonly onSwapSent?: (swap: PendingEthSwap) => void }
 
 describe('submitHcaRenewal paid with ETH', () => {
   const ethFunding = { usdcAmount: 2_025_000n, displayedCharge: 10n ** 15n }
-  const sent = { hash: `0x${'ab'.repeat(32)}` as Hex, deadline: 1_700_000_000n }
+  const sent: PendingEthSwap = {
+    hash: `0x${'ab'.repeat(32)}` as Hex,
+    orderId: 'cow-order',
+    validTo: 1_700_000_000,
+    kind: 'native',
+  }
   const swapInput = () => mocks.swapEthForUsdcActor.mock.calls[0]?.[0]
 
   beforeEach(() => {
@@ -805,7 +810,9 @@ describe('submitHcaRenewal paid with ETH', () => {
     await submitHcaRenewal({ ...params, displayedDebit, ethFunding })
 
     expect(swapInput()).toMatchObject({
-      permitValue: 2_025_000n,
+      hca: OWNER,
+      targetBalance: 2_025_000n,
+      fundingMode: 'topUp',
       funding: { displayedCharge: 10n ** 15n },
       approvalSigner: { type: 'eoa', walletClient },
     })
@@ -864,7 +871,7 @@ describe('fundHcaRenewalsWithEth', () => {
     // 2 × 1.00 price + 2 × 0.90 fee widened by 25%, less the 0.20 held.
     expect(mocks.swapEthForUsdcActor).toHaveBeenCalledOnce()
     expect(mocks.swapEthForUsdcActor.mock.calls[0]?.[0]).toMatchObject({
-      permitValue: 4_050_000n,
+      targetBalance: 4_050_000n,
       funding: { displayedCharge: 10n ** 16n },
     })
   })
@@ -874,7 +881,7 @@ describe('fundHcaRenewalsWithEth', () => {
 
     // 1.00 price + 0.90 fee widened by 25%, less the 0.20 held.
     expect(mocks.swapEthForUsdcActor.mock.calls[0]?.[0]).toMatchObject({
-      permitValue: 1_925_000n,
+      targetBalance: 1_925_000n,
     })
   })
 
