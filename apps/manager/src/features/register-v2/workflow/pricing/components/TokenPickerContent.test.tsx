@@ -1245,6 +1245,26 @@ describe('TokenPickerContentBase L2 rows', () => {
     expect(screen.getAllByText('up to').length).toBeGreaterThan(0)
   })
 
+  it('explains the up to figures with the note a caller gives', async () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      checkoutReceipt: {
+        totalRaw: 5_000_000n,
+        isUpTo: true,
+        upToNote: 'Includes a price buffer',
+      },
+    })
+
+    const [upTo] = screen.getAllByRole('button', { name: 'up to' })
+    if (upTo) fireEvent.focus(upTo)
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'Includes a price buffer',
+    )
+  })
+
   it('in registration, says a picked short L2 lacks USDC and estimates its fee', () => {
     renderPicker({
       funding: underfunded,

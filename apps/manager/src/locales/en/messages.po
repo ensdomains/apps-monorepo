@@ -1702,6 +1702,10 @@ msgstr "in your wallet"
 msgid "In-app notifications are always enabled"
 msgstr "In-app notifications are always enabled"
 
+#: src/features/renew/workflow/pricing/components/RenewalBufferNote.tsx
+msgid "Includes a 2% buffer, since the renewal price is set when the renewal runs. Anything not used stays in your account."
+msgstr "Includes a 2% buffer, since the renewal price is set when the renewal runs. Anything not used stays in your account."
+
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
 msgid "Insufficient balance"
 msgstr "Insufficient balance"

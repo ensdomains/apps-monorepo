@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { match, P } from 'ts-pattern'
 import type { FundingSourceOrigin } from '@/features/register-v2/state/registrationUi.machine'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
+import { RenewalBufferNote } from '@/features/renew/workflow/pricing/components/RenewalBufferNote'
 import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import type { UseBulkRenewResult } from '../hooks/useBulkRenew'
 
@@ -50,6 +51,7 @@ export const BulkRenewPaymentStep = ({
               totalRaw: payment.checkoutTotalRaw,
               totalLabel: <Trans>Renewal total</Trans>,
               isUpTo: true,
+              upToNote: <RenewalBufferNote />,
             },
           }
         : {})}
