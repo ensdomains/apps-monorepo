@@ -397,22 +397,25 @@ const returnLeftoverFunds = async ({
   readonly hca: Address
   readonly owner: Address
 }): Promise<void> => {
-  // Read first: withdrawing moves the wallet to this chain, a prompt with nothing to send.
-  const { funds } = await readLeftoverFunds(defaultPublicClient, hca)
-  if (funds.length === 0) return
-  const notice = await withdrawLeftoverFunds({
-    hca,
-    owner,
-    // The reveal deployed the account, so there is nothing to deploy.
-    hcaClient: null,
-    refreshAccount: () => Promise.resolve(),
-    publicClient: defaultPublicClient,
-    wagmiConfig,
-    findPendingRegistration: () => findPendingRegistrationFor(hca),
-  }).then(
-    (result) => resolveLeftoverRefundNotice({ result }),
-    (error: unknown) => resolveLeftoverRefundNotice({ error }),
-  )
+  const notice = await readLeftoverFunds(defaultPublicClient, hca)
+    .then(({ funds }) =>
+      // Read first: withdrawing moves the wallet to this chain, a prompt with nothing to send.
+      funds.length === 0
+        ? null
+        : withdrawLeftoverFunds({
+            hca,
+            owner,
+            // The reveal deployed the account, so there is nothing to deploy.
+            hcaClient: null,
+            refreshAccount: () => Promise.resolve(),
+            publicClient: defaultPublicClient,
+            wagmiConfig,
+            findPendingRegistration: () => findPendingRegistrationFor(hca),
+          }).then((result) => resolveLeftoverRefundNotice({ result })),
+    )
+    // A failed read is reported like a failed withdrawal: the funds stay withdrawable.
+    .catch((error: unknown) => resolveLeftoverRefundNotice({ error }))
+  if (!notice) return
   const queryClient = getQueryClient()
   if (queryClient) void invalidateAfterWithdrawal(queryClient, hca)
   announceLeftoverRefund(notice)
@@ -812,7 +815,7 @@ const machineSetup = setup({
     }),
     logLeftoverRefundError: ({ event }) => {
       console.warn(
-        '[REGISTRATION] Could not read the smart account balance to return it:',
+        '[REGISTRATION] The leftover refund did not finish; the name is already registered:',
         (event as { error?: unknown }).error,
       )
     },
@@ -1622,7 +1625,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
       invoke: {
         src: 'refundLeftoverFunds',
         input: ({ context }) => leftoverRefundAccounts(context),
-        // Only the balance read rejects: nothing was sent, and the funds stay withdrawable.
+        // An unhandled child error would put this whole machine in `error`.
         onError: { actions: 'logLeftoverRefundError' },
       },
     },

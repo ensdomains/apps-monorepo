@@ -248,6 +248,7 @@ vi.mock('../service/registrationPersistence', () => ({
 import { waitForTransaction } from '@ens-apps/transaction-manager'
 import { OrchestratorError } from '@rhinestone/sdk/errors'
 import { QueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { invalidateAfterWithdrawal } from '@/features/wallet/data/queries/leftoverFunds.query'
 import {
   readLeftoverFunds,
@@ -923,6 +924,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
   describe('leftover refund', () => {
     afterEach(() => {
       vi.mocked(getQueryClient).mockReset()
+      vi.restoreAllMocks()
     })
 
     const completeRegistration = async (account: SmartAccountContextValue) => {
@@ -977,6 +979,18 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
         HCA_ADDRESS,
       )
       expect(withdrawLeftover).not.toHaveBeenCalled()
+      actor.stop()
+    })
+
+    it('reports a balance that could not be read as a failed refund', async () => {
+      const failedToast = vi.spyOn(toast, 'error')
+      vi.mocked(readLeftoverFunds).mockRejectedValueOnce(new Error('rpc down'))
+
+      const actor = await completeRegistration(smartAccount)
+
+      expect(withdrawLeftover).not.toHaveBeenCalled()
+      expect(failedToast).toHaveBeenCalledTimes(1)
+      expect(actor.getSnapshot().matches('success')).toBe(true)
       actor.stop()
     })
 
