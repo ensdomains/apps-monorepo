@@ -111,7 +111,7 @@ export const SubnameExpiryField = ({
         <ExpiryOption
           value="span"
           title="Set an expiry"
-          description="Stops resolving on the date you pick, unless it’s extended."
+          description="The new owner loses it on the date you pick, unless it’s extended. It can then be created again."
         />
       </RadioGroup>
       {expiry.type === 'span' && (
