@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/tooltip'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import {
-  getEthShortfallFigures,
+  getEthShortfall,
   isEthShortOfFunds,
   weiToUsd,
 } from '../lib/ethPaymentRow'
@@ -65,15 +65,11 @@ export const getEthSwapGasUsd = (row: EthPaymentRow | undefined) =>
 
 export const getEthSelectionMessage = (row: EthPaymentRow) =>
   match(row)
-    .when(isEthShortOfFunds, (short) => {
-      const figures = getEthShortfallFigures(short)
-      return (
-        <Trans>
-          You need {figures?.short} ETH more for the swap and its gas: it takes
-          up to {figures?.needed} ETH and your wallet holds {figures?.held} ETH.
-        </Trans>
-      )
-    })
+    .when(isEthShortOfFunds, (short) => (
+      <Trans>
+        You need {getEthShortfall(short)} ETH more for the swap and its gas.
+      </Trans>
+    ))
     .with({ hasQuoteFailed: true }, () => (
       <Trans>Paying with ETH isn't available right now.</Trans>
     ))

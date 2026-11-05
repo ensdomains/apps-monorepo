@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EthPaymentRow } from '../components/EthPaymentListItem'
-import { getEthShortfallFigures } from './ethPaymentRow'
+import { getEthShortfall } from './ethPaymentRow'
 
 const ETH_0_0026 = 2_600_000_000_000_000n
 
@@ -14,7 +14,7 @@ const rowOf = (row: Partial<EthPaymentRow>): EthPaymentRow => ({
   ...row,
 })
 
-describe('getEthShortfallFigures', () => {
+describe('getEthShortfall', () => {
   it.each([
     ['the wallet covers the swap', {}, undefined],
     [
@@ -25,20 +25,20 @@ describe('getEthShortfallFigures', () => {
     [
       'the wallet is short of the swap',
       { balanceRaw: 1_000_000_000_000_000n },
-      { short: '0.0016', needed: '0.0026', held: '0.001' },
+      '0.0016',
     ],
     [
       'the gas reserve tips it over',
       { balanceRaw: ETH_0_0026, gasReserveRaw: 100_000_000_000_000n },
-      { short: '0.0001', needed: '0.0027', held: '0.0026' },
+      '0.0001',
     ],
-    // Needed and held round to the same four digits; the shortfall still shows.
+    // A gap below the four shown digits still has a figure of its own.
     [
       'the gap is below the rounding',
       { balanceRaw: ETH_0_0026, gasReserveRaw: 100_000_000_000n },
-      { short: '0.0000001', needed: '0.0026', held: '0.0026' },
+      '0.0000001',
     ],
   ])('when %s', (_case, row, expected) => {
-    expect(getEthShortfallFigures(rowOf(row))).toEqual(expected)
+    expect(getEthShortfall(rowOf(row))).toBe(expected)
   })
 })

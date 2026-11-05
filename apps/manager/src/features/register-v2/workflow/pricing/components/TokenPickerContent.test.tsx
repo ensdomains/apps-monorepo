@@ -1752,7 +1752,7 @@ describe('TokenPickerContentBase ETH row', () => {
     [
       'the swap',
       { balanceRaw: 1_000_000_000_000_000n },
-      'You need 0.0016 ETH more for the swap and its gas: it takes up to 0.0026 ETH and your wallet holds 0.001 ETH.',
+      'You need 0.0016 ETH more for the swap and its gas.',
     ],
     [
       'the swap and its gas',
@@ -1760,7 +1760,7 @@ describe('TokenPickerContentBase ETH row', () => {
         balanceRaw: 2_600_000_000_000_000n,
         gasReserveRaw: 100_000_000_000_000n,
       },
-      'You need 0.0001 ETH more for the swap and its gas: it takes up to 0.0027 ETH and your wallet holds 0.0026 ETH.',
+      'You need 0.0001 ETH more for the swap and its gas.',
     ],
   ])(
     'holds checkout and says how much when the wallet is short of %s',

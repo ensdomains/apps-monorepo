@@ -4360,12 +4360,10 @@ msgstr "You may miss important alerts if you remove this contact method. Are you
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 
-#. placeholder {0}: figures?.short
-#. placeholder {1}: figures?.needed
-#. placeholder {2}: figures?.held
+#. placeholder {0}: getEthShortfall(short)
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "You need {0} ETH more for the swap and its gas: it takes up to {1} ETH and your wallet holds {2} ETH."
-msgstr "You need {0} ETH more for the swap and its gas: it takes up to {1} ETH and your wallet holds {2} ETH."
+msgid "You need {0} ETH more for the swap and its gas."
+msgstr "You need {0} ETH more for the swap and its gas."
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You need to verify your wallet ownership to manage your notification preferences."

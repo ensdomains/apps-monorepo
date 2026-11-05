@@ -24,17 +24,12 @@ export const canPayWithEth = (row: EthPaymentRow) =>
   !row.hasQuoteFailed &&
   !isEthShortOfFunds(row)
 
-/** How far the wallet is from covering the swap and its gas, as shown; undefined when it covers them. */
-export const getEthShortfallFigures = (row: EthPaymentRow) => {
+/** The ETH the wallet is short of the swap and its gas, as shown; undefined when it covers them. */
+export const getEthShortfall = (row: EthPaymentRow): string | undefined => {
   const { chargeRaw, balanceRaw, gasReserveRaw } = row
   if (chargeRaw === undefined || balanceRaw === undefined) return undefined
   if (!isEthShortOfFunds(row)) return undefined
-  const needed = chargeRaw + gasReserveRaw
-  return {
-    short: formatGasEth(needed - balanceRaw),
-    needed: formatGasEth(needed),
-    held: formatGasEth(balanceRaw),
-  }
+  return formatGasEth(chargeRaw + gasReserveRaw - balanceRaw)
 }
 
 /** The ETH row, from its quote. With the HCA already funded, nothing is sent. */
