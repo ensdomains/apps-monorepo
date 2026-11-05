@@ -11,7 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { RenewalFundingDialog } from '@/features/renew/components/RenewalFundingDialog'
+import type {
+  FundingSourceOrigin,
+  PaymentAsset,
+} from '@/features/register-v2/state/registrationUi.machine'
 import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
@@ -54,14 +57,29 @@ export const BulkRenewDialog = ({
   const [fundingSourceChainId, setFundingSourceChainId] = useState<
     number | undefined
   >()
-  const selectCoin = (coin: RENEWAL_TOKEN) => {
+  // Who picked the method: the fallback's pick gives way when it no longer pays.
+  const [fundingSourceOrigin, setFundingSourceOrigin] =
+    useState<FundingSourceOrigin>()
+  const [paymentAsset, setPaymentAsset] = useState<PaymentAsset>('stablecoin')
+  const selectCoin = (coin: RENEWAL_TOKEN, origin?: FundingSourceOrigin) => {
     setSelectedToken(coin)
     setFundingSourceChainId(undefined)
+    setFundingSourceOrigin(origin ?? 'user')
+    setPaymentAsset('stablecoin')
+  }
+  // Swapped into USDC, so the price is paid in USDC.
+  const selectEth = (origin?: FundingSourceOrigin) => {
+    setSelectedToken('USDC')
+    setFundingSourceChainId(undefined)
+    setFundingSourceOrigin(origin ?? 'user')
+    setPaymentAsset('eth')
   }
   // Bridged in as USDC, so the price is paid in USDC.
-  const selectL2 = (chainId: number) => {
+  const selectL2 = (chainId: number, origin?: FundingSourceOrigin) => {
     setSelectedToken('USDC')
     setFundingSourceChainId(chainId)
+    setFundingSourceOrigin(origin ?? 'user')
+    setPaymentAsset('stablecoin')
   }
 
   const [receipt, setReceipt] = useState<{
@@ -84,7 +102,10 @@ export const BulkRenewDialog = ({
     open,
     isPaying: step === 'confirm',
     fundingSourceChainId,
+    fundingSourceOrigin,
     onSelectL2: selectL2,
+    isEthSelected: paymentAsset === 'eth',
+    onSelectEth: selectEth,
   })
 
   const submit = useBulkRenewSubmit()
@@ -118,18 +139,26 @@ export const BulkRenewDialog = ({
       setStep('summary')
       setReceipt(null)
       setFundingSourceChainId(undefined)
+      setFundingSourceOrigin(undefined)
+      setPaymentAsset('stablecoin')
       submit.reset()
     }
     onOpenChange(next)
   }
 
-  const { selectedL2 } = payment
+  const { selectedL2, ethPayment, intentFunding } = payment
   const handleConfirm = () => {
+    // Refused rather than paid from the wallet's USDC instead.
+    if (ethPayment?.isSelected && !ethPayment.funding) return
     setReceipt({ rows: summaryRows, total: grandTotal })
     submit.submit({
       items: renewItems,
       token: selectedToken,
       sumPriceRaw,
+      // Each batch is checked against this, so the wallet opens on the amount shown here.
+      ...(intentFunding.displayedDebit
+        ? { displayedDebit: intentFunding.displayedDebit }
+        : {}),
       // Paid from an L2, each intent's shortfall is bridged in from there,
       // bounded by the charge this screen showed.
       ...(selectedL2
@@ -138,6 +167,12 @@ export const BulkRenewDialog = ({
               chainId: selectedL2.option.source.chain.id,
               displayedCharge: selectedL2.amountInRaw,
             },
+          }
+        : {}),
+      // Paid with ETH, one swap buys the remaining chunks' USDC, bounded by the ETH shown.
+      ...(ethPayment?.isSelected && ethPayment.funding
+        ? {
+            ethPayment: { displayedCharge: ethPayment.funding.displayedCharge },
           }
         : {}),
     })
@@ -270,11 +305,6 @@ export const BulkRenewDialog = ({
         onApprove={submit.approveFunding}
         onDecline={submit.declineFunding}
         state={submit.approvalState}
-      />
-      <RenewalFundingDialog
-        onApprove={submit.approveFunding}
-        onDecline={submit.declineFunding}
-        prompt={submit.fundingPrompt}
       />
     </>
   )

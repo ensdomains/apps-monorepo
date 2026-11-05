@@ -1,4 +1,3 @@
-import { authorizedPaymentAmount } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { addDays, startOfDay } from 'date-fns'
 import { useMemo } from 'react'
@@ -6,6 +5,7 @@ import { getNameRowProfilePreview } from '@/features/dashboard/components/nameRo
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getBaseRatesQueryOptions } from '@/features/register-v2/data/queries/baseRates.query'
 import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
+import type { FundingSourceOrigin } from '@/features/register-v2/state/registrationUi.machine'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
@@ -15,8 +15,16 @@ import type {
 } from '@/features/register-v2/workflow/pricing/hooks/useL2Payment'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
+import {
+  getRenewalCheckoutTotalRaw,
+  isRenewalReceiptReady,
+} from '@/features/renew/utils/renewalFunding'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
+import {
+  type RenewalEthPayment,
+  useRenewalEthPayment,
+} from '@/features/renew/workflow/pricing/useRenewalEthPayment'
 import {
   type RenewalIntentFunding,
   useRenewalIntentFunding,
@@ -54,9 +62,11 @@ type BulkRenewPayment = {
   readonly accountCredit: Partial<Record<RENEWAL_TOKEN, number>>
   /**
    * What the selection funds before account credit: the total, plus the
-   * approval's headroom on the intent route, which moves into the account too.
+   * price on the intent route, which moves into the account.
    */
   readonly fundedTotal: number
+  /** The receipt's renewal total, once priced and the account's balance is read. */
+  readonly checkoutTotalRaw: bigint | undefined
   /** Connected, the route known and every price resolved; the picker checks the method covers it. */
   readonly canProceed: boolean
   /** Every price resolved for the current selection. */
@@ -67,6 +77,8 @@ type BulkRenewPayment = {
   readonly l2Payment: L2PaymentProps | undefined
   /** The L2 row chosen to pay, in place of the wallet's coin. */
   readonly selectedL2: L2PaymentRow | undefined
+  /** The row that swaps the wallet's ETH into USDC; intent route only. */
+  readonly ethPayment: RenewalEthPayment | undefined
 }
 
 export type UseBulkRenewResult = {
@@ -94,7 +106,10 @@ export const useBulkRenew = ({
   open,
   isPaying = false,
   fundingSourceChainId,
+  fundingSourceOrigin,
+  isEthSelected = false,
   onSelectL2 = () => {},
+  onSelectEth = () => {},
 }: {
   readonly names: readonly BulkRenewName[]
   readonly selection: Selection
@@ -104,7 +119,10 @@ export const useBulkRenew = ({
   readonly isPaying?: boolean
   /** The L2 row chosen to pay from. */
   readonly fundingSourceChainId?: number
-  readonly onSelectL2?: (chainId: number) => void
+  readonly fundingSourceOrigin?: FundingSourceOrigin
+  readonly onSelectL2?: (chainId: number, origin?: FundingSourceOrigin) => void
+  readonly isEthSelected?: boolean
+  readonly onSelectEth?: (origin?: FundingSourceOrigin) => void
 }): UseBulkRenewResult => {
   const count = names.length
   const { isConnected, ownerAddress } = useSmartAccountContext()
@@ -257,10 +275,7 @@ export const useBulkRenew = ({
 
   const fundedTotal =
     route === 'intent'
-      ? decimalBigintToNumber(
-          authorizedPaymentAmount(sumPriceRaw),
-          tokenDecimals,
-        )
+      ? decimalBigintToNumber(sumPriceRaw, tokenDecimals)
       : grandTotal
 
   const intentFunding = useRenewalIntentFunding({
@@ -272,32 +287,48 @@ export const useBulkRenew = ({
     renewerAddress: getRenewerAddress('v2'),
     account: { signer, ownerAddress },
     pricing: pricesReady
-      ? { funded: fundedTotal, fundedRaw: authorizedPaymentAmount(sumPriceRaw) }
+      ? { funded: fundedTotal, fundedRaw: sumPriceRaw }
       : undefined,
     accountCredit,
     accountCreditRaw,
   })
 
-  // An L2 bridges USDC into the account, so it pays a USDC renewal on the
-  // intent route. Sized on the fee, so a failed fee quote leaves the wallet alone.
+  // An L2 or ETH pays a USDC renewal into the account on the intent route.
+  // Sized on the fee, so a failed fee quote leaves the wallet alone.
+  const isUsdcMethodQuotable =
+    open &&
+    isPaying &&
+    route === 'intent' &&
+    selectedToken === USDC.symbol &&
+    (intentFunding.isQuoting || intentFunding.feeRaw !== undefined)
   const l2Payment = useRenewalL2Payment({
-    rentTotalRaw: pricesReady
-      ? authorizedPaymentAmount(sumPriceRaw)
-      : undefined,
+    rentTotalRaw: pricesReady ? sumPriceRaw : undefined,
     feeRaw: intentFunding.feeRaw,
     hcaBalanceRaw: accountCreditRaw.USDC,
-    isEnabled:
-      open &&
-      isPaying &&
-      route === 'intent' &&
-      selectedToken === USDC.symbol &&
-      (intentFunding.isQuoting || intentFunding.feeRaw !== undefined),
+    isEnabled: isUsdcMethodQuotable,
     selectedChainId: fundingSourceChainId,
-    onSelect: onSelectL2,
+    selectedOrigin: fundingSourceOrigin,
+    onSelect: (chainId) => onSelectL2(chainId),
+    onFallbackSelect: (chainId) => onSelectL2(chainId, 'fallback'),
   })
   const selectedL2 = l2Payment?.rows.find(
     ({ option }) => option.source.chain.id === l2Payment.selectedChainId,
   )
+  const ethPayment = useRenewalEthPayment({
+    rentTotalRaw: pricesReady ? sumPriceRaw : undefined,
+    feeRaw: intentFunding.feeRaw,
+    hcaBalanceRaw: accountCreditRaw.USDC,
+    isEnabled: isUsdcMethodQuotable,
+    isSelected: isEthSelected,
+    onSelect: () => onSelectEth(),
+    onFallbackSelect: () => onSelectEth('fallback'),
+  })
+
+  const checkoutTotalRaw = getRenewalCheckoutTotalRaw({
+    fundedRaw: pricesReady ? sumPriceRaw : undefined,
+    accountBalanceRaw: accountCreditRaw[selectedToken],
+    decimals: tokenDecimals,
+  })
 
   return {
     minSelectableDate,
@@ -312,12 +343,21 @@ export const useBulkRenew = ({
       stablecoinBalances,
       accountCredit,
       fundedTotal,
+      checkoutTotalRaw,
       canProceed:
-        isConnected && route !== null && pricesReady && grandTotal > 0,
+        isConnected &&
+        route !== null &&
+        pricesReady &&
+        grandTotal > 0 &&
+        isRenewalReceiptReady({
+          isIntentRoute: route === 'intent',
+          checkoutTotalRaw,
+        }),
       pricesReady,
       intentFunding,
       l2Payment,
       selectedL2,
+      ethPayment,
     },
   }
 }
