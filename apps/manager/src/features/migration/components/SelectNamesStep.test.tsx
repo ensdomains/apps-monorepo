@@ -196,6 +196,7 @@ const renderStep = ({
         gasEstimate={estimate}
         gasFundingStatus={gasFundingStatus}
         isMetaMaskWallet={isMetaMaskWallet}
+        onBack={vi.fn()}
         onManagerRestorationChange={onManagerRestorationChange}
         onNamesChange={onNamesChange}
         onNext={onNext}
