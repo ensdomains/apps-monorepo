@@ -1,10 +1,11 @@
+import { requireChainId } from '@ens-apps/config'
+import {
+  buildStandaloneHcaDeploymentCall,
+  type Call,
+} from '@ens-apps/smart-account'
 import type { PublicClient } from 'viem'
 import type { MigrationPlan } from './buildMigrationPlan'
-
-const APPROVAL_GAS = 55_000n
-// The same standalone HCA deployment used by registration consumes ~393k gas
-// on Sepolia. Keep a conservative margin for the owner-paid factory call.
-const HCA_DEPLOYMENT_GAS = 450_000n
+import { buildMigrationApprovalCall } from './migrationApprovals'
 
 export type MigrationGasEstimate =
   | {
@@ -24,17 +25,48 @@ type EstimateMigrationGasCostParams = {
   readonly publicClient: PublicClient
 }
 
-const predictedGasUnits = (plan: MigrationPlan): bigint => {
-  const approvals = plan.preflight.migrationApprovals ?? []
-  const approvalCount = BigInt(approvals.length)
-  const deploymentGas = plan.hcaDeploymentRequired ? HCA_DEPLOYMENT_GAS : 0n
-  const approvalGas = approvalCount * APPROVAL_GAS
+/** The setup transactions the owner sends before any batch; the wallet estimates each. */
+const setupCalls = (
+  plan: MigrationPlan,
+  publicClient: PublicClient,
+): readonly Call[] => [
+  ...(plan.hcaDeploymentRequired
+    ? [
+        buildStandaloneHcaDeploymentCall({
+          chainId: requireChainId(publicClient, 'migration'),
+          owner: plan.migrationOwner,
+        }),
+      ]
+    : []),
+  ...(plan.preflight.migrationApprovals ?? []).map(buildMigrationApprovalCall),
+]
+
+const estimateSetupGas = (
+  plan: MigrationPlan,
+  publicClient: PublicClient,
+): Promise<readonly bigint[]> =>
+  Promise.all(
+    setupCalls(plan, publicClient).map((call) =>
+      publicClient.estimateGas({
+        account: plan.migrationOwner,
+        to: call.to,
+        data: call.data,
+        value: call.value,
+      }),
+    ),
+  )
+
+const predictedGasUnits = (
+  plan: MigrationPlan,
+  setupGas: readonly bigint[],
+): bigint => {
+  const setupGasTotal = setupGas.reduce((total, gas) => total + gas, 0n)
   const atomicBatchGas = plan.atomicBatches.reduce(
     (total, batch) => total + batch.estimatedGas + batch.walletEstimatedGas,
     0n,
   )
 
-  return deploymentGas + approvalGas + atomicBatchGas
+  return setupGasTotal + atomicBatchGas
 }
 
 const predictedTransactionCount = (plan: MigrationPlan): number => {
@@ -68,8 +100,11 @@ export const estimateMigrationGasCost = async ({
   publicClient,
 }: EstimateMigrationGasCostParams): Promise<MigrationGasEstimate> => {
   try {
-    const gasUnits = predictedGasUnits(plan)
-    const feePerGasWei = await estimateFeePerGas(publicClient)
+    const [setupGas, feePerGasWei] = await Promise.all([
+      estimateSetupGas(plan, publicClient),
+      estimateFeePerGas(publicClient),
+    ])
+    const gasUnits = predictedGasUnits(plan, setupGas)
 
     return {
       status: 'ready',
