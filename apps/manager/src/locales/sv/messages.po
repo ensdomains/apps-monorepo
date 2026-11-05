@@ -38,6 +38,11 @@ msgstr ""
 msgid "{0, plural, one {# step} other {# steps}}"
 msgstr ""
 
+#. placeholder {0}: names.length
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "{0, plural, one {# subname won't be upgraded} other {# subnames won't be upgraded}}"
+msgstr ""
+
 #. placeholder {0}: data.years
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
 msgid "{0, plural, one {# year} other {# years}}"
@@ -371,6 +376,10 @@ msgstr ""
 msgid "Addresses"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Advanced"
+msgstr ""
+
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr ""
@@ -638,6 +647,7 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogFooter.tsx
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 #: src/features/wallet/components/RevokeSessionsModal.tsx
 #: src/features/wallet/components/WithdrawLeftoverFundsModal.tsx
@@ -850,6 +860,14 @@ msgstr ""
 msgid "Confirm renewal"
 msgstr ""
 
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Confirm the payment approval and renewal in your wallet."
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Confirm the renewal in your wallet."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Confirm the swap in your wallet, then wait for it to complete"
 msgstr ""
@@ -994,6 +1012,7 @@ msgstr ""
 msgid "Cooldown fee"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Copied"
 msgstr ""
@@ -1002,6 +1021,7 @@ msgstr ""
 msgid "Copied!"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
 #: src/features/profile/components/view/AgentRecordCard.tsx
 msgid "Copy"
 msgstr ""
@@ -1023,6 +1043,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Copy Link"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Copy name"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/TelegramPendingLogin.tsx
@@ -1258,6 +1282,10 @@ msgstr ""
 msgid "Edit Profile"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Edit records here"
+msgstr ""
+
 #: src/features/migration/components/SubnameUpgradeExplanation.tsx
 msgid "Editing those records depends on that resolver. If it stops accepting changes, the subname owner can switch to a new resolver and set the records again."
 msgstr ""
@@ -1327,10 +1355,6 @@ msgid "Enabling smart sessions…"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "ENS"
-msgstr ""
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS App"
 msgstr ""
 
@@ -1338,8 +1362,16 @@ msgstr ""
 msgid "ENS Explorer"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "ENS Explorer is not available on this network yet. You can edit advanced records here."
+msgstr ""
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "ENS Labs Updates"
+msgstr ""
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "ENS Protocol"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
@@ -1407,6 +1439,10 @@ msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Estimated renewal cost"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
+msgid "Etherscan"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ExistingBalanceLabel.tsx
@@ -1580,8 +1616,16 @@ msgstr ""
 msgid "Getting your wallet ready..."
 msgstr ""
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "GitHub"
+msgstr ""
+
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "Go back home"
+msgstr ""
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Go back to the quote and register again. You'll be asked to approve the payment again."
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
@@ -1642,6 +1686,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/ResolverImportReview.tsx
 msgid "I understand that only records I edit will be saved. Existing records I do not edit will not be copied to the replacement resolver."
+msgstr ""
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "I understand these subnames will stop working after the upgrade."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -1718,10 +1766,6 @@ msgstr ""
 
 #: src/features/migration/components/UnavailableMigrationNames.tsx
 msgid "its registration couldn't be read. Try again later."
-msgstr ""
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Join the community"
 msgstr ""
 
 #. placeholder {0}: truncateAddress(manager)
@@ -1928,6 +1972,10 @@ msgstr ""
 msgid "Name"
 msgstr "Namn"
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Name actions"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
 msgid "Name cost"
 msgstr ""
@@ -1976,10 +2024,6 @@ msgstr ""
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
-msgstr ""
-
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Need help?"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
@@ -2101,6 +2145,10 @@ msgstr ""
 msgid "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
 msgstr ""
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Not Enough Funds to Finish"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 msgid "Not enough USDC on {chainName}."
 msgstr ""
@@ -2116,6 +2164,10 @@ msgstr ""
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "Not supported"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Note: ENS Explorer is designed for developers! Keep the <0>ENS docs</0> handy as you dive in."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
@@ -2256,6 +2308,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
 msgid "Paying with ETH isn't available right now."
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "Payment amount updated"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
@@ -3118,6 +3174,10 @@ msgstr ""
 msgid "Sign once to enable seamless transactions."
 msgstr ""
 
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Sign payment approval"
+msgstr ""
+
 #: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign renewal"
@@ -3206,6 +3266,10 @@ msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames."
+msgstr ""
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "Some subnames will be left behind"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
@@ -3402,6 +3466,14 @@ msgstr ""
 msgid "That's generous of you!"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "The <0>ENS Explorer app</0> is home to advanced features and details about this name."
+msgstr ""
+
+#: src/features/renew/workflow/pricing/components/PaymentUpdateNotice.tsx
+msgid "The amount due increased. Review the updated total before signing."
+msgstr ""
+
 #: src/features/migration/commemorative-nft/claimMessages.ts
 msgid "The commemorative NFT could not be minted. Please try again."
 msgstr ""
@@ -3559,6 +3631,10 @@ msgstr ""
 msgid "These subnames can't be preserved yet"
 msgstr ""
 
+#: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
+msgid "These subnames won't be upgraded"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "This app needs its notification service worker to receive push messages. Reload the page and try again."
 msgstr ""
@@ -3593,6 +3669,10 @@ msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name has expired, but can be renewed for the previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "This name has more than {MAX_UNRECOVERABLE_SUBNAMES} subnames with unknown labels. Upgrading it would leave them all behind, so keep it on ENSv1 for now."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
@@ -3695,8 +3775,8 @@ msgstr ""
 msgid "Track your favorite names"
 msgstr ""
 
-#: src/features/navigation/Header/navigation/NavigationContent.tsx
-msgid "Trademark Guidelines"
+#: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
+msgid "Transaction actions"
 msgstr ""
 
 #: src/features/bulk-renew/components/FailureStep.tsx
@@ -3824,7 +3904,7 @@ msgid "Upgrade your name to edit your new ENS profile and claim your personalize
 msgstr ""
 
 #: src/features/migration/components/UpgradeBanner.tsx
-msgid "Upgrade your name to edit your new ENS profile."
+msgid "Upgrade your name to ENSv2 to edit it here."
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -3869,6 +3949,10 @@ msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "V1"
+msgstr ""
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "V1 names like yours can still be managed in <0>ENS Explorer</0>."
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
@@ -3932,9 +4016,17 @@ msgstr ""
 msgid "View address"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
+msgid "View history"
+msgstr ""
+
 #: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 msgid "View in Explorer"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "View name"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
@@ -3947,6 +4039,20 @@ msgstr ""
 
 #: src/features/profile/components/view/AddressProfileHeader.tsx
 msgid "View profile"
+msgstr ""
+
+#. placeholder {0}: formatProfileDetailDate(creation.createdAt)
+#. placeholder {1}: truncateAddress(creation.transactionHash)
+#: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
+msgid "View the detailed history going back to when this name was created on <0><1>{0}</1><2>{1}</2></0>"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
+msgid "View the detailed history of this name in Explorer. <0>View history</0>"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/tabs/AdvancedTab.tsx
+msgid "Visit <0><1><2/></1><3>{name}</3></0> to create and edit custom records, subnames, and permissions."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -4059,6 +4165,15 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Wallet isn’t ready yet. Try again in a moment."
+msgstr ""
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+msgid "We can't read the full names of these subnames, because only a hashed form was ever saved onchain. Without the name we can't recreate them on ENSv2, so they stop working once their parent is upgraded and can't be upgraded later. Every other subname is upgraded with it."
+msgstr ""
+
+#: src/features/migration/components/SubnameMigrationDialog.tsx
+#: src/features/migration/components/UnrecoverableSubnamesNotice.tsx
+msgid "We can't read their full names, because only a hashed form was ever saved onchain. They stop working once their parent is upgraded and can't be upgraded later. Every other subname is upgraded with it."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
@@ -4215,6 +4330,10 @@ msgstr ""
 msgid "Wrong wallet connected"
 msgstr ""
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "X"
+msgstr ""
+
 #: src/components/AnalyticsConsentBanner.tsx
 msgid "Yes, happy to help"
 msgstr ""
@@ -4257,6 +4376,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "You do not have enough funds to complete this transaction."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "You do not have enough USDC for this transaction."
 msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx
@@ -4501,6 +4624,10 @@ msgstr ""
 msgid "Your smart account isn't set up on-chain yet. Sessions you signed for it still work once anyone sets it up, so revoking needs a setup transaction first."
 msgstr ""
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Your smart account no longer has enough funds to finish registering {label}.eth. This can happen if funds are withdrawn in another tab or browser while a registration is running."
+msgstr ""
+
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Your subnames are unaffected"
 msgstr ""
@@ -4577,4 +4704,8 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment of the amount shown on {l2Chain}. Registration starts once it arrives."
+msgstr ""
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx
+msgid "YouTube"
 msgstr ""

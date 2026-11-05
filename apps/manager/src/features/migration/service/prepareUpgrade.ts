@@ -166,6 +166,7 @@ const prepareWithReads = async (params: PrepareUpgradeParameters) => {
         verificationClient: params.verificationClient,
         classified: plan.classified,
         inventory: discovery?.inventory,
+        unknownLabelNames: discovery?.unrecoverable,
         signal: params.signal,
       })
       await report('checking-upgrade', selectedNames)

@@ -2389,10 +2389,12 @@ const executeRemainingAtomicBatches = async (params: {
     await assertSupportedSubnameMigration({
       publicClient: params.publicClient,
       classified: remaining,
+      signal: params.ctx.submissionGate.signal,
       inventory: subnameInventory,
       onInventory: (inventory) => {
         subnameInventory = inventory
       },
+      unknownLabelNames: params.plan.subnameRecreation?.skipped,
     })
     assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const description = describeUpgradeOperations(batch.operations)

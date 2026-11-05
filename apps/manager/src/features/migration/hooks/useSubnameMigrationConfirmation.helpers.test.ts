@@ -8,6 +8,7 @@ const run = (
     action: 'start',
     isReady: true,
     affectedCount: 0,
+    unrecoverableCount: 0,
     hasIncludedSubnames: false,
     ...overrides,
   })
@@ -25,6 +26,10 @@ describe('canSkipSubnameDialog', () => {
     [
       'subnames would be lost on a retry',
       { action: 'retry' as const, affectedCount: 1 },
+    ],
+    [
+      'unknown-label subnames would be dropped, even on a retry',
+      { action: 'retry' as const, unrecoverableCount: 1 },
     ],
   ])('opens the dialog when %s', (_, overrides) => {
     expect(run(overrides)).toBe(false)
