@@ -4226,6 +4226,10 @@ msgstr "What is a primary name?"
 msgid "What is the ETH swap?"
 msgstr "What is the ETH swap?"
 
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "What the network doesn't use stays in your ENS account."
+msgstr "What the network doesn't use stays in your ENS account."
+
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 msgid "What will I sign?"
 msgstr "What will I sign?"
@@ -4316,10 +4320,6 @@ msgstr "You cancelled the request."
 msgid "You do not have enough {walletSelection} for this transaction."
 msgstr "You do not have enough {walletSelection} for this transaction."
 
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "You do not have enough ETH for this transaction."
-msgstr "You do not have enough ETH for this transaction."
-
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "You do not have enough funds to complete this transaction."
 msgstr "You do not have enough funds to complete this transaction."
@@ -4359,6 +4359,12 @@ msgstr "You may miss important notifications if you remove this contact method. 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You need to verify your wallet ownership to manage your notification preferences."
 msgstr "You need to verify your wallet ownership to manage your notification preferences."
+
+#. placeholder {0}: formatGasEth((chargeRaw ?? 0n) + gasReserveRaw)
+#. placeholder {1}: formatGasEth(balanceRaw ?? 0n)
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "You need up to {0} ETH for the swap and its gas, and your wallet holds {1} ETH."
+msgstr "You need up to {0} ETH for the swap and its gas, and your wallet holds {1} ETH."
 
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "You pay"
@@ -4651,6 +4657,10 @@ msgstr "Your wallet shows the final fee before you approve."
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
 msgid "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use."
 msgstr "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use."
+
+#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+msgid "Your wallet swaps up to {eth} ETH{usd} for USDC. USDC the payment doesn't use stays in your wallet."
+msgstr "Your wallet swaps up to {eth} ETH{usd} for USDC. USDC the payment doesn't use stays in your wallet."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment approval for the amount shown. This allows that USDC to pay for registration and network fees. Registration starts after you sign."

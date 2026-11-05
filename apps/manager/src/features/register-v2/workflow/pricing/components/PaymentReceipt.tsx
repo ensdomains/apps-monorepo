@@ -1,3 +1,4 @@
+import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { Trans, useLingui } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
@@ -8,6 +9,7 @@ import {
   type PaymentReceiptFigures,
   type PaymentReceiptState,
 } from '../lib/paymentReceiptFigures'
+import { type EthPaymentRow, weiToUsd } from './EthPaymentListItem'
 import { ExistingBalanceLabel } from './ExistingBalanceLabel'
 import { RECEIPT_AMOUNT, RECEIPT_LABEL } from './receiptTypography'
 
@@ -78,16 +80,36 @@ const Amount = ({
 
 const Row = ({
   label,
+  note,
   children,
 }: {
   readonly label: ReactNode
+  /** A line under the figure, explaining it. */
+  readonly note?: ReactNode
   readonly children: ReactNode
 }) => (
-  <div className="flex items-baseline justify-between gap-2">
+  <div className="grid grid-cols-[1fr_auto] items-baseline gap-x-2 gap-y-1">
     <dt className={RECEIPT_LABEL}>{label}</dt>
     <dd>{children}</dd>
+    {note && <dd className="col-span-2 text-ens-quartz-400 text-sm">{note}</dd>}
   </div>
 )
+
+/** What the swap sends for the USDC the wallet is short, once quoted and priced. */
+const EthSwapNote = ({ chargeRaw, ethUsdRaw }: EthSwap) => {
+  if (chargeRaw === undefined || chargeRaw === 0n) return undefined
+  const eth = formatGasEth(chargeRaw)
+  const usd =
+    ethUsdRaw === undefined
+      ? ''
+      : ` (${formatUsd(weiToUsd(chargeRaw, ethUsdRaw))})`
+  return (
+    <Trans>
+      Your wallet swaps up to {eth} ETH{usd} for USDC. USDC the payment doesn't
+      use stays in your wallet.
+    </Trans>
+  )
+}
 
 /** A single total, or total, existing balance and what the user pays when a balance applies. */
 export const PaymentReceipt = ({
@@ -137,6 +159,8 @@ export const PaymentReceipt = ({
 
 const toUsd = (raw: bigint) => Number(formatUnits(raw, USDC_DECIMALS))
 
+type EthSwap = Pick<EthPaymentRow, 'chargeRaw' | 'ethUsdRaw'>
+
 const toUsdcRaw = (usd: number) =>
   parseUnits(usd.toFixed(USDC_DECIMALS), USDC_DECIMALS)
 
@@ -146,6 +170,7 @@ export const NetworkFeeReceipt = ({
   totalRaw,
   networkFee,
   extraFeeRaw,
+  ethSwap,
   totalLabel = <Trans>Registration total</Trans>,
 }: {
   /** The quote behind the fee; the total is the page's and is always shown. */
@@ -156,6 +181,8 @@ export const NetworkFeeReceipt = ({
   readonly networkFee: number | undefined
   /** Paid on top of the wallet debit, such as an ETH swap's gas. */
   readonly extraFeeRaw: bigint
+  /** The ETH swap paying the wallet's share, when ETH is selected. */
+  readonly ethSwap?: EthSwap
   readonly totalLabel?: ReactNode
 }) => {
   const { t } = useLingui()
@@ -196,7 +223,14 @@ export const NetworkFeeReceipt = ({
             }
           />
         </Row>
-        <Row label={<Trans>Estimated network fee</Trans>}>
+        <Row
+          label={<Trans>Estimated network fee</Trans>}
+          note={
+            <Trans>
+              What the network doesn't use stays in your ENS account.
+            </Trans>
+          }
+        >
           <UsdAmount amount={shown('networkFeeRaw')} />
         </Row>
         {figures && figures.existingBalanceRaw > 0n && (
@@ -211,7 +245,10 @@ export const NetworkFeeReceipt = ({
           </Row>
         )}
         <hr className="border-ens-quartz-100" />
-        <Row label={<Trans>You pay</Trans>}>
+        <Row
+          label={<Trans>You pay</Trans>}
+          note={ethSwap && <EthSwapNote {...ethSwap} />}
+        >
           <UsdAmount amount={shown('dueRaw')} />
         </Row>
       </dl>

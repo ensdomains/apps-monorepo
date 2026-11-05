@@ -60,7 +60,7 @@ export const canPayWithEth = (row: EthPaymentRow) =>
   !row.hasQuoteFailed &&
   !isEthShortOfFunds(row)
 
-const weiToUsd = (wei: bigint, ethUsd: bigint) =>
+export const weiToUsd = (wei: bigint, ethUsd: bigint) =>
   Number(formatUnits(ethToUsdcRaw(wei, ethUsd), USDC_DECIMALS))
 
 /** The swap's own gas in USDC: one estimate, not the doubled reserve kept back for it. */
@@ -77,8 +77,12 @@ export const getEthSwapGasUsd = (row: EthPaymentRow | undefined) =>
 
 export const getEthSelectionMessage = (row: EthPaymentRow) =>
   match(row)
-    .when(isEthShortOfFunds, () => (
-      <Trans>You do not have enough ETH for this transaction.</Trans>
+    .when(isEthShortOfFunds, ({ chargeRaw, balanceRaw, gasReserveRaw }) => (
+      <Trans>
+        You need up to {formatGasEth((chargeRaw ?? 0n) + gasReserveRaw)} ETH for
+        the swap and its gas, and your wallet holds{' '}
+        {formatGasEth(balanceRaw ?? 0n)} ETH.
+      </Trans>
     ))
     .with({ hasQuoteFailed: true }, () => (
       <Trans>Paying with ETH isn't available right now.</Trans>

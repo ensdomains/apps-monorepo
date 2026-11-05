@@ -1389,6 +1389,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           />
         ) : (
           <NetworkFeeReceipt
+            ethSwap={selectedEth}
             extraFeeRaw={getEthSwapGasUsdcRaw(selectedEth)}
             networkFee={shownFunding?.networkFee}
             state={receiptState}
