@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { MSymbol } from '@/components/ui/material-symbol'
 import type {
   FundingSourceOrigin,
   PaymentAsset,
@@ -19,6 +20,7 @@ import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
 import type { BulkRenewName, Selection, SummaryRow } from '../types'
+import { BulkNamesHeading } from './BulkNamesHeading'
 import { BulkRenewPaymentStep } from './BulkRenewPaymentStep'
 import { DurationPresets } from './DurationPresets'
 import { FailureStep } from './FailureStep'
@@ -81,10 +83,19 @@ export const BulkRenewDialog = ({
     setFundingSourceOrigin(origin ?? 'user')
     setPaymentAsset('stablecoin')
   }
+  // Going back forgets the pick, so the sheet starts from the fallback again.
+  const goBackToDuration = () => {
+    setSelectedToken('USDC')
+    setFundingSourceChainId(undefined)
+    setFundingSourceOrigin(undefined)
+    setPaymentAsset('stablecoin')
+    setStep('summary')
+  }
 
   const [receipt, setReceipt] = useState<{
     readonly rows: readonly SummaryRow[]
-    readonly total: number
+    readonly total: number | undefined
+    readonly existingBalance: number
   } | null>(null)
 
   const {
@@ -150,7 +161,11 @@ export const BulkRenewDialog = ({
   const handleConfirm = () => {
     // Refused rather than paid from the wallet's USDC instead.
     if (ethPayment?.isSelected && !ethPayment.funding) return
-    setReceipt({ rows: summaryRows, total: grandTotal })
+    setReceipt({
+      rows: summaryRows,
+      total: payment.listTotal,
+      existingBalance: payment.appliedBalance,
+    })
     submit.submit({
       items: renewItems,
       token: selectedToken,
@@ -178,7 +193,11 @@ export const BulkRenewDialog = ({
     })
   }
 
-  const receiptSummary = receipt ?? { rows: summaryRows, total: grandTotal }
+  const receiptSummary = receipt ?? {
+    rows: summaryRows,
+    total: payment.listTotal,
+    existingBalance: payment.appliedBalance,
+  }
 
   // The route depends on the account: a smart account renews as owner-signed
   // intents paid from the account (chunked, one `renewBatch` per intent), and a plain
@@ -189,6 +208,7 @@ export const BulkRenewDialog = ({
     if (submit.phase === 'success') {
       return (
         <SuccessStep
+          existingBalance={receiptSummary.existingBalance}
           onDone={() => {
             onRenewed?.()
             handleOpenChange(false)
@@ -210,6 +230,7 @@ export const BulkRenewDialog = ({
     if (isSubmitting) {
       return (
         <RenewingStep
+          existingBalance={receiptSummary.existingBalance}
           rows={receiptSummary.rows}
           statuses={submit.statuses}
           total={receiptSummary.total}
@@ -219,7 +240,21 @@ export const BulkRenewDialog = ({
     if (step === 'confirm') {
       return (
         <>
-          <DialogHeader>
+          <DialogHeader className="flex-row items-center gap-2">
+            <Button
+              aria-label={t`Back`}
+              className="size-8 text-ens-quartz-500"
+              onClick={goBackToDuration}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <MSymbol
+                aria-hidden="true"
+                className="ms-opsz-24 ms-wght-500"
+                symbol="arrow_back"
+              />
+            </Button>
             <DialogTitle className={dialogTitleClassName}>
               <Trans>Confirm renewal</Trans>
             </DialogTitle>
@@ -227,7 +262,14 @@ export const BulkRenewDialog = ({
 
           <BulkRenewPaymentStep
             grandTotal={grandTotal}
-            header={<NamesBreakdown rows={summaryRows} total={grandTotal} />}
+            header={
+              <BulkNamesHeading
+                count={count}
+                durationLabel={durationLabel}
+                isUntilDate={selection.kind === 'custom'}
+                onChangeDuration={goBackToDuration}
+              />
+            }
             onConfirm={handleConfirm}
             onSelectCoin={selectCoin}
             payment={payment}
@@ -240,11 +282,19 @@ export const BulkRenewDialog = ({
       <>
         <DialogHeader>
           <DialogTitle className={dialogTitleClassName}>
-            <Plural
-              one="Renew # name for"
-              other="Renew # names for"
-              value={count}
-            />{' '}
+            {selection.kind === 'custom' ? (
+              <Plural
+                one="Renew # name until"
+                other="Renew # names until"
+                value={count}
+              />
+            ) : (
+              <Plural
+                one="Renew # name for"
+                other="Renew # names for"
+                value={count}
+              />
+            )}{' '}
             <span className="text-ens-lapis-core">{durationLabel}</span>
           </DialogTitle>
         </DialogHeader>
@@ -265,7 +315,11 @@ export const BulkRenewDialog = ({
           />
         </div>
 
-        <NamesBreakdown rows={summaryRows} total={grandTotal} />
+        <NamesBreakdown
+          existingBalance={payment.appliedBalance}
+          rows={summaryRows}
+          total={payment.listTotal}
+        />
 
         <Button
           className="w-full uppercase"

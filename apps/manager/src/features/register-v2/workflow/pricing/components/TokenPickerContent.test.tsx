@@ -1246,6 +1246,23 @@ describe('TokenPickerContentBase L2 rows', () => {
     expect(screen.queryByText('Registration total')).not.toBeInTheDocument()
   })
 
+  it('explains what happens to the network fee the fill does not use', async () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      checkoutReceipt: { totalRaw: 5_000_000n },
+    })
+
+    fireEvent.focus(
+      screen.getByRole('button', { name: 'What is the network fee?' }),
+    )
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'stays there, as existing balance for your next payment',
+    )
+  })
+
   it('in registration, says a picked short L2 lacks USDC and estimates its fee', () => {
     renderPicker({
       funding: underfunded,
@@ -1656,6 +1673,34 @@ describe('TokenPickerContentBase ETH row', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('moves to ETH, short as it is, rather than blaming a USDC row the list hides', () => {
+    const ethPayment = ethPaymentOf({ balanceRaw: 1_000_000_000_000_000n })
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment,
+    })
+
+    expect(ethPayment.onFallbackSelect).toHaveBeenCalledOnce()
+    expect(
+      screen.queryByText('You do not have enough USDC for this transaction.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows the most the swap sends as what the wallet pays, with ETH selected', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment: ethPaymentOf({ ethUsdRaw: 200_000_000_000n }, true),
+      checkoutReceipt: { totalRaw: 5_000_000n },
+    })
+
+    expect(receiptRow('You pay')).toHaveTextContent('up to')
+    expect(receiptRow('You pay')).toHaveTextContent('$5.20')
+  })
+
   it('stays on a wallet coin that can pay rather than swapping ETH', () => {
     const ethPayment = ethPaymentOf()
     renderPicker({
@@ -1732,14 +1777,22 @@ describe('TokenPickerContentBase ETH row', () => {
   })
 
   it.each([
-    ['the swap', { balanceRaw: 1n }],
+    [
+      'the swap',
+      { balanceRaw: 1_000_000_000_000_000n },
+      'You need 0.0016 ETH more for the swap and its gas.',
+    ],
     [
       'the swap and its gas',
-      { balanceRaw: 2_600_000_000_000_000n, gasReserveRaw: 1n },
+      {
+        balanceRaw: 2_600_000_000_000_000n,
+        gasReserveRaw: 100_000_000_000_000n,
+      },
+      'You need 0.0001 ETH more for the swap and its gas.',
     ],
   ])(
-    'holds checkout and says why when the wallet is short of %s',
-    (_case, row) => {
+    'holds checkout and says how much when the wallet is short of %s',
+    (_case, row, message) => {
       renderPicker({
         funding: underfunded,
         selectedToken: 'USDC',
@@ -1747,9 +1800,7 @@ describe('TokenPickerContentBase ETH row', () => {
         ethPayment: ethPaymentOf(row, true),
       })
 
-      expect(
-        screen.getByText('You do not have enough ETH for this transaction.'),
-      ).toBeVisible()
+      expect(screen.getByText(message)).toBeVisible()
       expect(
         screen.getByRole('button', { name: 'Register name' }),
       ).toBeDisabled()

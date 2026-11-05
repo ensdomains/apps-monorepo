@@ -153,6 +153,28 @@ describe('getFallbackPaymentChoice', () => {
       getFallbackPaymentChoice({ current, payableMethods, isEthPayable: true }),
     ).toEqual(expected)
   })
+
+  it.each([
+    {
+      case: 'takes ETH over a wallet coin the list hides',
+      isCurrentListed: false,
+      expected: { kind: 'eth' },
+    },
+    {
+      case: 'keeps a wallet coin that is listed, short as both are',
+      isCurrentListed: true,
+      expected: undefined,
+    },
+  ])('with ETH listed but short, $case', ({ isCurrentListed, expected }) => {
+    expect(
+      getFallbackPaymentChoice({
+        current: 'short',
+        payableMethods: [],
+        isEthListed: true,
+        isCurrentListed,
+      }),
+    ).toEqual(expected)
+  })
 })
 
 describe('getCurrentMethodState', () => {

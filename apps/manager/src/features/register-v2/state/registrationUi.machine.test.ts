@@ -1645,6 +1645,22 @@ describe('paying with ETH', () => {
     actor.stop()
   })
 
+  it('forgets the pick when the sheet closes, so the next open starts from the fallback', () => {
+    const actor = startActorInTokens()
+    actor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' })
+
+    actor.send({ type: 'pricing.dialog.dismiss' })
+    actor.send({ type: 'pricing.step.next' })
+
+    expect(actor.getSnapshot().context).toMatchObject({
+      paymentAsset: 'stablecoin',
+      selectedToken: undefined,
+      fundingSourceChainId: undefined,
+      fundingSourceOrigin: undefined,
+    })
+    actor.stop()
+  })
+
   it('takes over from an L2 row, and gives way to any other pick', () => {
     const actor = startActorInTokens()
     actor.send({
