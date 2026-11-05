@@ -7,8 +7,8 @@ describe('getBulkRenewListFigures', () => {
   ) =>
     getBulkRenewListFigures({
       isIntentRoute: true,
-      fundedRaw: 27_880_000n,
-      checkoutTotalRaw: 27_880_000n,
+      priceRaw: 27_880_000n,
+      accountBalanceRaw: 0n,
       decimals: 6,
       grandTotal: 27.88,
       ...overrides,
@@ -18,27 +18,28 @@ describe('getBulkRenewListFigures', () => {
     ['no balance', {}, { appliedBalance: 0, listTotal: 27.88 }],
     [
       'a balance, taken off the total',
-      { checkoutTotalRaw: 27_867_494n },
+      { accountBalanceRaw: 12_506n },
       { appliedBalance: 0.012506, listTotal: 27.867494 },
     ],
     [
       'a balance under half a cent, hidden but still in the total',
-      {
-        fundedRaw: 27_886_000n,
-        checkoutTotalRaw: 27_882_000n,
-        grandTotal: 27.886,
-      },
+      { priceRaw: 27_886_000n, accountBalanceRaw: 4_000n, grandTotal: 27.886 },
       { appliedBalance: 0, listTotal: 27.882 },
     ],
     [
       'the wallet route, which applies no balance',
-      { isIntentRoute: false, checkoutTotalRaw: 27_867_494n },
+      { isIntentRoute: false, accountBalanceRaw: 12_506n },
       { appliedBalance: 0, listTotal: 27.88 },
     ],
     [
-      'a total not read yet',
-      { checkoutTotalRaw: undefined },
-      { appliedBalance: 0, listTotal: 27.88 },
+      'the balance still loading, so no total yet',
+      { accountBalanceRaw: undefined },
+      { appliedBalance: 0, listTotal: undefined },
+    ],
+    [
+      'a new duration still pricing, so no total yet',
+      { priceRaw: undefined },
+      { appliedBalance: 0, listTotal: undefined },
     ],
   ] as const)('with %s', (_case, overrides, expected) => {
     expect(run(overrides)).toEqual(expected)

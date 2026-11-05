@@ -14,7 +14,7 @@ export const SuccessStep = ({
   onDone,
 }: {
   readonly rows: readonly SummaryRow[]
-  readonly total: number
+  readonly total: number | undefined
   /** The account's balance taken off the names, as confirmed. */
   readonly existingBalance?: number
   readonly onDone: () => void

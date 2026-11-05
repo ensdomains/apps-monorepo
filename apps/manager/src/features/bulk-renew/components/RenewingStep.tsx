@@ -14,7 +14,7 @@ export const RenewingStep = ({
   statuses,
 }: {
   readonly rows: readonly SummaryRow[]
-  readonly total: number
+  readonly total: number | undefined
   /** The account's balance taken off the names, as confirmed. */
   readonly existingBalance?: number
   readonly statuses: Readonly<Record<string, RowStatus>>

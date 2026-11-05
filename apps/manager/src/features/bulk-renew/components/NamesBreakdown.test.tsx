@@ -19,7 +19,16 @@ describe('NamesBreakdown', () => {
       )
 
       expect(screen.getByText(total)).toBeInTheDocument()
-      expect(screen.queryByText('-$0.01 USD') !== null).toBe(isShown)
+      expect(screen.queryByText(/^-\$/) !== null).toBe(isShown)
     },
   )
+
+  it('shows a placeholder total while the price or balance loads', () => {
+    render(<NamesBreakdown rows={[]} total={undefined} />)
+
+    expect(screen.getByText('$00.00 USD')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
+  })
 })

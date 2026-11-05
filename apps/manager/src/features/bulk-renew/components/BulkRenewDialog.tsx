@@ -84,7 +84,7 @@ export const BulkRenewDialog = ({
 
   const [receipt, setReceipt] = useState<{
     readonly rows: readonly SummaryRow[]
-    readonly total: number
+    readonly total: number | undefined
     readonly existingBalance: number
   } | null>(null)
 

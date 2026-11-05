@@ -13,8 +13,8 @@ export const NamesBreakdown = ({
   existingBalance = 0,
 }: {
   readonly rows: readonly SummaryRow[]
-  /** Less any existing balance, as the receipt starts from. */
-  readonly total: number
+  /** Less any existing balance; `undefined` shows a placeholder while it loads. */
+  readonly total: number | undefined
   /** The account's balance taken off the names' subtotals, shown above the total. */
   readonly existingBalance?: number
 }) => (
@@ -65,7 +65,16 @@ export const NamesBreakdown = ({
       )}
       <div className="flex items-center justify-between px-4 py-3 font-medium font-sans text-ens-lapis-900 text-xl">
         <Trans>Total:</Trans>
-        <span className="block">{formatUsdAmount(total)} USD</span>
+        {total === undefined ? (
+          <span
+            aria-hidden="true"
+            className="block animate-pulse rounded bg-ens-quartz-75 text-transparent"
+          >
+            $00.00 USD
+          </span>
+        ) : (
+          <span className="block">{formatUsdAmount(total)} USD</span>
+        )}
       </div>
     </div>
   </div>
