@@ -4,6 +4,7 @@ import { Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { useDefaultMigrationSelection } from '@/features/migration/hooks/useDefaultMigrationSelection'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -131,6 +132,7 @@ type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
   readonly onManagerRestorationChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
+  readonly onBack: () => void
   readonly renewal?: GraceRenewalQuoteState
   readonly renewalGasEstimate?: GraceRenewalGasEstimateState
 }
@@ -176,6 +178,7 @@ export const SelectNamesStep = ({
   onNamesChange,
   onManagerRestorationChange,
   onNext,
+  onBack,
   renewal = { status: 'idle' },
   renewalGasEstimate = { status: 'idle' },
 }: SelectNamesStepProps) => {
@@ -326,7 +329,7 @@ export const SelectNamesStep = ({
       <div
         className={cn(
           // Below md the title is left-aligned, so clear the absolute Back button.
-          'flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-5 pt-16 pb-6 md:pb-5',
+          'relative flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-5 pt-16 pb-6 md:pb-5',
           isContentHeightCard
             ? 'md:justify-center md:pt-0 md:pb-0'
             : isCompactOuterSpacing
@@ -334,6 +337,17 @@ export const SelectNamesStep = ({
               : 'md:pt-16',
         )}
       >
+        <button
+          aria-label="Back"
+          className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
+          onClick={onBack}
+          type="button"
+        >
+          <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
+          <span className="max-xl:hidden">
+            <Trans>Back</Trans>
+          </span>
+        </button>
         <div
           className={cn(
             'flex min-h-0 w-full max-w-215 flex-1 flex-col items-center gap-6 md:gap-7',

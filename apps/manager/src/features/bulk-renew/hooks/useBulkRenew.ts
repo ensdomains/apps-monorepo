@@ -47,6 +47,7 @@ import type {
   Selection,
   SummaryRow,
 } from '../types'
+import { getBulkRenewListFigures } from '../utils/bulkListFigures'
 import {
   durationForName,
   newExpiryDateForName,
@@ -67,6 +68,10 @@ type BulkRenewPayment = {
   readonly fundedTotal: number
   /** The receipt's renewal total, once priced and the account's balance is read. */
   readonly checkoutTotalRaw: bigint | undefined
+  /** What the account's balance takes off the names total, in USD; zero off the intent route. */
+  readonly appliedBalance: number
+  /** The names total less that balance, as the receipt's total; `undefined` while the price or balance loads. */
+  readonly listTotal: number | undefined
   /** Connected, the route known and every price resolved; the picker checks the method covers it. */
   readonly canProceed: boolean
   /** Every price resolved for the current selection. */
@@ -329,6 +334,13 @@ export const useBulkRenew = ({
     accountBalanceRaw: accountCreditRaw[selectedToken],
     decimals: tokenDecimals,
   })
+  const listFigures = getBulkRenewListFigures({
+    isIntentRoute: route === 'intent',
+    priceRaw: pricesReady ? sumPriceRaw : undefined,
+    accountBalanceRaw: accountCreditRaw[selectedToken],
+    decimals: tokenDecimals,
+    grandTotal,
+  })
 
   return {
     minSelectableDate,
@@ -344,6 +356,7 @@ export const useBulkRenew = ({
       accountCredit,
       fundedTotal,
       checkoutTotalRaw,
+      ...listFigures,
       canProceed:
         isConnected &&
         route !== null &&

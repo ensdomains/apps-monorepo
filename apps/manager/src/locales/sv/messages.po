@@ -562,6 +562,7 @@ msgstr ""
 
 #: src/components/GlobalBackButton.tsx
 #: src/features/bulk-renew/components/FailureStep.tsx
+#: src/features/migration/components/SelectNamesStep.tsx
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Back"
 msgstr ""
