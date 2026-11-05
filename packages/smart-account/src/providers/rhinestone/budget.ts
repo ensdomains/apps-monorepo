@@ -578,23 +578,14 @@ export interface HcaBudgetBreakdown {
   readonly fallbackReasons?: readonly string[]
 }
 
-/**
- * Why a Rhinestone budget quote could not be used to size a permit.
- *
- * `gas-coverage` is the gas-spike class that refuses a plan when the destination
- * account cannot leave a spendable balance for the gas refund
- * ("No available destination-chain balance can cover execution gas").
- */
+/** Why checkout could not obtain a usable Rhinestone quote. */
 export type HcaBudgetFailureKind = 'gas-coverage' | 'generic'
 
 /** Rhinestone planner copy for destination gas that the HCA cannot cover. */
 const DESTINATION_GAS_COVERAGE_PATTERN =
-  /destination-chain balance can cover execution gas|No available destination-chain balance|NO_PLAN_AVAILABLE/i
+  /destination-chain balance can cover execution gas|No available destination-chain balance/i
 
-/**
- * Classify orchestrator / quoter failure reasons for checkout copy.
- * Display-only: funding still requires `source === 'quote'`.
- */
+/** Classify quote failures for display; funding still requires a real quote. */
 export function classifyHcaBudgetFailureReasons(
   reasons: readonly string[],
 ): HcaBudgetFailureKind {
@@ -603,11 +594,7 @@ export function classifyHcaBudgetFailureReasons(
     : 'generic'
 }
 
-/**
- * The estimator produced a breakdown but refused to size a permit from it
- * (`source` is `'fallback'` or `'mixed'`). Carries the breakdown so checkout
- * can show the higher estimate without funding from it.
- */
+/** Preserve the display estimate at the Promise boundary without permitting funding. */
 export class HcaBudgetUnquotedError extends Error {
   readonly breakdown: HcaBudgetBreakdown
   readonly kind: HcaBudgetFailureKind
@@ -625,10 +612,7 @@ export class HcaBudgetUnquotedError extends Error {
   }
 }
 
-/**
- * Walk a cause chain for {@link HcaBudgetUnquotedError}. Matches by `name` so
- * a split package copy of the class still surfaces the breakdown.
- */
+/** Match the error name across package copies and preserve its display estimate. */
 export function findHcaBudgetUnquotedError(error: unknown):
   | {
       readonly breakdown: HcaBudgetBreakdown

@@ -582,8 +582,7 @@ export function estimateHcaBudgetActor(input: {
       // it is an unpriced guess that will over- or under-fund. Now that
       // auxiliary funds let the planner price a low-balance HCA, a fallback
       // means something genuinely broke and the reason is worth surfacing.
-      // The typed error still carries the breakdown so checkout can show the
-      // higher estimate without sizing a permit from it.
+      // Preserve the display estimate without sizing a permit from it.
       if (breakdown.source !== 'quote') {
         throw new HcaBudgetUnquotedError(breakdown)
       }

@@ -3712,7 +3712,7 @@ msgid "This subname's parent or registry is not supported for upgrading yet."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "This total is estimated from current gas. Try again for a confirmed quote before paying."
+msgid "This total is an estimate. Try again for a confirmed quote before paying."
 msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx

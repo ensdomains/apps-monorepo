@@ -559,7 +559,7 @@ describe('classifyHcaBudgetFailureReasons', () => {
     [
       'NO_PLAN_AVAILABLE',
       ['register: quote threw — NO_PLAN_AVAILABLE'],
-      'gas-coverage',
+      'generic',
     ],
     ['a timeout', ['commit: quote threw — timeout'], 'generic'],
   ] as const)('classifies %s', (_name, reasons, kind) => {

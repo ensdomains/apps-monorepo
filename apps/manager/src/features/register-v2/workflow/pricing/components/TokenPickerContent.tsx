@@ -55,7 +55,10 @@ import {
   getWalletShortfall,
 } from '../lib/paymentReceiptFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
-import { computeRegistrationFunding } from '../lib/registrationFunding'
+import {
+  computeRegistrationFunding,
+  type RegistrationFunding,
+} from '../lib/registrationFunding'
 import { EthNameText } from './EthNameText'
 import {
   canPayWithEth,
@@ -132,6 +135,12 @@ export type RegistrationFundingSummary = {
   /** The method-level fee quote is still being refreshed. */
   readonly isLoading: boolean
 }
+
+const getFundingSummary = (
+  funding: RegistrationFunding | null,
+  isLoading: boolean,
+): RegistrationFundingSummary | undefined =>
+  funding ? { ...funding, isLoading } : undefined
 
 const getDomainSizeClasses = (domainName: string): string => {
   const charCount = Array.from(domainName).length
@@ -411,7 +420,7 @@ export const TokenPickerContent = () => {
   )
   const hasBudgetQuoteFailed = isBudgetRequired && budgetQuery.isError
 
-  // Absent until the quote lands. On failure, only a fallback estimate (if any).
+  // Confirmed funding is absent until the quote succeeds.
   const funding = computeRegistrationFunding({
     budget: budgetQuery.data,
     ...(budgetQuery.data ? { hcaBalanceRaw: budgetQuery.data.hcaBalance } : {}),
@@ -625,9 +634,18 @@ export const TokenPickerContent = () => {
   )
 
   const budgetFailureUi = getBudgetQuoteFailureUi({
-    hasFailed:
-      hasBudgetQuoteFailed ||
-      availabilityMutation.error instanceof BudgetQuoteUnavailableError,
+    hasFailed: match({
+      hasBudgetQuoteFailed,
+      error: availabilityMutation.error,
+    })
+      .with(
+        P.union(
+          { hasBudgetQuoteFailed: true },
+          { error: P.instanceOf(BudgetQuoteUnavailableError) },
+        ),
+        () => true,
+      )
+      .otherwise(() => false),
     error: budgetQuery.error ?? availabilityMutation.error,
     formatTotal: formatUsd,
   })
@@ -703,28 +721,11 @@ export const TokenPickerContent = () => {
     // The balance covers everything: the design keeps the approval wording.
     .otherwise(() => <Trans>Sign approval</Trans>)
 
-  const fundingSummary = funding && {
-    registration: funding.registration,
-    networkFee: funding.networkFee,
-    total: funding.total,
-    walletDebit: funding.walletDebit,
-    hcaCredit: funding.hcaCredit,
-    isLoading: budgetQuery.isFetching,
-  }
-  const estimatedFundingSummary = estimatedFunding && {
-    registration: estimatedFunding.registration,
-    networkFee: estimatedFunding.networkFee,
-    total: estimatedFunding.total,
-    walletDebit: estimatedFunding.walletDebit,
-    hcaCredit: estimatedFunding.hcaCredit,
-    isLoading: false,
-  }
-
   return (
     <TokenPickerContentBase
-      estimatedFunding={estimatedFundingSummary || undefined}
+      estimatedFunding={getFundingSummary(estimatedFunding, false)}
       ethPayment={ethPayment}
-      funding={fundingSummary || undefined}
+      funding={getFundingSummary(funding, budgetQuery.isFetching)}
       globalErrorMessage={globalErrorMessage}
       hasBudgetQuoteFailed={hasBudgetQuoteFailed}
       helpMessage={helpMessage}
@@ -747,16 +748,16 @@ export const TokenPickerContent = () => {
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
-      receiptNotice={
-        budgetFailureUi.showEstimateNotice ? (
+      receiptNotice={match(budgetFailureUi.shouldShowEstimateNotice)
+        .with(true, () => (
           <p className="w-full text-center text-ens-quartz-500 text-sm">
             <Trans>
-              This total is estimated from current gas. Try again for a
-              confirmed quote before paying.
+              This total is an estimate. Try again for a confirmed quote before
+              paying.
             </Trans>
           </p>
-        ) : undefined
-      }
+        ))
+        .otherwise(() => undefined)}
       registrationReceipt={
         isBudgetRequired ? { totalRaw: registrationTotalRaw } : undefined
       }
@@ -1192,10 +1193,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
    * must cover.
    */
   readonly funding?: RegistrationFundingSummary
-  /**
-   * Fallback estimate when the required quote failed. Shown on the receipt so
-   * the user can see the elevated cost; must not enable payment.
-   */
+  /** Display-only fallback estimate; never enables payment. */
   readonly estimatedFunding?: RegistrationFundingSummary
   /** The method-level fee quote is still in flight. */
   readonly isQuotingFunding?: boolean
@@ -1253,9 +1251,10 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
 
   const selectedL2 = getSelectedL2(l2Payment)
   const selectedEth = ethPayment?.isSelected ? ethPayment.row : undefined
-  // On a failed quote, only the fallback estimate may appear — never the
-  // registration price alone (Immunefi #93021).
-  const receiptFunding = hasBudgetQuoteFailed ? estimatedFunding : funding
+  // Failed quotes show a full estimate, never the registration price alone.
+  const receiptFunding = match(hasBudgetQuoteFailed)
+    .with(true, () => estimatedFunding)
+    .otherwise(() => funding)
   const shownFunding = getShownFunding(receiptFunding, selectedL2)
   const displayedNetworkFee = receiptFunding
     ? getPaymentBreakdownFigures(receiptFunding).networkFee

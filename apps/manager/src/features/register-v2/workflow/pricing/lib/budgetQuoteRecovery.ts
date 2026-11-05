@@ -9,23 +9,13 @@ import {
 
 const USDC_DECIMALS = 6
 
-/**
- * What checkout can show when the HCA budget query failed.
- *
- * `estimatedFunding` comes from the fallback / mixed breakdown the estimator
- * still produced. It is display-only — payment must stay blocked until a real
- * quote succeeds.
- */
+/** Display-only recovery; payment stays blocked until a real quote succeeds. */
 export type BudgetQuoteRecovery = {
   readonly kind: HcaBudgetFailureKind
   readonly estimatedFunding: RegistrationFunding | null
 }
 
-/**
- * Which budget-failure copy the sheet should show. The component maps each
- * variant to a Lingui string; keep the decision here so TokenPickerContent
- * does not grow another match arm per case.
- */
+/** Failure-copy variants mapped to Lingui messages by the component. */
 export type BudgetQuoteFailureCopy =
   | {
       readonly variant: 'gas-coverage-with-estimate'
@@ -34,10 +24,7 @@ export type BudgetQuoteFailureCopy =
   | { readonly variant: 'gas-coverage' }
   | { readonly variant: 'generic' }
 
-/**
- * Recover a user-facing kind and optional higher estimate from a budget-query
- * error (and its cause chain).
- */
+/** Recover the failure kind and display estimate from a wrapped budget error. */
 export function getBudgetQuoteRecovery(error: unknown): BudgetQuoteRecovery {
   const unquoted = findHcaBudgetUnquotedError(error)
   if (!unquoted) {
@@ -73,10 +60,7 @@ export function getBudgetQuoteFailureCopy(params: {
   return { variant: 'generic' }
 }
 
-/**
- * Everything the payment sheet needs from a failed (or successful) budget
- * query. One call so the component does not branch on the failure twice.
- */
+/** Derive failed-quote display state without relaxing the payment guard. */
 export function getBudgetQuoteFailureUi(params: {
   readonly hasFailed: boolean
   readonly error: unknown
@@ -85,13 +69,13 @@ export function getBudgetQuoteFailureUi(params: {
   readonly estimatedFunding: RegistrationFunding | null
   readonly failureCopy: BudgetQuoteFailureCopy | null
   /** True when the receipt should explain the figures are estimates. */
-  readonly showEstimateNotice: boolean
+  readonly shouldShowEstimateNotice: boolean
 } {
   if (!params.hasFailed) {
     return {
       estimatedFunding: null,
       failureCopy: null,
-      showEstimateNotice: false,
+      shouldShowEstimateNotice: false,
     }
   }
   const recovery = getBudgetQuoteRecovery(params.error)
@@ -103,6 +87,6 @@ export function getBudgetQuoteFailureUi(params: {
         ? params.formatTotal(recovery.estimatedFunding.total)
         : null,
     }),
-    showEstimateNotice: recovery.estimatedFunding !== null,
+    shouldShowEstimateNotice: recovery.estimatedFunding !== null,
   }
 }

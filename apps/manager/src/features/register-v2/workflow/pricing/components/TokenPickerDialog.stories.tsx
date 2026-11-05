@@ -527,7 +527,7 @@ export const BudgetQuoteGasCoverageFailed: Story = {
     globalErrorMessage:
       "Network fees are elevated right now (about $11.40 estimated). We couldn't lock in a total — please try again shortly.",
     receiptNotice:
-      'This total is estimated from current gas. Try again for a confirmed quote before paying.',
+      'This total is an estimate. Try again for a confirmed quote before paying.',
   },
 }
 

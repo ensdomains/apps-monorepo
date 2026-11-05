@@ -1024,8 +1024,8 @@ describe('TokenPickerContentBase', () => {
         "Network fees are elevated right now (about $11.40 estimated). We couldn't lock in a total — please try again shortly.",
       receiptNotice: (
         <p>
-          This total is estimated from current gas. Try again for a confirmed
-          quote before paying.
+          This total is an estimate. Try again for a confirmed quote before
+          paying.
         </p>
       ),
       registrationReceipt: { totalRaw: 1_400_000n },
@@ -1039,9 +1039,7 @@ describe('TokenPickerContentBase', () => {
     expect(receiptRow('Registration total')).toHaveTextContent('$1.40')
     expect(receiptRow('Estimated network fee')).toHaveTextContent('$10.00')
     expect(receiptRow('You pay')).toHaveTextContent('$11.40')
-    expect(
-      screen.getByText(/This total is estimated from current gas/),
-    ).toBeVisible()
+    expect(screen.getByText(/This total is an estimate/)).toBeVisible()
     expect(
       screen.queryByRole('button', { name: /approv|register/i }),
     ).not.toBeInTheDocument()

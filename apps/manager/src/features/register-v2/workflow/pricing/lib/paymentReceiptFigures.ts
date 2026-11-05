@@ -47,14 +47,7 @@ export type PaymentReceiptState =
   | { readonly status: 'unavailable' }
   | { readonly status: 'ready'; readonly figures: PaymentReceiptFigures }
 
-/**
- * Receipt state for the payment sheet.
- *
- * A failed quote with no figures stays dashes (never the registration price
- * alone — Immunefi #93021). When the caller passes figures from a fallback
- * estimate, those are shown so the user can see the elevated cost; payment
- * must still stay blocked until a real quote succeeds.
- */
+/** Failed quotes show a full estimate or dashes, never the registration price alone. */
 export const getPaymentReceiptState = ({
   hasQuoteFailed,
   isLoading,
@@ -71,10 +64,7 @@ export const getPaymentReceiptState = ({
   return figures ? { status: 'ready', figures } : { status: 'unavailable' }
 }
 
-/**
- * Figures for the receipt. On a failed budget quote, only a full fee estimate
- * may appear — never the registration price alone.
- */
+/** On quote failure, only a full fee estimate may appear on the receipt. */
 export const getCheckoutReceiptFigures = ({
   hasBudgetQuoteFailed,
   funding,
