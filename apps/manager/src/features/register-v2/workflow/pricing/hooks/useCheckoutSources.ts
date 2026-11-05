@@ -44,7 +44,11 @@ const l2Reads = (
 }
 
 /** The account's existing balance and every source the page checks, as balance reads. */
-export const useCheckoutSources = (account: CheckoutSourcesAccount) => {
+export const useCheckoutSources = (
+  account: CheckoutSourcesAccount,
+  /** False where ETH can't pay, so its balance is neither read nor counted. */
+  isEthCounted = true,
+) => {
   const hca =
     account.signer?.type === 'rhinestone'
       ? (account.accountAddress ?? undefined)
@@ -56,7 +60,10 @@ export const useCheckoutSources = (account: CheckoutSourcesAccount) => {
     queries: [
       getHcaUsdcBalanceQueryOptions(hca),
       { ...getL2BalancesQueryOptions(owner), enabled: isHcaRoute && !!owner },
-      getWalletEthValueQueryOptions({ owner, isEnabled: isHcaRoute }),
+      getWalletEthValueQueryOptions({
+        owner,
+        isEnabled: isHcaRoute && isEthCounted,
+      }),
     ],
     combine: ([hcaBalance, l2Balances, ethValue]) =>
       [
@@ -75,7 +82,7 @@ export const useCheckoutSources = (account: CheckoutSourcesAccount) => {
   const sources: PaymentSources = {
     wallet: walletUsdcRead(account),
     l2s,
-    eth,
+    ...(isEthCounted ? { eth } : {}),
   }
   return { accountBalance, sources }
 }

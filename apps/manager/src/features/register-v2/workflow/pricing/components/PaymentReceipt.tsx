@@ -135,34 +135,36 @@ export const PaymentReceipt = ({
   )
 }
 
-/** Registration's receipt: the page's total, the selected method's fee, and what the wallet pays. */
 const toUsd = (raw: bigint) => Number(formatUnits(raw, USDC_DECIMALS))
 
 const toUsdcRaw = (usd: number) =>
   parseUnits(usd.toFixed(USDC_DECIMALS), USDC_DECIMALS)
 
+/** The checkout receipt: the page's total, the selected method's fee, and what the wallet pays. */
 export const NetworkFeeReceipt = ({
   state,
-  registrationTotalRaw,
+  totalRaw,
   networkFee,
   extraFeeRaw,
+  totalLabel = <Trans>Registration total</Trans>,
 }: {
   /** The quote behind the fee; the total is the page's and is always shown. */
   readonly state: PaymentReceiptState
   /** `undefined` while the price or the account balance loads. */
-  readonly registrationTotalRaw: bigint | undefined
+  readonly totalRaw: bigint | undefined
   /** The selected method's fee, before any existing balance; `undefined` until quoted. */
   readonly networkFee: number | undefined
   /** Paid on top of the wallet debit, such as an ETH swap's gas. */
   readonly extraFeeRaw: bigint
+  readonly totalLabel?: ReactNode
 }) => {
   const { t } = useLingui()
   const figures =
     state.status === 'ready' &&
-    registrationTotalRaw !== undefined &&
+    totalRaw !== undefined &&
     networkFee !== undefined
       ? getNetworkFeeReceiptFigures({
-          registrationTotalRaw,
+          registrationTotalRaw: totalRaw,
           networkFeeRaw: toUsdcRaw(networkFee),
           walletDebitRaw: toUsdcRaw(state.figures.due),
           extraFeeRaw,
@@ -182,16 +184,14 @@ export const NetworkFeeReceipt = ({
       className="w-full"
     >
       <dl className="flex flex-col gap-4">
-        <Row label={<Trans>Registration total</Trans>}>
+        <Row label={totalLabel}>
           <UsdAmount
             amount={
-              registrationTotalRaw === undefined
+              totalRaw === undefined
                 ? { status: 'loading' }
                 : {
                     status: 'ready',
-                    value: toUsd(
-                      figures?.registrationTotalRaw ?? registrationTotalRaw,
-                    ),
+                    value: toUsd(figures?.registrationTotalRaw ?? totalRaw),
                   }
             }
           />

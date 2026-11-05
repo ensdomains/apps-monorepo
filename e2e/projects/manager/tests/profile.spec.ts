@@ -502,7 +502,9 @@ test.describe('ENS profile', () => {
     try {
       await goToProfile(page, name)
       await page.getByRole('link', { name: /renew/i }).click()
-      await page.getByRole('button', { name: 'Pay', exact: true }).click()
+      await page
+        .getByRole('button', { name: 'Continue to payment', exact: true })
+        .click()
       await clickThroughEnableSessions(page)
       // Every source the picker could pay from is empty.
       const fundingAddresses: Address[] = [
@@ -531,7 +533,7 @@ test.describe('ENS profile', () => {
       ).toBeVisible({ timeout: 30_000 })
       await expect(
         picker.getByRole('button', {
-          name: /^(renew name|continue in wallet|sign renewal)$/i,
+          name: /^(renew name|sign approval)$/i,
         }),
         'no payment can be started',
       ).toBeDisabled()

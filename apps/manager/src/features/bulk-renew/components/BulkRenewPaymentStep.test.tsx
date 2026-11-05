@@ -24,6 +24,7 @@ const payment: UseBulkRenewResult['payment'] = {
   stablecoinBalances: [coin('USDC', '100000000', 6), coin('DAI', '0', 18)],
   accountCredit: {},
   fundedTotal: 22,
+  checkoutTotalRaw: 22_000_000n,
   canProceed: true,
   pricesReady: true,
   intentFunding: {
@@ -45,6 +46,7 @@ const payment: UseBulkRenewResult['payment'] = {
   },
   l2Payment: undefined,
   selectedL2: undefined,
+  ethPayment: undefined,
 }
 
 describe('BulkRenewPaymentStep', () => {
@@ -69,7 +71,7 @@ describe('BulkRenewPaymentStep', () => {
       screen.queryByRole('button', { name: /DAI/ }),
     ).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Continue in wallet' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sign approval' }))
     expect(onConfirm).toHaveBeenCalledOnce()
   })
 })

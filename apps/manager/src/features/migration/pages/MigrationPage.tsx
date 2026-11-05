@@ -115,6 +115,12 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
       return <Trans>Upgrade details: {error.message}</Trans>
+    case 'insufficient-eth':
+      return (
+        <Trans>
+          Your wallet needs more ETH for network fees. Add ETH and try again.
+        </Trans>
+      )
     case 'locked-resolver-record-control':
       return <LockedResolverFailureMessage cause={error.cause} />
     case 'parent-not-upgraded':
