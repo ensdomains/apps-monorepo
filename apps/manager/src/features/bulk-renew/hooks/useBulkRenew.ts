@@ -1,6 +1,7 @@
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { addDays, startOfDay } from 'date-fns'
 import { useMemo } from 'react'
+import { formatUnits } from 'viem'
 import { getNameRowProfilePreview } from '@/features/dashboard/components/nameRowProfileRecords'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getBaseRatesQueryOptions } from '@/features/register-v2/data/queries/baseRates.query'
@@ -16,6 +17,7 @@ import type {
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import {
+  getAppliedBalanceRaw,
   getRenewalCheckoutTotalRaw,
   isRenewalReceiptReady,
 } from '@/features/renew/utils/renewalFunding'
@@ -67,6 +69,10 @@ type BulkRenewPayment = {
   readonly fundedTotal: number
   /** The receipt's renewal total, once priced and the account's balance is read. */
   readonly checkoutTotalRaw: bigint | undefined
+  /** What the account's balance takes off the names total, in USD; zero off the intent route. */
+  readonly appliedBalance: number
+  /** The names total less that balance, which the receipt's total starts from. */
+  readonly listTotal: number
   /** Connected, the route known and every price resolved; the picker checks the method covers it. */
   readonly canProceed: boolean
   /** Every price resolved for the current selection. */
@@ -329,6 +335,18 @@ export const useBulkRenew = ({
     accountBalanceRaw: accountCreditRaw[selectedToken],
     decimals: tokenDecimals,
   })
+  const appliedBalanceRaw =
+    route === 'intent'
+      ? getAppliedBalanceRaw({
+          fundedRaw: pricesReady ? sumPriceRaw : undefined,
+          checkoutTotalRaw,
+          decimals: tokenDecimals,
+        })
+      : 0n
+  const listTotal =
+    appliedBalanceRaw > 0n && checkoutTotalRaw !== undefined
+      ? Number(formatUnits(checkoutTotalRaw, USDC.decimals))
+      : grandTotal
 
   return {
     minSelectableDate,
@@ -344,6 +362,8 @@ export const useBulkRenew = ({
       accountCredit,
       fundedTotal,
       checkoutTotalRaw,
+      appliedBalance: Number(formatUnits(appliedBalanceRaw, USDC.decimals)),
+      listTotal,
       canProceed:
         isConnected &&
         route !== null &&

@@ -227,7 +227,13 @@ export const BulkRenewDialog = ({
 
           <BulkRenewPaymentStep
             grandTotal={grandTotal}
-            header={<NamesBreakdown rows={summaryRows} total={grandTotal} />}
+            header={
+              <NamesBreakdown
+                existingBalance={payment.appliedBalance}
+                rows={summaryRows}
+                total={payment.listTotal}
+              />
+            }
             onConfirm={handleConfirm}
             onSelectCoin={selectCoin}
             payment={payment}

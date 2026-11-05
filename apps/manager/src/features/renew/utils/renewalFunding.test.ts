@@ -4,6 +4,7 @@ import {
   computeRenewalDisplayedDebit,
   computeRenewalFunding,
   decideRenewalPayment,
+  getAppliedBalanceRaw,
   getPromptWalletDebit,
   getRenewalCheckoutTotalRaw,
   getRenewalFeeQuoteState,
@@ -52,6 +53,27 @@ describe('isRenewalReceiptReady', () => {
       expected,
     )
   })
+})
+
+describe('getAppliedBalanceRaw', () => {
+  it.each([
+    ['nothing without a balance', 27_880_000n, 27_880_000n, 0n],
+    ['the balance a total applies', 27_880_000n, 27_867_494n, 12_506n],
+    [
+      'nothing below half a cent, which never shows',
+      27_880_000n,
+      27_876_000n,
+      0n,
+    ],
+    ['nothing before the total is known', 27_880_000n, undefined, 0n],
+  ] as const)(
+    'takes off %s',
+    (_case, fundedRaw, checkoutTotalRaw, expected) => {
+      expect(
+        getAppliedBalanceRaw({ fundedRaw, checkoutTotalRaw, decimals: 6 }),
+      ).toBe(expected)
+    },
+  )
 })
 
 describe('getRenewalReceiptTotalRaw', () => {
