@@ -14,7 +14,7 @@ export const CopyButton = ({
   size?: 'default' | 'sm'
   className?: string
   /** Screen-reader name; defaults to the generic "Copy value". */
-  label?: string
+  readonly label?: string
 }) => {
   const [copied, setCopied] = useState(false)
 
