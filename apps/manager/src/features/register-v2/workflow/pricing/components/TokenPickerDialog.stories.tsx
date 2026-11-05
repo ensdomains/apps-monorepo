@@ -11,6 +11,7 @@ import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import type { L2PaymentRow } from '../hooks/useL2Payment'
+import { getCheckoutReceiptTotalRaw } from '../lib/budgetQuoteRecovery'
 import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import {
@@ -87,6 +88,8 @@ interface TokenPickerDialogShellProps {
   readonly receiptNotice?: ReactNode
   readonly isQuotingFunding?: boolean
   readonly accountCredit?: Partial<Record<SUPPORTED_TOKEN, number>>
+  /** No quote has succeeded yet, so the page total is still unknown. */
+  readonly isFirstQuote?: boolean
   /** L2 rows the registration can be paid from. */
   readonly l2Rows?: readonly L2PaymentRow[]
 }
@@ -110,6 +113,7 @@ export const TokenPickerDialogShell = ({
   receiptNotice,
   isQuotingFunding = false,
   accountCredit,
+  isFirstQuote = false,
   l2Rows,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
@@ -129,7 +133,17 @@ export const TokenPickerDialogShell = ({
         accountCredit={accountCredit}
         checkoutReceipt={
           hasBudgetQuoteFailed
-            ? { totalRaw: parseUnits(String(pricingData ?? 0), 6) }
+            ? {
+                totalRaw: getCheckoutReceiptTotalRaw({
+                  hasBudgetQuoteFailed,
+                  estimatedRegistrationRaw: estimatedFunding
+                    ? parseUnits(String(estimatedFunding.registration), 6)
+                    : null,
+                  totalRaw: isFirstQuote
+                    ? undefined
+                    : parseUnits(String(pricingData ?? 0), 6),
+                }),
+              }
             : undefined
         }
         estimatedFunding={estimatedFunding}
@@ -540,6 +554,14 @@ export const BudgetQuoteGasCoverageFailedWithAccountCredit: Story = {
   args: {
     ...BudgetQuoteGasCoverageFailed.args,
     accountCredit: { USDC: 5 },
+  },
+}
+
+/** WEB-2061: the very first quote failed, so only the estimate can fill the receipt. */
+export const BudgetQuoteGasCoverageFailedFirstQuote: Story = {
+  args: {
+    ...BudgetQuoteGasCoverageFailed.args,
+    isFirstQuote: true,
   },
 }
 
