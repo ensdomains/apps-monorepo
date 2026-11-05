@@ -493,7 +493,7 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
     const user = await enterRecipient()
 
     expect(
-      await screen.findByText(/these accounts will lose their permissions/i),
+      await screen.findByText(/these accounts will lose the permissions/i),
     ).toBeInTheDocument()
 
     await user.click(
@@ -504,7 +504,7 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
       screen.getByText(/these accounts will still have permissions/i),
     ).toBeInTheDocument()
     expect(
-      screen.queryByText(/will lose their permissions/i),
+      screen.queryByText(/will lose the permissions/i),
     ).not.toBeInTheDocument()
   })
 

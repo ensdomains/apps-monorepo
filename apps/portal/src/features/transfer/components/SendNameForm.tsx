@@ -108,7 +108,7 @@ const OPTIONS: readonly OptionConfig[] = [
     description:
       'Takes back the permissions you granted other accounts on this name. They are held on the name itself, not on the token, so they survive the transfer unless you revoke them first.',
     warning:
-      'The accounts listed above keep their permissions on this name after the transfer. They hold no part of it, but they can still act on it — repointing its resolver, for instance — until the recipient revokes them.',
+      'The accounts listed above keep their permissions on this name after the transfer. They don’t own it, but until the recipient revokes them, they can still act on it, like changing its resolver.',
   },
   {
     key: 'transferManager',
@@ -754,7 +754,7 @@ const RoleHolderList = ({
         <>
           <p className="text-foreground text-p">
             {isRevoking
-              ? 'These accounts will lose their permissions on this name:'
+              ? 'These accounts will lose the permissions listed below:'
               : 'These accounts will still have permissions on this name after the transfer:'}
           </p>
           <ul className="flex flex-col gap-2 text-p">
