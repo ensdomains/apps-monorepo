@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom'
+import { HcaBudgetUnquotedError } from '@ens-apps/smart-account'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -83,6 +84,7 @@ const mockAccount = (
   overrides: Partial<{
     signer: { type: string } | null
     accountAddress: string | null
+    getSessionEnablePayload: () => Promise<unknown>
   }> = {},
 ) =>
   smartAccountMock.useSmartAccountContext.mockReturnValue({
@@ -130,6 +132,38 @@ describe('TokenPickerContent budget quote', () => {
       screen.queryByRole('button', { name: /approv|register/i }),
     ).not.toBeInTheDocument()
     expect(screen.queryByText('$330.00')).not.toBeInTheDocument()
+  })
+
+  it('shows the fallback estimate on a gas-coverage refusal and still blocks checkout', async () => {
+    mockAccount({
+      // Any failure in the quote pipeline reaches the sheet through the same cause chain.
+      getSessionEnablePayload: vi.fn().mockRejectedValue(
+        new HcaBudgetUnquotedError({
+          total: 340_000_000n,
+          commitCost: 5_000_000n,
+          registerCost: 5_000_000n,
+          registrationPrice: 330_000_000n,
+          expectedMaximum: 400_000_000n,
+          source: 'fallback',
+          fallbackReasons: [
+            'commit: quote threw — No available destination-chain balance can cover execution gas.',
+          ],
+        }),
+      ),
+    })
+    renderConnectedPicker()
+
+    expect(
+      await screen.findByText(
+        /Network fees are elevated right now \(about \$340\.00 estimated\)/,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/This total is an estimate/)).toBeInTheDocument()
+    expect(screen.queryByText(QUOTE_FAILED_MESSAGE)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
+    expect(
+      screen.queryByRole('button', { name: /approv|register/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('does not gate the EOA route, which never quotes a budget', async () => {
