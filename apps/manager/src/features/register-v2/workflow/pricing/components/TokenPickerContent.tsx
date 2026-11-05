@@ -7,7 +7,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { isAddressEqual } from 'viem'
+import { isAddressEqual, parseUnits } from 'viem'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
@@ -41,6 +41,7 @@ import {
 } from '../hooks/useL2Payment'
 import { getBudgetQuoteFailureUi } from '../lib/budgetQuoteRecovery'
 import { getCheckoutTotalRaw } from '../lib/checkoutSummary'
+import { getEthPaymentRow } from '../lib/ethPaymentRow'
 import {
   getCurrentMethodState,
   getFallbackPaymentChoice,
@@ -63,6 +64,7 @@ import { EthNameText } from './EthNameText'
 import {
   canPayWithEth,
   EthPaymentListItem,
+  type EthPaymentProps,
   type EthPaymentRow,
   getEthSelectionMessage,
   getEthSwapGasUsdcRaw,
@@ -723,6 +725,9 @@ export const TokenPickerContent = () => {
 
   return (
     <TokenPickerContentBase
+      checkoutReceipt={
+        isBudgetRequired ? { totalRaw: registrationTotalRaw } : undefined
+      }
       estimatedFunding={getFundingSummary(estimatedFunding, false)}
       ethPayment={ethPayment}
       funding={getFundingSummary(funding, budgetQuery.isFetching)}
@@ -758,9 +763,6 @@ export const TokenPickerContent = () => {
           </p>
         ))
         .otherwise(() => undefined)}
-      registrationReceipt={
-        isBudgetRequired ? { totalRaw: registrationTotalRaw } : undefined
-      }
       revalidatedShortfall={revalidatedShortfall}
       selectedToken={selectedToken}
       shortfallLabel={<Trans>Register name</Trans>}
@@ -770,50 +772,12 @@ export const TokenPickerContent = () => {
   )
 }
 
-/** The ETH row, from its quote. With the HCA already funded, nothing is sent. */
-const getEthPaymentRow = (
-  quote: {
-    readonly data?: {
-      readonly swap?: { readonly maximumEth: bigint }
-      readonly walletBalance: bigint
-      readonly gasReserve: bigint
-      readonly ethUsd: bigint
-    }
-    readonly isPending: boolean
-    readonly isPlaceholderData: boolean
-    readonly isError: boolean
-  },
-  walletDebitRaw: bigint | undefined,
-): EthPaymentRow =>
-  walletDebitRaw === 0n
-    ? {
-        chargeRaw: 0n,
-        balanceRaw: undefined,
-        gasReserveRaw: 0n,
-        ethUsdRaw: undefined,
-        isQuoteLoading: false,
-        hasQuoteFailed: false,
-      }
-    : {
-        // No swap: the wallet already holds the USDC.
-        chargeRaw:
-          quote.data === undefined
-            ? undefined
-            : (quote.data.swap?.maximumEth ?? 0n),
-        balanceRaw: quote.data?.walletBalance,
-        gasReserveRaw: quote.data?.gasReserve ?? 0n,
-        ethUsdRaw: quote.data?.ethUsd,
-        // A placeholder belongs to another amount: shown, never paid on.
-        isQuoteLoading: quote.isPending || quote.isPlaceholderData,
-        hasQuoteFailed: quote.isError,
-      }
-
-/** Selecting ETH, and what paying with it asks of the wallet. */
-type EthPaymentProps = Readonly<{
-  row: EthPaymentRow
-  isSelected: boolean
-  onSelect: () => void
-  onFallbackSelect: () => void
+/** The page's checkout total the sheet's receipt starts from. */
+export type CheckoutReceipt = Readonly<{
+  /** `undefined` while the price or the account balance loads. */
+  totalRaw: bigint | undefined
+  /** "Registration total" by default. */
+  totalLabel?: ReactNode
 }>
 
 const getSelectedL2 = (l2Payment: L2PaymentProps | undefined) =>
@@ -886,8 +850,9 @@ const byBalanceDescending = (a: L2PaymentRow, b: L2PaymentRow) => {
   return right > left ? 1 : -1
 }
 
-// A short coin stays listed, so it can be picked; an empty one has nothing to offer.
-const hasBalance = (coin: StablecoinBalance) => BigInt(coin.balance) > 0n
+// A short coin stays listed, so it can be picked; under a cent (shown as $0.00) it has nothing to offer.
+const hasBalance = (coin: StablecoinBalance) =>
+  BigInt(coin.balance) >= parseUnits('0.01', coin.decimals)
 
 const coversShare = (coin: StablecoinBalance, share: number | undefined) =>
   share !== undefined &&
@@ -1025,9 +990,10 @@ const getEthMethodItems = (
 
 /** Registration needs no method once the existing balance covers everything: the receipt says so. */
 const isMethodPickerHidden = (
-  registrationReceipt: Readonly<{ totalRaw: bigint | undefined }> | undefined,
+  checkoutReceipt: CheckoutReceipt | undefined,
   isFullyCovered: boolean,
-) => registrationReceipt !== undefined && isFullyCovered
+  isMethodListHidden: boolean,
+) => isMethodListHidden || (checkoutReceipt !== undefined && isFullyCovered)
 
 const isSelectedMethodShort = (
   isWalletSelectionShort: boolean,
@@ -1149,7 +1115,8 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   walletDebitFor,
   l2Payment,
   ethPayment,
-  registrationReceipt,
+  checkoutReceipt,
+  isMethodListHidden = false,
   receiptNotice,
   onCancel,
 }: {
@@ -1213,10 +1180,15 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   readonly walletDebitFor?: (symbol: TOKEN_SYMBOL) => number
   /** Rows that pay from the wallet's USDC on an L2. */
   readonly l2Payment?: L2PaymentProps
-  /** Registration only: the row that pays with the wallet's ETH. */
+  /** The row that pays with the wallet's ETH; smart-account routes only. */
   readonly ethPayment?: EthPaymentProps
-  /** Registration only: the receipt shows the page's total and the network fee instead of the existing balance. */
-  readonly registrationReceipt?: Readonly<{ totalRaw: bigint | undefined }>
+  /**
+   * The sheet follows the page's checkout: its receipt shows the page's total and the network fee,
+   * methods give way to the receipt when the balance covers everything, and every L2 holding USDC is listed.
+   */
+  readonly checkoutReceipt?: CheckoutReceipt
+  /** The caller hides the methods, such as while a re-quoted amount is reviewed. */
+  readonly isMethodListHidden?: boolean
   /** Shown below the receipt — renewal review copy, or a failed-quote estimate notice. */
   readonly receiptNotice?: ReactNode
   /** Renewal only: offers Cancel below the CTA. */
@@ -1291,7 +1263,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
     l2Payment,
     selectedL2,
     funding,
-    registrationReceipt !== undefined,
+    checkoutReceipt !== undefined,
   )
   const ethMethodItems = getEthMethodItems(ethPayment, displayedNetworkFee)
 
@@ -1409,7 +1381,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
         selectedL2,
         funding?.walletDebit,
         l2Payment && getEstimatedL2AmountIn(l2Payment.rows),
-        registrationReceipt !== undefined,
+        checkoutReceipt !== undefined,
       )) ||
     (revalidatedShortfall !== undefined &&
       t`${formatUsd(revalidatedShortfall)} more needed in your wallet.`) ||
@@ -1441,7 +1413,11 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
 
           <div
             className="flex w-full flex-col gap-4 [&[hidden]]:hidden"
-            hidden={isMethodPickerHidden(registrationReceipt, isFullyCovered)}
+            hidden={isMethodPickerHidden(
+              checkoutReceipt,
+              isFullyCovered,
+              isMethodListHidden,
+            )}
           >
             <h2 className={cn(RECEIPT_LABEL, 'text-center')}>
               <Trans>Pay with</Trans>
@@ -1499,7 +1475,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           </div>
         </div>
 
-        {registrationReceipt === undefined ? (
+        {checkoutReceipt === undefined ? (
           <PaymentReceipt
             hasExistingBalance={(receiptFigures?.applied ?? 0) > 0}
             isEstimate={isEstimate}
@@ -1510,8 +1486,9 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           <NetworkFeeReceipt
             extraFeeRaw={getEthSwapGasUsdcRaw(selectedEth)}
             networkFee={shownFunding?.networkFee}
-            registrationTotalRaw={registrationReceipt.totalRaw}
             state={receiptState}
+            totalLabel={checkoutReceipt.totalLabel}
+            totalRaw={checkoutReceipt.totalRaw}
           />
         )}
         {receiptNotice}

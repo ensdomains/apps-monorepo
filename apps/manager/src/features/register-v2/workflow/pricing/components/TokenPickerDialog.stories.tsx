@@ -124,6 +124,11 @@ export const TokenPickerDialogShell = ({
       title="Select payment"
     >
       <TokenPickerContentBase
+        checkoutReceipt={
+          hasBudgetQuoteFailed
+            ? { totalRaw: parseUnits(String(pricingData ?? 0), 6) }
+            : undefined
+        }
         estimatedFunding={estimatedFunding}
         footer={footer}
         funding={funding}
@@ -153,11 +158,6 @@ export const TokenPickerDialogShell = ({
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         receiptNotice={receiptNotice}
-        registrationReceipt={
-          hasBudgetQuoteFailed
-            ? { totalRaw: parseUnits(String(pricingData ?? 0), 6) }
-            : undefined
-        }
         selectedToken={selectedToken}
         showNetworkFeeDetails
         stablecoinBalances={stablecoinBalances}
