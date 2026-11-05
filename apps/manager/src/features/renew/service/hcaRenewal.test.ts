@@ -65,8 +65,8 @@ vi.mock('@/lib/smart-account/rhinestone', () => ({
 vi.mock(
   '@ens-apps/transaction-manager/machines/registration/registration.actors',
   () => ({
-    // Mirrors the real helper: the renewer pulls up to 10% above the quote.
-    authorizedPaymentAmount: (price: bigint) => price + price / 10n,
+    // Mirrors the real helper: the renewer pulls up to 2% above the quote.
+    authorizedPaymentAmount: (price: bigint) => price + price / 50n,
     encodeRenewData: mocks.encodeRenewData,
     encodeRenewBatchData: mocks.encodeRenewBatchData,
   }),
@@ -165,8 +165,8 @@ describe('submitHcaRenewal', () => {
       decodeFunctionData({ abi: erc20Abi, data: approve.data as Hex }),
     ).toMatchObject({
       functionName: 'approve',
-      // 1.0 price + 10% drift headroom — bounded, deliberately not unlimited.
-      args: [RENEWER, 1_100_000n],
+      // 1.0 price + 2% drift headroom — bounded, deliberately not unlimited.
+      args: [RENEWER, 1_020_000n],
     })
     expect(actionCall()).toMatchObject({
       to: RENEWER,
@@ -190,7 +190,7 @@ describe('submitHcaRenewal', () => {
         token: USDC,
         symbol: 'USDC',
         decimals: 6,
-        amount: 1_100_000n,
+        amount: 1_020_000n,
       },
       gasLimit: HCA_RENEWAL_INTENT_GAS_LIMIT_BASE,
       maxFeeUsdc: 20_000_000n,
@@ -199,7 +199,7 @@ describe('submitHcaRenewal', () => {
   })
 
   it('checks the funding against the debit the payment screen showed', async () => {
-    const displayedDebit = { usdc: 1_100_000n, token: 0n }
+    const displayedDebit = { usdc: 1_020_000n, token: 0n }
 
     await submitHcaRenewal({ ...params, displayedDebit })
 
@@ -251,7 +251,7 @@ describe('submitHcaRenewal', () => {
     // One batch call for all three, plus the single approval.
     expect(actionCalls()).toHaveLength(2)
     expect(fundingParams()).toMatchObject({
-      tokenSpend: { amount: 3_300_000n },
+      tokenSpend: { amount: 3_060_000n },
       gasLimit:
         HCA_RENEWAL_INTENT_GAS_LIMIT_BASE +
         2n * HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM,
@@ -288,7 +288,7 @@ describe('submitHcaRenewal', () => {
         token: DAI,
         symbol: 'DAI',
         decimals: 18,
-        amount: 1_100_000n,
+        amount: 1_020_000n,
       },
       gasLimit:
         HCA_RENEWAL_INTENT_GAS_LIMIT_BASE +
@@ -302,7 +302,7 @@ describe('submitHcaRenewal', () => {
   it('skips the approval when the account already allows the renewer', async () => {
     // Cheap on-chain read: a standing allowance turns the approval call into
     // dead weight in a batch that is priced per call.
-    readContract.mockResolvedValue(1_100_000n)
+    readContract.mockResolvedValue(1_020_000n)
 
     await submitHcaRenewal(params)
 
@@ -349,7 +349,7 @@ describe('submitHcaRenewal', () => {
 
   it('submits once through the actual machine and Warp transport when the accepted intent loses its fill response', async () => {
     const onSubmitted = vi.fn()
-    readContract.mockResolvedValue(1_100_000n)
+    readContract.mockResolvedValue(1_020_000n)
     await submitHcaRenewal({ ...params, onSubmitted })
     const started = mocks.startTransaction.mock.calls[0]
     if (!started) throw new Error('Renewal did not start a transaction')
@@ -527,15 +527,15 @@ describe('submitHcaRenewal paid from an L2', () => {
 
     await run()
 
-    // 1.10 price + 0.90 fee widened by 25%, less the 0.20 already held.
+    // 1.02 price + 0.90 fee widened by 25%, less the 0.20 already held.
     expect(bridged()).toMatchObject({
       hca: HCA,
-      payment: { source, amount: 2_025_000n, displayedCharge: 2_100_000n },
+      payment: { source, amount: 1_945_000n, displayedCharge: 2_100_000n },
       signer: { session: undefined },
     })
     expect(mocks.waitForTransaction).toHaveBeenCalledWith('bridge-tx')
     expect(mocks.readHcaUsdcBalanceAtLeastActor).toHaveBeenCalledWith(
-      expect.objectContaining({ atLeast: 2_225_000n }),
+      expect.objectContaining({ atLeast: 2_145_000n }),
     )
     expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
   })
@@ -558,7 +558,7 @@ describe('submitHcaRenewal paid from an L2', () => {
   it('plans the renewal on the balance the bridge read back, past a lagging node', async () => {
     await run()
 
-    expect(fundingParams()).toMatchObject({ hcaBalanceAtLeast: 2_225_000n })
+    expect(fundingParams()).toMatchObject({ hcaBalanceAtLeast: 2_145_000n })
   })
 
   it('sends nothing from the L2 when the account already covers the renewal', async () => {
@@ -582,13 +582,13 @@ describe('submitHcaRenewal paid from an L2', () => {
     await expect(run()).rejects.toThrow('fill timed out')
     expect(readPendingL2Bridge(params.chainId, HCA)).toMatchObject({
       intentId: 7n,
-      fundsHcaTo: 2_225_000n,
+      fundsHcaTo: 2_145_000n,
     })
     expect(mocks.planHcaIntentFunding).not.toHaveBeenCalled()
 
     // It landed after all: the retry reads it back and pays nothing more.
     mocks.awaitL2BridgeActor.mockReturnValue(okAsync('landed'))
-    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(2_225_000n))
+    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(2_145_000n))
 
     await run()
 
@@ -626,10 +626,10 @@ describe('submitHcaRenewal paid from an L2', () => {
       l2Funding: { source, displayedCharge: 4_300_000n },
     })
 
-    // 2 × 1.10 price + 2 × 0.90 fee widened by 25%, less the 0.20 held.
+    // 2 × 1.02 price + 2 × 0.90 fee widened by 25%, less the 0.20 held.
     expect(mocks.submitL2BridgeActor).toHaveBeenCalledOnce()
     expect(bridged()).toMatchObject({
-      payment: { amount: 4_250_000n, displayedCharge: 4_300_000n },
+      payment: { amount: 4_090_000n, displayedCharge: 4_300_000n },
     })
   })
 
@@ -647,7 +647,7 @@ describe('submitHcaRenewal paid from an L2', () => {
 
     expect(readPendingL2Bridge(params.chainId, HCA)).toBeUndefined()
     // Sized on what the account holds now, not on the spent payment.
-    expect(bridged()).toMatchObject({ payment: { amount: 2_025_000n } })
+    expect(bridged()).toMatchObject({ payment: { amount: 1_945_000n } })
     expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
   })
 
@@ -864,10 +864,10 @@ describe('fundHcaRenewalsWithEth', () => {
   it('swaps once for what the batches it is given are short, bounded by the ETH shown', async () => {
     await run()
 
-    // 2 × 1.10 price + 2 × 0.90 fee widened by 25%, less the 0.20 held.
+    // 2 × 1.02 price + 2 × 0.90 fee widened by 25%, less the 0.20 held.
     expect(mocks.swapEthForUsdcActor).toHaveBeenCalledOnce()
     expect(mocks.swapEthForUsdcActor.mock.calls[0]?.[0]).toMatchObject({
-      permitValue: 4_250_000n,
+      permitValue: 4_090_000n,
       funding: { displayedCharge: 10n ** 16n },
     })
   })
@@ -875,9 +875,9 @@ describe('fundHcaRenewalsWithEth', () => {
   it('sizes a retry on the names left, not the whole selection', async () => {
     await run({ batches: [batches[0]] })
 
-    // 1.10 price + 0.90 fee widened by 25%, less the 0.20 held.
+    // 1.02 price + 0.90 fee widened by 25%, less the 0.20 held.
     expect(mocks.swapEthForUsdcActor.mock.calls[0]?.[0]).toMatchObject({
-      permitValue: 2_025_000n,
+      permitValue: 1_945_000n,
     })
   })
 

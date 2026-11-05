@@ -83,7 +83,7 @@ const RENEWAL_PERMIT_PURPOSE: PermitPurpose = {
   subject: 'the renewal',
   shownAt: 'when you started the renewal',
   costNote:
-    'The amount covers the renewal price with its 10% buffer, and in USDC ' +
+    'The amount covers the renewal price with its 2% buffer, and in USDC ' +
     'the network fee, less what the smart account already holds.',
 }
 
@@ -176,7 +176,7 @@ export interface SubmitHcaRenewalParams {
  *
  * Priced NOW, not from the screen the user saw: the price the renewer pulls is
  * computed at execution, so both the approval and the funding are sized from
- * the freshest read available. The 10% headroom `authorizedPaymentAmount` adds
+ * the freshest read available. The 2% headroom `authorizedPaymentAmount` adds
  * absorbs feed drift between this read and the fill — the same allowance policy
  * the direct-wallet route uses.
  */

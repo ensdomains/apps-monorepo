@@ -82,7 +82,7 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 - On Sepolia, paying from an L2 fails above about 8 USDC (Across caps transfers into Sepolia), as in registration.
 - Prices are slightly above round numbers ($8.01 for a year): a year is charged as at least 365.25 days.
 - The renewal failure screen can show the wallet's raw rejection text.
-- The page card's total is the price less the account balance, while the sheet's includes the approval's 10% headroom. With a balance between the price and the price plus 10%, the card shows $0.00 and the sheet still asks for a payment; what the renewal doesn't spend stays in the account.
+- The page card's total is the price less the account balance, while the sheet's includes the approval's 2% headroom. With a balance between the price and the price plus 2%, the card shows $0.00 and the sheet still asks for a payment; what the renewal doesn't spend stays in the account.
 
 ## Before changing anything here
 

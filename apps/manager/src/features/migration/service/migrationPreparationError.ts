@@ -1,7 +1,10 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
+import { shouldRetrySubnameMigrationImpact } from './subnameMigrationImpactQuery.helpers'
 import { SubnameRecreationError } from './subnameRecreationError'
+
+const MAX_PREPARATION_RETRIES = 1
 
 type MigrationPreparationStage =
   | 'account'
@@ -187,6 +190,17 @@ export const migrationPreparationFailure = (
   const cause = error instanceof MigrationPreparationError ? error.cause : error
   return { stage, reason: reasonFor(stage, cause), cause }
 }
+
+/** Retry only attributed transport failures, preserving semantic safety errors. */
+export const shouldRetryMigrationPreparation = (
+  failureCount: number,
+  error: unknown,
+): boolean =>
+  failureCount < MAX_PREPARATION_RETRIES &&
+  shouldRetrySubnameMigrationImpact({
+    failureCount,
+    cause: error instanceof MigrationPreparationError ? error.cause : error,
+  })
 
 export const runMigrationPreparationStage = async <T>(
   stage: MigrationPreparationStage,
