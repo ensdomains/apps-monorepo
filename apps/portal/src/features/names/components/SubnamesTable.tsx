@@ -14,6 +14,7 @@ import React, { useMemo, useState } from 'react'
 import type { Address, Hex } from 'viem'
 import { AddressHighlightProvider } from '@/components/AddressHighlight'
 import { EntityBadge } from '@/components/EntityBadge'
+import { STICKY_BELOW_MOBILE_HEADER_CLASS } from '@/components/MobileHeader'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { SortButton } from '@/components/table/SortButton'
@@ -313,7 +314,12 @@ export const SubnamesTable = ({
 
   return (
     <AddressHighlightProvider>
-      <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
+      <header
+        className={cn(
+          'bg-background flex flex-col gap-4 sticky z-20',
+          STICKY_BELOW_MOBILE_HEADER_CLASS,
+        )}
+      >
         <div className="flex flex-row items-center gap-2">
           <PageHeading parent={{ type: 'name', name }} className="flex-1">
             {totalCount ? `Subnames (${totalCount})` : 'Subnames'}

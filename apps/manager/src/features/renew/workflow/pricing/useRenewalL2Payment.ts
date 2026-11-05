@@ -13,11 +13,11 @@ export const useRenewalL2Payment = ({
   hcaBalanceRaw,
   isEnabled,
   selectedChainId,
-  selectedOrigin = 'user',
+  selectedOrigin,
   onSelect,
   onFallbackSelect = onSelect,
 }: {
-  /** The USDC price with its approval headroom, once priced. */
+  /** The USDC price, once priced. */
   readonly rentTotalRaw: bigint | undefined
   /** The intents' quoted fee in USDC. */
   readonly feeRaw: bigint | undefined

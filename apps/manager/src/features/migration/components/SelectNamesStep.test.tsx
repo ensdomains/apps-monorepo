@@ -196,6 +196,7 @@ const renderStep = ({
         gasEstimate={estimate}
         gasFundingStatus={gasFundingStatus}
         isMetaMaskWallet={isMetaMaskWallet}
+        onBack={vi.fn()}
         onManagerRestorationChange={onManagerRestorationChange}
         onNamesChange={onNamesChange}
         onNext={onNext}
@@ -394,7 +395,9 @@ describe('SelectNamesStep', () => {
     expect(getAllByRole('checkbox')[0]).toBe(renewalCheckbox)
     expect(renewalCheckbox).not.toBeChecked()
     expect(renewalCheckbox).not.toHaveAccessibleDescription()
-    const graceHeading = getByRole('heading', { name: '1 name in grace' })
+    const graceHeading = getByRole('heading', {
+      name: '1 name in grace period',
+    })
     const eligibleHeading = getByRole('heading', {
       name: 'All 10 eligible names selected',
     })
