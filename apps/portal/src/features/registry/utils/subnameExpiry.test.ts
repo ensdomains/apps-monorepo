@@ -3,10 +3,40 @@ import { describe, expect, it } from 'vitest'
 import { SECONDS_PER_DAY } from '@/lib/constants/duration'
 import {
   DEFAULT_SUBNAME_EXPIRY,
+  getFirstToExpire,
+  getNamesAbove,
   getSubnameExpirySeconds,
   isPastParentExpiry,
   type SubnameExpiry,
 } from './subnameExpiry'
+
+describe('getNamesAbove', () => {
+  it('lists the parent and every name above it, nearest first', () => {
+    expect(getNamesAbove('x.admin.chakri.eth')).toEqual([
+      'x.admin.chakri.eth',
+      'admin.chakri.eth',
+      'chakri.eth',
+    ])
+  })
+})
+
+describe('getFirstToExpire', () => {
+  it('gives the name above that expires first, passing names that never expire', () => {
+    expect(
+      getFirstToExpire([
+        { name: 'x.admin.chakri.eth', expiry: null },
+        { name: 'admin.chakri.eth', expiry: 1_900_000_000 },
+        { name: 'chakri.eth', expiry: 2_000_000_000 },
+      ]),
+    ).toEqual({ name: 'admin.chakri.eth', expirySeconds: 1_900_000_000n })
+  })
+
+  it('gives none when no name above expires', () => {
+    expect(getFirstToExpire([{ name: 'right.chakri.eth', expiry: null }])).toBe(
+      null,
+    )
+  })
+})
 
 const NOW = 1_800_000_000n
 const CLOCK = {
