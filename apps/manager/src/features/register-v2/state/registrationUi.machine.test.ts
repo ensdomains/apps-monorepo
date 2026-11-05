@@ -947,6 +947,29 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
       actor.stop()
     })
 
+    it('starts as soon as the name is registered, without waiting on the notification step', async () => {
+      const actor = startActorInTokens()
+      actor.send(startEvent(smartAccount))
+      sendToChild(actor, { type: 'FORCE_SUCCESS' })
+      await flush()
+
+      expect(actor.getSnapshot().matches('registering')).toBe(true)
+      expect(withdrawLeftover).toHaveBeenCalledTimes(1)
+      actor.stop()
+    })
+
+    it('refunds once even when the registration reports success again', async () => {
+      const actor = startActorInTokens()
+      actor.send(startEvent(smartAccount))
+      sendToChild(actor, { type: 'FORCE_SUCCESS' })
+      // The child stays in `success`; any event it receives there reports it again.
+      sendToChild(actor, { type: 'RETRY' })
+      await flush()
+
+      expect(withdrawLeftover).toHaveBeenCalledTimes(1)
+      actor.stop()
+    })
+
     it('does not withdraw after a registration paid from the wallet', async () => {
       const actor = await completeRegistration(eoaAccount)
 

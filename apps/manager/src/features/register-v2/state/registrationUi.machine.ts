@@ -492,10 +492,6 @@ const machineSetup = setup({
       async ({ input }: { input: { txId: string } }) =>
         waitForTransaction(input.txId),
     ),
-    refundLeftoverFunds: fromPromise(
-      ({ input }: { input: ReturnType<typeof leftoverRefundAccounts> }) =>
-        input ? returnLeftoverFunds(input) : Promise.resolve(),
-    ),
   },
   guards: {
     isRestoredFailure: ({ context }) => context.restoredRun !== undefined,
@@ -813,11 +809,17 @@ const machineSetup = setup({
         primaryNameForwardConfirmed: true,
       }),
     }),
-    logLeftoverRefundError: ({ event }) => {
-      console.warn(
-        '[REGISTRATION] The leftover refund did not finish; the name is already registered:',
-        (event as { error?: unknown }).error,
-      )
+    // On the registration itself: the success screen also waits on the notification step.
+    refundLeftoverFunds: ({ context }) => {
+      const accounts = leftoverRefundAccounts(context)
+      // The child stays in `success` and can report it again; refund once per run.
+      if (!accounts || context.registrationCompleted) return
+      void returnLeftoverFunds(accounts).catch((error: unknown) => {
+        console.warn(
+          '[REGISTRATION] The leftover refund did not finish; the name is already registered:',
+          error,
+        )
+      })
     },
   },
 })
@@ -1181,7 +1183,8 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     onSnapshot: [
       {
         guard: ({ event: { snapshot } }) => snapshot.matches('success'),
-        actions: ['captureChildSuccess'],
+        // Refund first: it reads `registrationCompleted` before this run sets it.
+        actions: ['refundLeftoverFunds', 'captureChildSuccess'],
       },
       {
         guard: ({ event: { snapshot } }) => snapshot.matches('error'),
@@ -1620,15 +1623,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
         actions: ['invalidateNameQueries'],
       },
     },
-    success: {
-      // Return the payment's leftover to the owner; a failed refund never undoes the registration.
-      invoke: {
-        src: 'refundLeftoverFunds',
-        input: ({ context }) => leftoverRefundAccounts(context),
-        // An unhandled child error would put this whole machine in `error`.
-        onError: { actions: 'logLeftoverRefundError' },
-      },
-    },
+    success: {},
     failure: {
       // A reverted register says nothing about why, so ask the registry
       // whether someone else got the name first
