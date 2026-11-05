@@ -5,7 +5,11 @@ import {
 } from '@ens-apps/smart-account'
 import type { PublicClient } from 'viem'
 import type { MigrationPlan } from './buildMigrationPlan'
-import { buildMigrationApprovalCall } from './migrationApprovals'
+import { approvalNeedsFor } from './migrationApprovalNeeds'
+import {
+  buildMigrationApprovalCall,
+  type MigrationApproval,
+} from './migrationApprovals'
 
 export type MigrationGasEstimate =
   | {
@@ -25,6 +29,15 @@ type EstimateMigrationGasCostParams = {
   readonly publicClient: PublicClient
 }
 
+/** Recovery keeps migrated names' token approvals as done steps; execution only sends the remaining ones. */
+const approvalsToSend = (plan: MigrationPlan): readonly MigrationApproval[] => {
+  const tokenIds = new Set(approvalNeedsFor(plan.groups).unwrappedTokenIds)
+  return (plan.preflight.migrationApprovals ?? []).filter(
+    (approval) =>
+      approval.kind !== 'erc721-token' || tokenIds.has(approval.tokenId),
+  )
+}
+
 /** The setup transactions the owner sends before any batch; the wallet estimates each. */
 const setupCalls = (
   plan: MigrationPlan,
@@ -38,7 +51,7 @@ const setupCalls = (
         }),
       ]
     : []),
-  ...(plan.preflight.migrationApprovals ?? []).map(buildMigrationApprovalCall),
+  ...approvalsToSend(plan).map(buildMigrationApprovalCall),
 ]
 
 const estimateSetupGas = (
