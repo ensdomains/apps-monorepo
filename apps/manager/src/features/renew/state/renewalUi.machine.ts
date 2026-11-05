@@ -325,6 +325,13 @@ export const renewalUiMachine = setup({
           }
         : {},
     ),
+    // Closing the sheet forgets the pick, so the next open starts from the fallback.
+    clearPaymentPick: assign({
+      selectedToken: () => undefined,
+      fundingSourceChainId: () => undefined,
+      fundingSourceOrigin: () => undefined,
+      paymentAsset: () => 'stablecoin' as const,
+    }),
     beginIntentAttempt: assign({ paymentUpdate: () => undefined }),
     reviewPayment: assign({
       paymentUpdate: ({ event }) =>
@@ -439,6 +446,7 @@ export const renewalUiMachine = setup({
           on: {
             'pricing.step.previous': {
               target: 'duration',
+              actions: 'clearPaymentPick',
             },
             'pricing.token.select': {
               actions: 'setToken',
@@ -451,6 +459,7 @@ export const renewalUiMachine = setup({
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
+              actions: 'clearPaymentPick',
             },
             'renewal.start': [
               {

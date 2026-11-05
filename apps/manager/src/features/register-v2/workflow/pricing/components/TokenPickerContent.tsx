@@ -41,7 +41,7 @@ import {
 } from '../hooks/useL2Payment'
 import { getBudgetQuoteFailureUi } from '../lib/budgetQuoteRecovery'
 import { getCheckoutTotalRaw } from '../lib/checkoutSummary'
-import { getEthPaymentRow } from '../lib/ethPaymentRow'
+import { getEthPaymentRow, getEthSwapDebitUsdcRaw } from '../lib/ethPaymentRow'
 import {
   getCurrentMethodState,
   getFallbackPaymentChoice,
@@ -1357,6 +1357,12 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
             l2Payment?.rows ?? [],
           ),
           isEthPayable: !!ethPayment && canPayWithEth(ethPayment.row),
+          isEthListed: ethMethodItems.length > 0,
+          isCurrentListed:
+            !walletSelection ||
+            stablecoinBalances.some(
+              (coin) => coin.symbol === walletSelection && hasBalance(coin),
+            ),
         })
       : undefined
   useFallbackPaymentChoice({
@@ -1487,6 +1493,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           />
         ) : (
           <NetworkFeeReceipt
+            ethDebitRaw={selectedEth && getEthSwapDebitUsdcRaw(selectedEth)}
             extraFeeRaw={getEthSwapGasUsdcRaw(selectedEth)}
             networkFee={shownFunding?.networkFee}
             state={receiptState}
