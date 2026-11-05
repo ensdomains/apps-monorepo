@@ -244,7 +244,7 @@ describe('getResolverOverviewQueryOptions', () => {
     expect(bigname.resolver).toHaveBeenCalledWith(
       11155111,
       RESOLVER,
-      { page_size: 1, include: ['total_count'] },
+      { page_size: 100 },
       { signal: expect.any(AbortSignal) },
     )
     expect(bigname.events).toHaveBeenCalledWith(
@@ -422,12 +422,12 @@ describe('getResolverNodesQueryOptions', () => {
     expect(bigname.resolver).toHaveBeenCalledWith(
       11155111,
       RESOLVER,
-      { page_size: 100, include: ['total_count'] },
+      { page_size: 100 },
       { signal: expect.any(AbortSignal) },
     )
   })
 
-  it('counts the bound names on the first page only', async () => {
+  it('passes the cursor when reading the next page', async () => {
     bigname.resolver
       .mockReturnValueOnce(overview(['a.eth'], { next: 'more' }))
       .mockReturnValueOnce(overview(['b.eth']))

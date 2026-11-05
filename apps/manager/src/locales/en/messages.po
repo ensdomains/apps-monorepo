@@ -82,6 +82,10 @@ msgstr "{0}% discount"
 msgid "{affectedCount, plural, one {# affected subname} other {# affected subnames}}"
 msgstr "{affectedCount, plural, one {# affected subname} other {# affected subnames}}"
 
+#: src/features/bulk-renew/components/BulkNamesHeading.tsx
+msgid "{count, plural, one {# name} other {# names}}"
+msgstr "{count, plural, one {# name} other {# names}}"
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {# request} other {# requests}}"
 msgstr "{count, plural, one {# request} other {# requests}}"
@@ -101,6 +105,10 @@ msgstr "{count, plural, one {Copying records for # name in your wallet...} other
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "{count, plural, one {Renew # name for} other {Renew # names for}}"
 msgstr "{count, plural, one {Renew # name for} other {Renew # names for}}"
+
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+msgid "{count, plural, one {Renew # name until} other {Renew # names until}}"
+msgstr "{count, plural, one {Renew # name until} other {Renew # names until}}"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Renew # name} other {Renew # names}}"
@@ -556,6 +564,7 @@ msgid "Available"
 msgstr "Available"
 
 #: src/components/GlobalBackButton.tsx
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/components/SelectNamesStep.tsx
 #: src/features/migration/pages/MigrationPage.tsx
@@ -1412,7 +1421,7 @@ msgid "Est. fee: ~{0}"
 msgstr "Est. fee: ~{0}"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+#: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
 msgid "Estimated network fee"
 msgstr "Estimated network fee"
 
@@ -1546,6 +1555,10 @@ msgstr "Finishing setup"
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Follow these steps in your wallet. Renewal may need an extra payment approval."
 msgstr "Follow these steps in your wallet. Renewal may need an extra payment approval."
+
+#: src/features/bulk-renew/components/BulkNamesHeading.tsx
+msgid "for {duration}"
+msgstr "for {duration}"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Frequently Asked Questions"
@@ -3605,6 +3618,10 @@ msgstr "This browser doesn't support push notifications. Try Chrome, Firefox, or
 msgid "This commemorative NFT has already been minted."
 msgstr "This commemorative NFT has already been minted."
 
+#: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
+msgid "This funds your ENS account for the network fee. What the network doesn't use stays there, as existing balance for your next payment."
+msgstr "This funds your ENS account for the network fee. What the network doesn't use stays there, as existing balance for your next payment."
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This is taking longer than expected."
 msgstr "This is taking longer than expected."
@@ -3784,6 +3801,10 @@ msgstr "unique searches in the last 30 days"
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Unread only"
 msgstr "Unread only"
+
+#: src/features/bulk-renew/components/BulkNamesHeading.tsx
+msgid "until {duration}"
+msgstr "until {duration}"
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Unwrapped .eth name access"
@@ -4234,6 +4255,10 @@ msgstr "What is a primary name?"
 msgid "What is the ETH swap?"
 msgstr "What is the ETH swap?"
 
+#: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
+msgid "What is the network fee?"
+msgstr "What is the network fee?"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 msgid "What will I sign?"
 msgstr "What will I sign?"
@@ -4324,10 +4349,6 @@ msgstr "You cancelled the request."
 msgid "You do not have enough {walletSelection} for this transaction."
 msgstr "You do not have enough {walletSelection} for this transaction."
 
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "You do not have enough ETH for this transaction."
-msgstr "You do not have enough ETH for this transaction."
-
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "You do not have enough funds to complete this transaction."
 msgstr "You do not have enough funds to complete this transaction."
@@ -4363,6 +4384,11 @@ msgstr "You may miss important alerts if you remove this contact method. Are you
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
+
+#. placeholder {0}: getEthShortfall(short)
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "You need {0} ETH more for the swap and its gas."
+msgstr "You need {0} ETH more for the swap and its gas."
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You need to verify your wallet ownership to manage your notification preferences."
