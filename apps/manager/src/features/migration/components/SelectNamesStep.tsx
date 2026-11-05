@@ -337,7 +337,6 @@ export const SelectNamesStep = ({
               : 'md:pt-16',
         )}
       >
-        {/* Inside the scroller so it scrolls with the title instead of over it. */}
         <button
           aria-label="Back"
           className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"

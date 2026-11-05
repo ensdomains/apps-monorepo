@@ -174,7 +174,6 @@ const NameRowComponent = ({
       </div>
       <div
         className={cn(
-          // Figma's 0.96 line height lets `truncate` clip descenders.
           'relative flex h-9.25 min-w-0 items-center rounded-md px-2 py-1 font-medium font-semi-mono text-base leading-tight tracking-[-0.32px] transition-colors md:text-[20px] md:tracking-[-0.4px]',
           isSelected
             ? 'bg-ens-garnet-300 text-ens-garnet-900'
