@@ -10,10 +10,13 @@ import { NamesBreakdown } from './NamesBreakdown'
 export const RenewingStep = ({
   rows,
   total,
+  existingBalance,
   statuses,
 }: {
   readonly rows: readonly SummaryRow[]
   readonly total: number
+  /** The account's balance taken off the names, as confirmed. */
+  readonly existingBalance?: number
   readonly statuses: Readonly<Record<string, RowStatus>>
 }) => {
   const count = rows.length
@@ -35,7 +38,11 @@ export const RenewingStep = ({
         </div>
       </DialogHeader>
 
-      <NamesBreakdown rows={rows} total={total} />
+      <NamesBreakdown
+        existingBalance={existingBalance}
+        rows={rows}
+        total={total}
+      />
 
       <Button
         className="pointer-events-none w-full uppercase"

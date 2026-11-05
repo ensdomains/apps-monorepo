@@ -85,6 +85,7 @@ export const BulkRenewDialog = ({
   const [receipt, setReceipt] = useState<{
     readonly rows: readonly SummaryRow[]
     readonly total: number
+    readonly existingBalance: number
   } | null>(null)
 
   const {
@@ -150,7 +151,11 @@ export const BulkRenewDialog = ({
   const handleConfirm = () => {
     // Refused rather than paid from the wallet's USDC instead.
     if (ethPayment?.isSelected && !ethPayment.funding) return
-    setReceipt({ rows: summaryRows, total: grandTotal })
+    setReceipt({
+      rows: summaryRows,
+      total: payment.listTotal,
+      existingBalance: payment.appliedBalance,
+    })
     submit.submit({
       items: renewItems,
       token: selectedToken,
@@ -178,7 +183,11 @@ export const BulkRenewDialog = ({
     })
   }
 
-  const receiptSummary = receipt ?? { rows: summaryRows, total: grandTotal }
+  const receiptSummary = receipt ?? {
+    rows: summaryRows,
+    total: payment.listTotal,
+    existingBalance: payment.appliedBalance,
+  }
 
   // The route depends on the account: a smart account renews as owner-signed
   // intents paid from the account (chunked, one `renewBatch` per intent), and a plain
@@ -189,6 +198,7 @@ export const BulkRenewDialog = ({
     if (submit.phase === 'success') {
       return (
         <SuccessStep
+          existingBalance={receiptSummary.existingBalance}
           onDone={() => {
             onRenewed?.()
             handleOpenChange(false)
@@ -210,6 +220,7 @@ export const BulkRenewDialog = ({
     if (isSubmitting) {
       return (
         <RenewingStep
+          existingBalance={receiptSummary.existingBalance}
           rows={receiptSummary.rows}
           statuses={submit.statuses}
           total={receiptSummary.total}
@@ -271,7 +282,11 @@ export const BulkRenewDialog = ({
           />
         </div>
 
-        <NamesBreakdown rows={summaryRows} total={grandTotal} />
+        <NamesBreakdown
+          existingBalance={payment.appliedBalance}
+          rows={summaryRows}
+          total={payment.listTotal}
+        />
 
         <Button
           className="w-full uppercase"
