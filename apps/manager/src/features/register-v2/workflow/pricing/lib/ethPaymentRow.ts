@@ -32,6 +32,15 @@ export const getEthShortfall = (row: EthPaymentRow): string | undefined => {
   return formatGasEth(chargeRaw + gasReserveRaw - balanceRaw)
 }
 
+/** The most the swap sends, in USDC (6dp); undefined until quoted and priced, or with nothing to swap. */
+export const getEthSwapDebitUsdcRaw = ({
+  chargeRaw,
+  ethUsdRaw,
+}: Pick<EthPaymentRow, 'chargeRaw' | 'ethUsdRaw'>): bigint | undefined =>
+  chargeRaw === undefined || chargeRaw === 0n || ethUsdRaw === undefined
+    ? undefined
+    : ethToUsdcRaw(chargeRaw, ethUsdRaw)
+
 /** The ETH row, from its quote. With the HCA already funded, nothing is sent. */
 export const getEthPaymentRow = (
   quote: {

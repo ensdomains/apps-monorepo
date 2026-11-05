@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EthPaymentRow } from '../components/EthPaymentListItem'
-import { getEthShortfall } from './ethPaymentRow'
+import { getEthShortfall, getEthSwapDebitUsdcRaw } from './ethPaymentRow'
 
 const ETH_0_0026 = 2_600_000_000_000_000n
 
@@ -12,6 +12,20 @@ const rowOf = (row: Partial<EthPaymentRow>): EthPaymentRow => ({
   isQuoteLoading: false,
   hasQuoteFailed: false,
   ...row,
+})
+
+describe('getEthSwapDebitUsdcRaw', () => {
+  it.each([
+    [
+      'nothing to swap',
+      { chargeRaw: 0n, ethUsdRaw: 200_000_000_000n },
+      undefined,
+    ],
+    ['unpriced', {}, undefined],
+    ['priced', { ethUsdRaw: 200_000_000_000n }, 5_200_000n],
+  ])('%s', (_case, row, expected) => {
+    expect(getEthSwapDebitUsdcRaw(rowOf(row))).toBe(expected)
+  })
 })
 
 describe('getEthShortfall', () => {

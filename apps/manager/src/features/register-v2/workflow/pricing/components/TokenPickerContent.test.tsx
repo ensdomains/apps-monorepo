@@ -1688,6 +1688,19 @@ describe('TokenPickerContentBase ETH row', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('shows the most the swap sends as what the wallet pays, with ETH selected', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment: ethPaymentOf({ ethUsdRaw: 200_000_000_000n }, true),
+      checkoutReceipt: { totalRaw: 5_000_000n },
+    })
+
+    expect(receiptRow('You pay')).toHaveTextContent('up to')
+    expect(receiptRow('You pay')).toHaveTextContent('$5.20')
+  })
+
   it('stays on a wallet coin that can pay rather than swapping ETH', () => {
     const ethPayment = ethPaymentOf()
     renderPicker({

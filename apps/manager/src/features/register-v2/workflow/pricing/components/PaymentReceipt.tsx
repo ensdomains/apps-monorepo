@@ -4,6 +4,7 @@ import { match } from 'ts-pattern'
 import { formatUnits, parseUnits } from 'viem'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import {
+  getEthReceiptDueRaw,
   getNetworkFeeReceiptFigures,
   type PaymentReceiptFigures,
   type PaymentReceiptState,
@@ -147,6 +148,7 @@ export const NetworkFeeReceipt = ({
   totalRaw,
   networkFee,
   extraFeeRaw,
+  ethDebitRaw,
   totalLabel = <Trans>Registration total</Trans>,
 }: {
   /** The quote behind the fee; the total is the page's and is always shown. */
@@ -157,6 +159,8 @@ export const NetworkFeeReceipt = ({
   readonly networkFee: number | undefined
   /** Paid on top of the wallet debit, such as an ETH swap's gas. */
   readonly extraFeeRaw: bigint
+  /** With ETH selected: the most the swap sends, in USDC (6dp), shown as "You pay". */
+  readonly ethDebitRaw?: bigint
   readonly totalLabel?: ReactNode
 }) => {
   const { t } = useLingui()
@@ -177,6 +181,13 @@ export const NetworkFeeReceipt = ({
       : { status: 'unavailable' }
   const shown = (field: 'networkFeeRaw' | 'dueRaw'): ShownAmount =>
     figures ? { status: 'ready', value: toUsd(figures[field]) } : pending
+  const due: ShownAmount =
+    figures && ethDebitRaw !== undefined
+      ? {
+          status: 'ready',
+          value: toUsd(getEthReceiptDueRaw(ethDebitRaw, extraFeeRaw)),
+        }
+      : shown('dueRaw')
 
   return (
     <section
@@ -213,7 +224,7 @@ export const NetworkFeeReceipt = ({
         )}
         <hr className="border-ens-quartz-100" />
         <Row label={<Trans>You pay</Trans>}>
-          <UsdAmount amount={shown('dueRaw')} />
+          <UsdAmount amount={due} isEstimate={ethDebitRaw !== undefined} />
         </Row>
       </dl>
     </section>
