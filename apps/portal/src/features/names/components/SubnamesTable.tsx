@@ -12,6 +12,7 @@ import {
 import { Check, Plus, Search, Trash2, X } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import type { Address, Hex } from 'viem'
+import { AddressHighlightProvider } from '@/components/AddressHighlight'
 import { EntityBadge } from '@/components/EntityBadge'
 import { STICKY_BELOW_MOBILE_HEADER_CLASS } from '@/components/MobileHeader'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -312,7 +313,7 @@ export const SubnamesTable = ({
     .map((r) => r.original)
 
   return (
-    <>
+    <AddressHighlightProvider>
       <header
         className={cn(
           'bg-background flex flex-col gap-4 sticky z-20',
@@ -594,6 +595,6 @@ export const SubnamesTable = ({
           </Button>
         </div>
       )}
-    </>
+    </AddressHighlightProvider>
   )
 }

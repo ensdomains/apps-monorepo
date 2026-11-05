@@ -23,9 +23,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Connector } from 'wagmi'
 import { createActor, fromPromise } from 'xstate'
 import { chain } from '@/config'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { migrationUiMachine } from '../state/migrationUi.machine'
 import { classifyNames } from './classifyNames'
+import { decodeMigrationError } from './decodeMigrationError'
 import {
   encodeGraceRenewal,
   executeGraceRenewal,
@@ -588,8 +590,8 @@ describe('bulk grace renewal', () => {
       functionName: 'renewBatch',
       args: [
         [
-          { label: 'alice', duration: 37n * DAY, referrer: zeroHash },
-          { label: 'bob', duration: 8n * DAY, referrer: zeroHash },
+          { label: 'alice', duration: 37n * DAY, referrer: ENS_LABS_REFERRER },
+          { label: 'bob', duration: 8n * DAY, referrer: ENS_LABS_REFERRER },
         ],
         quote.paymentToken,
       ],
@@ -1450,6 +1452,39 @@ describe('bulk grace renewal', () => {
       expect(sendTransaction).toHaveBeenCalledTimes(2)
       expect(s.waitForTransactionReceipt).toHaveBeenCalledOnce()
       expect(readPendingGraceRenewal(quote)).toBeNull()
+    },
+  )
+
+  it.each([
+    { code: -32603, expected: 'generic' },
+    { code: -32000, expected: 'insufficient-eth' },
+  ])(
+    'asks for ETH only when the provider refused for funds ($code)',
+    async ({ code, expected }) => {
+      const s = setup()
+      const quote = await s.quote()
+      s.state.allowance = 1000n
+      const walletClient = createWalletClient({
+        chain,
+        transport: custom({
+          request: async ({ method }) => {
+            if (method === 'eth_chainId') return `0x${chain.id.toString(16)}`
+            if (method === 'eth_accounts') return [OWNER]
+            throw Object.assign(
+              new Error('insufficient funds for gas * price + value'),
+              { code },
+            )
+          },
+        }),
+      })
+      const result = await executeGraceRenewal({
+        quote,
+        publicClient: s.publicClient,
+        walletClient,
+      })
+      expect(result.isErr() && decodeMigrationError(result.error).type).toBe(
+        expected,
+      )
     },
   )
 
