@@ -7,11 +7,12 @@ import { isAccountPending } from '../lib/checkoutAvailability'
 export const useIsAccountPending = (isAccountConnected: boolean): boolean => {
   const isHydrated = useHydrated()
   const { status } = useConnection()
-  const { hasInitialized } = useSmartAccountContext()
+  const { hasInitialized, error } = useSmartAccountContext()
   return isAccountPending({
     isHydrated,
     hasInitialized,
     walletStatus: status,
     isAccountConnected,
+    hasAccountFailed: error !== null,
   })
 }

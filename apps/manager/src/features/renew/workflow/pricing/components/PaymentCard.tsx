@@ -11,6 +11,7 @@ import { useIsAccountPending } from '@/features/register-v2/workflow/pricing/hoo
 import {
   getCheckoutAction,
   getPageAvailability,
+  UNKNOWN_BALANCE,
 } from '@/features/register-v2/workflow/pricing/lib/checkoutAvailability'
 import { getCheckoutSummary } from '@/features/register-v2/workflow/pricing/lib/checkoutSummary'
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
@@ -51,12 +52,13 @@ export const PaymentCard = () => {
   const account = useSmartAccountContext()
   const { isConnected: isEoaConnected } = useConnection()
   const { openConnectModal, connectModalOpen } = useConnectModal()
-  // ETH is swapped to fund the account, so the wallet route can't pay with it.
-  const isEthAccepted = !isWalletRoute
-  const { accountBalance, sources } = useCheckoutSources(
-    { ...account, signer },
-    isEthAccepted,
-  )
+  // ETH is swapped to fund the account, so only the intent route pays with it, V1 included.
+  const isEthAccepted = route === 'intent'
+  const checkout = useCheckoutSources({ ...account, signer }, isEthAccepted)
+  const { sources } = checkout
+  // No signer yet reads as no account balance; the total waits for the route instead.
+  const accountBalance =
+    route === null ? UNKNOWN_BALANCE : checkout.accountBalance
 
   const isConnected = isWalletRoute ? isEoaConnected : account.isConnected
   const isAccountPending = useIsAccountPending(isConnected)

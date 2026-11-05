@@ -149,7 +149,7 @@ export const BulkRenewDialog = ({
   const { selectedL2, ethPayment, intentFunding } = payment
   const handleConfirm = () => {
     // Refused rather than paid from the wallet's USDC instead.
-    if (ethPayment?.isSelected && ethPayment.usdcAmount === undefined) return
+    if (ethPayment?.isSelected && !ethPayment.funding) return
     setReceipt({ rows: summaryRows, total: grandTotal })
     submit.submit({
       items: renewItems,
@@ -170,9 +170,9 @@ export const BulkRenewDialog = ({
           }
         : {}),
       // Paid with ETH, one swap buys the remaining chunks' USDC, bounded by the ETH shown.
-      ...(ethPayment?.isSelected && ethPayment.usdcAmount !== undefined
+      ...(ethPayment?.isSelected && ethPayment.funding
         ? {
-            ethPayment: { displayedCharge: ethPayment.row.chargeRaw },
+            ethPayment: { displayedCharge: ethPayment.funding.displayedCharge },
           }
         : {}),
     })

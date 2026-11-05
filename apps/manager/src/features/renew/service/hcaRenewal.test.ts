@@ -778,6 +778,22 @@ describe('submitHcaRenewal paid with ETH', () => {
         return okAsync(2_025_000n)
       },
     )
+    mocks.readHcaUsdcBalanceAtLeastActor.mockReturnValue(okAsync(2_025_000n))
+  })
+
+  it('plans the permit only once a read shows the wallet holding the USDC it bought', async () => {
+    mocks.planHcaIntentFunding.mockImplementation(
+      async ({ calls }: { readonly calls: unknown }) => {
+        expect(mocks.readHcaUsdcBalanceAtLeastActor).toHaveBeenCalledWith(
+          expect.objectContaining({ hca: OWNER, atLeast: 2_025_000n }),
+        )
+        return { calls, quotedFeeUsdc: 900_000n }
+      },
+    )
+
+    await submitHcaRenewal({ ...params, ethFunding })
+
+    expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
   })
 
   it('swaps for the USDC first, then funds the account with the usual permit', async () => {
@@ -863,6 +879,13 @@ describe('fundHcaRenewalsWithEth', () => {
     expect(mocks.swapEthForUsdcActor.mock.calls[0]?.[0]).toMatchObject({
       permitValue: 2_025_000n,
     })
+  })
+
+  it('swaps nothing with a wallet that does not control the owner', async () => {
+    await expect(
+      run({ walletClient: { account: { address: RENEWER } } }),
+    ).rejects.toThrow(/does not control the owner/)
+    expect(mocks.swapEthForUsdcActor).not.toHaveBeenCalled()
   })
 
   it('swaps nothing when the account already covers the batches', async () => {

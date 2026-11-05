@@ -300,3 +300,12 @@ export const getRenewalReceiptTotalRaw = ({
   prompt
     ? getPromptCheckoutTotalRaw(prompt)
     : getRenewalCheckoutTotalRaw(checkout)
+
+/** On the intent route the sheet confirms only a receipt that shows its total, which needs the account's balance. */
+export const isRenewalReceiptReady = ({
+  isIntentRoute,
+  checkoutTotalRaw,
+}: {
+  readonly isIntentRoute: boolean
+  readonly checkoutTotalRaw: bigint | undefined
+}): boolean => !isIntentRoute || checkoutTotalRaw !== undefined

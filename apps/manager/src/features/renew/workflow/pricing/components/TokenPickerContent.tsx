@@ -21,6 +21,7 @@ import {
 import {
   getRenewalPaymentScreen,
   getRenewalReceiptTotalRaw,
+  isRenewalReceiptReady,
 } from '@/features/renew/utils/renewalFunding'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewalStartFunding } from '@/features/renew/utils/renewalStartFunding'
@@ -219,13 +220,7 @@ export const TokenPickerContent = () => {
       },
       isPaidWithEth,
       // Swapped from ETH, bounded by the ETH shown.
-      ethFunding:
-        ethPayment?.usdcAmount === undefined
-          ? undefined
-          : {
-              usdcAmount: ethPayment.usdcAmount,
-              displayedCharge: ethPayment.row.chargeRaw,
-            },
+      ethFunding: ethPayment?.funding,
     })
     if (funding.status === 'refused') return
     uiActor.send({
@@ -262,8 +257,12 @@ export const TokenPickerContent = () => {
     <TokenPickerContentBase
       // With a funding summary the credit is already inside it.
       accountCredit={funding ? undefined : balances.accountCredit}
-      // After a Cancel the fee re-quotes; Continue waits for it.
-      canProceed={canStart && !funding?.isLoading}
+      // After a Cancel the fee re-quotes; Continue waits for it and for the receipt's total.
+      canProceed={
+        canStart &&
+        !funding?.isLoading &&
+        isRenewalReceiptReady({ isIntentRoute, checkoutTotalRaw })
+      }
       {...(isIntentRoute
         ? {
             checkoutReceipt: {

@@ -94,6 +94,7 @@ export const isAccountPending = ({
   hasInitialized,
   walletStatus,
   isAccountConnected,
+  hasAccountFailed,
 }: {
   readonly isHydrated: boolean
   readonly hasInitialized: boolean
@@ -103,9 +104,11 @@ export const isAccountPending = ({
     | 'reconnecting'
     | 'disconnected'
   readonly isAccountConnected: boolean
+  /** The smart account failed to start, so it won't sync to the wallet. */
+  readonly hasAccountFailed: boolean
 }): boolean =>
   !isHydrated ||
   !hasInitialized ||
   walletStatus === 'connecting' ||
   walletStatus === 'reconnecting' ||
-  (walletStatus === 'connected' && !isAccountConnected)
+  (walletStatus === 'connected' && !isAccountConnected && !hasAccountFailed)

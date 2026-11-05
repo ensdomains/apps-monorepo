@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { getEthPaymentQuoteQueryOptions } from '@/features/register-v2/data/queries/ethPaymentQuote.query'
 import type { EthPaymentProps } from '@/features/register-v2/workflow/pricing/components/EthPaymentListItem'
 import { getEthPaymentRow } from '@/features/register-v2/workflow/pricing/lib/ethPaymentRow'
+import type { HcaRenewalEthFunding } from '@/features/renew/service/renewalEthSwap'
 import { getL2RenewalAmountOut } from '@/features/renew/utils/l2RenewalAmount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 
 export type RenewalEthPayment = EthPaymentProps &
   Readonly<{
-    /** USDC (6dp) the swap buys toward, sized as an L2 payment is; `undefined` until priced. */
-    usdcAmount: bigint | undefined
+    /** The USDC the swap buys toward (sized as an L2 payment is) and the ETH shown; `undefined` until both are priced. */
+    funding: HcaRenewalEthFunding | undefined
   }>
 
 /** A renewal's ETH row: the wallet's ETH swapped for the USDC the account is short. */
@@ -48,13 +49,16 @@ export const useRenewalEthPayment = ({
       isEnabled,
     }),
   )
-  return isEnabled
-    ? {
-        row: getEthPaymentRow(quote, usdcAmount),
-        isSelected,
-        onSelect,
-        onFallbackSelect,
-        usdcAmount,
-      }
-    : undefined
+  if (!isEnabled) return undefined
+  const row = getEthPaymentRow(quote, usdcAmount)
+  return {
+    row,
+    isSelected,
+    onSelect,
+    onFallbackSelect,
+    funding:
+      usdcAmount === undefined || row.chargeRaw === undefined
+        ? undefined
+        : { usdcAmount, displayedCharge: row.chargeRaw },
+  }
 }

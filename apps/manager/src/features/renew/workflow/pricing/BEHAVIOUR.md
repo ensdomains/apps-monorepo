@@ -16,16 +16,16 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 
 | Rule | Held by |
 | --- | --- |
-| A smart account renews by an owner-signed intent paid from the account (the intent route). An EOA, a Safe{Wallet} and every V1 renewal renew from the wallet with transactions (the wallet route). While the signer initializes there is no route, never the wallet route. | `renew/utils/renewalPaymentRoute.test.ts` |
-| The wallet route skips the session prompt; the intent route goes through it. A Safe waits for its check before anything can reach the prompt. | `renew/workflow/pricing/components/PaymentCard.test.tsx` |
+| The signer picks the route, for V1 and V2 names alike. A smart account renews by an owner-signed intent paid from the account (the intent route). An EOA and a Safe{Wallet} renew from the wallet with transactions (the wallet route). While the signer initializes there is no route, never the wallet route. | `renew/utils/renewalPaymentRoute.test.ts` |
+| The wallet route skips the session prompt; the intent route goes through it. A V1 renewal also skips it and connects by the wallet, whatever its route. A Safe waits for its check before anything can reach the prompt. | `renew/workflow/pricing/components/PaymentCard.test.tsx` |
 | Only the intent route can pay from an L2 or with ETH. A wallet-route start naming either is refused, never paid from the wallet instead. | `renew/state/renewalUi.machine.test.ts` "never starts a wallet-route renewal that names an L2", "never starts a wallet-route renewal paid with ETH" |
 
 ## Page card
 
 | Rule | Held by |
 | --- | --- |
-| The page uses the registration card: Name cost, Existing balance and Total, "Continue to payment", "Connect to renew" when disconnected. Its loading rules are registration's: the no-balance layout with a placeholder total until the balance is read, "Loading..." while the wallet is restored. | `renew/workflow/pricing/components/PaymentCard.test.tsx` "takes a Safe{Wallet} to the token picker..." (the button); the rest has no test |
-| USDC and ETH sit under the button and ETH counts toward the "Insufficient balance" check, except on the wallet route, which shows and counts USDC only. | `register-v2/workflow/pricing/lib/checkoutAvailability.test.ts` (the check); the route switch has no test |
+| The page uses the registration card: Name cost, Existing balance and Total, "Continue to payment", "Connect to renew" when disconnected. Its loading rules are registration's: the no-balance layout with a placeholder total until the balance is read, "Loading..." while the wallet is restored. The total also waits for the signer, since the account balance applies only once the route is known. | `renew/workflow/pricing/components/PaymentCard.test.tsx` "takes a Safe{Wallet} to the token picker..." (the button), "holds the total as a placeholder until the signer..." |
+| USDC and ETH sit under the button and ETH counts toward the "Insufficient balance" check on the intent route, V1 included. The wallet route shows and counts USDC only. | `register-v2/workflow/pricing/lib/checkoutAvailability.test.ts` (the check); `renew/workflow/pricing/components/PaymentCard.test.tsx` "accepts ETH for a V1 renewal paid from the smart account" |
 | Tier cards headline the total and read "total", as registration's. | `register-v2/workflow/pricing/components/DurationPresetRow.test.tsx` (the shared row); renewal's `DurationSelector.tsx` has no test |
 
 ## Payment sheet
@@ -55,6 +55,7 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 | The wallet's ETH is swapped into the wallet's USDC, which the usual permit then moves into the account. The swap buys toward the same amount an L2 payment is sized on, so a small fee change at signing stays covered; unspent USDC stays in the wallet. | `renew/service/hcaRenewal.test.ts` "swaps for the USDC first, then funds the account with the usual permit" |
 | The swap is bounded by the ETH shown: registration's swap step refuses one that would send materially more. | `packages/transaction-manager/src/machines/registration/registration.eth.actors.test.ts` "does not send more ETH than checkout showed" |
 | A swap still confirming is saved, so a retry or reload counts it instead of buying again. A failed swap stops before any permit. | `renew/service/hcaRenewal.test.ts` "counts a swap an earlier attempt sent...", "stops before any permit when the swap fails..." |
+| The permit is planned only once a read shows the wallet holding what the swap bought, since the plan's balance read can reach a node behind the swap's receipt. Nothing is swapped with a wallet that doesn't control the owner. | `renew/service/hcaRenewal.test.ts` "plans the permit only once a read shows the wallet holding the USDC it bought", "swaps nothing with a wallet that does not control the owner" |
 | Picking ETH pays a USDC renewal and replaces an L2; picking a coin replaces ETH. | `renew/state/renewalUi.machine.test.ts` "pays a USDC renewal with ETH in place of an L2..." |
 | Bulk renewal swaps once for every batch, sized when it runs on the names still to renew (as the L2 bridge is), so a retry buys only for those. A failed swap renews nothing. | `renew/service/hcaRenewal.test.ts` "fundHcaRenewalsWithEth"; `bulk-renew/hooks/useBulkRenewSubmit.test.ts` "pays a whole selection with ETH through one swap...", "renews nothing when the ETH swap fails" |
 | An amount re-quoted beyond the drift margin stops the renewal (the wallet holds less USDC than the permit needs) rather than asking for a second swap. Going back to the sheet re-quotes, and the next swap buys only what is missing. | No test yet |

@@ -361,7 +361,7 @@ describe('useBulkRenewSubmit (smart account)', () => {
     await act(async () => {
       await result.current.submit({
         ...args,
-        ethPayment: {},
+        ethPayment: { displayedCharge: 10n ** 16n },
       })
     })
 

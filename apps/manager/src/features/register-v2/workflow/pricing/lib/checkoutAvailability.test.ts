@@ -121,6 +121,7 @@ describe('isAccountPending', () => {
     hasInitialized: true,
     walletStatus: 'connected',
     isAccountConnected: true,
+    hasAccountFailed: false,
   } as const
 
   it.each([
@@ -134,6 +135,11 @@ describe('isAccountPending', () => {
       true,
     ],
     ['a connected account', {}, false],
+    [
+      'a smart account that failed to start',
+      { isAccountConnected: false, hasAccountFailed: true },
+      false,
+    ],
     [
       'a disconnected wallet',
       { walletStatus: 'disconnected', isAccountConnected: false },

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   useRenewalSigner: vi.fn(),
   gate: vi.fn(),
   send: vi.fn(),
+  protocol: 'v2' as 'v1' | 'v2',
 }))
 
 vi.mock('@/features/renew/hooks/useRenewalSigner', () => ({
@@ -17,7 +18,7 @@ vi.mock('@/features/renew/state/renewalUi.context', () => ({
   useRenewalUiContext: () => ({
     uiActor: { send: mocks.send },
     label: 'name',
-    protocol: 'v2',
+    protocol: mocks.protocol,
   }),
 }))
 vi.mock('@xstate/react', () => ({ useSelector: () => [31_536_000n, true] }))
@@ -60,17 +61,21 @@ import { PaymentCard } from './PaymentCard'
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
 
-const payButton = () => {
+const renderCard = () =>
   render(
     <I18nProvider i18n={i18n}>
       <PaymentCard />
     </I18nProvider>,
   )
+
+const payButton = () => {
+  renderCard()
   return screen.getByRole('button', { name: /^continue to payment$/i })
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.protocol = 'v2'
 })
 
 describe('renewal PaymentCard (ENSv2)', () => {
@@ -87,5 +92,22 @@ describe('renewal PaymentCard (ENSv2)', () => {
 
     expect(mocks.gate).not.toHaveBeenCalled()
     expect(mocks.send).toHaveBeenCalledWith({ type: 'pricing.step.next' })
+  })
+
+  it('holds the total as a placeholder until the signer, and so the balance it applies, is known', () => {
+    mocks.useRenewalSigner.mockReturnValue(null)
+
+    renderCard()
+
+    expect(screen.getByText('$00.00')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('accepts ETH for a V1 renewal paid from the smart account', () => {
+    mocks.protocol = 'v1'
+    mocks.useRenewalSigner.mockReturnValue({ type: 'rhinestone' })
+
+    renderCard()
+
+    expect(screen.getByAltText('ETH')).toBeVisible()
   })
 })

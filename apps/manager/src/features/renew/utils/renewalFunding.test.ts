@@ -9,6 +9,7 @@ import {
   getRenewalFeeQuoteState,
   getRenewalPaymentScreen,
   getRenewalReceiptTotalRaw,
+  isRenewalReceiptReady,
 } from './renewalFunding'
 
 describe('getRenewalCheckoutTotalRaw', () => {
@@ -39,6 +40,18 @@ describe('getRenewalCheckoutTotalRaw', () => {
       ).toBe(expected)
     },
   )
+})
+
+describe('isRenewalReceiptReady', () => {
+  it.each([
+    ['the intent route with its total', true, 3_800_000n, true],
+    ['the intent route before the balance is read', true, undefined, false],
+    ['the wallet route, which shows no receipt total', false, undefined, true],
+  ] as const)('%s: %s', (_case, isIntentRoute, checkoutTotalRaw, expected) => {
+    expect(isRenewalReceiptReady({ isIntentRoute, checkoutTotalRaw })).toBe(
+      expected,
+    )
+  })
 })
 
 describe('getRenewalReceiptTotalRaw', () => {

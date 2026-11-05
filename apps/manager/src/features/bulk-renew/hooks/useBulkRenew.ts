@@ -16,7 +16,10 @@ import type {
 } from '@/features/register-v2/workflow/pricing/hooks/useL2Payment'
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
-import { getRenewalCheckoutTotalRaw } from '@/features/renew/utils/renewalFunding'
+import {
+  getRenewalCheckoutTotalRaw,
+  isRenewalReceiptReady,
+} from '@/features/renew/utils/renewalFunding'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
 import {
@@ -329,6 +332,12 @@ export const useBulkRenew = ({
     onFallbackSelect: () => onSelectEth('fallback'),
   })
 
+  const checkoutTotalRaw = getRenewalCheckoutTotalRaw({
+    fundedRaw: pricesReady ? authorizedPaymentAmount(sumPriceRaw) : undefined,
+    accountBalanceRaw: accountCreditRaw[selectedToken],
+    decimals: tokenDecimals,
+  })
+
   return {
     minSelectableDate,
     grandTotal,
@@ -342,15 +351,16 @@ export const useBulkRenew = ({
       stablecoinBalances,
       accountCredit,
       fundedTotal,
-      checkoutTotalRaw: getRenewalCheckoutTotalRaw({
-        fundedRaw: pricesReady
-          ? authorizedPaymentAmount(sumPriceRaw)
-          : undefined,
-        accountBalanceRaw: accountCreditRaw[selectedToken],
-        decimals: tokenDecimals,
-      }),
+      checkoutTotalRaw,
       canProceed:
-        isConnected && route !== null && pricesReady && grandTotal > 0,
+        isConnected &&
+        route !== null &&
+        pricesReady &&
+        grandTotal > 0 &&
+        isRenewalReceiptReady({
+          isIntentRoute: route === 'intent',
+          checkoutTotalRaw,
+        }),
       pricesReady,
       intentFunding,
       l2Payment,

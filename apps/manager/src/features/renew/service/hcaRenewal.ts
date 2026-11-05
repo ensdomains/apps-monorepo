@@ -29,7 +29,7 @@ import {
   submitL2BridgeActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.hca.actors'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
-import { err, fromPromise, ok, okAsync, ResultAsync } from 'neverthrow'
+import { err, fromPromise, ok, ResultAsync } from 'neverthrow'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData, erc20Abi, isAddressEqual } from 'viem'
 import {
@@ -637,25 +637,37 @@ const fundingConsent = ({
   return {}
 }
 
-/** Paid with ETH, buys the wallet's USDC for the permit first; otherwise swaps nothing. */
-const swapForEthFunding = ({
-  ethFunding,
-  walletClient,
-  ownerAddress,
-  publicClient,
-  chainId,
-  signal,
-}: SubmitHcaRenewalParams) =>
-  ethFunding
-    ? swapEthForRenewal({
-        ethFunding,
-        walletClient,
-        ownerAddress,
-        publicClient,
-        chainId,
-        ...(signal ? { signal } : {}),
-      })
-    : okAsync(0n)
+/** Pays in before the permit is planned: an L2 bridge, giving the balance planning keeps to, or an ETH swap. */
+const prefundRenewal = ResultFn(async function* (
+  params: SubmitHcaRenewalParams,
+  intent: RenewalIntent,
+  ownerSigner: RhinestoneSigner,
+) {
+  const { l2Funding, ethFunding, ownerAddress, publicClient, chainId } = params
+  if (l2Funding) {
+    const balance = yield* fundRenewalsFromL2({
+      l2Funding,
+      intents: [intent],
+      token: params.token,
+      signer: ownerSigner,
+      ownerAddress,
+      publicClient,
+      chainId,
+    })
+    return ok<bigint | undefined>(balance)
+  }
+  if (ethFunding) {
+    yield* swapEthForRenewal({
+      ethFunding,
+      walletClient: params.walletClient,
+      ownerAddress,
+      publicClient,
+      chainId,
+      ...(params.signal ? { signal: params.signal } : {}),
+    })
+  }
+  return ok<bigint | undefined>(undefined)
+})
 
 /**
  * Renew one or more names as a single owner-signed HCA intent, with the price in
@@ -687,7 +699,6 @@ export async function submitHcaRenewal(
     chainId,
     onTxId,
     onSubmitted,
-    l2Funding,
   } = params
 
   const single = items.length === 1 ? items[0] : undefined
@@ -722,31 +733,16 @@ export async function submitHcaRenewal(
   // legal in the same batch.
   const ownerSigner: RhinestoneSigner = { ...signer, session: undefined }
 
+  const prefunded = await prefundRenewal(
+    params,
+    { tokenAddress, rentTotal, actionCalls, gasLimit },
+    ownerSigner,
+  )
+  if (prefunded.isErr()) return Promise.reject(prefunded.error)
   // What the HCA was read holding once funded from an L2. Funding is planned
   // no lower: another node can still read the balance from before the bridge,
   // and would ask the wallet for USDC the account already holds.
-  const hcaBalanceAtLeast = l2Funding
-    ? // Unwrapped at this promise boundary, like the price read.
-      (
-        await fundRenewalsFromL2({
-          l2Funding,
-          intents: [{ tokenAddress, rentTotal, actionCalls, gasLimit }],
-          token,
-          signer: ownerSigner,
-          ownerAddress,
-          publicClient,
-          chainId,
-        })
-      ).match(
-        (balance) => balance,
-        (error) => {
-          throw error
-        },
-      )
-    : undefined
-
-  const swapped = await swapForEthFunding(params)
-  if (swapped.isErr()) return Promise.reject(swapped.error)
+  const hcaBalanceAtLeast = prefunded.value
 
   const funding = await planHcaIntentFunding({
     signer: ownerSigner,
