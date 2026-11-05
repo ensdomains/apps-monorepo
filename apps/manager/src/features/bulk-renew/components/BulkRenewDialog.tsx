@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { MSymbol } from '@/components/ui/material-symbol'
 import type {
   FundingSourceOrigin,
   PaymentAsset,
@@ -81,6 +82,14 @@ export const BulkRenewDialog = ({
     setFundingSourceChainId(chainId)
     setFundingSourceOrigin(origin ?? 'user')
     setPaymentAsset('stablecoin')
+  }
+  // Going back forgets the pick, so the sheet starts from the fallback again.
+  const goBackToDuration = () => {
+    setSelectedToken('USDC')
+    setFundingSourceChainId(undefined)
+    setFundingSourceOrigin(undefined)
+    setPaymentAsset('stablecoin')
+    setStep('summary')
   }
 
   const [receipt, setReceipt] = useState<{
@@ -231,7 +240,21 @@ export const BulkRenewDialog = ({
     if (step === 'confirm') {
       return (
         <>
-          <DialogHeader>
+          <DialogHeader className="flex-row items-center gap-2">
+            <Button
+              aria-label={t`Back`}
+              className="size-8 text-ens-quartz-500"
+              onClick={goBackToDuration}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <MSymbol
+                aria-hidden="true"
+                className="ms-opsz-24 ms-wght-500"
+                symbol="arrow_back"
+              />
+            </Button>
             <DialogTitle className={dialogTitleClassName}>
               <Trans>Confirm renewal</Trans>
             </DialogTitle>
@@ -240,7 +263,12 @@ export const BulkRenewDialog = ({
           <BulkRenewPaymentStep
             grandTotal={grandTotal}
             header={
-              <BulkNamesHeading count={count} durationLabel={durationLabel} />
+              <BulkNamesHeading
+                count={count}
+                durationLabel={durationLabel}
+                isUntilDate={selection.kind === 'custom'}
+                onChangeDuration={goBackToDuration}
+              />
             }
             onConfirm={handleConfirm}
             onSelectCoin={selectCoin}
@@ -254,11 +282,19 @@ export const BulkRenewDialog = ({
       <>
         <DialogHeader>
           <DialogTitle className={dialogTitleClassName}>
-            <Plural
-              one="Renew # name for"
-              other="Renew # names for"
-              value={count}
-            />{' '}
+            {selection.kind === 'custom' ? (
+              <Plural
+                one="Renew # name until"
+                other="Renew # names until"
+                value={count}
+              />
+            ) : (
+              <Plural
+                one="Renew # name for"
+                other="Renew # names for"
+                value={count}
+              />
+            )}{' '}
             <span className="text-ens-lapis-core">{durationLabel}</span>
           </DialogTitle>
         </DialogHeader>

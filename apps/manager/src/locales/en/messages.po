@@ -106,6 +106,10 @@ msgstr "{count, plural, one {Copying records for # name in your wallet...} other
 msgid "{count, plural, one {Renew # name for} other {Renew # names for}}"
 msgstr "{count, plural, one {Renew # name for} other {Renew # names for}}"
 
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+msgid "{count, plural, one {Renew # name until} other {Renew # names until}}"
+msgstr "{count, plural, one {Renew # name until} other {Renew # names until}}"
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Renew # name} other {Renew # names}}"
 msgstr "{count, plural, one {Renew # name} other {Renew # names}}"
@@ -560,6 +564,7 @@ msgid "Available"
 msgstr "Available"
 
 #: src/components/GlobalBackButton.tsx
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/components/SelectNamesStep.tsx
 #: src/features/migration/pages/MigrationPage.tsx
@@ -1550,6 +1555,10 @@ msgstr "Finishing setup"
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Follow these steps in your wallet. Renewal may need an extra payment approval."
 msgstr "Follow these steps in your wallet. Renewal may need an extra payment approval."
+
+#: src/features/bulk-renew/components/BulkNamesHeading.tsx
+msgid "for {duration}"
+msgstr "for {duration}"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Frequently Asked Questions"
@@ -3784,6 +3793,10 @@ msgstr "unique searches in the last 30 days"
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Unread only"
 msgstr "Unread only"
+
+#: src/features/bulk-renew/components/BulkNamesHeading.tsx
+msgid "until {duration}"
+msgstr "until {duration}"
 
 #: src/features/migration/components/MigrationApprovalSettings.tsx
 msgid "Unwrapped .eth name access"
