@@ -17,7 +17,8 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Next action
 
-- **B2 open as #1729** (2026-11-05): branch `e2e-land/b2-ccip`, worktree `/Users/sg/ens/worktrees/e2e-land-b2`. Lands `offchain-v2.spec.ts` (2 tests, incl. H21 from the `offchain-main` worktree, now also on this branch), the two `seed-offchain-*` scripts and their `package.json` entries, and Anvil account #3 in the address allowlist. Local: 9/9 with the harness (CI env, mocked bigname). After it merges: set B2 `merged: true`, merge main back.
+- **B2 merged** as #1729 (2026-11-05), with a review fix: `createMakeOffchainName` takes `waitForIndexer` (default true) and `seed:offchain-name` turns it off, so the script keeps serving when the local bigname is down. Main merged back (`1306a10d7`); the allowlist conflict resolved to main's copy plus Anvil account #4 (used by the held B11 spec).
+- **Next: B3 (migration rest), 26 files, ~8.5k lines.** 13 `test.fixme`/`test.fail` markers across 7 specs must come out (fixme → later batch; fail → bug text for the user), and most specs lean on the real bigname (those tests move to B11). Plan: run every B3 spec locally under CI's env, then split into PRs under ~5k lines.
 - **B11 (new, held by the user's call 2026-11-05): real-indexer tests.** `offchain-subname-migration.spec.ts` (4 GR15 tests) skips under `E2E_MOCK_BIGNAME=true`, which CI and nightly both set, so it waits for a nightly job that runs the local bigname. That needs the `bigname:e2e-anvil-fork` image published (it is built from the unpushed `e2e/anvil-fork-start` branch in `~/ens/bigname`). Also open: on 2026-11-03 the local real-bigname run hung at the upgrade list for main's `migration-subname` control too; undiagnosed.
 - Once the user files the wrong-chain reset bug: land E3/E4 on main with its ID (as tests that pass once it's fixed, or with the fix).
 
@@ -80,7 +81,7 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 | B1b | Smoke: Manager specs | merged (#1658), ledger synced |
 | B1d | WEB-2110: stale HCA guards rewritten for main | merged (#1680) |
 | B1c | Smoke gaps, written on main (see below) | not started |
-| B2 | CCIP rest: `offchain-v2` + seed scripts. Worktree fold-in checked 2026-11-03: `offchain-ccip`/`offchain-1577` app commits superseded on main; only H21 from `offchain-main` taken | PR open (#1729) |
+| B2 | CCIP rest: `offchain-v2` + seed scripts. Worktree fold-in checked 2026-11-03: `offchain-ccip`/`offchain-1577` app commits superseded on main; only H21 from `offchain-main` taken | merged (#1729) |
 | B11 | Real-indexer tests (`offchain-subname-migration`); wait for a nightly real-bigname job | held |
 | B3 | Migration rest. Fold in `test/migration-scenario-seeder` (23) if the user keeps it | not started |
 | B4 | Transfer, fuses, 4LD rest | not started |

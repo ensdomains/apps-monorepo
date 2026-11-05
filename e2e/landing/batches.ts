@@ -63,7 +63,7 @@ export const batches: Batch[] = [
     pr: 1680,
     merged: true,
   },
-  { id: 'B2', title: 'CCIP / offchain: the rest', pr: 1729 },
+  { id: 'B2', title: 'CCIP / offchain: the rest', pr: 1729, merged: true },
   { id: 'B3', title: 'Migration: the rest' },
   { id: 'B4', title: 'Transfer, fuses, 4LD: the rest' },
   { id: 'B5', title: 'Registration, renewal, roles: the rest' },
