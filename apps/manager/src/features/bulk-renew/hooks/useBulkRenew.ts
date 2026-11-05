@@ -1,7 +1,6 @@
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { addDays, startOfDay } from 'date-fns'
 import { useMemo } from 'react'
-import { formatUnits } from 'viem'
 import { getNameRowProfilePreview } from '@/features/dashboard/components/nameRowProfileRecords'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getBaseRatesQueryOptions } from '@/features/register-v2/data/queries/baseRates.query'
@@ -17,7 +16,6 @@ import type {
 import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
 import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import {
-  getAppliedBalanceRaw,
   getRenewalCheckoutTotalRaw,
   isRenewalReceiptReady,
 } from '@/features/renew/utils/renewalFunding'
@@ -49,6 +47,7 @@ import type {
   Selection,
   SummaryRow,
 } from '../types'
+import { getBulkRenewListFigures } from '../utils/bulkListFigures'
 import {
   durationForName,
   newExpiryDateForName,
@@ -335,18 +334,13 @@ export const useBulkRenew = ({
     accountBalanceRaw: accountCreditRaw[selectedToken],
     decimals: tokenDecimals,
   })
-  const appliedBalanceRaw =
-    route === 'intent'
-      ? getAppliedBalanceRaw({
-          fundedRaw: pricesReady ? sumPriceRaw : undefined,
-          checkoutTotalRaw,
-          decimals: tokenDecimals,
-        })
-      : 0n
-  const listTotal =
-    appliedBalanceRaw > 0n && checkoutTotalRaw !== undefined
-      ? Number(formatUnits(checkoutTotalRaw, USDC.decimals))
-      : grandTotal
+  const listFigures = getBulkRenewListFigures({
+    isIntentRoute: route === 'intent',
+    fundedRaw: pricesReady ? sumPriceRaw : undefined,
+    checkoutTotalRaw,
+    decimals: tokenDecimals,
+    grandTotal,
+  })
 
   return {
     minSelectableDate,
@@ -362,8 +356,7 @@ export const useBulkRenew = ({
       accountCredit,
       fundedTotal,
       checkoutTotalRaw,
-      appliedBalance: Number(formatUnits(appliedBalanceRaw, USDC.decimals)),
-      listTotal,
+      ...listFigures,
       canProceed:
         isConnected &&
         route !== null &&

@@ -309,26 +309,3 @@ export const isRenewalReceiptReady = ({
   readonly isIntentRoute: boolean
   readonly checkoutTotalRaw: bigint | undefined
 }): boolean => !isIntentRoute || checkoutTotalRaw !== undefined
-
-const HALF_CENT_RAW = 5_000n
-
-/** What the account's balance takes off a selection's total, in the receipt's USDC units; zero under half a cent, which never shows. */
-export const getAppliedBalanceRaw = ({
-  fundedRaw,
-  checkoutTotalRaw,
-  decimals,
-}: {
-  readonly fundedRaw: bigint | undefined
-  readonly checkoutTotalRaw: bigint | undefined
-  /** The price's coin. */
-  readonly decimals: number
-}): bigint => {
-  const grossRaw = getRenewalCheckoutTotalRaw({
-    fundedRaw,
-    accountBalanceRaw: 0n,
-    decimals,
-  })
-  if (grossRaw === undefined || checkoutTotalRaw === undefined) return 0n
-  const appliedRaw = grossRaw - checkoutTotalRaw
-  return appliedRaw >= HALF_CENT_RAW ? appliedRaw : 0n
-}
