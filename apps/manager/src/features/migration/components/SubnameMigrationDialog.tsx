@@ -42,6 +42,42 @@ const ParentCounts = ({
   </div>
 )
 
+/** Unknown-label subnames the upgrade drops. */
+const UnrecoverableList = ({
+  names,
+  isExplained,
+}: {
+  readonly names: readonly string[]
+  readonly isExplained: boolean
+}) => (
+  <div className="mt-4 shrink-0 rounded-xl border border-ens-garnet-900/10 bg-white/60 p-4">
+    <p className="mb-3 font-medium text-ens-garnet-900/65 text-xs uppercase tracking-wider">
+      <Plural
+        one="# subname won't be upgraded"
+        other="# subnames won't be upgraded"
+        value={names.length}
+      />
+    </p>
+    {!isExplained && (
+      <p className="mb-3 text-ens-garnet-900/75 text-sm leading-relaxed">
+        <Trans>
+          We can&apos;t read their full names, because only a hashed form was
+          ever saved onchain. They stop working once their parent is upgraded
+          and can&apos;t be upgraded later. Every other subname is upgraded with
+          it.
+        </Trans>
+      </p>
+    )}
+    <ul className="space-y-3">
+      {names.map((name) => (
+        <li className="break-all font-medium text-sm" key={name}>
+          {name}
+        </li>
+      ))}
+    </ul>
+  </div>
+)
+
 const ImpactSummary = ({
   state,
   isLoading,
@@ -100,6 +136,8 @@ export const SubnameMigrationDialog = ({
   state,
   includedParents,
   isChecking,
+  hasAcknowledgedImpact,
+  onAcknowledgeImpact,
   onCancel,
   onContinue,
   onRestoreFocus,
@@ -122,7 +160,10 @@ export const SubnameMigrationDialog = ({
   const affectedCount = state.impact?.affectedCount ?? 0
   const hasImpact = affectedCount > 0
   const hasIncluded = includedParents.length > 0
-  const isExplaining = hasIncluded && !isLoading && !isError && !hasImpact
+  const isReviewing = !isLoading && !isError && !hasImpact
+  const isExplaining = hasIncluded && isReviewing
+  const unrecoverable = state.impact?.unrecoverable ?? []
+  const hasUnrecoverable = unrecoverable.length > 0
 
   return (
     <Dialog
@@ -146,7 +187,13 @@ export const SubnameMigrationDialog = ({
           <CircleAlert aria-hidden="true" className="size-5" />
         </div>
         <DialogTitle className="text-balance font-normal text-2xl leading-tight tracking-tight sm:text-3xl">
-          {match({ isError, isLoading, hasImpact, hasIncluded })
+          {match({
+            isError,
+            isLoading,
+            hasImpact,
+            hasIncluded,
+            hasUnrecoverable,
+          })
             .with({ isError: true }, () => (
               <Trans>We couldn&apos;t check your subnames</Trans>
             ))
@@ -159,12 +206,21 @@ export const SubnameMigrationDialog = ({
             .with({ hasIncluded: true }, () => (
               <Trans>What happens to your subnames</Trans>
             ))
+            .with({ hasUnrecoverable: true }, () => (
+              <Trans>Some subnames will be left behind</Trans>
+            ))
             .otherwise(() => (
               <Trans>Your subnames are unaffected</Trans>
             ))}
         </DialogTitle>
         <DialogDescription className="mt-3 shrink-0 text-pretty text-base text-ens-garnet-900/75 leading-relaxed">
-          {match({ isError, isLoading, hasImpact, hasIncluded })
+          {match({
+            isError,
+            isLoading,
+            hasImpact,
+            hasIncluded,
+            hasUnrecoverable,
+          })
             .with({ isError: true }, () => (
               <Trans>
                 The impact is unknown. Try again or contact{' '}
@@ -195,6 +251,15 @@ export const SubnameMigrationDialog = ({
                 These names have subnames that upgrade with them. For each name:
               </Trans>
             ))
+            .with({ hasUnrecoverable: true }, () => (
+              <Trans>
+                We can&apos;t read the full names of these subnames, because
+                only a hashed form was ever saved onchain. Without the name we
+                can&apos;t recreate them on ENSv2, so they stop working once
+                their parent is upgraded and can&apos;t be upgraded later. Every
+                other subname is upgraded with it.
+              </Trans>
+            ))
             .otherwise(() => (
               <Trans>
                 The latest check found no affected subnames. You can continue
@@ -214,6 +279,28 @@ export const SubnameMigrationDialog = ({
               }))}
             />
           </div>
+        )}
+        {hasUnrecoverable && isReviewing && (
+          <>
+            <UnrecoverableList
+              isExplained={!hasIncluded}
+              names={unrecoverable}
+            />
+            <label className="mt-4 flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+              <input
+                checked={hasAcknowledgedImpact}
+                className="size-4 shrink-0 accent-ens-garnet-900"
+                onChange={(event) => onAcknowledgeImpact(event.target.checked)}
+                type="checkbox"
+              />
+              <span>
+                <Trans>
+                  I understand these subnames will stop working after the
+                  upgrade.
+                </Trans>
+              </span>
+            </label>
+          </>
         )}
         {hasImpact && !isLoading && (
           <a
@@ -238,7 +325,8 @@ export const SubnameMigrationDialog = ({
               isLoading ||
               state.status !== 'ready' ||
               !state.canReview ||
-              hasImpact
+              hasImpact ||
+              (hasUnrecoverable && !hasAcknowledgedImpact)
             }
             onClick={onContinue}
             type="button"

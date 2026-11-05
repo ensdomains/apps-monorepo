@@ -3,6 +3,7 @@ import { DomainAttributePill } from '@/components/molecules/DomainResultCard/Dom
 import { getByteLength, getDomainHeaderSizeClasses } from '@/utils/domain'
 import { twm } from '@/utils/tailwind'
 import { getPremiumLabel } from '../lib/premiumLabel'
+import { EthNameText } from './EthNameText'
 
 export const PricingDomainHeader = ({ label }: { label: string }) => {
   const { _ } = useLingui()
@@ -26,7 +27,7 @@ export const PricingDomainHeader = ({ label }: { label: string }) => {
         )}
         title={name}
       >
-        {name}
+        <EthNameText label={label} />
       </h1>
     </div>
   )

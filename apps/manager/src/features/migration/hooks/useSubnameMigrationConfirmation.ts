@@ -22,6 +22,13 @@ export const useSubnameMigrationConfirmation = ({
 }) => {
   const [action, setAction] = useState<Action | null>(null)
   const [isChecking, setIsChecking] = useState(false)
+  // Tied to the fingerprint, so a changed impact needs a fresh acknowledgement.
+  const [acknowledgedFingerprint, setAcknowledgedFingerprint] = useState<
+    string | null
+  >(null)
+  const hasAcknowledgedImpact =
+    impact.impact !== undefined &&
+    acknowledgedFingerprint === impact.impact.fingerprint
   const requestRevision = useRef(0)
   const isBusy = useRef(false)
   const invokingElement = useRef<HTMLElement | null>(null)
@@ -61,6 +68,7 @@ export const useSubnameMigrationConfirmation = ({
         action: requestedAction,
         isReady: impact.status === 'ready',
         affectedCount: impact.impact?.affectedCount,
+        unrecoverableCount: impact.impact?.unrecoverable.length,
         hasIncludedSubnames,
       })
     ) {
@@ -88,7 +96,8 @@ export const useSubnameMigrationConfirmation = ({
       impact.status !== 'ready' ||
       !impact.canReview ||
       !impact.impact ||
-      impact.impact.affectedCount > 0
+      impact.impact.affectedCount > 0 ||
+      (impact.impact.unrecoverable.length > 0 && !hasAcknowledgedImpact)
     )
       return
     const revision = requestRevision.current
@@ -109,8 +118,11 @@ export const useSubnameMigrationConfirmation = ({
   return {
     isOpen: action !== null,
     isChecking,
-    hasAcknowledgedImpact: false,
-    acknowledgeImpact: (_isAcknowledged: boolean) => {},
+    hasAcknowledgedImpact,
+    acknowledgeImpact: (isAcknowledged: boolean) =>
+      setAcknowledgedFingerprint(
+        isAcknowledged ? (impact.impact?.fingerprint ?? null) : null,
+      ),
     request,
     confirm,
     cancel,

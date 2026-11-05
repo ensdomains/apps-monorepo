@@ -1,5 +1,6 @@
 import type { HcaSessionEnablePayload } from '@ens-apps/smart-account'
 import {
+  type EthFunding,
   type L2FundingSource,
   type PersistedRegistrationRecord,
   type RegistrationEvent,
@@ -31,6 +32,7 @@ import {
 import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
@@ -41,11 +43,14 @@ import {
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
 import { getL2FundingSource } from '../service/l2FundingSource'
+import { readPendingEthSwap } from '../service/pendingEthSwap'
 import { readPendingL2Bridge } from '../service/pendingL2Bridge'
 import {
   getRegistrationFailureMessage,
+  getRegistrationFailureReason,
   isNameNotAvailableError,
   isNameTakenByOther,
+  type RegistrationFailureReason,
 } from '../service/registrationFailure'
 import {
   acquireRegistrationLock,
@@ -105,13 +110,20 @@ export type RegistrationConfirmedData = {
 
 export type FundingSourceOrigin = 'user' | 'fallback'
 
+/**
+ * What the wallet pays with. Either way the registration is paid in USDC:
+ * `eth` swaps the wallet's ETH into it first.
+ */
+export type PaymentAsset = 'stablecoin' | 'eth'
+
 type Context = {
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
+  paymentAsset: PaymentAsset
   /** The L2 row picked to pay from; the registration still pays in `selectedToken`. */
   fundingSourceChainId?: number
-  /** A fallback pick gives way to the wallet once the wallet can pay again. */
+  /** Who picked the method being paid with: a wallet coin, an L2 or ETH. Only the app's own pick ever gives way. */
   fundingSourceOrigin?: FundingSourceOrigin
   lastErrorMessage?: string
   approvalOutcome: ApprovalOutcome
@@ -128,6 +140,7 @@ type Context = {
    * finishes in between, and the refusal still happened.
    */
   isWalletBusy: boolean
+  failureReason?: RegistrationFailureReason
   /**
    * Set while the failure screen shows a run that failed before this page
    * loaded: the stored write it was restored from. Its child machine never
@@ -165,10 +178,19 @@ type Events =
   | { type: 'pricing.step.previous' }
   | { type: 'pricing.dialog.dismiss' }
   | { type: 'pricing.duration.set'; duration: number }
-  | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+  | {
+      type: 'pricing.token.select'
+      token: SUPPORTED_TOKEN | undefined
+      origin?: FundingSourceOrigin
+    }
   | {
       type: 'pricing.fundingSource.select'
       chainId: number
+      origin?: FundingSourceOrigin
+    }
+  | {
+      type: 'pricing.paymentAsset.select'
+      asset: PaymentAsset
       origin?: FundingSourceOrigin
     }
   | {
@@ -191,13 +213,15 @@ type Events =
        * Standalone-HCA: the USDC (6dp) wallet debit the confirm screen showed.
        * Passed straight to the registration machine, which refuses to request a
        * funding-permit signature for materially more than this. Absent when the
-       * budget quote failed and only the rent was displayed.
+       * budget quote failed and only the price was displayed.
        */
       displayedWalletDebit?: bigint
       /** Standalone-HCA: the L2 whose USDC pays, instead of the wallet's here. */
       l2FundingChainId?: number
       /** What checkout showed that L2 being charged, fee included. */
       displayedL2Charge?: bigint
+      /** Standalone-HCA: the wallet's ETH pays, swapped into USDC first. */
+      ethFunding?: EthFunding
     }
   | {
       /**
@@ -227,6 +251,7 @@ type Events =
       confirmedData: RegistrationConfirmedData
       /** The stored write the run was restored from. */
       run: StoredRegistrationKey
+      failureReason?: RegistrationFailureReason
     }
   | {
       /**
@@ -243,6 +268,7 @@ type Events =
       type: 'transaction.failed'
       message?: string
       nameUnavailable?: boolean
+      failureReason?: RegistrationFailureReason
       approvalOutcome?: ApprovalOutcome
       hasCommitment?: boolean
     }
@@ -408,7 +434,28 @@ const machineSetup = setup({
         event.type === 'pricing.token.select'
           ? event.token
           : context.selectedToken,
+      paymentAsset: () => 'stablecoin' as const,
+      fundingSourceOrigin: ({ event }) =>
+        event.type === 'pricing.token.select'
+          ? (event.origin ?? 'user')
+          : undefined,
     }),
+    setPaymentAsset: assign(({ event, context }) =>
+      event.type === 'pricing.paymentAsset.select'
+        ? {
+            paymentAsset: event.asset,
+            // ETH is swapped into USDC, which is what the registration pays.
+            selectedToken:
+              event.asset === 'eth' ? ('USDC' as const) : context.selectedToken,
+            fundingSourceChainId:
+              event.asset === 'eth' ? undefined : context.fundingSourceChainId,
+            fundingSourceOrigin:
+              event.asset === 'eth'
+                ? (event.origin ?? ('user' as const))
+                : context.fundingSourceOrigin,
+          }
+        : {},
+    ),
     restorePricing: assign(({ event }) => {
       if (event.type !== 'registration.resume') return {}
       return {
@@ -418,6 +465,9 @@ const machineSetup = setup({
         postRegistrationSetup: event.postRegistrationSetup,
         hcaPrimaryName: event.record.context.primaryName,
         fundingSourceChainId: event.record.context.l2FundingChainId,
+        paymentAsset: event.record.context.ethFunding
+          ? ('eth' as const)
+          : ('stablecoin' as const),
       }
     }),
     setFundingSource: assign({
@@ -431,6 +481,7 @@ const machineSetup = setup({
           : undefined,
       // Every row ends up paying the registration in wallet USDC.
       selectedToken: () => 'USDC' as const,
+      paymentAsset: () => 'stablecoin' as const,
     }),
     clearFundingSource: assign({
       fundingSourceChainId: () => undefined,
@@ -441,6 +492,7 @@ const machineSetup = setup({
       approvalOutcome: () => 'none' as const,
       nameUnavailable: () => false,
       isWalletBusy: () => false,
+      failureReason: () => undefined,
     }),
     clearMaxProgress: assign({
       maxProgressReached: () => undefined,
@@ -464,6 +516,8 @@ const machineSetup = setup({
             ({ nameUnavailable }) => nameUnavailable === true,
           )
           .otherwise(() => false),
+      failureReason: ({ event }) =>
+        event.type === 'transaction.failed' ? event.failureReason : undefined,
       // A real failure replaces a refusal: something did run this time.
       isWalletBusy: () => false,
     }),
@@ -490,6 +544,7 @@ const machineSetup = setup({
           .otherwise(() => undefined),
       isWalletBusy: () => true,
       nameUnavailable: () => false,
+      failureReason: () => undefined,
     }),
     setRegistrationLockError: assign({
       lastErrorMessage: ({ context }) =>
@@ -521,7 +576,11 @@ const machineSetup = setup({
     },
     restoreFailure: assign(({ event, context }) =>
       event.type === 'registration.failure.restore'
-        ? { confirmedData: event.confirmedData, restoredRun: event.run }
+        ? {
+            confirmedData: event.confirmedData,
+            restoredRun: event.run,
+            failureReason: event.failureReason,
+          }
         : context,
     ),
     clearRegistrationData: assign({
@@ -693,6 +752,31 @@ const getStartL2Funding = (
   )
 }
 
+/**
+ * What funds a start other than the permit: an L2, or the wallet's ETH. Both
+ * are intents into the HCA, so a run without one refuses the start rather
+ * than paying some other way.
+ */
+const getStartFunding = (
+  event: Pick<
+    Extract<Events, { type: 'registration.start' }>,
+    'l2FundingChainId' | 'ethFunding'
+  >,
+  owner: Address,
+  isHcaRegistration: boolean,
+): { l2Funding?: L2FundingSource; ethFunding?: EthFunding } | Error => {
+  const l2Funding = getStartL2Funding(
+    event.l2FundingChainId,
+    owner,
+    isHcaRegistration,
+  )
+  if (l2Funding instanceof Error) return l2Funding
+  if (event.ethFunding && !isHcaRegistration) {
+    return new Error('Cannot register: paying with ETH needs an ENS account.')
+  }
+  return { l2Funding, ethFunding: event.ethFunding }
+}
+
 const startRegistrationAction = machineSetup.createAction(
   enqueueActions(({ enqueue, context, event }) => {
     if (event.type !== 'registration.start') {
@@ -745,13 +829,9 @@ const startRegistrationAction = machineSetup.createAction(
       })
     }
 
-    const l2Funding = getStartL2Funding(
-      event.l2FundingChainId,
-      ownerAddress,
-      isHcaRegistration,
-    )
-    if (l2Funding instanceof Error) {
-      return enqueue.raise({ type: '$error', error: l2Funding })
+    const funding = getStartFunding(event, ownerAddress, isHcaRegistration)
+    if (funding instanceof Error) {
+      return enqueue.raise({ type: '$error', error: funding })
     }
 
     // The HCA reveal batch sets the ETH addr record itself and, when opted
@@ -762,7 +842,7 @@ const startRegistrationAction = machineSetup.createAction(
         ? asEthName(event.label)
         : undefined
 
-    const referrer = normalizeReferrer(event.referrer)
+    const referrer = normalizeReferrer(event.referrer, ENS_LABS_REFERRER)
 
     enqueue.assign({
       confirmedData: {
@@ -836,8 +916,11 @@ const startRegistrationAction = machineSetup.createAction(
         primaryName: bundlePrimaryName,
         // Consent bound on the funding permit: what the confirm screen showed.
         displayedWalletDebit: event.displayedWalletDebit,
-        l2Funding,
+        l2Funding: funding.l2Funding,
         displayedL2Charge: event.displayedL2Charge,
+        ethFunding: funding.ethFunding,
+        // A cancelled run's swap may still land: count it, don't buy twice.
+        pendingEthSwap: readPendingEthSwap(context.chainId, ownerAddress),
         // A cancelled run's bridge may still arrive: wait for it, don't pay twice.
         unsettledL2Bridge: readPendingL2Bridge(
           context.chainId,
@@ -1020,6 +1103,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             nameUnavailable:
               snapshot.context.nameUnavailable === true ||
               isNameNotAvailableError(snapshot.context.error),
+            failureReason: getRegistrationFailureReason(snapshot.context.error),
           })),
         ],
       },
@@ -1055,6 +1139,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     chainId: input.chainId,
     duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,
+    paymentAsset: 'stablecoin',
     lastErrorMessage: undefined,
     approvalOutcome: 'none',
     nameUnavailable: false,
@@ -1105,6 +1190,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             'pricing.duration.set': {
               actions: 'setDuration',
             },
+            // Checkout's payment buttons pick the asset before the sheet opens.
+            'pricing.paymentAsset.select': {
+              actions: 'setPaymentAsset',
+            },
             'pricing.step.next': {
               guard: 'isDurationValid',
               target: 'tokens',
@@ -1118,10 +1207,14 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               actions: 'clearError',
             },
             'pricing.token.select': {
-              actions: ['setToken', 'clearFundingSource', 'clearError'],
+              // Cleared first: the coin's own origin replaces the L2's.
+              actions: ['clearFundingSource', 'setToken', 'clearError'],
             },
             'pricing.fundingSource.select': {
               actions: 'setFundingSource',
+            },
+            'pricing.paymentAsset.select': {
+              actions: ['setPaymentAsset', 'clearError'],
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
