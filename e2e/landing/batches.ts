@@ -327,8 +327,7 @@ export const rules: Rule[] = [
       'e2e/projects/manager/tests/record-preservation-*.spec.ts',
       'e2e/projects/manager/playwright.record-{audit,grace}.config.ts',
       'e2e/projects/cross-app/tests/{migration-resolver,v1-4ld-time}.spec.ts',
-      'e2e/projects/metadata/tests/migration-observability.spec.ts',
-      'e2e/scripts/{seed-grace-v1-name,seed-v1-records,audit-records-readonly,check-g21-migration,seed-g21-abi,serve-g21-inventory,seed-g35-etc,serve-g35-inventory,seed-g02-delete,seed-g05-roles}.ts',
+      'e2e/scripts/{seed-grace-v1-name,seed-v1-records,audit-records-readonly,check-g21-migration,seed-g21-abi,serve-g21-inventory,serve-g35-inventory,seed-g02-delete,seed-g05-roles}.ts',
       'e2e/docs/migration-recreation-1494-test-plan.md',
       'e2e/docs/manual-{subname-migration,g02-delete,g05-v1-roles}.md',
     ],
@@ -391,6 +390,8 @@ export const rules: Rule[] = [
       'e2e/scripts/{run-migration-matrix,run-prepared-matrix,run-replacement,check-replacement-coverage}.mjs',
       'e2e/scripts/{assert-matrix-evidence,verify-matrix-inventory}.mts',
       'e2e/scripts/fund-replacement.ts',
+      // Imports the parity project's profile-records helper.
+      'e2e/scripts/seed-g35-etc.ts',
       'apps/manager/vite.approval.config.ts',
     ],
   },
