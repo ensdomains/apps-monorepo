@@ -4,6 +4,7 @@ import type {
   NameRelation,
   NameSummary,
 } from '@ens-apps/indexer/reads'
+import { match, P } from 'ts-pattern'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { toValidDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
@@ -128,6 +129,27 @@ export const getEarlierParentExpiry = ({
     ? parentExpiryDate
     : null
 
+/** The expiry that stops a name resolving first; `parent` has none of its own, its parent's null when unread. */
+export type ResolvingExpiry =
+  | { readonly type: 'own'; readonly date: Date }
+  | { readonly type: 'parentFirst'; readonly date: Date }
+  | { readonly type: 'parent'; readonly date: Date | null }
+  | { readonly type: 'none'; readonly date: null }
+
+export const getResolvingExpiry = (row: ShownExpiryInput): ResolvingExpiry =>
+  match<ShownExpiryInput, ResolvingExpiry>(row)
+    .with({ expiryDate: P.instanceOf(Date) }, ({ expiryDate }) => {
+      const parentExpiryDate = getEarlierParentExpiry(row)
+      return parentExpiryDate
+        ? { type: 'parentFirst', date: parentExpiryDate }
+        : { type: 'own', date: expiryDate }
+    })
+    .with({ parentExpiryDate: P.not(undefined) }, ({ parentExpiryDate }) => ({
+      type: 'parent',
+      date: parentExpiryDate,
+    }))
+    .otherwise(() => ({ type: 'none', date: null }))
+
 /** Whether the shown expiry falls in the range; a row with none never does. */
 export const isShownExpiryInRange = (
   row: ShownExpiryInput,
@@ -140,18 +162,24 @@ export const isShownExpiryInRange = (
   return true
 }
 
-/** Soonest shown expiry first; rows with none go last. */
-export const byShownExpiry = (
-  a: ShownExpiryInput,
-  b: ShownExpiryInput,
-): number => {
-  const aExpiry = getShownExpiry(a)
-  const bExpiry = getShownExpiry(b)
+const bySoonest = (aExpiry: Date | null, bExpiry: Date | null): number => {
   if (!aExpiry && !bExpiry) return 0
   if (!aExpiry) return 1
   if (!bExpiry) return -1
   return aExpiry.getTime() - bExpiry.getTime()
 }
+
+/** Soonest shown expiry first; rows with none go last. */
+export const byShownExpiry = (
+  a: ShownExpiryInput,
+  b: ShownExpiryInput,
+): number => bySoonest(getShownExpiry(a), getShownExpiry(b))
+
+/** Soonest to stop resolving first; rows that never do, or whose date is unread, go last. */
+export const byResolvingExpiry = (
+  a: ShownExpiryInput,
+  b: ShownExpiryInput,
+): number => bySoonest(getResolvingExpiry(a).date, getResolvingExpiry(b).date)
 
 /** One row per name, a current relation winning over a lapsed one, soonest expiry first. */
 export const mergeAddressNames = (

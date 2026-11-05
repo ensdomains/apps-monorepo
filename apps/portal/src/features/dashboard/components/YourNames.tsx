@@ -13,16 +13,27 @@ import { MS_PER_SECOND } from '@/features/renew/utils/nameExtension'
 import { cn } from '@/lib/utils'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { truncateName } from '@/utils/formatting/truncateName'
+import {
+  type AddressNameItem,
+  byResolvingExpiry,
+  getResolvingExpiry,
+} from '@/utils/names/addressNames'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 
 const INITIAL_COUNT = 4
 const WARNING_DAYS = 30
 
-const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
-  const plainDate = expiryDate
+const soonestToStop = (names: readonly AddressNameItem[]) =>
+  names.toSorted(byResolvingExpiry)
+
+const Expiry = (
+  row: Pick<AddressNameItem, 'expiryDate' | 'parentExpiryDate'>,
+) => {
+  const resolving = getResolvingExpiry(row)
+  const plainDate = resolving.date
     ? unixSecondsToPlainDateUtc(
-        Math.floor(expiryDate.getTime() / MS_PER_SECOND),
+        Math.floor(resolving.date.getTime() / MS_PER_SECOND),
       )
     : undefined
   // `plainDate` is the UTC expiry day, so compare it against the UTC today.
@@ -31,29 +42,48 @@ const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
     ? formatExpiryDuration(plainDate, today)
     : undefined
   const isWarning = !!plainDate && today.until(plainDate).days <= WARNING_DAYS
+  const isWithParent = !!plainDate && resolving.type !== 'own'
 
   return (
-    <span
-      className={cn(
-        'shrink-0 whitespace-nowrap text-entity-name font-normal',
-        isWarning
-          ? 'inline-flex h-6.25 items-center gap-1 rounded-xs bg-message-warning-fill px-2 text-message-warning-text'
-          : 'text-neutral-7',
+    <div className="flex shrink-0 flex-col items-start gap-0.5 sm:items-end">
+      <span
+        className={cn(
+          'shrink-0 whitespace-nowrap text-entity-name font-normal',
+          isWarning
+            ? 'inline-flex h-6.25 items-center gap-1 rounded-xs bg-message-warning-fill px-2 text-message-warning-text'
+            : 'text-neutral-7',
+        )}
+      >
+        {isWarning && <TriangleAlert className="size-3.25" aria-hidden />}
+        {match({ type: resolving.type, duration })
+          .with(
+            { type: 'parent', duration: undefined },
+            () => 'Expires with parent',
+          )
+          .with({ duration: undefined }, () => 'Does not expire')
+          .with(
+            { type: 'parentFirst', duration: 'Expired' },
+            () => 'Stopped resolving',
+          )
+          .with({ type: 'parentFirst' }, () => `Stops resolving in ${duration}`)
+          .with({ duration: 'Expired' }, () => 'Expired')
+          .otherwise(() => `Expires in ${duration}`)}
+      </span>
+      {isWithParent && (
+        <span className="text-small text-neutral-7">With its parent</span>
       )}
-    >
-      {isWarning && <TriangleAlert className="size-3.25" aria-hidden />}
-      {match(duration)
-        .with(undefined, () => 'Does not expire')
-        .with('Expired', (expired) => expired)
-        .otherwise((left) => `Expires in ${left}`)}
-    </span>
+    </div>
   )
 }
 
 export const YourNames = ({ address }: { readonly address: Address }) => {
   // Every name the wallet holds a relation to, granted subnames included,
-  // soonest expiry first. bigname serves the whole list, so it pages locally.
-  const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
+  // soonest to stop resolving first. bigname serves the whole list, so it
+  // pages locally.
+  const namesQuery = useQuery({
+    ...getAddressNamesQueryOptions({ address }),
+    select: soonestToStop,
+  })
   const names = namesQuery.data ?? []
 
   const loader = useListLoader({
@@ -83,7 +113,7 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
       {names.length > 0 && (
         <div>
           <ul>
-            {names.slice(0, loader.shown).map(({ name, expiryDate }) =>
+            {names.slice(0, loader.shown).map(({ name, ...row }) =>
               name ? (
                 <li
                   key={name}
@@ -92,7 +122,7 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
                   <EntityBadge variant="name" name={name} showAvatar compact>
                     <span title={name}>{truncateName(name)}</span>
                   </EntityBadge>
-                  <Expiry expiryDate={expiryDate} />
+                  <Expiry {...row} />
                 </li>
               ) : null,
             )}
