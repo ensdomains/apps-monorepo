@@ -4,6 +4,7 @@ import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet'
 import { type Address, encodeFunctionData, type PublicClient } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { ensChain } from '@/lib/wagmi'
 import { getLabel } from '@/utils/token/getLabel'
 import { isCanonicalName } from '@/utils/token/isNormalized'
@@ -56,7 +57,7 @@ export function buildRenewIntent(params: RenewParams): CustomTransactionIntent {
       name: `${getLabel(params.name)}.eth`,
       duration: BigInt(params.duration),
       paymentToken: params.tokenAddress,
-      referrer: normalizeReferrer(params.referrer),
+      referrer: normalizeReferrer(params.referrer, ENS_LABS_REFERRER),
       contract: params.isV2 ? 'ensEthRegistrar' : 'ensEthRenewerV1',
     },
   )
@@ -87,7 +88,7 @@ export function buildRenewBatchIntent(
     return {
       label: getLabel(selectedName.name),
       duration: BigInt(duration),
-      referrer: normalizeReferrer(params.referrer),
+      referrer: normalizeReferrer(params.referrer, ENS_LABS_REFERRER),
     }
   })
 

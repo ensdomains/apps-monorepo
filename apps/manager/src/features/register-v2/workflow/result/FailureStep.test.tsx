@@ -71,6 +71,30 @@ describe('FailureStepView', () => {
     expect(onFindAnotherName).toHaveBeenCalledOnce()
   })
 
+  it('explains an emptied smart account and sends the user back to the quote', () => {
+    const onCancel = vi.fn()
+    renderView({
+      onCancel,
+      message:
+        'Failed to submit transaction: No viable route found for this intent. (statusCode=422 context={"failureCodes":["INSUFFICIENT_BALANCE"]})',
+      failureReason: 'insufficientFunds',
+    })
+
+    expect(screen.getByText('Not Enough Funds to Finish')).toBeVisible()
+    expect(
+      screen.getByText(
+        /no longer has enough funds to finish registering name-two\.eth/,
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText(/No viable route/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Try Again' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Quote' }))
+    expect(onCancel).toHaveBeenCalledOnce()
+  })
+
   it('still reports a real failure as one', () => {
     renderView()
 
