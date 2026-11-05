@@ -3,6 +3,8 @@ import { IconRenderer } from '@/features/profile/components/IconRenderer'
 import { getRecordDef } from '@/features/profile/data/records'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
+import { LockedRecordsNotice } from '../../LockedRecordsNotice'
+import { useIsRecordTypeLocked } from '../../LockedRecordTypes.context'
 import { FieldPickerPill } from '../../shared/FieldPickerPill'
 import { ContactMethodRow } from './ContactMethodRow'
 import {
@@ -48,6 +50,8 @@ export const ContactTab = ({
   values,
 }: ContactTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
+  const isTextLocked = useIsRecordTypeLocked('text')
+  const isDisabled = isSaving || isTextLocked
   const [disabledDefaultMethodKeys, setDisabledDefaultMethodKeys] = useState<
     ReadonlySet<ContactMethodKey>
   >(() => new Set())
@@ -146,6 +150,7 @@ export const ContactTab = ({
 
   return (
     <div className="flex flex-col gap-8 pb-4">
+      <LockedRecordsNotice type="text" />
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <h3 className="font-bold font-sans text-[#525252] text-[16px] leading-[0.96] tracking-[-0.32px]">
@@ -165,7 +170,7 @@ export const ContactTab = ({
             return (
               <FieldPickerPill
                 active={active}
-                disabled={isSaving}
+                disabled={isDisabled}
                 icon={
                   <IconRenderer
                     className="size-3 shrink-0 text-current"
@@ -191,7 +196,7 @@ export const ContactTab = ({
 
               return (
                 <ContactMethodRow
-                  disabled={isSaving}
+                  disabled={isDisabled}
                   errorMessage={getContactMethodErrorMessage({
                     isPrimary: false,
                     method,
@@ -237,7 +242,7 @@ export const ContactTab = ({
             return (
               <FieldPickerPill
                 active={active}
-                disabled={isSaving}
+                disabled={isDisabled}
                 icon={
                   <IconRenderer
                     className="size-3 shrink-0 text-current"
@@ -264,7 +269,7 @@ export const ContactTab = ({
 
               return (
                 <ContactMethodRow
-                  disabled={isSaving}
+                  disabled={isDisabled}
                   errorMessage={getContactMethodErrorMessage({
                     isPrimary: primary,
                     method,

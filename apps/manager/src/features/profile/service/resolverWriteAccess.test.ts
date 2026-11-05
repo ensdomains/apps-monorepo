@@ -46,10 +46,29 @@ vi.mock('./profileEthAddress', async () => {
   }
 })
 
-const { getResolverWriteState } = await import('./resolverWriteAccess')
+const { getProfileRecordAccess, getResolverWriteState } = await import(
+  './resolverWriteAccess'
+)
+
+const ALL_EDITABLE = {
+  text: true,
+  address: true,
+  contentHash: true,
+  abi: true,
+}
 
 const supportsNameSetters = (supported: boolean) =>
   client.multicall.mockResolvedValue([{ status: 'success', result: supported }])
+
+const revertSetter = (signature: string) =>
+  client.call.mockImplementation(async ({ data }: { data: string }) => {
+    if (data.startsWith(toFunctionSelector(signature)))
+      throw new ContractFunctionExecutionError(new ExecutionRevertedError(), {
+        abi: [],
+        functionName: signature,
+      })
+    return { data: '0x' }
+  })
 
 const probedSelector = () => {
   const call = client.call.mock.calls[0]
@@ -178,6 +197,65 @@ describe('getResolverWriteState', () => {
       )
     },
   )
+
+  // A resolver can lock the address record while the owner keeps text roles.
+  it.each([
+    { access: 'eth-address', canWrite: false },
+    { access: 'profile', canWrite: true },
+  ] as const)(
+    'reports $access access as $canWrite when only the ETH address write reverts',
+    async ({ access, canWrite }) => {
+      supportsNameSetters(true)
+      const setAddress = toFunctionSelector('setAddress(bytes,uint256,bytes)')
+      client.call.mockImplementation(async ({ data }: { data: string }) => {
+        if (data.startsWith(setAddress))
+          throw new ContractFunctionExecutionError(
+            new ExecutionRevertedError(),
+            { abi: [], functionName: 'setAddress' },
+          )
+        return { data: '0x' }
+      })
+
+      const result = await getResolverWriteState('leon.eth', OWNER, access)
+
+      expect(result._unsafeUnwrap().canWrite).toBe(canWrite)
+    },
+  )
+
+  it.each([
+    { type: 'address', setter: 'setAddress(bytes,uint256,bytes)' },
+    { type: 'text', setter: 'setText(bytes,string,string)' },
+    { type: 'contentHash', setter: 'setContenthash(bytes,bytes)' },
+    { type: 'abi', setter: 'setABI(bytes,uint256,bytes)' },
+  ] as const)(
+    'reports only $type as locked when its setter reverts',
+    async ({ type, setter }) => {
+      supportsNameSetters(true)
+      revertSetter(setter)
+
+      const result = await getProfileRecordAccess('leon.eth', OWNER)
+
+      expect(result._unsafeUnwrap()).toEqual({
+        resolverAddress: RESOLVER,
+        canWrite: true,
+        editableTypes: { ...ALL_EDITABLE, [type]: false },
+      })
+    },
+  )
+
+  it('reports no profile access when every record type reverts', async () => {
+    supportsNameSetters(true)
+    client.call.mockRejectedValue(
+      new ContractFunctionExecutionError(new ExecutionRevertedError(), {
+        abi: [],
+        functionName: 'multicall',
+      }),
+    )
+
+    const result = await getResolverWriteState('leon.eth', OWNER, 'profile')
+
+    expect(result._unsafeUnwrap().canWrite).toBe(false)
+  })
 
   it('keeps a name resolution cannot reach unwritable despite an ENSv1 registry resolver', async () => {
     client.readContract.mockResolvedValue(V1_RESOLVER)

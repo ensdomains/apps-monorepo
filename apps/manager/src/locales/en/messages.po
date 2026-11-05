@@ -367,6 +367,10 @@ msgstr "Added to your favorites!"
 msgid "Additional fee"
 msgstr "Additional fee"
 
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+#~ msgid "addresses"
+#~ msgstr "addresses"
+
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Addresses"
 msgstr "Addresses"
@@ -955,6 +959,10 @@ msgstr "Contact"
 msgid "Contact methods"
 msgstr "Contact methods"
 
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+#~ msgid "content hash"
+#~ msgstr "content hash"
+
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
 #: src/features/profile/components/view/ProfileContentHashSection.tsx
 msgid "Content hash"
@@ -998,6 +1006,10 @@ msgstr "Continue without signing in"
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue without signing in?"
 msgstr "Continue without signing in?"
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+#~ msgid "contract ABI"
+#~ msgstr "contract ABI"
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
 msgid "Contract ABI (JSON)"
@@ -3445,6 +3457,10 @@ msgstr "Temporary upgrade access is still active. Retry to remove it and continu
 msgid "Terms of Use"
 msgstr "Terms of Use"
 
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+#~ msgid "text records"
+#~ msgstr "text records"
+
 #: src/features/register-v2/state/useOrphanRegistrationCleanup.ts
 msgid "That name was registered by someone else. You were not charged."
 msgstr "That name was registered by someone else. You were not charged."
@@ -4648,6 +4664,26 @@ msgstr "Your wallet asks you to approve the payment if needed, then to confirm t
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
 msgstr "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+#~ msgid "Your wallet doesn’t have permission to change this name’s {records} on its resolver."
+#~ msgstr "Your wallet doesn’t have permission to change this name’s {records} on its resolver."
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+msgid "Your wallet doesn’t have permission to change this name’s addresses."
+msgstr "Your wallet doesn’t have permission to change this name’s addresses."
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+msgid "Your wallet doesn’t have permission to change this name’s content hash."
+msgstr "Your wallet doesn’t have permission to change this name’s content hash."
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+msgid "Your wallet doesn’t have permission to change this name’s contract ABI."
+msgstr "Your wallet doesn’t have permission to change this name’s contract ABI."
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+msgid "Your wallet doesn’t have permission to change this name’s text records."
+msgstr "Your wallet doesn’t have permission to change this name’s text records."
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet first asks you to sign a payment of the amount shown on {l2ChainName}. Once it arrives, you sign the renewal itself."

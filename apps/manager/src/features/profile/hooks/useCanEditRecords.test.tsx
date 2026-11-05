@@ -7,16 +7,20 @@ import { useCanEditRecords } from './useCanEditRecords'
 const OWNER_WALLET = '0x0000000000000000000000000000000000000001'
 
 const mocks = vi.hoisted(() => ({
-  canWrite: vi.fn<() => Promise<boolean>>(),
+  canWrite: vi.fn<(access?: string) => Promise<boolean>>(),
 }))
 
 vi.mock('@/lib/smart-account', () => ({
   useSmartAccountContext: () => ({ ownerAddress: OWNER_WALLET }),
 }))
 vi.mock('@/features/profile/service/resolverWriteAccess', () => ({
-  resolverWriteAccessQuery: (name: string, ownerAddress: string) => ({
-    queryKey: ['resolver-write-access', name, ownerAddress],
-    queryFn: mocks.canWrite,
+  resolverWriteAccessQuery: (
+    name: string,
+    ownerAddress: string,
+    access?: string,
+  ) => ({
+    queryKey: ['resolver-write-access', name, ownerAddress, access],
+    queryFn: () => mocks.canWrite(access),
   }),
 }))
 
@@ -44,6 +48,13 @@ describe('useCanEditRecords', () => {
 
     await waitFor(() => expect(result.current).toBe(true))
     expect(mocks.canWrite).toHaveBeenCalled()
+  })
+
+  it('probes profile write access, not the ETH address write alone', async () => {
+    mocks.canWrite.mockResolvedValue(true)
+    renderCanEdit(true)
+
+    await waitFor(() => expect(mocks.canWrite).toHaveBeenCalledWith('profile'))
   })
 
   it('lets a previous owner edit while their wallet can still write the resolver', async () => {

@@ -4,6 +4,7 @@ import { useActorRef } from '@xstate/react'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Tabs } from '@/components/ui/tabs'
+import type { RecordType } from '@/features/profile/service/recordTypeLocks'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import { render } from '@/utils/test-utils'
 import { EditProfileDialogProvider } from './EditProfileDialog.context'
@@ -21,7 +22,16 @@ beforeEach(() => {
   getExplorerUrl.mockReturnValue('https://sepolia.explorer.ens.domains')
 })
 
-const renderAdvanced = (records = newEmptyProfileRecords()) => {
+const renderAdvanced = (
+  records = newEmptyProfileRecords(),
+  {
+    lockedRecordTypes = new Set<RecordType>(),
+    tab = 'other',
+  }: {
+    readonly lockedRecordTypes?: ReadonlySet<RecordType>
+    readonly tab?: string
+  } = {},
+) => {
   const onOtherChange = vi.fn()
   const queryClient = new QueryClient({
     defaultOptions: { queries: { enabled: false } },
@@ -33,8 +43,11 @@ const renderAdvanced = (records = newEmptyProfileRecords()) => {
     })
     return (
       <QueryClientProvider client={queryClient}>
-        <EditProfileDialogProvider actor={actor}>
-          <Tabs defaultValue="other">
+        <EditProfileDialogProvider
+          actor={actor}
+          lockedRecordTypes={lockedRecordTypes}
+        >
+          <Tabs defaultValue={tab}>
             <EditProfileDialogTabs
               isMobileNavOpen={false}
               name="🦊.eth"
@@ -167,5 +180,34 @@ describe('Advanced profile navigation', () => {
 
     fireEvent.focus(nameLink)
     expect(view.getByRole('button', { name: 'Copy name' })).toBeInTheDocument()
+  })
+})
+
+describe('Locked record types', () => {
+  it('disables the address fields when addresses are locked', () => {
+    const view = renderAdvanced(newEmptyProfileRecords(), {
+      lockedRecordTypes: new Set(['address']),
+      tab: 'addresses',
+    })
+
+    expect(
+      view.getByRole('textbox', { name: 'Your Ethereum Address' }),
+    ).toBeDisabled()
+  })
+
+  it('disables only the locked record types in the local editor', () => {
+    const view = renderAdvanced(newEmptyProfileRecords(), {
+      lockedRecordTypes: new Set(['abi']),
+    })
+
+    fireEvent.click(view.getByText('Edit records here'))
+
+    expect(
+      view.getByRole('textbox', { name: 'Contract ABI (JSON)' }),
+    ).toBeDisabled()
+    expect(view.getByRole('textbox', { name: 'Content hash' })).toBeEnabled()
+    expect(
+      view.getByRole('button', { name: 'Add custom record' }),
+    ).toBeEnabled()
   })
 })
