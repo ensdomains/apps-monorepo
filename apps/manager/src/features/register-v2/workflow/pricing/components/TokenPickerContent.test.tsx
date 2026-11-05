@@ -1673,6 +1673,21 @@ describe('TokenPickerContentBase ETH row', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('moves to ETH, short as it is, rather than blaming a USDC row the list hides', () => {
+    const ethPayment = ethPaymentOf({ balanceRaw: 1_000_000_000_000_000n })
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment,
+    })
+
+    expect(ethPayment.onFallbackSelect).toHaveBeenCalledOnce()
+    expect(
+      screen.queryByText('You do not have enough USDC for this transaction.'),
+    ).not.toBeInTheDocument()
+  })
+
   it('stays on a wallet coin that can pay rather than swapping ETH', () => {
     const ethPayment = ethPaymentOf()
     renderPicker({

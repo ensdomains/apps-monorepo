@@ -1259,6 +1259,12 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
             l2Payment?.rows ?? [],
           ),
           isEthPayable: !!ethPayment && canPayWithEth(ethPayment.row),
+          isEthListed: ethMethodItems.length > 0,
+          isCurrentListed:
+            !walletSelection ||
+            stablecoinBalances.some(
+              (coin) => coin.symbol === walletSelection && hasBalance(coin),
+            ),
         })
       : undefined
   useFallbackPaymentChoice({
