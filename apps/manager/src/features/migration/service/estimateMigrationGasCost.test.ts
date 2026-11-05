@@ -1,4 +1,6 @@
-import type { Address, PublicClient } from 'viem'
+import { buildStandaloneHcaDeploymentCall } from '@ens-apps/smart-account'
+import { type Address, isAddressEqual, type PublicClient } from 'viem'
+import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
 import type { MigrationPlan } from './buildMigrationPlan'
@@ -8,6 +10,7 @@ import type {
   MigrationOperatorApprovalId,
 } from './migrationApprovals'
 import {
+  buildMigrationApprovalCall,
   planMigrationApprovals,
   prepareMigrationApprovals,
   temporaryMigrationHcaApproval,
@@ -15,6 +18,12 @@ import {
 
 const account = '0x0000000000000000000000000000000000000001' as Address
 const contract = '0x0000000000000000000000000000000000000002' as Address
+const deploymentCall = buildStandaloneHcaDeploymentCall({
+  chainId: sepolia.id,
+  owner: account,
+})
+const DEPLOYMENT_ESTIMATE = 578_000n
+const APPROVAL_ESTIMATE = 130_000n
 
 const makeOperatorApproval = (
   id: MigrationOperatorApprovalId,
@@ -75,7 +84,14 @@ const makePublicClient = (fee: {
   readonly gasPrice?: bigint
 }): PublicClient =>
   ({
-    estimateGas: vi.fn(),
+    chain: sepolia,
+    estimateGas: vi.fn(({ to }: { readonly to: Address }) =>
+      Promise.resolve(
+        isAddressEqual(to, deploymentCall.to)
+          ? DEPLOYMENT_ESTIMATE
+          : APPROVAL_ESTIMATE,
+      ),
+    ),
     estimateFeesPerGas: vi.fn().mockResolvedValue(fee),
     getGasPrice: vi.fn().mockResolvedValue(9n),
   }) as unknown as PublicClient
@@ -120,8 +136,8 @@ describe('estimateMigrationGasCost', () => {
     expect(estimate).toEqual({
       status: 'ready',
       transactionCount: 6,
-      gasUnits: 615_200n,
-      feeWei: 615_200n,
+      gasUnits: DEPLOYMENT_ESTIMATE + 3n * APPROVAL_ESTIMATE + 200n,
+      feeWei: DEPLOYMENT_ESTIMATE + 3n * APPROVAL_ESTIMATE + 200n,
       feePerGasWei: 1n,
     })
   })
@@ -141,12 +157,21 @@ describe('estimateMigrationGasCost', () => {
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
-    // 450k deployment + 55k token approval + 100 batch gas. The ERC-721
-    // approval clears automatically when the registration transfers.
-    expect(estimate.gasUnits).toBe(505_100n)
-    expect(estimate.feeWei).toBe(1_515_300n)
+    // The ERC-721 approval clears automatically when the registration transfers.
+    const gasUnits = DEPLOYMENT_ESTIMATE + APPROVAL_ESTIMATE + 100n
+    expect(estimate.gasUnits).toBe(gasUnits)
+    expect(estimate.feeWei).toBe(gasUnits * 3n)
     expect(estimate.transactionCount).toBe(3)
-    expect(publicClient.estimateGas).not.toHaveBeenCalled()
+    // The owner's estimates of the exact calls the setup sends.
+    expect(publicClient.estimateGas).toHaveBeenCalledTimes(2)
+    expect(publicClient.estimateGas).toHaveBeenCalledWith({
+      account,
+      ...deploymentCall,
+    })
+    expect(publicClient.estimateGas).toHaveBeenCalledWith({
+      account,
+      ...buildMigrationApprovalCall(makeTokenApproval()),
+    })
   })
 
   it('counts one confirmation for an existing HCA with permissions', async () => {
@@ -178,7 +203,7 @@ describe('estimateMigrationGasCost', () => {
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
-    expect(estimate.gasUnits).toBe(55_100n)
+    expect(estimate.gasUnits).toBe(APPROVAL_ESTIMATE + 100n)
     expect(estimate.transactionCount).toBe(2)
   })
 
