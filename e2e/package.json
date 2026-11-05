@@ -16,6 +16,8 @@
     "infra:down": "bash infra/scripts/start-local-env.sh --down",
     "seed:name": "tsx scripts/seed-name.ts",
     "seed:premium": "tsx scripts/seed-temp-premium.ts",
+    "seed:offchain-name": "tsx scripts/seed-offchain-name.ts",
+    "seed:offchain-v2": "tsx scripts/seed-offchain-v2.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome check",
     "test:manager-migration": "playwright test --config=projects/manager/playwright.migration.config.ts",

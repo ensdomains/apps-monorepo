@@ -370,6 +370,7 @@ export const UPGRADE_OUTCOMES = {
   planChanged: /Your permissions changed/i,
   subregistryConflict: /now has its own subname registry/i,
   retryBlocked: /couldn.t safely retry/i,
+  walletOutOfEth: /needs more ETH for network fees/i,
   generic: /Upgrade details:/i,
 } as const
 export type UpgradeOutcome = keyof typeof UPGRADE_OUTCOMES
