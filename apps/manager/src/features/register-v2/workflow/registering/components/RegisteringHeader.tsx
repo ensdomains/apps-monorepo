@@ -3,6 +3,7 @@ import { Calligraph } from 'calligraph'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { useRegisteringStage } from '../../../state/registrationUi.selectors'
+import { KEEP_BROWSER_OPEN } from '../lib/keepBrowserOpen'
 import { RegistrationCompletionBanner } from './RegistrationCompletionBanner'
 import { WeaveTrackPlaceholder } from './WeaveTrackPlaceholder'
 
@@ -64,7 +65,7 @@ export const RegisteringHeader = ({
   }
 
   const label = match(uiStage?.transaction)
-    .with('pendingRegistration', () => t`Registering name`)
+    .with('pendingRegistration', () => t(KEEP_BROWSER_OPEN))
     .with(undefined, () => t`Loading...`)
     .otherwise(() => stageLabel)
 

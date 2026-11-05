@@ -52,6 +52,7 @@ export const getCheckoutAvailability = (
 }
 
 export type CheckoutAction =
+  | Readonly<{ kind: 'loading' }>
   | Readonly<{ kind: 'connect' }>
   | Readonly<{ kind: 'preparing' }>
   | Readonly<{ kind: 'insufficient' }>
@@ -59,6 +60,8 @@ export type CheckoutAction =
 
 /** The registration page's button. Only a known shortfall blocks it; an unknown balance does not. */
 export const getCheckoutAction = (params: {
+  /** The wallet is still being restored, so not yet known to be disconnected. */
+  readonly isAccountPending?: boolean
   readonly isConnected: boolean
   readonly isPreparing: boolean
   readonly availability: CheckoutAvailability
@@ -66,6 +69,7 @@ export const getCheckoutAction = (params: {
 }): CheckoutAction =>
   match(params)
     .returnType<CheckoutAction>()
+    .with({ isAccountPending: true }, () => ({ kind: 'loading' }))
     .with({ isConnected: false }, () => ({ kind: 'connect' }))
     .with({ isPreparing: true }, () => ({ kind: 'preparing' }))
     .with({ availability: 'insufficient' }, () => ({ kind: 'insufficient' }))
@@ -83,3 +87,28 @@ export const getPageAvailability = (
         getCheckoutSummary(nameCostRaw, accountBalance.usdcRaw).totalRaw,
         sources,
       )
+
+/** The page can't tell yet whether a wallet is connected: server render, restore, or a reconnect not yet synced. */
+export const isAccountPending = ({
+  isHydrated,
+  hasInitialized,
+  walletStatus,
+  isAccountConnected,
+  hasAccountFailed,
+}: {
+  readonly isHydrated: boolean
+  readonly hasInitialized: boolean
+  readonly walletStatus:
+    | 'connected'
+    | 'connecting'
+    | 'reconnecting'
+    | 'disconnected'
+  readonly isAccountConnected: boolean
+  /** The smart account failed to start, so it won't sync to the wallet. */
+  readonly hasAccountFailed: boolean
+}): boolean =>
+  !isHydrated ||
+  !hasInitialized ||
+  walletStatus === 'connecting' ||
+  walletStatus === 'reconnecting' ||
+  (walletStatus === 'connected' && !isAccountConnected && !hasAccountFailed)

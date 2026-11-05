@@ -1,9 +1,11 @@
 import { setupI18n } from '@lingui/core'
+import { TimeoutError } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   migrationPreparationFailure,
   migrationPreparationMessage,
   runMigrationPreparationStage,
+  shouldRetryMigrationPreparation,
 } from './migrationPreparationError'
 
 const i18n = setupI18n({ locale: 'en', messages: { en: {} } })
@@ -17,6 +19,30 @@ const message = (
   stage: Parameters<typeof migrationPreparationFailure>[1] = 'preflight',
 ) =>
   i18n._(migrationPreparationMessage(migrationPreparationFailure(error, stage)))
+
+describe('migration preparation retry policy', () => {
+  const timeout = new TimeoutError({ url: 'https://rpc.example', body: {} })
+
+  it('allows only one retry for direct and stage-wrapped transport failures', async () => {
+    const error = await runMigrationPreparationStage('preflight', () =>
+      Promise.reject(timeout),
+    ).catch((error: unknown) => error)
+    expect(shouldRetryMigrationPreparation(0, timeout)).toBe(true)
+    expect(shouldRetryMigrationPreparation(0, error)).toBe(true)
+    expect(shouldRetryMigrationPreparation(1, error)).toBe(false)
+  })
+
+  it('does not retry a semantic failure with a transient diagnostic cause', async () => {
+    const cause = failure('DirectMigrationRouteError', {
+      reason: 'conflicting-wrapper',
+      cause: timeout,
+    })
+    const error = await runMigrationPreparationStage('plan', () =>
+      Promise.reject(cause),
+    ).catch((error: unknown) => error)
+    expect(shouldRetryMigrationPreparation(0, error)).toBe(false)
+  })
+})
 
 describe('migration preparation errors', () => {
   it.each([

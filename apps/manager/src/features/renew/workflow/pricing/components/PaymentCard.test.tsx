@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   useRenewalSigner: vi.fn(),
   gate: vi.fn(),
   send: vi.fn(),
+  protocol: 'v2' as 'v1' | 'v2',
+  isConnected: true,
 }))
 
 vi.mock('@/features/renew/hooks/useRenewalSigner', () => ({
@@ -17,14 +19,27 @@ vi.mock('@/features/renew/state/renewalUi.context', () => ({
   useRenewalUiContext: () => ({
     uiActor: { send: mocks.send },
     label: 'name',
-    protocol: 'v2',
+    protocol: mocks.protocol,
   }),
 }))
 vi.mock('@xstate/react', () => ({ useSelector: () => [31_536_000n, true] }))
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
-  useQuery: () => ({ data: 5, isLoading: false, isPlaceholderData: false }),
+  useQuery: () => ({
+    data: { amount: 5_000_000n },
+    isLoading: false,
+    isPlaceholderData: false,
+  }),
 }))
+vi.mock(
+  '@/features/register-v2/workflow/pricing/hooks/useCheckoutSources',
+  () => ({
+    useCheckoutSources: () => ({
+      accountBalance: { status: 'known', usdcRaw: 0n },
+      sources: { wallet: { status: 'known', usdcRaw: 10_000_000n }, l2s: [] },
+    }),
+  }),
+)
 vi.mock('@/features/register-v2/data/queries/baseRates.query', () => ({
   useBaseRate: () => 0n,
 }))
@@ -32,11 +47,17 @@ vi.mock('@/features/wallet/hooks/useSmartSessionGate', () => ({
   useSmartSessionGate: () => ({ gate: mocks.gate, sessionModal: null }),
 }))
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
-  useSmartAccountContext: () => ({ isConnected: true }),
+  useSmartAccountContext: () => ({
+    isConnected: mocks.isConnected,
+    hasInitialized: true,
+  }),
 }))
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
-  useConnection: () => ({ isConnected: true }),
+  useConnection: () => ({
+    isConnected: mocks.isConnected,
+    status: mocks.isConnected ? 'connected' : 'disconnected',
+  }),
 }))
 vi.mock('@/lib/wallet', () => ({
   useConnectModal: () => ({ connectModalOpen: false }),
@@ -47,17 +68,22 @@ import { PaymentCard } from './PaymentCard'
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
 
-const payButton = () => {
+const renderCard = () =>
   render(
     <I18nProvider i18n={i18n}>
       <PaymentCard />
     </I18nProvider>,
   )
-  return screen.getByRole('button', { name: /^pay$/i })
+
+const payButton = () => {
+  renderCard()
+  return screen.getByRole('button', { name: /^continue to payment$/i })
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.protocol = 'v2'
+  mocks.isConnected = true
 })
 
 describe('renewal PaymentCard (ENSv2)', () => {
@@ -74,5 +100,34 @@ describe('renewal PaymentCard (ENSv2)', () => {
 
     expect(mocks.gate).not.toHaveBeenCalled()
     expect(mocks.send).toHaveBeenCalledWith({ type: 'pricing.step.next' })
+  })
+
+  it('holds the total as a placeholder until the signer, and so the balance it applies, is known', () => {
+    mocks.useRenewalSigner.mockReturnValue(null)
+
+    renderCard()
+
+    expect(screen.getByText('$00.00')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('shows the price, not a placeholder, while disconnected', () => {
+    mocks.isConnected = false
+    mocks.useRenewalSigner.mockReturnValue(null)
+
+    renderCard()
+
+    expect(screen.queryByText('$00.00')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /connect to renew/i }),
+    ).toBeEnabled()
+  })
+
+  it('accepts ETH for a V1 renewal paid from the smart account', () => {
+    mocks.protocol = 'v1'
+    mocks.useRenewalSigner.mockReturnValue({ type: 'rhinestone' })
+
+    renderCard()
+
+    expect(screen.getByAltText('ETH')).toBeVisible()
   })
 })
