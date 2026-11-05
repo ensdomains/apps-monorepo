@@ -61,17 +61,10 @@ import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { getLabelRegistrationError } from '@/utils/token/isNormalized'
 
-// ============================================================================
-// !!! TODO(WEB-2122): DO NOT MERGE. Set this back to `true` before merging. !!!
-// ENSv2 subname creation is unpaused for testing only; main keeps it paused.
-// The same marker sits on the `isCreationPaused` prop in routes/$name/subnames.tsx.
-// ============================================================================
-const IS_V2_CREATION_PAUSED = false
-
 export const Route = createFileRoute('/$name/create-subname')({
   // Only ENSv2 subname creation is paused; an unknown protocol counts as ENSv2.
   beforeLoad: ({ params: { name }, context: { protocolVersion } }) => {
-    if (protocolVersion === 'ENSv1' || !IS_V2_CREATION_PAUSED) return
+    if (protocolVersion === 'ENSv1') return
     throw redirect({
       to: '/$name/subnames',
       params: { name },
