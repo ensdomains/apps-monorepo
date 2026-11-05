@@ -1,6 +1,7 @@
 import {
   type Call,
   getSmartAccountAddress,
+  HCA_INTENT_FEE_MARGIN_BPS,
   type HcaFundingPrompt,
   planHcaIntentFunding,
   type RhinestoneSigner,
@@ -201,6 +202,7 @@ export async function setPrimaryNameWithHca(
     publicClient,
     chainId,
     calls,
+    feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
     // The USDC cost is quoted here, not at any earlier screen, so this is the
     // only place it can be shown before the permit signature is requested.
     ...(confirmFunding ? { confirmFunding } : {}),

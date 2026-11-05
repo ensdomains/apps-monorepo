@@ -1,6 +1,7 @@
 import {
   type Call,
   getSmartAccountAddress,
+  HCA_INTENT_FEE_MARGIN_BPS,
   type HcaDisplayedDebit,
   type HcaFundingApprovalCapability,
   type HcaFundingPrompt,
@@ -320,6 +321,7 @@ export async function quoteHcaRenewalFee(
       amount: rentTotal,
     },
     gasLimit,
+    feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
   })
 }
 
@@ -404,6 +406,7 @@ const sizeRenewalShortfall = ResultFn(async function* (params: {
           calls: intent.actionCalls,
           requiredUsdc: intent.rentTotal,
           gasLimit: intent.gasLimit,
+          feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
         }),
         toError,
       ),
@@ -748,6 +751,7 @@ export async function submitHcaRenewal(
       amount: rentTotal,
     },
     gasLimit,
+    feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
     ...(hcaBalanceAtLeast === undefined ? {} : { hcaBalanceAtLeast }),
     maxFeeUsdc: hcaMaxIntentFeeUsdcFor(gasLimit),
     ...fundingConsent(params),
