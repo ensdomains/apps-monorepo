@@ -1006,7 +1006,7 @@ describe('TokenPickerContentBase', () => {
     expect(onRetry).toHaveBeenCalledOnce()
   })
 
-  it('shows the higher estimate and still blocks payment when the quote failed', () => {
+  it('shows the fallback estimate and still blocks payment when the quote failed', () => {
     const onRetry = vi.fn()
     renderPicker({
       hasBudgetQuoteFailed: true,

@@ -513,7 +513,7 @@ const ELEVATED_FEE_ESTIMATE: RegistrationFundingSummary = {
   isLoading: false,
 }
 
-/** WEB-2061: Rhinestone refused a quote during a gas spike; show the higher estimate. */
+/** WEB-2061: Rhinestone refused a quote during a gas spike; show the fallback estimate. */
 export const BudgetQuoteGasCoverageFailed: Story = {
   args: {
     label: 'freedz',

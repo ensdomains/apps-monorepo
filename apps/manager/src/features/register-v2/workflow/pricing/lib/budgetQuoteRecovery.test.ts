@@ -19,7 +19,7 @@ const breakdown = {
 }
 
 describe('getBudgetQuoteRecovery', () => {
-  it('returns a gas-coverage recovery with the higher estimate', () => {
+  it('returns a gas-coverage recovery with the fallback estimate', () => {
     const recovery = getBudgetQuoteRecovery(
       new HcaBudgetUnquotedError(breakdown),
     )
