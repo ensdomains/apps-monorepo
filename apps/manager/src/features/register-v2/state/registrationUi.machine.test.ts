@@ -212,6 +212,17 @@ vi.mock('@/features/wallet/service/leftoverFunds', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('@/features/wallet/service/leftoverFunds')
   >()),
+  readLeftoverFunds: vi.fn(async () => ({
+    isDeployed: true,
+    funds: [
+      {
+        token: '0x0000000000000000000000000000000000000005',
+        symbol: 'USDC',
+        decimals: 6,
+        amount: 5_000_000n,
+      },
+    ],
+  })),
   withdrawLeftoverFunds: vi.fn(async () => ({ withdrawn: [] })),
 }))
 
@@ -221,7 +232,7 @@ vi.mock('@/features/wallet/data/queries/leftoverFunds.query', () => ({
 }))
 
 vi.mock('@/utils/router/root-context', () => ({
-  getQueryClient: () => undefined,
+  getQueryClient: vi.fn(() => undefined),
 }))
 
 const isNameTakenByOther = vi.fn(async () => false)
@@ -236,9 +247,16 @@ vi.mock('../service/registrationPersistence', () => ({
 
 import { waitForTransaction } from '@ens-apps/transaction-manager'
 import { OrchestratorError } from '@rhinestone/sdk/errors'
-import { withdrawLeftoverFunds } from '@/features/wallet/service/leftoverFunds'
+import { QueryClient } from '@tanstack/react-query'
+import { invalidateAfterWithdrawal } from '@/features/wallet/data/queries/leftoverFunds.query'
+import {
+  readLeftoverFunds,
+  type WithdrawLeftoverFundsResult,
+  withdrawLeftoverFunds,
+} from '@/features/wallet/service/leftoverFunds'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
+import { getQueryClient } from '@/utils/router/root-context'
 import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
@@ -903,6 +921,10 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
   })
 
   describe('leftover refund', () => {
+    afterEach(() => {
+      vi.mocked(getQueryClient).mockReset()
+    })
+
     const completeRegistration = async (account: SmartAccountContextValue) => {
       const actor = startActorInTokens()
       actor.send(startEvent(account))
@@ -939,6 +961,42 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
       expect(withdrawLeftover).toHaveBeenCalledTimes(1)
       expect(actor.getSnapshot().matches('success')).toBe(true)
       actor.stop()
+    })
+
+    // The withdrawal moves the wallet to this chain first, a prompt with nothing to send.
+    it('leaves the wallet alone when the account holds nothing', async () => {
+      vi.mocked(readLeftoverFunds).mockResolvedValueOnce({
+        isDeployed: true,
+        funds: [],
+      })
+
+      const actor = await completeRegistration(smartAccount)
+
+      expect(readLeftoverFunds).toHaveBeenCalledWith(
+        expect.anything(),
+        HCA_ADDRESS,
+      )
+      expect(withdrawLeftover).not.toHaveBeenCalled()
+      actor.stop()
+    })
+
+    it('refreshes the balances once the refund settles, even after the page is left', async () => {
+      const queryClient = new QueryClient()
+      vi.mocked(getQueryClient).mockReturnValue(queryClient)
+      const refund = deferred<WithdrawLeftoverFundsResult>()
+      withdrawLeftover.mockReturnValueOnce(refund.promise)
+
+      const actor = await completeRegistration(smartAccount)
+      expect(withdrawLeftover).toHaveBeenCalledTimes(1)
+      // "Complete your profile" unmounts the provider, which stops the machine.
+      actor.stop()
+      refund.resolve({ withdrawn: [] })
+      await flush()
+
+      expect(invalidateAfterWithdrawal).toHaveBeenCalledWith(
+        queryClient,
+        HCA_ADDRESS,
+      )
     })
   })
 })

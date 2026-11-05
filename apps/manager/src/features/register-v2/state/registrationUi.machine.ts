@@ -39,7 +39,7 @@ import {
   invalidateAfterWithdrawal,
 } from '@/features/wallet/data/queries/leftoverFunds.query'
 import {
-  type WithdrawLeftoverFundsResult,
+  readLeftoverFunds,
   withdrawLeftoverFunds,
 } from '@/features/wallet/service/leftoverFunds'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
@@ -356,6 +356,68 @@ const leftoverRefundAccounts = (
   return { hca: data.accountAddress, owner: data.ownerAddress }
 }
 
+const announceLeftoverRefund = (notice: LeftoverRefundNotice) =>
+  match(notice)
+    .with({ kind: 'none' }, () => undefined)
+    .with({ kind: 'returned' }, ({ amount }) =>
+      toast.success(
+        translateMessage(
+          msg`${amount} left over from your payment is back in your wallet.`,
+        ),
+      ),
+    )
+    .with({ kind: 'held' }, ({ registrationName }) =>
+      toast.info(
+        translateMessage(
+          msg`Your leftover funds stay in your smart account until your registration of ${registrationName} completes.`,
+        ),
+      ),
+    )
+    .with({ kind: 'declined' }, () =>
+      toast.info(
+        translateMessage(
+          msg`Your leftover funds are still in your smart account. Use "Withdraw leftover funds" to get them back.`,
+        ),
+      ),
+    )
+    .with({ kind: 'failed' }, () =>
+      toast.error(
+        translateMessage(
+          msg`Couldn't return your leftover funds. They're still in your smart account: use "Withdraw leftover funds" to get them back.`,
+        ),
+      ),
+    )
+    .exhaustive()
+
+/** Settles here, not in the machine: leaving the page stops the machine but not the transaction. */
+const returnLeftoverFunds = async ({
+  hca,
+  owner,
+}: {
+  readonly hca: Address
+  readonly owner: Address
+}): Promise<void> => {
+  // Read first: withdrawing moves the wallet to this chain, a prompt with nothing to send.
+  const { funds } = await readLeftoverFunds(defaultPublicClient, hca)
+  if (funds.length === 0) return
+  const notice = await withdrawLeftoverFunds({
+    hca,
+    owner,
+    // The reveal deployed the account, so there is nothing to deploy.
+    hcaClient: null,
+    refreshAccount: () => Promise.resolve(),
+    publicClient: defaultPublicClient,
+    wagmiConfig,
+    findPendingRegistration: () => findPendingRegistrationFor(hca),
+  }).then(
+    (result) => resolveLeftoverRefundNotice({ result }),
+    (error: unknown) => resolveLeftoverRefundNotice({ error }),
+  )
+  const queryClient = getQueryClient()
+  if (queryClient) void invalidateAfterWithdrawal(queryClient, hca)
+  announceLeftoverRefund(notice)
+}
+
 const updateMaxProgress = (
   current: MaxProgressReached | undefined,
   stage: RegistrationStage,
@@ -428,24 +490,8 @@ const machineSetup = setup({
         waitForTransaction(input.txId),
     ),
     refundLeftoverFunds: fromPromise(
-      ({
-        input,
-      }: {
-        input: ReturnType<typeof leftoverRefundAccounts>
-      }): Promise<WithdrawLeftoverFundsResult> =>
-        input
-          ? withdrawLeftoverFunds({
-              hca: input.hca,
-              owner: input.owner,
-              // The reveal deployed the account, so there is nothing to deploy.
-              hcaClient: null,
-              refreshAccount: () => Promise.resolve(),
-              publicClient: defaultPublicClient,
-              wagmiConfig,
-              findPendingRegistration: () =>
-                findPendingRegistrationFor(input.hca),
-            })
-          : Promise.resolve({ withdrawn: [] }),
+      ({ input }: { input: ReturnType<typeof leftoverRefundAccounts> }) =>
+        input ? returnLeftoverFunds(input) : Promise.resolve(),
     ),
   },
   guards: {
@@ -764,46 +810,11 @@ const machineSetup = setup({
         primaryNameForwardConfirmed: true,
       }),
     }),
-    // Both sides moved: the account's balance and the wallet's.
-    invalidateAfterLeftoverRefund: ({ context }) => {
-      const accounts = leftoverRefundAccounts(context)
-      const queryClient = getQueryClient()
-      if (accounts && queryClient) {
-        void invalidateAfterWithdrawal(queryClient, accounts.hca)
-      }
-    },
-    announceLeftoverRefund: (_, notice: LeftoverRefundNotice) => {
-      match(notice)
-        .with({ kind: 'none' }, () => undefined)
-        .with({ kind: 'returned' }, ({ amount }) =>
-          toast.success(
-            translateMessage(
-              msg`${amount} left over from your payment is back in your wallet.`,
-            ),
-          ),
-        )
-        .with({ kind: 'held' }, ({ registrationName }) =>
-          toast.info(
-            translateMessage(
-              msg`Your leftover funds stay in your smart account until your registration of ${registrationName} completes.`,
-            ),
-          ),
-        )
-        .with({ kind: 'declined' }, () =>
-          toast.info(
-            translateMessage(
-              msg`Your leftover funds are still in your smart account. Use "Withdraw leftover funds" to get them back.`,
-            ),
-          ),
-        )
-        .with({ kind: 'failed' }, () =>
-          toast.error(
-            translateMessage(
-              msg`Couldn't return your leftover funds. They're still in your smart account: use "Withdraw leftover funds" to get them back.`,
-            ),
-          ),
-        )
-        .exhaustive()
+    logLeftoverRefundError: ({ event }) => {
+      console.warn(
+        '[REGISTRATION] Could not read the smart account balance to return it:',
+        (event as { error?: unknown }).error,
+      )
     },
   },
 })
@@ -1611,26 +1622,8 @@ export const registrationV2UiMachine = machineSetup.createMachine({
       invoke: {
         src: 'refundLeftoverFunds',
         input: ({ context }) => leftoverRefundAccounts(context),
-        onDone: {
-          actions: [
-            'invalidateAfterLeftoverRefund',
-            {
-              type: 'announceLeftoverRefund',
-              params: ({ event }) =>
-                resolveLeftoverRefundNotice({ result: event.output }),
-            },
-          ],
-        },
-        onError: {
-          actions: [
-            'invalidateAfterLeftoverRefund',
-            {
-              type: 'announceLeftoverRefund',
-              params: ({ event }) =>
-                resolveLeftoverRefundNotice({ error: event.error }),
-            },
-          ],
-        },
+        // Only the balance read rejects: nothing was sent, and the funds stay withdrawable.
+        onError: { actions: 'logLeftoverRefundError' },
       },
     },
     failure: {
