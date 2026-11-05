@@ -86,6 +86,12 @@ const CENT_RAW = 10_000n
 const roundToCentRaw = (raw: bigint): bigint =>
   ((raw + CENT_RAW / 2n) / CENT_RAW) * CENT_RAW
 
+/** What the wallet pays with ETH: the most the swap sends plus its gas, in USDC (6dp), to the cent. */
+export const getEthReceiptDueRaw = (
+  ethDebitRaw: bigint,
+  extraFeeRaw: bigint,
+): bigint => roundToCentRaw(ethDebitRaw + extraFeeRaw)
+
 /** All in USDC's 6 decimals, rounded to cents. */
 export type NetworkFeeReceiptFigures = {
   readonly registrationTotalRaw: bigint
