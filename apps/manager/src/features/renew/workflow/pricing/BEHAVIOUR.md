@@ -32,7 +32,7 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 
 | Rule | Held by |
 | --- | --- |
-| On the intent route the receipt reads Renewal total, Estimated network fee, Existing balance when some is left after the price, and You pay. Its figures read "up to", rounded up to the cent, because the approval carries headroom over the price. "up to" opens a tooltip: the 2% buffer, and that anything not used stays in the account. | Sheet tests "labels the checkout total and shows its figures as up to, as a caller asks", "explains the up to figures with the note a caller gives"; `register-v2/workflow/pricing/lib/paymentReceiptFigures.test.ts` |
+| On the intent route the receipt reads Renewal total, Estimated network fee, Existing balance when some is left after the price, and You pay. Its figures read "up to", rounded up to the cent, because the approval carries headroom over the price. | Sheet tests "labels the checkout total and shows its figures as up to, as a caller asks"; `register-v2/workflow/pricing/lib/paymentReceiptFigures.test.ts` |
 | The renewal total is the price with its headroom, less the account's balance of the price's coin applied up to it, never below zero, in USDC units (a DAI price is converted). During an increased-amount review the total comes from that prompt, so every row describes the payment being signed. | `renew/utils/renewalFunding.test.ts` (`getRenewalCheckoutTotalRaw`, `getRenewalReceiptTotalRaw`) |
 | Methods are listed, hidden and ordered as in registration: every L2 holding USDC, ETH only when it has something to swap (so not while the wallet's USDC pays), and the methods hidden when the account's balance covers everything. | Registration's sheet tests, through the shared base |
 | The fallback is registration's: with nothing picked, a wallet coin that can pay first, then the L2 holding the most, ETH last. The app's pick gives way; the user's pick stays and says the token is short. Single renewal records who picked in its machine, bulk in its dialog. | `register-v2/workflow/pricing/lib/fallbackPaymentChoice.test.ts`; `renew/state/renewalUi.machine.test.ts` "records who picked a wallet coin: %s"; `renew/workflow/pricing/useRenewalL2Payment.test.ts` |
@@ -82,7 +82,7 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 - On Sepolia, paying from an L2 fails above about 8 USDC (Across caps transfers into Sepolia), as in registration.
 - Prices are slightly above round numbers ($8.01 for a year): a year is charged as at least 365.25 days.
 - The renewal failure screen can show the wallet's raw rejection text.
-- The page card's total is the price less the account balance, while the sheet's includes the approval's 2% headroom, so on the intent route the sheet's "up to" figures sit about 2% of the price above the card's (with a balance just over the price, the card shows $0.00 and the sheet still asks for a payment). What the renewal doesn't spend stays in the account. Agreed with QA and product (November 2026): keep both and explain "up to" in a tooltip; a cleaner design is a follow-up for design.
+- The page card's total is the price less the account balance, while the sheet's includes the approval's 2% headroom. With a balance between the price and the price plus 2%, the card shows $0.00 and the sheet still asks for a payment; what the renewal doesn't spend stays in the account.
 
 ## Before changing anything here
 

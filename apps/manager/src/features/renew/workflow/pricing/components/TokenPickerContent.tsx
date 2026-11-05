@@ -33,7 +33,6 @@ import { useRenewalEthPayment } from '../useRenewalEthPayment'
 import { useRenewalIntentFunding } from '../useRenewalIntentFunding'
 import { useRenewalL2Payment } from '../useRenewalL2Payment'
 import { PaymentUpdateNotice } from './PaymentUpdateNotice'
-import { RenewalBufferNote } from './RenewalBufferNote'
 
 export const TokenPickerContent = () => {
   const { label, uiActor, protocol } = useRenewalUiContext()
@@ -270,7 +269,6 @@ export const TokenPickerContent = () => {
               totalRaw: checkoutTotalRaw,
               totalLabel: <Trans>Renewal total</Trans>,
               isUpTo: true,
-              upToNote: <RenewalBufferNote />,
             },
           }
         : {})}

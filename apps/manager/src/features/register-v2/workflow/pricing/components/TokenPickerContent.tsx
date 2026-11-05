@@ -695,8 +695,6 @@ export type CheckoutReceipt = Readonly<{
   totalLabel?: ReactNode
   /** The figures are maximums, such as renewal's price with its approval headroom. */
   isUpTo?: boolean
-  /** Why the figures are maximums, shown on "up to". */
-  upToNote?: ReactNode
 }>
 
 const getSelectedL2 = (l2Payment: L2PaymentProps | undefined) =>
@@ -1398,7 +1396,6 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
             state={receiptState}
             totalLabel={checkoutReceipt.totalLabel}
             totalRaw={checkoutReceipt.totalRaw}
-            upToNote={checkoutReceipt.upToNote}
           />
         )}
         {receiptNotice}

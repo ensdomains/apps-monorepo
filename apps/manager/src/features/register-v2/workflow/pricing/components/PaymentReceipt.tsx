@@ -2,13 +2,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import { formatUnits, parseUnits } from 'viem'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import { tw } from '@/utils/tailwind'
 import {
   getNetworkFeeReceiptFigures,
   type PaymentReceiptFigures,
@@ -24,39 +18,14 @@ type ShownAmount =
   | { readonly status: 'unavailable' }
   | { readonly status: 'ready'; readonly value: number }
 
-const UP_TO_CLASS = 'text-base text-ens-quartz-400'
-
-/** "up to", or with a note a tooltip that explains it. */
-const UpTo = ({ note }: { readonly note: ReactNode | undefined }) =>
-  note ? (
-    <Tooltip>
-      <TooltipTrigger
-        className={tw(
-          UP_TO_CLASS,
-          'cursor-help underline decoration-dotted underline-offset-4',
-        )}
-        type="button"
-      >
-        <Trans>up to</Trans>
-      </TooltipTrigger>
-      <TooltipContent className="max-w-64 text-center">{note}</TooltipContent>
-    </Tooltip>
-  ) : (
-    <span className={UP_TO_CLASS}>
-      <Trans>up to</Trans>
-    </span>
-  )
-
 const UsdAmount = ({
   amount,
   isEstimate = false,
   isDeduction = false,
-  estimateNote,
 }: {
   readonly amount: ShownAmount
   readonly isEstimate?: boolean
   readonly isDeduction?: boolean
-  readonly estimateNote?: ReactNode
 }) =>
   match(amount)
     .with({ status: 'loading' }, () => (
@@ -71,7 +40,11 @@ const UsdAmount = ({
     .with({ status: 'ready' }, ({ value }) => {
       return (
         <span className="flex items-baseline gap-2">
-          {isEstimate && value > 0 && <UpTo note={estimateNote} />}
+          {isEstimate && value > 0 && (
+            <span className="text-base text-ens-quartz-400">
+              <Trans>up to</Trans>
+            </span>
+          )}
           <span className={RECEIPT_AMOUNT}>
             {isDeduction && value > 0
               ? `-${formatUsd(value)}`
@@ -175,7 +148,6 @@ export const NetworkFeeReceipt = ({
   extraFeeRaw,
   totalLabel = <Trans>Registration total</Trans>,
   isUpTo = false,
-  upToNote,
 }: {
   /** The quote behind the fee; the total is the page's and is always shown. */
   readonly state: PaymentReceiptState
@@ -188,8 +160,6 @@ export const NetworkFeeReceipt = ({
   readonly totalLabel?: ReactNode
   /** The figures are maximums: shown as "up to" and rounded up. */
   readonly isUpTo?: boolean
-  /** Why the figures are maximums, shown on "up to". */
-  readonly upToNote?: ReactNode
 }) => {
   const { t } = useLingui()
   const figures =
@@ -228,7 +198,6 @@ export const NetworkFeeReceipt = ({
                     value: toUsd(figures?.registrationTotalRaw ?? totalRaw),
                   }
             }
-            estimateNote={upToNote}
             isEstimate={isUpTo}
           />
         </Row>
@@ -248,11 +217,7 @@ export const NetworkFeeReceipt = ({
         )}
         <hr className="border-ens-quartz-100" />
         <Row label={<Trans>You pay</Trans>}>
-          <UsdAmount
-            amount={shown('dueRaw')}
-            estimateNote={upToNote}
-            isEstimate={isUpTo}
-          />
+          <UsdAmount amount={shown('dueRaw')} isEstimate={isUpTo} />
         </Row>
       </dl>
     </section>
