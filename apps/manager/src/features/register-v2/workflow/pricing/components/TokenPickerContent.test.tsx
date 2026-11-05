@@ -1244,11 +1244,23 @@ describe('TokenPickerContentBase L2 rows', () => {
 
     expect(screen.getByText('Renewal total')).toBeVisible()
     expect(screen.queryByText('Registration total')).not.toBeInTheDocument()
-    expect(
-      screen.getByText(
-        "What the network doesn't use stays in your ENS account.",
-      ),
-    ).toBeVisible()
+  })
+
+  it('explains what happens to the network fee the fill does not use', async () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      checkoutReceipt: { totalRaw: 5_000_000n },
+    })
+
+    fireEvent.focus(
+      screen.getByRole('button', { name: 'What is the network fee?' }),
+    )
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'stays there, as existing balance for your next payment',
+    )
   })
 
   it('in registration, says a picked short L2 lacks USDC and estimates its fee', () => {
@@ -1740,7 +1752,7 @@ describe('TokenPickerContentBase ETH row', () => {
     [
       'the swap',
       { balanceRaw: 1_000_000_000_000_000n },
-      'You need up to 0.0026 ETH for the swap and its gas, and your wallet holds 0.001 ETH.',
+      'You need 0.0016 ETH more for the swap and its gas: it takes up to 0.0026 ETH and your wallet holds 0.001 ETH.',
     ],
     [
       'the swap and its gas',
@@ -1748,7 +1760,7 @@ describe('TokenPickerContentBase ETH row', () => {
         balanceRaw: 2_600_000_000_000_000n,
         gasReserveRaw: 100_000_000_000_000n,
       },
-      'You need up to 0.0027 ETH for the swap and its gas, and your wallet holds 0.0026 ETH.',
+      'You need 0.0001 ETH more for the swap and its gas: it takes up to 0.0027 ETH and your wallet holds 0.0026 ETH.',
     ],
   ])(
     'holds checkout and says how much when the wallet is short of %s',
@@ -1766,22 +1778,6 @@ describe('TokenPickerContentBase ETH row', () => {
       ).toBeDisabled()
     },
   )
-
-  it('shows the ETH the swap sends under what the wallet pays', () => {
-    renderPicker({
-      funding: underfunded,
-      selectedToken: 'USDC',
-      stablecoinBalances: [emptyUsdc],
-      ethPayment: ethPaymentOf({ ethUsdRaw: 200_000_000_000n }, true),
-      checkoutReceipt: { totalRaw: 5_000_000n },
-    })
-
-    expect(
-      screen.getByText(
-        "Your wallet swaps up to 0.0026 ETH ($5.20) for USDC. USDC the payment doesn't use stays in your wallet.",
-      ),
-    ).toBeVisible()
-  })
 
   it('keeps a chosen ETH payment rather than falling back to the wallet', () => {
     const onSelectCoin = renderPicker({

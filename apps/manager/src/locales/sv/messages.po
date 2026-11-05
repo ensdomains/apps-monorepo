@@ -1417,7 +1417,7 @@ msgid "Est. fee: ~{0}"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+#: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
 msgid "Estimated network fee"
 msgstr ""
 
@@ -3606,6 +3606,10 @@ msgstr ""
 msgid "This commemorative NFT has already been minted."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
+msgid "This funds your ENS account for the network fee. What the network doesn't use stays there, as existing balance for your next payment."
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This is taking longer than expected."
 msgstr ""
@@ -4231,8 +4235,8 @@ msgstr ""
 msgid "What is the ETH swap?"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
-msgid "What the network doesn't use stays in your ENS account."
+#: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
+msgid "What is the network fee?"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
@@ -4361,14 +4365,15 @@ msgstr ""
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
-msgid "You need to verify your wallet ownership to manage your notification preferences."
+#. placeholder {0}: figures?.short
+#. placeholder {1}: figures?.needed
+#. placeholder {2}: figures?.held
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "You need {0} ETH more for the swap and its gas: it takes up to {1} ETH and your wallet holds {2} ETH."
 msgstr ""
 
-#. placeholder {0}: formatGasEth((chargeRaw ?? 0n) + gasReserveRaw)
-#. placeholder {1}: formatGasEth(balanceRaw ?? 0n)
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "You need up to {0} ETH for the swap and its gas, and your wallet holds {1} ETH."
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
+msgid "You need to verify your wallet ownership to manage your notification preferences."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
@@ -4661,10 +4666,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
 msgid "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
-msgid "Your wallet swaps up to {eth} ETH{usd} for USDC. USDC the payment doesn't use stays in your wallet."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

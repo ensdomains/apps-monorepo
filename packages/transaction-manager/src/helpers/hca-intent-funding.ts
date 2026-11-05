@@ -327,7 +327,7 @@ async function quoteIntentUsdc(input: {
   declaredInflow: bigint
   /** Declared limit the rail prices the quote against. */
   gasLimit: bigint
-  feeMarginBps: bigint
+  readonly feeMarginBps: bigint
 }): Promise<bigint | null> {
   const { account, chain, calls, declaredInflow, gasLimit, feeMarginBps } =
     input

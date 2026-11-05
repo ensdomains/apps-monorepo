@@ -1,4 +1,41 @@
+import { ethToUsdcRaw } from '@ens-apps/transaction-manager'
+import { formatGasEth } from '@ens-apps/utils/formatGasEth'
+import { formatUnits } from 'viem'
 import type { EthPaymentRow } from '../components/EthPaymentListItem'
+
+const USDC_DECIMALS = 6
+
+export const weiToUsd = (wei: bigint, ethUsd: bigint) =>
+  Number(formatUnits(ethToUsdcRaw(wei, ethUsd), USDC_DECIMALS))
+
+export const isEthShortOfFunds = ({
+  chargeRaw,
+  balanceRaw,
+  gasReserveRaw,
+}: EthPaymentRow) =>
+  chargeRaw !== undefined &&
+  balanceRaw !== undefined &&
+  balanceRaw < chargeRaw + gasReserveRaw
+
+/** The row can pay: quoted, and the wallet holds what it would send. */
+export const canPayWithEth = (row: EthPaymentRow) =>
+  row.chargeRaw !== undefined &&
+  !row.isQuoteLoading &&
+  !row.hasQuoteFailed &&
+  !isEthShortOfFunds(row)
+
+/** How far the wallet is from covering the swap and its gas, as shown; undefined when it covers them. */
+export const getEthShortfallFigures = (row: EthPaymentRow) => {
+  const { chargeRaw, balanceRaw, gasReserveRaw } = row
+  if (chargeRaw === undefined || balanceRaw === undefined) return undefined
+  if (!isEthShortOfFunds(row)) return undefined
+  const needed = chargeRaw + gasReserveRaw
+  return {
+    short: formatGasEth(needed - balanceRaw),
+    needed: formatGasEth(needed),
+    held: formatGasEth(balanceRaw),
+  }
+}
 
 /** The ETH row, from its quote. With the HCA already funded, nothing is sent. */
 export const getEthPaymentRow = (

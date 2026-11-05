@@ -1412,7 +1412,7 @@ msgid "Est. fee: ~{0}"
 msgstr "Est. fee: ~{0}"
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
+#: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
 msgid "Estimated network fee"
 msgstr "Estimated network fee"
 
@@ -3601,6 +3601,10 @@ msgstr "This browser doesn't support push notifications. Try Chrome, Firefox, or
 msgid "This commemorative NFT has already been minted."
 msgstr "This commemorative NFT has already been minted."
 
+#: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
+msgid "This funds your ENS account for the network fee. What the network doesn't use stays there, as existing balance for your next payment."
+msgstr "This funds your ENS account for the network fee. What the network doesn't use stays there, as existing balance for your next payment."
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "This is taking longer than expected."
 msgstr "This is taking longer than expected."
@@ -4226,9 +4230,9 @@ msgstr "What is a primary name?"
 msgid "What is the ETH swap?"
 msgstr "What is the ETH swap?"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
-msgid "What the network doesn't use stays in your ENS account."
-msgstr "What the network doesn't use stays in your ENS account."
+#: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
+msgid "What is the network fee?"
+msgstr "What is the network fee?"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 msgid "What will I sign?"
@@ -4356,15 +4360,16 @@ msgstr "You may miss important alerts if you remove this contact method. Are you
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 
+#. placeholder {0}: figures?.short
+#. placeholder {1}: figures?.needed
+#. placeholder {2}: figures?.held
+#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
+msgid "You need {0} ETH more for the swap and its gas: it takes up to {1} ETH and your wallet holds {2} ETH."
+msgstr "You need {0} ETH more for the swap and its gas: it takes up to {1} ETH and your wallet holds {2} ETH."
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "You need to verify your wallet ownership to manage your notification preferences."
 msgstr "You need to verify your wallet ownership to manage your notification preferences."
-
-#. placeholder {0}: formatGasEth((chargeRaw ?? 0n) + gasReserveRaw)
-#. placeholder {1}: formatGasEth(balanceRaw ?? 0n)
-#: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
-msgid "You need up to {0} ETH for the swap and its gas, and your wallet holds {1} ETH."
-msgstr "You need up to {0} ETH for the swap and its gas, and your wallet holds {1} ETH."
 
 #: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
 msgid "You pay"
@@ -4657,10 +4662,6 @@ msgstr "Your wallet shows the final fee before you approve."
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
 msgid "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use."
 msgstr "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use."
-
-#: src/features/register-v2/workflow/pricing/components/PaymentReceipt.tsx
-msgid "Your wallet swaps up to {eth} ETH{usd} for USDC. USDC the payment doesn't use stays in your wallet."
-msgstr "Your wallet swaps up to {eth} ETH{usd} for USDC. USDC the payment doesn't use stays in your wallet."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet will ask you to sign a payment approval for the amount shown. This allows that USDC to pay for registration and network fees. Registration starts after you sign."
