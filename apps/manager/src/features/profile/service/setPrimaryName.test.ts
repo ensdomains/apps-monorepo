@@ -29,6 +29,7 @@ vi.mock('@/config', () => ({
 }))
 
 vi.mock('@ens-apps/transaction-manager', () => ({
+  HCA_INTENT_FEE_MARGIN_BPS: 500n,
   getSmartAccountAddress: vi.fn(
     () => '0x1111111111111111111111111111111111111111',
   ),
