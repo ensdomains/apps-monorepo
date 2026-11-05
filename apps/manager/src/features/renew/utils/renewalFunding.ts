@@ -2,6 +2,7 @@ import type {
   HcaDisplayedDebit,
   HcaFundingPrompt,
 } from '@ens-apps/transaction-manager'
+import { formatUnits, parseUnits } from 'viem'
 import type { RENEWAL_TOKEN, TOKEN_SYMBOL } from '@/lib/tokens'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
@@ -9,10 +10,10 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 const FEE_TOKEN: TOKEN_SYMBOL = 'USDC'
 
 export type RenewalFundingSummary = {
-  /** The price with its approval headroom: what the renewer may pull. */
+  /** The price: what the renewer pulls. */
   readonly registration: number
   readonly networkFee: number
-  /** Price with headroom plus the fee: the figure shown as "up to". */
+  /** The price plus the fee. */
   readonly total: number
   /** What the wallet covers across both coins after the account's own balances. */
   readonly walletDebit: number
@@ -29,12 +30,12 @@ export type RenewalFunding = {
 type Leg = readonly [symbol: TOKEN_SYMBOL, amount: number]
 
 /**
- * What a smart-account renewal needs from the wallet. The price (with its
- * headroom) is owed in the chosen coin and the fee in USDC, and the account's
- * own balance of each pays first.
+ * What a smart-account renewal needs from the wallet. The price is owed in the
+ * chosen coin and the fee in USDC, and the account's own balance of each pays
+ * first.
  */
 export const computeRenewalFunding = (params: {
-  /** The price with its approval headroom, in the chosen coin. */
+  /** The price, in the chosen coin. */
   readonly funded: number
   readonly networkFee: number
   readonly selectedToken: RENEWAL_TOKEN
@@ -77,7 +78,7 @@ const debitRaw = (amount: bigint, credit: bigint | undefined) =>
 
 /** The wallet debit {@link computeRenewalFunding} shows, in each coin's units; the intent may not take more. */
 export const computeRenewalDisplayedDebit = (params: {
-  /** The price with its approval headroom, in the chosen coin's units. */
+  /** The price, in the chosen coin's units. */
   readonly fundedRaw: bigint
   /** USDC (6dp). */
   readonly networkFeeRaw: bigint
@@ -243,3 +244,68 @@ export const getRenewalFeeQuoteState = (quote: {
     !quote.isFetching &&
     (quote.isError || quote.feeRaw === null),
 })
+
+const RECEIPT_DECIMALS = 6
+
+/** The price less the balance applied up to it, in the receipt's USDC units. */
+const toReceiptTotalRaw = (
+  fundedRaw: bigint,
+  balanceRaw: bigint,
+  decimals: number,
+): bigint =>
+  parseUnits(
+    formatUnits(
+      fundedRaw - (balanceRaw < fundedRaw ? balanceRaw : fundedRaw),
+      decimals,
+    ),
+    RECEIPT_DECIMALS,
+  )
+
+/** The receipt's renewal total: the price, less the account's balance of that coin. */
+export const getRenewalCheckoutTotalRaw = ({
+  fundedRaw,
+  accountBalanceRaw,
+  decimals,
+}: {
+  readonly fundedRaw: bigint | undefined
+  readonly accountBalanceRaw: bigint | undefined
+  /** The price's coin. */
+  readonly decimals: number
+}): bigint | undefined =>
+  fundedRaw === undefined || accountBalanceRaw === undefined
+    ? undefined
+    : toReceiptTotalRaw(fundedRaw, accountBalanceRaw, decimals)
+
+/** The review's renewal total, from the prompt the wallet will be asked for. */
+const getPromptCheckoutTotalRaw = (prompt: HcaFundingPrompt): bigint =>
+  prompt.token
+    ? toReceiptTotalRaw(
+        prompt.token.required,
+        prompt.token.hcaBalance,
+        prompt.token.decimals,
+      )
+    : toReceiptTotalRaw(
+        prompt.requiredUsdc,
+        prompt.hcaBalanceUsdc,
+        RECEIPT_DECIMALS,
+      )
+
+/** The sheet's renewal total: an increased amount's own prompt once there is one, else the live price and balance. */
+export const getRenewalReceiptTotalRaw = ({
+  prompt,
+  ...checkout
+}: Parameters<typeof getRenewalCheckoutTotalRaw>[0] & {
+  readonly prompt: HcaFundingPrompt | undefined
+}): bigint | undefined =>
+  prompt
+    ? getPromptCheckoutTotalRaw(prompt)
+    : getRenewalCheckoutTotalRaw(checkout)
+
+/** On the intent route the sheet confirms only a receipt that shows its total, which needs the account's balance. */
+export const isRenewalReceiptReady = ({
+  isIntentRoute,
+  checkoutTotalRaw,
+}: {
+  readonly isIntentRoute: boolean
+  readonly checkoutTotalRaw: bigint | undefined
+}): boolean => !isIntentRoute || checkoutTotalRaw !== undefined

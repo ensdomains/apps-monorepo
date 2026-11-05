@@ -22,6 +22,7 @@ vi.mock('@/features/migration/service/computeMigrationPreflight', () => ({
 import type { V1Domain } from '@ens-apps/migration'
 import { usePublicClient } from 'wagmi'
 import { computeMigrationPreflight } from '@/features/migration/service/computeMigrationPreflight'
+import { DirectMigrationRouteError } from '../service/directMigrationRoutes'
 import { useMigrationPreflight } from './useMigrationPreflight'
 
 const usePublicClientMock = vi.mocked(usePublicClient)
@@ -52,6 +53,35 @@ beforeEach(() => {
 })
 
 describe('useMigrationPreflight', () => {
+  it('leaves retries to the preparation query instead of repeating a failed preflight', async () => {
+    const cause = new DirectMigrationRouteError({
+      message: 'Parent wrapper has not been migrated',
+      reason: 'missing-wrapper',
+      ensName: 'ethereumclub.eth',
+    })
+    computeMigrationPreflightMock.mockRejectedValue(cause)
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: 1, retryDelay: 0 } },
+    })
+    const { result, unmount } = renderHook(
+      () => useMigrationPreflight({ eoa: EOA }),
+      {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={queryClient}>
+            {children}
+          </QueryClientProvider>
+        ),
+      },
+    )
+    try {
+      await expect(result.current.ensure([domain('alice')])).rejects.toBe(cause)
+      expect(computeMigrationPreflightMock).toHaveBeenCalledTimes(1)
+    } finally {
+      unmount()
+      queryClient.clear()
+    }
+  })
+
   it('returns EMPTY_PREFLIGHT without calling computeMigrationPreflight when eoa is undefined', async () => {
     const { result } = renderHook(
       () => useMigrationPreflight({ eoa: undefined }),
