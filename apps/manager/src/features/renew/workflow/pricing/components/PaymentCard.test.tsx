@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   gate: vi.fn(),
   send: vi.fn(),
   protocol: 'v2' as 'v1' | 'v2',
+  isConnected: true,
 }))
 
 vi.mock('@/features/renew/hooks/useRenewalSigner', () => ({
@@ -46,11 +47,17 @@ vi.mock('@/features/wallet/hooks/useSmartSessionGate', () => ({
   useSmartSessionGate: () => ({ gate: mocks.gate, sessionModal: null }),
 }))
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
-  useSmartAccountContext: () => ({ isConnected: true, hasInitialized: true }),
+  useSmartAccountContext: () => ({
+    isConnected: mocks.isConnected,
+    hasInitialized: true,
+  }),
 }))
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
-  useConnection: () => ({ isConnected: true }),
+  useConnection: () => ({
+    isConnected: mocks.isConnected,
+    status: mocks.isConnected ? 'connected' : 'disconnected',
+  }),
 }))
 vi.mock('@/lib/wallet', () => ({
   useConnectModal: () => ({ connectModalOpen: false }),
@@ -76,6 +83,7 @@ const payButton = () => {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.protocol = 'v2'
+  mocks.isConnected = true
 })
 
 describe('renewal PaymentCard (ENSv2)', () => {
@@ -100,6 +108,18 @@ describe('renewal PaymentCard (ENSv2)', () => {
     renderCard()
 
     expect(screen.getByText('$00.00')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('shows the price, not a placeholder, while disconnected', () => {
+    mocks.isConnected = false
+    mocks.useRenewalSigner.mockReturnValue(null)
+
+    renderCard()
+
+    expect(screen.queryByText('$00.00')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /connect to renew/i }),
+    ).toBeEnabled()
   })
 
   it('accepts ETH for a V1 renewal paid from the smart account', () => {

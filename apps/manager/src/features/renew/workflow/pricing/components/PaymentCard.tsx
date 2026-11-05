@@ -56,11 +56,11 @@ export const PaymentCard = () => {
   const isEthAccepted = route === 'intent'
   const checkout = useCheckoutSources({ ...account, signer }, isEthAccepted)
   const { sources } = checkout
-  // No signer yet reads as no account balance; the total waits for the route instead.
-  const accountBalance =
-    route === null ? UNKNOWN_BALANCE : checkout.accountBalance
 
   const isConnected = isWalletRoute ? isEoaConnected : account.isConnected
+  // A connected wallet's signer not yet resolved reads as no balance; the total waits for it instead.
+  const accountBalance =
+    isConnected && route === null ? UNKNOWN_BALANCE : checkout.accountBalance
   const isAccountPending = useIsAccountPending(isConnected)
   const openTokenPicker = () => uiActor.send({ type: 'pricing.step.next' })
   const action = getCheckoutAction({
