@@ -86,6 +86,7 @@ interface TokenPickerDialogShellProps {
   readonly hasBudgetQuoteFailed?: boolean
   readonly receiptNotice?: ReactNode
   readonly isQuotingFunding?: boolean
+  readonly accountCredit?: Partial<Record<SUPPORTED_TOKEN, number>>
   /** L2 rows the registration can be paid from. */
   readonly l2Rows?: readonly L2PaymentRow[]
 }
@@ -108,6 +109,7 @@ export const TokenPickerDialogShell = ({
   hasBudgetQuoteFailed = false,
   receiptNotice,
   isQuotingFunding = false,
+  accountCredit,
   l2Rows,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
@@ -124,6 +126,7 @@ export const TokenPickerDialogShell = ({
       title="Select payment"
     >
       <TokenPickerContentBase
+        accountCredit={accountCredit}
         checkoutReceipt={
           hasBudgetQuoteFailed
             ? { totalRaw: parseUnits(String(pricingData ?? 0), 6) }
@@ -529,6 +532,14 @@ export const BudgetQuoteGasCoverageFailed: Story = {
       "Network fees are elevated right now (about $11.40 estimated). We couldn't lock in a total — please try again shortly.",
     receiptNotice:
       'This total is an estimate. Try again for a confirmed quote before paying.',
+  },
+}
+
+/** WEB-2061: credit covers the price but not the estimate, so the methods stay listed. */
+export const BudgetQuoteGasCoverageFailedWithAccountCredit: Story = {
+  args: {
+    ...BudgetQuoteGasCoverageFailed.args,
+    accountCredit: { USDC: 5 },
   },
 }
 
