@@ -44,10 +44,12 @@ async function main() {
     gateway.setRecords(`alice.${name}`, OFFCHAIN_SUBNAME_RECORDS)
   } else {
     const owner = privateKeyToAccount(createAccounts().getPrivateKey('user'))
+    // No indexer wait: the gateway must keep serving whether or not the local
+    // bigname is running; the apps pick the name up once it is indexed.
     ;({ name } = await createMakeOffchainName({
       gateway,
       userAccount: owner,
-    })())
+    })({ waitForIndexer: false }))
   }
 
   console.log(`
