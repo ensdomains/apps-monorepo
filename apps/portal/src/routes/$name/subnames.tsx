@@ -409,6 +409,8 @@ const SubregistrySubnames = ({
         canCreateSubname={canCreateSubname}
         // ====================================================================
         // !!! TODO(WEB-2122): DO NOT MERGE. Remove this prop before merging. !!!
+        // ENSv2 subname creation is unpaused for testing only; main keeps it
+        // paused. Paired with IS_V2_CREATION_PAUSED in create-subname.tsx.
         // ====================================================================
         isCreationPaused={false}
         onDeleteSubname={canDeleteSubname ? handleDeleteSubname : undefined}
