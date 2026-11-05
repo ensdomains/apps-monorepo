@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { type ReactNode, useState } from 'react'
+import { parseUnits } from 'viem'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
@@ -153,8 +154,8 @@ export const TokenPickerDialogShell = ({
         pricingLoading={pricingLoading}
         receiptNotice={receiptNotice}
         registrationReceipt={
-          hasBudgetQuoteFailed || funding
-            ? { totalRaw: BigInt(Math.round((pricingData ?? 0) * 1e6)) }
+          hasBudgetQuoteFailed
+            ? { totalRaw: parseUnits(String(pricingData ?? 0), 6) }
             : undefined
         }
         selectedToken={selectedToken}
