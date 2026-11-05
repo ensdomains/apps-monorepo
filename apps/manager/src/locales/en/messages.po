@@ -15,8 +15,8 @@ msgstr ""
 
 #. placeholder {0}: filteredGracePeriodNames.length
 #: src/features/migration/components/SelectNamesStepNameList.tsx
-msgid "{0, plural, one {# name in grace} other {# names in grace}}"
-msgstr "{0, plural, one {# name in grace} other {# names in grace}}"
+msgid "{0, plural, one {# name in grace period} other {# names in grace period}}"
+msgstr "{0, plural, one {# name in grace period} other {# names in grace period}}"
 
 #. placeholder {0}: wrapperSyncNames.length
 #: src/features/migration/components/UpgradeBanner.tsx
@@ -1769,6 +1769,10 @@ msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). The
 msgid "Keep renewal"
 msgstr "Keep renewal"
 
+#: src/features/register-v2/workflow/registering/lib/keepBrowserOpen.ts
+msgid "Keep this browser open while your name is registered"
+msgstr "Keep this browser open while your name is registered"
+
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Keep this window open while the transaction confirms."
 msgstr "Keep this window open while the transaction confirms."
@@ -1994,8 +1998,8 @@ msgid "Names could not be loaded"
 msgstr "Names could not be loaded"
 
 #: src/features/migration/components/SelectNamesStepNameList.tsx
-msgid "Names in grace will be renewed before being migrated"
-msgstr "Names in grace will be renewed before being migrated"
+msgid "Names in grace period will be renewed before they're upgraded. The renewal is paid in USDC, and your wallet also needs ETH for network fees."
+msgstr "Names in grace period will be renewed before they're upgraded. The renewal is paid in USDC, and your wallet also needs ETH for network fees."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Names that point to your wallet couldn’t be loaded, so some may be missing."
@@ -2551,10 +2555,6 @@ msgstr "Registered"
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Registering for"
 msgstr "Registering for"
-
-#: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
-msgid "Registering name"
-msgstr "Registering name"
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Registering..."
@@ -3575,8 +3575,8 @@ msgid "The renewal for {label}.eth could not be completed. You can retry or go b
 msgstr "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 
 #: src/features/renew/components/RenewalFundingDialog.tsx
-msgid "The renewal price includes a 10% buffer: the final price is set when the renewal executes, slightly after this quote."
-msgstr "The renewal price includes a 10% buffer: the final price is set when the renewal executes, slightly after this quote."
+msgid "The renewal price includes a 2% buffer: the final price is set when the renewal executes, slightly after this quote."
+msgstr "The renewal price includes a 2% buffer: the final price is set when the renewal executes, slightly after this quote."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
@@ -4665,6 +4665,10 @@ msgstr "Your wallet has already given your smart account an allowance that cover
 #: src/components/HcaFundingApprovalDialog.tsx
 msgid "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, you can sign the renewal."
 msgstr "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, you can sign the renewal."
+
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Your wallet needs more ETH for network fees. Add ETH and try again."
+msgstr "Your wallet needs more ETH for network fees. Add ETH and try again."
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Your wallet sends this one, because your temporary account no longer has permission to update these records."
