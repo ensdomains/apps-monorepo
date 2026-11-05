@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { FieldLegend, FieldSet } from '@/components/ui/field'
@@ -9,6 +9,8 @@ import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import {
   DEFAULT_SUBNAME_EXPIRY,
+  getFirstToExpire,
+  getNamesAbove,
   isPastParentExpiry,
   readSubnameExpiryClock,
   type SubnameExpiry,
@@ -63,13 +65,28 @@ export const SubnameExpiryField = ({
   onExpiryChange,
   disabled = false,
 }: SubnameExpiryFieldProps) => {
-  const parentQuery = useQuery(
-    getRegistrationDataQueryOptions({ name: parentName }),
-  )
-  const parentExpiry = parentQuery.data?.expiry ?? null
+  const namesAbove = getNamesAbove(parentName)
+  const aboveQueries = useQueries({
+    queries: namesAbove.map((name) =>
+      getRegistrationDataQueryOptions({ name }),
+    ),
+  })
+  const unreadName = namesAbove.find((_, index) => aboveQueries[index]?.isError)
+  const firstToExpire = aboveQueries.every((query) => query.isSuccess)
+    ? getFirstToExpire(
+        namesAbove.map((name, index) => ({
+          name,
+          expiry: aboveQueries[index]?.data?.expiry ?? null,
+        })),
+      )
+    : null
   const isPastParent =
-    parentExpiry !== null &&
-    isPastParentExpiry(expiry, readSubnameExpiryClock(), BigInt(parentExpiry))
+    firstToExpire !== null &&
+    isPastParentExpiry(
+      expiry,
+      readSubnameExpiryClock(),
+      firstToExpire.expirySeconds,
+    )
 
   return (
     <FieldSet disabled={disabled}>
@@ -107,15 +124,18 @@ export const SubnameExpiryField = ({
       {isPastParent && (
         <Alert variant="warning">
           <AlertDescription>
-            {parentName} expires on{' '}
-            {formatDateTime(unixSecondsToPlainDateUtc(parentExpiry))}. The
-            subname stops resolving then, unless {parentName} is renewed.
+            {firstToExpire.name} expires on{' '}
+            {formatDateTime(
+              unixSecondsToPlainDateUtc(Number(firstToExpire.expirySeconds)),
+            )}
+            . The subname stops resolving then, unless {firstToExpire.name} is
+            renewed.
           </AlertDescription>
         </Alert>
       )}
-      {expiry.type === 'span' && parentQuery.isError && (
+      {expiry.type === 'span' && unreadName && (
         <p className="text-p text-muted-foreground">
-          Couldn’t read when {parentName} expires, so this date isn’t checked
+          Couldn’t read when {unreadName} expires, so this date isn’t checked
           against it.
         </p>
       )}
