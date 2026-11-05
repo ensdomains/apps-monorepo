@@ -1052,6 +1052,31 @@ describe('TokenPickerContentBase', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
   })
 
+  it('does not call a failed quote fully covered by credit that only covers the price', () => {
+    renderPicker({
+      hasBudgetQuoteFailed: true,
+      selectedToken: 'USDC',
+      pricingData: 1.4,
+      accountCredit: { USDC: 5 },
+      estimatedFunding: {
+        registration: 1.4,
+        networkFee: 10,
+        total: 11.4,
+        walletDebit: 11.4,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      checkoutReceipt: { totalRaw: 1_400_000n },
+    })
+
+    expect(screen.queryByText(/No additional payment needed/)).toBeNull()
+    expect(
+      screen
+        .getByRole('heading', { hidden: true, name: 'Pay with' })
+        .closest('[hidden]'),
+    ).toBeNull()
+  })
+
   it('holds checkout while a stale quote is on screen', () => {
     renderPicker({
       funding: {

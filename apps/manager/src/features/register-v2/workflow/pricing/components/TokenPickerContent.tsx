@@ -1286,9 +1286,12 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
       (isQuotingFunding && !shownFunding && !hasBudgetQuoteFailed),
     figures: receiptFigures,
   })
-  // Unrounded, so a sub-cent debit keeps the methods.
+  // Unrounded, so a sub-cent debit keeps the methods. A failed quote's estimate is never covered.
   const isFullyCovered =
-    receiptState.status === 'ready' && selectedShare === 0 && !!walletSelection
+    receiptState.status === 'ready' &&
+    !hasBudgetQuoteFailed &&
+    selectedShare === 0 &&
+    !!walletSelection
 
   const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances
     .filter(hasBalance)
