@@ -42,7 +42,7 @@ vi.mock('../hooks/useAddressNames', () => ({
 
 const DAY = 24n * 60n * 60n
 
-const item = (name: string, expiryDate: Date): AddressNameItem => ({
+const item = (name: string, expiryDate: Date | null): AddressNameItem => ({
   name,
   expiryDate,
   graceEndDate: null,
@@ -125,6 +125,31 @@ describe('YourNames', () => {
     expect(within(rows[0]).getByText('Expires in 10 days')).toHaveClass(
       'bg-message-warning-fill',
     )
+  })
+
+  it('counts a subname down to its parent’s expiry when that stops it first', async () => {
+    renderNames([
+      {
+        ...v2Name('outlives.parent.eth', 900n),
+        parentExpiryDate: v2Name('parent.eth', 10n).expiryDate,
+      },
+      {
+        ...item('undated.parent.eth', null),
+        parentExpiryDate: v2Name('parent.eth', 800n).expiryDate,
+      },
+      { ...item('unread.parent.eth', null), parentExpiryDate: null },
+    ])
+
+    const rows = await screen.findAllByRole('listitem')
+    expect(within(rows[0]).getByText('Stops resolving in 10 days')).toHaveClass(
+      'bg-message-warning-fill',
+    )
+    expect(rows[0]).toHaveTextContent('With its parent')
+    expect(rows[1]).toHaveTextContent(
+      /undated\.parent\.ethExpires in 2 years \d+ daysWith its parent$/,
+    )
+    expect(rows[2]).toHaveTextContent(/unread\.parent\.ethExpires with parent$/)
+    expect(screen.queryByText('Does not expire')).toBeNull()
   })
 
   it('does not claim the wallet is empty while a query is paused offline', async () => {
