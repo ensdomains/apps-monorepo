@@ -491,6 +491,13 @@ const machineSetup = setup({
       fundingSourceChainId: () => undefined,
       fundingSourceOrigin: () => undefined,
     }),
+    // Closing the sheet forgets the pick, so the next open starts from the fallback.
+    clearPaymentPick: assign({
+      selectedToken: () => undefined,
+      fundingSourceChainId: () => undefined,
+      fundingSourceOrigin: () => undefined,
+      paymentAsset: () => 'stablecoin' as const,
+    }),
     clearError: assign({
       lastErrorMessage: () => undefined,
       approvalOutcome: () => 'none' as const,
@@ -1221,7 +1228,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           on: {
             'pricing.step.previous': {
               target: 'duration',
-              actions: 'clearError',
+              actions: ['clearPaymentPick', 'clearError'],
             },
             'pricing.token.select': {
               // Cleared first: the coin's own origin replaces the L2's.
@@ -1235,7 +1242,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
-              actions: 'clearError',
+              actions: ['clearPaymentPick', 'clearError'],
             },
             'registration.start': {
               target: 'approving',

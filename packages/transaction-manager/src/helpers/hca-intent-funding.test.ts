@@ -226,6 +226,21 @@ describe('planHcaIntentFunding', () => {
     expect(funding.calls[2]).toEqual(actionCalls[0])
   })
 
+  it('funds the fee above the quote by the margin a caller asks for', async () => {
+    mockReads({ hcaBalance: 0n })
+
+    const funding = await planHcaIntentFunding({
+      ...params,
+      feeMarginBps: 500n,
+    })
+
+    expect(funding.quotedFeeUsdc).toBe(945_000n)
+    expect(funding.incomingUsdc).toBe(945_000n)
+    expect(funding.auxiliaryFunds).toEqual({
+      [sepolia.id]: { [C.usdc]: 945_000n },
+    })
+  })
+
   it('permits only the shortfall, not the whole fee', async () => {
     // Double-charging a standing balance would move more of the user's USDC
     // into the HCA than the action needs.
@@ -445,10 +460,10 @@ describe('planHcaIntentFunding', () => {
   it('quotes against the declared gas limit and its scaled fee ceiling', async () => {
     mockReads({ hcaBalance: 0n })
     const gasLimit = 1_200_000n
-    // 15 USDC is above the 300k ceiling but legitimately below the ceiling for
+    // 40 USDC is above the 300k ceiling but legitimately below the ceiling for
     // 1.2M: the rail prices on the declared limit, so the bound must come from
     // the same limit or it rejects a fee the intent really costs.
-    prepareTransaction.mockResolvedValue(quoteOf(15_000_000n))
+    prepareTransaction.mockResolvedValue(quoteOf(40_000_000n))
 
     await expect(planHcaIntentFunding({ ...params, gasLimit })).rejects.toThrow(
       /above the expected maximum/,
@@ -461,7 +476,7 @@ describe('planHcaIntentFunding', () => {
     })
 
     expect(prepareTransaction.mock.calls[0]?.[0]).toMatchObject({ gasLimit })
-    expect(funding.quotedFeeUsdc).toBe(15_000_000n)
+    expect(funding.quotedFeeUsdc).toBe(40_000_000n)
   })
 })
 
@@ -470,16 +485,15 @@ describe('hcaMaxIntentFeeUsdcFor', () => {
     expect(hcaMaxIntentFeeUsdcFor(HCA_STANDALONE_INTENT_GAS_LIMIT)).toBe(
       HCA_MAX_STANDALONE_INTENT_FEE_USDC,
     )
-    expect(hcaMaxIntentFeeUsdcFor(150_000n)).toBe(5_000_000n)
+    expect(hcaMaxIntentFeeUsdcFor(150_000n)).toBe(15_000_000n)
     // Rounded up, so a fee at the ceiling is never rejected.
-    expect(hcaMaxIntentFeeUsdcFor(150_001n)).toBe(5_000_034n)
+    expect(hcaMaxIntentFeeUsdcFor(150_001n)).toBe(15_000_100n)
   })
 
   it('adds only the per-million-gas rate above the anchor', () => {
-    // The single-renewal base and a full 25-name chunk: ~4x their measured
-    // ~3.2 and ~9.3 USDC fees, rather than the anchor's rate scaled to ~100.
-    expect(hcaMaxIntentFeeUsdcFor(600_000n)).toBe(13_000_000n)
-    expect(hcaMaxIntentFeeUsdcFor(3_000_000n)).toBe(37_000_000n)
+    // The single-renewal base and a full 25-name chunk, not the anchor's rate scaled.
+    expect(hcaMaxIntentFeeUsdcFor(600_000n)).toBe(37_500_000n)
+    expect(hcaMaxIntentFeeUsdcFor(3_000_000n)).toBe(97_500_000n)
   })
 })
 

@@ -1,5 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@/utils/test-utils'
 import type { SummaryRow } from '../types'
@@ -36,10 +36,19 @@ vi.mock('motion/react', () => ({
 vi.mock('./DurationPresets', () => ({ DurationPresets: () => <div /> }))
 vi.mock('./RenewToDatePopover', () => ({ RenewToDatePopover: () => <div /> }))
 vi.mock('./BulkRenewPaymentStep', () => ({
-  BulkRenewPaymentStep: ({ onConfirm }: { onConfirm: () => void }) => (
-    <button onClick={onConfirm} type="button">
-      Confirm
-    </button>
+  BulkRenewPaymentStep: ({
+    header,
+    onConfirm,
+  }: {
+    header: ReactNode
+    onConfirm: () => void
+  }) => (
+    <>
+      {header}
+      <button onClick={onConfirm} type="button">
+        Confirm
+      </button>
+    </>
   ),
 }))
 vi.mock('./NamesBreakdown', () => ({ NamesBreakdown: () => <div /> }))
@@ -200,6 +209,20 @@ describe('BulkRenewDialog close/reopen', () => {
       ]),
     )
   })
+
+  it.each(['Back', '1 year'])(
+    'returns to the duration step from the confirm step via %s',
+    (name) => {
+      render(<Harness />)
+      fireEvent.click(screen.getByRole('button', { name: /next/i }))
+      expect(screen.getByText('Confirm renewal')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name }))
+
+      expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument()
+      expect(screen.queryByText('Confirm renewal')).not.toBeInTheDocument()
+    },
+  )
 
   it('resumes the in-flight renewal when reopened mid-flow', () => {
     const { rerender } = render(<Harness />)
