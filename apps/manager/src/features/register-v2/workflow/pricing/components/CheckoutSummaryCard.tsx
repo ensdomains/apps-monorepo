@@ -56,7 +56,10 @@ const Usd = ({
   </>
 )
 
-/** The total, pulsing on its own while the account's balance, and so the total, is still being read. */
+/** Set in the total's own type, so the card keeps its height when the figure arrives. */
+const PENDING_FIGURE = 'animate-pulse rounded bg-ens-quartz-75 text-transparent'
+
+/** The total, or a placeholder while the account's balance, and so the total, is still being read. */
 const TotalAmount = ({
   raw,
   isPending,
@@ -65,9 +68,21 @@ const TotalAmount = ({
   readonly raw: bigint
   readonly isPending: boolean
   readonly className: string
-}) => (
-  <span className={tw(className, isPending && 'animate-pulse')}>
-    <AnimatedPrice emphasis="soft" value={toUsd(raw)} />
+}) =>
+  isPending ? (
+    <span aria-hidden="true" className={tw(className, PENDING_FIGURE)}>
+      $00.00
+    </span>
+  ) : (
+    <span className={className}>
+      <AnimatedPrice emphasis="soft" value={toUsd(raw)} />
+    </span>
+  )
+
+/** The total leaves the network fee to the payment sheet, and says so. */
+const NetworkFeesNote = () => (
+  <span className="text-ens-quartz-550 text-xs leading-none">
+    <Trans>+ network fees</Trans>
   </span>
 )
 
@@ -82,11 +97,14 @@ const TotalOnly = ({ summary, discount, isTotalPending }: LayoutProps) => (
     <span className="text-ens-lapis-500 text-xs uppercase">
       <Trans>Total USD</Trans>
     </span>
-    <TotalAmount
-      className="font-medium font-semi-mono text-4xl text-ens-blue-midnight leading-ens-none md:text-5xl"
-      isPending={isTotalPending}
-      raw={summary.totalRaw}
-    />
+    <div className="flex flex-col items-center">
+      <TotalAmount
+        className="font-medium font-semi-mono text-4xl text-ens-blue-midnight leading-ens-none md:text-5xl"
+        isPending={isTotalPending}
+        raw={summary.totalRaw}
+      />
+      <NetworkFeesNote />
+    </div>
     {discount > 0 && <SavePill amount={discount} />}
   </div>
 )
@@ -94,8 +112,7 @@ const TotalOnly = ({ summary, discount, isTotalPending }: LayoutProps) => (
 const WithExistingBalance = ({
   summary,
   discount,
-  isTotalPending,
-}: LayoutProps) => (
+}: Omit<LayoutProps, 'isTotalPending'>) => (
   <div className="flex w-full flex-1 flex-col justify-between gap-8">
     <div className="flex flex-col gap-5">
       <Row label={<Trans>Name cost</Trans>}>
@@ -106,18 +123,21 @@ const WithExistingBalance = ({
         <Usd isDeduction raw={summary.existingBalanceRaw} />
       </Row>
     </div>
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-ens-lapis-500 text-lg leading-none">
-        <Trans>Total</Trans>
-      </span>
-      <span className="flex items-baseline gap-1.5">
-        <TotalAmount
-          className="font-medium font-semi-mono text-ens-blue-midnight text-temp-32px leading-ens-none"
-          isPending={isTotalPending}
-          raw={summary.totalRaw}
-        />
-        <span className={RECEIPT_LABEL}>USD</span>
-      </span>
+    <div className="flex flex-col items-end gap-0.5">
+      <div className="flex w-full items-baseline justify-between gap-2">
+        <span className="text-ens-lapis-500 text-lg leading-none">
+          <Trans>Total</Trans>
+        </span>
+        <span className="flex items-baseline gap-1.5">
+          <TotalAmount
+            className="font-medium font-semi-mono text-ens-blue-midnight text-temp-32px leading-ens-none"
+            isPending={false}
+            raw={summary.totalRaw}
+          />
+          <span className={RECEIPT_LABEL}>USD</span>
+        </span>
+      </div>
+      <NetworkFeesNote />
     </div>
   </div>
 )
@@ -134,7 +154,12 @@ const AcceptedTokens = ({ acceptsEth }: { readonly acceptsEth: boolean }) => (
   </div>
 )
 
-type ConnectControl = Readonly<{ onConnect: () => void; isOpen: boolean }>
+type ConnectControl = Readonly<{
+  onConnect: () => void
+  isOpen: boolean
+  /** "Connect to register" by default. */
+  label?: ReactNode
+}>
 
 const ActionButton = ({
   action,
@@ -147,8 +172,13 @@ const ActionButton = ({
 }) => {
   const [label, onClick, isEnabled] = match(action)
     .returnType<readonly [ReactNode, () => void, boolean]>()
+    .with({ kind: 'loading' }, () => [
+      <Trans key="loading">Loading...</Trans>,
+      onContinue,
+      false,
+    ])
     .with({ kind: 'connect' }, () => [
-      <Trans key="connect">Connect to register</Trans>,
+      connect.label ?? <Trans key="connect">Connect to register</Trans>,
       connect.onConnect,
       !connect.isOpen,
     ])
@@ -216,16 +246,18 @@ export const CheckoutSummaryCard = ({
       )}
     >
       {header}
-      {summary && summary.existingBalanceRaw > 0n ? (
-        <WithExistingBalance
-          discount={discount}
-          isTotalPending={isTotalPending}
-          summary={summary}
-        />
+      {/* The rows only once a balance is known; until then nothing says the user has one. */}
+      {summary &&
+      !isTotalPending &&
+      action.kind !== 'loading' &&
+      summary.existingBalanceRaw > 0n ? (
+        <WithExistingBalance discount={discount} summary={summary} />
       ) : (
         <TotalOnly
           discount={discount}
-          isTotalPending={isTotalPending}
+          isTotalPending={
+            isTotalPending || action.kind === 'loading' || summary === undefined
+          }
           summary={
             summary ?? { nameCostRaw: 0n, existingBalanceRaw: 0n, totalRaw: 0n }
           }
