@@ -1,4 +1,7 @@
-import type { HcaBudgetBreakdown } from '@ens-apps/smart-account'
+import {
+  getDestinationContracts,
+  type HcaBudgetBreakdown,
+} from '@ens-apps/smart-account'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
@@ -198,7 +201,9 @@ const canReauthorizeSession = (
 
 /** Whether this run sends its pre-cooldown steps as one EOA bundle. */
 const shouldBundleEoaSetup = (context: RegistrationContext): boolean =>
-  context.signer?.type === 'eoa' && context.canBatchAtomically === true
+  context.signer?.type === 'eoa' &&
+  context.canBatchAtomically === true &&
+  context.ethFunding === undefined
 
 /**
  * Where a failed commit restarts. A bundled setup re-reads the resolver first,
@@ -398,6 +403,13 @@ export type RegistrationContext = {
    * on-chain `approve`) and when the HCA balance already covers the budget.
    */
   permit?: PermitSignature
+  /**
+   * EOA → ENS registrar USDC permit embedded as a CoW pre-hook. It is kept
+   * separate from the HCA funding permit above and is never persisted.
+   */
+  registrarPermit?: PermitSignature
+  /** A CoW order is expected to submit `commitment` as a post-hook. */
+  cowCommitHookPending?: boolean
   approvalTxId?: string
   registrationTxId?: string
   /**
@@ -444,6 +456,7 @@ export type RegistrationContext = {
     | 'submittingSetupBundle'
     | 'preparingCommitment'
     | 'signingFundingPermit'
+    | 'signingCowRegistrarPermit'
     | 'swappingEth'
     | 'approvingToken'
     | 'registeringDomain'
@@ -986,6 +999,7 @@ export const registrationMachine = setup({
         requiredGasOverhead: undefined,
         sessionReauthorizations: undefined,
         permit: undefined,
+        registrarPermit: undefined,
         hcaBudget: undefined,
         hcaBudgetBreakdown: undefined,
         hcaUsdcBalance: undefined,
@@ -1181,6 +1195,8 @@ export const registrationMachine = setup({
               commitment: () => undefined,
               commitmentTxId: () => undefined,
               permit: () => undefined,
+              registrarPermit: () => undefined,
+              cowCommitHookPending: () => undefined,
               // Balance is re-read by `checkingHcaFunding` on every run, but
               // clear it so a stale value can never size a permit if some future
               // path reaches `signingFundingPermit` without the read.
@@ -1217,6 +1233,11 @@ export const registrationMachine = setup({
             actions: 'applyResumeContext',
           },
           {
+            guard: ({ event }) => getResumeTarget(event) === 'swappingEth',
+            target: 'swappingEth',
+            actions: 'applyResumeContext',
+          },
+          {
             target: 'settingUpRegistration',
             actions: 'applyResumeContext',
           },
@@ -1235,10 +1256,11 @@ export const registrationMachine = setup({
       },
       always: [
         {
-          // EOA checkout can fund its own USDC balance from any CoW token
-          // before entering the ordinary approval/commit/register spine.
+          // Resolve first so the commitment can be attached to the CoW order.
+          // A first-time resolver deployment remains an ordinary transaction;
+          // later registrations skip it entirely.
           guard: 'isEoaCowFunded',
-          target: 'swappingEth',
+          target: 'checkingResolver',
         },
         {
           // Standalone-HCA: compute the funding budget at runtime, check
@@ -1635,6 +1657,81 @@ export const registrationMachine = setup({
       },
     },
 
+    // EOA CoW flow: sample the live price before signing anything. Existing
+    // registrar allowance means no permit prompt; otherwise sign a tightly
+    // scoped EIP-2612 permit that settlement executes as a pre-hook.
+    checkingCowRegistrarAllowance: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'readPaymentAuthorization',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: guaranteed by flow
+          owner: context.ownerAddress ?? context.accountAddress!,
+          name: context.name,
+          duration: context.duration,
+          selectedToken: context.selectedToken,
+          paymentTokenAddress: context.paymentTokenAddress,
+          // biome-ignore lint/style/noNonNullAssertion: guaranteed by flow
+          publicClient: context.publicClient!,
+        }),
+        onDone: [
+          {
+            guard: ({ event }) =>
+              event.output.allowance >= event.output.livePrice,
+            target: 'swappingEth',
+            actions: assign({
+              tokenPrice: ({ event }) => event.output.livePrice,
+              registrarPermit: () => undefined,
+            }),
+          },
+          {
+            target: 'signingCowRegistrarPermit',
+            actions: assign({
+              tokenPrice: ({ event }) => event.output.livePrice,
+            }),
+          },
+        ],
+        onError: { target: 'signingCowRegistrarPermit' },
+      },
+      on: { CANCEL: 'idle' },
+    },
+
+    signingCowRegistrarPermit: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'signFundingPermit',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: guaranteed by flow
+          wallet: context.ownerAddress ?? context.accountAddress!,
+          hca: getDestinationContracts(context.chainId).ethRegistrar,
+          // CoW buys this exact USDC output and the ENS USD price cannot rise
+          // naturally during the commitment cooldown (expiry premium only
+          // decays). Keep registrar consent exact; sell-token slippage is
+          // bounded separately by the CoW order's maximumSell.
+          value: context.tokenPrice,
+          // biome-ignore lint/style/noNonNullAssertion: guaranteed by flow
+          approvalSigner: context.approvalSigner ?? context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: guaranteed by flow
+          publicClient: context.publicClient!,
+          chainId: context.chainId,
+        }),
+        onDone: {
+          target: 'swappingEth',
+          actions: assign({
+            registrarPermit: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+            retryTarget: () => 'signingCowRegistrarPermit' as const,
+          }),
+        },
+      },
+      on: { CANCEL: 'idle' },
+    },
+
     // Paid with another token: CoW solvers send the exact USDC shortfall to
     // the HCA, or to the EOA before the normal ENS registration spine.
     swappingEth: {
@@ -1663,9 +1760,22 @@ export const registrationMachine = setup({
             hca: receiver,
             targetBalance,
             funding: context.ethFunding,
+            // HCA balances are reusable registration credit. An EOA's USDC
+            // is unrelated to the token chosen at checkout, so never let it
+            // silently replace a selected USDT/ETH/etc. payment.
+            fundingMode:
+              context.signer?.type === 'rhinestone' ? 'topUp' : 'exact',
             approvalSigner,
             publicClient: context.publicClient,
             pendingSwap: context.pendingEthSwap,
+            registrarPermit:
+              context.signer?.type === 'eoa'
+                ? context.registrarPermit
+                : undefined,
+            commitment:
+              context.signer?.type === 'eoa'
+                ? context.commitment?.commitment
+                : undefined,
             onSwapSent: (swap: PendingEthSwap) =>
               self.send({ type: 'ETH_SWAP_SENT', swap }),
           }
@@ -1677,13 +1787,14 @@ export const registrationMachine = setup({
             actions: assign({ pendingEthSwap: () => undefined }),
           },
           {
-            guard: ({ context }) => context.approveBeforeCommit === true,
-            target: 'checkingAllowance',
-            actions: assign({ pendingEthSwap: () => undefined }),
-          },
-          {
-            target: 'checkingResolver',
-            actions: assign({ pendingEthSwap: () => undefined }),
+            // Settlement attempted both USDC permit and ENS commit hooks.
+            // Verify each independently because CoW deliberately allows a
+            // hook to revert without reverting the user's swap.
+            target: 'validatingCommitment',
+            actions: assign({
+              pendingEthSwap: () => undefined,
+              registrarPermit: () => undefined,
+            }),
           },
         ],
         // Retry re-checks the HCA balance and settles a persisted order first.
@@ -1922,6 +2033,16 @@ export const registrationMachine = setup({
           }
         },
         onDone: [
+          {
+            // CoW can execute the ENS commit after settlement, but the order
+            // must bind the already-generated commitment in its app-data.
+            guard: 'isEoaCowFunded',
+            target: 'checkingCowRegistrarAllowance',
+            actions: assign({
+              commitment: ({ event }) => event.output,
+              cowCommitHookPending: () => true,
+            }),
+          },
           {
             guard: 'shouldBundleEoaSetup',
             target: 'submittingEoaSetupBundle',
@@ -2235,31 +2356,52 @@ export const registrationMachine = setup({
             actions: assign({
               registerReadyTimestamp: ({ event }) =>
                 event.output.registerReadyTimestamp,
+              cowCommitHookPending: () => undefined,
             }),
           },
         ],
-        onError: {
-          target: 'error',
-          actions: [
-            assign({
-              error: ({ event }) => event.error as Error,
-              // The commitment never landed, so resubmit it — but via the path
-              // that originally produced it. The HCA flow commits inside the
-              // session-signed `submittingSetupBundle` (fund + enable +
-              // commit), so it must re-run the whole request with a fresh
-              // commitment (the batch is atomic: a revert leaves the permit
-              // unconsumed, so it is safely reused). Pure-EOA commits
-              // standalone, so it retries `committingTransaction`.
-              retryTarget: ({ context }) => commitRetryTarget(context),
-            }),
-            ({ event }) => {
-              console.error(
-                '❌ [REGISTRATION] Commitment validation failed:',
-                event.error,
-              )
-            },
-          ],
-        },
+        onError: [
+          {
+            // Hook failure must be visible but not terminal. CoW settlement
+            // already delivered the USDC; submit the exact same commitment as
+            // the ordinary EOA transaction and continue safely.
+            guard: ({ context }) =>
+              context.signer?.type === 'eoa' &&
+              context.cowCommitHookPending === true,
+            target: 'committingTransaction',
+            actions: [
+              assign({ cowCommitHookPending: () => undefined }),
+              ({ event }) => {
+                console.warn(
+                  '⚠️ [REGISTRATION] CoW commit hook did not land; falling back to the normal commit transaction:',
+                  event.error,
+                )
+              },
+            ],
+          },
+          {
+            target: 'error',
+            actions: [
+              assign({
+                error: ({ event }) => event.error as Error,
+                // The commitment never landed, so resubmit it — but via the path
+                // that originally produced it. The HCA flow commits inside the
+                // session-signed `submittingSetupBundle` (fund + enable +
+                // commit), so it must re-run the whole request with a fresh
+                // commitment (the batch is atomic: a revert leaves the permit
+                // unconsumed, so it is safely reused). Pure-EOA commits
+                // standalone, so it retries `committingTransaction`.
+                retryTarget: ({ context }) => commitRetryTarget(context),
+              }),
+              ({ event }) => {
+                console.error(
+                  '❌ [REGISTRATION] Commitment validation failed:',
+                  event.error,
+                )
+              },
+            ],
+          },
+        ],
       },
       on: {
         CANCEL: 'idle',
@@ -2924,6 +3066,17 @@ export const registrationMachine = setup({
               hcaBudget: undefined,
               hcaBudgetBreakdown: undefined,
               registrationIntentId: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) =>
+              context.retryTarget === 'signingCowRegistrarPermit',
+            target: 'signingCowRegistrarPermit',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              registrarPermit: undefined,
             })),
           },
           {

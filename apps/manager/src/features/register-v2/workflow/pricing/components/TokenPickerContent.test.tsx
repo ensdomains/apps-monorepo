@@ -299,7 +299,7 @@ describe('TokenPickerContent', () => {
 
     try {
       expect(
-        screen.getByRole('button', { name: 'Registering...' }),
+        screen.getByRole('button', { name: 'Preparing registration…' }),
       ).toBeDisabled()
       vi.advanceTimersByTime(75_000)
       expect(getBlockingRegistration(owner, 'other.eth')).toBe('jeff.eth')
@@ -315,7 +315,7 @@ describe('TokenPickerContent', () => {
     renderContainer()
 
     expect(
-      screen.getByRole('button', { name: 'Registering...' }),
+      screen.getByRole('button', { name: 'Preparing registration…' }),
     ).toBeDisabled()
     expect(
       screen.getByRole('button', { name: 'What will I sign?' }),
@@ -373,7 +373,7 @@ describe('TokenPickerContent', () => {
     hcaBalance: 0n,
   }
 
-  it('lists the wallet first, then quoted L2s by balance, three at a time', () => {
+  it('lists the wallet first, then every quoted L2 by balance in the scroll area', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
     containerMocks.renderBudget = fiveUsdcBudget
     containerMocks.l2Balances = {
@@ -392,9 +392,11 @@ describe('TokenPickerContent', () => {
       'Select USDC',
       'Select USDC on Arbitrum Sepolia',
       'Select USDC on OP Sepolia',
+      'Select USDC on Base Sepolia',
     ])
-    fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
-    expect(methodNames().at(-1)).toBe('Select USDC on Base Sepolia')
+    expect(
+      screen.queryByRole('button', { name: 'Load more' }),
+    ).not.toBeInTheDocument()
   })
   it('keeps a funded L2 listed while the primary-name toggle re-quotes', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
@@ -1669,10 +1671,10 @@ describe('TokenPickerContentBase ETH row', () => {
   })
 
   it.each([
-    ['nothing to swap', 0n, false],
+    ['nothing to swap', 0n, true],
     ['a swap to make', 2_600_000_000_000_000n, true],
   ])(
-    'with a wallet that pays in USDC, lists ETH only with %s',
+    'with a wallet that pays in USDC, still lists held ETH with %s',
     (_case, chargeRaw, isListed) => {
       renderPicker({
         funding: underfunded,
@@ -1794,9 +1796,7 @@ describe('TokenPickerContentBase ETH row', () => {
         ethPayment: ethPaymentOf(row, true),
       })
 
-      expect(
-        screen.getByText('You do not have enough ETH for this transaction.'),
-      ).toBeVisible()
+      expect(screen.getByText('Not enough ETH in your wallet.')).toBeVisible()
       expect(
         screen.getByRole('button', { name: 'Register name' }),
       ).toBeDisabled()

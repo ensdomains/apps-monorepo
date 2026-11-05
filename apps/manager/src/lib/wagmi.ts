@@ -15,6 +15,12 @@ const readBatch = {
   multicall: { batchSize: 8192, wait: 16 },
 } as const
 
+// A Worker isolate reuses this module across requests. Viem's batch scheduler
+// can otherwise retain a pending promise created by the previous request,
+// which Workerd correctly cancels as cross-request I/O. Browser clients have a
+// single request context and keep batching enabled.
+const requestSafeBatch = typeof window === 'undefined' ? undefined : readBatch
+
 export const sepoliaFallbackTransport = failover(envConfig.rpcUrls)
 
 export const sepoliaWithEns = envConfig.chain
@@ -22,11 +28,11 @@ export const sepoliaWithEns = envConfig.chain
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
   transport: sepoliaFallbackTransport,
-  batch: readBatch,
+  batch: requestSafeBatch,
 })
 
 export const wagmiConfig = createConfig({
-  batch: readBatch,
+  batch: requestSafeBatch,
   syncConnectedChain: false,
   ssr: true,
   multiInjectedProviderDiscovery: true,

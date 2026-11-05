@@ -23,6 +23,13 @@ const {
   swapParamsToLimitOrderParams,
   onChainCancelOrder,
   waitForTransactionReceipt,
+  viemAdapterConstructor,
+  getGlobalAdapter,
+  getTokenPermitInfo,
+  getPermitUtilsInstance,
+  getTokenNonce,
+  generatePermitHook,
+  fetchPermitInfo,
 } = vi.hoisted(() => ({
   getQuoteOnly: vi.fn(),
   getQuote: vi.fn(),
@@ -34,6 +41,13 @@ const {
   swapParamsToLimitOrderParams: vi.fn(() => ({ limit: true })),
   onChainCancelOrder: vi.fn(),
   waitForTransactionReceipt: vi.fn(),
+  viemAdapterConstructor: vi.fn(),
+  getGlobalAdapter: vi.fn(),
+  getTokenPermitInfo: vi.fn(),
+  getPermitUtilsInstance: vi.fn(),
+  getTokenNonce: vi.fn(),
+  generatePermitHook: vi.fn(),
+  fetchPermitInfo: vi.fn(),
 }))
 
 vi.mock('@cowprotocol/cow-sdk', async (importOriginal) => ({
@@ -49,6 +63,7 @@ vi.mock('@cowprotocol/cow-sdk', async (importOriginal) => ({
   getTradeParametersAfterQuote,
   swapParamsToLimitOrderParams,
   postSellNativeCurrencyOrder,
+  getGlobalAdapter,
 }))
 
 vi.mock('viem/actions', async (importOriginal) => ({
@@ -57,13 +72,32 @@ vi.mock('viem/actions', async (importOriginal) => ({
 }))
 
 vi.mock('@cowprotocol/sdk-viem-adapter', () => ({
-  ViemAdapter: class {},
+  ViemAdapter: class {
+    constructor(options: unknown) {
+      viemAdapterConstructor(options)
+    }
+  },
+}))
+
+vi.mock('@cowprotocol/permit-utils', () => ({
+  generatePermitHook,
+  getPermitUtilsInstance,
+  getTokenPermitInfo,
+  isSupportedPermitInfo: (value: { type?: string }) =>
+    value.type === 'eip-2612' || value.type === 'dai-like',
 }))
 
 const WALLET: Address = '0x1111111111111111111111111111111111111111'
 const HCA: Address = '0x2222222222222222222222222222222222222222'
 const HASH = `0x${'ab'.repeat(32)}` as const
 const APPROVAL_HASH = `0x${'cd'.repeat(32)}` as const
+const HOOK_TARGET: Address = '0x3333333333333333333333333333333333333333'
+const hooks = {
+  pre: [
+    { target: HOOK_TARGET, callData: '0x1234' as const, gasLimit: 100_000 },
+  ],
+  post: [{ target: HCA, callData: '0xabcd' as const, gasLimit: 200_000 }],
+}
 const USDC = getDestinationContracts(sepolia.id).usdc
 const DAI: CowSellToken = {
   address: '0x68194a729C2450ad26072b3D33ADaCbcef39D574',
@@ -71,6 +105,7 @@ const DAI: CowSellToken = {
   decimals: 18,
   isNative: false,
 }
+const USDT: CowSellToken = { ...DAI, symbol: 'USDT' }
 const publicClient = { chain: sepolia } as unknown as PublicClient
 const walletClient = {
   account: { address: WALLET },
@@ -88,6 +123,14 @@ const quoteResult = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.stubGlobal('fetch', fetchPermitInfo)
+  fetchPermitInfo.mockResolvedValue({
+    ok: true,
+    json: async () => ({}),
+  })
+  getGlobalAdapter.mockImplementation(() => {
+    throw new Error('Provider adapter is not configured')
+  })
   getQuoteOnly.mockResolvedValue(quoteResult)
   postSwapOrderFromQuote.mockResolvedValue({ orderId: 'erc20-order-id' })
   getQuote.mockResolvedValue({
@@ -95,6 +138,14 @@ beforeEach(() => {
     postSwapOrderFromQuote,
   })
   getCowProtocolAllowance.mockResolvedValue(0n)
+  getTokenPermitInfo.mockResolvedValue({ type: 'unsupported' })
+  getTokenNonce.mockResolvedValue(0)
+  getPermitUtilsInstance.mockResolvedValue({ getTokenNonce })
+  generatePermitHook.mockResolvedValue({
+    target: DAI.address,
+    callData: '0xd505accf',
+    gasLimit: '160000',
+  })
   approveCowProtocol.mockResolvedValue(APPROVAL_HASH)
   waitForTransactionReceipt.mockResolvedValue({ status: 'success' })
   postSellNativeCurrencyOrder.mockResolvedValue({
@@ -149,6 +200,7 @@ describe('CoW ETH funding', () => {
       hash: HASH,
       validTo: 1_800_000_000,
       kind: 'native',
+      amountOut: 20_000_000n,
     })
     expect(postSellNativeCurrencyOrder).toHaveBeenCalledOnce()
   })
@@ -222,6 +274,129 @@ describe('CoW ERC-20 funding', () => {
         receiver: HCA,
       }),
     )
+    expect(viemAdapterConstructor).toHaveBeenCalledOnce()
+    expect(viemAdapterConstructor).toHaveBeenCalledWith({
+      provider: publicClient,
+    })
+  })
+
+  it('does not replace an adapter that is already configured while polling', async () => {
+    getGlobalAdapter.mockReturnValue({})
+
+    const result = await quoteCowSwap({
+      publicClient,
+      chainId: sepolia.id,
+      owner: WALLET,
+      receiver: HCA,
+      amountOut: 20_000_000n,
+      sellToken: DAI,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(viemAdapterConstructor).not.toHaveBeenCalled()
+  })
+
+  it('prices the CoW SDK permit hook at checkout', async () => {
+    getTokenPermitInfo.mockResolvedValue({
+      type: 'eip-2612',
+      name: 'CoW Protocol Token',
+      version: '1',
+    })
+
+    const result = await quoteCowSwap({
+      publicClient,
+      chainId: sepolia.id,
+      owner: WALLET,
+      receiver: HCA,
+      amountOut: 20_000_000n,
+      sellToken: { ...DAI, symbol: 'COW' },
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(getQuoteOnly).toHaveBeenCalledTimes(2)
+    expect(getQuoteOnly).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        appData: {
+          metadata: {
+            hooks: expect.objectContaining({
+              pre: expect.arrayContaining([
+                expect.objectContaining({ gasLimit: '160000' }),
+              ]),
+            }),
+          },
+        },
+      }),
+    )
+  })
+
+  it('prices the permit when an exact prior allowance does not cover checkout drift', async () => {
+    getCowProtocolAllowance.mockResolvedValue(
+      BigInt(quoteResult.orderToSign.sellAmount),
+    )
+    getTokenPermitInfo.mockResolvedValue({
+      type: 'eip-2612',
+      name: 'CoW Protocol Token',
+      version: '1',
+    })
+
+    const result = await quoteCowSwap({
+      publicClient,
+      chainId: sepolia.id,
+      owner: WALLET,
+      receiver: HCA,
+      amountOut: 20_000_000n,
+      sellToken: { ...DAI, symbol: 'COW' },
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(getQuoteOnly).toHaveBeenCalledTimes(2)
+    expect(generatePermitHook).toHaveBeenCalledOnce()
+  })
+
+  it('omits the permit only when an existing allowance covers checkout drift', async () => {
+    getCowProtocolAllowance.mockResolvedValue(
+      withBps(BigInt(quoteResult.orderToSign.sellAmount), 300n),
+    )
+    getTokenPermitInfo.mockResolvedValue({
+      type: 'eip-2612',
+      name: 'CoW Protocol Token',
+      version: '1',
+    })
+
+    const result = await quoteCowSwap({
+      publicClient,
+      chainId: sepolia.id,
+      owner: WALLET,
+      receiver: HCA,
+      amountOut: 20_000_000n,
+      sellToken: { ...DAI, symbol: 'COW' },
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(getQuoteOnly).toHaveBeenCalledOnce()
+    expect(generatePermitHook).not.toHaveBeenCalled()
+  })
+
+  it('fails checkout instead of silently omitting a supported permit hook', async () => {
+    getTokenPermitInfo.mockResolvedValue({
+      type: 'eip-2612',
+      name: 'CoW Protocol Token',
+      version: '1',
+    })
+    generatePermitHook.mockResolvedValue(undefined)
+
+    const result = await quoteCowSwap({
+      publicClient,
+      chainId: sepolia.id,
+      owner: WALLET,
+      receiver: HCA,
+      amountOut: 20_000_000n,
+      sellToken: { ...DAI, symbol: 'COW' },
+    })
+
+    expect(result.isErr()).toBe(true)
+    expect(getQuoteOnly).toHaveBeenCalledOnce()
   })
 
   it('approves only the refreshed maximum and posts a gasless order', async () => {
@@ -240,6 +415,7 @@ describe('CoW ERC-20 funding', () => {
       orderId: 'erc20-order-id',
       validTo: 1_800_000_000,
       kind: 'erc20',
+      amountOut: 20_000_000n,
     })
     expect(approveCowProtocol).toHaveBeenCalledWith({
       tokenAddress: DAI.address,
@@ -247,6 +423,11 @@ describe('CoW ERC-20 funding', () => {
     })
     expect(waitForTransactionReceipt).toHaveBeenCalledWith(publicClient, {
       hash: APPROVAL_HASH,
+    })
+    expect(viemAdapterConstructor).toHaveBeenCalledOnce()
+    expect(viemAdapterConstructor).toHaveBeenCalledWith({
+      provider: publicClient,
+      walletClient,
     })
     expect(postSwapOrderFromQuote).toHaveBeenCalledOnce()
   })
@@ -270,7 +451,161 @@ describe('CoW ERC-20 funding', () => {
     expect(postSwapOrderFromQuote).toHaveBeenCalledOnce()
   })
 
-  it('resets USDT-style non-zero allowance before changing it', async () => {
+  it('uses a bounded CoW permit hook without revoking an existing COW allowance', async () => {
+    getCowProtocolAllowance.mockResolvedValue(1n)
+    getTokenPermitInfo.mockResolvedValue({
+      type: 'eip-2612',
+      name: 'CoW Protocol Token',
+      version: '1',
+    })
+
+    const result = await submitCowSwap({
+      publicClient,
+      walletClient,
+      chainId: sepolia.id,
+      owner: WALLET,
+      receiver: HCA,
+      amountOut: 20_000_000n,
+      sellToken: { ...DAI, symbol: 'COW' },
+      maximumSell: 11_000_000_000_000_000n,
+      hooks,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(generatePermitHook).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account: WALLET,
+        amount: 16_500_000_000_000_000n,
+        nonce: 0,
+      }),
+    )
+    expect(approveCowProtocol).not.toHaveBeenCalled()
+    expect(getQuote).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        appData: {
+          metadata: {
+            hooks: expect.objectContaining({
+              pre: expect.arrayContaining([
+                expect.objectContaining({
+                  target: DAI.address,
+                  callData: expect.stringMatching(/^0xd505accf/),
+                  gasLimit: '160000',
+                }),
+              ]),
+            }),
+          },
+        },
+      }),
+    )
+    expect(postSwapOrderFromQuote).toHaveBeenCalledOnce()
+  })
+
+  it('does not mistake signed permit execution cost for market price movement', async () => {
+    const signedPermitQuote = {
+      ...quoteResult,
+      orderToSign: {
+        ...quoteResult.orderToSign,
+        sellAmount: '14000000000000000',
+      },
+    }
+    getCowProtocolAllowance.mockResolvedValue(0n)
+    getTokenPermitInfo.mockResolvedValue({
+      type: 'eip-2612',
+      name: 'CoW Protocol Token',
+      version: '1',
+    })
+    getQuoteOnly
+      .mockResolvedValueOnce(quoteResult)
+      .mockResolvedValueOnce(signedPermitQuote)
+    getQuote.mockResolvedValue({
+      quoteResults: signedPermitQuote,
+      postSwapOrderFromQuote,
+    })
+
+    const result = await submitCowSwap({
+      publicClient,
+      walletClient,
+      chainId: sepolia.id,
+      owner: WALLET,
+      receiver: HCA,
+      amountOut: 20_000_000n,
+      sellToken: { ...DAI, symbol: 'COW' },
+      maximumSell: 11_000_000_000_000_000n,
+      hooks,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(generatePermitHook).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 16_500_000_000_000_000n }),
+    )
+    expect(postSwapOrderFromQuote).toHaveBeenCalledOnce()
+  })
+
+  it('binds the same hooks into the quote and signed order app-data', async () => {
+    getCowProtocolAllowance.mockResolvedValue(10_500_000_000_000_000n)
+
+    const result = await submitCowSwap({
+      publicClient,
+      walletClient,
+      chainId: sepolia.id,
+      owner: WALLET,
+      receiver: HCA,
+      amountOut: 20_000_000n,
+      sellToken: DAI,
+      maximumSell: 11_000_000_000_000_000n,
+      hooks,
+    })
+
+    expect(result.isOk()).toBe(true)
+    const advancedSettings = {
+      appData: {
+        metadata: {
+          hooks: {
+            version: '0.2.0',
+            pre: hooks.pre.map((hook) => ({
+              ...hook,
+              gasLimit: hook.gasLimit.toString(),
+            })),
+            post: hooks.post.map((hook) => ({
+              ...hook,
+              gasLimit: hook.gasLimit.toString(),
+            })),
+          },
+        },
+      },
+    }
+    expect(getQuoteOnly).toHaveBeenCalledWith(
+      expect.any(Object),
+      advancedSettings,
+    )
+    expect(getQuote).toHaveBeenCalledWith(expect.any(Object), advancedSettings)
+    expect(postSwapOrderFromQuote).toHaveBeenCalledWith()
+  })
+
+  it('does not revoke a standard token allowance before increasing it', async () => {
+    getCowProtocolAllowance.mockResolvedValue(1n)
+
+    const result = await submitCowSwap({
+      publicClient,
+      walletClient,
+      chainId: sepolia.id,
+      owner: WALLET,
+      receiver: HCA,
+      amountOut: 20_000_000n,
+      sellToken: DAI,
+      maximumSell: 11_000_000_000_000_000n,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(approveCowProtocol).toHaveBeenCalledOnce()
+    expect(approveCowProtocol).toHaveBeenCalledWith({
+      tokenAddress: DAI.address,
+      amount: 10_500_000_000_000_000n,
+    })
+  })
+
+  it('resets only USDT-style non-zero allowance before changing it', async () => {
     getCowProtocolAllowance.mockResolvedValue(1n)
     approveCowProtocol
       .mockResolvedValueOnce(APPROVAL_HASH)
@@ -283,7 +618,7 @@ describe('CoW ERC-20 funding', () => {
       owner: WALLET,
       receiver: HCA,
       amountOut: 20_000_000n,
-      sellToken: DAI,
+      sellToken: USDT,
       maximumSell: 11_000_000_000_000_000n,
     })
 

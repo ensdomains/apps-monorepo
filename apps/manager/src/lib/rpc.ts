@@ -10,7 +10,10 @@ export const failover = (urls: readonly string[]) =>
   fallback(
     urls.map((url) =>
       http(url, {
-        batch: { batchSize: 20, wait: 16 },
+        // Workerd isolates must not retain HTTP batch promises between SSR
+        // requests. The browser has one request context and can batch safely.
+        batch:
+          typeof window === 'undefined' ? false : { batchSize: 20, wait: 16 },
       }),
     ),
     // One more pass over the endpoints; viem gives each endpoint no retries of its own.

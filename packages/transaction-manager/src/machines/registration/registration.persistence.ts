@@ -94,6 +94,8 @@ export type PersistedRegistrationContext = {
   resolverTxId?: string
   resolverSalt?: bigint
   commitment?: { commitment: Hash; secret: Hex }
+  /** CoW settlement is expected to submit the persisted commitment hook. */
+  cowCommitHookPending?: boolean
   commitmentTxId?: string
   approvalTxId?: string
   registrationTxId?: string
@@ -191,6 +193,7 @@ const REGISTER_STAGES = new Set([
 export type ResumeTarget =
   | 'verifyingRegistration'
   | 'validatingCommitment'
+  | 'swappingEth'
   | 'settingUpRegistration'
 
 /**
@@ -213,6 +216,16 @@ export function getResumeTarget(record: {
   // grace-polls, so an intent still filling server-side is caught.
   if (context.registrationTxId || REGISTER_STAGES.has(stage)) {
     return 'verifyingRegistration'
+  }
+
+  // The order already contains this exact commitment in signed app-data. Wait
+  // for that order rather than generating a new secret or paying twice.
+  if (
+    context.pendingEthSwap &&
+    context.commitment &&
+    context.cowCommitHookPending
+  ) {
+    return 'swappingEth'
   }
 
   // A commitment only enters context once the commit request COMPLETED, so its
@@ -258,6 +271,7 @@ export function serializeRegistrationContext(
     resolverTxId: context.resolverTxId,
     resolverSalt: context.resolverSalt,
     commitment: context.commitment,
+    cowCommitHookPending: context.cowCommitHookPending,
     commitmentTxId: context.commitmentTxId,
     approvalTxId: context.approvalTxId,
     registrationTxId: context.registrationTxId,
@@ -370,6 +384,7 @@ const persistedContextSchema = v.object({
       orderId: v.string(),
       validTo: v.number(),
       kind: v.optional(v.picklist(['native', 'erc20'])),
+      amountOut: v.optional(v.bigint()),
     }),
   ),
   resolverAddress: v.optional(addressSchema),
@@ -378,6 +393,7 @@ const persistedContextSchema = v.object({
   commitment: v.optional(
     v.object({ commitment: hashSchema, secret: hexSchema }),
   ),
+  cowCommitHookPending: v.optional(v.boolean()),
   commitmentTxId: v.optional(v.string()),
   approvalTxId: v.optional(v.string()),
   registrationTxId: v.optional(v.string()),

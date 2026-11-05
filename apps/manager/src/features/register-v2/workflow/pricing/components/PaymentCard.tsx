@@ -97,17 +97,23 @@ export const PaymentCard = () => {
         accountBalance.status === 'known' ? accountBalance.usdcRaw : 0n,
       )
     : undefined
+  const pageAvailability = pricingQuery.data
+    ? getPageAvailability(
+        pricingQuery.data.basePrice + pricingQuery.data.premium,
+        accountBalance,
+        sources,
+      )
+    : 'unknown'
   const action = getCheckoutAction({
     isAccountPending,
     isConnected: account.isConnected,
     isPreparing: openTokenPicker.isPending,
-    availability: pricingQuery.data
-      ? getPageAvailability(
-          pricingQuery.data.basePrice + pricingQuery.data.premium,
-          accountBalance,
-          sources,
-        )
-      : 'unknown',
+    // The page only knows the EOA's USDC balance; the payment sheet discovers
+    // every CoW token. A known USDC shortfall therefore cannot disable entry.
+    availability:
+      account.signer?.type === 'eoa' && pageAvailability === 'insufficient'
+        ? 'unknown'
+        : pageAvailability,
     canNext,
   })
 
@@ -125,8 +131,7 @@ export const PaymentCard = () => {
   return (
     <>
       <CheckoutSummaryCard
-        // ETH is swapped for the ENS account, so only that route offers it.
-        acceptsEth={account.signer?.type === 'rhinestone'}
+        acceptsEth
         action={action}
         connect={{
           onConnect: () => openConnectModal?.(),

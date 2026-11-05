@@ -12,6 +12,7 @@ type StoredEthSwap = {
   orderId: string
   validTo: number
   kind?: 'native' | 'erc20'
+  amountOut?: string
 }
 
 /** Swaps by `chainId:wallet`. */
@@ -56,7 +57,9 @@ export const readPendingEthSwap = (
     (stored.hash !== undefined &&
       (typeof stored.hash !== 'string' || !isHash(stored.hash))) ||
     typeof stored.orderId !== 'string' ||
-    typeof stored.validTo !== 'number'
+    typeof stored.validTo !== 'number' ||
+    (stored.amountOut !== undefined &&
+      (typeof stored.amountOut !== 'string' || !/^\d+$/.test(stored.amountOut)))
   ) {
     return undefined
   }
@@ -65,6 +68,9 @@ export const readPendingEthSwap = (
     orderId: stored.orderId,
     validTo: stored.validTo,
     kind: stored.kind ?? (stored.hash ? 'native' : 'erc20'),
+    ...(stored.amountOut === undefined
+      ? {}
+      : { amountOut: BigInt(stored.amountOut) }),
   }
 }
 
@@ -80,6 +86,9 @@ export const savePendingEthSwap = (
       orderId: swap.orderId,
       validTo: swap.validTo,
       kind: swap.kind,
+      ...(swap.amountOut === undefined
+        ? {}
+        : { amountOut: swap.amountOut.toString() }),
     },
   })
 }

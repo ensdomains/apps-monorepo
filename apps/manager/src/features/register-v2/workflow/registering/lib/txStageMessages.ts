@@ -47,8 +47,8 @@ export const getRegistrationStageMessages = (
       }),
     )
     .with({ stage: 'swappingEth' }, () => ({
-      stageLabel: msg`Swapping ETH for USDC`,
-      stageDescription: msg`Confirm the swap in your wallet, then wait for it to complete`,
+      stageLabel: msg`Paying with your selected token`,
+      stageDescription: msg`Approve the token once if needed, then sign the CoW order`,
     }))
     .with({ stage: 'idle' }, () => ({
       stageLabel: msg`Idle`,
@@ -116,6 +116,14 @@ export const getRegistrationStageMessages = (
     .with({ stage: 'signingFundingPermit' }, () => ({
       stageLabel: msg`Approve payment`,
       stageDescription: msg`Sign the gasless payment approval in your wallet`,
+    }))
+    .with({ stage: 'checkingCowRegistrarAllowance' }, () => ({
+      stageLabel: msg`Checking payment permission`,
+      stageDescription: msg`Checking whether ENS already has payment permission`,
+    }))
+    .with({ stage: 'signingCowRegistrarPermit' }, () => ({
+      stageLabel: msg`Sign payment permission`,
+      stageDescription: msg`This is a gasless signature, not a transaction`,
     }))
     .with({ stage: 'reauthorizingSession' }, () => ({
       stageLabel: msg`Confirm updated network fees`,

@@ -1,4 +1,8 @@
-import type { CowSellToken } from '@ens-apps/transaction-manager'
+import {
+  type CowSellToken,
+  ETH_SWAP_GAS_RESERVE_MULTIPLIER,
+  ethToUsdcRaw,
+} from '@ens-apps/transaction-manager'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { match } from 'ts-pattern'
 import { formatUnits } from 'viem'
@@ -16,6 +20,8 @@ export type EthPaymentRow = Readonly<{
   balanceRaw: bigint | undefined
   /** ETH (wei) the swap step keeps back for gas on top of the swap. */
   gasReserveRaw: bigint
+  /** Chainlink ETH/USD (8 decimals), present only for native ETH. */
+  ethUsdRaw?: bigint
   isQuoteLoading: boolean
   hasQuoteFailed: boolean
 }>
@@ -56,6 +62,15 @@ export const getEthSelectionMessage = (
       <Trans>Paying with {symbol} isn't available right now.</Trans>
     ))
     .otherwise(() => undefined)
+
+/** The native EthFlow transaction's estimated gas in USDC. */
+export const getEthSwapGasUsdcRaw = (row: EthPaymentRow | undefined) =>
+  row?.ethUsdRaw === undefined
+    ? 0n
+    : ethToUsdcRaw(
+        row.gasReserveRaw / ETH_SWAP_GAS_RESERVE_MULTIPLIER,
+        row.ethUsdRaw,
+      )
 
 export const EthPaymentListItem = ({
   token,

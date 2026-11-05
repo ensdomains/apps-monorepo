@@ -24,6 +24,7 @@ catalog:
   viem: ^2.57.7
   "@rhinestone/sdk": 1.22.0
   "@cowprotocol/cow-sdk": 9.3.0
+  "@cowprotocol/permit-utils": 3.12.0
   "@cowprotocol/sdk-viem-adapter": 0.3.37
   # Peer of @rhinestone/sdk/jwt-server, which signs the orchestrator access tokens.
   jose: ^6.2.12

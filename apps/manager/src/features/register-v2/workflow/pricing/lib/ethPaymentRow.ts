@@ -7,7 +7,7 @@ export const getEthPaymentRow = (
       readonly swap?: { readonly maximumEth: bigint }
       readonly walletBalance: bigint
       readonly gasReserve: bigint
-      readonly ethUsd: bigint
+      readonly ethUsd?: bigint
     }
     readonly isPending: boolean
     readonly isPlaceholderData: boolean

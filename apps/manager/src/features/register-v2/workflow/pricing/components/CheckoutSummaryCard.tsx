@@ -2,8 +2,6 @@ import { Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import { formatUnits } from 'viem'
-import ethCoinIcon from '@/assets/icons/eth-coin.svg'
-import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { Card } from '@/components/ui/card'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -142,14 +140,61 @@ const WithExistingBalance = ({
   </div>
 )
 
+const acceptedTokenExamples = [
+  {
+    symbol: 'USDC',
+    logoURI:
+      'https://files.cow.fi/token-lists/images/1/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48/logo.png',
+  },
+  {
+    symbol: 'DAI',
+    logoURI:
+      'https://files.cow.fi/token-lists/images/1/0x6b175474e89094c44da98b954eedeac495271d0f/logo.png',
+  },
+  {
+    symbol: 'WETH',
+    logoURI:
+      'https://files.cow.fi/token-lists/images/1/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2/logo.png',
+  },
+  {
+    symbol: 'ENS',
+    logoURI:
+      'https://assets.coingecko.com/coins/images/19785/large/ENS.jpg?1727872989',
+  },
+] as const
+
+const tokenBadgeClass =
+  'flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-white'
+
 const AcceptedTokens = ({ acceptsEth }: { readonly acceptsEth: boolean }) => (
   <div className="flex items-center justify-center gap-2">
-    <span className="text-ens-quartz-400 text-sm">
+    <span className="text-ens-quartz-400 text-xs">
       <Trans>Accepted</Trans>
     </span>
-    <span className="flex items-center gap-1">
-      <USDCIcon className="size-5" />
-      {acceptsEth && <img alt="ETH" className="size-5" src={ethCoinIcon} />}
+    <span className="flex items-center -space-x-1.5">
+      {acceptedTokenExamples
+        .slice(0, acceptsEth ? acceptedTokenExamples.length : 1)
+        .map((token) => (
+          <span
+            className={tokenBadgeClass}
+            key={token.symbol}
+            title={token.symbol}
+          >
+            <img
+              alt={token.symbol}
+              className="size-full rounded-full object-cover"
+              src={token.logoURI}
+            />
+          </span>
+        ))}
+      {acceptsEth && (
+        <span
+          className={`${tokenBadgeClass} border border-ens-quartz-100 font-semibold text-[10px] text-ens-blue-midnight`}
+          title="More supported tokens"
+        >
+          +
+        </span>
+      )}
     </span>
   </div>
 )

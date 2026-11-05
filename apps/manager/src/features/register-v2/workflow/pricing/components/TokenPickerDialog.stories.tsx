@@ -241,6 +241,8 @@ export const FixtureTokenPickerContent = ({
   const items: PaymentMethodListItem[] = methods.map((method) => ({
     id: method.id,
     isSelected: selectedId === method.id,
+    tokenSymbol: method.network === 'Mainnet' ? method.name : undefined,
+    searchText: `${method.name} ${method.network}`,
     content: (
       <PaymentMethodRow
         amount={method.balance}
@@ -258,14 +260,14 @@ export const FixtureTokenPickerContent = ({
   const canRegister = !!selectedMethod?.isAvailable
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-6 pt-2 pb-6">
-      <div className="flex flex-1 flex-col items-center gap-8 overflow-y-auto">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-4 pt-2 pb-6">
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-hidden">
         <div className="flex w-full flex-col items-center rounded-2xl bg-ens-quartz-50 p-6">
           <span className="font-medium font-semi-mono text-[40px] text-ens-gray leading-none">
             erni.eth
           </span>
         </div>
-        <div className="flex w-full flex-col gap-6">
+        <div className="flex min-h-0 w-full flex-col gap-3">
           <h2 className="text-center font-medium text-[18px] leading-none">
             <Trans>Select payment</Trans>
           </h2>
@@ -489,8 +491,8 @@ export const LongNameWithApprovalDetails: Story = {
   ),
 }
 
-export const FixtureMultipleMethodsCollapsed: Story = {
-  name: '[Fixture only] Multiple methods collapsed',
+export const FixtureMultipleMethods: Story = {
+  name: '[Fixture only] Searchable payment methods',
   render: () => (
     <FixtureTokenPickerDialogShell
       initialSelectedId="usdc-mainnet"

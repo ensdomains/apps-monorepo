@@ -64,7 +64,7 @@ export const PaymentDialogBase = ({
         className={cn(
           'flex flex-col',
           registrationLayout
-            ? 'max-h-[90dvh] min-h-0 sm:min-h-[500px]'
+            ? 'h-[calc(100dvh-2rem)] min-h-0 sm:h-[min(760px,90dvh)] sm:w-[32rem]'
             : 'max-h-[90vh] min-h-[500px]',
         )}
         onEscapeKeyDown={

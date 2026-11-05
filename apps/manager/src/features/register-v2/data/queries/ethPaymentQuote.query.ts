@@ -22,8 +22,8 @@ export type EthPaymentQuote = SwapQuote &
     walletBalance: bigint
     /** ETH (wei) the swap step also keeps back for gas; `0n` while the swap alone is unaffordable. */
     gasReserve: bigint
-    /** The Chainlink ETH/USD price (8 decimals), for the figures shown in USD. */
-    ethUsd: bigint
+    /** Chainlink ETH/USD (8 decimals), present only for native ETH. */
+    ethUsd?: bigint
   }>
 
 export type EthPaymentQuoteParams = Readonly<{
@@ -34,6 +34,8 @@ export type EthPaymentQuoteParams = Readonly<{
   permitValue: bigint | undefined
   /** Off where the route has no permit to fund. */
   isEnabled: boolean
+  /** EOA registration quotes include the permit + commit solver work. */
+  includeRegistrationHooks?: boolean
 }>
 
 /** The ETH payment could not be quoted, or the wallet's ETH read. */
@@ -46,6 +48,7 @@ const getEthPaymentQuote = ({
   receiver,
   sellToken,
   permitValue,
+  includeRegistrationHooks,
 }: EthPaymentQuoteParams): ResultAsync<
   EthPaymentQuote,
   EthPaymentQuoteError
@@ -65,6 +68,7 @@ const getEthPaymentQuote = ({
       publicClient,
       chainId: chain.id,
       sellToken,
+      includeRegistrationHooks,
     }),
     ResultAsync.fromPromise(
       sellToken.isNative
@@ -77,11 +81,13 @@ const getEthPaymentQuote = ({
           }),
       (cause) => cause,
     ),
-    readEthUsdPrice({
-      publicClient,
-      chainId: chain.id,
-      nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
-    }),
+    sellToken.isNative
+      ? readEthUsdPrice({
+          publicClient,
+          chainId: chain.id,
+          nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
+        })
+      : okAsync(undefined),
   ])
     .andThen(([quote, walletBalance, ethUsd]) =>
       // Estimating gas for a swap the wallet can't fund fails, and the row is short anyway.
@@ -118,6 +124,7 @@ export const getEthPaymentQuoteQueryOptions = (params: EthPaymentQuoteParams) =>
       receiver: params.receiver ?? undefined,
       sellToken: params.sellToken?.address,
       permitValue: params.permitValue?.toString(),
+      includeRegistrationHooks: params.includeRegistrationHooks,
     }),
     queryFn: () => getEthPaymentQuote(params),
     enabled:

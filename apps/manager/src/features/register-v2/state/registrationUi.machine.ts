@@ -1087,10 +1087,16 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               !!snapshot.context.commitmentTxId,
             approvalOutcome: match(snapshot.context.retryTarget)
               .returnType<ApprovalOutcome>()
-              .with(P.union('signingFundingPermit', 'approvingToken'), () =>
-                isUserRejectionError(snapshot.context.error)
-                  ? 'rejected'
-                  : 'failed',
+              .with(
+                P.union(
+                  'signingFundingPermit',
+                  'signingCowRegistrarPermit',
+                  'approvingToken',
+                ),
+                () =>
+                  isUserRejectionError(snapshot.context.error)
+                    ? 'rejected'
+                    : 'failed',
               )
               .otherwise(() => 'none'),
             // Lost a same-name race: the child refuses RETRY, so the failure
@@ -1116,6 +1122,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           !snapshot.matches('computingHcaBudget') &&
           !snapshot.matches('checkingHcaFunding') &&
           !snapshot.matches('signingFundingPermit') &&
+          !snapshot.matches('signingCowRegistrarPermit') &&
           !snapshot.matches('checkingAllowance') &&
           !snapshot.matches('approvingToken') &&
           !snapshot.matches('waitingForApproval'),

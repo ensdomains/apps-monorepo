@@ -63,7 +63,6 @@ import { EthNameText } from './EthNameText'
 import {
   canPayWithEth,
   EthPaymentListItem,
-  type EthPaymentProps,
   type EthPaymentRow,
   getEthSelectionMessage,
   getEthSwapGasUsdcRaw,
@@ -196,6 +195,7 @@ export const TokenPickerContent = () => {
     registrationActor,
     (state) =>
       state?.matches('signingFundingPermit') ||
+      state?.matches('signingCowRegistrarPermit') ||
       state?.matches('approvingToken') ||
       // Paid from an L2, the wallet signs that payment instead.
       state?.matches('bridgingFromL2') ||
@@ -379,12 +379,13 @@ export const TokenPickerContent = () => {
       receiver: cowReceiver,
       sellToken: selectedCowToken,
       permitValue: cowUsdcTarget,
+      includeRegistrationHooks: account.signer?.type === 'eoa',
       isEnabled: isEthOffered && paymentAsset === 'eth',
     }),
   )
   const ethRow = useHeldWhile(
-    approvalState.isApproving,
     getEthPaymentRow(ethQuoteQuery, funding?.walletDebitRaw),
+    approvalState.isApproving,
   )
   const ethPayment =
     isEthOffered && selectedCowToken
@@ -675,7 +676,7 @@ export const TokenPickerContent = () => {
       <Trans>Loading...</Trans>
     ))
     .with({ isPaymentApprovalRequired: true, isPaidWithEth: true }, () => (
-      <Trans>Pay and register</Trans>
+      <Trans>Swap and Register</Trans>
     ))
     .with({ isPaymentApprovalRequired: true, hasFunding: true }, () => (
       <Trans>Sign approval</Trans>
@@ -741,6 +742,16 @@ export type CheckoutReceipt = Readonly<{
   totalRaw: bigint | undefined
   /** "Registration total" by default. */
   totalLabel?: ReactNode
+}>
+
+/** Wallet-held CoW tokens and the currently quoted selection. */
+type EthPaymentProps = Readonly<{
+  tokens?: readonly CowPaymentToken[]
+  selectedToken?: CowPaymentToken
+  row: EthPaymentRow
+  isSelected: boolean
+  onSelect: (token: CowPaymentToken) => void
+  onFallbackSelect: () => void
 }>
 
 const getSelectedL2 = (l2Payment: L2PaymentProps | undefined) =>
@@ -912,6 +923,7 @@ export const getL2MethodItems = (
       return {
         id: row.option.id,
         isSelected: row === selectedL2,
+        searchText: `USDC ${row.option.source.chain.name}`,
         content: (
           <L2SourceListItem
             isFeeEstimated={fee.isEstimated}
@@ -928,7 +940,6 @@ export const getL2MethodItems = (
 /** Every wallet-held CoW token is selectable; only the chosen one is quoted. */
 const getEthMethodItems = (
   ethPayment: EthPaymentProps | undefined,
-  networkFee: number | undefined,
 ): PaymentMethodListItem[] =>
   ethPayment
     ? (
@@ -946,6 +957,8 @@ const getEthMethodItems = (
         return {
           id: `cow-${token.address}`,
           isSelected: isTokenSelected,
+          tokenSymbol: token.symbol,
+          searchText: `${token.symbol} ${token.name ?? ''} ${token.address}`,
           content: (
             <EthPaymentListItem
               isSelected={isTokenSelected}
@@ -957,6 +970,7 @@ const getEthMethodItems = (
                       chargeRaw: undefined,
                       balanceRaw: token.balance,
                       gasReserveRaw: 0n,
+                      ethUsdRaw: undefined,
                       isQuoteLoading: false,
                       hasQuoteFailed: false,
                     }
@@ -1238,7 +1252,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
     funding,
     checkoutReceipt !== undefined,
   )
-  const ethMethodItems = getEthMethodItems(ethPayment, displayedNetworkFee)
+  const ethMethodItems = getEthMethodItems(ethPayment)
 
   const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
   const isSettling = isCheckoutSettling(isBusy, isRequoting)
@@ -1269,6 +1283,8 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
         {
           id: stablecoin.address,
           isSelected: walletSelection === stablecoin.symbol,
+          tokenSymbol: stablecoin.symbol,
+          searchText: `${stablecoin.symbol} ${stablecoin.address}`,
           content: (
             <TokenListItem
               isNetworkFeeLoading={isQuotingFunding || funding?.isLoading}
@@ -1374,11 +1390,19 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
     <fieldset className="contents" disabled={isBusy}>
       <div
         className={cn(
-          'flex h-full min-h-0 min-w-0 flex-1 flex-col gap-6 pt-2 pb-6',
+          'flex h-full min-h-0 min-w-0 flex-1 flex-col pt-2 pb-6',
+          showNetworkFeeDetails ? 'gap-4' : 'gap-6',
           showNetworkFeeDetails ? undefined : 'px-4',
         )}
       >
-        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
+        <div
+          className={cn(
+            'flex min-h-0 flex-1 flex-col',
+            showNetworkFeeDetails
+              ? 'gap-4 overflow-hidden'
+              : 'gap-6 overflow-y-auto',
+          )}
+        >
           {header ?? (
             <DomainHeading
               isInPriceCooldown={isInPriceCooldown}
@@ -1387,7 +1411,10 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           )}
 
           <div
-            className="flex w-full flex-col gap-4 [&[hidden]]:hidden"
+            className={cn(
+              'flex w-full flex-col [&[hidden]]:hidden',
+              showNetworkFeeDetails ? 'min-h-0 gap-3' : 'gap-4',
+            )}
             hidden={isMethodPickerHidden(
               checkoutReceipt,
               isFullyCovered,

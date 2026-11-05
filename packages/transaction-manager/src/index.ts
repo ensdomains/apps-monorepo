@@ -14,7 +14,10 @@ export {
   type CowSwapOrder,
   type CowSwapQuote,
   type EthSwapQuote,
+  EthSwapUnavailableError,
+  ethToUsdcRaw,
   NATIVE_ETH,
+  readEthUsdPrice,
 } from './helpers/eth-usdc-swap'
 // Helpers
 export {

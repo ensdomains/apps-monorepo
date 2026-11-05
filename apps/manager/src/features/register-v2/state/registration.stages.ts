@@ -32,6 +32,8 @@ export const REGISTRATION_STAGE_PROGRESS = {
   awaitingL2Bridge: 29,
   awaitingPriorL2BridgeTx: 29,
   // Paid with ETH: EthFlow opens and CoW settles USDC into the HCA.
+  checkingCowRegistrarAllowance: 27,
+  signingCowRegistrarPermit: 28,
   swappingEth: 28,
   signingFundingPermit: 29,
   submittingSetupBundle: 31,

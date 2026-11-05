@@ -1,3 +1,4 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
@@ -133,11 +134,10 @@ const startHcaRegistration = (overrides: {
             overrides.pollTransactionStatus,
           ) as never,
         }),
-        ...(overrides.validateCommitment && {
-          validateCommitment: fromPromise(
-            overrides.validateCommitment,
-          ) as never,
-        }),
+        validateCommitment: fromPromise(
+          overrides.validateCommitment ??
+            (async () => ({ registerReadyTimestamp: Date.now() })),
+        ) as never,
       },
     }),
     { input: { chainId: sepolia.id } },
@@ -203,6 +203,8 @@ const EOA_COMMITMENT = {
  */
 const startEoaRegistration = (overrides: {
   referrer?: `0x${string}`
+  ethFunding?: EthFunding
+  swapEthForUsdc?: ReturnType<typeof vi.fn>
   checkResolverDeployment?: ReturnType<typeof vi.fn>
   deployResolver?: ReturnType<typeof vi.fn>
   resolveResolverDeployment?: ReturnType<typeof vi.fn>
@@ -216,6 +218,8 @@ const startEoaRegistration = (overrides: {
   submitEoaSetupBundle?: ReturnType<typeof vi.fn>
   pollTransactionStatus?: ReturnType<typeof vi.fn>
   validateCommitment?: ReturnType<typeof vi.fn>
+  readPaymentAuthorization?: ReturnType<typeof vi.fn>
+  signFundingPermit?: ReturnType<typeof vi.fn>
 }) => {
   const checkResolverDeployment =
     overrides.checkResolverDeployment ??
@@ -239,6 +243,10 @@ const startEoaRegistration = (overrides: {
   const submitEoaSetupBundle =
     overrides.submitEoaSetupBundle ??
     vi.fn(async () => ({ txId: 'setup-bundle-tx', approvedPrice: 10n }))
+  const swapEthForUsdc =
+    overrides.swapEthForUsdc ?? vi.fn(async () => 5_000_000n)
+  const signFundingPermit =
+    overrides.signFundingPermit ?? vi.fn(async () => permit)
 
   const actor = createActor(
     registrationMachine.provide({
@@ -251,6 +259,8 @@ const startEoaRegistration = (overrides: {
         generateCommitment: fromPromise(generateCommitment) as never,
         submitCommitment: fromPromise(submitCommitment) as never,
         submitEoaSetupBundle: fromPromise(submitEoaSetupBundle) as never,
+        swapEthForUsdc: fromPromise(swapEthForUsdc) as never,
+        signFundingPermit: fromPromise(signFundingPermit) as never,
         // The cooldown spine: nothing to assert on, so each step resolves
         // straight through to the reveal.
         pollTransactionStatus: fromPromise(
@@ -262,10 +272,13 @@ const startEoaRegistration = (overrides: {
           ) as never,
         }),
         readMinCommitmentAge: fromPromise(async () => 0n) as never,
-        readPaymentAuthorization: fromPromise(async () => ({
-          allowance: 10n,
-          livePrice: 10n,
-        })) as never,
+        readPaymentAuthorization: fromPromise(
+          overrides.readPaymentAuthorization ??
+            (async () => ({
+              allowance: 10_000_000n,
+              livePrice: 5_000_000n,
+            })),
+        ) as never,
         waitAfterCommitment: fromPromise(async () => undefined) as never,
         submitRegistration: fromPromise(submitRegistration) as never,
         verifyRegistration: fromPromise(verifyRegistration) as never,
@@ -287,6 +300,7 @@ const startEoaRegistration = (overrides: {
     ownerAddress: WALLET,
     publicClient: { chain: sepolia } as unknown as PublicClient,
     canBatchAtomically: overrides.canBatchAtomically,
+    ethFunding: overrides.ethFunding,
   })
 
   return {
@@ -296,6 +310,8 @@ const startEoaRegistration = (overrides: {
     generateCommitment,
     submitCommitment,
     submitEoaSetupBundle,
+    swapEthForUsdc,
+    signFundingPermit,
     submitRegistration,
     verifyRegistration,
   }
@@ -912,6 +928,68 @@ describe('registrationMachine — pure-EOA commitment retry', () => {
 })
 
 describe('registrationMachine — pure-EOA resolver reuse', () => {
+  it('buys the full checkout amount with the selected CoW token', async () => {
+    const ethFunding: EthFunding = { displayedCharge: 10n ** 16n }
+    const { actor, swapEthForUsdc } = startEoaRegistration({ ethFunding })
+
+    await waitFor(actor, () => swapEthForUsdc.mock.calls.length > 0)
+
+    expect(swapEthForUsdc.mock.calls[0][0].input).toMatchObject({
+      hca: WALLET,
+      targetBalance: 5_000_000n,
+      funding: ethFunding,
+      fundingMode: 'exact',
+    })
+  })
+
+  it('binds an ENS USDC permit and commitment to the EOA CoW order', async () => {
+    const registrar = getDestinationContracts(sepolia.id).ethRegistrar
+    const registrarPermit = { ...permit, spender: registrar, value: 5_000_000n }
+    const readPaymentAuthorization = vi
+      .fn()
+      .mockResolvedValueOnce({ allowance: 0n, livePrice: 5_000_000n })
+      .mockResolvedValue({ allowance: 5_000_000n, livePrice: 5_000_000n })
+    const signFundingPermit = vi.fn(async () => registrarPermit)
+    const validateCommitment = vi.fn(async () => ({
+      registerReadyTimestamp: Date.now(),
+    }))
+    const { actor, swapEthForUsdc } = startEoaRegistration({
+      ethFunding: { displayedCharge: 10n ** 16n },
+      readPaymentAuthorization,
+      signFundingPermit,
+      validateCommitment,
+    })
+
+    await waitFor(actor, () => swapEthForUsdc.mock.calls.length > 0)
+
+    expect(signFundingPermit.mock.calls[0][0].input).toMatchObject({
+      wallet: WALLET,
+      hca: registrar,
+      value: 5_000_000n,
+    })
+    expect(swapEthForUsdc.mock.calls[0][0].input).toMatchObject({
+      registrarPermit,
+      commitment: EOA_COMMITMENT.commitment,
+    })
+  })
+
+  it('falls back to the normal commit transaction when the CoW hook misses', async () => {
+    const validateCommitment = vi.fn(async () => {
+      throw new Error('commit hook missing')
+    })
+    const { actor, submitCommitment } = startEoaRegistration({
+      ethFunding: { displayedCharge: 10n ** 16n },
+      validateCommitment,
+    })
+
+    await waitFor(actor, (state) => state.matches('committingTransaction'))
+
+    expect(submitCommitment.mock.calls[0][0].input.commitment).toEqual(
+      EOA_COMMITMENT,
+    )
+    expect(actor.getSnapshot().context.cowCommitHookPending).toBeUndefined()
+  })
+
   it("deploys the wallet's resolver on its first registration", async () => {
     const { actor, deployResolver, generateCommitment } = startEoaRegistration(
       {},

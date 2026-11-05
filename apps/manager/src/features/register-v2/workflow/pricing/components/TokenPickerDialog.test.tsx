@@ -66,7 +66,7 @@ describe('PaymentDialogBase', () => {
     expect(trigger).toHaveAttribute('data-state', 'closed')
   })
 
-  it('uses viewport-safe mobile sizing and restores the desktop minimum', () => {
+  it('uses a stable viewport-safe size for registration', () => {
     render(
       <I18nProvider i18n={i18n}>
         <PaymentDialogBase
@@ -81,9 +81,10 @@ describe('PaymentDialogBase', () => {
     )
 
     expect(screen.getByRole('dialog')).toHaveClass(
-      'max-h-[90dvh]',
+      'h-[calc(100dvh-2rem)]',
       'min-h-0',
-      'sm:min-h-[500px]',
+      'sm:h-[min(760px,90dvh)]',
+      'sm:w-[32rem]',
     )
     expect(screen.getByRole('dialog')).not.toHaveClass('max-h-[90vh]')
   })

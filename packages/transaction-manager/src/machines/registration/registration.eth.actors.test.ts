@@ -1,10 +1,19 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import { errAsync, okAsync } from 'neverthrow'
-import type { Address, Hash, PublicClient } from 'viem'
+import {
+  type Address,
+  decodeFunctionData,
+  type Hash,
+  type PublicClient,
+  parseAbi,
+} from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isUserRejectionError } from '../../errors/transaction.errors'
 import type { Signer } from '../../types/signer.types'
 import {
+  buildRegistrationCowHooks,
+  quoteEthPaymentActor,
   rejectEthSwap,
   swapEthForUsdcActor,
   usdcToBuy,
@@ -100,6 +109,78 @@ beforeEach(() => {
   refundExpiredEthSwap.mockReturnValue(okAsync(PENDING_HASH))
 })
 
+describe('buildRegistrationCowHooks', () => {
+  it('encodes the registrar permit before settlement and commit after it', () => {
+    const registrar = getDestinationContracts(sepolia.id).ethRegistrar
+    const permit = {
+      owner: WALLET,
+      spender: registrar,
+      value: 5_500_000n,
+      deadline: 1_800_000_000n,
+      v: 27,
+      r: `0x${'11'.repeat(32)}` as Hash,
+      s: `0x${'22'.repeat(32)}` as Hash,
+    }
+    const commitment = `0x${'33'.repeat(32)}` as Hash
+    const hooks = buildRegistrationCowHooks({
+      chainId: sepolia.id,
+      permit,
+      commitment,
+    })
+
+    expect(hooks?.pre?.[0].target).toBe(
+      getDestinationContracts(sepolia.id).usdc,
+    )
+    expect(hooks?.post?.[0].target).toBe(registrar)
+    expect(
+      decodeFunctionData({
+        abi: parseAbi([
+          'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
+        ]),
+        data: hooks?.pre?.[0].callData ?? '0x',
+      }).args,
+    ).toEqual([
+      WALLET,
+      registrar,
+      5_500_000n,
+      1_800_000_000n,
+      27,
+      permit.r,
+      permit.s,
+    ])
+    expect(
+      decodeFunctionData({
+        abi: parseAbi(['function commit(bytes32 commitment)']),
+        data: hooks?.post?.[0].callData ?? '0x',
+      }).args,
+    ).toEqual([commitment])
+  })
+
+  it('prices the same permit and commit work into an EOA checkout quote', async () => {
+    const result = await quoteEthPaymentActor({
+      owner: WALLET,
+      hca: WALLET,
+      permitValue: TARGET,
+      publicClient,
+      chainId: sepolia.id,
+      includeRegistrationHooks: true,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(quoteCowSwap).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: WALLET,
+        receiver: WALLET,
+        amountOut: TARGET,
+        hooks: {
+          pre: [expect.objectContaining({ gasLimit: 250_000 })],
+          post: [expect.objectContaining({ gasLimit: 200_000 })],
+        },
+      }),
+    )
+  })
+})
+
 describe('usdcToBuy', () => {
   it.each([
     [20n, 0n, 20n],
@@ -160,6 +241,52 @@ describe('swapEthForUsdcActor', () => {
     expect(result._unsafeUnwrap()).toBe(0n)
     expect(quoteCowSwap).not.toHaveBeenCalled()
     expect(submitCowSwap).not.toHaveBeenCalled()
+  })
+
+  it('spends the selected token for an EOA even when the wallet already holds USDC', async () => {
+    readContract.mockResolvedValue(TARGET * 10n)
+
+    const result = await swapEthForUsdcActor(input({ fundingMode: 'exact' }))
+
+    expect(result._unsafeUnwrap()).toBe(TARGET)
+    expect(quoteCowSwap).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: WALLET,
+        receiver: HCA,
+        amountOut: TARGET,
+      }),
+    )
+    expect(submitCowSwap).toHaveBeenCalledOnce()
+  })
+
+  it('uses the fresh ERC-20 quote after checkout drift instead of failing after the registrar signature', async () => {
+    const sellToken = {
+      address: '0x3333333333333333333333333333333333333333' as Address,
+      symbol: 'COW',
+      decimals: 18,
+      isNative: false,
+    }
+    readContract.mockResolvedValueOnce(10n ** 18n)
+
+    const result = await swapEthForUsdcActor(
+      input({
+        fundingMode: 'exact',
+        funding: {
+          sellToken,
+          // Deliberately far below the fresh quote. The final exact CoW order
+          // signature, rather than this stale UI snapshot, authorizes spend.
+          displayedCharge: MAXIMUM_ETH / 2n,
+        },
+      }),
+    )
+
+    expect(result.isOk()).toBe(true)
+    expect(submitCowSwap).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sellToken,
+        maximumSell: 10_300_000_000_000_000n,
+      }),
+    )
   })
 
   it('settles an earlier order before reading the HCA and never funds twice', async () => {
