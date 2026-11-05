@@ -85,14 +85,14 @@ const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
  * The ERC-20 amount to approve for a single EOA registration/renewal at
  * `price`. Deliberately NOT unlimited: the registrar pulls the live price
  * (no max-price arg), which can drift slightly between quote and execution; we
- * add 10% headroom to absorb that while keeping the allowance tightly scoped.
+ * add 2% headroom to absorb that while keeping the allowance tightly scoped.
  *
  * (Used on the pure-EOA `approve` path — the HCA path funds via permit. Also
  * used to size the HCA's own `approve`, and therefore the funding that has to
  * cover it, on the renewal intent route.)
  */
 export function authorizedPaymentAmount(price: bigint): bigint {
-  return price + price / 10n
+  return price + price / 50n
 }
 
 // ============================================================================

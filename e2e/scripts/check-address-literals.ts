@@ -89,6 +89,10 @@ const ALLOWED: Record<string, Allowance> = {
     reason:
       'Anvil default account #2 — fixed by the dev mnemonic, not a contract',
   },
+  '0x90f79bf6eb2c4f870365e785982e1f101e93b906': {
+    reason:
+      'Anvil default account #3 — fixed by the dev mnemonic, not a contract',
+  },
 
   // ── Deliberate placeholders. Not deployments.
   '0x0000000000000000000000000000000000000001': {

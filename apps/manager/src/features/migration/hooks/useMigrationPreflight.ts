@@ -75,6 +75,8 @@ export const useMigrationPreflight = ({ eoa, hcaAddress }: HookParams) => {
           onNamesRead: options.onNamesRead,
         }),
       staleTime: options.staleTime ?? 60_000,
+      // The outer preparation query owns retries so attempts cannot multiply.
+      retry: false,
     })
     options.signal?.throwIfAborted()
     await options.onNamesRead?.(domains.map(({ name }) => name))

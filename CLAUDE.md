@@ -221,14 +221,14 @@ When working in specific packages, consult these design documents:
 changing the shape of a call in the commit/reveal batch.
 
 ### Registration and renewal payment (manager)
-**Location**: `apps/manager/src/features/register-v2/workflow/pricing/`
-**Documentation**: `BEHAVIOUR.md`
+**Location**: `apps/manager/src/features/register-v2/workflow/pricing/` (registration) and `apps/manager/src/features/renew/workflow/pricing/` (single and bulk renewal)
+**Documentation**: `BEHAVIOUR.md` in each
 
 **Key Concepts**:
-- What the registration page and payment sheet must do, from the design, each rule with the test that holds it
+- What the page and payment sheet must do, from the design, each rule with the test that holds it
 - Known limits that are not bugs (the Sepolia L2 cap, cent rounding, $8.01-style prices)
-- The sheet's base is shared with single and bulk renewal; registration-only behaviour stays behind `registrationReceipt`
+- The sheet's base is shared; the checkout receipt is switched on by `checkoutReceipt`, and renewal follows registration's design
 
 **When to Consult**: Before any change to registration or renewal pricing, the payment
-sheet, `PaymentAction`, the fallback choice or the registration UI machine. A change to a
+sheet, `PaymentAction`, the fallback choice, the ETH swap, or the registration or renewal UI machine. A change to a
 listed rule is a product change: name the rule and the test it changes in the PR body.

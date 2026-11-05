@@ -56,3 +56,7 @@ export const LongName: Story = {
 export const EmptyRecords: Story = {
   args: { records: newEmptyProfileRecords() },
 }
+
+export const LongEnsName: Story = {
+  args: { name: `${'a-very-long-label-'.repeat(4)}name.eth` },
+}
