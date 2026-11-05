@@ -40,7 +40,8 @@ export const ProfileNameBadgeRow = ({
   readonly badge: React.ReactNode
   readonly trailing: React.ReactNode
 }) => (
-  <div className="inline-flex max-w-full items-center gap-1">
+  // Full width so the badge cap below resolves against the page, not the badge itself
+  <div className="flex w-full items-center justify-center gap-1 xl:justify-start">
     {/* Mirrors the size-8 trailing slot to centre the badge below xl; only this spacer shrinks, and the badge cap leaves room for the button and gaps */}
     <div aria-hidden className="h-8 w-8 min-w-0 shrink xl:hidden" />
     <div className="flex max-w-[calc(100%-2.5rem)] shrink-0 xl:max-w-[calc(100%-2.25rem)]">
