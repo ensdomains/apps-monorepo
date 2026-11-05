@@ -17,7 +17,8 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 
 ## Next action
 
-- **B2 (CCIP rest)**, local, not pushed: branch `e2e-land/b2-ccip`, worktree `/Users/sg/ens/worktrees/e2e-land-b2` (staged, uncommitted). Holds `offchain-v2.spec.ts` (+ H21 from `offchain-main`), `offchain-subname-migration.spec.ts`, the two `seed-offchain-*` scripts and their `package.json` entries, and allowlist entries for Anvil accounts #3/#4 in `check-address-literals.ts`. Results (2026-11-03, CI env, mocked bigname): `offchain-v2` 2/2 pass. The 4 GR15 tests in `offchain-subname-migration` skip under the mock (`v1-names.ts:146`: subname trees need the real indexer), so no CI or nightly job would run them. On the local real bigname they fail at the upgrade list (skeleton never resolves), and so does main's `migration-subname` "copies a registry-only subname…" control, so the local real-bigname path is broken, not B2. Waiting on the user: land GR15 now (always skipped in CI) or hold it.
+- **B2 open as #1729** (2026-11-05): branch `e2e-land/b2-ccip`, worktree `/Users/sg/ens/worktrees/e2e-land-b2`. Lands `offchain-v2.spec.ts` (2 tests, incl. H21 from the `offchain-main` worktree, now also on this branch), the two `seed-offchain-*` scripts and their `package.json` entries, and Anvil account #3 in the address allowlist. Local: 9/9 with the harness (CI env, mocked bigname). After it merges: set B2 `merged: true`, merge main back.
+- **B11 (new, held by the user's call 2026-11-05): real-indexer tests.** `offchain-subname-migration.spec.ts` (4 GR15 tests) skips under `E2E_MOCK_BIGNAME=true`, which CI and nightly both set, so it waits for a nightly job that runs the local bigname. That needs the `bigname:e2e-anvil-fork` image published (it is built from the unpushed `e2e/anvil-fork-start` branch in `~/ens/bigname`). Also open: on 2026-11-03 the local real-bigname run hung at the upgrade list for main's `migration-subname` control too; undiagnosed.
 - Once the user files the wrong-chain reset bug: land E3/E4 on main with its ID (as tests that pass once it's fixed, or with the fix).
 
 0. **B1b is open as #1658** (branch `e2e-land/b1b-manager-smoke`, worktree `/Users/sg/ens/worktrees/e2e-land-b1b`). Watch CI (manager smoke ×2 shards, manager-migration with the portal started) and fix test-side failures on the branch; the user merges. Then merge main back here and regenerate the ledger.
@@ -79,7 +80,8 @@ This is the state of the work to move `e2e-tests-coverage` onto `main` in review
 | B1b | Smoke: Manager specs | merged (#1658), ledger synced |
 | B1d | WEB-2110: stale HCA guards rewritten for main | merged (#1680) |
 | B1c | Smoke gaps, written on main (see below) | not started |
-| B2 | CCIP rest. `e2e/offchain-main` is merged into this branch. Fold in what's left on `e2e/offchain-ccip` (8 orphaned) and `e2e/offchain-1577` (3 orphaned) first | not started |
+| B2 | CCIP rest: `offchain-v2` + seed scripts. Worktree fold-in checked 2026-11-03: `offchain-ccip`/`offchain-1577` app commits superseded on main; only H21 from `offchain-main` taken | PR open (#1729) |
+| B11 | Real-indexer tests (`offchain-subname-migration`); wait for a nightly real-bigname job | held |
 | B3 | Migration rest. Fold in `test/migration-scenario-seeder` (23) if the user keeps it | not started |
 | B4 | Transfer, fuses, 4LD rest | not started |
 | B5 | Registration, renewal, roles rest (includes the 5 `@smoke` tests in `roles.spec.ts`) | not started |
@@ -102,6 +104,7 @@ When one is written, replace its `gap` entry in `landing/batches.ts` with `spec`
 **Smoke budget**: about 35–40 tests, against the old ~5 min gate. Expect 15–20 min, so shard the smoke job 2–3 ways in `e2e.yml` and measure it in B1a.
 
 ## Decisions log
+- **2026-11-05**: B2 lands without `offchain-subname-migration.spec.ts`. Its tests only run on the real bigname, CI and nightly both mock it, so on main they would always skip (the repo's rule: every test must be able to fail). The user moved it to a later phase (B11) with a real-indexer nightly job.
 - **2026-11-02**: WEB-2110 rewrite. The deferred guards failed on main for test-side reasons: the session key went `ens-sessions-v9` → `v10`; the revoke entry became "Reset smart session access" (#1480); a reset now also returns leftover USDC in a second transaction (#1586), and CI funds the shared HCA with 10,000 USDC, so reset tests empty the HCA and restore it; the payment sheet's rows, failure copy and "Try again" action changed (#1513/#1514/#1604) and the "up to" hedge is gone for registrations; the leftover tests seeded ensjs MockUSDC. The earlier fixme note ("the session gate never shows when the HCA covers the total") was wrong: the gate shows whenever no session is live. `fundTestUsdc(holder, balance?)` + `readTestUsdc` are the shared way to set the payment USDC. "funds the resolver deploy… (primary name off)" failed once in a full run and passed alone (shared resolver state); watch it.
 
 - **2026-10-28**: Land in batches, not via #1175. Priority is Smoke → CCIP → Migration → the rest, with B0 infra first.

@@ -28,6 +28,7 @@ export type BatchId =
   | 'B8'
   | 'B9'
   | 'B10'
+  | 'B11'
 
 export interface Batch {
   id: BatchId
@@ -62,7 +63,7 @@ export const batches: Batch[] = [
     pr: 1680,
     merged: true,
   },
-  { id: 'B2', title: 'CCIP / offchain: the rest' },
+  { id: 'B2', title: 'CCIP / offchain: the rest', pr: 1729 },
   { id: 'B3', title: 'Migration: the rest' },
   { id: 'B4', title: 'Transfer, fuses, 4LD: the rest' },
   { id: 'B5', title: 'Registration, renewal, roles: the rest' },
@@ -78,6 +79,11 @@ export const batches: Batch[] = [
     id: 'B10',
     title:
       'Coverage ledger and planning docs (held back from B0; stay on the branch for now)',
+  },
+  {
+    id: 'B11',
+    title:
+      'Real-indexer tests: need a CI job that runs the local bigname (they skip under the route mock)',
   },
 ]
 
@@ -294,6 +300,14 @@ export const rules: Rule[] = [
     target: 'B1d',
     incremental: true,
     globs: ['e2e/projects/manager/tests/hca-session-revoke.spec.ts'],
+  },
+
+  // ── B11 real-indexer tests ───────────────────────────────────────────────
+  // Skip under E2E_MOCK_BIGNAME=true (CI and nightly), so on main they would
+  // never run; they land with a nightly job that starts the local bigname.
+  {
+    target: 'B11',
+    globs: ['e2e/projects/manager/tests/offchain-subname-migration.spec.ts'],
   },
 
   // ── B2 CCIP / offchain ───────────────────────────────────────────────────
