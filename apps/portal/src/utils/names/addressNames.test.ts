@@ -3,6 +3,7 @@ import {
   byShownExpiry,
   getEarlierParentExpiry,
   getEarliestExpiry,
+  getResolvingExpiry,
   isShownExpiryInRange,
 } from './addressNames'
 
@@ -52,6 +53,46 @@ describe('getEarlierParentExpiry', () => {
         parentExpiryDate: PARENT_EXPIRY,
       }),
     ).toBeNull()
+  })
+})
+
+describe('getResolvingExpiry', () => {
+  const OWN = new Date(Date.UTC(2031, 0, 1))
+  const PARENT = new Date(Date.UTC(2030, 5, 1))
+
+  it.each([
+    [
+      'its own, with no names above',
+      { expiryDate: OWN },
+      { type: 'own', date: OWN },
+    ],
+    [
+      'its own, when it comes before the parent’s',
+      { expiryDate: PARENT, parentExpiryDate: OWN },
+      { type: 'own', date: PARENT },
+    ],
+    [
+      'the parent’s, when it comes first',
+      { expiryDate: OWN, parentExpiryDate: PARENT },
+      { type: 'parentFirst', date: PARENT },
+    ],
+    [
+      'the parent’s, for a subname with none of its own',
+      { expiryDate: null, parentExpiryDate: PARENT },
+      { type: 'parent', date: PARENT },
+    ],
+    [
+      'the parent’s, unknown when it couldn’t be read',
+      { expiryDate: null, parentExpiryDate: null },
+      { type: 'parent', date: null },
+    ],
+    [
+      'none, for a name that never expires',
+      { expiryDate: null },
+      { type: 'none', date: null },
+    ],
+  ])('gives %s', (_, row, expected) => {
+    expect(getResolvingExpiry(row)).toEqual(expected)
   })
 })
 
