@@ -90,9 +90,11 @@ export {
   ETH_SWAP_GAS_RESERVE_MULTIPLIER,
   type EthFunding,
   type EthPaymentQuote,
+  EthSwapPaymentError,
   type PendingEthSwap,
   quoteEthPaymentActor,
   quoteEthSwapGasReserve,
+  swapEthForUsdcActor,
 } from './machines/registration/registration.eth.actors'
 export type {
   ReauthorizeSession,

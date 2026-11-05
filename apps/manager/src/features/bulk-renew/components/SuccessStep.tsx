@@ -10,10 +10,13 @@ import { NamesBreakdown } from './NamesBreakdown'
 export const SuccessStep = ({
   rows,
   total,
+  existingBalance,
   onDone,
 }: {
   readonly rows: readonly SummaryRow[]
-  readonly total: number
+  readonly total: number | undefined
+  /** The account's balance taken off the names, as confirmed. */
+  readonly existingBalance?: number
   readonly onDone: () => void
 }) => (
   <>
@@ -29,7 +32,11 @@ export const SuccessStep = ({
       </div>
     </DialogHeader>
 
-    <NamesBreakdown rows={rows} total={total} />
+    <NamesBreakdown
+      existingBalance={existingBalance}
+      rows={rows}
+      total={total}
+    />
 
     <Button
       className="w-full uppercase"

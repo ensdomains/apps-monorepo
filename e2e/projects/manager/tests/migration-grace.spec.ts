@@ -9,7 +9,7 @@
  *
  * The fix: `useEligibleV1Names` now returns `gracePeriodNames` alongside the
  * eligible list. The dashboard banner offers "Renew Names", /migration lists
- * grace names in their own "names in grace" section, and starting the upgrade
+ * grace names in their own "names in grace period" section, and starting the upgrade
  * quotes the renewal in USDC, asks for a USDC approval only when the allowance
  * is short, calls `ETHRenewerV1.renewBatch`, re-reads the renewed names, then
  * rebuilds and runs the normal migration plan. A wallet without enough USDC is
@@ -247,13 +247,15 @@ const nameCheckbox = (page: Page, name: string) =>
   page.getByRole('checkbox', { name, exact: true })
 
 /**
- * A name's checkbox inside the "N names in grace" section: since #1556 that
+ * A name's checkbox inside the "N names in grace period" section: since #1556 that
  * section, not a per-row badge, is what says a name is renewed first.
  */
 const graceRow = (page: Page, name: string) =>
   page
     .locator('main section')
-    .filter({ has: page.getByRole('heading', { name: /names? in grace$/i }) })
+    .filter({
+      has: page.getByRole('heading', { name: /names? in grace period$/i }),
+    })
     .getByRole('checkbox', { name, exact: true })
 
 /**

@@ -96,7 +96,7 @@ export function rejectEthSwap(params: {
     return (
       `Paying now takes up to ${formatEther(maximumEth)} ETH, but ` +
       `${formatEther(displayedCharge)} ETH was shown at checkout. ` +
-      'Please start the registration again.'
+      'Please start again.'
     )
   }
   if (walletBalance < maximumEth + gasReserve) {
@@ -270,7 +270,7 @@ export const swapEthForUsdcActor = ResultFn(async function* (input: {
   if (refusal) return err(paymentError(refusal))
   // The quote and estimates above take time; a run cancelled meanwhile sends nothing.
   if (input.signal?.aborted) {
-    return err(paymentError('The registration was cancelled before the swap.'))
+    return err(paymentError('Cancelled before the swap.'))
   }
 
   const hash = yield* fromPromise(

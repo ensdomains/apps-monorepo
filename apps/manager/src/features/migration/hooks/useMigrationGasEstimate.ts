@@ -12,6 +12,7 @@ import type { MigrationPlan } from '@/features/migration/service/buildMigrationP
 import {
   type MigrationPreparationFailure,
   migrationPreparationFailure,
+  shouldRetryMigrationPreparation,
 } from '@/features/migration/service/migrationPreparationError'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { V1_CONTRACTS } from '../contracts/addresses'
@@ -188,6 +189,7 @@ export const useMigrationGasEstimate = ({
     staleTime: 0,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    retry: shouldRetryMigrationPreparation,
     queryFn: async ({ signal }) => {
       await waitForStableSelection(signal)
       const progressHandlers = startProgress(signal)
