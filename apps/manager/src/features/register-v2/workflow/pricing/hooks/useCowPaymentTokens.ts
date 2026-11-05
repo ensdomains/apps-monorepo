@@ -12,7 +12,7 @@ import {
 import { chain } from '@/config'
 import { publicClient } from '@/lib/wagmi'
 
-// These are CoW Swap's enabled-by-default lists for the networks Graze supports.
+// These are CoW Swap's enabled-by-default lists for the networks supported by the ENS app.
 // Keep the order: the reviewed CoW list wins when another list repeats a token.
 const TOKEN_LISTS_BY_CHAIN: Readonly<Record<number, readonly string[]>> = {
   1: [
