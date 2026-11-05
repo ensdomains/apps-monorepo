@@ -39,6 +39,12 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 | Buttons: "Sign approval" on the intent route, "Swap and Renew" when paid with ETH, "Renew name" / "Renew names" on the wallet route and when the selection can't pay, "Loading..." while quoting, "Renewing..." while paying. | `bulk-renew/components/BulkRenewPaymentStep.test.tsx` holds "Sign approval"; the other labels have no test |
 | On the wallet route the sheet keeps its older behaviour: no checkout receipt, short and unquoted L2s hidden. | Sheet tests "keeps a short L2 hidden in renewal", "keeps an unquoted L2 hidden in renewal", "keeps the existing token row outside registration" |
 
+## Intent fee
+
+| Rule | Held by |
+| --- | --- |
+| The fee shown and funded for an intent is the rail's quote plus 5% (`HCA_INTENT_FEE_MARGIN_BPS`), on the sheet and at signing alike, so the orchestrator's re-quote at submit still finds the account covered. What the fill doesn't use stays in the account. The fee is refused above a ceiling sized for mainnet gas (37.5 USDC for one name, 25 USDC more per million gas declared). | `packages/transaction-manager/src/helpers/hca-intent-funding.test.ts` "funds the fee above the quote by the margin a caller asks for", "adds only the per-million-gas rate above the anchor"; `renew/service/hcaRenewal.test.ts` "funds the price on top of the fee, since both come out of the HCA" |
+
 ## Paying from an L2
 
 | Rule | Held by |

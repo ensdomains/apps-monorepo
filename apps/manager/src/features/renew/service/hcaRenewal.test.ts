@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@ens-apps/transaction-manager', () => ({
+  HCA_INTENT_FEE_MARGIN_BPS: 500n,
   getSmartAccountAddress: mocks.getSmartAccountAddress,
   // A stand-in ceiling that scales with the limit; the real curve is covered in
   // the transaction-manager suite.
@@ -190,6 +191,7 @@ describe('submitHcaRenewal', () => {
         amount: 1_000_000n,
       },
       gasLimit: HCA_RENEWAL_INTENT_GAS_LIMIT_BASE,
+      feeMarginBps: 500n,
       maxFeeUsdc: 20_000_000n,
       ownerAddress: OWNER,
     })
