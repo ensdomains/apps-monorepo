@@ -25,6 +25,8 @@ const payment: UseBulkRenewResult['payment'] = {
   accountCredit: {},
   fundedTotal: 22,
   checkoutTotalRaw: 22_000_000n,
+  appliedBalance: 0,
+  listTotal: 22,
   canProceed: true,
   pricesReady: true,
   intentFunding: {
