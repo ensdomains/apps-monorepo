@@ -29,6 +29,7 @@ export type {
   HcaFundingApprovalState,
 } from './helpers/hca-funding-approval'
 export {
+  HCA_INTENT_FEE_MARGIN_BPS,
   HCA_MAX_STANDALONE_INTENT_FEE_USDC,
   HCA_STANDALONE_INTENT_GAS_LIMIT,
   type HcaDisplayedDebit,
@@ -90,9 +91,11 @@ export {
   ETH_SWAP_GAS_RESERVE_MULTIPLIER,
   type EthFunding,
   type EthPaymentQuote,
+  EthSwapPaymentError,
   type PendingEthSwap,
   quoteEthPaymentActor,
   quoteEthSwapGasReserve,
+  swapEthForUsdcActor,
 } from './machines/registration/registration.eth.actors'
 export type {
   ReauthorizeSession,

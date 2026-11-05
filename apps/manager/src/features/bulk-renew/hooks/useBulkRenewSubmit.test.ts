@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   submitRenewBatchActor: vi.fn(),
   submitHcaRenewal: vi.fn(),
   fundHcaRenewalsFromL2: vi.fn(),
+  fundHcaRenewalsWithEth: vi.fn(),
   getExpiry: vi.fn(),
   useSmartAccountContext: vi.fn(),
   useRenewalSigner: vi.fn(),
@@ -49,6 +50,7 @@ vi.mock(
 vi.mock('@/features/renew/service/hcaRenewal', () => ({
   HCA_RENEWAL_INTENT_MAX_ITEMS: 25,
   fundHcaRenewalsFromL2: mocks.fundHcaRenewalsFromL2,
+  fundHcaRenewalsWithEth: mocks.fundHcaRenewalsWithEth,
   submitHcaRenewal: mocks.submitHcaRenewal,
 }))
 vi.mock('@/features/profile/service/profileExpiry', () => ({
@@ -116,6 +118,8 @@ const args = {
   items: items(['one', 'two', 'three']),
   token: 'USDC' as const,
   sumPriceRaw: 3_000_000n,
+  // What the sheet showed the wallet paying; every batch is checked against it.
+  displayedDebit: { usdc: 4_000_000n, token: 0n },
 }
 
 /** Labels in each `renewBatch` the wallet route sent, in order. */
@@ -318,6 +322,105 @@ describe('useBulkRenewSubmit (smart account)', () => {
     for (const [input] of mocks.submitHcaRenewal.mock.calls) {
       expect(input).not.toHaveProperty('l2Funding')
     }
+  })
+
+  it('pays a whole selection with ETH through one swap, then renews each chunk with the usual permit', async () => {
+    mocks.fundHcaRenewalsWithEth.mockImplementation(async () => {
+      expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
+    })
+    const many = items(Array.from({ length: 26 }, (_, i) => `name${i}`))
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit({
+        ...args,
+        items: many,
+        ethPayment: { displayedCharge: 10n ** 16n },
+      })
+    })
+
+    expect(result.current.phase).toBe('success')
+    expect(mocks.fundHcaRenewalsWithEth).toHaveBeenCalledOnce()
+    const funding = mocks.fundHcaRenewalsWithEth.mock.calls[0]?.[0]
+    expect(funding.batches.map((batch: unknown[]) => batch.length)).toEqual([
+      25, 1,
+    ])
+    expect(funding.ethFunding).toEqual({ displayedCharge: 10n ** 16n })
+    expect(intentLabels().map((labels) => labels.length)).toEqual([25, 1])
+    for (const [input] of mocks.submitHcaRenewal.mock.calls) {
+      expect(input).not.toHaveProperty('ethFunding')
+    }
+  })
+
+  it('renews nothing when the ETH swap fails', async () => {
+    mocks.fundHcaRenewalsWithEth.mockRejectedValue(
+      new Error('The ETH swap failed on-chain.'),
+    )
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit({
+        ...args,
+        ethPayment: { displayedCharge: 10n ** 16n },
+      })
+    })
+
+    expect(result.current.phase).toBe('error')
+    expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
+  })
+
+  it('checks each chunk against what is left of the amount shown, without asking', async () => {
+    mocks.submitHcaRenewal
+      .mockResolvedValueOnce({
+        txId: 'intent-1',
+        quotedFeeUsdc: 1_000_000n,
+        incomingUsdc: 3_000_000n,
+      })
+      .mockResolvedValueOnce({ txId: 'intent-2', quotedFeeUsdc: 1_000_000n })
+    const many = items(Array.from({ length: 26 }, (_, i) => `name${i}`))
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit({ ...args, items: many })
+    })
+
+    expect(result.current.phase).toBe('success')
+    const inputs = mocks.submitHcaRenewal.mock.calls.map(([input]) => input)
+    expect(inputs.map((input) => input.displayedDebit)).toEqual([
+      { usdc: 4_000_000n, token: 0n },
+      { usdc: 1_000_000n, token: 0n },
+    ])
+    for (const input of inputs)
+      expect(input).not.toHaveProperty('confirmFunding')
+  })
+
+  it('shows the wallet nothing to pay once an L2 has paid', async () => {
+    mocks.fundHcaRenewalsFromL2.mockResolvedValue(undefined)
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit({
+        ...args,
+        l2Payment: { chainId: l2Sources[0]?.chain.id ?? 0 },
+      })
+    })
+
+    expect(mocks.submitHcaRenewal.mock.calls[0]?.[0].displayedDebit).toEqual({
+      usdc: 0n,
+      token: 0n,
+    })
+  })
+
+  it('never starts without the amount the sheet showed', async () => {
+    const { displayedDebit: _shown, ...unshown } = args
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit(unshown)
+    })
+
+    expect(result.current.phase).toBe('error')
+    expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
   })
 
   it('surfaces a failed intent and resumes after the chunks that landed', async () => {

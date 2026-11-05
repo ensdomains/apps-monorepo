@@ -79,8 +79,7 @@ export const useRenewalIntentFunding = (params: {
       : decimalBigintToNumber(networkFeeRaw, USDC_DECIMALS)
 
   // The price is owed in the chosen coin and the fee in USDC, each net of what
-  // the account already holds. Shown as "up to": the price carries its approval
-  // headroom and the fee is an estimate.
+  // the account already holds.
   const renewalFunding =
     isIntentRoute && pricing && networkFee !== undefined
       ? computeRenewalFunding({
