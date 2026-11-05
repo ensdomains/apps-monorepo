@@ -17,7 +17,7 @@ export const useRenewalL2Payment = ({
   onSelect,
   onFallbackSelect = onSelect,
 }: {
-  /** The USDC price with its approval headroom, once priced. */
+  /** The USDC price, once priced. */
   readonly rentTotalRaw: bigint | undefined
   /** The intents' quoted fee in USDC. */
   readonly feeRaw: bigint | undefined

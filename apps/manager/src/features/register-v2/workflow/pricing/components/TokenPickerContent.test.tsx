@@ -1228,21 +1228,16 @@ describe('TokenPickerContentBase L2 rows', () => {
     ).not.toBeNull()
   })
 
-  it('labels the checkout total and shows its figures as up to, as a caller asks', () => {
+  it('labels the checkout total as a caller asks', () => {
     renderPicker({
       funding: underfunded,
       selectedToken: 'USDC',
       stablecoinBalances: [usdc],
-      checkoutReceipt: {
-        totalRaw: 5_000_000n,
-        totalLabel: 'Renewal total',
-        isUpTo: true,
-      },
+      checkoutReceipt: { totalRaw: 5_000_000n, totalLabel: 'Renewal total' },
     })
 
     expect(screen.getByText('Renewal total')).toBeVisible()
     expect(screen.queryByText('Registration total')).not.toBeInTheDocument()
-    expect(screen.getAllByText('up to').length).toBeGreaterThan(0)
   })
 
   it('in registration, says a picked short L2 lacks USDC and estimates its fee', () => {

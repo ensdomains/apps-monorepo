@@ -1,4 +1,3 @@
-import { authorizedPaymentAmount } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { addDays, startOfDay } from 'date-fns'
 import { useMemo } from 'react'
@@ -63,7 +62,7 @@ type BulkRenewPayment = {
   readonly accountCredit: Partial<Record<RENEWAL_TOKEN, number>>
   /**
    * What the selection funds before account credit: the total, plus the
-   * approval's headroom on the intent route, which moves into the account too.
+   * price on the intent route, which moves into the account.
    */
   readonly fundedTotal: number
   /** The receipt's renewal total, once priced and the account's balance is read. */
@@ -276,10 +275,7 @@ export const useBulkRenew = ({
 
   const fundedTotal =
     route === 'intent'
-      ? decimalBigintToNumber(
-          authorizedPaymentAmount(sumPriceRaw),
-          tokenDecimals,
-        )
+      ? decimalBigintToNumber(sumPriceRaw, tokenDecimals)
       : grandTotal
 
   const intentFunding = useRenewalIntentFunding({
@@ -291,7 +287,7 @@ export const useBulkRenew = ({
     renewerAddress: getRenewerAddress('v2'),
     account: { signer, ownerAddress },
     pricing: pricesReady
-      ? { funded: fundedTotal, fundedRaw: authorizedPaymentAmount(sumPriceRaw) }
+      ? { funded: fundedTotal, fundedRaw: sumPriceRaw }
       : undefined,
     accountCredit,
     accountCreditRaw,
@@ -306,9 +302,7 @@ export const useBulkRenew = ({
     selectedToken === USDC.symbol &&
     (intentFunding.isQuoting || intentFunding.feeRaw !== undefined)
   const l2Payment = useRenewalL2Payment({
-    rentTotalRaw: pricesReady
-      ? authorizedPaymentAmount(sumPriceRaw)
-      : undefined,
+    rentTotalRaw: pricesReady ? sumPriceRaw : undefined,
     feeRaw: intentFunding.feeRaw,
     hcaBalanceRaw: accountCreditRaw.USDC,
     isEnabled: isUsdcMethodQuotable,
@@ -321,9 +315,7 @@ export const useBulkRenew = ({
     ({ option }) => option.source.chain.id === l2Payment.selectedChainId,
   )
   const ethPayment = useRenewalEthPayment({
-    rentTotalRaw: pricesReady
-      ? authorizedPaymentAmount(sumPriceRaw)
-      : undefined,
+    rentTotalRaw: pricesReady ? sumPriceRaw : undefined,
     feeRaw: intentFunding.feeRaw,
     hcaBalanceRaw: accountCreditRaw.USDC,
     isEnabled: isUsdcMethodQuotable,
@@ -333,7 +325,7 @@ export const useBulkRenew = ({
   })
 
   const checkoutTotalRaw = getRenewalCheckoutTotalRaw({
-    fundedRaw: pricesReady ? authorizedPaymentAmount(sumPriceRaw) : undefined,
+    fundedRaw: pricesReady ? sumPriceRaw : undefined,
     accountBalanceRaw: accountCreditRaw[selectedToken],
     decimals: tokenDecimals,
   })

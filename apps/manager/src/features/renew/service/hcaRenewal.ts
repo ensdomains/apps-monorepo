@@ -17,7 +17,6 @@ import {
 import { assertPaymentTokenSupported } from '@ens-apps/transaction-manager/contracts/paymentToken'
 import { assertHcaFundingWallet } from '@ens-apps/transaction-manager/helpers/hca-funding-approval'
 import {
-  authorizedPaymentAmount,
   encodeRenewBatchData,
   encodeRenewData,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
@@ -83,7 +82,7 @@ const RENEWAL_PERMIT_PURPOSE: PermitPurpose = {
   subject: 'the renewal',
   shownAt: 'when you started the renewal',
   costNote:
-    'The amount covers the renewal price with its 2% buffer, and in USDC ' +
+    'The amount covers the renewal price, and in USDC ' +
     'the network fee, less what the smart account already holds.',
 }
 
@@ -171,16 +170,8 @@ export interface SubmitHcaRenewalParams {
   readonly ethFunding?: HcaRenewalEthFunding
 }
 
-/**
- * Price the batch and apply the renewal allowance policy, as one Result.
- *
- * Priced NOW, not from the screen the user saw: the price the renewer pulls is
- * computed at execution, so both the approval and the funding are sized from
- * the freshest read available. The 2% headroom `authorizedPaymentAmount` adds
- * absorbs feed drift between this read and the fill — the same allowance policy
- * the direct-wallet route uses.
- */
-const readAuthorizedRent = ResultFn(async function* (
+/** The batch's price, read now: the renewer charges exactly this, as its rates are fixed. */
+const readRent = ResultFn(async function* (
   items: readonly HcaRenewalItem[],
   token: RENEWAL_TOKEN,
   protocol: RenewalProtocol,
@@ -190,16 +181,12 @@ const readAuthorizedRent = ResultFn(async function* (
       getRenewPrice(item.label, item.duration, token, protocol),
     ),
   )
-  return ok(
-    authorizedPaymentAmount(
-      prices.reduce((sum, price) => sum + price.amount, 0n),
-    ),
-  )
+  return ok(prices.reduce((sum, price) => sum + price.amount, 0n))
 })
 
 type RenewalIntent = {
   readonly tokenAddress: Address
-  /** The price with its approval headroom, in token units. */
+  /** The price, in token units. */
   readonly rentTotal: bigint
   readonly actionCalls: readonly Call[]
   readonly gasLimit: bigint
@@ -224,7 +211,7 @@ const buildRenewalIntent = async (params: {
 
   // Unwrapped at this promise boundary: the service reports failures by
   // rejecting, and the reads themselves are composed as one Result.
-  const rentTotal = (await readAuthorizedRent(items, token, protocol)).match(
+  const rentTotal = (await readRent(items, token, protocol)).match(
     (value) => value,
     (error) => {
       throw error
@@ -234,7 +221,7 @@ const buildRenewalIntent = async (params: {
   await assertPaymentTokenSupported(publicClient, renewerAddress, tokenAddress)
 
   // Skip the approval when the HCA's standing allowance to the renewer already
-  // covers it, e.g. a bulk chunk's leftover headroom. Registration's
+  // covers it, e.g. an approval left from an earlier attempt. Registration's
   // `approve(price)` is pulled in full by `register`, so this usually adds one.
   const standingAllowance = await publicClient.readContract({
     address: tokenAddress,

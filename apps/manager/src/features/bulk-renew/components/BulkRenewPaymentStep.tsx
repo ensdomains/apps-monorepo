@@ -49,7 +49,6 @@ export const BulkRenewPaymentStep = ({
             checkoutReceipt: {
               totalRaw: payment.checkoutTotalRaw,
               totalLabel: <Trans>Renewal total</Trans>,
-              isUpTo: true,
             },
           }
         : {})}
@@ -93,7 +92,6 @@ export const BulkRenewPaymentStep = ({
           </Trans>
         ))}
       isConnected={payment.isConnected}
-      isEstimate={isIntentRoute}
       isLoadingBalances={payment.isLoadingBalances}
       isQuotingFunding={isQuoting}
       l2Payment={payment.l2Payment}

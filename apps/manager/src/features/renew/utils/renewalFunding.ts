@@ -10,10 +10,10 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 const FEE_TOKEN: TOKEN_SYMBOL = 'USDC'
 
 export type RenewalFundingSummary = {
-  /** The price with its approval headroom: what the renewer may pull. */
+  /** The price: what the renewer pulls. */
   readonly registration: number
   readonly networkFee: number
-  /** Price with headroom plus the fee: the figure shown as "up to". */
+  /** The price plus the fee. */
   readonly total: number
   /** What the wallet covers across both coins after the account's own balances. */
   readonly walletDebit: number
@@ -30,12 +30,12 @@ export type RenewalFunding = {
 type Leg = readonly [symbol: TOKEN_SYMBOL, amount: number]
 
 /**
- * What a smart-account renewal needs from the wallet. The price (with its
- * headroom) is owed in the chosen coin and the fee in USDC, and the account's
- * own balance of each pays first.
+ * What a smart-account renewal needs from the wallet. The price is owed in the
+ * chosen coin and the fee in USDC, and the account's own balance of each pays
+ * first.
  */
 export const computeRenewalFunding = (params: {
-  /** The price with its approval headroom, in the chosen coin. */
+  /** The price, in the chosen coin. */
   readonly funded: number
   readonly networkFee: number
   readonly selectedToken: RENEWAL_TOKEN
@@ -78,7 +78,7 @@ const debitRaw = (amount: bigint, credit: bigint | undefined) =>
 
 /** The wallet debit {@link computeRenewalFunding} shows, in each coin's units; the intent may not take more. */
 export const computeRenewalDisplayedDebit = (params: {
-  /** The price with its approval headroom, in the chosen coin's units. */
+  /** The price, in the chosen coin's units. */
   readonly fundedRaw: bigint
   /** USDC (6dp). */
   readonly networkFeeRaw: bigint
@@ -261,7 +261,7 @@ const toReceiptTotalRaw = (
     RECEIPT_DECIMALS,
   )
 
-/** The receipt's renewal total: the price with its headroom, less the account's balance of that coin. */
+/** The receipt's renewal total: the price, less the account's balance of that coin. */
 export const getRenewalCheckoutTotalRaw = ({
   fundedRaw,
   accountBalanceRaw,

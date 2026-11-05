@@ -147,7 +147,6 @@ export const NetworkFeeReceipt = ({
   networkFee,
   extraFeeRaw,
   totalLabel = <Trans>Registration total</Trans>,
-  isUpTo = false,
 }: {
   /** The quote behind the fee; the total is the page's and is always shown. */
   readonly state: PaymentReceiptState
@@ -158,8 +157,6 @@ export const NetworkFeeReceipt = ({
   /** Paid on top of the wallet debit, such as an ETH swap's gas. */
   readonly extraFeeRaw: bigint
   readonly totalLabel?: ReactNode
-  /** The figures are maximums: shown as "up to" and rounded up. */
-  readonly isUpTo?: boolean
 }) => {
   const { t } = useLingui()
   const figures =
@@ -171,7 +168,6 @@ export const NetworkFeeReceipt = ({
           networkFeeRaw: toUsdcRaw(networkFee),
           walletDebitRaw: toUsdcRaw(state.figures.due),
           extraFeeRaw,
-          isUpTo,
         })
       : undefined
   const pending: ShownAmount =
@@ -198,7 +194,6 @@ export const NetworkFeeReceipt = ({
                     value: toUsd(figures?.registrationTotalRaw ?? totalRaw),
                   }
             }
-            isEstimate={isUpTo}
           />
         </Row>
         <Row label={<Trans>Estimated network fee</Trans>}>
@@ -217,7 +212,7 @@ export const NetworkFeeReceipt = ({
         )}
         <hr className="border-ens-quartz-100" />
         <Row label={<Trans>You pay</Trans>}>
-          <UsdAmount amount={shown('dueRaw')} isEstimate={isUpTo} />
+          <UsdAmount amount={shown('dueRaw')} />
         </Row>
       </dl>
     </section>

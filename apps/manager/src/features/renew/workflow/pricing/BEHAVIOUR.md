@@ -2,7 +2,7 @@
 
 This file lists what the renewal page and payment sheet must do, for single and bulk renewal, and the test that holds each rule. A change to any rule below is a product change: it needs the design owner's agreement, and the PR must name the rule and the test it changes.
 
-Renewal follows registration (WEB-2133): the same page card, sheet, receipt and fallback, with "Renewal total" in place of "Registration total" and "up to" figures for the approval's headroom. Registration's rules are in `../../../register-v2/workflow/pricing/BEHAVIOUR.md`; `TokenPickerContentBase`, `PaymentAction`, `PaymentMethodRow` and the L2 and ETH rows are shared, so a change to a rule there changes renewal too.
+Renewal follows registration (WEB-2133): the same page card, sheet, receipt and fallback, with "Renewal total" in place of "Registration total". On the intent route renewal funds and approves exactly the price, as its rates are fixed, so the page card and the sheet show the same total (`renew/service/hcaRenewal.test.ts` "approves the renewer for exactly the live price, then renews"). The wallet route's approval keeps transaction-manager's 2% limit; nothing extra moves there. Registration's rules are in `../../../register-v2/workflow/pricing/BEHAVIOUR.md`; `TokenPickerContentBase`, `PaymentAction`, `PaymentMethodRow` and the L2 and ETH rows are shared, so a change to a rule there changes renewal too.
 
 Sources, in order of authority:
 
@@ -32,8 +32,8 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 
 | Rule | Held by |
 | --- | --- |
-| On the intent route the receipt reads Renewal total, Estimated network fee, Existing balance when some is left after the price, and You pay. Its figures read "up to", rounded up to the cent, because the approval carries headroom over the price. | Sheet tests "labels the checkout total and shows its figures as up to, as a caller asks"; `register-v2/workflow/pricing/lib/paymentReceiptFigures.test.ts` |
-| The renewal total is the price with its headroom, less the account's balance of the price's coin applied up to it, never below zero, in USDC units (a DAI price is converted). During an increased-amount review the total comes from that prompt, so every row describes the payment being signed. | `renew/utils/renewalFunding.test.ts` (`getRenewalCheckoutTotalRaw`, `getRenewalReceiptTotalRaw`) |
+| On the intent route the receipt reads Renewal total, Estimated network fee, Existing balance when some is left after the price, and You pay, rounded to the cent as registration's. | Sheet tests "labels the checkout total as a caller asks"; `register-v2/workflow/pricing/lib/paymentReceiptFigures.test.ts` |
+| The renewal total is the price, less the account's balance of the price's coin applied up to it, never below zero, in USDC units (a DAI price is converted). During an increased-amount review the total comes from that prompt, so every row describes the payment being signed. | `renew/utils/renewalFunding.test.ts` (`getRenewalCheckoutTotalRaw`, `getRenewalReceiptTotalRaw`) |
 | Methods are listed, hidden and ordered as in registration: every L2 holding USDC, ETH only when it has something to swap (so not while the wallet's USDC pays), and the methods hidden when the account's balance covers everything. | Registration's sheet tests, through the shared base |
 | The fallback is registration's: with nothing picked, a wallet coin that can pay first, then the L2 holding the most, ETH last. The app's pick gives way; the user's pick stays and says the token is short. Single renewal records who picked in its machine, bulk in its dialog. | `register-v2/workflow/pricing/lib/fallbackPaymentChoice.test.ts`; `renew/state/renewalUi.machine.test.ts` "records who picked a wallet coin: %s"; `renew/workflow/pricing/useRenewalL2Payment.test.ts` |
 | Buttons: "Sign approval" on the intent route, "Swap and Renew" when paid with ETH, "Renew name" / "Renew names" on the wallet route and when the selection can't pay, "Loading..." while quoting, "Renewing..." while paying. | `bulk-renew/components/BulkRenewPaymentStep.test.tsx` holds "Sign approval"; the other labels have no test |
@@ -43,7 +43,7 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 
 | Rule | Held by |
 | --- | --- |
-| The L2 bridges the price with its headroom, plus the fee widened for drift, less what the account holds. What the renewal doesn't spend stays in the account. | `renew/utils/l2RenewalAmount.test.ts`; `renew/service/hcaRenewal.test.ts` "bridges what the account is short in, then renews from the account" |
+| The L2 bridges the price plus the fee widened for drift, less what the account holds. What the renewal doesn't spend stays in the account. | `renew/utils/l2RenewalAmount.test.ts`; `renew/service/hcaRenewal.test.ts` "bridges what the account is short in, then renews from the account" |
 | After the bridge the wallet is never asked for anything; any amount left for it is refused. | `renew/service/hcaRenewal.test.ts` "never asks about the wallet after the bridge..." |
 | A payment still settling is waited for, not paid again. | `renew/service/hcaRenewal.test.ts` "keeps an accepted payment that never filled...", "pays nothing while an earlier payment is still unsettled" |
 | Bulk renewal bridges once for every batch. | `bulk-renew/hooks/useBulkRenewSubmit.test.ts` "pays a whole selection from an L2 with one bridge..." |
@@ -82,7 +82,6 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 - On Sepolia, paying from an L2 fails above about 8 USDC (Across caps transfers into Sepolia), as in registration.
 - Prices are slightly above round numbers ($8.01 for a year): a year is charged as at least 365.25 days.
 - The renewal failure screen can show the wallet's raw rejection text.
-- The page card's total is the price less the account balance, while the sheet's includes the approval's 2% headroom. With a balance between the price and the price plus 2%, the card shows $0.00 and the sheet still asks for a payment; what the renewal doesn't spend stays in the account.
 
 ## Before changing anything here
 

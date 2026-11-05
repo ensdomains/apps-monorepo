@@ -1,4 +1,3 @@
-import { authorizedPaymentAmount } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
@@ -74,14 +73,13 @@ export const TokenPickerContent = () => {
     ...getRenewPriceQueryOptions(label, duration, token, protocol),
     select: (data) => {
       const decimals = TOKENS[token].decimals
-      const fundedRaw = authorizedPaymentAmount(data.amount)
+      const price = decimalBigintToNumber(data.amount, decimals)
+      // The intent route moves exactly the price into the account.
       return {
         rawPrice: data.amount,
-        price: decimalBigintToNumber(data.amount, decimals),
-        // The intent route moves the approval's headroom into the account
-        // too, so the wallet is gated on that, not on the price alone.
-        fundedRaw,
-        funded: decimalBigintToNumber(fundedRaw, decimals),
+        price,
+        fundedRaw: data.amount,
+        funded: price,
       }
     },
   })
@@ -268,7 +266,6 @@ export const TokenPickerContent = () => {
             checkoutReceipt: {
               totalRaw: checkoutTotalRaw,
               totalLabel: <Trans>Renewal total</Trans>,
-              isUpTo: true,
             },
           }
         : {})}
@@ -311,7 +308,6 @@ export const TokenPickerContent = () => {
         ))}
       isBusy={isBusy}
       isConnected={isConnected}
-      isEstimate={isIntentRoute}
       isLoadingBalances={balances.isLoading}
       isMethodListHidden={isReviewingPayment}
       isQuotingFunding={isQuoting}

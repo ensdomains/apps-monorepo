@@ -181,16 +181,6 @@ describe('getNetworkFeeReceiptFigures', () => {
       },
       figures('330.00', '5.51', '0.00', '335.51'),
     ],
-    [
-      'up-to figures, rounded up so none shows below what is signed',
-      {
-        registrationTotalRaw: 330_004_000n,
-        networkFeeRaw: usd('5.52'),
-        walletDebitRaw: 335_526_000n,
-        isUpTo: true,
-      },
-      figures('330.01', '5.52', '0.00', '335.53'),
-    ],
   ])('%s', (_case, input, expected) => {
     expect(getNetworkFeeReceiptFigures(input)).toEqual(expected)
   })
