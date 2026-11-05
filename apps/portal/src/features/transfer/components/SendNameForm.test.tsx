@@ -479,6 +479,35 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
     expect(screen.getByText(/Set Resolver/)).toBeInTheDocument()
   })
 
+  // Shortened, a delegate's address can pass for the recipient's.
+  it('shows the delegate’s full address', async () => {
+    renderWithRoles(ONE_DELEGATE)
+    await enterRecipient()
+
+    expect(await screen.findByText(DELEGATE)).toBeInTheDocument()
+  })
+
+  // Unheaded, "Set Resolver" reads as something the transfer will set.
+  it('heads the list with what the transfer does to those accounts', async () => {
+    renderWithRoles(ONE_DELEGATE)
+    const user = await enterRecipient()
+
+    expect(
+      await screen.findByText(/these accounts will lose their permissions/i),
+    ).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('switch', { name: /revoke everyone else/i }),
+    )
+
+    expect(
+      screen.getByText(/these accounts will still have permissions/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/will lose their permissions/i),
+    ).not.toBeInTheDocument()
+  })
+
   it('warns, and sends no grants, when the sender turns it off', async () => {
     const startTransfer = renderWithRoles(ONE_DELEGATE)
     const user = await enterRecipient()
