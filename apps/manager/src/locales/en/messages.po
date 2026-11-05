@@ -1768,7 +1768,7 @@ msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). The
 msgid "Keep renewal"
 msgstr "Keep renewal"
 
-#: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
+#: src/features/register-v2/workflow/registering/lib/keepBrowserOpen.ts
 msgid "Keep this browser open while your name is registered"
 msgstr "Keep this browser open while your name is registered"
 

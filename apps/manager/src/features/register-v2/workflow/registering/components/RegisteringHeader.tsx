@@ -3,6 +3,7 @@ import { Calligraph } from 'calligraph'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { useRegisteringStage } from '../../../state/registrationUi.selectors'
+import { KEEP_BROWSER_OPEN } from '../lib/keepBrowserOpen'
 import { RegistrationCompletionBanner } from './RegistrationCompletionBanner'
 import { WeaveTrackPlaceholder } from './WeaveTrackPlaceholder'
 
@@ -64,11 +65,7 @@ export const RegisteringHeader = ({
   }
 
   const label = match(uiStage?.transaction)
-    // Registration finishes from this tab, so closing it leaves the name unregistered.
-    .with(
-      'pendingRegistration',
-      () => t`Keep this browser open while your name is registered`,
-    )
+    .with('pendingRegistration', () => t(KEEP_BROWSER_OPEN))
     .with(undefined, () => t`Loading...`)
     .otherwise(() => stageLabel)
 
