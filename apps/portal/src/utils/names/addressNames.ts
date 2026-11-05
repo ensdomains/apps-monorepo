@@ -85,7 +85,10 @@ export const ethAncestorsOf = ({
   name,
   expiryDate,
   protocolVersion,
-}: AddressNameItem): readonly string[] => {
+}: Pick<
+  AddressNameItem,
+  'name' | 'expiryDate' | 'protocolVersion'
+>): readonly string[] => {
   const labels = name.split('.')
   if (labels.length < 3 || labels.at(-1) !== 'eth') return []
   if (protocolVersion === 'ENSv1')
