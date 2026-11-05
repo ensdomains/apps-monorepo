@@ -431,27 +431,33 @@ describe('TokenPickerContent', () => {
       screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
     ).toBeVisible()
   })
-  it('lists every method holding something, short or not, and hides the empty wallet', () => {
-    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
-    containerMocks.walletBalance = '0'
-    containerMocks.renderBudget = fiveUsdcBudget
-    containerMocks.l2Balances = {
-      [baseSepolia.id]: 25_000_000n,
-      [arbitrumSepolia.id]: 1_000_000n,
-    }
-    containerMocks.l2AmountIn = 5_012_000n
-    renderContainer()
+  it.each([
+    ['nothing', '0'],
+    ['under a cent', '4169'],
+  ])(
+    'lists every method holding something, short or not, and hides a wallet holding %s',
+    (_case, walletBalance) => {
+      containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+      containerMocks.walletBalance = walletBalance
+      containerMocks.renderBudget = fiveUsdcBudget
+      containerMocks.l2Balances = {
+        [baseSepolia.id]: 25_000_000n,
+        [arbitrumSepolia.id]: 1_000_000n,
+      }
+      containerMocks.l2AmountIn = 5_012_000n
+      renderContainer()
 
-    expect(
-      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
-    ).toBeVisible()
-    expect(
-      screen.queryByRole('button', { name: 'Select USDC' }),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
-    ).toBeVisible()
-  })
+      expect(
+        screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+      ).toBeVisible()
+      expect(
+        screen.queryByRole('button', { name: 'Select USDC' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
+      ).toBeVisible()
+    },
+  )
 
   it('moves to the L2 holding the most when the wallet cannot pay', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'

@@ -5,7 +5,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { isAddressEqual } from 'viem'
+import { isAddressEqual, parseUnits } from 'viem'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
@@ -765,8 +765,9 @@ const byBalanceDescending = (a: L2PaymentRow, b: L2PaymentRow) => {
   return right > left ? 1 : -1
 }
 
-// A short coin stays listed, so it can be picked; an empty one has nothing to offer.
-const hasBalance = (coin: StablecoinBalance) => BigInt(coin.balance) > 0n
+// A short coin stays listed, so it can be picked; under a cent (shown as $0.00) it has nothing to offer.
+const hasBalance = (coin: StablecoinBalance) =>
+  BigInt(coin.balance) >= parseUnits('0.01', coin.decimals)
 
 const coversShare = (coin: StablecoinBalance, share: number | undefined) =>
   share !== undefined &&
