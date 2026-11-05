@@ -12,6 +12,8 @@ import { isUserRejectionError } from '@ens-apps/transaction-manager/errors/trans
 import { getResumeTarget } from '@ens-apps/transaction-manager/machines/registration/registration.persistence'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { msg } from '@lingui/core/macro'
+import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import {
   type Address,
@@ -32,17 +34,30 @@ import {
 import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import {
+  findPendingRegistrationFor,
+  invalidateAfterWithdrawal,
+} from '@/features/wallet/data/queries/leftoverFunds.query'
+import {
+  readLeftoverFunds,
+  withdrawLeftoverFunds,
+} from '@/features/wallet/service/leftoverFunds'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
-import { publicClient as defaultPublicClient } from '@/lib/wagmi'
+import { publicClient as defaultPublicClient, wagmiConfig } from '@/lib/wagmi'
+import { translateMessage } from '@/utils/i18n/translateMessage'
 import { getQueryClient } from '@/utils/router/root-context'
 import {
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
 import { getL2FundingSource } from '../service/l2FundingSource'
+import {
+  type LeftoverRefundNotice,
+  resolveLeftoverRefundNotice,
+} from '../service/leftoverRefund'
 import { readPendingEthSwap } from '../service/pendingEthSwap'
 import { readPendingL2Bridge } from '../service/pendingL2Bridge'
 import {
@@ -326,6 +341,85 @@ const hasPrimaryNameForwardRemaining = (context: Context) =>
 const hasPrimaryNameReverseRemaining = (context: Context) =>
   canSetPrimaryName(context) &&
   context.postRegistrationProgress.primaryNameForwardConfirmed
+
+/** The smart account a run paid from and its owner; `null` for an EOA run. */
+const leftoverRefundAccounts = (
+  context: Context,
+): { readonly hca: Address; readonly owner: Address } | null => {
+  const data = context.postRegistrationData
+  if (
+    data?.signer.type !== 'rhinestone' ||
+    data.accountAddress.toLowerCase() === data.ownerAddress.toLowerCase()
+  ) {
+    return null
+  }
+  return { hca: data.accountAddress, owner: data.ownerAddress }
+}
+
+const announceLeftoverRefund = (notice: LeftoverRefundNotice) =>
+  match(notice)
+    .with({ kind: 'none' }, () => undefined)
+    .with({ kind: 'returned' }, ({ amount }) =>
+      toast.success(
+        translateMessage(
+          msg`${amount} left over from your payment is back in your wallet.`,
+        ),
+      ),
+    )
+    .with({ kind: 'held' }, ({ registrationName }) =>
+      toast.info(
+        translateMessage(
+          msg`Your leftover funds stay in your smart account until your registration of ${registrationName} completes.`,
+        ),
+      ),
+    )
+    .with({ kind: 'declined' }, () =>
+      toast.info(
+        translateMessage(
+          msg`Your leftover funds are still in your smart account. Use "Withdraw leftover funds" to get them back.`,
+        ),
+      ),
+    )
+    .with({ kind: 'failed' }, () =>
+      toast.error(
+        translateMessage(
+          msg`Couldn't return your leftover funds. They're still in your smart account: use "Withdraw leftover funds" to get them back.`,
+        ),
+      ),
+    )
+    .exhaustive()
+
+/** Settles here, not in the machine: leaving the page stops the machine but not the transaction. */
+const returnLeftoverFunds = async ({
+  hca,
+  owner,
+}: {
+  readonly hca: Address
+  readonly owner: Address
+}): Promise<void> => {
+  const notice = await readLeftoverFunds(defaultPublicClient, hca)
+    .then(({ funds }) =>
+      // Read first: withdrawing moves the wallet to this chain, a prompt with nothing to send.
+      funds.length === 0
+        ? null
+        : withdrawLeftoverFunds({
+            hca,
+            owner,
+            // The reveal deployed the account, so there is nothing to deploy.
+            hcaClient: null,
+            refreshAccount: () => Promise.resolve(),
+            publicClient: defaultPublicClient,
+            wagmiConfig,
+            findPendingRegistration: () => findPendingRegistrationFor(hca),
+          }).then((result) => resolveLeftoverRefundNotice({ result })),
+    )
+    // A failed read is reported like a failed withdrawal: the funds stay withdrawable.
+    .catch((error: unknown) => resolveLeftoverRefundNotice({ error }))
+  if (!notice) return
+  const queryClient = getQueryClient()
+  if (queryClient) void invalidateAfterWithdrawal(queryClient, hca)
+  announceLeftoverRefund(notice)
+}
 
 const updateMaxProgress = (
   current: MaxProgressReached | undefined,
@@ -715,6 +809,18 @@ const machineSetup = setup({
         primaryNameForwardConfirmed: true,
       }),
     }),
+    // On the registration itself: the success screen also waits on the notification step.
+    refundLeftoverFunds: ({ context }) => {
+      const accounts = leftoverRefundAccounts(context)
+      // The child stays in `success` and can report it again; refund once per run.
+      if (!accounts || context.registrationCompleted) return
+      void returnLeftoverFunds(accounts).catch((error: unknown) => {
+        console.warn(
+          '[REGISTRATION] The leftover refund did not finish; the name is already registered:',
+          error,
+        )
+      })
+    },
   },
 })
 
@@ -1077,7 +1183,8 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     onSnapshot: [
       {
         guard: ({ event: { snapshot } }) => snapshot.matches('success'),
-        actions: ['captureChildSuccess'],
+        // Refund first: it reads `registrationCompleted` before this run sets it.
+        actions: ['refundLeftoverFunds', 'captureChildSuccess'],
       },
       {
         guard: ({ event: { snapshot } }) => snapshot.matches('error'),
