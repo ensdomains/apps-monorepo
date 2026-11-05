@@ -19,6 +19,7 @@ import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
 import type { BulkRenewName, Selection, SummaryRow } from '../types'
+import { BulkNamesHeading } from './BulkNamesHeading'
 import { BulkRenewPaymentStep } from './BulkRenewPaymentStep'
 import { DurationPresets } from './DurationPresets'
 import { FailureStep } from './FailureStep'
@@ -239,11 +240,7 @@ export const BulkRenewDialog = ({
           <BulkRenewPaymentStep
             grandTotal={grandTotal}
             header={
-              <NamesBreakdown
-                existingBalance={payment.appliedBalance}
-                rows={summaryRows}
-                total={payment.listTotal}
-              />
+              <BulkNamesHeading count={count} durationLabel={durationLabel} />
             }
             onConfirm={handleConfirm}
             onSelectCoin={selectCoin}
