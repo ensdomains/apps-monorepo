@@ -29,6 +29,7 @@ export type {
   HcaFundingApprovalState,
 } from './helpers/hca-funding-approval'
 export {
+  HCA_INTENT_FEE_MARGIN_BPS,
   HCA_MAX_STANDALONE_INTENT_FEE_USDC,
   HCA_STANDALONE_INTENT_GAS_LIMIT,
   type HcaDisplayedDebit,
