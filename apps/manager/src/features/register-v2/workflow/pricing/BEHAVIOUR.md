@@ -14,19 +14,19 @@ Paths are relative to this folder. "Sheet tests" means `components/TokenPickerCo
 
 | Rule | Held by |
 | --- | --- |
-| Without an existing balance, the card shows the total in USD and the savings pill. | `CheckoutSummaryCard.test.tsx` |
+| Without an existing balance, the card shows the total in USD and the savings pill. Under the total, in both layouts, "+ network fees": the page's total leaves the fee to the sheet. | `CheckoutSummaryCard.test.tsx` (the layouts); the "+ network fees" note is design copy and has no test |
 | With one, it shows Name cost, Existing balance and Total. The balance is applied up to the name cost, so the total is never below zero. | `lib/checkoutSummary.test.ts`, `CheckoutSummaryCard.test.tsx` "shows the name cost, the existing balance and the total left to pay" |
 | Tier cards headline the total including any premium; the per-year pill stays on the base price and reads "total". | `DurationPresetRow.test.tsx` "headlines the total with any premium..." |
 | The button reads "Continue to payment" and opens the sheet. Accepted coins sit under it (USDC and ETH). While preparing it reads "Preparing..." and is disabled with a not-allowed cursor. | `CheckoutSummaryCard.test.tsx` "opens the payment sheet from Continue to payment"; `lib/checkoutAvailability.test.ts` (`getCheckoutAction`) |
 | "Insufficient balance" appears only when every balance read succeeded and none covers the total. Wallet USDC and ETH count together, L2 balances count, gas does not (a balance short of the fee is reported in the sheet). A loading or failed read never blocks the button. The page says "Insufficient balance"; only the sheet names a token. | `lib/checkoutAvailability.test.ts`, `CheckoutSummaryCard.test.tsx` "blocks the way to payment when no balance covers the total" |
-| While the account balance is unread, the total pulses rather than showing a figure without it. | `lib/checkoutAvailability.test.ts` (`getPageAvailability`) |
+| Until the page knows the wallet and its balance (server render, session restore, a reconnect the account hasn't synced to, the balance read), the card shows the no-existing-balance layout ("Total USD") with a placeholder set in the total's own type, since nothing yet says the user has a balance; it moves to Name cost / Existing balance / Total only once a balance above zero is read, and the button reads "Loading..." (disabled), not "Connect". It never shows a figure the balance hasn't been applied to. A smart account that failed to start is not waited on: the button reads "Connect to register". | `components/CheckoutSummaryCard.test.tsx` "assumes no existing balance and shows no total while %s", "waits with a disabled Loading button while the account is restored"; `lib/checkoutAvailability.test.ts` (`getPageAvailability`, "waits while the account is still being restored...", `isAccountPending`) |
 
 ## Payment sheet: methods
 
 | Rule | Held by |
 | --- | --- |
 | Heading "Pay with". Rows show "Est. fee: $X" and the balance "available". The wallet's coins come first, then L2s by balance, then ETH. Three rows show before "Load more"; a selected row further down stays visible. | Sheet tests "lists the wallet first, then quoted L2s by balance, three at a time"; `lib/paymentMethodVisibility.test.ts` |
-| A method holding nothing is hidden. A method holding something is listed even when it can't pay. | Sheet tests "lists every method holding something, short or not, and hides the empty wallet", "an empty L2, with nothing left to bridge" › "is not listed" |
+| A method holding nothing is hidden, and so is a wallet coin holding under a cent (it would show as $0.00; an ETH payment leaves such dust behind). A method holding something is listed even when it can't pay. | Sheet tests "lists every method holding something, short or not, and hides a wallet holding %s", "an empty L2, with nothing left to bridge" › "is not listed" |
 | Every L2 holding USDC is listed in registration: before its quote, when it falls short, and when its quote fails. | Sheet tests "shows the wallet and an L2 holding USDC before the L2 is quoted", "lists an L2 that holds USDC but cannot pay...", "lists an L2 holding USDC whose quote failed..." |
 | An L2 without a quote shows an estimated fee with "~", never a dash. | Sheet tests "in registration, says a picked short L2 lacks USDC and estimates its fee", "estimates an unquoted L2 from a quoted one..." |
 | ETH is listed only when its quote has something to swap. When the wallet's USDC already pays, ETH is not listed. It carries the "Swaps to USDC" badge and its fee and balance in USD. | Sheet tests "with a wallet that pays in USDC, lists ETH only with %s" |
@@ -66,7 +66,7 @@ Paths are relative to this folder. "Sheet tests" means `components/TokenPickerCo
 
 ## Shared with renewal
 
-`TokenPickerContentBase`, `PaymentAction`, `PaymentMethodRow` and the L2 rows are shared with single and bulk renewal. Registration-only behaviour is switched on by the `registrationReceipt` prop. Renewal must not change through a registration PR: sheet tests "keeps a short L2 hidden in renewal", "keeps an unquoted L2 hidden in renewal" and "keeps the existing token row outside registration" hold that.
+`TokenPickerContentBase`, `PaymentAction`, `PaymentMethodRow` and the L2 and ETH rows are shared with single and bulk renewal, which follow this design (WEB-2133). A change to a rule above changes renewal too. Renewal's own rules, and where it differs, are in `../../../renew/workflow/pricing/BEHAVIOUR.md`.
 
 ## Before changing anything here
 

@@ -13,6 +13,8 @@ export interface CenteredWeaveLoaderProps {
   progress: number
   description?: string
   animate?: boolean
+  /** Shown under the description in the same style, whatever the stage. */
+  readonly notice?: string
 }
 
 /** Full-height, centered weave loader shown while the name fills in. */
@@ -21,6 +23,7 @@ export function CenteredWeaveLoader({
   progress,
   description,
   animate = false,
+  notice,
 }: CenteredWeaveLoaderProps) {
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4 max-md:bg-white">
@@ -28,6 +31,11 @@ export function CenteredWeaveLoader({
         <LazyWeaveRegistration
           animate={animate}
           description={description}
+          footer={
+            notice ? (
+              <p className="text-center text-ens-gray text-sm">{notice}</p>
+            ) : undefined
+          }
           name={name}
           progress={progress}
           weaveOptions={JACQUARD_PATTERN3_DYE_BLEED_OPTIONS}
