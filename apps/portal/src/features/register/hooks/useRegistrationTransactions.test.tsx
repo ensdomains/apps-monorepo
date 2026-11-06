@@ -106,7 +106,9 @@ describe('useRegistrationTransactions after a resume', () => {
     // made the flow look as if it had moved on to payment.
     const result = resumeAtCommitPrompt(false)
 
+    // The ETH address comes first: the record may be from a bundle that never landed.
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
+      REGISTRATION_TX_IDS.setEthAddress,
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
@@ -254,10 +256,38 @@ describe('useRegistrationTransactions before a run', () => {
 
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
       REGISTRATION_TX_IDS.deployResolver,
+      REGISTRATION_TX_IDS.setEthAddress,
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
     ])
+  })
+
+  it.each([
+    [
+      'estimates the ETH address against a deployed resolver',
+      '0x6080',
+      true,
+      true,
+    ],
+    ["doesn't estimate the ETH address ahead of the deploy", null, true, false],
+    [
+      "doesn't estimate it while the resolver read has no answer",
+      undefined,
+      false,
+      false,
+    ],
+  ])('%s', (_, code, isSuccess, isEstimated) => {
+    vi.mocked(useBytecode).mockReturnValue({ data: code, isSuccess } as never)
+    const result = render()
+
+    const isEstimatedById = Object.fromEntries(
+      result.current.transactions.map(({ id, intent }) => [
+        id,
+        intent?.prepare !== undefined,
+      ]),
+    )
+    expect(isEstimatedById[REGISTRATION_TX_IDS.setEthAddress]).toBe(isEstimated)
   })
 
   it('collapses everything before the cooldown into one step on a bundling wallet', () => {
@@ -271,6 +301,7 @@ describe('useRegistrationTransactions before a run', () => {
       ])
       expect(result.current.transactions[0]?.steps).toEqual([
         'Deploy resolver',
+        'Set ETH address',
         'Submit commitment',
         expect.stringMatching(/^Approve /),
       ])
@@ -287,6 +318,7 @@ describe('useRegistrationTransactions before a run', () => {
     const result = render()
 
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
+      REGISTRATION_TX_IDS.setEthAddress,
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
@@ -303,6 +335,7 @@ describe('useRegistrationTransactions before a run', () => {
     const result = render()
 
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
+      REGISTRATION_TX_IDS.setEthAddress,
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,

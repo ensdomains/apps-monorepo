@@ -1,4 +1,5 @@
 import type { Address, Hash, Hex, PublicClient } from 'viem'
+import { createPublicClient, createWalletClient, custom } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { createActor, fromPromise, waitFor } from 'xstate'
@@ -17,6 +18,7 @@ import {
   L2_BRIDGE_CLAIMABLE_MS,
 } from './registration.hca.actors'
 import {
+  REGISTRATION_TX_IDS,
   registrationMachine,
   type UnsettledL2Bridge,
 } from './registration.machine'
@@ -206,6 +208,9 @@ const startEoaRegistration = (overrides: {
   checkResolverDeployment?: ReturnType<typeof vi.fn>
   deployResolver?: ReturnType<typeof vi.fn>
   resolveResolverDeployment?: ReturnType<typeof vi.fn>
+  /** The app asks for the ETH address (Explorer). */
+  shouldSetEthAddress?: boolean
+  submitEthAddress?: ReturnType<typeof vi.fn>
   generateCommitment?: ReturnType<typeof vi.fn>
   submitCommitment?: ReturnType<typeof vi.fn>
   /** Stubbed only by the tests that walk past the commit. */
@@ -226,6 +231,8 @@ const startEoaRegistration = (overrides: {
   const resolveResolverDeployment =
     overrides.resolveResolverDeployment ??
     vi.fn(async () => ({ resolverAddress: EOA_RESOLVER }))
+  const submitEthAddress =
+    overrides.submitEthAddress ?? vi.fn(async () => 'eth-address-tx')
   const generateCommitment =
     overrides.generateCommitment ?? vi.fn(async () => EOA_COMMITMENT)
   const submitCommitment =
@@ -248,6 +255,7 @@ const startEoaRegistration = (overrides: {
         resolveResolverDeployment: fromPromise(
           resolveResolverDeployment,
         ) as never,
+        submitEthAddress: fromPromise(submitEthAddress) as never,
         generateCommitment: fromPromise(generateCommitment) as never,
         submitCommitment: fromPromise(submitCommitment) as never,
         submitEoaSetupBundle: fromPromise(submitEoaSetupBundle) as never,
@@ -287,12 +295,14 @@ const startEoaRegistration = (overrides: {
     ownerAddress: WALLET,
     publicClient: { chain: sepolia } as unknown as PublicClient,
     canBatchAtomically: overrides.canBatchAtomically,
+    shouldSetEthAddress: overrides.shouldSetEthAddress,
   })
 
   return {
     actor,
     checkResolverDeployment,
     deployResolver,
+    submitEthAddress,
     generateCommitment,
     submitCommitment,
     submitEoaSetupBundle,
@@ -968,6 +978,189 @@ describe('registrationMachine — pure-EOA resolver reuse', () => {
     expect(checkResolverDeployment).toHaveBeenCalledTimes(2)
     expect(deployResolver).toHaveBeenCalledOnce()
     expect(actor.getSnapshot().context.resolverAddress).toBe(EOA_RESOLVER)
+  })
+})
+
+describe('registrationMachine — pure-EOA ETH address', () => {
+  it.each([
+    [
+      'a resolver it deploys',
+      false,
+      ['deployResolver', 'submitEthAddress', 'generateCommitment'],
+    ],
+    [
+      'a resolver an earlier registration deployed',
+      true,
+      ['submitEthAddress', 'generateCommitment'],
+    ],
+  ])(
+    'sets the ETH address on %s before the commit',
+    async (_, deployed, order) => {
+      const { actor, deployResolver, submitEthAddress, generateCommitment } =
+        startEoaRegistration({
+          shouldSetEthAddress: true,
+          checkResolverDeployment: vi.fn(async () => ({
+            resolverAddress: EOA_RESOLVER,
+            deployed,
+          })),
+        })
+
+      await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+      expect(submitEthAddress).toHaveBeenCalledOnce()
+      expect(submitEthAddress.mock.calls[0][0].input).toMatchObject({
+        name: 'myname.eth',
+        owner: WALLET,
+        resolverAddress: EOA_RESOLVER,
+        id: REGISTRATION_TX_IDS.setEthAddress,
+      })
+      const calls = Object.entries({
+        deployResolver,
+        submitEthAddress,
+        generateCommitment,
+      }).flatMap(([step, fn]) =>
+        fn.mock.invocationCallOrder.map((at) => ({ step, at })),
+      )
+      expect(calls.sort((a, b) => a.at - b.at).map(({ step }) => step)).toEqual(
+        order,
+      )
+    },
+  )
+
+  it('skips it unless the app asks for it', async () => {
+    const { actor, submitEthAddress } = startEoaRegistration({})
+
+    await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+    expect(submitEthAddress).not.toHaveBeenCalled()
+  })
+
+  it('leaves it to the setup bundle on a wallet that bundles', async () => {
+    const { actor, submitEthAddress, submitEoaSetupBundle } =
+      startEoaRegistration({
+        shouldSetEthAddress: true,
+        canBatchAtomically: true,
+      })
+
+    await waitFor(actor, (s) => s.matches('registeringDomain'))
+
+    expect(submitEthAddress).not.toHaveBeenCalled()
+    expect(submitEoaSetupBundle.mock.calls[0][0].input).toMatchObject({
+      resolverAddress: EOA_RESOLVER,
+      shouldSetEthAddress: true,
+    })
+  })
+
+  it('retries only the ETH address when it fails', async () => {
+    const submitEthAddress = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('wallet hiccup'))
+      .mockResolvedValue('eth-address-tx')
+    const { actor, deployResolver } = startEoaRegistration({
+      shouldSetEthAddress: true,
+      submitEthAddress,
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe('settingEthAddress')
+
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+    expect(submitEthAddress).toHaveBeenCalledTimes(2)
+    expect(deployResolver).toHaveBeenCalledOnce()
+  })
+
+  it('keeps it when only the commit after it fails', async () => {
+    const declined = new TransactionUserRejectedError(
+      {} as TransactionRequest,
+      new Error('User rejected'),
+    )
+    const { actor, submitEthAddress, submitCommitment } = startEoaRegistration({
+      shouldSetEthAddress: true,
+      submitCommitment: vi.fn(async () => 'commit-tx'),
+      // The ETH address lands; the commit is declined.
+      pollTransactionStatus: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(declined)
+        .mockReturnValue(new Promise(() => {})),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe('preparingCommitment')
+
+    actor.send({ type: 'RETRY' })
+    await vi.waitFor(() => expect(submitCommitment).toHaveBeenCalledTimes(2))
+
+    expect(submitEthAddress).toHaveBeenCalledOnce()
+  })
+
+  it('sets it again before resending a resumed bundle that never landed as separate steps', async () => {
+    const submitEthAddress = vi.fn(async () => 'eth-address-tx')
+    const submitCommitment = vi.fn(() => new Promise(() => {}))
+    const actor = createActor(
+      registrationMachine.provide({
+        actors: {
+          validateCommitment: fromPromise(async () => {
+            throw new Error('Commitment not found')
+          }) as never,
+          submitEthAddress: fromPromise(submitEthAddress) as never,
+          pollTransactionStatus: fromPromise(async () => undefined) as never,
+          generateCommitment: fromPromise(async () => EOA_COMMITMENT) as never,
+          submitCommitment: fromPromise(submitCommitment) as never,
+        },
+      }),
+      { input: { chainId: sepolia.id } },
+    )
+    actor.start()
+    actor.send({
+      type: 'RESUME',
+      // Interrupted at the bundle prompt: the record holds a commitment that never went out.
+      stage: 'submittingEoaSetupBundle',
+      context: {
+        chainId: sepolia.id,
+        name: 'myname.eth',
+        duration: 31_536_000n,
+        selectedToken: 'USDC',
+        tokenPrice: 5_000_000n,
+        signerType: 'eoa',
+        accountAddress: WALLET,
+        ownerAddress: WALLET,
+        resolverAddress: EOA_RESOLVER,
+        commitment: { commitment: COMMITMENT, secret: SECRET },
+      },
+      // Every actor that would use these is stubbed; the wallet no longer bundles.
+      deps: {
+        signer: {
+          type: 'eoa',
+          walletClient: createWalletClient({
+            account: WALLET,
+            transport: custom({ request: async () => null }),
+          }),
+        },
+        publicClient: createPublicClient({
+          chain: sepolia,
+          transport: custom({ request: async () => null }),
+        }),
+        canBatchAtomically: false,
+        shouldSetEthAddress: true,
+      },
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe('settingEthAddress')
+
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('committingTransaction'))
+
+    expect(submitEthAddress.mock.calls[0][0].input).toMatchObject({
+      resolverAddress: EOA_RESOLVER,
+    })
+    expect(submitCommitment.mock.calls[0][0].input.commitment).toEqual(
+      EOA_COMMITMENT,
+    )
+    actor.stop()
   })
 })
 

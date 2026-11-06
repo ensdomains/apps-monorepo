@@ -17,6 +17,9 @@ export const REGISTRATION_STAGE_PROGRESS = {
   checkingResolver: 6,
   deployingResolver: 8,
   waitingForResolverDeployment: 15,
+  // Explorer-only, like `submittingEoaSetupBundle`; manager never enters it.
+  settingEthAddress: 17,
+  waitingForEthAddress: 20,
   preparingCommitment: 23,
   committingTransaction: 31,
   // Explorer-only (pure-EOA, atomic-batching wallet); manager never enters it.
