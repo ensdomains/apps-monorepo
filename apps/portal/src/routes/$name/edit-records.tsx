@@ -62,9 +62,6 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
   { value: 'contentHash', label: 'Contenthash' },
 ]
 
-/** Record types that don't require a key input (single-value records) */
-const KEYLESS_RECORD_TYPES: RecordType[] = ['contentHash', 'abi']
-
 const SAVE_RECORDS_TRANSACTION_ID = 'tx-save-resolver-records'
 
 function EditRecordsPage() {
@@ -245,9 +242,11 @@ const EditRecordsContent = ({
       : ''
   const [keyInput, setKeyInput] = useState('')
   const [valueInput, setValueInput] = useState('')
+  const [addRecordError, setAddRecordError] = useState<string | null>(null)
 
   // Reset key input when type changes (different types have different key requirements)
   const handleTypeChange = (newType: RecordType | '') => {
+    setAddRecordError(null)
     setPickedType(newType)
     setKeyInput('') // Reset key when type changes
   }
@@ -410,15 +409,13 @@ const EditRecordsContent = ({
   const keyInputId = useId()
   const valueInputId = useId()
 
-  // Check if the selected type requires a key
-  const requiresKey =
-    selectedType !== '' && !KEYLESS_RECORD_TYPES.includes(selectedType)
-
   const handleAddRecord = () => {
     if (!selectedType) return
-    if (requiresKey && !keyInput) return
+    if (selectedType === 'text' && !keyInput) return
 
-    addRecord(selectedType, keyInput, valueInput)
+    const error = addRecord(selectedType, keyInput, valueInput)
+    setAddRecordError(error)
+    if (error) return
 
     // Reset form
     setPickedType('')
@@ -558,7 +555,7 @@ const EditRecordsContent = ({
             <Button
               variant="default"
               onClick={handleAddRecord}
-              disabled={!selectedType || (requiresKey && !keyInput)}
+              disabled={!selectedType || (selectedType === 'text' && !keyInput)}
               className="flex items-center gap-2 whitespace-nowrap"
             >
               Add record
@@ -566,6 +563,11 @@ const EditRecordsContent = ({
             </Button>
           </div>
         </div>
+        {addRecordError && (
+          <p role="alert" className="text-small text-danger-text">
+            {addRecordError}
+          </p>
+        )}
       </header>
 
       {/* Main Content */}

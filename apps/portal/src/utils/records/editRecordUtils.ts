@@ -1,4 +1,6 @@
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
+import { err, ok, type Result } from 'neverthrow'
 import { match } from 'ts-pattern'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 
@@ -108,6 +110,33 @@ export function mergeRecordsWithChanges(
   return merged
 }
 
+export class UnsupportedRecordCoinError extends TaggedError(
+  'UnsupportedRecordCoinError',
+)<{
+  readonly cause: unknown
+  readonly message: string
+}> {}
+
+export function getAddressRecordCoinType(
+  key: string,
+): Result<number, UnsupportedRecordCoinError> {
+  if (!key.trim()) {
+    return err(
+      new UnsupportedRecordCoinError({ cause: key, message: 'Select a coin.' }),
+    )
+  }
+  const coinName = key.toLowerCase()
+  if (!Object.hasOwn(coinNameToTypeMap, coinName)) {
+    return err(
+      new UnsupportedRecordCoinError({
+        cause: key,
+        message: 'Unsupported coin. Select a supported coin.',
+      }),
+    )
+  }
+  return ok(coinNameToTypeMap[coinName as keyof typeof coinNameToTypeMap])
+}
+
 /** Generate a unique ID for new records */
 function generateUid(): string {
   return Math.random().toString(36).substring(2, 11)
@@ -121,45 +150,42 @@ function generateUid(): string {
  * @param type - The type of record to create
  * @param key - The key/name for the record (ignored for contentHash)
  * @param value - The value for the record
- * @returns A new EditableRecord object with a unique _uid
+ * @returns A new record with a unique _uid, or an error for an unsupported coin
  *
  * @example
  * createNewRecord('text', 'name', 'John')
- * // { type: 'text', key: 'name', value: 'John', _uid: 'abc123xyz' }
+ * // ok({ type: 'text', key: 'name', value: 'John', _uid: 'abc123xyz' })
  *
  * @example
  * createNewRecord('address', 'ETH', '0x123...')
- * // { type: 'address', key: 'ETH', value: '0x123...', id: 60, _uid: 'def456uvw' }
+ * // ok({ type: 'address', key: 'ETH', value: '0x123...', id: 60, _uid: 'def456uvw' })
  *
  * @example
  * createNewRecord('contentHash', '', 'ipfs://...')
- * // { type: 'contentHash', value: 'ipfs://...', _uid: 'ghi789rst' }
+ * // ok({ type: 'contentHash', value: 'ipfs://...', _uid: 'ghi789rst' })
  */
 export function createNewRecord(
   type: RecordType,
   key: string,
   value: string,
-): EditableRecord {
+): Result<EditableRecord, UnsupportedRecordCoinError> {
   const _uid = generateUid()
 
   return match(type)
-    .with('text', () => ({ type: 'text' as const, key, value, _uid }))
+    .with('text', () => ok({ type: 'text' as const, key, value, _uid }))
     .with('address', () => {
-      // Look up coin type from key, default to ETH (60) if not found
-      const coinType =
-        coinNameToTypeMap[
-          key.toLowerCase() as keyof typeof coinNameToTypeMap
-        ] ?? 60
-      return {
+      return getAddressRecordCoinType(key).map((coinType) => ({
         type: 'address' as const,
         key,
         value,
         id: coinType,
         _uid,
-      }
+      }))
     })
-    .with('contentHash', () => ({ type: 'contentHash' as const, value, _uid }))
-    .with('abi', () => ({ type: 'abi' as const, value, _uid }))
+    .with('contentHash', () =>
+      ok({ type: 'contentHash' as const, value, _uid }),
+    )
+    .with('abi', () => ok({ type: 'abi' as const, value, _uid }))
     .exhaustive()
 }
 
