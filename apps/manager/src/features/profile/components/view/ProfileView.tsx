@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
+import { useHydrated } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
@@ -11,6 +12,7 @@ import { isConnectedProfileOwner } from '@/features/profile/components/view/conn
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import { useLatchedFlag } from '@/features/profile/hooks/useLatchedFlag'
 import { useResolverCopySource } from '@/features/profile/hooks/useResolverCopySource'
+import { shouldShowHeaderActions } from '@/features/profile/service/profileActionsPlacement'
 import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import { canEditProfileHere } from '@/features/profile/service/profileEditability'
 import {
@@ -25,6 +27,7 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
+import { isAccountPending } from '@/features/register-v2/workflow/pricing/lib/checkoutAvailability'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { ProfileActions, ProfileDesktopActions } from './ProfileActions'
@@ -107,8 +110,10 @@ const getImageUrls = (
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
   const commemorativeNftEnabled = useMigrationNftEnabled()
-  const { isConnected, ownerAddress } = useSmartAccountContext()
-  const { address: connectedAddress } = useConnection()
+  const { error, hasInitialized, isConnected, ownerAddress } =
+    useSmartAccountContext()
+  const { address: connectedAddress, status: walletStatus } = useConnection()
+  const isHydrated = useHydrated()
   const chainId = useChainId()
   const { eligible: eligibleV1Names, isPending: isV1NamesPending } =
     useEligibleV1Names({
@@ -161,17 +166,20 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   })
   const isOwner = useIsOwner({ owner })
   const resolvedIsOwner = isOwnerPending ? undefined : isOwner
-  const canEditRecords = useCanEditRecords({
-    enabled: !expiry.isInGrace,
-    isOwner: resolvedIsOwner,
-    name,
-  })
-  const resolverCopySource = useResolverCopySource({
-    name,
-    isInGrace: expiry.isInGrace,
-    isExpiryError,
-    isUpgradeRequired,
-  })
+  const { canEditRecords, isPending: isWriteAccessPending } = useCanEditRecords(
+    {
+      enabled: !expiry.isInGrace,
+      isOwner: resolvedIsOwner,
+      name,
+    },
+  )
+  const { resolverCopySource, isPending: isCopySourcePending } =
+    useResolverCopySource({
+      name,
+      isInGrace: expiry.isInGrace,
+      isExpiryError,
+      isUpgradeRequired,
+    })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
   const canEditProfile = canEditProfileHere({
     isInGrace: expiry.isInGrace || isExpiryError,
@@ -188,6 +196,19 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     canEditProfile || Boolean(resolverCopySource),
     sessionKey,
   )
+  const hasHeaderActions = shouldShowHeaderActions({
+    hasFloatingBar,
+    isAccountPending: isAccountPending({
+      isHydrated,
+      hasInitialized,
+      walletStatus,
+      isAccountConnected: isConnected,
+      hasAccountFailed: error !== null,
+    }),
+    isCopySourcePending,
+    isOwner: resolvedIsOwner,
+    isWriteAccessPending,
+  })
 
   if (isRecordsPending || (ownerMissing && isExpiryPending)) {
     return <ProfileLoading name={name} />
@@ -256,7 +277,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               avatarUrl={avatarUrl}
               canEdit={canEditProfile}
               desktopActions={
-                hasFloatingBar ? undefined : (
+                hasHeaderActions ? (
                   <ProfileDesktopActions
                     avatarUrl={avatarUrl}
                     isOwner={resolvedIsOwner}
@@ -264,7 +285,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
                     renewalProtocol={ownerData?.protocol}
                     url={getProfileUrl(name)}
                   />
-                )
+                ) : undefined
               }
               displayExpiryDate={expiry.displayExpiryDate}
               name={name}
