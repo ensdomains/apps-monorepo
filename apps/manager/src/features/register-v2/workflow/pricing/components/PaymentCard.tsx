@@ -125,8 +125,8 @@ export const PaymentCard = () => {
   return (
     <>
       <CheckoutSummaryCard
-        // ETH is swapped for the ENS account, so only that route offers it.
-        acceptsEth={account.signer?.type === 'rhinestone'}
+        // ETH is swapped for the ENS account; listed until a plain wallet is known.
+        acceptsEth={account.signer?.type !== 'eoa'}
         action={action}
         connect={{
           onConnect: () => openConnectModal?.(),
