@@ -5,12 +5,13 @@ import {
   actionLabelClassName,
   barEditActionClassName,
   barEditActionSymbolClassName,
-  editBottomBarContentClassName,
   favoriteActionClassName,
   iconActionClassName,
   iconActionIconInnerClassName,
   iconActionInnerClassName,
   iconActionSymbolClassName,
+  ownerBarContentClassName,
+  ownerBarEditActionsClassName,
   profileBarActionsClassName,
   renewActionClassName,
   renewActionSymbolClassName,
@@ -64,7 +65,7 @@ const IconAction = ({
 export const InOwnerBar: Story = {
   decorators: [
     (Story) => (
-      <div className={cn(editBottomBarContentClassName, 'bg-white')}>
+      <div className={cn(ownerBarContentClassName, 'bg-white')}>
         <div className={profileBarActionsClassName}>
           <IconAction className={favoriteActionClassName} symbol="favorite" />
           <IconAction symbol="ios_share" />
@@ -79,7 +80,7 @@ export const InOwnerBar: Story = {
             </span>
           </span>
         </div>
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+        <div className={ownerBarEditActionsClassName}>
           <span
             className={cn(
               barEditActionClassName,

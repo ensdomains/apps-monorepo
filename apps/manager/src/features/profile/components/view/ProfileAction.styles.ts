@@ -20,8 +20,8 @@ export const renewActionClassName =
 export const renewActionSymbolClassName =
   'ms-opsz-12 ms-wght-500 text-[12px] leading-none max-xs:hidden'
 
-// Beside Edit, Explore is an icon below xs and drops under 384px, where it overflows
-export const ownerBarExploreActionClassName = `${renewActionClassName} max-xs:w-11 max-[24rem]:hidden`
+// Beside Edit there is room only for an icon, so the Explore label hides below xs
+export const ownerBarExploreActionClassName = `${renewActionClassName} max-xs:w-11`
 
 export const ownerBarExploreSymbolClassName =
   'ms-opsz-20 ms-wght-500 text-[20px] leading-none xs:hidden'
@@ -65,3 +65,9 @@ export const profileStickyBarClassName =
 
 export const desktopActionClusterClassName =
   'hidden shrink-0 items-center gap-2 xl:flex'
+
+// Under 384px the owner's actions overflow Edit, so Edit wraps to its own row
+export const ownerBarContentClassName = `${editBottomBarContentClassName} max-[24rem]:flex-wrap`
+
+export const ownerBarEditActionsClassName =
+  'flex min-w-0 flex-1 items-center justify-end gap-3 max-[24rem]:basis-full xl:ml-auto xl:flex-none'
