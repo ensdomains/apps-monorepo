@@ -1642,6 +1642,12 @@ msgstr "Go to slide {0}"
 msgid "Grace period"
 msgstr "Grace period"
 
+#: src/features/dashboard/components/NameRow.tsx
+#: src/features/dashboard/components/PrimaryNameCard.tsx
+#: src/features/profile/components/view/ProfileDetails.tsx
+msgid "Grace period ends"
+msgstr "Grace period ends"
+
 #: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Growing your corner of the decentralized web"
 msgstr "Growing your corner of the decentralized web"

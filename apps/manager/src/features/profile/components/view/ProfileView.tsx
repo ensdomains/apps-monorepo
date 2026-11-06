@@ -266,7 +266,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
                   />
                 )
               }
-              displayExpiryDate={expiry.displayExpiryDate}
+              expiryDate={expiry.expiryDate}
+              graceEndDate={expiry.graceEndDate}
               name={name}
               owner={owner}
               ownerReverseName={ownerReverseName.data}

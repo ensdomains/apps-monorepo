@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   GRACE_PERIOD_DAYS,
   getDaysSinceExpiry,
-  getDisplayExpiryDate,
   getGraceEndDate,
   getServedExpiryStatus,
   isInGracePeriod,
@@ -135,26 +134,6 @@ describe('isRenewableV2EthName', () => {
   })
 })
 
-describe('getDisplayExpiryDate', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('returns grace end when in grace', () => {
-    vi.setSystemTime(base.getTime() + MS_PER_DAY)
-    const display = getDisplayExpiryDate(base, 'v2')
-    expect(display?.getTime()).toBe(getGraceEndDate(base, 'v2').getTime())
-  })
-
-  it('returns raw expiry when not in grace', () => {
-    vi.setSystemTime(base.getTime() - MS_PER_DAY)
-    expect(getDisplayExpiryDate(base, 'v2')?.getTime()).toBe(base.getTime())
-  })
-})
-
 describe('getServedExpiryStatus', () => {
   const graceEnd = new Date(base.getTime() + 28 * MS_PER_DAY)
 
@@ -166,8 +145,8 @@ describe('getServedExpiryStatus', () => {
     )
     expect(status).toMatchObject({
       isInGrace: true,
+      expiryDate: base,
       graceEndDate: graceEnd,
-      displayExpiryDate: graceEnd,
       daysSinceExpiry: 1,
       isPastGrace: false,
     })
@@ -187,8 +166,8 @@ describe('getServedExpiryStatus', () => {
     )
     expect(status).toMatchObject({
       isInGrace: false,
+      expiryDate: base,
       graceEndDate: null,
-      displayExpiryDate: base,
       isPastGrace: true,
     })
   })

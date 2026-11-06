@@ -37,12 +37,12 @@ const getMergedExpiryDate = (expirySeconds: bigint): Date | null =>
   expirySeconds === 0n ? null : toDateFromSeconds(Number(expirySeconds))
 
 const formatMergedExpiryDate = (
-  displayExpiryDate: Date | null,
+  expiryDate: Date | null,
   expirySeconds: bigint,
 ): string =>
   expirySeconds === 0n
     ? NON_EXPIRING_DATE_LABEL
-    : formatDashboardDate(displayExpiryDate)
+    : formatDashboardDate(expiryDate)
 
 const toMergedItem = (
   name: DashboardName,
@@ -72,12 +72,12 @@ export const toMergedItems = (
 export type MergedRowMetadata = {
   readonly label: string
   readonly expiryDate: Date | null
-  readonly displayExpiryDate: Date | null
   readonly graceEndDate: Date | null
   readonly daysUntilExpiry: number | null
   readonly daysSinceExpiry: number | null
   readonly expiringSoon: boolean
   readonly formattedExpiryDate: string
+  readonly formattedGraceEndDate: string | null
   readonly isV1: boolean
   readonly isPrimary: boolean
   readonly isInGrace: boolean
@@ -100,12 +100,11 @@ export const mergedRowMetadata = (
   const isV1 = item.kind === 'v1'
   const protocol = item.kind
   const { graceEndsAt } = item.name
-  const { isInGrace, graceEndDate, displayExpiryDate, daysSinceExpiry } =
-    getServedExpiryStatus(
-      expiryDate,
-      graceEndsAt === null ? null : toDateFromSeconds(Number(graceEndsAt)),
-      now,
-    )
+  const { isInGrace, graceEndDate, daysSinceExpiry } = getServedExpiryStatus(
+    expiryDate,
+    graceEndsAt === null ? null : toDateFromSeconds(Number(graceEndsAt)),
+    now,
+  )
   const { isMigrationEligible, isMigrationUpgradeable } = item
   const daysUntilExpiry = getDaysUntil(expiryDate)
   const expiringSoon = isExpiringSoon(expiryDate, 30, daysUntilExpiry)
@@ -126,15 +125,14 @@ export const mergedRowMetadata = (
   return {
     label,
     expiryDate,
-    displayExpiryDate,
     graceEndDate,
     daysUntilExpiry,
     daysSinceExpiry,
     expiringSoon,
-    formattedExpiryDate: formatMergedExpiryDate(
-      displayExpiryDate,
-      item.sortExpiry,
-    ),
+    formattedExpiryDate: formatMergedExpiryDate(expiryDate, item.sortExpiry),
+    formattedGraceEndDate: graceEndDate
+      ? formatDashboardDate(graceEndDate)
+      : null,
     isV1,
     isPrimary,
     isInGrace,

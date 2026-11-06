@@ -32,9 +32,10 @@ const useAboutSide = () => {
 type ProfileHeaderProps = {
   readonly avatarUrl?: string
   readonly avatarLoading: boolean
-  readonly displayExpiryDate?: Date | null
   readonly canEdit?: boolean
   readonly desktopActions?: React.ReactNode
+  readonly expiryDate?: Date | null
+  readonly graceEndDate?: Date | null
   readonly mobileActions?: React.ReactNode
   readonly name: string
   readonly owner?: Address
@@ -46,9 +47,10 @@ type ProfileHeaderProps = {
 export const ProfileHeader = ({
   avatarLoading,
   avatarUrl,
-  displayExpiryDate,
   canEdit,
   desktopActions,
+  expiryDate,
+  graceEndDate,
   mobileActions,
   name,
   owner,
@@ -73,7 +75,8 @@ export const ProfileHeader = ({
         ) : null}
         <div className="mt-8 flex w-full items-start justify-between gap-4 px-5 xl:mt-0 xl:px-0">
           <ProfileDetails
-            displayExpiryDate={displayExpiryDate}
+            expiryDate={expiryDate}
+            graceEndDate={graceEndDate}
             owner={owner}
             ownerReverseName={ownerReverseName}
             registrationDate={registrationDate}

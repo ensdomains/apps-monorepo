@@ -105,6 +105,7 @@ const AnimatedNameRow = ({
     daysUntilExpiry,
     expiringSoon,
     formattedExpiryDate,
+    formattedGraceEndDate,
     isV1,
     isPrimary,
     isInGrace,
@@ -175,6 +176,7 @@ const AnimatedNameRow = ({
         cta={cta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
         expiryLabel={formattedExpiryDate}
+        graceEndLabel={formattedGraceEndDate}
         isAuthenticated={isAuthenticated}
         isFavorite={favoriteLabels.has(label.toLowerCase())}
         isInGrace={isInGrace}
