@@ -1468,6 +1468,10 @@ msgstr ""
 msgid "Expiry Date"
 msgstr ""
 
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "Explore"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Failed to add email"
 msgstr ""
@@ -3998,6 +4002,10 @@ msgstr ""
 
 #: src/features/profile/components/view/ReverseNameView.tsx
 msgid "View address"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "View details and history in ENS Explorer"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
