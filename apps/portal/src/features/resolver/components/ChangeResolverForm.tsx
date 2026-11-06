@@ -93,7 +93,7 @@ export const ChangeResolverForm = ({
     isLoading: isLoadingExistingResolvers,
     error: existingResolversError,
   } = useUserPermissionedResolvers({
-    senderAddress: connectedAddress,
+    account: connectedAddress,
   })
 
   const {

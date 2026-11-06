@@ -30,7 +30,7 @@ describe('invalidateResolverQueries', () => {
     // The hook builds its options inline around this key.
     [
       'permissioned resolvers',
-      userPermissionedResolversQueryKey({ senderAddress: ADDRESS }),
+      userPermissionedResolversQueryKey({ account: ADDRESS }),
     ],
     ['history pages', getNameHistoryPagesQueryOptions({ name: NAME }).queryKey],
     [

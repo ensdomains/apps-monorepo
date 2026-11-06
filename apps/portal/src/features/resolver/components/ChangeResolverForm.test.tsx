@@ -126,7 +126,7 @@ const EXISTING_RESOLVERS: readonly Address[] = [
 const mockUseUserPermissionedResolvers = vi.fn()
 
 vi.mock('@/features/resolver/hooks/useUserPermissionedResolvers', () => ({
-  useUserPermissionedResolvers: (params: { senderAddress?: string }) =>
+  useUserPermissionedResolvers: (params: { account?: string }) =>
     mockUseUserPermissionedResolvers(params),
 }))
 

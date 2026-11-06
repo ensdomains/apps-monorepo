@@ -92,36 +92,33 @@ export const decodeImplementationAddress = (
   }
 }
 
-export interface ProxyDeployedLog {
-  readonly args: {
-    readonly implementation: Address
-    readonly proxyAddress: Address
-  }
+/** One account's `EACRolesChanged` on a contract's root resource. */
+export interface RootRolesChangedLog {
+  readonly address: Address
+  readonly args: { readonly newRoleBitmap: bigint }
 }
 
-export const filterPermissionedResolverAddresses = (
-  logs: readonly ProxyDeployedLog[],
-  expectedImplementation: Address,
+/**
+ * The contracts where the account's latest root roles include every bit of
+ * `requiredBitmap`, most recently changed first. `logs` must be in chain
+ * order, as `getLogs` returns them.
+ */
+export const selectContractsHoldingRoles = (
+  logs: readonly RootRolesChangedLog[],
+  requiredBitmap: bigint,
 ): Address[] => {
-  const addresses: Address[] = []
-  const seen = new Set<string>()
+  // Later logs overwrite earlier ones, leaving each contract's last index.
+  const lastIndex = new Map(
+    logs.map((log, index) => [log.address.toLowerCase(), index]),
+  )
 
-  for (const log of [...logs].reverse()) {
-    if (
-      log.args.implementation.toLowerCase() !==
-      expectedImplementation.toLowerCase()
-    ) {
-      continue
-    }
-
-    const normalized = log.args.proxyAddress.toLowerCase()
-    if (seen.has(normalized)) continue
-
-    seen.add(normalized)
-    addresses.push(log.args.proxyAddress)
-  }
-
-  return addresses
+  return logs
+    .filter((log, index) => lastIndex.get(log.address.toLowerCase()) === index)
+    .reverse()
+    .filter(
+      (log) => (log.args.newRoleBitmap & requiredBitmap) === requiredBitmap,
+    )
+    .map((log) => log.address)
 }
 
 export const EIP1967_IMPLEMENTATION_SLOT: Hex =
