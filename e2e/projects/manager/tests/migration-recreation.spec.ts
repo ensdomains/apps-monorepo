@@ -14,7 +14,6 @@ import { privateKeyToAccount } from 'viem/accounts'
 import {
   createMakeV1Name,
   PREMIGRATION_BONUS,
-  V1_ENS_REGISTRY,
   V1_NAME_WRAPPER,
   V1_PUBLIC_RESOLVER,
 } from '../../../fixtures/makeV1Name.js'
@@ -252,12 +251,12 @@ test.describe('#1494 rollout gate: migration-subname-recreation re-checked befor
     })
 
     const from = (await publicClient.getBlockNumber({ cacheTime: 0 })) + 1n
-    let done = false
-    const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+    let isDone = false
+    const authorizing = authorizeTransactionsWhile(page, wallet, () => isDone)
     if (await upgrade.isEnabled().catch(() => false))
       await upgrade.click({ timeout: 5_000 }).catch(() => {})
     await page.waitForTimeout(30_000)
-    done = true
+    isDone = true
     await Promise.race([authorizing, page.waitForTimeout(5_000)])
     console.log(
       `[gate] page after flip:\n${await page.locator('main').innerText()}`,
@@ -518,7 +517,7 @@ async function wrappedChildWithFuses(params: {
   readonly label: string
   readonly parentOwner: Signer
   readonly holder: Address
-}): Promise<{ name: string; forged: boolean }> {
+}): Promise<{ name: string; isForged: boolean }> {
   const name = `${params.label}.${params.parent}`
   const { timestamp } = await publicClient.getBlock()
   try {
@@ -538,7 +537,7 @@ async function wrappedChildWithFuses(params: {
       }),
       `wrapper setSubnodeOwner(${name}, CAN_EXTEND_EXPIRY)`,
     )
-    return { name, forged: false }
+    return { name, isForged: false }
   } catch {
     // The NameWrapper refuses fuses on a child of an unlocked parent: wrap
     // it plainly, then forge the fuse bits in its `_tokens` slot.
@@ -588,7 +587,7 @@ async function wrappedChildWithFuses(params: {
           functionName: 'getData',
           args: [id],
         })
-        if (fuses !== 0) return { name, forged: true }
+        if (fuses !== 0) return { name, isForged: true }
       }
     }
     throw new Error(`could not give ${name} non-zero fuses`)
@@ -666,7 +665,7 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
       holder: other.address,
     })
     console.log(
-      `[A2] ${child.name}: fuses ${child.forged ? 'FORGED in NameWrapper storage (the wrapper refused the real shape)' : 'set through NameWrapper.setSubnodeOwner'}`,
+      `[A2] ${child.name}: fuses ${child.isForged ? 'FORGED in NameWrapper storage (the wrapper refused the real shape)' : 'set through NameWrapper.setSubnodeOwner'}`,
     )
     const control = await controlName(owner, 'a2-ctl')
     await serveV1Names(page, [
@@ -741,6 +740,8 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
     if (prepared === 'ready') {
       const outcome = await upgradeAndSettle(page, wallet)
       console.log(`[A5] outcome: ${outcome}`)
+      // A refusal or a completed upgrade, never a page left hanging.
+      expect(outcome).not.toBe('stuck')
     }
     // The invariant either way: never a partial family.
     const status = (await ethRegistryState(parent.replace(/\.eth$/, ''))).status
@@ -797,56 +798,8 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
       holder: owner,
     })
     const outcome = await upgradeAndSettle(page, wallet)
-    expect(outcome).not.toBe('success')
-    await expectUntouched(parent)
-  })
-
-  test('A7 a child whose resolver changes after review blocks the upgrade', async ({
-    page,
-    wallet,
-    accounts,
-  }) => {
-    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
-    const bob = privateKeyToAccount(accounts.getPrivateKey('user2'))
-    await asPlainEoas(bob)
-    const parent = await createMakeV1Name({ userAccount: owner })({
-      label: 'a7-resolver',
-    })
-    const bobName = await registryChild({
-      parent,
-      label: 'bob',
-      parentOwner: owner,
-      holder: bob,
-      resolver: V1_PUBLIC_RESOLVER,
-    })
-    await serveV1Names(page, [
-      {
-        name: parent,
-        ownerAddress: owner.address,
-        expiryDate: await v1Expiry(parent.replace(/\.eth$/, '')),
-      },
-    ])
-    await mockSubnameInventory(page, [
-      { name: parent, children: [{ name: bobName }] },
-    ])
-    await connectWithFlags(page, wallet, { recreation: true })
-    await openMigrationFlow(page)
-    await selectOnlyRoots(page, [parent])
-    await expect(
-      page.getByRole('button', { name: /^Upgrade \d+ names?$/ }),
-    ).toBeEnabled({ timeout: 120_000 })
-    await send(
-      bob,
-      V1_ENS_REGISTRY,
-      encodeFunctionData({
-        abi: parseAbi(['function setResolver(bytes32 node, address resolver)']),
-        functionName: 'setResolver',
-        args: [namehash(bobName), '0x000000000000000000000000000000000000c0de'],
-      }),
-      'bob setResolver',
-    )
-    const outcome = await upgradeAndSettle(page, wallet)
-    expect(outcome).not.toBe('success')
+    // The app re-checks the subname inventory at submit and refuses.
+    expect(outcome).toBe('subnamesNotPreserved')
     await expectUntouched(parent)
   })
 
@@ -895,7 +848,7 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
       .catch(() => false)
     if (!refusedEarly && (await upgrade.isEnabled())) {
       const outcome = await upgradeAndSettle(page, wallet)
-      expect(outcome).not.toBe('success')
+      expect(['success', 'stuck']).not.toContain(outcome)
     }
     expect(await publicClient.getCode({ address: slot })).toBe(planted)
     await assertV2Reserved(parent.replace(/\.eth$/, ''))

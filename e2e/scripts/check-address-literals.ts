@@ -110,10 +110,6 @@ const ALLOWED: Record<string, Allowance> = {
     reason:
       'history.spec.ts (WEB-1445): the forged address value, chosen to be recognisable as `0xbad0…0bad` in the timeline. Never called',
   },
-  '0x000000000000000000000000000000000000c0de': {
-    reason:
-      'migration-recreation.spec.ts (A7): the resolver a child switches to after review, so the plan goes stale. Never called',
-  },
   '0x3d604d80600a3d3981f3363d3d373d3d3d363d73': {
     reason:
       'Not an address: the EIP-1167 minimal-proxy creation prefix migration-subname.spec.ts concatenates to predict a UserRegistry address',

@@ -39,16 +39,16 @@ const suffix = Date.now().toString(36)
 type Shape = 'unwrapped' | 'wrapped' | 'emancipated'
 type Authority = 'child-only' | 'both' | 'parent-only-control'
 type ManualCase = {
-  id: string
-  shape: Shape
-  authority: Authority
-  parent: string
-  child: string
-  parentOwner: `0x${string}`
-  childOwner: `0x${string}`
-  url: string
-  expected: string
-  legacyCases: string[]
+  readonly id: string
+  readonly shape: Shape
+  readonly authority: Authority
+  readonly parent: string
+  readonly child: string
+  readonly parentOwner: `0x${string}`
+  readonly childOwner: `0x${string}`
+  readonly url: string
+  readonly expected: string
+  readonly legacyCases: readonly string[]
 }
 
 const registryAbi = parseAbi(['function owner(bytes32) view returns (address)'])

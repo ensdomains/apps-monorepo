@@ -62,7 +62,7 @@ const labelOf = (name: string) => name.replace(/\.eth$/, '')
 /** Set the owner's operator approval for the MigrationHelper on both V1 contracts. */
 async function setOperatorApprovals(
   owner: PrivateKeyAccount,
-  approved: boolean,
+  isApproved: boolean,
 ) {
   for (const address of [BASE_REGISTRAR, NAME_WRAPPER]) {
     const current = await publicClient.readContract({
@@ -71,14 +71,14 @@ async function setOperatorApprovals(
       functionName: 'isApprovedForAll',
       args: [owner.address, MIGRATION_HELPER],
     })
-    if (current === approved) continue
+    if (current === isApproved) continue
     const hash = await walletClient.sendTransaction({
       account: owner,
       to: address,
       data: encodeFunctionData({
         abi: OPERATOR_ABI,
         functionName: 'setApprovalForAll',
-        args: [MIGRATION_HELPER, approved],
+        args: [MIGRATION_HELPER, isApproved],
       }),
     })
     const receipt = await publicClient.waitForTransactionReceipt({ hash })
@@ -101,8 +101,9 @@ async function open(page: Page, names: readonly string[]) {
   await selectOnlyRoots(page, names)
 }
 
-const ownerOf = (accounts: { getPrivateKey: (u: 'user') => `0x${string}` }) =>
-  privateKeyToAccount(accounts.getPrivateKey('user'))
+const ownerOf = (accounts: {
+  readonly getPrivateKey: (u: 'user') => `0x${string}`
+}) => privateKeyToAccount(accounts.getPrivateKey('user'))
 
 test.describe('ENS V1 → V2 migration — approvals and confirmation accounting', () => {
   test.describe.configure({ timeout: 300_000 })
