@@ -49,6 +49,9 @@ vi.mock('@ens-apps/transaction-manager', async (importOriginal) => {
         resolveResolverDeployment: fromPromise(() =>
           waitForResolverDeployment(),
         ) as never,
+        submitEthAddress: fromPromise(
+          async () => actual.REGISTRATION_TX_IDS.setEthAddress,
+        ) as never,
         generateCommitment: fromPromise(async () => ({
           commitment: '0x01',
           secret: '0x02',
@@ -218,6 +221,7 @@ describe('/register', () => {
       ({ getSnapshot: () => ({ context: { error } }) }) as never
     const attempts: Record<string, never> = {
       [REGISTRATION_TX_IDS.deployResolver]: attempt(),
+      [REGISTRATION_TX_IDS.setEthAddress]: attempt(),
       [REGISTRATION_TX_IDS.commit]: attempt(),
       [REGISTRATION_TX_IDS.approve]: attempt(),
       [REGISTRATION_TX_IDS.register]: attempt(new Error('User rejected')),
@@ -253,7 +257,7 @@ describe('/register', () => {
       REGISTRATION_TX_IDS.deployResolver,
     )
 
-    // The commit step is first now, so it starts the run.
+    // The ETH address step is first now, so it starts the run.
     await act(() => flow.transactions[0].onStart?.())
     await vi.waitFor(() =>
       expect(flow.actor.getSnapshot().context.retryTarget).toBe(

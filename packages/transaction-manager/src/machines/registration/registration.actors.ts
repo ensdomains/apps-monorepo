@@ -23,8 +23,17 @@ import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
-import { errAsync, fromPromise, okAsync, ResultAsync } from 'neverthrow'
+import {
+  permissionedResolverInitializeSnippet,
+  permissionedResolverSetAddressSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import {
+  errAsync,
+  fromPromise,
+  fromThrowable,
+  okAsync,
+  ResultAsync,
+} from 'neverthrow'
 import type {
   Address,
   Hash,
@@ -42,9 +51,11 @@ import {
   getChainContractAddress,
   isAddressEqual,
   parseAbi,
+  toHex,
   zeroAddress,
 } from 'viem'
 import { getBlock, multicall, readContract } from 'viem/actions'
+import { packetToBytes } from 'viem/ens'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
@@ -556,6 +567,59 @@ export function encodeCommitCall(input: {
     data: encodeCommitmentData(input.commitment),
     value: 0n,
   }
+}
+
+/** SLIP-44 coin type of ETH. */
+const COIN_TYPE_ETH = 60n
+
+/** The resolver call pointing `name` (e.g. `nick.eth`) at `owner`; the app's estimate uses it too. */
+export function encodeSetEthAddressCall(input: {
+  readonly name: string
+  readonly owner: Address
+  readonly resolverAddress: Address
+}): { to: Address; data: Hex; value: bigint } {
+  return {
+    to: input.resolverAddress,
+    data: encodeFunctionData({
+      abi: permissionedResolverSetAddressSnippet,
+      functionName: 'setAddress',
+      args: [toHex(packetToBytes(input.name)), COIN_TYPE_ETH, input.owner],
+    }),
+    value: 0n,
+  }
+}
+
+/** Point the name at its owner on the wallet's resolver, which checks the caller's roles, not the name's owner. */
+export function submitEthAddressActor(input: {
+  readonly name: string
+  readonly owner: Address
+  readonly resolverAddress: Address
+  readonly signer: Signer
+  readonly publicClient: PublicClient
+  readonly id?: string
+}): ResultAsync<string, Error> {
+  return fromThrowable(
+    () =>
+      transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request: createTransactionRequest({
+            signer: input.signer,
+            from: getSignerAddress(input.signer),
+            chainId: requireChainId(input.publicClient, 'registration'),
+            calls: [encodeSetEthAddressCall(input)],
+          }),
+        },
+        input.signer,
+        {
+          id: input.id,
+          description: `Set ETH address for ${input.name}`,
+          publicClient: input.publicClient,
+          timeout: 120_000,
+        },
+      ),
+    (error) => new Error(`Failed to submit the ETH address: ${error}`),
+  )().asyncAndThen((txId) => okAsync(txId))
 }
 
 /**
@@ -1250,9 +1314,10 @@ export function submitApprovalActor(input: {
 /**
  * Pure-EOA on a wallet that bundles atomically (EIP-5792): everything before
  * the commitment cooldown goes out as ONE confirmation — the wallet's resolver
- * (first registration only), the commit, and the payment approval when the
- * live price isn't already covered. Returns the approved price (null when no
- * approve was needed) so the machine tracks what was authorized.
+ * (first registration only), the ETH address when asked for, the commit, and
+ * the payment approval when the live price isn't already covered. Returns the
+ * approved price (null when no approve was needed) so the machine tracks what
+ * was authorized.
  */
 export function submitEoaSetupBundleActor(input: {
   readonly name: string
@@ -1260,6 +1325,10 @@ export function submitEoaSetupBundleActor(input: {
   /** The account the resolver grants its roles to. */
   readonly resolverOwner: Address
   readonly shouldDeployResolver: boolean
+  /** The wallet's resolver, deployed or deployed by this bundle. */
+  readonly resolverAddress: Address
+  /** Point the name at its owner there, before the commit. */
+  readonly shouldSetEthAddress: boolean
   /** The name owner, who pays the registrar. */
   readonly owner: Address
   readonly duration: bigint
@@ -1305,6 +1374,15 @@ export function submitEoaSetupBundleActor(input: {
                 encodeDeployDedicatedResolverCall({
                   owner: input.resolverOwner,
                   chain,
+                }),
+              ]
+            : []),
+          ...(input.shouldSetEthAddress
+            ? [
+                encodeSetEthAddressCall({
+                  name: input.name,
+                  owner: input.owner,
+                  resolverAddress: input.resolverAddress,
                 }),
               ]
             : []),

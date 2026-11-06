@@ -3,6 +3,7 @@ import {
   computeResolverSalt,
 } from '@ens-apps/smart-account'
 import { ensL1Contracts, extendChainWithEns } from '@ensdomains/ensjs/chain'
+import { permissionedResolverSetAddressSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { decodeFunctionData } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -13,11 +14,18 @@ import type { EoaTransactionRequest } from '../../types/transaction.types'
 import {
   checkResolverDeploymentActor,
   computeDedicatedResolverAddress,
+  submitEthAddressActor,
   submitResolverDeploymentActor,
 } from './registration.actors'
 
 const mocks = vi.hoisted(() => ({
-  startTransaction: vi.fn(() => 'tx-1'),
+  startTransaction: vi.fn(
+    (
+      _intent: { readonly request: EoaTransactionRequest },
+      _signer: unknown,
+      _options: { readonly id?: string },
+    ) => 'tx-1',
+  ),
 }))
 
 vi.mock('../../providers/transactionManager', () => ({
@@ -158,5 +166,37 @@ describe('submitResolverDeploymentActor', () => {
     expect(functionName).toBe('deployProxy')
     expect(args?.[0]).toBe(CONTRACTS.ensPermissionedResolverImpl.address)
     expect(args?.[1]).toBe(salt)
+  })
+})
+
+describe('submitEthAddressActor', () => {
+  it("points the name at its owner on the wallet's resolver", async () => {
+    const { publicClient } = publicClientWithCode(undefined)
+    const resolverAddress = computeDedicatedResolverAddress({
+      chainId: sepolia.id,
+      deployer: WALLET,
+      owner: WALLET,
+    })
+
+    const result = await submitEthAddressActor({
+      name: 'leon.eth',
+      owner: WALLET,
+      resolverAddress,
+      signer,
+      publicClient,
+      id: 'tx-eth',
+    })
+
+    expect(result._unsafeUnwrap()).toBe('tx-1')
+    const lastCall = mocks.startTransaction.mock.lastCall
+    expect(lastCall?.[2].id).toBe('tx-eth')
+    expect(lastCall?.[0].request.to).toBe(resolverAddress)
+    const { functionName, args } = decodeFunctionData({
+      abi: permissionedResolverSetAddressSnippet,
+      data: lastCall?.[0].request.data ?? '0x',
+    })
+    expect(functionName).toBe('setAddress')
+    // DNS wire format of leon.eth, ETH's coin type, the owner.
+    expect(args).toEqual(['0x046c656f6e0365746800', 60n, WALLET])
   })
 })

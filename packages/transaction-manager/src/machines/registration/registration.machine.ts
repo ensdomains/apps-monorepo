@@ -2,6 +2,7 @@ import type { HcaBudgetBreakdown } from '@ens-apps/smart-account'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
+import { errAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import {
@@ -25,6 +26,7 @@ import {
   submitApprovalActor,
   submitCommitmentActor,
   submitEoaSetupBundleActor,
+  submitEthAddressActor,
   submitRegistrationActor,
   submitResolverDeploymentActor,
   validateCommitmentActor,
@@ -65,10 +67,11 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  * Orchestrates the ENS registration flow for two signer modes:
  *
  * Pure-EOA (portal; old deployment — unchanged):
- * 1. Check for the wallet's resolver → deploy + wait if it has none →
- *    generate commitment → commit → wait. On a wallet that bundles atomically
- *    (`canBatchAtomically`), resolver + commit + approval go out as ONE
- *    EIP-5792 bundle instead (`submittingEoaSetupBundle`)
+ * 1. Check for the wallet's resolver → deploy + wait if it has none → set the
+ *    ETH address when the app asks (`shouldSetEthAddress`) → generate
+ *    commitment → commit → wait. On a wallet that bundles atomically
+ *    (`canBatchAtomically`), resolver + ETH address + commit + approval go out
+ *    as ONE EIP-5792 bundle instead (`submittingEoaSetupBundle`)
  * 2. Cooldown spine (fetch age → validate → cooldown), allowance → approve
  * 3. Register → wait → verify
  *
@@ -200,16 +203,28 @@ const canReauthorizeSession = (
 const shouldBundleEoaSetup = (context: RegistrationContext): boolean =>
   context.signer?.type === 'eoa' && context.canBatchAtomically === true
 
+/** Whether this run sets the ETH address as a step of its own. */
+const shouldSendEthAddressStep = (context: RegistrationContext): boolean =>
+  context.signer?.type === 'eoa' &&
+  context.shouldSetEthAddress === true &&
+  !shouldBundleEoaSetup(context)
+
 /**
  * Where a failed commit restarts. A bundled setup re-reads the resolver first,
  * so a retry never bundles a deploy that has since landed.
  */
 const commitRetryTarget = (
   context: RegistrationContext,
-): 'submittingSetupBundle' | 'checkingResolver' | 'preparingCommitment' => {
+):
+  | 'submittingSetupBundle'
+  | 'checkingResolver'
+  | 'settingEthAddress'
+  | 'preparingCommitment' => {
   if (context.signer?.type === 'rhinestone') return 'submittingSetupBundle'
-  return shouldBundleEoaSetup(context)
-    ? 'checkingResolver'
+  if (shouldBundleEoaSetup(context)) return 'checkingResolver'
+  // Only this run's landed ETH address leaves a txId; a resumed bundle that never landed has none.
+  return shouldSendEthAddressStep(context) && !context.ethAddressTxId
+    ? 'settingEthAddress'
     : 'preparingCommitment'
 }
 
@@ -242,6 +257,7 @@ const carryPriorL2BridgeTx = (
 
 export const REGISTRATION_TX_IDS = {
   deployResolver: 'tx-reg-deploy-resolver',
+  setEthAddress: 'tx-reg-set-eth-address',
   l2Bridge: 'tx-reg-l2-bridge',
   commit: 'tx-reg-commit',
   approve: 'tx-reg-approve',
@@ -269,6 +285,8 @@ export type RegistrationContext = {
    * the run starts (or resumes); ignored for any other signer.
    */
   canBatchAtomically?: boolean
+  /** Pure-EOA: set the name's ETH address before the commit, in the setup bundle or as its own step. */
+  shouldSetEthAddress?: boolean
   accountAddress?: Address
   ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA` (see @ens-apps/smart-account providers/rhinestone/registration-policy.ts), so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
   resolverOwnerAddress?: Address // Address to grant EACL roles to on the dedicated resolver. Must be the EOA that the resolver will see at write time after SCA→EOA unwrap; defaults to ownerAddress.
@@ -389,6 +407,7 @@ export type RegistrationContext = {
   resolverTxId?: string
   resolverSalt?: bigint
   resolverAddress?: Address
+  ethAddressTxId?: string
   commitment?: CommitmentData
   commitmentTxId?: string
   /**
@@ -441,6 +460,7 @@ export type RegistrationContext = {
   retryTarget?:
     | 'computingHcaBudget'
     | 'checkingResolver'
+    | 'settingEthAddress'
     | 'submittingSetupBundle'
     | 'preparingCommitment'
     | 'signingFundingPermit'
@@ -463,6 +483,8 @@ export type RegistrationEvent =
       approveBeforeCommit?: boolean
       /** See `RegistrationContext.canBatchAtomically`. */
       canBatchAtomically?: boolean
+      /** See `RegistrationContext.shouldSetEthAddress`. */
+      shouldSetEthAddress?: boolean
       name: string
       /** Duration in seconds */
       duration: bigint
@@ -538,6 +560,8 @@ export type RegistrationEvent =
         approveBeforeCommit?: boolean
         /** See `RegistrationContext.canBatchAtomically`. */
         canBatchAtomically?: boolean
+        /** See `RegistrationContext.shouldSetEthAddress`. */
+        shouldSetEthAddress?: boolean
         /** EOA that signs the EIP-2612 funding permit on the HCA path. */
         approvalSigner?: Signer
         publicClient: PublicClient
@@ -735,6 +759,33 @@ export const registrationMachine = setup({
     resolveResolverDeployment: fromResultAsync((input: { txId: string }) => {
       return resolveResolverDeploymentActor(input)
     }),
+    submitEthAddress: fromResultAsync(
+      ({
+        owner,
+        resolverAddress,
+        signer,
+        publicClient,
+        ...input
+      }: {
+        readonly name: string
+        readonly owner: Address | undefined
+        readonly resolverAddress: Address | undefined
+        readonly signer: Signer | undefined
+        readonly publicClient: PublicClient | undefined
+        readonly id: string
+      }) =>
+        owner && resolverAddress && signer && publicClient
+          ? submitEthAddressActor({
+              ...input,
+              owner,
+              resolverAddress,
+              signer,
+              publicClient,
+            })
+          : errAsync(
+              new Error('The ETH address step has no resolver or wallet'),
+            ),
+    ),
     generateCommitment: fromResultAsync(
       ({
         name,
@@ -777,8 +828,16 @@ export const registrationMachine = setup({
       },
     ),
     submitEoaSetupBundle: fromResultAsync(
-      (input: Parameters<typeof submitEoaSetupBundleActor>[0]) =>
-        submitEoaSetupBundleActor(input),
+      ({
+        resolverAddress,
+        ...input
+      }: Omit<
+        Parameters<typeof submitEoaSetupBundleActor>[0],
+        'resolverAddress'
+      > & { readonly resolverAddress: Address | undefined }) =>
+        resolverAddress
+          ? submitEoaSetupBundleActor({ ...input, resolverAddress })
+          : errAsync(new Error('The setup bundle has no resolver')),
     ),
     submitApproval: fromResultAsync(
       (input: {
@@ -918,6 +977,8 @@ export const registrationMachine = setup({
   guards: {
     isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
     shouldBundleEoaSetup: ({ context }) => shouldBundleEoaSetup(context),
+    shouldSendEthAddressStep: ({ context }) =>
+      shouldSendEthAddressStep(context),
     isL2Funded: ({ context }) =>
       context.signer?.type === 'rhinestone' && context.l2Funding !== undefined,
     isEthFunded: ({ context }) =>
@@ -972,6 +1033,7 @@ export const registrationMachine = setup({
         approvalSigner: event.deps.approvalSigner,
         approveBeforeCommit: event.deps.approveBeforeCommit,
         canBatchAtomically: event.deps.canBatchAtomically,
+        shouldSetEthAddress: event.deps.shouldSetEthAddress,
         isResolverDeployed: undefined,
         publicClient: event.deps.publicClient,
         hcaSessionEnable: event.deps.hcaSessionEnable,
@@ -1147,6 +1209,7 @@ export const registrationMachine = setup({
               approvalSigner: ({ event }) => event.approvalSigner,
               approveBeforeCommit: ({ event }) => event.approveBeforeCommit,
               canBatchAtomically: ({ event }) => event.canBatchAtomically,
+              shouldSetEthAddress: ({ event }) => event.shouldSetEthAddress,
               isResolverDeployed: () => undefined,
               accountAddress: ({ event }) => event.accountAddress,
               registrationStartedAt: ({ event }) =>
@@ -1176,6 +1239,7 @@ export const registrationMachine = setup({
               resolverAddress: () => undefined,
               resolverTxId: () => undefined,
               resolverSalt: () => undefined,
+              ethAddressTxId: () => undefined,
               commitment: () => undefined,
               commitmentTxId: () => undefined,
               permit: () => undefined,
@@ -1735,6 +1799,15 @@ export const registrationMachine = setup({
         }),
         onDone: [
           {
+            guard: ({ context, event }) =>
+              event.output.deployed && shouldSendEthAddressStep(context),
+            target: 'settingEthAddress',
+            actions: assign({
+              resolverAddress: ({ event }) => event.output.resolverAddress,
+              isResolverDeployed: () => true,
+            }),
+          },
+          {
             guard: ({ event }) => event.output.deployed,
             target: 'preparingCommitment',
             actions: assign({
@@ -1832,12 +1905,21 @@ export const registrationMachine = setup({
         src: 'resolveResolverDeployment',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.resolverTxId! }),
-        onDone: {
-          target: 'preparingCommitment',
-          actions: assign({
-            resolverAddress: ({ event }) => event.output.resolverAddress,
-          }),
-        },
+        onDone: [
+          {
+            guard: 'shouldSendEthAddressStep',
+            target: 'settingEthAddress',
+            actions: assign({
+              resolverAddress: ({ event }) => event.output.resolverAddress,
+            }),
+          },
+          {
+            target: 'preparingCommitment',
+            actions: assign({
+              resolverAddress: ({ event }) => event.output.resolverAddress,
+            }),
+          },
+        ],
         onError: {
           target: 'error',
           actions: [
@@ -1850,6 +1932,76 @@ export const registrationMachine = setup({
             ({ event }) => {
               console.error(
                 '❌ [REGISTRATION] Resolver deployment failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    // Pure-EOA on a wallet that doesn't bundle; a bundling wallet sends it in the setup bundle.
+    settingEthAddress: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'submitEthAddress',
+        input: ({ context }) => ({
+          name: context.name,
+          owner: context.ownerAddress ?? context.accountAddress,
+          resolverAddress: context.resolverAddress,
+          signer: context.signer,
+          publicClient: context.publicClient,
+          id: REGISTRATION_TX_IDS.setEthAddress,
+        }),
+        onDone: {
+          target: 'waitingForEthAddress',
+          actions: assign({
+            ethAddressTxId: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'settingEthAddress' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] ETH address submission failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    waitingForEthAddress: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'pollTransactionStatus',
+        input: ({ context }) => ({
+          txId: context.ethAddressTxId ?? REGISTRATION_TX_IDS.setEthAddress,
+        }),
+        onDone: { target: 'preparingCommitment' },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              // Setting the same address again is harmless if it landed anyway.
+              retryTarget: () => 'settingEthAddress' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] ETH address transaction failed:',
                 event.error,
               )
             },
@@ -1983,6 +2135,8 @@ export const registrationMachine = setup({
             // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             context.accountAddress!,
           shouldDeployResolver: context.isResolverDeployed === false,
+          resolverAddress: context.resolverAddress,
+          shouldSetEthAddress: context.shouldSetEthAddress === true,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,
           duration: context.duration,
@@ -2862,6 +3016,23 @@ export const registrationMachine = setup({
               ...context,
               error: undefined,
               retryTarget: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) => context.retryTarget === 'settingEthAddress',
+            // A commit that failed after it gets a new commitment, as `preparingCommitment` does.
+            target: 'settingEthAddress',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              ethAddressTxId: undefined,
+              commitment: undefined,
+              commitmentTxId: undefined,
+              approvalTxId: undefined,
+              registrationTxId: undefined,
+              registrationIntentId: undefined,
+              registerReadyTimestamp: undefined,
             })),
           },
           {
