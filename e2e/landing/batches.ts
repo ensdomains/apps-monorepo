@@ -346,8 +346,13 @@ export const rules: Rule[] = [
     globs: [
       'e2e/scripts/{seed-grace-v1-name,seed-g02-delete,seed-g05-roles}.ts',
       'e2e/docs/migration-recreation-1494-test-plan.md',
-      'e2e/docs/manual-{subname-migration,g02-delete,g05-v1-roles}.md',
+      'e2e/docs/manual-{g02-delete,g05-v1-roles}.md',
     ],
+  },
+  {
+    // Walks through dev-migration-tool presets that land with B8.
+    target: 'B8',
+    globs: ['e2e/docs/manual-subname-migration.md'],
   },
   {
     // Every record-preservation scenario fails locally (names never listed,
