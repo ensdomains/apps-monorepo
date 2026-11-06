@@ -10,7 +10,7 @@ import type { ResolverRecordReview } from '@/features/profile/service/resolverRe
 import { assertProfileResolverState } from '@/features/profile/service/resolverWriteAccess'
 import type { ProfileRecords } from '@/features/profile/types'
 import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
-import { type AnalyticsFlow, createAnalyticsFlow } from '@/lib/posthog/flow'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import { hasOwnerWallet } from '@/lib/wallet'
 import {
   type GeneralField,
@@ -68,7 +68,7 @@ const ethCoinValue = (coins: readonly { coinType: number; value: string }[]) =>
 export type PendingSave = PendingUpdateSave | PendingSetupSave
 
 interface EditProfileDialogContext {
-  readonly analytics: AnalyticsFlow
+  readonly analytics: ReturnType<typeof startAnalyticsOperation>
   readonly ethAddressChanged: boolean
   readonly isPreviewing: boolean
   readonly name: string
@@ -221,11 +221,17 @@ export const editProfileDialogMachine = setup({
       !hasOwnerWallet(event.deps.walletClient, event.deps.ownerAddress),
   },
   actions: {
-    bindAnalytics: assign({ analytics: () => createAnalyticsFlow() }),
-    analyticsComplete: ({ context }) =>
+    bindAnalytics: assign({ analytics: () => startAnalyticsOperation() }),
+    analyticsComplete: ({ context }) => {
+      const pendingSave = context.pendingSave
+      if (!pendingSave) return
       context.analytics.capture('profile:records_update', {
-        operation_id: context.analytics.flow_id,
-      }),
+        chain_id:
+          pendingSave.kind === 'setup'
+            ? pendingSave.chainId
+            : pendingSave.params.chainId,
+      })
+    },
     openDialog: assign({
       ethAddressChanged: () => false,
       isPreviewing: () => false,
@@ -294,7 +300,7 @@ export const editProfileDialogMachine = setup({
 }).createMachine({
   id: 'editProfileDialog',
   context: ({ input }) => ({
-    analytics: createAnalyticsFlow(),
+    analytics: startAnalyticsOperation(),
     ethAddressChanged: false,
     isPreviewing: false,
     name: input.name,
@@ -341,7 +347,7 @@ export const editProfileDialogMachine = setup({
           on: {
             SAVE_SUCCEEDED: {
               target: 'success',
-              actions: ['completeEventSave', 'analyticsComplete'],
+              actions: ['analyticsComplete', 'completeEventSave'],
             },
           },
         },

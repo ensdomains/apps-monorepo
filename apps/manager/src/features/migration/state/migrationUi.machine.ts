@@ -25,7 +25,11 @@ import {
   type MigrationProgress,
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
-import { type AnalyticsFlow, createAnalyticsFlow } from '@/lib/posthog/flow'
+import {
+  type AnalyticsFlow,
+  bindAnalyticsFlow,
+  createAnalyticsFlow,
+} from '@/lib/posthog/flow'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import {
   executeGraceRenewal,
@@ -113,7 +117,6 @@ type Context = {
 }
 
 type Events =
-  | { readonly type: 'analytics.ready'; readonly readyKey: string }
   | { type: 'selection.set'; names: string[] }
   | { type: 'managerRestoration.set'; names: string[] }
   | {
@@ -336,9 +339,6 @@ export const migrationUiMachine = setup({
     }),
   },
   guards: {
-    hasNewAnalyticsIdentity: ({ context, event }) =>
-      event.type === 'analytics.ready' &&
-      context.analytics.readyKey !== event.readyKey,
     // A recovery plan may have only cleanup or reconciliation left.
     hasSelection: ({ event }) =>
       event.type === 'migration.start' &&
@@ -351,19 +351,6 @@ export const migrationUiMachine = setup({
       context.completedOperations.length === 0,
   },
   actions: {
-    bindReadyAnalytics: assign({
-      analytics: ({ context, event }) => ({
-        ...createAnalyticsFlow(context.analytics.flow_id),
-        readyKey:
-          event.type === 'analytics.ready'
-            ? event.readyKey
-            : context.analytics.readyKey,
-      }),
-    }),
-    analyticsFlowView: ({ context }) =>
-      context.analytics.capture('migration:flow_view', {
-        flow_id: context.analytics.flow_id,
-      }),
     analyticsStart: ({ context }) =>
       context.analytics.capture('migration:flow_start', {
         flow_id: context.analytics.flow_id,
@@ -404,8 +391,7 @@ export const migrationUiMachine = setup({
       })
     },
     bindAnalytics: assign({
-      analytics: ({ context }) =>
-        createAnalyticsFlow(context.analytics.flow_id),
+      analytics: ({ context }) => bindAnalyticsFlow(context.analytics.flow_id),
     }),
     captureRenewalStart: assign(({ event }) => {
       if (event.type !== 'migration.renewAndStart') return {}
@@ -611,12 +597,7 @@ export const migrationUiMachine = setup({
   },
   states: {
     select: {
-      entry: 'analyticsFlowView',
       on: {
-        'analytics.ready': {
-          guard: 'hasNewAnalyticsIdentity',
-          actions: ['bindReadyAnalytics', 'analyticsFlowView'],
-        },
         'selection.set': {
           actions: 'setSelection',
         },

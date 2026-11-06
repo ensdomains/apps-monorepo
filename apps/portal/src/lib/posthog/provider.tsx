@@ -1,8 +1,4 @@
 import {
-  canCaptureAnalytics,
-  getAnalyticsProjectKey,
-} from '@ens-apps/utils/posthog/analyticsConfiguration'
-import {
   hasAnalyticsConsent,
   useAnalyticsConsent,
 } from '@ens-apps/utils/posthog/analyticsConsent'
@@ -34,10 +30,12 @@ import { type RefObject, useEffect, useRef } from 'react'
 import { useConnection, useConnectionEffect } from 'wagmi'
 import {
   applyAnalyticsConsent,
+  getPostHogKey,
+  isAnalyticsEnabled,
   POSTHOG_CONFIG,
   resetKeepingConsent,
 } from './config'
-import { track, trackWithOptions } from './events'
+import { track } from './events'
 
 type ConnectedWallet = {
   readonly address: string
@@ -50,15 +48,7 @@ type ConnectedWallet = {
 const identifyWallet = (wallet: ConnectedWallet | null) => {
   if (!posthog.__loaded) return
   const action = getWalletIdentityAction({
-    isGranted:
-      hasAnalyticsConsent(posthog) &&
-      canCaptureAnalytics({
-        environment: import.meta.env.VITE_PUBLIC_ANALYTICS_ENV,
-        isDevelopment: import.meta.env.DEV,
-        isDebugEnabled: import.meta.env.VITE_PUBLIC_ANALYTICS_DEBUG === 'true',
-        stagingKey: import.meta.env.VITE_PUBLIC_POSTHOG_STAGING_KEY,
-        productionKey: import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
-      }),
+    isGranted: hasAnalyticsConsent(posthog) && isAnalyticsEnabled(),
     isIdentified: posthog.get_property('$user_state') === 'identified',
     distinctId: posthog.get_distinct_id(),
     address: wallet?.address,
@@ -76,16 +66,15 @@ const identifyWallet = (wallet: ConnectedWallet | null) => {
 
 // Links support chats to analytics, only for visitors who accepted.
 const linkIntercomToAnalytics = () => {
-  if (!hasAnalyticsConsent(posthog)) return
+  if (!hasAnalyticsConsent(posthog) || !isAnalyticsEnabled()) return
   updateIntercom({
     posthog_distinct_id: posthog.get_distinct_id(),
     recent_replay: posthog.get_session_replay_url(),
   })
   const intercomVisitorId = getVisitorId()
-  if (intercomVisitorId)
-    trackWithOptions('intercom:booted', undefined, {
-      $set: { intercom_visitor_id: intercomVisitorId },
-    })
+  if (intercomVisitorId) {
+    track('intercom:booted')
+  }
 }
 
 // Applies PostHog's answer once it's known and whenever it changes: on load,
@@ -147,11 +136,7 @@ export const PHProvider = ({
       // PostHog is optional: deployments without a key (local dev, e2e)
       // skip flag initialization for an undefined project.
       // Intercom still boots either way.
-      const posthogKey = getAnalyticsProjectKey({
-        environment: import.meta.env.VITE_PUBLIC_ANALYTICS_ENV,
-        stagingKey: import.meta.env.VITE_PUBLIC_POSTHOG_STAGING_KEY,
-        productionKey: import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
-      })
+      const posthogKey = getPostHogKey()
       if (posthogKey) {
         posthog.init(posthogKey, {
           api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
@@ -178,7 +163,6 @@ export const PHProvider = ({
       try {
         identifyWallet(data)
         track('wallet:connect', {
-          wallet_address: data.address,
           chain_id: data.chainId,
           wallet_connector: data.connector.name,
         })

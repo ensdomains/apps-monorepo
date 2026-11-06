@@ -141,7 +141,6 @@ describe('PostHog provider', () => {
 
     expect(posthog.identify).toHaveBeenCalledWith(WALLET.address)
     expect(posthog.capture).toHaveBeenCalledWith('wallet:connect', {
-      source_app: 'explorer',
       chain_id: 1,
       wallet_connector: 'test-wallet',
     })
@@ -155,9 +154,7 @@ describe('PostHog provider', () => {
     walletState.address = undefined
     walletState.status = 'disconnected'
     callbacks.onDisconnect?.()
-    expect(posthog.capture).toHaveBeenCalledWith('wallet:disconnect', {
-      source_app: 'explorer',
-    })
+    expect(posthog.capture).toHaveBeenCalledWith('wallet:disconnect', undefined)
     expect(posthog.reset).toHaveBeenCalled()
     expect(posthog.opt_in_capturing).toHaveBeenCalledWith({
       captureEventName: false,

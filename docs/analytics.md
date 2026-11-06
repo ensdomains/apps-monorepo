@@ -4,8 +4,8 @@ This is an implementation with automated verification and limited local browser 
 
 ## Implementation map
 
-- `packages/utils/src/posthog/eventContracts.ts`: single TypeScript event vocabulary, including retained legacy events. App adapters use the bundled SDK singleton; no analytics backend, schema runtime, identity service or new dependency.
-- `createAnalyticsTracker.ts`: consent/environment gate, bounded scalar allowlist, best-effort capture, and initiating-identity guards for asynchronous work. SDK outages cannot block product actions.
+- `packages/utils/src/posthog/eventContracts.ts`: explicit TypeScript event map with per-flow steps and trigger comments, including retained legacy events. Types list only actual events; no generated flow families. App adapters use the bundled SDK singleton; no analytics backend, schema runtime, identity service or new dependency.
+- `createAnalyticsTracker.ts`: consent/environment gate, typed pass-through payloads, best-effort capture, and initiating-identity guards for asynchronous work. SDK outages cannot block product actions. Environment checks, common properties and automatic-data privacy live in the SDK configuration rather than being repeated in the adapter.
 - `analyticsConfiguration.ts`, `walletIdentity.ts`: shared opt-in consent, normalized connected-wallet identity, reset before account replacement, environment policy and automatic-property sanitization.
 - App `lib/posthog/config.ts` / `provider.tsx`: SDK and wagmi wiring, native SPA pageviews/pageleaves. Click listener retained for native rageclick detection; ordinary autocapture events are discarded. Replay, dead clicks and raw exception autocapture remain off.
 - Manager failed-run reporting is now `transaction:execution_end` with run ID, status, stage, chain, method and attempt count. Full payload, errors, transaction hashes, calldata and timeline are excluded. Runs without an observed initiating context are suppressed.
@@ -13,29 +13,55 @@ This is an implementation with automated verification and limited local browser 
 
 See the [Manager matrix](analytics-manager-matrix.md), [Explorer matrix](analytics-explorer-matrix.md), and [configuration guide](analytics-configuration.md) for exact source locations, per-app steps and QA sequences. These matrices were established before the app instrumentation and updated afterward.
 
+
+## Adding an event
+
+1. Add its literal name, exact trigger comment and required properties to `packages/utils/src/posthog/eventContracts.ts`.
+2. Import `track` from the app's `@/lib/posthog/events` and call it at the real action/outcome. No property allowlist or runtime schema needs updating.
+
+```ts
+track('name_search:result_select', {
+  source: 'header_search',
+  result_type: 'name',
+  name_length: name.length,
+})
+```
+
+For asynchronous outcomes, take the optional identity snapshot before starting work:
+
+```ts
+const analytics = startAnalyticsOperation()
+await updatePrimaryName()
+analytics.capture('profile:primary_name_update', { chain_id: chainId })
+```
+
+`track()` uses current consent/identity. The snapshot suppresses a late outcome after consent or wallet changes. Complex flow IDs belong to those journeys; simple outcomes need no manufactured operation UUID. Shared SDK configuration attaches source app/environment/version to both native and custom events. Known automatic URL/DOM data is minimized there. Custom properties are explicit typed inputs: do not pass arbitrary errors, request/state objects, names or addresses. Legacy `name:search_selected` remains the one deliberate name-statistics exception.
+
+Manager's idle screen observer only reads the currently visible screen after consent and subscribes to actual UI changes. Analytics readiness is no longer a business-machine event or stored readiness key; active operations retain their initiating identity. Existing NFT callers reuse the same safe `track` through their legacy import alias. Support links retain the PostHog distinct ID in Intercom; there is no extra PostHog person-property setter.
+
 ## Event registry
 
 Every emitted event has `source_app: manager | explorer`, `environment: production | staging`, and `analytics_version: 1`. Chain/connector context is registered while connected. UUIDs are opaque; no names or record values are added to new product events. Properties below are additional to common metadata. Not every type-supported event is emitted by every flow.
 
 | Event(s) | Properties and exact semantics | App |
 | --- | --- | --- |
-| `registration:flow_view`, `flow_start`, `flow_resume`, `flow_retry` | `flow_id`; view = flow created; start = explicit submission; resume = observed recovery; retry = explicit retry. Optional `registration_method`, `chain_id` where available. | Manager; Explorer start/resume/retry |
+| `registration:flow_view`, `flow_start`, `flow_resume`, `flow_retry` | `flow_id`; view = currently visible idle surface observed after consent/SDK readiness; start = explicit submission; resume = observed recovery; retry = explicit retry. Optional `execution_method`, `chain_id` where available. | Manager; Explorer start/resume/retry |
 | `registration:step_view`, `step_result` | `flow_id`, controlled `step`; result has `outcome`, `is_retryable`, bounded `error_code` where available. Significant UI/machine stages only; failure is an attempt, not terminal business failure. | Both |
-| `registration:payment_option_select` | `flow_id`, `payment_asset`, `funding_source`; explicit payment selection. | Manager |
-| `registration:flow_complete` | `flow_id`, `item_count: 1`; verified required registration, before optional post-registration setup. Deduplicated within the live flow. | Both |
-| `renewal:flow_view`, `flow_start`, `flow_retry`, `step_view`, `step_result` | Same correlation/result convention; Manager supports payment and execution, plus `is_bulk`, `completed_count`/`item_count` on partial batch failures. Explorer tracks receipt-backed transaction stages. | Both; see matrices for app support |
+| `registration:payment_option_select` | `flow_id`, `payment_asset`, `funding_chain_id`; explicit payment selection. | Manager |
+| `registration:flow_complete` | `flow_id`; verified required registration, before optional post-registration setup. Deduplicated within the live flow. | Both |
+| `renewal:flow_view`, `flow_start`, `flow_retry`, `step_view`, `step_result` | Same correlation/result convention; Manager supports payment and execution, plus `is_bulk`, `completed_count` on partial batch failures; `item_count` on completion. Explorer tracks receipt-backed transaction stages. | Both; see matrices for app support |
 | `renewal:payment_option_select` | Explicit selection, same payment properties as registration. | Manager |
 | `renewal:flow_complete` | `flow_id`, `item_count`; confirmed renewal, all batch work complete. Explorer means all required receipt callbacks completed, not separately indexed expiries. | Both |
 | `migration:flow_view`, `flow_start`, `flow_retry`, `step_view`, `step_result`, `flow_complete` | `flow_id`; completion has actual result counts (`item_count`, `migrated_count`, `copied_count`, `ineligible_count`); partial results are not all-selected success. | Manager |
 | `migration:manager_open` | `is_wrapped`; click opens Manager's migration UI. This is not a migration outcome or a sequential app funnel. | Explorer |
-| `name_search:result_select` | `source`, optional `name_length`, `result_type`; explicit chosen destination, not keystrokes or availability polling. | Both |
-| `profile:records_update` | `operation_id` and/or `chain_id`, optional `record_count`; successful save completion, excluding record values. | Both |
-| `profile:primary_name_update` | `operation_id` and/or `chain_id`; confirmed primary-name mutation. | Both |
+| `name_search:result_select` | `source`, optional `name_length`, required `result_type: name | address | resolver`, optional `is_available`; explicit chosen destination, not keystrokes or availability polling. | Both |
+| `profile:records_update` | `chain_id`, optional `record_count`; successful save completion, excluding record values. | Both |
+| `profile:primary_name_update` | `chain_id`; confirmed primary-name mutation. | Both |
 | `subname:name_create` | `chain_id`; receipt-backed create completion. | Explorer |
 | `resolver:configuration_update` | `chain_id`, controlled `action` (change/link/unlink/roles); successful receipt-backed operation. | Explorer |
 | `roles:permissions_update` | `chain_id`, `action: grant | revoke`; receipt-backed registry permission update. | Explorer |
 | `dns:manager_sync` | `chain_id`; successful DNS manager synchronization. | Explorer |
-| `notifications:preferences_update` | `operation_id`; successful preferences PATCH, no destinations or preference values. | Manager |
+| `notifications:preferences_update` | No event properties; successful preferences PATCH, no destinations or preference values. | Manager |
 | `wallet:connect`, `wallet:disconnect` | Connected callback/disconnect; chain and connector, no duplicated wallet address sent. Reactive identity synchronization also covers account/network/connector changes without fabricating connects. | Both |
 | `transaction:execution_end` | `operation_id`, `outcome: failure | cancelled`, `failure_stage`, optional `chain_id`, `execution_method`, `attempt_count`; bounded failed TM run. Not an overall business-flow failure. | Manager |
 | `$pageview`, `$pageleave`, `$rageclick` | SDK native events with sanitized automatic properties. No manual recreation. Rageclick functionality requires staging browser confirmation. | Both |
@@ -90,7 +116,7 @@ Failure criterion: wrong identity/environment, an outcome on mere submission, re
 Create in staging first; no remote dashboards were created here. Default filters: `environment=staging`, `analytics_version=1`; production dashboards must explicitly select production. Never treat Manager→Explorer as funnel stages.
 
 - **Registration funnel:** `registration:flow_start` → `registration:step_view` (step=registration) → `registration:flow_complete`; hold `flow_id` constant and break down by `source_app`. Separate app-specific duration/payment/setup/approval stages instead of forcing identical funnels. Use step failure trends by step/method/chain/connector for friction.
-- **Renewal:** start → execution view → complete, constant `flow_id`, breakdown `source_app` and `is_bulk`; inspect Manager failure `completed_count` alongside requested `item_count`. Do not sum partial counts across retries as new renewals.
+- **Renewal:** start → execution view → complete, constant `flow_id`, breakdown `source_app` and `is_bulk`; inspect Manager failure `completed_count` for confirmed progress; final `item_count` measures completed batch size. Do not sum partial counts across retries as new renewals.
 - **Reliability:** `transaction:execution_end` by failure_stage/execution_method/chain_id/attempt_count. This is Manager failed-run diagnostics, not an all-app transaction failure rate or wallet rejection denominator. Separate step failures from terminal outcomes.
 - **Adoption:** unique users on profile/subname/resolver/roles/DNS/notifications events, breakdown source_app. Use migration completion result counts separately from Explorer outgoing handoffs.
 - **Measurement health:** counts by event/source/environment/version; alert on missing source_app or production events in staging. Compare starts to matured completion cohorts; recent starts are not failures.
@@ -122,3 +148,15 @@ Regression check: checked app adapters/providers, Manager WalletLifecycle, all n
 Design notes: existing state machines and transaction hooks contain mixed IO/decision responsibilities. This change adds narrow analytics seams and reuses existing outcome predicates; it does not restructure pricing or transaction orchestration. A future flow architecture change should preserve verified required success, optional-setup separation, partial completion and retry semantics under existing tests.
 
 References: [PostHog event best practices](https://posthog.com/docs/product-analytics/best-practices), [JavaScript configuration](https://posthog.com/docs/libraries/js/config). Current SDK behavior was checked against installed 1.404.1; research index and architecture informed scope, with the user's raw-wallet/opt-in decisions taking precedence.
+
+## Simplification follow-up verification
+
+The follow-up removes generated event families, the second `SAFE_KEYS` schema, SDK capture-options wrapper, simple-write UUIDs, and `analytics.ready` state-machine messages/ready keys. Registration no longer sends a constant item_count; renewal/migration retain meaningful counts. Payment selection now uses funding_chain_id; result_type describes the object kind, while is_available is separate. execution_method consistently means eoa/hca for registration and renewal. DNSSEC emits controlled verdicts rather than raw name-bearing step labels.
+
+Intentional test changes: registration completion expectations omit the removed constant count; Explorer registration expectations use execution_method; provider transport spies no longer expect source_app before the SDK boundary (real SDK config tests still assert its presence in outgoing events). Deleted readiness tests cover removed code and are replaced by current-view hook tests, including SDK failure, grant and regrant. Deleted allowlist tests cover the removed allowlist; a transport regression proves dotted diagnostic stages now survive unchanged. Existing NFT call sites and outcome tests remain intact.
+
+Simplification checks completed: Manager focused workflow/observer checks 205 passed; shared tracker/config/identity 24 passed; Manager SDK/NFT checks 95 passed; Explorer final SDK/registration/renewal/search checks 46 passed. These overlap prior runs and are not additive. Both app typechecks and utils typecheck pass; Biome retains only the two unchanged complexity warnings. Explorer tests printed RPC DNS failures but exited successfully; wallet-backed flows are not inferred from those results. Two independent GPT-6.1 Sol critiques were applied, including the observer SDK exception boundary, consent-regrant dedup reset, and removal of an ineffective Intercom person-property setter; final critique reported no high/medium must-fix finding.
+
+Browser follow-up used the loopback-only fake-key collector: pending/accepted/withdrawn/regranted consent, registration current view/duration after reload, native pageview/pageleave, common app/environment metadata and URL redaction were observed again. Regrant observes the current surface of the same live flow without replaying a start or completion. Ordinary navigation/Settings clicks emitted no ordinary autocapture events. These are local browser observations, not real PostHog staging ingestion or wallet transaction verification.
+
+Explorer browser follow-up also loaded at desktop and 390px with consent preserved from Manager; the live configuration reported analytics disabled and dropped a policy-test event under normal local defaults. No ingestion request was observed. Wallet transactions and real staging ingestion remain unverified.

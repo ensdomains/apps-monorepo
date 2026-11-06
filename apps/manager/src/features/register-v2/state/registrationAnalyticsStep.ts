@@ -1,10 +1,10 @@
-import type { FlowStep } from '@ens-apps/utils/posthog/eventContracts'
+import type { RegistrationStep } from '@ens-apps/utils/posthog/eventContracts'
 
 /** Groups only user-visible stages; other child snapshots add no milestone. */
 export const getRegistrationAnalyticsStep = (
   stage: string,
-): FlowStep | undefined => {
-  const stages: Readonly<Record<string, FlowStep>> = {
+): RegistrationStep | undefined => {
+  const stages: Readonly<Record<string, RegistrationStep>> = {
     settingUpRegistration: 'setup',
     checkingResolver: 'setup',
     deployingResolver: 'setup',

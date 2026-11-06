@@ -62,7 +62,7 @@ describe('registration journey observation', () => {
     ])
     expect(capture.mock.calls[2]?.[1]).toEqual({
       flow_id: capture.mock.calls[0]?.[1].flow_id,
-      registration_method: 'eoa',
+      execution_method: 'eoa',
       chain_id: 11155111,
       step: 'commit',
       outcome: 'failure',

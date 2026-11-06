@@ -27,7 +27,6 @@ export const updatePreferenceMutationOptions = mutationOptions({
     >['json'],
   ) => {
     const analytics = startAnalyticsOperation()
-    const operationId = crypto.randomUUID()
     const response = await backendClient.notifications.preferences.$patch({
       json: request,
     })
@@ -40,9 +39,7 @@ export const updatePreferenceMutationOptions = mutationOptions({
     }
 
     const result = await response.json()
-    analytics.capture('notifications:preferences_update', {
-      operation_id: operationId,
-    })
+    analytics.capture('notifications:preferences_update')
     return result
   },
   meta: {

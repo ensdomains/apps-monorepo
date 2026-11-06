@@ -34,7 +34,7 @@ import {
 import type { HcaRenewalEthFunding } from '@/features/renew/service/renewalEthSwap'
 import { chunkRenewalItems } from '@/features/renew/utils/chunks'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
-import { type AnalyticsFlow, createAnalyticsFlow } from '@/lib/posthog/flow'
+import { type AnalyticsFlow, bindAnalyticsFlow } from '@/lib/posthog/flow'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import {
   useHcaFundingPrompt,
@@ -640,7 +640,8 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   }
 
   const beginAnalytics = () => {
-    if (!failedRef.current) analyticsRef.current = createAnalyticsFlow()
+    if (!failedRef.current)
+      analyticsRef.current = bindAnalyticsFlow(crypto.randomUUID())
     const analytics = analyticsRef.current
     analytics?.capture(
       failedRef.current ? 'renewal:flow_retry' : 'renewal:flow_start',

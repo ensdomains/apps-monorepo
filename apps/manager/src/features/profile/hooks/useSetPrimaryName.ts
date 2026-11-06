@@ -81,7 +81,6 @@ export function useSetPrimaryName(
     onSuccess: options?.onSuccess,
     mutationFn: async ({ name, owner }: SetPrimaryNameArgs) => {
       const analytics = startAnalyticsOperation()
-      const operationId = crypto.randomUUID()
       if (!owner) {
         throw new Error('Cannot set primary name - ENS owner is not available.')
       }
@@ -111,9 +110,7 @@ export function useSetPrimaryName(
           onTxId: setTxId,
           confirmFunding: requestFundingApproval,
         })
-        analytics.capture('profile:primary_name_update', {
-          operation_id: operationId,
-        })
+        analytics.capture('profile:primary_name_update', { chain_id: chainId })
         return
       }
 
@@ -133,9 +130,7 @@ export function useSetPrimaryName(
         connector,
         onTxId: setTxId,
       })
-      analytics.capture('profile:primary_name_update', {
-        operation_id: operationId,
-      })
+      analytics.capture('profile:primary_name_update', { chain_id: chainId })
     },
   })
 

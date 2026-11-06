@@ -4,6 +4,7 @@ import {
   invalidateAnalyticsOperations,
   notifyAnalyticsConsent,
 } from './analyticsConsent'
+import { hasMatchingWalletIdentity } from './walletIdentity'
 
 type ConsentTarget = {
   readonly __loaded?: boolean
@@ -211,3 +212,37 @@ export const SHARED_POSTHOG_CONFIG = {
   opt_out_capturing_by_default: true,
   opt_out_capturing_persistence_type: 'cookie',
 } as const
+
+/** Applies one capture policy to custom and native SDK events. */
+export const prepareAnalyticsEvent = <
+  Event extends {
+    readonly event: string
+    readonly properties: Readonly<Record<string, unknown>>
+  },
+>(
+  event: Event | null,
+  context: {
+    readonly sourceApp: 'manager' | 'explorer'
+    readonly environment: CaptureEnvironment
+    readonly walletAddress: string | null | undefined
+  },
+): Event | null => {
+  if (!event || !canCaptureAnalytics(context.environment)) return null
+  const identity = event.properties.distinct_id
+  if (
+    typeof identity !== 'string' ||
+    !hasMatchingWalletIdentity(context.walletAddress, identity, event.event)
+  )
+    return null
+  if (event.event === '$autocapture' || event.event === '$exception')
+    return null
+  return {
+    ...event,
+    properties: {
+      ...sanitizeAutomaticProperties(event.properties),
+      source_app: context.sourceApp,
+      environment: context.environment.environment,
+      analytics_version: 1,
+    },
+  }
+}

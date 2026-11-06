@@ -5,6 +5,7 @@ export const recordNameSearch = (name: string) => {
     const normalizedName = name.trim().toLowerCase()
     track('name_search:result_select', {
       source: 'header_search',
+      result_type: 'name',
       name_length: normalizedName.length,
     })
     track('name:search_selected', {

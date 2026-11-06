@@ -11,13 +11,7 @@ const setup = () => {
   let walletAddress: string | null | undefined = null
   const capture = vi.fn()
   const tracker = createAnalyticsTracker({
-    sourceApp: 'manager',
     getConnectedWalletAddress: () => walletAddress,
-    environment: () => ({
-      environment: 'production',
-      isDevelopment: false,
-      isDebugEnabled: false,
-    }),
     client: {
       __loaded: true,
       get_explicit_consent_status: () => consent,
@@ -51,14 +45,14 @@ describe('analytics transport', () => {
   it('never captures or replays actions from before consent', () => {
     const tracker = setup()
     const operation = tracker.startAnalyticsOperation()
-    tracker.track('profile:primary_name_update', {})
+    tracker.track('profile:primary_name_update', { chain_id: 1 })
     tracker.grant()
-    operation.capture('profile:primary_name_update', {})
+    operation.capture('profile:primary_name_update', { chain_id: 1 })
     expect(tracker.capture).not.toHaveBeenCalled()
-    tracker.track('profile:primary_name_update', { operation_id: 'fresh' })
+    tracker.track('profile:primary_name_update', { chain_id: 1 })
     expect(tracker.capture).toHaveBeenCalledWith(
       'profile:primary_name_update',
-      { operation_id: 'fresh', source_app: 'manager' },
+      { chain_id: 1 },
     )
   })
   it.each(['switch', 'regrant'] as const)(
@@ -74,18 +68,35 @@ describe('analytics transport', () => {
       }
       operation.capture('registration:flow_complete', {
         flow_id: 'flow',
-        item_count: 1,
       })
       expect(tracker.capture).not.toHaveBeenCalled()
     },
   )
+  it('forwards bounded domain diagnostics without treating dots as private names', () => {
+    const tracker = setup()
+    tracker.grant()
+    tracker.track('transaction:execution_end', {
+      operation_id: 'run',
+      outcome: 'failure',
+      failure_stage: 'execution.approval',
+      attempt_count: 1,
+    })
+    expect(tracker.capture).toHaveBeenCalledWith('transaction:execution_end', {
+      operation_id: 'run',
+      outcome: 'failure',
+      failure_stage: 'execution.approval',
+      attempt_count: 1,
+    })
+  })
   it('does not break product operations when the SDK throws', () => {
     const tracker = setup()
     tracker.grant()
     tracker.capture.mockImplementation(() => {
       throw new Error('offline')
     })
-    expect(() => tracker.track('profile:primary_name_update', {})).not.toThrow()
+    expect(() =>
+      tracker.track('profile:primary_name_update', { chain_id: 1 }),
+    ).not.toThrow()
   })
 })
 
@@ -100,11 +111,11 @@ describe('synchronous wallet boundary', () => {
     tracker.identify(WALLET_A)
     const operation = tracker.startAnalyticsOperation()
     tracker.setWallet(WALLET_B)
-    operation.capture('profile:records_update', {})
-    tracker.track('profile:records_update', {})
+    operation.capture('profile:records_update', { chain_id: 1 })
+    tracker.track('profile:records_update', { chain_id: 1 })
     expect(tracker.capture).not.toHaveBeenCalled()
     tracker.identify(WALLET_B)
-    tracker.track('profile:records_update', {})
+    tracker.track('profile:records_update', { chain_id: 1 })
     expect(tracker.capture).toHaveBeenCalledTimes(1)
   })
   it.each([null, undefined])(
@@ -116,11 +127,24 @@ describe('synchronous wallet boundary', () => {
       tracker.identify(WALLET_A)
       const operation = tracker.startAnalyticsOperation()
       tracker.setWallet(wallet)
-      operation.capture('profile:records_update', {})
-      tracker.track('profile:records_update', {})
+      operation.capture('profile:records_update', { chain_id: 1 })
+      tracker.track('profile:records_update', { chain_id: 1 })
       expect(tracker.capture).not.toHaveBeenCalled()
     },
   )
+  it('keeps a pending operation when only wallet address casing changes', () => {
+    const tracker = setup()
+    tracker.grant()
+    tracker.setWallet(WALLET_A.toUpperCase().replace('0X', '0x'))
+    tracker.identify(WALLET_A)
+    const operation = tracker.startAnalyticsOperation()
+    tracker.setWallet(WALLET_A)
+    operation.capture('profile:records_update', { chain_id: 1 })
+    expect(tracker.capture).toHaveBeenCalledExactlyOnceWith(
+      'profile:records_update',
+      { chain_id: 1 },
+    )
+  })
   it('invalidates an old operation even when switching back returns the same wallet ID', () => {
     const tracker = setup()
     tracker.grant()
@@ -128,7 +152,7 @@ describe('synchronous wallet boundary', () => {
     tracker.identify(WALLET_A)
     const operation = tracker.startAnalyticsOperation()
     invalidateAnalyticsOperations()
-    operation.capture('profile:records_update', {})
+    operation.capture('profile:records_update', { chain_id: 1 })
     expect(tracker.capture).not.toHaveBeenCalled()
   })
 })
@@ -139,8 +163,9 @@ it('attributes explicit disconnect to the departing wallet while suppressing oth
   tracker.setWallet(null)
   tracker.identify('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
   tracker.track('wallet:disconnect')
-  tracker.track('profile:records_update', {})
-  expect(tracker.capture).toHaveBeenCalledExactlyOnceWith('wallet:disconnect', {
-    source_app: 'manager',
-  })
+  tracker.track('profile:records_update', { chain_id: 1 })
+  expect(tracker.capture).toHaveBeenCalledExactlyOnceWith(
+    'wallet:disconnect',
+    undefined,
+  )
 })

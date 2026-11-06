@@ -2,7 +2,10 @@ import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useState } from 'react'
 import { useConfig } from 'wagmi'
 import type { Actor } from 'xstate'
-import { useAnalyticsFlowReady } from '@/lib/posthog/useAnalyticsFlowReady'
+import {
+  type AnalyticsView,
+  useAnalyticsFlowView,
+} from '@/lib/posthog/useAnalyticsFlowView'
 import { publicClient } from '@/lib/wagmi'
 import { createUpgradeReadCoordinator } from '../service/upgradeReadCoordinator'
 import {
@@ -10,6 +13,14 @@ import {
   migrationUiMachine,
 } from './migrationUi.machine'
 import { UpgradeReadCoordinatorContext } from './upgradeReadCoordinator.context'
+
+const getAnalyticsView = (
+  snapshot: MigrationUiSnapshot,
+): AnalyticsView | undefined => {
+  return snapshot.matches('select')
+    ? { flow: 'migration', flow_id: snapshot.context.analytics.flow_id }
+    : undefined
+}
 
 const MigrationUiContext = createContext<{
   uiActor: Actor<typeof migrationUiMachine>
@@ -28,7 +39,7 @@ export const MigrationUiProvider = ({
     input: { wagmiConfig },
   })
 
-  useAnalyticsFlowReady(uiActor)
+  useAnalyticsFlowView(uiActor, getAnalyticsView)
 
   useEffect(() => {
     const subscription = uiActor.subscribe({

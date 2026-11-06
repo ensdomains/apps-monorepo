@@ -19,3 +19,15 @@ export const getWalletIdentityAction = (
     return { type: 'none' }
   return { type: input.isIdentified ? 'replace' : 'identify', address }
 }
+
+/** Undefined means the connector is unresolved; null means a stable disconnection. */
+export const hasMatchingWalletIdentity = (
+  address: string | null | undefined,
+  identity: string,
+  event?: string,
+): boolean => {
+  if (address === undefined) return false
+  if (address === null)
+    return event === 'wallet:disconnect' || !/^0x[\da-f]{40}$/i.test(identity)
+  return address.toLowerCase() === identity
+}

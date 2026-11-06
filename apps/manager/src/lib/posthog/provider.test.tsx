@@ -182,7 +182,6 @@ describe('PostHog provider', () => {
 
     expect(posthog.identify).toHaveBeenCalledWith(WALLET.address)
     expect(posthog.capture).toHaveBeenCalledWith('wallet:connect', {
-      source_app: 'manager',
       chain_id: 1,
       wallet_connector: 'test-wallet',
     })
@@ -306,7 +305,6 @@ describe('PostHog provider', () => {
       outcome: 'failure',
       failure_stage: 'submission',
       attempt_count: 1,
-      source_app: 'manager',
     })
     expect(unsubscribeFailed).not.toHaveBeenCalled()
     expect(unsubscribeLive).not.toHaveBeenCalled()

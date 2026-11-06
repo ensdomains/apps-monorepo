@@ -5,7 +5,10 @@ import { createContext, use, useEffect, useRef } from 'react'
 import type { Address } from 'viem'
 import { useChainId } from 'wagmi'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
-import { useAnalyticsFlowReady } from '@/lib/posthog/useAnalyticsFlowReady'
+import {
+  type AnalyticsView,
+  useAnalyticsFlowView,
+} from '@/lib/posthog/useAnalyticsFlowView'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 import { isFeatureEnabled } from '@/utils/feature-flags'
@@ -23,6 +26,21 @@ import {
   type RegistrationResumeState,
   useRegistrationResume,
 } from './useRegistrationResume'
+
+const getAnalyticsView = (
+  snapshot: RegistrationV2UiSnapshot,
+): AnalyticsView | undefined => {
+  if (
+    !snapshot.matches({ pricing: 'duration' }) &&
+    !snapshot.matches({ pricing: 'tokens' })
+  )
+    return undefined
+  return {
+    flow: 'registration',
+    flow_id: snapshot.context.analytics.flow_id,
+    step: snapshot.matches({ pricing: 'duration' }) ? 'duration' : 'payment',
+  }
+}
 
 const RegistrationV2UiContext2 = createContext<{
   uiActor: Actor<typeof registrationV2UiMachine>
@@ -52,7 +70,7 @@ export const RegistrationV2UiProvider = ({
     input: { chainId },
   })
 
-  useAnalyticsFlowReady(registrationV2UiActor)
+  useAnalyticsFlowView(registrationV2UiActor, getAnalyticsView)
 
   useRegistrationLockSweep()
   const registrationActor = useSelector(

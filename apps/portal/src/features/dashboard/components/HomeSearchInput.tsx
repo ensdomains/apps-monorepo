@@ -100,7 +100,8 @@ export const HomeSearchInput = ({
     (name: string) => {
       track('name_search:result_select', {
         source: 'search',
-        result_type: 'available',
+        result_type: 'name',
+        is_available: true,
       })
       const nameWithEth = name.includes('.') ? name : `${name}.eth`
       navigate({ to: '/register', search: { name: nameWithEth } })

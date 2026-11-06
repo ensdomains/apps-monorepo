@@ -1,93 +1,74 @@
-import { canCaptureAnalytics } from './analyticsConfiguration'
 import {
   getAnalyticsConsentRevision,
   hasAnalyticsConsent,
 } from './analyticsConsent'
-import type { PostHogEvents } from './eventContracts'
-import { sanitizeEventProperties } from './tracking'
+import type { AnalyticsEvents } from './eventContracts'
+import { hasMatchingWalletIdentity } from './walletIdentity'
 
-type TrackerOptions<Options> = {
-  readonly sourceApp: 'manager' | 'explorer'
+type Track = <Name extends keyof AnalyticsEvents>(
+  name: Name,
+  ...args: AnalyticsEvents[Name] extends undefined
+    ? []
+    : [AnalyticsEvents[Name]]
+) => void
+
+type TrackerOptions = {
   readonly getConnectedWalletAddress: () => string | null | undefined
-  readonly environment: () => Parameters<typeof canCaptureAnalytics>[0]
   readonly client: Parameters<typeof hasAnalyticsConsent>[0] & {
     get_distinct_id: () => string
     capture: (
       name: string,
-      properties: Readonly<Record<string, unknown>>,
-      options?: Options,
+      properties?: Readonly<Record<string, unknown>>,
     ) => unknown
   }
 }
 
-/** Undefined means the connector is unresolved; null means a stable disconnection. */
-export const hasMatchingWalletIdentity = (
-  address: string | null | undefined,
-  identity: string,
-  event?: string,
-): boolean => {
-  if (address === undefined) return false
-  if (address === null)
-    return event === 'wallet:disconnect' || !/^0x[\da-f]{40}$/i.test(identity)
-  return address.toLowerCase() === identity
-}
-
-/** SDK transport is optional; never queue pre-consent actions or throw into product code. */
-export const createAnalyticsTracker = <Options>(
-  options: TrackerOptions<Options>,
-) => {
-  const send = <Name extends keyof PostHogEvents>(
-    name: Name,
-    properties: PostHogEvents[Name],
-    captureOptions?: Options,
+/** Bind the existing SDK; configuration owns environment, metadata and automatic-data filtering. */
+export const createAnalyticsTracker = ({
+  client,
+  getConnectedWalletAddress,
+}: TrackerOptions) => {
+  const send = (
+    name: keyof AnalyticsEvents,
+    properties?: AnalyticsEvents[keyof AnalyticsEvents],
   ): void => {
     try {
       if (
-        !hasAnalyticsConsent(options.client) ||
-        !canCaptureAnalytics(options.environment()) ||
-        !hasMatchingWalletIdentity(
-          options.getConnectedWalletAddress(),
-          options.client.get_distinct_id(),
+        hasAnalyticsConsent(client) &&
+        hasMatchingWalletIdentity(
+          getConnectedWalletAddress(),
+          client.get_distinct_id(),
           name,
         )
       )
-        return
-      const payload = {
-        ...sanitizeEventProperties(name, properties),
-        source_app: options.sourceApp,
-      }
-      if (captureOptions === undefined) options.client.capture(name, payload)
-      else options.client.capture(name, payload, captureOptions)
+        client.capture(name, properties)
     } catch {
-      // Optional analytics must never interrupt a product action.
+      // Analytics must never interrupt a product action.
     }
   }
-  const track = <Name extends keyof PostHogEvents>(
-    name: Name,
-    ...args: PostHogEvents[Name] extends undefined ? [] : [PostHogEvents[Name]]
-  ): void => {
-    send(name, args[0] as PostHogEvents[Name])
-  }
-  const startAnalyticsOperation = (): { readonly capture: typeof track } => {
+  const track: Track = (name, ...args) => send(name, args[0])
+
+  /** Use before an await to suppress outcomes after a wallet or consent change. */
+  const startAnalyticsOperation = (): { readonly capture: Track } => {
     try {
-      const walletAddress = options.getConnectedWalletAddress()?.toLowerCase()
-      const identity = options.client.get_distinct_id()
-      const isGranted =
-        hasAnalyticsConsent(options.client) &&
-        hasMatchingWalletIdentity(options.getConnectedWalletAddress(), identity)
+      const connectedWallet = getConnectedWalletAddress()
+      const wallet = connectedWallet?.toLowerCase()
+      const identity = client.get_distinct_id()
       const revision = getAnalyticsConsentRevision()
-      const capture: typeof track = (name, ...args) => {
+      const isAllowed =
+        hasAnalyticsConsent(client) &&
+        hasMatchingWalletIdentity(connectedWallet, identity)
+      const capture: Track = (name, ...args) => {
         try {
-          if (!isGranted || !hasAnalyticsConsent(options.client)) return
           if (
-            revision !== getAnalyticsConsentRevision() ||
-            identity !== options.client.get_distinct_id() ||
-            walletAddress !== options.getConnectedWalletAddress()?.toLowerCase()
+            isAllowed &&
+            revision === getAnalyticsConsentRevision() &&
+            wallet === getConnectedWalletAddress()?.toLowerCase() &&
+            identity === client.get_distinct_id()
           )
-            return
-          track(name, ...args)
+            send(name, args[0])
         } catch {
-          // Stale or unavailable analytics contexts fail closed.
+          // A stale or unavailable SDK cannot affect the pending operation.
         }
       }
       return { capture }
@@ -95,5 +76,5 @@ export const createAnalyticsTracker = <Options>(
       return { capture: () => {} }
     }
   }
-  return { track, trackWithOptions: send, startAnalyticsOperation }
+  return { track, startAnalyticsOperation }
 }

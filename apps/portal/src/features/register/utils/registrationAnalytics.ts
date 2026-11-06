@@ -1,7 +1,7 @@
-import type { FlowStep } from '@ens-apps/utils/posthog/eventContracts'
+import type { RegistrationStep } from '@ens-apps/utils/posthog/eventContracts'
 import { startAnalyticsOperation } from '@/lib/posthog/events'
 
-const REGISTRATION_STEPS: Readonly<Record<string, FlowStep>> = {
+const REGISTRATION_STEPS: Readonly<Record<string, RegistrationStep>> = {
   checkingResolver: 'setup',
   deployingResolver: 'setup',
   waitingForResolverDeployment: 'setup',
@@ -23,7 +23,7 @@ const REGISTRATION_STEPS: Readonly<Record<string, FlowStep>> = {
 /** Groups only user-meaningful stages; background state changes share a step. */
 export const getRegistrationAnalyticsStep = (
   state: unknown,
-): FlowStep | undefined =>
+): RegistrationStep | undefined =>
   typeof state === 'string' ? REGISTRATION_STEPS[state] : undefined
 
 /** Observes one explicit user run; retry failures remain recoverable step results. */
@@ -33,11 +33,11 @@ export const createRegistrationAnalytics = (
 ) => {
   const properties = {
     flow_id: crypto.randomUUID(),
-    registration_method: 'eoa' as const,
+    execution_method: 'eoa' as const,
     chain_id: chainId,
   }
   let previousState: unknown
-  let currentStep: FlowStep | undefined
+  let currentStep: RegistrationStep | undefined
   let isComplete = false
 
   const completeStep = () => {
@@ -52,10 +52,7 @@ export const createRegistrationAnalytics = (
   const complete = () => {
     isComplete = true
     completeStep()
-    operation.capture('registration:flow_complete', {
-      ...properties,
-      item_count: 1,
-    })
+    operation.capture('registration:flow_complete', properties)
   }
   const fail = (isRetryable: boolean) => {
     if (!currentStep) return

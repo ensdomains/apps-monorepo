@@ -10,7 +10,7 @@ import {
 } from '@ens-apps/transaction-manager'
 import { isUserRejectionError } from '@ens-apps/transaction-manager/errors/transaction.errors'
 import { getResumeTarget } from '@ens-apps/transaction-manager/machines/registration/registration.persistence'
-import type { FlowStep } from '@ens-apps/utils/posthog/eventContracts'
+import type { RegistrationStep } from '@ens-apps/utils/posthog/eventContracts'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match, P } from 'ts-pattern'
@@ -33,7 +33,12 @@ import {
 import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
-import { type AnalyticsFlow, createAnalyticsFlow } from '@/lib/posthog/flow'
+import { track } from '@/lib/posthog/events'
+import {
+  type AnalyticsFlow,
+  bindAnalyticsFlow,
+  createAnalyticsFlow,
+} from '@/lib/posthog/flow'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
@@ -122,7 +127,7 @@ export type PaymentAsset = 'stablecoin' | 'eth'
 
 type Context = {
   readonly analytics: AnalyticsFlow
-  readonly lastAnalyticsStep?: FlowStep
+  readonly lastAnalyticsStep?: RegistrationStep
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
@@ -182,7 +187,6 @@ type Context = {
 }
 
 type Events =
-  | { readonly type: 'analytics.ready'; readonly readyKey: string }
   | { type: 'pricing.step.next' }
   | { type: 'pricing.step.previous' }
   | { type: 'pricing.dialog.dismiss' }
@@ -410,9 +414,6 @@ const machineSetup = setup({
     ),
   },
   guards: {
-    hasNewAnalyticsIdentity: ({ context, event }) =>
-      event.type === 'analytics.ready' &&
-      context.analytics.readyKey !== event.readyKey,
     isRestoredFailure: ({ context }) => context.restoredRun !== undefined,
     hasPendingStart: ({ context }) => context.pendingStart !== undefined,
     isWalletRegisteringAnotherName: ({ context }) =>
@@ -436,15 +437,6 @@ const machineSetup = setup({
     hasEthRecordSyncTxId: ({ context }) => !!context.ethRecordSyncTxId,
   },
   actions: {
-    bindReadyAnalytics: assign({
-      analytics: ({ context, event }) => ({
-        ...createAnalyticsFlow(context.analytics.flow_id),
-        readyKey:
-          event.type === 'analytics.ready'
-            ? event.readyKey
-            : context.analytics.readyKey,
-      }),
-    }),
     analyticsPaymentSelect: ({ context, event }) => {
       if (
         !(
@@ -455,21 +447,16 @@ const machineSetup = setup({
       )
         return
       if (event.origin === 'fallback') return
-      context.analytics.capture('registration:payment_option_select', {
+      track('registration:payment_option_select', {
         flow_id: context.analytics.flow_id,
         payment_asset: context.paymentAsset,
-        funding_source:
-          context.fundingSourceChainId === undefined ? 'wallet' : 'l2',
+        funding_chain_id: context.fundingSourceChainId,
       })
     },
-    analyticsFlowView: ({ context }) =>
-      context.analytics.capture('registration:flow_view', {
-        flow_id: context.analytics.flow_id,
-      }),
     analyticsStart: ({ context }) =>
       context.analytics.capture('registration:flow_start', {
         flow_id: context.analytics.flow_id,
-        registration_method:
+        execution_method:
           context.postRegistrationData?.signer.type === 'rhinestone'
             ? 'hca'
             : 'eoa',
@@ -477,16 +464,6 @@ const machineSetup = setup({
     analyticsResume: ({ context }) =>
       context.analytics.capture('registration:flow_resume', {
         flow_id: context.analytics.flow_id,
-      }),
-    analyticsDuration: ({ context }) =>
-      context.analytics.capture('registration:step_view', {
-        flow_id: context.analytics.flow_id,
-        step: 'duration',
-      }),
-    analyticsPayment: ({ context }) =>
-      context.analytics.capture('registration:step_view', {
-        flow_id: context.analytics.flow_id,
-        step: 'payment',
       }),
     analyticsExecution: ({ context }) =>
       context.analytics.capture('registration:step_view', {
@@ -784,7 +761,6 @@ const machineSetup = setup({
       if (!context.registrationCompleted) {
         context.analytics.capture('registration:flow_complete', {
           flow_id: context.analytics.flow_id,
-          item_count: 1,
         })
       }
 
@@ -993,7 +969,7 @@ const startRegistrationAction = machineSetup.createAction(
     const referrer = normalizeReferrer(event.referrer, ENS_LABS_REFERRER)
 
     enqueue.assign({
-      analytics: createAnalyticsFlow(context.analytics.flow_id),
+      analytics: bindAnalyticsFlow(context.analytics.flow_id),
       lastAnalyticsStep: undefined,
       confirmedData: {
         label: event.label,
@@ -1134,7 +1110,7 @@ const resumeRegistrationAction = machineSetup.createAction(
     }
 
     enqueue.assign({
-      analytics: createAnalyticsFlow(context.analytics.flow_id),
+      analytics: bindAnalyticsFlow(context.analytics.flow_id),
       lastAnalyticsStep: undefined,
       confirmedData: event.confirmedData,
       duration: Number(event.confirmedData.duration),
@@ -1291,7 +1267,6 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     ],
   },
   initial: 'pricing',
-  entry: 'analyticsFlowView',
   context: ({ input }) => ({
     analytics: createAnalyticsFlow(),
     chainId: input.chainId,
@@ -1346,16 +1321,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
       },
       states: {
         duration: {
-          entry: 'analyticsDuration',
           on: {
-            'analytics.ready': {
-              guard: 'hasNewAnalyticsIdentity',
-              actions: [
-                'bindReadyAnalytics',
-                'analyticsFlowView',
-                'analyticsDuration',
-              ],
-            },
             'pricing.duration.set': {
               actions: 'setDuration',
             },
@@ -1370,16 +1336,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           },
         },
         tokens: {
-          entry: 'analyticsPayment',
           on: {
-            'analytics.ready': {
-              guard: 'hasNewAnalyticsIdentity',
-              actions: [
-                'bindReadyAnalytics',
-                'analyticsFlowView',
-                'analyticsPayment',
-              ],
-            },
             'pricing.step.previous': {
               target: 'duration',
               actions: ['clearPaymentPick', 'clearError'],
