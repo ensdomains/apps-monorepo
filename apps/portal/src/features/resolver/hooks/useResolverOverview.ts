@@ -188,8 +188,8 @@ export const pruneLinksAfterUnlink = (
     }))
     .filter((link) => link.sharedWith.length > 0)
 
-/** The overview only counts bound names, so it reads one row and the total. */
-const OVERVIEW_NODES_PAGE_SIZE = 1
+/** Bound names counted on the overview; a fuller resolver reads as this many plus. */
+const OVERVIEW_NODES_PAGE_SIZE = 100
 /** Events listed; a busy resolver's full feed is `/v1/events`, paged. */
 const RESOLVER_EVENTS_PAGE_SIZE = MAX_PAGE_SIZE
 
@@ -380,6 +380,15 @@ export const resolverCollectionCount = (
   return `${count}${status === 'partial' ? '+' : ''}`
 }
 
+export const formatRoleHolderCount = (
+  count: number | null | undefined,
+  status: Completeness | undefined,
+): string =>
+  match(resolverCollectionCount(count, status))
+    .with('Unknown', () => 'Role holders unknown')
+    .with('1', () => '1 role holder')
+    .otherwise((formatted) => `${formatted} role holders`)
+
 const readOverview = (
   { chainId, address }: ResolverRef,
   signal: AbortSignal | undefined,
@@ -389,7 +398,7 @@ const readOverview = (
       bigname.resolver(
         chainId,
         address,
-        { page_size: OVERVIEW_NODES_PAGE_SIZE, include: ['total_count'] },
+        { page_size: OVERVIEW_NODES_PAGE_SIZE },
         { signal: requestSignal },
       ),
     isStale,
@@ -568,7 +577,7 @@ const readBoundNamesPage = (
         resolver.address,
         cursor
           ? { page_size: RESOLVER_NODES_PAGE_SIZE, cursor }
-          : { page_size: RESOLVER_NODES_PAGE_SIZE, include: ['total_count'] },
+          : { page_size: RESOLVER_NODES_PAGE_SIZE },
         { signal: requestSignal },
       ),
     isStale,

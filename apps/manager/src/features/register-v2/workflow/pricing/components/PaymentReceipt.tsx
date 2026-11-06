@@ -1,14 +1,18 @@
+import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { Trans, useLingui } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import { formatUnits, parseUnits } from 'viem'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import type { EthPaymentDebit } from '../lib/ethPaymentRow'
 import {
+  getEthReceiptDueRaw,
   getNetworkFeeReceiptFigures,
   type PaymentReceiptFigures,
   type PaymentReceiptState,
 } from '../lib/paymentReceiptFigures'
 import { ExistingBalanceLabel } from './ExistingBalanceLabel'
+import { NetworkFeeLabel } from './NetworkFeeLabel'
 import { RECEIPT_AMOUNT, RECEIPT_LABEL } from './receiptTypography'
 
 const USDC_DECIMALS = 6
@@ -55,6 +59,37 @@ const UsdAmount = ({
       )
     })
     .exhaustive()
+
+/** With ETH selected: the coins the wallet sends, then what they come to in USD. */
+const EthDueAmount = ({
+  debit,
+  dueUsd,
+}: {
+  readonly debit: EthPaymentDebit
+  readonly dueUsd: number
+}) => (
+  <span className="flex flex-col items-end gap-1">
+    <span className="flex flex-wrap items-baseline justify-end gap-x-2">
+      {debit.usdcRaw > 0n && (
+        <>
+          <span className={RECEIPT_AMOUNT}>
+            {toUsd(debit.usdcRaw).toFixed(2)}
+          </span>
+          <span className={RECEIPT_LABEL}>USDC</span>
+          <span className={RECEIPT_LABEL}>+</span>
+        </>
+      )}
+      <span className="text-base text-ens-quartz-400">
+        <Trans>up to</Trans>
+      </span>
+      <span className={RECEIPT_AMOUNT}>{formatGasEth(debit.ethWei)}</span>
+      <span className={RECEIPT_LABEL}>ETH</span>
+    </span>
+    <span className="text-base text-ens-quartz-400">
+      ≈ {formatUsd(dueUsd)} USD
+    </span>
+  </span>
+)
 
 const Amount = ({
   state,
@@ -135,34 +170,39 @@ export const PaymentReceipt = ({
   )
 }
 
-/** Registration's receipt: the page's total, the selected method's fee, and what the wallet pays. */
 const toUsd = (raw: bigint) => Number(formatUnits(raw, USDC_DECIMALS))
 
 const toUsdcRaw = (usd: number) =>
   parseUnits(usd.toFixed(USDC_DECIMALS), USDC_DECIMALS)
 
+/** The checkout receipt: the page's total, the selected method's fee, and what the wallet pays. */
 export const NetworkFeeReceipt = ({
   state,
-  registrationTotalRaw,
+  totalRaw,
   networkFee,
   extraFeeRaw,
+  ethDebit,
+  totalLabel = <Trans>Registration total</Trans>,
 }: {
   /** The quote behind the fee; the total is the page's and is always shown. */
   readonly state: PaymentReceiptState
   /** `undefined` while the price or the account balance loads. */
-  readonly registrationTotalRaw: bigint | undefined
+  readonly totalRaw: bigint | undefined
   /** The selected method's fee, before any existing balance; `undefined` until quoted. */
   readonly networkFee: number | undefined
   /** Paid on top of the wallet debit, such as an ETH swap's gas. */
   readonly extraFeeRaw: bigint
+  /** With ETH selected: what the wallet sends, shown as "You pay". */
+  readonly ethDebit?: EthPaymentDebit
+  readonly totalLabel?: ReactNode
 }) => {
   const { t } = useLingui()
   const figures =
     state.status === 'ready' &&
-    registrationTotalRaw !== undefined &&
+    totalRaw !== undefined &&
     networkFee !== undefined
       ? getNetworkFeeReceiptFigures({
-          registrationTotalRaw,
+          registrationTotalRaw: totalRaw,
           networkFeeRaw: toUsdcRaw(networkFee),
           walletDebitRaw: toUsdcRaw(state.figures.due),
           extraFeeRaw,
@@ -174,6 +214,15 @@ export const NetworkFeeReceipt = ({
       : { status: 'unavailable' }
   const shown = (field: 'networkFeeRaw' | 'dueRaw'): ShownAmount =>
     figures ? { status: 'ready', value: toUsd(figures[field]) } : pending
+  const ethDueUsd =
+    figures && ethDebit
+      ? toUsd(
+          getEthReceiptDueRaw(
+            ethDebit.usdcRaw + ethDebit.swapUsdcRaw,
+            extraFeeRaw,
+          ),
+        )
+      : undefined
 
   return (
     <section
@@ -182,21 +231,19 @@ export const NetworkFeeReceipt = ({
       className="w-full"
     >
       <dl className="flex flex-col gap-4">
-        <Row label={<Trans>Registration total</Trans>}>
+        <Row label={totalLabel}>
           <UsdAmount
             amount={
-              registrationTotalRaw === undefined
+              totalRaw === undefined
                 ? { status: 'loading' }
                 : {
                     status: 'ready',
-                    value: toUsd(
-                      figures?.registrationTotalRaw ?? registrationTotalRaw,
-                    ),
+                    value: toUsd(figures?.registrationTotalRaw ?? totalRaw),
                   }
             }
           />
         </Row>
-        <Row label={<Trans>Estimated network fee</Trans>}>
+        <Row label={<NetworkFeeLabel />}>
           <UsdAmount amount={shown('networkFeeRaw')} />
         </Row>
         {figures && figures.existingBalanceRaw > 0n && (
@@ -212,7 +259,11 @@ export const NetworkFeeReceipt = ({
         )}
         <hr className="border-ens-quartz-100" />
         <Row label={<Trans>You pay</Trans>}>
-          <UsdAmount amount={shown('dueRaw')} />
+          {ethDebit && ethDueUsd !== undefined ? (
+            <EthDueAmount debit={ethDebit} dueUsd={ethDueUsd} />
+          ) : (
+            <UsdAmount amount={shown('dueRaw')} />
+          )}
         </Row>
       </dl>
     </section>

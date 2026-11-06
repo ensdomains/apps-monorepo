@@ -1,6 +1,7 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { copyToClipboard } from '@/lib/clipboard'
 import { render } from '@/utils/test-utils'
 import { PrimaryNameCard } from './PrimaryNameCard'
 
@@ -23,6 +24,8 @@ vi.mock('@/components/ui/button', () => ({
     <a href="/alpha.eth">{children}</a>
   ),
 }))
+
+vi.mock('@/lib/clipboard', () => ({ copyToClipboard: vi.fn() }))
 
 vi.mock('./ChoosePrimaryNameDialog', () => ({
   ChoosePrimaryNameDialog: ({ children }: { readonly children?: ReactNode }) =>
@@ -65,12 +68,36 @@ describe('PrimaryNameCard', () => {
 
     const nameText = screen.getByText(longName)
     const nameplate = nameText.parentElement
-    const metadataColumn = nameplate?.parentElement
+    const nameRow = nameplate?.parentElement
+    const metadataColumn = nameRow?.parentElement
     const cardContent = metadataColumn?.parentElement
 
     expect(nameText).toHaveClass('min-w-0', 'wrap-anywhere')
     expect(nameplate).toHaveClass('max-w-full', 'self-start')
+    expect(nameRow).toHaveClass('min-w-0')
     expect(metadataColumn).toHaveClass('min-w-0')
     expect(cardContent).toHaveClass('min-w-0')
+  })
+
+  it('copies the primary name from the button beside the nameplate', async () => {
+    render(<PrimaryNameCard primaryName="alpha.eth" />)
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'alpha.eth — Copy to clipboard',
+      }),
+    )
+
+    await waitFor(() =>
+      expect(copyToClipboard).toHaveBeenCalledWith('alpha.eth'),
+    )
+  })
+
+  it('offers no copy button while the card shows the placeholder', () => {
+    render(<PrimaryNameCard primaryName={null} />)
+
+    expect(
+      screen.queryByRole('button', { name: /Copy to clipboard/ }),
+    ).not.toBeInTheDocument()
   })
 })

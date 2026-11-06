@@ -431,27 +431,33 @@ describe('TokenPickerContent', () => {
       screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
     ).toBeVisible()
   })
-  it('lists every method holding something, short or not, and hides the empty wallet', () => {
-    containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
-    containerMocks.walletBalance = '0'
-    containerMocks.renderBudget = fiveUsdcBudget
-    containerMocks.l2Balances = {
-      [baseSepolia.id]: 25_000_000n,
-      [arbitrumSepolia.id]: 1_000_000n,
-    }
-    containerMocks.l2AmountIn = 5_012_000n
-    renderContainer()
+  it.each([
+    ['nothing', '0'],
+    ['under a cent', '4169'],
+  ])(
+    'lists every method holding something, short or not, and hides a wallet holding %s',
+    (_case, walletBalance) => {
+      containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
+      containerMocks.walletBalance = walletBalance
+      containerMocks.renderBudget = fiveUsdcBudget
+      containerMocks.l2Balances = {
+        [baseSepolia.id]: 25_000_000n,
+        [arbitrumSepolia.id]: 1_000_000n,
+      }
+      containerMocks.l2AmountIn = 5_012_000n
+      renderContainer()
 
-    expect(
-      screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
-    ).toBeVisible()
-    expect(
-      screen.queryByRole('button', { name: 'Select USDC' }),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
-    ).toBeVisible()
-  })
+      expect(
+        screen.getByRole('button', { name: 'Select USDC on Base Sepolia' }),
+      ).toBeVisible()
+      expect(
+        screen.queryByRole('button', { name: 'Select USDC' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'Select USDC on Arbitrum Sepolia' }),
+      ).toBeVisible()
+    },
+  )
 
   it('moves to the L2 holding the most when the wallet cannot pay', () => {
     containerMocks.ownerAddress = '0x2222222222222222222222222222222222222222'
@@ -902,7 +908,7 @@ describe('TokenPickerContentBase', () => {
           hcaCredit: 41.98 - walletDebit,
           isLoading: false,
         },
-        registrationReceipt: { totalRaw: 0n },
+        checkoutReceipt: { totalRaw: 0n },
         selectedToken: 'USDC',
       })
 
@@ -1154,7 +1160,7 @@ describe('TokenPickerContentBase L2 rows', () => {
       selectedToken: 'USDC',
       stablecoinBalances: [emptyUsdc],
       l2Payment: payment,
-      registrationReceipt: { totalRaw: 5_000_000n },
+      checkoutReceipt: { totalRaw: 5_000_000n },
     })
 
     const row = screen.getByRole('button', {
@@ -1176,7 +1182,7 @@ describe('TokenPickerContentBase L2 rows', () => {
       selectedToken: 'USDC',
       stablecoinBalances: [emptyUsdc],
       l2Payment: payment,
-      registrationReceipt: { totalRaw: 5_000_000n },
+      checkoutReceipt: { totalRaw: 5_000_000n },
     })
 
     expect(
@@ -1191,7 +1197,7 @@ describe('TokenPickerContentBase L2 rows', () => {
       selectedToken: 'USDC',
       stablecoinBalances: [emptyUsdc],
       l2Payment: l2Payment(failedQuoteRow(), baseSepolia.id),
-      registrationReceipt: { totalRaw: 5_000_000n },
+      checkoutReceipt: { totalRaw: 5_000_000n },
     })
 
     expect(
@@ -1213,13 +1219,57 @@ describe('TokenPickerContentBase L2 rows', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('hides the methods while the caller asks it to', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      isMethodListHidden: true,
+    })
+
+    expect(
+      screen
+        .getByRole('heading', { hidden: true, name: 'Pay with' })
+        .closest('[hidden]'),
+    ).not.toBeNull()
+  })
+
+  it('labels the checkout total as a caller asks', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      checkoutReceipt: { totalRaw: 5_000_000n, totalLabel: 'Renewal total' },
+    })
+
+    expect(screen.getByText('Renewal total')).toBeVisible()
+    expect(screen.queryByText('Registration total')).not.toBeInTheDocument()
+  })
+
+  it('explains what happens to the network fee the fill does not use', async () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [usdc],
+      checkoutReceipt: { totalRaw: 5_000_000n },
+    })
+
+    fireEvent.focus(
+      screen.getByRole('button', { name: 'What is the network fee?' }),
+    )
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'stays there, as existing balance for your next payment',
+    )
+  })
+
   it('in registration, says a picked short L2 lacks USDC and estimates its fee', () => {
     renderPicker({
       funding: underfunded,
       selectedToken: 'USDC',
       stablecoinBalances: [emptyUsdc],
       l2Payment: { ...shortL2Payment(), selectedChainId: baseSepolia.id },
-      registrationReceipt: { totalRaw: 5_000_000n },
+      checkoutReceipt: { totalRaw: 5_000_000n },
     })
 
     expect(
@@ -1563,6 +1613,7 @@ describe('TokenPickerContentBase ETH row', () => {
       chargeRaw: 2_600_000_000_000_000n,
       balanceRaw: 10n ** 18n,
       gasReserveRaw: 0n,
+      walletUsdcRaw: 0n,
       ethUsdRaw: undefined,
       isQuoteLoading: false,
       hasQuoteFailed: false,
@@ -1621,6 +1672,52 @@ describe('TokenPickerContentBase ETH row', () => {
     expect(
       screen.queryByText('You do not have enough USDC for this transaction.'),
     ).not.toBeInTheDocument()
+  })
+
+  it('moves to ETH, short as it is, rather than blaming a USDC row the list hides', () => {
+    const ethPayment = ethPaymentOf({ balanceRaw: 1_000_000_000_000_000n })
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment,
+    })
+
+    expect(ethPayment.onFallbackSelect).toHaveBeenCalledOnce()
+    expect(
+      screen.queryByText('You do not have enough USDC for this transaction.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows the most the swap sends as what the wallet pays, with ETH selected', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment: ethPaymentOf({ ethUsdRaw: 200_000_000_000n }, true),
+      checkoutReceipt: { totalRaw: 5_000_000n },
+    })
+
+    expect(receiptRow('You pay')).toHaveTextContent('up to')
+    expect(receiptRow('You pay')).toHaveTextContent('$5.20')
+  })
+
+  it('shows the ETH the swap sends, and the USDC the wallet spends first, as what it pays', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment: ethPaymentOf(
+        { ethUsdRaw: 200_000_000_000n, walletUsdcRaw: 3_200_000n },
+        true,
+      ),
+      checkoutReceipt: { totalRaw: 5_000_000n },
+    })
+
+    expect(receiptRow('You pay')).toHaveTextContent(
+      /3\.20\s*USDC\s*\+\s*up to\s*0\.0026\s*ETH/,
+    )
+    expect(receiptRow('You pay')).toHaveTextContent('≈ $8.40 USD')
   })
 
   it('stays on a wallet coin that can pay rather than swapping ETH', () => {
@@ -1699,14 +1796,22 @@ describe('TokenPickerContentBase ETH row', () => {
   })
 
   it.each([
-    ['the swap', { balanceRaw: 1n }],
+    [
+      'the swap',
+      { balanceRaw: 1_000_000_000_000_000n },
+      'You need 0.0016 ETH more for the swap and its gas.',
+    ],
     [
       'the swap and its gas',
-      { balanceRaw: 2_600_000_000_000_000n, gasReserveRaw: 1n },
+      {
+        balanceRaw: 2_600_000_000_000_000n,
+        gasReserveRaw: 100_000_000_000_000n,
+      },
+      'You need 0.0001 ETH more for the swap and its gas.',
     ],
   ])(
-    'holds checkout and says why when the wallet is short of %s',
-    (_case, row) => {
+    'holds checkout and says how much when the wallet is short of %s',
+    (_case, row, message) => {
       renderPicker({
         funding: underfunded,
         selectedToken: 'USDC',
@@ -1714,9 +1819,7 @@ describe('TokenPickerContentBase ETH row', () => {
         ethPayment: ethPaymentOf(row, true),
       })
 
-      expect(
-        screen.getByText('You do not have enough ETH for this transaction.'),
-      ).toBeVisible()
+      expect(screen.getByText(message)).toBeVisible()
       expect(
         screen.getByRole('button', { name: 'Register name' }),
       ).toBeDisabled()

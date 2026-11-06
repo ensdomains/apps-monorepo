@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Calendar, History } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { NameCopyButton } from '@/components/atoms/NameCopyButton/NameCopyButton'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -153,10 +154,13 @@ export const PrimaryNameCard = ({
             </ImageFallback.Root>
           </motion.div>
           <div className="flex min-h-0 min-w-0 flex-col justify-between gap-4 md:h-50">
-            <PrimaryNameNameplate
-              displayName={displayName}
-              isInGrace={isInGrace}
-            />
+            <div className="flex min-w-0 items-start gap-1">
+              <PrimaryNameNameplate
+                displayName={displayName}
+                isInGrace={isInGrace}
+              />
+              {primaryName ? <NameCopyButton name={primaryName} /> : null}
+            </div>
             <div className="flex flex-col gap-[8.5px]">
               <div className="flex items-center gap-2">
                 <Calendar

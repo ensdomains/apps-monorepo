@@ -1497,6 +1497,46 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
   })
 })
 
+// A reset mid-run makes the orchestrator refuse the run's next intent with `InvalidSignature()`.
+describe('signature rejection on failure', () => {
+  const eoaAccount = {
+    signer: { type: 'eoa', walletClient: {} as never },
+    accountAddress: EOA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    walletClient: { account: { address: EOA_ADDRESS } },
+    // Only the fields the start reads; the full context value isn't needed.
+  } as unknown as SmartAccountContextValue
+
+  const failWith = async (error: Error) => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, { type: 'FORCE_ERROR', error })
+    await flush()
+    return actor
+  }
+
+  it('flags a refused signature and clears the flag on retry', async () => {
+    const actor = await failWith(
+      new Error(
+        'Failed to submit transaction: Simulation failed: InvalidSignature()',
+      ),
+    )
+    expect(actor.getSnapshot().context.isSignatureRejected).toBe(true)
+
+    actor.send({ type: 'retry' })
+    await flush()
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+    expect(actor.getSnapshot().context.isSignatureRejected).toBe(false)
+  })
+
+  it('leaves other failures unflagged', async () => {
+    const actor = await failWith(new Error('rpc down'))
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(actor.getSnapshot().context.isSignatureRejected).toBe(false)
+  })
+})
+
 describe('registration referrer boundary', () => {
   it.each([
     ['0x1234', `0x${'0'.repeat(60)}1234`],
@@ -1641,6 +1681,22 @@ describe('paying with ETH', () => {
     expect(actor.getSnapshot().context).toMatchObject({
       paymentAsset: 'eth',
       selectedToken: 'USDC',
+    })
+    actor.stop()
+  })
+
+  it('forgets the pick when the sheet closes, so the next open starts from the fallback', () => {
+    const actor = startActorInTokens()
+    actor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' })
+
+    actor.send({ type: 'pricing.dialog.dismiss' })
+    actor.send({ type: 'pricing.step.next' })
+
+    expect(actor.getSnapshot().context).toMatchObject({
+      paymentAsset: 'stablecoin',
+      selectedToken: undefined,
+      fundingSourceChainId: undefined,
+      fundingSourceOrigin: undefined,
     })
     actor.stop()
   })

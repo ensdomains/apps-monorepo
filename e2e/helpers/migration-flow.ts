@@ -369,10 +369,13 @@ export const UPGRADE_OUTCOMES = {
   permissionMissing: /A permission is missing/i,
   planChanged: /Your permissions changed/i,
   subregistryConflict: /now has its own subname registry/i,
+  subnamesNotPreserved: /These subnames can.t be preserved yet/i,
   retryBlocked: /couldn.t safely retry/i,
+  walletOutOfEth: /needs more ETH for network fees/i,
   generic: /Upgrade details:/i,
 } as const
-export type UpgradeOutcome = keyof typeof UPGRADE_OUTCOMES
+/** `stuck`: no ending appeared before the deadline (a hang, not a refusal). */
+export type UpgradeOutcome = keyof typeof UPGRADE_OUTCOMES | 'stuck'
 
 /**
  * Click Upgrade, authorize whatever the wallet is asked, and return the first
@@ -435,7 +438,7 @@ export async function upgradeAndSettle(
     }
     if (!settled) await page.waitForTimeout(500)
   }
-  settled ??= 'generic'
+  settled ??= 'stuck'
   // Bounded: a send that fails at estimate is never answered by the wallet.
   await Promise.race([authorizing, page.waitForTimeout(5_000)])
   console.log(`[migration] outcome: ${settled}`)

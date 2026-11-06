@@ -77,7 +77,7 @@ describe('V1 renewal actors', () => {
 
     expect(request.to).toBe(TOKENS.USDC.address.toLowerCase())
     expect(decoded.functionName).toBe('approve')
-    expect(decoded.args).toEqual([V1_RENEWER, 1_100_000n])
+    expect(decoded.args).toEqual([V1_RENEWER, 1_020_000n])
   })
 
   it('targets ETHRenewerV1 with the shared flat renewal calldata', async () => {

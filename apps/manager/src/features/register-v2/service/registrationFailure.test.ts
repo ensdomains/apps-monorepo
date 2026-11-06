@@ -14,7 +14,9 @@ import { describe, expect, it } from 'vitest'
 import {
   getRegistrationFailureMessage,
   getRegistrationFailureReason,
+  isInvalidSignatureError,
   isNameNotAvailableError,
+  isSessionRevokedFailure,
 } from './registrationFailure'
 
 const REGISTRAR = '0xa88553F454b77203B0D036A05c894d555EAAa2Cc'
@@ -75,6 +77,81 @@ describe('isNameNotAvailableError', () => {
       isNameNotAvailableError(new Error('sent from 0x12477707e8aa5b0c')),
     ).toBe(false)
   })
+})
+
+// The SDK error from the reported failure, trimmed to the fields we read.
+const orchestratorRejection = (context: Record<string, unknown>) =>
+  Object.assign(new Error('Simulation failed'), {
+    errorType: 'Bad Request',
+    statusCode: 400,
+    context,
+  })
+
+describe('isInvalidSignatureError', () => {
+  it.each([
+    [
+      'the orchestrator error by its category',
+      orchestratorRejection({ category: 'INVALID_SIGNATURE' }),
+    ],
+    [
+      'the orchestrator error by its selector',
+      orchestratorRejection({ errorSelector: '0x8baa579f' }),
+    ],
+    [
+      'the submission error the transport wraps it in',
+      new TransactionSubmissionError(
+        { type: 'eoa', from: REGISTRAR, chainId: 11155111, to: REGISTRAR },
+        orchestratorRejection({ category: 'INVALID_SIGNATURE' }),
+      ),
+    ],
+    [
+      'a wrapper that only kept the text',
+      new Error('Registration failed', {
+        cause: new Error(
+          'Failed to submit transaction: Simulation failed: InvalidSignature()',
+        ),
+      }),
+    ],
+  ])('spots %s', (_, error) => {
+    expect(isInvalidSignatureError(error)).toBe(true)
+  })
+
+  it.each([
+    [
+      'another orchestrator category',
+      orchestratorRejection({ category: 'INSUFFICIENT_BALANCE' }),
+    ],
+    ['a plain failure', new Error('rpc down')],
+    [
+      'an address that starts with the selector digits',
+      new Error('sent from 0x8baa579f2c4e6a8b'),
+    ],
+    [
+      'a longer error name that ends the same way',
+      new Error('execution reverted: ECDSAInvalidSignature()'),
+    ],
+    ['no error', undefined],
+  ])('ignores %s', (_, error) => {
+    expect(isInvalidSignatureError(error)).toBe(false)
+  })
+})
+
+describe('isSessionRevokedFailure', () => {
+  it.each([
+    [true, true, true],
+    // A refused signature without a reset is some other policy failure.
+    [false, true, false],
+    // A reset, but the run failed for another reason.
+    [true, false, false],
+    [false, false, false],
+  ])(
+    'reset %s, signature refused %s → %s',
+    (wasSessionAccessReset, isSignatureRejected, expected) => {
+      expect(
+        isSessionRevokedFailure({ wasSessionAccessReset, isSignatureRejected }),
+      ).toBe(expected)
+    },
+  )
 })
 
 // The orchestrator's answer when no route can pay for the reveal: one code per

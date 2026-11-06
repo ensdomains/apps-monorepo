@@ -34,6 +34,15 @@ const renderCard = (
   return onContinue
 }
 
+/** What the card shows, leaving out placeholders hidden from assistive tech. */
+const shownText = () => {
+  const copy = document.body.cloneNode(true)
+  if (!(copy instanceof HTMLElement)) return ''
+  for (const hidden of copy.querySelectorAll('[aria-hidden="true"]'))
+    hidden.remove()
+  return copy.textContent ?? ''
+}
+
 describe('CheckoutSummaryCard', () => {
   it('shows the name cost, the existing balance and the total left to pay', () => {
     renderCard({
@@ -47,6 +56,42 @@ describe('CheckoutSummaryCard', () => {
     expect(screen.getByText('Name cost')).toBeVisible()
     expect(screen.getByText('-$3.00')).toBeVisible()
     expect(screen.queryByText('Total USD')).not.toBeInTheDocument()
+  })
+
+  const withBalance = {
+    nameCostRaw: 330_000_000n,
+    existingBalanceRaw: 3_000_000n,
+    totalRaw: 327_000_000n,
+  }
+
+  it.each([
+    ['the balance is read', { isTotalPending: true }],
+    ['the account is restored', { action: { kind: 'loading' } as const }],
+  ])(
+    'assumes no existing balance and shows no total while %s',
+    (_case, overrides) => {
+      renderCard({ summary: withBalance, ...overrides })
+
+      expect(screen.getByText('Total USD')).toBeVisible()
+      expect(screen.queryByText('Name cost')).not.toBeInTheDocument()
+      expect(shownText()).not.toContain('327.00')
+      expect(shownText()).not.toContain('330.00')
+    },
+  )
+
+  it('shows no total before the name is priced', () => {
+    renderCard({ summary: undefined, isLoading: true })
+
+    expect(shownText()).not.toContain('0.00')
+  })
+
+  it('waits with a disabled Loading button while the account is restored', () => {
+    const onContinue = renderCard({ action: { kind: 'loading' } })
+
+    const button = screen.getByRole('button', { name: 'Loading...' })
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(onContinue).not.toHaveBeenCalled()
   })
 
   it('blocks the way to payment when no balance covers the total', () => {
