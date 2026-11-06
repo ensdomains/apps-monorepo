@@ -65,7 +65,7 @@ export const batches: Batch[] = [
     merged: true,
   },
   { id: 'B2', title: 'CCIP / offchain: the rest', pr: 1729, merged: true },
-  { id: 'B3', title: 'Migration: the tests that pass on main (B3a)' },
+  { id: 'B3', title: 'Migration: the tests that pass on main (B3a)', pr: 1744 },
   {
     id: 'B3b',
     title:
