@@ -17,6 +17,7 @@ import {
   SuccessStep,
   useRegistrationV2Context,
 } from '@/features/register-v2'
+import { isAddressLikeLabel } from '@/features/search/isAddressLikeLabel'
 import { useRegistrationFlowController } from '@/features/weave-registration'
 
 export const Route = createFileRoute('/register/$name')({
@@ -70,6 +71,13 @@ export const Route = createFileRoute('/register/$name')({
         to: '/$name',
         params: { name: normalizedName },
       })
+    }
+
+    // Free names that read like a wallet address are a scam vector: they get
+    // passed off as the address and resolve elsewhere. Checked after
+    // availability so an owned one still opens its profile.
+    if (isAddressLikeLabel(label)) {
+      return { fallback: 'address-like' as const, label: '' }
     }
 
     return {

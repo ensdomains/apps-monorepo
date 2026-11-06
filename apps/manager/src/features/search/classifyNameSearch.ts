@@ -1,4 +1,5 @@
 import { match } from 'ts-pattern'
+import { isAddressLikeLabel } from './isAddressLikeLabel'
 import type {
   AvailabilitySignal,
   ExistenceSignal,
@@ -56,10 +57,15 @@ export const classifyNameSearch = ({
           type: 'loading' as const,
           name: eth2ld.name,
         }))
-        .with({ status: 'available' }, () => ({
-          type: 'available' as const,
-          name: eth2ld.name,
-        }))
+        .with({ status: 'available' }, () =>
+          isAddressLikeLabel(eth2ld.label)
+            ? {
+                type: 'invalid' as const,
+                name: eth2ld.name,
+                reason: 'address-like' as const,
+              }
+            : { type: 'available' as const, name: eth2ld.name },
+        )
         .with({ status: 'unavailable' }, () => ({
           type: 'owned' as const,
           name: eth2ld.name,
