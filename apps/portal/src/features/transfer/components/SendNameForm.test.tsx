@@ -17,6 +17,14 @@ vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
   TransactionModal: () => null,
 }))
 
+// Role holders render as entity badges, whose links need a router.
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  Link: ({ children }: { readonly children: React.ReactNode }) => (
+    <a href="/">{children}</a>
+  ),
+}))
+
 const OWNER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const REGISTRY = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
 
@@ -479,12 +487,14 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
     expect(screen.getByText(/Set Resolver/)).toBeInTheDocument()
   })
 
-  // Shortened, a delegate's address can pass for the recipient's.
-  it('shows the delegate’s full address', async () => {
+  // Shortened on screen, so the full address has to be one click away.
+  it('copies the delegate’s full address', async () => {
     renderWithRoles(ONE_DELEGATE)
-    await enterRecipient()
+    const user = await enterRecipient()
 
-    expect(await screen.findByText(DELEGATE)).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Copy' }))
+
+    expect(await navigator.clipboard.readText()).toBe(DELEGATE)
   })
 
   // Unheaded, "Set Resolver" reads as something the transfer will set.
