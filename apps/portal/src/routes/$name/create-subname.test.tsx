@@ -99,11 +99,13 @@ vi.mock('@/features/roles/hooks/useNameRolesForAccount', () => ({
   }),
 }))
 
+/** Whether the creation transaction has gone through. */
+let isCreated = false
 vi.mock('@/features/registry/hooks/useCreateSubname', () => ({
   useCreateSubname: () => ({
     createSubname: vi.fn(),
     isPending: false,
-    isSuccess: false,
+    isSuccess: isCreated,
   }),
 }))
 vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
@@ -130,12 +132,17 @@ const CreateSubnameRoute = (
   Route as unknown as { component: () => React.ReactElement }
 ).component
 
-const renderRoute = () =>
-  render(
-    <QueryClientProvider client={createTestQueryClient()}>
-      <CreateSubnameRoute />
-    </QueryClientProvider>,
-  )
+const renderRoute = () => {
+  const queryClient = createTestQueryClient()
+  return {
+    queryClient,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <CreateSubnameRoute />
+      </QueryClientProvider>,
+    ),
+  }
+}
 
 const v1 = (overrides: Record<string, unknown> = {}) => {
   protocolVersion = 'ENSv1'
@@ -156,6 +163,7 @@ beforeEach(() => {
   labelLookupCalls.mockReset()
   rootRoles = []
   rootRoleReads.mockReset()
+  isCreated = false
 })
 
 it.each([
@@ -361,6 +369,27 @@ describe('create subname under a V2 parent', () => {
       await screen.findByText('sub.parent.eth is already registered.'),
     ).toBeInTheDocument()
     expect(submit()).toBeDisabled()
+  })
+
+  it('doesn’t call the subname it just created taken', async () => {
+    rootRoles = ['ROLE_REGISTRAR']
+    labelLookup = 'available'
+    const { queryClient } = renderRoute()
+    await typeLabel()
+    await waitFor(() => expect(submit()).toBeEnabled())
+
+    isCreated = true
+    labelLookup = 'registered'
+    await queryClient.invalidateQueries()
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Transaction Complete' }),
+      ).toBeDisabled(),
+    )
+    expect(
+      screen.queryByText('sub.parent.eth is already registered.'),
+    ).toBeNull()
   })
 })
 
