@@ -22,7 +22,6 @@ const icons: Partial<Record<CoinType, string>> = {
   [coinNameToTypeMap.linea]: '/icons/linea.svg',
   [coinNameToTypeMap.scr]: '/icons/scroll.svg',
   [coinNameToTypeMap.mantle]: '/icons/mantle.svg',
-  [coinNameToTypeMap.bnb]: '/icons/bnb.svg',
 
   // non-EVM
   [coinNameToTypeMap.btc]: '/icons/btc.svg',

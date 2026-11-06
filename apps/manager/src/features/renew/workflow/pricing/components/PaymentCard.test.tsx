@@ -122,6 +122,18 @@ describe('renewal PaymentCard (ENSv2)', () => {
     ).toBeEnabled()
   })
 
+  it.each([
+    ['before the wallet is known', null, true],
+    ['for a plain wallet or Safe', { type: 'eoa' }, false],
+  ])('lists ETH as accepted %s: %s', (_case, signer, isListed) => {
+    mocks.isConnected = signer !== null
+    mocks.useRenewalSigner.mockReturnValue(signer)
+
+    renderCard()
+
+    expect(screen.queryByAltText('ETH') !== null).toBe(isListed)
+  })
+
   it('accepts ETH for a V1 renewal paid from the smart account', () => {
     mocks.protocol = 'v1'
     mocks.useRenewalSigner.mockReturnValue({ type: 'rhinestone' })
