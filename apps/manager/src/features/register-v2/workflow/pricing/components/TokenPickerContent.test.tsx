@@ -1203,6 +1203,30 @@ describe('TokenPickerContentBase L2 rows', () => {
     selectedChainId: number | undefined = undefined,
   ) => l2PaymentOf([row], selectedChainId)
 
+  it('keeps the fallback estimate when the selected L2 was quoted for the previous budget', () => {
+    renderPicker({
+      hasBudgetQuoteFailed: true,
+      selectedToken: 'USDC',
+      pricingData: 1.4,
+      estimatedFunding: {
+        registration: 1.4,
+        networkFee: 10,
+        total: 11.4,
+        walletDebit: 11.4,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      checkoutReceipt: { totalRaw: 1_400_000n },
+      l2Payment: l2Payment(
+        baseSepoliaRow('available', { amountInRaw: 5_012_573n }),
+        baseSepolia.id,
+      ),
+    })
+
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('$10.00')
+    expect(receiptRow('You pay')).toHaveTextContent('$11.40')
+  })
+
   const shortL2Payment = () => {
     const shortRow = baseSepoliaRow('insufficient')
     return l2Payment({
@@ -1680,6 +1704,30 @@ describe('TokenPickerContentBase ETH row', () => {
     isSelected,
     onSelect: vi.fn(),
     onFallbackSelect: vi.fn(),
+  })
+
+  it('keeps the fallback estimate when the selected ETH swap was quoted for the previous budget', () => {
+    renderPicker({
+      hasBudgetQuoteFailed: true,
+      selectedToken: 'USDC',
+      pricingData: 1.4,
+      estimatedFunding: {
+        registration: 1.4,
+        networkFee: 10,
+        total: 11.4,
+        walletDebit: 11.4,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      checkoutReceipt: { totalRaw: 1_400_000n },
+      ethPayment: ethPaymentOf(
+        { ethUsdRaw: 200_000_000_000n, gasReserveRaw: 10n ** 15n },
+        true,
+      ),
+    })
+
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('$10.00')
+    expect(receiptRow('You pay')).toHaveTextContent('$11.40')
   })
 
   it('lists ETH next to a wallet that cannot pay, and selects it on click', () => {

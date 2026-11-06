@@ -844,6 +844,14 @@ const getShownFunding = (
     ? getL2FundingSummary(funding, selectedL2.amountInRaw)
     : funding
 
+/** A failed quote's estimate stands alone: the L2 and ETH quotes were sized for the previous budget. */
+const getReceiptQuotes = (
+  hasBudgetQuoteFailed: boolean,
+  selectedL2: L2PaymentRow | undefined,
+  selectedEth: EthPaymentRow | undefined,
+): { readonly l2?: L2PaymentRow; readonly eth?: EthPaymentRow } =>
+  hasBudgetQuoteFailed ? {} : { l2: selectedL2, eth: selectedEth }
+
 /** Highest L2 balance first; an unread balance goes last. */
 const byBalanceDescending = (a: L2PaymentRow, b: L2PaymentRow) => {
   const left = a.option.balanceRaw ?? -1n
@@ -1229,7 +1237,12 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   const receiptFunding = match(hasBudgetQuoteFailed)
     .with(true, () => estimatedFunding)
     .otherwise(() => funding)
-  const shownFunding = getShownFunding(receiptFunding, selectedL2)
+  const receiptQuotes = getReceiptQuotes(
+    hasBudgetQuoteFailed,
+    selectedL2,
+    selectedEth,
+  )
+  const shownFunding = getShownFunding(receiptFunding, receiptQuotes.l2)
   const displayedNetworkFee = receiptFunding
     ? getPaymentBreakdownFigures(receiptFunding).networkFee
     : undefined
@@ -1495,8 +1508,10 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           />
         ) : (
           <NetworkFeeReceipt
-            ethDebit={selectedEth && getEthPaymentDebit(selectedEth)}
-            extraFeeRaw={getEthSwapGasUsdcRaw(selectedEth)}
+            ethDebit={
+              receiptQuotes.eth && getEthPaymentDebit(receiptQuotes.eth)
+            }
+            extraFeeRaw={getEthSwapGasUsdcRaw(receiptQuotes.eth)}
             networkFee={shownFunding?.networkFee}
             state={receiptState}
             totalLabel={checkoutReceipt.totalLabel}
