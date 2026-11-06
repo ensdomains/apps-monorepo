@@ -1405,8 +1405,9 @@ async function showOverview(dialog: Locator) {
 
 /**
  * Opens the registration modal for `name` with USDC and presses Start. The
- * wallet's resolver already exists, so the commitment is the first send: it
- * fails transiently, and the automatic resubmission is authorized and lands.
+ * wallet's resolver already exists, so the ETH address is the first send and
+ * lands; the commitment's first send then fails transiently, and the automatic
+ * resubmission is authorized and lands.
  */
 async function startWithResubmittedCommit(
   page: Page,
@@ -1427,6 +1428,14 @@ async function startWithResubmittedCommit(
   await expect(overviewRow(dialog, 'Deploy resolver')).toHaveCount(0)
   await dialog.getByRole('button', { name: /^Start$/i }).click()
   await dialog.getByRole('button', { name: /open wallet/i }).click()
+
+  await waitForWalletPrompt(wallet)
+  await wallet.authorize(Web3RequestKind.SendTransaction)
+  await expect
+    .poll(() => states.includes('tx-reg-set-eth-address:success'), {
+      timeout: 60_000,
+    })
+    .toBe(true)
 
   // The commitment's first send fails; the machine resubmits on its own.
   await failSendTransiently(wallet)
@@ -1935,11 +1944,17 @@ test.describe('Portal registration — one resolver per wallet (WEB-1572)', () =
     const dialog = await openRegistrationOverview(page)
     await expect(overviewRow(dialog, 'Deploy resolver')).toHaveCount(0)
 
-    // With no deploy step, Start must open the commitment itself.
+    // With no deploy step, Start must open the ETH address itself, then the commitment.
     await startAndFinish(dialog, wallet, states)
-    expect(states[0], 'the run’s first transaction is the commitment').toMatch(
-      /^tx-reg-commit:/,
+    expect(states[0], 'the run’s first transaction is the ETH address').toMatch(
+      /^tx-reg-set-eth-address:/,
     )
+    const ethAddressLanded = states.indexOf('tx-reg-set-eth-address:success')
+    expect(ethAddressLanded, 'the ETH address lands').toBeGreaterThanOrEqual(0)
+    expect(
+      states.findIndex((s) => s.startsWith('tx-reg-commit:')),
+      'the commitment follows the ETH address',
+    ).toBeGreaterThan(ethAddressLanded)
     expect(
       states.filter((s) => s.startsWith('tx-reg-deploy-resolver:')),
     ).toEqual([])
@@ -1971,8 +1986,8 @@ test.describe('Portal registration — one resolver per wallet (WEB-1572)', () =
     await connectWithHeadlessWallet(page, wallet)
     const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
 
-    // Deploy lands; the page is reloaded while the commit is still waiting
-    // for the wallet, so nothing of the run but the resolver is on chain.
+    // Deploy and ETH address land; the page is reloaded while the commit is
+    // still waiting for the wallet, so the commitment never reaches the chain.
     let dialog = await openRegistrationOverview(page)
     await expect(overviewRow(dialog, 'Deploy resolver')).toBeVisible()
     await dialog.getByRole('button', { name: 'Start', exact: true }).click()
@@ -1984,6 +1999,14 @@ test.describe('Portal registration — one resolver per wallet (WEB-1572)', () =
         timeout: 60_000,
       })
       .toBe(true)
+    await waitForWalletPrompt(wallet)
+    await wallet.authorize(Web3RequestKind.SendTransaction)
+    await expect
+      .poll(() => states.includes('tx-reg-set-eth-address:success'), {
+        timeout: 60_000,
+      })
+      .toBe(true)
+    await waitForWalletPrompt(wallet) // the commit
     const deploys = (await minedRegistrationSends(owner, fromBlock)).deploy
     expect(deploys).toHaveLength(1)
     const resolver = await deployedProxy(deploys[0])
@@ -1998,11 +2021,14 @@ test.describe('Portal registration — one resolver per wallet (WEB-1572)', () =
     states.length = 0
 
     // The page reopens the unfinished run's modal on its own. The restarted
-    // run finds the resolver and goes straight to the commit.
+    // run finds the resolver, sets the ETH address again and goes on to the commit.
     dialog = page.locator('[data-slot="dialog-content"]')
     await expect(dialog.getByText('Transaction overview')).toBeVisible({
       timeout: 30_000,
     })
+    await expect(overviewRow(dialog, 'Set ETH address')).toContainText(
+      'Not Started',
+    )
     await expect(overviewRow(dialog, 'Submit commitment')).toContainText(
       'Not Started',
     )
