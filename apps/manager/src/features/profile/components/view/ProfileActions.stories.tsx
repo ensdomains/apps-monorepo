@@ -27,7 +27,7 @@ const meta = {
   decorators: [
     (Story) => (
       <QueryClientProvider client={withExpiry(IN_A_YEAR)}>
-        <div className="min-h-[400px]">
+        <div className="min-h-100">
           <Story />
         </div>
       </QueryClientProvider>
