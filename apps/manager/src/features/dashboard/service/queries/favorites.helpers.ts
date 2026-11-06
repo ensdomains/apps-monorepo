@@ -1,17 +1,5 @@
-import {
-  type LookupResult,
-  toDate,
-  toProtocol,
-} from '@ens-apps/indexer/bigname'
-import { match, P } from 'ts-pattern'
-import { getServedExpiryStatus } from '@/features/grace/utils/gracePeriod'
-import {
-  canRenewV2Name,
-  resolveRenewalLabel,
-} from '@/features/renew/utils/renewableName'
-import { getSearchNameKind } from '@/features/search/getSearchNameKind'
+import { type LookupResult, toProtocol } from '@ens-apps/indexer/bigname'
 import type { NameVersion, SortDir } from '../../mergedNames'
-import { formatDashboardDate, NON_EXPIRING_DATE_LABEL } from '../../utils'
 import type { FavoriteEntry as ApiFavoriteEntry } from './getFavorites'
 
 export type FavoriteEntry = {
@@ -89,106 +77,33 @@ export const filterFavoritesByVersion = (
     ? favorites
     : favorites.filter(({ label }) => versions.get(label) === version)
 
-export type FavoriteMetadata = {
-  readonly protocol: NameVersion | null
-  readonly expiryDate: Date | null
-  readonly expiryLabel: string | null
-  readonly isInGrace: boolean
-  readonly lifecycle: 'expired' | 'unregistered' | 'unknown' | null
-}
-
-export const getFavoriteMetadata = (
+export const getIndexedFavoriteVersions = (
   results: readonly LookupResult[],
-  now: Date,
-): ReadonlyMap<string, FavoriteMetadata> =>
+): ReadonlyMap<string, NameVersion> =>
   new Map(
-    results.flatMap<readonly [string, FavoriteMetadata]>((result) => {
-      if (!('name' in result.input)) return []
+    results.flatMap((result) => {
       if (
+        !('name' in result.input) ||
         result.status !== 'ok' ||
-        !result.record ||
-        result.record.read_status !== 'ok'
-      ) {
-        return [
-          [
-            result.input.name,
-            {
-              protocol: null,
-              expiryDate: null,
-              expiryLabel: null,
-              isInGrace: false,
-              lifecycle: 'unknown',
-            },
-          ] as const,
-        ]
-      }
-      const record = result.record
-      // A V1 reservation's top-level expiry belongs to V2; show its V1 lease.
-      const expiry = toDate(record.ens_v1?.expires_at ?? record.expires_at)
-      const { displayExpiryDate, isInGrace } = getServedExpiryStatus(
-        expiry,
-        toDate(record.grace_ends_at),
-        now,
+        result.record?.read_status !== 'ok'
       )
-      const lifecycle = match({
-        status: record.status,
-        releaseKind: record.lapsed_registration?.release_kind,
-        hasExpired: expiry !== null && now >= expiry,
-        isInGrace,
-      })
-        .returnType<FavoriteMetadata['lifecycle']>()
-        .with({ status: 'unregistered' }, () => 'unregistered')
-        .with({ status: 'released', releaseKind: 'expired' }, () => 'expired')
-        .with({ status: 'released', hasExpired: true }, () => 'expired')
-        .with({ status: 'released' }, () => 'unregistered')
-        .with({ isInGrace: true }, () => null)
-        .with(
-          P.union({ status: 'expired' }, { hasExpired: true }),
-          () => 'expired',
-        )
-        .otherwise(() => null)
-      return [
-        [
-          result.input.name,
-          {
-            protocol: toProtocol(record.authority),
-            expiryDate: expiry,
-            expiryLabel: match({
-              displayExpiryDate:
-                lifecycle === 'expired' ? expiry : displayExpiryDate,
-              lifecycle,
-              reason: record.expires_at_reason,
-            })
-              .with({ lifecycle: 'unregistered' }, () => null)
-              .with(
-                { displayExpiryDate: P.instanceOf(Date) },
-                ({ displayExpiryDate }) =>
-                  formatDashboardDate(displayExpiryDate),
-              )
-              .with(
-                { lifecycle: null, reason: 'no_expiry' },
-                () => NON_EXPIRING_DATE_LABEL,
-              )
-              .otherwise(() => null),
-            isInGrace: lifecycle === null && isInGrace,
-            lifecycle,
-          },
-        ] as const,
-      ]
+        return []
+      const protocol = toProtocol(result.record.authority)
+      return protocol ? [[result.input.name, protocol] as const] : []
     }),
   )
 
 export const getFavoriteVersionFallbacks = (
   favorites: readonly FavoriteEntry[],
-  metadata: ReadonlyMap<string, FavoriteMetadata>,
+  indexedVersions: ReadonlyMap<string, NameVersion>,
   pendingNames: ReadonlySet<string>,
 ): readonly FavoriteEntry[] =>
   favorites.filter(
-    ({ label }) => !pendingNames.has(label) && !metadata.get(label)?.protocol,
+    ({ label }) => !pendingNames.has(label) && !indexedVersions.has(label),
   )
 
 export const getFavoriteVersions = (
-  metadata: ReadonlyMap<string, FavoriteMetadata>,
+  indexedVersions: ReadonlyMap<string, NameVersion>,
   fallbacks: readonly {
     readonly name: string
     readonly protocol?: NameVersion
@@ -196,9 +111,7 @@ export const getFavoriteVersions = (
 ): ReadonlyMap<string, NameVersion | undefined> =>
   new Map([
     ...fallbacks.map(({ name, protocol }) => [name, protocol] as const),
-    ...[...metadata].flatMap(([name, { protocol }]) =>
-      protocol ? [[name, protocol] as const] : [],
-    ),
+    ...indexedVersions,
   ])
 
 const LOOKUP_BATCH_SIZE = 1000
@@ -211,28 +124,6 @@ export const getFavoriteLookupBatches = (
     (_, index) =>
       names.slice(index * LOOKUP_BATCH_SIZE, (index + 1) * LOOKUP_BATCH_SIZE),
   )
-
-export const shouldCheckFavoriteV1Renewal = (
-  name: string,
-  protocol: NameVersion | undefined,
-): boolean => protocol === 'v1' && resolveRenewalLabel(name).isOk()
-
-export const canRenewFavorite = (
-  name: string,
-  protocol: NameVersion | undefined,
-  expiryDate: Date | null | undefined,
-  isV1Renewable: boolean,
-  now: Date,
-  lifecycle?: FavoriteMetadata['lifecycle'],
-): boolean =>
-  match({ protocol, lifecycle })
-    .with({ lifecycle: 'unregistered' }, () => false)
-    .with(
-      { protocol: 'v1' },
-      () => shouldCheckFavoriteV1Renewal(name, protocol) && isV1Renewable,
-    )
-    .with({ protocol: 'v2' }, () => canRenewV2Name(name, expiryDate, now))
-    .otherwise(() => false)
 
 export const getFavoriteResolutionState = (
   favorites: readonly FavoriteEntry[],
@@ -251,24 +142,3 @@ export const getFavoriteResolutionState = (
     isError: favorites.some(({ label }) => reads.get(label)?.isError),
   }
 }
-
-export const getFavoriteAvailabilityCta = (
-  name: string,
-  lifecycle: FavoriteMetadata['lifecycle'] | undefined,
-): 'checkAvailability' | null =>
-  lifecycle != null && getSearchNameKind(name).type === 'eth-2ld'
-    ? 'checkAvailability'
-    : null
-
-export const shouldCheckFavoriteV2Expiry = (
-  name: string,
-  protocol: NameVersion | undefined,
-  metadata:
-    | Pick<FavoriteMetadata, 'expiryDate' | 'expiryLabel' | 'lifecycle'>
-    | undefined,
-): boolean =>
-  protocol === 'v2' &&
-  resolveRenewalLabel(name).isOk() &&
-  metadata?.expiryDate == null &&
-  metadata?.expiryLabel !== NON_EXPIRING_DATE_LABEL &&
-  metadata?.lifecycle !== 'unregistered'

@@ -5,37 +5,27 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
-import {
-  profileExpiryDateFromSeconds,
-  profileExpiryQuery,
-} from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
-import { getV1RenewableQueryOptions } from '@/features/renew/data/queries/v1Renewable.query'
 import type { NameVersion, SortDir } from '../mergedNames'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
-  canRenewFavorite,
-  type FavoriteMetadata,
   filterFavoritesBySearch,
   filterFavoritesByVersion,
-  getFavoriteAvailabilityCta,
   getFavoriteLookupBatches,
-  getFavoriteMetadata,
   getFavoriteResolutionState,
   getFavoriteVersionFallbacks,
   getFavoriteVersions,
+  getIndexedFavoriteVersions,
   paginateFavorites,
-  shouldCheckFavoriteV1Renewal,
-  shouldCheckFavoriteV2Expiry,
   sortFavorites,
   toLocalEntry,
 } from '../service/queries/favorites.helpers'
+import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import {
   favoriteReadOptions,
-  getFavoriteDetailsQueryOptions,
-} from '../service/queries/getFavoriteDetails'
-import { favoritesQueryOptions } from '../service/queries/getFavorites'
+  getFavoriteVersionsQueryOptions,
+} from '../service/queries/getFavoriteVersions'
 import { DashboardPagination } from './DashboardPagination'
 import { NameRow } from './NameRow'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
@@ -69,15 +59,11 @@ const parseSort = (
 
 const FavoriteNameRow = ({
   label,
-  metadata,
-  protocol,
   profileRecords,
   isProfileRecordsLoading,
   onToggleFavorite,
 }: {
   readonly label: string
-  readonly protocol?: NameVersion
-  readonly metadata?: FavoriteMetadata
   readonly profileRecords?: Pick<ProfileRecordsResult, 'texts'> | null
   readonly isProfileRecordsLoading: boolean
   readonly onToggleFavorite: () => void
@@ -88,48 +74,15 @@ const FavoriteNameRow = ({
     isLoading: isProfileRecordsLoading,
   })
 
-  const [isOptionsOpen, setIsOptionsOpen] = useState(false)
-  useQuery({
-    ...profileOwnerQuery(label),
-    ...favoriteReadOptions,
-    enabled: isOptionsOpen && protocol === undefined,
-  })
-  const v1Renewable = useQuery({
-    ...getV1RenewableQueryOptions(label),
-    ...favoriteReadOptions,
-    enabled: isOptionsOpen && shouldCheckFavoriteV1Renewal(label, protocol),
-  })
-  const v2Expiry = useQuery({
-    ...profileExpiryQuery(label, 'v2'),
-    ...favoriteReadOptions,
-    select: ({ expiry }) => profileExpiryDateFromSeconds(expiry),
-    enabled:
-      isOptionsOpen && shouldCheckFavoriteV2Expiry(label, protocol, metadata),
-  })
-
   return (
     <NameRow
       avatarPending={preview.isAvatarPending}
       avatarRecord={preview.avatarRecord}
-      canRenew={canRenewFavorite(
-        label,
-        protocol,
-        metadata?.expiryDate ?? v2Expiry.data,
-        v1Renewable.data === true,
-        new Date(),
-        metadata?.lifecycle,
-      )}
-      cta={getFavoriteAvailabilityCta(label, metadata?.lifecycle)}
-      expiryLabel={metadata?.expiryLabel}
       isAuthenticated
       isFavorite
-      isInGrace={metadata?.isInGrace}
       label={label}
-      onOptionsOpenChange={setIsOptionsOpen}
       onToggleFavorite={onToggleFavorite}
-      renewalProtocol={protocol}
       showFavoriteButton
-      status={metadata?.lifecycle ?? (protocol === 'v1' ? 'ensv1' : null)}
       themeColor={preview.themeColor}
     />
   )
@@ -169,22 +122,22 @@ export const FavoritesList = ({
     favorites.map(({ label }) => label),
   )
   const lookupQueries = useQueries({
-    queries: lookupBatches.map(getFavoriteDetailsQueryOptions),
+    queries: lookupBatches.map((names) => ({
+      ...getFavoriteVersionsQueryOptions(names),
+      enabled: version !== null,
+    })),
   })
-  const metadata = getFavoriteMetadata(
+  const indexedVersions = getIndexedFavoriteVersions(
     lookupQueries.flatMap((query) => query.data ?? []),
-    new Date(),
   )
   const pendingNames = new Set(
     lookupQueries.flatMap((query, index) =>
       query.isPending ? (lookupBatches[index] ?? []) : [],
     ),
   )
-  // Disabled observers retain cached versions when the filter clears.
-  // Fetch missing versions only when the user filters or opens a row menu.
   const versionFallbacks = getFavoriteVersionFallbacks(
     searchedFavorites,
-    metadata,
+    indexedVersions,
     pendingNames,
   )
   const versionQueries = useQueries({
@@ -206,8 +159,8 @@ export const FavoritesList = ({
     fallbackReads,
   )
   const isVersionPending = version !== null && resolution.isPending
-  const isVersionError = resolution.isError
-  const versions = getFavoriteVersions(metadata, fallbackReads)
+  const isVersionError = version !== null && resolution.isError
+  const versions = getFavoriteVersions(indexedVersions, fallbackReads)
 
   const sortedFiltered = sortFavorites(
     filterFavoritesByVersion(searchedFavorites, version, versions),
@@ -336,10 +289,8 @@ export const FavoritesList = ({
                     pageProfileRecords[index]?.isLoading ?? false
                   }
                   label={fav.label}
-                  metadata={metadata.get(fav.label)}
                   onToggleFavorite={() => toggleFavorite(fav.label)}
                   profileRecords={pageProfileRecords[index]?.records}
-                  protocol={versions.get(fav.label)}
                 />
               </motion.div>
             )),
