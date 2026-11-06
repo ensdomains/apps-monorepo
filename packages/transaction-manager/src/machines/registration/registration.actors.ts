@@ -83,16 +83,16 @@ const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
 
 /**
  * The ERC-20 amount to approve for a single EOA registration/renewal at
- * `price`. Deliberately NOT unlimited: the registrar pulls the live rent price
+ * `price`. Deliberately NOT unlimited: the registrar pulls the live price
  * (no max-price arg), which can drift slightly between quote and execution; we
- * add 10% headroom to absorb that while keeping the allowance tightly scoped.
+ * add 2% headroom to absorb that while keeping the allowance tightly scoped.
  *
  * (Used on the pure-EOA `approve` path — the HCA path funds via permit. Also
  * used to size the HCA's own `approve`, and therefore the funding that has to
  * cover it, on the renewal intent route.)
  */
 export function authorizedPaymentAmount(price: bigint): bigint {
-  return price + price / 10n
+  return price + price / 50n
 }
 
 // ============================================================================
@@ -1388,7 +1388,7 @@ export function submitRegistrationActor(input: {
         `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
       )
 
-      // Validate the token against the registrar's *actual* rent price oracle
+      // Validate the token against the registrar's *actual* price oracle
       // (see `assertPaymentTokenSupported` for why the registrar itself can't
       // be queried directly).
       await assertPaymentTokenSupported(
@@ -1483,7 +1483,7 @@ export function pollTransactionStatusActor(input: {
 // Renewal Actor Functions
 // ============================================================================
 //
-// `ETHRegistrar.renew((label, duration, referrer), paymentToken)` pulls the rent
+// `ETHRegistrar.renew((label, duration, referrer), paymentToken)` pulls the price
 // from `msg.sender` (see AbstractETHRegistrar.renew) — raw `msg.sender`, with no
 // HCA unwrap. So the payer is whoever executes the call: the connected EOA on
 // the direct-wallet route, or the user's own HCA when the renewal runs as an
@@ -1531,7 +1531,7 @@ export interface RenewDataEntry {
 /**
  * Encode `renewBatch(RenewData[], paymentToken)` calldata.
  *
- * `renewBatch` renews every entry and pulls the SUMMED rent once from
+ * `renewBatch` renews every entry and pulls the SUMMED price once from
  * `msg.sender`, which is what makes a whole selection payable in one intent —
  * one permit, one approval, one fee. `ensjs-abi` has no snippet for it yet.
  */
@@ -1559,7 +1559,12 @@ export function encodeRenewBatchData(
  * The renewal payer is the EOA — both because the EOA is `msg.sender` here and
  * because the registrar's HCA-aware `_msgSender()` resolves to the EOA anyway.
  */
-export function submitRenewActor(input: {
+export function submitRenewActor({
+  label,
+  duration,
+  referrer,
+  ...input
+}: {
   label: string
   duration: bigint
   readonly referrer?: Hex
@@ -1569,6 +1574,28 @@ export function submitRenewActor(input: {
   renewerAddress?: Address
   id?: string
 }): ResultAsync<string, Error> {
+  return submitRenewBatchActor({
+    ...input,
+    renewals: [{ label, duration, referrer }],
+  })
+}
+
+/**
+ * Submit the renewal of several names as one wallet transaction: one name
+ * renews directly, several go in one `renewBatch`, which pulls the summed rent
+ * once. The allowance must already cover the batch.
+ */
+export function submitRenewBatchActor(input: {
+  readonly renewals: readonly RenewDataEntry[]
+  selectedToken: TOKEN_SYMBOL
+  signer: Signer
+  publicClient: PublicClient
+  renewerAddress?: Address
+  id?: string
+}): ResultAsync<string, Error> {
+  const [first, ...rest] = input.renewals
+  if (!first) return errAsync(new Error('A renewal needs at least one name.'))
+  const single = rest.length === 0 ? first : undefined
   // Renewal is NOT an HCA flow — it is a plain wallet transaction against the
   // selected canonical renewer. V2 callers keep the ETHRegistrar default;
   // unmigrated V1 names explicitly target ETHRenewerV1.
@@ -1599,12 +1626,14 @@ export function submitRenewActor(input: {
         normalizedPaymentToken,
       )
 
-      const renewData = encodeRenewData(
-        input.label,
-        input.duration,
-        normalizedPaymentToken,
-        input.referrer,
-      )
+      const renewData = single
+        ? encodeRenewData(
+            single.label,
+            single.duration,
+            normalizedPaymentToken,
+            single.referrer,
+          )
+        : encodeRenewBatchData(input.renewals, normalizedPaymentToken)
 
       const request = createTransactionRequest({
         signer: input.signer,
@@ -1618,7 +1647,9 @@ export function submitRenewActor(input: {
         input.signer,
         {
           id: input.id,
-          description: `Renew ${input.label}.eth`,
+          description: single
+            ? `Renew ${single.label}.eth`
+            : `Renew ${input.renewals.length} names`,
           publicClient: input.publicClient,
           timeout: 120_000,
         },

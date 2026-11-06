@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import type { Address } from 'viem'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -11,6 +12,7 @@ import { ResolverCollectionNotice } from '@/features/resolver/components/Resolve
 import { ResolverRolesTable } from '@/features/resolver/components/ResolverRolesTable'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 /**
  * Read-only resolver roles for a name's resolver, for embedding on a name page.
@@ -87,19 +89,24 @@ const ResolverRolesOverview = ({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <h3 className="text-caps leading-none min-w-0 break-words">
-          {name} resolver / roles
-        </h3>
-        <Button className="text-muted-foreground" variant="ghost" asChild>
-          <Link
-            params={{ address: resolverAddress }}
-            to="/resolver/$address/roles"
-          >
-            <ArrowUpRight className="size-5" />
-            View and manage
-          </Link>
-        </Button>
+      <div className="flex flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <h3 className="text-caps leading-none min-w-0 break-words">
+            {name} resolver / roles
+          </h3>
+          <Button className="text-muted-foreground" variant="ghost" asChild>
+            <Link
+              params={{ address: resolverAddress }}
+              to="/resolver/$address/roles"
+            >
+              <ArrowUpRight className="size-5" />
+              View and manage
+            </Link>
+          </Button>
+        </div>
+        <EntityBadge variant="contract" address={resolverAddress}>
+          {truncateAddress(resolverAddress)}
+        </EntityBadge>
       </div>
       <ResolverCollectionNotice
         collection="roles"

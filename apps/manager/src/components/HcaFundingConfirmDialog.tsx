@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { useLastShown } from '@/hooks/useLastShown'
 
 /** An amount in a token's own units, e.g. `0.905736 USDC`. */
 type TokenAmount = {
@@ -70,10 +71,13 @@ interface HcaFundingConfirmDialogProps {
   readonly prompt: HcaFundingPrompt | null
   /** What the payment is for. */
   readonly title: ReactNode
-  /** What the payment buys; the dialog adds how the wallet authorizes it. */
-  readonly description: ReactNode
+  /**
+   * What the payment buys; the dialog adds how the wallet authorizes it.
+   * Built from the prompt on screen, which outlives `prompt` while closing.
+   */
+  readonly description: (prompt: HcaFundingPrompt) => ReactNode
   /** What the action costs, before what the account already holds. */
-  readonly lines?: readonly HcaFundingLine[]
+  readonly lines?: (prompt: HcaFundingPrompt) => readonly HcaFundingLine[]
   /** Anything else the user needs to know to judge the figure. */
   readonly note?: ReactNode
   readonly onApprove: () => void
@@ -98,7 +102,12 @@ export const HcaFundingConfirmDialog = ({
   onApprove,
   onDecline,
 }: HcaFundingConfirmDialogProps) => {
-  const legs = prompt ? legsOf(prompt) : []
+  // Approving clears `prompt` and opens the wallet while the dialog is still
+  // closing; keep its figures until it is gone.
+  const shownPrompt = useLastShown(prompt, (value) => value !== null)
+  // Its answer is already given, and a click now would answer the next prompt.
+  const isClosing = prompt === null
+  const legs = shownPrompt ? legsOf(shownPrompt) : []
   const covered = legs.filter((leg) => leg.covered > 0n)
   const debits = legs.filter((leg) => leg.debit > 0n)
   const permits = debits.filter((leg) => leg.requiresPermit).length
@@ -119,8 +128,11 @@ export const HcaFundingConfirmDialog = ({
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            {description}{' '}
-            {match({ hasNoPermits: !!prompt && permits === 0, unlimitedSymbol })
+            {shownPrompt && description(shownPrompt)}{' '}
+            {match({
+              hasNoPermits: !!shownPrompt && permits === 0,
+              unlimitedSymbol,
+            })
               .with({ hasNoPermits: true }, () => (
                 <Trans>
                   Your wallet has already given your smart account an allowance
@@ -146,9 +158,9 @@ export const HcaFundingConfirmDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        {prompt && (
+        {shownPrompt && (
           <dl className="flex flex-col gap-2 rounded-md bg-ens-lapis-dust px-3 py-2.5 font-sans text-sm">
-            {lines?.map((line, index) =>
+            {lines?.(shownPrompt).map((line, index) =>
               line.amount > 0n ? (
                 <div
                   className="flex items-baseline justify-between gap-4"
@@ -200,13 +212,14 @@ export const HcaFundingConfirmDialog = ({
           </dl>
         )}
 
-        {prompt && note && (
+        {shownPrompt && note && (
           <p className="font-sans text-muted-foreground text-xs">{note}</p>
         )}
 
         <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
           <Button
             className="flex-1/3 uppercase"
+            disabled={isClosing}
             onClick={onDecline}
             size="lg"
             type="button"
@@ -216,6 +229,7 @@ export const HcaFundingConfirmDialog = ({
           </Button>
           <Button
             className="flex-2/3 uppercase"
+            disabled={isClosing}
             onClick={onApprove}
             size="lg"
             type="button"

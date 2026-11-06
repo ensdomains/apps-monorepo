@@ -13,6 +13,7 @@ import { RegisteringHeader } from './components/RegisteringHeader'
 import { RegistrationDetails } from './components/RegistrationDetails'
 import { useRegisteringCompletion } from './hooks/useRegisteringCompletion'
 import { useRegistrationLockHeartbeat } from './hooks/useRegistrationLockHeartbeat'
+import { KEEP_BROWSER_OPEN } from './lib/keepBrowserOpen'
 import { getRegistrationStageMessages } from './lib/txStageMessages'
 import { useRegistrationTxState } from './lib/txState'
 
@@ -201,6 +202,7 @@ export const RegisteringStep = ({
         animate={animateNameFill}
         description={holdForFill ? undefined : stageDescription}
         name={fullName}
+        notice={isRegistrationComplete ? undefined : t(KEEP_BROWSER_OPEN)}
         progress={fillProgress}
       />
     )

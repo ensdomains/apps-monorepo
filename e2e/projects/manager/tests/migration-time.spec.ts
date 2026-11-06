@@ -485,7 +485,7 @@ async function renewV1(
 ): Promise<void> {
   // The date picker ignores a click made before pricing has loaded.
   await expect(
-    page.getByRole('button', { name: /pay with stablecoins/i }),
+    page.getByRole('button', { name: 'Continue to payment', exact: true }),
   ).toBeVisible({ timeout: 60_000 })
   await page.waitForLoadState('networkidle')
   let isDone = false

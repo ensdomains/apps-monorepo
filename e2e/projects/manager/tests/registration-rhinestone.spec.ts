@@ -70,6 +70,15 @@ import { findSearchInput } from '../../../helpers/search-input.js'
 
 const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
 
+/**
+ * The payment sheet's action, whichever label the funding state gives it: an
+ * HCA that already covers the name (as CI funds it) reads "Sign approval".
+ */
+const paymentAction = (picker: ReturnType<Page['getByRole']>) =>
+  picker.getByRole('button', {
+    name: /^(approve and register|sign approval|register name)$/i,
+  })
+
 test.describe('ENS name registration (Rhinestone HCA)', () => {
   test('registers a name via Rhinestone HCA headless wallet', {
     tag: ['@scenario:A2', '@smoke'],
@@ -84,9 +93,9 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       .waitFor({ state: 'visible', timeout: 15_000 })
     await page.getByText(DOMAIN_TO_REGISTER).click()
 
-    await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    await page.getByRole('button', { name: 'Continue to payment' }).click()
     // Smart-session gate: on the HCA path (VITE_FF_USE_EOA=false) clicking
-    // "Pay with stablecoins" opens the EnableSessions modal BEFORE the token
+    // "Continue to payment" opens the EnableSessions modal BEFORE the token
     // picker. Click through it (the single ENABLE intent is auto-authorized via
     // PERMITTED_SIGN_KINDS); idempotent no-op in EOA mode.
     await clickThroughEnableSessions(page)
@@ -189,12 +198,12 @@ const readRegistryState = (label: string) =>
 async function registerUntilCommitConfirmed(page: Page, label: string) {
   await page.goto(`${MANAGER_APP_URL}/register/${label}`)
 
-  await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+  await page.getByRole('button', { name: 'Continue to payment' }).click()
   await clickThroughEnableSessions(page)
   await selectUsdcIfNeeded(page)
 
   const monitor = createConsoleMonitor(page, { logConsoleMessages: false })
-  await page.getByRole('button', { name: /register name/i }).click()
+  await clickRegistrationPaymentAction(page)
   await page.getByRole('button', { name: 'Set up later' }).click()
   await monitor.waitForTransactionState(COMMIT_TX_ID, 'success', 180_000)
   return monitor
@@ -480,13 +489,27 @@ test.describe('HCA registration budget (WEB-1506)', () => {
     route.destinationExecutions.find((e) => e.data.startsWith(selector))
 
   /**
-   * The batch with the deploy taken out, as `to:selector` pairs — so a quote
-   * with the deploy and one without can be compared like for like (the
-   * primary-name toggle changes the batch too).
+   * The primary-name calls (`setNameWithHCA`, `claimWithHCA`). The app adds
+   * them when the wallet has no working primary name, and an earlier
+   * registration's primary resolves through the same resolver this test
+   * removes, so they come and go with the deploy. Their budget (~85k gas,
+   * `HCA_PRIMARY_NAME_*_GAS`) is below the deploy's on-chain cost (~162k
+   * measured below), so a quote that leaves the deploy unfunded still fails.
+   */
+  const PRIMARY_NAME_SELECTORS = ['0xab863445', '0xc90695df']
+
+  /**
+   * The batch without the deploy and the primary-name calls, as `to:selector`
+   * pairs — so a quote with the deploy and one without can be compared like
+   * for like.
    */
   const shapeWithoutDeploy = (route: RouteRequest) =>
     route.destinationExecutions
-      .filter((e) => !e.data.startsWith(DEPLOY_PROXY_SELECTOR))
+      .filter(
+        (e) =>
+          !e.data.startsWith(DEPLOY_PROXY_SELECTOR) &&
+          !PRIMARY_NAME_SELECTORS.some((s) => e.data.startsWith(s)),
+      )
       .map((e) => `${e.to.toLowerCase()}:${e.data.slice(0, 10)}`)
       .join(',')
 
@@ -507,30 +530,18 @@ test.describe('HCA registration budget (WEB-1506)', () => {
    */
   async function openTokenPicker(page: Page, label: string) {
     await page.goto(`/register/${label}`)
-    await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    await page.getByRole('button', { name: 'Continue to payment' }).click()
     await clickThroughEnableSessions(page)
     await selectUsdcIfNeeded(page)
     return page.getByRole('dialog')
   }
 
-  /** `setNameWithHCA(...)` on the reverse-registrar adapter: the primary name. */
-  const SET_PRIMARY_NAME_SELECTOR = '0xab863445'
   /** Must match `HCA_BUDGET_STALE_TIME_MS` in `hcaBudget.query.ts`. */
   const BUDGET_STALE_TIME_MS = 60_000
 
-  const setsPrimaryName = (route: RouteRequest) =>
-    Boolean(findCall(route, SET_PRIMARY_NAME_SELECTOR))
-
-  /** Register-leg quotes sent after index `from` for the given opt-in. */
-  const quotesAfter = async (
-    quotes: readonly RouteRequest[],
-    from: number,
-    shouldSetPrimaryName: boolean,
-  ) => {
-    const matching = () =>
-      quotes
-        .slice(from)
-        .filter((q) => setsPrimaryName(q) === shouldSetPrimaryName)
+  /** Register-leg quotes sent after index `from`. */
+  const quotesAfter = async (quotes: readonly RouteRequest[], from: number) => {
+    const matching = () => quotes.slice(from)
     await expect
       .poll(() => matching().length, { timeout: 30_000 })
       .toBeGreaterThan(0)
@@ -539,7 +550,7 @@ test.describe('HCA registration budget (WEB-1506)', () => {
 
   /**
    * Wait until no new quote has been sent for 3s. A phase can send more than
-   * one (on mount, then again after the toggle), and a late one must not be
+   * one (on mount, then again on a refetch), and a late one must not be
    * counted against the next phase's chain state.
    */
   async function quotesSettled(page: Page, quotes: readonly RouteRequest[]) {
@@ -547,20 +558,6 @@ test.describe('HCA registration budget (WEB-1506)', () => {
       last = quotes.length
       await page.waitForTimeout(3_000)
     }
-  }
-
-  /** Open the picker with the primary-name opt-in set as asked. */
-  async function openPickerFor(
-    page: Page,
-    label: string,
-    shouldSetPrimaryName: boolean,
-  ) {
-    const picker = await openTokenPicker(page, label)
-    const toggle = picker.getByRole('switch', { name: /as your primary name/i })
-    if ((await toggle.isChecked()) !== shouldSetPrimaryName)
-      await toggle.click()
-    await expect(toggle).toBeChecked({ checked: shouldSetPrimaryName })
-    return picker
   }
 
   /**
@@ -581,106 +578,96 @@ test.describe('HCA registration budget (WEB-1506)', () => {
     return route.fallback()
   }
 
-  // Both opt-ins: the primary-name call changes the batch and its own gas, so
-  // the deploy must be funded on top of either shape.
-  for (const shouldSetPrimaryName of [true, false]) {
-    test(`funds the resolver deploy in the register leg of a first registration (primary name ${shouldSetPrimaryName ? 'on' : 'off'})`, async ({
-      connectedPage: page,
-    }) => {
-      const label = `budget-${Date.now().toString(36)}`
-      const quotes = captureRegisterQuotes(page)
+  test('funds the resolver deploy in the register leg of a first registration', async ({
+    connectedPage: page,
+  }) => {
+    const label = `budget-${Date.now().toString(36)}`
+    const quotes = captureRegisterQuotes(page)
 
-      await openPickerFor(page, label, shouldSetPrimaryName)
-      const [sample] = await quotesAfter(quotes, 0, shouldSetPrimaryName)
+    await openTokenPicker(page, label)
+    const [sample] = await quotesAfter(quotes, 0)
+    await quotesSettled(page, quotes)
+    // The resolver is the setters' target in every register batch.
+    const resolver = findCall(sample as RouteRequest, RESOLVER_SETTER_SELECTOR)
+      ?.to as Address
+    expect(resolver, 'register batch sets records on a resolver').toBeTruthy()
+
+    const originalCode =
+      (await publicClient.getCode({ address: resolver })) ?? '0x'
+    let firstRegistration: RouteRequest[]
+    let existingResolver: RouteRequest[]
+    try {
+      // A first registration: the HCA's resolver has no code yet.
+      await testClient.setCode({ address: resolver, bytecode: '0x' })
+      let seen = quotes.length
+      await openTokenPicker(page, label)
+      await quotesAfter(quotes, seen)
       await quotesSettled(page, quotes)
-      // The resolver is the setters' target in every register batch.
-      const resolver = findCall(
-        sample as RouteRequest,
-        RESOLVER_SETTER_SELECTOR,
-      )?.to as Address
-      expect(resolver, 'register batch sets records on a resolver').toBeTruthy()
+      firstRegistration = await quotesAfter(quotes, seen)
 
-      const originalCode =
-        (await publicClient.getCode({ address: resolver })) ?? '0x'
-      let firstRegistration: RouteRequest[]
-      let existingResolver: RouteRequest[]
-      try {
-        // A first registration: the HCA's resolver has no code yet.
-        await testClient.setCode({ address: resolver, bytecode: '0x' })
-        let seen = quotes.length
-        await openPickerFor(page, label, shouldSetPrimaryName)
-        await quotesAfter(quotes, seen, shouldSetPrimaryName)
-        await quotesSettled(page, quotes)
-        firstRegistration = await quotesAfter(
-          quotes,
-          seen,
-          shouldSetPrimaryName,
-        )
-
-        // A later registration: the resolver exists. Any code reads as deployed.
-        await testClient.setCode({
-          address: resolver,
-          bytecode: originalCode !== '0x' ? originalCode : '0xfe',
-        })
-        seen = quotes.length
-        await openPickerFor(page, label, shouldSetPrimaryName)
-        await quotesAfter(quotes, seen, shouldSetPrimaryName)
-        await quotesSettled(page, quotes)
-        existingResolver = await quotesAfter(quotes, seen, shouldSetPrimaryName)
-      } finally {
-        await testClient.setCode({ address: resolver, bytecode: originalCode })
-      }
-
-      // Guard (unchanged by the PR): the batch tracks the chain, so the deploy is
-      // in it exactly when the resolver has no code.
-      for (const q of firstRegistration)
-        expect(
-          findCall(q, DEPLOY_PROXY_SELECTOR),
-          'deploy on a first registration',
-        ).toBeTruthy()
-      for (const q of existingResolver)
-        expect(
-          findCall(q, DEPLOY_PROXY_SELECTOR),
-          'no deploy once the resolver exists',
-        ).toBeUndefined()
-
-      // What the deploy costs on chain, from a never-deployed sender — the same
-      // measurement the fix's constant is derived from.
-      const deploy = findCall(
-        firstRegistration[0] as RouteRequest,
-        DEPLOY_PROXY_SELECTOR,
-      ) as RouteRequest['destinationExecutions'][number]
-      const deployGas =
-        (await publicClient.estimateGas({
-          account: privateKeyToAccount(generatePrivateKey()).address,
-          to: deploy.to,
-          data: deploy.data,
-        })) - TX_INTRINSIC_GAS
-
-      // The bug: the same batch shape, with and without the deploy, was quoted
-      // at the same gas limit, so nothing paid for the deploy.
-      const pairs = firstRegistration.flatMap((withDeploy) => {
-        const match = existingResolver.find(
-          (q) => shapeWithoutDeploy(q) === shapeWithoutDeploy(withDeploy),
-        )
-        return match ? [{ withDeploy, withoutDeploy: match }] : []
+      // A later registration: the resolver exists. Any code reads as deployed.
+      await testClient.setCode({
+        address: resolver,
+        bytecode: originalCode !== '0x' ? originalCode : '0xfe',
       })
-      expect(pairs.length, 'a like-for-like quote pair').toBeGreaterThan(0)
-      for (const { withDeploy, withoutDeploy } of pairs) {
-        const funded =
-          BigInt(withDeploy.destinationGasUnits) -
-          BigInt(withoutDeploy.destinationGasUnits)
-        test.info().annotations.push({
-          type: 'register-leg gas',
-          description: `${withoutDeploy.destinationGasUnits} → ${withDeploy.destinationGasUnits} with deploy (+${funded}); deploy measured at ${deployGas}`,
-        })
-        expect(
-          funded,
-          `gas funded for the deploy (${funded}) covers its on-chain cost (${deployGas})`,
-        ).toBeGreaterThanOrEqual(deployGas)
-      }
+      seen = quotes.length
+      await openTokenPicker(page, label)
+      await quotesAfter(quotes, seen)
+      await quotesSettled(page, quotes)
+      existingResolver = await quotesAfter(quotes, seen)
+    } finally {
+      await testClient.setCode({ address: resolver, bytecode: originalCode })
+    }
+
+    // Guard (unchanged by the PR): the batch tracks the chain, so the deploy is
+    // in it exactly when the resolver has no code.
+    for (const q of firstRegistration)
+      expect(
+        findCall(q, DEPLOY_PROXY_SELECTOR),
+        'deploy on a first registration',
+      ).toBeTruthy()
+    for (const q of existingResolver)
+      expect(
+        findCall(q, DEPLOY_PROXY_SELECTOR),
+        'no deploy once the resolver exists',
+      ).toBeUndefined()
+
+    // What the deploy costs on chain, from a never-deployed sender — the same
+    // measurement the fix's constant is derived from.
+    const deploy = findCall(
+      firstRegistration[0] as RouteRequest,
+      DEPLOY_PROXY_SELECTOR,
+    ) as RouteRequest['destinationExecutions'][number]
+    const deployGas =
+      (await publicClient.estimateGas({
+        account: privateKeyToAccount(generatePrivateKey()).address,
+        to: deploy.to,
+        data: deploy.data,
+      })) - TX_INTRINSIC_GAS
+
+    // The bug: the same batch shape, with and without the deploy, was quoted
+    // at the same gas limit, so nothing paid for the deploy.
+    const pairs = firstRegistration.flatMap((withDeploy) => {
+      const match = existingResolver.find(
+        (q) => shapeWithoutDeploy(q) === shapeWithoutDeploy(withDeploy),
+      )
+      return match ? [{ withDeploy, withoutDeploy: match }] : []
     })
-  }
+    expect(pairs.length, 'a like-for-like quote pair').toBeGreaterThan(0)
+    for (const { withDeploy, withoutDeploy } of pairs) {
+      const funded =
+        BigInt(withDeploy.destinationGasUnits) -
+        BigInt(withoutDeploy.destinationGasUnits)
+      test.info().annotations.push({
+        type: 'register-leg gas',
+        description: `${withoutDeploy.destinationGasUnits} → ${withDeploy.destinationGasUnits} with deploy (+${funded}); deploy measured at ${deployGas}`,
+      })
+      expect(
+        funded,
+        `gas funded for the deploy (${funded}) covers its on-chain cost (${deployGas})`,
+      ).toBeGreaterThanOrEqual(deployGas)
+    }
+  })
 
   test('blocks checkout when the budget quote fails, and Try again re-quotes', async ({
     connectedPage: page,
@@ -690,13 +677,11 @@ test.describe('HCA registration budget (WEB-1506)', () => {
     await page.route('**/orchestrator/intents/route', failRegistrationQuotes)
 
     await page.goto(`/register/${label}`)
-    await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    await page.getByRole('button', { name: 'Continue to payment' }).click()
     await clickThroughEnableSessions(page)
     const picker = page.getByRole('dialog')
     const summary = picker.getByRole('region', { name: 'Payment summary' })
-    const registerButton = picker.getByRole('button', {
-      name: /register name/i,
-    })
+    const registerButton = paymentAction(picker)
     const tryAgain = picker.getByRole('button', { name: 'Try again' })
 
     // The bug: checkout went ahead on the rent alone. Now no figure is shown
@@ -728,9 +713,7 @@ test.describe('HCA registration budget (WEB-1506)', () => {
     // fell through and started the registration on the rent alone.
     const label = `budget-click-${Date.now().toString(36)}`
     const picker = await openTokenPicker(page, label)
-    const registerButton = picker.getByRole('button', {
-      name: /register name/i,
-    })
+    const registerButton = paymentAction(picker)
     await expect(registerButton).toBeEnabled({ timeout: 30_000 })
 
     // Let the healthy quote go stale, so the click re-quotes instead of
@@ -929,7 +912,7 @@ async function openRegisterPage(page: Page, label: string) {
 
 async function waitForQuote(page: Page) {
   await expect(
-    page.getByRole('button', { name: /pay with stablecoins/i }),
+    page.getByRole('button', { name: 'Continue to payment' }),
   ).toBeVisible({ timeout: 20_000 })
   await expect.poll(() => readHolderId(page)).toBeTruthy()
 }
@@ -946,12 +929,12 @@ async function openRegisterPageAndConnect(
   await page.waitForTimeout(SWEEP_SETTLE_MS)
 }
 
-/** Pay with stablecoins → USDC → Register name, on an already open quote. */
+/** Pay → USDC → the payment action, on an already open quote. */
 async function pressRegister(page: Page) {
-  await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+  await page.getByRole('button', { name: 'Continue to payment' }).click()
   await clickThroughEnableSessions(page)
   await selectUsdcIfNeeded(page)
-  await page.getByRole('button', { name: /register name/i }).click()
+  await clickRegistrationPaymentAction(page)
 }
 
 /** The refusal screen, naming the registration that holds the wallet. */
@@ -1178,7 +1161,7 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
     const main = other.locator('main')
     await main.getByRole('button', { name: 'Back to Quote' }).click()
     await expect(
-      other.getByRole('button', { name: /pay with stablecoins/i }),
+      other.getByRole('button', { name: 'Continue to payment' }),
     ).toBeVisible({ timeout: 15_000 })
     await expect(main.getByText(BUSY_TITLE, { exact: true })).toHaveCount(0)
     expect(await readClaim(other, owner)).toMatchObject({
@@ -1228,18 +1211,16 @@ test.describe('one registration per wallet across tabs (WEB-1702)', () => {
  * row's balance was labelled "available", and the two messages that did explain
  * the subtraction called the HCA "your account", a word support has ruled out.
  *
- * The fix, as redesigned in #1513/#1604: with a leftover, the summary reads
- * "Registration total", a muted "Existing balance -$x" deduction (its info
- * button says where the money came from) and "You pay"; the fee estimate sits
- * in the token row, whose wallet figure is labelled "balance". Flipping the
- * primary-name toggle carries the last quote through (`placeholderData`) and
- * holds checkout until the new one lands.
+ * Now the registration page applies the leftover up to the name cost, under
+ * an "Existing balance" line with an info button. The sheet reads "Registration
+ * total" (net of it), "Estimated network fee" and "You pay"; a leftover beyond
+ * the name cost shows there as "Existing balance" against the fee, and when it
+ * covers everything the payment methods give way to the receipt.
  *
- * The unit tests cover the rounding helper and the component with hand-made
- * numbers. These run the real quote against a real HCA balance on the fork:
- * the leftover is seeded on the payment USDC's balance slot and read back as
- * the oracle, and the figures on screen must subtract to the headline, within
- * the cent the token row's unrounded fee can add. CI funds the shared `user`
+ * The unit tests cover the receipt maths with hand-made numbers. These run the
+ * real quote against a real HCA balance on the fork: the leftover is seeded on
+ * the payment USDC's balance slot and read back as the oracle, and the figures
+ * on screen must add up, within a cent of rounding. CI funds the shared `user`
  * HCA with 10,000 USDC, so every test seeds its own balance and puts the
  * original back in a `finally`; the manager suite runs with `workers: 1`.
  */
@@ -1271,28 +1252,27 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
       .filter({ hasText: label })
       .locator('xpath=following-sibling::dd')
 
-  const TOTAL = /^Total$/
   const REGISTRATION_TOTAL = /^Registration total$/
+  const NETWORK_FEE = /^Estimated network fee$/
   const EXISTING_BALANCE = /^Existing balance/
   const YOU_PAY = /^You pay$/
-
-  /** The fee estimate, in the token row. */
-  const feeText = (picker: Picker) =>
-    picker.getByText(
-      new RegExp(`^${sepolia.name} est\\. fee: \\$[\\d,]+\\.\\d\\d$`),
-    )
-
-  const feeCents = async (picker: Picker) =>
-    toCents((await feeText(picker).innerText()).replace(/^.*\$/, ''))
 
   const cents = async (picker: Picker, label: RegExp) =>
     toCents(await rowAmount(picker, label).innerText())
 
-  /** The payment action, whichever label the funding state gives it. */
-  const paymentAction = (picker: Picker) =>
-    picker.getByRole('button', {
-      name: /^(approve and register|sign payment approval|register name)$/i,
-    })
+  /**
+   * The registration page's figure for a row of its payment card. The label
+   * sits in its own span (Existing balance carries an info button), so read
+   * the whole row: the nearest div around it.
+   */
+  const pageCents = async (page: Page, label: RegExp) =>
+    toCents(
+      await page
+        .getByText(label)
+        .locator('xpath=ancestor::div[1]')
+        .innerText()
+        .then((text) => text.replace(/^[^$]*/, '')),
+    )
 
   /**
    * The HCA the picker quotes for, from the account on its `/intents/route`
@@ -1316,7 +1296,7 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
    */
   async function openPicker(page: Page, label: string) {
     await page.goto(`/register/${label}`)
-    await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    await page.getByRole('button', { name: 'Continue to payment' }).click()
     const picker = page.getByRole('dialog')
     const enableSessions = page.getByRole('button', {
       name: /enable sessions/i,
@@ -1350,7 +1330,7 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
     }
   }
 
-  test('names the existing balance and makes the headline what the wallet pays now', async ({
+  test('a leftover below the name cost comes off the page total, and the sheet charges the rest plus the fee', async ({
     connectedPage: page,
     accounts,
   }) => {
@@ -1358,55 +1338,57 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
     const wallet = accounts.getAddress('user')
 
     await withSeededHca(page, label, async (hca) => {
-      // Guard (the common case): an empty HCA leaves nothing to deduct, so the
-      // summary is the plain total.
+      // Guard (the common case): an empty HCA leaves nothing to deduct.
       await fundTestUsdc(hca, 0n)
       let picker = await openPicker(page, label)
-      const total = await cents(picker, TOTAL)
-      const fee = await feeCents(picker)
-      expect(total, 'the name has a price').toBeGreaterThan(fee)
+      const nameCost = await cents(picker, REGISTRATION_TOTAL)
+      expect(nameCost, 'the name has a price').toBeGreaterThan(0)
       await expect(
         summaryOf(picker).locator('dt').filter({ hasText: EXISTING_BALANCE }),
       ).toHaveCount(0)
 
-      // The report: an earlier attempt left $1.82 in the HCA.
+      // An earlier attempt left $1.82 in the HCA.
       const leftoverRaw = 1_820_000n
       await fundTestUsdc(hca, leftoverRaw)
       picker = await openPicker(page, label)
 
-      // The bug: the deduction had no line of its own, and the headline still
-      // said "Total" over a figure that was no longer the total.
-      const applied = rowAmount(picker, EXISTING_BALANCE)
-      await expect(applied).toHaveText(/^-\$/)
-      // Oracle: the deduction is the HCA's balance on chain.
-      expect(toCents(await applied.innerText())).toBe(
-        rawToCents(await readTestUsdc(hca)),
-      )
-      // The lines on screen subtract to the headline, to the cent.
-      expectCents(await cents(picker, REGISTRATION_TOTAL), total)
-      expectCents(await cents(picker, YOU_PAY), total - rawToCents(leftoverRaw))
+      // The page applies it: the sheet's total is already net of it.
+      const total = await cents(picker, REGISTRATION_TOTAL)
+      expectCents(total, nameCost - rawToCents(leftoverRaw))
       await expect(
-        picker.getByRole('button', { name: 'Where did this come from?' }),
-      ).toBeVisible()
+        summaryOf(picker).locator('dt').filter({ hasText: EXISTING_BALANCE }),
+      ).toHaveCount(0)
+      expectCents(
+        await cents(picker, YOU_PAY),
+        total + (await cents(picker, NETWORK_FEE)),
+      )
       await expect(picker.getByText(/\baccount\b/i)).toHaveCount(0)
       await expect(paymentAction(picker)).toBeEnabled()
 
-      // The token row's balance is the wallet's, and says so, so it can't be
-      // read as the leftover. Oracle: the wallet's USDC on chain.
-      const walletBalance = picker
-        .getByText('balance', { exact: true })
+      // The USDC row's figure is the wallet's. Oracle: its USDC on chain.
+      const usdcRow = picker
+        .getByRole('button', { name: 'Select USDC', exact: true })
         .locator('xpath=..')
-      await expect(walletBalance).toBeVisible()
-      expect(toCents(await walletBalance.innerText())).toBe(
-        rawToCents(await readTestUsdc(wallet)),
+      expect(
+        toCents(
+          (
+            await usdcRow.getByText('available').locator('xpath=..').innerText()
+          ).split('\n')[0] ?? '',
+        ),
+      ).toBe(rawToCents(await readTestUsdc(wallet)))
+
+      // The page card names the deduction, with where it came from.
+      await page.keyboard.press('Escape')
+      expect(await pageCents(page, EXISTING_BALANCE)).toBe(
+        rawToCents(leftoverRaw),
       )
-      await expect(picker.getByText('available', { exact: true })).toHaveCount(
-        0,
-      )
+      await expect(
+        page.getByRole('button', { name: 'Where did this come from?' }),
+      ).toBeVisible()
     })
   })
 
-  test('a leftover that covers the whole registration says so, without calling it an account', async ({
+  test('a leftover beyond the name cost covers the fee too, and the sheet drops the methods', async ({
     connectedPage: page,
   }) => {
     const label = `leftover-all-${Date.now().toString(36)}`
@@ -1416,26 +1398,32 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
       await fundTestUsdc(hca, 1_000_000_000n)
       const picker = await openPicker(page, label)
 
-      await expect(
-        picker.getByText(
-          'No additional payment needed. Your available balance covers the total.',
-        ),
-      ).toBeVisible()
-      await expect(picker.getByText(/\baccount\b/i)).toHaveCount(0)
-
-      // The HCA is credited only the total, not its whole balance.
-      const total = await cents(picker, REGISTRATION_TOTAL)
-      expect(total, 'the name has a price').toBeGreaterThan(0)
-      expect(await cents(picker, EXISTING_BALANCE)).toBe(total)
+      expect(await cents(picker, REGISTRATION_TOTAL)).toBe(0)
+      // Credited only what the fee needs, not the whole balance. The sheet
+      // lists the credit only when it is above zero, and the local
+      // orchestrator (mockestrator, as in CI) quotes every fee at $0.
+      const fee = await cents(picker, NETWORK_FEE)
+      const creditRow = summaryOf(picker)
+        .locator('dt')
+        .filter({ hasText: EXISTING_BALANCE })
+      const credited =
+        (await creditRow.count()) > 0
+          ? await cents(picker, EXISTING_BALANCE)
+          : 0
+      expect(credited).toBe(fee)
       expect(await cents(picker, YOU_PAY)).toBe(0)
+      await expect(
+        picker.getByRole('heading', { name: 'Pay with' }),
+      ).toBeHidden()
+      await expect(picker.getByText(/\baccount\b/i)).toHaveCount(0)
       // A debit of zero is a legitimate state, not a missing quote.
       await expect(
-        picker.getByRole('button', { name: /^register name$/i }),
+        picker.getByRole('button', { name: /^sign approval$/i }),
       ).toBeEnabled()
     })
   })
 
-  test('a wallet short of the remainder is told what it still needs', async ({
+  test('a wallet USDC pick short of the remainder stays selected and says so', async ({
     connectedPage: page,
     accounts,
   }) => {
@@ -1467,21 +1455,33 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
 
     try {
       await withSeededHca(page, label, async (hca) => {
-        const leftoverRaw = 1_820_000n
         const walletRaw = 5_000_000n
-        await fundTestUsdc(hca, leftoverRaw)
+        await fundTestUsdc(hca, 1_820_000n)
         await fundTestUsdc(wallet, walletRaw)
         const picker = await openPicker(page, label)
 
+        // The app may move to a method that can pay; the user's own pick stays.
+        const selectUsdc = picker.getByRole('button', {
+          name: 'Select USDC',
+          exact: true,
+        })
+        await selectUsdc.click()
+        await expect(selectUsdc).toHaveAttribute('aria-pressed', 'true')
+        await expect(summaryOf(picker)).toHaveAttribute('aria-busy', 'false')
+
         const due = await cents(picker, YOU_PAY)
         expectCents(
-          (await cents(picker, REGISTRATION_TOTAL)) - rawToCents(leftoverRaw),
+          (await cents(picker, REGISTRATION_TOTAL)) +
+            (await cents(picker, NETWORK_FEE)),
           due,
         )
         expect(due, 'the wallet is short').toBeGreaterThan(
           rawToCents(walletRaw),
         )
         expect(await readTestUsdc(wallet)).toBe(walletRaw)
+        await expect(
+          picker.getByText('You do not have enough USDC for this transaction.'),
+        ).toBeVisible()
         await expect(paymentAction(picker)).toBeDisabled()
         await expect(picker.getByText(/\baccount\b/i)).toHaveCount(0)
 
@@ -1494,81 +1494,5 @@ test.describe('payment sheet with a leftover from the last attempt (WEB-1483)', 
     } finally {
       await fundTestUsdc(wallet, walletOriginal)
     }
-  })
-
-  test('flipping the primary-name toggle keeps the breakdown and holds checkout until the new quote lands', async ({
-    connectedPage: page,
-  }) => {
-    const label = `leftover-toggle-${Date.now().toString(36)}`
-    /** `setNameWithHCA(...)`: in the register leg only when the toggle is on. */
-    const SET_PRIMARY_NAME_SELECTOR = 'ab863445'
-    const REGISTER_SELECTOR = 'cff3e7c2'
-
-    // The opt-in defaults off once the wallet has a primary name, so read the
-    // default first, on another label. That open also learns the HCA.
-    await withSeededHca(page, `${label}-x`, async (hca) => {
-      // A partial leftover, so the summary has its breakdown and the token
-      // row shows the fee.
-      await fundTestUsdc(hca, 1_820_000n)
-      const startsOn = await (await openPicker(page, `${label}-x`))
-        .getByRole('switch', { name: /as your primary name/i })
-        .isChecked()
-
-      // With the opt-in on, opening the sheet quotes both states at once, so a
-      // flip after they land would be served from cache. Hold the other
-      // state's quote from the start, whether it goes out on open or on the
-      // flip: the flip then lands on a quote still in flight, the state the
-      // fix's `placeholderData` and `isQuoteStale` exist for.
-      let release: () => void = () => {}
-      const held = new Promise<void>((resolve) => {
-        release = resolve
-      })
-      let heldCount = 0
-      const holdOffQuote = async (route: Route) => {
-        const data = route.request().postData() ?? ''
-        if (
-          data.includes(REGISTER_SELECTOR) &&
-          data.includes(SET_PRIMARY_NAME_SELECTOR) !== startsOn
-        ) {
-          heldCount++
-          await held
-        }
-        return route.fallback()
-      }
-      await page.route('**/orchestrator/intents/route', holdOffQuote)
-
-      try {
-        const picker = await openPicker(page, label)
-        const toggle = picker.getByRole('switch', {
-          name: /as your primary name/i,
-        })
-        const action = paymentAction(picker)
-        await expect(toggle).toBeChecked({ checked: startsOn })
-        await expect(action).toBeEnabled()
-        const feeBefore = await feeText(picker).innerText()
-
-        await toggle.click()
-        await expect(toggle).toBeChecked({ checked: !startsOn })
-        await expect
-          .poll(() => heldCount, { timeout: 15_000 })
-          .toBeGreaterThan(0)
-
-        // The bug: the fee emptied out while the new quote loaded, and
-        // checkout stayed live on the rent alone.
-        await expect(action).toBeDisabled()
-        await expect(feeText(picker)).toHaveText(feeBefore)
-        // Still disabled a beat later: the gate is the pending quote, not a
-        // re-render in passing.
-        await page.waitForTimeout(2_000)
-        await expect(action).toBeDisabled()
-
-        // Positive control: once the quote for the new state lands, checkout opens.
-        release()
-        await expect(action).toBeEnabled({ timeout: 30_000 })
-      } finally {
-        release()
-        await page.unroute('**/orchestrator/intents/route', holdOffQuote)
-      }
-    })
   })
 })

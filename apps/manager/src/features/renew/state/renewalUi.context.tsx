@@ -3,7 +3,6 @@ import { createContext, use, useEffect, useRef } from 'react'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import { HcaFundingApprovalDialog } from '@/components/HcaFundingApprovalDialog'
 import { useHcaFundingPrompt } from '@/lib/smart-account'
-import { RenewalFundingDialog } from '../components/RenewalFundingDialog'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 import { renewalUiMachine } from './renewalUi.machine'
 
@@ -28,12 +27,10 @@ export const RenewalUiProvider = ({
   currentExpiry: bigint
   protocol: RenewalProtocol
 }) => {
-  // The renewal intent is quoted inside the submit call, and only then is the
-  // funding amount known — so the machine parks on this promise and the dialog
-  // below resolves it. Nothing else asks the wallet for a signature first.
+  // The payment screen's debit is checked against the intent's own quote; an
+  // increase is reviewed on that screen, so only the approval fallback's
+  // consent is rendered here.
   const {
-    prompt: fundingPrompt,
-    confirmFunding,
     confirmApproval,
     confirmApprovalRecovery,
     approvalState,
@@ -46,7 +43,6 @@ export const RenewalUiProvider = ({
     input: {
       currentExpiry,
       protocol,
-      confirmFunding,
       approvalFallback: {
         confirmApproval,
         confirmApprovalRecovery,
@@ -85,11 +81,6 @@ export const RenewalUiProvider = ({
         onApprove={approveFunding}
         onDecline={declineFunding}
         state={approvalState}
-      />
-      <RenewalFundingDialog
-        onApprove={approveFunding}
-        onDecline={declineFunding}
-        prompt={fundingPrompt}
       />
     </RenewalUiContext.Provider>
   )

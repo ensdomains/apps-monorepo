@@ -16,8 +16,8 @@
  * from the owner's wallet with an EIP-2612 permit + `transferFrom` pair carried
  * inside the SAME intent.
  *
- * An intent that BUYS something (`requiredUsdc` — a renewal's rent) spends from
- * the HCA twice over: the rent the action pulls, and the rail's fee. Both come
+ * An intent that BUYS something (`requiredUsdc` — a renewal's price) spends from
+ * the HCA twice over: the price the action pulls, and the rail's fee. Both come
  * out of the same balance, so the funding is sized over both. The shortfall is
  * always shown to the user before anything is signed, then pulled under either
  * a permit signed for exactly that amount or a standing allowance that already
@@ -49,12 +49,15 @@ import {
   type PermitPurpose,
   type PermitValueBounds,
   readHcaUsdcBalanceActor,
+  readHcaUsdcBalanceAtLeastActor,
   readUsdcSpend,
+  rejectPermitValue,
   signFundingPermitForTokenActor,
 } from '../machines/registration/registration.hca.actors'
 import type { RhinestoneSigner, Signer } from '../types/signer.types'
 import type { Call } from '../types/transaction.types'
 
+import { withBps } from './eth-usdc-swap'
 import {
   approveHcaFunding,
   type HcaApprovalEnvironment,
@@ -88,29 +91,29 @@ const daiPermitAbi = parseAbi([
 export const HCA_STANDALONE_INTENT_GAS_LIMIT = 300_000n
 
 /**
- * Ceiling (USDC, 6dp) on what a standalone intent's fee may be quoted at.
+ * Ceiling (USDC, 6dp) on what a standalone intent's fee may be funded at.
  *
  * Same reasoning as `HCA_MAX_LEG_FEES_USDC` on the registration budget: the fee
  * is read out of an orchestrator HTTP response and becomes the value of an
- * EIP-2612 permit, so it needs a bound derived without that response. These are
- * small fixed-shape intents (one or two adapter calls under a 300k gas limit),
- * which fill for well under 1 USDC on Sepolia; 10 USDC is far above anything a
- * legitimate gas regime produces — `HCA_STANDALONE_INTENT_GAS_LIMIT` at the
- * 5 gwei clamp used elsewhere is ~0.0015 ETH, about 6 USDC at $4000/ETH.
+ * EIP-2612 permit, so it needs a bound derived without that response. Sized
+ * for a 300k shape at 10 gwei and $2,300/ETH, which the rail quotes at ~27 USDC.
  *
  * There is no on-chain price component here (nothing is being bought), so
  * unlike the registration budget the whole bound is the fee margin.
  */
-export const HCA_MAX_STANDALONE_INTENT_FEE_USDC = 10_000_000n
+export const HCA_MAX_STANDALONE_INTENT_FEE_USDC = 30_000_000n
 
 /**
- * Fee ceiling (USDC, 6dp) per million gas declared above the 300k anchor: ~4x
- * the ~2.45 USDC per 1M gas Sepolia renewals were measured at. The anchor's own
- * rate carries fixed overhead, and would let a 25-name batch reach ~100 USDC.
+ * Fee ceiling (USDC, 6dp) per million gas declared above the 300k anchor: a
+ * million gas at 10 gwei and $2,300/ETH, rounded up. The anchor's own rate
+ * carries the rail's fixed allowance, and would let a 25-name batch reach ~300.
  */
-export const HCA_MAX_INTENT_FEE_USDC_PER_MGAS = 10_000_000n
+export const HCA_MAX_INTENT_FEE_USDC_PER_MGAS = 25_000_000n
 
 const divCeil = (a: bigint, b: bigint): bigint => (a + b - 1n) / b
+
+/** Basis points a caller funds a fee above the quote, for the re-quote at submit. */
+export const HCA_INTENT_FEE_MARGIN_BPS = 500n
 
 /**
  * Fee ceiling (USDC, 6dp) for an intent quoted against `gasLimit`, which the
@@ -141,12 +144,12 @@ export interface HcaFundingPrompt {
   readonly permitValue: bigint
   /** `false` when a standing allowance covers the pull, so no permit follows. */
   readonly requiresPermit: boolean
-  /** USDC (6dp) the orchestrator quoted for the whole intent. */
+  /** USDC (6dp) the intent's fee is funded at: the quote plus any margin. */
   readonly quotedFeeUsdc: bigint
   /** USDC (6dp) the HCA already holds, which offsets what the intent needs. */
   readonly hcaBalanceUsdc: bigint
   /**
-   * USDC (6dp) the action itself spends from the HCA's balance — the rent a
+   * USDC (6dp) the action itself spends from the HCA's balance — the price a
    * renewal pulls, say. Zero for an intent that only pays its own fee.
    */
   readonly requiredUsdc: bigint
@@ -181,6 +184,14 @@ export interface HcaTokenSpend {
   readonly amount: bigint
   /** The permit the token implements. Defaults to EIP-2612. */
   readonly permitKind?: PermitKind
+}
+
+/** The wallet debit a payment screen showed, in each token's own units. */
+export interface HcaDisplayedDebit {
+  /** USDC (6dp): the fee, plus the spend when it is in USDC. */
+  readonly usdc: bigint
+  /** The `tokenSpend` token; zero when the spend is in USDC. */
+  readonly token: bigint
 }
 
 /** The user saw the funding amount and declined it. Not an error condition. */
@@ -316,8 +327,10 @@ async function quoteIntentUsdc(input: {
   declaredInflow: bigint
   /** Declared limit the rail prices the quote against. */
   gasLimit: bigint
+  readonly feeMarginBps: bigint
 }): Promise<bigint | null> {
-  const { account, chain, calls, declaredInflow, gasLimit } = input
+  const { account, chain, calls, declaredInflow, gasLimit, feeMarginBps } =
+    input
   const usdc = getDestinationContracts(chain.id).usdc
 
   const prepared = (await account.prepareTransaction({
@@ -342,7 +355,7 @@ async function quoteIntentUsdc(input: {
   if (spend === null) return null
   const gasPrice =
     route?.intentOp?.signedMetadata?.gasPrices?.[String(chain.id)]
-  return legFeeUsdc({
+  const fee = legFeeUsdc({
     spendUsdc: spend,
     gasLimit,
     gasPriceWei: gasPrice ? BigInt(gasPrice) : undefined,
@@ -350,6 +363,7 @@ async function quoteIntentUsdc(input: {
       (refund) => !isAddressEqual(refund.token, zeroAddress),
     ),
   })
+  return withBps(fee, feeMarginBps)
 }
 
 export interface HcaIntentFunding {
@@ -366,7 +380,7 @@ export interface HcaIntentFunding {
   readonly auxiliaryFunds?: Readonly<
     Record<number, Readonly<Record<Address, bigint>>>
   >
-  /** The quoted fee, for logging/telemetry. */
+  /** The fee funded for, with any margin, for logging/telemetry. */
   readonly quotedFeeUsdc: bigint
 }
 
@@ -383,13 +397,13 @@ export interface PlanHcaIntentFundingParams {
   readonly calls: readonly Call[]
   /**
    * USDC (6dp) the calls themselves spend out of the HCA's balance, on top of
-   * the fee — a renewal's rent, say. The funding is sized over both, because
+   * the fee — a renewal's price, say. The funding is sized over both, because
    * both come out of the same balance. Defaults to zero (an action that buys
    * nothing).
    */
   readonly requiredUsdc?: bigint
   /**
-   * What the calls spend in a token of their choosing — a renewal's rent. In
+   * What the calls spend in a token of their choosing — a renewal's price. In
    * USDC it joins `requiredUsdc`; any other token is funded as its own leg.
    */
   readonly tokenSpend?: HcaTokenSpend
@@ -399,6 +413,14 @@ export interface PlanHcaIntentFundingParams {
    * default would under-fund.
    */
   readonly gasLimit?: bigint
+  /**
+   * USDC (6dp) the HCA is already known to hold, say from a bridge that just
+   * read back. The balance is read until a node shows at least this, as a
+   * lagging one would otherwise size a permit for USDC already there.
+   */
+  readonly hcaBalanceAtLeast?: bigint
+  /** Basis points the fee is funded above the quote; none by default. */
+  readonly feeMarginBps?: bigint
   /**
    * Ceiling on the quoted fee before it can become a permit value. Defaults to
    * {@link HCA_MAX_STANDALONE_INTENT_FEE_USDC}; pass
@@ -418,6 +440,11 @@ export interface PlanHcaIntentFundingParams {
   readonly confirmFunding?: (
     prompt: HcaFundingPrompt,
   ) => Promise<boolean> | boolean
+  /**
+   * The debit the user's screen showed. Replaces `confirmFunding`: funding above
+   * it, beyond registration's quote drift, is refused before any signature.
+   */
+  readonly displayedDebit?: HcaDisplayedDebit
   /**
    * What the funding pays for, as the permit's errors describe it. Defaults to
    * {@link STANDALONE_INTENT_PERMIT_PURPOSE}.
@@ -639,6 +666,8 @@ export type QuoteHcaIntentParams = Pick<
   | 'requiredUsdc'
   | 'tokenSpend'
   | 'gasLimit'
+  | 'hcaBalanceAtLeast'
+  | 'feeMarginBps'
 >
 
 /** Read the balances and quote the fee for `calls` as the funded batch; nothing is signed. */
@@ -654,6 +683,8 @@ async function quoteIntent(
     requiredUsdc: usdcSpend = 0n,
     tokenSpend,
     gasLimit = HCA_STANDALONE_INTENT_GAS_LIMIT,
+    hcaBalanceAtLeast,
+    feeMarginBps = 0n,
   } = params
 
   const chain = publicClient.chain
@@ -677,11 +708,15 @@ async function quoteIntent(
   // zero on a failed read is exactly the guess this function refuses to make
   // elsewhere — it would pull the full fee out of the owner's wallet into an
   // HCA that may already have been holding it.
-  const balance = await readHcaUsdcBalanceActor({
-    hca,
-    publicClient,
-    chainId,
-  }).match(
+  const balance = await (hcaBalanceAtLeast === undefined
+    ? readHcaUsdcBalanceActor({ hca, publicClient, chainId })
+    : readHcaUsdcBalanceAtLeastActor({
+        hca,
+        publicClient,
+        chainId,
+        atLeast: hcaBalanceAtLeast,
+      })
+  ).match(
     (value) => value,
     (error) => {
       throw error
@@ -712,7 +747,7 @@ async function quoteIntent(
   ]
 
   // First-pass inflow: tops the HCA up to what the intent could conceivably
-  // need — the rent, plus the fee ceiling for the declared limit — so the
+  // need — the price, plus the fee ceiling for the declared limit — so the
   // planner sees it as covered and prices the legs at all. The real permit is
   // sized from the quote this produces, never from this number.
   //
@@ -735,6 +770,7 @@ async function quoteIntent(
     calls: fundedCalls,
     declaredInflow,
     gasLimit,
+    feeMarginBps,
   })
 
   return {
@@ -833,6 +869,30 @@ type QuotedFunding = {
   readonly tokenBalance: bigint
   readonly tokenShortfall: bigint
 }
+
+/** Why the funding cannot go ahead on the debit the user was shown, or `null`. */
+const rejectAboveDisplayed = (
+  quoted: Pick<
+    QuotedFunding,
+    'usdcShortfall' | 'tokenShortfall' | 'otherSpend'
+  >,
+  displayed: HcaDisplayedDebit,
+  purpose: PermitPurpose = STANDALONE_INTENT_PERMIT_PURPOSE,
+): string | null =>
+  rejectPermitValue(
+    quoted.usdcShortfall,
+    { displayedValue: displayed.usdc },
+    { symbol: 'USDC', decimals: 6 },
+    purpose,
+  ) ??
+  (quoted.otherSpend
+    ? rejectPermitValue(
+        quoted.tokenShortfall,
+        { displayedValue: displayed.token },
+        quoted.otherSpend,
+        purpose,
+      )
+    : null)
 
 /** The non-USDC half of the prompt, flagging a permit that grants unlimited. */
 const tokenPromptLeg = (
@@ -964,8 +1024,13 @@ async function fundShortfalls(
   params: PlanHcaIntentFundingParams,
   quoted: QuotedFunding,
 ): Promise<HcaIntentFunding> {
-  const { ownerAddress, publicClient } = params
+  const { ownerAddress, publicClient, displayedDebit } = params
   const { hca, usdc, balance, requiredUsdc, usdcShortfall, otherSpend } = quoted
+
+  const refusal = displayedDebit
+    ? rejectAboveDisplayed(quoted, displayedDebit, params.purpose)
+    : null
+  if (refusal) throw new Error(refusal)
 
   const owner = { publicClient, ownerAddress, hca }
   const usdcLeg =
@@ -990,9 +1055,11 @@ async function fundShortfalls(
       : null
 
   // Show the amounts before anything is signed, permit or not: either way they
-  // leave the wallet when the intent fills.
+  // leave the wallet when the intent fills. A screen that already showed them
+  // was checked above instead.
   params.signal?.throwIfAborted()
-  const approved = await (params.confirmFunding?.({
+  const confirmFunding = displayedDebit ? undefined : params.confirmFunding
+  const approved = await (confirmFunding?.({
     permitValue: usdcShortfall,
     requiresPermit: usdcLeg?.requiresPermit ?? false,
     quotedFeeUsdc: quoted.quotedFeeUsdc,

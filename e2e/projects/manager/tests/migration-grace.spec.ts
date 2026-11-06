@@ -9,7 +9,7 @@
  *
  * The fix: `useEligibleV1Names` now returns `gracePeriodNames` alongside the
  * eligible list. The dashboard banner offers "Renew Names", /migration lists
- * grace names in their own "names in grace" section, and starting the upgrade
+ * grace names in their own "names in grace period" section, and starting the upgrade
  * quotes the renewal in USDC, asks for a USDC approval only when the allowance
  * is short, calls `ETHRenewerV1.renewBatch`, re-reads the renewed names, then
  * rebuilds and runs the normal migration plan. A wallet without enough USDC is
@@ -60,6 +60,17 @@ import { serveV1Names } from '../../../helpers/v1-names.js'
 // These scenarios assert the exact set of names and renewal steps for this
 // wallet. Isolate each wallet so earlier suite names cannot change that set.
 const test = baseTest.extend({
+  // These accounts are funded on the local fork before the page can request
+  // funding. A public Sepolia faucet cannot fund this fork or gate its checks.
+  page: async ({ page, accounts }, use) => {
+    expect(
+      await publicClient.getBalance({ address: accounts.getAddress('user') }),
+    ).toBe(100n * 10n ** 18n)
+    await page.route('**/wallet/fund', (route) =>
+      route.fulfill({ json: { txHash: null } }),
+    )
+    await use(page)
+  },
   // biome-ignore lint/correctness/noEmptyPattern: Playwright requires destructured fixture dependencies.
   accounts: async ({}, use) => {
     const accounts = createAccounts(20_000_000 + (Date.now() % 10_000_000))
@@ -236,13 +247,15 @@ const nameCheckbox = (page: Page, name: string) =>
   page.getByRole('checkbox', { name, exact: true })
 
 /**
- * A name's checkbox inside the "N names in grace" section: since #1556 that
+ * A name's checkbox inside the "N names in grace period" section: since #1556 that
  * section, not a per-row badge, is what says a name is renewed first.
  */
 const graceRow = (page: Page, name: string) =>
   page
     .locator('main section')
-    .filter({ has: page.getByRole('heading', { name: /names? in grace$/i }) })
+    .filter({
+      has: page.getByRole('heading', { name: /names? in grace period$/i }),
+    })
     .getByRole('checkbox', { name, exact: true })
 
 /**

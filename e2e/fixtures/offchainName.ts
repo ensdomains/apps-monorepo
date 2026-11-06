@@ -73,6 +73,12 @@ export type OffchainNameConfig = {
   type?: V1NameType
   records?: OffchainRecords
   subnameRecords?: OffchainRecords
+  /**
+   * Wait until bigname serves the name (default true). The manual-QA seed
+   * script turns it off, so it also works when the local bigname is not
+   * running.
+   */
+  waitForIndexer?: boolean
 }
 
 export async function deployOffchainResolver(
@@ -134,7 +140,7 @@ export function createMakeOffchainName({
       subname,
       config.subnameRecords ?? OFFCHAIN_SUBNAME_RECORDS,
     )
-    await waitForBignameName(name)
+    if (config.waitForIndexer ?? true) await waitForBignameName(name)
     console.log(
       `[makeOffchainName] ${name} → ${resolver} (gateway ${gateway.url})`,
     )

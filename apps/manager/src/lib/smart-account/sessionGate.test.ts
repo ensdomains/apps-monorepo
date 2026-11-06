@@ -192,27 +192,47 @@ describe('resolveSessionAfterRevocation', () => {
 describe('isSessionAccessReset', () => {
   const HCA = '0xabcdef0123456789abcdef0123456789abcdef01' as Address
   const OTHER = '0x0000000000000000000000000000000000000002' as Address
+  const RESET = { account: HCA, sessionNonce: 2n }
 
   it.each([
-    ['this HCA was reset and nothing signed since', HCA, HCA, false, true],
     [
-      'checksum casing differs',
+      'this HCA was reset and the chain is still there',
+      RESET,
       HCA,
-      '0xABCDEF0123456789ABCDEF0123456789ABCDEF01' as Address,
+      2n,
       false,
       true,
     ],
-    ['a session was signed after the reset', HCA, HCA, true, false],
-    ['nothing was reset on this page', null, HCA, false, false],
-    ['a different HCA was reset', OTHER, HCA, false, false],
-    ['the HCA is not known yet', HCA, null, false, false],
+    ['the on-chain nonce is not read yet', RESET, HCA, undefined, false, true],
+    ['the on-chain read is behind the reset', RESET, HCA, 1n, false, true],
+    [
+      'checksum casing differs',
+      RESET,
+      '0xABCDEF0123456789ABCDEF0123456789ABCDEF01' as Address,
+      2n,
+      false,
+      true,
+    ],
+    ['another device reset since', RESET, HCA, 3n, false, false],
+    ['a session was signed after the reset', RESET, HCA, 2n, true, false],
+    ['nothing was reset from this browser', null, HCA, 2n, false, false],
+    [
+      'a different HCA was reset',
+      { account: OTHER, sessionNonce: 2n },
+      HCA,
+      2n,
+      false,
+      false,
+    ],
+    ['the HCA is not known yet', RESET, null, 2n, false, false],
   ] as const)(
     '%s',
-    (_, resetAccount, accountAddress, hasActiveSession, expected) => {
+    (_, resetMarker, accountAddress, onChainNonce, hasActiveSession, expected) => {
       expect(
         isSessionAccessReset({
-          resetAccount,
+          resetMarker,
           accountAddress,
+          onChainNonce,
           hasActiveSession,
         }),
       ).toBe(expected)

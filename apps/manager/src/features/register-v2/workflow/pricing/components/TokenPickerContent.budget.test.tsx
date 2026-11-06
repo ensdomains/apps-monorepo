@@ -71,7 +71,7 @@ i18n.loadAndActivate({ locale: 'en', messages: {} })
 const QUOTE_FAILED_MESSAGE =
   "We couldn't calculate the total. Please try again."
 
-/** 1,000 USDC — comfortably above the 330 rent. */
+/** 1,000 USDC — comfortably above the 330 price. */
 const usdc = {
   address: HCA_PAYMENT_TOKEN,
   symbol: 'USDC',
@@ -123,7 +123,7 @@ describe('TokenPickerContent budget quote', () => {
     mockAccount()
     renderConnectedPicker()
 
-    // The wallet covers the rent, so only the failed quote can block here.
+    // The wallet covers the price, so only the failed quote can block here.
     expect(await screen.findByText(QUOTE_FAILED_MESSAGE)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
     expect(
@@ -136,7 +136,7 @@ describe('TokenPickerContent budget quote', () => {
     mockAccount({ signer: { type: 'eoa' }, accountAddress: null })
     renderConnectedPicker()
 
-    // Enabled once the rent lands; the budget query never runs on this route.
+    // Enabled once the price lands; the budget query never runs on this route.
     await waitFor(() =>
       expect(
         screen.getByRole('button', { name: 'Approve and register' }),
