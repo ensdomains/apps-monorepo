@@ -21,6 +21,7 @@ export type BatchId =
   | 'B1d'
   | 'B2'
   | 'B3'
+  | 'B3b'
   | 'B4'
   | 'B5'
   | 'B6'
@@ -64,7 +65,12 @@ export const batches: Batch[] = [
     merged: true,
   },
   { id: 'B2', title: 'CCIP / offchain: the rest', pr: 1729, merged: true },
-  { id: 'B3', title: 'Migration: the rest' },
+  { id: 'B3', title: 'Migration: the tests that pass on main (B3a)' },
+  {
+    id: 'B3b',
+    title:
+      'Migration: stale guards to rewrite, record-preservation audit, and tests of open bugs',
+  },
   { id: 'B4', title: 'Transfer, fuses, 4LD: the rest' },
   { id: 'B5', title: 'Registration, renewal, roles: the rest' },
   { id: 'B6', title: 'Display, history, metadata service' },
@@ -321,16 +327,54 @@ export const rules: Rule[] = [
 
   // ── B3 migration ─────────────────────────────────────────────────────────
   {
+    target: drop('one-off manual probe pinned to a single local name (g21)'),
+    globs: ['e2e/scripts/{check-g21-migration,seed-g21-abi,serve-g21-inventory}.ts'],
+  },
+  {
+    // Landed (B3a) without their failing tests: stale guards the app has
+    // outgrown, and tests of open bugs (test.fail). Those stay here for B3b.
+    // When merging main back, keep these tests.
+    target: 'B3',
+    incremental: true,
+    globs: [
+      'e2e/projects/manager/tests/migration-{records,approvals,managers,recreation}.spec.ts',
+      'e2e/projects/cross-app/tests/migration-resolver.spec.ts',
+    ],
+  },
+  {
     target: 'B3',
     globs: [
-      'e2e/projects/manager/tests/migration-*.spec.ts',
-      'e2e/projects/manager/tests/record-preservation-*.spec.ts',
-      'e2e/projects/manager/playwright.record-{audit,grace}.config.ts',
-      'e2e/projects/cross-app/tests/{migration-resolver,v1-4ld-time}.spec.ts',
-      'e2e/scripts/{seed-grace-v1-name,seed-v1-records,audit-records-readonly,check-g21-migration,seed-g21-abi,serve-g21-inventory,serve-g35-inventory,seed-g02-delete,seed-g05-roles}.ts',
+      'e2e/scripts/{seed-grace-v1-name,seed-g02-delete,seed-g05-roles}.ts',
       'e2e/docs/migration-recreation-1494-test-plan.md',
       'e2e/docs/manual-{subname-migration,g02-delete,g05-v1-roles}.md',
     ],
+  },
+  {
+    // Every record-preservation scenario fails locally (names never listed,
+    // or the upgrade never completes): rewrite with the stale B3 guards.
+    target: 'B3b',
+    globs: [
+      'e2e/projects/manager/tests/record-preservation-*.spec.ts',
+      'e2e/projects/manager/playwright.record-{audit,grace}.config.ts',
+      'e2e/scripts/{seed-v1-records,audit-records-readonly}.ts',
+    ],
+  },
+  {
+    // Skip under the bigname route mock (subname trees need the indexer).
+    target: 'B11',
+    globs: [
+      'e2e/projects/manager/tests/migration-4ld.spec.ts',
+      'e2e/projects/cross-app/tests/v1-4ld-time.spec.ts',
+    ],
+  },
+  {
+    // Serves the inventory seed-g35-etc writes, which B9 holds.
+    target: 'B9',
+    globs: ['e2e/scripts/serve-g35-inventory.ts'],
+  },
+  {
+    target: 'B3b',
+    globs: ['e2e/projects/manager/tests/migration-*.spec.ts'],
   },
 
   // ── B4 transfer / fuses / 4LD ────────────────────────────────────────────
