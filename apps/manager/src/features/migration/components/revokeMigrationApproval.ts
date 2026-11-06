@@ -1,6 +1,14 @@
+import { orSafeExecution } from '@ens-apps/transaction-manager'
+import { TransactionRevertedError } from '@ens-apps/transaction-manager/errors/transaction.errors'
 import type { QueryClient } from '@tanstack/react-query'
-import { waitForTransactionReceipt, writeContract } from '@wagmi/core'
-import { type Address, isAddressEqual } from 'viem'
+import {
+  getConnection,
+  getPublicClient,
+  waitForTransactionReceipt,
+  writeContract,
+} from '@wagmi/core'
+import { err, fromPromise, ok } from 'neverthrow'
+import { type Address, type Hash, isAddressEqual } from 'viem'
 import type { Config as WagmiConfig } from 'wagmi'
 import { OPERATOR_APPROVAL_ABI } from '@/features/migration/contracts/abis'
 import {
@@ -9,6 +17,9 @@ import {
 } from '@/features/migration/service/migrationApprovalQueryKeys'
 import type { MigrationOperatorApproval } from '@/features/migration/service/migrationApprovals'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
+
+/** viem's default, which the direct receipt wait keeps. */
+const RECEIPT_TIMEOUT_MS = 180_000
 
 export const revokeMigrationApproval = async (params: {
   readonly approval: MigrationOperatorApproval
@@ -36,6 +47,10 @@ export const revokeMigrationApproval = async (params: {
   ) {
     throw new Error('Connect the owner wallet to remove this permission.')
   }
+  const publicClient = getPublicClient(wagmiConfig, { chainId })
+  if (!publicClient) {
+    throw new Error('Switch to the migration network and try again.')
+  }
 
   await ensureWalletChain(wagmiConfig, chainId)
   const hash = await writeContract(wagmiConfig, {
@@ -46,11 +61,30 @@ export const revokeMigrationApproval = async (params: {
     account: owner,
     chainId,
   })
-  const receipt = await waitForTransactionReceipt(wagmiConfig, {
-    hash,
-    chainId,
+  const receiptOf = (txHash: Hash) =>
+    fromPromise(
+      waitForTransactionReceipt(wagmiConfig, { hash: txHash, chainId }),
+      (cause) => cause,
+    )
+  // A Safe{Wallet} answers with its safeTxHash; a failed Safe execution counts as a revert.
+  const status = await orSafeExecution({
+    publicClient,
+    connector: getConnection(wagmiConfig).connector,
+    account: owner,
+    id: hash,
+    timeout: RECEIPT_TIMEOUT_MS,
+    direct: receiptOf(hash),
+    settle: receiptOf,
+    signal: AbortSignal.timeout(RECEIPT_TIMEOUT_MS),
   })
-  if (receipt.status !== 'success') {
+    .map(({ status }) => status)
+    .orElse((error) =>
+      error instanceof TransactionRevertedError
+        ? ok('reverted' as const)
+        : err(error),
+    )
+  if (status.isErr()) throw status.error
+  if (status.value !== 'success') {
     throw new Error('The revocation failed. Please try again.')
   }
 
