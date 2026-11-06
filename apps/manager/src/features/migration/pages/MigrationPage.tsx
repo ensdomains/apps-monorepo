@@ -20,6 +20,7 @@ import { recordVerifiedNftMigration } from '@/features/migration/commemorative-n
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { MigrationPrimaryButton } from '@/features/migration/components/MigrationPrimaryButton'
+import { MigrationRecipientErrorMessage } from '@/features/migration/components/MigrationRecipientErrorMessage'
 import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { SubnameMigrationDialog } from '@/features/migration/components/SubnameMigrationDialog'
@@ -122,6 +123,9 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
       )
     case 'locked-resolver-record-control':
       return <LockedResolverFailureMessage cause={error.cause} />
+    case 'recipient-incompatible':
+    case 'recipient-unavailable':
+      return <MigrationRecipientErrorMessage error={error} />
     case 'parent-not-upgraded':
       return <Trans>Upgrade the parent name first, then its subnames.</Trans>
     case 'plan-changed':

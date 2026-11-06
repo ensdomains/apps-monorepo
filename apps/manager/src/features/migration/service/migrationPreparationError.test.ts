@@ -7,6 +7,7 @@ import {
   runMigrationPreparationStage,
   shouldRetryMigrationPreparation,
 } from './migrationPreparationError'
+import { MigrationRecipientCheckError } from './migrationRecipientError'
 
 const i18n = setupI18n({ locale: 'en', messages: { en: {} } })
 const failure = (name: string, properties: Record<string, unknown> = {}) =>
@@ -45,6 +46,45 @@ describe('migration preparation retry policy', () => {
 })
 
 describe('migration preparation errors', () => {
+  it.each([
+    ['incompatible', 'recipient-incompatible'],
+    ['unavailable', 'recipient-unavailable'],
+  ] as const)(
+    'preserves a %s recipient failure before fee fallback',
+    (reason, want) => {
+      const cause = new MigrationRecipientCheckError({
+        recipient: '0x00000000000000000000000000000000000000AB',
+        reason,
+        cause: new Error('private RPC diagnostic'),
+      })
+      expect(migrationPreparationFailure(cause, 'fee').reason).toBe(want)
+      expect(message(cause, 'fee')).toContain(
+        '0x00000000000000000000000000000000000000AB',
+      )
+      expect(message(cause, 'fee')).not.toContain('private RPC diagnostic')
+    },
+  )
+
+  it.each(['plan', 'fee'] as const)(
+    'preserves an actual invalid receiver during %s preparation',
+    (stage) => {
+      const data =
+        '0x57f447ce00000000000000000000000000000000000000000000000000000000000000ab'
+      const causes = [
+        failure('ContractFunctionRevertedError', { data }),
+        new Error(`WrappedError::${data}`),
+      ]
+      for (const cause of causes) {
+        expect(migrationPreparationFailure(cause, stage).reason).toBe(
+          'recipient-incompatible',
+        )
+        expect(message(cause, stage)).toContain(
+          '0x00000000000000000000000000000000000000AB',
+        )
+      }
+    },
+  )
+
   it.each([
     [
       'MigrationContractInvariantError',

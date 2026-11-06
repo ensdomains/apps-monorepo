@@ -1135,6 +1135,14 @@ msgstr ""
 msgid "Couldn't revoke sessions. Please try again."
 msgstr ""
 
+#: src/features/migration/service/migrationRecipientError.ts
+msgid "Couldn't verify whether {recipient} can receive upgraded names. Try again before changing your wallet settings."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't verify whether your wallet can receive upgraded names. Please try again."
+msgstr ""
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't verify your name records. Please try again."
 msgstr ""
@@ -3579,6 +3587,10 @@ msgstr ""
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr ""
 
+#: src/features/migration/service/migrationRecipientError.ts
+msgid "The wallet {recipient} cannot receive ENSv2 name tokens with its current configuration. Ask your wallet's support for a compatible configuration before upgrading."
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "There was a problem reaching the notification service. Please try again in a moment."
 msgstr ""
@@ -4644,6 +4656,10 @@ msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet asks you to approve the payment if needed, then to confirm the renewal transaction."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Your wallet cannot receive ENSv2 name tokens with its current configuration. Ask your wallet's support for a compatible configuration before upgrading."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx

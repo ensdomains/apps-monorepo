@@ -105,6 +105,8 @@ import {
   describeUpgradeOperations,
   nameCount,
 } from './migrationProgressCopy'
+import { assertMigrationRecipientsCanReceive } from './migrationRecipient'
+import { getMigrationRecipientAddresses } from './migrationRecipientPolicy'
 import { planSetupBundles } from './planSetupBundles'
 import type { RpcSubnameInventory } from './readRpcSubnameInventory'
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
@@ -2364,6 +2366,16 @@ const executeRemainingAtomicBatches = async (params: {
       retryPermissionHeadLag,
     })
     retryPermissionHeadLag = false
+    const recipients = getMigrationRecipientAddresses(
+      remaining.filter(({ domain }) => batch.names.includes(domain.name)),
+      params.ctx.walletAddress,
+    )
+    if (batch.walletCall)
+      await assertMigrationRecipientsCanReceive({
+        publicClient: params.publicClient,
+        recipients,
+        signal: params.ctx.submissionGate.signal,
+      })
     // Estimation can be separated from the wallet prompt by user interaction
     // and RPC latency. Re-freeze the V1 source and V2 target invariants after
     // building the calldata, immediately before recording/submitting it.
@@ -2403,6 +2415,11 @@ const executeRemainingAtomicBatches = async (params: {
           .filter(({ domain }) => batch.names.includes(domain.name))
           .map(({ domain }) => domain),
       })
+    await assertMigrationRecipientsCanReceive({
+      publicClient: params.publicClient,
+      recipients,
+      signal: params.ctx.submissionGate.signal,
+    })
     const intent = {
       id: createAtomicMigrationIntentId(),
       names: batch.names,
@@ -2592,6 +2609,14 @@ export const executeMigration = async (params: {
       })
 
   if (executionPlan.classified.length > 0) {
+    await assertMigrationRecipientsCanReceive({
+      publicClient,
+      recipients: getMigrationRecipientAddresses(
+        executionPlan.classified,
+        executionPlan.migrationOwner,
+      ),
+      signal: ctx.submissionGate.signal,
+    })
     // A reviewed resolver may have lost certification since the estimate.
     // Refuse before setup can request any wallet transaction.
     await assertLockedMigrationResolversUnchanged({

@@ -21,6 +21,7 @@ export type PendingNftClaim = PendingNftClaimScope & {
   readonly hash: Hex
   readonly expectedClaimData: Hex
   readonly submittedAt: number
+  readonly safeExecutionSearchFromBlock?: bigint
 }
 
 export type PendingNftClaimSnapshot =
@@ -73,7 +74,11 @@ export const isPendingNftClaim = (
     !('submittedAt' in value) ||
     typeof value.submittedAt !== 'number' ||
     !Number.isSafeInteger(value.submittedAt) ||
-    value.submittedAt <= 0
+    value.submittedAt <= 0 ||
+    ('safeExecutionSearchFromBlock' in value &&
+      value.safeExecutionSearchFromBlock !== undefined &&
+      (typeof value.safeExecutionSearchFromBlock !== 'bigint' ||
+        value.safeExecutionSearchFromBlock < 0n))
   )
     return false
   try {
@@ -84,6 +89,21 @@ export const isPendingNftClaim = (
     return decoded.functionName === 'claim' && decoded.args[0].length > 0
   } catch {
     return false
+  }
+}
+
+const deserializeSafeExecutionHistoryCursor = (value: unknown): unknown => {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !('safeExecutionSearchFromBlock' in value) ||
+    typeof value.safeExecutionSearchFromBlock !== 'string' ||
+    !/^(0|[1-9][0-9]*)$/.test(value.safeExecutionSearchFromBlock)
+  )
+    return value
+  return {
+    ...value,
+    safeExecutionSearchFromBlock: BigInt(value.safeExecutionSearchFromBlock),
   }
 }
 
@@ -139,7 +159,7 @@ export const readPendingNftClaim = (
       return memoryClaim
         ? { status: 'pending', claim: memoryClaim }
         : { status: 'empty' }
-    const value: unknown = JSON.parse(raw)
+    const value = deserializeSafeExecutionHistoryCursor(JSON.parse(raw))
     if (!isPendingNftClaim(value, scope))
       return { status: 'unavailable', claim: memoryClaim }
     return { status: 'pending', claim: memoryClaim ?? value }
@@ -179,7 +199,14 @@ export const savePendingNftClaim = (
       inMemoryClaims.get(storage) ?? new Map<string, InMemoryPendingNftClaim>()
     records.set(key, { claim: { ...claim }, unsaved: true })
     inMemoryClaims.set(storage, records)
-    storage.setItem(key, JSON.stringify(claim))
+    storage.setItem(
+      key,
+      JSON.stringify({
+        ...claim,
+        safeExecutionSearchFromBlock:
+          claim.safeExecutionSearchFromBlock?.toString(),
+      }),
+    )
     records.set(key, { claim: { ...claim }, unsaved: false })
   } finally {
     notify()
